@@ -1,45 +1,40 @@
 ---
 title: Voice Commands
-description: Examples of phrasing that HyperWhisper's prompt builder understands while it cleans up your dictation.
+description: Spoken phrases that HyperWhisper's prompt builder understands when it corrects your dictation.
 ---
 
-HyperWhisper's post-processing for the Hyper preset can help you steer your output without you touching the keyboard.
+The Hyper preset applies post-processing to your dictation. You can control the output with your voice, and you do not touch the keyboard.
 
 ## Quick Formatting Cues
 
 | Say this | Result |
 | --- | --- |
-| "New line…" / "New paragraph…" | Splits the text onto a fresh paragraph break. |
-| "Exclamation mark" / "question mark" | Replaces the spoken punctuation with `!` or `?`. |
-| "…at example dot com" | Converts spelled-out email/URL into the proper format. |
-| "…in capitals" | Switches the requested phrase to uppercase text. |
-| "Actually I mean…" / "Sorry I mean…" / "Sorry, no…" | Applies your self-correction and keeps only the final version. |
-| "First… second… third…" (or "one… two… three…") | Dictated sequence markers are formatted as a numbered list. |
+| "New line…" / "New paragraph…" | Starts a new paragraph. |
+| "Exclamation mark" / "question mark" | Changes the spoken words to `!` or `?`. |
+| "…at example dot com" | Changes a spoken email address or URL to the correct format. |
+| "…in capitals" | Changes the requested phrase to uppercase. |
+| "Actually I mean…" / "Sorry I mean…" / "Sorry, no…" | Applies your correction and keeps only the last version. |
+| "First… second… third…" (or "one… two… three…") | Changes the spoken sequence markers to a numbered list. |
 
 <Note>
-  Unlike the other cues on this page, "new line" / "new paragraph" aren't LLM judgment calls — they're matched deterministically and turned into a paragraph break. That means they work everywhere, on both macOS and Windows, even with **AI Post-Processing** set to **Off**.
+  The other cues on this page are judgments of the LLM. The cues "new line" and "new paragraph" are different: HyperWhisper matches them exactly and starts a new paragraph. These two cues work on macOS and Windows, also when **AI Post-Processing** is **Off**.
 </Note>
 
 ## Code Dictation Vocabulary
 
-When you dictate into a code-focused mode, HyperWhisper's prompt builder also understands a larger vocabulary of spoken symbols and formatting commands:
+In a code-focused mode, the prompt builder understands more spoken symbols and format commands:
 
-- **Brackets & operators** — "open paren"/"close paren", "open bracket"/"close bracket", "open brace"/"close brace", "equals equals", "not equals", "arrow" (`->`), "fat arrow" (`=>`), "double ampersand", "double pipe", and similar spoken names convert to their symbol.
-- **Case formatting** — "camel case", "pascal case", "snake case", "screaming snake" (or "constant case"), and "kebab case" apply the requested casing to the words that follow.
-- **Structure commands** — "indent" / "dedent" (or "outdent") adjust indentation level, and "new line" inserts an actual line break.
+- **Brackets & operators** — "open paren"/"close paren", "open bracket"/"close bracket", "open brace"/"close brace", "equals equals", "not equals", "arrow" (`->`), "fat arrow" (`=>`), "double ampersand", "double pipe". HyperWhisper changes these spoken names, and similar names, to their symbols.
+- **Case formatting** — "camel case", "pascal case", "snake case", "screaming snake" (or "constant case"), and "kebab case" change the case of the words that follow.
+- **Structure commands** — "indent" and "dedent" (or "outdent") change the indentation level. "space" and "no space" add or remove the space around the next word. "tab" adds a tab character. "new line" and "new paragraph" start a new paragraph, as in [Quick Formatting Cues](#quick-formatting-cues) above.
 
-See [Voice Coding](/voice-coding) for the full picture of how HyperWhisper handles dictated code.
+To read how HyperWhisper handles dictated code, go to [Voice Coding](/voice-coding).
 
 ## Everyday Dictation Examples
 
 - "Let's meet at 8pm actually I mean 9pm" → `Let's meet at 9pm.`
-  *Source: Self-corrections rule.*
+  *Source: Self-correction rule.*
 - "Can you email john at google dot com about this issue?" → `Can you email john@google.com about this issue?`
-  *Source: URL/Email formatting guidance + Example 3.*
-- "That's pretty cool exclamation mark actually, that's awesome" produces:
-
-```text
-That's pretty cool.
-
-Actually, that's awesome!
-```
+  *Source: URL and email format rule, and Example 3.*
+- "That's pretty cool exclamation mark actually, that's awesome" → `That's pretty cool! Actually, that's awesome.`
+  *Source: Punctuation-cue rule, and Example 2. HyperWhisper writes punctuation cues in place. It starts a new paragraph only when you say "new line" or "new paragraph" (see [Quick Formatting Cues](#quick-formatting-cues) above).*

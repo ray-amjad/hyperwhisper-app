@@ -141,6 +141,23 @@ class HyperWhisperCloudStrategy: StreamingProviderStrategy {
         return components?.url
     }
 
+    /// Carry the platform + app version headers into the WebSocket handshake.
+    ///
+    /// Auth stays in the query string (see above); this request exists only so
+    /// the handshake carries the same client identity as the POST /transcribe
+    /// path. Note the backend does not record it yet: `/ws/streaming-deepgram`
+    /// emits no structured log lines, so nothing calls `readClientInfo` there.
+    ///
+    /// - Parameters:
+    ///   - url: The WebSocket URL from buildWebSocketURL
+    ///   - config: Session configuration (unused — no per-session headers)
+    /// - Returns: The upgrade request carrying the client headers
+    func buildWebSocketRequest(url: URL, config: StreamingSessionConfig) -> URLRequest? {
+        var request = URLRequest(url: url)
+        HyperWhisperClientInfo.apply(to: &request)
+        return request
+    }
+
     /// Encode a PCM audio chunk as raw binary data.
     ///
     /// HyperWhisper Cloud expects raw 16kHz mono Int16 PCM as binary WebSocket frames.

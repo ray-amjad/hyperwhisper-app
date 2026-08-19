@@ -15,10 +15,29 @@
 import SwiftUI
 import KeyboardShortcuts
 
+// MARK: - Settings Row Link
+
+/// The title-line link of a settings row: where it goes, and the words that
+/// name it.
+///
+/// One value rather than two optionals, because a destination without a label
+/// renders a glyph with an empty tooltip and an unnamed VoiceOver link —
+/// `.help()` sets the accessibility *hint*, not the label, so a glyph-only
+/// control needs both. Supplying half of that must not compile.
+struct SettingsRowLink {
+    let url: URL
+    let label: LocalizedStringKey
+}
+
 // MARK: - Settings Toggle Row
 
 /// A standardized toggle row for settings
 /// Used throughout settings views for boolean preferences
+///
+/// `titleLink` hangs a small "open in browser" glyph next to the title, for a
+/// setting whose pay-off is a web page — the page stays reachable whether or
+/// not the toggle is on. It defaults to nothing, so rows that do not want one
+/// are unaffected.
 struct SettingsToggleRow: View {
     let title: LocalizedStringKey
     var subtitle: LocalizedStringKey?
@@ -27,19 +46,37 @@ struct SettingsToggleRow: View {
     var standalone: Bool = true
     var titleFont: Font = .headline
     var subtitleFont: Font = .caption
-    
+    var titleLink: SettingsRowLink?
+
+    /// The title-line link, or nothing at all.
+    @ViewBuilder
+    private var titleLinkGlyph: some View {
+        if let titleLink {
+            Link(destination: titleLink.url) {
+                Image(systemName: "arrow.up.forward.app")
+            }
+            .buttonStyle(.plain)
+            .foregroundColor(.accentColor)
+            .help(titleLink.label)
+            .accessibilityLabel(Text(titleLink.label))
+        }
+    }
+
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(titleFont)
+                HStack(spacing: 6) {
+                    Text(title)
+                        .font(titleFont)
+                    titleLinkGlyph
+                }
                 if let subtitle {
                     Text(subtitle)
                         .font(subtitleFont)
                         .foregroundColor(.secondary)
                 }
             }
-            
+
             Spacer(minLength: 12)
             Toggle("", isOn: $isOn)
                 .toggleStyle(.switch)

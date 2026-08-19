@@ -263,7 +263,8 @@ public sealed class HyperWhisperCloudManager : INotifyPropertyChanged, IDisposab
 
             // STEP 4: Send request
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
-            request.Headers.Add("User-Agent", $"HyperWhisper-Windows/{GetAppVersion()}");
+            request.Headers.Add("User-Agent", $"HyperWhisper-Windows/{ClientInfoHeaders.Version}");
+            ClientInfoHeaders.Apply(request);
 
             var response = await _httpClient.SendAsync(request, cancellationToken);
 
@@ -417,23 +418,6 @@ public sealed class HyperWhisperCloudManager : INotifyPropertyChanged, IDisposab
             // Ignore parse errors
         }
         return null;
-    }
-
-    /// <summary>
-    /// Gets the app version for User-Agent header.
-    /// </summary>
-    private static string GetAppVersion()
-    {
-        try
-        {
-            var assembly = System.Reflection.Assembly.GetExecutingAssembly();
-            var version = assembly.GetName().Version;
-            return version?.ToString(3) ?? "1.0.0";
-        }
-        catch
-        {
-            return "1.0.0";
-        }
     }
 
     /// <summary>

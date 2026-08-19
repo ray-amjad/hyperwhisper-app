@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Navigation;
 using HyperWhisper.Localization;
 using HyperWhisper.Services;
 
@@ -65,6 +66,13 @@ public partial class GeneralSettingsPage : Page
         ErrorLoggingCheckbox.Checked += ErrorLoggingCheckbox_Checked;
         ErrorLoggingCheckbox.Unchecked += ErrorLoggingCheckbox_Unchecked;
 
+        // Load anonymous speed data state from settings
+        ShareSpeedDataCheckbox.Checked -= ShareSpeedDataCheckbox_Checked;
+        ShareSpeedDataCheckbox.Unchecked -= ShareSpeedDataCheckbox_Unchecked;
+        ShareSpeedDataCheckbox.IsChecked = SettingsService.Instance.ShareAnonymousSpeedData;
+        ShareSpeedDataCheckbox.Checked += ShareSpeedDataCheckbox_Checked;
+        ShareSpeedDataCheckbox.Unchecked += ShareSpeedDataCheckbox_Unchecked;
+
         // Load auto-update state from settings
         AutoUpdateCheckbox.Checked -= AutoUpdateCheckbox_Checked;
         AutoUpdateCheckbox.Unchecked -= AutoUpdateCheckbox_Unchecked;
@@ -77,7 +85,7 @@ public partial class GeneralSettingsPage : Page
         var buildVersion = version?.Revision.ToString() ?? "0";
         VersionText.Text = Loc.S("settings.version.detail", shortVersion, buildVersion);
 
-        LoggingService.Debug($"GeneralSettingsPage: Initialized (startup={StartupService.Instance.IsEnabled}, launchMinimized={SettingsService.Instance.LaunchMinimized}, minimizeToTray={SettingsService.Instance.MinimizeToTray}, showRecordingWindow={SettingsService.Instance.ShowRecordingWindow}, errorLogging={SettingsService.Instance.EnableErrorLogging}, autoUpdate={SettingsService.Instance.CheckForUpdatesAutomatically})");
+        LoggingService.Debug($"GeneralSettingsPage: Initialized (startup={StartupService.Instance.IsEnabled}, launchMinimized={SettingsService.Instance.LaunchMinimized}, minimizeToTray={SettingsService.Instance.MinimizeToTray}, showRecordingWindow={SettingsService.Instance.ShowRecordingWindow}, errorLogging={SettingsService.Instance.EnableErrorLogging}, shareSpeedData={SettingsService.Instance.ShareAnonymousSpeedData}, autoUpdate={SettingsService.Instance.CheckForUpdatesAutomatically})");
     }
 
     // =========================================================================
@@ -193,6 +201,25 @@ public partial class GeneralSettingsPage : Page
     }
 
     // =========================================================================
+    // ANONYMOUS SPEED DATA
+    // =========================================================================
+    //
+    // The setting is read per request in LatencyOptOut, so a change applies to
+    // the very next transcription — nothing to start or stop here.
+
+    private void ShareSpeedDataCheckbox_Checked(object sender, RoutedEventArgs e)
+    {
+        SettingsService.Instance.ShareAnonymousSpeedData = true;
+        LoggingService.Info("GeneralSettingsPage: Enabled anonymous speed data sharing");
+    }
+
+    private void ShareSpeedDataCheckbox_Unchecked(object sender, RoutedEventArgs e)
+    {
+        SettingsService.Instance.ShareAnonymousSpeedData = false;
+        LoggingService.Info("GeneralSettingsPage: Disabled anonymous speed data sharing");
+    }
+
+    // =========================================================================
     // AUTO-UPDATE
     // =========================================================================
 
@@ -208,6 +235,16 @@ public partial class GeneralSettingsPage : Page
         SettingsService.Instance.CheckForUpdatesAutomatically = false;
         UpdateService.StopBackgroundCheck();
         LoggingService.Info("GeneralSettingsPage: Disabled automatic update checks");
+    }
+
+    private void Hyperlink_RequestNavigate(object sender, RequestNavigateEventArgs e)
+    {
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = e.Uri.AbsoluteUri,
+            UseShellExecute = true
+        });
+        e.Handled = true;
     }
 
     private void ContactSupport_Click(object sender, RoutedEventArgs e)

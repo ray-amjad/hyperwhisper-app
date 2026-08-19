@@ -14,13 +14,15 @@ namespace HyperWhisper.Services;
 /// Cloud transcription service using Soniox async/file transcription APIs.
 /// Workflow: upload file -> create transcription -> poll -> fetch transcript -> best-effort delete.
 /// </summary>
-public class SonioxService : ITranscriptionProvider, IDisposable
+public class SonioxService : ApiKeyTranscriptionServiceBase
 {
     private const int DefaultTimeoutSeconds = 180;
     private const int MaxPollAttempts = 180;
     private const int PollIntervalMs = 1000;
 
-    private static readonly Dictionary<string, string> MimeTypes = new(StringComparer.OrdinalIgnoreCase)
+    // Soniox accepts a different container set from the shared standard map, so
+    // it keeps its own and passes it to TranscriptionPreflight.MimeTypeFor.
+    private static readonly IReadOnlyDictionary<string, string> MimeTypes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
         { ".aac", "audio/aac" },
         { ".aiff", "audio/aiff" },
@@ -35,31 +37,21 @@ public class SonioxService : ITranscriptionProvider, IDisposable
         { ".mp4", "audio/mp4" }
     };
 
-    private readonly HttpClient _httpClient;
-    private string? _apiKey;
-    private string _modelId = "stt-async-v4";
-    private bool _disposed;
-
-    public bool IsAvailable => !string.IsNullOrEmpty(_apiKey);
-
-    public string Name => $"Soniox {CloudTranscriptionModels.GetById(_modelId, CloudTranscriptionProvider.Soniox)?.DisplayName ?? _modelId}";
+    public override string Name => $"Soniox {CloudTranscriptionModels.GetById(ModelId, CloudTranscriptionProvider.Soniox)?.DisplayName ?? ModelId}";
 
     public SonioxService()
+        : base(TimeSpan.FromSeconds(DefaultTimeoutSeconds), "stt-async-v4")
     {
-        _httpClient = new HttpClient
-        {
-            Timeout = TimeSpan.FromSeconds(DefaultTimeoutSeconds)
-        };
     }
 
-    public void Configure(string apiKey, string modelId = "stt-async-v4")
+    public override void Configure(string apiKey, string modelId = "stt-async-v4")
     {
-        _apiKey = apiKey?.Trim();
-        _modelId = string.IsNullOrWhiteSpace(modelId) ? "stt-async-v4" : modelId;
-        LoggingService.Info($"SonioxService: Configured with model {_modelId}");
+        ApiKey = apiKey?.Trim();
+        ModelId = string.IsNullOrWhiteSpace(modelId) ? "stt-async-v4" : modelId;
+        LoggingService.Info($"SonioxService: Configured with model {ModelId}");
     }
 
-    public async Task<string> TranscribeAsync(
+    public override async Task<string> TranscribeAsync(
         string audioPath,
         string? language = null,
         IReadOnlyList<string>? vocabulary = null,
@@ -67,52 +59,28 @@ public class SonioxService : ITranscriptionProvider, IDisposable
     {
         var totalSw = Stopwatch.StartNew();
         LoggingService.Info("========== SONIOX CLOUD TRANSCRIPTION ==========");
-        LoggingService.Info($"  Model: {_modelId}");
+        LoggingService.Info($"  Model: {ModelId}");
         LoggingService.Info($"  Language: {language ?? "auto-detect"}");
         LoggingService.Info($"  Vocabulary terms: {vocabulary?.Count ?? 0}");
         LoggingService.Info($"  Audio path: {audioPath}");
 
-        if (string.IsNullOrEmpty(_apiKey))
-        {
-            throw new TranscriptionException(
-                TranscriptionErrorCode.ApiKeyMissing,
-                "Soniox API key not configured",
-                "Soniox");
-        }
-
-        if (!File.Exists(audioPath))
-        {
-            throw new TranscriptionException(
-                TranscriptionErrorCode.AudioFileNotFound,
-                $"Audio file not found: {audioPath}",
-                "Soniox");
-        }
-
-        var fileInfo = new FileInfo(audioPath);
-        LoggingService.Info($"  File size: {fileInfo.Length:N0} bytes ({fileInfo.Length / 1024.0 / 1024.0:F2} MB)");
-
+        // Validate configuration and audio file (shared gate).
         var maxFileSize = CloudTranscriptionProvider.Soniox.GetMaxFileSizeBytes();
-        if (fileInfo.Length > maxFileSize)
-        {
-            throw new TranscriptionException(
-                TranscriptionErrorCode.FileTooLarge,
-                $"File size ({fileInfo.Length / 1024.0 / 1024.0:F1} MB) exceeds {maxFileSize / 1024 / 1024 / 1024} GB limit",
-                "Soniox");
-        }
+        TranscriptionPreflight.Validate(
+            "Soniox", ApiKey, audioPath, maxFileSize, $"{maxFileSize / 1024 / 1024 / 1024} GB");
 
         // Build core params once. Pass the RAW vocab list (boost terms) — the core
         // builds the `context` CSV and gates `language_hints`. The model/auth are
         // baked by the per-step core builders.
         // TODO-verify (Windows/CI): Rust shared-core swap.
-        var extension = Path.GetExtension(audioPath);
-        var contentType = MimeTypes.GetValueOrDefault(extension, "application/octet-stream");
+        var contentType = TranscriptionPreflight.MimeTypeFor(audioPath, "application/octet-stream", MimeTypes);
         var coreParams = RustCoreMapping.TranscribeParams(
             audioPath: audioPath,
             audioMime: contentType,
             language: language,
             vocabulary: vocabulary ?? Array.Empty<string>(),
-            apiKey: _apiKey,
-            model: _modelId);
+            apiKey: ApiKey,
+            model: ModelId);
 
         string? transcriptionId = null;
         string? fileId = null;
@@ -209,7 +177,7 @@ public class SonioxService : ITranscriptionProvider, IDisposable
             try
             {
                 var pollReq = HyperwhisperCoreMethods.SonioxBuildStatusRequest(coreParams, transcriptionId);
-                pollResp = await RustHttpExecutor.ExecuteAsync(pollReq, _httpClient, cancellationToken);
+                pollResp = await RustHttpExecutor.ExecuteAsync(pollReq, Http, cancellationToken);
             }
             catch (HwTranscriptionException ex)
             {
@@ -264,7 +232,7 @@ public class SonioxService : ITranscriptionProvider, IDisposable
     {
         try
         {
-            return await RustRetry.PerformAsync(_httpClient, buildRequest, parseError, cancellationToken);
+            return await RustRetry.PerformAsync(Http, buildRequest, parseError, cancellationToken);
         }
         catch (HwTranscriptionException ex)
         {
@@ -313,7 +281,7 @@ public class SonioxService : ITranscriptionProvider, IDisposable
             try
             {
                 var req = HyperwhisperCoreMethods.SonioxBuildDeleteTranscriptionRequest(coreParams, transcriptionId);
-                await RustHttpExecutor.ExecuteAsync(req, _httpClient, CancellationToken.None);
+                await RustHttpExecutor.ExecuteAsync(req, Http, CancellationToken.None);
             }
             catch (Exception ex)
             {
@@ -333,20 +301,12 @@ public class SonioxService : ITranscriptionProvider, IDisposable
             try
             {
                 var req = HyperwhisperCoreMethods.SonioxBuildDeleteFileRequest(coreParams, fileId);
-                await RustHttpExecutor.ExecuteAsync(req, _httpClient, CancellationToken.None);
+                await RustHttpExecutor.ExecuteAsync(req, Http, CancellationToken.None);
             }
             catch (Exception ex)
             {
                 LoggingService.Warn($"Soniox file cleanup failed: {ex.Message}");
             }
         });
-    }
-
-    public void Dispose()
-    {
-        if (_disposed) return;
-        _disposed = true;
-        _httpClient.Dispose();
-        GC.SuppressFinalize(this);
     }
 }

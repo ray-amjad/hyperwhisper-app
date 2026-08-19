@@ -8,7 +8,9 @@
 //!
 //! - **No `model` field** — Grok STT exposes a single implicit model, so no
 //!   model param is sent (the model id passed by the platform is ignored).
-//! - **No vocabulary/prompt** — terms are dropped.
+//! - **Vocabulary is `keyterm`, repeated** — xAI takes one `keyterm` field per
+//!   term (max 100 terms, each up to 50 characters). There is no free-text
+//!   `prompt` field, so `params.prompt` is still dropped.
 //! - **`language` + `format` are coupled.** xAI enables inverse-text-
 //!   normalization (`format=true`) only when `language` is one of a fixed
 //!   supported set. So we send BOTH `language` and `format=true` together — and
@@ -16,8 +18,8 @@
 //!   selection we send NEITHER field (the model still transcribes, just without
 //!   ITN). This mirrors `GrokSTTProvider.supportedFormattingLanguage(for:)`
 //!   (macOS) / `GrokSttService.TryGetSupportedFormattingLanguageCode` (Windows).
-//!   Field order is `language`, then `format`, then `file` (audio last, per xAI
-//!   docs and both shipped clients).
+//!   Field order is `language`, then `format`, then `keyterm` (repeated), then
+//!   `file` (audio last, per xAI docs and both shipped clients).
 //!
 //! Parity references: macOS `GrokSTTProvider.swift`, Windows `GrokSttService.cs`.
 
@@ -25,11 +27,18 @@ use crate::contract::{
     Body, HttpMethod, HttpRequest, HttpResponse, Part, TranscribeParams, Transcript,
     TranscriptionError,
 };
-use crate::helpers::{multipart_field, multipart_file, resolve_mime, MULTIPART_BOUNDARY};
+use crate::helpers::{
+    keyword_boost_terms, multipart_field, multipart_file, resolve_mime, MULTIPART_BOUNDARY,
+};
 use crate::providers::common::{self, Auth};
 
 /// Grok STT endpoint.
 pub const ENDPOINT: &str = "https://api.x.ai/v1/stt";
+
+/// xAI `keyterm` limits: at most 100 terms, each at most 50 characters.
+/// Documented for both the batch endpoint and the WebSocket endpoint.
+pub const MAX_KEYTERMS: usize = 100;
+pub const MAX_KEYTERM_CHARS: usize = 50;
 
 /// xAI enables `format=true` ITN only for these language codes. Mirrors
 /// `GrokSTTProvider.supportedFormattingLanguages` (macOS) /
@@ -71,6 +80,21 @@ pub fn supported_formatting_language(code: Option<&str>) -> Option<String> {
     }
 }
 
+/// Build the capped `keyterm` list: sanitize and de-duplicate through the
+/// shared egress normalizer, drop terms longer than [`MAX_KEYTERM_CHARS`], then
+/// take at most [`MAX_KEYTERMS`].
+///
+/// PARITY: the length filter counts Unicode scalar values, matching the
+/// ElevenLabs keyterms builder in this crate — see `elevenlabs::keyterms` for
+/// why `chars().count()` is the cross-platform middle ground.
+pub fn keyterms(vocabulary: &[String]) -> Vec<String> {
+    keyword_boost_terms(vocabulary, None)
+        .into_iter()
+        .filter(|w| w.chars().count() <= MAX_KEYTERM_CHARS)
+        .take(MAX_KEYTERMS)
+        .collect()
+}
+
 /// Build the Grok STT transcription request.
 pub fn build_transcribe_request(
     params: &TranscribeParams,
@@ -86,6 +110,11 @@ pub fn build_transcribe_request(
     if let Some(lang) = supported_formatting_language(params.language.as_deref()) {
         parts.push(multipart_field("language", lang));
         parts.push(multipart_field("format", "true"));
+    }
+
+    // keyterm — one field per term, capped at 100 terms / 50 chars, before the file.
+    for term in keyterms(&params.vocabulary) {
+        parts.push(multipart_field("keyterm", term));
     }
 
     // audio last (per xAI docs).
@@ -131,6 +160,16 @@ mod tests {
             Part::Field { name: n, value } if n == name => Some(value.as_str()),
             _ => None,
         })
+    }
+
+    fn fields<'a>(parts: &'a [Part], name: &str) -> Vec<&'a str> {
+        parts
+            .iter()
+            .filter_map(|p| match p {
+                Part::Field { name: n, value } if n == name => Some(value.as_str()),
+                _ => None,
+            })
+            .collect()
     }
 
     #[test]
@@ -180,6 +219,81 @@ mod tests {
                 assert_eq!(field(parts, "language"), None, "lang={lang}");
                 assert_eq!(field(parts, "format"), None, "lang={lang}");
             }
+        }
+    }
+
+    #[test]
+    fn vocabulary_becomes_repeated_keyterm_fields_before_the_file() {
+        let mut p = params();
+        p.language = Some("en".to_string());
+        p.vocabulary = vec!["HyperWhisper".to_string(), "UniFFI".to_string()];
+        let req = build_transcribe_request(&p).unwrap();
+        if let Body::Multipart { parts, .. } = &req.body {
+            assert_eq!(fields(parts, "keyterm"), vec!["HyperWhisper", "UniFFI"]);
+            // language, format, then the keyterms, then the file.
+            assert!(matches!(&parts[0], Part::Field { name, .. } if name == "language"));
+            assert!(matches!(&parts[1], Part::Field { name, .. } if name == "format"));
+            assert!(matches!(&parts[2], Part::Field { name, value } if name == "keyterm" && value == "HyperWhisper"));
+            assert!(matches!(&parts[4], Part::FileRef { .. }));
+        } else {
+            panic!("expected multipart");
+        }
+    }
+
+    #[test]
+    fn keyterms_are_sent_without_a_language_selection() {
+        let mut p = params();
+        p.vocabulary = vec!["Kubernetes".to_string()];
+        let req = build_transcribe_request(&p).unwrap();
+        if let Body::Multipart { parts, .. } = &req.body {
+            assert_eq!(field(parts, "language"), None);
+            assert_eq!(fields(parts, "keyterm"), vec!["Kubernetes"]);
+        } else {
+            panic!("expected multipart");
+        }
+    }
+
+    #[test]
+    fn empty_vocabulary_sends_no_keyterm_field() {
+        let req = build_transcribe_request(&params()).unwrap();
+        if let Body::Multipart { parts, .. } = &req.body {
+            assert!(fields(parts, "keyterm").is_empty());
+        } else {
+            panic!("expected multipart");
+        }
+    }
+
+    #[test]
+    fn keyterms_drop_over_long_terms_and_cap_at_100() {
+        let long = "x".repeat(MAX_KEYTERM_CHARS + 1);
+        let mut vocab = vec![long, "kept".to_string()];
+        vocab.extend((0..MAX_KEYTERMS).map(|i| format!("term{i}")));
+        let mut p = params();
+        p.vocabulary = vocab;
+        let req = build_transcribe_request(&p).unwrap();
+        if let Body::Multipart { parts, .. } = &req.body {
+            let sent = fields(parts, "keyterm");
+            assert_eq!(sent.len(), MAX_KEYTERMS);
+            assert_eq!(sent[0], "kept");
+            assert!(!sent.iter().any(|t| t.chars().count() > MAX_KEYTERM_CHARS));
+        } else {
+            panic!("expected multipart");
+        }
+    }
+
+    #[test]
+    fn keyterms_deduplicate_case_insensitively() {
+        let mut p = params();
+        p.vocabulary = vec![
+            "HyperWhisper".to_string(),
+            "hyperwhisper".to_string(),
+            "  ".to_string(),
+        ];
+        let req = build_transcribe_request(&p).unwrap();
+        if let Body::Multipart { parts, .. } = &req.body {
+            assert_eq!(fields(parts, "keyterm"), vec!["HyperWhisper"]);
+        } else {
+            panic!("expected multipart");
         }
     }
 

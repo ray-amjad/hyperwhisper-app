@@ -7,13 +7,16 @@
 
 import { computeGeminiTranscriptionCost } from '../lib/cost-calculator';
 import { BYTES_PER_MINUTE_ESTIMATE, GEMINI_INLINE_MAX_BYTES } from '../lib/constants';
-import { AudioTooLargeError, ProviderInputError, ProviderUnavailableError } from './types';
+import { describeLanguage } from '../lib/language-codes';
+import { AudioTooLargeError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { fetchWithTimeout, logProviderEvent, readErrorBodyPreview } from './utils';
+import { fetchWithTimeout, isExplicitLanguage, logProviderEvent, providerHttpError, splitVocabularyTerms } from './utils';
 
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 const DEFAULT_MODEL = 'gemini-2.5-flash';
 const AUDIO_TOKENS_PER_SECOND = 32;
+// Vocabulary terms named in the prompt, matching the sibling adapters' cap.
+const MAX_PROMPT_TERMS = 100;
 // Total request (incl. base64) must stay under 20 MB; base64 inflates ~33%, so
 // cap raw audio at ~14 MB and 413 anything larger (no Files-API path in v1).
 // GEMINI_INLINE_MAX_BYTES is shared with the route's pre-buffer gate.
@@ -50,17 +53,19 @@ function thinkingConfig(model: string): Record<string, unknown> {
 
 function buildPrompt(language?: string, initialPrompt?: string): string {
   let prompt = 'Transcribe the speech in this audio verbatim. Output only the transcript text with no commentary, labels, timestamps, or preamble.';
-  if (language && language.toLowerCase() !== 'auto') {
-    prompt += ` The audio is in language code "${language.toLowerCase()}"; transcribe it in that language.`;
+  if (isExplicitLanguage(language)) {
+    // Gemini gets the language as prose, not as a request parameter, so a bare
+    // two-letter code is a poor instruction: `no` is also the English word
+    // "no", `is` is "is", `as` is "as", `so` is "so". Name the language and
+    // keep the code beside it as a tiebreaker.
+    prompt += ` The audio is in ${describeLanguage(language)}; transcribe it in that language.`;
   }
   if (initialPrompt) {
-    // Match the other adapters' splitter: strip leading `- `/`* ` bullet markers
-    // so a bulleted vocab list doesn't bias the model toward literal dashes.
-    const terms = initialPrompt
-      .split(/[,\n;]+/)
-      .map((t) => t.trim().replace(/^[-*]\s*/, ''))
-      .filter(Boolean)
-      .slice(0, 100);
+    // The shared splitter strips leading `- `/`* ` bullet markers, so a bulleted
+    // vocab list doesn't bias the model toward literal dashes. No per-term
+    // length limit: the terms go into the prompt as prose, not into an upstream
+    // field with a documented cap.
+    const terms = splitVocabularyTerms(initialPrompt, { maxTerms: MAX_PROMPT_TERMS });
     if (terms.length) {
       prompt += ` Spell these terms exactly when you hear them: ${terms.map((t) => `"${t}"`).join(', ')}.`;
     }
@@ -207,27 +212,13 @@ export async function transcribeWithGemini(
   }, context);
 
   if (!response.ok) {
-    const errorText = await readErrorBodyPreview(response);
-    const elapsedMs = Math.round(performance.now() - startedAt);
-    const kind = response.status >= 500 ? 'upstream_5xx' : response.status === 429 ? 'rate_limit' : 'http_error';
-
-    logProviderEvent(provider, 'http_error', {
-      model, elapsedMs, status: response.status, kind, bodyPreview: errorText,
-    }, context);
-
-    if (response.status === 401 || response.status === 403) {
-      throw new Error('Gemini API key is invalid or unauthorized');
-    }
-    if (response.status === 429) {
-      throw new ProviderUnavailableError('Gemini', 'rate limit exceeded');
-    }
-    if (response.status === 402) {
-      throw new ProviderUnavailableError('Gemini', 'insufficient funds');
-    }
-    if (response.status >= 500) {
-      throw new ProviderUnavailableError('Gemini', `upstream 5xx: ${response.status}`);
-    }
-    throw new ProviderInputError('Gemini', response.status, errorText || `HTTP ${response.status}`);
+    throw await providerHttpError(provider, response, startedAt, context, {
+      label: 'Gemini',
+      authStatuses: [401, 403],
+      authMessage: 'Gemini API key is invalid or unauthorized',
+      failoverOn402: true,
+      logDetails: { model },
+    });
   }
 
   let data: {

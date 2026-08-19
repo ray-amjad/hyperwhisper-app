@@ -47,23 +47,6 @@ enum FileTranscriptionStage: String, CaseIterable {
         }
     }
 
-    /// Progress range for this stage (0.0 to 1.0)
-    ///
-    /// **Range Breakdown:**
-    /// - Preparing: 0% - 15% (quick operations)
-    /// - Transcribing: 15% - 85% (bulk of the time)
-    /// - Finishing: 85% - 100% (quick wrap-up)
-    var progressRange: ClosedRange<Float> {
-        switch self {
-        case .preparing:
-            return 0.0...0.15
-        case .transcribing:
-            return 0.15...0.85
-        case .finishing:
-            return 0.85...1.0
-        }
-    }
-
     /// SF Symbol icon for this stage
     var icon: String {
         switch self {

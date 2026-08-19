@@ -33,6 +33,34 @@ actor ModelResidencyRegistry {
         case llm   // reclaimed only under .critical pressure (bigger, costlier to reload)
     }
 
+    /// The outcome of `markBusy(id:)` — and the caller's contract, which is not
+    /// advisory.
+    ///
+    /// - `.claimed` — honored. The caller holds exactly ONE outstanding claim
+    ///   and MUST balance it with a later `markIdle(id:)`. An unmatched claim
+    ///   pins the model resident for the rest of the session: `markIdle` floors
+    ///   `useCount` at 0 and can never repay the difference.
+    /// - `.evicting` / `.notResident` — NO claim was taken. The caller must NOT
+    ///   call `markIdle(id:)` (that would decrement somebody else's claim) and
+    ///   must NOT treat the runtime as usable.
+    ///
+    /// The two refusals are separate cases because they describe different
+    /// worlds, and a bare `false` conflated them. `.evicting` says a specific
+    /// runtime is being torn down RIGHT NOW, so whatever the caller can still
+    /// see of it is doomed. `.notResident` says only that no entry exists — the
+    /// model was never loaded, or was freed, or its owner has built it but not
+    /// yet registered it — so what the caller can see may be perfectly live and
+    /// the recovery is to let the owner finish, not to assume a teardown.
+    enum ClaimResult: Sendable, Equatable {
+        case claimed
+        case evicting
+        case notResident
+
+        /// True only for `.claimed`. This is the question "do I owe a
+        /// `markIdle`?", and it is the only correct basis for balancing one.
+        var isHonored: Bool { self == .claimed }
+    }
+
     /// Where an entry sits w.r.t. an in-progress pressure eviction.
     private enum EvictPhase {
         case none       // resident, not selected for eviction
@@ -92,8 +120,15 @@ actor ModelResidencyRegistry {
     /// request). Refcounted, so it is safe to nest and to call from overlapping
     /// concurrent uses of one shared runtime. Also emits the idle gap since its
     /// last use — the distribution that should set Stage 2's idle-unload timeout.
-    func markBusy(id: String) {
-        guard var e = entries[id] else { return }
+    ///
+    /// See `ClaimResult` for the caller's obligations on each outcome. They are
+    /// binding, not advisory: proceeding on a refusal is the HYPERWHISPER-SQ bug.
+    ///
+    /// Deliberately NOT `@discardableResult`. Every call site consumes the
+    /// result, and the compiler is what keeps the next one from quietly
+    /// reverting to "claim and hope".
+    func markBusy(id: String) -> ClaimResult {
+        guard var e = entries[id] else { return .notResident }
         // Once the evict closure has actually started (`.freeing`), the runtime
         // is committed to being torn down — refuse the claim rather than
         // advertise a model that is going away. The caller's own load path will
@@ -102,13 +137,14 @@ actor ModelResidencyRegistry {
         // useCount>0 and spares the model.
         if e.phase == .freeing {
             log.notice("model.use.rejected id=\(id, privacy: .public) reason=freeing")
-            return
+            return .evicting
         }
         let gap = Date().timeIntervalSince(e.lastUsedAt)
         e.useCount += 1
         e.lastUsedAt = Date()
         entries[id] = e
         log.info("model.use id=\(id, privacy: .public) idle_gap_s=\(String(format: "%.1f", gap), privacy: .public) uses=\(e.useCount, privacy: .public)")
+        return .claimed
     }
 
     /// Release one claim. The model becomes evictable only when the LAST

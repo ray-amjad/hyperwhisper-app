@@ -3,32 +3,45 @@
 // uses the structured `context_bias` list (≤100 phrases), not a free prompt.
 
 import { computeMistralTranscriptionCost } from '../lib/cost-calculator';
-import { ProviderInputError, ProviderUnavailableError } from './types';
+import { ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { estimateSecondsFromBytes, fetchWithTimeout, logProviderEvent, readErrorBodyPreview } from './utils';
+import {
+  DEFAULT_AUDIO_EXTENSIONS,
+  audioExtensionFromContentType,
+  estimateSecondsFromBytes,
+  explicitLanguageSubtag,
+  fetchWithTimeout,
+  logProviderEvent,
+  providerHttpError,
+  splitVocabularyTerms,
+} from './utils';
 
 const MISTRAL_URL = 'https://api.mistral.ai/v1/audio/transcriptions';
 const DEFAULT_MODEL = 'voxtral-mini-latest';
 const MAX_CONTEXT_BIAS_TERMS = 100;
+const MAX_CONTEXT_BIAS_TERM_CHARS = 80;
 
-function getExtension(contentType: string): string {
-  if (contentType.includes('wav')) return 'wav';
-  if (contentType.includes('mp3') || contentType.includes('mpeg')) return 'mp3';
-  if (contentType.includes('m4a') || contentType.includes('mp4')) return 'm4a';
-  if (contentType.includes('aac')) return 'aac';
-  if (contentType.includes('webm')) return 'webm';
-  if (contentType.includes('ogg')) return 'ogg';
-  if (contentType.includes('flac')) return 'flac';
-  return 'wav';
-}
+/** Voxtral additionally takes raw AAC, which the other adapters don't name. */
+const MISTRAL_AUDIO_EXTENSIONS = [...DEFAULT_AUDIO_EXTENSIONS, 'aac'] as const;
 
-/** Split a comma/newline vocabulary prompt into ≤100 `context_bias` phrases. */
+/**
+ * Split a comma/newline vocabulary prompt into ≤100 `context_bias` phrases.
+ *
+ * Inner whitespace collapses to `_` because Voxtral validates every item under
+ * `context_bias_input_method=comma_separated` (its server-side default) and 400s
+ * the WHOLE request when one item holds a comma or any whitespace — a single
+ * multi-word term like "Claude Code" then kills the transcription, not just that
+ * term, and a 400 is not a failover status so no sibling provider covers it.
+ * Underscores are the documented way to bias a phrase (docs.mistral.ai
+ * audio/speech_to_text → `["affordable_health_care", "American_people"]`), so
+ * joining beats dropping the term.
+ */
 function toContextBias(initialPrompt: string): string[] {
-  return initialPrompt
-    .split(/[,\n;]+/)
-    .map((t) => t.trim().replace(/^[-*]\s*/, ''))
-    .filter((t) => t.length > 0 && t.length <= 80)
-    .slice(0, MAX_CONTEXT_BIAS_TERMS);
+  return splitVocabularyTerms(initialPrompt, {
+    maxTerms: MAX_CONTEXT_BIAS_TERMS,
+    maxTermChars: MAX_CONTEXT_BIAS_TERM_CHARS,
+    joinWordsWith: '_',
+  });
 }
 
 export async function transcribeWithMistral(
@@ -47,15 +60,15 @@ export async function transcribeWithMistral(
     throw new Error('MISTRAL_API_KEY not configured');
   }
 
-  const ext = getExtension(contentType);
+  const ext = audioExtensionFromContentType(contentType, MISTRAL_AUDIO_EXTENSIONS) ?? 'wav';
   const formData = new FormData();
   formData.append('file', new Blob([audio], { type: contentType }), `audio.${ext}`);
   formData.append('model', model);
 
-  if (language && language.toLowerCase() !== 'auto') {
-    // Voxtral expects a bare ISO-639-1 code ("en"), not a hyphenated BCP-47
-    // locale — strip to the primary subtag like the sibling adapters.
-    const langCode = language.toLowerCase().split(/[-_]/)[0];
+  // Voxtral expects a bare ISO-639-1 code ("en"), not a hyphenated BCP-47
+  // locale — strip to the primary subtag like the sibling adapters.
+  const langCode = explicitLanguageSubtag(language);
+  if (langCode !== undefined) {
     formData.append('language', langCode);
   }
 
@@ -91,27 +104,13 @@ export async function transcribeWithMistral(
   }, context);
 
   if (!response.ok) {
-    const errorText = await readErrorBodyPreview(response);
-    const elapsedMs = Math.round(performance.now() - startedAt);
-    const kind = response.status >= 500 ? 'upstream_5xx' : response.status === 429 ? 'rate_limit' : 'http_error';
-
-    logProviderEvent(provider, 'http_error', {
-      model, elapsedMs, status: response.status, kind, bodyPreview: errorText,
-    }, context);
-
-    if (response.status === 401 || response.status === 403) {
-      throw new Error('Mistral API key is invalid or unauthorized');
-    }
-    if (response.status === 429) {
-      throw new ProviderUnavailableError('Mistral', 'rate limit exceeded');
-    }
-    if (response.status === 402) {
-      throw new ProviderUnavailableError('Mistral', 'insufficient funds');
-    }
-    if (response.status >= 500) {
-      throw new ProviderUnavailableError('Mistral', `upstream 5xx: ${response.status}`);
-    }
-    throw new ProviderInputError('Mistral', response.status, errorText || `HTTP ${response.status}`);
+    throw await providerHttpError(provider, response, startedAt, context, {
+      label: 'Mistral',
+      authStatuses: [401, 403],
+      authMessage: 'Mistral API key is invalid or unauthorized',
+      failoverOn402: true,
+      logDetails: { model },
+    });
   }
 
   let data: {

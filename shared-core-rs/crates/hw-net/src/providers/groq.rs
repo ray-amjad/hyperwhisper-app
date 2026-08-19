@@ -2,7 +2,8 @@
 //!
 //! `POST https://api.groq.com/openai/v1/audio/transcriptions` — OpenAI-compatible
 //! `multipart/form-data` with `Authorization: Bearer <key>`. Vocabulary goes into
-//! the `prompt` field as comma-separated CSV; the response is `{ "text": "..." }`.
+//! the `prompt` field framed as `"Important terms to recognize: a, b, c. "`;
+//! the response is `{ "text": "..." }`.
 //!
 //! Groq's transcription API is byte-for-byte OpenAI-compatible (Groq deliberately
 //! mirrors OpenAI's `/audio/transcriptions` surface), so this module reuses the
@@ -13,8 +14,8 @@
 //! - macOS `CloudWhisperProvider.swift` (the `.groq` branch)
 //! - Windows `GroqWhisperService.cs`
 //!
-//! See [`crate::providers::openai`] for the `response_format`/`prompt`
-//! divergence notes (identical here).
+//! See [`crate::providers::openai`] for the `response_format` note and the
+//! `prompt`/vocabulary framing rationale (identical here).
 
 use crate::contract::{HttpRequest, HttpResponse, TranscribeParams, Transcript, TranscriptionError};
 use crate::providers::common::{self, Auth, OpenAiStyleSpec, VocabularyMode};
@@ -34,6 +35,7 @@ fn spec() -> OpenAiStyleSpec {
         auth: Auth::Bearer,
         vocabulary: VocabularyMode::Prompt,
         send_model: true,
+        keywords_models: &[],
         send_response_format: true,
     }
 }
@@ -84,7 +86,10 @@ mod tests {
                 assert!(matches!(&parts[0], Part::FileRef { field, mime, .. }
                     if field == "file" && mime == "audio/wav"));
                 assert_eq!(field(parts, "model"), Some("whisper-large-v3-turbo"));
-                assert_eq!(field(parts, "prompt"), Some("Kubernetes"));
+                assert_eq!(
+                    field(parts, "prompt"),
+                    Some("Important terms to recognize: Kubernetes. ")
+                );
                 assert_eq!(field(parts, "response_format"), Some("json"));
             }
             other => panic!("expected multipart, got {other:?}"),

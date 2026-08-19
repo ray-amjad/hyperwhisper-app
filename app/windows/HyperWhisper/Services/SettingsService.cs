@@ -129,6 +129,7 @@ public partial class SettingsService
 
         // Logging & Updates settings
         public bool? EnableErrorLogging { get; set; }
+        public bool? ShareAnonymousSpeedData { get; set; }
         public bool? CheckForUpdatesAutomatically { get; set; }
 
         // Auto-delete settings
@@ -723,6 +724,37 @@ public partial class SettingsService
     }
 
     /// <summary>
+    /// Whether to contribute anonymous speed measurements to the public
+    /// latency page at hyperwhisper.com/en/latency.
+    ///
+    /// When enabled, every HyperWhisper Cloud transcription adds one anonymous
+    /// row per provider attempt: which provider ran, from which server region,
+    /// how long the clip was, how long the provider took, and whether it
+    /// worked. No account, no key, no request id, no IP, no audio, and no text
+    /// — nothing links two rows to the same person.
+    ///
+    /// When disabled, the app sends the X-Latency-Opt-Out header and the server
+    /// drops the measurement instead of storing it. Nothing else about the
+    /// request changes. Local models never report anything either way.
+    ///
+    /// Default: true (opt-out model)
+    /// </summary>
+    public bool ShareAnonymousSpeedData
+    {
+        get => _settings.ShareAnonymousSpeedData ?? true;
+        set
+        {
+            if ((_settings.ShareAnonymousSpeedData ?? true) != value)
+            {
+                _settings.ShareAnonymousSpeedData = value;
+                Save();
+                LoggingService.Debug($"SettingsService: ShareAnonymousSpeedData set to: {value}");
+                NotifySettingsChanged();
+            }
+        }
+    }
+
+    /// <summary>
     /// Whether to automatically check for updates on app startup.
     /// When enabled, the app silently checks the appcast URL and shows
     /// a dialog if a new version is available.
@@ -1138,12 +1170,6 @@ public partial class SettingsService
         NotifySettingsChanged();
         LoggingService.Info("SettingsService: Settings reloaded from disk");
     }
-
-    /// <summary>
-    /// Gets the path to the settings JSON file.
-    /// Used by BackupService to read/write the settings file directly.
-    /// </summary>
-    public static string GetSettingsFilePath() => SettingsFilePath;
 
     /// <summary>
     /// Fires <see cref="SettingsChanged"/>, marshaling to the UI thread when called from

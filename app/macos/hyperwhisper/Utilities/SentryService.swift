@@ -451,62 +451,6 @@ enum SentryService {
     // until metrics are configured. To enable, add to options:
     //   options.enableMetrics = true (if available in your SDK version)
 
-    /// Record a distribution metric (for timing, sizes, etc.).
-    /// Use for values where you want to see percentiles (p50, p95, p99).
-    /// Examples: transcription_latency_ms, audio_length_seconds
-    static func recordDistribution(key: String, value: Double, unit: String = "none", tags: [String: String] = [:]) {
-        // Metrics recorded as breadcrumbs until Sentry metrics API is enabled
-        #if canImport(Sentry)
-        let crumb = Breadcrumb(level: .debug, category: "metric.distribution")
-        crumb.message = "\(key): \(value) \(unit)"
-        var data: [String: Any] = ["value": value, "unit": unit]
-        for (k, v) in tags { data[k] = v }
-        crumb.data = data
-        SentrySDK.addBreadcrumb(crumb)
-        #endif
-    }
-
-    /// Increment a counter metric.
-    /// Use for counting occurrences of events.
-    /// Examples: transcription_started, paste_success, paste_failure
-    static func incrementCounter(key: String, by value: Double = 1.0, tags: [String: String] = [:]) {
-        #if canImport(Sentry)
-        let crumb = Breadcrumb(level: .debug, category: "metric.counter")
-        crumb.message = "\(key): +\(value)"
-        var data: [String: Any] = ["increment": value]
-        for (k, v) in tags { data[k] = v }
-        crumb.data = data
-        SentrySDK.addBreadcrumb(crumb)
-        #endif
-    }
-
-    /// Record a gauge metric (for current values).
-    /// Use for values that can go up and down.
-    /// Examples: active_recordings, queue_depth
-    static func recordGauge(key: String, value: Double, unit: String = "none", tags: [String: String] = [:]) {
-        #if canImport(Sentry)
-        let crumb = Breadcrumb(level: .debug, category: "metric.gauge")
-        crumb.message = "\(key): \(value) \(unit)"
-        var data: [String: Any] = ["value": value, "unit": unit]
-        for (k, v) in tags { data[k] = v }
-        crumb.data = data
-        SentrySDK.addBreadcrumb(crumb)
-        #endif
-    }
-
-    /// Record a set metric (for counting unique values).
-    /// Use for counting unique items.
-    /// Examples: unique_users, unique_modes_used
-    static func recordSet(key: String, value: String, tags: [String: String] = [:]) {
-        #if canImport(Sentry)
-        let crumb = Breadcrumb(level: .debug, category: "metric.set")
-        crumb.message = "\(key): \(value)"
-        var data: [String: Any] = ["value": value]
-        for (k, v) in tags { data[k] = v }
-        crumb.data = data
-        SentrySDK.addBreadcrumb(crumb)
-        #endif
-    }
 }
 
 // MARK: - SpanProtocol Extension
@@ -526,5 +470,8 @@ public protocol SpanProtocol {
 public enum SpanStatus {
     case ok
     case internalError
+    /// Work that was abandoned on purpose rather than succeeding or failing — e.g. a
+    /// recording start superseded by a newer one. Mirrors `kSentrySpanStatusCancelled`.
+    case cancelled
 }
 #endif

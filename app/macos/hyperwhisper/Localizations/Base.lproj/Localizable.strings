@@ -124,17 +124,6 @@
 "home.accessibility.open.settings" = "Open Settings";
 "home.accessibility.restart.after.permission" = "Restart app after granting permission";
 "home.getting.started.completed" = "✓ Completed";
-"home.whatsnew.badge" = "NEW";
-"home.whatsnew.title" = "What's new?";
-"home.whatsnew.update1.date" = "Jul 3";
-"home.whatsnew.update1.title" = "Parakeet is now available";
-"home.whatsnew.update1.description" = "Download it directly from the Language Models list in Mode creation to try it today.";
-"home.whatsnew.update2.date" = "Jun 5";
-"home.whatsnew.update2.title" = "Support for every OpenAI-compatible custom model";
-"home.whatsnew.update2.description" = "You can now add any OpenAI compatible APIs to your list of models.";
-"home.whatsnew.update3.date" = "May 27";
-"home.whatsnew.update3.title" = "Brand new Mini-recording window";
-"home.whatsnew.update3.description" = "A sleek, minimal recording interface that stays out of your way.";
 
 // MARK: - Recent Updates Section
 "home.recent.updates.title" = "Recent Updates";
@@ -457,6 +446,9 @@
 
 "settings.general.errorLogging.title" = "Error logging";
 "settings.general.errorLogging.info" = "Automatically capture and send error reports to help improve the app.";
+"settings.general.shareSpeedData.title" = "Share anonymous speed data";
+"settings.general.shareSpeedData.info" = "Times how long each cloud provider takes and adds it to a public comparison. A measurement holds the provider, the server region, the clip length, and the time taken — no account, no key, no audio, and no text. Turn this off and HyperWhisper stops sending it. Nothing else changes, and local models never send anything.";
+"settings.general.shareSpeedData.link" = "See the speed comparison";
 "settings.general.autoUpdate.title" = "Auto update";
 "settings.general.autoUpdate.info" = "Automatically check for and download new versions of HyperWhisper.";
 "settings.general.support.title" = "Need help?";
@@ -883,10 +875,6 @@
 "page.header.learnMore" = "Learn more";
 
 // MARK: - Recording Dialog
-"recording.status.complete" = "Transcription Complete";
-"recording.status.retrying" = "Retrying Transcription…";
-"recording.status.postprocessing" = "Enhancing…";
-"recording.status.transcribing" = "Transcribing…";
 "recording.success.pasted" = "Pasted!";
 "recording.success.savedToNotes" = "Saved to Notes!";
 "recording.loading.retrying" = "Retrying…";
@@ -899,7 +887,6 @@
 "streaming.status.connecting" = "Connecting...";
 "streaming.status.ready" = "Ready - Start Speaking";
 "streaming.status.listening" = "Listening...";
-"streaming.status.streaming" = "Streaming...";
 "streaming.status.disconnecting" = "Stopping...";
 "streaming.loading.warming" = "Warming up local model...";
 "streaming.loading.connecting" = "Connecting to server...";
@@ -907,32 +894,16 @@
 "streaming.loading.streaming" = "Waiting for speech...";
 "streaming.state.reconnecting" = "Reconnecting...";
 "recording.stop.help" = "Stop Recording (%@)";
-"recording.postprocessing.unavailable" = "Post-processing unavailable";
-"recording.postprocessing.missing.single" = "%@ key missing – recording without post-processing";
-"recording.postprocessing.missing.multiple" = "API keys missing – recording without post-processing";
-"recording.postprocessing.addKey" = "Add Key";
-"recording.offline.banner" = "No internet connection. Cloud transcription will fail until you're online.";
-"recording.offline.title" = "No internet connection";
-"recording.offline.subtitle" = "Reconnect to continue or switch to an offline mode.";
-"recording.error.network" = "Check your internet connection and try again.";
-"recording.error.timeout" = "Request timed out. Check your connection speed and retry.";
-"recording.error.rateLimit" = "You've made too many requests. Wait a moment and retry.";
-"recording.error.credits" = "Insufficient credits. Add more credits in Settings.";
-"recording.error.apiKey" = "Add your %@ API key in Settings.";
-"recording.error.server" = "The transcription service is experiencing issues. Please try again in a moment.";
 "recording.retry" = "Retry";
 "recording.retry.inProgress" = "Retrying…";
 "recording.retry.count" = "Retry (%d)";
 "recording.retry.failed.missing" = "Retry failed: Audio file not found";
 "recording.retry.failed.error" = "Retry failed: %@";
 "recording.retry.pending" = "Ready to retry – click to transcribe";
-"recording.provider.unknown" = "cloud provider";
 "recording.cancel.dialog.title" = "Cancel Recording?";
 "recording.cancel.dialog.message" = "This will discard the current recording.";
 "recording.cancel.dialog.confirm" = "Cancel Recording";
 "recording.cancel.dialog.resume" = "Resume";
-"recording.error.overlay.title" = "Network connection error";
-"recording.error.overlay.message" = "Press ‘Retry’ below or switch to an offline mode to continue.";
 "recording.mode.default" = "Default";
 "recording.dialog.window.title" = "Recording Dialog";
 "recording.button.start" = "Start Recording";
@@ -987,6 +958,7 @@
 "transcription.error.maxRetriesExceeded" = "Maximum retry attempts exceeded";
 "transcription.error.unauthorized.provider" = "Unauthorized: invalid %@ API key or permissions.\n\nOpen Settings → API Keys to verify your credentials.";
 "transcription.error.unauthorized.generic" = "Unauthorized: invalid API key or permissions.\n\nOpen Settings → API Keys to verify your credentials.";
+"transcription.error.cloudAccountRequired" = "HyperWhisper Cloud requires an account key.\n\nOpen Settings → HyperWhisper Cloud to enter your key or get credits.";
 "transcription.error.invalidRequest" = "Invalid request: check audio file or settings";
 "transcription.error.streamingInterrupted" = "Streaming interrupted; partial text shown";
 "transcription.error.busy" = "The transcription service is currently busy";
@@ -1024,6 +996,7 @@
 "transcription.error.noSpeechDetected" = "No speech detected in the recording.";
 "transcription.guidance.noSpeechDetected" = "Tips:\n• Speak clearly into the microphone\n• Hold the key longer before speaking\n• Check that your microphone is working\n• Ensure the correct input device is selected";
 "transcription.error.localRuntimeUnavailable" = "Local AI couldn't finish — your raw transcript was kept.";
+"transcription.error.localSpeechModelEvicted" = "The speech model was unloaded to free memory and couldn't be reloaded. Close some apps and try again.";
 "transcription.guidance.localRuntimeUnavailable" = "Try again, or choose a smaller local model in your Mode settings.";
 "transcription.guidance.needsNativeRelaunch" = "Quit and reopen HyperWhisper natively to use local post-processing.";
 
@@ -1164,10 +1137,6 @@
 "history.autoDelete.unit.minutes" = "Minutes";
 "history.autoDelete.unit.hours" = "Hours";
 "history.autoDelete.unit.days" = "Days";
-"history.autoDelete.unit.minutes.plural" = "minutes";
-"history.autoDelete.unit.hours.plural" = "hours";
-"history.autoDelete.unit.days.plural" = "days";
-"history.autoDelete.status.disabled" = "Automatic deletion is disabled";
 "history.autoDelete.status.enabled" = "Delete recordings older than %d %@";
 "history.autoDelete.cleanup.noItems" = "No recordings to delete";
 "history.autoDelete.cleanup.summary" = "Deleted %d recording(s) and freed %@";

@@ -75,10 +75,16 @@ final class ElevenLabsProvider: TranscriptionProvider {
         }
 
         // Model: pass the mode's selection, or "" so the core applies its default
-        // (scribe_v2 — the only model the core emits keyterms for).
-        let modelId = (mode?.cloudTranscriptionModel?.isEmpty == false)
+        // (scribe_v2 — the only model the core emits keyterms for). Legacy IDs are
+        // resolved here because the Rust core's `elevenlabs` provider — unlike
+        // `assemblyai`, which owns its own `resolve_model_alias` — passes
+        // `model_id` straight through unresolved; without this the redirect only
+        // takes effect for Swift-side lookups (e.g. `model(withId:)`), not the
+        // actual wire request.
+        let rawModelId = (mode?.cloudTranscriptionModel?.isEmpty == false)
             ? (mode?.cloudTranscriptionModel ?? "")
             : ""
+        let modelId = rawModelId.isEmpty ? "" : CloudTranscriptionModels.resolveModelAlias(rawModelId, provider: .elevenLabs)
         AppLogger.network.info("ElevenLabs transcription started · model=\(modelId.isEmpty ? "<default>" : modelId, privacy: .public) · file=\(audioURL.lastPathComponent, privacy: .public)")
 
         // Pass the natively-resolved mime (mp4/mov overrides preserved) explicitly
@@ -146,7 +152,7 @@ extension ElevenLabsProvider {
     /// as unauthorized at the health gate.
     ///
     /// Sends ~0.1 s of inline-generated silence (about 3.2 KB of PCM) to
-    /// `/v1/speech-to-text` with `model_id=scribe_v1`. Cheap, no embedded
+    /// `/v1/speech-to-text` with `model_id=scribe_v2`. Cheap, no embedded
     /// asset required, exercises the exact endpoint the app calls.
     func healthCheck(apiKey: String) async -> ProviderHealth {
         guard !apiKey.isEmpty else { return .unknown }
@@ -161,7 +167,7 @@ extension ElevenLabsProvider {
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
 
         var body = Data()
-        appendFormField(name: "model_id", value: "scribe_v1", boundary: boundary, body: &body)
+        appendFormField(name: "model_id", value: "scribe_v2", boundary: boundary, body: &body)
         appendFileField(name: "file",
                         fileName: "silence.wav",
                         mimeType: "audio/wav",

@@ -45,7 +45,7 @@ use crate::contract::{
     Body, HttpMethod, HttpRequest, HttpResponse, TranscribeParams, Transcript, TranscriptionError,
 };
 use crate::helpers::{keyword_boost_terms, resolve_mime};
-use crate::providers::common::filename_of;
+use crate::providers::common::{filename_of, retry_after};
 
 /// Gemini API root. `params.base_url` overrides it (tests/staging).
 pub const API_ROOT: &str = "https://generativelanguage.googleapis.com";
@@ -53,11 +53,6 @@ pub const API_ROOT: &str = "https://generativelanguage.googleapis.com";
 /// Default model when the caller leaves `params.model` empty.
 /// PARITY: macOS/Windows default = `gemini-2.5-flash`.
 pub const DEFAULT_MODEL: &str = "gemini-2.5-flash";
-
-/// Gemini's inline-payload limit (20 MB). Exposed for callers that still want to
-/// reproduce the platform's transport decision; this module itself always uses
-/// the Files API path. PARITY: `inlineRequestLimitBytes` / `InlineRequestLimitBytes`.
-pub const INLINE_REQUEST_LIMIT_BYTES: u64 = 20 * 1024 * 1024;
 
 fn root(params: &TranscribeParams) -> String {
     params
@@ -433,9 +428,7 @@ fn classify_gemini(resp: &HttpResponse) -> TranscriptionError {
     match resp.status {
         400 | 401 | 403 => TranscriptionError::Unauthorized,
         429 => TranscriptionError::RateLimited {
-            retry_after_secs: resp
-                .header("Retry-After")
-                .and_then(|v| v.trim().parse::<u64>().ok()),
+            retry_after_secs: retry_after(resp),
         },
         500..=599 => TranscriptionError::ProviderUnavailable {
             status: resp.status,

@@ -1,43 +1,43 @@
 ---
 title: Transcription Modes
-description: Configure how HyperWhisper transcribes and formats your speech. Modes bundle your transcription engine, language, AI post-processing, and formatting options into reusable profiles.
+description: Control how HyperWhisper transcribes and formats your speech. A mode stores one transcription engine, one language, the AI post-processing settings, and the formatting options.
 ---
 
-HyperWhisper uses **modes** to control how your voice is transcribed and formatted. Each mode stores your preferred transcription engine, language, post-processing settings, and formatting options. Switch modes on the fly to match the task at hand.
+A **mode** controls how HyperWhisper transcribes and formats your voice. Each mode stores one transcription engine, one language, the post-processing settings, and the formatting options. You can change the mode at any time to match your task.
 
-![Modes list with a mode selected on the left and detail pane on the right](/images/transcription-modes.jpg)
+![The mode list on the left, and the detail pane for the selected mode on the right](/images/transcription-modes.jpg)
 
 ## Switching Modes
 
-Press the **Change Mode** shortcut from anywhere on your machine to cycle through your available modes. A notification briefly shows the active mode name after each switch.
+Press the **Change Mode** shortcut from any app to go through your modes. After each change, a notification shows the name of the active mode.
 
 <Tabs>
   <Tab title="macOS">
-    Default shortcut: `⌃⇧K` (Control+Shift+K). You can rebind it in **Settings → Shortcuts**.
+    Default shortcut: `⌃⇧K` (Control+Shift+K). To change it, go to **Settings → Shortcuts**.
   </Tab>
   <Tab title="Windows">
-    Default shortcut: `Ctrl+Shift+.`. You can rebind it in **Settings → Shortcuts**.
+    Default shortcut: `Ctrl+Shift+.`. To change it, go to **Settings → Shortcuts**.
   </Tab>
 </Tabs>
 
-You can also click the HyperWhisper icon and select a mode from the list directly.
+You can also click the HyperWhisper icon and select a mode from the list.
 
 ## Built-in Presets
 
-When you create a mode you choose a **preset**, which sets the AI post-processing instructions for that mode. Seven presets are available on both platforms:
+When you create a mode, you select a **preset**. The preset sets the AI post-processing instructions for that mode. Both platforms give seven presets:
 
 | Preset | Best for |
 |---|---|
-| **Hyper** *(recommended)* | General dictation. Context-aware formatting that adapts to your active app—smart punctuation, capitalization, and minor grammar fixes while preserving your original wording. |
+| **Hyper** *(recommended)* | General dictation. The format adapts to your active app. Hyper adds punctuation and capitalization, and corrects small grammar errors. It keeps your original words. |
 | **Message** | Chat apps. Casual, conversational style. |
-| **Mail** | Email composition. Professional formatting with greeting and sign-off. |
-| **Note** | Note-taking apps. Structures content with headings and bullets. |
-| **Meeting** | Long recordings. Extracts key decisions and action items from meeting transcripts. |
-| **Code** | Voice-to-code dictation. Converts spoken symbol names to code syntax (e.g. "open paren" → `(`, "fat arrow" → `=>`, "camel case user name" → `userName`). No automatic capitalization or punctuation—only what you explicitly say. |
-| **Custom** | Write your own AI instructions for domain-specific needs. |
+| **Mail** | Email. Professional format with a greeting and a sign-off. |
+| **Note** | Note apps. The text gets headings and bullets. |
+| **Meeting** | Long recordings. HyperWhisper takes the decisions and the action items from the meeting transcript. |
+| **Code** | Dictation of code. Spoken symbol names become code syntax (for example, "open paren" → `(`, "fat arrow" → `=>`, "camel case user name" → `userName`). There is no automatic capitalization or punctuation. You get only the words that you say. |
+| **Custom** | Write your own AI instructions for your domain. |
 
 <Note>
-  The legacy "Voice to Text" preset has been replaced by setting **AI Post-Processing → Off** on any mode. On macOS, existing modes that used it are migrated automatically to Hyper with post-processing off. On Windows, migration only renames the preset to Hyper — if the mode had post-processing enabled, it keeps using it, so double-check **AI Post-Processing** after upgrading if you relied on the old raw-transcript behavior.
+  The setting **AI Post-Processing → Off** replaces the old "Voice to Text" preset. On macOS, HyperWhisper moves each mode that used that preset to Hyper, and sets post-processing to off. On Windows, the migration only changes the preset name to Hyper. If the mode had post-processing on, the mode keeps post-processing on. If you used the old raw-transcript behavior, you must set **AI Post-Processing** to **Off** again after the update.
 </Note>
 
 ## Transcription Source
@@ -46,154 +46,180 @@ Each mode has a transcription source: **On Device**, **HyperWhisper Cloud**, or 
 
 ### On Device (local)
 
-Download Whisper, Parakeet, Nemotron, Qwen3 ASR, or (on macOS 26+) Apple Speech Analyzer models for fully offline transcription. Larger models are more accurate but require more disk space. Some Whisper models with an `.en` suffix are English-only; Parakeet v2 is also English-only (v3 is multilingual). Browse and download models in **Model Library**. See [Models](/models) for the full list of on-device options and platform availability.
+For fully offline transcription, download a Whisper, Parakeet, Nemotron, or Qwen3 ASR model. On macOS 26 and later, you can also use the Apple Speech Analyzer models. A large model is more accurate, but it uses more disk space. Whisper models with an `.en` suffix support English only. Parakeet v2 also supports English only, and Parakeet v3 supports many languages.
 
-### HyperWhisper Cloud — STT Engine
+You find and download models in **Model Library**. For the full list of on-device models and the platforms that support them, see [Models](/models).
 
-When using HyperWhisper Cloud, you choose which speech-to-text engine processes your audio. The engine is set per mode, so you can use a faster engine for messages and a higher-accuracy engine for meeting notes.
+### HyperWhisper Cloud — Provider and Model
 
-Eleven engines are available:
+With HyperWhisper Cloud, you select the speech-to-text provider that processes your audio. You select the provider for each mode. Thus you can use a fast provider for messages, and a more accurate provider for meeting notes.
 
-| Engine | Notes |
+Two rows control this. The **Provider** row names the company. The **Model** row names the model. The Model row is always a dropdown, also for a company that gives only one model.
+
+The Provider row shows ten companies, in alphabetical order:
+
+| Provider | Models in the Model row |
 |---|---|
-| ElevenLabs Scribe v2 | Recommended default |
-| Deepgram Nova-3 | |
-| Groq Whisper | |
-| Grok STT | |
-| Microsoft MAI-Transcribe 1.5 | HyperWhisper Cloud only |
-| Google Chirp 3 | HyperWhisper Cloud only |
-| OpenAI Whisper | |
-| AssemblyAI | |
-| Mistral Voxtral | |
-| Soniox | |
-| Gemini | Supports a custom transcription prompt—see [Gemini Custom Prompt](#gemini-custom-prompt) |
+| AssemblyAI | Universal-3 Pro, Universal-3.5 Pro, Universal-2 |
+| Deepgram | Nova 3 General, Nova 3 Medical, Nova 2 General, Nova 2 Medical |
+| ElevenLabs | Scribe v2 |
+| Google | Chirp 3, Gemini 2.5 Flash, Gemini 2.5 Flash Lite, Gemini 2.5 Pro, Gemini 3 Flash, Gemini 3.1 Pro |
+| Groq | Whisper Large v3 Turbo, Whisper Large v3 |
+| Microsoft | MAI-Transcribe 1.5 |
+| Mistral | Voxtral Mini |
+| OpenAI | GPT-4o Transcribe, GPT-4o Mini Transcribe, Whisper, GPT Transcribe, GPT Live Transcribe |
+| Soniox | Async v4, Async v5 |
+| xAI | Grok Speech-to-Text |
 
-The engine picker shows an approximate credit cost per minute next to each option.
+The Provider row shows **(Recommended)** on the ElevenLabs row only. ElevenLabs Scribe v2 is the recommended engine. The Model row shows no **(Recommended)** tag.
+
+<Note>
+  Google is one row, but two engines are behind it: Chirp 3 and Gemini. The Model row lists the models of both engines together. The model that you select sets the engine that HyperWhisper Cloud uses, and thus also the credit rate. Chirp 3 and MAI-Transcribe 1.5 are available through HyperWhisper Cloud only. You cannot use them with your own key.
+</Note>
+
+Below the two rows, HyperWhisper shows the approximate credit cost for each minute of the model that you selected. A badge also appears there when the model is a **Preview** model, or when the model does not support custom vocabulary. Today every HyperWhisper Cloud model supports custom vocabulary, thus only the **Preview** badge appears. For your own provider (BYOK), some models still have no vocabulary support, and the mode editor shows a notice for them.
 
 ### Your Provider (BYOK)
 
-Choose a cloud provider and enter your own API key in **Settings → API Keys** (or **Model Library → API Keys** on macOS). The model list updates based on the selected provider.
+Select a cloud provider. Then enter your own API key in **Model Library → API Keys**. The model list changes with the provider that you select. Here also, the Model row is always a dropdown. A provider with one model shows that one model in the dropdown.
 
 ## Language
 
-Set the transcription language per mode, or leave it on **Auto** to let the engine detect it. Note that some local models and certain cloud engines only support English—the app flags incompatible combinations.
+You set the transcription language for each mode. Keep the value **Auto** if you want the engine to detect the language. Some local models and some cloud engines support English only. The app marks each combination that does not work.
 
-**Tip:** If you regularly dictate in multiple languages, create a separate mode for each one rather than relying on auto-detect for every recording.
+**Tip:** If you dictate in more than one language, create a mode for each language. This is more reliable than auto-detection for each recording.
 
 ## AI Post-Processing
 
-After transcription, HyperWhisper can send the raw text through an LLM to clean it up, reformat it, and apply the preset's instructions. Three options:
+After transcription, HyperWhisper can send the raw text to an LLM. The LLM corrects the text, changes the format, and obeys the instructions of the preset. There are three options:
 
-- **Off** — Raw transcription output with no AI pass. Use this for fastest results or when you don't want any reformatting.
-- **Cloud** — AI cleanup via HyperWhisper Cloud or your own API key (OpenAI, Anthropic, Gemini, Groq, Grok, Cerebras, Mistral).
-- **Local** — Process text on-device with a downloaded model. No internet required.
+- **Off** — The raw transcription output, with no AI pass. This option is the fastest, and it does not change the format.
+- **Cloud** — The AI pass runs on HyperWhisper Cloud, or with your own API key (OpenAI, Anthropic, Gemini, Groq, Grok, Cerebras, Mistral).
+- **Local** — A model on your device processes the text. An internet connection is not necessary.
 
 ### Raw Transcription (Post-Processing Off)
 
-Set **AI Post-Processing** to **Off** to get the raw transcript from the STT engine with no further changes. This is the fastest path and is useful when you want verbatim output or are pasting into a tool that does its own formatting.
+Set **AI Post-Processing** to **Off** to get the raw transcript from the STT engine. HyperWhisper makes no other changes. This is the fastest path. Use it when you want the exact words, or when you paste the text into a tool that applies its own format.
 
 ### Cloud Post-Processing Engine & Model
 
-When post-processing is set to **Cloud** and you're using HyperWhisper Cloud, you can choose which LLM engine and model handle the cleanup pass. This is separate from the transcription engine.
+If post-processing is **Cloud** and you use HyperWhisper Cloud, you can select the LLM engine and the model for this pass. This engine is not the transcription engine.
 
-The engine and model are selected per mode. Available engines include Cerebras, Groq, Anthropic (Claude), Grok (xAI), OpenAI, Google Gemini, and Mistral. Each engine offers one or more models in a nested picker. On macOS, you can also point post-processing at a self-hosted or OpenAI-compatible custom endpoint instead of one of the built-in engines—see [Custom Endpoints](/custom-endpoints).
+You select the engine and the model for each mode. You can select Cerebras, Groq, Anthropic (Claude), Grok (xAI), OpenAI, Google Gemini, or Mistral. Each engine gives one or more models in a second picker. On both macOS and Windows, you can also send post-processing to a self-hosted or OpenAI-compatible custom endpoint instead of a built-in engine. See [Custom Endpoints](/custom-endpoints).
 
 ### Additional Formatting Options
 
-These toggles are applied on top of the preset instructions:
+These options apply in addition to the preset instructions:
 
-- **Punctuation** — Add commas, periods, and basic punctuation.
-- **Capitalization** — Automatic sentence case.
-- **Profanity filter** — Replace explicit words in transcripts.
-- **Remove Trailing Period** — Strip the period at the end of a transcription. Useful for short phrases pasted into search fields, chat inputs, or command lines where a trailing period looks wrong.
+- **Punctuation** — Adds commas, periods, and other basic punctuation.
+- **Capitalization** — Applies sentence case automatically.
+- **Profanity filter** — Removes profanity from the transcript. The AI does not mask the words with symbols. If a sentence no longer makes sense without the word, the AI rewords that part slightly.
+- **Remove Trailing Period** — Deletes the period at the end of a transcription. Use this option for short phrases that you paste into search fields, chat inputs, or command lines, where a final period looks wrong.
 
 ### English Spelling Variants
 
-When your language is English and post-processing is on, you can pin a spelling variant so the AI uses consistent conventions:
+If your language is English and post-processing is on, you can select a spelling variant. The AI then uses the same spelling rules for all text:
 
-- **American** (default) — e.g., *color*, *organize*, *favor*
-- **British** — e.g., *colour*, *organise*, *favour*
-- **Australian** — e.g., *colour*, *organise*, *favour* (Australian conventions)
-- **Canadian** — e.g., *colour*, *organize*, *favour* (Canadian conventions)
+- **American** — for example, *color*, *realize*, *organization*, *center*, *traveled*
+- **British** — for example, *colour*, *realise*, *organisation*, *centre*, *travelled*
+- **Australian** — for example, *colour*, *realise*, *organisation*, *centre*, *travelled*
+- **Canadian** — for example, *colour*, *realize*, *organization*, *centre*, *travelled*. Canadian English keeps the British *-our* and *-re* endings, but it uses the American *-ize* and *-ization* endings.
 
-The variant is stored per mode, so a mode you use for UK client emails can be set to British while your daily dictation stays on American.
+A new mode starts on the variant of your system region. A machine set to Canada starts on **Canadian**. A machine set to Australia starts on **Australian**. A machine set to the United Kingdom, Ireland, India, Singapore, South Africa, New Zealand, or another region that writes British English starts on **British**. All other regions start on **American**. An unknown region also starts on **American**.
+
+The region gives the first value only. HyperWhisper does not change the variant of a mode that already holds one. Thus a mode that you edited, and a mode that you restored from a backup, keep the value that they have.
+
+The variant also sets the date format that the AI writes:
+
+| Variant | Date format |
+|---|---|
+| American | `MM/DD/YYYY` (for example, 12/25/2025) or "December 25, 2025" |
+| British | `DD/MM/YYYY` (for example, 25/12/2025) or "25 December 2025" |
+| Australian | `DD/MM/YYYY` (for example, 25/12/2025) or "25 December 2025" |
+| Canadian | `DD/MM/YYYY` or `YYYY-MM-DD` (for example, 25/12/2025 or 2025-12-25) or "25 December 2025" |
+
+HyperWhisper stores the variant for each mode. Thus a mode for UK client emails can use British, and your daily dictation mode can stay on American.
 
 ## Streaming Transcription
 
-Streaming transcription displays words as you speak rather than waiting until you stop recording. It uses a separate shortcut from the standard toggle.
+Streaming transcription shows the words while you speak. It does not wait until you stop the recording. It uses its own shortcut, not the standard toggle.
 
 <Tabs>
   <Tab title="macOS">
-    Default shortcut: `⌥⇧Space` (Option+Shift+Space). Configurable in **Settings → Shortcuts**.
+    Default shortcut: `⌥⇧Space` (Option+Shift+Space). To change it, go to **Settings → Shortcuts**.
 
-    Enable or disable streaming and set its language in **Settings → Streaming**.
+    To turn streaming on or off, and to set its language, go to **Settings → Streaming**.
   </Tab>
   <Tab title="Windows">
-    Default shortcut: `Ctrl+Shift+Space`. Configurable in **Settings → Shortcuts**.
+    Default shortcut: `Ctrl+Shift+Space`. To change it, go to **Settings → Shortcuts**.
 
-    Streaming is configured at the app level in **Settings → Streaming**.
+    You configure streaming for the whole app in **Settings → Streaming**.
   </Tab>
 </Tabs>
 
-Streaming settings are global and shared across every streaming session on both platforms — they are not configured per mode. See [Streaming Transcription](/streaming-settings) for the full provider, language, and shortcut options.
+The streaming settings are global on both platforms. Every streaming session uses them, and you cannot set them for each mode. For the full provider, language, and shortcut options, see [Streaming Transcription](/streaming-settings).
 
 ## Screen OCR
 
-When **Screen OCR** is enabled on a mode, HyperWhisper captures the visible text on your screen at the moment recording starts and passes it to the AI as context. This helps the AI spell proper nouns, identifiers, and technical terms correctly—especially useful when dictating about content you're looking at.
+If **Screen OCR** is on for a mode, HyperWhisper reads the visible text on your screen when the recording starts. It sends this text to the AI as context. The AI then spells proper nouns, identifiers, and technical terms correctly. This function helps most when you dictate about the content on your screen.
 
-To enable it, edit a mode and turn on **Screen OCR**. The app requires Screen Recording permission the first time you use it. See [Permissions](/permissions) for how to grant it.
+To use this function, edit a mode and turn on **Screen OCR**. At the first use, the app asks for the Screen Recording permission. To give this permission, see [Permissions](/permissions).
 
-Screen OCR is a per-mode toggle, so you can enable it only for modes where context from the screen genuinely helps (for example, a Code mode or a Meeting mode) and leave it off for casual dictation.
+**Screen OCR** is a setting for each mode. Turn it on only for the modes where the screen gives useful context (for example, a Code mode or a Meeting mode). Keep it off for casual dictation.
 
 ## User-Supplied System Prompt
 
-Every mode has an optional **System Prompt** field (up to 2,000 characters) that is inserted into the post-processing instructions before the preset template. Use it to add context the preset doesn't cover—your industry, preferred terminology, standing output rules, or anything you'd tell an assistant at the start of a session.
+Every mode has an optional **System Prompt** field (up to 2,000 characters). HyperWhisper puts this text into the post-processing instructions, before the preset template. Use the field to add context that the preset does not cover. This context can include your industry, your preferred terminology, and your permanent rules for the output.
 
 Examples:
 - *"Use metric units. Spell out numbers below 10."*
 - *"This is for internal tech docs. Prefer 'we' over 'I'."*
 - *"Always capitalize 'HyperWhisper'."*
 
-The system prompt is applied on every transcription for that mode. It works alongside the preset instructions, not instead of them.
+The system prompt applies to every transcription in that mode. It does not replace the preset instructions. It is an addition to them.
 
 ## Gemini Custom Prompt
 
-When the transcription engine is **Gemini**, an additional **Gemini Custom Prompt** field (up to 2,000 characters) lets you pass custom instructions directly to Gemini's transcription step—before post-processing runs. This controls how Gemini interprets the audio, not how the output is reformatted.
+If the transcription source is **Your Provider** and the provider is **Gemini**, the mode gets a **Gemini Custom Prompt** field (up to 2,000 characters). This field sends your instructions directly to the transcription step of Gemini, before post-processing starts. The prompt controls how Gemini reads the audio. It does not control the format of the output.
 
-This field is distinct from the [User-Supplied System Prompt](#user-supplied-system-prompt), which affects post-processing.
+This field needs your own Gemini API key. The field does not appear for the Gemini models in the HyperWhisper Cloud Model row.
+
+This field is not the [User-Supplied System Prompt](#user-supplied-system-prompt). The system prompt applies to post-processing.
 
 ## Cloud Transcription Domain
 
-For HyperWhisper Cloud transcription, you can set a **Transcription Domain** on a mode to route audio through a domain-specific model. Currently the supported value is `medical`, which targets a backend tuned for clinical vocabulary and note formats.
+For HyperWhisper Cloud transcription, you can set a **Transcription Domain** on a mode. The audio then goes to a model for that domain. At this time, the only supported value is `medical`. This value selects a backend for clinical vocabulary and note formats.
 
-This setting is available per mode and is passed as a hint to the cloud backend. Leave it blank for general-purpose transcription.
+The **Medical** control appears only when the provider is **AssemblyAI**. AssemblyAI is the only provider that uses a domain for this. For Deepgram, medical is a model: select **Nova 3 Medical** or **Nova 2 Medical** in the Model row instead.
+
+You set this value for each mode, and HyperWhisper sends it to the cloud backend as a hint. For general-purpose transcription, keep the field empty.
 
 ## Creating and Editing Modes
 
 <Steps>
   <Step title="Open the Mode Editor">
-    Click the **+** button in the mode list to create a new mode, or click an existing mode to edit it.
+    To create a mode, click the **+** button in the mode list. To edit a mode, click that mode in the list.
   </Step>
   <Step title="Choose a preset">
-    Select the preset that best matches your use case. The preset sets the AI post-processing instructions. For full control, pick **Custom** and write your own.
+    Select the preset for your use case. The preset sets the AI post-processing instructions. For full control, select **Custom** and write your own instructions.
   </Step>
   <Step title="Set your transcription source, engine, and language">
-    Choose On Device, HyperWhisper Cloud (and pick an STT engine), or Your Provider. Set the language or leave it on Auto.
+    Select On Device, HyperWhisper Cloud, or Your Provider. For HyperWhisper Cloud, also select an STT engine. Set the language, or keep Auto.
   </Step>
   <Step title="Configure post-processing">
-    Choose Off, Cloud, or Local. If Cloud, optionally pick a post-processing engine and model. Add a system prompt if you want extra instructions.
+    Select Off, Cloud, or Local. For Cloud, you can also select a post-processing engine and model. To give more instructions, add a system prompt.
   </Step>
   <Step title="Adjust formatting options">
-    Toggle punctuation, capitalization, profanity filter, remove trailing period, and English spelling variant as needed.
+    Set punctuation, capitalization, profanity filter, remove trailing period, and the English spelling variant.
   </Step>
   <Step title="Enable optional features">
-    Turn on Screen OCR if you want the AI to use your screen as context. Set a Gemini custom prompt if you're using the Gemini STT engine.
+    If you want the AI to use your screen as context, turn on Screen OCR. If you use the Gemini STT engine, set a Gemini custom prompt.
   </Step>
 </Steps>
 
 ## Tips
 
-- **One mode per context** — Create a dedicated mode for each workflow (client emails, meeting notes, code, casual messages) rather than switching settings on a single mode. The [Change Mode shortcut](#switching-modes) makes it fast to switch.
-- **Per-language modes** — If you dictate in multiple languages, a dedicated mode per language is more reliable than auto-detect alone.
-- **Start with Hyper** — The Hyper preset handles most general dictation well. Only add a system prompt or switch presets when you notice consistent gaps.
-- **Raw output for tooling** — Set post-processing to Off when piping transcription output into another tool that does its own formatting (IDE, terminal, form field with validation).
+- **One mode per context** — Create a mode for each workflow (client emails, meeting notes, code, casual messages). This is better than a change of the settings in one mode. The [Change Mode shortcut](#switching-modes) makes each change fast.
+- **Per-language modes** — If you dictate in more than one language, a mode for each language is more reliable than auto-detection.
+- **Start with Hyper** — The Hyper preset is sufficient for most general dictation. If you see the same gap many times, add a system prompt or select a different preset.
+- **Raw output for other tools** — If another tool applies its own format (IDE, terminal, form field with validation), set post-processing to Off.

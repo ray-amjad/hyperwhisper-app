@@ -2,12 +2,14 @@
 // Primary STT provider - $0.0055/min, best accuracy with vocabulary boosting
 
 import { computeDeepgramTranscriptionCost } from '../lib/cost-calculator';
-import { ProviderInputError, ProviderUnavailableError } from './types';
+import { ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { fetchWithTimeout, logProviderEvent, readErrorBodyPreview } from './utils';
+import { resolveProviderLanguage } from '../lib/language-codes';
+import { fetchWithTimeout, logProviderEvent, providerHttpError, splitVocabularyTerms } from './utils';
 
 // Maximum keywords Deepgram accepts
 const MAX_KEYWORDS = 100;
+const MAX_KEYWORD_CHARS = 50;
 
 /**
  * Split an initial prompt into individual vocabulary terms.
@@ -17,11 +19,10 @@ const MAX_KEYWORDS = 100;
  * (that boosts one literal phrase containing commas, which does nothing).
  */
 function convertToKeyterms(initialPrompt: string): string[] {
-  return initialPrompt
-    .split(/[,\n;]+/)
-    .map(t => t.trim().replace(/^[-*]\s*/, ''))
-    .filter(t => t.length > 0 && t.length <= 50)
-    .slice(0, MAX_KEYWORDS);
+  return splitVocabularyTerms(initialPrompt, {
+    maxTerms: MAX_KEYWORDS,
+    maxTermChars: MAX_KEYWORD_CHARS,
+  });
 }
 
 /**
@@ -36,9 +37,24 @@ function deepgramModelParam(model: string): string {
 }
 
 /**
- * Build Deepgram API URL with query parameters
+ * Build Deepgram API URL with query parameters.
+ *
+ * `language` is ALREADY RESOLVED — `null` means "this request runs on
+ * auto-detect". Deciding the fallback here was the wrong home for it: the
+ * caller then had to re-run the resolver just to learn what this function had
+ * decided, and the two call sites had to agree forever for the telemetry to be
+ * honest. This function now only formats.
+ *
+ * On the deliberate keyterm behaviour when `language` is null: Nova-3 honours
+ * `keyterm` (and Nova-2 `keywords`) only in monolingual mode and silently drops
+ * it under `detect_language` — see references/custom-vocab.md. The terms are
+ * still appended anyway, because omitting them can only lose boosting if that
+ * documented behaviour is ever narrower than stated, while sending them costs
+ * nothing but URL bytes. What must NOT happen is the loss being invisible: the
+ * `language_unmappable` event carries `vocabularyTermsAtRisk` so a request that
+ * quietly forfeited the user's custom vocabulary is countable.
  */
-function buildDeepgramUrl(model: string, language?: string, vocabularyTerms: string[] = []): string {
+function buildDeepgramUrl(model: string, language: string | null, vocabularyTerms: string[] = []): string {
   const dgModel = deepgramModelParam(model);
   const params = new URLSearchParams({
     model: dgModel,
@@ -47,10 +63,8 @@ function buildDeepgramUrl(model: string, language?: string, vocabularyTerms: str
     mip_opt_out: 'true',
   });
 
-  const isMonolingual = language && language.toLowerCase() !== 'auto';
-
-  if (isMonolingual) {
-    params.set('language', language.toLowerCase());
+  if (language) {
+    params.set('language', language);
   } else {
     params.set('detect_language', 'true');
   }
@@ -88,14 +102,25 @@ export async function transcribeWithDeepgram(
 
   const keyterms = initialPrompt ? convertToKeyterms(initialPrompt) : [];
   const model = context.model || 'nova-3-general';
-  const url = buildDeepgramUrl(model, language, keyterms);
   const provider = 'deepgram';
+
+  // Language support is per-MODEL here, not per-provider: the medical models are
+  // English-only, and nova-2 predates the nova-3 language expansion while also
+  // keeping two languages (`th`, `zh`) nova-3 dropped. The picker scopes its
+  // language list by TIER, so switching models leaves every language selectable.
+  // One call: resolves, logs the fallback if there is one, and returns what to
+  // send.
+  const languageSent = resolveProviderLanguage({
+    provider, model, language, context, vocabularyTermCount: keyterms.length,
+  });
+  const url = buildDeepgramUrl(model, languageSent, keyterms);
 
   logProviderEvent(provider, 'prepare', {
     model,
     audioBytes: audio.byteLength,
     contentType,
     language: language || 'auto',
+    languageSent: languageSent ?? 'detect',
     keytermCount: keyterms.length,
   }, context);
 
@@ -109,35 +134,11 @@ export async function transcribeWithDeepgram(
   }, context);
 
   if (!response.ok) {
-    const errorText = await readErrorBodyPreview(response);
-    const elapsedMs = Math.round(performance.now() - startedAt);
-    const kind = response.status >= 500 ? 'upstream_5xx' : response.status === 429 ? 'rate_limit' : 'http_error';
-
-    logProviderEvent(provider, 'http_error', {
-      elapsedMs,
-      status: response.status,
-      kind,
-      bodyPreview: errorText,
-    }, context);
-
-    if (response.status === 401) {
-      throw new Error('Deepgram API key is invalid or expired');
-    }
-    if (response.status === 402) {
-      // Billing exhaustion on this provider only — siblings may still have
-      // budget, so fail over instead of hard-500ing the request.
-      throw new ProviderUnavailableError('Deepgram', 'insufficient funds');
-    }
-    if (response.status === 429) {
-      throw new ProviderUnavailableError('Deepgram', 'rate limit exceeded');
-    }
-    if (response.status >= 500) {
-      throw new ProviderUnavailableError('Deepgram', `upstream 5xx: ${response.status}`);
-    }
-
-    // Other 4xx (e.g. 400 on an unaccepted language code/format) — a sibling
-    // provider may accept this input, so let the chain fall through.
-    throw new ProviderInputError('Deepgram', response.status, errorText || `HTTP ${response.status}`);
+    throw await providerHttpError(provider, response, startedAt, context, {
+      label: 'Deepgram',
+      authMessage: 'Deepgram API key is invalid or expired',
+      failoverOn402: true,
+    });
   }
 
   let data: {

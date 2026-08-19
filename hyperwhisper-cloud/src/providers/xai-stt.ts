@@ -2,11 +2,21 @@
 // xAI Speech to Text REST API - $0.10/hour
 
 import { computeXaiTranscriptionCost } from '../lib/cost-calculator';
-import { ProviderInputError, ProviderUnavailableError } from './types';
+import { ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { fetchWithTimeout, logProviderEvent, readErrorBodyPreview } from './utils';
+import {
+  DEFAULT_AUDIO_EXTENSIONS,
+  audioExtensionFromContentType,
+  explicitLanguageSubtag,
+  fetchWithTimeout,
+  logProviderEvent,
+  providerHttpError,
+} from './utils';
 
 const XAI_STT_URL = 'https://api.x.ai/v1/stt';
+// xAI keyterm limits: max 100 terms, each up to 50 characters.
+const MAX_KEYTERMS = 100;
+const MAX_KEYTERM_CHARS = 50;
 const SUPPORTED_FORMATTING_LANGUAGES = new Set([
   'ar',
   'cs',
@@ -35,27 +45,41 @@ const SUPPORTED_FORMATTING_LANGUAGES = new Set([
   'vi',
 ]);
 
-function getExtension(contentType: string): string {
-  if (contentType.includes('wav')) return 'wav';
-  if (contentType.includes('mp3') || contentType.includes('mpeg')) return 'mp3';
-  if (contentType.includes('m4a') || contentType.includes('mp4')) return 'm4a';
-  if (contentType.includes('webm')) return 'webm';
-  if (contentType.includes('ogg')) return 'ogg';
-  if (contentType.includes('flac')) return 'flac';
-  return 'mp3';
-}
-
 function normalizedFormattingLanguage(language?: string): string | undefined {
-  if (!language || language.toLowerCase() === 'auto') {
-    return undefined;
-  }
-
   // Strip any BCP-47 region ("en-US" → "en") to the primary subtag before the
   // supported-set check, so a region-tagged locale still matches instead of
   // silently dropping the formatting language.
-  const primary = language.toLowerCase().split(/[-_]/)[0];
+  const primary = explicitLanguageSubtag(language);
+  if (primary === undefined) {
+    return undefined;
+  }
+
   const normalized = primary === 'tl' ? 'fil' : primary;
   return SUPPORTED_FORMATTING_LANGUAGES.has(normalized) ? normalized : undefined;
+}
+
+/** Split a comma/newline vocabulary prompt into xAI `keyterm` values. */
+function toKeyterms(initialPrompt: string): string[] {
+  const seen = new Set<string>();
+  const terms: string[] = [];
+  for (const raw of initialPrompt.split(/[,\n;]+/)) {
+    // Strip angle brackets and collapse whitespace runs, matching the canonical
+    // `sanitize_vocabulary_word` the BYOK path routes through — an imported
+    // backup can carry either.
+    const term = raw
+      .trim()
+      .replace(/^[-*]\s*/, '')
+      .replace(/[<>]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (term.length === 0 || term.length > MAX_KEYTERM_CHARS) continue;
+    const key = term.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    terms.push(term);
+    if (terms.length === MAX_KEYTERMS) break;
+  }
+  return terms;
 }
 
 export async function transcribeWithXaiGrok(
@@ -73,12 +97,20 @@ export async function transcribeWithXaiGrok(
   }
 
   const formattingLanguage = normalizedFormattingLanguage(language);
-  const ext = getExtension(contentType);
+  const ext = audioExtensionFromContentType(contentType, DEFAULT_AUDIO_EXTENSIONS) ?? 'mp3';
   const formData = new FormData();
 
   if (formattingLanguage) {
     formData.append('format', 'true');
     formData.append('language', formattingLanguage);
+  }
+
+  // keyterm is a REPEATED field — one append per term, not a joined string.
+  // Ref: docs.x.ai speech-to-text ("Repeat the parameter for multiple terms.
+  // Max 100 terms, each up to 50 characters.")
+  const keyterms = initialPrompt ? toKeyterms(initialPrompt) : [];
+  for (const term of keyterms) {
+    formData.append('keyterm', term);
   }
 
   // xAI requires the file part after all other multipart fields.
@@ -89,7 +121,7 @@ export async function transcribeWithXaiGrok(
     contentType,
     language: language || 'auto',
     formattingLanguage: formattingLanguage || 'none',
-    ignoresInitialPrompt: Boolean(initialPrompt),
+    keytermCount: keyterms.length,
   }, context);
 
   const response = await fetchWithTimeout(provider, XAI_STT_URL, {
@@ -101,30 +133,11 @@ export async function transcribeWithXaiGrok(
   }, context);
 
   if (!response.ok) {
-    const errorText = await readErrorBodyPreview(response);
-    const elapsedMs = Math.round(performance.now() - startedAt);
-    const kind = response.status >= 500 ? 'upstream_5xx' : response.status === 429 ? 'rate_limit' : 'http_error';
-
-    logProviderEvent(provider, 'http_error', {
-      elapsedMs,
-      status: response.status,
-      kind,
-      bodyPreview: errorText,
-    }, context);
-
-    if (response.status === 401 || response.status === 403) {
-      throw new Error('xAI API key is invalid or unauthorized');
-    }
-    if (response.status === 429) {
-      throw new ProviderUnavailableError('Grok', 'rate limit exceeded');
-    }
-    if (response.status >= 500) {
-      throw new ProviderUnavailableError('Grok', `upstream 5xx: ${response.status}`);
-    }
-
-    // Other 4xx (e.g. 400 on an unaccepted language code/format) — a sibling
-    // provider may accept this input, so let the chain fall through.
-    throw new ProviderInputError('Grok', response.status, errorText || `HTTP ${response.status}`);
+    throw await providerHttpError(provider, response, startedAt, context, {
+      label: 'Grok',
+      authStatuses: [401, 403],
+      authMessage: 'xAI API key is invalid or unauthorized',
+    });
   }
 
   let data: {

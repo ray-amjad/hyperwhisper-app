@@ -112,17 +112,6 @@
 "home.accessibility.open.settings" = "Opna stillingar";
 "home.accessibility.restart.after.permission" = "Endurræstu forrit eftir að hafa veitt leyfi";
 "home.getting.started.completed" = "✓ Lokið";
-"home.whatsnew.badge" = "NÝTT";
-"home.whatsnew.title" = "Hvað er nýtt?";
-"home.whatsnew.update1.date" = "3. júlí";
-"home.whatsnew.update1.title" = "Parakeet er nú tiltækt";
-"home.whatsnew.update1.description" = "Sæktu það beint úr tungumálalíkanalista í hamssköpun til að prófa það í dag.";
-"home.whatsnew.update2.date" = "5. júní";
-"home.whatsnew.update2.title" = "Stuðningur fyrir öll OpenAI-samhæf sérsniðin líkön";
-"home.whatsnew.update2.description" = "Þú getur nú bætt við hvaða OpenAI samhæfum API sem er við lista yfir líkönin þín.";
-"home.whatsnew.update3.date" = "27. maí";
-"home.whatsnew.update3.title" = "Glæný lítil upptökugluggi";
-"home.whatsnew.update3.description" = "Snyrtileg, lágmarks upptökuviðmót sem heldur sig frá.";
 
 // MARK: - Recent Updates Section
 "home.recent.updates.title" = "Nýlegar uppfærslur";
@@ -312,6 +301,9 @@
 
 "settings.general.errorLogging.title" = "Villuskráning";
 "settings.general.errorLogging.info" = "Fangaðu sjálfkrafa og sendu villuskýrslur til að hjálpa til við að bæta forritið.";
+"settings.general.shareSpeedData.title" = "Deila nafnlausum hraðagögnum";
+"settings.general.shareSpeedData.info" = "Mælir hversu langan tíma hver skýjaþjónustuaðili tekur og bætir því við opinberan samanburð. Mæling inniheldur þjónustuaðilann, netþjónasvæðið, lengd klippsins og tímann sem tók — enginn reikningur, enginn lykill, ekkert hljóð og enginn texti. Slökktu á þessu og HyperWhisper hættir að senda það. Ekkert annað breytist og staðbundin líkön senda aldrei neitt.";
+"settings.general.shareSpeedData.link" = "Skoða hraðasamanburðinn";
 "settings.general.autoUpdate.title" = "Sjálfvirk uppfærsla";
 "settings.general.autoUpdate.info" = "Athugaðu sjálfkrafa og sæktu nýjar útgáfur af HyperWhisper.";
 "settings.general.support.title" = "Þarftu hjálp?";
@@ -832,10 +824,6 @@ Breyttu þessum stillingum til að velja annað líkan áður en þú fjarlægir
 "page.header.learnMore" = "Læra meira";
 
 // MARK: - Recording Dialog
-"recording.status.complete" = "Afritun lokið";
-"recording.status.retrying" = "Reyni afritun aftur…";
-"recording.status.postprocessing" = "Eftirvinnsla með gervigreind…";
-"recording.status.transcribing" = "Afritar…";
 "recording.success.pasted" = "Límt!";
 "recording.loading.retrying" = "Reyni aftur…";
 "recording.loading.postprocessing" = "Vinnur með gervigreind…";
@@ -863,39 +851,22 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "modes.provider.manageInLibrary" = "Stjórna í safninu →";
 "streaming.loading.warming" = "Hlýjar upp staðbundið líkan...";
 "streaming.status.listening" = "Hlusta...";
-"streaming.status.streaming" = "Strauma...";
 "streaming.status.disconnecting" = "Stöðva...";
 "streaming.loading.connecting" = "Tengist netþjóni...";
 "streaming.loading.ready" = "Frumstilli hljóð...";
 "streaming.loading.streaming" = "Bíð eftir máli...";
 "streaming.state.reconnecting" = "Endurtengist...";
 "recording.stop.help" = "Stöðva upptöku (%@)";
-"recording.postprocessing.unavailable" = "Eftirvinnsla ekki tiltæk";
-"recording.postprocessing.missing.single" = "%@ lykill vantar – tek upp án eftirvinnslunnar";
-"recording.postprocessing.missing.multiple" = "API lyklar vantar – tek upp án eftirvinnslunnar";
-"recording.postprocessing.addKey" = "Bæta við lykli";
-"recording.offline.banner" = "Engin nettenging. Skýjaafritun mun mistakast þar til þú ert tengdur.";
-"recording.offline.title" = "Engin nettenging";
-"recording.offline.subtitle" = "Endurtengdist til að halda áfram eða skiptu yfir í ónettengdan ham.";
-"recording.error.network" = "Athugaðu nettengingu þína og reyndu aftur.";
-"recording.error.timeout" = "Beiðni tímauppúr. Athugaðu tengihraða þinn og reyndu aftur.";
-"recording.error.rateLimit" = "Þú hefur gert of margar beiðnir. Bíddu augnablik og reyndu aftur.";
-"recording.error.credits" = "Ófullnægjandi einingar. Bættu við fleiri einingum í stillingum.";
-"recording.error.apiKey" = "Bættu við %@ API lykilnum þínum í stillingum.";
-"recording.error.server" = "Afritunarþjónustan er að upplifa vandamál. Vinsamlegast reyndu aftur eftir augnablik.";
 "recording.retry" = "Reyna aftur";
 "recording.retry.inProgress" = "Reyni aftur…";
 "recording.retry.count" = "Reyna aftur (%d)";
 "recording.retry.failed.missing" = "Endurtilraun mistókst: Hljóðskrá fannst ekki";
 "recording.retry.failed.error" = "Endurtilraun mistókst: %@";
 "recording.retry.pending" = "Tilbúið að reyna aftur – smelltu til að afrita";
-"recording.provider.unknown" = "skýjaveitandi";
 "recording.cancel.dialog.title" = "Hætta við upptöku?";
 "recording.cancel.dialog.message" = "Þetta mun henda núverandi upptöku.";
 "recording.cancel.dialog.confirm" = "Hætta við upptöku";
 "recording.cancel.dialog.resume" = "Halda áfram";
-"recording.error.overlay.title" = "Netvilla";
-"recording.error.overlay.message" = "Ýttu á 'Reyna aftur' hér að neðan eða skiptu yfir í ónettengdan ham til að halda áfram.";
 "recording.mode.default" = "Sjálfgefið";
 "recording.dialog.window.title" = "Upptökugluggi";
 "recording.button.start" = "Byrja upptöku";
@@ -953,6 +924,7 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "transcription.error.maxRetriesExceeded" = "Hámarks endurtilraunatölur farið yfir";
 "transcription.error.unauthorized.provider" = "Óheimilt: ógildur %@ API lykill eða heimildir.\n\nOpnaðu Stillingar → API lyklar til að staðfesta skilríkin þín.";
 "transcription.error.unauthorized.generic" = "Óheimilt: ógildur API lykill eða heimildir.\n\nOpnaðu Stillingar → API lyklar til að staðfesta skilríkin þín.";
+"transcription.error.cloudAccountRequired" = "HyperWhisper Cloud krefst reikningslykils.\n\nOpnaðu Stillingar → HyperWhisper Cloud til að slá inn lykilinn þinn eða fá inneign.";
 "transcription.error.invalidRequest" = "Ógild beiðni: athugaðu hljóðskrá eða stillingar";
 "transcription.error.streamingInterrupted" = "Streymi truflað; hlutaðan texta sýndur";
 "transcription.error.busy" = "Afritunarþjónustan er upptekin eins og stendur";
@@ -992,6 +964,7 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "transcription.guidance.needsNativeRelaunch" = "Lokaðu HyperWhisper og opnaðu forritið aftur sem innbyggt forrit til að nota staðbundna eftirvinnslu.";
 "transcription.guidance.localRuntimeUnavailable" = "Reyndu aftur eða veldu minna staðbundið líkan í hamstillingunum þínum.";
 "transcription.error.localRuntimeUnavailable" = "Staðbundna gervigreindin gat ekki lokið verkinu — hráa uppskriftin þín var varðveitt.";
+"transcription.error.localSpeechModelEvicted" = "Talmódelið var affermt til að losa minni og ekki tókst að hlaða því aftur. Lokaðu einhverjum forritum og reyndu aftur.";
 "settings.backup.localDownload.title" = "Sækja staðbundin líkön?";
 "settings.backup.localDownload.message" = "%d af endurheimtu hömunum þínum nota gervigreindarlíkön í tækinu sem hafa ekki verið sótt.";
 "settings.backup.localDownload.downloadAll" = "Hlaða öllu niður";
@@ -1124,10 +1097,6 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "history.autoDelete.unit.minutes" = "Mínútur";
 "history.autoDelete.unit.hours" = "Klukkustundir";
 "history.autoDelete.unit.days" = "Dagar";
-"history.autoDelete.unit.minutes.plural" = "mínútur";
-"history.autoDelete.unit.hours.plural" = "klukkustundir";
-"history.autoDelete.unit.days.plural" = "dagar";
-"history.autoDelete.status.disabled" = "Sjálfvirk eyðing er óvirk";
 "history.autoDelete.status.enabled" = "Eyða upptökum eldri en %d %@";
 "history.autoDelete.cleanup.noItems" = "Engar upptökur til að eyða";
 "history.autoDelete.cleanup.summary" = "Eyddi %d upptöku(m) og losaði %@";

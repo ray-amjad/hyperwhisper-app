@@ -3,7 +3,7 @@ title: App Updates
 description: How HyperWhisper updates itself on macOS and Windows, and how to check for updates manually.
 ---
 
-HyperWhisper checks for updates automatically and installs them with a single click. You don't need to babysit version numbers.
+HyperWhisper checks for updates automatically. You install a new version with one click. You do not need to watch the version numbers yourself.
 
 <Tabs>
   <Tab title="macOS">
@@ -11,39 +11,51 @@ HyperWhisper checks for updates automatically and installs them with a single cl
 
     ## Automatic updates
 
-    On launch (and periodically while running), the app checks the appcast at `https://www.hyperwhisper.com/appcast.xml`. When a new version is available, you'll see a prompt with the release notes — click **Install Update** and HyperWhisper relaunches into the new version.
+    The app checks the appcast at `https://www.hyperwhisper.com/appcast.xml` at launch, and again at intervals while it runs. When a new version is available, the app shows a prompt with the release notes. Click **Install Update**. HyperWhisper then starts again in the new version.
 
-    ## Checking manually
+    ## Check for updates manually
 
-    Click the menu bar icon and choose **Check for Updates...**. If you're on the latest version, you'll see a confirmation. Otherwise the update prompt appears.
+    Open the **HyperWhisper** application menu at the top of the screen (the app's own menu, not the menu bar status icon), below **About HyperWhisper**. Then choose **Check for Updates...**. If you have the latest version, the app shows a confirmation. If a new version is available, the update prompt appears.
 
-    ## Disabling auto-checks
+    ## Turn off automatic checks
 
-    If you'd rather control update timing yourself, go to **Settings → General** and turn off **Auto update**. This isn't a native Sparkle preference — it's HyperWhisper's own setting, which the app syncs into Sparkle's automatic-check behavior programmatically. You can still trigger a manual check at any time via **Check for Updates...**.
+    To control the update times yourself, go to **Settings → General**. Then turn off **Auto update**. This control is not a native Sparkle preference. It is a HyperWhisper setting, and the app applies it to the automatic-check behavior of Sparkle. You can still start a manual check at any time with **Check for Updates...**.
   </Tab>
   <Tab title="Windows">
     HyperWhisper uses [NetSparkle](https://github.com/NetSparkleUpdater/NetSparkle), the Windows equivalent of Sparkle.
 
     ## Automatic updates
 
-    On launch, the app checks the appcast at `https://www.hyperwhisper.com/appcast-windows.xml` (a separate feed from the macOS appcast) for a newer version. When one is available, you'll see a notification with the release notes and an **Install** button. The new version downloads, the app closes, and the installer runs automatically.
+    At launch, the app checks the appcast at `https://www.hyperwhisper.com/appcast-windows.xml` for a new version. This feed is separate from the macOS appcast. When a new version is available, the app shows a notification with the release notes and an **Install** button. The new version downloads. Then the app closes and the installer runs automatically.
 
-    ## Checking manually
+    ## Check for updates manually
 
-    Right-click the tray icon and choose **Check for Updates**. If you're on the latest version, you'll see a confirmation; otherwise the update prompt appears.
+    Right-click the tray icon. Then choose **Check for Updates**. If you have the latest version, the app shows a confirmation. If a new version is available, the update prompt appears.
 
-    ## Disabling auto-checks
+    ## Turn off automatic checks
 
-    Go to **Settings → General** and turn off **Auto update** to stop the automatic background check. You can still trigger a manual check at any time via **Check for Updates**.
+    To stop the automatic check in the background, go to **Settings → General**. Then turn off **Auto update**. You can still start a manual check at any time with **Check for Updates**.
   </Tab>
 </Tabs>
 
+## Recent updates on the home page (macOS)
+
+The macOS home page shows a **Recent Updates** section at the bottom, below the statistics bar. It reads the same appcast feed and shows the release notes of the 5 most recent versions. The newest version has a **NEW** badge. While the app reads the feed, a loading placeholder appears. If the feed does not answer, the section shows an error and a retry control.
+
+The Windows app has no equivalent section. On Windows, you read the release notes in the update notification window.
+
+## Links in release notes
+
+A release note can contain a link. HyperWhisper makes the link clickable: on macOS in the **Recent Updates** section, on Windows in the update notification window. Click the link to open the page in your browser.
+
+HyperWhisper opens `http`, `https`, and `mailto` links only. The appcast is remote content, thus a link with a different scheme keeps its text but does not become clickable.
+
 ## Release channels
 
-HyperWhisper currently ships a single stable channel — there's no separate beta or insider track. Releases go through internal testing before being pushed to all users.
+HyperWhisper ships one stable channel. There is no separate beta channel or insider channel. We do internal tests on each release before we send it to all users.
 
-If you want to be notified when a new version ships, follow us on [LinkedIn](https://www.linkedin.com/company/hyperwhisper/).
+If you want a message when a new version ships, follow us on [LinkedIn](https://www.linkedin.com/company/hyperwhisper/).
 
-## Rolling back
+## Go back to a previous version
 
-If a new release breaks something for you, please email [support@hyperwhisper.com](mailto:support@hyperwhisper.com) with details — that's the fastest way to get a fix out, and we can point you to the previous installer in the meantime.
+If a new release does not work correctly for you, send an email with the details to [support@hyperwhisper.com](mailto:support@hyperwhisper.com). This is the fastest way to get a fix. We can also send you the previous installer while we correct the error.

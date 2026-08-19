@@ -1243,37 +1243,6 @@ class PersistenceController: ObservableObject {
 
     // MARK: - Transcript Operations
 
-    /// Creates a new transcript
-    /// - Parameters:
-    ///   - text: The transcribed text
-    ///   - duration: Recording duration in seconds
-    ///   - mode: The transcription mode used
-    ///   - audioFilePath: Optional path to the audio file
-    /// - Returns: The created transcript
-    @discardableResult
-    func createTranscript(
-        text: String,
-        duration: TimeInterval,
-        mode: String? = nil,
-        audioFilePath: String? = nil
-    ) -> Transcript {
-        let context = container.viewContext
-        
-        let transcript = Transcript(context: context)
-        transcript.id = UUID()
-        transcript.text = text
-        transcript.date = Date()
-        transcript.duration = duration  // Duration in seconds
-        transcript.mode = mode
-        transcript.audioFilePath = audioFilePath
-        transcript.setValue("completed", forKey: "status")
-        transcript.setValue(text, forKey: "transcribedText")
-        
-        save()
-        
-        return transcript
-    }
-    
     /// Creates a new transcript in processing state
     ///
     /// LEGACY (main-context, synchronous): blocks on `viewContext`, so a large
@@ -1470,42 +1439,6 @@ class PersistenceController: ObservableObject {
         AppLogger.coreData.debug("Set trimmed audio path for transcript: \(trimmedPath, privacy: .public)")
     }
 
-    /// Finds the most recent processing transcript
-    /// - Returns: The most recent transcript with processing status, if any
-    func findMostRecentProcessingTranscript() -> Transcript? {
-        let request: NSFetchRequest<Transcript> = Transcript.fetchRequest()
-        request.predicate = NSPredicate(format: "status == %@", "processing")
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \Transcript.date, ascending: false)]
-        request.fetchLimit = 1
-
-        do {
-            let results = try container.viewContext.fetch(request)
-            return results.first
-        } catch {
-            AppLogger.coreData.error("Failed to fetch processing transcript: \(error, privacy: .public)")
-            SentryService.capture(error: error, message: "Failed to fetch processing transcript", tags: ["component": "PersistenceController", "operation": "fetchProcessingTranscript"])
-            return nil
-        }
-    }
-
-    /// Finds the most recent failed transcript
-    /// - Returns: The most recent transcript with failed status, if any
-    func findMostRecentFailedTranscript() -> Transcript? {
-        let request: NSFetchRequest<Transcript> = Transcript.fetchRequest()
-        request.predicate = NSPredicate(format: "status == %@", "failed")
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \Transcript.date, ascending: false)]
-        request.fetchLimit = 1
-
-        do {
-            let results = try container.viewContext.fetch(request)
-            return results.first
-        } catch {
-            AppLogger.coreData.error("Failed to fetch failed transcript: \(error, privacy: .public)")
-            SentryService.capture(error: error, message: "Failed to fetch failed transcript", tags: ["component": "PersistenceController", "operation": "fetchFailedTranscript"])
-            return nil
-        }
-    }
-    
     /// Deletes a transcript
     /// - Parameter transcript: The transcript to delete
     func deleteTranscript(_ transcript: Transcript) {
@@ -1589,54 +1522,6 @@ class PersistenceController: ObservableObject {
         save()
     }
     
-    /// Updates a transcript's text
-    /// - Parameters:
-    ///   - transcript: The transcript to update
-    ///   - newText: The new text content
-    func updateTranscriptText(_ transcript: Transcript, newText: String) {
-        // DEFENSIVE CHECK: Ensure transcript has an ID
-        // This helps maintain data integrity
-        guard transcript.id != nil else {
-            AppLogger.coreData.warning("Attempted to update transcript with nil ID")
-            return
-        }
-
-        transcript.text = newText
-        save()
-    }
-
-    /// Updates a transcript's audio file path
-    ///
-    /// **Purpose:**
-    /// Used after background WAV→M4A conversion to update the transcript's
-    /// audioFilePath to point to the new M4A file.
-    ///
-    /// **When Called:**
-    /// After successful background M4A conversion in RecordingLifecycle,
-    /// which happens post-transcription when storeAsM4A setting is enabled.
-    ///
-    /// - Parameters:
-    ///   - transcript: The transcript to update
-    ///   - newPath: The new audio file path (typically the M4A file path)
-    @MainActor
-    func updateTranscriptAudioFilePath(_ transcript: Transcript, newPath: String) {
-        // DEFENSIVE CHECK: Ensure transcript has an ID
-        guard transcript.id != nil else {
-            AppLogger.coreData.warning("Attempted to update transcript audioFilePath with nil ID")
-            return
-        }
-
-        transcript.audioFilePath = newPath
-
-        // Also update the associated RecordingSession if it exists
-        if let session = transcript.recordingSession {
-            session.audioFilePath = newPath
-        }
-
-        save()
-        AppLogger.coreData.debug("Updated transcript audio file path to: \(newPath, privacy: .public)")
-    }
-
     // MARK: - Mode Operations
     
     /// Initializes default modes in Core Data if none exist
@@ -1703,6 +1588,10 @@ class PersistenceController: ObservableObject {
             // but the stored value would be misleading.
             mode.cloudTranscriptionModel = CloudAccuracyTier.elevenLabsScribeV2.defaultModelId
             mode.cloudPostProcessingModel = CloudPostProcessingModel.claudeHaiku.rawValue
+            // Seed the spelling variant from the system region so a first install
+            // in e.g. the UK opens on "British" instead of making the user change
+            // every mode by hand. An unknown region keeps the historical American.
+            mode.englishSpelling = EnglishSpelling.defaultForCurrentRegion.rawValue
         }
         
         // Save the default modes
@@ -1991,7 +1880,10 @@ class PersistenceController: ObservableObject {
         } else {
             mode?.postProcessingProvider = modeEnum.defaultProvider?.rawValue ?? "hyperwhisper"
         }
-        mode?.englishSpelling = englishSpelling ?? "american"
+        // An omitted spelling lands on the system region's variant, the same value
+        // the GUI seeds into a new mode. Callers that forward an existing mode's
+        // value (onboarding, backup restore) still pass it through unchanged.
+        mode?.englishSpelling = englishSpelling ?? EnglishSpelling.defaultForCurrentRegion.rawValue
         mode?.useStreamingTranscription = useStreamingTranscription
         // API/MCP-created cloud modes that omit the accuracy tier should land on
         // the SAME recommended engine the GUI seeds for new modes
@@ -2301,27 +2193,6 @@ class PersistenceController: ObservableObject {
         return usage.totalModelsDownloaded
     }
     
-    /// Updates license status and related information
-    /// - Parameters:
-    ///   - status: New license status
-    ///   - email: Customer email (optional)
-    ///   - activatedDate: License activation date (optional)
-    func updateLicenseStatus(_ status: String, email: String? = nil, activatedDate: Date? = nil) {
-        let usage = getOrCreateUsageTracking()
-        usage.licenseStatus = status
-        usage.lastValidationDate = Date()
-        
-        if let email = email {
-            usage.customerEmail = email
-        }
-        
-        if let activatedDate = activatedDate {
-            usage.licenseActivatedDate = activatedDate
-        }
-        
-        save()
-    }
-    
     // MARK: - Bulk Import Operations (Backup/Restore)
 
     /// Imports modes from backup data with conflict resolution
@@ -2422,15 +2293,23 @@ class PersistenceController: ObservableObject {
                 customInstructions: backupMode.customInstructions,
                 languageModel: backupMode.languageModel,
                 cloudProvider: normalized.provider,
-                // Resolve legacy AssemblyAI model IDs on restore so older backups map
-                // onto the current Universal-2 / Universal-3 Pro lineup, then collapse
-                // any removed Deepgram IDs onto Nova 3 General.
-                cloudTranscriptionModel: CloudTranscriptionModels.resolveDeepgramModelAlias(
-                    backupMode.cloudTranscriptionModel.map { CloudTranscriptionModels.resolveAssemblyAIModelAlias($0) }
-                ),
+                // Resolve legacy model IDs on restore, dispatched by provider, so older
+                // backups map onto the current lineup regardless of which provider
+                // retired the ID — e.g. AssemblyAI Universal-2 / Universal-3 Pro aliases,
+                // removed Deepgram IDs collapsing onto Nova 3 General, or ElevenLabs
+                // `scribe_v1` migrating to `scribe_v2`.
+                cloudTranscriptionModel: backupMode.cloudTranscriptionModel.map {
+                    CloudTranscriptionModels.resolveModelAlias(
+                        $0,
+                        provider: backupMode.cloudProvider.flatMap { CloudProvider(rawValue: $0) }
+                    )
+                },
                 postProcessingMode: backupMode.postProcessingMode,
                 postProcessingProvider: backupMode.postProcessingProvider,
-                englishSpelling: backupMode.englishSpelling,
+                // A backup with no spelling is restored with no spelling, NOT with
+                // this machine's region default. Windows keeps the null too, so a
+                // backup restores the same way on both platforms.
+                englishSpelling: backupMode.englishSpelling ?? "",
                 userSystemPrompt: backupMode.userSystemPrompt,
                 cloudAccuracyTier: normalized.accuracyTier
                     ?? CloudAccuracyTier.fromStorageValue(backupMode.cloudAccuracyTier).rawValue,

@@ -72,7 +72,7 @@
     },
     "mcpServer": {
       "title": "로컬 API 및 MCP 서버",
-      "description": "내장된 MCP 서버로 Claude, Cursor 및 기타 AI 에이전트가 HyperWhisper를 제어할 수 있습니다. 스크립트와 자동화를 위한 베어러 인증 기반의 로컬 전용 HTTP API."
+      "description": "내장된 MCP 서버로 Claude, Cursor 및 기타 AI 에이전트가 HyperWhisper를 제어할 수 있습니다. 스크립트와 자동화를 위한 로컬 전용 HTTP API."
     },
     "modes": {
       "title": "모든 상황을 위한 모드",
@@ -155,15 +155,15 @@
     "questions": {
       "accuracy": {
         "question": "전사 정확도는 어느 정도인가요?",
-        "answer": "최첨단 AI 모델을 사용해 업계 최고 수준인 99% 정확도를 제공합니다. 기술 용어, 이름, 전문 용어를 사용자 지정 용어로 추가하면 정확도를 더 높일 수 있습니다."
+        "answer": "사용하는 모델과 언어의 조합에 따라 달라집니다. 어떤 모델은 영어에서는 뛰어나지만 다른 언어에서는 정확도가 낮고, 클라우드 모델이 대체로 로컬 모델보다 정확합니다. 기술 용어, 이름, 전문 용어를 사용자 지정 용어로 추가하면 어떤 모델에서도 정확도를 높일 수 있습니다."
       },
       "offline": {
         "question": "인터넷 없이 사용할 수 있나요?",
-        "answer": "물론입니다. HyperWhisper는 로컬 AI 모델을 사용해 Mac에서 완전히 오프라인으로 동작합니다. 인터넷이 필요 없습니다. 최대 정확도와 속도를 원하는 사용자를 위해 다양한 클라우드 제공업체를 통한 선택형 클라우드 처리도 제공합니다."
+        "answer": "물론입니다. HyperWhisper는 로컬 AI 모델을 사용해 Mac 또는 Windows PC에서 완전히 오프라인으로 동작합니다. 인터넷이 필요 없습니다. 최대 정확도와 속도를 원하는 사용자를 위해 다양한 클라우드 제공업체를 통한 선택형 클라우드 처리도 제공합니다."
       },
       "apiKey": {
         "question": "API 사용에 비용이 드나요?",
-        "answer": "다음 제공업체에는 직접 API 키를 사용합니다: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral, Google Gemini. 일부 제공업체는 신규 사용자에게 무료 크레딧을 제공합니다. Deepgram은 $200, AssemblyAI는 $50를 제공합니다. 장기적으로는 구독형 서비스보다 훨씬 저렴합니다. \n\nAPI 키 없이도 사용할 수 있는 HyperWhisper Cloud(내장)도 제공되며, 사용량 기반 과금입니다.\n\n또한 로컬 오프라인 모드는 API 키 없이 완전히 무료로 사용할 수 있습니다."
+        "answer": "다음 제공업체에는 직접 API 키를 사용합니다: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox, Google Gemini. 일부 제공업체는 신규 사용자에게 무료 크레딧을 제공합니다. Deepgram은 $200, AssemblyAI는 $50를 제공합니다. 장기적으로는 구독형 서비스보다 훨씬 저렴합니다. \n\nAPI 키 없이도 사용할 수 있는 HyperWhisper Cloud(내장)도 제공되며, 사용량 기반 과금입니다.\n\n또한 로컬 오프라인 모드는 API 키 없이 완전히 무료로 사용할 수 있습니다."
       },
       "languages": {
         "question": "어떤 언어를 지원하나요?",
@@ -179,7 +179,7 @@
       },
       "privacy": {
         "question": "개인정보는 어떻게 보호되나요?",
-        "answer": "로컬 모드를 사용할 때는 어떤 데이터도 Mac 밖으로 나가지 않습니다.\n\n클라우드 전사를 사용할 경우 데이터는 사용자가 선택한 클라우드 제공업체(OpenAI, Groq, Deepgram, AssemblyAI, ElevenLabs, Mistral 등)로 전송됩니다.\n\n[Proxyman](https://proxyman.io) 같은 네트워크 검사 도구나 [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html) 같은 네트워크 모니터로 직접 확인할 수 있습니다."
+        "answer": "로컬 모드를 사용할 때는 어떤 데이터도 Mac이나 Windows PC 밖으로 나가지 않습니다.\n\n클라우드 전사를 사용할 경우 데이터는 사용자가 선택한 클라우드 제공업체(OpenAI, Groq, xAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox, Google Gemini 등)로 전송됩니다.\n\n[Proxyman](https://proxyman.io) 같은 네트워크 검사 도구나 [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html) 같은 네트워크 모니터로, 또는 [GitHub의 소스 코드](https://github.com/ray-amjad/hyperwhisper-app)를 읽어 직접 확인할 수 있습니다."
       },
       "cloud": {
         "question": "HyperWhisper Cloud란 무엇인가요?",
@@ -200,10 +200,6 @@
       "requirements": {
         "question": "시스템 요구사항은 무엇인가요?",
         "answer": "Mac: macOS 14 이상, Apple Silicon 및 Intel 지원. Windows: Windows 10/11, x64 또는 ARM64. 최적 성능을 위해 8GB RAM을 권장합니다."
-      },
-      "windowsStatus": {
-        "question": "Windows 버전은 macOS와 기능이 동일한가요?",
-        "answer": "Windows 버전은 최근 출시되어 macOS의 모든 기능이 아직 포함되지 않았을 수 있습니다. 두 플랫폼의 완전한 기능 동등성을 위해 적극적으로 개발 중입니다."
       },
       "madeBy": {
         "question": "누가 만들었나요?",

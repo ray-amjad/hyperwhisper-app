@@ -70,8 +70,6 @@ export function TRPCProvider({ children }: TRPCProviderProps) {
 
   const [trpcClient] = useState(() =>
     api.createClient({
-      // superjson handles Date, Map, Set, undefined serialization
-      transformer: superjson,
       links: [
         // Log requests in development
         loggerLink({
@@ -82,6 +80,9 @@ export function TRPCProvider({ children }: TRPCProviderProps) {
         // Send individual HTTP requests per query
         httpLink({
           url: `${getBaseUrl()}/api/trpc`,
+          // superjson handles Date, Map, Set, undefined serialization
+          // (tRPC v11 moved the transformer into the link itself)
+          transformer: superjson,
         }),
       ],
     })

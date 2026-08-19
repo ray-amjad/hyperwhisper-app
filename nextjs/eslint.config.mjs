@@ -48,7 +48,7 @@ export default defineConfig([globalIgnores([
         "plugin:prettier/recommended",
         "plugin:react-hooks/recommended",
         "plugin:jsx-a11y/recommended",
-        "plugin:@next/next/recommended",
+        "plugin:@next/next/recommended-legacy",
     )),
 
     plugins: {
@@ -92,6 +92,24 @@ export default defineConfig([globalIgnores([
         "react/jsx-uses-react": "off",
         "react/react-in-jsx-scope": "off",
         "react-hooks/exhaustive-deps": "off",
+
+        // eslint-plugin-react-hooks 5->7 merged in the React Compiler's
+        // correctness rules as part of "recommended". Of those, 2 -
+        // set-state-in-effect (5 files) and immutability (2 files) - flag
+        // real (pre-existing, not introduced by this upgrade) patterns that
+        // would require actual behavioral component rewrites to satisfy -
+        // out of scope for a lint-tooling/dependency-upgrade PR. Left off
+        // deliberately; revisit as dedicated app-code follow-up work.
+        //
+        // The rest of "recommended" (error-boundaries, purity,
+        // set-state-in-render, unsupported-syntax, config, gating, refs,
+        // globals, use-memo, preserve-manual-memoization,
+        // static-components, incompatible-library) is left on - verified
+        // clean (no violations) as of this bump. rules-of-hooks (the
+        // original, stable rule) also stays on.
+        "react-hooks/set-state-in-effect": "off",
+        "react-hooks/immutability": "off",
+
         "jsx-a11y/click-events-have-key-events": "warn",
         "jsx-a11y/interactive-supports-focus": "warn",
         "prettier/prettier": "warn",

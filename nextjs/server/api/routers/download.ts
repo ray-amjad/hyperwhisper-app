@@ -82,7 +82,6 @@ function isDisposableDomain(emailDomain: string, list: Set<string>): boolean {
 
 /**
  * Fetch and parse appcast.xml to get latest download URL.
- * Swaps hostname to CDN (builds-cdn.hyperwhisper.com).
  */
 async function getLatestDownloadUrl(origin: string): Promise<string | null> {
   try {
@@ -97,7 +96,6 @@ async function getLatestDownloadUrl(origin: string): Promise<string | null> {
     if (!match || !match[1]) return null;
 
     const latestUrl = new URL(match[1]);
-    latestUrl.hostname = "builds-cdn.hyperwhisper.com";
 
     return latestUrl.toString();
   } catch (error) {

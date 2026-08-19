@@ -1,67 +1,67 @@
 ---
 title: Transcribing System Audio
-description: How to transcribe meetings, videos, or anything else playing on your computer.
+description: How to transcribe meetings, videos, and other audio that plays on your computer.
 ---
 
-HyperWhisper transcribes audio from your **microphone**. It does not directly capture system audio (the audio coming out of your speakers — Zoom calls, YouTube videos, podcasts, etc.).
+HyperWhisper transcribes audio from your **microphone**. It does not capture system audio directly. System audio is the sound that comes from your speakers, for example Zoom calls, YouTube videos, and podcasts.
 
-If you want to transcribe something playing on your computer, you have two options.
+To transcribe audio that plays on your computer, you have two options.
 
 ## Option 1 — Use a virtual audio cable (recommended)
 
-A virtual audio cable is a small driver that creates a "fake" microphone that captures your system audio. Once installed, you can pick it as HyperWhisper's input device and transcribe anything playing on your Mac or PC.
+A virtual audio cable is a small driver. It makes a virtual microphone that captures your system audio. After you install the driver, you can select it as the input device for HyperWhisper. Then you can transcribe any audio that plays on your Mac or PC.
 
 <Tabs>
   <Tab title="macOS">
-    The most popular free option is **[BlackHole](https://existential.audio/blackhole/)** (open source, free):
+    The most popular free option is **[BlackHole](https://existential.audio/blackhole/)**. BlackHole is free and open source.
 
     <Steps>
       <Step title="Install BlackHole 2ch">
-        Download from [existential.audio/blackhole](https://existential.audio/blackhole/) and run the installer.
+        Download BlackHole from [existential.audio/blackhole](https://existential.audio/blackhole/). Then run the installer.
       </Step>
       <Step title="Create a Multi-Output Device">
-        Open **Audio MIDI Setup** (Spotlight → "Audio MIDI Setup"). Click **+** → **Create Multi-Output Device**, then tick both your **Built-in Output** (or speakers/headphones) and **BlackHole 2ch**.
+        Open **Audio MIDI Setup** with Spotlight. Click **+**, then select **Create Multi-Output Device**. Select both your **Built-in Output** (or your speakers or headphones) and **BlackHole 2ch**.
 
-        This lets you hear the audio while BlackHole captures it.
+        With this device, you hear the audio while BlackHole captures it.
       </Step>
       <Step title="Set the Multi-Output Device as your system output">
-        In **System Settings → Sound → Output**, pick the new multi-output device.
+        Go to **System Settings → Sound → Output**. Select the new multi-output device.
       </Step>
       <Step title="Pick BlackHole as HyperWhisper's input">
-        Click the HyperWhisper menu bar icon, hover over **Microphone**, and select **BlackHole 2ch**. See [Select a Microphone or Audio Input Device](/microphone-selection) for details.
+        Click the HyperWhisper menu bar icon. Move the pointer over **Microphone**. Then select **BlackHole 2ch**. For more information, see [Select a Microphone or Audio Input Device](/microphone-selection).
       </Step>
       <Step title="Record">
-        Start recording in HyperWhisper while audio is playing. The transcript will be the system audio.
+        While the audio plays, start a recording in HyperWhisper. The transcript contains the system audio.
       </Step>
     </Steps>
 
-    Paid alternatives like [Loopback](https://rogueamoeba.com/loopback/) offer a friendlier UI and per-app routing.
+    Paid tools such as [Loopback](https://rogueamoeba.com/loopback/) give a simpler interface and per-app routing.
   </Tab>
   <Tab title="Windows">
-    On Windows, the simplest option is to enable **Stereo Mix** if your audio device exposes it:
+    If your audio device supplies **Stereo Mix**, the simplest option on Windows is to enable it:
 
     <Steps>
       <Step title="Enable Stereo Mix">
-        Right-click the speaker icon in the taskbar → **Sounds → Recording**. Right-click an empty area, tick **Show Disabled Devices**, then right-click **Stereo Mix** and choose **Enable**.
+        Right-click the speaker icon in the taskbar. Then select **Sounds → Recording**. Right-click an empty area and select **Show Disabled Devices**. Then right-click **Stereo Mix** and select **Enable**.
       </Step>
       <Step title="Pick Stereo Mix as HyperWhisper's input">
-        Right-click the HyperWhisper tray icon, hover over **Microphone**, and select **Stereo Mix**. See [Select a Microphone or Audio Input Device](/microphone-selection) for details.
+        Right-click the HyperWhisper tray icon. Move the pointer over **Microphone**. Then select **Stereo Mix**. For more information, see [Select a Microphone or Audio Input Device](/microphone-selection).
       </Step>
     </Steps>
 
-    If your audio device doesn't expose Stereo Mix (common on modern laptops), use a virtual audio cable like **[VB-Cable](https://vb-audio.com/Cable/)** (free) or **[Voicemeeter](https://vb-audio.com/Voicemeeter/)** (free, more flexible).
+    If your audio device does not supply Stereo Mix, use a virtual audio cable. Many new laptops do not supply Stereo Mix. Two free virtual audio cables are **[VB-Cable](https://vb-audio.com/Cable/)** and **[Voicemeeter](https://vb-audio.com/Voicemeeter/)**. Voicemeeter is more flexible.
   </Tab>
 </Tabs>
 
-## Option 2 — Transcribe a recording after the fact
+## Option 2 — Transcribe a recording later
 
-If you can record the meeting or video to a file (e.g. Zoom's local recording, OBS, QuickTime, screen recorder), you can drop the file into HyperWhisper directly:
+You can record the meeting or the video to a file, for example with the local recording function of Zoom, OBS, QuickTime, or a screen recorder. Then you can give the file to HyperWhisper directly:
 
-- **macOS:** Click the menu bar icon → **Transcribe File** → pick your audio or video file.
-- **Windows:** Right-click the tray icon → **Transcribe File** → pick your `.wav`, `.mp3`, or `.m4a`.
+- **macOS:** Click the menu bar icon. Select **Transcribe File**. Then select your audio file or video file.
+- **Windows:** Right-click the tray icon. Select **Transcribe File**. Then select your `.wav`, `.mp3`, or `.m4a` file.
 
-See [Transcribe a File](/file-transcription) for the full walkthrough, supported formats, and provider file-size limits.
+For the full procedure, the supported formats, and the file-size limits of each provider, see [Transcribe a File](/file-transcription).
 
 <Note>
-  Native system-audio capture (without a virtual cable) is on our roadmap. If this is important to you, let us know at [support@hyperwhisper.com](mailto:support@hyperwhisper.com) — it helps us prioritize.
+  Native system-audio capture without a virtual cable is on our roadmap. A message to [support@hyperwhisper.com](mailto:support@hyperwhisper.com) tells us that this feature is important to you, and it helps us to set our priorities.
 </Note>

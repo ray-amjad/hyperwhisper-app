@@ -72,7 +72,7 @@
     },
     "mcpServer": {
       "title": "Lokálne API a MCP server",
-      "description": "Vstavaný MCP server umožňuje Claudeovi, Cursoru a ďalším AI agentom ovládať HyperWhisper. Iba lokálne HTTP API s bearer autentifikáciou pre skripty a automatizácie."
+      "description": "Vstavaný MCP server umožňuje Claudeovi, Cursoru a ďalším AI agentom ovládať HyperWhisper. Iba lokálne HTTP API pre skripty a automatizácie."
     },
     "modes": {
       "title": "Režimy pre každú situáciu",
@@ -155,15 +155,15 @@
     "questions": {
       "accuracy": {
         "question": "Aký presný je prepis?",
-        "answer": "Dosahujeme špičkovú presnosť 99 % pomocou najmodernejších AI modelov. Presnosť môžete ešte zvýšiť pridaním vlastného slovníka pre technické pojmy, mená a špecializovaný žargón."
+        "answer": "Závisí to od kombinácie modelu a jazyka, ktorú používate. Niektoré modely sú vynikajúce v angličtine, ale slabšie v iných jazykoch, a cloudové modely bývajú presnejšie než lokálne. Presnosť ktoréhokoľvek modelu môžete zvýšiť pridaním vlastného slovníka pre technické pojmy, mená a špecializovaný žargón."
       },
       "offline": {
         "question": "Môžem to používať bez internetu?",
-        "answer": "Určite. HyperWhisper sa dá na Macu používať úplne offline pomocou lokálnych AI modelov - bez internetu. Pre používateľov, ktorí chcú maximálnu presnosť a rýchlosť, ponúkame aj voliteľné cloudové spracovanie cez rôznych poskytovateľov."
+        "answer": "Určite. HyperWhisper sa dá na Macu aj na počítači s Windows používať úplne offline pomocou lokálnych AI modelov - bez internetu. Pre používateľov, ktorí chcú maximálnu presnosť a rýchlosť, ponúkame aj voliteľné cloudové spracovanie cez rôznych poskytovateľov."
       },
       "apiKey": {
         "question": "Musím platiť za API prístup?",
-        "answer": "Používate vlastný API kľúč pre týchto poskytovateľov: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral a Google Gemini. Niektorí poskytovatelia ponúkajú novým používateľom bezplatné kredity; Deepgram ponúka $200, AssemblyAI ponúka $50. Dlhodobo je to výrazne lacnejšie než akékoľvek predplatné. \n\nMôžete tiež používať HyperWhisper Cloud (vstavaný), ktorý nevyžaduje API kľúč a funguje na princípe pay-as-you-go.\n\nNezabudnite, že lokálny offline režim funguje bez akéhokoľvek API kľúča a je úplne zadarmo."
+        "answer": "Používate vlastný API kľúč pre týchto poskytovateľov: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox a Google Gemini. Niektorí poskytovatelia ponúkajú novým používateľom bezplatné kredity; Deepgram ponúka $200, AssemblyAI ponúka $50. Dlhodobo je to výrazne lacnejšie než akékoľvek predplatné. \n\nMôžete tiež používať HyperWhisper Cloud (vstavaný), ktorý nevyžaduje API kľúč a funguje na princípe pay-as-you-go.\n\nNezabudnite, že lokálny offline režim funguje bez akéhokoľvek API kľúča a je úplne zadarmo."
       },
       "languages": {
         "question": "Aké jazyky podporuje?",
@@ -179,7 +179,7 @@
       },
       "privacy": {
         "question": "Ako je chránené moje súkromie?",
-        "answer": "Pri používaní lokálneho režimu žiadne dáta neopúšťajú váš Mac.\n\nPri cloudovom prepise sa vaše dáta odosielajú cloudovému poskytovateľovi, ktorého si vyberiete (napr. OpenAI, Groq, Deepgram, AssemblyAI, ElevenLabs alebo Mistral).\n\nMôžete si to overiť sami pomocou sieťového inšpektora, napríklad [Proxyman](https://proxyman.io), alebo sieťového monitora, napríklad [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html)."
+        "answer": "Pri používaní lokálneho režimu žiadne dáta neopúšťajú váš Mac ani váš počítač s Windows.\n\nPri cloudovom prepise sa vaše dáta odosielajú cloudovému poskytovateľovi, ktorého si vyberiete (napr. OpenAI, Groq, xAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox alebo Google Gemini).\n\nMôžete si to overiť sami pomocou sieťového inšpektora, napríklad [Proxyman](https://proxyman.io), sieťového monitora, napríklad [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), alebo prečítaním [zdrojového kódu na GitHube](https://github.com/ray-amjad/hyperwhisper-app)."
       },
       "cloud": {
         "question": "Čo je HyperWhisper Cloud?",
@@ -200,10 +200,6 @@
       "requirements": {
         "question": "Aké sú systémové požiadavky?",
         "answer": "Pre Mac: macOS 14 alebo novší, podpora Apple Silicon aj Intel. Pre Windows: Windows 10/11, x64 alebo ARM64. Pre optimálny výkon odporúčame 8 GB RAM."
-      },
-      "windowsStatus": {
-        "question": "Má verzia pre Windows všetky rovnaké funkcie ako macOS?",
-        "answer": "Verzia pre Windows bola vydaná nedávno, takže zatiaľ nemusí mať všetky funkcie dostupné na macOS. Aktívne pracujeme na plnej zhode funkcií na oboch platformách."
       },
       "madeBy": {
         "question": "Kto to vytvoril?",

@@ -40,7 +40,8 @@
         "icon": "credit-card",
         "pages": [
           "licensing",
-          "cloud-credits"
+          "cloud-credits",
+          "going-open-source"
         ]
       },
       {
@@ -111,6 +112,7 @@
           "general-settings",
           "output-settings",
           "appearance-settings",
+          "storage-settings",
           "advanced-settings",
           "backup-export-settings"
         ]

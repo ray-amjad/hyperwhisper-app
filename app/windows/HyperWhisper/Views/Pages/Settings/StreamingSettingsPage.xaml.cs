@@ -5,6 +5,7 @@ using System.Windows.Input;
 using HyperWhisper.Localization;
 using HyperWhisper.Models;
 using HyperWhisper.Services;
+using HyperWhisper.Services.Streaming;
 using HyperWhisper.Views.Windows;
 
 namespace HyperWhisper.Views.Pages.Settings;
@@ -279,14 +280,20 @@ public partial class StreamingSettingsPage : Page
         }
 
         var provider = StreamingTranscriptionProviderExtensions.FromStorageValue(_settings.StreamingProvider);
-        if (provider is StreamingTranscriptionProvider.ElevenLabs or StreamingTranscriptionProvider.OpenAI or StreamingTranscriptionProvider.Xai)
+        // Ask the strategy, never a second provider list — see
+        // StreamingTranscriptionSessionFactory.SupportsVocabulary.
+        if (!StreamingTranscriptionSessionFactory.SupportsVocabulary(provider))
         {
             VocabularyWarningText.Text = Loc.S("settings.streaming.warning.vocabularyUnsupported");
             VocabularyWarningPanel.Visibility = Visibility.Visible;
             return;
         }
 
-        if (string.Equals(_settings.StreamingLanguage, "auto", System.StringComparison.OrdinalIgnoreCase))
+        // Auto-detect drops the terms on Deepgram (Nova-3 monolingual gate) and on
+        // HyperWhisper Cloud (BuildWebSocketUri omits Vocabulary without an
+        // explicit language). xAI accepts keyterms either way, so it is exempt.
+        if (provider is StreamingTranscriptionProvider.Deepgram or StreamingTranscriptionProvider.HyperWhisperCloud
+            && string.Equals(_settings.StreamingLanguage, "auto", System.StringComparison.OrdinalIgnoreCase))
         {
             VocabularyWarningText.Text = Loc.S("settings.streaming.warning.vocabularyAutoDetect");
             VocabularyWarningPanel.Visibility = Visibility.Visible;

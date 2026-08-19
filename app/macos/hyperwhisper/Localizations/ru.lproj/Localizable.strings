@@ -112,17 +112,6 @@
 "home.accessibility.open.settings" = "Открыть параметры";
 "home.accessibility.restart.after.permission" = "Перезагрузите приложение после предоставления разрешения";
 "home.getting.started.completed" = "✓ Завершено";
-"home.whatsnew.badge" = "НОВОЕ";
-"home.whatsnew.title" = "Что нового?";
-"home.whatsnew.update1.date" = "3 июля";
-"home.whatsnew.update1.title" = "Parakeet теперь доступен";
-"home.whatsnew.update1.description" = "Скачайте его прямо из списка языковых моделей при создании режима, чтобы попробовать сегодня.";
-"home.whatsnew.update2.date" = "5 июня";
-"home.whatsnew.update2.title" = "Поддержка всех пользовательских моделей, совместимых с OpenAI";
-"home.whatsnew.update2.description" = "Вы теперь можете добавлять любые API, совместимые с OpenAI, в свой список моделей.";
-"home.whatsnew.update3.date" = "27 мая";
-"home.whatsnew.update3.title" = "Совершенно новое мини-окно записи";
-"home.whatsnew.update3.description" = "Минималистичный интерфейс записи, который не отвлекает.";
 
 // MARK: - Recent Updates Section
 "home.recent.updates.title" = "Недавние обновления";
@@ -312,6 +301,9 @@
 
 "settings.general.errorLogging.title" = "Ведение журнала ошибок";
 "settings.general.errorLogging.info" = "Автоматически фиксировать и отправлять отчеты об ошибках для улучшения приложения.";
+"settings.general.shareSpeedData.title" = "Делиться анонимными данными о скорости";
+"settings.general.shareSpeedData.info" = "Измеряет, сколько времени занимает работа каждого облачного провайдера, и добавляет это в публичное сравнение. Измерение содержит провайдера, регион сервера, длину клипа и затраченное время — без аккаунта, без ключа, без аудио и без текста. Отключите это, и HyperWhisper перестанет это отправлять. Больше ничего не меняется, а локальные модели никогда ничего не отправляют.";
+"settings.general.shareSpeedData.link" = "Посмотреть сравнение скорости";
 "settings.general.autoUpdate.title" = "Автоматическое обновление";
 "settings.general.autoUpdate.info" = "Автоматически проверять и загружать новые версии HyperWhisper.";
 "settings.general.support.title" = "Нужна помощь?";
@@ -832,10 +824,6 @@
 "page.header.learnMore" = "Узнайте больше";
 
 // MARK: - Recording Dialog
-"recording.status.complete" = "Транскрипция завершена";
-"recording.status.retrying" = "Повтор транскрипции…";
-"recording.status.postprocessing" = "Постобработка с ИИ…";
-"recording.status.transcribing" = "Транскрипция…";
 "recording.success.pasted" = "Вставлено!";
 "recording.loading.retrying" = "Повтор…";
 "recording.loading.postprocessing" = "Обработка с ИИ…";
@@ -863,39 +851,22 @@
 "modes.provider.manageInLibrary" = "Управление в библиотеке →";
 "streaming.loading.warming" = "Прогрев локальной модели...";
 "streaming.status.listening" = "Слушание...";
-"streaming.status.streaming" = "Потоковая передача...";
 "streaming.status.disconnecting" = "Остановка...";
 "streaming.loading.connecting" = "Подключение к серверу...";
 "streaming.loading.ready" = "Инициализация аудио...";
 "streaming.loading.streaming" = "Ожидание речи...";
 "streaming.state.reconnecting" = "Переподключение...";
 "recording.stop.help" = "Остановить запись (%@)";
-"recording.postprocessing.unavailable" = "Постобработка недоступна";
-"recording.postprocessing.missing.single" = "Ключ %@ отсутствует – запись без постобработки";
-"recording.postprocessing.missing.multiple" = "Ключи API отсутствуют – запись без постобработки";
-"recording.postprocessing.addKey" = "Добавить ключ";
-"recording.offline.banner" = "Нет подключения к интернету. Облачная транскрипция будет работать неправильно, пока вы не будете в сети.";
-"recording.offline.title" = "Нет подключения к интернету";
-"recording.offline.subtitle" = "Переподключитесь для продолжения или переключитесь на локальный режим.";
-"recording.error.network" = "Проверьте подключение к интернету и повторите попытку.";
-"recording.error.timeout" = "Истекло время ожидания запроса. Проверьте скорость подключения и повторите попытку.";
-"recording.error.rateLimit" = "Вы сделали слишком много запросов. Подождите немного и повторите попытку.";
-"recording.error.credits" = "Недостаточно кредитов. Добавьте больше кредитов в Настройках.";
-"recording.error.apiKey" = "Добавьте ключ API %@ в параметры.";
-"recording.error.server" = "Служба транскрипции испытывает проблемы. Пожалуйста, повторите попытку позже.";
 "recording.retry" = "Повторить";
 "recording.retry.inProgress" = "Повтор…";
 "recording.retry.count" = "Повторить (%d)";
 "recording.retry.failed.missing" = "Ошибка повтора: аудиофайл не найден";
 "recording.retry.failed.error" = "Ошибка повтора: %@";
 "recording.retry.pending" = "Готов к повтору – щелкните для транскрипции";
-"recording.provider.unknown" = "облачный провайдер";
 "recording.cancel.dialog.title" = "Отмена записи?";
 "recording.cancel.dialog.message" = "Это отменит текущую запись.";
 "recording.cancel.dialog.confirm" = "Отмена записи";
 "recording.cancel.dialog.resume" = "Возобновить";
-"recording.error.overlay.title" = "Ошибка подключения к сети";
-"recording.error.overlay.message" = "Нажмите 'Повторить' ниже или переключитесь на локальный режим для продолжения.";
 "recording.mode.default" = "По умолчанию";
 "recording.dialog.window.title" = "Диалог записи";
 "recording.button.start" = "Начать запись";
@@ -953,6 +924,7 @@
 "transcription.error.maxRetriesExceeded" = "Максимальное количество попыток повтора превышено";
 "transcription.error.unauthorized.provider" = "Не авторизовано: неверный ключ API или разрешения %@.\n\nОткройте параметры → Ключи API для проверки учетных данных.";
 "transcription.error.unauthorized.generic" = "Не авторизовано: неверный ключ API или разрешения.\n\nОткройте параметры → Ключи API для проверки учетных данных.";
+"transcription.error.cloudAccountRequired" = "HyperWhisper Cloud требует ключ учётной записи.\n\nОткройте параметры → HyperWhisper Cloud, чтобы ввести ключ или приобрести кредиты.";
 "transcription.error.invalidRequest" = "Неверный запрос: проверьте аудиофайл или параметры";
 "transcription.error.streamingInterrupted" = "Потоковая передача прервана; показан частичный текст";
 "transcription.error.busy" = "Служба транскрипции в настоящее время занята";
@@ -992,6 +964,7 @@
 "transcription.guidance.needsNativeRelaunch" = "Завершите работу HyperWhisper и откройте программу в нативном режиме, чтобы использовать локальную постобработку.";
 "transcription.guidance.localRuntimeUnavailable" = "Повторите попытку или выберите более компактную локальную модель в настройках режима.";
 "transcription.error.localRuntimeUnavailable" = "Локальный ИИ не смог завершить обработку — исходная расшифровка сохранена.";
+"transcription.error.localSpeechModelEvicted" = "Речевая модель была выгружена для освобождения памяти и не смогла загрузиться снова. Закройте несколько приложений и повторите попытку.";
 "settings.backup.localDownload.title" = "Загрузить локальные модели?";
 "settings.backup.localDownload.message" = "Восстановленных режимов, использующих локальные ИИ-модели, которые ещё не загружены: %d.";
 "settings.backup.localDownload.downloadAll" = "Загрузить все";
@@ -1124,10 +1097,6 @@
 "history.autoDelete.unit.minutes" = "Минуты";
 "history.autoDelete.unit.hours" = "Часы";
 "history.autoDelete.unit.days" = "Дни";
-"history.autoDelete.unit.minutes.plural" = "минут";
-"history.autoDelete.unit.hours.plural" = "часов";
-"history.autoDelete.unit.days.plural" = "дней";
-"history.autoDelete.status.disabled" = "Автоматическое удаление отключено";
 "history.autoDelete.status.enabled" = "Удалить записи старше %d %@";
 "history.autoDelete.cleanup.noItems" = "Нет записей для удаления";
 "history.autoDelete.cleanup.summary" = "Удалено %d запись(и) и освобождено %@";

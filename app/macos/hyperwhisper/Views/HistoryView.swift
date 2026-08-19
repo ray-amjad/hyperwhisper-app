@@ -956,12 +956,6 @@ private struct TranscriptRow: View {
         item.isFailed
     }
 
-    private func formatDuration(_ duration: TimeInterval) -> String {
-        let minutes = Int(duration) / 60
-        let seconds = Int(duration) % 60
-        return "history.duration.format".localized(arguments: minutes, seconds)
-    }
-
     private static let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.timeStyle = .short
@@ -1181,9 +1175,11 @@ private struct TranscriptDetailView: View {
                     .font(.title2)
 
                 // METADATA BADGES:
-                // All metadata displayed in one row as badge-style components
+                // All metadata displayed as badge-style components
                 // Duration and Mode use neutral colors, providers use distinct colors
-                HStack(spacing: 8) {
+                // FlowLayout wraps the badges onto a second line when the window
+                // is narrow, so a long badge label never wraps inside its own pill
+                FlowLayout(spacing: 8, lineSpacing: 8) {
                     // Duration badge (neutral)
                     Label(formatDuration(snapshot.duration), systemImage: "clock")
                         .font(.caption)
@@ -1227,7 +1223,9 @@ private struct TranscriptDetailView: View {
                             .clipShape(Capsule())
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding()
     }
@@ -1495,17 +1493,6 @@ private struct TranscriptDetailView: View {
         snapshot.isFailed
     }
 
-    /// True when the file is confirmed missing (not during checking state).
-    /// Returns false during .checking to avoid showing error prematurely.
-    private var audioFileMissing: Bool {
-        audioFileState == .missing
-    }
-
-    /// True when we're still checking if the audio file exists.
-    private var isCheckingAudioFile: Bool {
-        audioFileState == .checking
-    }
-
     /// True when the audio file is confirmed to exist.
     private var audioFileExists: Bool {
         audioFileState == .exists
@@ -1681,13 +1668,7 @@ private struct TranscriptDetailView: View {
         formatter.timeStyle = .short
         return formatter.string(from: date)
     }
-    
-    private func formatDuration(_ duration: TimeInterval) -> String {
-        let minutes = Int(duration) / 60
-        let seconds = Int(duration) % 60
-        return "history.duration.format".localized(arguments: minutes, seconds)
-    }
-    
+
     private func copyToClipboard() {
         // COPY CURRENT VIEW:
         // Copy the text that's currently being displayed

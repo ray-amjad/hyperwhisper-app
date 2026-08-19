@@ -72,7 +72,7 @@
     },
     "mcpServer": {
       "title": "API locale et serveur MCP",
-      "description": "Le serveur MCP intégré permet à Claude, Cursor et à d'autres agents IA de piloter HyperWhisper. API HTTP locale avec authentification bearer pour scripts et automatisations."
+      "description": "Le serveur MCP intégré permet à Claude, Cursor et à d'autres agents IA de piloter HyperWhisper. API HTTP locale pour scripts et automatisations."
     },
     "modes": {
       "title": "Des modes pour chaque situation",
@@ -155,15 +155,15 @@
     "questions": {
       "accuracy": {
         "question": "Quelle est la précision de la transcription ?",
-        "answer": "Nous atteignons une précision de 99 %, parmi les meilleures du marché, grâce à des modèles IA de pointe. Vous pouvez encore améliorer la précision en ajoutant votre propre vocabulaire personnalisé pour les termes techniques, les noms et le jargon spécialisé."
+        "answer": "Cela dépend de la combinaison de modèle et de langue que vous utilisez. Certains modèles sont excellents en anglais mais plus faibles dans d'autres langues, et les modèles cloud sont généralement plus précis que les modèles locaux. Vous pouvez améliorer la précision de n'importe quel modèle en ajoutant votre propre vocabulaire personnalisé pour les termes techniques, les noms et le jargon spécialisé."
       },
       "offline": {
         "question": "Puis-je l'utiliser sans internet ?",
-        "answer": "Absolument. HyperWhisper peut être utilisé entièrement hors ligne sur votre Mac avec des modèles IA locaux - aucune connexion internet requise. Pour les utilisateurs qui veulent une précision et une vitesse maximales, nous proposons aussi un traitement cloud optionnel via différents fournisseurs."
+        "answer": "Absolument. HyperWhisper peut être utilisé entièrement hors ligne sur votre Mac ou votre PC Windows avec des modèles IA locaux - aucune connexion internet requise. Pour les utilisateurs qui veulent une précision et une vitesse maximales, nous proposons aussi un traitement cloud optionnel via différents fournisseurs."
       },
       "apiKey": {
         "question": "Dois-je payer pour l'accès API ?",
-        "answer": "Vous apportez votre propre clé API pour les fournisseurs suivants : Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral et Google Gemini. Certains fournisseurs offrent des crédits gratuits aux nouveaux utilisateurs ; Deepgram offre 200 $, AssemblyAI offre 50 $. À long terme, c'est nettement moins cher que n'importe quel abonnement. \n\nVous pouvez aussi utiliser HyperWhisper Cloud (intégré), qui ne nécessite aucune clé API et fonctionne en paiement à l'usage.\n\nEt rappelez-vous : le mode local hors ligne fonctionne sans aucune clé API et est entièrement gratuit."
+        "answer": "Vous apportez votre propre clé API pour les fournisseurs suivants : Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox et Google Gemini. Certains fournisseurs offrent des crédits gratuits aux nouveaux utilisateurs ; Deepgram offre 200 $, AssemblyAI offre 50 $. À long terme, c'est nettement moins cher que n'importe quel abonnement. \n\nVous pouvez aussi utiliser HyperWhisper Cloud (intégré), qui ne nécessite aucune clé API et fonctionne en paiement à l'usage.\n\nEt rappelez-vous : le mode local hors ligne fonctionne sans aucune clé API et est entièrement gratuit."
       },
       "languages": {
         "question": "Quelles langues sont prises en charge ?",
@@ -179,7 +179,7 @@
       },
       "privacy": {
         "question": "Comment ma confidentialité est-elle protégée ?",
-        "answer": "En mode local, aucune donnée ne quitte votre Mac.\n\nEn transcription cloud, vos données sont envoyées au fournisseur cloud que vous choisissez (par ex. OpenAI, Groq, Deepgram, AssemblyAI, ElevenLabs ou Mistral).\n\nVous pouvez le vérifier vous-même avec un inspecteur réseau comme [Proxyman](https://proxyman.io) ou un moniteur réseau comme [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html)."
+        "answer": "En mode local, aucune donnée ne quitte votre Mac ni votre PC Windows.\n\nEn transcription cloud, vos données sont envoyées au fournisseur cloud que vous choisissez (par ex. OpenAI, Groq, xAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox ou Google Gemini).\n\nVous pouvez le vérifier vous-même avec un inspecteur réseau comme [Proxyman](https://proxyman.io), un moniteur réseau comme [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), ou en lisant le [code source sur GitHub](https://github.com/ray-amjad/hyperwhisper-app)."
       },
       "cloud": {
         "question": "Qu'est-ce que HyperWhisper Cloud ?",
@@ -200,10 +200,6 @@
       "requirements": {
         "question": "Quelles sont les exigences système ?",
         "answer": "Pour Mac : macOS 14 ou plus récent, Apple Silicon et Intel pris en charge. Pour Windows : Windows 10/11, x64 ou ARM64. 8 Go de RAM recommandés pour des performances optimales."
-      },
-      "windowsStatus": {
-        "question": "La version Windows a-t-elle toutes les mêmes fonctionnalités que macOS ?",
-        "answer": "La version Windows est sortie récemment, elle peut donc ne pas encore avoir toutes les fonctionnalités disponibles sur macOS. Nous travaillons activement pour atteindre une parité complète entre les deux plateformes."
       },
       "madeBy": {
         "question": "Qui a créé cela ?",

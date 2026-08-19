@@ -2,22 +2,16 @@
 // Fastest and cheapest STT - $0.00185/min using whisper-large-v3
 
 import { computeGroqTranscriptionCost } from '../lib/cost-calculator';
-import { ProviderInputError, ProviderUnavailableError } from './types';
+import { ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { fetchWithTimeout, logProviderEvent, readErrorBodyPreview } from './utils';
-
-/**
- * Get file extension from content type
- */
-function getExtension(contentType: string): string {
-  if (contentType.includes('wav')) return 'wav';
-  if (contentType.includes('mp3') || contentType.includes('mpeg')) return 'mp3';
-  if (contentType.includes('m4a') || contentType.includes('mp4')) return 'm4a';
-  if (contentType.includes('webm')) return 'webm';
-  if (contentType.includes('ogg')) return 'ogg';
-  if (contentType.includes('flac')) return 'flac';
-  return 'wav';
-}
+import {
+  DEFAULT_AUDIO_EXTENSIONS,
+  audioExtensionFromContentType,
+  explicitLanguageSubtag,
+  fetchWithTimeout,
+  logProviderEvent,
+  providerHttpError,
+} from './utils';
 
 /**
  * Transcribe audio with Groq Whisper large-v3
@@ -36,7 +30,7 @@ export async function transcribeWithGroq(
     throw new Error('GROQ_API_KEY not configured');
   }
 
-  const ext = getExtension(contentType);
+  const ext = audioExtensionFromContentType(contentType, DEFAULT_AUDIO_EXTENSIONS) ?? 'wav';
   const model = context.model || 'whisper-large-v3-turbo';
   const formData = new FormData();
 
@@ -44,11 +38,11 @@ export async function transcribeWithGroq(
   formData.append('model', model);
   formData.append('response_format', 'verbose_json');
 
-  if (language && language.toLowerCase() !== 'auto') {
-    // Groq's Whisper API expects a bare ISO-639-1 code ("en"), not a hyphenated
-    // BCP-47 locale — strip to the primary subtag like the other Whisper-family
-    // adapters. (Deepgram is the exception: it accepts BCP-47 region codes.)
-    const langCode = language.toLowerCase().split(/[-_]/)[0];
+  // Groq's Whisper API expects a bare ISO-639-1 code ("en"), not a hyphenated
+  // BCP-47 locale — strip to the primary subtag like the other Whisper-family
+  // adapters. (Deepgram is the exception: it accepts BCP-47 region codes.)
+  const langCode = explicitLanguageSubtag(language);
+  if (langCode !== undefined) {
     formData.append('language', langCode);
   }
   if (initialPrompt) {
@@ -83,29 +77,10 @@ export async function transcribeWithGroq(
   }
 
   if (!response.ok) {
-    const errorText = await readErrorBodyPreview(response);
-    const kind = response.status >= 500 ? 'upstream_5xx' : response.status === 429 ? 'rate_limit' : 'http_error';
-
-    logProviderEvent(provider, 'http_error', {
-      elapsedMs: Math.round(fetchMs),
-      status: response.status,
-      kind,
-      bodyPreview: errorText,
-    }, context);
-
-    if (response.status === 401) {
-      throw new Error('Groq API key is invalid');
-    }
-    if (response.status === 429) {
-      throw new ProviderUnavailableError('Groq', 'rate limit exceeded');
-    }
-    if (response.status >= 500) {
-      throw new ProviderUnavailableError('Groq', `upstream 5xx: ${response.status}`);
-    }
-
-    // Other 4xx (e.g. 400 on an unaccepted language code/format) — a sibling
-    // provider may accept this input, so let the chain fall through.
-    throw new ProviderInputError('Groq', response.status, errorText || `HTTP ${response.status}`);
+    throw await providerHttpError(provider, response, startTime, context, {
+      label: 'Groq',
+      authMessage: 'Groq API key is invalid',
+    });
   }
 
   let data: {

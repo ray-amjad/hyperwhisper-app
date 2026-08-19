@@ -72,7 +72,7 @@
     },
     "mcpServer": {
       "title": "API מקומי ושרת MCP",
-      "description": "שרת ה-MCP המובנה מאפשר ל-Claude, ל-Cursor ולסוכני AI אחרים להפעיל את HyperWhisper. API HTTP מקומי בלבד עם אימות bearer לסקריפטים ולאוטומציות."
+      "description": "שרת ה-MCP המובנה מאפשר ל-Claude, ל-Cursor ולסוכני AI אחרים להפעיל את HyperWhisper. API HTTP מקומי בלבד לסקריפטים ולאוטומציות."
     },
     "modes": {
       "title": "מצבים לכל סיטואציה",
@@ -155,15 +155,15 @@
     "questions": {
       "accuracy": {
         "question": "כמה מדויק התמלול?",
-        "answer": "אנחנו מגיעים לדיוק מוביל בתעשייה של 99% בעזרת מודלי AI מתקדמים. אפשר לשפר את הדיוק עוד יותר על ידי הוספת מילון מותאם משלכם למונחים טכניים, שמות וז'רגון מקצועי."
+        "answer": "זה תלוי בשילוב של המודל והשפה שבהם אתם משתמשים. חלק מהמודלים מצוינים באנגלית אך חלשים יותר בשפות אחרות, ומודלי הענן בדרך כלל מדויקים יותר מהמודלים המקומיים. אפשר לשפר את הדיוק בכל מודל על ידי הוספת מילון מותאם משלכם למונחים טכניים, שמות וז'רגון מקצועי."
       },
       "offline": {
         "question": "אפשר להשתמש בלי אינטרנט?",
-        "answer": "בהחלט. HyperWhisper יכול לפעול לחלוטין במצב לא מקוון על ה-Mac שלכם עם מודלי AI מקומיים - ללא צורך באינטרנט. למי שרוצה דיוק ומהירות מקסימליים, אנחנו מציעים גם עיבוד ענן אופציונלי דרך ספקי ענן שונים."
+        "answer": "בהחלט. HyperWhisper יכול לפעול לחלוטין במצב לא מקוון על ה-Mac או על מחשב ה-Windows שלכם עם מודלי AI מקומיים - ללא צורך באינטרנט. למי שרוצה דיוק ומהירות מקסימליים, אנחנו מציעים גם עיבוד ענן אופציונלי דרך ספקי ענן שונים."
       },
       "apiKey": {
         "question": "האם צריך לשלם על גישת API?",
-        "answer": "אתם משתמשים במפתח ה-API שלכם עבור הספקים הבאים: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral ו-Google Gemini. חלק מהספקים מציעים קרדיטים חינמיים למשתמשים חדשים; Deepgram מציעה $200 ו-AssemblyAI מציעה $50. בטווח הארוך זה יוצא זול משמעותית מכל מנוי. \n\nאפשר גם להשתמש ב-HyperWhisper Cloud (מובנה), שלא דורש מפתח API ופועל במודל pay-as-you-go.\n\nוזכרו: המצב המקומי הלא מקוון עובד בלי מפתח API והוא לגמרי חינם."
+        "answer": "אתם משתמשים במפתח ה-API שלכם עבור הספקים הבאים: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox ו-Google Gemini. חלק מהספקים מציעים קרדיטים חינמיים למשתמשים חדשים; Deepgram מציעה $200 ו-AssemblyAI מציעה $50. בטווח הארוך זה יוצא זול משמעותית מכל מנוי. \n\nאפשר גם להשתמש ב-HyperWhisper Cloud (מובנה), שלא דורש מפתח API ופועל במודל pay-as-you-go.\n\nוזכרו: המצב המקומי הלא מקוון עובד בלי מפתח API והוא לגמרי חינם."
       },
       "languages": {
         "question": "באילו שפות יש תמיכה?",
@@ -179,7 +179,7 @@
       },
       "privacy": {
         "question": "איך נשמרת הפרטיות שלי?",
-        "answer": "כשמשתמשים במצב מקומי, שום נתון לא יוצא מה-Mac שלכם.\n\nכשמשתמשים בתמלול בענן, הנתונים שלכם נשלחים לספק הענן שתבחרו (למשל OpenAI, Groq, Deepgram, AssemblyAI, ElevenLabs או Mistral).\n\nאפשר לאמת זאת בעצמכם עם כלי בדיקת רשת כמו [Proxyman](https://proxyman.io) או כלי ניטור רשת כמו [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html)."
+        "answer": "כשמשתמשים במצב מקומי, שום נתון לא יוצא מה-Mac או ממחשב ה-Windows שלכם.\n\nכשמשתמשים בתמלול בענן, הנתונים שלכם נשלחים לספק הענן שתבחרו (למשל OpenAI, Groq, xAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox או Google Gemini).\n\nאפשר לאמת זאת בעצמכם עם כלי בדיקת רשת כמו [Proxyman](https://proxyman.io), כלי ניטור רשת כמו [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), או על ידי קריאת [קוד המקור ב-GitHub](https://github.com/ray-amjad/hyperwhisper-app)."
       },
       "cloud": {
         "question": "מה זה HyperWhisper Cloud?",
@@ -200,10 +200,6 @@
       "requirements": {
         "question": "מה דרישות המערכת?",
         "answer": "ל-Mac: macOS 14 ומעלה, תמיכה ב-Apple Silicon וב-Intel. ל-Windows: Windows 10/11, x64 או ARM64. מומלץ 8GB RAM לביצועים מיטביים."
-      },
-      "windowsStatus": {
-        "question": "האם לגרסת Windows יש את כל היכולות כמו ב-macOS?",
-        "answer": "גרסת Windows הושקה לאחרונה, ולכן ייתכן שעדיין חסרות בה יכולות שקיימות ב-macOS. אנחנו עובדים באופן רציף כדי להגיע לשוויון מלא בין הפלטפורמות."
       },
       "madeBy": {
         "question": "מי יצר את זה?",

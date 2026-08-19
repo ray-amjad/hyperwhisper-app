@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
@@ -7,27 +8,16 @@ using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using HyperWhisper.Models;
+using HyperWhisper.Services;
 
 namespace HyperWhisper.Services.Streaming;
 
 public sealed class XaiStreamingStrategy : IStreamingProviderStrategy
 {
-    private static readonly HashSet<string> SupportedFormattingLanguages = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "ar", "cs", "da", "de", "en", "es", "fa", "fil", "fr", "hi",
-        "id", "it", "ja", "ko", "mk", "ms", "nl", "pl", "pt", "ro",
-        "ru", "sv", "th", "tr", "vi"
-    };
-
-    private static readonly Dictionary<string, string> LanguageAliases = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["tl"] = "fil"
-    };
-
     private string _committedTranscript = string.Empty;
 
     public string TranscriptionProviderLabel => "xAI (Streaming)";
-    public bool SupportsVocabulary => false;
+    public bool SupportsVocabulary => true;
     public bool SessionStartsOnWebSocketOpen => false;
     public int AudioSampleRate => 16000;
     public IReadOnlyList<(byte[] Data, WebSocketMessageType Type)> GetStartMessages(StreamingSessionConfig config) => [];
@@ -52,6 +42,13 @@ public sealed class XaiStreamingStrategy : IStreamingProviderStrategy
         if (!string.IsNullOrWhiteSpace(language))
         {
             query.Add($"language={Uri.EscapeDataString(language)}");
+        }
+
+        // keyterm is repeated once per term — max 100 terms, 50 chars each.
+        // Ref: docs.x.ai speech-to-text (WebSocket query parameters).
+        foreach (var term in Keyterms(config.Vocabulary))
+        {
+            query.Add($"keyterm={Uri.EscapeDataString(term)}");
         }
 
         return new Uri($"wss://api.x.ai/v1/stt?{string.Join("&", query)}");
@@ -166,19 +163,26 @@ public sealed class XaiStreamingStrategy : IStreamingProviderStrategy
         return normalized;
     }
 
-    private static string? SupportedFormattingLanguage(string? code)
+    private static string? SupportedFormattingLanguage(string? code) =>
+        XaiFormattingLanguages.TryGetSupportedCode(code, out var supportedCode) ? supportedCode : null;
+
+    // xAI keyterm caps: 100 terms, 50 characters each. Mirrors the batch path in
+    // the Rust core (`grok::keyterms`), which applies the same two limits.
+    private const int MaxKeyterms = 100;
+    private const int MaxKeytermChars = 50;
+
+    private static IEnumerable<string> Keyterms(string? vocabulary)
     {
-        if (string.IsNullOrWhiteSpace(code))
-            return null;
+        if (string.IsNullOrWhiteSpace(vocabulary))
+        {
+            return [];
+        }
 
-        var normalized = code.Trim().ToLowerInvariant();
-        if (normalized == "auto")
-            return null;
-
-        var separatorIndex = normalized.IndexOf('-');
-        var primary = separatorIndex > 0 ? normalized[..separatorIndex] : normalized;
-        var aliased = LanguageAliases.GetValueOrDefault(primary, primary);
-        return SupportedFormattingLanguages.Contains(aliased) ? aliased : null;
+        return vocabulary
+            .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Where(term => term.Length <= MaxKeytermChars)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(MaxKeyterms);
     }
 
     private static StreamingStopStep TextStep(string json) =>

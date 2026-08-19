@@ -3,6 +3,7 @@ import { ArrowRight } from "lucide-react";
 
 import { Link } from "@/src/i18n/navigation";
 import { getBlogPosts } from "@/src/content/blog";
+import { formatLongUTCDate } from "@/lib/format-date";
 
 export const dynamic = "force-static";
 export const revalidate = 60;
@@ -10,17 +11,6 @@ export const revalidate = 60;
 type Props = {
   params: Promise<{ locale: string }>;
 };
-
-function formatDate(dateString: string) {
-  const date = new Date(dateString);
-  if (Number.isNaN(date.getTime())) return dateString;
-  return new Intl.DateTimeFormat("en", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    timeZone: "UTC",
-  }).format(date);
-}
 
 export async function generateMetadata() {
   return {
@@ -73,7 +63,7 @@ export default async function BlogPage({ params }: Props) {
             <div className="flex min-h-[320px] flex-col justify-between p-7 md:p-9">
               <div>
                 <p className="text-sm text-gray-500">
-                  {formatDate(featuredPost.frontMatter.date)}
+                  {formatLongUTCDate(featuredPost.frontMatter.date)}
                 </p>
                 <h2 className="mt-4 text-3xl font-semibold leading-tight text-white md:text-4xl">
                   {featuredPost.frontMatter.title}
@@ -119,7 +109,7 @@ export default async function BlogPage({ params }: Props) {
               className="rounded-lg border border-gray-800 bg-gray-900/40 p-6 transition hover:border-purple-500/50 hover:bg-gray-900/70"
             >
               <p className="text-sm text-gray-500">
-                {formatDate(post.frontMatter.date)}
+                {formatLongUTCDate(post.frontMatter.date)}
               </p>
               <h2 className="mt-3 text-xl font-semibold leading-snug text-white">
                 <Link

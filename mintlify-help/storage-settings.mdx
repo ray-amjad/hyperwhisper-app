@@ -1,0 +1,105 @@
+---
+title: Storage Settings
+description: Choose where HyperWhisper keeps your recordings, compress them to M4A, and delete old recordings automatically.
+---
+
+Storage Settings controls the audio files that HyperWhisper writes to your disk. It sets the folder for new recordings, the file format that HyperWhisper keeps after a transcription, and the automatic cleanup of old recordings.
+
+## Open Storage Settings
+
+<Tabs>
+  <Tab title="macOS">
+    Click the HyperWhisper menu bar icon. Then click **Settings**. Then click **Storage** in the sidebar.
+  </Tab>
+  <Tab title="Windows">
+    Click the HyperWhisper tray icon, or open the main window. Then click **Settings**. Then click **Storage** in the sidebar.
+  </Tab>
+</Tabs>
+
+---
+
+## Recordings Folder
+
+The **Recordings Folder** card shows the folder that HyperWhisper writes new recordings into. The default folder is:
+
+| Platform | Default folder |
+|---|---|
+| macOS | `~/Documents/hyperwhisper/recordings` |
+| Windows | `%USERPROFILE%\Documents\HyperWhisper\recordings` |
+
+To select a different folder, click **Choose...** and select the folder. HyperWhisper creates the folder if it does not exist.
+
+<Warning>
+  A change to this setting applies to new recordings only. HyperWhisper does not move the recordings that are already on your disk. The audio of an older History entry stays in the previous folder, and playback continues to read it there.
+</Warning>
+
+### Show the folder
+
+The **Show recordings folder** row opens the current folder in your file manager. The button is **Show in Finder** on macOS and **Show in Explorer** on Windows. HyperWhisper creates the folder first if it is not there.
+
+<Note>
+  On Windows, HyperWhisper tests that the folder is writable at each start. If your folder is not writable — for example, an external disk that is not connected — the app moves to the first folder in this list that works: your Documents folder, the folder of an earlier build, your Downloads folder, then a temporary folder. The app writes the reason in the log.
+</Note>
+
+---
+
+## Compress recordings to M4A
+
+The **Compress recordings to M4A** toggle controls the format that HyperWhisper keeps after a transcription completes.
+
+| State | What HyperWhisper keeps |
+|---|---|
+| On | HyperWhisper converts the WAV file to M4A in the background, then deletes the WAV file |
+| Off | HyperWhisper keeps the original WAV file. The file is larger, but it is lossless |
+
+HyperWhisper always records to WAV and always transcribes the WAV file. The conversion starts after the transcription completes, so a failed conversion cannot lose a transcript. When the conversion completes, HyperWhisper points the History entry at the new M4A file.
+
+<Tabs>
+  <Tab title="macOS">
+    The toggle is on by default.
+  </Tab>
+  <Tab title="Windows">
+    The toggle is on for a new installation. On an installation that is older than this setting, the toggle is off until you turn it on.
+  </Tab>
+</Tabs>
+
+---
+
+## Max recording duration
+
+This picker sets the longest recording that HyperWhisper permits. At the limit, the recording stops and HyperWhisper transcribes the audio that it captured.
+
+The options are 20 minutes, 1 hour, 2 hours, and Off. The default is 1 hour. This picker is on macOS only. Windows has a fixed limit of 20 minutes that you cannot change.
+
+For the stored value and the backup key, see [Advanced Settings](/advanced-settings#max-recording-duration).
+
+---
+
+## Automatic cleanup
+
+This card deletes the recordings that are older than an age that you set. Automatic cleanup deletes the transcript record and its audio file.
+
+<Tabs>
+  <Tab title="macOS">
+    The card is **Enable automatic deletion**. Turn the toggle on. Then give a number and select **Minutes**, **Hours**, or **Days**.
+
+    A **Next check** line shows the countdown to the next automatic cleanup.
+  </Tab>
+  <Tab title="Windows">
+    The card is **Automatic Cleanup**. Select the checkbox. Then give the number of days in the **Delete recordings older than** box. The permitted range is 1 to 365 days. HyperWhisper corrects a value that is outside this range.
+
+    A line below the box shows the time of the last cleanup and the number of transcripts that it deleted.
+
+    The **Delete Now** button runs the same cleanup immediately. A confirmation dialog opens first. HyperWhisper then shows the number of deleted transcripts. macOS has no equivalent button.
+  </Tab>
+</Tabs>
+
+<Warning>
+  Automatic cleanup deletes your audio files and your transcripts permanently. HyperWhisper does not move them to the Trash or the Recycle Bin.
+</Warning>
+
+## Related
+
+- [Managing Your Recording History](/history) — search, play, edit, and delete your past transcriptions
+- [Advanced Settings](/advanced-settings) — the stored preferences that have no picker in the Settings UI
+- [Backup & Export](/backup-export-settings) — move your settings, modes, and vocabulary between devices

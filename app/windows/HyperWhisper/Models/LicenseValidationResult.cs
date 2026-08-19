@@ -157,18 +157,4 @@ public class CachedLicenseInfo
     [JsonPropertyName("last_online_validation")]
     public DateTime LastOnlineValidation { get; set; }
 
-    /// <summary>
-    /// Whether the cached data is still within the offline grace period.
-    /// Default: 7 days
-    /// </summary>
-    [JsonIgnore]
-    public bool IsWithinGracePeriod =>
-        LastOnlineValidation.AddDays(7) > DateTime.UtcNow;
-
-    /// <summary>
-    /// Whether the cached data needs revalidation (older than 24 hours).
-    /// </summary>
-    [JsonIgnore]
-    public bool NeedsRevalidation =>
-        LastOnlineValidation.AddHours(24) < DateTime.UtcNow;
 }

@@ -136,35 +136,4 @@ public class WhisperModelInfo
         new WhisperModelInfo("large-v3", "Large v3", "3.1 GB", false, 3_095_033_483, 10L * 1024 * 1024 * 1024),
     };
 
-    /// <summary>
-    /// Checks if a GPU has enough VRAM for this model.
-    /// </summary>
-    /// <param name="gpuVramBytes">The GPU's VRAM in bytes.</param>
-    /// <returns>True if the GPU has enough VRAM, false otherwise.</returns>
-    public bool FitsInVram(long gpuVramBytes)
-    {
-        return gpuVramBytes >= RecommendedVramBytes;
-    }
-
-    /// <summary>
-    /// Gets a warning message if the model may be slow on the given GPU.
-    /// Returns null if the GPU has sufficient VRAM.
-    /// </summary>
-    /// <param name="gpuVramBytes">The GPU's VRAM in bytes.</param>
-    /// <param name="gpuName">The GPU's name for display.</param>
-    /// <returns>Warning message, or null if no warning needed.</returns>
-    public string? GetVramWarning(long gpuVramBytes, string gpuName)
-    {
-        if (FitsInVram(gpuVramBytes))
-        {
-            return null;
-        }
-
-        double gpuVramGB = gpuVramBytes / (1024.0 * 1024.0 * 1024.0);
-
-        return $"Warning: {DisplayName} requires {RecommendedVramDisplay} VRAM, " +
-               $"but your {gpuName} only has {gpuVramGB:F1} GB.\n\n" +
-               $"This model cannot run properly on your hardware.\n\n" +
-               $"Use HyperWhisper Cloud for the best transcription experience on this device.";
-    }
 }

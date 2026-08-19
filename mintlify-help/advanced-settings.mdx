@@ -3,10 +3,10 @@ title: Advanced Settings
 description: Reference for HyperWhisper's advanced recording and storage settings — max duration, audio sample rate, audio file retention, and history limits.
 ---
 
-Advanced settings control low-level recording behavior and data-retention limits. They are stored in HyperWhisper's preferences and are included in backup files so they travel with the rest of your configuration.
+Advanced settings control low-level recording behavior and data-retention limits. HyperWhisper stores them in its preferences. Backup files include them, so they move with the rest of your settings.
 
 <Note>
-  Most of these settings are not exposed in a dedicated Advanced panel in the current Settings UI. You can view and change them through the backup import/export workflow described below, or by editing a `.hwbackup.json` file before importing it. Max recording duration is the exception — it has its own picker in **Settings → Storage** (see below).
+  The current Settings UI has no dedicated Advanced panel for most of these settings. You can see and change them with the backup export and import steps below. You can also edit a `.hwbackup.json` file before you import it. Max recording duration is the exception. It has its own picker in **Settings → Storage**.
 </Note>
 
 ---
@@ -15,7 +15,7 @@ Advanced settings control low-level recording behavior and data-retention limits
 
 ### Max recording duration
 
-Controls the maximum length of a single recording session, after which it stops automatically and processing begins on the audio captured so far. This prevents runaway recordings from accumulating large audio files unexpectedly.
+This setting controls the maximum length of one recording session. At the limit, the recording stops and HyperWhisper processes the audio that it captured. The limit prevents long recordings that make large audio files.
 
 | Detail | Value |
 |---|---|
@@ -23,13 +23,13 @@ Controls the maximum length of a single recording session, after which it stops 
 | Options | 20 minutes, 1 hour, 2 hours, or Off (no limit) |
 | Platform | macOS |
 
-Unlike the other settings on this page, this one has a dedicated picker in **Settings → Storage**, right below **Store as M4A**. Pick a preset from the dropdown — no backup editing required.
+This setting has its own picker in **Settings → Storage**, below **Compress recordings to M4A**. The other settings on this page do not have a picker. Select a preset from the dropdown. You do not need to edit a backup file. For the full Storage panel, read [Storage Settings](/storage-settings).
 
 ---
 
 ### Audio sample rate
 
-A stored preference for the sample rate (in Hz) HyperWhisper would use to capture microphone audio for standard (non-streaming) recordings.
+This stored preference gives the sample rate in Hz that HyperWhisper uses to capture microphone audio for standard (non-streaming) recordings.
 
 | Detail | Value |
 |---|---|
@@ -37,63 +37,76 @@ A stored preference for the sample rate (in Hz) HyperWhisper would use to captur
 | Valid range | 8 000 – 48 000 Hz |
 | Platform | macOS |
 
-This setting is currently inert — microphone capture for standard recordings is hardcoded to 16 000 Hz regardless of the stored value. The setting is kept for backup round-trip compatibility and may become configurable in a future release.
+This setting does nothing now. Microphone capture for standard recordings always uses 16 000 Hz, whatever the stored value is. HyperWhisper keeps the setting for backup compatibility. A future release can make it configurable.
 
 <Note>
-  Streaming transcription uses a fixed sample rate set by the streaming provider, not this setting. See [Streaming Settings](/streaming-settings) for details.
+  Streaming transcription uses a fixed sample rate from the streaming provider, not this setting. For more information, read [Streaming Settings](/streaming-settings).
 </Note>
 
 ---
 
 ### Keep audio files
 
-A stored preference for whether the raw audio recording should be kept on disk after a transcription completes.
+This stored preference controls whether HyperWhisper keeps the raw audio recording on disk after a transcription is complete.
 
 | Detail | Value |
 |---|---|
 | Default | Off |
 | Platform | macOS |
 
-This setting is currently inert — nothing in the app deletes audio files based on its value. Audio retention today is controlled separately by the auto-delete cleanup feature. See [Managing Your Recording History](/history) for details on how retention actually works and how transcripts are played back.
+This setting does nothing now. No part of the app uses its value to delete audio files. The auto-delete cleanup feature controls audio retention instead. To learn how retention works, and how the app plays back transcripts, read [Managing Your Recording History](/history).
 
 ---
 
 ### History retention days
 
-A stored preference for the number of days to use as a default threshold for history-based operations.
+This stored preference gives the default number of days for history-based operations.
 
 | Detail | Value |
 |---|---|
 | Default | 30 days |
 | Platform | macOS |
 
-This setting is currently inert — it is not read anywhere in the app. It is separate from the auto-delete feature and exists mainly as a value that carries across devices via backup. See [Managing Your Recording History](/history) for the automatic cleanup configuration that is actually active.
+This setting does nothing now. No part of the app reads it. It is separate from the auto-delete feature. It is mainly a value that moves between devices in a backup file. To find the automatic cleanup settings that are active, read [Managing Your Recording History](/history).
 
 ---
 
 ### Show experimental models
 
-A stored preference for whether experimental and preview model variants should appear in the model selector alongside stable models.
+This stored preference controls whether experimental and preview model variants appear in the model selector with the stable models.
 
 | Detail | Value |
 |---|---|
 | Default | Off |
 | Platform | macOS |
 
-This setting is currently inert — no model-filtering code reads it, so the model selector shows the same models regardless of its value.
+This setting does nothing now. No model-filter code reads it. The model selector shows the same models, whatever the value is.
 
 ---
 
-## Changing advanced settings via backup
+### Filesync
 
-Because most of these settings do not appear in a dedicated Settings panel, the most reliable way to change them is through the backup workflow. (Max recording duration can also be changed directly in **Settings → Storage**, as noted above.)
+This stored preference is a feature flag for recording sync across devices.
+
+| Detail | Value |
+|---|---|
+| Default | Off |
+| Platform | macOS |
+
+This setting does nothing now. HyperWhisper has no device sync, and no part of the app reads the value. Only the backup export and the backup import move it. The backup file stores it under the `"storage"` object, with `storeAsM4A`, and not under `"advanced"`.
+
+---
+
+## Change advanced settings with a backup file
+
+Most of these settings do not appear in a dedicated Settings panel. Thus, the backup workflow is the most reliable way to change them. You can also change max recording duration in **Settings → Storage**.
 
 <Steps>
   <Step title="Export your current settings">
-    Go to **Settings → Backup**, make sure **Settings** is included, and click **Export**. Save the `.hwbackup.json` file somewhere you can find it.
+    Go to **Settings → Backup**. Make sure that **Settings** is included. Click **Export**. Save the `.hwbackup.json` file in a location that you can find again.
   </Step>
   <Step title="Edit the file">
-    Open the `.hwbackup.json` file in a text editor. Find the `"advanced"` object near the bottom of the `"settings"` block:
+    Open the `.hwbackup.json` file in a text editor. Find the `"advanced"` object near the end of the `"settings"` block:
 
     ```json
     "advanced": {
@@ -104,19 +117,19 @@ Because most of these settings do not appear in a dedicated Settings panel, the 
     }
     ```
 
-    Change the values you want to adjust. Make sure the file remains valid JSON before saving.
+    Change the values that you want to adjust. Before you save the file, make sure that it is still valid JSON.
   </Step>
   <Step title="Import the edited file">
-    Go to **Settings → Backup** and click **Import**. Select the file you just edited. Review the import summary and confirm. Your new values take effect immediately.
+    Go to **Settings → Backup**. Click **Import**. Select the file that you edited. Read the import summary, then confirm it. The new values take effect immediately.
   </Step>
 </Steps>
 
 <Note>
-  The `showExperimentalModels` setting is stored under the `"aiModel"` object in the backup file, not under `"advanced"`.
+  The backup file stores the `showExperimentalModels` setting under the `"aiModel"` object, not under `"advanced"`.
 </Note>
 
 ---
 
 ## Windows
 
-The settings described on this page (`maxRecordingDuration`, `audioSampleRate`, `keepAudioFiles`, `historyRetentionDays`) are macOS-only. Windows does not implement them: they are not surfaced in the Windows UI, not written when Windows exports a backup, and not applied when Windows imports a backup. If a macOS backup file containing these fields is imported on Windows, the fields are silently ignored.
+The settings on this page (`maxRecordingDuration`, `audioSampleRate`, `keepAudioFiles`, `historyRetentionDays`, `filesyncEnabled`) are macOS-only. Windows does not implement them. The Windows UI does not show them. A Windows backup export does not write them. A Windows backup import does not apply them. If you import a macOS backup file on Windows, Windows ignores these fields without a message.

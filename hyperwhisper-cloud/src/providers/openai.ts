@@ -6,26 +6,66 @@
 // estimated from payload size for telemetry only.
 
 import { computeOpenAITranscriptionCost } from '../lib/cost-calculator';
-import { BYTES_PER_MINUTE_ESTIMATE, OPENAI_INLINE_MAX_BYTES } from '../lib/constants';
-import { AudioTooLargeError, ProviderInputError, ProviderUnavailableError } from './types';
+import { OPENAI_INLINE_MAX_BYTES } from '../lib/constants';
+import { resolveProviderLanguage } from '../lib/language-codes';
+import { AudioTooLargeError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { estimateSecondsFromBytes, fetchWithTimeout, logProviderEvent, readErrorBodyPreview } from './utils';
+import {
+  DEFAULT_AUDIO_EXTENSIONS,
+  audioExtensionFromContentType,
+  estimateSecondsFromBytes,
+  fetchWithTimeout,
+  logProviderEvent,
+  providerHttpError,
+} from './utils';
 
 const OPENAI_URL = 'https://api.openai.com/v1/audio/transcriptions';
 const DEFAULT_MODEL = 'gpt-4o-transcribe';
 
-function getExtension(contentType: string): string {
-  if (contentType.includes('wav')) return 'wav';
-  if (contentType.includes('mp3') || contentType.includes('mpeg')) return 'mp3';
-  if (contentType.includes('m4a') || contentType.includes('mp4')) return 'm4a';
-  if (contentType.includes('webm')) return 'webm';
-  if (contentType.includes('ogg')) return 'ogg';
-  if (contentType.includes('flac')) return 'flac';
-  return 'wav';
-}
+// Models that accept a structured keyword list. gpt-live-transcribe is
+// realtime-only and never reaches this synchronous adapter.
+const KEYWORDS_MODELS = new Set(['gpt-transcribe']);
+// OpenAI encodes array parameters on this endpoint with a trailing `[]`, one
+// field per element — the same shape as the documented
+// `timestamp_granularities[]`.
+const KEYWORDS_FIELD = 'keywords[]';
+const MAX_KEYWORDS = 100;
+// Per-term ceiling, matching MAX_VOCABULARY_TERM_CHARS in the Rust core's
+// `sanitize_vocabulary_word` — the canonical sanitizer the BYOK half of this
+// feature routes through. Without it a pasted 400-character sentence went
+// upstream as one "keyword", and every sibling adapter here caps term length.
+// Like the canonical sanitizer, an over-long term is TRUNCATED, not dropped.
+const MAX_KEYWORD_CHARS = 80;
 
-function estimateDurationSeconds(byteLength: number): number {
-  return (byteLength / BYTES_PER_MINUTE_ESTIMATE) * 60;
+/** Split a comma/newline vocabulary prompt into `keywords[]` values. */
+function toKeywords(initialPrompt: string): string[] {
+  const seen = new Set<string>();
+  const keywords: string[] = [];
+  for (const raw of initialPrompt.split(/[,\n;]+/)) {
+    // OpenAI documents that a keyword must be one line with no `<`, `>`, CR or LF.
+    // Collapsing whitespace runs matches the canonical sanitizer and keeps a
+    // multi-line paste from becoming one unusable hint.
+    const keyword = raw
+      .trim()
+      // Strip a list bullet ONLY when a space follows it. Without that space a
+      // leading "-" or "*" is part of the term — "-Xmx", "*args" — and stripping
+      // it silently biases the model toward a different token than the user
+      // entered, which the BYOK path does not do.
+      .replace(/^[-*]\s+/, '')
+      .replace(/[<>]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      // Truncate rather than drop, matching `sanitize_vocabulary_word`, and by
+      // code POINT so a term of supplementary characters is not cut early.
+      .slice(0, MAX_KEYWORD_CHARS);
+    if (keyword.length === 0) continue;
+    const key = keyword.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    keywords.push(keyword);
+    if (keywords.length === MAX_KEYWORDS) break;
+  }
+  return keywords;
 }
 
 interface OpenAIUsage {
@@ -56,7 +96,7 @@ export async function transcribeWithOpenAI(
     throw new AudioTooLargeError('OpenAI', audio.byteLength, OPENAI_INLINE_MAX_BYTES);
   }
 
-  const ext = getExtension(contentType);
+  const ext = audioExtensionFromContentType(contentType, DEFAULT_AUDIO_EXTENSIONS) ?? 'wav';
   const formData = new FormData();
   formData.append('file', new Blob([audio], { type: contentType }), `audio.${ext}`);
   formData.append('model', model);
@@ -64,14 +104,43 @@ export async function transcribeWithOpenAI(
   // returns a duration we can bill on).
   formData.append('response_format', isWhisper ? 'verbose_json' : 'json');
 
-  if (language && language.toLowerCase() !== 'auto') {
-    // OpenAI's `language` hint expects an ISO-639-1 code (e.g. "en"/"pt"), not a
-    // region-qualified BCP-47 tag — strip any region/script subtag so a
-    // client-supplied "en-US"/"pt-BR" isn't rejected for this self-only provider.
-    const langCode = language.toLowerCase().split(/[-_]/)[0];
+  // OpenAI's language hint expects an ISO-639-1 code (e.g. "en"/"pt"), not a
+  // region-qualified BCP-47 tag — the resolver strips any region/script subtag
+  // so a client-supplied "en-US"/"pt-BR" isn't rejected for this self-only
+  // provider, and drops the hint entirely for a code the field cannot express.
+  // The picker's list comes from Whisper's tokenizer, which is not purely
+  // ISO-639-1: `haw` and `yue` are ISO-639-3 and have no 639-1 form, so they are
+  // omitted and OpenAI auto-detects instead of being handed a value it cannot
+  // parse.
+  //
+  // ON THE FIELD NAME — deliberately still the SINGULAR `language`, for every
+  // model including `gpt-transcribe`. An earlier revision of this PR switched
+  // the gpt-transcribe family to a plural `languages` on the strength of a doc
+  // reading. That claim is unverified: no OpenAI SDK is vendored here, nothing
+  // in this repo pins the field's type, and `scripts/language-code-probe.ts` was
+  // written precisely to settle it and has never been run. If `languages` is
+  // array-typed, OpenAI's multipart convention wants `languages[]` and a bare
+  // scalar parses as the wrong type → 400. `FALLBACK_CHAINS.openai` is
+  // self-only, so that 400 is terminal — transcribe.ts returns 400
+  // "Transcription input rejected" and the transcription fails outright, on a
+  // model marked `isPopular` on both platforms. The worst case for the singular
+  // field is the hint being ignored; the worst case for the plural one is total
+  // failure, and this module's own rule is THE FALLBACK IS ALWAYS AUTO-DETECT,
+  // NEVER AN ERROR. Run the probe's `openaiRow('gpt-transcribe', 'languages', …)`
+  // rows before changing this line.
+  const langCode = resolveProviderLanguage({ provider, model, language, context });
+  if (langCode) {
     formData.append('language', langCode);
   }
-  if (initialPrompt) {
+  // gpt-transcribe takes a STRUCTURED keyword list; every other model only has
+  // the free-text `prompt`. Sending the terms as keywords keeps them hints
+  // rather than part of the instruction.
+  const useKeywords = KEYWORDS_MODELS.has(model);
+  const keywords = useKeywords && initialPrompt ? toKeywords(initialPrompt) : [];
+  for (const keyword of keywords) {
+    formData.append(KEYWORDS_FIELD, keyword);
+  }
+  if (initialPrompt && !useKeywords) {
     formData.append('prompt', initialPrompt);
   }
 
@@ -80,7 +149,8 @@ export async function transcribeWithOpenAI(
     audioBytes: audio.byteLength,
     contentType,
     language: language || 'auto',
-    hasPrompt: Boolean(initialPrompt),
+    hasPrompt: Boolean(initialPrompt) && !useKeywords,
+    keywordCount: keywords.length,
   }, context);
 
   const response = await fetchWithTimeout(provider, OPENAI_URL, {
@@ -90,27 +160,13 @@ export async function transcribeWithOpenAI(
   }, context);
 
   if (!response.ok) {
-    const errorText = await readErrorBodyPreview(response);
-    const elapsedMs = Math.round(performance.now() - startedAt);
-    const kind = response.status >= 500 ? 'upstream_5xx' : response.status === 429 ? 'rate_limit' : 'http_error';
-
-    logProviderEvent(provider, 'http_error', {
-      model, elapsedMs, status: response.status, kind, bodyPreview: errorText,
-    }, context);
-
-    if (response.status === 401 || response.status === 403) {
-      throw new Error('OpenAI API key is invalid or unauthorized');
-    }
-    if (response.status === 429) {
-      throw new ProviderUnavailableError('OpenAI', 'rate limit exceeded');
-    }
-    if (response.status === 402) {
-      throw new ProviderUnavailableError('OpenAI', 'insufficient funds');
-    }
-    if (response.status >= 500) {
-      throw new ProviderUnavailableError('OpenAI', `upstream 5xx: ${response.status}`);
-    }
-    throw new ProviderInputError('OpenAI', response.status, errorText || `HTTP ${response.status}`);
+    throw await providerHttpError(provider, response, startedAt, context, {
+      label: 'OpenAI',
+      authStatuses: [401, 403],
+      authMessage: 'OpenAI API key is invalid or unauthorized',
+      failoverOn402: true,
+      logDetails: { model },
+    });
   }
 
   let data: { text?: string; language?: string; duration?: number; usage?: OpenAIUsage };
@@ -126,7 +182,7 @@ export async function transcribeWithOpenAI(
   const rawWhisperDuration = data.duration ?? data.usage?.seconds ?? 0;
   let durationSeconds = isWhisper
     ? rawWhisperDuration
-    : estimateDurationSeconds(audio.byteLength);
+    : estimateSecondsFromBytes(audio.byteLength);
 
   if (!transcript || transcript.trim().length === 0) {
     logProviderEvent(provider, 'no_speech', {

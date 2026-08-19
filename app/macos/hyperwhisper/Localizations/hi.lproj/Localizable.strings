@@ -112,17 +112,6 @@
 "home.accessibility.open.settings" = "सेटिंग्स खोलें";
 "home.accessibility.restart.after.permission" = "अनुमति देने के बाद ऐप को पुनः प्रारंभ करें";
 "home.getting.started.completed" = "✓ पूर्ण";
-"home.whatsnew.badge" = "नया";
-"home.whatsnew.title" = "क्या नया है?";
-"home.whatsnew.update1.date" = "जुलाई 3";
-"home.whatsnew.update1.title" = "Parakeet अब उपलब्ध है";
-"home.whatsnew.update1.description" = "इसे आज ही आजमाने के लिए मोड निर्माण में भाषा मॉडल सूची से सीधे डाउनलोड करें।";
-"home.whatsnew.update2.date" = "जून 5";
-"home.whatsnew.update2.title" = "प्रत्येक OpenAI-संगत कस्टम मॉडल के लिए समर्थन";
-"home.whatsnew.update2.description" = "आप अब अपने मॉडल सूची में कोई भी OpenAI संगत API जोड़ सकते हैं।";
-"home.whatsnew.update3.date" = "मई 27";
-"home.whatsnew.update3.title" = "बिल्कुल नई मिनी-रिकॉर्डिंग विंडो";
-"home.whatsnew.update3.description" = "एक चिकना, न्यूनतम रिकॉर्डिंग इंटरफेस जो आपके रास्ते से बाहर रहता है।";
 
 // MARK: - Recent Updates Section
 "home.recent.updates.title" = "हाल के अपडेट";
@@ -312,6 +301,9 @@
 
 "settings.general.errorLogging.title" = "त्रुटि लॉगिंग";
 "settings.general.errorLogging.info" = "ऐप में सुधार करने में मदद के लिए स्वचालित रूप से त्रुटि रिपोर्ट कैप्चर और भेजें।";
+"settings.general.shareSpeedData.title" = "अनाम गति डेटा साझा करें";
+"settings.general.shareSpeedData.info" = "हर क्लाउड प्रदाता को कितना समय लगता है यह मापता है और इसे एक सार्वजनिक तुलना में जोड़ता है। एक माप में प्रदाता, सर्वर क्षेत्र, क्लिप की लंबाई, और लगा समय शामिल होता है — कोई खाता नहीं, कोई कुंजी नहीं, कोई ऑडियो नहीं, और कोई टेक्स्ट नहीं। इसे बंद करें और HyperWhisper इसे भेजना बंद कर देगा। और कुछ नहीं बदलता, और स्थानीय मॉडल कभी कुछ नहीं भेजते।";
+"settings.general.shareSpeedData.link" = "गति तुलना देखें";
 "settings.general.autoUpdate.title" = "स्वचालित अपडेट";
 "settings.general.autoUpdate.info" = "स्वचालित रूप से HyperWhisper के नए संस्करणों के लिए जांचें और डाउनलोड करें।";
 "settings.general.support.title" = "क्या आपको मदद चाहिए?";
@@ -832,10 +824,6 @@
 "page.header.learnMore" = "और जानें";
 
 // MARK: - Recording Dialog
-"recording.status.complete" = "ट्रांसक्रिप्शन पूर्ण";
-"recording.status.retrying" = "ट्रांसक्रिप्शन फिर से प्रयास किया जा रहा है…";
-"recording.status.postprocessing" = "AI के साथ बाद में प्रोसेसिंग…";
-"recording.status.transcribing" = "ट्रांसक्राइब किया जा रहा है…";
 "recording.success.pasted" = "पेस्ट किया गया!";
 "recording.loading.retrying" = "फिर से प्रयास किया जा रहा है…";
 "recording.loading.postprocessing" = "AI के साथ प्रोसेसिंग…";
@@ -863,39 +851,22 @@
 "modes.provider.manageInLibrary" = "लाइब्रेरी में प्रबंधित करें →";
 "streaming.loading.warming" = "स्थानीय मॉडल गर्म हो रहा है...";
 "streaming.status.listening" = "सुन रहे हैं...";
-"streaming.status.streaming" = "स्ट्रीमिंग...";
 "streaming.status.disconnecting" = "बंद किया जा रहा है...";
 "streaming.loading.connecting" = "सर्वर से कनेक्ट किया जा रहा है...";
 "streaming.loading.ready" = "ऑडियो को प्रारंभ किया जा रहा है...";
 "streaming.loading.streaming" = "भाषण की प्रतीक्षा की जा रही है...";
 "streaming.state.reconnecting" = "फिर से कनेक्ट किया जा रहा है...";
 "recording.stop.help" = "रिकॉर्डिंग बंद करें (%@)";
-"recording.postprocessing.unavailable" = "बाद में प्रोसेसिंग उपलब्ध नहीं";
-"recording.postprocessing.missing.single" = "%@ कुंजी अनुपस्थित – बाद में प्रोसेसिंग के बिना रिकॉर्डिंग";
-"recording.postprocessing.missing.multiple" = "API कुंजियां अनुपस्थित – बाद में प्रोसेसिंग के बिना रिकॉर्डिंग";
-"recording.postprocessing.addKey" = "कुंजी जोड़ें";
-"recording.offline.banner" = "इंटरनेट कनेक्शन नहीं। क्लाउड ट्रांसक्रिप्शन विफल हो जाएगा जब तक आप ऑनलाइन न हों।";
-"recording.offline.title" = "इंटरनेट कनेक्शन नहीं";
-"recording.offline.subtitle" = "जारी रखने के लिए फिर से कनेक्ट करें या एक ऑफ़लाइन मोड पर स्विच करें।";
-"recording.error.network" = "अपने इंटरनेट कनेक्शन की जांच करें और फिर से प्रयास करें।";
-"recording.error.timeout" = "अनुरोध का समय समाप्त हो गया। अपनी कनेक्शन गति जांचें और फिर से प्रयास करें।";
-"recording.error.rateLimit" = "आपने बहुत सारे अनुरोध किए हैं। एक पल प्रतीक्षा करें और फिर से प्रयास करें।";
-"recording.error.credits" = "अपर्याप्त क्रेडिट। सेटिंग्स में अधिक क्रेडिट जोड़ें।";
-"recording.error.apiKey" = "सेटिंग्स में अपनी %@ API कुंजी जोड़ें।";
-"recording.error.server" = "ट्रांसक्रिप्शन सेवा समस्याओं का सामना कर रही है। कृपया एक पल में फिर से प्रयास करें।";
 "recording.retry" = "पुनः प्रयास करें";
 "recording.retry.inProgress" = "पुनः प्रयास किया जा रहा है…";
 "recording.retry.count" = "पुनः प्रयास (%d)";
 "recording.retry.failed.missing" = "पुनः प्रयास विफल: ऑडियो फ़ाइल नहीं मिली";
 "recording.retry.failed.error" = "पुनः प्रयास विफल: %@";
 "recording.retry.pending" = "फिर से प्रयास करने के लिए तैयार – ट्रांसक्राइब करने के लिए क्लिक करें";
-"recording.provider.unknown" = "क्लाउड प्रदाता";
 "recording.cancel.dialog.title" = "रिकॉर्डिंग रद्द करें?";
 "recording.cancel.dialog.message" = "यह वर्तमान रिकॉर्डिंग को त्यागता है।";
 "recording.cancel.dialog.confirm" = "रिकॉर्डिंग रद्द करें";
 "recording.cancel.dialog.resume" = "फिर से शुरू करें";
-"recording.error.overlay.title" = "नेटवर्क कनेक्शन त्रुटि";
-"recording.error.overlay.message" = "नीचे 'पुनः प्रयास करें' दबाएं या एक ऑफ़लाइन मोड पर स्विच करके जारी रखें।";
 "recording.mode.default" = "डिफ़ॉल्ट";
 "recording.dialog.window.title" = "रिकॉर्डिंग संवाद";
 "recording.button.start" = "रिकॉर्डिंग शुरू करें";
@@ -953,6 +924,7 @@
 "transcription.error.maxRetriesExceeded" = "अधिकतम पुनः प्रयास प्रयास अतिक्रमित";
 "transcription.error.unauthorized.provider" = "अनुमति नहीं: अमान्य %@ API कुंजी या अनुमति।\n\nसेटिंग्स → API कुंजियां खोलकर अपनी साख सत्यापित करें।";
 "transcription.error.unauthorized.generic" = "अनुमति नहीं: अमान्य API कुंजी या अनुमति।\n\nसेटिंग्स → API कुंजियां खोलकर अपनी साख सत्यापित करें।";
+"transcription.error.cloudAccountRequired" = "HyperWhisper Cloud के लिए खाता कुंजी आवश्यक है।\n\nसेटिंग्स → HyperWhisper Cloud खोलकर अपनी कुंजी दर्ज करें या क्रेडिट प्राप्त करें।";
 "transcription.error.invalidRequest" = "अमान्य अनुरोध: ऑडियो फ़ाइल या सेटिंग्स जांचें";
 "transcription.error.streamingInterrupted" = "स्ट्रीमिंग बाधित; आंशिक पाठ दिखाया गया";
 "transcription.error.busy" = "ट्रांसक्रिप्शन सेवा वर्तमान में व्यस्त है";
@@ -992,6 +964,7 @@
 "transcription.guidance.needsNativeRelaunch" = "लोकल पोस्ट-प्रोसेसिंग इस्तेमाल करने के लिए HyperWhisper को बंद करके नेटिव रूप से फिर से खोलें।";
 "transcription.guidance.localRuntimeUnavailable" = "फिर से कोशिश करें, या अपनी मोड सेटिंग में कोई छोटा लोकल मॉडल चुनें।";
 "transcription.error.localRuntimeUnavailable" = "लोकल AI पूरा नहीं कर सका — आपका मूल ट्रांसक्रिप्ट सहेज लिया गया है।";
+"transcription.error.localSpeechModelEvicted" = "मेमोरी खाली करने के लिए स्पीच मॉडल अनलोड कर दिया गया और उसे दोबारा लोड नहीं किया जा सका। कुछ ऐप्स बंद करें और फिर से कोशिश करें।";
 "settings.backup.localDownload.title" = "लोकल मॉडल डाउनलोड करें?";
 "settings.backup.localDownload.message" = "आपके पुनर्स्थापित किए गए %d मोड ऐसे ऑन-डिवाइस AI मॉडल का उपयोग करते हैं जो अभी डाउनलोड नहीं हुए हैं।";
 "settings.backup.localDownload.downloadAll" = "सभी डाउनलोड करें";
@@ -1124,10 +1097,6 @@
 "history.autoDelete.unit.minutes" = "मिनट";
 "history.autoDelete.unit.hours" = "घंटे";
 "history.autoDelete.unit.days" = "दिन";
-"history.autoDelete.unit.minutes.plural" = "मिनट";
-"history.autoDelete.unit.hours.plural" = "घंटे";
-"history.autoDelete.unit.days.plural" = "दिन";
-"history.autoDelete.status.disabled" = "स्वचालित हटाना अक्षम है";
 "history.autoDelete.status.enabled" = "%d %@ से पुरानी रिकॉर्डिंग हटाएं";
 "history.autoDelete.cleanup.noItems" = "हटाने के लिए कोई रिकॉर्डिंग नहीं";
 "history.autoDelete.cleanup.summary" = "%d रिकॉर्डिंग हटाई गई और %@ खाली किया गया";

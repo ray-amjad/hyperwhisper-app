@@ -72,7 +72,7 @@
     },
     "mcpServer": {
       "title": "Paikallinen API ja MCP-palvelin",
-      "description": "Sisäänrakennettu MCP-palvelin antaa Clauden, Cursorin ja muiden tekoälyagenttien ohjata HyperWhisperiä. Vain paikallinen HTTP-API bearer-todennuksella skripteille ja automaatioille."
+      "description": "Sisäänrakennettu MCP-palvelin antaa Clauden, Cursorin ja muiden tekoälyagenttien ohjata HyperWhisperiä. Vain paikallinen HTTP-API skripteille ja automaatioille."
     },
     "modes": {
       "title": "Tilat joka tilanteeseen",
@@ -155,15 +155,15 @@
     "questions": {
       "accuracy": {
         "question": "Kuinka tarkka litterointi on?",
-        "answer": "Saavutamme alan huipputason 99% tarkkuuden uusimman sukupolven AI-malleilla. Voit parantaa tarkkuutta entisestään lisäämällä oman mukautetun sanastosi teknisille termeille, nimille ja erikoisjargonille."
+        "answer": "Se riippuu käyttämästäsi mallin ja kielen yhdistelmästä. Osa malleista on erinomaisia englannissa mutta heikompia muissa kielissä, ja pilvimallit ovat yleensä tarkempia kuin paikalliset. Voit parantaa minkä tahansa mallin tarkkuutta lisäämällä oman mukautetun sanastosi teknisille termeille, nimille ja erikoisjargonille."
       },
       "offline": {
         "question": "Voinko käyttää sitä ilman internetiä?",
-        "answer": "Ehdottomasti. HyperWhisper toimii täysin offline-tilassa Macillasi paikallisten AI-mallien avulla - internetyhteyttä ei tarvita. Käyttäjille, jotka haluavat maksimaalisen tarkkuuden ja nopeuden, tarjoamme myös valinnaisen pilvikäsittelyn eri pilvipalveluntarjoajien kautta."
+        "answer": "Ehdottomasti. HyperWhisper toimii täysin offline-tilassa Macillasi tai Windows-tietokoneellasi paikallisten AI-mallien avulla - internetyhteyttä ei tarvita. Käyttäjille, jotka haluavat maksimaalisen tarkkuuden ja nopeuden, tarjoamme myös valinnaisen pilvikäsittelyn eri pilvipalveluntarjoajien kautta."
       },
       "apiKey": {
         "question": "Täytyykö API-käytöstä maksaa?",
-        "answer": "Käytät omaa API-avaintasi seuraaville palveluntarjoajille: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral ja Google Gemini. Osa palveluntarjoajista tarjoaa uusille käyttäjille ilmaisia krediittejä; Deepgram tarjoaa $200 ja AssemblyAI tarjoaa $50. Pitkällä aikavälillä tämä tulee huomattavasti halvemmaksi kuin mikään tilaus. \n\nVoit käyttää myös sisäänrakennettua HyperWhisper Cloudia, joka ei vaadi API-avainta ja toimii käyttöperusteisesti.\n\nMuista: paikallinen offline-tila toimii ilman API-avainta ja on täysin ilmainen."
+        "answer": "Käytät omaa API-avaintasi seuraaville palveluntarjoajille: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox ja Google Gemini. Osa palveluntarjoajista tarjoaa uusille käyttäjille ilmaisia krediittejä; Deepgram tarjoaa $200 ja AssemblyAI tarjoaa $50. Pitkällä aikavälillä tämä tulee huomattavasti halvemmaksi kuin mikään tilaus. \n\nVoit käyttää myös sisäänrakennettua HyperWhisper Cloudia, joka ei vaadi API-avainta ja toimii käyttöperusteisesti.\n\nMuista: paikallinen offline-tila toimii ilman API-avainta ja on täysin ilmainen."
       },
       "languages": {
         "question": "Mitä kieliä se tukee?",
@@ -179,7 +179,7 @@
       },
       "privacy": {
         "question": "Miten yksityisyyteni suojataan?",
-        "answer": "Kun käytät paikallista tilaa, mitään dataa ei poistu Maciltasi.\n\nKun käytät pilvilitterointia, datasi lähetetään valitsemallesi pilvipalveluntarjoajalle (esim. OpenAI, Groq, Deepgram, AssemblyAI, ElevenLabs tai Mistral).\n\nVoit varmistaa tämän itse verkkoliikennettä tarkkailevalla työkalulla, kuten [Proxyman](https://proxyman.io), tai verkkomonitorilla, kuten [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html)."
+        "answer": "Kun käytät paikallista tilaa, mitään dataa ei poistu Maciltasi tai Windows-tietokoneeltasi.\n\nKun käytät pilvilitterointia, datasi lähetetään valitsemallesi pilvipalveluntarjoajalle (esim. OpenAI, Groq, xAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox tai Google Gemini).\n\nVoit varmistaa tämän itse verkkoliikennettä tarkkailevalla työkalulla, kuten [Proxyman](https://proxyman.io), verkkomonitorilla, kuten [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), tai lukemalla [lähdekoodin GitHubissa](https://github.com/ray-amjad/hyperwhisper-app)."
       },
       "cloud": {
         "question": "Mikä on HyperWhisper Cloud?",
@@ -200,10 +200,6 @@
       "requirements": {
         "question": "Mitkä ovat järjestelmävaatimukset?",
         "answer": "Mac: macOS 14 tai uudempi, tuki sekä Apple Siliconille että Intelille. Windows: Windows 10/11, x64 tai ARM64. 8GB RAM suositellaan optimaaliseen suorituskykyyn."
-      },
-      "windowsStatus": {
-        "question": "Onko Windows-versiossa kaikki samat ominaisuudet kuin macOS-versiossa?",
-        "answer": "Windows-versio julkaistiin hiljattain, joten siinä ei välttämättä ole vielä kaikkia macOS-version ominaisuuksia. Työskentelemme aktiivisesti täyden ominaisuuspariteetin saavuttamiseksi molemmille alustoille."
       },
       "madeBy": {
         "question": "Kuka tämän teki?",

@@ -15,13 +15,13 @@ public enum CloudAccuracyTier
     /// <summary>Deepgram Nova-3 — Medium tier</summary>
     DeepgramNova3,
 
-    /// <summary>xAI Grok STT — High tier (no custom vocabulary plumbed through backend)</summary>
+    /// <summary>xAI Grok STT — High tier (vocabulary sent as repeated `keyterm` fields)</summary>
     GrokStt,
 
     /// <summary>Microsoft MAI-Transcribe 1.5 — High tier (HW Cloud only)</summary>
     AzureMaiTranscribe,
 
-    /// <summary>Google Chirp 3 — High tier (HW Cloud only, no custom vocabulary)</summary>
+    /// <summary>Google Chirp 3 — High tier (HW Cloud only; vocabulary sent as a phrase list)</summary>
     GoogleChirp3,
 
     /// <summary>ElevenLabs Scribe v2 — Highest tier</summary>

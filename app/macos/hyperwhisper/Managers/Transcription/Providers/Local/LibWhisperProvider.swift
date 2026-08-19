@@ -25,12 +25,35 @@ class LibWhisperProvider: TranscriptionProvider {
         currentModel?.displayName ?? "LibWhisper"
     }
     
-    /// The whisper context for transcription
+    /// The resident whisper.cpp context, or `nil` when nothing is loaded and
+    /// when a memory-pressure eviction has freed it. Written ONLY while holding
+    /// `lifecycleLock`.
     private var whisperContext: WhisperContext?
-    
-    /// Currently loaded model
+
+    /// The model this provider is configured to run — deliberately STICKY. It
+    /// survives `cleanup()`, so an evicted provider still knows what to reload
+    /// and can still answer `isEnglishOnly` correctly. Residency is
+    /// `whisperContext` / `isModelReady`; this is only the selection.
     private var currentModel: WhisperCppModel?
-    
+
+    /// Serialises `loadModel` against `cleanup()` so the two can never
+    /// interleave. See `ResidentRuntimeClaim.acquire` for why that is half the
+    /// fix and this generation counter is the other half.
+    private let lifecycleLock = AsyncSerialLock()
+
+    /// Bumped every time the resident context is installed or torn down, and
+    /// captured by the evict closure at REGISTRATION, so every teardown carries
+    /// the identity of the context it was actually sent for. A teardown that is
+    /// superseded while it waits for `lifecycleLock` recognises itself as stale
+    /// and leaves the newer context alone.
+    private var contextGeneration: UInt64 = 0
+
+    /// Bumped by every `cancelTranscription()` and by every new pass. A pass
+    /// compares it after its claim/reload, because that reload can take seconds
+    /// and the unstructured `Task` it creates afterwards inherits no
+    /// cancellation.
+    private var cancellationEpoch: UInt64 = 0
+
     /// Model manager for accessing downloaded models
     /// DEPENDENCY INJECTION: This is now provided from the app's shared instance
     /// to avoid state drift between UI and provider
@@ -97,49 +120,110 @@ class LibWhisperProvider: TranscriptionProvider {
     }
     
     /// Load a model for transcription
-    /// - Parameter modelName: Name of the model (e.g., "tiny", "base.en")
-    func loadModel(named modelName: String) async throws {
+    /// - Parameters:
+    ///   - modelName: Name of the model (e.g., "tiny", "base.en")
+    ///   - forceReload: Rebuild even when exactly this model looks resident. Set
+    ///     ONLY by the `.evicting` reload path — see `performLoad`.
+    ///
+    /// Serialised against `cleanup()` — and against any other load — by
+    /// `lifecycleLock`, so a load and a memory-pressure teardown can never
+    /// interleave. `ResidentRuntimeClaim.acquire` documents why.
+    func loadModel(named modelName: String, forceReload: Bool = false) async throws {
+        try await lifecycleLock.withLock { () async throws -> Void in
+            try await self.performLoad(named: modelName, forceReload: forceReload)
+        }
+    }
+
+    /// The body of `loadModel`. MUST be called with `lifecycleLock` held: with
+    /// `cleanup()` it is one of only two writers of `whisperContext`, and it
+    /// assumes nothing else can touch that state across its suspension points.
+    private func performLoad(named modelName: String, forceReload: Bool) async throws {
+        // Somebody may have loaded exactly this model while we waited for the
+        // lock — typically a claim that landed in the window between the context
+        // being built and its registry entry existing, and reloaded defensively.
+        // Tearing a live, registered context down to rebuild the same one IS the
+        // destructive cold reload this guards against.
+        //
+        // `forceReload` is the one case where "already resident" is a LIE, and
+        // skipping the rebuild costs the user their dictation. A teardown that
+        // has been committed (`markBusy` answered `.evicting`) but has not yet
+        // taken `lifecycleLock` leaves the context installed and `isModelReady`
+        // true, so this guard would match and return without bumping
+        // `contextGeneration` — and the parked teardown would then pass its own
+        // generation check and free the very context we just declared resident.
+        // The second claim is refused, the pass throws
+        // `localSpeechModelEvicted`, and that error is not retryable. Rebuilding
+        // instead bumps the generation twice, which stands the parked teardown
+        // down and registers a fresh entry for the claim that follows.
+        if !forceReload, whisperContext != nil, isModelReady, currentModel?.name == modelName {
+            logger.debug("📦 Model already resident, skipping reload: \(modelName, privacy: .public)")
+            return
+        }
+        if forceReload {
+            logger.notice("♻️ Forcing a rebuild of \(modelName, privacy: .public): the resident context is being torn down")
+        }
+
         logger.info("📦 Loading model: \(modelName)")
-        
+
         // PERFORMANCE: Only scan if we truly have no models
         // This check is cheap compared to filesystem scanning
         if modelManager.downloadedModels.isEmpty {
             logger.debug("🔍 No models in cache, scanning...")
             await modelManager.scanDownloadedModels()
         }
-        
+
         // Find the model in downloaded models
         guard let model = self.modelManager.downloadedModels.first(where: { $0.name == modelName }),
               let modelPath = model.url?.path else {
             logger.error("❌ Model not found: \(modelName). Available models: \(self.modelManager.downloadedModels.map { $0.name })")
             throw TranscriptionError.modelNotDownloaded
         }
-        
+
         logger.info("🔧 Found model at path: \(modelPath)")
-        
-        // Release previous context if exists
-        if let existingContext = whisperContext {
+
+        // Retire the resident context BEFORE freeing it, with no suspension in
+        // between: from here on a concurrent claim is refused and a concurrent
+        // read sees `nil`, so nothing can be handed the context we are about to
+        // free. The old order freed it first and left `whisperContext` pointing
+        // at a dead object across two awaits, which handed an HONORED claim a
+        // freed context.
+        if let retired = whisperContext {
+            whisperContext = nil
+            isModelReady = false
+            contextGeneration &+= 1
+            await ModelResidencyRegistry.shared.deregister(id: libWhisperResidencyId)
             logger.info("♾️ Releasing previous model context")
-            await existingContext.releaseResources()
+            await retired.releaseResources()
         }
-        
+
         // Create new context with the model
         // THIS IS FAST! No warm-up needed!
         do {
             logger.info("🎨 Creating WhisperContext for \(modelName)...")
             let coldLoadStart = Date()
-            whisperContext = try await WhisperContext.createContext(path: modelPath)
+            let context = try await WhisperContext.createContext(path: modelPath)
+            whisperContext = context
             currentModel = model
             isModelReady = true
+            contextGeneration &+= 1
+            let installedGeneration = contextGeneration
             logger.info("✅ Model loaded successfully: \(modelName) - READY TO TRANSCRIBE!")
 
-            // Telemetry + register for memory-pressure eviction. The whisper
-            // context was previously never freed until a model switch; this lets
-            // it be reclaimed when idle under pressure. Weak capture.
+            // Telemetry + register for memory-pressure eviction (weak capture).
+            // Still under `lifecycleLock`, so the window between the context
+            // existing and its entry existing is closed to anyone who reloads:
+            // they queue on the lock and find both.
+            //
+            // The evict closure names its victim by capturing the generation of
+            // the context it is being registered FOR. A teardown therefore
+            // carries its own identity instead of re-deriving one at invocation
+            // time, and a teardown that finds a different generation when it
+            // finally takes the lock knows it was superseded — no read-ordering
+            // convention to preserve, and nothing for a later edit to break.
             let coldMs = Int(Date().timeIntervalSince(coldLoadStart) * 1000)
             AppLogger.memory.info("model.load.cold id=\(libWhisperResidencyId, privacy: .public) durationMs=\(coldMs, privacy: .public) footprintMB=\(MemoryFootprint.currentMB(), privacy: .public)")
             await ModelResidencyRegistry.shared.register(id: libWhisperResidencyId, tier: .stt) { [weak self] in
-                await self?.cleanup()
+                await self?.tearDownContext(registeredGeneration: installedGeneration)
             }
         } catch {
             logger.error("❌ Failed to load model: \(error)")
@@ -147,7 +231,7 @@ class LibWhisperProvider: TranscriptionProvider {
             throw TranscriptionError.providerNotAvailable(provider: "Local Whisper", reason: "Failed to load model '\(modelName)'")
         }
     }
-    
+
     /// Transcribe audio file
     /// - Parameters:
     ///   - audioURL: URL of the audio file
@@ -166,41 +250,104 @@ class LibWhisperProvider: TranscriptionProvider {
         let wantTimestamps = !granularities.isEmpty
         let includeWords = granularities.contains(.word)
 
+        // Supersede whatever pass is still running, and open a cancellation
+        // epoch for THIS one. The loads below can take seconds (a cold
+        // `createContext` is 2-5s), and the task created afterwards is
+        // unstructured, so it inherits nothing: without the epoch a user cancel
+        // landing in that window would cancel only the already-finished previous
+        // task and let a full whisper decode run on a recording the user had
+        // abandoned.
+        //
+        // This MUST stay above the deferred `pendingModel` load. `setModel` only
+        // stashes `pendingModel`, so that load — not the claim's reload — is the
+        // slow one on the first pass after launch, after a model switch, and
+        // after an eviction. Opening the epoch after it would leave the whole
+        // cold load unwatched: the cancel bumps to N+1 against a nil task, this
+        // pass then bumps to N+2 and captures that, and both checks below
+        // compare equal.
+        transcriptionTask?.cancel()
+        transcriptionTask = nil
+        cancellationEpoch &+= 1
+        let epoch = cancellationEpoch
+
         // If we have a pending model but haven't loaded it yet, load it now
         if let pending = pendingModel {
             logger.info("🔄 Loading pending model before transcription: \(pending.rawValue)")
             try await loadModel(named: pending.rawValue)
             pendingModel = nil
         }
-        
-        guard let context = whisperContext else {
-            logger.error("❌ No whisper context available for transcription")
-            logger.error("   Available models: \(self.modelManager.downloadedModels.map { $0.name })")
-            logger.error("   Current model: \(self.currentModel?.name ?? "none")")
-            logger.error("   Model ready: \(self.isModelReady)")
-            throw TranscriptionError.providerNotAvailable(provider: "Local Whisper", reason: "No model loaded. Please download a model first.")
-        }
-        
-        logger.info("Starting transcription with model: \(self.currentModel?.name ?? "unknown")")
-        
-        // Cancel any existing transcription
-        transcriptionTask?.cancel()
 
-        // Claim residency BEFORE the task can start touching the context, so a
-        // concurrent memory-pressure eviction can't free it mid-pass. The
-        // registry is an actor: this markBusy happens-before any later evict,
-        // and the task below only begins after this await returns — closing the
-        // pressure/start race where a late claim left the entry briefly idle.
-        await ModelResidencyRegistry.shared.markBusy(id: libWhisperResidencyId)
+        // Claim residency, THEN read the context under that claim. See
+        // `ResidentRuntimeClaim.acquire` for why, and for the caller obligations
+        // the branches below discharge — it is the canonical account of
+        // HYPERWHISPER-SQ's whisper.cpp arm and is not restated here.
+        let acquisition: ResidentRuntimeClaim.Acquisition<WhisperContext> =
+            try await ResidentRuntimeClaim.acquire(
+                claim: { await ModelResidencyRegistry.shared.markBusy(id: libWhisperResidencyId) },
+                release: { await ModelResidencyRegistry.shared.markIdle(id: libWhisperResidencyId) },
+                runtime: { self.whisperContext },
+                reload: { refusal in
+                    guard let modelName = self.currentModel?.name else {
+                        // Nothing was ever loaded, so this is not an eviction:
+                        // the user has no model. Same four diagnostics and the
+                        // same reason string as before, byte for byte, so that
+                        // pre-existing Sentry signature is untouched.
+                        let availableModels = self.modelManager.downloadedModels.map { $0.name }.joined(separator: ", ")
+                        self.logger.error("❌ No whisper context available for transcription")
+                        self.logger.error("   Available models: \(availableModels, privacy: .public)")
+                        self.logger.error("   Current model: none")
+                        self.logger.error("   Model ready: \(self.isModelReady, privacy: .public)")
+                        throw TranscriptionError.providerNotAvailable(provider: "Local Whisper", reason: "No model loaded. Please download a model first.")
+                    }
+                    // `.evicting` means a teardown of the context we can still
+                    // see is already committed, so the cheap "already resident"
+                    // answer inside `performLoad` would be wrong — see the guard
+                    // there, and `ResidentRuntimeClaim.acquire`'s `reload`
+                    // parameter, for why that costs the user the dictation.
+                    let forceReload = (refusal == .evicting)
+                    self.logger.notice("♻️ Whisper context was freed to reclaim memory - reloading \(modelName, privacy: .public) (force=\(forceReload, privacy: .public))")
+                    try await self.loadModel(named: modelName, forceReload: forceReload)
+                }
+            )
+
+        let context: WhisperContext
+        switch acquisition {
+        case .claimed(let live):
+            context = live
+        case .unavailable(let stillEvicting):
+            // Reloaded fine and lost it again: pressure is sustained, and
+            // retrying here would livelock. Fail honestly, in the dedicated
+            // error case — `TranscriptionError.localSpeechModelEvicted` explains
+            // why this cannot be a `providerNotAvailable` reason string.
+            logger.error("❌ Whisper context could not be reclaimed after reload (stillEvicting=\(stillEvicting, privacy: .public))")
+            throw TranscriptionError.localSpeechModelEvicted(model: currentModel?.name)
+        }
+
+        // The reload above may have taken seconds. If the user cancelled during
+        // it, stop here — we hold a claim, so release it on the way out.
+        if cancellationEpoch != epoch {
+            await ModelResidencyRegistry.shared.markIdle(id: libWhisperResidencyId)
+            logger.info("Transcription cancelled before decoding started")
+            throw TranscriptionError.streamingInterrupted
+        }
+
+        logger.info("Starting transcription with model: \(self.currentModel?.name ?? "unknown")")
 
         // Create new transcription task
         let task = Task<String, Error> {
+            try Task.checkCancellation()
+
             // Load and convert audio to required format
             let samples = try await loadAndConvertAudio(from: audioURL)
             logger.info("🎧 Loaded audio samples: \(samples.count)")
             if samples.isEmpty {
                 logger.error("❌ No audio samples after conversion")
             }
+
+            // whisper.cpp does not poll for cancellation once `fullTranscribe`
+            // is under way, so this is the last chance to abandon a cancelled
+            // pass before the expensive part.
+            try Task.checkCancellation()
 
             // Early no-speech guard: avoid hallucinated text on near-silent recordings.
             if self.isLikelySilent(samples) {
@@ -254,7 +401,13 @@ class LibWhisperProvider: TranscriptionProvider {
             var success = await context.fullTranscribe(samples: samples, wordTimestamps: includeWords)
 
             guard success else {
-                throw TranscriptionError.providerNotAvailable(provider: "Local Whisper", reason: "Transcription failed. The audio may be corrupted or too short.")
+                // The old wording here ("the audio may be corrupted or too
+                // short") was an invented diagnosis, and it was the message
+                // users and Sentry got for HYPERWHISPER-SQ — where the real
+                // cause was a context freed under the claim, nothing to do with
+                // the audio. That path is closed above, so a `false` from a LIVE
+                // context is now genuinely a decode failure. Say only that.
+                throw TranscriptionError.providerNotAvailable(provider: "Local Whisper", reason: "Whisper produced no result for this recording.")
             }
 
             // Get transcription result
@@ -300,6 +453,12 @@ class LibWhisperProvider: TranscriptionProvider {
         }
         
         transcriptionTask = task
+        if cancellationEpoch != epoch {
+            // A cancel landed between the check above and this assignment, so it
+            // saw no task to cancel. Hand it to this one; the `checkCancellation`
+            // at the top of the closure picks it up before any real work.
+            task.cancel()
+        }
 
         // Residency already claimed above (before the task could start). Release
         // it once the pass finishes, on every exit path.
@@ -319,22 +478,56 @@ class LibWhisperProvider: TranscriptionProvider {
     
     /// Cancel current transcription
     func cancelTranscription() {
+        // Bump the epoch as well as cancelling the task: a pass that is still
+        // inside its claim/reload has no task to cancel yet, and the one it
+        // creates afterwards is unstructured, so it would inherit nothing.
+        cancellationEpoch &+= 1
         transcriptionTask?.cancel()
         transcriptionTask = nil
         logger.info("Transcription cancelled")
     }
-    
-    /// Clean up resources
+
+    /// Clean up resources — and the registry's memory-pressure evict closure.
+    ///
+    /// `currentModel` is deliberately NOT cleared: it is the selection, not the
+    /// residency, and clearing it would erase the only record of what to reload
+    /// and turn every eviction back into a "No model loaded. Please download a
+    /// model first." dead end.
     func cleanup() async {
+        // No generation: an explicit cleanup is the owner asking for whatever is
+        // resident to go, not a teardown queued for one particular context.
+        await tearDownContext(registeredGeneration: nil)
+    }
+
+    /// Frees the resident context, unless this teardown has been superseded.
+    ///
+    /// - Parameter registeredGeneration: the `contextGeneration` of the context
+    ///   this teardown was registered for, or `nil` for an unconditional
+    ///   `cleanup()`. If a load completes while this teardown waits for the
+    ///   lock, that load already freed the context this teardown was sent for
+    ///   and installed a newer one — tearing THAT down is HYPERWHISPER-SQ from
+    ///   the other side, so a mismatch makes this call a no-op.
+    private func tearDownContext(registeredGeneration: UInt64?) async {
         transcriptionTask?.cancel()
-        if let context = whisperContext {
-            await context.releaseResources()
+
+        await lifecycleLock.withLock { () async -> Void in
+            if let registeredGeneration = registeredGeneration, registeredGeneration != self.contextGeneration {
+                self.logger.info("🧽 Skipping superseded cleanup (generation \(registeredGeneration, privacy: .public), now \(self.contextGeneration, privacy: .public))")
+                return
+            }
+
+            // Retire before freeing, in that order and with no suspension
+            // between, for the same reason as `performLoad`: a claim arriving
+            // during `releaseResources()` must not be handed a context already
+            // going away.
+            let retired = self.whisperContext
+            self.whisperContext = nil
+            self.isModelReady = false
+            self.contextGeneration &+= 1
+            await ModelResidencyRegistry.shared.deregister(id: libWhisperResidencyId)
+            await retired?.releaseResources()
+            self.logger.info("🧽 Provider cleaned up")
         }
-        whisperContext = nil
-        currentModel = nil
-        isModelReady = false
-        await ModelResidencyRegistry.shared.deregister(id: libWhisperResidencyId)
-        logger.info("🧽 Provider cleaned up")
     }
     
     // MARK: - Compatibility Methods for TranscriptionPipeline
@@ -477,18 +670,6 @@ class LibWhisperProvider: TranscriptionProvider {
     }
     
     // MARK: - Model Management
-    
-    /// Get list of available models
-    func getAvailableModels() -> [String] {
-        // IMPORTANT: Return the shared model manager's downloaded models
-        // This ensures consistency with the UI and prevents state drift
-        return modelManager.downloadedModels.map { $0.name }
-    }
-    
-    /// Get the currently loaded model name
-    func getCurrentModelName() -> String? {
-        return currentModel?.name
-    }
     
     /// Preload a model exclusively (for compatibility)
     func preloadExclusively(_ model: WhisperModel, language: String?, preferEnglishOptimized: Bool) async throws {

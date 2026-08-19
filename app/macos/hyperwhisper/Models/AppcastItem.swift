@@ -56,52 +56,47 @@ struct AppcastItem: Identifiable, Equatable {
         return formatter.string(from: pubDate)
     }
 
-    /// Relative date string (e.g., "2 days ago", "Yesterday")
-    var relativeDateString: String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .full
-        return formatter.localizedString(for: pubDate, relativeTo: Date())
-    }
-
-    /// Extract the title from HTML release notes
-    /// Looks for content between <b> and </b> tags
-    var releaseTitle: String? {
+    /// Heading shown above the bullet list, if the feed has one
+    ///
+    /// Only the markup *before* the list counts: a `<b>` inside the first
+    /// `<li>` emphasises that bullet, it is not a title for the release.
+    var releaseTitle: AttributedString? {
         guard let html = releaseNotes else { return nil }
 
-        // Extract text between <b> and </b>
-        if let startRange = html.range(of: "<b>"),
-           let endRange = html.range(of: "</b>") {
-            let titleRange = startRange.upperBound..<endRange.lowerBound
-            return String(html[titleRange]).trimmingCharacters(in: .whitespacesAndNewlines)
-        }
+        let listStart = html.range(of: "<ul", options: .caseInsensitive)?.lowerBound
+            ?? html.range(of: "<li", options: .caseInsensitive)?.lowerBound
+        let heading = String(html[html.startIndex..<(listStart ?? html.endIndex)])
 
-        return nil
+        // Parsed once, not once to test for emptiness and again for the result:
+        // this is a computed property, re-read on every SwiftUI body pass.
+        let parsed = ReleaseNotesHTML.attributed(heading)
+        return parsed.characters.isEmpty ? nil : parsed
     }
 
-    /// Extract bullet points from HTML release notes
-    /// Returns an array of strings, one for each <li> element
-    var bulletPoints: [String] {
+    /// Bullet points from the release notes, one per `<li>` element, with
+    /// `<b>`/`<i>` emphasis and `<a href>` links preserved as styled runs.
+    /// An item that carries no text — an empty or whitespace-only `<li>` — is
+    /// dropped, which the parsed result already answers.
+    var bulletPoints: [AttributedString] {
+        listItemHTML.map(ReleaseNotesHTML.attributed).filter { !$0.characters.isEmpty }
+    }
+
+    /// Inner HTML of every `<li>` element, in document order
+    private var listItemHTML: [String] {
         guard let html = releaseNotes else { return [] }
 
-        var points: [String] = []
-        var searchString = html
+        var items: [String] = []
+        var remainder = html[...]
 
-        // Find all <li>...</li> elements
-        while let startRange = searchString.range(of: "<li>"),
-              let endRange = searchString.range(of: "</li>") {
-            let contentRange = startRange.upperBound..<endRange.lowerBound
-            let content = String(searchString[contentRange])
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-
-            if !content.isEmpty {
-                points.append(content)
-            }
-
-            // Continue searching after this </li>
-            searchString = String(searchString[endRange.upperBound...])
+        while let openStart = remainder.range(of: "<li", options: .caseInsensitive),
+              let openEnd = remainder[openStart.upperBound...].firstIndex(of: ">"),
+              let close = remainder.range(of: "</li", options: .caseInsensitive,
+                                          range: openEnd..<remainder.endIndex) {
+            items.append(String(remainder[remainder.index(after: openEnd)..<close.lowerBound]))
+            remainder = remainder[close.upperBound...]
         }
 
-        return points
+        return items
     }
 
     /// Check if this release has release notes

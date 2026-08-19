@@ -274,49 +274,6 @@ extension AccessibilityHelper {
 
     // MARK: - Focus Heuristics for Browsers
 
-    /// Attempts to determine if the URL/address bar is focused in a browser.
-    /// Heuristic: focused element is a (Search) text field within a toolbar.
-    func isURLBarFocused() -> Bool {
-        guard AXIsProcessTrusted() else { return false }
-        let system = AXUIElementCreateSystemWide()
-        var focused: CFTypeRef?
-        let res = AXUIElementCopyAttributeValue(system, kAXFocusedUIElementAttribute as CFString, &focused)
-        guard res == .success, let element = focused else { return false }
-
-        // Cast to AXUIElement
-        let axElement = element as! AXUIElement
-
-        // Role and subrole
-        var roleValue: CFTypeRef?
-        _ = AXUIElementCopyAttributeValue(axElement, kAXRoleAttribute as CFString, &roleValue)
-        let role = roleValue as? String ?? ""
-
-        var subroleValue: CFTypeRef?
-        _ = AXUIElementCopyAttributeValue(axElement, kAXSubroleAttribute as CFString, &subroleValue)
-        let subrole = subroleValue as? String ?? ""
-
-        // Quick reject for non-text fields
-        let looksLikeURLField = (role == "AXTextField" && (subrole == "AXSearchField" || subrole.isEmpty))
-        if !looksLikeURLField { return false }
-
-        // Walk up a few parents to see if we're inside a toolbar
-        var current: AXUIElement? = axElement
-        for _ in 0..<4 {
-            guard let currentElement = current else { break }
-            var parentRef: CFTypeRef?
-            let p = AXUIElementCopyAttributeValue(currentElement, kAXParentAttribute as CFString, &parentRef)
-            if p != .success || parentRef == nil { break }
-            guard let parent = parentRef else { break }
-            let parentElement = parent as! AXUIElement
-            var parentRoleValue: CFTypeRef?
-            _ = AXUIElementCopyAttributeValue(parentElement, kAXRoleAttribute as CFString, &parentRoleValue)
-            let parentRole = parentRoleValue as? String ?? ""
-            if parentRole == "AXToolbar" { return true }
-            current = parentElement
-        }
-        return false
-    }
-
     /// Detects if a secure text field is focused (do not paste/type into these).
     func isSecureFieldFocused() -> Bool {
         guard AXIsProcessTrusted() else { return false }

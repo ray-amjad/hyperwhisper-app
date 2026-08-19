@@ -1,77 +1,87 @@
 ---
 title: Custom Vocabulary
-description: Teach HyperWhisper the names, acronyms, and phrases it should never miss — and share your list across devices.
+description: Add the names, acronyms, and phrases that HyperWhisper must transcribe correctly, and share your list across devices.
 ---
 
-Use the Vocabulary workspace to keep domain-specific terms, product names, and shorthand accurate. Entries are stored locally and applied everywhere HyperWhisper formats text — both the raw transcript and any AI cleanup pass.
+Use the Vocabulary workspace to keep domain terms, product names, and shorthand accurate. HyperWhisper keeps your entries on the device. It applies them everywhere it formats text: in the raw transcript, and in any AI cleanup pass.
 
-![Vocabulary](/images/vocabulary.jpg)
+![The Vocabulary workspace](/images/vocabulary.jpg)
 
-## Adding New Entries
+## Add New Entries
 
 <Tabs>
   <Tab title="macOS">
     1. Open the **Vocabulary** tab in the sidebar.
-    2. Type the word or phrase you expect to speak.
-    3. Press `Return` to add it as a recognition hint, **or** press `⌘ Return` to expand a replacement field below the input.
-    4. If you opened the replacement field, type the text you want substituted, then press `⌘ Return` again to confirm.
+    2. Type the word or the phrase that you expect to speak.
+    3. To add it as a recognition hint, press `Return`. To open a replacement field below the input, press `⌘ Return`.
+    4. If you opened the replacement field, type the replacement text. Then press `⌘ Return` again to confirm.
 
-    The replacement field stays highlighted in blue while it is active. Press `Esc` to collapse it without saving a replacement.
+    The replacement field is blue while it is active. To collapse it without a replacement, press `Esc`.
   </Tab>
   <Tab title="Windows">
     1. Open the **Vocabulary** page from the sidebar.
-    2. Type the word or phrase in the input field.
-    3. Press `Enter` to add it as a recognition hint, **or** press `Ctrl+Enter` to open a replacement field below the input.
-    4. If you opened the replacement field, type the replacement text, then press `Ctrl+Enter` again to confirm.
+    2. Type the word or the phrase in the input field.
+    3. To add it as a recognition hint, press `Enter`. To open a replacement field below the input, press `Ctrl+Enter`.
+    4. If you opened the replacement field, type the replacement text. Then press `Ctrl+Enter` again to confirm.
 
-    Press `Esc` to collapse the replacement field without saving a replacement.
+    To collapse the replacement field without a replacement, press `Esc`.
   </Tab>
 </Tabs>
 
-The list is sorted alphabetically so you can spot duplicates quickly. Duplicate words (matched case-insensitively) are rejected with an alert rather than silently overwriting an existing entry.
+The app sorts the list alphabetically, so you can find duplicates quickly. If you add a duplicate word, the app shows an alert and keeps the existing entry. The match ignores letter case.
 
-## How Vocabulary Is Used
+<Note>
+  Before any entry reaches a provider or an AI post-processing prompt, HyperWhisper strips `<` and `>` characters and caps it at 80 characters. This applies to every entry, not only the provider-specific limits described below.
+</Note>
 
-Vocabulary entries work in three distinct ways depending on their type and the transcription provider you are using.
+## How HyperWhisper Uses Vocabulary
+
+Vocabulary entries work in three different ways. The behavior depends on the entry type and on the transcription provider.
 
 ### Recognition hints (no replacement)
 
-Entries without a replacement are submitted as keyword hints to cloud providers that support them. This nudges the model toward the correct spelling without rewriting anything in the output.
+The app sends entries without a replacement as keyword hints to the cloud providers that support them. These hints move the model toward the correct spelling. They do not rewrite any other text in the output.
 
-- **Deepgram** — sent as keyword boosting parameters (up to 100 terms, and terms longer than 50 characters are dropped; a warning appears if you exceed the term limit).
-- **OpenAI Whisper, Soniox** — sent as prompt vocabulary terms.
-- **HyperWhisper Cloud** — sent as prompt vocabulary terms; silently capped at 100 terms with no warning shown if you exceed it.
-- **Gemini** — sent as free text embedded in a natural-language prompt instruction, the same mechanism as OpenAI and HyperWhisper Cloud's prompt vocabulary.
-- **ElevenLabs** — sent as repeated `keyterms` multipart form fields (Scribe v2 only; capped at 100 terms, terms longer than 50 characters or 5 words are dropped; Scribe v1 does not support vocabulary).
-- **AssemblyAI** — sent as key-term context (up to 200 terms; phrases longer than 6 words are dropped).
-- **Mistral** — sent as a structured `context_bias` field (up to 100 terms, each 80 characters or fewer).
-- **Grok STT** — does not support custom vocabulary hints; entries are acknowledged but not forwarded.
+- **Deepgram** — the app sends the terms as keyword boosting parameters. There is no limit on the number of terms. The app cuts each term to 80 characters, but it does not drop the term. If your list is more than 100 entries, the app shows a warning banner, because the Deepgram documentation recommends 100 terms or fewer. The app still sends the entries after the first 100.
+- **OpenAI Whisper, Groq Whisper, Soniox** — the app sends the terms as prompt vocabulary terms. The exception is the OpenAI `gpt-transcribe` model: the app sends the terms as a `keywords` list instead, and the prompt then carries only your custom instructions.
+- **HyperWhisper Cloud** — the app sends the terms as prompt vocabulary terms. The server keeps the first 100 terms and drops the other terms without a message. The same 100-entry warning banner applies here. If the selected accuracy tier routes to Google Chirp 3, the server sends the terms as a phrase list. Chirp 3 accepts up to 1000 phrases, but the app sends at most the first 100 terms, as it does for every HyperWhisper Cloud provider. The server also drops terms of more than 100 characters. For Chirp 3 the phrase list is advisory: if Google refuses the request because of the phrase list, the server sends the request one more time without the list. You then get your transcript, but that transcript has no vocabulary boosting. Azure MAI-Transcribe does support hints on this route: the server sends up to 100 terms, each cut to 50 characters, as a phrase list.
+- **Gemini** — the app sends the terms as free text in a natural-language prompt instruction. This is the same mechanism as the prompt vocabulary of OpenAI and HyperWhisper Cloud.
+- **ElevenLabs** — the app sends the terms as repeated `keyterms` multipart form fields. Scribe v2 is the only ElevenLabs model. The limit is 100 terms, and the app drops terms longer than 50 characters. If you reach ElevenLabs through HyperWhisper Cloud, the server applies the same two limits and also drops terms of more than 5 words. With your own ElevenLabs key, the word-count limit does not apply.
+- **AssemblyAI** — the app sends the terms as key-term context, up to 200 terms for most models. The limit is 1000 terms for the Universal-3.5 Pro and Universal-3 Pro models. The app drops phrases longer than 6 words.
+- **Grok STT** — the app sends the terms as repeated `keyterm` fields. The limit is 100 terms, and the app drops terms longer than 50 characters. The same limits apply with your own xAI key, through HyperWhisper Cloud, and in streaming mode.
+- **Mistral** — the app sends the terms as a `context_bias` list, up to 100 terms. The same limit applies with your own Mistral key and through HyperWhisper Cloud. Voxtral refuses a term that contains a space, and it then refuses the complete request. Thus the app joins the words of a multi-word term with an underscore first: `Claude Code` goes out as `Claude_Code`. This is the format that Mistral gives for a multi-word bias phrase. An underscore that you type stays as it is. Through HyperWhisper Cloud, the server also drops terms of more than 80 characters.
 
 <Note>
-  Deepgram vocabulary boosting silently no-ops if the mode's language is set to **Auto** — Nova-3 ignores keyword boosting parameters when language auto-detection is enabled. Set an explicit language on the mode for boosting to actually apply.
+  If the language of the mode is **Auto**, Deepgram vocabulary boosting behavior depends on the model. Nova-3 ignores keyword boosting parameters when language auto-detection is on — boosting applies only when the mode has an explicit language. Nova-2, Nova-1, and the Enhanced models keep sending keyword boosting even under Auto.
 </Note>
 
-For **local models on both platforms** — Parakeet on macOS and Windows, and Nemotron on macOS and Windows — entries without replacements are matched phonetically using the Beider-Morse algorithm (via the shared Rust core). Words of two characters or fewer are excluded to avoid false positives.
+<Note>
+  Custom vocabulary applies to file and batch transcription. [Streaming mode](/streaming-settings) does not support it for every provider — for example, OpenAI and ElevenLabs Scribe v2 drop vocabulary hints when you use them as a streaming provider, even though they support it for regular transcription.
+</Note>
+
+**Local models run on both platforms**: Parakeet on macOS and Windows, and Nemotron on macOS and Windows. For these models, the shared Rust core matches entries without a replacement by sound, with the Beider-Morse algorithm. The core ignores words of two characters or fewer, to prevent false matches.
+
+On **macOS**, two more local engines use vocabulary. Local Whisper sends your entries as an `initial_prompt` hint. Apple Speech Analyzer sends them as native `contextualStrings` biasing.
 
 ### Text replacements
 
-Entries with a replacement are applied by regex after transcription, before AI post-processing runs. Matching is case-insensitive and word-boundary anchored, so "eta" only matches the standalone abbreviation — not words like "metadata". Stray leading or trailing spaces in both the word and replacement are trimmed automatically.
+The app applies entries with a replacement by regex. This step runs after transcription, and after AI post-processing. The match ignores letter case and holds to word boundaries. Therefore, "eta" matches only the separate abbreviation, and not a word such as "metadata". The app also removes the spaces at the start and at the end of the word and the replacement.
 
 ### AI post-processing context
 
-Entries without a replacement are injected into the per-request user-message context sent to AI post-processing (entries with a replacement are already applied via regex before post-processing runs, so they aren't re-injected). This helps the model understand your terminology when cleaning up text for Meeting, Custom, and other presets.
+The app puts entries without a replacement into the user-message context of each AI post-processing request. This context helps the model to understand your terms when it cleans up text for the Meeting, Custom, and other presets. Entries with a replacement stay out of this context. Their regex substitution runs later, on the output of the AI, so the app does not need to send them again.
 
-## Managing the List
+## Manage the List
 
-- **Edit** — hover any row to reveal the pencil icon, or click it to load the entry back into the input field.
-- **Delete** — hover any row to reveal the trash icon.
-- Entries are alphabetized; the list shows the original phrase, an arrow indicator when a replacement exists, and the replacement text.
+- **Edit** — put the pointer on a row to show the pencil icon. Click the icon to load the entry back into the input field.
+- **Delete** — put the pointer on a row to show the trash icon.
+- The app sorts the entries alphabetically. Each row shows the original phrase and the replacement text. An arrow shows between them when a replacement exists.
 
 ## Backup and Import
 
-Your vocabulary list travels with any HyperWhisper backup file and can be shared across devices or between macOS and Windows.
+Your vocabulary list goes with every HyperWhisper backup file. You can share the file between your devices, and between macOS and Windows.
 
-### Exporting your vocabulary
+### Export your vocabulary
 
 <Tabs>
   <Tab title="macOS">
@@ -80,10 +90,10 @@ Your vocabulary list travels with any HyperWhisper backup file and can be shared
         Go to **Settings → Backup**.
       </Step>
       <Step title="Choose what to include">
-        Toggle on **Vocabulary**. You can include or exclude Settings, Modes, and API keys independently. To export vocabulary alone, toggle everything else off.
+        Toggle on **Vocabulary**. You can include or exclude Settings, Modes, and API keys one by one. To export the vocabulary alone, toggle off all the other sections.
       </Step>
       <Step title="Export">
-        Click **Export** and choose a save location. The file is saved as a `.hwbackup.json` file in the universal cross-platform format.
+        Click **Export**. Then choose a location for the file. The app saves a `.hwbackup.json` file in the universal cross-platform format.
       </Step>
     </Steps>
   </Tab>
@@ -93,13 +103,13 @@ Your vocabulary list travels with any HyperWhisper backup file and can be shared
         Go to **Settings → Backup**.
       </Step>
       <Step title="Export">
-        Click **Export Backup...** and choose what sections to include. The file is saved as a `.hwbackup.json` file.
+        Click **Export Backup...**. Then choose the sections to include. The app saves a `.hwbackup.json` file.
       </Step>
     </Steps>
   </Tab>
 </Tabs>
 
-### Importing vocabulary
+### Import vocabulary
 
 <Tabs>
   <Tab title="macOS">
@@ -108,13 +118,13 @@ Your vocabulary list travels with any HyperWhisper backup file and can be shared
         Go to **Settings → Backup**.
       </Step>
       <Step title="Pick a file">
-        Click **Import** and select a `.hwbackup.json` file. HyperWhisper reads the file and shows you what it contains before changing anything.
+        Click **Import**. Then select a `.hwbackup.json` file. HyperWhisper reads the file and shows the contents before it changes anything.
       </Step>
       <Step title="Review the merge preview">
-        The import sheet shows a summary: how many words are **new** (will be added) and how many already **exist** in your list. If there are conflicts, choose whether to **Skip** existing entries or **Replace** them with the values from the file.
+        The import sheet shows a summary. It gives the number of words that are **new**, and the app adds these words. It also gives the number of words that already **exist** in your list. If there are conflicts, select **Skip** to keep the existing entries, or **Replace** to use the values from the file.
       </Step>
       <Step title="Confirm">
-        Click **Import**. New words are added; your existing list is never wiped.
+        Click **Import**. The app adds the new words. The app never deletes your existing list.
       </Step>
     </Steps>
   </Tab>
@@ -124,10 +134,10 @@ Your vocabulary list travels with any HyperWhisper backup file and can be shared
         Go to **Settings → Backup**.
       </Step>
       <Step title="Pick a file">
-        Click **Choose File...** and select a `.hwbackup.json` file. HyperWhisper inspects the file and presents a section-selection dialog showing what it contains.
+        Click **Choose File...**. Then select a `.hwbackup.json` file. HyperWhisper reads the file and shows a dialog with the sections that the file contains.
       </Step>
       <Step title="Review and confirm">
-        Tick **Vocabulary** (and any other sections you want), then click **Import Selected**. The import merges new words into your existing list — it does not delete anything already there.
+        Tick **Vocabulary** and the other sections that you want. Then click **Import Selected**. The import adds the new words to your existing list. It does not delete the entries that are already there.
       </Step>
     </Steps>
   </Tab>
@@ -135,26 +145,26 @@ Your vocabulary list travels with any HyperWhisper backup file and can be shared
 
 ### Merge behavior
 
-Vocabulary import is always additive — it never deletes existing words.
+A vocabulary import only adds words. It never deletes an existing word.
 
 | Incoming word | Action |
 |---|---|
-| Not in your list | Added as a new entry |
-| Already in your list (case-insensitive match) | Skipped, or replacement updated — your choice at import time |
+| Not in your list | The app adds it as a new entry |
+| Already in your list (case-insensitive match) | The app skips it, or updates the replacement. You select the action at import time |
 
-Matching is case-insensitive and trims surrounding spaces, so `"kubernetes"` and `"Kubernetes"` are treated as the same word.
+The match ignores letter case and removes the spaces around the word. Therefore, `"kubernetes"` and `"Kubernetes"` are the same word.
 
 ### Cross-platform sharing
 
-A `.hwbackup.json` file exported on macOS can be imported on Windows, and vice versa. The file uses a shared schema (`schemaVersion: 2`) and both apps merge vocabulary by word text — foreign UUIDs from the other platform do not create duplicates.
+You can import a `.hwbackup.json` file from macOS into Windows. You can also import a file from Windows into macOS. The file uses a shared schema (`schemaVersion: 2`), and both apps merge the vocabulary by the word text. A UUID from the other platform does not make a duplicate.
 
 <Note>
-  A vocabulary-only file (containing only the `vocabulary` key) is the simplest format for sharing a word list without carrying settings or modes along with it.
+  A vocabulary-only file contains only the `vocabulary` key. This format shares a word list without your settings and your modes.
 </Note>
 
 ## Best Practices
 
-- Add proper nouns, company names, and repeated jargon even if the model usually recognizes them — consistency matters for emails and meeting notes.
-- Use replacements to expand abbreviations into full phrases (for example, `ETA` → `estimated arrival time`) or to standardize casing (`kubernetes` → `Kubernetes`).
-- Export your vocabulary before switching devices or reinstalling the app, then import it on the new installation.
-- On Deepgram, keep your list to 100 entries or fewer; terms beyond that limit are not sent for boosting.
+- Add proper nouns, company names, and the special terms that you say frequently. Add them even when the model usually recognizes them. Consistent spelling is important for emails and meeting notes.
+- Use a replacement to expand an abbreviation into a full phrase, for example `ETA` → `estimated arrival time`. Use a replacement also to correct letter case, for example `kubernetes` → `Kubernetes`.
+- Before you change devices or install the app again, export your vocabulary. Then import it into the new installation.
+- On Deepgram, keep your list to 100 entries or fewer. The app does not send terms after this limit for boosting.

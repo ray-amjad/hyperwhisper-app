@@ -10,16 +10,27 @@ import { postProcessRoute } from './routes/post-process';
 import { assistantRoute } from './routes/assistant';
 import { usageRoute } from './routes/usage';
 import { wsStreamingPreflight, wsStreamingRoute } from './routes/ws-streaming-deepgram';
+import { CLIENT_PLATFORM_HEADER, CLIENT_VERSION_HEADER } from './lib/client-info';
 import { drainPendingDeductions } from './middleware/credits';
+import { drainPendingLatencyReports } from './lib/latency-report';
 
 const app = new Hono();
 
 // CORS — allow the custom STT selection headers so browser callers can set
 // provider/model/domain. Without these in allowHeaders the preflight blocks the
 // POST before it reaches the route (X-STT-* are non-simple request headers).
+// X-HyperWhisper-Platform / -Version are non-simple for the same reason.
 app.use('*', cors({
   origin: '*',
-  allowHeaders: ['Content-Type', 'X-STT-Provider', 'X-STT-Model', 'X-STT-Domain'],
+  allowHeaders: [
+    'Content-Type',
+    'X-STT-Provider',
+    'X-STT-Model',
+    'X-STT-Domain',
+    'X-Latency-Opt-Out',
+    CLIENT_PLATFORM_HEADER,
+    CLIENT_VERSION_HEADER,
+  ],
   allowMethods: ['GET', 'POST', 'OPTIONS'],
 }));
 
@@ -92,9 +103,18 @@ async function gracefulShutdown(signal: string): Promise<void> {
     shutdownAt: new Date().toISOString(),
   });
 
-  const drained = await drainPendingDeductions(SHUTDOWN_DRAIN_MS);
+  // Both drains are fire-and-forget writes made after the response is flushed,
+  // so they race the same SIGKILL. Run them together rather than in series —
+  // the grace period is one budget, not two.
+  const [drained, drainedReports] = await Promise.all([
+    drainPendingDeductions(SHUTDOWN_DRAIN_MS),
+    drainPendingLatencyReports(SHUTDOWN_DRAIN_MS),
+  ]);
   if (drained > 0) {
     console.log('machine.shutdown_drained_deductions', { count: drained });
+  }
+  if (drainedReports > 0) {
+    console.log('machine.shutdown_drained_latency_reports', { count: drainedReports });
   }
   process.exit(0);
 }

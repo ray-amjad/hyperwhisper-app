@@ -112,17 +112,6 @@
 "home.accessibility.open.settings" = "Odpri nastavitve";
 "home.accessibility.restart.after.permission" = "Ponovno zaženi aplikacijo po odobritvi dovoljenja";
 "home.getting.started.completed" = "✓ Končano";
-"home.whatsnew.badge" = "NOVO";
-"home.whatsnew.title" = "Kaj je novo?";
-"home.whatsnew.update1.date" = "3. jul";
-"home.whatsnew.update1.title" = "Parakeet je sedaj dostopen";
-"home.whatsnew.update1.description" = "Prenesi ga direktno iz seznama jezikovnih modelov pri ustvarjanju načina in ga danes preizkusi.";
-"home.whatsnew.update2.date" = "5. jun";
-"home.whatsnew.update2.title" = "Podpora za vsak OpenAI-kompatibilen prilagojeni model";
-"home.whatsnew.update2.description" = "Sedaj lahko dodam katero koli OpenAI kompatibilno API-ja na svoj seznam modelov.";
-"home.whatsnew.update3.date" = "27. maj";
-"home.whatsnew.update3.title" = "Čisto novo Mini okno snemanja";
-"home.whatsnew.update3.description" = "Elegantna, minimalistična vmesnik za snemanje, ki se čuva po strani.";
 
 // MARK: - Recent Updates Section
 "home.recent.updates.title" = "Nedavne posodobitve";
@@ -312,6 +301,9 @@
 
 "settings.general.errorLogging.title" = "Beleženje napak";
 "settings.general.errorLogging.info" = "Samodejno zajemi in pošlji poročila o napakah za pomoč pri izboljšanju aplikacije.";
+"settings.general.shareSpeedData.title" = "Deli anonimne podatke o hitrosti";
+"settings.general.shareSpeedData.info" = "Meri, koliko časa potrebuje vsak ponudnik v oblaku, in to doda javni primerjavi. Meritev vsebuje ponudnika, regijo strežnika, dolžino posnetka in porabljen čas — brez računa, brez ključa, brez zvoka in brez besedila. Izklopite to in HyperWhisper tega ne bo več pošiljal. Nič drugega se ne spremeni, lokalni modeli pa nikoli ničesar ne pošljejo.";
+"settings.general.shareSpeedData.link" = "Ogled primerjave hitrosti";
 "settings.general.autoUpdate.title" = "Samodejni posodobitve";
 "settings.general.autoUpdate.info" = "Samodejno preveri in prenesi nove različice HyperWhisper.";
 "settings.general.support.title" = "Potrebuješ pomoč?";
@@ -832,10 +824,6 @@ Uredi te načine, da izbereš drug model pred odstranitvijo.";
 "page.header.learnMore" = "Izvedite več";
 
 // MARK: - Recording Dialog
-"recording.status.complete" = "Prepis zaključen";
-"recording.status.retrying" = "Ponovno poskušam prepis…";
-"recording.status.postprocessing" = "Obdelava s pomočjo AI…";
-"recording.status.transcribing" = "Prepis…";
 "recording.success.pasted" = "Zlepljeno!";
 "recording.loading.retrying" = "Ponovno poskušam…";
 "recording.loading.postprocessing" = "Obdelava s pomočjo AI…";
@@ -863,39 +851,22 @@ Pred brisanjem posodobite te načine delovanja, da bodo uporabljali drug model."
 "modes.provider.manageInLibrary" = "Upravljaj v knjižnici →";
 "streaming.loading.warming" = "Ogrevanje lokalnega modela...";
 "streaming.status.listening" = "Poslušam...";
-"streaming.status.streaming" = "Pretakam...";
 "streaming.status.disconnecting" = "Ustavljam...";
 "streaming.loading.connecting" = "Povezujem se s strežnikom...";
 "streaming.loading.ready" = "Inicializiram avdio...";
 "streaming.loading.streaming" = "Čakam na glas...";
 "streaming.state.reconnecting" = "Ponovno se povezujem...";
 "recording.stop.help" = "Ustavi snemanje (%@)";
-"recording.postprocessing.unavailable" = "Obdelava po prepisu je nedostopna";
-"recording.postprocessing.missing.single" = "%@ ključ manjka – snemanje brez obdelave po prepisu";
-"recording.postprocessing.missing.multiple" = "API ključi manjkajo – snemanje brez obdelave po prepisu";
-"recording.postprocessing.addKey" = "Dodaj ključ";
-"recording.offline.banner" = "Ni internetne povezave. Oblaški prepis bo neuspešen, dokler nisi na spletu.";
-"recording.offline.title" = "Ni internetne povezave";
-"recording.offline.subtitle" = "Ponovno se poveži in nadaljuj, ali se prebklopi v način brez povezave.";
-"recording.error.network" = "Preveri svojo internetno povezavo in poskusi znova.";
-"recording.error.timeout" = "Zahteva je potekla. Preveri hitrost svoje povezave in poskusi znova.";
-"recording.error.rateLimit" = "Naredil si premalo zahtev. Počakaj trenutek in poskusi znova.";
-"recording.error.credits" = "Nezadostno število kreditov. Dodaj več kreditov v Nastavitvah.";
-"recording.error.apiKey" = "Dodaj svoj %@ API ključ v Nastavitve.";
-"recording.error.server" = "Prepis je naletela na težave. Prosimo, poskusi znova čez trenutek.";
 "recording.retry" = "Poskusi znova";
 "recording.retry.inProgress" = "Ponovno poskušam…";
 "recording.retry.count" = "Ponovno poskusi (%d)";
 "recording.retry.failed.missing" = "Ponovno ni uspelo: Zvočna datoteka ne obstaja";
 "recording.retry.failed.error" = "Ponovno ni uspelo: %@";
 "recording.retry.pending" = "Pripravljen za ponovno poskus – klikni za prepis";
-"recording.provider.unknown" = "ponudnik oblaka";
 "recording.cancel.dialog.title" = "Prekliči snemanje?";
 "recording.cancel.dialog.message" = "To bo zavrg trenutni posnetek.";
 "recording.cancel.dialog.confirm" = "Prekliči snemanje";
 "recording.cancel.dialog.resume" = "Nadaljuj";
-"recording.error.overlay.title" = "Napaka v povezavi z omrežjem";
-"recording.error.overlay.message" = "Pritisni 'Poskusi znova' spodaj ali se prebklopi na način brez povezave za nadaljevanje.";
 "recording.mode.default" = "Privzeto";
 "recording.dialog.window.title" = "Dialog snemanja";
 "recording.button.start" = "Začni snemanje";
@@ -953,6 +924,7 @@ Pred brisanjem posodobite te načine delovanja, da bodo uporabljali drug model."
 "transcription.error.maxRetriesExceeded" = "Presežen je bil največji število poskusov";
 "transcription.error.unauthorized.provider" = "Nepooblaščeno: neveljaven %@ API ključ ali dovoljenja.\n\nOdpri Nastavitve → API ključi za preverjanje svojih poverilnic.";
 "transcription.error.unauthorized.generic" = "Nepooblaščeno: neveljaven API ključ ali dovoljenja.\n\nOdpri Nastavitve → API ključi za preverjanje svojih poverilnic.";
+"transcription.error.cloudAccountRequired" = "HyperWhisper Cloud zahteva ključ računa.\n\nOdpri Nastavitve → HyperWhisper Cloud za vnos ključa ali nakup kreditov.";
 "transcription.error.invalidRequest" = "Neveljavna zahteva: preveri zvočno datoteko ali nastavitve";
 "transcription.error.streamingInterrupted" = "Pretakanje je bila prekinjena; prikazano je delno besedilo";
 "transcription.error.busy" = "Prepis je trenutno zasedena";
@@ -992,6 +964,7 @@ Pred brisanjem posodobite te načine delovanja, da bodo uporabljali drug model."
 "transcription.guidance.needsNativeRelaunch" = "Zaprite in znova odprite HyperWhisper kot izvorno aplikacijo, da boste lahko uporabljali lokalno naknadno obdelavo.";
 "transcription.guidance.localRuntimeUnavailable" = "Poskusite znova ali v nastavitvah načina izberite manjši lokalni model.";
 "transcription.error.localRuntimeUnavailable" = "Lokalna umetna inteligenca ni mogla dokončati obdelave — vaš neobdelan prepis je ohranjen.";
+"transcription.error.localSpeechModelEvicted" = "Govorni model je bil sproščen za sprostitev pomnilnika in ga ni bilo mogoče znova naložiti. Zaprite nekaj aplikacij in poskusite znova.";
 "settings.backup.localDownload.title" = "Ali želite prenesti lokalne modele?";
 "settings.backup.localDownload.message" = "%d obnovljenih načinov uporablja modele umetne inteligence v napravi, ki še niso preneseni.";
 "settings.backup.localDownload.downloadAll" = "Prenesi vse";
@@ -1124,10 +1097,6 @@ Pred brisanjem posodobite te načine delovanja, da bodo uporabljali drug model."
 "history.autoDelete.unit.minutes" = "Minut";
 "history.autoDelete.unit.hours" = "Ur";
 "history.autoDelete.unit.days" = "Dni";
-"history.autoDelete.unit.minutes.plural" = "minut";
-"history.autoDelete.unit.hours.plural" = "ur";
-"history.autoDelete.unit.days.plural" = "dni";
-"history.autoDelete.status.disabled" = "Samodejno brisanje je onemogočeno";
 "history.autoDelete.status.enabled" = "Izbriši posnetke, starejše od %d %@";
 "history.autoDelete.cleanup.noItems" = "Ni posnetkov za brisanje";
 "history.autoDelete.cleanup.summary" = "Izbrisano %d posnetek(ov) in sprošćeno %@";

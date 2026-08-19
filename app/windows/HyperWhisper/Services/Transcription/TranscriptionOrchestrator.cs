@@ -246,7 +246,7 @@ public class TranscriptionOrchestrator : IDisposable
             // Apply vocabulary replacements whether or not AI post-processing succeeded.
             // Matches macOS + v1.6: when post-processing fails/skips, ProcessAsync returns the
             // original transcription, and the user's vocabulary corrections must still be applied.
-            // (ApplyReplacements no-ops on empty input / when no vocabulary is configured.)
+            // (ApplyReplacements no-ops on empty input; trims but otherwise no-ops when no vocabulary is configured.)
             finalText = _vocabularyProcessor.ApplyReplacements(postProcessingResult.Text);
             if (postProcessingResult.WasApplied)
             {
@@ -327,7 +327,7 @@ public class TranscriptionOrchestrator : IDisposable
         }
 
         // Perform transcription
-        // Note: Mistral doesn't support vocabulary, handled in the service
+        // Note: per-provider vocabulary field handling lives in each service
         var effectiveVocabulary = providerType.SupportsVocabulary() ? vocabulary : null;
 
         string result;

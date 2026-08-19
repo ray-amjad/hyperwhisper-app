@@ -72,7 +72,7 @@
     },
     "mcpServer": {
       "title": "Vietinė API ir MCP serveris",
-      "description": "Įmontuotas MCP serveris leidžia Claude, Cursor ir kitiems AI agentams valdyti HyperWhisper. Tik vietinis HTTP API su bearer autentifikacija skriptams ir automatizavimui."
+      "description": "Įmontuotas MCP serveris leidžia Claude, Cursor ir kitiems AI agentams valdyti HyperWhisper. Tik vietinis HTTP API skriptams ir automatizavimui."
     },
     "modes": {
       "title": "Režimai kiekvienai situacijai",
@@ -155,15 +155,15 @@
     "questions": {
       "accuracy": {
         "question": "Koks transkripcijos tikslumas?",
-        "answer": "Pasiekiame pramonėje pirmaujantį 99% tikslumą naudodami pažangiausius AI modelius. Tikslumą galite dar labiau padidinti pridėdami savo pritaikytą žodyną techniniams terminams, vardams ir specializuotam žargonui."
+        "answer": "Tai priklauso nuo naudojamo modelio ir kalbos derinio. Kai kurie modeliai puikiai veikia anglų kalba, bet silpniau kitomis kalbomis, o debesijos modeliai paprastai yra tikslesni už vietinius. Bet kurio modelio tikslumą galite padidinti pridėdami savo pritaikytą žodyną techniniams terminams, vardams ir specializuotam žargonui."
       },
       "offline": {
         "question": "Ar galiu naudoti be interneto?",
-        "answer": "Žinoma. HyperWhisper gali būti naudojamas visiškai neprisijungus jūsų Mac su vietiniais AI modeliais - internetas nereikalingas. Vartotojams, kurie nori didžiausio tikslumo ir greičio, siūlome ir pasirenkamą cloud apdorojimą per įvairius tiekėjus."
+        "answer": "Žinoma. HyperWhisper gali būti naudojamas visiškai neprisijungus jūsų Mac arba Windows kompiuteryje su vietiniais AI modeliais - internetas nereikalingas. Vartotojams, kurie nori didžiausio tikslumo ir greičio, siūlome ir pasirenkamą cloud apdorojimą per įvairius tiekėjus."
       },
       "apiKey": {
         "question": "Ar reikia mokėti už API prieigą?",
-        "answer": "Naudojate savo API raktą šiems tiekėjams: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral ir Google Gemini. Kai kurie tiekėjai naujiems vartotojams siūlo nemokamus kreditus; Deepgram siūlo $200, AssemblyAI siūlo $50. Ilgalaikėje perspektyvoje tai yra gerokai pigiau nei bet kuri prenumerata. \n\nTaip pat galite naudoti HyperWhisper Cloud (įdiegtą), kuriam nereikia API rakto ir kuris veikia pagal mokėjimo už naudojimą modelį.\n\nNepamirškite, vietinis režimas neprisijungus veikia be jokio API rakto ir yra visiškai nemokamas."
+        "answer": "Naudojate savo API raktą šiems tiekėjams: Groq, xAI Grok, OpenAI, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox ir Google Gemini. Kai kurie tiekėjai naujiems vartotojams siūlo nemokamus kreditus; Deepgram siūlo $200, AssemblyAI siūlo $50. Ilgalaikėje perspektyvoje tai yra gerokai pigiau nei bet kuri prenumerata. \n\nTaip pat galite naudoti HyperWhisper Cloud (įdiegtą), kuriam nereikia API rakto ir kuris veikia pagal mokėjimo už naudojimą modelį.\n\nNepamirškite, vietinis režimas neprisijungus veikia be jokio API rakto ir yra visiškai nemokamas."
       },
       "languages": {
         "question": "Kokias kalbas palaiko?",
@@ -179,7 +179,7 @@
       },
       "privacy": {
         "question": "Kaip saugomas mano privatumas?",
-        "answer": "Kai naudojate vietinį režimą, jokie duomenys nepalieka jūsų Mac.\n\nKai naudojate cloud transkripciją, jūsų duomenys siunčiami į pasirinktą cloud tiekėją (pvz., OpenAI, Groq, Deepgram, AssemblyAI, ElevenLabs arba Mistral).\n\nTai galite patikrinti patys naudodami tinklo inspektorių, pvz., [Proxyman](https://proxyman.io), arba tinklo monitorių, pvz., [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html)."
+        "answer": "Kai naudojate vietinį režimą, jokie duomenys nepalieka jūsų Mac ar Windows kompiuterio.\n\nKai naudojate cloud transkripciją, jūsų duomenys siunčiami į pasirinktą cloud tiekėją (pvz., OpenAI, Groq, xAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox arba Google Gemini).\n\nTai galite patikrinti patys naudodami tinklo inspektorių, pvz., [Proxyman](https://proxyman.io), tinklo monitorių, pvz., [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), arba perskaitę [pirminį kodą GitHub](https://github.com/ray-amjad/hyperwhisper-app)."
       },
       "cloud": {
         "question": "Kas yra HyperWhisper Cloud?",
@@ -200,10 +200,6 @@
       "requirements": {
         "question": "Kokie sistemos reikalavimai?",
         "answer": "Mac: macOS 14 arba naujesnė versija, palaikomi Apple Silicon ir Intel. Windows: Windows 10/11, x64 arba ARM64. Optimaliam veikimui rekomenduojama 8 GB RAM."
-      },
-      "windowsStatus": {
-        "question": "Ar Windows versija turi visas tas pačias funkcijas kaip macOS?",
-        "answer": "Windows versija išleista neseniai, todėl joje dar gali nebūti visų funkcijų, kurios yra macOS. Aktyviai dirbame, kad abi platformos turėtų pilną funkcijų paritetą."
       },
       "madeBy": {
         "question": "Kas tai sukūrė?",

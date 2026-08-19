@@ -37,8 +37,6 @@ struct MainAppView: View {
 
     // MARK: - State
     
-    /// Search text for filtering (if needed)
-    @State private var searchText: String = ""
     /// Controls the visibility of the split view columns
     @State private var columnVisibility: NavigationSplitViewVisibility = .doubleColumn
     
@@ -870,6 +868,12 @@ struct MenuBarItems: View {
     
     /// Opens the main window and brings the app to front
     private func openMainWindow() {
+        // The user asked for this window, so `launchMinimized` must not take it
+        // away 0.3s later. On a login-item launch the WindowGroup is never
+        // rendered, so THIS can be the first main-window appearance of the
+        // process — see HyperWhisperApp.suppressLaunchMinimizedHide().
+        HyperWhisperApp.suppressLaunchMinimizedHide()
+
         // Activate the app
         NSApp.activate(ignoringOtherApps: true)
 
@@ -902,6 +906,9 @@ struct MenuBarItems: View {
     /// 4. Creating processing transcript
     /// 5. Navigation to History view (immediately, showing "Processing..." status)
     /// 6. Transcription and result handling
+    ///
+    /// **Lifetime:** the flow is intentionally only a local — see the "Object lifetime" note on
+    /// `FileTranscriptionFlow.openFilePickerAndTranscribe(for:)` (HYPERWHISPER-SZ).
     ///
     /// - Parameter mode: The transcription mode to use
     private func transcribeFile(with mode: Mode) {

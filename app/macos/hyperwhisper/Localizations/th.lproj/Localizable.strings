@@ -112,17 +112,6 @@
 "home.accessibility.open.settings" = "เปิดการตั้งค่า";
 "home.accessibility.restart.after.permission" = "รีสตาร์ทแอปหลังจากให้สิทธิ์";
 "home.getting.started.completed" = "✓ เสร็จแล้ว";
-"home.whatsnew.badge" = "ใหม่";
-"home.whatsnew.title" = "มีอะไรใหม่?";
-"home.whatsnew.update1.date" = "3 กรกฎาคม";
-"home.whatsnew.update1.title" = "Parakeet พร้อมใช้งาน";
-"home.whatsnew.update1.description" = "ดาวน์โหลดได้โดยตรงจากรายการโมเดลภาษาในการสร้างโหมดเพื่อลองใช้วันนี้";
-"home.whatsnew.update2.date" = "5 มิถุนายน";
-"home.whatsnew.update2.title" = "รองรับทุกโมเดลที่เข้ากันได้กับ OpenAI";
-"home.whatsnew.update2.description" = "ตอนนี้คุณสามารถเพิ่ม API ที่เข้ากันได้กับ OpenAI ใด ๆ ลงในรายการโมเดลของคุณ";
-"home.whatsnew.update3.date" = "27 พฤษภาคม";
-"home.whatsnew.update3.title" = "หน้าต่างการบันทึกแบบมินิที่ใหม่ล่าสุด";
-"home.whatsnew.update3.description" = "อินเทอร์เฟซการบันทึกแบบสไตล์ที่นอนออกแบบอย่างสวยงามและน้อยที่สุด";
 
 // MARK: - Recent Updates Section
 "home.recent.updates.title" = "อัปเดตล่าสุด";
@@ -312,6 +301,9 @@
 
 "settings.general.errorLogging.title" = "บันทึกข้อผิดพลาด";
 "settings.general.errorLogging.info" = "โดยอัตโนมัติจับและส่งรายงานข้อผิดพลาดเพื่อช่วยปรับปรุงแอป";
+"settings.general.shareSpeedData.title" = "แชร์ข้อมูลความเร็วแบบไม่ระบุตัวตน";
+"settings.general.shareSpeedData.info" = "วัดเวลาที่ผู้ให้บริการคลาวด์แต่ละรายใช้ และเพิ่มลงในการเปรียบเทียบสาธารณะ การวัดประกอบด้วยผู้ให้บริการ ภูมิภาคของเซิร์ฟเวอร์ ความยาวคลิป และเวลาที่ใช้ — ไม่มีบัญชี ไม่มีคีย์ ไม่มีเสียง และไม่มีข้อความ ปิดสิ่งนี้แล้ว HyperWhisper จะหยุดส่งข้อมูลนี้ ไม่มีสิ่งอื่นเปลี่ยนแปลง และโมเดลภายในเครื่องไม่เคยส่งอะไรเลย";
+"settings.general.shareSpeedData.link" = "ดูการเปรียบเทียบความเร็ว";
 "settings.general.autoUpdate.title" = "อัปเดตอัตโนมัติ";
 "settings.general.autoUpdate.info" = "โดยอัตโนมัติตรวจสอบและดาวน์โหลดเวอร์ชันใหม่ของ HyperWhisper";
 "settings.general.support.title" = "ต้องการความช่วยเหลือ?";
@@ -832,10 +824,6 @@
 "page.header.learnMore" = "เรียนรู้เพิ่มเติม";
 
 // MARK: - Recording Dialog
-"recording.status.complete" = "สัญลักษณ์สมบูรณ์";
-"recording.status.retrying" = "กำลังลองสัญลักษณ์ใหม่…";
-"recording.status.postprocessing" = "หลังการประมวลผลด้วย AI…";
-"recording.status.transcribing" = "กำลังสัญลักษณ์…";
 "recording.success.pasted" = "วางแล้ว!";
 "recording.loading.retrying" = "กำลังลองใหม่…";
 "recording.loading.postprocessing" = "กำลังประมวลผลด้วย AI…";
@@ -863,39 +851,22 @@
 "modes.provider.manageInLibrary" = "จัดการในคลัง →";
 "streaming.loading.warming" = "กำลังอุ่นโมเดลในเครื่อง...";
 "streaming.status.listening" = "กำลังฟัง...";
-"streaming.status.streaming" = "กำลังสตรีม...";
 "streaming.status.disconnecting" = "กำลังหยุด...";
 "streaming.loading.connecting" = "กำลังเชื่อมต่อกับเซิร์ฟเวอร์...";
 "streaming.loading.ready" = "กำลังเริ่มต้นเสียง...";
 "streaming.loading.streaming" = "รอเสียงพูด...";
 "streaming.state.reconnecting" = "กำลังเชื่อมต่อใหม่...";
 "recording.stop.help" = "หยุดการบันทึก (%@)";
-"recording.postprocessing.unavailable" = "หลังการประมวลผลไม่พร้อมใช้งาน";
-"recording.postprocessing.missing.single" = "คีย์ %@ หายไป – กำลังบันทึกโดยไม่มีการประมวลผลหลังจาก";
-"recording.postprocessing.missing.multiple" = "คีย์ API หายไป – กำลังบันทึกโดยไม่มีการประมวลผลหลังจาก";
-"recording.postprocessing.addKey" = "เพิ่มคีย์";
-"recording.offline.banner" = "ไม่มีการเชื่อมต่ออินเทอร์เน็ต การสัญลักษณ์คลาวด์จะล้มเหลวจนกว่าคุณจะออนไลน์";
-"recording.offline.title" = "ไม่มีการเชื่อมต่ออินเทอร์เน็ต";
-"recording.offline.subtitle" = "เชื่อมต่อใหม่เพื่อดำเนินการต่อหรือสลับไปยังโหมดออฟไลน์";
-"recording.error.network" = "ตรวจสอบการเชื่อมต่ออินเทอร์เน็ตและลองใหม่";
-"recording.error.timeout" = "หมดเวลาคำขอ ตรวจสอบความเร็วการเชื่อมต่อและลองใหม่";
-"recording.error.rateLimit" = "คุณทำการร้องขอจำนวนมากเกินไป รอสักครู่แล้วลองใหม่";
-"recording.error.credits" = "เครดิตไม่เพียงพอ เพิ่มเครดิตในการตั้งค่า";
-"recording.error.apiKey" = "เพิ่มคีย์ API %@ ของคุณในการตั้งค่า";
-"recording.error.server" = "บริการการสัญลักษณ์กำลังประสบปัญหา โปรดลองใหม่ในอีกสักครู่";
 "recording.retry" = "ลองใหม่";
 "recording.retry.inProgress" = "กำลังลองใหม่…";
 "recording.retry.count" = "ลองใหม่ (%d)";
 "recording.retry.failed.missing" = "การลองใหม่ล้มเหลว: ไม่พบไฟล์เสียง";
 "recording.retry.failed.error" = "การลองใหม่ล้มเหลว: %@";
 "recording.retry.pending" = "พร้อมที่จะลองใหม่ – คลิกเพื่อสัญลักษณ์";
-"recording.provider.unknown" = "ผู้ให้บริการคลาวด์";
 "recording.cancel.dialog.title" = "ยกเลิกการบันทึก?";
 "recording.cancel.dialog.message" = "สิ่งนี้จะละทิ้งการบันทึกปัจจุบัน";
 "recording.cancel.dialog.confirm" = "ยกเลิกการบันทึก";
 "recording.cancel.dialog.resume" = "ดำเนินการต่อ";
-"recording.error.overlay.title" = "ข้อผิดพลาดการเชื่อมต่อเครือข่าย";
-"recording.error.overlay.message" = "กด 'ลองใหม่' ด้านล่างหรือสลับไปยังโหมดออฟไลน์เพื่อดำเนินการต่อ";
 "recording.mode.default" = "ค่าเริ่มต้น";
 "recording.dialog.window.title" = "หน้าต่างการบันทึก";
 "recording.button.start" = "เริ่มการบันทึก";
@@ -953,6 +924,7 @@
 "transcription.error.maxRetriesExceeded" = "เกินจำนวนการพยายามลองใหม่สูงสุด";
 "transcription.error.unauthorized.provider" = "ไม่ได้รับการยืนยัน: คีย์ API %@ ไม่ถูกต้องหรือสิทธิ์\n\nเปิดการตั้งค่า → คีย์ API เพื่อตรวจสอบข้อมูลประจำตัวของคุณ";
 "transcription.error.unauthorized.generic" = "ไม่ได้รับการยืนยัน: คีย์ API ไม่ถูกต้องหรือสิทธิ์\n\nเปิดการตั้งค่า → คีย์ API เพื่อตรวจสอบข้อมูลประจำตัวของคุณ";
+"transcription.error.cloudAccountRequired" = "HyperWhisper Cloud ต้องใช้คีย์บัญชี\n\nเปิดการตั้งค่า → HyperWhisper Cloud เพื่อป้อนคีย์ของคุณหรือซื้อเครดิต";
 "transcription.error.invalidRequest" = "คำขอไม่ถูกต้อง: ตรวจสอบไฟล์เสียงหรือการตั้งค่า";
 "transcription.error.streamingInterrupted" = "สตรีมถูกหลีกลี่ยง ข้อความบางส่วนแสดง";
 "transcription.error.busy" = "บริการการสัญลักษณ์ยังคงไม่ว่าง";
@@ -992,6 +964,7 @@
 "transcription.guidance.needsNativeRelaunch" = "ออกจาก HyperWhisper แล้วเปิดใหม่แบบเนทีฟ เพื่อใช้การประมวลผลหลังถอดเสียงในเครื่อง";
 "transcription.guidance.localRuntimeUnavailable" = "ลองอีกครั้ง หรือเลือกโมเดลในเครื่องที่เล็กลงในการตั้งค่าโหมด";
 "transcription.error.localRuntimeUnavailable" = "AI ในเครื่องทำงานไม่สำเร็จ — ระบบเก็บข้อความถอดเสียงต้นฉบับไว้ให้แล้ว";
+"transcription.error.localSpeechModelEvicted" = "โมเดลเสียงถูกยกเลิกการโหลดเพื่อคืนหน่วยความจำ และโหลดใหม่ไม่สำเร็จ ปิดบางแอปแล้วลองอีกครั้ง";
 "settings.backup.localDownload.title" = "ดาวน์โหลดโมเดลในเครื่องหรือไม่?";
 "settings.backup.localDownload.message" = "โหมดที่กู้คืนมา %d โหมดใช้โมเดล AI บนอุปกรณ์ที่ยังไม่ได้ดาวน์โหลด";
 "settings.backup.localDownload.downloadAll" = "ดาวน์โหลดทั้งหมด";
@@ -1124,10 +1097,6 @@
 "history.autoDelete.unit.minutes" = "นาที";
 "history.autoDelete.unit.hours" = "ชั่วโมง";
 "history.autoDelete.unit.days" = "วัน";
-"history.autoDelete.unit.minutes.plural" = "นาที";
-"history.autoDelete.unit.hours.plural" = "ชั่วโมง";
-"history.autoDelete.unit.days.plural" = "วัน";
-"history.autoDelete.status.disabled" = "การลบอัตโนมัติถูกปิดใช้งาน";
 "history.autoDelete.status.enabled" = "ลบการบันทึกที่เก่ากว่า %d %@";
 "history.autoDelete.cleanup.noItems" = "ไม่มีการบันทึกที่จะลบ";
 "history.autoDelete.cleanup.summary" = "ลบ %d การบันทึก และปลดปล่อย %@";

@@ -1,38 +1,38 @@
 ---
 title: Local API Server
-description: Enable HyperWhisper's built-in HTTP server to drive transcription from MCP clients, Shortcuts, Raycast, or any shell script.
+description: Turn on the HyperWhisper HTTP server to control transcription from MCP clients, Shortcuts, Raycast, or a shell script.
 ---
 
-HyperWhisper includes an opt-in HTTP server that listens on `127.0.0.1` only — it is never reachable from the network. When enabled, it writes a discovery file containing the port and a bearer token so MCP wrappers, benchmark scripts, and Shortcuts can locate it without you copying credentials anywhere.
+HyperWhisper includes an optional HTTP server. The server listens on `127.0.0.1` only, and the network cannot reach it. When the server starts, it writes a discovery file with the port and a bearer token. MCP wrappers, benchmark scripts, and Shortcuts read this file. You do not copy the credentials anywhere.
 
-The server is **off by default**. You turn it on once in Settings and it stays on across restarts.
+The server is **off by default**. You turn it on one time in Settings. It stays on across restarts.
 
-## Enabling the server
+## Turn on the server
 
 <Tabs>
   <Tab title="macOS">
-    1. Open **Settings → Local API**.
-    2. Flip the toggle to **on**. The status line updates to show the bound address and the last four characters of your bearer token.
+    1. Open **Settings → API Server**.
+    2. Set the toggle to **on**. The status line then shows the bound address and the last four characters of your bearer token.
   </Tab>
   <Tab title="Windows">
     1. Open **Settings → Local API**.
-    2. Flip the toggle to **on**. The status line updates to show the bound address and the last four characters of your bearer token.
+    2. Set the toggle to **on**. The status line then shows the bound address and the last four characters of your bearer token.
   </Tab>
 </Tabs>
 
-Once the server is running you will see three tabs in the panel: **Connection**, **MCP setup**, and **cURL**.
+When the server runs, the panel shows three tabs: **Connection**, **MCP setup**, and **cURL**.
 
 ## Connection tab
 
-The Connection tab shows the live values you need to talk to the server.
+The Connection tab shows the current values that you need to make requests to the server.
 
 | Field | What it shows |
 |---|---|
-| **Port** | The port the server is listening on. A **Copy** button puts it on the clipboard. |
-| **Bearer token** | Hidden by default. Use **Reveal** to see the full value, **Copy** to copy it, or the regenerate button to rotate it (see below). |
-| **Port file** | Full path to the discovery file on disk. A **Show** button opens the file in Finder (macOS) or Explorer (Windows). |
+| **Port** | The port that the server listens on. The **Copy** button copies the port to the clipboard. |
+| **Bearer token** | Hidden by default. Click **Reveal** to show the full value. Click **Copy** to copy the token. Click the regenerate button to make a new token (see the next section). |
+| **Port file** | The full path of the discovery file. The **Show** button opens the file in Finder (macOS) or Explorer (Windows). |
 
-If the server encounters an error after starting (for example, the port is already in use), an orange warning appears below these fields.
+If an error occurs after the server starts (for example, the port is already in use), an orange warning appears below these fields.
 
 ### Bearer token
 
@@ -42,13 +42,13 @@ Every request except `GET /health` must include the bearer token:
 Authorization: Bearer <token>
 ```
 
-The token is generated the first time the server starts and stored securely (macOS Keychain on macOS; a DPAPI-protected file at `%LOCALAPPDATA%\HyperWhisper\local-api-token.bin` on Windows). It persists across restarts so you do not need to update your scripts each time.
+HyperWhisper makes the token the first time the server starts. macOS keeps the token in the Keychain. Windows keeps the token in a DPAPI-protected file at `%LOCALAPPDATA%\HyperWhisper\local-api-token.bin`. The token stays the same across restarts. You do not update your scripts each time.
 
-To rotate the token, click the regenerate button (the circular arrows icon on macOS, the rotate button on Windows). The previous token stops working immediately. Any MCP clients or scripts that cached the old token must be updated — they can read the new value from the discovery file.
+To make a new token, click the regenerate button. This button is a circular arrows icon on macOS and a rotate button on Windows. The previous token stops immediately. Update each MCP client and each script that cached the old token. These clients and scripts can read the new value from the discovery file.
 
 ## MCP setup tab
 
-The MCP setup tab shows the configuration snippet to paste into your MCP client. The bridge reads the discovery file at startup so no port or token appears in the client config.
+The MCP setup tab shows the configuration to paste into your MCP client. The bridge reads the discovery file when it starts. Thus no port and no token appear in the client configuration.
 
 ```json
 {
@@ -61,15 +61,15 @@ The MCP setup tab shows the configuration snippet to paste into your MCP client.
 }
 ```
 
-A **Copy** button copies the full block. For step-by-step instructions for Cursor, Claude Desktop, and Claude Code, see the [MCP setup guide](/api-reference/local-api/mcp-setup).
+The **Copy** button copies the full block. For step-by-step instructions for Cursor, Claude Desktop, and Claude Code, read the [MCP setup guide](/api-reference/local-api/mcp-setup).
 
 ## cURL tab
 
-The cURL tab shows pre-filled shell commands using your live port and token.
+The cURL tab shows shell commands that contain your current port and token.
 
 <Tabs>
   <Tab title="macOS">
-    When the server is running the snippet embeds your live values directly:
+    When the server runs, the snippet contains your current values:
 
     ```bash
     PORT=<your port>
@@ -78,7 +78,7 @@ The cURL tab shows pre-filled shell commands using your live port and token.
     curl -s -H "Authorization: Bearer $TOKEN" "http://127.0.0.1:$PORT/models" | jq .
     ```
 
-    If the server is not yet running the snippet falls back to reading from the discovery file:
+    If the server does not run, the snippet reads the values from the discovery file:
 
     ```bash
     PORT=$(jq -r .port ~/Library/Application\ Support/HyperWhisper/local-api.json)
@@ -88,7 +88,7 @@ The cURL tab shows pre-filled shell commands using your live port and token.
     ```
   </Tab>
   <Tab title="Windows">
-    When the server is running the snippet embeds your live values directly:
+    When the server runs, the snippet contains your current values:
 
     ```powershell
     $PORT = <your port>
@@ -97,7 +97,7 @@ The cURL tab shows pre-filled shell commands using your live port and token.
     curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:$PORT/models
     ```
 
-    If the server is not yet running the snippet falls back to reading from the discovery file:
+    If the server does not run, the snippet reads the values from the discovery file:
 
     ```powershell
     $discovery = Get-Content "$env:LOCALAPPDATA\HyperWhisper\local-api.json" | ConvertFrom-Json
@@ -111,7 +111,7 @@ The cURL tab shows pre-filled shell commands using your live port and token.
 
 ## Discovery file
 
-When the server starts it writes a JSON file that MCP wrappers and scripts read to learn the port and token without you hard-coding them anywhere.
+When the server starts, it writes a JSON file. MCP wrappers and scripts read the port and the token from this file. You do not put these values in your code.
 
 <Tabs>
   <Tab title="macOS">
@@ -119,18 +119,18 @@ When the server starts it writes a JSON file that MCP wrappers and scripts read 
     ~/Library/Application Support/HyperWhisper/local-api.json
     ```
 
-    The file is created with `chmod 600` — readable only by your user account.
+    HyperWhisper creates the file with `chmod 600`. Only your user account can read the file.
   </Tab>
   <Tab title="Windows">
     ```
     %LOCALAPPDATA%\HyperWhisper\local-api.json
     ```
 
-    The NTFS ACL is locked to your Windows user account (equivalent to `chmod 600`).
+    The NTFS ACL permits access from your Windows user account only. This is equivalent to `chmod 600`.
   </Tab>
 </Tabs>
 
-File shape:
+The file has this structure:
 
 ```json
 {
@@ -143,11 +143,23 @@ File shape:
 }
 ```
 
-The file is deleted when the server stops cleanly. If HyperWhisper is force-quit it may survive until the next start, at which point it is overwritten with fresh values.
+The server deletes the file when it stops correctly. If you force-quit HyperWhisper, the file can stay on disk until the next start. The next start writes new values over the old file.
 
 <Note>
-  If you see **Connection refused** and the discovery file exists, the port it records is stale. Toggle the Local API switch off and back on to write a fresh file.
+  If you see **Connection refused** and the discovery file is present, the file records an old port. Set the Local API switch to off, then set it to on again. The server writes a new file.
 </Note>
+
+## Port
+
+The server has no fixed port. At the first start, it asks the operating system for a free port. It then keeps that port and uses the same port at each later start. Thus a script that holds the port in its code continues to operate across restarts.
+
+If the kept port is not free at a later start, for example because a different program took it, the server does not fail. It asks the operating system for a new free port and writes the new port into the discovery file. To make a script that always finds the server, read the port from the discovery file.
+
+## Request timeout
+
+A `/transcribe` or a `/post-process` call is slow. A large local model, or a slow cloud model, needs 30 to 90 seconds, and sometimes more. On macOS, the server allows 10 minutes for one request. On Windows, the server sets no limit on the time of one request.
+
+Set the timeout of your own HTTP client higher than its default value. Many clients apply a short default timeout. Such a client reports a failure while the transcription is still in progress.
 
 ## Available endpoints
 
@@ -160,19 +172,23 @@ The file is deleted when the server stops cleanly. If HyperWhisper is force-quit
 | GET | `/modes/{id}` | Required | Fetch one Mode. |
 | PATCH | `/modes/{id}` | Required | Partial-field update. |
 | DELETE | `/modes/{id}` | Required | Delete a Mode. |
-| POST | `/transcribe` | Required | Transcribe an audio file. |
-| POST | `/post-process` | Required | Rewrite text via preset or custom prompt. |
+| POST | `/transcribe` | Required | Transcribe an audio file. If you give a `file` path instead of `audio_base64`, the path must be inside your recordings folder. The server rejects all other paths. |
+| POST | `/post-process` | Required | Rewrite text with a preset prompt or a custom prompt. |
 | GET | `/recordings/search` | Required | Substring search across past transcripts. |
 | GET | `/recordings/{id}` | Required | Single transcript row. |
 | GET | `/recordings` | Required | Windows only — undocumented alias for `/recordings/search`. |
 
-Full request and response schemas are in the [OpenAPI reference](/api-reference/local-api/openapi.yaml).
+The [OpenAPI reference](/api-reference/local-api/openapi.yaml) gives the full request and response schemas.
 
 <Note>
-  Platform differences worth knowing: `GET /models` accepts `?kind=` and `?installed_only=` query params to filter the catalog on macOS — Windows currently ignores these params and always returns the full catalog. macOS also validates the `Host` and `Origin` headers on every request and returns `403` on anything that doesn't look like a genuine loopback call, as a defense against DNS-rebinding attacks from a browser tab; Windows does not perform this additional check.
+  The two platforms are different in three ways. On macOS, `GET /models` accepts the `?kind=` and `?installed_only=` query parameters to filter the catalog. Windows ignores these parameters and always returns the full catalog.
+
+  macOS also examines the `Host` and `Origin` headers on each request. macOS returns `403` for a request that is not a true loopback call. This check protects you against DNS-rebinding attacks from a browser tab. Windows does not make this check.
+
+  Windows accepts and returns five more mode fields than macOS: `localEngine`, `localParakeetModel`, `localPostProcessingModel`, `customVocabulary`, and `providerType`. These fields hold the Windows settings that have no macOS equivalent. macOS ignores these keys when you send them, and never returns them.
 </Note>
 
 ## Next steps
 
-- [MCP setup guide](/api-reference/local-api/mcp-setup) — wire HyperWhisper into Cursor, Claude Desktop, or Claude Code as an agent tool.
+- [MCP setup guide](/api-reference/local-api/mcp-setup) — connect HyperWhisper to Cursor, Claude Desktop, or Claude Code as an agent tool.
 - [API overview](/api-reference/local-api/overview) — authentication, response envelope, and error codes.

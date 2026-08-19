@@ -23,30 +23,6 @@ namespace HyperWhisper.Services.Transcription;
 internal static class RustCoreMapping
 {
     /// <summary>
-    /// The standard retry give-up mapper: re-run the provider's core parser on a
-    /// non-2xx response (which throws the classified <see cref="HwTranscriptionException"/>)
-    /// and map it to a <see cref="TranscriptionException"/> tagged with
-    /// <paramref name="provider"/> and the response status. A non-throwing parse
-    /// (unexpected on a non-2xx) yields <see cref="TranscriptionErrorCode.Unknown"/>.
-    /// Dedups the identical per-provider <c>Parse&lt;X&gt;Error</c> statics.
-    /// </summary>
-    internal static TranscriptionException ParseProviderError(
-        Action parse, string provider, HttpResponse resp)
-    {
-        try
-        {
-            parse();
-            // 2xx never reaches here; a non-error parse is unexpected.
-            return new TranscriptionException(
-                TranscriptionErrorCode.Unknown, "Unexpected non-error response", provider, (int)resp.@status);
-        }
-        catch (HwTranscriptionException ex)
-        {
-            return MapTranscriptionError(ex, provider, (int)resp.@status);
-        }
-    }
-
-    /// <summary>
     /// Map a core <see cref="HwTranscriptionException"/> (thrown by every
     /// build/parse FFI fn) to the app's <see cref="TranscriptionException"/>.
     ///
@@ -246,17 +222,6 @@ internal static class RustCoreMapping
         CloudTranscriptionProvider.Grok => HwProvider.Grok,
         CloudTranscriptionProvider.MicrosoftAzureSpeech => HwProvider.AzureMai,
         CloudTranscriptionProvider.GoogleSpeech => HwProvider.GoogleChirp,
-        _ => HwProvider.HyperWhisperCloud
-    };
-
-    /// <summary>
-    /// Map a routed <c>X-STT-Provider</c> header value to an
-    /// <see cref="HwProvider"/>. Used by the routed path.
-    /// </summary>
-    internal static HwProvider HwProviderForRouted(string sttProviderHeader) => sttProviderHeader switch
-    {
-        "azure-mai" => HwProvider.AzureMai,
-        "google-chirp" => HwProvider.GoogleChirp,
         _ => HwProvider.HyperWhisperCloud
     };
 

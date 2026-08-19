@@ -417,41 +417,6 @@ struct HomeView: View {
         accessibilityCheckTimer = nil
     }
 
-    // MARK: - What's New Section
-    
-    /// Display recent updates and features
-    private var whatsNewSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Section title
-            Text("home.whatsnew.title".localized)
-                .font(.title2)
-                .fontWeight(.medium)
-            
-            // Update cards
-            VStack(spacing: 12) {
-                WhatsNewCard(
-                    date: "home.whatsnew.update1.date".localized,
-                    title: "home.whatsnew.update1.title".localized,
-                    description: "home.whatsnew.update1.description".localized,
-                    isNew: true
-                )
-                
-                WhatsNewCard(
-                    date: "home.whatsnew.update2.date".localized,
-                    title: "home.whatsnew.update2.title".localized,
-                    description: "home.whatsnew.update2.description".localized,
-                    isNew: false
-                )
-                
-                WhatsNewCard(
-                    date: "home.whatsnew.update3.date".localized,
-                    title: "home.whatsnew.update3.title".localized,
-                    description: "home.whatsnew.update3.description".localized,
-                    isNew: false
-                )
-            }
-        }
-    }
 }
 
 // MARK: - Getting Started Card
@@ -542,58 +507,6 @@ struct GettingStartedCard: View {
                 isHovered = hovering
             }
         }
-    }
-}
-
-// MARK: - What's New Card
-
-/// Card for displaying update information
-struct WhatsNewCard: View {
-    let date: String
-    let title: String
-    let description: String
-    let isNew: Bool
-    
-    var body: some View {
-        HStack(alignment: .top, spacing: 16) {
-            // Date badge
-            VStack(spacing: 2) {
-                Text(date)
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .foregroundColor(.secondary)
-                
-                if isNew {
-                    Text("home.whatsnew.badge".localized)
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 1)
-                        .background(Color.red)
-                        .cornerRadius(3)
-                }
-            }
-            .frame(width: 50)
-            
-            // Content
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.headline)
-                    .foregroundColor(.primary)
-                
-                Text(description)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            
-            Spacer()
-        }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(.thinMaterial)
-        )
     }
 }
 

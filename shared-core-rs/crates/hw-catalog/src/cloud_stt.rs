@@ -488,7 +488,7 @@ mod tests {
     #[test]
     fn embedded_catalog_parses() {
         let c = catalog();
-        assert_eq!(c.version(), 6);
+        assert_eq!(c.version(), 7);
         assert!(c.providers().len() >= 10);
     }
 
@@ -532,29 +532,29 @@ mod tests {
         assert!(c.supports_custom_vocabulary("groqWhisper"));
     }
 
-    // --- Golden: vocab NOT supported (grokStt — backend doesn't forward) ----
+    // --- Golden: vocab supported via a repeated field (grokStt) -------------
 
     #[test]
-    fn grok_stt_vocab_unsupported_despite_field_name() {
+    fn grok_stt_vocab_supported_through_keyterm() {
         let c = catalog();
-        // grokStt.customVocabulary.supported == false (backend doesn't forward).
-        assert!(!c.supports_custom_vocabulary("grokStt"));
-        // The field name is still present in the catalog ("keyterm").
+        // grokStt.customVocabulary.supported == true — every request site
+        // (backend, Rust core, both streaming strategies) forwards keyterms.
+        assert!(c.supports_custom_vocabulary("grokStt"));
         assert_eq!(c.custom_vocabulary_field_name("grokStt"), Some("keyterm"));
         let e = c.entry("grokStt").unwrap();
         assert_eq!(
             e.custom_vocabulary.as_ref().map(|cv| cv.supported),
-            Some(VocabSupport::No)
+            Some(VocabSupport::Yes)
         );
     }
 
     // --- Golden: unverified tri-state (googleChirp3) ------------------------
 
     #[test]
-    fn google_chirp_vocab_is_false_languages_present() {
+    fn google_chirp_vocab_is_true_languages_present() {
         let c = catalog();
-        // googleChirp3 customVocabulary.supported == false.
-        assert!(!c.supports_custom_vocabulary("googleChirp3"));
+        // googleChirp3 customVocabulary.supported == true (inline phrase set).
+        assert!(c.supports_custom_vocabulary("googleChirp3"));
         // languages.codes IS a real array (count 111).
         let codes = c.language_codes("googleChirp3").expect("codes present");
         assert!(codes.contains(&"en-US".to_string()));

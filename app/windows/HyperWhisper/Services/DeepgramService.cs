@@ -29,12 +29,8 @@
 // NOTE: Uses TranscriptionApiKeyType.Deepgram (separate from post-processing)
 
 using System.Diagnostics;
-using System.IO;
-using System.Net.Http;
 using HyperWhisper.Models;
 using HyperWhisper.Services.Transcription;
-// Rust shared-core binding. HwTranscript / HwTranscriptionException / HttpResponse
-// collide with System types; qualify uniffi.hyperwhisper_core.HttpResponse below.
 using uniffi.hyperwhisper_core;
 
 namespace HyperWhisper.Services;
@@ -43,70 +39,30 @@ namespace HyperWhisper.Services;
 /// Cloud transcription service using Deepgram's Speech-to-Text API.
 /// Nova models provide industry-leading accuracy with vocabulary boosting.
 /// </summary>
-public class DeepgramService : ITranscriptionProvider, IDisposable
+public class DeepgramService : ApiKeyTranscriptionServiceBase
 {
     // =========================================================================
     // CONSTANTS
     // =========================================================================
 
-    private const string ApiBaseUrl = "https://api.deepgram.com/v1/listen";
     private const int DefaultTimeoutSeconds = 180; // 3 minutes for larger files
-    private const int MaxRetries = 3;
-
-    // MIME types for audio content
-    private static readonly Dictionary<string, string> MimeTypes = new(StringComparer.OrdinalIgnoreCase)
-    {
-        { ".wav", "audio/wav" },
-        { ".mp3", "audio/mpeg" },
-        { ".mp4", "audio/mp4" },
-        { ".m4a", "audio/mp4" },
-        { ".mpeg", "audio/mpeg" },
-        { ".mpga", "audio/mpeg" },
-        { ".webm", "audio/webm" },
-        { ".ogg", "audio/ogg" },
-        { ".flac", "audio/flac" }
-    };
-
-    // Models that support keyterm parameter (Nova-3)
-    private static readonly HashSet<string> KeytermSupportedModels = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "nova-3-general",
-        "nova-3-medical"
-    };
-
-    // =========================================================================
-    // STATE
-    // =========================================================================
-
-    private readonly HttpClient _httpClient;
-    private string? _apiKey;
-    private string _modelId = "nova-3-general";
-    private bool _disposed;
 
     // =========================================================================
     // ITranscriptionProvider IMPLEMENTATION
     // =========================================================================
 
     /// <summary>
-    /// Whether the service is ready (API key is configured).
-    /// </summary>
-    public bool IsAvailable => !string.IsNullOrEmpty(_apiKey);
-
-    /// <summary>
     /// Display name including the configured model.
     /// </summary>
-    public string Name => $"Deepgram {CloudTranscriptionModels.GetById(_modelId, CloudTranscriptionProvider.Deepgram)?.DisplayName ?? _modelId}";
+    public override string Name => $"Deepgram {CloudTranscriptionModels.GetById(ModelId, CloudTranscriptionProvider.Deepgram)?.DisplayName ?? ModelId}";
 
     // =========================================================================
     // CONSTRUCTOR
     // =========================================================================
 
     public DeepgramService()
+        : base(TimeSpan.FromSeconds(DefaultTimeoutSeconds), "nova-3-general")
     {
-        _httpClient = new HttpClient
-        {
-            Timeout = TimeSpan.FromSeconds(DefaultTimeoutSeconds)
-        };
     }
 
     // =========================================================================
@@ -119,11 +75,11 @@ public class DeepgramService : ITranscriptionProvider, IDisposable
     /// </summary>
     /// <param name="apiKey">Deepgram API key.</param>
     /// <param name="modelId">Model ID (nova-3-general, nova-2-medical, enhanced-general, base-general, whisper-*).</param>
-    public void Configure(string apiKey, string modelId = "nova-3-general")
+    public override void Configure(string apiKey, string modelId = "nova-3-general")
     {
-        _apiKey = apiKey;
-        _modelId = CloudTranscriptionModels.ResolveDeepgramModelAlias(modelId);
-        LoggingService.Info($"DeepgramService: Configured with model {_modelId}");
+        ApiKey = apiKey;
+        ModelId = CloudTranscriptionModels.ResolveDeepgramModelAlias(modelId);
+        LoggingService.Info($"DeepgramService: Configured with model {ModelId}");
     }
 
     // =========================================================================
@@ -133,7 +89,7 @@ public class DeepgramService : ITranscriptionProvider, IDisposable
     /// <summary>
     /// Transcribes audio using Deepgram's API.
     /// </summary>
-    public async Task<string> TranscribeAsync(
+    public override async Task<string> TranscribeAsync(
         string audioPath,
         string? language = null,
         IReadOnlyList<string>? vocabulary = null,
@@ -141,31 +97,14 @@ public class DeepgramService : ITranscriptionProvider, IDisposable
     {
         var totalSw = Stopwatch.StartNew();
         LoggingService.Info("========== DEEPGRAM CLOUD TRANSCRIPTION ==========");
-        LoggingService.Info($"  Model: {_modelId}");
+        LoggingService.Info($"  Model: {ModelId}");
         LoggingService.Info($"  Language: {language ?? "auto-detect"}");
         LoggingService.Info($"  Vocabulary terms: {vocabulary?.Count ?? 0}");
         LoggingService.Info($"  Audio path: {audioPath}");
 
-        // STEP 1: Validate configuration
-        if (string.IsNullOrEmpty(_apiKey))
-        {
-            throw new TranscriptionException(
-                TranscriptionErrorCode.ApiKeyMissing,
-                "Deepgram API key not configured",
-                "Deepgram");
-        }
-
-        // STEP 2: Validate audio file
-        if (!File.Exists(audioPath))
-        {
-            throw new TranscriptionException(
-                TranscriptionErrorCode.AudioFileNotFound,
-                $"Audio file not found: {audioPath}",
-                "Deepgram");
-        }
-
-        var fileInfo = new FileInfo(audioPath);
-        LoggingService.Info($"  File size: {fileInfo.Length:N0} bytes ({fileInfo.Length / 1024.0 / 1024.0:F2} MB)");
+        // STEP 1+2: Validate configuration and audio file (shared gate). Deepgram
+        // has no explicit file size limit, so no cap is passed.
+        TranscriptionPreflight.Validate("Deepgram", ApiKey, audioPath);
 
         // STEP 3: Build the request via the Rust shared core (URL + query
         // params model/smart_format/keyterm/keywords/language, Content-Type, and a
@@ -173,62 +112,22 @@ public class DeepgramService : ITranscriptionProvider, IDisposable
         // through the shared executor + core retry loop. The core owns the
         // keyterm-vs-keywords + auto-detect vocab gating per model.
         // TODO-verify (Windows/CI): Rust shared-core swap.
-        var extension = Path.GetExtension(audioPath);
-        var contentType = MimeTypes.GetValueOrDefault(extension, "audio/wav");
+        var contentType = TranscriptionPreflight.MimeTypeFor(audioPath, "audio/wav");
 
         var coreParams = RustCoreMapping.TranscribeParams(
             audioPath: audioPath,
             audioMime: contentType,
             language: language,
             vocabulary: vocabulary ?? Array.Empty<string>(),
-            apiKey: _apiKey,
-            model: _modelId);
+            apiKey: ApiKey,
+            model: ModelId);
 
-        uniffi.hyperwhisper_core.HttpResponse response;
-        try
-        {
-            response = await RustRetry.PerformAsync(
-                _httpClient,
-                buildRequest: () => HyperwhisperCoreMethods.DeepgramBuildTranscribeRequest(coreParams),
-                parseError: resp => RustCoreMapping.ParseProviderError(
-                    () => HyperwhisperCoreMethods.DeepgramParseTranscribeResponse(resp), "Deepgram", resp),
-                cancellationToken: cancellationToken);
-        }
-        catch (HwTranscriptionException ex)
-        {
-            throw RustCoreMapping.MapTranscriptionError(ex, "Deepgram");
-        }
-
-        cancellationToken.ThrowIfCancellationRequested();
-
-        HwTranscript transcript;
-        try
-        {
-            transcript = HyperwhisperCoreMethods.DeepgramParseTranscribeResponse(response);
-        }
-        catch (HwTranscriptionException ex)
-        {
-            throw RustCoreMapping.MapTranscriptionError(ex, "Deepgram");
-        }
-
-        LoggingService.Info("========== DEEPGRAM TRANSCRIPTION COMPLETE ==========");
-        LoggingService.Info($"  Characters: {transcript.@text.Length}");
-        LoggingService.Info($"  Total time: {totalSw.ElapsedMilliseconds}ms");
-        return transcript.@text;
-    }
-
-
-    // =========================================================================
-    // DISPOSAL
-    // =========================================================================
-
-    public void Dispose()
-    {
-        if (!_disposed)
-        {
-            _httpClient.Dispose();
-            _disposed = true;
-        }
-        GC.SuppressFinalize(this);
+        return await RustSingleShot.TranscribeAsync(
+            Http,
+            "Deepgram",
+            buildRequest: () => HyperwhisperCoreMethods.DeepgramBuildTranscribeRequest(coreParams),
+            parseResponse: HyperwhisperCoreMethods.DeepgramParseTranscribeResponse,
+            totalSw: totalSw,
+            cancellationToken: cancellationToken);
     }
 }

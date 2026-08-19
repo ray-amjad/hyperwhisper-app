@@ -3,10 +3,12 @@
 //  hyperwhisper
 //
 //  Implements `POST /post-process`. Accepts a saved mode (for defaults) plus
-//  optional overrides — `preset`/`prompt`/`provider`/`model` — and calls the
-//  same streaming `AIPostProcessor.performAIPostProcessingStreaming(text:mode:)`
-//  the in-app pipeline uses. Streaming output is accumulated and returned as
-//  a single response body — the endpoint contract is unchanged.
+//  optional overrides — `preset`/`prompt`/`provider`/`model` — and calls
+//  `AIPostProcessor.performAIPostProcessingPreservingBreaks(text:mode:)`, the
+//  same break-preserving call the in-app pipeline uses, so dictated paragraph
+//  breaks ("new line" / "new paragraph") survive post-processing instead of
+//  being silently merged. Streaming output is accumulated and returned as a
+//  single response body — the endpoint contract is unchanged.
 //
 
 import Foundation
@@ -81,11 +83,18 @@ enum PostProcessEndpoint {
             // dynamic systemInfo (TIME, vocab) — iter 11 tested omitting that
             // too but broke the 12B reliability gate, see
             // tuning-notes/13-iter11-omit-systeminfo.md.
-            result = try await processor.performAIPostProcessingStreaming(
+            result = try await processor.performAIPostProcessingPreservingBreaks(
                 text: text,
                 mode: working.mode,
                 applicationContext: ApplicationContext.none,
-                mutationSignal: mutationSignal
+                mutationSignal: mutationSignal,
+                // The endpoint returns the final accumulated `result` as a single
+                // HTTP response body — it never consumes intermediate streaming
+                // text. Pass a no-op sink so the per-segment loop never touches
+                // the shared `onStreamingTextUpdate` instance property (which is
+                // also the in-app live-recording preview callback); see
+                // `AIPostProcessor.performAIPostProcessingPreservingBreaks`.
+                onSegmentTextUpdate: { _ in }
             )
         } catch {
             if working.isTransient { cleanupTransientMode(working.mode) }
@@ -98,6 +107,19 @@ enum PostProcessEndpoint {
         // so `result` alone can't tell us — the request-scoped `mutationSignal` is
         // the honest, concurrency-safe answer.
         let didPostProcess = mutationSignal.didMutate
+
+        // `mutationSignal.anyPartialFailure` covers the multi-segment case where
+        // some segments post-processed and at least one fell back to raw text —
+        // `didMutate` alone is OR-aggregated across segments and would otherwise
+        // report `ok: true, post_processed: true` for a response that's silently
+        // a mix of processed and raw/unprocessed segment text.
+        if mutationSignal.anyPartialFailure {
+            if working.isTransient { cleanupTransientMode(working.mode) }
+            return LocalAPIResponder.failure(
+                code: .transcriptionFailed,
+                message: "Post-processing partially failed: some segments were processed and at least one was not."
+            )
+        }
 
         let providerLabel = working.mode.postProcessingProvider ?? "hyperwhisper"
         let modelLabel = working.mode.languageModel ?? ""

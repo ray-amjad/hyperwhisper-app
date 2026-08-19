@@ -33,6 +33,15 @@ HyperWhisper Cloud — Bun + Hono transcription service on Fly.io. Routes audio 
 Iterate locally against dev; CI deploys staging as the pre-prod gate and smoke-tests it before promoting to prod.
 </important>
 
+<important if="you are adding, upgrading, or pinning a dependency here, or CI fails with `lockfile had changes, but lockfile is frozen`">
+
+**Bun is the only package manager in this folder, and `bun.lock` is the only lockfile.** The Dockerfile, `cloud-ci.yml`, `cloud-deploy.yml` and both deploy workflows all run `bun install --frozen-lockfile` against it.
+
+- After any change to `package.json`, run `bun install` and commit the updated `bun.lock` in the same commit.
+- Never add `pnpm-lock.yaml`, `package-lock.json`, or a `packageManager` field. A second lockfile is what broke this before: a Dependabot bump updated `pnpm-lock.yaml` and `package.json` but not `bun.lock`, the pnpm-based typecheck job stayed green, and every production deploy failed at the bun install for 9 days — silently, because nothing runs on the PR.
+- Never "fix" a red lockfile check by dropping `--frozen-lockfile`. Regenerate the lockfile instead.
+</important>
+
 <important if="you are about to set, change, rotate, or deploy Fly secrets / env vars on the staging or production apps, or a deploy is failing with `<VAR> not configured`">
 
 Don't touch them with `fly secrets set` / `fly secrets deploy`. The Fly secrets on `hyperwhisper-transcribe-staging` and `hyperwhisper-transcribe` (provider API keys, Upstash, Google SA, license API URL, etc.) are **synced automatically from Infisical** — a manual change drifts from the source of truth and gets overwritten on the next sync. To add or rotate a secret, change it in Infisical and re-sync; that stages and deploys it to the Fly apps. If a deploy 500s with `<VAR> not configured`, the secrets are staged-but-not-deployed or out of sync — re-sync from Infisical rather than running `fly secrets deploy` by hand.
@@ -50,6 +59,8 @@ Client entry points that terminate at `/transcribe`:
 - Windows: `app/windows/HyperWhisper/Services/HyperWhisperCloudService.cs` and `HyperWhisperRoutedTranscriptionClient.cs`
 
 Changes to query params (`account_key` / legacy `license_key`, `device_id`, `language`, `initial_prompt`, `mode`), `X-STT-Provider`, response shape, or error codes must land in clients in the same PR cycle.
+
+Every native request also carries `X-HyperWhisper-Platform` (`macos` / `windows`) and `X-HyperWhisper-Version` (app version). `src/lib/client-info.ts` reads them onto `transcribe.request_start`, `transcribe.request_done`, and `post_process.request_start` as `clientPlatform` / `clientVersion`, falling back to the `User-Agent` for builds shipped before the headers existed. They are caller-supplied labels for logs only — never gate auth, billing, or routing on them. Client side: `HyperWhisperClientInfo.swift` (macOS) and `ClientInfoHeaders.cs` (Windows).
 
 The auth credential is accepted under **two param names**: `account_key` (canonical, preferred) and `license_key` (legacy alias). Every entry point (`transcribe`, `assistant`, `post-process`, `usage`, `ws-streaming-deepgram`) reads `account_key` first, then falls back to `license_key`, so installed native apps that still send `license_key` keep working. Both carry the same key string — they're aliases, not different credentials.
 </important>
@@ -125,4 +136,13 @@ The **public source of truth** for our retention/training posture is the docs si
 Controls applied in this backend: Deepgram `mip_opt_out=true` per request (also in `ws-streaming-deepgram.ts`); AssemblyAI `DELETE /v2/transcript/{id}` after fetch (`bestEffortDeleteTranscript`); Soniox async-artifact delete; Groq account-level ZDR; Gemini paid-tier (no training); OpenAI clean by default.
 
 ElevenLabs zero-retention (`enable_logging=false`) is **enterprise-only** and gated behind `ELEVENLABS_ZERO_RETENTION` (default off) — we're on a standard plan, so it retains by default. Don't send the flag unconditionally; a standard account can have the request rejected. Grok and Mistral retain ~30 days with no self-serve opt-out (enterprise contract only).
+</important>
+
+<important if="you are releasing a new client platform, or wondering why /latency has fewer rows than the traffic suggests">
+
+Anonymous speed data is **on by default**, so it is only collected from clients that could have turned it off. `src/lib/latency-eligibility.ts` holds the whole policy: `MIN_OPT_OUT_VERSION` maps a platform to the first release that shipped the "Share anonymous speed data" switch (macOS `2.43.0`, Windows `1.10.0`). Anything else — an older build, an unlisted platform, an unparseable version, a direct API caller, the release smoke test — is not recorded.
+
+- A new client (iOS) contributes nothing until it is added to that map, and it should only be added once its own settings screen has the switch. Failing closed is the point.
+- When a request is not recorded, `transcribe.request_done` carries `latencySkipped: 'opted_out' | 'client_too_old'`. Query that before assuming ingest is broken.
+- The public copy that describes this lives in `mintlify-help/data-privacy.mdx`, `mintlify-help/general-settings.mdx`, and the "Who is counted" entry on `nextjs/app/[locale]/latency/page.tsx`. Change the map, change all four.
 </important>

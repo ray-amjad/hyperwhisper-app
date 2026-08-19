@@ -47,6 +47,11 @@ const OPENAI_GPT4O_MINI_TRANSCRIBE_OUTPUT_COST_PER_TOKEN = 5.00 / 1_000_000;
 // so a gpt-4o transcription never bills $0 (fail-closed).
 const OPENAI_GPT4O_TRANSCRIBE_FLOOR_PER_MINUTE = 0.006;
 const OPENAI_GPT4O_MINI_TRANSCRIBE_FLOOR_PER_MINUTE = 0.003;
+// gpt-transcribe / gpt-live-transcribe (launched 2026-07-29) are flat
+// per-audio-minute billed — like whisper-1, NOT token-billed like gpt-4o-*.
+// Verified against OpenAI's pricing docs (developers.openai.com/api/docs/pricing).
+const OPENAI_GPT_TRANSCRIBE_COST_PER_AUDIO_MINUTE = 0.0045;
+const OPENAI_GPT_LIVE_TRANSCRIBE_COST_PER_AUDIO_MINUTE = 0.017;
 
 // Gemini — audio billed at 32 tokens/sec; cost read from usageMetadata. Input
 // is multi-modal: TEXT (the instruction+vocab prompt) and AUDIO bill at
@@ -81,9 +86,12 @@ const GEMINI_FALLBACK_RATE = GEMINI_RATES['gemini-2.5-flash'];
 
 // AssemblyAI — duration-billed; medical is a +$0.15/hr add-on, not a model.
 const ASSEMBLYAI_UNIVERSAL2_COST_PER_AUDIO_MINUTE = 0.15 / 60;       // $0.0025/min
+// Universal-3.5 Pro (GA 2026-07-01, now the default) publishes the same
+// $0.21/hr pre-recorded rate as its Universal-3 Pro predecessor — confirmed
+// unchanged, so both ids share this constant.
 const ASSEMBLYAI_UNIVERSAL3_PRO_COST_PER_AUDIO_MINUTE = 0.21 / 60;   // $0.0035/min
 const ASSEMBLYAI_MEDICAL_ADDON_COST_PER_AUDIO_MINUTE = 0.15 / 60;    // +$0.0025/min
-const ASSEMBLYAI_KEYTERMS_ADDON_COST_PER_AUDIO_MINUTE = 0.05 / 60;   // +~$0.05/hr (universal-3-pro only)
+const ASSEMBLYAI_KEYTERMS_ADDON_COST_PER_AUDIO_MINUTE = 0.05 / 60;   // +~$0.05/hr (Universal-3.x Pro tier only)
 // AssemblyAI's separate sync product (<=120s clips, single blocking request)
 // always runs universal-3-5-pro, a model the async tiers above don't cover —
 // billed at its own published rate, "the same rate as Universal-3.5 Pro
@@ -155,12 +163,12 @@ const GEMINI_DEFAULT_CHAT_MODEL = 'gemini-2.5-flash';
 // Mistral (chat/completions). https://mistral.ai/pricing + docs.mistral.ai
 // `mistral-small-latest` resolves to Mistral Small 4: the model-specific docs
 // list $0.15/$0.60, which conflicts with the lower pricing-tile figure — we
-// bill at the higher (model-docs) rate, the billing-safe choice. `mistral-nemo`
-// is not a valid chat id; the canonical API id is `open-mistral-nemo`.
-// Re-confirm both against live provider pages before secrets go live.
+// bill at the higher (model-docs) rate, the billing-safe choice. The retired
+// Nemo model is no longer allowlisted; old clients still sending its id resolve
+// to `mistral-small-latest` and are billed at that rate.
+// Re-confirm against live provider pages before secrets go live.
 const MISTRAL_CHAT_RATES: Record<string, LLMChatRate> = {
   'mistral-small-latest': { promptPerToken: 0.15 / 1_000_000, completionPerToken: 0.60 / 1_000_000 },
-  'open-mistral-nemo': { promptPerToken: 0.15 / 1_000_000, completionPerToken: 0.15 / 1_000_000 },
 };
 const MISTRAL_DEFAULT_CHAT_MODEL = 'mistral-small-latest';
 
@@ -181,6 +189,12 @@ export interface GroqUsage {
 // STT COSTS
 // =============================================================================
 
+// Shared shape for STT providers billed at a flat per-audio-minute rate.
+function computeLinearPerMinuteCost(durationSeconds: number, ratePerMinute: number): number {
+  const durationMinutes = durationSeconds / 60;
+  return roundUsd(durationMinutes * ratePerMinute);
+}
+
 export function computeElevenLabsTranscriptionCost(durationSeconds: number, keyterms: boolean = false): number {
   const durationMinutes = durationSeconds / 60;
   const base = durationMinutes * ELEVENLABS_COST_PER_AUDIO_MINUTE;
@@ -191,9 +205,7 @@ export function computeElevenLabsTranscriptionCost(durationSeconds: number, keyt
 }
 
 export function computeDeepgramTranscriptionCost(durationSeconds: number): number {
-  const durationMinutes = durationSeconds / 60;
-  const raw = durationMinutes * DEEPGRAM_COST_PER_AUDIO_MINUTE;
-  return roundUsd(raw);
+  return computeLinearPerMinuteCost(durationSeconds, DEEPGRAM_COST_PER_AUDIO_MINUTE);
 }
 
 export function computeGroqTranscriptionCost(durationSeconds: number, model?: string): number {
@@ -213,15 +225,11 @@ export function computeXaiTranscriptionCost(durationSeconds: number): number {
 }
 
 export function computeAzureMaiTranscriptionCost(durationSeconds: number): number {
-  const durationMinutes = durationSeconds / 60;
-  const raw = durationMinutes * AZURE_MAI_COST_PER_AUDIO_MINUTE;
-  return roundUsd(raw);
+  return computeLinearPerMinuteCost(durationSeconds, AZURE_MAI_COST_PER_AUDIO_MINUTE);
 }
 
 export function computeGoogleChirpTranscriptionCost(durationSeconds: number): number {
-  const durationMinutes = durationSeconds / 60;
-  const raw = durationMinutes * GOOGLE_CHIRP_COST_PER_AUDIO_MINUTE;
-  return roundUsd(raw);
+  return computeLinearPerMinuteCost(durationSeconds, GOOGLE_CHIRP_COST_PER_AUDIO_MINUTE);
 }
 
 // ── New cloud STT proxy providers ───────────────────────────────────────────
@@ -241,6 +249,15 @@ export interface OpenAITranscriptionUsage {
 export function computeOpenAITranscriptionCost(model: string, usage: OpenAITranscriptionUsage): number {
   if (model === 'whisper-1') {
     return roundUsd((usage.durationSeconds / 60) * OPENAI_WHISPER1_COST_PER_AUDIO_MINUTE);
+  }
+  // gpt-transcribe / gpt-live-transcribe are flat per-minute billed (see the
+  // constants above) — same duration-billed shape as whisper-1, checked before
+  // the gpt-4o-* token-billed branch below so they never fall through to it.
+  if (model === 'gpt-transcribe') {
+    return roundUsd((usage.durationSeconds / 60) * OPENAI_GPT_TRANSCRIBE_COST_PER_AUDIO_MINUTE);
+  }
+  if (model === 'gpt-live-transcribe') {
+    return roundUsd((usage.durationSeconds / 60) * OPENAI_GPT_LIVE_TRANSCRIBE_COST_PER_AUDIO_MINUTE);
   }
 
   const inputTokens = Math.max(0, usage.inputTokens ?? 0);
@@ -340,9 +357,10 @@ export function estimatePromptInputReservationUsd(
     return tokens * rate.textInputPerToken;
   }
   if (provider === 'openai') {
-    // whisper-1 is duration-billed — no prompt-token charge. Default + the
+    // whisper-1, gpt-transcribe, gpt-live-transcribe are all flat per-minute
+    // (duration) billed — no separate prompt-token charge. Default + the
     // explicit gpt-4o-transcribe use the (more expensive) transcribe input rate.
-    if (model === 'whisper-1') return 0;
+    if (model === 'whisper-1' || model === 'gpt-transcribe' || model === 'gpt-live-transcribe') return 0;
     if (model === 'gpt-4o-mini-transcribe') return tokens * OPENAI_GPT4O_MINI_TRANSCRIBE_INPUT_COST_PER_TOKEN;
     return tokens * OPENAI_GPT4O_TRANSCRIBE_INPUT_COST_PER_TOKEN;
   }
@@ -357,9 +375,10 @@ export function estimatePromptInputReservationUsd(
 
 /**
  * AssemblyAI duration-billed; `medical` layers the +$0.15/hr add-on on top of
- * the chosen base model (universal-2 or universal-3-pro). `keyterms` layers the
- * ~$0.05/hr keyterms-prompt add-on, but ONLY for universal-3-pro — universal-2
- * keyterms are free/beta and must not be charged.
+ * the chosen base model (universal-2 or the Universal-3.x Pro tier). `keyterms`
+ * layers the ~$0.05/hr keyterms-prompt add-on, but ONLY for the Universal-3.x
+ * Pro tier (universal-3-pro / universal-3-5-pro) — universal-2 keyterms are
+ * free/beta and must not be charged.
  */
 export function computeAssemblyAITranscriptionCost(
   durationSeconds: number,
@@ -367,10 +386,11 @@ export function computeAssemblyAITranscriptionCost(
   medical: boolean = false,
   keyterms: boolean = false,
 ): number {
-  const basePerMinute = model === 'universal-3-pro'
+  const isPro = model === 'universal-3-pro' || model === 'universal-3-5-pro';
+  const basePerMinute = isPro
     ? ASSEMBLYAI_UNIVERSAL3_PRO_COST_PER_AUDIO_MINUTE
     : ASSEMBLYAI_UNIVERSAL2_COST_PER_AUDIO_MINUTE;
-  const keytermsPerMinute = (keyterms && model === 'universal-3-pro')
+  const keytermsPerMinute = (keyterms && isPro)
     ? ASSEMBLYAI_KEYTERMS_ADDON_COST_PER_AUDIO_MINUTE
     : 0;
   const perMinute = basePerMinute
@@ -380,11 +400,11 @@ export function computeAssemblyAITranscriptionCost(
 }
 
 export function computeAssemblyAISyncTranscriptionCost(durationSeconds: number): number {
-  return roundUsd((durationSeconds / 60) * ASSEMBLYAI_SYNC_COST_PER_AUDIO_MINUTE);
+  return computeLinearPerMinuteCost(durationSeconds, ASSEMBLYAI_SYNC_COST_PER_AUDIO_MINUTE);
 }
 
 export function computeMistralTranscriptionCost(durationSeconds: number): number {
-  return roundUsd((durationSeconds / 60) * MISTRAL_VOXTRAL_COST_PER_AUDIO_MINUTE);
+  return computeLinearPerMinuteCost(durationSeconds, MISTRAL_VOXTRAL_COST_PER_AUDIO_MINUTE);
 }
 
 export function computeSonioxTranscriptionCost(durationSeconds: number, contextTextTokens: number = 0): number {

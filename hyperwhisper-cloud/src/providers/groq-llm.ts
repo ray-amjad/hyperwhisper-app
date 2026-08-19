@@ -1,6 +1,7 @@
 // GROQ LLM CLIENT (CHAT COMPLETIONS)
 
 import { computeGroqChatCost, estimateUsageFromChars, type GroqUsage } from '../lib/cost-calculator';
+import { GROQ_MAX_COMPLETION_TOKENS } from '../lib/llm-token-limits';
 import { isRecord } from '../lib/utils';
 import { requestOpenAICompatibleChat } from './openai-compat-chat';
 
@@ -16,6 +17,22 @@ export type CorrectionRequestPayload = {
   messages: ChatMessage[];
   temperature: number;
 };
+
+/**
+ * Groq is the one hosted provider that needs an explicit output ceiling: its
+ * default cap is too low for a cleaned transcript, and openai/gpt-oss-120b
+ * spends reasoning tokens from the same budget, so omitting it returns
+ * finish_reason=length on long dictations. See GROQ_MAX_COMPLETION_TOKENS.
+ */
+export function buildGroqBody(payload: CorrectionRequestPayload, model: string): Record<string, unknown> {
+  return {
+    model,
+    ...payload,
+    max_completion_tokens: GROQ_MAX_COMPLETION_TOKENS,
+    reasoning_effort: 'low',
+    stream: false,
+  };
+}
 
 export async function requestGroqChat(
   payload: CorrectionRequestPayload,
@@ -33,7 +50,7 @@ export async function requestGroqChat(
       providerTag: 'groq',
       errorLogLabel: 'Groq LLM API',
       errorChatLabel: 'Groq chat',
-      buildBody: (body, model) => ({ model, ...body, reasoning_effort: 'low', stream: false }),
+      buildBody: buildGroqBody,
       computeCost: computeGroqChatCost,
     },
     payload,

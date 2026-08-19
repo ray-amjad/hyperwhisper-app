@@ -1,4 +1,6 @@
 // @ts-check
+import { fileURLToPath } from 'node:url';
+
 import createNextIntlPlugin from 'next-intl/plugin';
 
 /**
@@ -11,19 +13,16 @@ const withNextIntl = createNextIntlPlugin();
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    eslint: {
-        // Disable ESLint during production builds
-        // ESLint will still run during development (npm run lint)
-        ignoreDuringBuilds: true,
-    },
-    // Webpack configuration
-    webpack: (config) => {
-        // Allow importing .txt files as raw strings (asset/source)
-        config.module.rules.push({
-            test: /\.txt$/i,
-            type: 'asset/source',
-        });
-        return config;
+    // Next.js 16 removed `eslint` (and lint entirely) from the build pipeline
+    // (`next lint` is gone); this config key is no longer recognized. Prod
+    // builds already never ran lint here, so there's no behavior change - the
+    // `lint` npm script calls `eslint` directly instead of `next lint`.
+    // Turbopack is the default bundler for `next dev`/`next build` as of Next.js 16.
+    turbopack: {
+        // This app lives in a monorepo alongside a sibling top-level
+        // pnpm-lock.yaml; pin the workspace root to this directory so
+        // Turbopack doesn't have to guess (and warn) about it.
+        root: fileURLToPath(new URL('.', import.meta.url)),
     },
 };
 

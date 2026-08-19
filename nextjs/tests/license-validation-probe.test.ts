@@ -3,48 +3,54 @@ import test from "node:test";
 
 import { probeLicenseKeyReadOnly } from "../src/lib/license-validation-probe";
 
-test("returns a stored granted key without contacting Polar", async () => {
-  let polarCalls = 0;
-
+test("returns a stored granted key as valid", async () => {
   const result = await probeLicenseKeyReadOnly("  stored-key  ", {
     findStoredLicense: async (key) => {
       assert.equal(key, "stored-key");
       return { status: "granted" };
     },
-    validateWithPolar: async () => {
-      polarCalls += 1;
-      return { status: "granted" };
-    },
   });
 
   assert.deepEqual(result, { valid: true });
-  assert.equal(polarCalls, 0);
 });
 
-test("validates an unknown key through read-only Polar fallback", async () => {
-  const calls: string[] = [];
-
-  const result = await probeLicenseKeyReadOnly("polar-key", {
-    findStoredLicense: async () => null,
-    validateWithPolar: async (key) => {
-      calls.push(key);
-      return { status: "granted" };
-    },
-  });
-
-  assert.deepEqual(result, { valid: true });
-  assert.deepEqual(calls, ["polar-key"]);
-});
-
-test("rejects non-granted Polar keys without a persistence dependency", async () => {
-  const result = await probeLicenseKeyReadOnly("revoked-key", {
-    findStoredLicense: async () => null,
-    validateWithPolar: async () => ({ status: "revoked" }),
+test("rejects a non-granted stored key as an entitlement verdict", async () => {
+  const result = await probeLicenseKeyReadOnly("expired-key", {
+    findStoredLicense: async () => ({ status: "expired" }),
   });
 
   assert.deepEqual(result, {
     valid: false,
-    error: "License is revoked",
+    error: "License is expired",
     status: 400,
+    reason: "not_entitled",
   });
+});
+
+test("reports an unknown key as not_entitled, not an incident", async () => {
+  // The commonest rejection of all — a mistyped or non-existent key. It must
+  // carry `not_entitled` so the macOS client does not file a Sentry error for
+  // an ordinary bad key (HYPERWHISPER-SP / HYPERWHISPER-FM).
+  const result = await probeLicenseKeyReadOnly("no-such-key", {
+    findStoredLicense: async () => null,
+  });
+
+  assert.deepEqual(result, {
+    valid: false,
+    error: "License key not found",
+    status: 400,
+    reason: "not_entitled",
+  });
+});
+
+test("keeps the HTTP status at 400 for the unknown-key verdict", async () => {
+  // The status code is deliberately unchanged by the classification: `reason`
+  // is the discriminator, not the status. A client keying off the status alone
+  // sees exactly what it saw before.
+  const result = await probeLicenseKeyReadOnly("no-such-key", {
+    findStoredLicense: async () => null,
+  });
+
+  assert.equal(result.valid, false);
+  assert.equal(result.valid === false && result.status, 400);
 });

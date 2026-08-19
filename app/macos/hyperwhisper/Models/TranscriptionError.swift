@@ -39,6 +39,32 @@ enum TranscriptionError: LocalizedError {
     /// Local LLM runtime (llama-server) could not be started for post-processing.
     /// Raw transcript is still returned; this notifies the user that post-processing was skipped.
     case localRuntimeUnavailable(reason: String)
+    /// HyperWhisper Cloud was requested without an account key. The guest /
+    /// device-credit path no longer exists server-side, so the upload is
+    /// guaranteed to 401 — we refuse locally instead of burning the round-trip
+    /// and reporting a non-actionable Sentry error. Fail-closed only: this is
+    /// never used to *grant* access, the server stays the sole authority.
+    case cloudAccountRequired(provider: String? = nil)
+    /// The local speech (whisper.cpp) model was unloaded to reclaim memory and
+    /// could not be made resident again for this pass — memory pressure is
+    /// sustained and evicted the freshly reloaded runtime too.
+    ///
+    /// Its OWN case, not a `providerNotAvailable` reason string, because the
+    /// fingerprint is `[category, kind, stage]` and `kind` comes from the case
+    /// alone: as prose it landed in the very HYPERWHISPER-SQ group it exists to
+    /// close, so triage could not tell the fix from the bug. It is also
+    /// deliberately CAPTURED in Sentry — do not copy `.localRuntimeUnavailable`,
+    /// which is suppressed. If this fires we want to see it.
+    ///
+    /// - Parameter model: the model that was evicted, for diagnostics.
+    ///
+    /// ⚠️ APPEND-ONLY ENUM — always add new cases at the END, never in the
+    /// middle, and move this warning down to stay on the last case.
+    /// `(error as NSError).code` is the Swift-synthesized *positional* case
+    /// index and is recorded in Sentry extras as `errorCode`. Inserting a case
+    /// mid-enum silently renumbers every case after it and invalidates all
+    /// historical Sentry triage.
+    case localSpeechModelEvicted(model: String? = nil)
 
     var errorDescription: String? {
         switch self {
@@ -108,6 +134,17 @@ enum TranscriptionError: LocalizedError {
             // Plain-language, no llama-server / "health check" jargon. The raw
             // `reason` is logged at the call sites, not shown to the user.
             return "transcription.error.localRuntimeUnavailable".localized
+        case .cloudAccountRequired:
+            // Deliberately ignores the associated `provider`: the message names
+            // HyperWhisper Cloud directly and points at Settings → HyperWhisper
+            // Cloud, so the string needs no format specifier. The provider value
+            // is carried for logs/classification only.
+            return "transcription.error.cloudAccountRequired".localized
+        case .localSpeechModelEvicted:
+            // Deliberately ignores the associated `model`: the user cannot act
+            // on the model name, only on the memory pressure. The name is
+            // carried for logs and Sentry.
+            return "transcription.error.localSpeechModelEvicted".localized
         }
     }
 
@@ -118,7 +155,10 @@ enum TranscriptionError: LocalizedError {
             return true
         case .rateLimited(_):
             return true  // Can retry after waiting
-        case .audioFileNotFound, .apiKeyMissing(_), .modelNotDownloaded, .modelProtected, .maxRetriesExceeded, .unauthorized(_), .invalidRequest, .busy, .invalidAudioFormat, .audioConversionFailed, .audioFileTooLarge(_, _, _), .insufficientCredits(_, _), .quotaExceeded(_, _), .noSpeechDetected, .localRuntimeUnavailable(_):
+        // `.localSpeechModelEvicted` is NOT retryable: the pass already reloaded
+        // the model once and lost it again, so the pressure is sustained and an
+        // automatic retry would reload and lose it over and over.
+        case .audioFileNotFound, .apiKeyMissing(_), .modelNotDownloaded, .modelProtected, .maxRetriesExceeded, .unauthorized(_), .invalidRequest, .busy, .invalidAudioFormat, .audioConversionFailed, .audioFileTooLarge(_, _, _), .insufficientCredits(_, _), .quotaExceeded(_, _), .noSpeechDetected, .localRuntimeUnavailable(_), .cloudAccountRequired(_), .localSpeechModelEvicted(_):
             return false
         }
     }
@@ -130,6 +170,7 @@ enum TranscriptionError: LocalizedError {
     /// - Unauthorized errors (invalid API key) → user can fix key
     /// - Insufficient credits → user can check subscription
     /// - Quota exceeded → user can check subscription
+    /// - Cloud account required → user can enter an account key
     ///
     /// **Hide Settings Button For (not fixable in settings):**
     /// - No speech detected → just retry with clearer speech
@@ -139,13 +180,15 @@ enum TranscriptionError: LocalizedError {
     /// - Timeout errors → transient, retry later
     var showSettingsButton: Bool {
         switch self {
-        case .apiKeyMissing, .unauthorized, .insufficientCredits, .quotaExceeded:
+        case .apiKeyMissing, .unauthorized, .insufficientCredits, .quotaExceeded,
+             .cloudAccountRequired:
             return true
         case .noSpeechDetected, .transientNetwork, .invalidResponse, .rateLimited, .serverError, .timeout,
              .providerNotAvailable, .modelNotDownloaded, .modelProtected, .audioFileNotFound,
              .maxRetriesExceeded, .invalidRequest, .streamingInterrupted, .busy,
              .invalidAudioFormat, .audioConversionFailed, .audioFileTooLarge(_, _, _),
-             .localRuntimeUnavailable(_):
+             .localRuntimeUnavailable(_), .localSpeechModelEvicted(_):
+            // Nothing in Settings frees memory; the user's action is elsewhere.
             return false
         }
     }
@@ -164,69 +207,4 @@ enum TranscriptionError: LocalizedError {
         }
     }
 
-    /// User guidance for resolving the error
-    var userGuidance: String? {
-        switch self {
-        case .providerNotAvailable(let provider, _):
-            if let provider = provider {
-                return "transcription.guidance.providerNotAvailable.provider".localized(arguments: provider)
-            }
-            return "transcription.guidance.providerNotAvailable".localized
-        case .apiKeyMissing(let provider):
-            if let provider = provider {
-                return "transcription.guidance.apiKeyMissing.provider".localized(arguments: provider)
-            }
-            return "transcription.guidance.apiKeyMissing.generic".localized
-        case .modelNotDownloaded:
-            return "transcription.guidance.modelNotDownloaded".localized
-        case .modelProtected:
-            return "transcription.guidance.modelProtected".localized
-        case .audioFileNotFound:
-            return "transcription.guidance.audioFileNotFound".localized
-        case .transientNetwork(_), .invalidResponse(_):
-            return "transcription.guidance.networkError".localized
-        case .unauthorized(let provider):
-            if let provider = provider {
-                return "transcription.guidance.unauthorized.provider".localized(arguments: provider)
-            }
-            return "transcription.guidance.unauthorized.generic".localized
-        case .invalidRequest:
-            return "transcription.guidance.invalidRequest".localized
-        case .invalidAudioFormat:
-            return "transcription.guidance.invalidAudioFormat".localized
-        case .audioConversionFailed:
-            return "transcription.guidance.audioConversionFailed".localized
-        case .audioFileTooLarge(_, _, _):
-            return "transcription.guidance.audioFileTooLarge".localized
-        case .serverError(_, _):
-            return "transcription.guidance.serverError".localized
-        case .rateLimited(_):
-            return "transcription.guidance.rateLimited".localized
-        case .insufficientCredits(_, _):
-            return "transcription.guidance.insufficientCredits".localized
-        case .quotaExceeded(let provider, _):
-            return "transcription.guidance.quotaExceeded".localized(arguments: provider)
-        case .timeout(_):
-            return "transcription.guidance.timeout".localized
-        case .noSpeechDetected:
-            return "transcription.guidance.noSpeechDetected".localized
-        case .localRuntimeUnavailable:
-            return "transcription.guidance.localRuntimeUnavailable".localized
-        default:
-            return nil
-        }
-    }
-}
-
-// MARK: - Private Helpers
-
-/// Format file size in bytes to human-readable string (e.g., "25 MB", "1.5 GB")
-private func formatFileSize(_ bytes: Int64) -> String {
-    if bytes >= 1024 * 1024 * 1024 {
-        let gb = Double(bytes) / (1024.0 * 1024.0 * 1024.0)
-        return String(format: "%.1f GB", gb)
-    } else {
-        let mb = bytes / (1024 * 1024)
-        return "\(mb) MB"
-    }
 }

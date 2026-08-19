@@ -50,18 +50,6 @@ enum AutoDeleteTimeUnit: String, CaseIterable, Codable {
         }
     }
 
-    /// Plural localized display name for the time unit
-    var localizedNamePlural: String {
-        switch self {
-        case .minutes:
-            return NSLocalizedString("history.autoDelete.unit.minutes.plural", value: "minutes", comment: "")
-        case .hours:
-            return NSLocalizedString("history.autoDelete.unit.hours.plural", value: "hours", comment: "")
-        case .days:
-            return NSLocalizedString("history.autoDelete.unit.days.plural", value: "days", comment: "")
-        }
-    }
-
     /// Convert the value in this unit to seconds for date calculations
     /// - Parameter value: The number of units
     /// - Returns: The equivalent duration in seconds
@@ -189,21 +177,6 @@ class AutoDeleteSettingsManager: ObservableObject {
         return Date().addingTimeInterval(-secondsAgo)
     }
 
-    /// Human-readable description of current auto-delete settings
-    /// Example: "Delete recordings older than 30 days"
-    var settingsDescription: String {
-        if !autoDeleteEnabled {
-            return NSLocalizedString("history.autoDelete.status.disabled", value: "Automatic deletion is disabled", comment: "")
-        }
-
-        let format = NSLocalizedString(
-            "history.autoDelete.status.enabled",
-            value: "Delete recordings older than %d %@",
-            comment: "Format: Delete recordings older than [number] [unit]"
-        )
-        return String(format: format, autoDeleteValue, autoDeleteTimeUnit.localizedNamePlural)
-    }
-
     // MARK: - Initialization
 
     init() {
@@ -225,25 +198,4 @@ class AutoDeleteSettingsManager: ObservableObject {
         logger.info("Auto-delete value set to \(self.autoDeleteValue, privacy: .public) \(self.autoDeleteTimeUnit.rawValue, privacy: .public)")
     }
 
-    /// Resets auto-delete settings to defaults
-    /// - Enabled: false
-    /// - Time unit: days
-    /// - Value: 30
-    func resetToDefaults() {
-        autoDeleteEnabled = false
-        autoDeleteTimeUnit = .days
-        autoDeleteValue = 30
-        logger.info("Auto-delete settings reset to defaults")
-    }
-
-    /// Log current settings for debugging
-    func logCurrentSettings() {
-        logger.info("""
-            Auto-delete settings:
-            - Enabled: \(self.autoDeleteEnabled, privacy: .public)
-            - Unit: \(self.autoDeleteTimeUnit.rawValue, privacy: .public)
-            - Value: \(self.autoDeleteValue, privacy: .public)
-            - Cutoff: \(String(describing: self.deletionCutoffDate), privacy: .public)
-            """)
-    }
 }

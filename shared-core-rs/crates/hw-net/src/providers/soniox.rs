@@ -48,13 +48,14 @@ use crate::contract::{
     TranscriptionError,
 };
 use crate::helpers::{keyword_boost_terms, resolve_mime, MULTIPART_BOUNDARY};
-use crate::providers::common::filename_of;
+use crate::providers::common::{filename_of, retry_after};
 
 /// Soniox API base URL.
 pub const BASE_URL: &str = "https://api.soniox.com/v1";
 
-/// Default model when `params.model` is empty. PARITY: macOS `stt-async-v5`
-/// (verified platform); Windows uses `stt-async-v4` (documented divergence).
+/// Default model when `params.model` is empty. PARITY: macOS and Windows both
+/// default to `stt-async-v5` as of the 2026-08 model watch reconciliation
+/// (Windows previously defaulted to `stt-async-v4`; that divergence is resolved).
 pub const DEFAULT_MODEL: &str = "stt-async-v5";
 
 /// Resolve the effective base URL (override via `params.base_url`).
@@ -411,9 +412,7 @@ fn classify_soniox_http(resp: &HttpResponse, raw: &str) -> TranscriptionError {
         401 | 403 => TranscriptionError::Unauthorized,
         413 => TranscriptionError::FileTooLarge,
         429 => TranscriptionError::RateLimited {
-            retry_after_secs: resp
-                .header("Retry-After")
-                .and_then(|v| v.trim().parse::<u64>().ok()),
+            retry_after_secs: retry_after(resp),
         },
         500..=599 => TranscriptionError::ProviderUnavailable { status },
         _ => TranscriptionError::BadRequest {

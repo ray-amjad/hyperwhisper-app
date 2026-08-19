@@ -39,18 +39,28 @@
 // round-trip up to the sync timeout on the most common input format. Rather
 // than transcode, sync eligibility is gated on a WAV `contentType` — see
 // `isWavContentType` below. Mirrors the Rust core's `build_sync_request`.
+//
+// Container SPELLING is a separate concern from the gate: sync matches the
+// audio part's Content-Type against a fixed set and 415s everything else, so
+// the caller's own WAV spelling is NEVER forwarded — see
+// `SYNC_AUDIO_CONTENT_TYPE` below.
 
 import { computeAssemblyAISyncTranscriptionCost, computeAssemblyAITranscriptionCost } from '../lib/cost-calculator';
 import { MEDICAL_DOMAIN } from '../lib/stt-models';
 import { ProviderInputError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
-import { computeUploadTimeoutMs, estimateSecondsFromBytes, fetchWithTimeout, logProviderEvent, readErrorBodyPreview, sleep } from './utils';
+import { computeUploadTimeoutMs, estimateSecondsFromBytes, explicitLanguageSubtag, fetchWithTimeout, isExplicitLanguage, logProviderEvent, readErrorBodyPreview, sleep, splitVocabularyTerms } from './utils';
 
 const ASSEMBLYAI_BASE = 'https://api.assemblyai.com';
 const ASSEMBLYAI_SYNC_BASE = 'https://sync.assemblyai.com';
-const DEFAULT_MODEL = 'universal-3-pro';
+// Universal-3.5 Pro is AssemblyAI's current default (GA 2026-07-01, successor to
+// Universal-3 Pro) — matches stt-models.ts's `assemblyai.defaultModel` and the
+// sync fast path's SYNC_DEFAULT_MODEL below. universal-3-pro remains a valid,
+// billable id (see BILLABLE_MODELS) for any caller that pins it explicitly.
+const DEFAULT_MODEL = 'universal-3-5-pro';
 const MEDICAL_DOMAIN_VALUE = 'medical-v1';
 const MAX_KEYTERMS = 200;
+const MAX_KEYTERM_CHARS = 50;
 // Max words per `keyterms_prompt` phrase (AssemblyAI spec). Applied by BOTH
 // the async create-request term cap below AND the sync fast path's
 // char-budget cap — mirrors the shared Rust core's `MAX_KEYTERM_WORDS`
@@ -73,6 +83,28 @@ const MAX_KEYTERM_WORDS = 6;
 //   precisely, just log a best-effort reason.
 const SYNC_TRANSCRIBE_URL = `${ASSEMBLYAI_SYNC_BASE}/v1/transcribe`;
 const SYNC_DEFAULT_MODEL = 'universal-3-5-pro';
+// The Content-Type put on the `audio` multipart part, ALWAYS — the caller's
+// own `contentType` is deliberately not forwarded. Sync matches this value
+// against a fixed set and rejects anything else with
+// `{"status":415,"title":"Unsupported Media Type","detail":"unsupported audio
+// Content-Type: '<value>'"}` BEFORE decoding a byte, so an unrecognised
+// spelling of WAV fails 100% of the time regardless of the audio itself.
+//
+// Measured against the live API (2026-08-16, one 7s 16 kHz mono WAV, same
+// bytes each time): `audio/wav`, `audio/wave` and `audio/x-wav` -> 200;
+// `audio/vnd.wave` and `application/octet-stream` -> 415. The multipart
+// filename has no effect either way.
+//
+// `audio/vnd.wave` is not hypothetical: it is what macOS's
+// `UTType.preferredMIMEType` returns for a .wav file, so it is the value
+// `AudioMimeTypeResolver` puts on every macOS upload, and it is what the
+// desktop app actually sent here. Until this constant existed, EVERY macOS
+// sync attempt 415'd and fell through to the async upload/create/poll flow —
+// the fast path was dead on arrival for the platform that produces most of
+// the traffic. `isWavContentType` stays a loose substring gate because it
+// answers a different question ("is this a WAV container?"); this is what
+// goes on the wire. Mirrors the Rust core's `sync_flow::SYNC_AUDIO_MIME`.
+const SYNC_AUDIO_CONTENT_TYPE = 'audio/wav';
 const SYNC_MAX_DURATION_SECONDS = 120;
 // Safety margin below the hard cap: `estimateSecondsFromBytes` is a rough
 // 64kbps-encoded guess, not a real duration. An estimate landing in the last
@@ -133,10 +165,7 @@ function capKeytermsByTotalChars(terms: string[], budget: number): string[] {
  * actual request. */
 function trimExplicitLanguage(language: string | undefined): string | undefined {
   const trimmed = language?.trim();
-  if (!trimmed || trimmed.toLowerCase() === 'auto') {
-    return undefined;
-  }
-  return trimmed;
+  return isExplicitLanguage(trimmed) ? trimmed : undefined;
 }
 
 /** `true` when `language` is an explicit, non-"auto" language — the only case
@@ -159,10 +188,11 @@ function isWavContentType(contentType: string): boolean {
 }
 // The billable model is whatever AssemblyAI actually RAN (reported in the
 // completed transcript), which may differ from the requested model because
-// `speech_models` is a priority list that falls back universal-3-pro →
-// universal-2 for unsupported languages. Only these ids are recognized for
-// billing; an unknown/missing value falls back to the requested model.
-const BILLABLE_MODELS = new Set(['universal-3-pro', 'universal-2']);
+// `speech_models` is a priority list that falls back universal-3-pro /
+// universal-3-5-pro → universal-2 for unsupported languages. Only these ids
+// are recognized for billing; an unknown/missing value falls back to the
+// requested model.
+const BILLABLE_MODELS = new Set(['universal-3-pro', 'universal-3-5-pro', 'universal-2']);
 const POLL_INTERVAL_MS = 2_500;
 const POLL_DEADLINE_MS = 240_000;
 
@@ -172,11 +202,10 @@ function authHeaders(apiKey: string): Record<string, string> {
 }
 
 function toKeyterms(initialPrompt: string): string[] {
-  return initialPrompt
-    .split(/[,\n;]+/)
-    .map((t) => t.trim().replace(/^[-*]\s*/, ''))
-    .filter((t) => t.length >= 1 && t.length <= 50)
-    .slice(0, MAX_KEYTERMS);
+  return splitVocabularyTerms(initialPrompt, {
+    maxTerms: MAX_KEYTERMS,
+    maxTermChars: MAX_KEYTERM_CHARS,
+  });
 }
 
 /** Drop keyterm phrases over `MAX_KEYTERM_WORDS` words — mirrors the Rust
@@ -220,7 +249,6 @@ function throwForStatus(status: number, bodyPreview: string): never {
  */
 async function transcribeWithAssemblyAISync(
   audio: ArrayBuffer,
-  contentType: string,
   language: string | undefined,
   initialPrompt: string | undefined,
   apiKey: string,
@@ -235,7 +263,7 @@ async function transcribeWithAssemblyAISync(
     // Sync's `config.language_codes` has no `language_detection` sibling flag
     // like async's create body — omitting it entirely IS auto-detection, so
     // there's no explicit "auto" branch to send here (unlike async).
-    const code = explicitLanguage.toLowerCase().split(/[-_]/)[0];
+    const code = explicitLanguageSubtag(explicitLanguage);
     if (code) {
       config.language_codes = [code];
     }
@@ -248,7 +276,9 @@ async function transcribeWithAssemblyAISync(
   }
 
   const form = new FormData();
-  form.append('audio', new Blob([audio], { type: contentType || 'application/octet-stream' }), 'audio');
+  // Canonical `audio/wav`, NOT `contentType` — see SYNC_AUDIO_CONTENT_TYPE.
+  // The filename mirrors the Python SDK's `audio.wav`; sync ignores it.
+  form.append('audio', new Blob([audio], { type: SYNC_AUDIO_CONTENT_TYPE }), 'audio.wav');
   if (Object.keys(config).length > 0) {
     // Append as a plain string, NOT a Blob. Per the FormData/multipart spec, a
     // Blob part without an explicit filename serializes as `filename="blob"`,
@@ -393,7 +423,7 @@ export async function transcribeWithAssemblyAI(
     logProviderEvent(provider, 'sync_attempt', {
       estimatedSeconds, thresholdSeconds: SYNC_ELIGIBLE_ESTIMATED_SECONDS,
     }, context);
-    const syncResult = await transcribeWithAssemblyAISync(audio, contentType, language, initialPrompt, apiKey, context);
+    const syncResult = await transcribeWithAssemblyAISync(audio, language, initialPrompt, apiKey, context);
     if (syncResult) {
       return syncResult;
     }
@@ -434,27 +464,31 @@ export async function transcribeWithAssemblyAI(
   // ── 2. Create the transcript job ──
   // `speech_models` is a priority/fallback list: AssemblyAI tries each model in
   // order and falls back to the next for languages the prior one doesn't cover.
-  // universal-3-pro natively supports only 6 languages (EN/ES/PT/FR/DE/IT), so
-  // we append universal-2 to reach all 99 — otherwise language_detection on any
-  // other language fails (this is a self-only chain). universal-2 covers all 99
-  // on its own, so it needs no fallback.
+  // universal-3-pro natively supports only 6 languages (EN/ES/PT/FR/DE/IT) and
+  // universal-3-5-pro natively supports 18, so we append universal-2 to reach
+  // all 99 — otherwise language_detection on any other language fails (this is
+  // a self-only chain). universal-2 covers all 99 on its own, so it needs no
+  // fallback.
   // Ref: https://www.assemblyai.com/docs/pre-recorded-audio/universal-3-pro —
   // "use ['universal-3-pro', 'universal-2'] to fall back to Universal-2 for
-  // unsupported languages."
-  const speechModels = model === 'universal-3-pro' ? ['universal-3-pro', 'universal-2'] : [model];
+  // unsupported languages." Universal-3.5 Pro documents the same pattern.
+  const speechModels = (model === 'universal-3-pro' || model === 'universal-3-5-pro')
+    ? [model, 'universal-2']
+    : [model];
   const createBody: Record<string, unknown> = {
     audio_url: uploadUrl,
     speech_models: speechModels,
   };
-  if (language && language.toLowerCase() !== 'auto') {
-    // AssemblyAI's `language_code` expects a bare ISO-639-1 code (e.g. "en",
-    // "es", "pt"), NOT a hyphenated BCP-47 locale: "en-US" → "en-us" is rejected
-    // at job creation. AssemblyAI does support a few underscore English variants
-    // (en_us / en_uk), but converting hyphens to underscores wholesale would
-    // synthesize unsupported region codes (es_es, fr_fr), so — like the OpenAI
-    // and Soniox adapters — we strip the region to the always-valid primary
-    // subtag. This self-only provider has no sibling to recover a bad code.
-    createBody.language_code = language.toLowerCase().split(/[-_]/)[0];
+  // AssemblyAI's `language_code` expects a bare ISO-639-1 code (e.g. "en",
+  // "es", "pt"), NOT a hyphenated BCP-47 locale: "en-US" → "en-us" is rejected
+  // at job creation. AssemblyAI does support a few underscore English variants
+  // (en_us / en_uk), but converting hyphens to underscores wholesale would
+  // synthesize unsupported region codes (es_es, fr_fr), so — like the OpenAI
+  // and Soniox adapters — we strip the region to the always-valid primary
+  // subtag. This self-only provider has no sibling to recover a bad code.
+  const languageCode = explicitLanguageSubtag(language);
+  if (languageCode !== undefined) {
+    createBody.language_code = languageCode;
   } else {
     createBody.language_detection = true;
   }
@@ -464,9 +498,9 @@ export async function transcribeWithAssemblyAI(
   }
   if (medical) {
     // Medical Mode is an add-on enabled by `domain: "medical-v1"`, NOT a model
-    // switch: AssemblyAI documents it as supported on Universal-3 Pro AND
-    // Universal-2 (optimized for U3 Pro), "no model switch required". So it
-    // pairs correctly with the default universal-3-pro and its universal-2
+    // switch: AssemblyAI documents it as supported on the Universal-3.x Pro tier
+    // AND Universal-2 (optimized for U3 Pro), "no model switch required". So it
+    // pairs correctly with the default universal-3-5-pro and its universal-2
     // fallback above. Supported languages: EN, ES, DE, FR.
     // Ref: https://www.assemblyai.com/docs/getting-started/models — Medical Mode.
     createBody.domain = MEDICAL_DOMAIN_VALUE;
@@ -556,11 +590,11 @@ export async function transcribeWithAssemblyAI(
           : estimateSecondsFromBytes(audio.byteLength);
 
         // Bill the model that ACTUALLY ran, not the one requested. With the
-        // `speech_models` priority list, universal-3-pro silently falls back to
-        // universal-2 for unsupported languages — universal-2 is cheaper and its
-        // keyterms are free, so billing the requested universal-3-pro rate (+
-        // keyterms add-on) over-charges. `speech_model_used` reports the model
-        // that ran; read defensively and only trust a recognized id so an
+        // `speech_models` priority list, the Universal-3.x Pro tier silently
+        // falls back to universal-2 for unsupported languages — universal-2 is
+        // cheaper and its keyterms are free, so billing the requested Pro-tier
+        // rate (+ keyterms add-on) over-charges. `speech_model_used` reports the
+        // model that ran; read defensively and only trust a recognized id so an
         // unexpected/missing value keeps the requested model (no regression).
         const reportedModel = (job.speech_model_used || job.speech_model || '').toLowerCase();
         const billedModel = BILLABLE_MODELS.has(reportedModel) ? reportedModel : model;
@@ -586,7 +620,7 @@ export async function transcribeWithAssemblyAI(
           source: 'assemblyai',
           // Report the model that ACTUALLY ran so the route labels X-STT-Model
           // and deduction metadata as universal-2 on a fallback, not the
-          // requested universal-3-pro (which is what we billed for too).
+          // requested Pro-tier model (which is what we billed for too).
           model: billedModel,
           requestId: transcriptId,
         };

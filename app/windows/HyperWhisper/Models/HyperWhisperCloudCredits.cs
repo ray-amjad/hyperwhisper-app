@@ -119,13 +119,6 @@ public class HyperWhisperCloudCredits
     }
 
     /// <summary>
-    /// Short formatted balance for compact display.
-    /// Example: "~24 min"
-    /// </summary>
-    [JsonIgnore]
-    public string ShortFormattedBalance => $"~{MinutesRemaining} min";
-
-    /// <summary>
     /// Whether credits are completely exhausted.
     /// </summary>
     [JsonIgnore]

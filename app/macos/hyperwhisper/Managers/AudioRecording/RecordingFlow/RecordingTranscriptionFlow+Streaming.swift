@@ -359,6 +359,29 @@ extension RecordingTranscriptionFlow {
             }
 
             let (identifier, isLicensed) = licenseManager.getTranscriptionIdentifier()
+
+            // Fail fast: the streaming WebSocket authenticates an account /
+            // licence key only — the guest `device_id` path is gone server-side
+            // — so an unlicensed session is a guaranteed 401, surfaced by the
+            // provider as a misleading "invalid API key" for a provider that has
+            // no user-supplied API key (HYPERWHISPER-T2). Refuse locally instead.
+            // Fail-closed only; the backend stays the sole authority.
+            // See HyperWhisperCloudEntitlement.
+            do {
+                try HyperWhisperCloudEntitlement.requireLicense(
+                    isLicensed: isLicensed,
+                    provider: StreamingTranscriptionProvider.hyperwhisperCloud.displayName
+                )
+            } catch {
+                // Not a Sentry error: this is an expected, user-recoverable
+                // state, and `cancelRecordingWithError` only logs + shows the
+                // inline toast (which carries a Settings button because the
+                // message names an "account key").
+                AppLogger.audio.warning("⚠️ Streaming refused: HyperWhisper Cloud selected without an account key")
+                await cancelRecordingWithError(error.localizedDescription)
+                return
+            }
+
             licenseKey = isLicensed ? identifier : nil
             deviceId = isLicensed ? nil : identifier
         }
@@ -425,6 +448,20 @@ extension RecordingTranscriptionFlow {
         // Capture language for the callback so we can use paste for CJK languages
         // instead of slow character-by-character typing. See TextInputService.typeSegment().
         let streamingLanguage = language
+        // FILLER-REMOVAL LANGUAGE HINT:
+        // `streamingLanguage` is nil for Auto-detect — the app's default — and no
+        // streaming provider (remote or local) surfaces a post-hoc detected
+        // language the way the batch path's HyperWhisperCloudProvider does
+        // (TranscriptionPipeline+Transcription.swift reads provider.detectedLanguage
+        // after transcribe() returns; streaming has no equivalent signal for any
+        // provider). Rather than silently never removing fillers for the default
+        // configuration, fall back to the system locale as an English-confidence
+        // proxy — mirroring the existing Locale.current fallback in
+        // AppleSpeechAnalyzerProvider.resolveLocale(language:). Gated so a
+        // non-English system locale never risks stripping real words; this hint
+        // is used ONLY for filler removal, never for typing/CJK/vocabulary, which
+        // continue to treat the language as genuinely unknown.
+        let fillerRemovalLanguage = Self.fillerRemovalLanguageHint(streamingLanguage: streamingLanguage)
         let isLocalProvider = StreamingTranscriptionProvider(rawValue: provider)?.isLocal ?? false
         // Exact-vocab substitutions on the local path. Cloud providers
         // already receive vocabulary hints server-side; re-applying
@@ -438,18 +475,27 @@ extension RecordingTranscriptionFlow {
                     "🧩 Streaming final delta received: chars=\(text.count, privacy: .public) spaces=\(Self.whitespaceCount(text), privacy: .public) text=\(Self.diagnosticExcerpt(text), privacy: .public)"
                 )
 
-                // VOICE COMMAND PROCESSING:
-                // Detect and replace voice commands (e.g., "new line" → actual newlines)
-                // This must happen before accumulation so both history and display reflect it.
-                var processedText = TranscriptionTextProcessing.processVoiceCommands(text)
-
-                // Local streaming gets exact-vocab parity with batch: fast,
-                // deterministic substitutions on each confirmed delta.
+                // FILLER WORDS → VOICE COMMANDS → VOCABULARY:
+                // Mirrors the batch path's order (TranscriptionPipeline+Transcription.swift).
+                // Filler removal must run first so it sees the raw delta, and is
+                // gated on the same setting used by batch transcription. It's a
+                // no-op for non-English languages (see removeFillerWords doc).
                 // Phonetic matching and AI post-processing are deliberately
                 // skipped here (too slow / stream-incompatible).
-                if !localVocabulary.isEmpty {
-                    processedText = Self.applyStreamingVocabulary(processedText, vocabulary: localVocabulary)
-                }
+                //
+                // isFirstConfirmedDelta: only the session's very first confirmed
+                // delta should have a leading filler's next word force-capitalized
+                // (that recapitalization assumes it's processing a sentence start).
+                // Later deltas are mid-transcript continuations — check BEFORE this
+                // delta is appended below.
+                let isFirstConfirmedDelta = self.streamingAccumulatedText.isEmpty
+                let processedText = Self.processConfirmedStreamingDelta(
+                    text,
+                    language: fillerRemovalLanguage,
+                    removeFillerWords: self.settingsManager?.removeFillerWords ?? true,
+                    vocabulary: localVocabulary,
+                    isFirstConfirmedDelta: isFirstConfirmedDelta
+                )
 
                 // Accumulate for history + final paste
                 if !self.streamingAccumulatedText.isEmpty && !processedText.isEmpty {
@@ -539,18 +585,32 @@ extension RecordingTranscriptionFlow {
         service.onError = { [weak self] error in
             guard let self = self else { return }
             AppLogger.audio.error("❌ Streaming error: \(error.localizedDescription, privacy: .public)")
-            SentryService.capture(
-                error: error,
-                message: "Streaming WebSocket error",
-                extras: [
-                    "attemptId": self.currentRecordingAttemptId ?? "none"
-                ],
-                tags: [
-                    "component": "StreamingTranscription",
-                    "provider": provider,
-                    "operation": "onError"
-                ]
-            )
+
+            // AN ACCOUNT WITH NO CREDITS IS NOT A DEFECT.
+            //
+            // The client already captured this fault once, tagged `terminal`,
+            // carrying the provider label and the server's own wording. A second
+            // capture here says less about the same event and is the one that
+            // reads as an outage — "Streaming WebSocket error" on a user whose
+            // only problem is an empty balance. Everything the app cannot fix
+            // itself still comes through untouched.
+            //
+            // This decides what is *reported*, never what is *shown*: the toast
+            // below is unchanged.
+            if StreamingErrorReportingPolicy.shouldCaptureInSentry(error) {
+                SentryService.capture(
+                    error: error,
+                    message: "Streaming WebSocket error",
+                    extras: [
+                        "attemptId": self.currentRecordingAttemptId ?? "none"
+                    ],
+                    tags: [
+                        "component": "StreamingTranscription",
+                        "provider": provider,
+                        "operation": "onError"
+                    ]
+                )
+            }
 
             // Full cleanup to prevent zombie sessions:
             // Without this, isStreamingActive stays true, recordingState stays .recording,
@@ -578,7 +638,9 @@ extension RecordingTranscriptionFlow {
                 self.appState?.isStreamingShortcutTriggered = false
                 KeyboardShortcuts.disable(.cancelRecording)
                 StreamingPreviewWindowManager.shared.close()
-                self.appState?.showError("Streaming error: \(error.localizedDescription)")
+                self.appState?.showError(
+                    StreamingErrorReportingPolicy.userMessage(for: error, context: "Streaming error: ")
+                )
             }
         }
 
@@ -687,7 +749,9 @@ extension RecordingTranscriptionFlow {
                 appState?.showStreamingPreview = false
                 StreamingPreviewWindowManager.shared.close()
             }
-            await cancelRecordingWithError("Failed to start streaming: \(error.localizedDescription)")
+            await cancelRecordingWithError(
+                StreamingErrorReportingPolicy.userMessage(for: error, context: "Failed to start streaming: ")
+            )
         }
     }
 
@@ -842,7 +906,7 @@ extension RecordingTranscriptionFlow {
     /// substrings (e.g. "Kat"→"Katherine" no longer rewrites "category"). This
     /// trades the previous `.diacriticInsensitive` matching for word-boundary
     /// safety, deliberately matching the batch matcher's behavior.
-    fileprivate static func applyStreamingVocabulary(_ text: String, vocabulary: [VocabularyEntrySnapshot]) -> String {
+    fileprivate nonisolated static func applyStreamingVocabulary(_ text: String, vocabulary: [VocabularyEntrySnapshot]) -> String {
         var updated = text
         for entry in vocabulary {
             guard let replacement = entry.replacement?.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -852,6 +916,86 @@ extension RecordingTranscriptionFlow {
             updated = VocabularyProcessor.applyHardenedReplacement(to: updated, word: entry.word, replacement: replacement)
         }
         return updated
+    }
+
+    /// Confirmed-delta transform for streaming transcription: filler-word
+    /// removal → voice-command processing → vocabulary substitution, mirroring
+    /// the batch path's order (`TranscriptionPipeline+Transcription.swift`).
+    ///
+    /// Extracted as a pure static function so it's directly testable without
+    /// standing up `RecordingTranscriptionFlow`/`AppState`/`SettingsManager`.
+    /// Only ever call this on confirmed/final deltas — applying filler removal
+    /// to interim/partial text would cause words to visibly pop in and out as
+    /// the partial hypothesis changes.
+    ///
+    /// - Parameter isFirstConfirmedDelta: Whether this is the session's first
+    ///   confirmed delta. `TranscriptionTextProcessing.removeFillerWords`
+    ///   recapitalizes the word after a leading filler on the assumption that
+    ///   it is processing the START of a whole transcript — true for the batch
+    ///   path, and for a session's first delta, but WRONG for a later delta
+    ///   (e.g. "um, this works" following an earlier confirmed "I think" is
+    ///   mid-transcript, not a new sentence). Defaults to `true` so existing
+    ///   call sites/tests that don't pass it keep today's sentence-opener
+    ///   behavior.
+    nonisolated static func processConfirmedStreamingDelta(
+        _ text: String,
+        language: String?,
+        removeFillerWords: Bool,
+        vocabulary: [VocabularyEntrySnapshot],
+        isFirstConfirmedDelta: Bool = true
+    ) -> String {
+        var withoutFillers = removeFillerWords
+            ? TranscriptionTextProcessing.removeFillerWords(text, language: language)
+            : text
+
+        if removeFillerWords && !isFirstConfirmedDelta {
+            withoutFillers = revertMidTranscriptRecapitalization(original: text, afterFillerRemoval: withoutFillers)
+        }
+
+        var processedText = TranscriptionTextProcessing.processVoiceCommands(withoutFillers)
+
+        if !vocabulary.isEmpty {
+            processedText = applyStreamingVocabulary(processedText, vocabulary: vocabulary)
+        }
+
+        return processedText
+    }
+
+    /// Undoes the sentence-opener recapitalization `removeFillerWords` applies
+    /// when it isn't warranted (a non-first streaming delta). Only reverses it
+    /// when the raw delta itself opened lowercase — if the delta already opened
+    /// uppercase, leave it as-is, since that's not something filler removal did.
+    fileprivate nonisolated static func revertMidTranscriptRecapitalization(
+        original: String,
+        afterFillerRemoval: String
+    ) -> String {
+        guard let originalFirst = original.first, originalFirst.isLowercase,
+              let resultFirst = afterFillerRemoval.first, resultFirst.isUppercase
+        else {
+            return afterFillerRemoval
+        }
+        return resultFirst.lowercased() + afterFillerRemoval.dropFirst()
+    }
+
+    /// Best-effort language hint for streaming filler-word removal only.
+    /// Auto-detect sessions pass `language: nil` everywhere else in the
+    /// streaming flow (typing/CJK handling, vocabulary) — those continue to
+    /// treat the language as genuinely unknown. But no streaming provider
+    /// (remote or local) surfaces a post-hoc detected language the way the
+    /// batch path's `HyperWhisperCloudProvider.detectedLanguage` does, so
+    /// `removeFillerWords` would otherwise silently never fire for the app's
+    /// default (Auto-detect) configuration. Mirrors the existing
+    /// `Locale.current` fallback in `AppleSpeechAnalyzerProvider.resolveLocale`:
+    /// only activates when the system locale is confidently English, so a
+    /// non-English auto-detect session is never at risk of losing real words.
+    fileprivate nonisolated static func fillerRemovalLanguageHint(streamingLanguage: String?) -> String? {
+        if let streamingLanguage {
+            return streamingLanguage
+        }
+        guard Locale.current.language.languageCode?.identifier.lowercased() == "en" else {
+            return nil
+        }
+        return "en"
     }
 
     fileprivate func bestStreamingCommitText(for deliveryMode: StreamingDeliveryMode) -> String {
@@ -921,7 +1065,20 @@ extension RecordingTranscriptionFlow {
     }
 
     /// Build a comma-separated vocabulary string from vocabulary entries.
-    /// Used for Deepgram's keyterm parameter.
+    /// Consumed by every streaming strategy that reports `supportsVocabulary`
+    /// (Deepgram `keyterm`, xAI `keyterm`, HyperWhisper Cloud `initial_prompt`).
+    ///
+    /// Applies the SAME two rules as the batch path's
+    /// `RustCoreMapping.boostVocabularyTerms`:
+    ///
+    /// - **replacement pairs are excluded.** An entry with a replacement is a
+    ///   find-and-replace correction (`Klawd` → `Claude`), not a recognition
+    ///   hint. Sending its `word` boosts the ASR toward the exact misspelling
+    ///   the user configured a fix for, and burns one of the provider's term
+    ///   slots doing it.
+    /// - **each term is sanitized** through `PromptBuilder.sanitizeVocabularyWord`,
+    ///   so an imported backup cannot push angle brackets or whitespace runs
+    ///   into a provider request.
     ///
     /// - Parameter vocabulary: Array of vocabulary entry snapshots
     /// - Returns: Comma-separated string of vocabulary terms, or nil if empty
@@ -930,7 +1087,8 @@ extension RecordingTranscriptionFlow {
         var seen = Set<String>()
 
         for item in vocabulary {
-            let word = item.word.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard item.replacement?.isEmpty != false else { continue }
+            let word = PromptBuilder.sanitizeVocabularyWord(item.word)
             guard !word.isEmpty,
                   !seen.contains(word.lowercased()) else {
                 continue

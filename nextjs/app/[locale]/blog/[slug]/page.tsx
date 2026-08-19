@@ -3,6 +3,7 @@ import { ArrowLeft } from "lucide-react";
 
 import { Link } from "@/src/i18n/navigation";
 import { getBlogPost, getBlogPosts } from "@/src/content/blog";
+import { formatLongUTCDate } from "@/lib/format-date";
 
 const BASE_URL = "https://hyperwhisper.com";
 
@@ -13,17 +14,6 @@ export const revalidate = 60;
 type Props = {
   params: Promise<{ locale: string; slug: string }>;
 };
-
-function formatDate(dateString: string) {
-  const date = new Date(dateString);
-  if (Number.isNaN(date.getTime())) return dateString;
-  return new Intl.DateTimeFormat("en", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    timeZone: "UTC",
-  }).format(date);
-}
 
 function toAbsoluteUrl(url: string) {
   if (url.startsWith("http://") || url.startsWith("https://")) return url;
@@ -86,7 +76,7 @@ export default async function BlogPostPage({ params }: Props) {
     notFound();
   }
 
-  const publishedDate = formatDate(post.frontMatter.date);
+  const publishedDate = formatLongUTCDate(post.frontMatter.date);
   const canonicalUrl = `${BASE_URL}/en/blog/${post.slug}`;
   const jsonLd = {
     "@context": "https://schema.org",

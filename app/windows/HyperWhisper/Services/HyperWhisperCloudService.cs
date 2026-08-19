@@ -61,20 +61,6 @@ public class HyperWhisperCloudService : ITranscriptionProvider, ITranscriptionDi
     // now uses the core's RetryMaxAttempts() via RustRetry.
     private const int MaxRetries = 4; // Matches macOS implementation
 
-    // MIME types for audio content
-    private static readonly Dictionary<string, string> MimeTypes = new(StringComparer.OrdinalIgnoreCase)
-    {
-        { ".wav", "audio/wav" },
-        { ".mp3", "audio/mpeg" },
-        { ".mp4", "audio/mp4" },
-        { ".m4a", "audio/mp4" },
-        { ".mpeg", "audio/mpeg" },
-        { ".mpga", "audio/mpeg" },
-        { ".webm", "audio/webm" },
-        { ".ogg", "audio/ogg" },
-        { ".flac", "audio/flac" }
-    };
-
     // =========================================================================
     // STATE
     // =========================================================================
@@ -156,12 +142,18 @@ public class HyperWhisperCloudService : ITranscriptionProvider, ITranscriptionDi
     private static readonly Version PreferredHttpVersion = HttpVersion.Version20;
     private const HttpVersionPolicy PreferredVersionPolicy = HttpVersionPolicy.RequestVersionOrLower;
 
+    // Also stamps the platform + app version headers, so every natively built
+    // request through this service is attributable in the backend logs.
     private static HttpRequestMessage CreateRequest(HttpMethod method, string url)
-        => new HttpRequestMessage(method, url)
+    {
+        var request = new HttpRequestMessage(method, url)
         {
             Version = PreferredHttpVersion,
             VersionPolicy = PreferredVersionPolicy,
         };
+        ClientInfoHeaders.Apply(request);
+        return request;
+    }
 
     // =========================================================================
     // CONNECTION PRE-WARM
@@ -423,8 +415,7 @@ public class HyperWhisperCloudService : ITranscriptionProvider, ITranscriptionDi
         // KEEP native: credit-header extraction, no-speech diagnostics, the DNS
         // HttpClient rebuild (via onTransportError), and the /post-process path.
         // TODO-verify (Windows/CI): Rust shared-core swap.
-        var extension = Path.GetExtension(audioPath);
-        var contentType = MimeTypes.GetValueOrDefault(extension, "audio/wav");
+        var contentType = TranscriptionPreflight.MimeTypeFor(audioPath, "audio/wav");
 
         var coreParams = RustCoreMapping.TranscribeParams(
             audioPath: audioPath,
@@ -452,7 +443,19 @@ public class HyperWhisperCloudService : ITranscriptionProvider, ITranscriptionDi
                 // on the fresh pool (a plain HttpClient argument would pin the
                 // stale pre-rebuild client for the whole sequence).
                 () => Volatile.Read(ref _httpClient),
-                buildRequest: () => HyperwhisperCoreMethods.HyperwhisperCloudBuildTranscribeRequest(coreParams),
+                // Opt-out only: absent means the user left anonymous speed
+                // sharing on (see LatencyOptOut).
+                buildRequest: () => LatencyOptOut.Apply(
+                    ClientInfoHeaders.Apply(
+                        HyperwhisperCoreMethods.HyperwhisperCloudBuildTranscribeRequest(coreParams))),
+                // Not on RustSingleShot, and not only because of this mapper.
+                // This sequence resolves its client per attempt (above), passes
+                // an onTransportError hook (below), reads credit and diagnostic
+                // headers off the response between the retry call and the parse,
+                // maps its parse error with those diagnostics attached, and ends
+                // in a five-line banner. RustSingleShot's own header lists which
+                // of those it fixes.
+                // MapCloudError below adds the 402 credit / 413 size context.
                 parseError: MapCloudError,
                 cancellationToken: cancellationToken,
                 onTransportError: ex =>

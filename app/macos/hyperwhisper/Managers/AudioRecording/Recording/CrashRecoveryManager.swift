@@ -10,6 +10,22 @@ import CoreData
 import AVFoundation
 import Darwin  // sysctl(KERN_PROC_PID) for this process's kernel start time
 
+/// One `.incomplete_*.wav` file found by the orphan-WAV directory scan.
+///
+/// Plain `Sendable` value type so the scan can run off the main actor and hand
+/// its results back without any Core Data object crossing the boundary. It is
+/// declared at file scope rather than nested inside `CrashRecoveryManager` so it
+/// does not pick up that type's `@MainActor` isolation.
+struct CrashRecoveryWAVCandidate: Sendable {
+    /// The file's URL. Its `path` is derived at the use sites rather than stored:
+    /// `URL.path` is a pure, non-blocking derivation, so a second stored copy
+    /// would only be a field that has to agree with this one.
+    let url: URL
+    /// Raw filesystem creation date; `nil` when it can't be read. The caller
+    /// applies the "unreadable ⇒ treat as brand new" fallback.
+    let creationDate: Date?
+}
+
 /// Recovers incomplete recordings from app crashes
 ///
 /// **Purpose:**
@@ -43,8 +59,19 @@ import Darwin  // sysctl(KERN_PROC_PID) for this process's kernel start time
 /// - PersistenceController: For Core Data operations
 ///
 /// **Thread Safety:**
-/// Methods are @MainActor for Core Data safety, except isRecoverableWAV
-/// which is nonisolated for background validation.
+/// Methods are @MainActor for Core Data safety. The two filesystem probes on the
+/// launch path are the exceptions: `scanForUnclaimedWAVCandidates` (directory
+/// listing + per-file creation date) and `isRecoverableWAV` (existence,
+/// readability, size, `AVAudioFile` open) are `nonisolated static` and run their
+/// blocking work inside a detached task, so a slow or cloud-synced recordings
+/// volume can't stall the main thread.
+///
+/// **Known follow-up (HYPERWHISPER-VM is not fully closed):** the rest of the
+/// recovery loop's file I/O still runs on the main actor — inside
+/// `recoverAndConvertRecording` (`attributesOfItem`, `createDirectory`, a second
+/// `AVAudioFile(forReading:)`, `moveItem`) and the `FileManager.removeItem` calls
+/// in the delete paths of `recoverOrphanedRecordings`. A slow volume can still
+/// hang launch from those frames until they move off the main actor too.
 @MainActor
 class CrashRecoveryManager {
 
@@ -59,6 +86,32 @@ class CrashRecoveryManager {
 
     /// Size threshold for WAV to M4A conversion (25MB)
     private let wavToM4AThreshold: Int64 = 25 * 1024 * 1024
+
+    /// True while a `recoverOrphanedRecordings` pass is in flight.
+    ///
+    /// The recovery pass is NOT re-entrant. It is invoked from
+    /// `handleMainWindowAppear` in `hyperwhisperApp.swift` with no once-flag of its
+    /// own, and the main window can appear more than once per process (menu-bar
+    /// mode closes the window and `MainAppView.openMainWindow` re-opens it), so two
+    /// passes really can be started while the first is still suspended on one of
+    /// its `await`s.
+    ///
+    /// Two overlapping passes corrupt each other in two ways:
+    ///  - **Silent data loss.** Pass A suspends on the `isRecoverableWAV` probe;
+    ///    pass B finishes recovering the same session (moves the file to its final
+    ///    name and sets `endTime`); A's probe then fails against the now-moved
+    ///    `.incomplete_` path and A deletes the row B just recovered. The audio
+    ///    file survives but has lost its `.incomplete_` prefix, so no future sweep
+    ///    can ever see it again.
+    ///  - **Lost attempt counts.** `attemptCounts` is snapshotted from UserDefaults,
+    ///    mutated in memory across the loop's suspension points, then written back
+    ///    whole — so the later writer clobbers the earlier one's increments and the
+    ///    3-strike quarantine never engages.
+    ///
+    /// Because this class is `@MainActor`, the check-and-set below the entry point
+    /// is atomic as long as it happens before the first suspension point — so it
+    /// must stay at the very top of `recoverOrphanedRecordings`.
+    private var isRecovering = false
 
     /// UserDefaults key for tracking recovery attempt counts per session UUID
     private static let attemptCountsKey = "crashRecovery.attemptCounts"
@@ -154,11 +207,36 @@ class CrashRecoveryManager {
     /// **When to Call:**
     /// During app initialization to recover any crashed recordings
     ///
+    /// **Concurrency:**
+    /// Not re-entrant, and callers do not guarantee a single invocation per
+    /// process. A second call made while a pass is still in flight returns
+    /// immediately (see `isRecovering`) rather than running a parallel pass.
+    /// Dropping the second call — rather than queueing it — is safe because
+    /// recovery is idempotent and repeated: anything the dropped call would have
+    /// picked up is still an orphan afterwards, and the next `.onAppear` or the
+    /// next launch sweeps it. The early return is logged so it stays observable.
+    ///
     /// **Performance:**
     /// - Batch saves instead of per-session saves
     /// - Runs async to not block UI
-    /// - Uses nonisolated validation for parallel checks
+    /// - Validation is sequential — one awaited filesystem probe per orphan — but
+    ///   each probe runs off the main actor (`isRecoverableWAV`), as does the
+    ///   directory scan (`scanForUnclaimedWAVCandidates`), so the blocking I/O
+    ///   never lands on the main thread. There is no fan-out (no `TaskGroup`,
+    ///   `async let`, or `concurrentPerform`): the loop mutates `@MainActor` Core
+    ///   Data objects and a shared `attemptCounts` dictionary in between probes,
+    ///   which parallel checks would race.
     func recoverOrphanedRecordings(currentSessionID: UUID? = nil) async {
+        // IN-FLIGHT GUARD. Must stay above every `await` in this function: the
+        // class is `@MainActor`, so this check-and-set is atomic only while no
+        // suspension point can separate the read from the write.
+        guard !isRecovering else {
+            AppLogger.audio.info("Orphaned recording recovery already in progress; skipping duplicate pass")
+            return
+        }
+        isRecovering = true
+        defer { isRecovering = false }
+
         let recoveryStart = Date()
         // Sessions older than this 60s wall-clock window are always safe to recover.
         // The window only exists to avoid racing an *active* recording (see below).
@@ -191,7 +269,7 @@ class CrashRecoveryManager {
         // Synthesize a stub session for each unclaimed, stale incomplete WAV and
         // let the existing validation/recovery/quarantine loop below handle it
         // unchanged.
-        orphans += synthesizeStubSessionsForUnclaimedWAVs(
+        orphans += await synthesizeStubSessionsForUnclaimedWAVs(
             existingOrphans: orphans,
             context: context,
             staleSessionCutoff: staleSessionCutoff
@@ -207,7 +285,16 @@ class CrashRecoveryManager {
         // Track successfully recovered sessions for transcription
         var recoveredSessions: [(session: RecordingSession, audioURL: URL)] = []
 
-        // Load attempt counts once, mutate in-memory, save once at the end
+        // Load attempt counts once, mutate in-memory, save once at the end.
+        //
+        // This snapshot opens a read-modify-write that spans every suspension
+        // point in the loop below and is closed by the unconditional whole-
+        // dictionary write in STEP 4. It is safe ONLY because the in-flight guard
+        // at the top of this function makes passes mutually exclusive — two
+        // overlapping passes would both snapshot the same counts and the later
+        // writer would silently discard the earlier one's increments, so a session
+        // that fails forever would never reach the 3-strike quarantine. Do not
+        // remove that guard without replacing this with a merge on write.
         var attemptCounts = getAttemptCounts()
 
         // STEP 2: Attempt to recover each session
@@ -344,9 +431,10 @@ class CrashRecoveryManager {
                 continue
             }
 
-            // Check if WAV file exists and is recoverable
-            // Note: isRecoverableWAV is nonisolated so can be called directly
-            guard isRecoverableWAV(url) else {
+            // Check if WAV file exists and is recoverable. The probe is blocking
+            // file I/O (stat + `AVAudioFile` open), so it runs on a detached task
+            // rather than inline on this MainActor-isolated loop.
+            guard await Self.isRecoverableWAV(url) else {
                 // File missing or corrupted: delete the session AND the file —
                 // leaving the file behind accumulates junk `.incomplete_` WAVs
                 // (and the orphan-WAV sweep would re-synthesize a stub for it
@@ -427,6 +515,10 @@ class CrashRecoveryManager {
             }
             AppLogger.audio.debug("Pruned \(staleKeys.count) stale recovery attempt count(s)")
         }
+        // Closes the read-modify-write opened by `getAttemptCounts()` above: a
+        // whole-dictionary overwrite with no merge, which also makes the prune
+        // above effective. Correct only under the in-flight guard, which is what
+        // guarantees no other pass wrote to this key since the snapshot.
         saveAttemptCounts(attemptCounts)
 
         // NOTE: Transcription is NOT auto-triggered here.
@@ -446,47 +538,88 @@ class CrashRecoveryManager {
     ///
     /// **Safety:** a file is only claimed if (a) no session row (orphaned or
     /// completed) references its path, and (b) its creation date predates
-    /// `staleSessionCutoff` — so the live recording of this process is never
-    /// touched. No sidecar marker files are needed: the WAV filename embeds the
+    /// `staleSessionCutoff`. Together those cover every live recording whose
+    /// record-start row exists; see the RESIDUAL GAP note in the loop body for the
+    /// one case they do not cover (a >60s live recording whose row insert failed).
+    /// No sidecar marker files are needed: the WAV filename embeds the
     /// session UUID, which the stub reuses so recovery attempt-counting stays
     /// stable across launches.
     private func synthesizeStubSessionsForUnclaimedWAVs(
         existingOrphans: [RecordingSession],
         context: NSManagedObjectContext,
         staleSessionCutoff: Date
-    ) -> [RecordingSession] {
-        let fm = FileManager.default
-        // options: [] (NOT .skipsHiddenFiles) — the incomplete files are
-        // dot-prefixed and would otherwise be invisible to the sweep.
-        guard let entries = try? fm.contentsOfDirectory(
-            at: recordingsDirectory,
-            includingPropertiesForKeys: [.creationDateKey],
-            options: []
-        ) else {
-            return []
-        }
-
-        let candidates = entries.filter {
-            $0.lastPathComponent.hasPrefix(".incomplete_") && $0.pathExtension.lowercased() == "wav"
-        }
+    ) async -> [RecordingSession] {
+        // `recordingsDirectory` is a MainActor-isolated computed property (it reads
+        // `settingsManager`), so resolve it here and hand only the plain URL to the
+        // detached scan.
+        let directory = recordingsDirectory
+        let candidates = await Self.scanForUnclaimedWAVCandidates(in: directory)
         guard !candidates.isEmpty else { return [] }
 
         let claimedPaths = Set(existingOrphans.compactMap { $0.audioFilePath })
         var stubs: [RecordingSession] = []
 
-        for url in candidates {
+        for candidate in candidates {
+            let url = candidate.url
             let path = url.path
             if claimedPaths.contains(path) { continue }
+
+            // Never touch a file that could belong to this process's live recording.
+            // An unreadable creation date falls back to "now", i.e. treated as too
+            // new to touch.
+            //
+            // Ordering: this is pure arithmetic on values the scan already returned,
+            // so it runs BEFORE the `count(for:)` query below — a too-new candidate
+            // must not pay for a main-thread SQLite round-trip on the launch path.
+            //
+            // What actually protects a live recording here:
+            //  - a WAV recorded by *this* process is always newer than
+            //    `staleSessionCutoff` while its session row is still missing.
+            //    `staleSessionCutoff` is `max(now - 60s, processLaunchDate)`, so it
+            //    is never *earlier* than launch (line ~189) — when the process has
+            //    been up under 60s the cutoff IS the launch time and any file this
+            //    process created is newer; once it has been up longer the cutoff is
+            //    `now - 60s`, and a file in the deferred-insert window is only
+            //    milliseconds old, so it is still newer. Either way it is skipped.
+            //  - a longer-lived live recording (older than the cutoff) is covered by
+            //    the `claimedPaths` set and the `count(for:)` query below ONLY IF
+            //    the deferred record-start insert succeeded. When it does,
+            //    `RecordingLifecycle.persistSessionForActiveRecording` passes the
+            //    same `.incomplete_<uuid>.wav` path as `audioFilePath`
+            //    (RecordingLifecycle.swift:426/485), so the row claims this exact
+            //    path and both checks hit it.
+            //
+            // RESIDUAL GAP (known, not closed here): the insert is allowed to fail.
+            // `RecordingSessionManager.createRecordingSession` returns nil and
+            // clears `currentRecordingSession` when the background save or
+            // `obtainPermanentIDs` fails — by design, "continuing without session
+            // tracking" (RecordingSessionManager.swift:139-153) — and recording
+            // keeps going. On that path a live recording has NO row at all, so
+            // `claimedPaths`, the `count(for:)` query, and the recovery loop's
+            // `currentSessionID` check (which reads the same nil-ed
+            // `currentRecordingSession`) all miss it. Once such a recording runs
+            // past `staleSessionCutoff` — i.e. longer than 60s, with the process up
+            // longer than 60s — the staleness guard stops protecting it too, and
+            // the sweep can synthesize a stub for a file still being written and
+            // move it out from under the live `AVAudioRecorder`. This requires a
+            // Core Data write failure first, so it is rare, but it is reachable.
+            //
+            // The scan above is a suspension point but can't widen this race:
+            // `staleSessionCutoff` was computed before it, so any delay only makes
+            // candidates newer relative to the cutoff, never older.
+            //
+            // Note `currentSessionID` (checked in the recovery loop) is NOT a second
+            // guard for these stubs: a stub's `id` is parsed out of the
+            // `.incomplete_<uuid>.wav` filename, while a live session row's `id` is
+            // an independent `UUID()`, so the two can never compare equal.
+            let creationDate = candidate.creationDate ?? Date()
+            guard creationDate <= staleSessionCutoff else { continue }
 
             // A non-orphaned row may still claim this file — cheap existence check.
             let claimCheck = RecordingSession.fetchRequest()
             claimCheck.predicate = NSPredicate(format: "audioFilePath == %@", path)
             claimCheck.fetchLimit = 1
             if let count = try? context.count(for: claimCheck), count > 0 { continue }
-
-            // Never touch a file that could belong to this process's live recording.
-            let creationDate = (try? url.resourceValues(forKeys: [.creationDateKey]))?.creationDate ?? Date()
-            guard creationDate <= staleSessionCutoff else { continue }
 
             // Filename is ".incomplete_<sessionUUID>.wav" — reuse that UUID.
             let stem = url.deletingPathExtension().lastPathComponent
@@ -531,6 +664,48 @@ class CrashRecoveryManager {
         return stubs
     }
 
+    /// List the `.incomplete_*.wav` files in `directory`, off the main actor.
+    ///
+    /// **Why detached:** `contentsOfDirectory` and `resourceValues` are blocking
+    /// filesystem syscalls. When the recordings directory lives on a cloud-synced
+    /// or network-backed volume they can take many seconds, and running them on
+    /// the main actor hung the app at launch (HYPERWHISPER-VM, "App hanging for at
+    /// least 10000 ms") — they must not execute on the main actor, whatever the
+    /// caller. Being `nonisolated async` is what takes this work off the caller's
+    /// actor; the `Task.detached` on top of that pins the blocking work to a fixed
+    /// `.userInitiated` priority instead of inheriting the caller's, and matches
+    /// the established shape in
+    /// `RecordingTranscriptionFlow.isAudioFileReadable`.
+    ///
+    /// Returns an empty list if the directory can't be read (missing, unreadable).
+    nonisolated static func scanForUnclaimedWAVCandidates(
+        in directory: URL
+    ) async -> [CrashRecoveryWAVCandidate] {
+        await Task.detached(priority: .userInitiated) { () -> [CrashRecoveryWAVCandidate] in
+            let fm = FileManager.default
+            // options: [] (NOT .skipsHiddenFiles) — the incomplete files are
+            // dot-prefixed and would otherwise be invisible to the sweep.
+            guard let entries = try? fm.contentsOfDirectory(
+                at: directory,
+                includingPropertiesForKeys: [.creationDateKey],
+                options: []
+            ) else {
+                return []
+            }
+
+            return entries
+                .filter {
+                    $0.lastPathComponent.hasPrefix(".incomplete_") && $0.pathExtension.lowercased() == "wav"
+                }
+                .map { url in
+                    CrashRecoveryWAVCandidate(
+                        url: url,
+                        creationDate: (try? url.resourceValues(forKeys: [.creationDateKey]))?.creationDate
+                    )
+                }
+        }.value
+    }
+
     // MARK: - Validation
 
     /// Check if a WAV file is recoverable
@@ -542,42 +717,50 @@ class CrashRecoveryManager {
     /// 3. Has audio data (fileSize > header size, ~44 bytes for WAV)
     /// 4. Can be opened by AVAudioFile
     ///
-    /// **Why Nonisolated:**
-    /// This method only does file I/O and doesn't touch Core Data or UI state.
-    /// Making it nonisolated allows it to be called from background threads
-    /// for parallel validation of multiple files.
+    /// **Why nonisolated + detached:**
+    /// Every check here is a blocking filesystem call (`stat`, `open`, plus the
+    /// header decode inside `AVAudioFile`). The only caller is the `@MainActor`
+    /// recovery loop, so running them inline would put one round of blocking I/O
+    /// per orphan on the main thread — on a cloud-synced volume that is the
+    /// expensive half of the launch hang this method's sibling scan was moved off
+    /// for (HYPERWHISPER-VM). Same shape as
+    /// `RecordingTranscriptionFlow.isAudioFileReadable`: touches no Core Data or
+    /// UI state, so it is `nonisolated static` and does its work on a detached
+    /// task at `.userInitiated`.
     ///
     /// **Parameters:**
     /// - `url`: Path to the WAV file
     ///
     /// **Returns:**
     /// true if file can be recovered, false otherwise
-    nonisolated func isRecoverableWAV(_ url: URL) -> Bool {
-        let fm = FileManager.default
+    nonisolated static func isRecoverableWAV(_ url: URL) async -> Bool {
+        await Task.detached(priority: .userInitiated) { () -> Bool in
+            let fm = FileManager.default
 
-        // Check existence
-        guard fm.fileExists(atPath: url.path) else {
-            return false
-        }
+            // Check existence
+            guard fm.fileExists(atPath: url.path) else {
+                return false
+            }
 
-        // Check readability
-        guard fm.isReadableFile(atPath: url.path) else {
-            return false
-        }
+            // Check readability
+            guard fm.isReadableFile(atPath: url.path) else {
+                return false
+            }
 
-        // Check file size (must have data beyond WAV header ~44 bytes)
-        guard let attrs = try? fm.attributesOfItem(atPath: url.path),
-              let fileSize = attrs[.size] as? Int64,
-              fileSize > 100 else { // At least 100 bytes to have some audio data
-            return false
-        }
+            // Check file size (must have data beyond WAV header ~44 bytes)
+            guard let attrs = try? fm.attributesOfItem(atPath: url.path),
+                  let fileSize = attrs[.size] as? Int64,
+                  fileSize > 100 else { // At least 100 bytes to have some audio data
+                return false
+            }
 
-        // Try opening with AVAudioFile (validates format)
-        guard let _ = try? AVAudioFile(forReading: url) else {
-            return false
-        }
+            // Try opening with AVAudioFile (validates format)
+            guard let _ = try? AVAudioFile(forReading: url) else {
+                return false
+            }
 
-        return true
+            return true
+        }.value
     }
 
     // MARK: - Recovery

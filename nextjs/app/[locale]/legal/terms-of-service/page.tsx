@@ -9,7 +9,7 @@ export default function TermsOfServicePage() {
   return (
     <div className="prose prose-lg max-w-none dark:prose-invert">
       <p className="text-sm text-gray-600 dark:text-gray-400 italic mb-8">
-        Last Updated: February 17, 2026
+        Last Updated: August 9, 2026
       </p>
       <h1>Terms of Service</h1>
 
@@ -137,10 +137,6 @@ export default function TermsOfServicePage() {
           spendable balance and are not refundable or recoverable. Credits are
           consumed oldest-first so that those closest to expiry are used before
           newer ones.
-        </li>
-        <li>
-          <strong>Trial credits</strong>: Some devices may receive a limited
-          number of free trial credits for evaluating HyperWhisper Cloud.
         </li>
         <li>
           <strong>Usage</strong>: Credits are deducted after each successful

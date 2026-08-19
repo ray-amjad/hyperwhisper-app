@@ -35,7 +35,6 @@ struct ModesView: View {
     @EnvironmentObject var parakeetModelManager: ParakeetModelManager
     @EnvironmentObject var qwen3AsrModelManager: Qwen3AsrModelManager
     @EnvironmentObject var nemotronModelManager: NemotronModelManager
-    @Environment(\.managedObjectContext) private var viewContext
 
     // Fetch modes from Core Data
     @FetchRequest(

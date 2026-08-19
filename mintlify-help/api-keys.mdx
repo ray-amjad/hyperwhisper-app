@@ -3,19 +3,19 @@ title: API Keys
 description: Set up API keys for cloud transcription and post-processing providers.
 ---
 
-HyperWhisper gives you the option to bring your own API Keys.
+You can use your own API keys with HyperWhisper.
 
 <Note>
-  **You don't need an API key to use HyperWhisper.** Out of the box, transcription runs on **HyperWhisper Cloud**, which works immediately after install with no setup. A Pro license includes **5,000 credits** (roughly \$5 worth — see [Providers](/choosing-a-provider)) and HyperWhisper Cloud is **priced at face value with no markup** — you pay the same per-minute rate as if you held the provider's API key directly.
+  **You do not need an API key to use HyperWhisper.** By default, transcription runs on **HyperWhisper Cloud**. It works immediately after installation, and it needs no setup. Your first credit purchase (from \$5) creates an account key with **5,000 credits** (approximately \$5 of value — see [Providers](/choosing-a-provider)). HyperWhisper Cloud is **priced at face value with no markup**. You pay the same per-minute rate as a direct holder of the provider's API key.
 
-  Use this page only if you specifically want to route transcription or post-processing through your own provider account (e.g. corporate credits, a free tier you already have, or a model not offered on Cloud).
+  Use this page only if you want to send transcription or post-processing to your own provider account. For example, you have corporate credits, you have a free tier, or you want a model that Cloud does not offer.
 </Note>
 
-Your keys are stored locally on your device and only used when making requests to the API endpoints. For example, if you use an OpenAI API key then it is passed only to OpenAI. They are never sent anywhere else.
+HyperWhisper keeps your keys on your device. It uses each key only for requests to the API endpoints of that provider. For example, HyperWhisper sends an OpenAI API key only to OpenAI. It sends your keys to no other destination.
 
-## Getting an API Key
+## How to Get an API Key
 
-Here is how you get different API keys
+These sections show how to get an API key from each provider.
 
 ### OpenAI
 
@@ -69,21 +69,21 @@ Get your API key at [console.soniox.com](https://console.soniox.com).
 
 ### Grok (xAI)
 
-Grok can be used for both transcription and post-processing. Get your API key at [console.x.ai](https://console.x.ai/).
+You can use Grok for transcription and for post-processing. Get your API key at [console.x.ai](https://console.x.ai/).
 
 [Video Tutorial Coming Soon]
 
 ### ElevenLabs
 
-When creating your ElevenLabs API key, make sure to enable the following permissions:
+When you create your ElevenLabs API key, enable these permissions:
 
-- **Speech to Text** — required for Scribe transcription
-- **Models** — required for model availability checks
+- **Speech to Text** — necessary for Scribe transcription
+- **Models** — necessary for the model availability checks
 
-Without these permissions, transcription will fail even if your API key is valid.
+Without these permissions, transcription fails, even when your API key is valid.
 
 <Warning>
-  Do not set a credit limit on your API key. Setting the credit limit to 0 will block all requests, even if you have credits available on your account. Leave the credit limit field empty to allow normal usage.
+  Do not set a credit limit on your API key. Keep the credit limit field empty. A credit limit of 0 blocks all requests, even when your account has credits.
 </Warning>
 
 [Video Tutorial Coming Soon]
@@ -105,7 +105,7 @@ Without these permissions, transcription will fail even if your API key is valid
 
 ### Cerebras
 
-Cerebras is available for post-processing only. Get your API key at [cloud.cerebras.ai](https://cloud.cerebras.ai/).
+You can use Cerebras for post-processing only. Get your API key at [cloud.cerebras.ai](https://cloud.cerebras.ai/).
 
 [Video Tutorial Coming Soon]
 

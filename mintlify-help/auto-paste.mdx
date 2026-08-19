@@ -1,53 +1,54 @@
 ---
 title: Auto Paste & Clipboard Behavior
-description: How HyperWhisper copies, restores, and optionally pastes your transcript automatically.
+description: How HyperWhisper copies your transcript, pastes it automatically, and restores the clipboard.
 ---
 
-HyperWhisper can automatically paste the result into the frontmost app after each recording. This page explains how it works, how to configure it, and what to do if pasting doesn't happen.
+After each recording, HyperWhisper can paste the result into the frontmost app. This page explains how Auto Paste works, how to set it, and what to do when no paste occurs.
 
 <Note>
-  This page describes Auto Paste on **macOS**, which relies on the Accessibility permission covered below. Windows has a fully equivalent Auto Paste feature that works differently — it simulates a Ctrl+V keystroke rather than using UI Automation, and does **not** require the Accessibility permission described on this page. See the Windows tab under [Text Output & Formatting → Auto Paste](/output-settings#auto-paste) for the Windows-specific details.
+  This page describes Auto Paste on **macOS**. On macOS, Auto Paste needs the Accessibility permission described below. Windows has the same Auto Paste feature, but it operates differently. Windows sends a Ctrl+V keystroke and does **not** use UI Automation. Windows does **not** need the Accessibility permission. For the Windows details, see the Windows tab under [Text Output & Formatting → Auto Paste](/output-settings#auto-paste).
 </Note>
 
 ![Auto Paste](/images/text-output.jpg)
 
 ## How Auto Paste Works
 
-- When a recording finishes, HyperWhisper copies the transcript to the clipboard.
-- If "Paste result automatically" is enabled, the app briefly focuses the current application and issues a standard paste command.
-- After pasting, HyperWhisper restores your previous clipboard contents (configurable delay) so you don't lose what you had copied.
+- When a recording stops, HyperWhisper copies the transcript to the clipboard.
+- If "Paste result automatically" is enabled, the app focuses the current application for a moment. Then it sends a standard paste command.
+- After the paste, HyperWhisper restores the previous clipboard contents. The delay before this restore is configurable. You keep the item that you copied before.
 
-## Enabling Auto Paste
+## Enable Auto Paste
 
 1. Open **Settings → Text Output**.
 2. Enable **Paste result automatically**.
-3. Optionally adjust the clipboard restore timing to fit apps that process paste slowly.
+3. If an app processes a paste slowly, increase the clipboard restore delay. This delay is a single setting that applies to every app, not a per-app value.
 
 <Note>
-  Requires Accessibility permission so HyperWhisper can issue the paste keystroke on your behalf.
+  Auto Paste needs the Accessibility permission. With this permission, HyperWhisper can send the paste keystroke for you.
 </Note>
 
 ## Required Permission
 
-Grant Accessibility so Auto Paste can operate reliably:
+Grant the Accessibility permission to make Auto Paste operate correctly:
 
 1. Go to `System Settings → Privacy & Security → Accessibility`.
-2. Unlock and enable HyperWhisper. If you are running a development build from Xcode, the entry will show the Xcode DerivedData path rather than `/Applications/HyperWhisper.app` — release and development builds share the same bundle ID, so the install path (not a different name) is what distinguishes them in this list. You may need to enable both entries if you switch between them.
-3. Restart the app if you changed the setting while it was running.
+2. Unlock the list. Then enable HyperWhisper. A development build from Xcode shows the Xcode DerivedData path, not `/Applications/HyperWhisper.app`. Release builds and development builds use the same bundle ID. The install path, not a different name, separates the two entries in this list. If you switch between the two builds, enable both entries.
+3. If you changed the setting while the app was open, restart the app.
 
-If permission is missing, the app shows a banner on the Home screen and an Accessibility Helper provides a direct link to System Settings.
+If the permission is missing, the app shows a banner on the Home screen. The Accessibility Helper gives a direct link to System Settings.
 
 ![Accessibility permissions](/images/accessibility-permissions.jpg)
 
 ## Troubleshooting
 
-- Verify Accessibility is granted and the toggle is on.
-- Confirm the foreground app accepts paste (try Notes or TextEdit).
-- Check the in-app logs for Accessibility actions if paste is blocked.
-- Temporarily disable clipboard managers that might overwrite the restored entry.
+- Make sure that the Accessibility permission is granted and that the toggle is on.
+- Make sure that the foreground app accepts a paste. Use Notes or TextEdit for a test.
+- If the paste is blocked, read the in-app logs for Accessibility actions.
+- Disable clipboard managers for a test. A clipboard manager can overwrite the restored entry.
+- **macOS only:** HyperWhisper does not paste automatically when the target app quits during the recording. It also does not paste automatically when a new app takes the process ID of the target app before the paste. This guard keeps the transcript out of the wrong window. The transcript stays on the clipboard, and the app shows no message. Paste the transcript manually with **⌘V**.
 
 <Tip>
-  Looking for global hotkeys and permissions? See **Keyboard Shortcuts & Accessibility**.
+  For global hotkeys and permissions, see **Keyboard Shortcuts & Accessibility**.
 </Tip>
 
-For full clipboard and text output settings (filler-word removal, autocapitalize, clipboard restore), see [Text Output & Formatting](/output-settings).
+For all clipboard and text output settings, see [Text Output & Formatting](/output-settings). These settings include filler-word removal, autocapitalize, and clipboard restore.

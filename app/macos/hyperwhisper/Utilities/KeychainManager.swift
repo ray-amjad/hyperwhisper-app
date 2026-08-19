@@ -318,20 +318,6 @@ class KeychainManager {
         return migrationSuccess && migratedCount > 0
     }
     
-    /// Clear the migration flag (useful for testing)
-    func resetMigration() {
-        UserDefaults.standard.removeObject(forKey: migrationKey)
-        AppLogger.settings.debug("Migration flag reset")
-    }
-    
-    /// Delete all API keys from keychain (use with caution)
-    func deleteAllAPIKeys() {
-        for keyType in APIKeyType.allCases {
-            try? deleteAPIKey(for: keyType)
-        }
-        AppLogger.settings.warning("All API keys deleted from keychain")
-    }
-    
     // MARK: - Debugging
 
     /// Get a summary of which API keys are configured (for debugging)

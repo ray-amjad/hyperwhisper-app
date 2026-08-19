@@ -1,70 +1,126 @@
 ---
 title: "Data Privacy"
-description: "How HyperWhisper handles your audio data, and how to opt out of model training when you bring your own API keys."
+description: "How HyperWhisper uses your audio data, and how to opt out of model training when you use your own API keys."
 ---
 
 ## Where your audio goes
 
-HyperWhisper supports three transcription paths, each with different privacy implications:
+HyperWhisper has three transcription paths. Each path has a different effect on your privacy:
 
-| Path | Where audio goes | Who's responsible for training opt-out |
+| Path | Where audio goes | Who does the training opt-out |
 |------|------------------|----------------------------------------|
-| **Local models** (Whisper, Parakeet) | Never leaves your device | You — but it's offline, so there's nothing to opt out of |
-| **HyperWhisper Cloud** | Routed through HyperWhisper to a backing provider (Deepgram, Groq, ElevenLabs, Grok, OpenAI, Gemini, AssemblyAI, Mistral, Soniox, Azure, or Google) | HyperWhisper — we apply each provider's strongest no-train / no-retain control |
-| **Your own API key** (BYOK) | Sent directly from your device to the provider | **You** — except Deepgram, where we opt out for you automatically |
+| **Local models** (Whisper, Parakeet, Apple Speech Analyzer, Qwen3 ASR, Nemotron) | The audio stays on your device | You. The models are offline, so there is nothing to opt out of |
+| **HyperWhisper Cloud** | HyperWhisper sends the audio to a backing provider (Deepgram, Groq, ElevenLabs, Grok, OpenAI, Gemini, AssemblyAI, Mistral, Soniox, Azure, or Google) | HyperWhisper. We apply the strongest no-train / no-store control of each provider |
+| **Your own API key** (BYOK) | Your device sends the audio directly to the provider | **You**. Deepgram is the exception, because HyperWhisper opts out for you |
 
 <Tip>
-If you want zero risk of your audio being used for training, use **local transcription**. It's offline and the audio physically never leaves your Mac or PC.
+For zero risk of model training on your audio, use **local transcription**. Local transcription is offline, and the audio stays on your Mac or PC.
 </Tip>
 
 ## HyperWhisper Cloud
 
-When you use HyperWhisper Cloud, we forward your audio to a backing speech-to-text provider, and your transcribed text to a backing LLM for post-processing. We don't store your audio on HyperWhisper's own servers — it's processed in memory at the edge and discarded after the response is returned.
+HyperWhisper Cloud sends your audio to a backing speech-to-text provider. It also sends your transcribed text to a backing LLM for post-processing. HyperWhisper does not store your audio on its own servers. The edge servers process the audio in memory, then delete it after they return the response.
 
-**We apply the strongest data-protection control each provider offers**, so your audio isn't used to train their models:
+<Note>
+  **Google Chirp 3** is one exception. Audio larger than ~9.5 MB, or longer than ~55 seconds, is too large to send inline. HyperWhisper uploads this audio to a scratch bucket for the batch transcription API of Google. HyperWhisper always deletes the scratch object immediately after the transcription completes, and also after an error. This audio touches disk storage for a short time. It does not stay in memory only.
+</Note>
 
-- Where a provider has a per-request no-train / no-store flag, we set it on every call (for example, Deepgram's `mip_opt_out`).
-- Where the control is account-level, we enable zero-data-retention on the HyperWhisper account (for example, Groq).
-- Where neither exists, we delete the transcript as soon as we've fetched it (for example, AssemblyAI, where we've also opted out of model training).
+**HyperWhisper applies the strongest data-protection control that each provider gives.** As a result, providers do not use your audio to train their models:
 
-A few providers keep data briefly for abuse monitoring — Grok and Mistral retain it for roughly 30 days — but do not use it to train their models. One provider, **ElevenLabs**, retains data by default; its zero-retention mode is limited to enterprise plans and we're working toward enabling it. If retention is critical for your use case, choose a different cloud model or use local transcription in the meantime.
+- If a provider has a per-request no-train / no-store flag, HyperWhisper sets the flag on every call (for example, the `mip_opt_out` flag of Deepgram).
+- If the control is account-level, HyperWhisper enables zero-data-retention on the HyperWhisper account (for example, Groq).
+- If a provider has neither control, HyperWhisper deletes the transcript immediately after it gets the transcript (for example, AssemblyAI). HyperWhisper also opted out of model training with AssemblyAI.
 
-So as a HyperWhisper Cloud user, you don't need to configure anything — your audio is excluded from model training across the stack, and retained nowhere except the limited cases noted above.
+Some providers store data for a short time for abuse monitoring. Grok and Mistral store it for approximately 30 days. These providers do not use the data to train their models.
+
+**ElevenLabs** stores data by default. Its zero-retention mode is available only on enterprise plans, and HyperWhisper works to enable it. If data storage is critical for your use, select a different cloud model or use local transcription.
+
+As a HyperWhisper Cloud user, you do not configure anything. No provider in the stack uses your audio for model training. No provider stores it, except in the limited cases in this section.
+
+### Which app made the request
+
+Every request to HyperWhisper Cloud says which app sent it, through two headers:
+
+```text
+X-HyperWhisper-Platform: macos
+X-HyperWhisper-Version: 2.41.0
+```
+
+The platform is `macos` or `windows`. The version is the app version you run. HyperWhisper writes both to the server log for the request, so a fault can be traced to one platform and one app version. Neither header names you, your device, or your account.
+
+### Timing measurements
+
+HyperWhisper Cloud times each provider call and stores the timing. These timings make the public [latency page](https://hyperwhisper.com/en/latency), which shows how fast each provider answers in each region.
+
+One stored row holds only these facts:
+
+- The provider, and the model. If the call worked, this is the model that ran. If it failed, no model ran, so it is the model the call asked for.
+- The server region that made the call.
+- Which clip-length group the audio is in: under 10 seconds, 10 to 30 seconds, or more than 30 seconds. The group comes from an estimate of the length, calculated from the size and the format of the audio. The length itself is not stored.
+- The position of the call in the fallback sequence: 1 for the first provider, 2 for the next one, and so on.
+- How long the provider took, in milliseconds.
+- Whether the call worked, and the failure type if it did not.
+- The hour in which the call happened. HyperWhisper stores the time rounded down to the hour, and no more accurately.
+
+If HyperWhisper stops a request before it sends anything to a provider, for example because the audio is too large or in a format that provider does not accept, it stores no row. The provider did not receive the call, so the measurement is not its own.
+
+A row holds **no account, no key, no request identifier, no IP address, no audio, and no text**. Nothing links a row to a person. Two facts stay out of the row on purpose, because each one would let a person group the rows of one transcription together: the exact time, and the exact length of the audio. Every attempt on one transcription sends the same audio, so an exact length works as a request identifier in the same way an exact timestamp does. HyperWhisper keeps the hour and the clip-length group only. HyperWhisper deletes these rows after 1 year. The public page shows only the last 90 days.
+
+Local models never send a timing measurement. Only HyperWhisper Cloud does.
+
+#### How to stop the measurements
+
+Open **Settings → General** and turn off **Share anonymous speed data**. The change applies to your next transcription.
+
+Your transcriptions do not change when you turn this off. The same providers run, at the same speed, and you get the same result. The only difference is that the server does not store the timing.
+
+Under the hood, the app adds one request header:
+
+```text
+X-Latency-Opt-Out: 1
+```
+
+The server reads this header and discards the measurement instead of storing it.
+
+Two other things are never measured, whatever you send:
+
+- **App versions that predate this setting.** The switch arrived in macOS 2.43.0 and Windows 1.10.0. Sharing is on by default, and the server does not apply that default to a build that could not turn it off. Older versions are not measured at all. Update to take part.
+- **Direct calls to the HyperWhisper Cloud API.** A caller who is not one of the apps never saw the setting, so nothing it sends is stored. You do not need to send any header.
 
 ## Your own API keys (BYOK)
 
-When you configure your own API key in **Settings → API Keys**, your audio is sent **directly from your device to that provider**, using their account, on their terms.
+If you configure your own API key in **Model Library → API Keys**, your device sends the audio **directly to that provider**. The request uses your account with that provider, under the terms of that provider.
 
 <Warning>
-**You are usually responsible for your own opt-out** when using your own API keys. HyperWhisper cannot toggle dashboard-level settings on accounts we don't control. Each provider has its own default — some don't train on API data, some do unless you opt out.
+**With your own API keys, you are usually responsible for your own opt-out.** HyperWhisper cannot change dashboard-level settings on an account that HyperWhisper does not control. Each provider has its own default. Some providers do not train on API data. Other providers do train on API data until you opt out.
 </Warning>
 
-### Deepgram BYOK — we opt out for you automatically
+### Deepgram BYOK — HyperWhisper opts out for you
 
-For **Deepgram** specifically, HyperWhisper does the work for you on both macOS and Windows: every direct Deepgram request the app sends includes `mip_opt_out=true` in the query string. You don't need to change any setting on your Deepgram dashboard for this to take effect — it applies on a per-request basis. Verify it on a recent request in [console.deepgram.com](https://console.deepgram.com) under **Usage → Logs**: the request detail should show `mip_opt_out: true`.
+For **Deepgram**, HyperWhisper does this work for you on macOS and Windows. Every direct Deepgram request from the app includes `mip_opt_out=true` in the query string. The flag applies to each request, so you do not change any setting on your Deepgram dashboard. To make sure of this, open a recent request in [console.deepgram.com](https://console.deepgram.com) under **Usage → Logs**. The request detail shows `mip_opt_out: true`.
 
 ### Other providers — quick reference
 
 | Provider | Trains on API data by default? | How to opt out |
 |----------|-------------------------------|----------------|
-| Groq | No — inference data is not retained by default | Optional: enable Zero Data Retention in [console.groq.com](https://console.groq.com) → Data Controls. [Source](https://console.groq.com/docs/your-data) |
-| Anthropic (Claude) | No — commercial API inputs/outputs are not used for training | Nothing to do for default usage. [Source](https://privacy.claude.com/en/articles/7996868-is-my-data-used-for-model-training) |
-| Cerebras | No — API content is not used to train or fine-tune models | Nothing to do. [Source](https://support.cerebras.net/articles/1811589793-does-cerebras-retain-my-data) |
-| OpenAI | No (since March 2023) — API data is not used for training by default | Nothing to do; verify under [platform.openai.com](https://platform.openai.com) → **Settings → Data Controls** |
-| xAI Grok | No — API inputs and outputs are not used for training by default | Nothing to do for default usage; verify in the xAI data controls if your use case is sensitive |
-| Google Gemini | **Free tier (AI Studio): yes**, paid API: no | Use a paid API key, or change settings in [aistudio.google.com](https://aistudio.google.com) |
-| ElevenLabs | Retention is enabled by default; Zero Retention Mode is enterprise-only | Contact ElevenLabs sales if your use case requires it |
-| AssemblyAI | **Yes** — paid async transcripts are used for model improvement (PII-redacted) unless you opt out | Email `data-opt-out@assemblyai.com` to opt out (paid accounts; applies going forward). [Source](https://www.assemblyai.com/docs/deployment/account-management/data-retention) |
-| Mistral | No — paid API content isn't used for training by default (retained ~30 days for abuse monitoring) | Nothing to do for default usage |
-| Soniox | No — audio and transcripts are never used to improve Soniox's models; real-time API is zero-retention by default | Nothing to do for default usage. [Source](https://soniox.com/docs/security-and-privacy) |
+| Groq | No. Groq does not store inference data by default | Optional: enable Zero Data Retention in [console.groq.com](https://console.groq.com) → Data Controls. [Source](https://console.groq.com/docs/your-data) |
+| Anthropic (Claude) | No. Anthropic does not use commercial API inputs or outputs for training | Nothing to do for default use. [Source](https://privacy.claude.com/en/articles/7996868-is-my-data-used-for-model-training) |
+| Cerebras | No. Cerebras does not use API content to train or fine-tune models | Nothing to do. [Source](https://support.cerebras.net/articles/1811589793-does-cerebras-retain-my-data) |
+| OpenAI | No, since March 2023. OpenAI does not use API data for training by default | Nothing to do. To make sure, open [platform.openai.com](https://platform.openai.com) → **Settings → Data Controls** |
+| xAI Grok | No. xAI does not use API inputs and outputs for training by default | Nothing to do for default use. If your use is sensitive, make sure in the xAI data controls |
+| Google Gemini | **Free tier (AI Studio): yes.** Paid API: no | Use a paid API key, or change the settings in [aistudio.google.com](https://aistudio.google.com) |
+| ElevenLabs | ElevenLabs stores data by default. Zero Retention Mode is enterprise-only | If your use requires it, contact ElevenLabs sales |
+| AssemblyAI | **Yes.** AssemblyAI uses paid async transcripts for model improvement, with PII redacted, until you opt out | To opt out, send email to `data-opt-out@assemblyai.com` (paid accounts, applies to future requests). [Source](https://www.assemblyai.com/docs/deployment/account-management/data-retention) |
+| Mistral | No. Mistral does not use paid API content for training by default (it stores the content for ~30 days for abuse monitoring) | Nothing to do for default use |
+| Soniox | No. Soniox never uses audio and transcripts to improve its models. The real-time API stores nothing by default | Nothing to do for default use. [Source](https://soniox.com/docs/security-and-privacy) |
 
 <Note>
-This table reflects publicly stated policies as of when this page was written. Providers can change their terms — for any provider whose policy is critical to your use case, verify directly using the prompt below.
+This table shows the public policies at the date of this page. Providers can change their terms. If the policy of a provider is critical to your use, do a direct check with the prompt in the next section.
 </Note>
 
-### Verifying any provider
+### How to do a check on any provider
 
-Provider data policies move around — pages get renamed, settings get redesigned. The most reliable check is to ask a current language model. Open ChatGPT, Claude, or any LLM with web access and paste:
+Provider data policies change. Providers rename pages and redesign settings. The most reliable check is a question to a current language model. Open ChatGPT, Claude, or another LLM with web access. Then paste this prompt:
 
 ```text
 I use {PROVIDER}'s API. I want to make sure {PROVIDER} does NOT train
@@ -80,19 +136,19 @@ Please:
 Cite official sources only (the provider's own docs or trust center).
 ```
 
-## If you've already used a key without opting out
+## If you already used a key without an opt-out
 
-A few things you can do:
+You can do these three things:
 
-1. **Opt out now** — most providers stop using future requests for training the moment you flip the setting, even if past requests were used.
-2. **Request deletion** — many providers honor data deletion requests for previously sent content. The same LLM prompt above can ask "how do I request deletion of past API data on `{PROVIDER}`?"
-3. **Rotate the key** — if you want a hard line in the sand, generate a new key on the provider's dashboard and replace the old one in **Settings → API Keys**.
+1. **Opt out now.** Most providers stop the training use of new requests immediately after you change the setting. This applies even if they used your past requests.
+2. **Request a deletion.** Many providers accept deletion requests for content that you sent before. Use the same LLM prompt with this question: "how do I request deletion of past API data on `{PROVIDER}`?"
+3. **Rotate the key.** For a clean cut-off point, generate a new key on the provider dashboard. Then replace the old key in **Model Library → API Keys**.
 
 ## Summary
 
-- **Local** = nothing leaves your device.
-- **HyperWhisper Cloud** = we don't store your audio, and we apply each provider's strongest no-train / no-retain control. Most providers retain nothing; a couple keep data briefly for abuse monitoring (no training), and ElevenLabs retains by default until we complete an enterprise zero-retention upgrade.
-- **Your own API key** = mostly your responsibility — except for Deepgram, which HyperWhisper auto-opts-out by adding `mip_opt_out=true` to every request the app sends.
+- **Local**: the audio stays on your device.
+- **HyperWhisper Cloud**: HyperWhisper does not store your audio, and applies the strongest no-train / no-store control of each provider. Most providers store nothing. Some providers store data for a short time for abuse monitoring, and do not train on it. ElevenLabs stores data by default, until HyperWhisper completes an enterprise zero-retention upgrade. HyperWhisper stores anonymous timing rows for the public latency page, and deletes them after 1 year. To stop them, turn off **Share anonymous speed data** in **Settings → General**.
+- **Your own API key**: the opt-out is mostly your responsibility. Deepgram is the exception, because HyperWhisper adds `mip_opt_out=true` to every request from the app.
 
 ---
 

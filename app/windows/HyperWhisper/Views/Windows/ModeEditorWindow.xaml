@@ -163,17 +163,10 @@
                                   BorderBrush="{DynamicResource BorderBrush}"
                                   Padding="10,8"
                                   SelectionChanged="CloudAccuracyCombo_SelectionChanged">
-                            <ComboBoxItem Content="{loc:Loc modes.cloudAccuracy.groqWhisper.label}" Tag="groqWhisper"/>
-                            <ComboBoxItem Content="{loc:Loc modes.cloudAccuracy.deepgramNova3.label}" Tag="deepgramNova3"/>
-                            <ComboBoxItem Content="{loc:Loc modes.cloudAccuracy.grokStt.label}" Tag="grokStt"/>
-                            <ComboBoxItem Content="{loc:Loc modes.cloudAccuracy.azureMaiTranscribe.label}" Tag="azureMaiTranscribe"/>
-                            <ComboBoxItem Content="{loc:Loc modes.cloudAccuracy.googleChirp3.label}" Tag="googleChirp3"/>
-                            <ComboBoxItem Content="{loc:Loc modes.cloudAccuracy.elevenLabsScribeV2.label}" Tag="elevenLabsScribeV2"/>
-                            <ComboBoxItem Content="{loc:Loc modes.cloudAccuracy.openaiWhisper.label}" Tag="openaiWhisper"/>
-                            <ComboBoxItem Content="{loc:Loc modes.cloudAccuracy.gemini.label}" Tag="gemini"/>
-                            <ComboBoxItem Content="{loc:Loc modes.cloudAccuracy.mistralVoxtral.label}" Tag="mistralVoxtral"/>
-                            <ComboBoxItem Content="{loc:Loc modes.cloudAccuracy.assemblyAI.label}" Tag="assemblyAI"/>
-                            <ComboBoxItem Content="{loc:Loc modes.cloudAccuracy.soniox.label}" Tag="soniox"/>
+                            <!-- Rows are built in code from the shared catalog's vendor
+                                 groups (LoadCloudTierProviders). Company names are proper
+                                 nouns, so they are not localized, and building them here
+                                 keeps the list identical to the macOS one. -->
                         </ComboBox>
                         <!-- Green-dot credits/min caption (matches macOS) -->
                         <StackPanel x:Name="CloudAccuracyCreditsPanel" Orientation="Horizontal" Margin="0,4,0,0" Visibility="Collapsed">

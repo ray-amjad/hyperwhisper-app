@@ -1,0 +1,45 @@
+# Pre-merge gate for the vendored Fly backend (hyperwhisper-cloud/).
+#
+# macOS and Windows each had a pull_request gate; the cloud folder had none.
+# Its only check was cloud-deploy-prod.yml, which runs AFTER the merge — so a
+# broken lockfile, a type error or a failing test first surfaced as a failed
+# production deploy, and then silently blocked every deploy behind it. A stale
+# bun.lock did exactly that for 9 days.
+#
+# Same three commands the deploy runs, so a green PR here means the deploy's
+# gate will pass too.
+name: cloud-ci
+
+on:
+  pull_request:
+    paths: &ci-paths
+      - 'hyperwhisper-cloud/**'
+      - '.github/workflows/cloud-*.yml'
+  push:
+    branches: [main]
+    # Same path filter as pull_request above, via YAML anchor (&ci-paths /
+    # *ci-paths) — plain YAML alias resolution, not a GitHub Actions feature,
+    # so the parser expands it before Actions ever sees the workflow. Matches
+    # the pattern in macos-ci.yml / windows-ci.yml.
+    paths: *ci-paths
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: hyperwhisper-cloud
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+
+      # --frozen-lockfile is the point of this job, not a detail: it fails when
+      # bun.lock no longer satisfies package.json. Never relax it to plain
+      # `bun install` to make a red check go green — regenerate the lockfile
+      # (`bun install` locally) and commit it.
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun test src
