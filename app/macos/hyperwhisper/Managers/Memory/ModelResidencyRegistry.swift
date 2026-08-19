@@ -92,8 +92,21 @@ actor ModelResidencyRegistry {
     /// request). Refcounted, so it is safe to nest and to call from overlapping
     /// concurrent uses of one shared runtime. Also emits the idle gap since its
     /// last use — the distribution that should set Stage 2's idle-unload timeout.
-    func markBusy(id: String) {
-        guard var e = entries[id] else { return }
+    ///
+    /// The return value is the caller's contract, and it is not advisory:
+    /// - `true` — the claim was honored. The caller now holds exactly ONE
+    ///   outstanding claim and MUST balance it with a later `markIdle(id:)`.
+    ///   An unmatched claim pins the model resident for the rest of the session:
+    ///   `markIdle` floors `useCount` at 0 and can never repay the difference.
+    /// - `false` — NO claim was taken, either because `id` is not resident or
+    ///   because its runtime is already being torn down (`phase == .freeing`).
+    ///   The caller must NOT call `markIdle(id:)` (that would decrement someone
+    ///   else's claim) and must NOT treat the runtime as usable — on the
+    ///   `.freeing` path the model is being freed right now, so a caller that
+    ///   proceeds anyway is reading a runtime that is on its way out.
+    @discardableResult
+    func markBusy(id: String) -> Bool {
+        guard var e = entries[id] else { return false }
         // Once the evict closure has actually started (`.freeing`), the runtime
         // is committed to being torn down — refuse the claim rather than
         // advertise a model that is going away. The caller's own load path will
@@ -102,13 +115,14 @@ actor ModelResidencyRegistry {
         // useCount>0 and spares the model.
         if e.phase == .freeing {
             log.notice("model.use.rejected id=\(id, privacy: .public) reason=freeing")
-            return
+            return false
         }
         let gap = Date().timeIntervalSince(e.lastUsedAt)
         e.useCount += 1
         e.lastUsedAt = Date()
         entries[id] = e
         log.info("model.use id=\(id, privacy: .public) idle_gap_s=\(String(format: "%.1f", gap), privacy: .public) uses=\(e.useCount, privacy: .public)")
+        return true
     }
 
     /// Release one claim. The model becomes evictable only when the LAST
