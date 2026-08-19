@@ -8,7 +8,7 @@ import {
   findAccountByStripeSession,
   insertAccountKey,
   getOrCreateUser,
-  updateAccountKey,
+  revokeAccountKey,
   grantCreditLot,
   grantCreditsForStripeEvent,
   refundCreditGrant,
@@ -561,7 +561,9 @@ export async function handleChargeRefunded(
   }
 
   // STEP 6: Update status to revoked
-  await updateAccountKey(license.id, { status: "revoked" });
+  // Also drops the owner’s web sessions — a 90-day session minted by
+  // license-key sign-in would otherwise outlive the revoked key.
+  await revokeAccountKey(license.id, license.userId);
 
   console.log(
     `License ${license.key.substring(0, 7)}... revoked due to full refund`

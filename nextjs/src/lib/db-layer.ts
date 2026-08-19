@@ -16,6 +16,7 @@ import {
   sentEmails,
   user,
   account,
+  session,
   stripeProcessedEvents,
 } from "@/src/db/schema";
 
@@ -133,6 +134,33 @@ export async function updateAccountKey(
   if (updates.email !== undefined) values.email = updates.email;
 
   await db.update(accountKeys).set(values).where(eq(accountKeys.id, id));
+}
+
+/**
+ * Revoke a license key and sign its owner out of the web portal.
+ *
+ * The status write alone is not enough. Web sessions last 90 days and roll
+ * forward on use, and a session minted by `/sign-in/license-key` outlives the
+ * key that minted it — so whoever holds a leaked key keeps the portal (email,
+ * every other license key on the account, credit balances, the Stripe billing
+ * portal link) for up to 90 days after the key is killed. Dropping the user's
+ * sessions makes revocation take effect on the next request.
+ *
+ * Sessions are not attributable to the key that created them, so this drops all
+ * of the user's sessions, not just license-key ones. A legitimate owner of
+ * several keys is signed out of the web portal once and signs back in with a
+ * magic link or a key they still hold; the alternative — skipping the cleanup
+ * when the account has another valid key — leaves the hole open in exactly the
+ * multi-key case an attacker benefits from most. Desktop apps are unaffected:
+ * `/api/license/*` authenticates on the license key, never on a session.
+ */
+export async function revokeAccountKey(
+  id: string,
+  userId: string,
+): Promise<void> {
+  await updateAccountKey(id, { status: "revoked" });
+
+  await db.delete(session).where(eq(session.userId, userId));
 }
 
 export async function findAccountByKey(key: string): Promise<AccountKeyRow | null> {
