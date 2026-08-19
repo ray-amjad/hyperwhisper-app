@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
 
-import { getServerComponentSession } from "@/src/lib/auth";
+import { getPortalSession } from "@/src/lib/auth";
 import { UserProvider } from "@/components/user/UserContext";
 import SessionRefresher from "@/components/user/SessionRefresher";
 import UserSidebar from "@/components/user/UserSidebar";
@@ -19,7 +18,9 @@ import UserHeader from "@/components/user/UserHeader";
  * - Header with user info and sign-out
  * - UserProvider context for child components
  * - SessionRefresher: browser-side session read so the rolling session cookie
- *   gets re-issued (a Server Component cannot set cookies)
+ *   gets re-issued (a Server Component cannot set cookies), and so an open tab
+ *   whose session was revoked server-side leaves the portal instead of showing
+ *   a stale, signed-in UI
  *
  * Layout Variations:
  * - Admins: Full-width with sidebar on left
@@ -33,10 +34,7 @@ export default async function UserLayout({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
-  // Server Component read: never rolls the session (see
-  // `getServerComponentSession`) — the cookie is re-issued from route
-  // handlers and <SessionRefresher /> instead.
-  const session = await getServerComponentSession(await headers());
+  const session = await getPortalSession();
 
   // Double-check auth (middleware should handle this, but be safe)
   if (!session?.user) {
@@ -49,7 +47,7 @@ export default async function UserLayout({
 
   return (
     <UserProvider email={user.email || ""} isAdmin={isAdmin}>
-      <SessionRefresher />
+      <SessionRefresher locale={locale} />
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
         <div className="flex">
           {/* Sidebar - Only visible for admins */}

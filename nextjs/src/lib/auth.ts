@@ -1,3 +1,5 @@
+import { cache } from "react";
+import { headers } from "next/headers";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { magicLink } from "better-auth/plugins";
@@ -13,7 +15,42 @@ export const auth = betterAuth({
   // with a 1-day `updateAge`, which signed active users out after a hard week.
   // 90 days + a daily rolling refresh keeps an active user signed in
   // indefinitely — but only if the refresh happens somewhere a `Set-Cookie`
-  // can actually be sent. See `getServerComponentSession` below.
+  // can actually be sent, and a Server Component is not such a place.
+  //
+  // `deferSessionRefresh` is how that is guaranteed structurally rather than
+  // by convention. With it on (`node_modules/better-auth/dist/api/routes/
+  // session.mjs`), `/get-session` on a **GET** takes an early return that does
+  // no writes at all — no `internalAdapter.updateSession`, no
+  // `setSessionCookie` — and instead returns a `needsRefresh: true` flag.
+  // Server-side `auth.api.getSession()` always goes through `getSessionFromCtx`,
+  // which hard-codes `method: "GET"`, so *no* server read — RSC, tRPC context,
+  // or a REST route handler — can consume the once-a-day refresh window. There
+  // is nothing left to forget: the hazard is gone, not merely documented.
+  //
+  // The browser completes the refresh. `authClient.useSession()` sees
+  // `needsRefresh` and immediately re-requests `/get-session` with **POST**
+  // (`dist/client/session-atom.mjs`), the only method that reaches the write
+  // branch — and POST is rejected outright unless `deferSessionRefresh` is on.
+  // That request hits `/api/auth/[...all]`, a route handler, so the re-issued
+  // `Set-Cookie: ...; Max-Age=7776000` reaches the browser intact.
+  //
+  // That POST does NOT work out of the box. Better Auth sends it with no body
+  // and therefore no `Content-Type`, and its own router answers 415 — silently,
+  // because the client swallows the error. `src/lib/auth-client.ts` carries the
+  // workaround and the full trace; without it this whole design degrades to a
+  // hard 90-day deadline that looks healthy.
+  // <SessionRefresher /> in the portal layout is what guarantees that POST
+  // happens on every hard page load, for every page in the segment. Because
+  // server reads no longer refresh at all, that component is now the *only*
+  // thing that rolls the session — do not delete it.
+  //
+  // One deployment caveat: being a POST, the refresh goes through Better
+  // Auth's origin check, so `BETTER_AUTH_URL` must match the origin the portal
+  // is actually served from. A mismatch fails the POST silently (the client
+  // swallows the error and keeps the stale session), and the symptom would be
+  // "signed out after 90 days" again. Sign-in itself is also a POST, so a
+  // mismatch breaks sign-in first and loudly — but check this before blaming
+  // anything else.
   //
   // Deliberately NO `cookieCache`. It would serve the session — including the
   // custom `role` field — from a signed cookie for its whole maxAge without
@@ -24,6 +61,7 @@ export const auth = betterAuth({
   session: {
     expiresIn: 60 * 60 * 24 * 90, // 90 days
     updateAge: 60 * 60 * 24, // refresh at most once a day
+    deferSessionRefresh: true,
   },
   user: {
     additionalFields: {
@@ -52,33 +90,20 @@ export const auth = betterAuth({
 });
 
 /**
- * Read the session from inside a Server Component (a `layout.tsx` / `page.tsx`).
+ * Read the current session inside a portal Server Component, at most once per
+ * request.
  *
- * ALWAYS use this instead of `auth.api.getSession()` in a Server Component.
- * `disableRefresh` is load-bearing, not an optimisation — do not drop it.
- *
- * Better Auth's `/get-session` rolls the session when
- * `expiresAt - expiresIn + updateAge <= now`: it writes the new `expiresAt` to
- * the DB and then calls `setSessionCookie`. Next.js forbids writing cookies
- * during an RSC render, and the `nextCookies()` plugin swallows that failure in
- * a bare `try/catch`. So an unguarded read here would consume the once-a-day
- * refresh window — the DB row moves forward, the browser's cookie `Max-Age`
- * does not, and every later read that day sees `shouldBeUpdated === false` and
- * re-issues nothing. Net effect: the cookie's `Max-Age` is written exactly once,
- * at sign-in, and the user is hard-signed-out on day 90 regardless of activity.
- *
- * `nextCookies()` does have a guard for this, but it only fires when the request
- * carries an `RSC: 1` header — i.e. on soft navigations and prefetches. A hard
- * page load sends no such header, which is exactly the case that matters.
- *
- * Route handlers (`server/api/trpc.ts`, `app/api/customer/profile/route.ts`,
- * `/api/auth/*`) must keep calling `auth.api.getSession()` directly: a
- * `Set-Cookie` is legal there, so those reads are what actually roll the
- * session forward, together with <SessionRefresher />.
+ * This is a de-duplication convenience, NOT a correctness contract. The portal
+ * layout and the page it wraps both need the session, and each `getSession()`
+ * is a full session+user SELECT; `cache()` collapses them into one. Calling
+ * `auth.api.getSession({ headers: await headers() })` directly is equally
+ * correct — `deferSessionRefresh` (see above) already makes it impossible for
+ * a server-side read to consume the rolling-refresh window — it just costs an
+ * extra query. There is deliberately no "you must use this" rule here.
  */
-export function getServerComponentSession(headers: Headers) {
-  return auth.api.getSession({ headers, query: { disableRefresh: true } });
-}
+export const getPortalSession = cache(async () =>
+  auth.api.getSession({ headers: await headers() }),
+);
 
 function magicLinkEmailHtml({ url }: { url: string }): string {
   return `
