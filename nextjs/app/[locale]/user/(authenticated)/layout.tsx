@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 
 import { auth } from "@/src/lib/auth";
 import { UserProvider } from "@/components/user/UserContext";
+import SessionRefresher from "@/components/user/SessionRefresher";
 import UserSidebar from "@/components/user/UserSidebar";
 import UserHeader from "@/components/user/UserHeader";
 
@@ -17,6 +18,8 @@ import UserHeader from "@/components/user/UserHeader";
  * - Conditional sidebar (only for admins)
  * - Header with user info and sign-out
  * - UserProvider context for child components
+ * - SessionRefresher: client-side session read so the rolling session cookie
+ *   gets re-issued (a Server Component cannot set cookies)
  *
  * Layout Variations:
  * - Admins: Full-width with sidebar on left
@@ -43,6 +46,7 @@ export default async function UserLayout({
 
   return (
     <UserProvider email={user.email || ""} isAdmin={isAdmin}>
+      <SessionRefresher />
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
         <div className="flex">
           {/* Sidebar - Only visible for admins */}

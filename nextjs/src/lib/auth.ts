@@ -9,6 +9,17 @@ import { licenseKeyPlugin } from "./auth-license-key-plugin";
 export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL,
   database: drizzleAdapter(db, { provider: "pg" }),
+  // Explicit session config: Better Auth's defaults are a 7-day `expiresIn`
+  // with a 1-day `updateAge`, which signed active users out after a hard week.
+  // 90 days + a daily rolling refresh keeps an active user signed in
+  // indefinitely. The refresh only reaches the browser because
+  // <SessionRefresher /> reads the session from a route handler
+  // (`/api/auth/get-session`) — a Server Component cannot set cookies.
+  session: {
+    expiresIn: 60 * 60 * 24 * 90, // 90 days
+    updateAge: 60 * 60 * 24, // refresh at most once a day
+    cookieCache: { enabled: true, maxAge: 300 },
+  },
   user: {
     additionalFields: {
       role: {
