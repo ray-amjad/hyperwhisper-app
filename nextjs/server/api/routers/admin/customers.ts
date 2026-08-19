@@ -512,7 +512,7 @@ export const customersRouter = createTRPCRouter({
         revokeLicense: z.boolean(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const { licenseKeyId, revokeLicense } = input;
 
       const license = await findAccountById(licenseKeyId);
@@ -553,8 +553,16 @@ export const customersRouter = createTRPCRouter({
       // Optionally revoke the license. This also drops the owner's web
       // sessions — a 90-day session minted by license-key sign-in would
       // otherwise outlive the revoked key. See `revokeAccountKey`.
+      //
+      // Except when the owner is the admin running the refund: comped keys are
+      // routinely minted against an admin's own email, and signing yourself out
+      // mid-mutation is never the intent. The key is still revoked; only the
+      // session sweep is skipped, and only for the one account we know is
+      // legitimately in use right now.
       if (revokeLicense) {
-        await revokeAccountKey(licenseKeyId, license.userId);
+        await revokeAccountKey(licenseKeyId, license.userId, {
+          actingUserId: ctx.user.id,
+        });
       }
 
       return { success: true, revoked: revokeLicense };

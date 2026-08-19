@@ -18,7 +18,9 @@ import UserHeader from "@/components/user/UserHeader";
  * - Header with user info and sign-out
  * - UserProvider context for child components
  * - SessionRefresher: browser-side session read so the rolling session cookie
- *   gets re-issued (a Server Component cannot set cookies)
+ *   gets re-issued (a Server Component cannot set cookies), and so an open tab
+ *   whose session was revoked server-side leaves the portal instead of showing
+ *   a stale, signed-in UI
  *
  * Layout Variations:
  * - Admins: Full-width with sidebar on left
@@ -45,7 +47,7 @@ export default async function UserLayout({
 
   return (
     <UserProvider email={user.email || ""} isAdmin={isAdmin}>
-      <SessionRefresher />
+      <SessionRefresher locale={locale} />
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
         <div className="flex">
           {/* Sidebar - Only visible for admins */}

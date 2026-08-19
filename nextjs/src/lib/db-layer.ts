@@ -153,12 +153,22 @@ export async function updateAccountKey(
  * when the account has another valid key — leaves the hole open in exactly the
  * multi-key case an attacker benefits from most. Desktop apps are unaffected:
  * `/api/license/*` authenticates on the license key, never on a session.
+ *
+ * `actingUserId` is the operator performing the revocation, when there is one.
+ * Comped keys are routinely minted against an admin's own email, and an admin
+ * refunding one of those would otherwise delete their own session mid-mutation
+ * and sign themselves out. The rule lives here rather than at the call site so
+ * every caller inherits it: the key is always revoked, and the session sweep is
+ * skipped only for the one account we know is legitimately in use right now.
  */
 export async function revokeAccountKey(
   id: string,
   userId: string,
+  options: { actingUserId?: string } = {},
 ): Promise<void> {
   await updateAccountKey(id, { status: "revoked" });
+
+  if (options.actingUserId === userId) return;
 
   await db.delete(session).where(eq(session.userId, userId));
 }
