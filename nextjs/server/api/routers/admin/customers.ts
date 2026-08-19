@@ -19,7 +19,7 @@ import {
   getCreditBalance,
   grantCreditLot,
   refundCreditGrant,
-  updateAccountKey,
+  revokeAccountKey,
   getAccountKeysWithCreditsForUserIds,
   getUserById,
   getUserByEmail,
@@ -550,9 +550,11 @@ export const customersRouter = createTRPCRouter({
         sourceId: license.stripeSessionId,
       });
 
-      // Optionally revoke the license
+      // Optionally revoke the license. This also drops the owner's web
+      // sessions — a 90-day session minted by license-key sign-in would
+      // otherwise outlive the revoked key. See `revokeAccountKey`.
       if (revokeLicense) {
-        await updateAccountKey(licenseKeyId, { status: "revoked" });
+        await revokeAccountKey(licenseKeyId, license.userId);
       }
 
       return { success: true, revoked: revokeLicense };
