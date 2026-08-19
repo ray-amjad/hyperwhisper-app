@@ -129,7 +129,7 @@ class LibWhisperProvider: TranscriptionProvider {
     /// `lifecycleLock`, so a load and a memory-pressure teardown can never
     /// interleave. `ResidentRuntimeClaim.acquire` documents why.
     func loadModel(named modelName: String, forceReload: Bool = false) async throws {
-        try await lifecycleLock.withLock {
+        try await lifecycleLock.withLock { () async throws -> Void in
             try await self.performLoad(named: modelName, forceReload: forceReload)
         }
     }
@@ -510,7 +510,7 @@ class LibWhisperProvider: TranscriptionProvider {
     private func tearDownContext(registeredGeneration: UInt64?) async {
         transcriptionTask?.cancel()
 
-        await lifecycleLock.withLock {
+        await lifecycleLock.withLock { () async -> Void in
             if let registeredGeneration = registeredGeneration, registeredGeneration != self.contextGeneration {
                 self.logger.info("🧽 Skipping superseded cleanup (generation \(registeredGeneration, privacy: .public), now \(self.contextGeneration, privacy: .public))")
                 return
