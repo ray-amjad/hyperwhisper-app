@@ -216,9 +216,9 @@ test("accuracy weighting puts the lowest error rate first", async () => {
   );
 });
 
-test("a measured timing beats the published speed factor", async () => {
+test("a measured clip time is reported but never rewrites the per-minute estimate", async () => {
   const { CLOUD_MODELS } = await loadCatalog();
-  const { estimateSeconds } = await loadScoring();
+  const { estimateSeconds, measuredClipMs } = await loadScoring();
 
   const model = CLOUD_MODELS.find(
     (entry: { sttProvider: string; speedFactor: number | null }) =>
@@ -226,16 +226,66 @@ test("a measured timing beats the published speed factor", async () => {
   );
   assert.ok(model, "no benchmarked Deepgram model to test with");
 
-  const published = estimateSeconds(model, {});
-  assert.equal(published.isMeasured, false);
+  // /latency stores one attempt's wall time on a clip under 10 seconds, and the
+  // clip's length is never written down. It is not seconds per audio minute and
+  // must not be spent as though it were.
+  const published = estimateSeconds(model);
+  assert.equal(published, 60 / model.speedFactor + 0.25);
 
-  // A model-level key wins over its provider-level one.
-  const measured = estimateSeconds(model, {
-    deepgram: 900,
-    [`deepgram:${model.modelId}`]: 400,
+  assert.equal(measuredClipMs(model, {}), null);
+
+  // A model-level key wins over its provider-level one, and the answer stays in
+  // milliseconds — the unit it was recorded in.
+  assert.equal(
+    measuredClipMs(model, {
+      deepgram: 900,
+      [`deepgram:${model.modelId}`]: 400,
+    }),
+    400,
+  );
+});
+
+test("measuring a model cannot move it in the ranking", async () => {
+  const { CLOUD_MODELS, modelsForPlatform } = await loadCatalog();
+  const { buildPool, rankModels, NO_REQUIREMENTS, PRESETS } =
+    await loadScoring();
+
+  const pool = buildPool(modelsForPlatform("macos"), "english", NO_REQUIREMENTS);
+  const fastest = PRESETS.find(
+    (preset: { id: string }) => preset.id === "fast",
+  );
+  assert.ok(fastest, "no Fastest preset");
+
+  // A plausible short-clip median for every cloud provider at once: a few
+  // hundred milliseconds of round trip, which is what a sub-10-second clip
+  // mostly is. Under the old per-minute reading this reordered the board and
+  // pushed the genuinely fastest providers down it.
+  const measured: Record<string, number> = {};
+  for (const model of CLOUD_MODELS) {
+    measured[model.sttProvider] = 900;
+  }
+
+  const unmeasured = rankModels(pool, {
+    weights: fastest.weights,
+    measured: {},
   });
-  assert.equal(measured.isMeasured, true);
-  assert.equal(measured.seconds, 0.4);
+  const withMeasurements = rankModels(pool, {
+    weights: fastest.weights,
+    measured,
+  });
+
+  assert.deepEqual(
+    withMeasurements.map((entry: { model: { id: string } }) => entry.model.id),
+    unmeasured.map((entry: { model: { id: string } }) => entry.model.id),
+    "measured timings reordered the ranking",
+  );
+  assert.ok(
+    withMeasurements.some(
+      (entry: { measuredClipMs: number | null }) =>
+        entry.measuredClipMs === 900,
+    ),
+    "the measurement was dropped instead of being surfaced",
+  );
 });
 
 test("requirements filter the pool rather than reordering it", async () => {

@@ -159,20 +159,28 @@ export default async function ChoosingAModelPage({ params }: Props) {
           <div>
             <dt className="font-medium text-gray-200">Speed</dt>
             <dd className="mt-1">
-              Where we have measured a provider from your nearest region, the
-              number is our own median from the last 90 days — the same
-              measurements behind{" "}
+              Two numbers, and the difference matters.{" "}
+              <span className="text-gray-200">Per audio minute</span> is how long
+              a minute of speech takes to come back, from the
+              leaderboard&apos;s published speed factor; on-device rows estimate
+              it from the app&apos;s own speed rating, so read those as an
+              ordering, not a promise. That is the number the ranking uses,
+              because it is the only one we hold for every model.{" "}
+              <span className="text-gray-200">Measured clip</span> is our own
+              median from the last 90 days — the same measurements behind{" "}
               <a
                 className="text-purple-300 underline underline-offset-4 transition hover:text-purple-200"
                 href="/en/latency"
               >
                 the latency page
               </a>
-              , taken from short clips because that is what dictation is. Those
-              rows carry a dot. Everything else falls back to the
-              leaderboard&apos;s published speed factor. On-device timings are an
-              estimate from the app&apos;s own speed rating and depend on your
-              hardware, so read them as an ordering, not a promise.
+              , taken from clips under ten seconds because that is what dictation
+              is. It is a round trip for one clip, not a throughput: most of it
+              is the network and the provider&apos;s fixed overhead rather than
+              decoding, and we do not store the clip&apos;s length, so it cannot
+              be scaled up to a minute. Feeding it into the ranking anyway would
+              punish the providers we happen to know most about, so it sits in
+              its own column instead.
             </dd>
           </div>
           <div>
