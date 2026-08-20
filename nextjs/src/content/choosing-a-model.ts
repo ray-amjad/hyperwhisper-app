@@ -34,9 +34,27 @@ function usable(cell: LatencyCell): boolean {
  * its five-minute-file timings would flatter whichever provider streams large
  * uploads best, which is not the job this page is doing.
  *
- * Never throws. The calculator degrades to the published speed factors when
- * this comes back empty, so a database blip costs the page its measured
- * timings, not its ranking.
+ * A database failure propagates, deliberately, and this function holds no
+ * try/catch of its own.
+ *
+ * `getLatencyMatrix` already draws the only distinction there is to draw, and
+ * documents it at length: it swallows a failure while `next build` prerenders,
+ * so a deploy never depends on Postgres being reachable from the builder, and
+ * it re-throws at runtime because Next counts a returned value — empty data
+ * included — as a successful render. Build time is therefore already handled
+ * upstream, which means a catch here could only ever fire in the window
+ * /latency reserves for throwing.
+ *
+ * It used to. One Postgres hiccup during an hourly revalidation returned `{}`,
+ * which is not "no measurements yet" but a good page overwritten by a worse one
+ * and cached for an hour: no region control, no measured column, no geo fetch.
+ * Throwing leaves the last good page in the ISR cache, which is both correct
+ * and fresher than anything this function could invent, and Next retries on the
+ * next request. /en/latency survives that blip; there is no reason this page
+ * should be the one that does not.
+ *
+ * An empty TABLE is still not a failure: no rows means no cells, the page falls
+ * back to the published speed factors, and the region control hides itself.
  */
 export async function getMeasuredLatency(): Promise<MeasuredLatencyByRegion> {
   const byRegion: MeasuredLatencyByRegion = {};
@@ -44,40 +62,29 @@ export async function getMeasuredLatency(): Promise<MeasuredLatencyByRegion> {
   // busier model can replace a quieter one's number as the provider fallback.
   const providerSamples: Record<string, number> = {};
 
-  try {
-    const matrix = await getLatencyMatrix(DEFAULT_BUCKET);
+  const matrix = await getLatencyMatrix(DEFAULT_BUCKET);
 
-    for (const vendor of matrix.vendors) {
-      for (const model of vendor.models) {
-        for (const cell of model.cells) {
-          if (!usable(cell)) continue;
+  for (const vendor of matrix.vendors) {
+    for (const model of vendor.models) {
+      for (const cell of model.cells) {
+        if (!usable(cell)) continue;
 
-          const region = (byRegion[cell.region] ??= {});
-          const providerKey = model.provider;
-          const modelKey =
-            model.model === null
-              ? providerKey
-              : `${providerKey}:${model.model}`;
+        const region = (byRegion[cell.region] ??= {});
+        const providerKey = model.provider;
+        const modelKey =
+          model.model === null ? providerKey : `${providerKey}:${model.model}`;
 
-          region[modelKey] = cell.p50;
+        region[modelKey] = cell.p50;
 
-          // The provider-level fallback takes the timing of whichever of its
-          // models ran most in this region — the one most people actually get.
-          const seen = `${cell.region}/${providerKey}`;
-          if (cell.samples > (providerSamples[seen] ?? 0)) {
-            providerSamples[seen] = cell.samples;
-            region[providerKey] = cell.p50;
-          }
+        // The provider-level fallback takes the timing of whichever of its
+        // models ran most in this region — the one most people actually get.
+        const seen = `${cell.region}/${providerKey}`;
+        if (cell.samples > (providerSamples[seen] ?? 0)) {
+          providerSamples[seen] = cell.samples;
+          region[providerKey] = cell.p50;
         }
       }
     }
-  } catch (error) {
-    console.error(
-      "[choosing-a-model] could not read measured latency; " +
-        "falling back to published speed factors:",
-      error,
-    );
-    return {};
   }
 
   return byRegion;
