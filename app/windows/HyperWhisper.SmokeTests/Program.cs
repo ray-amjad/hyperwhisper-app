@@ -1485,6 +1485,35 @@ internal static class Program
                 Assert(boundaryFrame.Contains("input_audio_buffer.commit"), $"expected the commit frame, got '{boundaryFrame}'");
             });
 
+            Run("OpenAIStreamingStrategy: a full capture buffer always clears the OpenAI commit minimum", () =>
+            {
+                // PINS THE COUPLING, not another byte count. Windows can only ever
+                // produce chunks of exactly StreamingAudioCapture.CaptureBufferMilliseconds
+                // worth of audio: Stop() clears IsCapturing before StopRecording(), so
+                // NAudio's short trailing buffer never reaches EncodeAudioChunk, and the
+                // multi-channel path mixes down to the same size. So the pending counter
+                // is only ever 0 or a multiple of one buffer.
+                //
+                // That makes the capture buffer length load-bearing for the commit gate,
+                // and silently so: halve it for latency and the last buffer of every
+                // OpenAI streaming session stops clearing the 100ms floor and is dropped
+                // with no error - the smoke suite would otherwise stay green throughout.
+                // Both numbers below come from production code, so this fails the moment
+                // either side of the coupling moves.
+                var strategy = new OpenAIStreamingStrategy();
+                const int bytesPerSample = 2; // 16-bit PCM, as CreateWaveIn requests.
+                var captureChunkBytes =
+                    StreamingAudioCapture.CaptureBufferMilliseconds * strategy.AudioSampleRate * bytesPerSample / 1000;
+
+                strategy.EncodeAudioChunk(new byte[captureChunkBytes]);
+                var steps = strategy.GetStopSequence();
+
+                Assert(
+                    steps.Count == 3,
+                    $"a single {StreamingAudioCapture.CaptureBufferMilliseconds}ms capture buffer ({captureChunkBytes} bytes at {strategy.AudioSampleRate}Hz) no longer clears the OpenAI commit minimum - Windows will now silently drop the final buffer of every streaming session; got {steps.Count} stop steps");
+                Assert(steps[0].Action == StreamingStopAction.SendMessage, $"expected a SendMessage step first, got {steps[0].Action}");
+            });
+
             Run("OpenAIStreamingStrategy.GetStopSequence commits once enough audio has accumulated", () =>
             {
                 // 12000 bytes = 6000 samples of 24kHz 16-bit mono PCM = 250ms, well over

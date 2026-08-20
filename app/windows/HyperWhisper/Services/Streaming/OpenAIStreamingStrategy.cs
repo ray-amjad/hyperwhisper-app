@@ -211,6 +211,17 @@ public sealed class OpenAIStreamingStrategy : IStreamingProviderStrategy
             // with something. Deliberately a log and NOT an error report: this is
             // the expected benign case this change exists to stop reporting. Runs
             // once per session, so it is not in any hot path.
+            //
+            // UNREACHABLE ON WINDOWS TODAY, deliberately kept: every chunk that
+            // reaches EncodeAudioChunk is a whole StreamingAudioCapture buffer
+            // (CaptureBufferMilliseconds = 100 => exactly 4800 bytes at 24 kHz;
+            // the trailing partial buffer is discarded before it gets here), so
+            // the counter is only ever 0 or a multiple of the floor. This branch
+            // is the diagnostic for the day that stops being true - a capture
+            // buffer length change, a resampler, or any other producer - which is
+            // exactly the change that would otherwise drop the user's last buffer
+            // in silence. It matches the macOS strategy, where the resampler does
+            // produce arbitrary chunk sizes and the branch is live.
             LoggingService.Warn(
                 $"OpenAIStreamingStrategy: dropping {pendingBytes} pending audio bytes at stop - under the {MinimumCommitBytes}-byte ({MinimumCommitMilliseconds}ms) OpenAI Realtime commit minimum");
         }

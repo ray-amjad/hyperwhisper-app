@@ -9,6 +9,25 @@ namespace HyperWhisper.Services.Streaming;
 /// </summary>
 public sealed class StreamingAudioCapture : IDisposable
 {
+    /// <summary>
+    /// Length of every capture buffer NAudio hands us, in milliseconds. It fixes
+    /// the size of every chunk that reaches a streaming strategy: at 24 kHz mono
+    /// 16-bit that is exactly 4800 bytes, and multi-channel capture mixes down to
+    /// the same figure.
+    /// <para>
+    /// This is COUPLED to <c>OpenAIStreamingStrategy</c>'s 100 ms commit minimum,
+    /// and the coupling is silent: <see cref="Stop"/> clears
+    /// <see cref="IsCapturing"/> before <c>StopRecording()</c>, so NAudio's short
+    /// trailing buffer never reaches a strategy and the pending-byte counter is
+    /// only ever 0 or a multiple of this buffer's size. Lower this for latency
+    /// and the final buffer of every OpenAI streaming session silently stops
+    /// clearing the commit floor and is dropped, with no error anywhere. The
+    /// smoke suite pins the relationship - see "a full capture buffer always
+    /// clears the OpenAI commit minimum" in HyperWhisper.SmokeTests.
+    /// </para>
+    /// </summary>
+    public const int CaptureBufferMilliseconds = 100;
+
     private readonly object _gate = new();
     private readonly Stopwatch _stopwatch = new();
     private WaveInEvent? _waveIn;
@@ -123,7 +142,7 @@ public sealed class StreamingAudioCapture : IDisposable
         {
             DeviceNumber = deviceNumber,
             WaveFormat = new WaveFormat(sampleRate, 16, channelCount),
-            BufferMilliseconds = 100
+            BufferMilliseconds = CaptureBufferMilliseconds
         };
     }
 
