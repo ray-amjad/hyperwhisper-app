@@ -9,7 +9,7 @@ export const revalidate = 3600;
 
 const TITLE = "Choosing a speech-to-text model";
 const DESCRIPTION =
-  "Split 100 points across accuracy, speed, cost and privacy, and see which of the models HyperWhisper ships actually fits — cloud and on-device, ranked side by side.";
+  "Tell us what matters — accuracy, speed, cost or privacy — and see which of the speech-to-text models HyperWhisper ships actually fits, cloud and on-device ranked side by side.";
 
 export async function generateMetadata() {
   return {
@@ -57,22 +57,34 @@ export default async function ChoosingAModelPage({ params }: Props) {
 
   return (
     <div className="w-full py-16 md:py-24">
+      {/*
+        Deliberately two lines. The trade-off this page is about — push one
+        priority up and the others give way — used to be explained here in a
+        paragraph, above the control that demonstrates it in about two seconds
+        of dragging. The budget still names itself where it lives ("Your 100
+        points", in ModelPicker), so nothing is left unexplained by cutting the
+        explanation from the top.
+
+        What the sub-head must keep is the claim that these are the models
+        HyperWhisper ships. It is the only sentence that says why this page
+        exists rather than a link to the Artificial Analysis leaderboard.
+      */}
       <header className="mx-auto max-w-3xl text-center">
         <h1 className="bg-gradient-to-r from-white to-gray-400 bg-clip-text text-4xl font-bold text-transparent md:text-5xl">
-          You have 100 points. Spend them.
+          Which model should you use?
         </h1>
+        {/*
+          "across macOS and Windows" is load-bearing, not padding.
+          DEVICE_MODELS.length is the union over both platforms (19), while the
+          ranked list below shows only the selected platform's on-device rows
+          (17 on macOS). Without the qualifier the sentence reads as a count of
+          what is on screen and visibly disagrees with the table's own
+          "26 cloud · 17 on-device" caption.
+        */}
         <p className="mx-auto mt-6 text-lg text-gray-400">
-          Every speech-to-text trade-off is zero-sum — the most accurate model is
-          rarely the cheapest or the fastest, and the most private one runs on
-          your own hardware. So instead of rating everything &ldquo;very
-          important&rdquo;, split 100 points across four priorities. Push one up
-          and the others give way.
-        </p>
-        <p className="mx-auto mt-4 text-sm text-gray-500">
-          We rank the {CLOUD_MODELS.length} cloud models and{" "}
-          {DEVICE_MODELS.length} on-device models HyperWhisper actually ships
-          across macOS and Windows — not a general leaderboard. Pick your
-          platform below and the list narrows to what you can run.
+          Tell us what matters and we will rank the {CLOUD_MODELS.length} cloud
+          and {DEVICE_MODELS.length} on-device models HyperWhisper ships across
+          macOS and Windows. Nothing here is a general leaderboard.
         </p>
       </header>
 
