@@ -49,6 +49,313 @@ function readCatalog(): CatalogFile {
   return JSON.parse(readFileSync(catalogPath, "utf8")) as CatalogFile;
 }
 
+// ---------------------------------------------------------------------------
+// The on-device mirror, and reading two native registries as data
+// ---------------------------------------------------------------------------
+//
+// The cloud half of the mirror has been guarded since it was written, because
+// cloud-stt-catalog.json is JSON and reading JSON is free. The on-device half
+// was guarded by nothing at all — `DEVICE_MODELS` appeared in no test — and it
+// shipped with every Windows download size copied from macOS and four shipped
+// Whisper builds missing entirely.
+//
+// Swift and C# are not JSON, so this scrapes them. That is worth doing anyway:
+// the alternative on offer was no guard, and the registries this reads are flat
+// literal tables that have held their shape for the life of the files. What it
+// deliberately does NOT do is parse arbitrary code. Two macOS rows —
+// Qwen3 ASR and Apple Speech — have their 1-5 ratings written inline inside
+// `ModelLibraryManager.swift` function bodies rather than in a rating table, so
+// their ratings are unguarded and only their sizes and language sets are
+// checked here. If a scrape stops matching, the failure is loud and says so;
+// fix the reader rather than deleting the assertion.
+
+function readSource(relative: string): string {
+  return readFileSync(
+    fileURLToPath(new URL(`../../${relative}`, import.meta.url)),
+    "utf8",
+  );
+}
+
+const MACOS = "app/macos/hyperwhisper";
+const WINDOWS = "app/windows/HyperWhisper";
+
+/**
+ * The bracketed literal a declaration opens. `marker` must match through to and
+ * including the opening bracket; nesting is counted, so inner arrays survive.
+ */
+function blockAfter(source: string, marker: RegExp, where: string): string {
+  const found = marker.exec(source);
+  assert.ok(
+    found,
+    `could not find ${where} — the registry moved, so this reader needs updating`,
+  );
+  const open = found[0][found[0].length - 1];
+  const close = open === "[" ? "]" : "}";
+  const start = found.index + found[0].length - 1;
+
+  let depth = 0;
+  for (let i = start; i < source.length; i += 1) {
+    if (source[i] === open) depth += 1;
+    else if (source[i] === close) {
+      depth -= 1;
+      if (depth === 0) return source.slice(start + 1, i);
+    }
+  }
+  assert.fail(`unbalanced ${open} reading ${where}`);
+}
+
+/** `"id": (speed, accuracy)` in Swift, `["id"] = (speed, accuracy)` in C#. */
+function parseRatings(block: string): Record<string, [number, number]> {
+  const out: Record<string, [number, number]> = {};
+  const entry = /\[?"([^"]+)"\]?\s*[:=]\s*\(\s*(\d+)\s*,\s*(\d+)\s*\)/g;
+  let match: RegExpExecArray | null;
+  while ((match = entry.exec(block)) !== null) {
+    out[match[1]] = [Number(match[2]), Number(match[3])];
+  }
+  return out;
+}
+
+/** Every quoted string in a block, in order. Used for flat code lists. */
+function quotedStrings(block: string): string[] {
+  return Array.from(block.matchAll(/"([^"]*)"/g), (match) => match[1]);
+}
+
+/** The keys of a Swift `[String: String]` literal. */
+function dictionaryKeys(block: string): string[] {
+  return Array.from(block.matchAll(/"([^"]+)"\s*:/g), (match) => match[1]);
+}
+
+/** `static let someName = "value"` in Swift. */
+function swiftConstant(source: string, name: string): string {
+  const found = new RegExp(`static let ${name}\\s*=\\s*"([^"]*)"`).exec(source);
+  assert.ok(found, `no Swift constant ${name}`);
+  return found[1];
+}
+
+type RegistryEntry = { size: string; codes?: string[] };
+
+/** macOS: the flat registries, keyed by the id each app uses internally. */
+function readMacosRegistry(): Record<string, RegistryEntry> {
+  const whisperSource = readSource(
+    `${MACOS}/Managers/Transcription/Models/WhisperModelManager.swift`,
+  );
+  const parakeetSource = readSource(
+    `${MACOS}/Managers/Transcription/Models/ParakeetModelManager.swift`,
+  );
+  const nemotronSource = readSource(
+    `${MACOS}/Managers/Transcription/Models/NemotronModelManager.swift`,
+  );
+  const qwen3Source = readSource(
+    `${MACOS}/Managers/Transcription/Models/Qwen3AsrModelManager.swift`,
+  );
+  const languageSource = readSource(
+    `${MACOS}/Views/Modes/Components/ModeLanguageSettings.swift`,
+  );
+
+  const entries: Record<string, RegistryEntry> = {};
+
+  // `"tiny": ("39 MB", 39_000_000),`
+  const sizes = blockAfter(
+    whisperSource,
+    /let modelSizes: \[String: \(String, Int64\)\] = \[/,
+    "macOS Whisper modelSizes",
+  );
+  // Array.from rather than iterating the match iterator directly: this tsconfig
+  // targets es5, where a for-of over one is a type error (TS2802).
+  for (const match of Array.from(
+    sizes.matchAll(/"([^"]+)":\s*\(\s*"([^"]+)"/g),
+  )) {
+    entries[match[1]] = { size: match[2] };
+  }
+
+  entries["parakeet-tdt-0.6b-v2"] = {
+    size: swiftConstant(parakeetSource, "v2SizeDescription"),
+    codes: dictionaryKeys(
+      blockAfter(
+        parakeetSource,
+        /v2Languages: \[String: String\] = \[/,
+        "macOS Parakeet v2 languages",
+      ),
+    ),
+  };
+  entries["parakeet-tdt-0.6b-v3"] = {
+    size: swiftConstant(parakeetSource, "v3SizeDescription"),
+    codes: dictionaryKeys(
+      blockAfter(
+        parakeetSource,
+        /v3Languages: \[String: String\] = \[/,
+        "macOS Parakeet v3 languages",
+      ),
+    ),
+  };
+  entries["nemotron-asr-3.5-latin"] = {
+    size: swiftConstant(nemotronSource, "latinSize"),
+    codes: dictionaryKeys(
+      blockAfter(
+        nemotronSource,
+        /latinLanguages: \[String: String\] = \[/,
+        "macOS Nemotron latin languages",
+      ),
+    ),
+  };
+  entries["nemotron-asr-3.5-multilingual"] = {
+    size: swiftConstant(nemotronSource, "multilingualSize"),
+    codes: dictionaryKeys(
+      blockAfter(
+        nemotronSource,
+        /multilingualLanguages: \[String: String\] = \[/,
+        "macOS Nemotron multilingual languages",
+      ),
+    ),
+  };
+  // The two picker lists lead with `LanguageData.automaticCode`, which is a
+  // symbol rather than a quoted code, so it does not survive `quotedStrings`.
+  entries["qwen3-asr-0.6b"] = {
+    size: swiftConstant(qwen3Source, "sizeDescription"),
+    codes: quotedStrings(
+      blockAfter(
+        languageSource,
+        /qwen3AsrLanguageCodes: \[String\] = \[/,
+        "macOS Qwen3 language codes",
+      ),
+    ),
+  };
+  entries["apple-speech-analyzer"] = {
+    size: "Built-in",
+    codes: quotedStrings(
+      blockAfter(
+        languageSource,
+        /speechAnalyzerLanguageCodes: \[String\] = \[/,
+        "macOS Apple Speech language codes",
+      ),
+    ),
+  };
+
+  return entries;
+}
+
+/** Windows: `WhisperModelInfo.AllModels` and `ParakeetModelInfo.AllModels`. */
+function readWindowsRegistry(): Record<string, RegistryEntry> {
+  const entries: Record<string, RegistryEntry> = {};
+
+  // `new WhisperModelInfo("tiny", "Tiny", "78 MB", false, …)`
+  const whisper = blockAfter(
+    readSource(`${WINDOWS}/Models/WhisperModelInfo.cs`),
+    /AllModels = new\[\]\s*\{/,
+    "Windows WhisperModelInfo.AllModels",
+  );
+  for (const match of Array.from(
+    whisper.matchAll(
+      /new WhisperModelInfo\(\s*"([^"]+)",\s*"[^"]*",\s*"([^"]+)"/g,
+    ),
+  )) {
+    entries[match[1]] = { size: match[2] };
+  }
+
+  // Named arguments over several lines, so each `new ParakeetModelInfo(` opens
+  // a chunk that is read for the three fields the page mirrors.
+  const parakeet = blockAfter(
+    readSource(`${WINDOWS}/Models/ParakeetModelInfo.cs`),
+    /ParakeetModelInfo\[\] AllModels\s*=\s*\[/,
+    "Windows ParakeetModelInfo.AllModels",
+  );
+  for (const chunk of parakeet.split("new ParakeetModelInfo(").slice(1)) {
+    const id = /id:\s*"([^"]+)"/.exec(chunk);
+    const size = /size:\s*"([^"]+)"/.exec(chunk);
+    const codes = /supportedLanguages:\s*\[([^\]]*)\]/.exec(chunk);
+    assert.ok(id && size && codes, "unreadable ParakeetModelInfo entry");
+    entries[id[1]] = { size: size[1], codes: quotedStrings(codes[1]) };
+  }
+
+  return entries;
+}
+
+function readRatings(): {
+  macos: Record<string, [number, number]>;
+  windows: Record<string, [number, number]>;
+} {
+  const swift = readSource(`${MACOS}/Managers/ModelLibraryManager.swift`);
+  const csharp = readSource(`${WINDOWS}/Services/ModelLibraryManager.cs`);
+  const table = /: \[String: \(speed: Int, accuracy: Int\)\] = \[/;
+
+  return {
+    macos: {
+      ...parseRatings(
+        blockAfter(
+          swift,
+          new RegExp(`whisperRatings${table.source}`),
+          "macOS whisperRatings",
+        ),
+      ),
+      ...parseRatings(
+        blockAfter(
+          swift,
+          new RegExp(`parakeetRatings${table.source}`),
+          "macOS parakeetRatings",
+        ),
+      ),
+      ...parseRatings(
+        blockAfter(
+          swift,
+          new RegExp(`nemotronRatings${table.source}`),
+          "macOS nemotronRatings",
+        ),
+      ),
+    },
+    windows: {
+      ...parseRatings(
+        blockAfter(csharp, /WhisperRatings = new\(\)\s*\{/, "WhisperRatings"),
+      ),
+      ...parseRatings(
+        blockAfter(csharp, /ParakeetRatings = new\(\)\s*\{/, "ParakeetRatings"),
+      ),
+    },
+  };
+}
+
+/**
+ * Mirror id to the id each app's registry uses. Hand-written because the two
+ * apps genuinely disagree — macOS spells turbo `large-v3_turbo` with an
+ * underscore and Windows `large-v3-turbo` with a hyphen, and the Parakeet
+ * family is named after upstream weights on macOS and after the product on
+ * Windows. A model missing from this table on a platform it lists is a failure,
+ * which is what catches a row the page forgot to add.
+ */
+const REGISTRY_IDS: Record<
+  string,
+  Partial<Record<"macos" | "windows", string>>
+> = {
+  "device:whisper-large-v3-turbo": { macos: "large-v3_turbo", windows: "large-v3-turbo" },
+  "device:whisper-large-v3": { macos: "large-v3", windows: "large-v3" },
+  "device:whisper-large-v2": { macos: "large-v2", windows: "large-v2" },
+  "device:whisper-medium": { macos: "medium", windows: "medium" },
+  "device:whisper-medium-en": { macos: "medium.en", windows: "medium.en" },
+  "device:whisper-small": { macos: "small", windows: "small" },
+  "device:whisper-small-en": { macos: "small.en", windows: "small.en" },
+  "device:whisper-base": { macos: "base", windows: "base" },
+  "device:whisper-base-en": { macos: "base.en", windows: "base.en" },
+  "device:whisper-tiny": { macos: "tiny", windows: "tiny" },
+  "device:whisper-tiny-en": { macos: "tiny.en", windows: "tiny.en" },
+  "device:parakeet-v3": { macos: "parakeet-tdt-0.6b-v3", windows: "parakeet-v3" },
+  "device:parakeet-v2": { macos: "parakeet-tdt-0.6b-v2", windows: "parakeet-v2" },
+  "device:nemotron-multilingual": { macos: "nemotron-asr-3.5-multilingual" },
+  "device:nemotron-latin": { macos: "nemotron-asr-3.5-latin" },
+  "device:nemotron-streaming": { windows: "nemotron-3.5-ml-560ms" },
+  "device:qwen3-asr": { macos: "qwen3-asr-0.6b" },
+  "device:qwen3-asr-0.6b": { windows: "qwen3-asr-0.6b" },
+  "device:apple-speech": { macos: "apple-speech-analyzer" },
+};
+
+/** What the page shows a reader on this platform. */
+function shownSize(
+  model: { size: string; sizeWindows?: string },
+  platform: string,
+): string {
+  return platform === "windows" && model.sizeWindows
+    ? model.sizeWindows
+    : model.size;
+}
+
 test("the page's cloud mirror matches the catalog the apps read", async () => {
   const { CLOUD_MODELS } = await loadCatalog();
   const catalog = readCatalog();
@@ -107,6 +414,233 @@ test("documented language counts match the catalog", async () => {
       model.languages,
       expected,
       `${model.id} language count drifted from the catalog`,
+    );
+  }
+});
+
+test("every on-device model both apps ship is on the page, and no others", async () => {
+  const { DEVICE_MODELS } = await loadCatalog();
+
+  const registries: Record<string, Record<string, RegistryEntry>> = {
+    macos: readMacosRegistry(),
+    windows: readWindowsRegistry(),
+  };
+
+  for (const platform of ["macos", "windows"] as const) {
+    const mirrored = new Set(
+      DEVICE_MODELS.filter((model: { platforms: readonly string[] }) =>
+        model.platforms.includes(platform),
+      ).map((model: { id: string }) => {
+        const registryId = REGISTRY_IDS[model.id]?.[platform];
+        assert.ok(
+          registryId,
+          `${model.id} claims to ship on ${platform} but REGISTRY_IDS has no id for it there`,
+        );
+        return registryId;
+      }),
+    );
+
+    assert.deepEqual(
+      Array.from(mirrored).sort(),
+      Object.keys(registries[platform]).sort(),
+      `the ${platform} device list has drifted from the app's model registry`,
+    );
+  }
+});
+
+test("on-device download sizes match each platform's own registry", async () => {
+  const { DEVICE_MODELS } = await loadCatalog();
+
+  const registries: Record<string, Record<string, RegistryEntry>> = {
+    macos: readMacosRegistry(),
+    windows: readWindowsRegistry(),
+  };
+
+  for (const model of DEVICE_MODELS) {
+    for (const platform of model.platforms as readonly ("macos" | "windows")[]) {
+      const registryId = REGISTRY_IDS[model.id]?.[platform];
+      assert.ok(registryId, `no ${platform} registry id for ${model.id}`);
+      assert.equal(
+        shownSize(model, platform),
+        registries[platform][registryId].size,
+        `${model.id} shows the wrong download size to a ${platform} reader`,
+      );
+    }
+  }
+});
+
+test("on-device speed and accuracy ratings match both apps' rating tables", async () => {
+  const { DEVICE_MODELS } = await loadCatalog();
+  const ratings = readRatings();
+
+  // Ratings the apps write inline rather than in a rating table; see the note
+  // above readSource. Their sizes and language sets are still guarded.
+  const UNTABLED = new Set(["device:qwen3-asr", "device:apple-speech"]);
+
+  let checked = 0;
+  for (const model of DEVICE_MODELS) {
+    if (UNTABLED.has(model.id)) continue;
+    for (const platform of model.platforms as readonly ("macos" | "windows")[]) {
+      const registryId = REGISTRY_IDS[model.id]?.[platform];
+      assert.ok(registryId, `no ${platform} registry id for ${model.id}`);
+      const rating = ratings[platform][registryId];
+      assert.ok(
+        rating,
+        `${registryId} has no entry in the ${platform} rating table`,
+      );
+      assert.deepEqual(
+        [model.speedRating, model.accuracyRating],
+        rating,
+        `${model.id} ratings drifted from the ${platform} app`,
+      );
+      checked += 1;
+    }
+  }
+  assert.ok(checked > 20, `only ${checked} ratings were checked`);
+});
+
+test("on-device language scopes are the rung the registries' code lists earn", async () => {
+  const { DEVICE_MODELS, scopeForCodes } = await loadCatalog();
+
+  const registries: Record<string, Record<string, RegistryEntry>> = {
+    macos: readMacosRegistry(),
+    windows: readWindowsRegistry(),
+  };
+
+  // Whisper's registries declare no code list — the multilingual builds are
+  // flagged "supports all languages" and the .en builds are pinned to English
+  // by their id — so the two ends are asserted by shape instead.
+  let derived = 0;
+  for (const model of DEVICE_MODELS) {
+    for (const platform of model.platforms as readonly ("macos" | "windows")[]) {
+      const registryId = REGISTRY_IDS[model.id]?.[platform];
+      assert.ok(registryId, `no ${platform} registry id for ${model.id}`);
+
+      if (registryId.startsWith("large-") || /^(tiny|base|small|medium)$/.test(registryId)) {
+        assert.equal(
+          model.languageScope,
+          "wide",
+          `${model.id} is a multilingual Whisper build but is not scoped wide`,
+        );
+        continue;
+      }
+      if (registryId.endsWith(".en")) {
+        assert.equal(
+          model.languageScope,
+          "narrow",
+          `${model.id} is an English-only build but is not scoped narrow`,
+        );
+        assert.equal(model.languages, 1, `${model.id} is English-only`);
+        continue;
+      }
+
+      const codes = registries[platform][registryId].codes;
+      assert.ok(codes, `${registryId} declares no language codes on ${platform}`);
+      assert.equal(
+        model.languageScope,
+        scopeForCodes(codes),
+        `${model.id} scope drifted from the ${platform} registry's ${codes.length} codes`,
+      );
+      derived += 1;
+    }
+  }
+  assert.ok(derived >= 8, `only ${derived} scopes were derived from a code list`);
+});
+
+test("on-device capability flags stay inside what the platform ships", async () => {
+  const { DEVICE_MODELS } = await loadCatalog();
+  const catalog = (
+    JSON.parse(readSource("shared-models/models-catalog.json")) as {
+      models: {
+        provider: string;
+        id: string;
+        supportsCustomVocabulary?: boolean;
+      }[];
+    }
+  ).models;
+
+  const seen = new Set<string>();
+  for (const model of DEVICE_MODELS) {
+    assert.ok(!seen.has(model.id), `duplicate device id ${model.id}`);
+    seen.add(model.id);
+    assert.ok(model.platforms.length > 0, `${model.id} ships nowhere`);
+
+    for (const rating of [model.speedRating, model.accuracyRating]) {
+      assert.ok(
+        Number.isInteger(rating) && rating >= 1 && rating <= 5,
+        `${model.id} has a rating outside 1-5`,
+      );
+    }
+
+    // A capability cannot be claimed on a platform the model is not on.
+    for (const platform of [
+      ...model.streamingPlatforms,
+      ...model.customVocabularyPlatforms,
+    ]) {
+      assert.ok(
+        model.platforms.includes(platform),
+        `${model.id} claims a capability on ${platform}, where it does not ship`,
+      );
+    }
+  }
+
+  // Models/StreamingTranscriptionProvider.cs has five members and every one is
+  // a cloud vendor. Nothing on-device streams on Windows.
+  const windowsEnum = blockAfter(
+    readSource(`${WINDOWS}/Models/StreamingTranscriptionProvider.cs`),
+    /enum StreamingTranscriptionProvider\s*\{/,
+    "Windows StreamingTranscriptionProvider",
+  );
+  assert.ok(
+    !/local/i.test(windowsEnum),
+    "Windows gained a local streaming provider — the device mirror must follow",
+  );
+  for (const model of DEVICE_MODELS) {
+    assert.ok(
+      !model.streamingPlatforms.includes("windows"),
+      `${model.id} claims Windows streaming, which the app has no provider for`,
+    );
+  }
+
+  // macOS exposes exactly the two the Swift enum calls local.
+  const macosLocal = blockAfter(
+    readSource(
+      `${MACOS}/Managers/AudioRecording/Streaming/Protocols/StreamingProviderStrategy.swift`,
+    ),
+    /var isLocal: Bool \{/,
+    "macOS isLocal",
+  );
+  const localCases = Array.from(
+    macosLocal.matchAll(/case ([.\w, ]+): return true/g),
+  ).flatMap((match) =>
+    match[1].split(",").map((entry) => entry.trim().replace(/^\./, "")),
+  );
+  assert.deepEqual(
+    localCases.sort(),
+    ["nemotronLocal", "parakeetLocal"],
+    "the macOS local streaming providers changed",
+  );
+
+  // Custom vocabulary on macOS is the shared catalog's per-provider wildcard.
+  const vocabulary = (provider: string) =>
+    catalog.find((row) => row.provider === provider && row.id === "*")
+      ?.supportsCustomVocabulary === true;
+
+  const PROVIDER_OF: Record<string, string> = {
+    Whisper: "localWhisper",
+    Parakeet: "parakeet",
+    Nemotron: "nemotron",
+    Qwen3: "qwen3ASR",
+    Apple: "appleSpeech",
+  };
+  for (const model of DEVICE_MODELS) {
+    if (!model.platforms.includes("macos")) continue;
+    const provider = PROVIDER_OF[model.vendorLabel];
+    assert.ok(provider, `no catalog provider for vendor ${model.vendorLabel}`);
+    assert.equal(
+      model.customVocabularyPlatforms.includes("macos"),
+      vocabulary(provider),
+      `${model.id} disagrees with models-catalog.json about custom vocabulary`,
     );
   }
 });

@@ -256,25 +256,46 @@ export const CLOUD_MODELS: readonly CloudModel[] = CLOUD_MODELS_RAW.map(
 );
 
 /**
- * Mirrored from the macOS (`ModelLibraryManager.swift`, `WhisperModel.swift`)
- * and Windows (`ModelLibraryManager.cs`, `WhisperModelInfo.cs`) model
- * libraries, including their 1-5 speed and accuracy ratings.
+ * Mirrored from the macOS (`WhisperModelManager.swift`,
+ * `ParakeetModelManager.swift`, `NemotronModelManager.swift`,
+ * `ModelLibraryManager.swift`) and Windows (`WhisperModelInfo.cs`,
+ * `ParakeetModelInfo.cs`, `ModelLibraryManager.cs`) model libraries, including
+ * their 1-5 speed and accuracy ratings.
  *
  * Whisper and Parakeet carry a leaderboard word error rate because the
  * leaderboard measured those same open weights on a hosted runner. The rest
  * have no published figure and fall back to the app's own accuracy rating —
- * which is what keeps Whisper Tiny from scoring like a frontier model.
+ * which is what keeps Whisper Tiny from scoring like a frontier model. The
+ * English-only Whisper builds carry none either: the leaderboard measured the
+ * multilingual weights, and these are different files.
+ *
+ * **`sizeWindows` is not optional decoration.** The two apps download different
+ * artifacts, and almost every Whisper row differs — Tiny is 39 MB on macOS and
+ * 78 MB on Windows, Parakeet V3 494 MB against 671 MB. The page shipped with
+ * one row carrying the override and the rest quietly showing macOS numbers to
+ * Windows readers, on the very figure the on-device trade-off is argued from.
+ * `tests/choosing-a-model-catalog.test.ts` now reads both platforms' registries
+ * as data and fails when any of this drifts.
+ *
+ * Where the two platforms genuinely disagree and only one number fits, the
+ * mirror takes macOS and the scope covers the gap: Parakeet V3 names 25
+ * languages on macOS and 26 on Windows, both sets wholly European, so both earn
+ * `european` and the count shown is the macOS one.
  */
 const DEVICE_MODELS_RAW = [
   { id: "device:whisper-large-v3-turbo", name: "Whisper Large v3 Turbo", vendorLabel: "Whisper", platforms: ["macos", "windows"], size: "809 MB", sizeWindows: "1.5 GB", wer: 4.6, accuracyBasis: "sameWeights", speedRating: 4, accuracyRating: 3, languages: 100, languageScope: "wide", streamingPlatforms: [], customVocabularyPlatforms: ["macos"] },
   { id: "device:whisper-large-v3", name: "Whisper Large v3", vendorLabel: "Whisper", platforms: ["macos", "windows"], size: "3.1 GB", wer: 4.1, accuracyBasis: "sameWeights", speedRating: 3, accuracyRating: 3, languages: 100, languageScope: "wide", streamingPlatforms: [], customVocabularyPlatforms: ["macos"] },
-  { id: "device:whisper-large-v2", name: "Whisper Large v2", vendorLabel: "Whisper", platforms: ["macos", "windows"], size: "2.9 GB", wer: 4.1, accuracyBasis: "sameWeights", speedRating: 3, accuracyRating: 3, languages: 100, languageScope: "wide", streamingPlatforms: [], customVocabularyPlatforms: ["macos"] },
+  { id: "device:whisper-large-v2", name: "Whisper Large v2", vendorLabel: "Whisper", platforms: ["macos", "windows"], size: "2.9 GB", sizeWindows: "3.1 GB", wer: 4.1, accuracyBasis: "sameWeights", speedRating: 3, accuracyRating: 3, languages: 100, languageScope: "wide", streamingPlatforms: [], customVocabularyPlatforms: ["macos"] },
   { id: "device:whisper-medium", name: "Whisper Medium", vendorLabel: "Whisper", platforms: ["macos", "windows"], size: "1.5 GB", wer: null, accuracyBasis: "appRating", speedRating: 4, accuracyRating: 3, languages: 100, languageScope: "wide", streamingPlatforms: [], customVocabularyPlatforms: ["macos"] },
-  { id: "device:whisper-small", name: "Whisper Small", vendorLabel: "Whisper", platforms: ["macos", "windows"], size: "466 MB", wer: null, accuracyBasis: "appRating", speedRating: 4, accuracyRating: 2, languages: 100, languageScope: "wide", streamingPlatforms: [], customVocabularyPlatforms: ["macos"] },
-  { id: "device:whisper-base", name: "Whisper Base", vendorLabel: "Whisper", platforms: ["macos", "windows"], size: "142 MB", wer: null, accuracyBasis: "appRating", speedRating: 5, accuracyRating: 1, languages: 100, languageScope: "wide", streamingPlatforms: [], customVocabularyPlatforms: ["macos"] },
-  { id: "device:whisper-tiny", name: "Whisper Tiny", vendorLabel: "Whisper", platforms: ["macos", "windows"], size: "39 MB", wer: null, accuracyBasis: "appRating", speedRating: 5, accuracyRating: 1, languages: 100, languageScope: "wide", streamingPlatforms: [], customVocabularyPlatforms: ["macos"] },
-  { id: "device:parakeet-v3", name: "Parakeet V3", vendorLabel: "Parakeet", platforms: ["macos", "windows"], size: "494 MB", wer: 4.5, accuracyBasis: "sameWeights", speedRating: 5, accuracyRating: 3, languages: 25, languageScope: "european", streamingPlatforms: ["macos"], customVocabularyPlatforms: [] },
-  { id: "device:parakeet-v2", name: "Parakeet V2", vendorLabel: "Parakeet", platforms: ["macos", "windows"], size: "474 MB", wer: 6.4, accuracyBasis: "sameWeights", speedRating: 5, accuracyRating: 3, languages: 1, languageScope: "narrow", streamingPlatforms: ["macos"], customVocabularyPlatforms: [] },
+  { id: "device:whisper-medium-en", name: "Whisper Medium (English)", vendorLabel: "Whisper", platforms: ["macos", "windows"], size: "1.5 GB", wer: null, accuracyBasis: "appRating", speedRating: 4, accuracyRating: 2, languages: 1, languageScope: "narrow", streamingPlatforms: [], customVocabularyPlatforms: ["macos"] },
+  { id: "device:whisper-small", name: "Whisper Small", vendorLabel: "Whisper", platforms: ["macos", "windows"], size: "466 MB", sizeWindows: "488 MB", wer: null, accuracyBasis: "appRating", speedRating: 4, accuracyRating: 2, languages: 100, languageScope: "wide", streamingPlatforms: [], customVocabularyPlatforms: ["macos"] },
+  { id: "device:whisper-small-en", name: "Whisper Small (English)", vendorLabel: "Whisper", platforms: ["macos", "windows"], size: "466 MB", sizeWindows: "488 MB", wer: null, accuracyBasis: "appRating", speedRating: 5, accuracyRating: 2, languages: 1, languageScope: "narrow", streamingPlatforms: [], customVocabularyPlatforms: ["macos"] },
+  { id: "device:whisper-base", name: "Whisper Base", vendorLabel: "Whisper", platforms: ["macos", "windows"], size: "142 MB", sizeWindows: "148 MB", wer: null, accuracyBasis: "appRating", speedRating: 5, accuracyRating: 1, languages: 100, languageScope: "wide", streamingPlatforms: [], customVocabularyPlatforms: ["macos"] },
+  { id: "device:whisper-base-en", name: "Whisper Base (English)", vendorLabel: "Whisper", platforms: ["macos", "windows"], size: "142 MB", sizeWindows: "148 MB", wer: null, accuracyBasis: "appRating", speedRating: 5, accuracyRating: 2, languages: 1, languageScope: "narrow", streamingPlatforms: [], customVocabularyPlatforms: ["macos"] },
+  { id: "device:whisper-tiny", name: "Whisper Tiny", vendorLabel: "Whisper", platforms: ["macos", "windows"], size: "39 MB", sizeWindows: "78 MB", wer: null, accuracyBasis: "appRating", speedRating: 5, accuracyRating: 1, languages: 100, languageScope: "wide", streamingPlatforms: [], customVocabularyPlatforms: ["macos"] },
+  { id: "device:whisper-tiny-en", name: "Whisper Tiny (English)", vendorLabel: "Whisper", platforms: ["macos", "windows"], size: "39 MB", sizeWindows: "78 MB", wer: null, accuracyBasis: "appRating", speedRating: 5, accuracyRating: 1, languages: 1, languageScope: "narrow", streamingPlatforms: [], customVocabularyPlatforms: ["macos"] },
+  { id: "device:parakeet-v3", name: "Parakeet V3", vendorLabel: "Parakeet", platforms: ["macos", "windows"], size: "494 MB", sizeWindows: "671 MB", wer: 4.5, accuracyBasis: "sameWeights", speedRating: 5, accuracyRating: 3, languages: 25, languageScope: "european", streamingPlatforms: ["macos"], customVocabularyPlatforms: [] },
+  { id: "device:parakeet-v2", name: "Parakeet V2", vendorLabel: "Parakeet", platforms: ["macos", "windows"], size: "474 MB", sizeWindows: "661 MB", wer: 6.4, accuracyBasis: "sameWeights", speedRating: 5, accuracyRating: 3, languages: 1, languageScope: "narrow", streamingPlatforms: ["macos"], customVocabularyPlatforms: [] },
   { id: "device:nemotron-multilingual", name: "Nemotron 3.5 Multilingual", vendorLabel: "Nemotron", platforms: ["macos"], size: "~1.3 GB", wer: null, accuracyBasis: "appRating", speedRating: 5, accuracyRating: 4, languages: 30, languageScope: "wide", streamingPlatforms: ["macos"], customVocabularyPlatforms: [] },
   { id: "device:nemotron-latin", name: "Nemotron 3.5 Latin", vendorLabel: "Nemotron", platforms: ["macos"], size: "~350 MB", wer: null, accuracyBasis: "appRating", speedRating: 5, accuracyRating: 4, languages: 6, languageScope: "european", streamingPlatforms: ["macos"], customVocabularyPlatforms: [] },
   { id: "device:nemotron-streaming", name: "Nemotron 3.5 Streaming", vendorLabel: "Nemotron", platforms: ["windows"], size: "~660 MB", wer: null, accuracyBasis: "appRating", speedRating: 5, accuracyRating: 4, languages: 2, languageScope: "narrow", streamingPlatforms: [], customVocabularyPlatforms: [] },
