@@ -1563,11 +1563,12 @@ internal static class Program
 
             Run("OpenAIStreamingStrategy.OnAudioSendOpportunityAsync holds back a periodic commit under the 100ms minimum", () =>
             {
-                // The commit interval and the clock are injected so the periodic path can
-                // be driven with no sleeping. The interval has elapsed, but only 85ms has
-                // accumulated, so no commit frame may go out.
+                // The clock is injected so the periodic path can be driven with no
+                // sleeping; advancing it past the hardcoded 1.2s interval is what opens
+                // the gate. The interval has elapsed, but only 85ms has accumulated, so
+                // no commit frame may go out.
                 var now = DateTimeOffset.UtcNow;
-                var strategy = new OpenAIStreamingStrategy(TimeSpan.FromSeconds(1.2), () => now);
+                var strategy = new OpenAIStreamingStrategy(() => now);
                 var sent = new List<byte[]>();
 
                 strategy.EncodeAudioChunk(new byte[4080]);
@@ -1583,7 +1584,7 @@ internal static class Program
             Run("OpenAIStreamingStrategy.OnAudioSendOpportunityAsync sends exactly one periodic commit once the minimum is met", () =>
             {
                 var now = DateTimeOffset.UtcNow;
-                var strategy = new OpenAIStreamingStrategy(TimeSpan.FromSeconds(1.2), () => now);
+                var strategy = new OpenAIStreamingStrategy(() => now);
                 var sent = new List<byte[]>();
                 Func<byte[], WebSocketMessageType, CancellationToken, Task> send =
                     (data, type, ct) => { sent.Add(data); return Task.CompletedTask; };
@@ -1610,7 +1611,7 @@ internal static class Program
                 // rejects, so the commit fires on the next chunk that clears the floor
                 // rather than a full interval later.
                 var now = DateTimeOffset.UtcNow;
-                var strategy = new OpenAIStreamingStrategy(TimeSpan.FromSeconds(1.2), () => now);
+                var strategy = new OpenAIStreamingStrategy(() => now);
                 var sent = new List<byte[]>();
                 Func<byte[], WebSocketMessageType, CancellationToken, Task> send =
                     (data, type, ct) => { sent.Add(data); return Task.CompletedTask; };
@@ -1644,7 +1645,7 @@ internal static class Program
                 // exactly the rejected frame of HYPERWHISPER-S8/S9. The periodic commit
                 // must CONSUME its bytes, not merely observe them.
                 var now = DateTimeOffset.UtcNow;
-                var strategy = new OpenAIStreamingStrategy(TimeSpan.FromSeconds(1.2), () => now);
+                var strategy = new OpenAIStreamingStrategy(() => now);
                 var sent = new List<byte[]>();
                 Func<byte[], WebSocketMessageType, CancellationToken, Task> send =
                     (data, type, ct) => { sent.Add(data); return Task.CompletedTask; };
@@ -1670,7 +1671,7 @@ internal static class Program
                 // periodic commit must not make the stop sequence permanently silent. A
                 // tail that clears the floor on its own still has to be committed.
                 var now = DateTimeOffset.UtcNow;
-                var strategy = new OpenAIStreamingStrategy(TimeSpan.FromSeconds(1.2), () => now);
+                var strategy = new OpenAIStreamingStrategy(() => now);
                 var sent = new List<byte[]>();
                 Func<byte[], WebSocketMessageType, CancellationToken, Task> send =
                     (data, type, ct) => { sent.Add(data); return Task.CompletedTask; };

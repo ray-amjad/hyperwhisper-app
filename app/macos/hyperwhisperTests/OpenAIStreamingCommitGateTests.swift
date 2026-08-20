@@ -30,8 +30,8 @@ struct OpenAIStreamingCommitGateTests {
     /// 4800 bytes = 2400 samples = EXACTLY 100 ms at 24 kHz — the boundary. The
     /// server's rule is "at least 100ms", so this must commit, and the gate must
     /// carry no margin over it. It is also the exact size of every Windows
-    /// capture chunk (`BufferMilliseconds = 100`), which is why a threshold one
-    /// byte higher would silently drop a whole final buffer there.
+    /// capture chunk (`CaptureBufferMilliseconds = 100`), which is why a
+    /// threshold one byte higher would silently drop a whole final buffer there.
     private static let exactlyAtMinimumChunk = Data(count: 4800)
 
     /// 12000 bytes = 6000 samples = 250 ms — comfortably over the threshold.
@@ -134,7 +134,7 @@ struct OpenAIStreamingCommitGateTests {
 
     @Test func periodicCommitHoldsBackAudioUnderTheServerMinimum() {
         let clock = TestClock()
-        let strategy = OpenAIStreamingStrategy(commitInterval: 1.2, now: { clock.now })
+        let strategy = OpenAIStreamingStrategy(now: { clock.now })
         let sent = SentMessageRecorder()
 
         _ = strategy.encodeAudioChunk(Self.subThresholdChunk)
@@ -146,7 +146,7 @@ struct OpenAIStreamingCommitGateTests {
 
     @Test func periodicCommitSendsExactlyOneFrameOnceTheMinimumIsMet() {
         let clock = TestClock()
-        let strategy = OpenAIStreamingStrategy(commitInterval: 1.2, now: { clock.now })
+        let strategy = OpenAIStreamingStrategy(now: { clock.now })
         let sent = SentMessageRecorder()
 
         _ = strategy.encodeAudioChunk(Self.committableChunk)
@@ -165,7 +165,7 @@ struct OpenAIStreamingCommitGateTests {
 
     @Test func periodicCommitFiresOnTheNextQualifyingChunkAfterAByteGateRejection() {
         let clock = TestClock()
-        let strategy = OpenAIStreamingStrategy(commitInterval: 1.2, now: { clock.now })
+        let strategy = OpenAIStreamingStrategy(now: { clock.now })
         let sent = SentMessageRecorder()
 
         // The interval has elapsed but only 85 ms has accumulated, so the byte
@@ -200,7 +200,7 @@ struct OpenAIStreamingCommitGateTests {
     /// must CONSUME its bytes, not merely observe them.
     @Test func stopAfterAPeriodicCommitDropsASubThresholdTail() {
         let clock = TestClock()
-        let strategy = OpenAIStreamingStrategy(commitInterval: 1.2, now: { clock.now })
+        let strategy = OpenAIStreamingStrategy(now: { clock.now })
         let sent = SentMessageRecorder()
 
         _ = strategy.encodeAudioChunk(Self.committableChunk)
@@ -222,7 +222,7 @@ struct OpenAIStreamingCommitGateTests {
     /// tail that clears the floor on its own still has to be committed.
     @Test func stopAfterAPeriodicCommitStillCommitsATailOverTheMinimum() {
         let clock = TestClock()
-        let strategy = OpenAIStreamingStrategy(commitInterval: 1.2, now: { clock.now })
+        let strategy = OpenAIStreamingStrategy(now: { clock.now })
         let sent = SentMessageRecorder()
 
         _ = strategy.encodeAudioChunk(Self.committableChunk)

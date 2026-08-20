@@ -40,9 +40,14 @@ final class OpenAIStreamingStrategy: StreamingProviderStrategy {
     /// 16-bit mono PCM.
     private static let bytesPerSample = 2
 
+    /// How long between periodic commits. Not injectable: every test drives the
+    /// periodic path by moving the injected clock, which clears this constant
+    /// just as well, so a per-instance knob would only be a way for a future
+    /// caller to get it wrong.
+    private static let commitInterval: TimeInterval = 1.2
+
     private let logger = Logger(subsystem: "com.hyperwhisper.app", category: "OpenAIStreaming")
     private let decoder = JSONDecoder()
-    private let commitInterval: TimeInterval
     private let now: () -> Date
     private var committedItemTranscripts: [String: String] = [:]
     private var partialItemTranscripts: [String: String] = [:]
@@ -77,13 +82,9 @@ final class OpenAIStreamingStrategy: StreamingProviderStrategy {
         Int(audioSampleRate) * Self.bytesPerSample * Self.minimumCommitMilliseconds / 1000
     }
 
-    /// - Parameters:
-    ///   - commitInterval: How long between periodic commits. Injectable so
-    ///     tests can drive the periodic path without wall-clock sleeps; the
-    ///     default is the production value.
-    ///   - now: Clock, injectable for the same reason.
-    init(commitInterval: TimeInterval = 1.2, now: @escaping () -> Date = { Date() }) {
-        self.commitInterval = commitInterval
+    /// - Parameter now: Clock, injectable so tests can drive the periodic commit
+    ///   path without wall-clock sleeps.
+    init(now: @escaping () -> Date = { Date() }) {
         self.now = now
         self.lastCommitTime = now()
     }
@@ -232,7 +233,7 @@ final class OpenAIStreamingStrategy: StreamingProviderStrategy {
     }
 
     func onAudioSendOpportunity(webSocketSend: @escaping (URLSessionWebSocketTask.Message) -> Void) {
-        guard self.now().timeIntervalSince(lastCommitTime) >= commitInterval else {
+        guard self.now().timeIntervalSince(lastCommitTime) >= Self.commitInterval else {
             return
         }
 

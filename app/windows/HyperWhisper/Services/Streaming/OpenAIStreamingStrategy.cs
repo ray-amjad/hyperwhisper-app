@@ -25,7 +25,15 @@ public sealed class OpenAIStreamingStrategy : IStreamingProviderStrategy
         public const string Error = "error";
     }
 
-    private static readonly TimeSpan DefaultCommitInterval = TimeSpan.FromSeconds(1.2);
+    /// <summary>
+    /// Gap between periodic commits. Not injectable: every test drives the
+    /// periodic path by moving the injected clock, which clears this constant
+    /// just as well, so a per-instance knob would only be a way for a future
+    /// caller to get it wrong (<c>TimeSpan.Zero</c> would commit-storm the
+    /// socket).
+    /// </summary>
+    private static readonly TimeSpan CommitInterval = TimeSpan.FromSeconds(1.2);
+
     private static readonly byte[] CommitFrame = Encoding.UTF8.GetBytes($"{{\"type\":\"{EventType.CommitAudio}\"}}");
 
     /// <summary>
@@ -40,8 +48,8 @@ public sealed class OpenAIStreamingStrategy : IStreamingProviderStrategy
     /// to absorb; all a stricter threshold buys is a dead band in which we
     /// silently discard a tail the server would have accepted. That dead band is
     /// not hypothetical on Windows: <c>StreamingAudioCapture</c> sets
-    /// <c>BufferMilliseconds = 100</c>, so every capture chunk is exactly 4800
-    /// bytes at 24 kHz — exactly one chunk, exactly on the line. And
+    /// <c>CaptureBufferMilliseconds = 100</c>, so every capture chunk is exactly
+    /// 4800 bytes at 24 kHz — exactly one chunk, exactly on the line. And
     /// <c>turn_detection</c> is null, so there is no server-side VAD auto-commit
     /// to rescue a dropped tail.
     /// </para>
@@ -54,7 +62,6 @@ public sealed class OpenAIStreamingStrategy : IStreamingProviderStrategy
     private readonly Dictionary<string, string> _committedItemTranscripts = new();
     private readonly Dictionary<string, string> _partialItemTranscripts = new();
     private readonly object _pendingAudioLock = new();
-    private readonly TimeSpan _commitInterval;
     private readonly Func<DateTimeOffset> _now;
     private DateTimeOffset _lastCommitTime;
 
@@ -69,18 +76,12 @@ public sealed class OpenAIStreamingStrategy : IStreamingProviderStrategy
     /// </summary>
     private long _pendingAudioBytes;
 
-    /// <summary>
-    /// Both parameters default to the production values, so
-    /// <c>new OpenAIStreamingStrategy()</c> keeps behaving exactly as before.
-    /// </summary>
-    /// <param name="commitInterval">
-    /// Gap between periodic commits. Injectable so tests can drive the periodic
-    /// path without wall-clock sleeps; null means the production value.
+    /// <param name="now">
+    /// Clock, injectable so tests can drive the periodic commit path without
+    /// wall-clock sleeps; null means the production clock.
     /// </param>
-    /// <param name="now">Clock, injectable for the same reason.</param>
-    public OpenAIStreamingStrategy(TimeSpan? commitInterval = null, Func<DateTimeOffset>? now = null)
+    public OpenAIStreamingStrategy(Func<DateTimeOffset>? now = null)
     {
-        _commitInterval = commitInterval ?? DefaultCommitInterval;
         _now = now ?? (() => DateTimeOffset.UtcNow);
         _lastCommitTime = _now();
     }
@@ -243,7 +244,7 @@ public sealed class OpenAIStreamingStrategy : IStreamingProviderStrategy
         CancellationToken cancellationToken
     )
     {
-        if (_now() - _lastCommitTime < _commitInterval)
+        if (_now() - _lastCommitTime < CommitInterval)
             return Task.CompletedTask;
 
         // Deliberately leaves _lastCommitTime stale when the threshold is not
