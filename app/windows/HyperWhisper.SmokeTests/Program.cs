@@ -1453,9 +1453,8 @@ internal static class Program
                 // OpenAI Realtime rejects input_audio_buffer.commit when under 100ms of
                 // audio was appended since the previous commit. 4080 bytes is the shape
                 // the production events reported: 2040 samples of 24kHz 16-bit mono PCM
-                // = 85ms, under both the server floor (4800 bytes) and the strategy's
-                // 120ms threshold (5760 bytes). The stop sequence must drop that tail
-                // rather than provoke a "buffer too small" error frame.
+                // = 85ms, under the server floor of 4800 bytes. The stop sequence must
+                // drop that tail rather than provoke a "buffer too small" error frame.
                 var strategy = new OpenAIStreamingStrategy();
                 strategy.EncodeAudioChunk(new byte[4080]);
 
@@ -1464,6 +1463,26 @@ internal static class Program
                 Assert(steps.Count == 2, $"expected 2 stop steps with no commit, got {steps.Count}");
                 Assert(steps[0].Action == StreamingStopAction.Wait, $"expected the sequence to still wait, got {steps[0].Action}");
                 Assert(steps[1].Action == StreamingStopAction.Close, $"expected the sequence to still close, got {steps[1].Action}");
+            });
+
+            Run("OpenAIStreamingStrategy.GetStopSequence commits a buffer sitting exactly on the 100ms minimum", () =>
+            {
+                // THE case Windows actually produces: StreamingAudioCapture sets
+                // BufferMilliseconds = 100, so every capture chunk is exactly 4800 bytes
+                // (2400 samples of 24kHz 16-bit mono PCM) = exactly 100ms. The server
+                // rule is "at least 100ms", so this must commit. Any margin over 100ms
+                // would silently discard the user's whole final capture buffer, and with
+                // turn_detection null there is no server-side VAD auto-commit to save it.
+                var strategy = new OpenAIStreamingStrategy();
+                strategy.EncodeAudioChunk(new byte[4800]);
+
+                var steps = strategy.GetStopSequence();
+
+                Assert(steps.Count == 3, $"expected 3 stop steps for a 4800-byte tail, got {steps.Count}");
+                Assert(steps[0].Action == StreamingStopAction.SendMessage, $"expected a SendMessage step first, got {steps[0].Action}");
+                Assert(steps[0].Payload != null, "expected the commit step to carry a payload");
+                var boundaryFrame = System.Text.Encoding.UTF8.GetString(steps[0].Payload!);
+                Assert(boundaryFrame.Contains("input_audio_buffer.commit"), $"expected the commit frame, got '{boundaryFrame}'");
             });
 
             Run("OpenAIStreamingStrategy.GetStopSequence commits once enough audio has accumulated", () =>
@@ -1511,6 +1530,75 @@ internal static class Program
 
                 Assert(steps.Count == 2, $"expected 2 stop steps after a session restart, got {steps.Count}");
                 Assert(steps[0].Action == StreamingStopAction.Wait, $"expected the sequence to start with a wait, got {steps[0].Action}");
+            });
+
+            Run("OpenAIStreamingStrategy.OnAudioSendOpportunityAsync holds back a periodic commit under the 100ms minimum", () =>
+            {
+                // The commit interval and the clock are injected so the periodic path can
+                // be driven with no sleeping. The interval has elapsed, but only 85ms has
+                // accumulated, so no commit frame may go out.
+                var now = DateTimeOffset.UtcNow;
+                var strategy = new OpenAIStreamingStrategy(TimeSpan.FromSeconds(1.2), () => now);
+                var sent = new List<byte[]>();
+
+                strategy.EncodeAudioChunk(new byte[4080]);
+                now += TimeSpan.FromSeconds(2);
+                strategy.OnAudioSendOpportunityAsync(
+                    (data, type, ct) => { sent.Add(data); return Task.CompletedTask; },
+                    CancellationToken.None
+                ).GetAwaiter().GetResult();
+
+                Assert(sent.Count == 0, $"expected no periodic commit under the minimum, got {sent.Count} frames");
+            });
+
+            Run("OpenAIStreamingStrategy.OnAudioSendOpportunityAsync sends exactly one periodic commit once the minimum is met", () =>
+            {
+                var now = DateTimeOffset.UtcNow;
+                var strategy = new OpenAIStreamingStrategy(TimeSpan.FromSeconds(1.2), () => now);
+                var sent = new List<byte[]>();
+                Func<byte[], WebSocketMessageType, CancellationToken, Task> send =
+                    (data, type, ct) => { sent.Add(data); return Task.CompletedTask; };
+
+                strategy.EncodeAudioChunk(new byte[12000]);
+                now += TimeSpan.FromSeconds(2);
+                strategy.OnAudioSendOpportunityAsync(send, CancellationToken.None).GetAwaiter().GetResult();
+
+                Assert(sent.Count == 1, $"expected exactly one periodic commit, got {sent.Count}");
+                var periodicFrame = System.Text.Encoding.UTF8.GetString(sent[0]);
+                Assert(periodicFrame.Contains("input_audio_buffer.commit"), $"expected the commit frame, got '{periodicFrame}'");
+
+                // A commit DOES stamp the last-commit time, so with the clock held still
+                // the next opportunity must stay quiet.
+                strategy.EncodeAudioChunk(new byte[12000]);
+                strategy.OnAudioSendOpportunityAsync(send, CancellationToken.None).GetAwaiter().GetResult();
+
+                Assert(sent.Count == 1, $"expected the interval to gate the second commit, got {sent.Count} frames");
+            });
+
+            Run("OpenAIStreamingStrategy.OnAudioSendOpportunityAsync commits on the next qualifying chunk after a byte-gate rejection", () =>
+            {
+                // The byte gate deliberately leaves the last-commit time STALE when it
+                // rejects, so the commit fires on the next chunk that clears the floor
+                // rather than a full interval later.
+                var now = DateTimeOffset.UtcNow;
+                var strategy = new OpenAIStreamingStrategy(TimeSpan.FromSeconds(1.2), () => now);
+                var sent = new List<byte[]>();
+                Func<byte[], WebSocketMessageType, CancellationToken, Task> send =
+                    (data, type, ct) => { sent.Add(data); return Task.CompletedTask; };
+
+                strategy.EncodeAudioChunk(new byte[4080]);
+                now += TimeSpan.FromSeconds(2);
+                strategy.OnAudioSendOpportunityAsync(send, CancellationToken.None).GetAwaiter().GetResult();
+
+                Assert(sent.Count == 0, $"expected the byte gate to reject 4080 bytes, got {sent.Count} frames");
+
+                // The clock does not move again: 4080 + 4080 = 8160 bytes clears the
+                // 4800-byte floor, so this must commit immediately. Had the rejection
+                // above stamped the timestamp, nothing could commit for another 1.2s.
+                strategy.EncodeAudioChunk(new byte[4080]);
+                strategy.OnAudioSendOpportunityAsync(send, CancellationToken.None).GetAwaiter().GetResult();
+
+                Assert(sent.Count == 1, $"expected the next qualifying chunk to commit immediately, got {sent.Count} frames");
             });
 
             Run("TranscriptViewModel.ApplyUpdate never reverts the entity it wraps", () =>

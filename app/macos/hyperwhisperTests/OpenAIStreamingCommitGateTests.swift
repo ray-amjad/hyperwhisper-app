@@ -23,9 +23,16 @@ struct OpenAIStreamingCommitGateTests {
     // MARK: - Fixtures
 
     /// 4080 bytes = 2040 samples = 85 ms of 24 kHz 16-bit mono PCM — the shape
-    /// the production events reported. Below both the server's 100 ms floor
-    /// (4800 bytes) and the strategy's 120 ms threshold (5760 bytes).
+    /// the production events reported, and below the server's 100 ms floor
+    /// (4800 bytes).
     private static let subThresholdChunk = Data(count: 4080)
+
+    /// 4800 bytes = 2400 samples = EXACTLY 100 ms at 24 kHz — the boundary. The
+    /// server's rule is "at least 100ms", so this must commit, and the gate must
+    /// carry no margin over it. It is also the exact size of every Windows
+    /// capture chunk (`BufferMilliseconds = 100`), which is why a threshold one
+    /// byte higher would silently drop a whole final buffer there.
+    private static let exactlyAtMinimumChunk = Data(count: 4800)
 
     /// 12000 bytes = 6000 samples = 250 ms — comfortably over the threshold.
     private static let committableChunk = Data(count: 12000)
@@ -72,6 +79,16 @@ struct OpenAIStreamingCommitGateTests {
         }
     }
 
+    @Test func stopSequenceCommitsAudioSittingExactlyOnTheServerMinimum() {
+        let strategy = OpenAIStreamingStrategy()
+        _ = strategy.encodeAudioChunk(Self.exactlyAtMinimumChunk)
+
+        let steps = strategy.stopSequence()
+
+        #expect(steps.count == 3)
+        #expect(Self.isSendText(steps[0]) == true)
+    }
+
     @Test func stopSequenceCommitsOnceEnoughAudioHasAccumulated() {
         let strategy = OpenAIStreamingStrategy()
         _ = strategy.encodeAudioChunk(Self.committableChunk)
@@ -111,5 +128,89 @@ struct OpenAIStreamingCommitGateTests {
 
         #expect(commits == false)
         #expect(steps.count == 2)
+    }
+
+    // MARK: - Periodic commit path
+
+    @Test func periodicCommitHoldsBackAudioUnderTheServerMinimum() {
+        let clock = TestClock()
+        let strategy = OpenAIStreamingStrategy(commitInterval: 1.2, now: { clock.now })
+        let sent = SentMessageRecorder()
+
+        _ = strategy.encodeAudioChunk(Self.subThresholdChunk)
+        clock.advance(2.0)
+        strategy.onAudioSendOpportunity { sent.record($0) }
+
+        #expect(sent.commitCount == 0)
+    }
+
+    @Test func periodicCommitSendsExactlyOneFrameOnceTheMinimumIsMet() {
+        let clock = TestClock()
+        let strategy = OpenAIStreamingStrategy(commitInterval: 1.2, now: { clock.now })
+        let sent = SentMessageRecorder()
+
+        _ = strategy.encodeAudioChunk(Self.committableChunk)
+        clock.advance(2.0)
+        strategy.onAudioSendOpportunity { sent.record($0) }
+
+        #expect(sent.commitCount == 1)
+
+        // A commit DOES stamp `lastCommitTime`, so the very next opportunity —
+        // with the clock held still — must stay quiet.
+        _ = strategy.encodeAudioChunk(Self.committableChunk)
+        strategy.onAudioSendOpportunity { sent.record($0) }
+
+        #expect(sent.commitCount == 1)
+    }
+
+    @Test func periodicCommitFiresOnTheNextQualifyingChunkAfterAByteGateRejection() {
+        let clock = TestClock()
+        let strategy = OpenAIStreamingStrategy(commitInterval: 1.2, now: { clock.now })
+        let sent = SentMessageRecorder()
+
+        // The interval has elapsed but only 85 ms has accumulated, so the byte
+        // gate rejects — and must leave `lastCommitTime` STALE.
+        _ = strategy.encodeAudioChunk(Self.subThresholdChunk)
+        clock.advance(2.0)
+        strategy.onAudioSendOpportunity { sent.record($0) }
+
+        #expect(sent.commitCount == 0)
+
+        // The clock does not move again. 4080 + 4080 = 8160 bytes clears the
+        // 4800-byte floor, so this must commit immediately. Had the rejection
+        // above stamped `lastCommitTime`, nothing could commit for another 1.2 s.
+        _ = strategy.encodeAudioChunk(Self.subThresholdChunk)
+        strategy.onAudioSendOpportunity { sent.record($0) }
+
+        #expect(sent.commitCount == 1)
+    }
+}
+
+// MARK: - Test doubles
+
+/// A clock the test moves by hand — the injected `now` closure reads this box,
+/// so the periodic path can be driven without any wall-clock sleeping.
+private final class TestClock {
+    private(set) var now = Date(timeIntervalSince1970: 1_700_000_000)
+
+    func advance(_ seconds: TimeInterval) {
+        now = now.addingTimeInterval(seconds)
+    }
+}
+
+/// Collects whatever the strategy hands to `webSocketSend`.
+private final class SentMessageRecorder {
+    private(set) var messages: [URLSessionWebSocketTask.Message] = []
+
+    func record(_ message: URLSessionWebSocketTask.Message) {
+        messages.append(message)
+    }
+
+    var commitCount: Int {
+        messages.reduce(into: 0) { total, message in
+            if case .string(let text) = message, text.contains("input_audio_buffer.commit") {
+                total += 1
+            }
+        }
     }
 }

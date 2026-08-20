@@ -28,16 +28,25 @@ final class OpenAIStreamingStrategy: StreamingProviderStrategy {
     /// OpenAI Realtime rejects `input_audio_buffer.commit` with
     /// "buffer too small. Expected at least 100ms of audio" when less than 100 ms
     /// has been appended since the previous commit (HYPERWHISPER-S8 /
-    /// HYPERWHISPER-S9). 0.12 keeps a 20% margin over that server rule so a
-    /// single short resampler chunk can't leave us one buffer under the line.
-    private static let minimumCommitSeconds: Double = 0.12
+    /// HYPERWHISPER-S9). This is the server's rule EXACTLY — no safety margin.
+    ///
+    /// A margin would be actively harmful here. The counter below is an exact
+    /// running sum of appended PCM bytes, so there is no imprecision for a margin
+    /// to absorb; all a stricter threshold buys is a dead band in which we
+    /// silently discard a tail the server would have accepted. `turn_detection`
+    /// is null, so there is no server-side VAD auto-commit to rescue it.
+    private static let minimumCommitMilliseconds = 100
+
+    /// 16-bit mono PCM.
+    private static let bytesPerSample = 2
 
     private let logger = Logger(subsystem: "com.hyperwhisper.app", category: "OpenAIStreaming")
     private let decoder = JSONDecoder()
-    private let commitInterval: TimeInterval = 1.2
+    private let commitInterval: TimeInterval
+    private let now: () -> Date
     private var committedItemTranscripts: [String: String] = [:]
     private var partialItemTranscripts: [String: String] = [:]
-    private var lastCommitTime = Date()
+    private var lastCommitTime: Date
 
     /// Bytes of PCM appended since the last commit frame was sent.
     ///
@@ -50,17 +59,33 @@ final class OpenAIStreamingStrategy: StreamingProviderStrategy {
     /// THREAD SAFETY:
     /// Written from the audio capture callback (non-main thread) via
     /// `encodeAudioChunk`/`onAudioSendOpportunity` and read from `@MainActor`
-    /// `stopSession()` via `stopSequence()`. `os_unfair_lock` is the lightest
-    /// primitive (~1-5ns vs ~100-200ns for NSLock) and this runs on every audio
-    /// buffer (~10 times/sec) — same pattern as `DeepgramStreamingStrategy`.
+    /// `stopSession()` via `stopSequence()`. The lock is an `NSLock` rather than
+    /// an `os_unfair_lock`: `os_unfair_lock` requires a stable, unique address
+    /// for its whole lifetime, and Swift only guarantees that a `&someProperty`
+    /// pointer is valid for the duration of the call it is passed to. `NSLock`
+    /// is a class, so its identity is stable by construction. The tap runs at
+    /// ~47 buffers/sec (1024 frames at 48 kHz) or faster, a rate at which the
+    /// per-acquisition difference between the two is irrelevant.
     private var _pendingAudioBytes = 0
-    private var pendingAudioBytesLock = os_unfair_lock()
+    private let pendingAudioBytesLock = NSLock()
 
-    /// `minimumCommitSeconds` expressed in bytes of 16-bit mono PCM at
-    /// `audioSampleRate` (2 bytes per sample): 5760 @ 24 kHz. The server's own
-    /// 100 ms floor is 4800 bytes.
+    /// `minimumCommitMilliseconds` expressed in bytes of 16-bit mono PCM at
+    /// `audioSampleRate`: exactly 4800 @ 24 kHz, which is the server's own
+    /// floor. Integer arithmetic throughout, so the boundary lands on 4800 and
+    /// not on a float that rounds to 4799.
     private var minimumCommitBytes: Int {
-        Int(audioSampleRate * 2 * Self.minimumCommitSeconds)
+        Int(audioSampleRate) * Self.bytesPerSample * Self.minimumCommitMilliseconds / 1000
+    }
+
+    /// - Parameters:
+    ///   - commitInterval: How long between periodic commits. Injectable so
+    ///     tests can drive the periodic path without wall-clock sleeps; the
+    ///     default is the production value.
+    ///   - now: Clock, injectable for the same reason.
+    init(commitInterval: TimeInterval = 1.2, now: @escaping () -> Date = { Date() }) {
+        self.commitInterval = commitInterval
+        self.now = now
+        self.lastCommitTime = now()
     }
 
     var transcriptionProviderLabel: String { "OpenAI (Streaming)" }
@@ -86,7 +111,7 @@ final class OpenAIStreamingStrategy: StreamingProviderStrategy {
         committedItemTranscripts.removeAll(keepingCapacity: true)
         partialItemTranscripts.removeAll(keepingCapacity: true)
         resetPendingAudio()
-        lastCommitTime = Date()
+        lastCommitTime = self.now()
 
         var transcription: [String: Any] = [
             "model": Self.modelId
@@ -180,8 +205,18 @@ final class OpenAIStreamingStrategy: StreamingProviderStrategy {
         // client surfaces as a spurious streaming-error toast. Dropping a tail
         // that short is the accepted trade: it is silence-or-a-syllable, and it
         // used to be lost to the rejection anyway.
-        if consumeCommittableAudio() {
+        let claim = consumeCommittableAudio()
+        if claim.claimed {
             steps.append(.sendText(Self.commitMessage))
+        } else if claim.pendingBytes > 0 {
+            // The one place audio is genuinely discarded rather than deferred —
+            // log it so a transcript missing its last syllable can be correlated
+            // with something. Deliberately NOT a Sentry capture: this is the
+            // expected benign case this change exists to stop reporting. Runs
+            // once per session, so it is not in any hot path.
+            logger.warning(
+                "Dropping \(claim.pendingBytes, privacy: .public) pending audio bytes at stop: under the \(self.minimumCommitBytes, privacy: .public)-byte (100 ms) OpenAI Realtime commit minimum"
+            )
         }
 
         // KEEP THE WAIT EVEN WHEN NOTHING WAS COMMITTED:
@@ -197,50 +232,57 @@ final class OpenAIStreamingStrategy: StreamingProviderStrategy {
     }
 
     func onAudioSendOpportunity(webSocketSend: @escaping (URLSessionWebSocketTask.Message) -> Void) {
-        guard Date().timeIntervalSince(lastCommitTime) >= commitInterval else {
+        guard self.now().timeIntervalSince(lastCommitTime) >= commitInterval else {
             return
         }
 
         // Deliberately leaves `lastCommitTime` stale when the threshold is not
         // met: that is what makes the commit fire on the next chunk that clears
-        // it, rather than waiting out another full interval.
-        guard consumeCommittableAudio() else {
+        // it, rather than waiting out another full interval. Nothing is lost on
+        // this path — the bytes stay pending — so it deliberately does not log:
+        // it runs on every captured buffer until the gate clears.
+        guard consumeCommittableAudio().claimed else {
             return
         }
 
         webSocketSend(.string(Self.commitMessage))
-        lastCommitTime = Date()
+        lastCommitTime = self.now()
     }
 
     // MARK: - Pending Audio Accounting
 
     /// Record PCM bytes handed to the WebSocket since the last commit.
     private func notePendingAudio(byteCount: Int) {
-        os_unfair_lock_lock(&pendingAudioBytesLock)
+        pendingAudioBytesLock.lock()
         _pendingAudioBytes += byteCount
-        os_unfair_lock_unlock(&pendingAudioBytesLock)
+        pendingAudioBytesLock.unlock()
     }
 
     /// Claim the accumulated audio for a commit frame.
     ///
-    /// Returns true (and zeroes the counter) only when enough has accumulated to
-    /// clear the server's minimum. The check and the reset happen under a single
-    /// lock acquisition so the periodic path and the stop sequence can never both
-    /// claim the same bytes and emit two commits for one buffer.
-    private func consumeCommittableAudio() -> Bool {
-        os_unfair_lock_lock(&pendingAudioBytesLock)
-        defer { os_unfair_lock_unlock(&pendingAudioBytesLock) }
+    /// Claims (and zeroes) the counter only when at least
+    /// `minimumCommitBytes` has accumulated — the server's "at least 100ms"
+    /// rule, so exactly 100 ms qualifies. The check and the reset happen under a
+    /// single lock acquisition so the periodic path and the stop sequence can
+    /// never both claim the same bytes and emit two commits for one buffer.
+    ///
+    /// - Returns: `claimed` — whether a commit frame may now be sent — and
+    ///   `pendingBytes`, the counter's value as the decision was made (for logs).
+    private func consumeCommittableAudio() -> (claimed: Bool, pendingBytes: Int) {
+        pendingAudioBytesLock.lock()
+        defer { pendingAudioBytesLock.unlock() }
 
-        guard _pendingAudioBytes >= minimumCommitBytes else { return false }
+        let pending = _pendingAudioBytes
+        guard pending >= minimumCommitBytes else { return (false, pending) }
         _pendingAudioBytes = 0
-        return true
+        return (true, pending)
     }
 
     /// Drop any accumulated audio — a new session starts with an empty buffer.
     private func resetPendingAudio() {
-        os_unfair_lock_lock(&pendingAudioBytesLock)
+        pendingAudioBytesLock.lock()
         _pendingAudioBytes = 0
-        os_unfair_lock_unlock(&pendingAudioBytesLock)
+        pendingAudioBytesLock.unlock()
     }
 }
 

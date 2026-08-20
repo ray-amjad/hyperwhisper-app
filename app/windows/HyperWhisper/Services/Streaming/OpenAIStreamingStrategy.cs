@@ -25,7 +25,7 @@ public sealed class OpenAIStreamingStrategy : IStreamingProviderStrategy
         public const string Error = "error";
     }
 
-    private static readonly TimeSpan CommitInterval = TimeSpan.FromSeconds(1.2);
+    private static readonly TimeSpan DefaultCommitInterval = TimeSpan.FromSeconds(1.2);
     private static readonly byte[] CommitFrame = Encoding.UTF8.GetBytes($"{{\"type\":\"{EventType.CommitAudio}\"}}");
 
     /// <summary>
@@ -33,10 +33,20 @@ public sealed class OpenAIStreamingStrategy : IStreamingProviderStrategy
     /// OpenAI Realtime rejects <c>input_audio_buffer.commit</c> with
     /// "buffer too small. Expected at least 100ms of audio" when less than 100 ms
     /// has been appended since the previous commit (HYPERWHISPER-S8 /
-    /// HYPERWHISPER-S9). 0.12 keeps a 20% margin over that server rule so a
-    /// single short resampler chunk cannot leave us one buffer under the line.
+    /// HYPERWHISPER-S9). This is the server's rule EXACTLY — no safety margin.
+    /// <para>
+    /// A margin would be actively harmful here. The counter below is an exact
+    /// running sum of appended PCM bytes, so there is no imprecision for a margin
+    /// to absorb; all a stricter threshold buys is a dead band in which we
+    /// silently discard a tail the server would have accepted. That dead band is
+    /// not hypothetical on Windows: <c>StreamingAudioCapture</c> sets
+    /// <c>BufferMilliseconds = 100</c>, so every capture chunk is exactly 4800
+    /// bytes at 24 kHz — exactly one chunk, exactly on the line. And
+    /// <c>turn_detection</c> is null, so there is no server-side VAD auto-commit
+    /// to rescue a dropped tail.
+    /// </para>
     /// </summary>
-    private const double MinimumCommitSeconds = 0.12;
+    private const int MinimumCommitMilliseconds = 100;
 
     /// <summary>16-bit mono PCM.</summary>
     private const int BytesPerSample = 2;
@@ -44,7 +54,9 @@ public sealed class OpenAIStreamingStrategy : IStreamingProviderStrategy
     private readonly Dictionary<string, string> _committedItemTranscripts = new();
     private readonly Dictionary<string, string> _partialItemTranscripts = new();
     private readonly object _pendingAudioLock = new();
-    private DateTimeOffset _lastCommitTime = DateTimeOffset.UtcNow;
+    private readonly TimeSpan _commitInterval;
+    private readonly Func<DateTimeOffset> _now;
+    private DateTimeOffset _lastCommitTime;
 
     /// <summary>
     /// Bytes of PCM appended since the last commit frame was sent. A plain
@@ -57,17 +69,34 @@ public sealed class OpenAIStreamingStrategy : IStreamingProviderStrategy
     /// </summary>
     private long _pendingAudioBytes;
 
+    /// <summary>
+    /// Both parameters default to the production values, so
+    /// <c>new OpenAIStreamingStrategy()</c> keeps behaving exactly as before.
+    /// </summary>
+    /// <param name="commitInterval">
+    /// Gap between periodic commits. Injectable so tests can drive the periodic
+    /// path without wall-clock sleeps; null means the production value.
+    /// </param>
+    /// <param name="now">Clock, injectable for the same reason.</param>
+    public OpenAIStreamingStrategy(TimeSpan? commitInterval = null, Func<DateTimeOffset>? now = null)
+    {
+        _commitInterval = commitInterval ?? DefaultCommitInterval;
+        _now = now ?? (() => DateTimeOffset.UtcNow);
+        _lastCommitTime = _now();
+    }
+
     public string TranscriptionProviderLabel => "OpenAI (Streaming)";
     public bool SupportsVocabulary => false;
     public bool SessionStartsOnWebSocketOpen => false;
     public int AudioSampleRate => 24000;
 
     /// <summary>
-    /// <see cref="MinimumCommitSeconds"/> expressed in bytes at
-    /// <see cref="AudioSampleRate"/>: 5760 @ 24 kHz. The server's own 100 ms
-    /// floor is 4800 bytes.
+    /// <see cref="MinimumCommitMilliseconds"/> expressed in bytes at
+    /// <see cref="AudioSampleRate"/>: exactly 4800 @ 24 kHz, which is the
+    /// server's own floor. Integer arithmetic throughout, so the boundary lands
+    /// on 4800 and not on a double that truncates to 4799.
     /// </summary>
-    private long MinimumCommitBytes => (long)(AudioSampleRate * BytesPerSample * MinimumCommitSeconds);
+    private long MinimumCommitBytes => (long)AudioSampleRate * BytesPerSample * MinimumCommitMilliseconds / 1000;
 
     public Uri? BuildWebSocketUri(StreamingSessionConfig config)
     {
@@ -87,7 +116,7 @@ public sealed class OpenAIStreamingStrategy : IStreamingProviderStrategy
         _committedItemTranscripts.Clear();
         _partialItemTranscripts.Clear();
         ResetPendingAudio();
-        _lastCommitTime = DateTimeOffset.UtcNow;
+        _lastCommitTime = _now();
 
         var transcription = new Dictionary<string, object?>
         {
@@ -171,9 +200,19 @@ public sealed class OpenAIStreamingStrategy : IStreamingProviderStrategy
         // client surfaces as a spurious streaming-error toast. Dropping a tail
         // that short is the accepted trade: it is silence-or-a-syllable, and it
         // used to be lost to the rejection anyway.
-        if (TryConsumeCommittableAudio())
+        if (TryConsumeCommittableAudio(out var pendingBytes))
         {
             steps.Add(new StreamingStopStep(StreamingStopAction.SendMessage, CommitFrame, WebSocketMessageType.Text));
+        }
+        else if (pendingBytes > 0)
+        {
+            // The one place audio is genuinely discarded rather than deferred —
+            // log it so a transcript missing its last syllable can be correlated
+            // with something. Deliberately a log and NOT an error report: this is
+            // the expected benign case this change exists to stop reporting. Runs
+            // once per session, so it is not in any hot path.
+            LoggingService.Warn(
+                $"OpenAIStreamingStrategy: dropping {pendingBytes} pending audio bytes at stop - under the {MinimumCommitBytes}-byte (100ms) OpenAI Realtime commit minimum");
         }
 
         // KEEP THE WAIT EVEN WHEN NOTHING WAS COMMITTED:
@@ -193,16 +232,18 @@ public sealed class OpenAIStreamingStrategy : IStreamingProviderStrategy
         CancellationToken cancellationToken
     )
     {
-        if (DateTimeOffset.UtcNow - _lastCommitTime < CommitInterval)
+        if (_now() - _lastCommitTime < _commitInterval)
             return Task.CompletedTask;
 
         // Deliberately leaves _lastCommitTime stale when the threshold is not
         // met: that is what makes the commit fire on the next chunk that clears
-        // it, rather than waiting out another full interval.
-        if (!TryConsumeCommittableAudio())
+        // it, rather than waiting out another full interval. Nothing is lost on
+        // this path — the bytes stay pending — so it deliberately does not log:
+        // it runs on every captured buffer until the gate clears.
+        if (!TryConsumeCommittableAudio(out _))
             return Task.CompletedTask;
 
-        _lastCommitTime = DateTimeOffset.UtcNow;
+        _lastCommitTime = _now();
         return webSocketSendAsync(CommitFrame, WebSocketMessageType.Text, cancellationToken);
     }
 
@@ -217,16 +258,21 @@ public sealed class OpenAIStreamingStrategy : IStreamingProviderStrategy
 
     /// <summary>
     /// Claim the accumulated audio for a commit frame. Returns true (and zeroes
-    /// the counter) only when enough has accumulated to clear the server's
-    /// minimum. The check and the reset happen under one lock so the periodic
+    /// the counter) only when at least <see cref="MinimumCommitBytes"/> has
+    /// accumulated — the server's "at least 100ms" rule, so exactly 100 ms
+    /// qualifies. The check and the reset happen under one lock so the periodic
     /// path and the stop sequence can never both claim the same bytes and emit
     /// two commits for one buffer.
     /// </summary>
-    private bool TryConsumeCommittableAudio()
+    /// <param name="pendingBytes">
+    /// The counter's value as the decision was made, for logging.
+    /// </param>
+    private bool TryConsumeCommittableAudio(out long pendingBytes)
     {
         lock (_pendingAudioLock)
         {
-            if (_pendingAudioBytes < MinimumCommitBytes)
+            pendingBytes = _pendingAudioBytes;
+            if (pendingBytes < MinimumCommitBytes)
                 return false;
 
             _pendingAudioBytes = 0;
