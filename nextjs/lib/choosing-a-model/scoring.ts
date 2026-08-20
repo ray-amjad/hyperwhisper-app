@@ -15,7 +15,13 @@
 // Types only. This module stays a pure function of the models it is handed —
 // it never reaches into the catalog itself — so the ranking can be exercised
 // against a fixture as easily as against what we ship.
-import type { CloudModel, DeviceModel, Model } from "./catalog";
+import type {
+  CloudModel,
+  DeviceModel,
+  LanguageScope,
+  Model,
+  Platform,
+} from "./catalog";
 
 /** Narrowing helpers, kept local so this module has no runtime dependencies. */
 function isCloud(model: Model): model is CloudModel {
@@ -56,13 +62,27 @@ export const PRESETS: readonly Preset[] = [
   { id: "private", label: "Fully private", weights: { accuracy: 25, latency: 15, cost: 10, privacy: 50 } },
 ];
 
-/** Which languages the reader needs, as a minimum documented language count. */
+/** Which languages the reader needs. */
 export type LanguageNeed = "english" | "european" | "wide";
 
-export const LANGUAGE_MINIMUMS: Record<LanguageNeed, number> = {
-  english: 1,
-  european: 13,
-  wide: 60,
+/**
+ * Which coverage rungs answer each need.
+ *
+ * Was a minimum language count, which is not the same question and got both
+ * ends of it wrong — it dropped a six-language European model from "European"
+ * while keeping a thirteen-language global one, and let every model with no
+ * published count through "Wide multilingual" as though silence were breadth.
+ * See `LanguageScope` in the catalog for how a rung is arrived at.
+ *
+ * "English only" admits everything, including `unknown`: every model in the
+ * catalog transcribes English, and a vendor declining to publish a count casts
+ * no doubt on that. The two breadth needs are where an unpublished count has to
+ * be read conservatively, so `unknown` is absent from both.
+ */
+const LANGUAGE_NEED_SCOPES: Record<LanguageNeed, readonly LanguageScope[]> = {
+  english: ["narrow", "european", "wide", "unknown"],
+  european: ["european", "wide"],
+  wide: ["wide"],
 };
 
 export type Requirements = {
@@ -78,15 +98,19 @@ export const NO_REQUIREMENTS: Requirements = {
 };
 
 /**
- * Median milliseconds a provider took to answer, per backend provider id, from
- * the measurements behind /latency. Keyed `sttProvider` or
- * `sttProvider:modelId` — a model-level entry wins when we have one.
+ * Median milliseconds a provider took to answer ONE short dictation clip —
+ * under 10 seconds of audio — from the measurements behind /latency. Keyed
+ * `sttProvider` or `sttProvider:modelId`; a model-level entry wins when we have
+ * one.
+ *
+ * This is a wall-clock round trip for one clip, NOT a throughput figure. See
+ * `measuredClipMs` for why the two can never be added up or compared.
  */
 export type MeasuredLatency = Record<string, number>;
 
 export type ScoreInput = {
   weights: Weights;
-  /** Timings for the reader's region. Empty falls back to speed factors. */
+  /** Measured round trips for the reader's region. Display only. */
   measured: MeasuredLatency;
 };
 
@@ -99,12 +123,17 @@ export type ScoredModel = {
   /** 0-1. */
   score: number;
   /**
-   * Estimated seconds to transcribe one minute of audio, for display. Null when
-   * a cloud model has neither a measurement nor a published speed factor.
+   * Estimated seconds to transcribe one minute of audio, and what the latency
+   * sub-score ranks on. Null when a cloud model publishes no speed factor.
    */
   estimatedSeconds: number | null;
-  /** True when `estimatedSeconds` came from our own measurements. */
-  latencyIsMeasured: boolean;
+  /**
+   * Our own median round trip for one short clip, in milliseconds, or null
+   * where we have not measured this model from the reader's region. A
+   * separate quantity from `estimatedSeconds` — shown beside it, never mixed
+   * into it.
+   */
+  measuredClipMs: number | null;
 };
 
 /**
@@ -117,33 +146,56 @@ function deviceSeconds(speedRating: number): number {
 }
 
 /**
- * Seconds to transcribe one audio minute.
+ * Seconds to transcribe one audio minute. One unit, one source per placement,
+ * for every model in the pool.
  *
- * A measured median beats a published speed factor: it is our own traffic, on
- * our own edge, including whatever the provider actually does under load. The
- * leaderboard's speed factor is the fallback for a model we have not measured
- * yet — a new model, or one nobody has picked.
+ * Deliberately does NOT consult our own measurements, even though we have them
+ * for some models. What /latency stores is `latency_ms`: the wall time of one
+ * attempt on one clip, from the `short` bucket — clips under 10 seconds
+ * (`lib/latency/types.ts`). That is a round trip, not a throughput, and it
+ * cannot be converted into a per-minute figure: `audio_seconds` is written null
+ * on purpose (`src/db/schema/stt-latency-samples.ts`), so the clip it belongs to
+ * has no length beyond "under 10 s", and a short clip's time is dominated by
+ * fixed round-trip cost rather than by how fast the model decodes.
+ *
+ * Substituting it for a per-minute number therefore punishes precisely the
+ * providers we know most about. Deepgram Nova 3 models out at 0.36 s per audio
+ * minute; a perfectly healthy measured median of 900 ms for a 4-second clip
+ * would print 0.90 s and drop it six places on the Fastest preset, behind
+ * models that lead only because nobody has measured them. Ranking a pool on two
+ * incommensurable units is worse than ranking it on one imperfect one, so the
+ * measurement is surfaced as its own figure instead — see `measuredClipMs`.
  */
-export function estimateSeconds(
-  model: Model,
-  measured: MeasuredLatency,
-): { seconds: number | null; isMeasured: boolean } {
+export function estimateSeconds(model: Model): number | null {
   if (isDevice(model)) {
-    return { seconds: deviceSeconds(model.speedRating), isMeasured: false };
+    return deviceSeconds(model.speedRating);
   }
-
-  const modelKey = `${model.sttProvider}:${model.modelId}`;
-  const ms = measured[modelKey] ?? measured[model.sttProvider];
-  if (ms !== undefined) {
-    return { seconds: ms / 1000, isMeasured: true };
-  }
-
   if (model.speedFactor === null) {
-    return { seconds: null, isMeasured: false };
+    return null;
   }
   // Speed factor is audio seconds per wall second, so one audio minute takes
   // 60/factor, plus a small fixed cost for the round trip.
-  return { seconds: 60 / model.speedFactor + 0.25, isMeasured: false };
+  return 60 / model.speedFactor + 0.25;
+}
+
+/**
+ * Our own median wall time, in milliseconds, for a single short dictation clip
+ * — the thing the reader actually waits through — from the reader's nearest
+ * region over the last 90 days.
+ *
+ * Real, first-party, and worth showing: it is our traffic, on our edge,
+ * including whatever the provider does under load. It is just not a per-minute
+ * throughput, so the UI labels it as what it is and the ranking leaves it
+ * alone. On-device models never have one: nothing about them crosses a network,
+ * and /latency only measures what the edge service calls.
+ */
+export function measuredClipMs(
+  model: Model,
+  measured: MeasuredLatency,
+): number | null {
+  if (isDevice(model)) return null;
+  const modelKey = `${model.sttProvider}:${model.modelId}`;
+  return measured[modelKey] ?? measured[model.sttProvider] ?? null;
 }
 
 /** Position of `value` in `[low, high]`, clamped, with an empty range at 0.5. */
@@ -168,40 +220,80 @@ export function creditsPerMinute(model: Model): number {
   return isCloud(model) ? model.credits : 0;
 }
 
+/**
+ * Whether the reader's app can transcribe live with this model.
+ *
+ * Cloud support is a property of the endpoint and the same everywhere. Local
+ * support is a property of the app in front of it, and the two apps differ: see
+ * `DeviceModel.streamingPlatforms`.
+ */
+export function supportsStreaming(model: Model, platform: Platform): boolean {
+  return isCloud(model)
+    ? model.streaming
+    : model.streamingPlatforms.includes(platform);
+}
+
+/** Whether the reader's app really applies a vocabulary list to this model. */
+export function supportsCustomVocabulary(
+  model: Model,
+  platform: Platform,
+): boolean {
+  return isCloud(model)
+    ? model.customVocabulary
+    : model.customVocabularyPlatforms.includes(platform);
+}
+
+/**
+ * Whether a model survives the reader's must-haves.
+ *
+ * Takes the platform because two of the three requirements are answered by the
+ * app, not by the model. The version this replaces returned `true` for every
+ * on-device model on the grounds that local models "transcribe as you speak and
+ * always accept a vocabulary list" — neither half of which is true. Windows has
+ * no local streaming provider at all, macOS has two, and every Parakeet,
+ * Nemotron and Qwen3 build ignores a vocabulary list on both. The effect was
+ * three chips that changed the pool by zero models between them.
+ */
 export function meetsRequirements(
   model: Model,
+  platform: Platform,
   language: LanguageNeed,
   requirements: Requirements,
 ): boolean {
-  const minimum = LANGUAGE_MINIMUMS[language];
-  // A cloud vendor that publishes no language count is not excluded — an
-  // unpublished number is not the same as a small one.
-  if (model.languages !== null && model.languages < minimum) return false;
-
-  if (isCloud(model)) {
-    if (requirements.streaming && !model.streaming) return false;
-    if (requirements.customVocabulary && !model.customVocabulary) return false;
-    if (requirements.stableOnly && model.preview) return false;
-    return true;
+  if (!LANGUAGE_NEED_SCOPES[language].includes(model.languageScope)) {
+    return false;
   }
-
-  // On-device models transcribe as you speak and always accept a vocabulary
-  // list, and none of them are preview builds.
+  if (requirements.streaming && !supportsStreaming(model, platform)) {
+    return false;
+  }
+  if (
+    requirements.customVocabulary &&
+    !supportsCustomVocabulary(model, platform)
+  ) {
+    return false;
+  }
+  // On-device models ship from the app's own registry rather than a vendor
+  // preview channel, so there is no preview build to exclude.
+  if (requirements.stableOnly && isCloud(model) && model.preview) {
+    return false;
+  }
   return true;
 }
 
 /**
  * Narrows a list of models to the ones a reader could actually use. The caller
  * supplies the list — `modelsForPlatform(platform)` in the page — so this stays
- * independent of the catalog.
+ * independent of the catalog, and passes the platform alongside it because the
+ * requirements are answered per platform.
  */
 export function buildPool(
   models: readonly Model[],
+  platform: Platform,
   language: LanguageNeed,
   requirements: Requirements,
 ): readonly Model[] {
   return models.filter((model) =>
-    meetsRequirements(model, language, requirements),
+    meetsRequirements(model, platform, language, requirements),
   );
 }
 
@@ -220,7 +312,7 @@ export function rankModels(
 ): ScoredModel[] {
   if (pool.length === 0) return [];
 
-  const timings = pool.map((model) => estimateSeconds(model, input.measured));
+  const timings = pool.map(estimateSeconds);
 
   const wers = pool
     .map((model) => model.wer)
@@ -228,9 +320,7 @@ export function rankModels(
   const werLow = wers.length ? Math.min(...wers) : 0;
   const werHigh = wers.length ? Math.max(...wers) : 1;
 
-  const seconds = timings
-    .map((timing) => timing.seconds)
-    .filter((value): value is number => value !== null);
+  const seconds = timings.filter((value): value is number => value !== null);
   const secondsLow = seconds.length ? Math.min(...seconds) : 0;
   const secondsHigh = seconds.length ? Math.max(...seconds) : 1;
 
@@ -242,7 +332,7 @@ export function rankModels(
     PRIORITIES.reduce((sum, key) => sum + input.weights[key], 0) || 1;
 
   const scored = pool.map((model, index) => {
-    const timing = timings[index];
+    const estimatedSeconds = timings[index];
 
     const accuracy =
       model.wer !== null
@@ -254,9 +344,9 @@ export function rankModels(
           : 0.5;
 
     const latency =
-      timing.seconds === null
+      estimatedSeconds === null
         ? 0.5
-        : 1 - normalise(timing.seconds, secondsLow, secondsHigh);
+        : 1 - normalise(estimatedSeconds, secondsLow, secondsHigh);
 
     const cost = 1 - normalise(creditsPerMinute(model), costLow, costHigh);
     const privacy = privacyScore(model);
@@ -275,8 +365,8 @@ export function rankModels(
       parts,
       contributions,
       score,
-      estimatedSeconds: timing.seconds,
-      latencyIsMeasured: timing.isMeasured,
+      estimatedSeconds,
+      measuredClipMs: measuredClipMs(model, input.measured),
     };
   });
 

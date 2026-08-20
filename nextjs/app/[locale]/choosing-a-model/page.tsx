@@ -9,7 +9,7 @@ export const revalidate = 3600;
 
 const TITLE = "Choosing a speech-to-text model";
 const DESCRIPTION =
-  "Split 100 points across accuracy, speed, cost and privacy, and see which of the models HyperWhisper ships actually fits — cloud and on-device, ranked side by side.";
+  "Tell us what matters — accuracy, speed, cost or privacy — and see which of the speech-to-text models HyperWhisper ships actually fits, cloud and on-device ranked side by side.";
 
 export async function generateMetadata() {
   return {
@@ -40,36 +40,55 @@ export default async function ChoosingAModelPage({ params }: Props) {
     notFound();
   }
 
-  const measured = await getMeasuredLatency();
+  const { byRegion, samplesByRegion } = await getMeasuredLatency();
 
   // Busiest regions first, so the default selection is a region we know well
   // and the dropdown opens on something useful even if geolocation is blocked.
-  const regions = Object.keys(measured).sort(
-    (a, b) => Object.keys(measured[b]).length - Object.keys(measured[a]).length,
-  );
+  //
+  // Busiest by attempts, not by how many providers cleared the display floor:
+  // a region with twenty cells of three calls knows less than one with eight
+  // cells of five thousand, and regions[0] is what a reader keeps when the
+  // geolocation call fails. Ties break alphabetically so the static build is
+  // reproducible.
+  const regions = Object.keys(byRegion).sort((a, b) => {
+    const byVolume = (samplesByRegion[b] ?? 0) - (samplesByRegion[a] ?? 0);
+    return byVolume !== 0 ? byVolume : a.localeCompare(b);
+  });
 
   return (
     <div className="w-full py-16 md:py-24">
+      {/*
+        Deliberately two lines. The trade-off this page is about — push one
+        priority up and the others give way — used to be explained here in a
+        paragraph, above the control that demonstrates it in about two seconds
+        of dragging. The budget still names itself where it lives ("Your 100
+        points", in ModelPicker), so nothing is left unexplained by cutting the
+        explanation from the top.
+
+        What the sub-head must keep is the claim that these are the models
+        HyperWhisper ships. It is the only sentence that says why this page
+        exists rather than a link to the Artificial Analysis leaderboard.
+      */}
       <header className="mx-auto max-w-3xl text-center">
         <h1 className="bg-gradient-to-r from-white to-gray-400 bg-clip-text text-4xl font-bold text-transparent md:text-5xl">
-          You have 100 points. Spend them.
+          Which model should you use?
         </h1>
+        {/*
+          "across macOS and Windows" is load-bearing, not padding.
+          DEVICE_MODELS.length is the union over both platforms (19), while the
+          ranked list below shows only the selected platform's on-device rows
+          (17 on macOS). Without the qualifier the sentence reads as a count of
+          what is on screen and visibly disagrees with the table's own
+          "26 cloud · 17 on-device" caption.
+        */}
         <p className="mx-auto mt-6 text-lg text-gray-400">
-          Every speech-to-text trade-off is zero-sum — the most accurate model is
-          rarely the cheapest or the fastest, and the most private one runs on
-          your own hardware. So instead of rating everything &ldquo;very
-          important&rdquo;, split 100 points across four priorities. Push one up
-          and the others give way.
-        </p>
-        <p className="mx-auto mt-4 text-sm text-gray-500">
-          We rank the {CLOUD_MODELS.length} cloud models and{" "}
-          {DEVICE_MODELS.length} on-device models HyperWhisper actually ships
-          across macOS and Windows — not a general leaderboard. Pick your
-          platform below and the list narrows to what you can run.
+          Tell us what matters and we will rank the {CLOUD_MODELS.length} cloud
+          and {DEVICE_MODELS.length} on-device models HyperWhisper ships across
+          macOS and Windows. Nothing here is a general leaderboard.
         </p>
       </header>
 
-      <ModelPicker measured={measured} regions={regions} />
+      <ModelPicker measured={byRegion} regions={regions} />
 
       <section className="mx-auto mt-20 max-w-3xl border-t border-gray-800 pt-10">
         <h2 className="text-xl font-semibold text-white">
@@ -159,20 +178,28 @@ export default async function ChoosingAModelPage({ params }: Props) {
           <div>
             <dt className="font-medium text-gray-200">Speed</dt>
             <dd className="mt-1">
-              Where we have measured a provider from your nearest region, the
-              number is our own median from the last 90 days — the same
-              measurements behind{" "}
+              Two numbers, and the difference matters.{" "}
+              <span className="text-gray-200">Per audio minute</span> is how long
+              a minute of speech takes to come back, from the
+              leaderboard&apos;s published speed factor; on-device rows estimate
+              it from the app&apos;s own speed rating, so read those as an
+              ordering, not a promise. That is the number the ranking uses,
+              because it is the only one we hold for every model.{" "}
+              <span className="text-gray-200">Measured clip</span> is our own
+              median from the last 90 days — the same measurements behind{" "}
               <a
                 className="text-purple-300 underline underline-offset-4 transition hover:text-purple-200"
                 href="/en/latency"
               >
                 the latency page
               </a>
-              , taken from short clips because that is what dictation is. Those
-              rows carry a dot. Everything else falls back to the
-              leaderboard&apos;s published speed factor. On-device timings are an
-              estimate from the app&apos;s own speed rating and depend on your
-              hardware, so read them as an ordering, not a promise.
+              , taken from clips under ten seconds because that is what dictation
+              is. It is a round trip for one clip, not a throughput: most of it
+              is the network and the provider&apos;s fixed overhead rather than
+              decoding, and we do not store the clip&apos;s length, so it cannot
+              be scaled up to a minute. Feeding it into the ranking anyway would
+              punish the providers we happen to know most about, so it sits in
+              its own column instead.
             </dd>
           </div>
           <div>

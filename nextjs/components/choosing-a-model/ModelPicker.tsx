@@ -3,8 +3,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Cloud, Laptop, MapPin } from "lucide-react";
 
+// The one place the credit rate is declared. This module is deliberately kept
+// free of Next and Stripe imports so a client component can read it, which two
+// others already do — the page had its own copy, and changing the rate at
+// source would have repriced checkout while this page kept quoting the old one.
+import { CREDITS_PER_DOLLAR } from "@/app/api/checkout/credits/validation";
 import {
-  CREDITS_PER_DOLLAR,
   isCloud,
   isDevice,
   modelsForPlatform,
@@ -92,6 +96,31 @@ function formatSeconds(seconds: number | null): string {
     : `${seconds.toFixed(1)} s`;
 }
 
+/**
+ * A measured round trip for one short clip. Kept in its own formatter, and its
+ * own column, because it is not the per-minute estimate beside it and must
+ * never be mistaken for it — see `measuredClipMs` in scoring.ts.
+ */
+function formatClipMs(ms: number): string {
+  return ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toFixed(1)} s`;
+}
+
+/**
+ * The language signal, spelled out. The count was carried but never rendered,
+ * so a reader had no way to see that a model survived — or was cut from — a
+ * breadth filter on a number its vendor never published.
+ */
+function formatLanguages(model: Model): string {
+  if (model.languageScope === "unknown" || model.languages === null) {
+    return "language count not published";
+  }
+  return `${model.languages} language${model.languages === 1 ? "" : "s"}`;
+}
+
+const MEASURED_HINT =
+  "Our median wall time for one dictation clip under 10 seconds, measured " +
+  "from your region over the last 90 days. Not a per-minute figure.";
+
 /** The one badge that answers "does my audio leave this machine?". */
 function PlacementBadge({ model }: { model: Model }) {
   if (isDevice(model)) {
@@ -147,6 +176,11 @@ export default function ModelPicker({ measured, regions }: Props) {
   // does. Nothing is stored; a failure just leaves the default region selected.
   useEffect(() => {
     if (regionsKey === "") return;
+    // Do not even ask once the reader has chosen. The check below catches an
+    // answer that lands after a hand-pick; this one keeps a settled choice from
+    // costing a request at all, and is the guard this effect lost when it was
+    // copied over from LatencyMatrix.
+    if (regionPickedByUser.current) return;
     const controller = new AbortController();
 
     fetch(`/api/geo/nearest-region?regions=${encodeURIComponent(regionsKey)}`, {
@@ -169,6 +203,7 @@ export default function ModelPicker({ measured, regions }: Props) {
   const ranked: ScoredModel[] = useMemo(() => {
     const pool = buildPool(
       modelsForPlatform(platform),
+      platform,
       language,
       requirements,
     );
@@ -434,9 +469,13 @@ export default function ModelPicker({ measured, regions }: Props) {
               <p className="mt-5 border-t border-dashed border-gray-800 pt-4 text-sm text-gray-400">
                 {isDevice(best.model)
                   ? "Your audio never leaves the machine, so there is no per-minute cost and no region to worry about."
-                  : best.latencyIsMeasured
-                    ? `That timing is our own measurement from ${regionCity(region ?? "")}, not a vendor claim.`
-                    : "We have not measured this model from your region yet, so the timing is the published speed factor."}
+                  : best.measuredClipMs !== null
+                    ? `Per audio minute is the leaderboard's published speed factor. Separately, we have measured this model ourselves from ${regionCity(
+                        region ?? "",
+                      )}: a median of ${formatClipMs(
+                        best.measuredClipMs,
+                      )} to come back with the text for one short dictation clip.`
+                    : "Per audio minute is the leaderboard's published speed factor. We have not measured this model from your region yet."}
               </p>
             </div>
 
@@ -464,7 +503,13 @@ export default function ModelPicker({ measured, regions }: Props) {
                         Cost
                       </th>
                       <th className="px-3 py-3 text-right text-xs uppercase tracking-widest text-gray-500">
-                        Per min
+                        Per audio min
+                      </th>
+                      <th
+                        className="px-3 py-3 text-right text-xs uppercase tracking-widest text-gray-500"
+                        title={MEASURED_HINT}
+                      >
+                        Measured clip
                       </th>
                       <th className="hidden px-3 py-3 text-left text-xs uppercase tracking-widest text-gray-500 md:table-cell">
                         Why it scored
@@ -500,6 +545,7 @@ export default function ModelPicker({ measured, regions }: Props) {
                                     : entry.model.size
                                 }`
                               : ""}
+                            {` · ${formatLanguages(entry.model)}`}
                           </div>
                         </td>
                         <td className="px-3 py-3 text-right font-mono tabular-nums text-gray-300">
@@ -512,14 +558,23 @@ export default function ModelPicker({ measured, regions }: Props) {
                         </td>
                         <td className="px-3 py-3 text-right font-mono tabular-nums text-gray-300">
                           {formatSeconds(entry.estimatedSeconds)}
-                          {entry.latencyIsMeasured ? (
-                            <span
-                              className="ml-1 text-purple-400"
-                              title="Measured from your region"
-                            >
-                              ●
-                            </span>
-                          ) : null}
+                        </td>
+                        <td
+                          className="px-3 py-3 text-right font-mono tabular-nums text-gray-300"
+                          title={
+                            entry.measuredClipMs === null
+                              ? undefined
+                              : MEASURED_HINT
+                          }
+                        >
+                          {entry.measuredClipMs === null ? (
+                            <span className="text-gray-600">—</span>
+                          ) : (
+                            <>
+                              <span className="mr-1 text-purple-400">●</span>
+                              {formatClipMs(entry.measuredClipMs)}
+                            </>
+                          )}
                         </td>
                         <td className="hidden px-3 py-3 md:table-cell">
                           <div className="flex h-2 w-40 overflow-hidden rounded-full bg-gray-800">
@@ -544,9 +599,18 @@ export default function ModelPicker({ measured, regions }: Props) {
               </div>
 
               <p className="mt-3 text-xs text-gray-500">
-                A <span className="text-purple-400">●</span> marks a timing we
-                measured ourselves from your region. Everything else is the
-                published speed factor.
+                The two speed columns are different questions.{" "}
+                <span className="text-gray-300">Per audio min</span> is how long
+                a minute of audio takes, from the leaderboard&apos;s published
+                speed factor — or, for on-device rows, estimated from the
+                app&apos;s own speed rating.{" "}
+                <span className="text-gray-300">Measured clip</span>, marked{" "}
+                <span className="text-purple-400">●</span>, is our own median
+                wall time for one dictation clip under 10 seconds from your
+                region. A short clip is mostly round trip rather than decoding,
+                so the two do not convert into one another — and the ranking
+                uses only the first, so a model we have measured is never
+                compared against one we have not on a different footing.
               </p>
             </div>
           </>
