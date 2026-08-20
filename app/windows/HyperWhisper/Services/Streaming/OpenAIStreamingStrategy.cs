@@ -212,7 +212,7 @@ public sealed class OpenAIStreamingStrategy : IStreamingProviderStrategy
             // the expected benign case this change exists to stop reporting. Runs
             // once per session, so it is not in any hot path.
             LoggingService.Warn(
-                $"OpenAIStreamingStrategy: dropping {pendingBytes} pending audio bytes at stop - under the {MinimumCommitBytes}-byte (100ms) OpenAI Realtime commit minimum");
+                $"OpenAIStreamingStrategy: dropping {pendingBytes} pending audio bytes at stop - under the {MinimumCommitBytes}-byte ({MinimumCommitMilliseconds}ms) OpenAI Realtime commit minimum");
         }
 
         // KEEP THE WAIT EVEN WHEN NOTHING WAS COMMITTED:

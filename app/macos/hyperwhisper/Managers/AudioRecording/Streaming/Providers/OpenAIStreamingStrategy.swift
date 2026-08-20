@@ -215,7 +215,7 @@ final class OpenAIStreamingStrategy: StreamingProviderStrategy {
             // expected benign case this change exists to stop reporting. Runs
             // once per session, so it is not in any hot path.
             logger.warning(
-                "Dropping \(claim.pendingBytes, privacy: .public) pending audio bytes at stop: under the \(self.minimumCommitBytes, privacy: .public)-byte (100 ms) OpenAI Realtime commit minimum"
+                "Dropping \(claim.pendingBytes, privacy: .public) pending audio bytes at stop: under the \(self.minimumCommitBytes, privacy: .public)-byte (\(Self.minimumCommitMilliseconds, privacy: .public) ms) OpenAI Realtime commit minimum"
             )
         }
 
