@@ -64,3 +64,41 @@ test("sanitizeReturnTo blocks protocol-relative and backslash open redirects", (
   assert.equal(sanitizeReturnTo("/\\evil.com", fallback), fallback);
   assert.equal(sanitizeReturnTo("https://evil.com", fallback), fallback);
 });
+
+test("sanitizeReturnTo blocks tab/CR/LF smuggled past the prefix checks", () => {
+  const fallback = "/en/user/dashboard";
+  assert.equal(sanitizeReturnTo("/\t/evil.com", fallback), fallback);
+  assert.equal(sanitizeReturnTo("/\n/evil.com", fallback), fallback);
+  assert.equal(sanitizeReturnTo("/\r/evil.com", fallback), fallback);
+  assert.equal(sanitizeReturnTo("/\t\t//evil.com", fallback), fallback);
+  assert.equal(sanitizeReturnTo("/\t\\evil.com", fallback), fallback);
+  assert.equal(sanitizeReturnTo("/\r\n/evil.com", fallback), fallback);
+  assert.equal(sanitizeLicenseKeyRedirect("/\t/evil.com"), DEFAULT_LICENSE_KEY_REDIRECT);
+});
+
+test("every sanitized target resolves to the same origin", () => {
+  const origin = "https://hyperwhisper.com";
+  const hostile = [
+    "/\t/evil.com",
+    "/\n/evil.com",
+    "/\r/evil.com",
+    "/\t\t//evil.com",
+    "/\t\\evil.com",
+    "//evil.com",
+    "/\\evil.com",
+    "https://evil.com",
+  ];
+
+  for (const target of hostile) {
+    const resolved = new URL(sanitizeLicenseKeyRedirect(target), origin);
+    assert.equal(resolved.origin, origin, `${JSON.stringify(target)} escaped the origin`);
+  }
+});
+
+test("sanitizeReturnTo still accepts ordinary paths with query and hash", () => {
+  const fallback = "/en/user/dashboard";
+  assert.equal(
+    sanitizeReturnTo("/en/user/dashboard?tab=credits#usage", fallback),
+    "/en/user/dashboard?tab=credits#usage",
+  );
+});
