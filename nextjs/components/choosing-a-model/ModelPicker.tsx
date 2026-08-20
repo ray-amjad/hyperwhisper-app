@@ -101,6 +101,18 @@ function formatClipMs(ms: number): string {
   return ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toFixed(1)} s`;
 }
 
+/**
+ * The language signal, spelled out. The count was carried but never rendered,
+ * so a reader had no way to see that a model survived — or was cut from — a
+ * breadth filter on a number its vendor never published.
+ */
+function formatLanguages(model: Model): string {
+  if (model.languageScope === "unknown" || model.languages === null) {
+    return "language count not published";
+  }
+  return `${model.languages} language${model.languages === 1 ? "" : "s"}`;
+}
+
 const MEASURED_HINT =
   "Our median wall time for one dictation clip under 10 seconds, measured " +
   "from your region over the last 90 days. Not a per-minute figure.";
@@ -182,6 +194,7 @@ export default function ModelPicker({ measured, regions }: Props) {
   const ranked: ScoredModel[] = useMemo(() => {
     const pool = buildPool(
       modelsForPlatform(platform),
+      platform,
       language,
       requirements,
     );
@@ -523,6 +536,7 @@ export default function ModelPicker({ measured, regions }: Props) {
                                     : entry.model.size
                                 }`
                               : ""}
+                            {` · ${formatLanguages(entry.model)}`}
                           </div>
                         </td>
                         <td className="px-3 py-3 text-right font-mono tabular-nums text-gray-300">
