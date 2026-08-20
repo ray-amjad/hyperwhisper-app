@@ -15,7 +15,13 @@
 // Types only. This module stays a pure function of the models it is handed —
 // it never reaches into the catalog itself — so the ranking can be exercised
 // against a fixture as easily as against what we ship.
-import type { CloudModel, DeviceModel, Model } from "./catalog";
+import type {
+  CloudModel,
+  DeviceModel,
+  LanguageScope,
+  Model,
+  Platform,
+} from "./catalog";
 
 /** Narrowing helpers, kept local so this module has no runtime dependencies. */
 function isCloud(model: Model): model is CloudModel {
@@ -56,13 +62,27 @@ export const PRESETS: readonly Preset[] = [
   { id: "private", label: "Fully private", weights: { accuracy: 25, latency: 15, cost: 10, privacy: 50 } },
 ];
 
-/** Which languages the reader needs, as a minimum documented language count. */
+/** Which languages the reader needs. */
 export type LanguageNeed = "english" | "european" | "wide";
 
-export const LANGUAGE_MINIMUMS: Record<LanguageNeed, number> = {
-  english: 1,
-  european: 13,
-  wide: 60,
+/**
+ * Which coverage rungs answer each need.
+ *
+ * Was a minimum language count, which is not the same question and got both
+ * ends of it wrong — it dropped a six-language European model from "European"
+ * while keeping a thirteen-language global one, and let every model with no
+ * published count through "Wide multilingual" as though silence were breadth.
+ * See `LanguageScope` in the catalog for how a rung is arrived at.
+ *
+ * "English only" admits everything, including `unknown`: every model in the
+ * catalog transcribes English, and a vendor declining to publish a count casts
+ * no doubt on that. The two breadth needs are where an unpublished count has to
+ * be read conservatively, so `unknown` is absent from both.
+ */
+const LANGUAGE_NEED_SCOPES: Record<LanguageNeed, readonly LanguageScope[]> = {
+  english: ["narrow", "european", "wide", "unknown"],
+  european: ["european", "wide"],
+  wide: ["wide"],
 };
 
 export type Requirements = {
@@ -200,40 +220,80 @@ export function creditsPerMinute(model: Model): number {
   return isCloud(model) ? model.credits : 0;
 }
 
+/**
+ * Whether the reader's app can transcribe live with this model.
+ *
+ * Cloud support is a property of the endpoint and the same everywhere. Local
+ * support is a property of the app in front of it, and the two apps differ: see
+ * `DeviceModel.streamingPlatforms`.
+ */
+export function supportsStreaming(model: Model, platform: Platform): boolean {
+  return isCloud(model)
+    ? model.streaming
+    : model.streamingPlatforms.includes(platform);
+}
+
+/** Whether the reader's app really applies a vocabulary list to this model. */
+export function supportsCustomVocabulary(
+  model: Model,
+  platform: Platform,
+): boolean {
+  return isCloud(model)
+    ? model.customVocabulary
+    : model.customVocabularyPlatforms.includes(platform);
+}
+
+/**
+ * Whether a model survives the reader's must-haves.
+ *
+ * Takes the platform because two of the three requirements are answered by the
+ * app, not by the model. The version this replaces returned `true` for every
+ * on-device model on the grounds that local models "transcribe as you speak and
+ * always accept a vocabulary list" — neither half of which is true. Windows has
+ * no local streaming provider at all, macOS has two, and every Parakeet,
+ * Nemotron and Qwen3 build ignores a vocabulary list on both. The effect was
+ * three chips that changed the pool by zero models between them.
+ */
 export function meetsRequirements(
   model: Model,
+  platform: Platform,
   language: LanguageNeed,
   requirements: Requirements,
 ): boolean {
-  const minimum = LANGUAGE_MINIMUMS[language];
-  // A cloud vendor that publishes no language count is not excluded — an
-  // unpublished number is not the same as a small one.
-  if (model.languages !== null && model.languages < minimum) return false;
-
-  if (isCloud(model)) {
-    if (requirements.streaming && !model.streaming) return false;
-    if (requirements.customVocabulary && !model.customVocabulary) return false;
-    if (requirements.stableOnly && model.preview) return false;
-    return true;
+  if (!LANGUAGE_NEED_SCOPES[language].includes(model.languageScope)) {
+    return false;
   }
-
-  // On-device models transcribe as you speak and always accept a vocabulary
-  // list, and none of them are preview builds.
+  if (requirements.streaming && !supportsStreaming(model, platform)) {
+    return false;
+  }
+  if (
+    requirements.customVocabulary &&
+    !supportsCustomVocabulary(model, platform)
+  ) {
+    return false;
+  }
+  // On-device models ship from the app's own registry rather than a vendor
+  // preview channel, so there is no preview build to exclude.
+  if (requirements.stableOnly && isCloud(model) && model.preview) {
+    return false;
+  }
   return true;
 }
 
 /**
  * Narrows a list of models to the ones a reader could actually use. The caller
  * supplies the list — `modelsForPlatform(platform)` in the page — so this stays
- * independent of the catalog.
+ * independent of the catalog, and passes the platform alongside it because the
+ * requirements are answered per platform.
  */
 export function buildPool(
   models: readonly Model[],
+  platform: Platform,
   language: LanguageNeed,
   requirements: Requirements,
 ): readonly Model[] {
   return models.filter((model) =>
-    meetsRequirements(model, language, requirements),
+    meetsRequirements(model, platform, language, requirements),
   );
 }
 

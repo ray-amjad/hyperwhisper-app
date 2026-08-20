@@ -181,7 +181,12 @@ test("privacy weighting puts an on-device model first", async () => {
   const { isDevice, modelsForPlatform } = await loadCatalog();
   const { buildPool, rankModels, NO_REQUIREMENTS } = await loadScoring();
 
-  const pool = buildPool(modelsForPlatform("macos"), "english", NO_REQUIREMENTS);
+  const pool = buildPool(
+    modelsForPlatform("macos"),
+    "macos",
+    "english",
+    NO_REQUIREMENTS,
+  );
   const ranked = rankModels(pool, {
     weights: { accuracy: 25, latency: 15, cost: 10, privacy: 50 },
     measured: {},
@@ -198,7 +203,12 @@ test("accuracy weighting puts the lowest error rate first", async () => {
   const { modelsForPlatform } = await loadCatalog();
   const { buildPool, rankModels, NO_REQUIREMENTS } = await loadScoring();
 
-  const pool = buildPool(modelsForPlatform("macos"), "english", NO_REQUIREMENTS);
+  const pool = buildPool(
+    modelsForPlatform("macos"),
+    "macos",
+    "english",
+    NO_REQUIREMENTS,
+  );
   const ranked = rankModels(pool, {
     weights: { accuracy: 100, latency: 0, cost: 0, privacy: 0 },
     measured: {},
@@ -250,7 +260,12 @@ test("measuring a model cannot move it in the ranking", async () => {
   const { buildPool, rankModels, NO_REQUIREMENTS, PRESETS } =
     await loadScoring();
 
-  const pool = buildPool(modelsForPlatform("macos"), "english", NO_REQUIREMENTS);
+  const pool = buildPool(
+    modelsForPlatform("macos"),
+    "macos",
+    "english",
+    NO_REQUIREMENTS,
+  );
   const fastest = PRESETS.find(
     (preset: { id: string }) => preset.id === "fast",
   );
@@ -293,12 +308,12 @@ test("requirements filter the pool rather than reordering it", async () => {
   const { buildPool } = await loadScoring();
 
   const macos = modelsForPlatform("macos");
-  const all = buildPool(macos, "english", {
+  const all = buildPool(macos, "macos", "english", {
     streaming: false,
     customVocabulary: false,
     stableOnly: false,
   });
-  const stable = buildPool(macos, "english", {
+  const stable = buildPool(macos, "macos", "english", {
     streaming: false,
     customVocabulary: false,
     stableOnly: true,
@@ -311,5 +326,166 @@ test("requirements filter the pool rather than reordering it", async () => {
         model.placement === "device" || model.preview === false,
     ),
     "a preview model survived the stable-only filter",
+  );
+});
+
+test("the live-streaming chip keeps only models the platform can stream", async () => {
+  const { modelsForPlatform, isDevice } = await loadCatalog();
+  const { buildPool, supportsStreaming, NO_REQUIREMENTS } = await loadScoring();
+
+  const streaming = { ...NO_REQUIREMENTS, streaming: true };
+
+  for (const platform of ["macos", "windows"] as const) {
+    const models = modelsForPlatform(platform);
+    const all = buildPool(models, platform, "english", NO_REQUIREMENTS);
+    const live = buildPool(models, platform, "english", streaming);
+
+    assert.ok(
+      live.length < all.length,
+      `${platform}: the streaming chip removed nothing`,
+    );
+    for (const model of live) {
+      assert.ok(
+        supportsStreaming(model, platform),
+        `${platform}: ${model.id} survived the streaming chip but cannot stream there`,
+      );
+    }
+  }
+
+  // Windows has no local streaming provider at all — the enum in
+  // Models/StreamingTranscriptionProvider.cs is five cloud vendors. Ticking
+  // "Live streaming" there must leave no on-device model standing, however
+  // hard the reader then weights privacy or cost.
+  const windowsLive = buildPool(
+    modelsForPlatform("windows"),
+    "windows",
+    "english",
+    streaming,
+  );
+  assert.equal(
+    windowsLive.filter(isDevice).length,
+    0,
+    "Windows kept an on-device model under a live-streaming requirement",
+  );
+
+  // macOS has exactly two: parakeetLocal and nemotronLocal.
+  const macosLive = buildPool(
+    modelsForPlatform("macos"),
+    "macos",
+    "english",
+    streaming,
+  );
+  assert.deepEqual(
+    macosLive
+      .filter(isDevice)
+      .map((model: { id: string }) => model.id)
+      .sort(),
+    [
+      "device:nemotron-latin",
+      "device:nemotron-multilingual",
+      "device:parakeet-v2",
+      "device:parakeet-v3",
+    ],
+    "the macOS local streaming set drifted from StreamingProviderStrategy.swift",
+  );
+});
+
+test("the custom-vocabulary chip removes the models that ignore one", async () => {
+  const { modelsForPlatform } = await loadCatalog();
+  const { buildPool, supportsCustomVocabulary, NO_REQUIREMENTS } =
+    await loadScoring();
+
+  const vocab = { ...NO_REQUIREMENTS, customVocabulary: true };
+
+  for (const platform of ["macos", "windows"] as const) {
+    const models = modelsForPlatform(platform);
+    const all = buildPool(models, platform, "english", NO_REQUIREMENTS);
+    const kept = buildPool(models, platform, "english", vocab);
+
+    assert.ok(
+      kept.length < all.length,
+      `${platform}: the custom-vocabulary chip removed nothing`,
+    );
+    for (const model of kept) {
+      assert.ok(
+        supportsCustomVocabulary(model, platform),
+        `${platform}: ${model.id} survived but takes no vocabulary list there`,
+      );
+    }
+  }
+
+  // Windows local Whisper accepts the argument and drops it on the floor —
+  // TranscriptionService.cs says so in its own comment — so a Windows reader
+  // who needs a vocabulary list is left with cloud models only.
+  const windowsVocab = buildPool(
+    modelsForPlatform("windows"),
+    "windows",
+    "english",
+    vocab,
+  );
+  assert.ok(
+    windowsVocab.every(
+      (model: { placement: string }) => model.placement === "cloud",
+    ),
+    "Windows kept an on-device model under a custom-vocabulary requirement",
+  );
+});
+
+test("language breadth is a coverage rung, not a headcount", async () => {
+  const { modelsForPlatform, CLOUD_MODELS } = await loadCatalog();
+  const { buildPool, NO_REQUIREMENTS } = await loadScoring();
+
+  const ids = (need: string) =>
+    new Set(
+      buildPool(modelsForPlatform("macos"), "macos", need, NO_REQUIREMENTS).map(
+        (model: { id: string }) => model.id,
+      ),
+    );
+
+  const european = ids("european");
+  const wide = ids("wide");
+
+  // Six languages, all six of them European. A minimum count of 13 cut it;
+  // the question the chip asks does not.
+  assert.ok(
+    european.has("device:nemotron-latin"),
+    "a wholly European model was cut from the European filter",
+  );
+  // Twenty-five European languages is not "wide multilingual", however large
+  // the number looks beside a six.
+  assert.ok(
+    !wide.has("device:parakeet-v3"),
+    "an all-European model survived the wide-multilingual filter",
+  );
+  // Reaches past Europe with thirty languages, so it does survive.
+  assert.ok(
+    wide.has("device:nemotron-multilingual"),
+    "a genuinely cross-family model was cut from the wide filter",
+  );
+
+  // An unpublished count is the conservative default, not a free pass:
+  // shared-app-classification/CLAUDE.md requires the UI to read it that way,
+  // and every Gemini row carries a literal "unverified".
+  const unpublished = CLOUD_MODELS.filter(
+    (model: { languages: number | null }) => model.languages === null,
+  );
+  assert.ok(unpublished.length > 0, "no unpublished-count model to test with");
+  for (const model of unpublished) {
+    assert.equal(
+      model.languageScope,
+      "unknown",
+      `${model.id} has no published count but is not scoped unknown`,
+    );
+    assert.ok(
+      !wide.has(model.id) && !european.has(model.id),
+      `${model.id} passed a breadth filter on a count its vendor never published`,
+    );
+  }
+
+  // Every model still transcribes English, so that chip narrows nothing.
+  assert.equal(
+    ids("english").size,
+    modelsForPlatform("macos").length,
+    "the English filter dropped a model that does transcribe English",
   );
 });
