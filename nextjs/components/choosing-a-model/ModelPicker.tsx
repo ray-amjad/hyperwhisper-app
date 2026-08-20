@@ -3,8 +3,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Cloud, Laptop, MapPin } from "lucide-react";
 
+// The one place the credit rate is declared. This module is deliberately kept
+// free of Next and Stripe imports so a client component can read it, which two
+// others already do — the page had its own copy, and changing the rate at
+// source would have repriced checkout while this page kept quoting the old one.
+import { CREDITS_PER_DOLLAR } from "@/app/api/checkout/credits/validation";
 import {
-  CREDITS_PER_DOLLAR,
   isCloud,
   isDevice,
   modelsForPlatform,
@@ -172,6 +176,11 @@ export default function ModelPicker({ measured, regions }: Props) {
   // does. Nothing is stored; a failure just leaves the default region selected.
   useEffect(() => {
     if (regionsKey === "") return;
+    // Do not even ask once the reader has chosen. The check below catches an
+    // answer that lands after a hand-pick; this one keeps a settled choice from
+    // costing a request at all, and is the guard this effect lost when it was
+    // copied over from LatencyMatrix.
+    if (regionPickedByUser.current) return;
     const controller = new AbortController();
 
     fetch(`/api/geo/nearest-region?regions=${encodeURIComponent(regionsKey)}`, {
