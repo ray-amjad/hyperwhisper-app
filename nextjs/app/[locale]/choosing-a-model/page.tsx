@@ -40,13 +40,20 @@ export default async function ChoosingAModelPage({ params }: Props) {
     notFound();
   }
 
-  const measured = await getMeasuredLatency();
+  const { byRegion, samplesByRegion } = await getMeasuredLatency();
 
   // Busiest regions first, so the default selection is a region we know well
   // and the dropdown opens on something useful even if geolocation is blocked.
-  const regions = Object.keys(measured).sort(
-    (a, b) => Object.keys(measured[b]).length - Object.keys(measured[a]).length,
-  );
+  //
+  // Busiest by attempts, not by how many providers cleared the display floor:
+  // a region with twenty cells of three calls knows less than one with eight
+  // cells of five thousand, and regions[0] is what a reader keeps when the
+  // geolocation call fails. Ties break alphabetically so the static build is
+  // reproducible.
+  const regions = Object.keys(byRegion).sort((a, b) => {
+    const byVolume = (samplesByRegion[b] ?? 0) - (samplesByRegion[a] ?? 0);
+    return byVolume !== 0 ? byVolume : a.localeCompare(b);
+  });
 
   return (
     <div className="w-full py-16 md:py-24">
@@ -69,7 +76,7 @@ export default async function ChoosingAModelPage({ params }: Props) {
         </p>
       </header>
 
-      <ModelPicker measured={measured} regions={regions} />
+      <ModelPicker measured={byRegion} regions={regions} />
 
       <section className="mx-auto mt-20 max-w-3xl border-t border-gray-800 pt-10">
         <h2 className="text-xl font-semibold text-white">

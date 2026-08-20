@@ -19,6 +19,22 @@ import type { MeasuredLatency } from "@/lib/choosing-a-model/scoring";
  */
 export type MeasuredLatencyByRegion = Record<string, MeasuredLatency>;
 
+export type MeasuredLatencyResult = {
+  byRegion: MeasuredLatencyByRegion;
+  /**
+   * Attempts behind each region's numbers.
+   *
+   * Carried out of here because the page orders its region list by it and
+   * cannot recover it afterwards. Counting the provider keys instead — which is
+   * what the page did — sorts a region holding twenty cells of three attempts
+   * above one holding eight cells of five thousand, and `regions[0]` is both
+   * the initial selection and what every reader keeps whose geolocation call
+   * fails. Those readers were being shown three-attempt medians under the words
+   * "our own measurement", ordered by breadth rather than by weight.
+   */
+  samplesByRegion: Record<string, number>;
+};
+
 /**
  * A cell is only worth showing if enough calls went into it. This is the same
  * floor /latency prints its dashes at, so the two pages never disagree about
@@ -56,8 +72,9 @@ function usable(cell: LatencyCell): boolean {
  * An empty TABLE is still not a failure: no rows means no cells, the page falls
  * back to the published speed factors, and the region control hides itself.
  */
-export async function getMeasuredLatency(): Promise<MeasuredLatencyByRegion> {
+export async function getMeasuredLatency(): Promise<MeasuredLatencyResult> {
   const byRegion: MeasuredLatencyByRegion = {};
+  const samplesByRegion: Record<string, number> = {};
   // Sample count behind each provider-level entry we have written so far, so a
   // busier model can replace a quieter one's number as the provider fallback.
   const providerSamples: Record<string, number> = {};
@@ -68,6 +85,12 @@ export async function getMeasuredLatency(): Promise<MeasuredLatencyByRegion> {
     for (const model of vendor.models) {
       for (const cell of model.cells) {
         if (!usable(cell)) continue;
+
+        // Model rows partition their vendor's attempts (see src/content/
+        // latency.ts), and only model rows are walked here, so summing them
+        // counts the window once rather than twice.
+        samplesByRegion[cell.region] =
+          (samplesByRegion[cell.region] ?? 0) + cell.samples;
 
         const region = (byRegion[cell.region] ??= {});
         const providerKey = model.provider;
@@ -87,5 +110,5 @@ export async function getMeasuredLatency(): Promise<MeasuredLatencyByRegion> {
     }
   }
 
-  return byRegion;
+  return { byRegion, samplesByRegion };
 }
