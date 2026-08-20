@@ -184,6 +184,64 @@ struct OpenAIStreamingCommitGateTests {
 
         #expect(sent.commitCount == 1)
     }
+
+    // MARK: - Periodic path and stop sequence composed on one session
+
+    /// The bug this whole change exists to kill, reproduced end to end on a
+    /// single strategy instance rather than in two isolated halves.
+    ///
+    /// Every other case here drives EITHER the periodic path OR the stop
+    /// sequence, so both stay green even if the periodic path stopped zeroing
+    /// the counter — and then a real session that periodically commits 250 ms
+    /// and then captures one 85 ms buffer before the user releases the key
+    /// would see 12000 + 4080 bytes still pending at stop, clear the gate on
+    /// audio the server already has, and emit a commit covering 85 ms. That is
+    /// exactly the rejected frame of HYPERWHISPER-S8 / S9. The periodic commit
+    /// must CONSUME its bytes, not merely observe them.
+    @Test func stopAfterAPeriodicCommitDropsASubThresholdTail() {
+        let clock = TestClock()
+        let strategy = OpenAIStreamingStrategy(commitInterval: 1.2, now: { clock.now })
+        let sent = SentMessageRecorder()
+
+        _ = strategy.encodeAudioChunk(Self.committableChunk)
+        clock.advance(2.0)
+        strategy.onAudioSendOpportunity { sent.record($0) }
+
+        #expect(sent.commitCount == 1)
+
+        // The tail captured after that commit, and nothing more.
+        _ = strategy.encodeAudioChunk(Self.subThresholdChunk)
+        let steps = strategy.stopSequence()
+
+        #expect(steps.contains(where: Self.isSendText) == false)
+        #expect(steps.count == 2)
+    }
+
+    /// The other half of the same composition: consuming the bytes at the
+    /// periodic commit must not make the stop sequence permanently silent. A
+    /// tail that clears the floor on its own still has to be committed.
+    @Test func stopAfterAPeriodicCommitStillCommitsATailOverTheMinimum() {
+        let clock = TestClock()
+        let strategy = OpenAIStreamingStrategy(commitInterval: 1.2, now: { clock.now })
+        let sent = SentMessageRecorder()
+
+        _ = strategy.encodeAudioChunk(Self.committableChunk)
+        clock.advance(2.0)
+        strategy.onAudioSendOpportunity { sent.record($0) }
+
+        #expect(sent.commitCount == 1)
+
+        _ = strategy.encodeAudioChunk(Self.committableChunk)
+        let steps = strategy.stopSequence()
+
+        #expect(steps.count == 3)
+
+        if case .sendText(let text) = steps[0] {
+            #expect(text.contains("input_audio_buffer.commit"))
+        } else {
+            Issue.record("Expected the commit frame to lead the stop sequence, got \(steps[0])")
+        }
+    }
 }
 
 // MARK: - Test doubles

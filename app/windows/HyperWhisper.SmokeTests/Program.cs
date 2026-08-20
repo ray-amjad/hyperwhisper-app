@@ -1601,6 +1601,67 @@ internal static class Program
                 Assert(sent.Count == 1, $"expected the next qualifying chunk to commit immediately, got {sent.Count} frames");
             });
 
+            Run("OpenAIStreamingStrategy: a stop right after a periodic commit drops the sub-100ms tail", () =>
+            {
+                // The bug this whole change exists to kill, reproduced end to end on a
+                // SINGLE strategy instance rather than in two isolated halves.
+                //
+                // Every other case above drives EITHER the periodic path OR the stop
+                // sequence, so both stay green even if the periodic path stopped zeroing
+                // the counter - and then a real session that periodically commits 250ms
+                // and then captures one 85ms buffer before the user releases the key
+                // would still have 12000 + 4080 bytes pending at stop, clear the gate on
+                // audio the server already has, and emit a commit covering 85ms. That is
+                // exactly the rejected frame of HYPERWHISPER-S8/S9. The periodic commit
+                // must CONSUME its bytes, not merely observe them.
+                var now = DateTimeOffset.UtcNow;
+                var strategy = new OpenAIStreamingStrategy(TimeSpan.FromSeconds(1.2), () => now);
+                var sent = new List<byte[]>();
+                Func<byte[], WebSocketMessageType, CancellationToken, Task> send =
+                    (data, type, ct) => { sent.Add(data); return Task.CompletedTask; };
+
+                strategy.EncodeAudioChunk(new byte[12000]);
+                now += TimeSpan.FromSeconds(2);
+                strategy.OnAudioSendOpportunityAsync(send, CancellationToken.None).GetAwaiter().GetResult();
+
+                Assert(sent.Count == 1, $"expected the periodic commit to fire, got {sent.Count} frames");
+
+                // The tail captured after that commit, and nothing more.
+                strategy.EncodeAudioChunk(new byte[4080]);
+                var steps = strategy.GetStopSequence();
+
+                Assert(steps.Count == 2, $"expected the stop sequence to drop the 4080-byte tail, got {steps.Count} steps");
+                Assert(steps[0].Action == StreamingStopAction.Wait, $"expected the sequence to still wait, got {steps[0].Action}");
+                Assert(steps[1].Action == StreamingStopAction.Close, $"expected the sequence to still close, got {steps[1].Action}");
+            });
+
+            Run("OpenAIStreamingStrategy: a stop after a periodic commit still commits a tail over the minimum", () =>
+            {
+                // The other half of the same composition: consuming the bytes at the
+                // periodic commit must not make the stop sequence permanently silent. A
+                // tail that clears the floor on its own still has to be committed.
+                var now = DateTimeOffset.UtcNow;
+                var strategy = new OpenAIStreamingStrategy(TimeSpan.FromSeconds(1.2), () => now);
+                var sent = new List<byte[]>();
+                Func<byte[], WebSocketMessageType, CancellationToken, Task> send =
+                    (data, type, ct) => { sent.Add(data); return Task.CompletedTask; };
+
+                strategy.EncodeAudioChunk(new byte[12000]);
+                now += TimeSpan.FromSeconds(2);
+                strategy.OnAudioSendOpportunityAsync(send, CancellationToken.None).GetAwaiter().GetResult();
+
+                Assert(sent.Count == 1, $"expected the periodic commit to fire, got {sent.Count} frames");
+
+                strategy.EncodeAudioChunk(new byte[12000]);
+                var steps = strategy.GetStopSequence();
+
+                Assert(steps.Count == 3, $"expected the stop sequence to commit a 12000-byte tail, got {steps.Count} steps");
+                Assert(steps[0].Action == StreamingStopAction.SendMessage, $"expected a SendMessage step first, got {steps[0].Action}");
+                Assert(steps[0].Payload != null, "expected the commit step to carry a payload");
+                var tailFrame = System.Text.Encoding.UTF8.GetString(steps[0].Payload!);
+                Assert(tailFrame.Contains("input_audio_buffer.commit"), $"expected the commit frame, got '{tailFrame}'");
+            });
+
             Run("TranscriptViewModel.ApplyUpdate never reverts the entity it wraps", () =>
             {
                 // Reproduces the History clobber: MainViewModel creates a Processing
