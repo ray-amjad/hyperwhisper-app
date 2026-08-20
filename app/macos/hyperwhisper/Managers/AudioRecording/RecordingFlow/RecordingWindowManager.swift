@@ -220,37 +220,21 @@ final class RecordingWindowManager {
     }
 
     // MARK: - Space/Screen Change Handling
+
+    /// No `repositionOnScreenChange`: unlike the toasts, this dialog owns a
+    /// user-dragged position that it restores itself, so a display change must
+    /// only re-assert its z-order and never move it.
+    @MainActor
     private func installSpaceChangeObserver() {
-        removeSpaceChangeObserver()
-        let token1 = NSWorkspace.shared.notificationCenter.addObserver(
-            forName: NSWorkspace.activeSpaceDidChangeNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            guard let self, let panel = self.panel else { return }
-            // Reassert z-order without activating app
-            panel.orderFrontRegardless()
-        }
-        obsTokens.append(token1)
-        // Also track screen parameter changes (display connect/disconnect, resolution changes)
-        let token2 = NotificationCenter.default.addObserver(
-            forName: NSApplication.didChangeScreenParametersNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            guard let self, let panel = self.panel else { return }
-            panel.orderFrontRegardless()
-        }
-        obsTokens.append(token2)
+        FloatingPanelSpaceObserver.install(
+            into: &obsTokens,
+            panel: { [weak self] in self?.panel }
+        )
     }
 
+    @MainActor
     private func removeSpaceChangeObserver() {
-        for token in obsTokens {
-            // Try removing from both centers; harmless if not registered
-            NSWorkspace.shared.notificationCenter.removeObserver(token)
-            NotificationCenter.default.removeObserver(token)
-        }
-        obsTokens.removeAll()
+        FloatingPanelSpaceObserver.remove(&obsTokens)
     }
 
     // MARK: - Position Persistence

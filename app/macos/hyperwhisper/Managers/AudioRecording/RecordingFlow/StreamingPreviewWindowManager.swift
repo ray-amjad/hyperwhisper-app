@@ -127,32 +127,16 @@ final class StreamingPreviewWindowManager {
     }
 
     private func installSpaceChangeObservers() {
-        removeSpaceChangeObservers()
-        let spaceToken = NSWorkspace.shared.notificationCenter.addObserver(
-            forName: NSWorkspace.activeSpaceDidChangeNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            guard let self, let panel = self.panel else { return }
-            panel.orderFrontRegardless()
-        }
-        let screenToken = NotificationCenter.default.addObserver(
-            forName: NSApplication.didChangeScreenParametersNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            guard let self, let panel = self.panel else { return }
-            self.repositionPanel(panel)
-            panel.orderFrontRegardless()
-        }
-        spaceChangeTokens = [spaceToken, screenToken]
+        FloatingPanelSpaceObserver.install(
+            into: &spaceChangeTokens,
+            panel: { [weak self] in self?.panel },
+            repositionOnScreenChange: { [weak self] panel in
+                self?.repositionPanel(panel)
+            }
+        )
     }
 
     private func removeSpaceChangeObservers() {
-        for token in spaceChangeTokens {
-            NSWorkspace.shared.notificationCenter.removeObserver(token)
-            NotificationCenter.default.removeObserver(token)
-        }
-        spaceChangeTokens.removeAll()
+        FloatingPanelSpaceObserver.remove(&spaceChangeTokens)
     }
 }
