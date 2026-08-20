@@ -1448,6 +1448,71 @@ internal static class Program
                 Assert(client.State == StreamingConnectionState.Error, $"expected State to remain Error, got {client.State}");
             });
 
+            Run("OpenAIStreamingStrategy.GetStopSequence omits the commit frame below the 100ms server minimum (HYPERWHISPER-S8/S9)", () =>
+            {
+                // OpenAI Realtime rejects input_audio_buffer.commit when under 100ms of
+                // audio was appended since the previous commit. 4080 bytes is the shape
+                // the production events reported: 2040 samples of 24kHz 16-bit mono PCM
+                // = 85ms, under both the server floor (4800 bytes) and the strategy's
+                // 120ms threshold (5760 bytes). The stop sequence must drop that tail
+                // rather than provoke a "buffer too small" error frame.
+                var strategy = new OpenAIStreamingStrategy();
+                strategy.EncodeAudioChunk(new byte[4080]);
+
+                var steps = strategy.GetStopSequence();
+
+                Assert(steps.Count == 2, $"expected 2 stop steps with no commit, got {steps.Count}");
+                Assert(steps[0].Action == StreamingStopAction.Wait, $"expected the sequence to still wait, got {steps[0].Action}");
+                Assert(steps[1].Action == StreamingStopAction.Close, $"expected the sequence to still close, got {steps[1].Action}");
+            });
+
+            Run("OpenAIStreamingStrategy.GetStopSequence commits once enough audio has accumulated", () =>
+            {
+                // 12000 bytes = 6000 samples of 24kHz 16-bit mono PCM = 250ms, well over
+                // the threshold, so the commit frame must lead the stop sequence.
+                var strategy = new OpenAIStreamingStrategy();
+                strategy.EncodeAudioChunk(new byte[12000]);
+
+                var steps = strategy.GetStopSequence();
+
+                Assert(steps.Count == 3, $"expected 3 stop steps, got {steps.Count}");
+                Assert(steps[0].Action == StreamingStopAction.SendMessage, $"expected a SendMessage step first, got {steps[0].Action}");
+                Assert(steps[0].Payload != null, "expected the commit step to carry a payload");
+                var frame = System.Text.Encoding.UTF8.GetString(steps[0].Payload!);
+                Assert(frame.Contains("input_audio_buffer.commit"), $"expected the commit frame, got '{frame}'");
+            });
+
+            Run("OpenAIStreamingStrategy.GetStopSequence commits the same audio only once", () =>
+            {
+                // The accumulated bytes are claimed and zeroed under one lock, so a
+                // second read of the stop sequence must not re-commit audio the first
+                // one already covered.
+                var strategy = new OpenAIStreamingStrategy();
+                strategy.EncodeAudioChunk(new byte[12000]);
+
+                var first = strategy.GetStopSequence();
+                var second = strategy.GetStopSequence();
+
+                Assert(first[0].Action == StreamingStopAction.SendMessage, $"expected the first sequence to commit, got {first[0].Action}");
+                Assert(second.Count == 2, $"expected the second sequence to drop the commit, got {second.Count} steps");
+                Assert(second[0].Action == StreamingStopAction.Wait, $"expected the second sequence to start with a wait, got {second[0].Action}");
+            });
+
+            Run("OpenAIStreamingStrategy.GetStartMessages clears audio accumulated by a previous session", () =>
+            {
+                // A fresh session starts with an empty server-side buffer, so bytes
+                // counted before session.update must not license a commit afterwards.
+                var config = new StreamingSessionConfig(null, null, "en", null, "test-api-key", null, false, false);
+                var strategy = new OpenAIStreamingStrategy();
+                strategy.EncodeAudioChunk(new byte[12000]);
+
+                strategy.GetStartMessages(config);
+                var steps = strategy.GetStopSequence();
+
+                Assert(steps.Count == 2, $"expected 2 stop steps after a session restart, got {steps.Count}");
+                Assert(steps[0].Action == StreamingStopAction.Wait, $"expected the sequence to start with a wait, got {steps[0].Action}");
+            });
+
             Run("TranscriptViewModel.ApplyUpdate never reverts the entity it wraps", () =>
             {
                 // Reproduces the History clobber: MainViewModel creates a Processing
