@@ -310,9 +310,6 @@ export const DEVICE_MODELS: readonly DeviceModel[] = DEVICE_MODELS_RAW.map(
 
 export const ALL_MODELS: readonly Model[] = [...CLOUD_MODELS, ...DEVICE_MODELS];
 
-/** 1,000 credits buy $1 of transcription, so credits/min is also $/1,000 min. */
-export const CREDITS_PER_DOLLAR = 1000;
-
 export function isCloud(model: Model): model is CloudModel {
   return model.placement === "cloud";
 }
