@@ -561,10 +561,10 @@ mod tests {
     }
 
     /// Custom vocabulary and HyperWhisper Cloud availability are two separate
-    /// catalog columns; `gemini-2.0-flash` sets the first and clears the second.
+    /// catalog columns; `gemini-3.1-flash-lite` sets the first and clears the second.
     #[test]
     fn models_custom_vocabulary_and_cloud_availability_are_different_flags() {
-        let id = "gemini-2.0-flash".to_string();
+        let id = "gemini-3.1-flash-lite".to_string();
         assert!(models_supports_custom_vocabulary(
             "gemini".to_string(),
             HwKind::Voice,
@@ -654,12 +654,13 @@ mod tests {
         assert_eq!(cloud_stt_credits_per_minute("noSuchProvider".to_string()), 0.0);
     }
 
-    /// AssemblyAI lists `universal-3-pro` first but flags `universal-3-5-pro`
-    /// as the default, so the flag has to win over catalog order.
+    /// AssemblyAI's retired Pro model must not survive in the shared cloud catalog,
+    /// and the current 3.5 Pro model remains the routed default.
     #[test]
-    fn cloud_stt_default_model_id_prefers_the_flagged_default_over_the_first_listed() {
+    fn cloud_stt_assemblyai_catalog_uses_the_current_default() {
         let models = cloud_stt_models("assemblyAI".to_string());
-        assert_eq!(models.first().map(|m| m.id.as_str()), Some("universal-3-pro"));
+        assert_eq!(models.first().map(|m| m.id.as_str()), Some("universal-3-5-pro"));
+        assert!(!models.iter().any(|m| m.id == "universal-3-pro"));
         assert_eq!(
             cloud_stt_default_model_id("assemblyAI".to_string()).as_deref(),
             Some("universal-3-5-pro")
