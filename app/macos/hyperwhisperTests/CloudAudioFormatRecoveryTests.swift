@@ -392,16 +392,16 @@ struct CloudAudioFormatRecoveryTests {
         #expect(recorder.removals == ["hw-reencode-test.wav"])
     }
 
-    /// The three "recovery impossible" exits rethrow the ORIGINAL 415. That is
-    /// right for a real re-encode failure and wrong for a cancelled one: stopping
-    /// a transcription would show an "unsupported audio format" toast for audio
-    /// the server never got a second look at. A cancellation observed on the way
-    /// to any of those exits must stay a cancellation.
-    ///
-    /// Cancellation is signalled from inside the re-encode WITHOUT throwing
-    /// `CancellationError`, because that is how it really arrives: AVFoundation
-    /// tears its reader down and reports its own failure (or writes a truncated
-    /// file), so the typed `catch is CancellationError` never sees it.
+    // The three "recovery impossible" exits rethrow the ORIGINAL 415. That is
+    // right for a real re-encode failure and wrong for a cancelled one: stopping
+    // a transcription would show an "unsupported audio format" toast for audio
+    // the server never got a second look at. A cancellation observed on the way
+    // to any of those exits must stay a cancellation.
+    //
+    // Cancellation is signalled from inside the re-encode WITHOUT throwing
+    // CancellationError, because that is how it really arrives: AVFoundation
+    // tears its reader down and reports its own failure (or writes a truncated
+    // file), so the typed `catch is CancellationError` never sees it.
 
     @Test func aCancelledReencodeIsNotReportedAsAFormatError() async {
         await expectCancellationInsteadOfFormatError(
@@ -459,8 +459,10 @@ struct CloudAudioFormatRecoveryTests {
             makeTempURL: { recorder.recordTempReservation(Self.tempWAV) },
             fileSize: { _ in 64 * 1024 },
             removeItem: { recorder.recordRemoval($0) },
-            send: { (uploadURL: URL, _: String?) async throws
-                -> HyperWhisperCloudProvider.TranscribeRequestResult in
+            // `contentType` is unused: this test pins WHICH IDENTITY each upload
+            // went out under, and `retryContentTypeIsPinnedToAudioWav` above
+            // already covers the Content-Type contract.
+            send: { (uploadURL: URL, contentType: String?) async throws -> HyperWhisperCloudProvider.TranscribeRequestResult in
                 try await HyperWhisperCloudProvider.performTranscribeRequestWithLicenseRecovery(
                     identifier: attemptIdentifier,
                     isLicensed: attemptIsLicensed,
