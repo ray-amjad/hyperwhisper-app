@@ -274,32 +274,13 @@ final class InlineErrorToastManager {
     /// - `activeSpaceDidChangeNotification`: User switches virtual desktops (Spaces)
     /// - `didChangeScreenParametersNotification`: Display connect/disconnect, resolution changes
     private func installSpaceChangeObserver() {
-        removeSpaceChangeObserver()
-
-        // Track space changes (user switches virtual desktops)
-        let token1 = NSWorkspace.shared.notificationCenter.addObserver(
-            forName: NSWorkspace.activeSpaceDidChangeNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            guard let self, let panel = self.panel else { return }
-            // Reassert z-order without activating app
-            panel.orderFrontRegardless()
-        }
-        obsTokens.append(token1)
-
-        // Track screen parameter changes (display connect/disconnect, resolution changes)
-        let token2 = NotificationCenter.default.addObserver(
-            forName: NSApplication.didChangeScreenParametersNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            guard let self, let panel = self.panel else { return }
-            // Reposition and reassert z-order
-            self.positionPanelAboveRecordingDialog(panel)
-            panel.orderFrontRegardless()
-        }
-        obsTokens.append(token2)
+        FloatingPanelSpaceObserver.install(
+            into: &obsTokens,
+            panel: { [weak self] in self?.panel },
+            repositionOnScreenChange: { [weak self] panel in
+                self?.positionPanelAboveRecordingDialog(panel)
+            }
+        )
     }
 
     /// Remove space/screen change observers
@@ -308,11 +289,6 @@ final class InlineErrorToastManager {
     /// Cleans up notification observers to prevent memory leaks and stale callbacks.
     /// Called during dismiss() and before installing new observers.
     private func removeSpaceChangeObserver() {
-        for token in obsTokens {
-            // Try removing from both centers; harmless if not registered
-            NSWorkspace.shared.notificationCenter.removeObserver(token)
-            NotificationCenter.default.removeObserver(token)
-        }
-        obsTokens.removeAll()
+        FloatingPanelSpaceObserver.remove(&obsTokens)
     }
 }
