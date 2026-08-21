@@ -378,6 +378,22 @@ class AudioFileConverter {
 
     // MARK: - WAV Fallback Conversion
 
+    /// Lowercased file extension of `url`, or `"none"` when it has none.
+    ///
+    /// EXTENSION ONLY — never a path and never a file name. A source file name is
+    /// user data (it can carry a document title, a person's name, a case number),
+    /// and this app has already leaked a real user home directory into a
+    /// production error report once. The extension is the only part of the path
+    /// that is diagnostically useful for a decode failure anyway.
+    ///
+    /// Deliberately a local two-liner rather than a call into
+    /// `CloudAudioFormatRecovery.displayExtension` — the audio layer must not
+    /// depend on the cloud-transcription layer just to sanitize a log line.
+    private static func loggableExtension(of url: URL) -> String {
+        let ext = url.pathExtension.lowercased()
+        return ext.isEmpty ? "none" : ext
+    }
+
     /// Decode any supported audio container to a 16 kHz / mono / 16-bit LPCM WAV file
     ///
     /// **Purpose:**
@@ -438,7 +454,8 @@ class AudioFileConverter {
         }
 
         guard let audioTrack = tracks.first else {
-            AppLogger.audio.error("convertAudioToWAV: no audio tracks in \(sourceURL.lastPathComponent, privacy: .public)")
+            let sourceExtension = AudioFileConverter.loggableExtension(of: sourceURL)
+            AppLogger.audio.error("convertAudioToWAV: no audio tracks · sourceExtension=\(sourceExtension, privacy: .public)")
             throw AudioError.exportFailed
         }
 
