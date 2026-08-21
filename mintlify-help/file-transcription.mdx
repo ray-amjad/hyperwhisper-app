@@ -28,6 +28,14 @@ HyperWhisper transcribes live recordings, and also audio files that you already 
       Each cloud provider supports a different set of audio formats. If you select a format that the provider does not accept, HyperWhisper stops before the upload. It shows the formats that the provider supports. You do not wait for a long upload and then get an unclear API error.
     </Note>
 
+    ### Automatic WAV conversion for MAI-Transcribe
+
+    The **Microsoft MAI-Transcribe 1.5** engine on HyperWhisper Cloud accepts WAV, MP3, and FLAC only. macOS keeps your recordings as M4A, and it converts an imported video to M4A. The server thus refuses the upload.
+
+    macOS repairs this for you. On the refusal, it converts the audio to a 16 kHz mono WAV and sends the audio one more time. It makes this second attempt one time only, and it deletes the temporary WAV file after the attempt. The conversion applies to dictation and to file transcription.
+
+    If the conversion fails, or the WAV file is larger than the 300 MB server limit, HyperWhisper shows the original error. Select a different Cloud engine for that mode.
+
     ## File size limits
 
     Local models have no file size limit. Each cloud provider has a different limit. HyperWhisper applies the limit before the upload:
@@ -51,13 +59,14 @@ HyperWhisper transcribes live recordings, and also audio files that you already 
     If the file is too large for the provider of the selected mode, HyperWhisper shows an error. The error gives the file size, the limit of the provider, and the name of the provider. To transcribe larger files, change the mode to a different provider (for example, HyperWhisper Cloud or a local model).
 
     <Warning>
-      The 2 GB limit for HyperWhisper Cloud is the limit that the app applies before the upload. Three Cloud engines have a smaller limit on the server:
+      The 2 GB limit for HyperWhisper Cloud is the limit that the app applies before the upload. Four Cloud engines have a smaller limit on the server:
 
       | Cloud engine | Server limit |
       | --- | --- |
       | OpenAI Whisper | 25 MB |
       | Google Gemini | 14 MB |
       | Google Chirp 3 | 9.5 MB and approximately 55 seconds, unless the server has the large-file path for Chirp 3 |
+      | Microsoft MAI-Transcribe 1.5 | 300 MB |
 
       A file that is larger than the server limit gets a "file too large" error from the server. The app does not stop it first. For a large file, select a different Cloud engine, for example ElevenLabs Scribe v2 or Deepgram Nova 3.
     </Warning>
@@ -125,13 +134,14 @@ HyperWhisper transcribes live recordings, and also audio files that you already 
     If the file is larger than the limit, HyperWhisper shows a toast notification before the upload. The notification gives the maximum size for that provider.
 
     <Warning>
-      The 2 GB limit for HyperWhisper Cloud is the limit that the app applies before the upload. Three Cloud engines have a smaller limit on the server:
+      The 2 GB limit for HyperWhisper Cloud is the limit that the app applies before the upload. Four Cloud engines have a smaller limit on the server:
 
       | Cloud engine | Server limit |
       | --- | --- |
       | OpenAI Whisper | 25 MB |
       | Google Gemini | 14 MB |
       | Google Chirp 3 | 9.5 MB and approximately 55 seconds, unless the server has the large-file path for Chirp 3 |
+      | Microsoft MAI-Transcribe 1.5 | 300 MB |
 
       A file that is larger than the server limit gets a "file too large" error from the server. The app does not stop it first. For a large file, select a different Cloud engine, for example ElevenLabs Scribe v2 or Deepgram Nova 3.
     </Warning>

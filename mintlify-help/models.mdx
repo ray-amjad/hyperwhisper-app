@@ -150,9 +150,31 @@ Supported providers for bring-your-own-key transcription:
 </Note>
 
 <Note>
-  Deepgram and AssemblyAI also expose medical-tuned model variants (Deepgram Nova-2 Medical and Nova-3 Medical, AssemblyAI Universal-2 Medical and Universal-3 Pro Medical, plus Universal-3.5 Pro Medical on macOS) in the Model Library / Mode editor on both platforms, alongside their general-purpose models.
+  Deepgram and AssemblyAI also expose medical-tuned model variants (Deepgram Nova-2 Medical and Nova-3 Medical, AssemblyAI Universal-2 Medical and Universal-3.5 Pro Medical) in the Model Library / Mode editor on both platforms, alongside their general-purpose models.
 
   The medical models support fewer languages than the general models. The two Deepgram medical models transcribe **English only**. The AssemblyAI medical models support English, German, Spanish, and French. The language picker does not show this limit, because it filters the languages by tier. Read [Language & Detection](/language-detection#engine-availability).
+</Note>
+
+## Retired speech models
+
+A provider can retire a speech model. HyperWhisper then removes the model from the Model Library and from the Mode editor, and it maps the model to a current model of the same provider. Your saved modes, your per-mode model settings, and your imported backups continue to work. The app applies the map when it reads the mode, thus you do not edit the mode yourself. Both platforms apply the map. The table gives the platform when only one platform has the model.
+
+| Retired model | Replacement |
+| --- | --- |
+| AssemblyAI Universal | Universal-2 |
+| AssemblyAI Slam-1 | Universal-3.5 Pro |
+| AssemblyAI Universal-3 Pro | Universal-3.5 Pro |
+| AssemblyAI Universal-3 Pro Medical | Universal-3.5 Pro Medical |
+| ElevenLabs Scribe v1 | Scribe v2 |
+| Soniox Async v4 | Async v5 |
+| Gemini 3.1 Flash Lite Preview | Gemini 3.1 Flash Lite |
+| Gemini 2.0 Flash (Windows) | Gemini 3.6 Flash |
+| Deepgram Nova, Nova-2 domain models, and all Enhanced, Base, and Whisper models | Nova 3 General |
+
+The Deepgram row covers the domain-tuned Nova-2 models (Meeting, Phone Call, Voicemail, Finance, Conversational AI, Automotive, Video) and every Enhanced, Base, and Whisper model. Nova 2 General and Nova 2 Medical are not retired.
+
+<Note>
+  HyperWhisper Cloud applies the same map on the server. If a request gives a retired AssemblyAI or Soniox model, the server transcribes with the replacement model and bills the rate of the replacement model.
 </Note>
 
 # Post-processing models
@@ -171,7 +193,7 @@ You can use cloud post-processing through HyperWhisper Cloud with no key, or wit
 | **Google Gemini** | Yes | Gemini Flash and Pro. Efficient and multilingual |
 | **Groq** | Yes | Very fast inference with GPT OSS and Qwen models |
 | **xAI (Grok)** | Yes | Grok 4.3, Grok 4.5, and Grok 4.6. High accuracy with low latency |
-| **Cerebras** | Yes | Very fast inference with GPT OSS, Llama 3.1, and Qwen models |
+| **Cerebras** | Yes | Very fast inference with GPT OSS 120B and Gemma 4 31B |
 | **Mistral** | Yes | Good for many languages. Mistral Small and Mistral Medium 3.5 |
 
 Every cloud post-processing model has a **speed** rating and an **accuracy** rating. The [Rating scale](#rating-scale) section explains these ratings. They let you choose the trade that is important to you.
@@ -185,11 +207,18 @@ The replacement is always a model of the same provider, except for the local Gem
 | Retired model | Replacement |
 | --- | --- |
 | Mistral Nemo | Mistral Small |
+| GPT-4.1 Nano (OpenAI) | GPT-5 Nano |
 | Kimi K2 (Groq) | GPT OSS 120B |
 | Llama 3.3 70B (Groq and Cerebras) | GPT OSS 120B |
+| Llama 3.1 8B (Cerebras) | Gemma 4 31B |
+| Qwen 3 235B Instruct (Cerebras) | GPT OSS 120B |
 | Z.ai GLM 4.7 (Cerebras) | GPT OSS 120B |
 | Grok 4 and Grok 4.1 Fast (xAI) | Grok 4.3 |
 | Gemma 3 12B and 27B (Gemini) | Gemini 2.5 Flash |
+| Gemini 2.0 Flash (Gemini) | Gemini 3.6 Flash |
+| Gemini 2.0 Flash Lite (Gemini) | Gemini 3.1 Flash Lite |
+| Gemini 3 Pro (Gemini) | Gemini 3.1 Pro |
+| Gemini 3.1 Flash Lite Preview (Gemini) | Gemini 3.1 Flash Lite |
 | Qwen 3.5 (local) | Gemma 4 |
 
 ## Local LLM post-processing
