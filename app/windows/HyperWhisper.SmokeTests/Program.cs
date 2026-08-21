@@ -121,13 +121,63 @@ internal static class Program
             Run("OpenAI post-processing omits an output-token cap", () =>
             {
                 var requestJson = PostProcessingService.BuildOpenAIRequestJson(
-                    OpenAICompatibleProvider.OpenAI, "gpt-4.1-nano", "system", "user");
+                    OpenAICompatibleProvider.OpenAI, "gpt-5.6-luna", "system", "user");
                 using var request = JsonDocument.Parse(requestJson);
 
                 Assert(!request.RootElement.TryGetProperty("max_tokens", out _),
                     "OpenAI request should not contain max_tokens");
                 Assert(!request.RootElement.TryGetProperty("max_completion_tokens", out _),
                     "OpenAI request should not contain max_completion_tokens");
+            });
+
+            Run("Retired post-processing models migrate to selectable replacements", () =>
+            {
+                var cases = new (string OldId, string Replacement)[]
+                {
+                    ("gpt-4.1-nano", "gpt-5-nano"),
+                    ("gemini-3-pro-preview", "gemini-3.1-pro-preview"),
+                    ("gemini-3.1-flash-lite-preview", "gemini-3.1-flash-lite"),
+                    ("gemini-2.0-flash", "gemini-3.6-flash"),
+                    ("gemini-2.0-flash-lite", "gemini-3.1-flash-lite"),
+                    ("llama3.1-8b", "gemma-4-31b"),
+                    ("qwen-3-235b-a22b-instruct-2507", "gpt-oss-120b"),
+                };
+
+                foreach (var (oldId, replacement) in cases)
+                {
+                    Assert(LanguageModelInfo.MigrateModelId(oldId) == replacement,
+                        $"{oldId} should migrate to {replacement}");
+                    Assert(LanguageModelInfo.GetById(replacement) != null,
+                        $"replacement {replacement} is missing from the picker");
+                    Assert(LanguageModelInfo.AvailableModels.All(m => m.Id != oldId),
+                        $"retired model {oldId} is still selectable");
+                }
+
+                Assert(LanguageModelInfo.GetDefaultForProvider(PostProcessingProvider.OpenAI)?.Id == "gpt-5.6-luna",
+                    "new OpenAI modes should default to GPT-5.6 Luna");
+            });
+
+            Run("Retired cloud models resolve to selectable canonical models", () =>
+            {
+                var cases = new (string OldId, CloudTranscriptionProvider Provider, string Replacement)[]
+                {
+                    ("slam-1", CloudTranscriptionProvider.AssemblyAI, "universal-3-5-pro"),
+                    ("universal-3-pro", CloudTranscriptionProvider.AssemblyAI, "universal-3-5-pro"),
+                    ("universal-3-pro-medical", CloudTranscriptionProvider.AssemblyAI, "universal-3-5-pro-medical"),
+                    ("stt-async-v4", CloudTranscriptionProvider.Soniox, "stt-async-v5"),
+                    ("gemini-3.1-flash-lite-preview", CloudTranscriptionProvider.Gemini, "gemini-3.1-flash-lite"),
+                    ("gemini-2.0-flash", CloudTranscriptionProvider.Gemini, "gemini-3.6-flash"),
+                };
+
+                foreach (var (oldId, provider, replacement) in cases)
+                {
+                    Assert(CloudTranscriptionModels.ResolveModelAlias(oldId, provider) == replacement,
+                        $"{oldId} should resolve to {replacement}");
+                    Assert(CloudTranscriptionModels.GetById(replacement, provider) != null,
+                        $"replacement {replacement} is missing from the picker");
+                    Assert(CloudTranscriptionModels.GetModelsForProvider(provider).All(m => m.Id != oldId),
+                        $"retired model {oldId} is still selectable");
+                }
             });
 
             Run("Groq post-processing sends an explicit output-token cap", () =>

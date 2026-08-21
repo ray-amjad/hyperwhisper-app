@@ -118,7 +118,7 @@ public class Mode
     /// <summary>Post-processing provider: "openai", "anthropic", etc.</summary>
     public string? PostProcessingProvider { get; set; }
 
-    /// <summary>Language model for post-processing: "gpt-4.1-nano", etc.</summary>
+    /// <summary>Language model for post-processing: "gpt-5.6-luna", etc.</summary>
     public string? LanguageModel { get; set; }
 
     /// <summary>Local GGUF model for on-device post-processing.</summary>

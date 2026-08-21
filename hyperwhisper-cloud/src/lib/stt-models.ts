@@ -54,14 +54,16 @@ export interface SttProviderDef {
   selfOnly: boolean;
   /** Whether this provider's transcription flow is async (upload + poll). */
   async: boolean;
+  /** Retired caller-facing ids that are accepted and canonicalized before dispatch. */
+  aliases?: Record<string, string>;
   models: SttModelDef[];
 }
 
 // Medical add-on multiplier surface — only AssemblyAI meters it today.
 export const MEDICAL_DOMAIN = 'medical';
 const ASSEMBLYAI_MEDICAL_ADDON_USD_PER_MINUTE = 0.15 / 60;
-// Keyterms add-on ($0.05/hr) applies only to the Universal-3.x Pro tier
-// (universal-3-pro / universal-3-5-pro); universal-2 is free/beta.
+// Keyterms add-on ($0.05/hr) applies only to the Universal-3.5 Pro tier;
+// universal-2 is free/beta.
 const ASSEMBLYAI_KEYTERMS_ADDON_USD_PER_MINUTE = 0.05 / 60;
 // AssemblyAI's separate sync product (<=120s clips, single blocking request)
 // always runs universal-3-5-pro at its own published rate ("the same rate as
@@ -204,31 +206,28 @@ const PROVIDERS: Record<SttProviderId, SttProviderDef> = {
   // ── New asynchronous (upload + poll) proxy providers ──
   assemblyai: {
     id: 'assemblyai',
-    // Universal-3.5 Pro (GA 2026-07-01) is AssemblyAI's successor to Universal-3
-    // Pro and is now their own default `speech_models` priority — verified via
-    // AssemblyAI's transcript-submit API reference (default
-    // `speech_models: ["universal-3-5-pro", "universal-2"]`). universal-3-pro is
-    // kept below (not removed) since it's still a valid, billable model id.
+    // Universal-3.5 Pro is the canonical successor. Old Pro callers are
+    // redirected instead of forwarding an id that now errors upstream.
     defaultModel: 'universal-3-5-pro',
     selfOnly: true,
     async: true,
+    aliases: {
+      'universal-3-pro': 'universal-3-5-pro',
+      'slam-1': 'universal-3-5-pro',
+    },
     models: [
-      { id: 'universal-3-pro', supportsVocabulary: true, estimatedUsdPerMinute: 0.0035 },
       { id: 'universal-3-5-pro', supportsVocabulary: true, estimatedUsdPerMinute: 0.0035 },
       { id: 'universal-2', supportsVocabulary: true, estimatedUsdPerMinute: 0.0025 },
     ],
   },
   soniox: {
     id: 'soniox',
-    // v4 auto-routed to v5 after 2026-06-30 (confirmed still accurate against
-    // Soniox's docs/changelog) — v5 is now the default; v4 stays listed as a
-    // still-valid, API-compatible id for any caller that pins it explicitly.
+    // v4 is retained only as a compatibility alias for older callers.
     defaultModel: 'stt-async-v5',
     selfOnly: true,
     async: true,
+    aliases: { 'stt-async-v4': 'stt-async-v5' },
     models: [
-      { id: 'stt-async-v4', supportsVocabulary: true, estimatedUsdPerMinute: 0.00167 },
-      // v5 is API-compatible with v4; v4 auto-routes to it after 2026-06-30.
       { id: 'stt-async-v5', supportsVocabulary: true, estimatedUsdPerMinute: 0.00167 },
     ],
   },
@@ -269,7 +268,8 @@ export function resolveModel(provider: SttProviderId, requested?: string): Model
     return { ok: true, model: fallback };
   }
 
-  const match = def.models.find((m) => m.id === trimmed);
+  const canonical = def.aliases?.[trimmed] ?? trimmed;
+  const match = def.models.find((m) => m.id === canonical);
   if (match) {
     return { ok: true, model: match };
   }
@@ -310,7 +310,7 @@ export function estimatedUsdPerMinute(
   const resolvedModel = resolution.ok ? resolution.model.id : PROVIDERS.assemblyai.models[0].id;
   const medicalAddon = medical ? ASSEMBLYAI_MEDICAL_ADDON_USD_PER_MINUTE : 0;
   // Keyterms add-on only applies to the Universal-3.x Pro tier (free/beta on universal-2).
-  const keytermsAddon = (keyterms && (resolvedModel === 'universal-3-pro' || resolvedModel === 'universal-3-5-pro'))
+  const keytermsAddon = (keyterms && resolvedModel === 'universal-3-5-pro')
     ? ASSEMBLYAI_KEYTERMS_ADDON_USD_PER_MINUTE
     : 0;
   return base + medicalAddon + keytermsAddon;

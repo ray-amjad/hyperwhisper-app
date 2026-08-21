@@ -55,9 +55,9 @@ describe('new STT provider cost functions', () => {
     expect(u2Keyterms).toBe(u2Base);
   });
 
-  test('AssemblyAI universal-3-pro (legacy id) still bills at the same Pro-tier rate as universal-3-5-pro', () => {
-    // universal-3-pro was not removed from the registry — only superseded as the
-    // default — so it must keep billing at its (unchanged) published rate.
+  test('AssemblyAI universal-3-pro compatibility id bills at the same Pro-tier rate as universal-3-5-pro', () => {
+    // Defensive compatibility for callers that reach the calculator before
+    // the registry canonicalizes the retired id.
     const legacy = computeAssemblyAITranscriptionCost(60, 'universal-3-pro', false, false);
     const current = computeAssemblyAITranscriptionCost(60, 'universal-3-5-pro', false, false);
     expect(legacy).toBeCloseTo(0.0035, 6);

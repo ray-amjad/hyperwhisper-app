@@ -116,7 +116,6 @@ export const STT_CATALOG: readonly CatalogEntry[] = [
     vendor: "assemblyai",
     vendorDisplayName: "AssemblyAI",
     models: [
-      { id: "universal-3-pro", displayName: "Universal-3 Pro" },
       { id: "universal-3-5-pro", displayName: "Universal-3.5 Pro", isDefault: true },
       { id: "universal-2", displayName: "Universal-2" },
     ],
@@ -132,7 +131,6 @@ export const STT_CATALOG: readonly CatalogEntry[] = [
     vendor: "soniox",
     vendorDisplayName: "Soniox",
     models: [
-      { id: "stt-async-v4", displayName: "Async v4" },
       { id: "stt-async-v5", displayName: "Async v5", isDefault: true },
     ],
   },

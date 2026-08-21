@@ -86,4 +86,29 @@ struct CloudSttTierParityTests {
         // otherwise resolve to Grok.
         #expect(CloudTranscriptionModels.model(withId: "") == nil)
     }
+
+    @Test("Retired cloud model ids resolve to selectable canonical models")
+    func retiredCloudModelIdsResolve() {
+        let cases: [(String, CloudProvider, String)] = [
+            ("slam-1", .assemblyAI, "universal-3-5-pro"),
+            ("universal-3-pro", .assemblyAI, "universal-3-5-pro"),
+            ("universal-3-pro-medical", .assemblyAI, "universal-3-5-pro-medical"),
+            ("stt-async-v4", .soniox, "stt-async-v5"),
+            ("gemini-3.1-flash-lite-preview", .gemini, "gemini-3.1-flash-lite"),
+        ]
+
+        for (oldId, provider, replacement) in cases {
+            #expect(CloudTranscriptionModels.resolveModelAlias(oldId, provider: provider) == replacement)
+            #expect(CloudTranscriptionModels.model(withId: replacement, provider: provider) != nil)
+        }
+    }
+
+    @Test("Retired cloud models are not selectable")
+    func retiredCloudModelsAreNotSelectable() {
+        let retired = Set([
+            "universal-3-pro", "universal-3-pro-medical",
+            "stt-async-v4", "gemini-3.1-flash-lite-preview",
+        ])
+        #expect(CloudTranscriptionModels.availableModels.allSatisfy { !retired.contains($0.id) })
+    }
 }

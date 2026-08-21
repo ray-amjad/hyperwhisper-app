@@ -89,8 +89,8 @@ public class GeminiTranscriptionService : ApiKeyTranscriptionServiceBase
     public override void Configure(string apiKey, string modelId = "gemini-2.5-flash")
     {
         ApiKey = apiKey?.Trim();
-        ModelId = modelId;
-        LoggingService.Info($"GeminiTranscriptionService: Configured with model {modelId}");
+        ModelId = CloudTranscriptionModels.ResolveGeminiModelAlias(modelId);
+        LoggingService.Info($"GeminiTranscriptionService: Configured with model {ModelId}");
     }
 
     /// <summary>

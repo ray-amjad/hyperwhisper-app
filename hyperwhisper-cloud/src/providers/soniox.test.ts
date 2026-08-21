@@ -158,9 +158,9 @@ describe('transcribeWithSoniox — create request shape', () => {
     expect(body).toMatchObject({ file_id: 'file-xyz', model: 'stt-async-v5', enable_language_identification: true });
   });
 
-  test('an explicitly pinned model is sent instead of the default', async () => {
+  test('an explicitly pinned legacy v4 model is canonicalized to v5', async () => {
     const body = await createBodyFor(SMALL_AUDIO, 'audio/wav', undefined, undefined, { model: 'stt-async-v4' });
-    expect(body.model).toBe('stt-async-v4');
+    expect(body.model).toBe('stt-async-v5');
   });
 
   test('a BCP-47 language is stripped to its bare ISO subtag so the hint actually biases detection', async () => {

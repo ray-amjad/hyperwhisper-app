@@ -1863,7 +1863,7 @@ class PersistenceController: ObservableObject {
         if modeEnum == .local {
             normalizedLanguageModel = languageModel ?? PostProcessingProvider.localLLM.defaultModel
         } else {
-            normalizedLanguageModel = languageModel ?? "gpt-4.1-nano"
+            normalizedLanguageModel = languageModel ?? "gpt-5.6-luna"
         }
 
         mode?.languageModel = normalizedLanguageModel

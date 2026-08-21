@@ -76,9 +76,12 @@ class GeminiTranscriptionProvider: TranscriptionProvider {
         // Gemini prompt as `params.prompt` — the core's `geminiBuildPrompt`
         // assembles the final prompt (base instruction + language hint +
         // vocabulary + custom prompt).
-        let modelToSend = (mode?.cloudTranscriptionModel?.isEmpty == false)
+        let rawModel = (mode?.cloudTranscriptionModel?.isEmpty == false)
             ? (mode?.cloudTranscriptionModel ?? "")
             : ""
+        let modelToSend = rawModel.isEmpty
+            ? ""
+            : CloudTranscriptionModels.resolveGeminiModelAlias(rawModel)
         let mimeType = AudioMimeTypeResolver.infer(for: audioURL, fallback: "audio/wav")
         let customPrompt = mode?.geminiCustomPrompt?.trimmingCharacters(in: .whitespacesAndNewlines)
         let promptForCore: String? = (customPrompt?.isEmpty == false) ? customPrompt : nil

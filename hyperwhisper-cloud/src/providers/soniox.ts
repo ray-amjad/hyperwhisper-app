@@ -12,9 +12,7 @@ import type { ProviderRequestContext, TranscriptionResult } from './types';
 import { DEFAULT_AUDIO_EXTENSIONS, audioExtensionFromContentType, computeUploadTimeoutMs, estimateSecondsFromBytes, explicitLanguageSubtag, fetchWithTimeout, logProviderEvent, readErrorBodyPreview, sleep, splitVocabularyTerms } from './utils';
 
 const SONIOX_BASE = 'https://api.soniox.com';
-// v4 auto-routed to v5 after 2026-06-30 (Soniox docs/changelog); v5 is now the
-// default, matching stt-models.ts's `soniox.defaultModel`. v4 stays a valid,
-// API-compatible id for any caller that pins it explicitly.
+// v5 is canonical; v4 remains accepted only as an old-caller compatibility alias.
 const DEFAULT_MODEL = 'stt-async-v5';
 const POLL_INTERVAL_MS = 1_000;
 const POLL_DEADLINE_MS = 240_000;
@@ -106,7 +104,9 @@ export async function transcribeWithSoniox(
 ): Promise<TranscriptionResult> {
   const startedAt = performance.now();
   const provider = 'soniox';
-  const model = context.model || DEFAULT_MODEL;
+  const model = !context.model || context.model === 'stt-async-v4'
+    ? DEFAULT_MODEL
+    : context.model;
 
   const apiKey = process.env.SONIOX_API_KEY;
   if (!apiKey) {

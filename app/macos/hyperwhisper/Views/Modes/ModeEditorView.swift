@@ -140,7 +140,7 @@ struct ModeEditorView: View {
             _capitalization = State(initialValue: mode.capitalization)
             _profanityFilter = State(initialValue: mode.profanityFilter)
             _customInstructions = State(initialValue: mode.customInstructions ?? "")
-            _languageModel = State(initialValue: mode.languageModel ?? "gpt-4.1-nano")
+            _languageModel = State(initialValue: mode.languageModel ?? "gpt-5.6-luna")
             let processingMode = isLegacyVoiceToText ? PostProcessingMode.off : (PostProcessingMode(rawValue: mode.postProcessingMode) ?? .cloud)
             _postProcessingMode = State(initialValue: processingMode)
 
@@ -219,7 +219,7 @@ struct ModeEditorView: View {
             _capitalization = State(initialValue: true)
             _profanityFilter = State(initialValue: false)
             _customInstructions = State(initialValue: "")
-            _languageModel = State(initialValue: PostProcessingModels.defaultModel(for: .openai)?.id ?? "gpt-4.1-nano")
+            _languageModel = State(initialValue: PostProcessingModels.defaultModel(for: .openai)?.id ?? "gpt-5.6-luna")
             _postProcessingMode = State(initialValue: .cloud)
             _postProcessingProvider = State(initialValue: PostProcessingProvider.hyperwhisper.rawValue)
             _cloudProvider = State(initialValue: "hyperwhisper")
@@ -517,7 +517,7 @@ struct ModeEditorView: View {
     /// Normally the selected `cloudTranscriptionModel`, BUT when the AssemblyAI
     /// Medical Mode add-on is active the domain narrows transcription to EN/ES/DE/FR
     /// — represented in `STTCapabilities` by the `-medical` model variants
-    /// (`universal-2-medical` / `universal-3-pro-medical`). Resolve that variant so
+    /// (`universal-2-medical` / `universal-3-5-pro-medical`). Resolve that variant so
     /// the picker restricts to the medical language set instead of offering the base
     /// model's full list (e.g. pt/it). Depends on `cloudTranscriptionDomain`, so the
     /// picker re-filters reactively when the Medical toggle flips (LanguageSelectionView

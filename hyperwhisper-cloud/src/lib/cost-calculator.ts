@@ -377,7 +377,7 @@ export function estimatePromptInputReservationUsd(
  * AssemblyAI duration-billed; `medical` layers the +$0.15/hr add-on on top of
  * the chosen base model (universal-2 or the Universal-3.x Pro tier). `keyterms`
  * layers the ~$0.05/hr keyterms-prompt add-on, but ONLY for the Universal-3.x
- * Pro tier (universal-3-pro / universal-3-5-pro) — universal-2 keyterms are
+ * Pro tier (universal-3-5-pro) — universal-2 keyterms are
  * free/beta and must not be charged.
  */
 export function computeAssemblyAITranscriptionCost(
@@ -386,7 +386,7 @@ export function computeAssemblyAITranscriptionCost(
   medical: boolean = false,
   keyterms: boolean = false,
 ): number {
-  const isPro = model === 'universal-3-pro' || model === 'universal-3-5-pro';
+  const isPro = model === 'universal-3-5-pro' || model === 'universal-3-pro';
   const basePerMinute = isPro
     ? ASSEMBLYAI_UNIVERSAL3_PRO_COST_PER_AUDIO_MINUTE
     : ASSEMBLYAI_UNIVERSAL2_COST_PER_AUDIO_MINUTE;

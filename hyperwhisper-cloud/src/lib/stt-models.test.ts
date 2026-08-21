@@ -77,10 +77,14 @@ describe('resolveModel', () => {
     expect(defaulted.ok).toBe(true);
     if (defaulted.ok) expect(defaulted.model.id).toBe('universal-3-5-pro');
 
-    // universal-3-pro remains a valid, resolvable (non-default) id.
+    // Retired ids remain accepted only as compatibility aliases.
     const legacy = resolveModel('assemblyai', 'universal-3-pro');
     expect(legacy.ok).toBe(true);
-    if (legacy.ok) expect(legacy.model.id).toBe('universal-3-pro');
+    if (legacy.ok) expect(legacy.model.id).toBe('universal-3-5-pro');
+
+    const slam = resolveModel('assemblyai', 'slam-1');
+    expect(slam.ok).toBe(true);
+    if (slam.ok) expect(slam.model.id).toBe('universal-3-5-pro');
   });
 
   test('Soniox stt-async-v5 resolves and is now the provider default', () => {
@@ -91,6 +95,10 @@ describe('resolveModel', () => {
     const defaulted = resolveModel('soniox', undefined);
     expect(defaulted.ok).toBe(true);
     if (defaulted.ok) expect(defaulted.model.id).toBe('stt-async-v5');
+
+    const legacy = resolveModel('soniox', 'stt-async-v4');
+    expect(legacy.ok).toBe(true);
+    if (legacy.ok) expect(legacy.model.id).toBe('stt-async-v5');
   });
 
   test('ElevenLabs scribe_v1 is retired and now unresolvable (fail-closed)', () => {

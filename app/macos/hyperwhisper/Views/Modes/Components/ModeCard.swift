@@ -206,7 +206,7 @@ struct ModeCard: View {
 
                                         // Built-in provider: show model name
                                         let provider = PostProcessingProvider(rawValue: providerString) ?? .hyperwhisper
-                                        let languageModel = mode.languageModel ?? "gpt-4.1-nano"
+                                        let languageModel = mode.languageModel ?? "gpt-5.6-luna"
                                         return PostProcessingModels.displayName(for: languageModel, provider: provider)
                                             .replacingOccurrences(of: " (Q4)", with: "")
                                     }()
