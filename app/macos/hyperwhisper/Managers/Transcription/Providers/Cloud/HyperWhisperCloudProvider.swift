@@ -422,6 +422,25 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
         // (the core classifies BadRequest and Unauthorized as terminal), so there
         // is no multiplicative blow-up. The reverse nesting would leave a
         // re-encoded upload unable to repair a licence that went stale mid-flight.
+        //
+        // CREDENTIAL CARRY-OVER: the two format attempts are separate licence
+        // recoveries, so the WAV retry must start from the freshest identity the
+        // first one proved — not the identity `transcribe` resolved minutes ago.
+        // The 401 -> revalidate -> refresh -> 415 sequence throws out of the first
+        // licence recovery, so its repaired identity never comes back as a
+        // `TranscribeRequestResult`; `onLicenseRepaired` is how it escapes. Without
+        // this the whole WAV upload goes out under the known-bad identifier, earns a
+        // second 401, and burns another `/license/validate` round trip that can now
+        // fail (rate limit) and sink the transcription outright.
+        //
+        // Safe to hold in a `var`: both closures are non-escaping and the two
+        // attempts are strictly sequential, so there is no concurrent access. And it
+        // is not an entitlement bypass — these values only ever come from
+        // `licenseManager.getTranscriptionIdentifier()` after a live server
+        // validation, and every request sent with them is still checked server-side.
+        var attemptIdentifier = identifier
+        var attemptIsLicensed = isLicensed
+
         let requestResult = try await CloudAudioFormatRecovery.withUnsupportedFormatRecovery(
             sourceURL: audioURL,
             reencode: { source, destination in
@@ -429,12 +448,12 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
             },
             send: { (uploadURL: URL, uploadContentTypeOverride: String?) async throws -> TranscribeRequestResult in
                 try await Self.performTranscribeRequestWithLicenseRecovery(
-                    identifier: identifier,
-                    isLicensed: isLicensed,
-                    send: { attemptIdentifier, attemptIsLicensed in
+                    identifier: attemptIdentifier,
+                    isLicensed: attemptIsLicensed,
+                    send: { sendIdentifier, sendIsLicensed in
                         try await sendTranscribeRequest(
-                            identifier: attemptIdentifier,
-                            isLicensed: attemptIsLicensed,
+                            identifier: sendIdentifier,
+                            isLicensed: sendIsLicensed,
                             uploadURL: uploadURL,
                             // nil on the first attempt: keep the Content-Type the
                             // resolver already inferred for the original file.
@@ -449,6 +468,10 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
                     },
                     refreshServerAuthCache: { refreshedIdentifier in
                         try await creditManager.refreshServerLicenseCache(for: refreshedIdentifier)
+                    },
+                    onLicenseRepaired: { repairedIdentifier, repairedIsLicensed in
+                        attemptIdentifier = repairedIdentifier
+                        attemptIsLicensed = repairedIsLicensed
                     }
                 )
             }
@@ -592,13 +615,23 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
         let isLicensed: Bool
     }
 
+    /// - Parameter onLicenseRepaired: Reports the freshly validated identity the
+    ///   moment it is proven usable — after the live `/license/validate` verdict,
+    ///   after the resolved identity is confirmed still licensed, and after the
+    ///   server-side auth cache was refreshed for it. It fires BEFORE the retry
+    ///   send, so a caller still learns the repaired identity when that send then
+    ///   fails for an unrelated reason (a 415, say) and no `TranscribeRequestResult`
+    ///   is ever returned. Nothing here is fabricated or cached client-side: this
+    ///   is the same identity `currentIdentifier` resolved, and every request made
+    ///   with it is still validated server-side.
     static func performTranscribeRequestWithLicenseRecovery(
         identifier: String,
         isLicensed: Bool,
         send: (String, Bool) async throws -> HttpResponse,
         revalidate: (String) async -> LicenseValidationResult,
         currentIdentifier: () async -> (identifier: String, isLicensed: Bool),
-        refreshServerAuthCache: (String) async throws -> Void
+        refreshServerAuthCache: (String) async throws -> Void,
+        onLicenseRepaired: (String, Bool) -> Void = { _, _ in }
     ) async throws -> TranscribeRequestResult {
         do {
             let response = try await send(identifier, isLicensed)
@@ -635,6 +668,12 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
                 AppLogger.network.warning("HyperWhisper Cloud server license-cache refresh failed · preserving unauthorized response")
                 throw requestError
             }
+
+            // Publish the repaired identity BEFORE the retry send: if that send
+            // fails (e.g. the format 415), this function throws and the caller
+            // would otherwise never see the identity that the licence repair
+            // just produced.
+            onLicenseRepaired(refreshed.identifier, refreshed.isLicensed)
 
             let response = try await send(refreshed.identifier, refreshed.isLicensed)
             return TranscribeRequestResult(

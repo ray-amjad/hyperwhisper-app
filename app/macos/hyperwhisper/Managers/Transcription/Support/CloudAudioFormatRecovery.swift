@@ -105,8 +105,11 @@ enum CloudAudioFormatRecovery {
     ///   re-encode fails or the result is too large, the ORIGINAL 415 — never the
     ///   converter's `AudioError.exportFailed`, and never a synthesized 413. When
     ///   the retry itself fails, the retry's own error (freshest verdict, same as
-    ///   `performTranscribeRequestWithLicenseRecovery`). `CancellationError`
-    ///   always propagates as itself.
+    ///   `performTranscribeRequestWithLicenseRecovery`). Cancellation outranks all
+    ///   of that: a task cancelled on the way to any "recovery impossible" exit
+    ///   throws `CancellationError`, never the 415 — the converter reports a
+    ///   cancelled decode as its own failure rather than as `CancellationError`,
+    ///   so a silent stop must not surface as an unsupported-format toast.
     static func withUnsupportedFormatRecovery<T>(
         sourceURL: URL,
         reencode: (URL, URL) async throws -> Void,
@@ -145,6 +148,12 @@ enum CloudAudioFormatRecovery {
         } catch is CancellationError {
             throw CancellationError()
         } catch {
+            // A cancelled re-encode usually surfaces as the converter's own
+            // failure (AVFoundation tears the reader down, it does not throw
+            // `CancellationError`), so the typed catch above misses it. Re-check
+            // the task before falling back to the 415 — otherwise stopping a
+            // recording shows the user an "unsupported audio format" toast.
+            try Task.checkCancellation()
             // Swallow the converter's error on purpose: the user-visible failure
             // is the server's rejection, and surfacing `AudioError.exportFailed`
             // here would show an unrelated export message for a network verdict.
@@ -161,6 +170,9 @@ enum CloudAudioFormatRecovery {
         }
 
         guard let reencodedBytes = fileSize(tempURL) else {
+            // A cancellation mid-encode leaves a truncated or absent temp file,
+            // which lands here — report it as the cancellation it is.
+            try Task.checkCancellation()
             AppLogger.network.warning(
                 "Cloud audio WAV re-encode produced an unreadable file · sourceExtension=\(sourceExtension, privacy: .public) · preserving the original 415"
             )
@@ -174,6 +186,9 @@ enum CloudAudioFormatRecovery {
         }
 
         guard reencodedBytes <= maxReencodedUploadBytes else {
+            // Cancellation outranks the size verdict: a user who stopped the
+            // transcription must not be told the audio was too large.
+            try Task.checkCancellation()
             // Uploading this would earn a 413 instead of the 415, which is a
             // worse error for the same underlying problem. Keep the 415.
             AppLogger.network.warning(
