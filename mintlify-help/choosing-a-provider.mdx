@@ -58,6 +58,33 @@ The buttons above the table select the **Metric** (p50, p95, p99, or the error r
 
 Click **Break down by model** to open each company into its models. This control is off when the page opens. The models keep the order of the **Model** menu in the app, and a **default** badge marks the model that a new selection of that company uses. A model row counts only the attempts that ran on that model. Thus a model row shows a dash more frequently than the row of its company.
 
+## Use the model chooser
+
+The public [model chooser](https://www.hyperwhisper.com/en/choosing-a-model) ranks the Cloud models and the on-device models that HyperWhisper ships. The **Choose a model** item in the site menu opens it. The page is in English only. It is not a general leaderboard: it contains only the models that the app gives you.
+
+You have **100 points**. Give the points to the four properties that the ranking uses:
+
+| Property | Question that it answers |
+| --- | --- |
+| Accuracy | How frequently the model gets a word wrong |
+| Speed | How long you wait for the text |
+| Cost | What one minute of audio costs you |
+| Privacy | If the audio goes off your machine |
+
+The five presets — **Balanced**, **Accuracy first**, **Cheapest**, **Fastest**, and **Fully private** — set the points for you. You can then move each slider. HyperWhisper adjusts the other three sliders in proportion, thus the total stays at 100 points.
+
+Three more controls make the list smaller:
+
+- **Your platform** — macOS or Windows. The on-device models are different on each platform.
+- **Language** — English only, European, or Wide multilingual. A model with no published language count stays in the English list, but the page removes it from the two multilingual lists.
+- **Must have** — Live streaming, Custom vocabulary, or No preview models.
+
+The page gives the best match first, then the full ranked list. For a Cloud model, the list gives the cost in credits for each minute, the word error rate, and an estimate for each audio minute. For an on-device model, it gives the download size and no cost.
+
+<Tip>
+  The **Closest region** menu selects which measurements the ranking uses. The page finds your closest region for you. The measured column gives the median time for one dictation clip of less than 10 seconds, from the last 90 days. This is not a figure for each minute. A cell needs the same minimum of 3 attempts that the latency page needs. If a model is too new to have its own measurements, the page uses the measurements of its provider.
+</Tip>
+
 ## You pay only for speech
 
 HyperWhisper Cloud detects silence and blank audio automatically. If a recording contains no speech, **you pay 0 credits**. HyperWhisper does not bill for silence at the start of a clip or for pauses between thoughts. HyperWhisper also does not bill for an empty recording that you start by accident.
