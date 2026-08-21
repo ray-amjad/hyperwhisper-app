@@ -206,7 +206,7 @@ public static class CloudTranscriptionModels
     /// <summary>
     /// AssemblyAI transcription models.
     /// - universal-2: Multi-language model supporting 99 languages (default, keyterms_prompt ≤ 200 terms)
-    /// - universal-3-pro: Highest-accuracy model, 6 languages (EN/ES/DE/FR/PT/IT), keyterms_prompt ≤ 1000 terms
+    /// - universal-3-5-pro: Highest-accuracy model, 18 languages, keyterms_prompt ≤ 1000 terms
     /// Legacy IDs "universal" and "slam-1" are resolved to these via GetById for backward compatibility.
     /// </summary>
     public static readonly CloudTranscriptionModel[] AssemblyAI = new[]
@@ -218,15 +218,6 @@ public static class CloudTranscriptionModels
             Description = "Multi-language model supporting 99 languages with automatic detection. Keyterms prompting up to 200 terms.",
             Provider = CloudTranscriptionProvider.AssemblyAI,
             PricePerMinute = 0.0025m,  // $0.15/hour
-            IsPopular = true
-        },
-        new CloudTranscriptionModel
-        {
-            Id = "universal-3-pro",
-            DisplayName = "Universal-3 Pro",
-            Description = "Highest-accuracy model. English, Spanish, German, French, Portuguese, Italian. Keyterms prompting up to 1000 terms.",
-            Provider = CloudTranscriptionProvider.AssemblyAI,
-            PricePerMinute = 0.0035m,  // $0.21/hour
             IsPopular = true
         },
         new CloudTranscriptionModel
@@ -249,9 +240,9 @@ public static class CloudTranscriptionModels
         },
         new CloudTranscriptionModel
         {
-            Id = "universal-3-pro-medical",
-            DisplayName = "Universal-3 Pro (Medical)",
-            Description = "Universal-3 Pro with Medical Mode add-on for clinical vocabulary. EN/ES/DE/FR only. Medical Mode is billed as a separate add-on on top of Universal-3 Pro pricing.",
+            Id = "universal-3-5-pro-medical",
+            DisplayName = "Universal-3.5 Pro (Medical)",
+            Description = "Universal-3.5 Pro with Medical Mode add-on for clinical vocabulary. EN/ES/DE/FR only. Medical Mode is billed as a separate add-on on top of Universal-3.5 Pro pricing.",
             Provider = CloudTranscriptionProvider.AssemblyAI,
             IsPopular = true,
             PricePerMinute = 0.0035m  // $0.21/hour base — medical add-on billed separately
@@ -320,19 +311,10 @@ public static class CloudTranscriptionModels
 
     /// <summary>
     /// Soniox transcription models.
-    /// - stt-async-v4: Previous async transcription model (still available; auto-routes to v5 upstream after 2026-06-30)
     /// - stt-async-v5: Current default async transcription model
     /// </summary>
     public static readonly CloudTranscriptionModel[] Soniox = new[]
     {
-        new CloudTranscriptionModel
-        {
-            Id = "stt-async-v4",
-            DisplayName = "STT Async v4",
-            Description = "Async batch transcription with 60+ supported languages",
-            Provider = CloudTranscriptionProvider.Soniox,
-            IsPopular = true
-        },
         new CloudTranscriptionModel
         {
             Id = "stt-async-v5",
@@ -355,8 +337,7 @@ public static class CloudTranscriptionModels
     /// - gemini-2.5-flash: Fast, cost-effective (default)
     /// - gemini-2.5-flash-lite: Cheapest option
     /// - gemini-2.5-pro: Highest quality
-    /// - gemini-2.0-flash: Previous generation
-    /// - gemini-3.x: Preview models
+    /// - gemini-3.x: Current and preview models
     /// </summary>
     public static readonly CloudTranscriptionModel[] Gemini = new[]
     {
@@ -386,16 +367,16 @@ public static class CloudTranscriptionModels
         },
         new CloudTranscriptionModel
         {
-            Id = "gemini-2.0-flash",
-            DisplayName = "Gemini 2.0 Flash",
-            Description = "Previous generation - stable and reliable",
+            Id = "gemini-3.1-flash-lite",
+            DisplayName = "Gemini 3.1 Flash Lite",
+            Description = "Lightweight, fast and cost-efficient",
             Provider = CloudTranscriptionProvider.Gemini
         },
         new CloudTranscriptionModel
         {
-            Id = "gemini-3.1-flash-lite-preview",
-            DisplayName = "Gemini 3.1 Flash Lite (Preview)",
-            Description = "Next-gen lightweight model (preview)",
+            Id = "gemini-3.6-flash",
+            DisplayName = "Gemini 3.6 Flash",
+            Description = "Current general-purpose Gemini Flash model",
             Provider = CloudTranscriptionProvider.Gemini
         },
         new CloudTranscriptionModel
@@ -554,13 +535,15 @@ public static class CloudTranscriptionModels
     /// <summary>
     /// Legacy AssemblyAI model IDs retired on 2026-05-11. Mapped transparently so existing
     /// Modes and imported backups keep working. "universal" → "universal-2" (same multilingual
-    /// behavior) and "slam-1" → "universal-3-pro" (direct accuracy upgrade per AssemblyAI).
+    /// behavior); retired Universal-3 IDs and "slam-1" resolve to Universal-3.5 Pro.
     /// </summary>
     private static readonly Dictionary<string, string> LegacyAssemblyAIAliases =
         new(StringComparer.OrdinalIgnoreCase)
         {
             { "universal", "universal-2" },
-            { "slam-1", "universal-3-pro" }
+            { "slam-1", "universal-3-5-pro" },
+            { "universal-3-pro", "universal-3-5-pro" },
+            { "universal-3-pro-medical", "universal-3-5-pro-medical" }
         };
 
     /// <summary>
@@ -648,6 +631,31 @@ public static class CloudTranscriptionModels
         return LegacyElevenLabsAliases.TryGetValue(modelId, out var resolved) ? resolved : modelId;
     }
 
+    private static readonly Dictionary<string, string> LegacySonioxAliases =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            { "stt-async-v4", "stt-async-v5" }
+        };
+
+    public static string ResolveSonioxModelAlias(string modelId)
+    {
+        if (string.IsNullOrEmpty(modelId)) return modelId;
+        return LegacySonioxAliases.TryGetValue(modelId, out var resolved) ? resolved : modelId;
+    }
+
+    private static readonly Dictionary<string, string> LegacyGeminiAliases =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            { "gemini-3.1-flash-lite-preview", "gemini-3.1-flash-lite" },
+            { "gemini-2.0-flash", "gemini-3.6-flash" }
+        };
+
+    public static string ResolveGeminiModelAlias(string modelId)
+    {
+        if (string.IsNullOrEmpty(modelId)) return modelId;
+        return LegacyGeminiAliases.TryGetValue(modelId, out var resolved) ? resolved : modelId;
+    }
+
     /// <summary>
     /// Resolve provider-specific model aliases before display, import, or request configuration.
     /// </summary>
@@ -660,11 +668,13 @@ public static class CloudTranscriptionModels
             CloudTranscriptionProvider.AssemblyAI => ResolveAssemblyAIModelAlias(modelId),
             CloudTranscriptionProvider.Deepgram => ResolveDeepgramModelAlias(modelId),
             CloudTranscriptionProvider.ElevenLabs => ResolveElevenLabsModelAlias(modelId),
+            CloudTranscriptionProvider.Soniox => ResolveSonioxModelAlias(modelId),
+            CloudTranscriptionProvider.Gemini => ResolveGeminiModelAlias(modelId),
             // CloudTranscriptionProvider.None is what FromIdentifier(...) returns for a
             // missing/unrecognized provider string (it's a concrete enum value, not C#
             // null), so real call sites land here rather than the `null` arm below —
             // treat it identically to "provider unknown, chain everything".
-            null or CloudTranscriptionProvider.None => ResolveDeepgramModelAlias(ResolveAssemblyAIModelAlias(ResolveElevenLabsModelAlias(modelId))),
+            null or CloudTranscriptionProvider.None => ResolveGeminiModelAlias(ResolveSonioxModelAlias(ResolveDeepgramModelAlias(ResolveAssemblyAIModelAlias(ResolveElevenLabsModelAlias(modelId))))),
             _ => modelId
         };
     }

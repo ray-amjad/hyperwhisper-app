@@ -150,7 +150,7 @@ enum PostProcessingProvider: String, CaseIterable, Identifiable {
         case .hyperwhisper:
             return "hyperwhisper-cloud"  // Built-in cloud service identifier
         case .openai:
-            return "gpt-4.1-nano"
+            return "gpt-5.6-luna"
         case .anthropic:
             return "claude-3-5-haiku-latest"
         case .gemini:

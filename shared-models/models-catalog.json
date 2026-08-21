@@ -1,7 +1,7 @@
 {
   "$schema": "./schema.json",
   "schemaVersion": 1,
-  "lastUpdated": "2026-08-15",
+  "lastUpdated": "2026-08-21",
   "models": [
     {
       "provider": "appleSpeech",
@@ -181,16 +181,6 @@
     },
     {
       "provider": "assemblyAI",
-      "id": "universal-3-pro",
-      "kind": "voice",
-      "supportsCustomVocabulary": true,
-      "availableViaHyperWhisperCloud": true,
-      "platforms": ["macos", "windows"],
-      "supportedLanguages": ["de", "en", "es", "fr", "it", "pt"],
-      "notes": "Superseded as the AssemblyAI default by universal-3-5-pro (GA 2026-07-01) but not retired — still a valid, billable model id."
-    },
-    {
-      "provider": "assemblyAI",
       "id": "universal-3-5-pro",
       "kind": "voice",
       "supportsCustomVocabulary": true,
@@ -210,22 +200,13 @@
     },
     {
       "provider": "assemblyAI",
-      "id": "universal-3-pro-medical",
-      "kind": "voice",
-      "supportsCustomVocabulary": true,
-      "availableViaHyperWhisperCloud": false,
-      "platforms": ["macos", "windows"],
-      "supportedLanguages": ["de", "en", "es", "fr"]
-    },
-    {
-      "provider": "assemblyAI",
       "id": "universal-3-5-pro-medical",
       "kind": "voice",
       "supportsCustomVocabulary": true,
       "availableViaHyperWhisperCloud": false,
-      "platforms": ["macos"],
+      "platforms": ["macos", "windows"],
       "supportedLanguages": ["de", "en", "es", "fr"],
-      "notes": "Medical Mode add-on variant of universal-3-5-pro, mirroring universal-3-pro-medical. Added to macOS's CloudTranscriptionModels.swift catalog only (BYOK AssemblyAI model picker) — not yet added to the Windows registry, which was out of scope for this fix."
+      "notes": "Medical Mode add-on variant of universal-3-5-pro, available in both native BYOK pickers."
     },
 
     {
@@ -258,15 +239,6 @@
       "supportedLanguages": ["en", "zh", "hi", "es", "ar", "fr", "pt", "ru", "de", "ja", "ko", "it", "nl"]
     },
 
-    {
-      "provider": "soniox",
-      "id": "stt-async-v4",
-      "kind": "voice",
-      "supportsCustomVocabulary": true,
-      "availableViaHyperWhisperCloud": true,
-      "platforms": ["macos", "windows"],
-      "supportedLanguages": ["af", "ar", "az", "be", "bg", "bn", "bs", "ca", "cs", "cy", "da", "de", "el", "en", "es", "et", "eu", "fa", "fi", "fr", "gl", "gu", "he", "hi", "hr", "hu", "id", "it", "ja", "kk", "kn", "ko", "lt", "lv", "mk", "ml", "mr", "ms", "nl", "no", "pa", "pl", "pt", "ro", "ru", "sk", "sl", "sq", "sr", "sv", "sw", "ta", "te", "th", "tl", "tr", "uk", "ur", "vi", "zh"]
-    },
     {
       "provider": "soniox",
       "id": "stt-async-v5",
@@ -306,12 +278,13 @@
     },
     {
       "provider": "gemini",
-      "id": "gemini-3.1-flash-lite-preview",
+      "id": "gemini-3.1-flash-lite",
       "kind": "voice",
       "supportsCustomVocabulary": true,
       "availableViaHyperWhisperCloud": false,
       "platforms": ["macos", "windows"],
-      "supportsAllLanguages": true
+      "supportsAllLanguages": true,
+      "notes": "GA replacement for gemini-3.1-flash-lite-preview. BYOK-only for native transcription."
     },
     {
       "provider": "gemini",
@@ -333,12 +306,13 @@
     },
     {
       "provider": "gemini",
-      "id": "gemini-2.0-flash",
+      "id": "gemini-3.6-flash",
       "kind": "voice",
       "supportsCustomVocabulary": true,
       "availableViaHyperWhisperCloud": false,
       "platforms": ["windows"],
-      "supportsAllLanguages": true
+      "supportsAllLanguages": true,
+      "notes": "Windows BYOK transcription replacement for gemini-2.0-flash."
     },
 
     {
@@ -396,6 +370,15 @@
       "notes": "Same model family as Groq's openai/gpt-oss-120b but a distinct Cerebras deployment. Keyed by (provider, id), not id alone."
     },
     {
+      "provider": "cerebras",
+      "id": "gemma-4-31b",
+      "kind": "text",
+      "supportsCustomVocabulary": false,
+      "availableViaHyperWhisperCloud": false,
+      "platforms": ["macos", "windows"],
+      "notes": "Current public Cerebras catalog model. BYOK-only native-app addition."
+    },
+    {
       "provider": "grok",
       "id": "grok-4.3",
       "kind": "text",
@@ -439,6 +422,24 @@
       "availableViaHyperWhisperCloud": false,
       "platforms": ["macos", "windows"],
       "notes": "Launched 2026-07-21 (GA). BYOK-only native-app catalog addition — NOT routed through hyperwhisper-cloud's llm-provider.ts. Distinct from the existing `kind: voice` gemini entries in this catalog; disambiguated by `kind`."
+    },
+    {
+      "provider": "gemini",
+      "id": "gemini-3.1-pro-preview",
+      "kind": "text",
+      "supportsCustomVocabulary": false,
+      "availableViaHyperWhisperCloud": false,
+      "platforms": ["macos", "windows"],
+      "notes": "Replacement for gemini-3-pro-preview. BYOK-only native-app catalog entry."
+    },
+    {
+      "provider": "gemini",
+      "id": "gemini-3.1-flash-lite",
+      "kind": "text",
+      "supportsCustomVocabulary": false,
+      "availableViaHyperWhisperCloud": false,
+      "platforms": ["macos", "windows"],
+      "notes": "GA replacement for gemini-3.1-flash-lite-preview. BYOK-only native-app catalog entry."
     },
     {
       "provider": "gemini",

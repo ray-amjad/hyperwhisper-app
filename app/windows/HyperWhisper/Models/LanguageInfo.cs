@@ -143,9 +143,9 @@ public class LanguageInfo
     };
 
     /// <summary>
-    /// Soniox stt-async-v4 supported languages verified from official Soniox docs on 2026-03-21.
+    /// Soniox async-model supported languages verified from official Soniox docs on 2026-03-21.
     /// </summary>
-    public static readonly string[] SonioxAsyncV4LanguageCodes =
+    public static readonly string[] SonioxAsyncLanguageCodes =
     {
         "auto",
         "af", "sq", "ar", "az", "eu", "be", "bn", "bs", "bg", "ca",

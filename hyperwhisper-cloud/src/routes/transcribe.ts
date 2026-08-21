@@ -156,7 +156,7 @@ export function estimateCreditsForProviderFallbacks(
     p === provider ? model : undefined,
     p === provider ? medical : false,
     // The keyterm surcharge is billed by ANY chain member that supports it
-    // (ElevenLabs scribe_v2 / AssemblyAI universal-3-pro) whenever an
+    // (ElevenLabs scribe_v2 / AssemblyAI universal-3-5-pro) whenever an
     // initial_prompt is present — not just the primary provider. A
     // Deepgram→ElevenLabs fallback still forwards initial_prompt and bills the
     // +20% surcharge, so reserve for it on every eligible sibling. Other
@@ -166,7 +166,7 @@ export function estimateCreditsForProviderFallbacks(
   ));
   // AssemblyAI's sync fast path (<120s, non-medical, EXPLICIT-language clips)
   // always runs universal-3-5-pro at its OWN higher published rate — not the
-  // async catalog rate for the requested model (universal-2 / universal-3-pro),
+  // async catalog rate for the requested model (universal-2 / universal-3-5-pro),
   // which `estimatedUsdPerMinute` above reserves against. A short clip is
   // exactly sync's target case, so without this a short, non-medical
   // AssemblyAI request could be deducted for more than was reserved. This
@@ -453,12 +453,12 @@ export async function transcribeRoute(c: Context) {
   }
   logEvent(requestId, startTime, 'transcribe.auth_done');
 
-  // Vocabulary surcharge: AssemblyAI charges a keyterms_prompt add-on (universal-3-pro)
+  // Vocabulary surcharge: AssemblyAI charges a keyterms_prompt add-on (universal-3-5-pro)
   // and ElevenLabs a +20% keyterm surcharge (scribe_v2) when an initial_prompt is supplied.
   // We pass the raw hasInitialPrompt flag through to the reservation so it can reserve the
   // surcharge for ANY eligible chain member — including ElevenLabs reached via a
   // Deepgram/Groq/Grok fallback, which still forwards the prompt and bills the surcharge.
-  // estimatedUsdPerMinute scopes the add-on to universal-3-pro / scribe_v2, so passing it
+  // estimatedUsdPerMinute scopes the add-on to universal-3-5-pro / scribe_v2, so passing it
   // for every request is safe and never under-reserves.
   const estimatedCredits = estimateCreditsForProviderFallbacks(contentLength, provider, model, medical, initialPrompt, language);
   const creditCheck = await validateCredits(authResult.value, estimatedCredits, clientIP);
@@ -625,7 +625,7 @@ export async function transcribeRoute(c: Context) {
           domain: attemptDomain,
         }));
         // Prefer the model the adapter reports it ACTUALLY ran (e.g. AssemblyAI's
-        // universal-3-pro → universal-2 fallback for unsupported languages) so the
+        // universal-3-5-pro → universal-2 fallback for unsupported languages) so the
         // X-STT-Model header and deduction metadata match what was billed; fall
         // back to the attempted model when the adapter doesn't report one.
         usedModel = result.model || attemptModel;

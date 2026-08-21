@@ -86,7 +86,9 @@ struct CatalogLanguageParityTests {
             }
             checked += 1
         }
-        #expect(checked >= 18, "expected to verify the STTCapabilities-backed cloud models, only checked \(checked)")
+        // The 2026-08 retirement cleanup removed the two Universal-3 Pro rows;
+        // keep this floor aligned with the 16 current STTCapabilities-backed rows.
+        #expect(checked >= 16, "expected to verify the STTCapabilities-backed cloud models, only checked \(checked)")
     }
 
     @Test("English-only cloud models filter to English only")

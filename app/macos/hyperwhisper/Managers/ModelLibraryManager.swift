@@ -262,10 +262,8 @@ final class ModelLibraryManager: ObservableObject {
         "nova-2-medical":                    (3, 2),
         // AssemblyAI
         "universal-2":                       (3, 4),
-        "universal-3-pro":                   (2, 5),
         "universal-3-5-pro":                 (2, 5),
         "universal-2-medical":               (2, 4),
-        "universal-3-pro-medical":           (2, 5),
         "universal-3-5-pro-medical":         (2, 5),
         // ElevenLabs
         "scribe_v1":                         (3, 5),
@@ -273,13 +271,12 @@ final class ModelLibraryManager: ObservableObject {
         // Mistral
         "voxtral-mini-latest":               (4, 2),
         // Soniox
-        "stt-async-v4":                      (1, 4),
         "stt-async-v5":                      (2, 5),
         // Gemini
         "gemini-2.5-flash":                  (2, 4),
         "gemini-2.5-flash-lite":             (3, 3),
         "gemini-2.5-pro":                    (1, 5),
-        "gemini-3.1-flash-lite-preview":     (3, 4),
+        "gemini-3.1-flash-lite":             (3, 4),
         "gemini-3-flash-preview":            (2, 1),
         "gemini-3.1-pro-preview":            (1, 5),
         // HyperWhisper Cloud routed tiers (Azure MAI / Google Chirp). Chirp 3
@@ -552,7 +549,6 @@ final class ModelLibraryManager: ObservableObject {
         "gpt-5-mini":                                    (1, 4),
         "gpt-5":                                         (1, 4),
         "gpt-5-nano":                                    (1, 4),
-        "gpt-4.1-nano":                                  (4, 4),
         "claude-sonnet-4-6":                             (4, 5),
         "claude-sonnet-5":                               (4, 5),
         "claude-sonnet-4-5":                             (3, 5),
@@ -565,8 +561,8 @@ final class ModelLibraryManager: ObservableObject {
         "gemini-3.5-flash-lite":                         (5, 4),
         "gemini-2.5-pro":                                (2, 4),
         "gemini-3-flash-preview":                        (1, 4),
-        "gemini-3-pro-preview":                          (2, 3),
-        "gemini-3.1-flash-lite-preview":                 (4, 3),
+        "gemini-3.1-pro-preview":                        (2, 3),
+        "gemini-3.1-flash-lite":                         (4, 3),
         "openai/gpt-oss-120b":                           (4, 4),
         "openai/gpt-oss-20b":                            (4, 4),
         "qwen/qwen3.6-27b":                              (4, 3),
@@ -576,8 +572,7 @@ final class ModelLibraryManager: ObservableObject {
         "mistral-small-latest":                          (2, 3),
         "mistral-medium-3.5":                            (2, 4),
         "gpt-oss-120b":                                  (5, 3),
-        "llama3.1-8b":                                   (2, 3),
-        "qwen-3-235b-a22b-instruct-2507":                (2, 3),
+        "gemma-4-31b":                                   (4, 3),
         "gemma-4-E2B-it-Q4_K_M.gguf":                    (5, 1),
         "gemma-4-E4B-it-Q4_K_M.gguf":                    (4, 2),
         "gemma-4-12b-it-Q4_K_M.gguf":                    (3, 3),

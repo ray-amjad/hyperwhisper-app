@@ -22,6 +22,13 @@ struct PostProcessingModelResolutionTests {
             ("claude-sonnet-4-0", .anthropic, "claude-sonnet-4-5"),
             ("meta-llama/llama-4-maverick-17b-128e-instruct", .groq, "openai/gpt-oss-120b"),
             ("zai-glm-4.7", .cerebras, "gpt-oss-120b"),
+            ("gpt-4.1-nano", .openai, "gpt-5-nano"),
+            ("gemini-3-pro-preview", .gemini, "gemini-3.1-pro-preview"),
+            ("gemini-3.1-flash-lite-preview", .gemini, "gemini-3.1-flash-lite"),
+            ("gemini-2.0-flash", .gemini, "gemini-3.6-flash"),
+            ("gemini-2.0-flash-lite", .gemini, "gemini-3.1-flash-lite"),
+            ("llama3.1-8b", .cerebras, "gemma-4-31b"),
+            ("qwen-3-235b-a22b-instruct-2507", .cerebras, "gpt-oss-120b"),
         ]
 
         for entry in retiredIds {
@@ -34,6 +41,18 @@ struct PostProcessingModelResolutionTests {
                 "resolved replacement \(resolved) must be a selectable option for \(entry.provider), otherwise the editor falls back to options.first instead of the intended model"
             )
         }
+    }
+
+    @Test func currentCatalogOmitsRetiredIdsAndUsesLunaAsOpenAIDefault() {
+        let retired = Set([
+            "gpt-4.1-nano", "gemini-3-pro-preview",
+            "gemini-3.1-flash-lite-preview", "llama3.1-8b",
+            "qwen-3-235b-a22b-instruct-2507",
+        ])
+        #expect(PostProcessingModels.availableModels.allSatisfy { !retired.contains($0.id) })
+        #expect(PostProcessingModels.defaultModel(for: .openai)?.id == "gpt-5.6-luna")
+        #expect(PostProcessingModels.model(withId: "gpt-5-nano", provider: .openai) != nil)
+        #expect(PostProcessingModels.model(withId: "gemma-4-31b", provider: .cerebras) != nil)
     }
 
     @Test func unknownIdIsLeftUnresolvedSoCallersFallBackToOptionsFirst() {

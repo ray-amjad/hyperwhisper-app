@@ -36,8 +36,8 @@
 //!   sanitizer/dedup/length-cap helper before interpolation.
 //! - **language**: sent as `language_hints: [lang]` only when explicit
 //!   (non-empty, non-`auto`). Omitted otherwise.
-//! - **default model**: `stt-async-v5` (macOS default; the verified platform).
-//!   Windows defaults to `stt-async-v4` — documented divergence, we follow macOS.
+//! - **default model**: `stt-async-v5` on both platforms. The retired v4 ID is
+//!   accepted as a compatibility alias and canonicalized before request creation.
 //! - **transcript field**: the `/transcript` endpoint returns `{ "text": "..." }`.
 //!   The task spec calls this `final_transcript`; the shipped Soniox file API uses
 //!   `text` (verified in both reference impls). We read `text`, falling back to
@@ -76,7 +76,7 @@ fn auth(params: &TranscribeParams) -> Header {
 
 fn resolve_model(model: &str) -> String {
     let t = model.trim();
-    if t.is_empty() {
+    if t.is_empty() || t == "stt-async-v4" {
         DEFAULT_MODEL.to_string()
     } else {
         t.to_string()
@@ -506,6 +506,14 @@ mod tests {
         let mut p = params();
         p.model = "".to_string();
         let req = build_create_request(&p, "f").unwrap();
+        assert_eq!(body_json(&req)["model"], "stt-async-v5");
+    }
+
+    #[test]
+    fn create_legacy_v4_model_canonicalizes_to_v5() {
+        let mut p = params();
+        p.model = "stt-async-v4".to_string();
+        let req = build_create_request(&p, "file-1").unwrap();
         assert_eq!(body_json(&req)["model"], "stt-async-v5");
     }
 

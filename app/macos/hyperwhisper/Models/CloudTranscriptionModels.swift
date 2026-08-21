@@ -416,15 +416,6 @@ struct CloudTranscriptionModels {
             pricePerSecond: 0.15 / 60.0 / 60.0 // $0.15 per hour
         ),
         CloudTranscriptionModel(
-            id: "universal-3-pro",
-            displayName: "Universal-3 Pro",
-            isAvailable: true,
-            description: "AssemblyAI's most accurate model. Supports English, Spanish, German, French, Portuguese, and Italian. Keyterms prompting up to 1000 terms.",
-            provider: .assemblyAI,
-            isPopular: true,
-            pricePerSecond: 0.21 / 60.0 / 60.0 // $0.21 per hour
-        ),
-        CloudTranscriptionModel(
             id: "universal-3-5-pro",
             displayName: "Universal-3.5 Pro",
             isAvailable: true,
@@ -440,14 +431,6 @@ struct CloudTranscriptionModels {
             description: "Universal-2 with Medical Mode add-on for clinical/medical vocabulary. Limited to English, Spanish, German, and French. Billed as a separate add-on on top of Universal-2 pricing.",
             provider: .assemblyAI,
             pricePerSecond: 0.15 / 60.0 / 60.0 // $0.15/hr base — medical add-on billed separately
-        ),
-        CloudTranscriptionModel(
-            id: "universal-3-pro-medical",
-            displayName: "Universal-3 Pro (Medical)",
-            isAvailable: true,
-            description: "Universal-3 Pro with Medical Mode add-on for clinical/medical vocabulary. Limited to English, Spanish, German, and French. Billed as a separate add-on on top of Universal-3 Pro pricing.",
-            provider: .assemblyAI,
-            pricePerSecond: 0.21 / 60.0 / 60.0 // $0.21/hr base — medical add-on billed separately
         ),
         CloudTranscriptionModel(
             id: "universal-3-5-pro-medical",
@@ -490,15 +473,6 @@ struct CloudTranscriptionModels {
 
         // Soniox Models
         CloudTranscriptionModel(
-            id: "stt-async-v4",
-            displayName: "STT Async v4",
-            isAvailable: true,
-            description: "Soniox async batch transcription model with 60+ supported languages.",
-            provider: .soniox,
-            isPopular: true,
-            pricePerSecond: nil
-        ),
-        CloudTranscriptionModel(
             id: "stt-async-v5",
             displayName: "STT Async v5",
             isAvailable: true,
@@ -537,8 +511,8 @@ struct CloudTranscriptionModels {
             pricePerSecond: nil
         ),
         CloudTranscriptionModel(
-            id: "gemini-3.1-flash-lite-preview",
-            displayName: "Gemini 3.1 Flash Lite (Preview)",
+            id: "gemini-3.1-flash-lite",
+            displayName: "Gemini 3.1 Flash Lite",
             isAvailable: true,
             description: "Latest generation lightweight Gemini model. Fast and cost-effective transcription.",
             provider: .gemini,
@@ -599,11 +573,12 @@ struct CloudTranscriptionModels {
     ]
     
     /// Legacy AssemblyAI model IDs that have been retired. Resolved transparently to their
-    /// modern replacements so existing Modes and backups keep working after the 2026-05-11
-    /// deprecation of `word_boost` and the `slam-1` / `universal` identifiers.
+    /// modern replacements so existing Modes and backups keep working.
     private static let legacyAssemblyAIAliases: [String: String] = [
         "universal": "universal-2",
-        "slam-1": "universal-3-pro"
+        "slam-1": "universal-3-5-pro",
+        "universal-3-pro": "universal-3-5-pro",
+        "universal-3-pro-medical": "universal-3-5-pro-medical",
     ]
 
     /// Resolve a legacy AssemblyAI model ID to its current equivalent. Non-AssemblyAI
@@ -625,6 +600,22 @@ struct CloudTranscriptionModels {
     /// do not add aliases for other providers here; give them their own resolver.
     static func resolveElevenLabsModelAlias(_ id: String) -> String {
         legacyElevenLabsAliases[id] ?? id
+    }
+
+    private static let legacySonioxAliases: [String: String] = [
+        "stt-async-v4": "stt-async-v5",
+    ]
+
+    static func resolveSonioxModelAlias(_ id: String) -> String {
+        legacySonioxAliases[id] ?? id
+    }
+
+    private static let legacyGeminiAliases: [String: String] = [
+        "gemini-3.1-flash-lite-preview": "gemini-3.1-flash-lite",
+    ]
+
+    static func resolveGeminiModelAlias(_ id: String) -> String {
+        legacyGeminiAliases[id] ?? id
     }
 
     /// Deepgram model IDs removed in the 2026-05 catalog cleanup. Stored Modes,
@@ -666,9 +657,17 @@ struct CloudTranscriptionModels {
             return resolveElevenLabsModelAlias(id)
         case .deepgram:
             return resolveDeepgramModelAlias(id) ?? id
+        case .soniox:
+            return resolveSonioxModelAlias(id)
+        case .gemini:
+            return resolveGeminiModelAlias(id)
         case nil:
             return resolveDeepgramModelAlias(
-                resolveElevenLabsModelAlias(resolveAssemblyAIModelAlias(id))
+                resolveGeminiModelAlias(
+                    resolveSonioxModelAlias(
+                        resolveElevenLabsModelAlias(resolveAssemblyAIModelAlias(id))
+                    )
+                )
             ) ?? id
         default:
             return id

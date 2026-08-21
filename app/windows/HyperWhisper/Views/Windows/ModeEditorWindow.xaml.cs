@@ -2519,7 +2519,7 @@ public partial class ModeEditorWindow : Window
             if (cloudProvider == CloudTranscriptionProvider.Soniox)
             {
                 var currentLang = (LanguageCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();
-                var supportedCodes = new HashSet<string>(LanguageInfo.SonioxAsyncV4LanguageCodes, StringComparer.OrdinalIgnoreCase);
+                var supportedCodes = new HashSet<string>(LanguageInfo.SonioxAsyncLanguageCodes, StringComparer.OrdinalIgnoreCase);
 
                 LanguageCombo.Items.Clear();
                 foreach (var lang in LanguageInfo.AllLanguages)
@@ -2572,11 +2572,6 @@ public partial class ModeEditorWindow : Window
                 {
                     filteredCodes = new[] { "auto", "en", "es", "de", "fr" };
                 }
-                else if (modelId.Equals("universal-3-pro", StringComparison.Ordinal))
-                {
-                    filteredCodes = new[] { "auto", "en", "es", "de", "fr", "pt", "it" };
-                }
-
                 if (filteredCodes != null)
                 {
                     var currentLang = (LanguageCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString();

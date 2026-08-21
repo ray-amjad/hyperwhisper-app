@@ -197,7 +197,7 @@
         },
         "languageModel": {
           "type": ["string", "null"],
-          "description": "Language model for post-processing (e.g. 'gpt-4.1-nano')."
+          "description": "Language model for post-processing (e.g. 'gpt-5.6-luna')."
         },
         "localPostProcessingModel": {
           "type": ["string", "null"],

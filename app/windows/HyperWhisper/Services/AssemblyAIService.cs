@@ -32,12 +32,12 @@
 //
 // MODELS (as of 2026-04):
 // - universal-2: Multi-language (99 languages), auto-detection, $0.15/hr (default)
-// - universal-3-pro: 6 languages (EN/ES/DE/FR/PT/IT), highest accuracy, $0.21/hr
+// - universal-3-5-pro: 18 languages, highest accuracy, $0.21/hr
 // Legacy "universal" / "slam-1" IDs are resolved via CloudTranscriptionModels.ResolveAssemblyAIModelAlias.
 //
 // VOCABULARY BOOSTING:
 // - keyterms_prompt: Array of terms (max 6 words per phrase).
-//   Caps: 200 for universal-2, 1000 for universal-3-pro.
+//   Caps: 200 for universal-2, 1000 for universal-3-5-pro.
 // - The legacy word_boost/boost_param fields are deprecated by AssemblyAI on 2026-05-11.
 //
 // ERROR HANDLING:
@@ -118,7 +118,7 @@ public class AssemblyAIService : ApiKeyTranscriptionServiceBase
     /// Must be called before transcription.
     /// </summary>
     /// <param name="apiKey">AssemblyAI API key.</param>
-    /// <param name="modelId">Model ID (universal-2, universal-3-pro). Legacy IDs are canonicalized automatically.</param>
+    /// <param name="modelId">Model ID (universal-2, universal-3-5-pro). Legacy IDs are canonicalized automatically.</param>
     public override void Configure(string apiKey, string modelId = "universal-2")
     {
         ApiKey = apiKey;

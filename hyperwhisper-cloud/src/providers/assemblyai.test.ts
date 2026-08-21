@@ -237,12 +237,12 @@ describe('transcribeWithAssemblyAI — async request shape', () => {
     expect(createCall.body).toMatchObject({ speech_models: ['universal-2'] });
   });
 
-  test('an explicit legacy universal-3-pro request still gets its own fallback chain (not removed, just superseded as default)', async () => {
+  test('an explicit legacy universal-3-pro request is canonicalized before dispatch', async () => {
     const calls = mockAsyncFlow({ pollBodies: [], createStatus: { status: 400, body: {} } });
     await expect(transcribeWithAssemblyAI(SMALL_AUDIO, 'audio/mpeg', 'auto', undefined, { model: 'universal-3-pro' }))
       .rejects.toThrow(ProviderInputError);
     const createCall = calls.find((c) => c.url === CREATE_URL)!;
-    expect(createCall.body).toMatchObject({ speech_models: ['universal-3-pro', 'universal-2'] });
+    expect(createCall.body).toMatchObject({ speech_models: ['universal-3-5-pro', 'universal-2'] });
   });
 
   test('an explicit BCP-47 language is stripped to its bare ISO-639-1 subtag', async () => {

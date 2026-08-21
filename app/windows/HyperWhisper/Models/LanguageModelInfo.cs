@@ -56,7 +56,7 @@ public class LanguageModelInfo
     [
         // OpenAI Models
         // GPT-4.1 and GPT-5 series - text-focused models optimized for writing tasks
-        new("gpt-4.1-nano", "GPT-4.1 Nano", PostProcessingProvider.OpenAI, "Fastest, cheapest"),
+        new("gpt-5.6-luna", "GPT-5.6 Luna", PostProcessingProvider.OpenAI, "Latest generation, fastest"),
         new("gpt-4.1-mini", "GPT-4.1 Mini", PostProcessingProvider.OpenAI, "Balanced (recommended)"),
         new("gpt-4.1", "GPT-4.1", PostProcessingProvider.OpenAI, "High quality"),
         new("gpt-5-nano", "GPT-5 Nano", PostProcessingProvider.OpenAI, "Next-gen fastest"),
@@ -67,7 +67,6 @@ public class LanguageModelInfo
         new("gpt-5.4-nano", "GPT-5.4 Nano", PostProcessingProvider.OpenAI, "Fast, lightweight"),
         new("gpt-5.4-mini", "GPT-5.4 Mini", PostProcessingProvider.OpenAI, "Latest generation, balanced"),
         new("gpt-5.4", "GPT-5.4", PostProcessingProvider.OpenAI, "Latest generation, highest quality"),
-        new("gpt-5.6-luna", "GPT-5.6 Luna", PostProcessingProvider.OpenAI, "Latest generation, fastest"),
 
         // Anthropic Models
         // Claude series - known for nuanced text understanding
@@ -96,11 +95,9 @@ public class LanguageModelInfo
         new("gemini-2.5-flash", "Gemini 2.5 Flash", PostProcessingProvider.Gemini, "Fast and efficient"),
         new("gemini-2.5-flash-lite", "Gemini 2.5 Flash Lite", PostProcessingProvider.Gemini, "Lightweight, fastest"),
         new("gemini-3.5-flash-lite", "Gemini 3.5 Flash Lite", PostProcessingProvider.Gemini, "Latest lightweight flash, fast and cost-efficient"),
-        new("gemini-2.0-flash", "Gemini 2.0 Flash", PostProcessingProvider.Gemini, "Fast and efficient"),
-        new("gemini-2.0-flash-lite", "Gemini 2.0 Flash Lite", PostProcessingProvider.Gemini, "Lightweight, fastest"),
         new("gemini-2.5-pro", "Gemini 2.5 Pro", PostProcessingProvider.Gemini, "High quality, advanced reasoning"),
-        new("gemini-3-pro-preview", "Gemini 3 Pro", PostProcessingProvider.Gemini, "Latest pro-level intelligence"),
-        new("gemini-3.1-flash-lite-preview", "Gemini 3.1 Flash Lite", PostProcessingProvider.Gemini, "Next-gen lightweight flash"),
+        new("gemini-3.1-pro-preview", "Gemini 3.1 Pro", PostProcessingProvider.Gemini, "Latest pro-level intelligence"),
+        new("gemini-3.1-flash-lite", "Gemini 3.1 Flash Lite", PostProcessingProvider.Gemini, "Lightweight, fast and cost-efficient"),
 
         // Mistral Models
         // Fast, multilingual models via OpenAI-compatible endpoint
@@ -110,8 +107,7 @@ public class LanguageModelInfo
         // Cerebras Models
         // Ultra-fast inference on custom silicon
         new("gpt-oss-120b", "GPT OSS 120B", PostProcessingProvider.Cerebras, "Fast, high quality"),
-        new("llama3.1-8b", "Llama 3.1 8B", PostProcessingProvider.Cerebras, "Fastest, lightweight"),
-        new("qwen-3-235b-a22b-instruct-2507", "Qwen 3 235B Instruct (Preview)", PostProcessingProvider.Cerebras, "Strong multilingual model"),
+        new("gemma-4-31b", "Gemma 4 31B", PostProcessingProvider.Cerebras, "Fast, efficient general-purpose model"),
 
         // Local LLM Models
         // GGUF files managed by the local model catalog; IDs match the macOS local LLM model IDs.
@@ -127,6 +123,8 @@ public class LanguageModelInfo
     /// </summary>
     public static string? MigrateModelId(string? oldId) => oldId switch
     {
+        // OpenAI retirement: keep existing users on the lower-cost Nano tier.
+        "gpt-4.1-nano" => "gpt-5-nano",
         // Anthropic model ID migrations
         "claude-3-haiku-20240307" => "claude-haiku-4-5",
         "claude-3-5-haiku-latest" => "claude-haiku-4-5",
@@ -151,9 +149,11 @@ public class LanguageModelInfo
         "llama-3.1-8b-instant" => "openai/gpt-oss-120b",
         "meta-llama/llama-4-scout-17b-16e-instruct" => "openai/gpt-oss-120b",
         "qwen/qwen3-32b" => "openai/gpt-oss-120b",
-        // Cerebras: llama-3.3-70b removed, llama-3.1-8b ID changed 2026-03-20
+        // Cerebras: migrate models absent from the current public catalog.
         "llama-3.3-70b" => "gpt-oss-120b",
-        "llama-3.1-8b" => "llama3.1-8b",
+        "llama-3.1-8b" => "gemma-4-31b",
+        "llama3.1-8b" => "gemma-4-31b",
+        "qwen-3-235b-a22b-instruct-2507" => "gpt-oss-120b",
         // Cerebras: zai-glm-4.7 deprecates 2026-08-17. Cerebras has NOT published an
         // official successor in the public Inference API catalog as of this writing —
         // redirecting to gpt-oss-120b is a documented judgment call (not vendor-confirmed),
@@ -176,6 +176,10 @@ public class LanguageModelInfo
         // Gemini: Gemma hosted models removed from API 2026-03-08
         "gemma-3-12b-it" => "gemini-2.5-flash",
         "gemma-3-27b-it" => "gemini-2.5-flash",
+        "gemini-3-pro-preview" => "gemini-3.1-pro-preview",
+        "gemini-3.1-flash-lite-preview" => "gemini-3.1-flash-lite",
+        "gemini-2.0-flash" => "gemini-3.6-flash",
+        "gemini-2.0-flash-lite" => "gemini-3.1-flash-lite",
         _ => oldId
     };
 

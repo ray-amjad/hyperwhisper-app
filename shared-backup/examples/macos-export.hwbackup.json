@@ -48,7 +48,7 @@
       "cloudTranscriptionDomain": null,
       "postProcessingMode": 1,
       "postProcessingProvider": "openai",
-      "languageModel": "gpt-4.1-nano",
+      "languageModel": "gpt-5.6-luna",
       "userSystemPrompt": null,
       "customInstructions": null,
       "geminiCustomPrompt": null,

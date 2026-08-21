@@ -40,14 +40,15 @@ public class SonioxService : ApiKeyTranscriptionServiceBase
     public override string Name => $"Soniox {CloudTranscriptionModels.GetById(ModelId, CloudTranscriptionProvider.Soniox)?.DisplayName ?? ModelId}";
 
     public SonioxService()
-        : base(TimeSpan.FromSeconds(DefaultTimeoutSeconds), "stt-async-v4")
+        : base(TimeSpan.FromSeconds(DefaultTimeoutSeconds), "stt-async-v5")
     {
     }
 
-    public override void Configure(string apiKey, string modelId = "stt-async-v4")
+    public override void Configure(string apiKey, string modelId = "stt-async-v5")
     {
         ApiKey = apiKey?.Trim();
-        ModelId = string.IsNullOrWhiteSpace(modelId) ? "stt-async-v4" : modelId;
+        ModelId = CloudTranscriptionModels.ResolveSonioxModelAlias(
+            string.IsNullOrWhiteSpace(modelId) ? "stt-async-v5" : modelId);
         LoggingService.Info($"SonioxService: Configured with model {ModelId}");
     }
 

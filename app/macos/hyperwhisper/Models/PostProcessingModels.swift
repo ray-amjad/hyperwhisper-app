@@ -40,12 +40,12 @@ struct PostProcessingModels {
             provider: .hyperwhisper
         ),
 
-        // MARK: - OpenAI Models (GPT-4.1 Nano is default)
+        // MARK: - OpenAI Models (GPT-5.6 Luna is default)
         PostProcessingModel(
-            id: "gpt-4.1-nano",
-            displayName: "GPT-4.1 Nano",
+            id: "gpt-5.6-luna",
+            displayName: "GPT-5.6 Luna",
             isAvailable: true,
-            description: "models.postProcessing.gpt4.1.nano.description".localized,
+            description: "Latest generation, fastest",
             provider: .openai
         ),
         PostProcessingModel(
@@ -118,14 +118,6 @@ struct PostProcessingModels {
             description: "Latest generation, highest quality",
             provider: .openai
         ),
-        PostProcessingModel(
-            id: "gpt-5.6-luna",
-            displayName: "GPT-5.6 Luna",
-            isAvailable: true,
-            description: "Latest generation, fastest",
-            provider: .openai
-        ),
-
         // MARK: - Anthropic Models
         PostProcessingModel(
             id: "claude-haiku-4-5",
@@ -193,17 +185,17 @@ struct PostProcessingModels {
             provider: .gemini
         ),
         PostProcessingModel(
-            id: "gemini-3-pro-preview",
-            displayName: "Gemini 3 Pro",
+            id: "gemini-3.1-pro-preview",
+            displayName: "Gemini 3.1 Pro",
             isAvailable: true,
             description: "Latest pro-level intelligence",
             provider: .gemini
         ),
         PostProcessingModel(
-            id: "gemini-3.1-flash-lite-preview",
+            id: "gemini-3.1-flash-lite",
             displayName: "Gemini 3.1 Flash Lite",
             isAvailable: true,
-            description: "Next-gen lightweight flash",
+            description: "Lightweight, fast and cost-efficient",
             provider: .gemini
         ),
         PostProcessingModel(
@@ -283,17 +275,10 @@ struct PostProcessingModels {
             provider: .cerebras
         ),
         PostProcessingModel(
-            id: "llama3.1-8b",
-            displayName: "Llama 3.1 8B",
+            id: "gemma-4-31b",
+            displayName: "Gemma 4 31B",
             isAvailable: true,
-            description: "models.postProcessing.cerebras.llama31.8b.description".localized,
-            provider: .cerebras
-        ),
-        PostProcessingModel(
-            id: "qwen-3-235b-a22b-instruct-2507",
-            displayName: "Qwen 3 235B Instruct (Preview)",
-            isAvailable: true,
-            description: "models.postProcessing.cerebras.qwen3.235b.description".localized,
+            description: "Fast, efficient general-purpose model",
             provider: .cerebras
         ),
 
@@ -355,6 +340,9 @@ struct PostProcessingModels {
     /// Each provider manages its own deprecation cycle independently.
     /// When a provider deprecates a model, add the old ID → new ID under that provider's entry.
     private static let deprecatedModelMappings: [PostProcessingProvider: [String: String]] = [
+        .openai: [
+            "gpt-4.1-nano": "gpt-5-nano",
+        ],
         .anthropic: [
             // Deprecated 2026-02-16: claude-haiku-4.5 → claude-haiku-4-5
             "claude-haiku-4.5": "claude-haiku-4-5",
@@ -366,8 +354,9 @@ struct PostProcessingModels {
         .cerebras: [
             // Deprecated 2026-02-16: llama-3.3-70b → gpt-oss-120b
             "llama-3.3-70b": "gpt-oss-120b",
-            // Model ID format changed: llama-3.1-8b → llama3.1-8b
-            "llama-3.1-8b": "llama3.1-8b",
+            "llama-3.1-8b": "gemma-4-31b",
+            "llama3.1-8b": "gemma-4-31b",
+            "qwen-3-235b-a22b-instruct-2507": "gpt-oss-120b",
             // zai-glm-4.7 scheduled for deprecation 2026-08-17 (Cerebras
             // inference-docs.cerebras.ai/models/zai-glm-47 + change-log, checked
             // 2026-08-07). Cerebras has NOT published an official successor model
@@ -379,7 +368,12 @@ struct PostProcessingModels {
             // non-Z.ai Cerebras deprecation in this table redirects to.
             "zai-glm-4.7": "gpt-oss-120b",
         ],
-        .gemini: [:],
+        .gemini: [
+            "gemini-3-pro-preview": "gemini-3.1-pro-preview",
+            "gemini-3.1-flash-lite-preview": "gemini-3.1-flash-lite",
+            "gemini-2.0-flash": "gemini-3.6-flash",
+            "gemini-2.0-flash-lite": "gemini-3.1-flash-lite",
+        ],
         .groq: [
             // Decommissioned by Groq 2026-07-17 → openai/gpt-oss-120b (GroqCloud deprecation notice)
             "llama-3.3-70b-versatile": "openai/gpt-oss-120b",

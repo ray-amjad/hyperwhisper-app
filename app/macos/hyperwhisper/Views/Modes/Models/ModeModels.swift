@@ -121,7 +121,7 @@ struct ModeData {
     let capitalization: Bool
     let profanityFilter: Bool
     let customInstructions: String
-    let languageModel: String  // Language model (e.g., "gpt-4.1-nano")
+    let languageModel: String  // Language model (e.g., "gpt-5.6-luna")
     let cloudProvider: String  // Cloud provider (e.g., "openai")
     let cloudTranscriptionModel: String  // Cloud transcription model (e.g., "whisper-1")
     let postProcessingMode: PostProcessingMode  // Post-processing mode (off/cloud/local)
@@ -145,7 +145,7 @@ struct ModeData {
          capitalization: Bool,
          profanityFilter: Bool,
          customInstructions: String = "",
-         languageModel: String = PostProcessingModels.defaultModel(for: .openai)?.id ?? "gpt-4.1-nano",
+         languageModel: String = PostProcessingModels.defaultModel(for: .openai)?.id ?? "gpt-5.6-luna",
          cloudProvider: String = "hyperwhisper",
          cloudTranscriptionModel: String = "whisper-1",
          postProcessingMode: PostProcessingMode = .cloud,
@@ -228,7 +228,7 @@ struct ModeData {
             self.languageModel = mode.languageModel ?? PostProcessingProvider.localLLM.defaultModel
             self.postProcessingProvider = PostProcessingProvider.localLLM.rawValue
         } else {
-            self.languageModel = mode.languageModel ?? "gpt-4.1-nano"
+            self.languageModel = mode.languageModel ?? "gpt-5.6-luna"
             if let provider = mode.postProcessingProvider {
                 self.postProcessingProvider = provider
             } else if let defaultProvider = processingMode.defaultProvider {

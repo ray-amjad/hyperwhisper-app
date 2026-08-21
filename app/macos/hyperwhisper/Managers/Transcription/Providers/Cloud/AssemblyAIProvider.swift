@@ -13,8 +13,8 @@
 //  loop (Swift owns the wall-clock deadline + sleep interval + cancellation +
 //  transient-poll tolerance), and logging.
 //
-//  The core owns model defaulting (empty → universal-2), legacy alias
-//  resolution (`universal`→`universal-2`, `slam-1`→`universal-3-pro`), the
+//  The core owns model defaulting (empty → universal-3-5-pro), legacy alias
+//  resolution (`universal`→`universal-2`, retired Pro ids→`universal-3-5-pro`), the
 //  `-medical`→`domain: medical-v1` split, language detection, the
 //  `keyterms_prompt` build (shared sanitize/dedup, ≤6-word/cap-by-model), and the
 //  poll-completion `{text}` parse + NoSpeech-on-empty.

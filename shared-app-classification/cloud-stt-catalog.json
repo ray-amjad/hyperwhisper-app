@@ -1,7 +1,7 @@
 {
   "$schemaDoc": "Shared source of truth for cloud STT provider capabilities. Loaded by macOS and Windows clients to drive UI affordances (custom-vocab field visibility, supported-language chips, credits/min caption, cloud-tier vs BYOK list filtering, accepted-format hints). Every fact is either verified from an upstream doc (with the URL in `sources`) OR marked the literal string `\"unverified\"`. See CLAUDE.md (symlink to AGENTS.md) in this directory before editing.",
   "version": 7,
-  "updated": "2026-08-13",
+  "updated": "2026-08-21",
   "providers": [
     {
       "id": "groqWhisper",
@@ -315,7 +315,6 @@
       "sttProvider": "assemblyai",
       "access": { "cloudTierEligible": true, "byokEligible": true },
       "models": [
-        { "id": "universal-3-pro", "displayName": "Universal-3 Pro", "creditsPerMinute": 3.5, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true },
         { "id": "universal-3-5-pro", "displayName": "Universal-3.5 Pro", "creditsPerMinute": 3.5, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true },
         { "id": "universal-2", "displayName": "Universal-2", "creditsPerMinute": 2.5, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true }
       ],
@@ -330,7 +329,7 @@
         "autoDetect": true,
         "codeFormat": "ISO-639-1 + a few regional variants (e.g. `en_au`, `en_uk`, `en_us`)",
         "codes": ["af","am","ar","as","az","ba","be","bg","bn","bo","br","bs","ca","cs","cy","da","de","el","en","en_au","en_uk","en_us","es","et","eu","fa","fi","fo","fr","ga","gl","gu","ha","haw","he","hi","hr","hu","hy","id","is","it","ja","jw","ka","kk","km","kn","ko","la","lb","ln","lo","lt","lv","mk","ml","mn","mr","ms","mt","my","ne","nl","nn","no","oc","pa","pl","ps","pt","ro","ru","sa","sd","si","sk","sl","so","sq","sr","su","sv","sw","ta","te","tg","th","tl","tr","tt","uk","ur","uz","vi","yi","yo","zh"],
-        "notes": "AssemblyAI advertises 99 detection languages — the verified table publishes 98 (including 3 English regional variants). Universal-3 Pro natively supports 6; Universal-3.5 Pro (GA 2026-07-01, now default) natively supports 18 per AssemblyAI's release material, but the exact 18-code list is not enumerated on their public supported-languages page as of this verification — both Pro-tier models fall back to Universal-2 for the rest via the `speech_models` array, so combined coverage stays 98."
+        "notes": "AssemblyAI advertises 99 detection languages — the verified table publishes 98 (including 3 English regional variants). Universal-3.5 Pro natively supports 18 and falls back to Universal-2 for the rest via the `speech_models` array, so combined coverage stays 98."
       },
       "acceptedFormats": ["3ga","8svx","aac","ac3","aif","aiff","alac","amr","ape","au","dss","flac","flv","m4a","m4b","m4p","m4r","mp3","mpga","ogg","oga","mogg","opus","qcp","tta","voc","wav","wma","wv","webm","mts","m2ts","ts","mov","mp2","mp4","m4v","mxf"],
       "maxFileSizeMb": 5120,
@@ -341,7 +340,6 @@
         "https://www.assemblyai.com/docs/pre-recorded-audio/language-detection#supported-languages",
         "https://support.assemblyai.com/articles/2616970375-what-audio-and-video-file-types-are-supported-by-your-api",
         "https://www.assemblyai.com/docs/api-reference/transcripts/submit",
-        "https://www.assemblyai.com/docs/pre-recorded-audio/universal-3-pro",
         "https://www.assemblyai.com/topic/universal-3-5-pro-realtime",
         "https://www.assemblyai.com/docs/getting-started/models"
       ]
@@ -392,7 +390,6 @@
       "sttProvider": "soniox",
       "access": { "cloudTierEligible": true, "byokEligible": true },
       "models": [
-        { "id": "stt-async-v4", "displayName": "Async v4", "creditsPerMinute": 1.67, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true },
         { "id": "stt-async-v5", "displayName": "Async v5", "creditsPerMinute": 1.67, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true }
       ],
       "customVocabulary": {

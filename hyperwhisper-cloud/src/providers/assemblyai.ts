@@ -55,8 +55,8 @@ const ASSEMBLYAI_BASE = 'https://api.assemblyai.com';
 const ASSEMBLYAI_SYNC_BASE = 'https://sync.assemblyai.com';
 // Universal-3.5 Pro is AssemblyAI's current default (GA 2026-07-01, successor to
 // Universal-3 Pro) — matches stt-models.ts's `assemblyai.defaultModel` and the
-// sync fast path's SYNC_DEFAULT_MODEL below. universal-3-pro remains a valid,
-// billable id (see BILLABLE_MODELS) for any caller that pins it explicitly.
+// sync fast path's SYNC_DEFAULT_MODEL below. Legacy Pro ids are canonicalized
+// before dispatch.
 const DEFAULT_MODEL = 'universal-3-5-pro';
 const MEDICAL_DOMAIN_VALUE = 'medical-v1';
 const MAX_KEYTERMS = 200;
@@ -188,11 +188,11 @@ function isWavContentType(contentType: string): boolean {
 }
 // The billable model is whatever AssemblyAI actually RAN (reported in the
 // completed transcript), which may differ from the requested model because
-// `speech_models` is a priority list that falls back universal-3-pro /
-// universal-3-5-pro → universal-2 for unsupported languages. Only these ids
+// `speech_models` is a priority list that falls back universal-3-5-pro →
+// universal-2 for unsupported languages. Only these ids
 // are recognized for billing; an unknown/missing value falls back to the
 // requested model.
-const BILLABLE_MODELS = new Set(['universal-3-pro', 'universal-3-5-pro', 'universal-2']);
+const BILLABLE_MODELS = new Set(['universal-3-5-pro', 'universal-2']);
 const POLL_INTERVAL_MS = 2_500;
 const POLL_DEADLINE_MS = 240_000;
 
@@ -399,7 +399,10 @@ export async function transcribeWithAssemblyAI(
 ): Promise<TranscriptionResult> {
   const startedAt = performance.now();
   const provider = 'assemblyai';
-  const model = context.model || DEFAULT_MODEL;
+  const requestedModel = context.model || DEFAULT_MODEL;
+  const model = requestedModel === 'universal-3-pro' || requestedModel === 'slam-1'
+    ? DEFAULT_MODEL
+    : requestedModel;
   const medical = (context.domain || '').toLowerCase() === MEDICAL_DOMAIN;
 
   const apiKey = process.env.ASSEMBLYAI_API_KEY;
@@ -409,7 +412,7 @@ export async function transcribeWithAssemblyAI(
 
   // ── Sync fast path ──
   // Medical mode isn't a documented sync capability (it's an async
-  // universal-2/universal-3-pro add-on) — skip straight to async rather than
+  // universal-2/Universal-3.5 Pro add-on) — skip straight to async rather than
   // silently drop the domain the caller asked for. An absent/"auto" language
   // is excluded too (see module doc: sync has no auto-detect, an omitted
   // language defaults to English server-side). Otherwise, gate on the
@@ -464,15 +467,12 @@ export async function transcribeWithAssemblyAI(
   // ── 2. Create the transcript job ──
   // `speech_models` is a priority/fallback list: AssemblyAI tries each model in
   // order and falls back to the next for languages the prior one doesn't cover.
-  // universal-3-pro natively supports only 6 languages (EN/ES/PT/FR/DE/IT) and
-  // universal-3-5-pro natively supports 18, so we append universal-2 to reach
+  // universal-3-5-pro natively supports 18 languages, so we append universal-2 to reach
   // all 99 — otherwise language_detection on any other language fails (this is
   // a self-only chain). universal-2 covers all 99 on its own, so it needs no
   // fallback.
-  // Ref: https://www.assemblyai.com/docs/pre-recorded-audio/universal-3-pro —
-  // "use ['universal-3-pro', 'universal-2'] to fall back to Universal-2 for
-  // unsupported languages." Universal-3.5 Pro documents the same pattern.
-  const speechModels = (model === 'universal-3-pro' || model === 'universal-3-5-pro')
+  // Universal-3.5 Pro documents the same priority-list fallback pattern.
+  const speechModels = model === 'universal-3-5-pro'
     ? [model, 'universal-2']
     : [model];
   const createBody: Record<string, unknown> = {

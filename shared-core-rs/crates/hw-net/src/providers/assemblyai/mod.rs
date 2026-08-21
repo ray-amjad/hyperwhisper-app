@@ -43,11 +43,12 @@
 //!   follow macOS (the verified platform) and send `speech_models: [model]`.
 //!   AssemblyAI accepts both; this is a documented divergence from Windows.
 //! - **Model default / aliases**: empty model → `universal-3-5-pro`. Legacy IDs
-//!   `universal` → `universal-2`, `slam-1` → `universal-3-pro` (both platforms).
+//!   `universal` → `universal-2`; `slam-1` and retired Universal-3 Pro IDs →
+//!   their Universal-3.5 Pro equivalents (both platforms).
 //!   A trailing `-medical` suffix is stripped and surfaces as
 //!   `domain: "medical-v1"` (Medical Mode add-on).
 //! - **Vocabulary** (`keyterms_prompt`): trimmed, drop empties, drop phrases
-//!   with > 6 words, capped at 1000 for `universal-3-pro` else 200. (`word_boost`
+//!   with > 6 words, capped at 1000 for `universal-3-5-pro` else 200. (`word_boost`
 //!   is deprecated; both platforms moved to `keyterms_prompt`.)
 //! - **Poll status mapping**: `completed` → text (empty text → `NoSpeech`);
 //!   `error` → `BadRequest`; `queued`/`processing`/unknown →
@@ -68,7 +69,7 @@ pub const BASE_URL: &str = "https://api.assemblyai.com/v2";
 /// PARITY: macOS `defaultModel(for: .assemblyAI)` / Windows default = `universal-3-5-pro`.
 pub const DEFAULT_MODEL: &str = "universal-3-5-pro";
 
-/// Max `keyterms_prompt` terms for `universal-3-pro` and `universal-3-5-pro` (else [`MAX_KEYTERMS_DEFAULT`]).
+/// Max `keyterms_prompt` terms for `universal-3-5-pro` (else [`MAX_KEYTERMS_DEFAULT`]).
 pub const MAX_KEYTERMS_PRO: usize = 1000;
 /// Max `keyterms_prompt` terms for non-pro models.
 pub const MAX_KEYTERMS_DEFAULT: usize = 200;
@@ -102,7 +103,8 @@ fn filter_keyterm_words(terms: Vec<String>) -> Vec<String> {
 pub fn resolve_model_alias(id: &str) -> &str {
     match id {
         "universal" => "universal-2",
-        "slam-1" => "universal-3-pro",
+        "slam-1" | "universal-3-pro" => "universal-3-5-pro",
+        "universal-3-pro-medical" => "universal-3-5-pro-medical",
         other => other,
     }
 }
@@ -156,8 +158,12 @@ mod tests {
     #[test]
     fn resolves_legacy_aliases() {
         assert_eq!(resolve_model_alias("universal"), "universal-2");
-        assert_eq!(resolve_model_alias("slam-1"), "universal-3-pro");
-        assert_eq!(resolve_model_alias("universal-3-pro"), "universal-3-pro");
+        assert_eq!(resolve_model_alias("slam-1"), "universal-3-5-pro");
+        assert_eq!(resolve_model_alias("universal-3-pro"), "universal-3-5-pro");
+        assert_eq!(
+            resolve_model_alias("universal-3-pro-medical"),
+            "universal-3-5-pro-medical"
+        );
     }
 
     #[test]
@@ -168,6 +174,13 @@ mod tests {
             ("universal-2".into(), true)
         );
         // alias then medical strip
-        assert_eq!(request_params("slam-1"), ("universal-3-pro".into(), false));
+        assert_eq!(
+            request_params("slam-1"),
+            ("universal-3-5-pro".into(), false)
+        );
+        assert_eq!(
+            request_params("universal-3-pro-medical"),
+            ("universal-3-5-pro".into(), true)
+        );
     }
 }

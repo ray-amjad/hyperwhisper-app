@@ -22,7 +22,7 @@ export interface TranscriptionResult {
   /**
    * The upstream model that ACTUALLY ran, when it can differ from the requested
    * model. AssemblyAI's `speech_models` priority list silently falls back
-   * universal-3-pro → universal-2 for unsupported languages, and `costUsd` is
+   * universal-3-5-pro → universal-2 for unsupported languages, and `costUsd` is
    * billed at the model that ran — so the adapter reports it here and the route
    * propagates it to `X-STT-Model` / deduction metadata instead of mislabeling
    * the transcript as the requested model. Undefined → use the requested model.
@@ -35,7 +35,7 @@ export interface ProviderRequestContext {
   attempt?: number;
   /**
    * Upstream model id the caller selected (e.g. 'gpt-4o-transcribe',
-   * 'universal-3-pro', 'nova-3-medical'). Resolved + validated against the
+   * 'universal-3-5-pro', 'nova-3-medical'). Resolved + validated against the
    * server-side registry in `lib/stt-models.ts` before the provider fn runs,
    * so adapters can trust it. Empty/undefined means "provider default" —
    * single-model providers (grok) ignore it.

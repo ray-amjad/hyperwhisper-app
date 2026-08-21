@@ -71,8 +71,8 @@ enum STTLanguageTemplates {
         "ru", "sv", "th", "tr", "vi"
     ], context: "xAI Grok formatting language filter")
 
-    /// Soniox stt-async-v4 supported languages verified against official Soniox docs on 2026-03-21.
-    static let sonioxAsyncV4: [STTLanguageSpec] = codes([
+    /// Soniox async-model supported languages verified against official Soniox docs on 2026-03-21.
+    static let sonioxAsync: [STTLanguageSpec] = codes([
         "auto",
         "af", "sq", "ar", "az", "eu", "be", "bn", "bs", "bg", "ca",
         "zh", "hr", "cs", "da", "nl", "en", "et", "fi", "fr", "gl",
@@ -80,7 +80,7 @@ enum STTLanguageTemplates {
         "kk", "ko", "lv", "lt", "mk", "ms", "ml", "mr", "no", "fa",
         "pl", "pt", "pa", "ro", "ru", "sr", "sk", "sl", "es", "sw",
         "sv", "tl", "ta", "te", "th", "tr", "uk", "ur", "vi", "cy"
-    ], context: "Soniox stt-async-v4 language filter")
+    ], context: "Soniox async language filter")
 
     /// Azure MAI-Transcribe 1.5 supported languages, normalized from the shared
     /// catalog (azureMaiTranscribe, ISO-639-1) to the macOS picker code space.
@@ -295,14 +295,6 @@ enum STTCapabilities {
                         notes: "Supports 99 languages with automatic language detection. Keyterms prompting up to 200 terms."
                     ),
                     STTModelSpec(
-                        id: "universal-3-pro",
-                        displayName: "Universal-3 Pro",
-                        languages: STTLanguageTemplates.codes([
-                            "auto", "en", "es", "de", "fr", "pt", "it"
-                        ]),
-                        notes: "Highest-accuracy model. Supports English, Spanish, German, French, Portuguese, and Italian. Keyterms prompting up to 1000 terms."
-                    ),
-                    STTModelSpec(
                         id: "universal-3-5-pro",
                         displayName: "Universal-3.5 Pro",
                         languages: STTLanguageTemplates.codes([
@@ -319,14 +311,6 @@ enum STTCapabilities {
                             "auto", "en", "es", "de", "fr"
                         ]),
                         notes: "Universal-2 with the Medical Mode add-on. Domain correction is only applied for English, Spanish, German, and French — other languages fall back to plain transcription."
-                    ),
-                    STTModelSpec(
-                        id: "universal-3-pro-medical",
-                        displayName: "Universal-3 Pro (Medical)",
-                        languages: STTLanguageTemplates.codes([
-                            "auto", "en", "es", "de", "fr"
-                        ]),
-                        notes: "Universal-3 Pro with the Medical Mode add-on. Domain correction is only applied for English, Spanish, German, and French — other languages fall back to plain transcription."
                     ),
                     STTModelSpec(
                         id: "universal-3-5-pro-medical",
@@ -392,15 +376,9 @@ enum STTCapabilities {
                 lastVerifiedAt: "2026-03-21",
                 models: [
                     STTModelSpec(
-                        id: "stt-async-v4",
-                        displayName: "STT Async v4",
-                        languages: STTLanguageTemplates.sonioxAsyncV4,
-                        notes: "Soniox async batch transcription model with optional language hints and plain-text transcript output."
-                    ),
-                    STTModelSpec(
                         id: "stt-async-v5",
                         displayName: "STT Async v5",
-                        languages: STTLanguageTemplates.sonioxAsyncV4,
+                        languages: STTLanguageTemplates.sonioxAsync,
                         notes: "Soniox async batch transcription model with optional language hints and plain-text transcript output."
                     )
                 ]
