@@ -84,86 +84,116 @@ enum HyperWhisperRoutedTranscription {
 
         let contentType = AudioMimeTypeResolver.infer(for: audioURL)
 
-        // Build the routed request via the shared core. The core bakes the
-        // X-STT-Provider header (forced to the provider's value), the query
-        // (license_key/device_id, language, initial_prompt), the Content-Type,
-        // and the @raw raw-stream body. We pass the raw vocabulary term list —
-        // the core builds the CSV (trim + drop-empty, no lowercase/dedup).
-        let params = RustCoreMapping.transcribeParams(
-            audioPath: audioURL.path,
-            audioMime: contentType,
-            language: language,
-            vocabulary: RustCoreMapping.boostVocabularyTerms(from: vocabulary),
-            baseURL: NetworkConfig.hyperwhisperCloudURL,
-            // The `deviceID` branch is now unreachable — the
-            // HyperWhisperCloudEntitlement pre-check above rejects
-            // `isLicensed == false` before we get here. Kept because the core's
-            // param shape is shared with other callers, and so the guard stays
-            // the single place that encodes the policy.
-            licenseKey: isLicensed ? identifier : nil,
-            deviceID: isLicensed ? nil : identifier,
-            routedProvider: providerHeader
-        )
+        // Builds and performs one upload attempt. `uploadURL` / `uploadContentType`
+        // are parameters rather than captures so the 415 format recovery below can
+        // rebuild the whole request — core params, routed builder, `mode` query,
+        // User-Agent, client info, latency opt-out — against a WAV re-encode at a
+        // different path, instead of re-sending a request pinned to the original.
+        // Mirrors what `HyperWhisperCloudProvider.sendTranscribeRequest` does.
+        func sendRoutedRequest(uploadURL: URL, uploadContentType: String) async throws -> HttpResponse {
+            // Build the routed request via the shared core. The core bakes the
+            // X-STT-Provider header (forced to the provider's value), the query
+            // (license_key/device_id, language, initial_prompt), the Content-Type,
+            // and the @raw raw-stream body. We pass the raw vocabulary term list —
+            // the core builds the CSV (trim + drop-empty, no lowercase/dedup).
+            let params = RustCoreMapping.transcribeParams(
+                audioPath: uploadURL.path,
+                audioMime: uploadContentType,
+                language: language,
+                vocabulary: RustCoreMapping.boostVocabularyTerms(from: vocabulary),
+                baseURL: NetworkConfig.hyperwhisperCloudURL,
+                // The `deviceID` branch is now unreachable — the
+                // HyperWhisperCloudEntitlement pre-check above rejects
+                // `isLicensed == false` before we get here. Kept because the core's
+                // param shape is shared with other callers, and so the guard stays
+                // the single place that encodes the policy.
+                licenseKey: isLicensed ? identifier : nil,
+                deviceID: isLicensed ? nil : identifier,
+                routedProvider: providerHeader
+            )
 
-        let baseRequest: HttpRequest
-        do {
-            baseRequest = try buildRoutedRequest(providerHeader: providerHeader, params: params)
-        } catch let err as HwTranscriptionError {
-            throw RustCoreMapping.mapTranscriptionError(err, providerName: providerDisplayName)
-        }
+            let baseRequest: HttpRequest
+            do {
+                baseRequest = try buildRoutedRequest(providerHeader: providerHeader, params: params)
+            } catch let err as HwTranscriptionError {
+                throw RustCoreMapping.mapTranscriptionError(err, providerName: providerDisplayName)
+            }
 
-        // The core does not add the platform `mode` query param or `User-Agent`
-        // header (HW-Cloud-specific, not part of the shared contract).
-        var request = baseRequest
-        if let mode, let modeId = mode.id {
-            let separator = request.url.contains("?") ? "&" : "?"
-            let encoded = modeId.uuidString.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? modeId.uuidString
-            request.url = "\(request.url)\(separator)mode=\(encoded)"
-        }
-        let userAgent = "HyperWhisper/\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")"
-        request.headers.append(Header(name: "User-Agent", value: userAgent))
-        HyperWhisperClientInfo.apply(to: &request)
-        // Opt-out only: absent means the user left anonymous speed sharing on.
-        LatencyOptOut.apply(to: &request)
+            // The core does not add the platform `mode` query param or `User-Agent`
+            // header (HW-Cloud-specific, not part of the shared contract).
+            var request = baseRequest
+            if let mode, let modeId = mode.id {
+                let separator = request.url.contains("?") ? "&" : "?"
+                let encoded = modeId.uuidString.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? modeId.uuidString
+                request.url = "\(request.url)\(separator)mode=\(encoded)"
+            }
+            let userAgent = "HyperWhisper/\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")"
+            request.headers.append(Header(name: "User-Agent", value: userAgent))
+            HyperWhisperClientInfo.apply(to: &request)
+            // Opt-out only: absent means the user left anonymous speed sharing on.
+            LatencyOptOut.apply(to: &request)
 
-        AppLogger.network.info("HW-routed transcription request · sttProvider=\(providerHeader, privacy: .public) · fileSizeKB=\(fileSize / 1024, privacy: .public) · licensed=\(isLicensed, privacy: .public)")
+            // fileSizeKB describes the ORIGINAL preflighted file — a 415 retry
+            // uploads a WAV re-encode whose size differs; read `contentType=` to
+            // tell the two attempts apart.
+            AppLogger.network.info("HW-routed transcription request · sttProvider=\(providerHeader, privacy: .public) · fileSizeKB=\(fileSize / 1024, privacy: .public) · contentType=\(uploadContentType, privacy: .public) · licensed=\(isLicensed, privacy: .public)")
 
-        // Perform via the shared executor + core retry loop.
-        let response = try await RustRetry.perform(
-            session: session,
-            buildRequest: { request },
-            parseError: { resp in
-                do {
-                    _ = try parseRoutedResponse(providerHeader: providerHeader, resp: resp)
-                    return TranscriptionError.invalidResponse(details: "unexpected non-error response")
-                } catch let err as HwTranscriptionError {
-                    let creditDenial = Self.creditDenialContext(from: resp)
-                    if resp.status == 402, let invalidMessage = creditDenial.invalidExhaustedBalanceMessage {
-                        return TranscriptionError.invalidResponse(details: invalidMessage)
+            // Perform via the shared executor + core retry loop.
+            return try await RustRetry.perform(
+                session: session,
+                buildRequest: { request },
+                parseError: { resp in
+                    do {
+                        _ = try parseRoutedResponse(providerHeader: providerHeader, resp: resp)
+                        return TranscriptionError.invalidResponse(details: "unexpected non-error response")
+                    } catch let err as HwTranscriptionError {
+                        let creditDenial = Self.creditDenialContext(from: resp)
+                        if resp.status == 402, let invalidMessage = creditDenial.invalidExhaustedBalanceMessage {
+                            return TranscriptionError.invalidResponse(details: invalidMessage)
+                        }
+                        let (tooBigBytes, tooBigLimit) = RustCoreMapping.fileTooLargeContext(from: resp)
+                        return RustCoreMapping.mapTranscriptionError(
+                            err,
+                            providerName: providerDisplayName,
+                            insufficientCredits: (resp.status == 402),
+                            creditsRemaining: creditDenial.remaining,
+                            creditsRequired: creditDenial.required,
+                            fileTooLargeBytes: tooBigBytes,
+                            fileTooLargeLimit: tooBigLimit
+                        )
+                    } catch {
+                        return TranscriptionError.invalidResponse(details: error.localizedDescription)
                     }
-                    let (tooBigBytes, tooBigLimit) = RustCoreMapping.fileTooLargeContext(from: resp)
-                    return RustCoreMapping.mapTranscriptionError(
-                        err,
-                        providerName: providerDisplayName,
-                        insufficientCredits: (resp.status == 402),
-                        creditsRemaining: creditDenial.remaining,
-                        creditsRequired: creditDenial.required,
-                        fileTooLargeBytes: tooBigBytes,
-                        fileTooLargeLimit: tooBigLimit
-                    )
-                } catch {
-                    return TranscriptionError.invalidResponse(details: error.localizedDescription)
+                },
+                onTransportError: { urlError in
+                    // One-shot DNS-cache flush on a network flip (VPN/captive-portal/
+                    // tether swap). All three Fly providers share `session`, so a
+                    // reset re-resolves the host for the next attempt. Gated to one
+                    // flush per sequence by RustRetry; we additionally gate on the
+                    // DNS-shaped error codes so a generic blip doesn't reset the pool.
+                    if Self.isDnsError(urlError) {
+                        await Self.recoverDns(session: session)
+                    }
                 }
+            )
+        }
+
+        // `azure-mai` accepts only wav/mp3/flac and answers anything else with a
+        // typed 415 so the CLIENT can re-encode — this routed path reaches it, so
+        // it needs the same recovery as HyperWhisperCloudProvider. Without it an
+        // .m4a recording (the storage default) fails outright.
+        let response = try await CloudAudioFormatRecovery.withUnsupportedFormatRecovery(
+            sourceURL: audioURL,
+            reencode: { source, destination in
+                try await CloudAudioFormatRecovery.reencodeToWAV(source: source, destination: destination)
             },
-            onTransportError: { urlError in
-                // One-shot DNS-cache flush on a network flip (VPN/captive-portal/
-                // tether swap). All three Fly providers share `session`, so a
-                // reset re-resolves the host for the next attempt. Gated to one
-                // flush per sequence by RustRetry; we additionally gate on the
-                // DNS-shaped error codes so a generic blip doesn't reset the pool.
-                if Self.isDnsError(urlError) {
-                    await Self.recoverDns(session: session)
-                }
+            send: { (uploadURL: URL, uploadContentTypeOverride: String?) async throws -> HttpResponse in
+                try await sendRoutedRequest(
+                    uploadURL: uploadURL,
+                    // nil on the first attempt: keep the Content-Type the resolver
+                    // already inferred for the original file.
+                    uploadContentType: uploadContentTypeOverride ?? contentType
+                )
             }
         )
 

@@ -378,6 +378,243 @@ class AudioFileConverter {
 
     // MARK: - WAV Fallback Conversion
 
+    /// Lowercased file extension of `url`, or `"none"` when it has none.
+    ///
+    /// EXTENSION ONLY — never a path and never a file name. A source file name is
+    /// user data (it can carry a document title, a person's name, a case number),
+    /// and this app has already leaked a real user home directory into a
+    /// production error report once. The extension is the only part of the path
+    /// that is diagnostically useful for a decode failure anyway.
+    ///
+    /// Deliberately a local two-liner rather than a call into
+    /// `CloudAudioFormatRecovery.displayExtension` — the audio layer must not
+    /// depend on the cloud-transcription layer just to sanitize a log line.
+    private static func loggableExtension(of url: URL) -> String {
+        let ext = url.pathExtension.lowercased()
+        return ext.isEmpty ? "none" : ext
+    }
+
+    /// Decode any supported audio container to a 16 kHz / mono / 16-bit LPCM WAV file
+    ///
+    /// **Purpose:**
+    /// Some transcription backends accept only uncompressed audio (wav/mp3/flac) and reject
+    /// a compressed container such as M4A outright. This method produces a WAV re-encode of
+    /// an existing recording so the upload can be retried in a universally accepted format.
+    ///
+    /// **Why 16 kHz mono?**
+    /// Speech recognition models downsample to 16 kHz mono internally anyway, so producing it
+    /// here keeps the re-encoded upload as small as possible (~32 KB/s) without losing anything
+    /// the recognizer would have used. It also matches the format every local engine in the app
+    /// already feeds its models.
+    ///
+    /// **Conversion Pipeline:**
+    /// 1. **Clean destination**: Remove any leftover file from a previous failed attempt
+    /// 2. **Load tracks**: Find the first audio track in the source container
+    /// 3. **Configure reader**: AVAssetReader resamples to 16 kHz and downmixes to mono
+    /// 4. **Configure writer**: AVAssetWriter writes WAVE with a 16-bit LPCM input
+    /// 5. **Stream samples**: Copy sample buffers from reader to writer
+    /// 6. **Finalize**: Complete writing and return the output format
+    ///
+    /// **Note:** unlike `convertAudioToAAC`, this path deliberately does NOT preserve the
+    /// source format — resampling and downmixing is the whole point.
+    ///
+    /// **Parameters:**
+    /// - `sourceURL`: Path to the source audio file (M4A, CAF, WAV, video container, …)
+    /// - `destinationURL`: Path where the WAV should be written
+    ///
+    /// **Returns:**
+    /// Tuple describing the format actually written:
+    /// - `sampleRate`: Always 16000.0
+    /// - `channels`: Always 1
+    ///
+    /// **Throws:**
+    /// - `AudioError.exportFailed`: If conversion fails at any stage
+    ///
+    /// **Performance:**
+    /// - Streams sample buffers, so memory use is independent of recording length
+    /// - Non-blocking: uses async/await
+    func convertAudioToWAV(from sourceURL: URL, to destinationURL: URL) async throws -> (sampleRate: Double, channels: Int) {
+        // Target format: what every speech recognizer wants, and the smallest honest WAV we can send.
+        let targetSampleRate: Double = 16_000
+        let targetChannels = 1
+
+        // STEP 1: Clean up any previous failed attempts
+        // If destination file exists from a previous crash, remove it
+        try? FileManager.default.removeItem(at: destinationURL)
+
+        let asset = AVURLAsset(url: sourceURL)
+
+        // STEP 2: Load audio tracks (async for macOS 12+ compatibility)
+        let tracks: [AVAssetTrack]
+        if #available(macOS 12.0, *) {
+            tracks = try await asset.loadTracks(withMediaType: .audio)
+        } else {
+            // Fallback for older macOS versions
+            tracks = asset.tracks(withMediaType: .audio)
+        }
+
+        guard let audioTrack = tracks.first else {
+            let sourceExtension = AudioFileConverter.loggableExtension(of: sourceURL)
+            AppLogger.audio.error("convertAudioToWAV: no audio tracks · sourceExtension=\(sourceExtension, privacy: .public)")
+            throw AudioError.exportFailed
+        }
+
+        // STEP 3: Build an explicit mono channel layout.
+        // AVNumberOfChannelsKey alone is NOT enough to downmix in reader output settings —
+        // without a matching AVChannelLayoutKey, canAdd(output) returns false or
+        // startReading() fails with -11841 on any stereo (or multi-channel) source.
+        var monoLayout = AudioChannelLayout()
+        monoLayout.mChannelLayoutTag = kAudioChannelLayoutTag_Mono
+        let monoLayoutData = Data(bytes: &monoLayout, count: MemoryLayout<AudioChannelLayout>.size)
+
+        // STEP 4: Configure AVAssetReader to decode, resample and downmix in one pass.
+        // AVAssetReaderTrackOutput runs an audio converter for us, so asking for a sample rate
+        // and channel count that differ from the source is exactly how the conversion happens.
+        let assetReader: AVAssetReader
+        do {
+            assetReader = try AVAssetReader(asset: asset)
+        } catch {
+            AppLogger.audio.error("convertAudioToWAV: AVAssetReader init failed: \(error.localizedDescription, privacy: .public)")
+            throw AudioError.exportFailed
+        }
+
+        let readerOutput = AVAssetReaderTrackOutput(
+            track: audioTrack,
+            outputSettings: [
+                AVFormatIDKey: kAudioFormatLinearPCM,
+                AVSampleRateKey: targetSampleRate,
+                AVNumberOfChannelsKey: targetChannels,
+                AVChannelLayoutKey: monoLayoutData,     // Required alongside the channel count
+                AVLinearPCMBitDepthKey: 16,
+                AVLinearPCMIsFloatKey: false,           // 16-bit integers
+                AVLinearPCMIsBigEndianKey: false,       // Little-endian, as WAVE expects
+                AVLinearPCMIsNonInterleaved: false      // Interleaved samples
+            ]
+        )
+
+        guard assetReader.canAdd(readerOutput) else {
+            AppLogger.audio.error("convertAudioToWAV: reader.canAdd(output) returned false; readerError=\(assetReader.error?.localizedDescription ?? "nil", privacy: .public)")
+            throw AudioError.exportFailed
+        }
+        assetReader.add(readerOutput)
+
+        // STEP 5: Configure AVAssetWriter for WAVE output.
+        // No shouldOptimizeForNetworkUse here — that only moves an mp4 moov atom and means
+        // nothing for a WAV container.
+        let assetWriter: AVAssetWriter
+        do {
+            assetWriter = try AVAssetWriter(outputURL: destinationURL, fileType: .wav)
+        } catch {
+            AppLogger.audio.error("convertAudioToWAV: AVAssetWriter init failed: \(error.localizedDescription, privacy: .public)")
+            throw AudioError.exportFailed
+        }
+
+        // The LPCM writer input needs the FULL settings set — omit any of the AVLinearPCM*
+        // keys and canAdd(input) returns false rather than picking a default.
+        let outputSettings: [String: Any] = [
+            AVFormatIDKey: kAudioFormatLinearPCM,
+            AVSampleRateKey: targetSampleRate,
+            AVNumberOfChannelsKey: targetChannels,
+            AVLinearPCMBitDepthKey: 16,
+            AVLinearPCMIsFloatKey: false,
+            AVLinearPCMIsBigEndianKey: false,
+            AVLinearPCMIsNonInterleaved: false
+        ]
+
+        let writerInput = AVAssetWriterInput(mediaType: .audio, outputSettings: outputSettings)
+        writerInput.expectsMediaDataInRealTime = false  // We're converting a file, not streaming
+
+        guard assetWriter.canAdd(writerInput) else {
+            AppLogger.audio.error("convertAudioToWAV: writer.canAdd(input) returned false for LPCM \(Int(targetSampleRate))Hz \(targetChannels)ch; writerError=\(assetWriter.error?.localizedDescription ?? "nil", privacy: .public)")
+            throw AudioError.exportFailed
+        }
+        assetWriter.add(writerInput)
+
+        // STEP 6: Start reading and writing
+        guard assetReader.startReading() else {
+            AppLogger.audio.error("convertAudioToWAV: reader.startReading() failed; status=\(assetReader.status.rawValue) error=\(assetReader.error?.localizedDescription ?? "nil", privacy: .public)")
+            throw AudioError.exportFailed
+        }
+
+        guard assetWriter.startWriting() else {
+            AppLogger.audio.error("convertAudioToWAV: writer.startWriting() failed; status=\(assetWriter.status.rawValue) error=\(assetWriter.error?.localizedDescription ?? "nil", privacy: .public)")
+            throw AudioError.exportFailed
+        }
+
+        assetWriter.startSession(atSourceTime: .zero)
+
+        // STEP 7: Stream audio samples from reader to writer
+        let success = await withCheckedContinuation { continuation in
+            let queue = DispatchQueue(label: "audio.wav.conversion")
+
+            // ATOMIC GUARD FOR CONTINUATION SAFETY:
+            // The append-failure path, the end-of-stream path and the finishWriting callback
+            // can all reach the continuation. ManagedAtomic makes sure exactly one of them
+            // resumes it — a single CPU instruction, no lock, no deadlock risk.
+            let isFinished = ManagedAtomic(false)
+
+            // Request media data and append samples as they become available
+            writerInput.requestMediaDataWhenReady(on: queue) {
+                // Early exit if already finished (another path resumed the continuation)
+                if isFinished.load(ordering: .acquiring) { return }
+
+                while writerInput.isReadyForMoreMediaData {
+                    // Check again inside loop in case we finished during iteration
+                    if isFinished.load(ordering: .acquiring) { return }
+
+                    if let sampleBuffer = readerOutput.copyNextSampleBuffer() {
+                        // Append the sample buffer to the writer
+                        if !writerInput.append(sampleBuffer) {
+                            // Append failed - atomically mark as finished and cancel
+                            if isFinished.exchange(true, ordering: .acquiring) == false {
+                                AppLogger.audio.error("convertAudioToWAV: writerInput.append() returned false; writerStatus=\(assetWriter.status.rawValue) writerError=\(assetWriter.error?.localizedDescription ?? "nil", privacy: .public)")
+                                assetReader.cancelReading()
+                                assetWriter.cancelWriting()
+                                continuation.resume(returning: false)
+                            }
+                            return
+                        }
+                    } else {
+                        // No more samples (end of file or error)
+                        // Atomically mark as finished before resuming continuation
+                        if isFinished.exchange(true, ordering: .acquiring) == false {
+                            writerInput.markAsFinished()
+
+                            // Check reader status to distinguish success from failure
+                            if assetReader.status == .failed || assetReader.status == .cancelled {
+                                AppLogger.audio.error("convertAudioToWAV: reader ended in status=\(assetReader.status.rawValue) error=\(assetReader.error?.localizedDescription ?? "nil", privacy: .public)")
+                                assetWriter.cancelWriting()
+                                continuation.resume(returning: false)
+                            } else {
+                                // Reader finished successfully, finalize writing
+                                assetWriter.finishWriting {
+                                    let completed = assetWriter.status == .completed
+                                    if !completed {
+                                        AppLogger.audio.error("convertAudioToWAV: writer.finishWriting completed with status=\(assetWriter.status.rawValue) error=\(assetWriter.error?.localizedDescription ?? "nil", privacy: .public)")
+                                    }
+                                    continuation.resume(returning: completed)
+                                }
+                            }
+                        }
+                        return
+                    }
+                }
+            }
+        }
+
+        // STEP 8: Check conversion result
+        if !success {
+            // Clean up failed (partial) output file
+            try? FileManager.default.removeItem(at: destinationURL)
+            throw AudioError.exportFailed
+        }
+
+        AppLogger.audio.info("convertAudioToWAV: wrote \(Int(targetSampleRate))Hz \(targetChannels)ch WAV → \(destinationURL.lastPathComponent, privacy: .public)")
+
+        // Return the format actually written, not the source format
+        return (sampleRate: targetSampleRate, channels: targetChannels)
+    }
+
     // MARK: - Helper Methods
 
     /// Extracts sample rate and channel count from an audio file URL
