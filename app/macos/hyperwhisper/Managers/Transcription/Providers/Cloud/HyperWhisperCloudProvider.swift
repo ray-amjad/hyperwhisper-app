@@ -312,10 +312,19 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
         // shared executor + core retry loop. Factored out so HYPERWHISPER-T2's
         // retry-after-revalidation (below) can reuse it instead of duplicating
         // the request-building/parseError/onTransportError wiring.
-        func sendTranscribeRequest(identifier: String, isLicensed: Bool) async throws -> HttpResponse {
+        //
+        // `uploadURL` / `uploadContentType` are parameters rather than captures so
+        // the 415 format recovery below can re-send a WAV re-encode of the clip
+        // through this exact same wiring instead of duplicating it.
+        func sendTranscribeRequest(
+            identifier: String,
+            isLicensed: Bool,
+            uploadURL: URL,
+            uploadContentType: String
+        ) async throws -> HttpResponse {
             let params = RustCoreMapping.transcribeParams(
-                audioPath: audioURL.path,
-                audioMime: contentType,
+                audioPath: uploadURL.path,
+                audioMime: uploadContentType,
                 language: language,
                 vocabulary: vocabTermsForCore,
                 baseURL: NetworkConfig.hyperwhisperCloudURL,
@@ -350,7 +359,10 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
             // Opt-out only: absent means the user left anonymous speed sharing on.
             LatencyOptOut.apply(to: &request)
 
-            AppLogger.network.info("HyperWhisper Cloud streaming request · sttProvider=\(accuracyTier.sttProvider, privacy: .public) · fileSizeKB=\(fileSizeBytes / 1024, privacy: .public) · contentType=\(contentType, privacy: .public) · licensed=\(isLicensed, privacy: .public)")
+            // fileSizeKB describes the ORIGINAL preflighted file — the 415 retry
+            // uploads a WAV re-encode whose size differs; read `contentType=` to
+            // tell the two attempts apart.
+            AppLogger.network.info("HyperWhisper Cloud streaming request · sttProvider=\(accuracyTier.sttProvider, privacy: .public) · fileSizeKB=\(fileSizeBytes / 1024, privacy: .public) · contentType=\(uploadContentType, privacy: .public) · licensed=\(isLicensed, privacy: .public)")
 
             // Cancellation, file streaming, and DNS recovery stay native (in the
             // executor / session). The core decides retries via nextRetry(...).
@@ -398,18 +410,47 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
         // =====================================================================
         // STEP 3: Perform request via the shared executor + core retry loop.
         // =====================================================================
-        let requestResult = try await Self.performTranscribeRequestWithLicenseRecovery(
-            identifier: identifier,
-            isLicensed: isLicensed,
-            send: sendTranscribeRequest,
-            revalidate: { licenseKey in
-                await licenseManager.validateLicense(licenseKey)
+        //
+        // Two recoveries nest here, and the ORDER matters:
+        //
+        //   format recovery (OUTER)  ->  licence recovery (INNER)  ->  send
+        //
+        // A 415 is orthogonal to auth, so re-encoding and then re-entering
+        // licence recovery gives the WAV attempt the same stale-licence repair the
+        // original upload had. Worst case is 2 format attempts x 2 licence
+        // attempts = 4 uploads, and neither status is retried inside RustRetry
+        // (the core classifies BadRequest and Unauthorized as terminal), so there
+        // is no multiplicative blow-up. The reverse nesting would leave a
+        // re-encoded upload unable to repair a licence that went stale mid-flight.
+        let requestResult = try await CloudAudioFormatRecovery.withUnsupportedFormatRecovery(
+            sourceURL: audioURL,
+            reencode: { source, destination in
+                try await CloudAudioFormatRecovery.reencodeToWAV(source: source, destination: destination)
             },
-            currentIdentifier: {
-                await licenseManager.getTranscriptionIdentifier()
-            },
-            refreshServerAuthCache: { refreshedIdentifier in
-                try await creditManager.refreshServerLicenseCache(for: refreshedIdentifier)
+            send: { (uploadURL: URL, uploadContentTypeOverride: String?) async throws -> TranscribeRequestResult in
+                try await Self.performTranscribeRequestWithLicenseRecovery(
+                    identifier: identifier,
+                    isLicensed: isLicensed,
+                    send: { attemptIdentifier, attemptIsLicensed in
+                        try await sendTranscribeRequest(
+                            identifier: attemptIdentifier,
+                            isLicensed: attemptIsLicensed,
+                            uploadURL: uploadURL,
+                            // nil on the first attempt: keep the Content-Type the
+                            // resolver already inferred for the original file.
+                            uploadContentType: uploadContentTypeOverride ?? contentType
+                        )
+                    },
+                    revalidate: { licenseKey in
+                        await licenseManager.validateLicense(licenseKey)
+                    },
+                    currentIdentifier: {
+                        await licenseManager.getTranscriptionIdentifier()
+                    },
+                    refreshServerAuthCache: { refreshedIdentifier in
+                        try await creditManager.refreshServerLicenseCache(for: refreshedIdentifier)
+                    }
+                )
             }
         )
         let response = requestResult.response
