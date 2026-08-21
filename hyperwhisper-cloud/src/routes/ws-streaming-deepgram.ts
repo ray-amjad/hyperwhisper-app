@@ -3,6 +3,7 @@
 
 import type { Context, Next } from 'hono';
 import { upgradeWebSocket } from 'hono/bun';
+import type { WSMessageReceive } from 'hono/ws';
 import { generateRequestId, getClientIP } from '../lib/request-id';
 import { computeDeepgramTranscriptionCost, creditsForCost } from '../lib/cost-calculator';
 import { validateAuth, type AuthContext } from '../middleware/auth';
@@ -171,7 +172,11 @@ export async function wsStreamingPreflight(c: Context, next: Next) {
   return next();
 }
 
-export const wsStreamingRoute = upgradeWebSocket((c) => {
+// Exported so the socket lifecycle (audio caps, upstream backpressure, the
+// mid-session credit cutoff, end-of-session billing) is unit-testable without
+// standing up a real WebSocket upgrade. `wsStreamingRoute` below is the only
+// production caller.
+export function createStreamingEvents(c: Context) {
   const requestId = generateRequestId();
   const auth = c.get('wsAuth');
   const clientIP = c.get('wsClientIP');
@@ -236,7 +241,7 @@ export const wsStreamingRoute = upgradeWebSocket((c) => {
   }
 
   return {
-    onOpen: (_evt, ws) => {
+    onOpen: (_evt: Event, ws: WSContext) => {
       clientSocket = ws;
 
       if (!apiKey) {
@@ -294,7 +299,7 @@ export const wsStreamingRoute = upgradeWebSocket((c) => {
         }
       }, 30000);
     },
-    onMessage: (event) => {
+    onMessage: (event: MessageEvent<WSMessageReceive>) => {
       if (!deepgramWs || deepgramWs.readyState !== WebSocket.OPEN) {
         return;
       }
@@ -377,4 +382,6 @@ export const wsStreamingRoute = upgradeWebSocket((c) => {
       closeUpstream();
     },
   };
-});
+}
+
+export const wsStreamingRoute = upgradeWebSocket(createStreamingEvents);
