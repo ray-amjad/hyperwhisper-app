@@ -373,6 +373,28 @@ final class ParakeetProvider: TranscriptionProvider {
             if residencyClaimed {
                 await ModelResidencyRegistry.shared.markIdle(id: parakeetResidencyId)
             }
+
+            // `Task.isCancelled` is task-local: read it once here, at the catch
+            // site, and hand the value to the policy — the policy never reads it.
+            //
+            // Deliberately AFTER the residency release above: a cancelled pass
+            // still owes its `markIdle`, or the ~700 MB runtime stays pinned
+            // against memory-pressure eviction for the process lifetime.
+            let isTaskCancelled = Task.isCancelled
+
+            // A cancellation that the caller actually asked for is benign: the
+            // pipeline already maps `CancellationError` to `.idle` without a
+            // Sentry capture. Re-wrapping it as `.providerNotAvailable` is what
+            // defeated that and produced HYPERWHISPER-SQ. Note this is NOT the
+            // same as a bare `CancellationError` — see TranscriptionCancellationPolicy.
+            if TranscriptionCancellationPolicy.outcome(
+                for: error,
+                isTaskCancelled: isTaskCancelled
+            ) == .genuineCancellation {
+                logger.info("Parakeet transcription cancelled by the caller")
+                throw CancellationError()
+            }
+
             // IMPROVED ERROR HANDLING:
             // Instead of masking all errors with a generic message, expose the actual
             // FluidAudio error so users and Sentry can see what really went wrong.
