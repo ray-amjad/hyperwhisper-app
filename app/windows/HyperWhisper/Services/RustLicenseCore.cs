@@ -43,15 +43,6 @@ internal static class RustLicenseCore
         _ => AppLicenseStatus.Invalid
     };
 
-    public static HwLicenseStatus ToCore(AppLicenseStatus status) => status switch
-    {
-        AppLicenseStatus.Active => HwLicenseStatus.Active,
-        AppLicenseStatus.Trial => HwLicenseStatus.Trial,
-        AppLicenseStatus.Expired => HwLicenseStatus.Expired,
-        AppLicenseStatus.Invalid => HwLicenseStatus.Invalid,
-        _ => HwLicenseStatus.Invalid
-    };
-
     /// <summary>
     /// Convert a core <see cref="ValidationOutcome"/> into the app-facing
     /// <see cref="HyperWhisper.Models.LicenseValidationResult"/>.

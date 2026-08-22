@@ -509,16 +509,6 @@ enum CustomEndpointError: LocalizedError {
 // MARK: - Provider String Helpers
 
 extension CustomPostProcessingManager {
-    /// Parse a provider string and return the custom endpoint if it's a custom provider
-    /// - Parameter providerString: The provider string from Mode settings
-    /// - Returns: The custom endpoint if found, nil if not a custom provider or not found
-    func endpointFromProviderString(_ providerString: String) -> CustomPostProcessingEndpoint? {
-        guard let endpointId = CustomPostProcessingEndpoint.parseCustomProviderString(providerString) else {
-            return nil
-        }
-        return getEndpoint(id: endpointId)
-    }
-
     /// Check if a provider string represents a valid custom endpoint
     /// - Parameter providerString: The provider string to check
     /// - Returns: true if this is a valid custom endpoint

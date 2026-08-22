@@ -108,14 +108,6 @@ class DeviceIdentifierGenerator {
         return hashed
     }
 
-    /// Clears the cached device identifier
-    /// Used primarily for testing or troubleshooting
-    static func clearCache() {
-        lock.lock()
-        defer { lock.unlock() }
-        cachedDeviceId = nil
-    }
-
     // MARK: - Private Helpers
 
     /// Gets the hardware serial number using IOKit

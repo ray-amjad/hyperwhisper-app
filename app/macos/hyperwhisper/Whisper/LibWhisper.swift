@@ -485,11 +485,6 @@ actor WhisperContext {
         }
         logger.info("Released Whisper resources")
     }
-    
-    /// Check if the context is ready for transcription
-    var isReady: Bool {
-        return context != nil
-    }
 }
 
 // NOTE: Audio loading is handled by LibWhisperProvider using AVFoundation

@@ -75,21 +75,6 @@ class TranscriptionResultCache {
         }
     }
 
-    /// Clear all cached transcriptions
-    /// Useful for memory management or when settings change
-    func clearCache() {
-        cacheQueue.sync {
-            cache.removeAll()
-        }
-    }
-
-    /// Get current cache size (number of entries)
-    var count: Int {
-        cacheQueue.sync {
-            return cache.count
-        }
-    }
-
     // MARK: - Private Methods
 
     /// Calculate hash of audio file for use as cache key

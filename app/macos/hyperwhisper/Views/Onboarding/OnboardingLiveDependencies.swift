@@ -295,8 +295,6 @@ final class LiveOnboardingAudioGateway: OnboardingAudioGateway {
     var transcriptPublisher: AnyPublisher<String, Never> {
         appState.$lastTranscription.eraseToAnyPublisher()
     }
-
-    var inputLevel: Float { audioManager.idleInputLevel }
 }
 
 // MARK: - Commit

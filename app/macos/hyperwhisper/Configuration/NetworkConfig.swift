@@ -20,10 +20,7 @@ struct NetworkConfig {
     /// Base URL for the HyperWhisper backend server
     /// Automatically switches between development and production environments
     static let baseURL = "https://www.hyperwhisper.com"
-    
-    /// API version for versioning support
-    static let apiVersion = "v1"
-    
+
     // MARK: - License Endpoints
 
     /// License validation endpoint
@@ -121,10 +118,7 @@ struct NetworkConfig {
     
     /// Maximum number of retry attempts for failed requests
     static let maxRetryAttempts = 3
-    
-    /// Delay between retry attempts (in seconds)
-    static let retryDelay: TimeInterval = 2
-    
+
     // MARK: - Helper Methods
     
     /// Constructs a full URL for an API endpoint

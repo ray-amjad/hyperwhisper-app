@@ -131,8 +131,6 @@ struct CloudSTTCatalog: Decodable {
             }
             self = .unverified
         }
-
-        var asBool: Bool? { if case .bool(let b) = self { return b } else { return nil } }
     }
 
     /// `codes: ["en","es"]` or `codes: "unverified"` — accept either. The
@@ -150,8 +148,6 @@ struct CloudSTTCatalog: Decodable {
             }
             self = .unverified
         }
-
-        var asArray: [Element]? { if case .array(let a) = self { return a } else { return nil } }
     }
 }
 

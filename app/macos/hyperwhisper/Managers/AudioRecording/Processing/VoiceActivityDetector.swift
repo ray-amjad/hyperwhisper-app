@@ -372,19 +372,4 @@ actor VoiceActivityDetector {
         )
     }
 
-    // MARK: - Resource Management
-
-    /// Release the VAD model and free resources.
-    ///
-    /// Call this when VAD is no longer needed to free memory.
-    /// The model can be reloaded by calling loadModel() again.
-    func unloadModel() {
-        if let context = context {
-            // WHISPER.CPP FUNCTION: whisper_vad_free
-            // Frees all resources associated with the VAD context
-            whisper_vad_free(context)
-            self.context = nil
-            logger.info("VAD model unloaded")
-        }
-    }
 }
