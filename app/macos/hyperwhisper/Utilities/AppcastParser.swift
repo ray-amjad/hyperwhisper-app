@@ -119,13 +119,6 @@ class AppcastParser: NSObject {
         logger.debug("✅ AppcastParser: Successfully parsed \(limitedReleases.count) releases with notes (out of \(releases.count) total)")
         return limitedReleases
     }
-
-    /// Clear cached data
-    func clearCache() {
-        logger.debug("🗑️ AppcastParser: Clearing cache")
-        cachedReleases = nil
-        lastCacheUpdate = nil
-    }
 }
 
 // MARK: - AppcastError

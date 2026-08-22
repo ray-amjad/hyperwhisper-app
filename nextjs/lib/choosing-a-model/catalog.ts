@@ -20,9 +20,6 @@
  * @see https://artificialanalysis.ai/speech-to-text/non-streaming
  */
 
-/** Where the transcription runs. The page's most important distinction. */
-export type ModelPlacement = "cloud" | "device";
-
 /** Which desktop app can run an on-device model. */
 export type Platform = "macos" | "windows";
 

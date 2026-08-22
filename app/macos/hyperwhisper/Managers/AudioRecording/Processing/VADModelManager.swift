@@ -84,11 +84,4 @@ class VADModelManager {
 
         return path
     }
-
-    /// Clear the cached model path.
-    ///
-    /// Useful for testing or if the bundle is updated at runtime (unlikely).
-    func clearCache() {
-        cachedModelPath = nil
-    }
 }

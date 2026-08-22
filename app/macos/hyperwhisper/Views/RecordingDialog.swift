@@ -83,12 +83,6 @@ struct RecordingDialog: View {
     @State private var stateTransitionScale: CGFloat = 1.0  // Scale for state transitions
     @State private var pulseAnimation = false  // Pulse animation for connection status indicator
     
-    // Get available mode names filtered by network status
-    var availableModes: [String] {
-        // Use centralized filtering logic from AppState
-        appState.getAvailableModes().map { $0.name }
-    }
-    
     // MARK: - Computed Properties
     
     /// Text to show in the loading overlay

@@ -710,16 +710,6 @@ class LicenseNetworkService: LicenseNetworkServing {
         }
     }
 
-    /// Maps the app's `LicenseStatus` to the core's `HwLicenseStatus`.
-    static func toCore(_ status: LicenseStatus) -> HwLicenseStatus {
-        switch status {
-        case .trial: return .trial
-        case .active: return .active
-        case .expired: return .expired
-        case .invalid: return .invalid
-        }
-    }
-
     /// Adapts the core's `ValidationOutcome` to the app's `LicenseValidationResult`.
     /// Note: the core does not surface `customerName`; it is always nil here
     /// (matches the prior native behavior, which also never populated it).

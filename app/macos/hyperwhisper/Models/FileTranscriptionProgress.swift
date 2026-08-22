@@ -187,19 +187,6 @@ final class FileTranscriptionProgress: ObservableObject {
         }
     }
 
-    /// Immediately set progress to a value (no animation)
-    ///
-    /// **Use Case:**
-    /// When you need to jump to a specific progress without animation,
-    /// such as when completing a stage early.
-    ///
-    /// - Parameter value: Progress value to set (0.0 to 1.0)
-    func setProgress(_ value: Float) {
-        animationTimer?.invalidate()
-        animationTimer = nil
-        progress = min(max(value, 0.0), 1.0)
-    }
-
     /// Mark transcription as complete
     ///
     /// **What This Does:**

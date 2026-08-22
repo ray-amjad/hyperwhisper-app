@@ -516,25 +516,3 @@ fn non_empty(m: Map<String, Value>) -> Option<Value> {
         Some(Value::Object(m))
     }
 }
-
-/// Build a fresh, minimal universal backup envelope (no settings/modes/vocab).
-/// Convenience for callers assembling a backup from records.
-pub fn empty_backup(
-    export_date: impl Into<String>,
-    app_version: impl Into<String>,
-    platform: impl Into<String>,
-) -> UniversalBackup {
-    UniversalBackup {
-        schema_version: crate::validate::UNIVERSAL_SCHEMA_VERSION,
-        export_date: export_date.into(),
-        app_version: app_version.into(),
-        platform: platform.into(),
-        settings: None,
-        modes: None,
-        vocabulary: None,
-        api_keys: None,
-        license_key: None,
-        platform_extensions: None,
-        extra: BTreeMap::new(),
-    }
-}

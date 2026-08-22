@@ -29,7 +29,7 @@ pub mod records;
 pub mod validate;
 
 pub use mapping::{
-    empty_backup, from_records, macos_settings_to_universal, migrate_mode_cloud_routing, to_records,
+    from_records, macos_settings_to_universal, migrate_mode_cloud_routing, to_records,
     universal_to_macos_settings, MacosSettings,
 };
 pub use migrate::{

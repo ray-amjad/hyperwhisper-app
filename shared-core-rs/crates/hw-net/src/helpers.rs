@@ -60,32 +60,6 @@ pub fn normalize_vocabulary_capped(words: &[String], cap: usize) -> Vec<String> 
     keyword_boost_terms(words, Some(cap))
 }
 
-/// Join normalized vocabulary terms as bare-comma-separated CSV (`"a,b,c"`),
-/// matching how the shipped HW Cloud / routed clients build the vocabulary
-/// string. The caller supplies any surrounding prompt text, and the query
-/// encoder ([`crate::providers::hyperwhisper_cloud::encode_query`]) handles the
-/// percent-encoding of the joined value.
-///
-/// PARITY (separator): macOS `HyperWhisperCloudProvider.swift`
-/// (`entries.joined(separator: ",")`) and `HyperWhisperRoutedTranscription.swift`,
-/// and Windows `HyperWhisperCloudService.cs` /
-/// `HyperWhisperRoutedTranscriptionClient.cs` (`string.Join(",", uniqueTerms)`)
-/// all join with a **bare** comma — no space. Using ", " here would inject a
-/// `%20` into the encoded value, diverging from the wire bytes. Keep this a bare
-/// comma.
-///
-/// PARITY (encoding): this function does NOT percent-encode. When placed in the
-/// `initial_prompt` query param, `encode_query` leaves the joined comma
-/// **literal** — byte-matching macOS `URLQueryItem`, which does not escape `,`
-/// (verified by running Swift `URLComponents`), so the wire value is
-/// `initial_prompt=Rust,UniFFI`. (Windows `HttpUtility` instead emits a
-/// lowercase `%2c`; we follow macOS, the verified platform. The backend decodes
-/// `,`/`%2C`/`%2c` identically, so this is byte-parity with macOS and a
-/// functionally-equivalent divergence from Windows.)
-pub fn vocabulary_csv(words: &[String]) -> String {
-    keyword_boost_terms(words, None).join(",")
-}
-
 /// Default MIME when an extension is unknown. Matches macOS
 /// `AudioMimeTypeResolver` (`audio/mp4`); the Windows dict defaults to
 /// `audio/wav`, but recorded audio carries a real extension so this rarely hits.
@@ -151,7 +125,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn vocab_csv_uses_shared_sanitized_deduped_terms() {
+    fn uncapped_vocab_uses_shared_sanitized_deduped_terms() {
         let words = vec![
             "Swift".to_string(),
             "  Rust  ".to_string(),
@@ -160,7 +134,10 @@ mod tests {
             "Rust<script>".to_string(),
             "multi\n word".to_string(),
         ];
-        assert_eq!(vocabulary_csv(&words), "Swift,Rust,Rustscript,multi word");
+        assert_eq!(
+            keyword_boost_terms(&words, None),
+            vec!["Swift", "Rust", "Rustscript", "multi word"]
+        );
     }
 
     #[test]
