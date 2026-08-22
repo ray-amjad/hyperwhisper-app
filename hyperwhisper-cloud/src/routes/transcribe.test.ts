@@ -829,13 +829,20 @@ describe('self-only is a provider policy, not the length of a filtered chain', (
     // left is ['deepgram', 'groq'].
     const audio = new Uint8Array(1_000_000);
 
+    // Counted, not thrown: a throw from inside the mocked fetch is swallowed by
+    // fetchWithTimeout into a ProviderUnavailableError, so the chain would just
+    // carry on to deepgram and the 429 assertion below would still pass with
+    // the ElevenLabs filter deleted. The count is what actually fails then.
+    let elevenlabsCalls = 0;
+
     globalThis.fetch = mock(async (input: RequestInfo | URL) => {
       const url = String(input);
-      if (url.includes('api.deepgram.com') || url.includes('api.groq.com')) {
+      if (url.includes('api.elevenlabs.io')) {
+        elevenlabsCalls += 1;
         return new Response('upstream boom', { status: 503 });
       }
-      if (url.includes('api.elevenlabs.io')) {
-        throw new Error('ElevenLabs must not be attempted from a blocked region');
+      if (url.includes('api.deepgram.com') || url.includes('api.groq.com')) {
+        return new Response('upstream boom', { status: 503 });
       }
       throw new Error(`Unexpected fetch: ${url}`);
     }) as unknown as typeof fetch;
@@ -859,6 +866,9 @@ describe('self-only is a provider policy, not the length of a filtered chain', (
     // provider the caller deliberately pinned.
     expect(response.status).toBe(429);
     expect(body.error).toBe('All providers unavailable');
+    // ElevenLabs was dropped from the chain, so it was never called — the route
+    // did not simply try it and lose to its geo-block HTML.
+    expect(elevenlabsCalls).toBe(0);
   });
 
   test('a genuinely self-only provider still gets the 502 that says "no sibling ran"', async () => {

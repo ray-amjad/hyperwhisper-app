@@ -254,9 +254,16 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
 // two from disagreeing — and the flag was documentation only, since the route
 // re-derived self-only-ness from its own chain length. Deriving it from the one
 // authored chain makes that class of drift unrepresentable.
+//
+// The callback's return type is annotated on purpose. Without it the trailing
+// `as` would happily accept an entry that never added `selfOnly` at all — the
+// spec type is a supertype of the def, so tsc reads the assertion as a legal
+// narrowing — and `isSelfOnly()` would return undefined for every provider,
+// turning every self-only 502 into a misleading 429. With the annotation that
+// is a compile error.
 const PROVIDERS: Record<SttProviderId, SttProviderDef> = Object.fromEntries(
-  Object.entries(PROVIDER_SPECS).map(([id, spec]) => [
-    id,
+  Object.entries(PROVIDER_SPECS).map(([id, spec]): [SttProviderId, SttProviderDef] => [
+    id as SttProviderId,
     { ...spec, selfOnly: spec.fallbackChain.length === 1 },
   ]),
 ) as Record<SttProviderId, SttProviderDef>;

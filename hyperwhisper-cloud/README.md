@@ -90,7 +90,7 @@ The service is a proxy. Once a request reaches the upstream provider, that provi
 
 - `anthropic.ts` — Anthropic Claude (vision-capable model).
 
-Provider selection is per-request via the `X-STT-Provider` / `X-LLM-Provider` header. Fallback chains are defined in `src/routes/transcribe.ts` and `src/lib/llm-provider.ts`.
+Provider selection is per-request via the `X-STT-Provider` / `X-LLM-Provider` header. STT fallback chains are defined in `src/lib/stt-models.ts` (each provider's `fallbackChain`); LLM chains are in `src/lib/llm-provider.ts`.
 
 ## Credits and rate limiting
 

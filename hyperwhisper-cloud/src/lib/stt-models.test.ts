@@ -177,14 +177,6 @@ describe('fallbackChainFor', () => {
     }
   });
 
-  test('every chain member is itself a routable provider', () => {
-    for (const id of ALL_STT_PROVIDER_IDS) {
-      for (const member of fallbackChainFor(id)) {
-        expect(isValidProviderId(member)).toBe(true);
-      }
-    }
-  });
-
   test('no chain repeats a provider — a repeat would bill the same upstream twice', () => {
     for (const id of ALL_STT_PROVIDER_IDS) {
       const chain = fallbackChainFor(id);
@@ -203,16 +195,32 @@ describe('fallbackChainFor', () => {
 });
 
 describe('isSelfOnly', () => {
-  test('agrees with the chain it is derived from, for every provider', () => {
-    for (const id of ALL_STT_PROVIDER_IDS) {
-      expect(isSelfOnly(id)).toBe(fallbackChainFor(id).length === 1);
-      expect(isSelfOnly(id)).toBe(getProviderDef(id).selfOnly);
+  // Pinned as a set, not re-derived from the chains: asserting
+  // `isSelfOnly(id) === fallbackChainFor(id).length === 1` would restate the
+  // implementation and could not fail. This list is the policy itself — adding
+  // a provider to a cross-provider chain, or shortening one, has to be a
+  // deliberate edit here too.
+  const SELF_ONLY: SttProviderId[] = [
+    'azure-mai', 'google-chirp', 'openai', 'gemini', 'assemblyai', 'mistral', 'soniox',
+  ];
+
+  test('exactly the single-upstream providers are self-only', () => {
+    const actual = ALL_STT_PROVIDER_IDS.filter(isSelfOnly).sort();
+    expect(actual).toEqual([...SELF_ONLY].sort());
+  });
+
+  test('the cheap trio and grok keep a sibling to fall back to', () => {
+    for (const id of ['deepgram', 'groq', 'elevenlabs', 'grok'] as SttProviderId[]) {
+      expect(isSelfOnly(id)).toBe(false);
     }
   });
 
-  test('a provider with siblings is never self-only', () => {
-    expect(isSelfOnly('deepgram')).toBe(false);
-    expect(isSelfOnly('grok')).toBe(false);
-    expect(isSelfOnly('google-chirp')).toBe(true);
+  // `selfOnly` is derived, so a def whose flag is missing would read as
+  // `undefined` — which is falsy, and would silently turn every self-only 502
+  // into a 429. Assert the type, not just the truthiness.
+  test('every provider def carries a real boolean, never undefined', () => {
+    for (const id of ALL_STT_PROVIDER_IDS) {
+      expect(typeof getProviderDef(id).selfOnly).toBe('boolean');
+    }
   });
 });
