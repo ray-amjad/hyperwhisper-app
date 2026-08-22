@@ -238,6 +238,27 @@ final class NemotronProvider: TranscriptionProvider {
             return text.trimmingCharacters(in: .whitespacesAndNewlines)
         } catch {
             await manager.cleanup()
+
+            // `Task.isCancelled` is task-local: read it once here, at the catch
+            // site, and hand the value to the policy — the policy never reads it.
+            //
+            // Deliberately AFTER `manager.cleanup()` above: a cancelled pass still
+            // owes the teardown of its per-call manager's buffers.
+            let isTaskCancelled = Task.isCancelled
+
+            // A cancellation that the caller actually asked for is benign: the
+            // pipeline already maps `CancellationError` to `.idle` without a
+            // Sentry capture. Re-wrapping it as `.providerNotAvailable` is what
+            // defeated that and produced HYPERWHISPER-SQ. Note this is NOT the
+            // same as a bare `CancellationError` — see TranscriptionCancellationPolicy.
+            if TranscriptionCancellationPolicy.outcome(
+                for: error,
+                isTaskCancelled: isTaskCancelled
+            ) == .genuineCancellation {
+                logger.info("Nemotron transcription cancelled by the caller")
+                throw CancellationError()
+            }
+
             let errorDescription = error.localizedDescription
             let errorType = String(describing: type(of: error))
             logger.error("Nemotron \(variant.rawValue, privacy: .public) transcription failed: \(errorType, privacy: .public) - \(errorDescription, privacy: .public)")

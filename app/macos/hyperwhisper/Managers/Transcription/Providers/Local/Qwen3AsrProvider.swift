@@ -137,6 +137,27 @@ final class Qwen3AsrProvider: TranscriptionProvider {
             }
             return text.trimmingCharacters(in: .whitespacesAndNewlines)
         } catch {
+            // `Task.isCancelled` is task-local: read it once here, at the catch
+            // site, and hand the value to the policy — the policy never reads it.
+            let isTaskCancelled = Task.isCancelled
+
+            // A cancellation that the caller actually asked for is benign: the
+            // pipeline already maps `CancellationError` to `.idle` without a
+            // Sentry capture. Re-wrapping it as `.providerNotAvailable` is what
+            // defeated that and produced HYPERWHISPER-SQ. Note this is NOT the
+            // same as a bare `CancellationError` — see TranscriptionCancellationPolicy.
+            //
+            // Nothing to release first here: this provider's manager is cached on
+            // the `Runtime` actor across calls and takes no per-call residency
+            // claim, so the catch owns no cleanup on either exit.
+            if TranscriptionCancellationPolicy.outcome(
+                for: error,
+                isTaskCancelled: isTaskCancelled
+            ) == .genuineCancellation {
+                logger.info("Qwen3 ASR transcription cancelled by the caller")
+                throw CancellationError()
+            }
+
             let errorDescription = error.localizedDescription
             logger.error("Qwen3 ASR transcription failed: \(errorDescription, privacy: .public)")
 
