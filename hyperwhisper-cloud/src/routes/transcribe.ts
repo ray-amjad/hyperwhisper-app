@@ -23,7 +23,9 @@ import { AudioTooLargeError, ProviderInputError, ProviderUnavailableError, Unsup
 import { creditsForCost, estimatePromptInputReservationUsd, formatUsd } from '../lib/cost-calculator';
 import {
   estimatedUsdPerMinute,
+  fallbackChainFor,
   getProviderDef,
+  isSelfOnly,
   isValidProviderId,
   resolveModel,
   MEDICAL_DOMAIN,
@@ -94,25 +96,6 @@ function formatProviderName(provider: Provider, model: string): string {
   return model ? `${base}/${model}` : base;
 }
 
-// Fallback chains: the original cheap trio (plus grok) cascade through
-// alternatives — ElevenLabs (most expensive) is the last resort. Every other
-// provider is SELF-ONLY: the caller picked that specific model, so on failure
-// we surface an error rather than silently substituting a different model and
-// price. (A cross-provider fallback would also change the metered cost.)
-const FALLBACK_CHAINS: Record<Provider, Provider[]> = {
-  elevenlabs: ['elevenlabs', 'deepgram', 'groq'],
-  groq: ['groq', 'deepgram', 'elevenlabs'],
-  deepgram: ['deepgram', 'groq', 'elevenlabs'],
-  grok: ['grok', 'deepgram', 'groq', 'elevenlabs'],
-  'azure-mai': ['azure-mai'],
-  'google-chirp': ['google-chirp'],
-  openai: ['openai'],
-  gemini: ['gemini'],
-  assemblyai: ['assemblyai'],
-  mistral: ['mistral'],
-  soniox: ['soniox'],
-};
-
 const PROVIDER_FN: Record<Provider, (
   audio: ArrayBuffer,
   contentType: string,
@@ -148,7 +131,7 @@ export function estimateCreditsForProviderFallbacks(
   initialPrompt?: string,
   language?: string,
 ): number {
-  const chain = FALLBACK_CHAINS[provider];
+  const chain = fallbackChainFor(provider);
   const estimatedSeconds = estimateAudioSecondsFromSize(sizeBytes);
   const hasInitialPrompt = Boolean(initialPrompt);
   const rates = chain.map((p) => estimatedUsdPerMinute(
@@ -515,8 +498,8 @@ export async function transcribeRoute(c: Context) {
   // so we fall through to the next provider instead of failing the chain on
   // ElevenLabs's HTML-200 geo-block response.
   const chain = elevenlabsGeoBlocked
-    ? FALLBACK_CHAINS[provider].filter(p => p !== 'elevenlabs')
-    : FALLBACK_CHAINS[provider];
+    ? fallbackChainFor(provider).filter(p => p !== 'elevenlabs')
+    : fallbackChainFor(provider);
   let lastError: Error | undefined;
   let lastInputError: ProviderInputError | undefined;
   let sawUnavailable = false;
@@ -802,8 +785,12 @@ export async function transcribeRoute(c: Context) {
     // through siblings, just back off" — which is a lie when there are no
     // siblings. Return 502 with the upstream's actual error message so client
     // retry logic doesn't storm against a broken region.
-    const isSelfOnlyChain = chain.length === 1;
-    if (isSelfOnlyChain) {
+    //
+    // Ask the registry rather than measuring `chain`: that array is this
+    // request's own copy and may already have had a provider filtered out of
+    // it (the ElevenLabs geo-block above), so its length answers "how many did
+    // we try here", not "does this provider have siblings at all".
+    if (isSelfOnly(provider)) {
       logEvent(requestId, startTime, 'transcribe.request_fail', {
         kind: 'self_only_chain_failed',
         provider,

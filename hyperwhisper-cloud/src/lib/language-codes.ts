@@ -480,7 +480,7 @@ function resolveAzureMaiLocale(language: string): Resolution {
 // This allow-list is the whole point: without it `resolveElevenLabsLanguage`
 // could never return null, so a saved Mode on Basque or Yiddish forwarded a code
 // Scribe does not have, Scribe 4xx'd, `providerHttpError` raised
-// `ProviderInputError`, and `transcribe.ts` walked FALLBACK_CHAINS.elevenlabs
+// `ProviderInputError`, and `transcribe.ts` walked the elevenlabs fallback chain
 // down to deepgram/groq — moving the user off the provider they picked, with no
 // telemetry saying why. Every sibling resolver returns null here; this one now
 // does too.

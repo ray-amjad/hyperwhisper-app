@@ -46,10 +46,24 @@ export interface SttProviderDef {
   /** Model used when the caller omits an explicit model. */
   defaultModel: string;
   /**
+   * Ordered providers to attempt for a request that asked for this provider.
+   * The first entry is always the provider itself. The original cheap trio
+   * (deepgram/groq/elevenlabs) plus grok cascade through alternatives, with
+   * ElevenLabs (most expensive) as the last resort; every other provider is a
+   * chain of one.
+   *
+   * This is the single authored source of the fallback policy — `selfOnly`
+   * below is derived from it, so the two can never disagree.
+   */
+  fallbackChain: readonly SttProviderId[];
+  /**
    * Self-only providers never fall back to a sibling: the caller picked this
    * model for a reason, so on failure we surface an error rather than silently
    * substituting a different model/price. All new proxy providers are self-only;
    * the original cheap trio (deepgram/groq/elevenlabs) keep cross-fallback.
+   *
+   * DERIVED from `fallbackChain` — a chain of one has nobody to fall back to.
+   * Do not author it in the table below.
    */
   selfOnly: boolean;
   /** Whether this provider's transcription flow is async (upload + poll). */
@@ -58,6 +72,9 @@ export interface SttProviderDef {
   aliases?: Record<string, string>;
   models: SttModelDef[];
 }
+
+/** The authored half of a provider entry; `selfOnly` is computed from it. */
+type SttProviderSpec = Omit<SttProviderDef, 'selfOnly'>;
 
 // Medical add-on multiplier surface — only AssemblyAI meters it today.
 export const MEDICAL_DOMAIN = 'medical';
@@ -83,12 +100,12 @@ export const ASSEMBLYAI_SYNC_ESTIMATED_USD_PER_MINUTE = ASSEMBLYAI_SYNC_COST_PER
 // ElevenLabs keyterm prompting carries a +20% surcharge on base (scribe_v2 only).
 const ELEVENLABS_KEYTERMS_SURCHARGE = 0.20;
 
-const PROVIDERS: Record<SttProviderId, SttProviderDef> = {
+const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
   // ── Original cheap trio: cross-provider fallback retained ──
   deepgram: {
     id: 'deepgram',
     defaultModel: 'nova-3-general',
-    selfOnly: false,
+    fallbackChain: ['deepgram', 'groq', 'elevenlabs'],
     async: false,
     models: [
       { id: 'nova-3-general', supportsVocabulary: true, estimatedUsdPerMinute: 0.0055 },
@@ -100,7 +117,7 @@ const PROVIDERS: Record<SttProviderId, SttProviderDef> = {
   groq: {
     id: 'groq',
     defaultModel: 'whisper-large-v3-turbo',
-    selfOnly: false,
+    fallbackChain: ['groq', 'deepgram', 'elevenlabs'],
     async: false,
     models: [
       { id: 'whisper-large-v3-turbo', supportsVocabulary: true, estimatedUsdPerMinute: 0.000667 }, // $0.04/hr ÷ 60
@@ -110,7 +127,7 @@ const PROVIDERS: Record<SttProviderId, SttProviderDef> = {
   elevenlabs: {
     id: 'elevenlabs',
     defaultModel: 'scribe_v2',
-    selfOnly: false,
+    fallbackChain: ['elevenlabs', 'deepgram', 'groq'],
     async: false,
     // scribe_v1 was retired by ElevenLabs on 2026-07-09 (deprecated in favor of
     // scribe_v2 / scribe_v2_realtime — see ElevenLabs changelog 2026-6-8) and is
@@ -125,23 +142,22 @@ const PROVIDERS: Record<SttProviderId, SttProviderDef> = {
   grok: {
     id: 'grok',
     defaultModel: '',
-    // grok keeps its historical cross-provider fallback chain
-    // (grok → deepgram → groq → elevenlabs) defined in transcribe.ts.
-    selfOnly: false,
+    // grok keeps its historical cross-provider fallback chain.
+    fallbackChain: ['grok', 'deepgram', 'groq', 'elevenlabs'],
     async: false,
     models: [{ id: '', supportsVocabulary: true, estimatedUsdPerMinute: 0.00167 }],
   },
   'azure-mai': {
     id: 'azure-mai',
     defaultModel: 'mai-transcribe-1.5',
-    selfOnly: true,
+    fallbackChain: ['azure-mai'],
     async: false,
     models: [{ id: 'mai-transcribe-1.5', supportsVocabulary: true, estimatedUsdPerMinute: 0.006 }],
   },
   'google-chirp': {
     id: 'google-chirp',
     defaultModel: 'chirp_3',
-    selfOnly: true,
+    fallbackChain: ['google-chirp'],
     async: true,
     models: [{ id: 'chirp_3', supportsVocabulary: false, estimatedUsdPerMinute: 0.016 }],
   },
@@ -150,7 +166,7 @@ const PROVIDERS: Record<SttProviderId, SttProviderDef> = {
   openai: {
     id: 'openai',
     defaultModel: 'gpt-4o-transcribe',
-    selfOnly: true,
+    fallbackChain: ['openai'],
     async: false,
     // gpt-4o-* are token-billed (input audio + OUTPUT transcript tokens), so the
     // preflight rate adds a conservative output allowance on top of the input
@@ -181,7 +197,7 @@ const PROVIDERS: Record<SttProviderId, SttProviderDef> = {
   gemini: {
     id: 'gemini',
     defaultModel: 'gemini-2.5-flash',
-    selfOnly: true,
+    fallbackChain: ['gemini'],
     async: false,
     // No dedicated vocabulary API — prompt-only biasing, so supportsVocabulary
     // is false (clients shouldn't promise keyterm accuracy).
@@ -196,7 +212,7 @@ const PROVIDERS: Record<SttProviderId, SttProviderDef> = {
   mistral: {
     id: 'mistral',
     defaultModel: 'voxtral-mini-latest',
-    selfOnly: true,
+    fallbackChain: ['mistral'],
     async: false,
     models: [
       { id: 'voxtral-mini-latest', supportsVocabulary: true, estimatedUsdPerMinute: 0.003 },
@@ -209,7 +225,7 @@ const PROVIDERS: Record<SttProviderId, SttProviderDef> = {
     // Universal-3.5 Pro is the canonical successor. Old Pro callers are
     // redirected instead of forwarding an id that now errors upstream.
     defaultModel: 'universal-3-5-pro',
-    selfOnly: true,
+    fallbackChain: ['assemblyai'],
     async: true,
     aliases: {
       'universal-3-pro': 'universal-3-5-pro',
@@ -224,7 +240,7 @@ const PROVIDERS: Record<SttProviderId, SttProviderDef> = {
     id: 'soniox',
     // v4 is retained only as a compatibility alias for older callers.
     defaultModel: 'stt-async-v5',
-    selfOnly: true,
+    fallbackChain: ['soniox'],
     async: true,
     aliases: { 'stt-async-v4': 'stt-async-v5' },
     models: [
@@ -232,6 +248,25 @@ const PROVIDERS: Record<SttProviderId, SttProviderDef> = {
     ],
   },
 };
+
+// `selfOnly` is computed, never authored: it used to be a hand-written flag here
+// while the actual chains lived in routes/transcribe.ts, so nothing stopped the
+// two from disagreeing — and the flag was documentation only, since the route
+// re-derived self-only-ness from its own chain length. Deriving it from the one
+// authored chain makes that class of drift unrepresentable.
+//
+// The callback's return type is annotated on purpose. Without it the trailing
+// `as` would happily accept an entry that never added `selfOnly` at all — the
+// spec type is a supertype of the def, so tsc reads the assertion as a legal
+// narrowing — and `isSelfOnly()` would return undefined for every provider,
+// turning every self-only 502 into a misleading 429. With the annotation that
+// is a compile error.
+const PROVIDERS: Record<SttProviderId, SttProviderDef> = Object.fromEntries(
+  Object.entries(PROVIDER_SPECS).map(([id, spec]): [SttProviderId, SttProviderDef] => [
+    id as SttProviderId,
+    { ...spec, selfOnly: spec.fallbackChain.length === 1 },
+  ]),
+) as Record<SttProviderId, SttProviderDef>;
 
 const PROVIDER_IDS = new Set<string>(Object.keys(PROVIDERS));
 
@@ -246,6 +281,28 @@ export function isValidProviderId(value: string): value is SttProviderId {
 
 export function getProviderDef(provider: SttProviderId): SttProviderDef {
   return PROVIDERS[provider];
+}
+
+/**
+ * The ordered providers to attempt for a request that asked for `provider`.
+ * The first entry is always `provider` itself.
+ *
+ * Returns a fresh array, so a caller may filter or reorder its own copy (the
+ * transcribe route drops ElevenLabs when the request landed in a region where
+ * ElevenLabs is geo-blocked) without editing the registry for every later
+ * request on the machine.
+ */
+export function fallbackChainFor(provider: SttProviderId): SttProviderId[] {
+  return [...PROVIDERS[provider].fallbackChain];
+}
+
+/**
+ * True when `provider` has no sibling to fall back to. Ask this rather than
+ * measuring the length of a chain you hold: a caller-filtered chain can be
+ * short for reasons that have nothing to do with the provider's policy.
+ */
+export function isSelfOnly(provider: SttProviderId): boolean {
+  return PROVIDERS[provider].selfOnly;
 }
 
 export type ModelResolution =

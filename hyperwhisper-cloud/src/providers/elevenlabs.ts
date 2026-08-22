@@ -71,7 +71,7 @@ export async function transcribeWithElevenLabs(
   // Mandarin `zh` has to become `cmn`) and — the part that matters most —
   // returns null for a language Scribe simply does not have. Forwarding one of
   // those was a 4xx, which `providerHttpError` turns into `ProviderInputError`,
-  // which walks FALLBACK_CHAINS.elevenlabs down to deepgram/groq: the user is
+  // which walks the elevenlabs fallback chain down to deepgram/groq: the user is
   // moved off the provider they picked, silently. Auto-detect on the chosen
   // provider is the better answer, and now it is a logged one.
   const langCode = resolveProviderLanguage({ provider, model: modelId, language, context });

@@ -4,7 +4,8 @@ HyperWhisper Cloud — Bun + Hono transcription service on Fly.io. Routes audio 
 
 ## Project map
 
-- `src/routes/transcribe.ts` — main `/transcribe` route, fallback chain, header gates
+- `src/routes/transcribe.ts` — main `/transcribe` route, header gates, walks the chain the registry gives it
+- `src/lib/stt-models.ts` — STT registry: routable (provider, model) pairs, preflight rates, and each provider's `fallbackChain` (`selfOnly` is derived from it)
 - `src/providers/` — per-upstream clients (`deepgram.ts`, `groq.ts`, `elevenlabs.ts`, `xai-stt.ts`, `azure-mai.ts`, `google-chirp.ts`) plus shared `types.ts`, `utils.ts`
 - `src/lib/` — `constants.ts` (size caps + replay limit), `gcs-storage.ts`, `google-auth.ts`, `cost-calculator.ts`, `redis.ts`, `responses.ts`, `logging.ts`
 - `src/middleware/` — `auth.ts`, `credits.ts`, `rate-limit.ts`
@@ -117,7 +118,7 @@ Upload cap: 300 MB. Larger payloads throw `AudioTooLargeError('Azure MAI', ...)`
 Ref: https://learn.microsoft.com/en-us/azure/ai-services/speech-service/mai-transcribe
 </important>
 
-<important if="you are touching the ElevenLabs provider, the fly-replay logic, or the FALLBACK_CHAINS map">
+<important if="you are touching the ElevenLabs provider, the fly-replay logic, or a provider's `fallbackChain`">
 
 ElevenLabs is geo-blocked from `nrt` (JP), `bom` (IN), `maa` (IN) — the block surfaces as a 200 OK with a text/html FAQ page, NOT a JSON error. `transcribe.ts` sets a `fly-replay` header to `iad` when these regions handle an `elevenlabs` request.
 
@@ -126,7 +127,7 @@ Fly only honours replay for bodies ≤ 1 MB (we gate at 900 KB / `FLY_REPLAY_MAX
 - drop ElevenLabs from the active fallback chain
 - execute the next provider (Deepgram → Groq) in-region
 
-`google-chirp` and `azure-mai` are self-only chains; touching the chain map can break the "no silent substitution" contract.
+`google-chirp` and `azure-mai` are self-only chains; editing a `fallbackChain` in `src/lib/stt-models.ts` can break the "no silent substitution" contract. That field is the only place a chain is authored — the route asks for it via `fallbackChainFor()` and asks `isSelfOnly()` whether a provider has siblings. Never re-derive either in a caller.
 </important>
 
 <important if="you are touching a provider's data retention / logging / training opt-out behaviour, or adding a new provider">

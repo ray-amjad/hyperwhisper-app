@@ -1,9 +1,13 @@
 import { describe, expect, test } from 'bun:test';
 import {
+  ALL_STT_PROVIDER_IDS,
   estimatedUsdPerMinute,
+  fallbackChainFor,
   getProviderDef,
+  isSelfOnly,
   isValidProviderId,
   resolveModel,
+  type SttProviderId,
 } from './stt-models';
 
 describe('isValidProviderId', () => {
@@ -147,5 +151,76 @@ describe('getProviderDef', () => {
     expect(getProviderDef('assemblyai').async).toBe(true);
     expect(getProviderDef('soniox').async).toBe(true);
     expect(getProviderDef('openai').async).toBe(false);
+  });
+});
+
+describe('fallbackChainFor', () => {
+  // These four are the historical chains the transcribe route used to hold in
+  // its own FALLBACK_CHAINS map. Pinned here so moving the policy into the
+  // registry cannot quietly reorder or drop a provider.
+  test('the cheap trio and grok keep their historical cross-provider chains', () => {
+    expect(fallbackChainFor('deepgram')).toEqual(['deepgram', 'groq', 'elevenlabs']);
+    expect(fallbackChainFor('groq')).toEqual(['groq', 'deepgram', 'elevenlabs']);
+    expect(fallbackChainFor('elevenlabs')).toEqual(['elevenlabs', 'deepgram', 'groq']);
+    expect(fallbackChainFor('grok')).toEqual(['grok', 'deepgram', 'groq', 'elevenlabs']);
+  });
+
+  test('every other provider is a chain of one — no silent substitution', () => {
+    for (const id of ['azure-mai', 'google-chirp', 'openai', 'gemini', 'assemblyai', 'mistral', 'soniox'] as SttProviderId[]) {
+      expect(fallbackChainFor(id)).toEqual([id]);
+    }
+  });
+
+  test('every provider attempts itself first', () => {
+    for (const id of ALL_STT_PROVIDER_IDS) {
+      expect(fallbackChainFor(id)[0]).toBe(id);
+    }
+  });
+
+  test('no chain repeats a provider — a repeat would bill the same upstream twice', () => {
+    for (const id of ALL_STT_PROVIDER_IDS) {
+      const chain = fallbackChainFor(id);
+      expect(new Set(chain).size).toBe(chain.length);
+    }
+  });
+
+  // The route filters its own copy (it drops ElevenLabs in a geo-blocked
+  // region). That must not edit the registry for every later request the
+  // machine serves.
+  test('returns a fresh array the caller may mutate', () => {
+    const first = fallbackChainFor('deepgram');
+    first.pop();
+    expect(fallbackChainFor('deepgram')).toEqual(['deepgram', 'groq', 'elevenlabs']);
+  });
+});
+
+describe('isSelfOnly', () => {
+  // Pinned as a set, not re-derived from the chains: asserting
+  // `isSelfOnly(id) === fallbackChainFor(id).length === 1` would restate the
+  // implementation and could not fail. This list is the policy itself — adding
+  // a provider to a cross-provider chain, or shortening one, has to be a
+  // deliberate edit here too.
+  const SELF_ONLY: SttProviderId[] = [
+    'azure-mai', 'google-chirp', 'openai', 'gemini', 'assemblyai', 'mistral', 'soniox',
+  ];
+
+  test('exactly the single-upstream providers are self-only', () => {
+    const actual = ALL_STT_PROVIDER_IDS.filter(isSelfOnly).sort();
+    expect(actual).toEqual([...SELF_ONLY].sort());
+  });
+
+  test('the cheap trio and grok keep a sibling to fall back to', () => {
+    for (const id of ['deepgram', 'groq', 'elevenlabs', 'grok'] as SttProviderId[]) {
+      expect(isSelfOnly(id)).toBe(false);
+    }
+  });
+
+  // `selfOnly` is derived, so a def whose flag is missing would read as
+  // `undefined` — which is falsy, and would silently turn every self-only 502
+  // into a 429. Assert the type, not just the truthiness.
+  test('every provider def carries a real boolean, never undefined', () => {
+    for (const id of ALL_STT_PROVIDER_IDS) {
+      expect(typeof getProviderDef(id).selfOnly).toBe('boolean');
+    }
   });
 });
