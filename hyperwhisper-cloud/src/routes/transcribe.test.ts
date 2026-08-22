@@ -782,3 +782,112 @@ describe('what a latency row measures', () => {
     expect(samples[0].ok).toBe(true);
   });
 });
+
+/**
+ * "Has this provider got a sibling to fall back to?" is the registry's answer
+ * (`isSelfOnly`), not something a caller may measure off the chain array it is
+ * holding. The route filters its own copy of that array — it drops ElevenLabs
+ * when the request landed in a region where ElevenLabs is geo-blocked and the
+ * body was too large to fly-replay — so the array's length answers "how many
+ * did we try", which is a different question.
+ *
+ * The two answers agree for every provider today, which is exactly why this
+ * needs a test: a shorter ElevenLabs chain (say a fourth cheap provider
+ * retired) would make the old `chain.length === 1` derivation start returning
+ * 502 "elevenlabs unavailable" for a request ElevenLabs never even ran.
+ */
+describe('self-only is a provider policy, not the length of a filtered chain', () => {
+  const originalRegion = process.env.FLY_REGION;
+
+  beforeEach(() => {
+    process.env.DEEPGRAM_API_KEY = 'test-deepgram-key';
+    process.env.GROQ_API_KEY = 'test-groq-key';
+    process.env.ELEVENLABS_API_KEY = 'test-elevenlabs-key';
+    // A region where ElevenLabs serves its geo-block HTML instead of JSON.
+    process.env.FLY_REGION = 'nrt';
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    delete process.env.AZURE_SPEECH_KEY_SOUTHEASTASIA;
+    if (originalRegion === undefined) {
+      delete process.env.FLY_REGION;
+    } else {
+      process.env.FLY_REGION = originalRegion;
+    }
+  });
+
+  function buildApp(): Hono {
+    const app = new Hono();
+    app.post('/transcribe', transcribeRoute);
+    return app;
+  }
+
+  test('a geo-blocked, oversized ElevenLabs request that exhausts its siblings is 429, not 502', async () => {
+    // Over FLY_REPLAY_MAX_BODY_BYTES (900_000), so the route cannot replay the
+    // request to `iad` and drops ElevenLabs from the chain instead. What is
+    // left is ['deepgram', 'groq'].
+    const audio = new Uint8Array(1_000_000);
+
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('api.deepgram.com') || url.includes('api.groq.com')) {
+        return new Response('upstream boom', { status: 503 });
+      }
+      if (url.includes('api.elevenlabs.io')) {
+        throw new Error('ElevenLabs must not be attempted from a blocked region');
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    const response = await buildApp().fetch(new Request(
+      'http://localhost/transcribe?license_key=test-license&language=en',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'audio/wav',
+          'Content-Length': String(audio.byteLength),
+          'X-STT-Provider': 'elevenlabs',
+        },
+        body: audio,
+      },
+    ));
+    const body = await response.json() as { error: string };
+
+    // ElevenLabs is NOT self-only, so every sibling failing is "all providers
+    // unavailable" (429, retry later) — never the 502 the route reserves for a
+    // provider the caller deliberately pinned.
+    expect(response.status).toBe(429);
+    expect(body.error).toBe('All providers unavailable');
+  });
+
+  test('a genuinely self-only provider still gets the 502 that says "no sibling ran"', async () => {
+    // 'nrt' routes Azure MAI at its southeastasia resource (azure-mai.ts picks
+    // the key from FLY_REGION), so this is the key that attempt needs.
+    process.env.AZURE_SPEECH_KEY_SOUTHEASTASIA = 'test-azure-key';
+    const audio = new Uint8Array(2048);
+
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('api.cognitive.microsoft.com')) {
+        return new Response('upstream boom', { status: 503 });
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    const response = await buildApp().fetch(new Request(
+      'http://localhost/transcribe?license_key=test-license&language=en',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'audio/wav',
+          'Content-Length': String(audio.byteLength),
+          'X-STT-Provider': 'azure-mai',
+        },
+        body: audio,
+      },
+    ));
+
+    expect(response.status).toBe(502);
+  });
+});

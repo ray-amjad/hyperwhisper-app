@@ -120,7 +120,7 @@ export async function transcribeWithOpenAI(
   // in this repo pins the field's type, and `scripts/language-code-probe.ts` was
   // written precisely to settle it and has never been run. If `languages` is
   // array-typed, OpenAI's multipart convention wants `languages[]` and a bare
-  // scalar parses as the wrong type → 400. `FALLBACK_CHAINS.openai` is
+  // scalar parses as the wrong type → 400. The openai fallback chain is
   // self-only, so that 400 is terminal — transcribe.ts returns 400
   // "Transcription input rejected" and the transcription fails outright, on a
   // model marked `isPopular` on both platforms. The worst case for the singular
