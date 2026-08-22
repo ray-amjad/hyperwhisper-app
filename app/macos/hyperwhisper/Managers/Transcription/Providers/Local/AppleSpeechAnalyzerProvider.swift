@@ -136,7 +136,7 @@ final class AppleSpeechAnalyzerProvider: TranscriptionProvider {
 
             // Apply vocabulary replacements post-transcription
             if !vocabulary.isEmpty {
-                text = applyVocabulary(text, vocabulary: vocabulary)
+                text = VocabularyProcessor.applySubstringVocabulary(to: text, vocabulary: vocabulary)
             }
 
             let result = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -256,23 +256,6 @@ final class AppleSpeechAnalyzerProvider: TranscriptionProvider {
             logger.error("Failed to download speech assets: \(error.localizedDescription, privacy: .public)")
             throw TranscriptionError.modelNotDownloaded
         }
-    }
-
-    // VOCABULARY POST-PROCESSING:
-    // Applies custom vocabulary replacements to the transcribed text
-    // Case-insensitive and diacritic-insensitive matching
-    private func applyVocabulary(_ text: String, vocabulary: [Vocabulary]) -> String {
-        var updated = text
-        for entry in vocabulary {
-            guard let word = entry.word?.trimmingCharacters(in: .whitespacesAndNewlines), !word.isEmpty else {
-                continue
-            }
-            guard let replacement = entry.replacement?.trimmingCharacters(in: .whitespacesAndNewlines), !replacement.isEmpty else {
-                continue
-            }
-            updated = updated.replacingOccurrences(of: word, with: replacement, options: [.caseInsensitive, .diacriticInsensitive], range: nil)
-        }
-        return updated
     }
 }
 #endif

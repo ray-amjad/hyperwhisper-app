@@ -133,7 +133,7 @@ final class Qwen3AsrProvider: TranscriptionProvider {
         do {
             var text = try await manager.transcribe(audioSamples: audioSamples, language: langHint)
             if !vocabulary.isEmpty {
-                text = applyVocabulary(text, vocabulary: vocabulary)
+                text = VocabularyProcessor.applySubstringVocabulary(to: text, vocabulary: vocabulary)
             }
             return text.trimmingCharacters(in: .whitespacesAndNewlines)
         } catch {
@@ -223,19 +223,5 @@ final class Qwen3AsrProvider: TranscriptionProvider {
         }
 
         return Array(UnsafeBufferPointer(start: channelData, count: Int(outputBuffer.frameLength)))
-    }
-
-    private func applyVocabulary(_ text: String, vocabulary: [Vocabulary]) -> String {
-        var updated = text
-        for entry in vocabulary {
-            guard let word = entry.word?.trimmingCharacters(in: .whitespacesAndNewlines), !word.isEmpty else {
-                continue
-            }
-            guard let replacement = entry.replacement?.trimmingCharacters(in: .whitespacesAndNewlines), !replacement.isEmpty else {
-                continue
-            }
-            updated = updated.replacingOccurrences(of: word, with: replacement, options: [.caseInsensitive, .diacriticInsensitive], range: nil)
-        }
-        return updated
     }
 }
