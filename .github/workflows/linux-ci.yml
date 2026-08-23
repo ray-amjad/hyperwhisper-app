@@ -269,6 +269,13 @@ jobs:
               --no-build
           done
 
+      - name: Enforce production .NET line coverage
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/test-dotnet-coverage-policy.py
+          app/linux/scripts/run-dotnet-coverage.sh
+
       - name: Verify live PipeWire microphone transcription
         shell: bash
         run: |
