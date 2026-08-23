@@ -4,6 +4,7 @@ using System.Text.Json.Nodes;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.PortableApplication.Persistence;
+using HyperWhisper.PortableApplication.ViewModels;
 
 var root = Path.Combine(Path.GetTempPath(), "HyperWhisper.Backup.Application.Tests", Guid.NewGuid().ToString("N"));
 Directory.CreateDirectory(root);
@@ -139,13 +140,63 @@ try
         "cancellation was swallowed");
     Assert((await modes.ListAsync()).All(item => item.Name != "Must Roll Back"), "cancellation mutated the database");
 
+    var viewModelImportPath = Path.Combine(root, "view-model-import.json");
+    await File.WriteAllTextAsync(viewModelImportPath, importJson);
+    var backupViewModel = new BackupViewModel(service) { Path = viewModelImportPath };
+    await backupViewModel.InspectAsync();
+    Assert(backupViewModel.HasInspectedBackup && backupViewModel.Contents is
+        { ContainsCredentials: true, ContainsLicenseKey: true }
+        && backupViewModel.ContainsUnsupportedSensitiveData
+        && backupViewModel.SensitiveDataNotice.Contains("not supported", StringComparison.Ordinal),
+        "view model did not inspect or visibly reject sensitive backup fields");
+    Assert(backupViewModel.ImportModeSelections.Count == 2 && !backupViewModel.CanConfirmImport,
+        "view model did not expose inspected modes or required a preview");
+    backupViewModel.ImportSettings = false;
+    backupViewModel.ImportModes = false;
+    backupViewModel.SkipVocabularyConflicts = true;
+    await backupViewModel.PreviewAsync();
+    Assert(backupViewModel.CanConfirmImport && backupViewModel.Preview is
+        { WillImportSettings: false, ModesAdded: 0, ModesReplaced: 0, VocabularySkipped: 2 }
+        && backupViewModel.PreviewSummary.Contains("skip 2", StringComparison.Ordinal),
+        "view model preview did not reflect selected sections and conflict policy");
+    backupViewModel.ReplaceVocabularyConflicts = true;
+    Assert(!backupViewModel.CanConfirmImport, "changing a selection did not invalidate stale confirmation");
+    await backupViewModel.PreviewAsync();
+    await File.WriteAllTextAsync(viewModelImportPath, "not the inspected backup");
+    var importedEventRaised = false;
+    backupViewModel.Imported += (_, _) => importedEventRaised = true;
+    await backupViewModel.ImportAsync();
+    Assert(importedEventRaised && !backupViewModel.CanConfirmImport
+        && backupViewModel.OperationSummary.Contains("Imported settings: False", StringComparison.Ordinal),
+        "confirmed import did not use the inspected/previewed snapshot or expose its summary");
+
+    var viewModelExportPath = Path.Combine(root, "view-model-export.json");
+    backupViewModel.Path = viewModelExportPath;
+    backupViewModel.ExportSettings = false;
+    backupViewModel.ExportModes = false;
+    backupViewModel.ExportVocabulary = true;
+    await backupViewModel.ExportAsync();
+    var viewModelExport = JsonNode.Parse(await File.ReadAllTextAsync(viewModelExportPath))!.AsObject();
+    Assert(!viewModelExport.ContainsKey("settings") && !viewModelExport.ContainsKey("modes")
+        && viewModelExport.ContainsKey("vocabulary") && !viewModelExport.ContainsKey("apiKeys")
+        && backupViewModel.OperationSummary.Contains("account/license keys were excluded", StringComparison.Ordinal),
+        "view model export did not honor section selection or disclose sensitive-field exclusion");
+    backupViewModel.Path = "relative.json";
+    await backupViewModel.InspectAsync();
+    Assert(backupViewModel.Status.ErrorCode == "backup.path_required", "view model path validation was not stable");
+    backupViewModel.Path = viewModelImportPath;
+    using var viewModelCancellation = new CancellationTokenSource();
+    viewModelCancellation.Cancel();
+    await backupViewModel.InspectAsync(viewModelCancellation.Token);
+    Assert(backupViewModel.Status.ErrorCode == "backup.cancelled", "view model cancellation was not reported distinctly");
+
     var roundTrip = JsonNode.Parse(await service.ExportAsync())!.AsObject();
     Assert(roundTrip["platformExtensions"]!["windows"]!["futureWindows"]!.GetValue<int>() == 17
         && roundTrip["modes"]!.AsArray().Single(item => item!["id"]!.GetValue<string>() == first.Id.ToString("D"))!
             ["platformExtensions"]!["macos"]!["futureMac"]!.GetValue<string>() == "keep",
         "foreign platform extensions were not preserved across import/export");
 
-    Console.WriteLine("Backup application tests passed (19/19).");
+    Console.WriteLine("Backup application tests passed (27/27).");
 }
 finally
 {
