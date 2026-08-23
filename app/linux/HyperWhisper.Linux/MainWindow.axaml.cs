@@ -15,6 +15,8 @@ using HyperWhisper.CloudPostProcessing;
 using HyperWhisper.Linux.Overlay;
 using HyperWhisper.FileTranscription;
 using HyperWhisper.TranscriptionRouting;
+using HyperWhisper.CloudAccount;
+using System.Diagnostics;
 
 namespace HyperWhisper.Linux;
 
@@ -28,6 +30,7 @@ public partial class MainWindow : Window
     private readonly PortableSettingsService _settings;
     private readonly PortableModelManager _modelManager;
     private readonly HttpClient _modelHttp = new();
+    private readonly PortableCloudAccountService _cloudAccount;
     private readonly TranscriptionWorkflow _workflow;
     private readonly LinuxInteractionRecordingSession _recordingSession;
     private readonly LinuxInteractionCoordinator _interaction;
@@ -49,6 +52,7 @@ public partial class MainWindow : Window
         _database = new ApplicationDb(_platformServices.Paths);
         _settings = new PortableSettingsService(_platformServices.PrivateFiles, _platformServices.Paths);
         _modelManager = new PortableModelManager(_platformServices.Paths, _modelHttp);
+        _cloudAccount = new PortableCloudAccountService(_platformServices.CredentialStore);
         _postProcessor = new LinuxLocalPostProcessor(
             _platformServices.Paths.ModelsDirectory, _settings, _database);
         _postProcessingRouter = new LinuxPostProcessingRouter(
@@ -79,7 +83,11 @@ public partial class MainWindow : Window
                     _ => false,
                 }),
                 new CredentialStoreCloudCredentialSource(
-                    _platformServices.CredentialStore, _platformServices.DeviceIdentity)));
+                    _platformServices.CredentialStore, _platformServices.DeviceIdentity)),
+            _cloudAccount,
+            _platformServices.DeviceIdentity,
+            Environment.MachineName,
+            OpenAccountUri);
         var history = new HistoryRepository(_database, _platformServices.Paths);
         var contextCapture = new LinuxContextCaptureCoordinator(
             _platformServices.ApplicationContext, _platformServices.ScreenOcr);
@@ -162,6 +170,7 @@ public partial class MainWindow : Window
         _viewModel.Dispose();
         _postProcessor.Dispose();
         _postProcessingRouter.Dispose();
+        _cloudAccount.Dispose();
         _modelHttp.Dispose();
     }
 
@@ -364,6 +373,7 @@ public partial class MainWindow : Window
                 ["vocabulary"] = "VocabularyAddButton",
                 ["models"] = "ModelDownloadButton",
                 ["backup"] = "BackupExportButton",
+                ["account"] = "AccountActivateButton",
                 ["credentials"] = "CredentialSaveButton",
                 ["settings"] = "SettingsSaveButton"
             };
@@ -426,6 +436,14 @@ public partial class MainWindow : Window
                 || !HasVisibleControl("SettingsDesktopContextStatus")
                 || !HasVisibleControl("SettingsEnableErrorLogging")) return 10;
 
+            _viewModel.Navigate("account");
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+            if (!HasVisibleControl("AccountKeyInput")
+                || !HasVisibleControl("AccountStatusRefreshButton")
+                || !HasVisibleControl("AccountCreditsRefreshButton")
+                || !HasVisibleControl("AccountPurchaseButton")
+                || !HasVisibleControl("AccountManageButton")) return 16;
+
             if (_viewModel.History.Items.Count == 0
                 || _viewModel.Vocabulary.Items.Count == 0
                 || _viewModel.Modes.Items.Count == 0) return 6;
@@ -451,6 +469,22 @@ public partial class MainWindow : Window
 
     private bool HasVisibleControl(string name)
         => this.GetLogicalDescendants().OfType<Control>().Any(control => control.Name == name && control.IsVisible);
+
+    private static PlatformResult OpenAccountUri(Uri uri)
+    {
+        if (uri != CloudAccountLinks.Purchase && uri != CloudAccountLinks.ManageAccount)
+            return PlatformResult.Failure("account.link_rejected", "The account link was not recognized.");
+
+        try
+        {
+            _ = Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true });
+            return PlatformResult.Success();
+        }
+        catch
+        {
+            return PlatformResult.Failure("account.link_failed", "The account page could not be opened in the browser.");
+        }
+    }
 
     private async Task SeedSmokeDataAsync()
     {

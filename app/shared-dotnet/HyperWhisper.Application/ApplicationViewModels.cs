@@ -13,6 +13,7 @@ using HyperWhisper.ModelManagement;
 using HyperWhisper.AudioNormalization;
 using HyperWhisper.SpeechOutput;
 using HyperWhisper.SharedCore;
+using HyperWhisper.CloudAccount;
 
 namespace HyperWhisper.PortableApplication.ViewModels;
 
@@ -1412,7 +1413,7 @@ public sealed class CredentialManagementViewModel : ViewModelBase
         ("DeepgramApiKey", "Deepgram API key"), ("AssemblyAIApiKey", "AssemblyAI API key"),
         ("ElevenLabsApiKey", "ElevenLabs API key"), ("MistralApiKey", "Mistral API key"),
         ("SonioxApiKey", "Soniox API key"), ("GeminiApiKey", "Gemini API key"),
-        ("GrokApiKey", "xAI/Grok API key"), ("LicenseKey", "HyperWhisper account key")
+        ("GrokApiKey", "xAI/Grok API key")
     ];
 }
 
@@ -1436,7 +1437,11 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
         IAppPaths? paths = null,
         ICredentialStore? credentials = null,
         string localWhisperRuntimeStatus = "Local Whisper runtime not connected",
-        PortableFileTranscriptionPreflight? filePreflight = null)
+        PortableFileTranscriptionPreflight? filePreflight = null,
+        PortableCloudAccountService? cloudAccount = null,
+        IDeviceIdentityProvider? deviceIdentity = null,
+        string deviceName = "Linux device",
+        Func<Uri, PlatformResult>? openAccountUri = null)
     {
         _database = database;
         var historyRepository = new HistoryRepository(database, paths);
@@ -1466,6 +1471,9 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
         Models = modelManager is null ? null : new ModelLibraryViewModel(modelManager);
         Backup = new BackupViewModel(new ApplicationBackupService(database, settings));
         Credentials = credentials is null ? null : new CredentialManagementViewModel(credentials);
+        Account = cloudAccount is not null && deviceIdentity is not null && openAccountUri is not null
+            ? new CloudAccountViewModel(cloudAccount, deviceIdentity, deviceName, openAccountUri)
+            : null;
         Recording = transcriptionWorkflow is null ? null : new TranscriptionWorkflowViewModel(
             transcriptionWorkflow,
             () => CreateTranscriptionRequest(Modes.Selected), audioImport, filePreflight);
@@ -1483,6 +1491,7 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
     public ModelLibraryViewModel? Models { get; }
     public BackupViewModel Backup { get; }
     public CredentialManagementViewModel? Credentials { get; }
+    public CloudAccountViewModel? Account { get; }
     public TranscriptionWorkflowViewModel? Recording { get; }
     public UiStatus Status { get; } = new();
     public object? CurrentPage { get => _currentPage; private set => Set(ref _currentPage, value); }
@@ -1516,6 +1525,7 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
             await new HistoryRepository(_database).FailOrphanedProcessingAsync(_lifetime.Token);
             Settings.Load();
             await Task.WhenAll(Home.RefreshAsync(_lifetime.Token), History.RefreshAsync(_lifetime.Token), Vocabulary.RefreshAsync(_lifetime.Token), Modes.RefreshAsync(_lifetime.Token));
+            if (Account is not null) await Account.LoadAsync(_lifetime.Token);
             if (Settings.Status.HasError || Home.Status.HasError || History.Status.HasError
                 || Vocabulary.Status.HasError || Modes.Status.HasError)
             {
@@ -1541,6 +1551,7 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
             "models" when Models is not null => ("Models", Models),
             "backup" => ("Backup", Backup),
             "credentials" when Credentials is not null => ("Credentials", Credentials),
+            "account" when Account is not null => ("Cloud account", Account),
             _ => throw new ArgumentException("Unknown navigation page.", nameof(pageId))
         };
         PageTitle = selection.Title;

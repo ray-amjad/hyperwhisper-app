@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json.Nodes;
+using System.Text.Json;
 using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Platform.Abstractions;
@@ -9,6 +10,7 @@ using HyperWhisper.AudioNormalization;
 using HyperWhisper.SpeechOutput;
 using HyperWhisper.SharedCore;
 using HyperWhisper.PortableApplication.ViewModels;
+using HyperWhisper.CloudAccount;
 
 var root = Path.Combine(Path.GetTempPath(), "HyperWhisper.Application.Tests", Guid.NewGuid().ToString("N"));
 Directory.CreateDirectory(root);
@@ -390,8 +392,71 @@ try
     Assert(!credentialViewModel.Items.Single(item => item.Account == "OpenAIApiKey").IsPresent,
         "credential UI did not delete the stored credential");
     Assert(credentialViewModel.Items.Any(item => item.Account == "AnthropicApiKey")
-        && credentialViewModel.Items.Any(item => item.Account == "CerebrasApiKey"),
+        && credentialViewModel.Items.Any(item => item.Account == "CerebrasApiKey")
+        && credentialViewModel.Items.All(item => item.Account != "LicenseKey"),
         "credential UI omitted cloud post-processing providers");
+
+    const string accountKey = "account-key-must-never-remain-in-ui";
+    var accountStore = new MemoryCredentialStore();
+    var accountHttp = new CloudAccountHttpHandler();
+    using (var accountService = new PortableCloudAccountService(
+        accountStore,
+        new HttpClient(accountHttp) { Timeout = Timeout.InfiniteTimeSpan }))
+    {
+        var opened = new List<Uri>();
+        var account = new CloudAccountViewModel(
+            accountService,
+            new StaticDeviceIdentity(),
+            new string('R', 200) + "\nsecret host tail",
+            uri => { opened.Add(uri); return PlatformResult.Success(); })
+        {
+            AccountKey = accountKey,
+        };
+        await account.ActivateAsync();
+        Assert(account.HasAccount && account.AccountState == "Active"
+            && account.CustomerEmail == "ray@example.test"
+            && account.AccountKey.Length == 0
+            && !account.Status.Message.Contains(accountKey, StringComparison.Ordinal),
+            "account activation did not populate safe state or clear the submitted key");
+        Assert(accountHttp.ValidateDeviceName is { Length: 128 }
+            && !accountHttp.ValidateDeviceName.Any(char.IsControl),
+            "account activation did not bound and sanitize the device name");
+        await account.RefreshCreditsAsync();
+        Assert(account.Credits == "42.5" && account.MinutesRemaining == "7",
+            "account credit refresh did not update display state");
+        await account.OpenPurchaseAsync();
+        await account.OpenManageAsync();
+        Assert(opened.SequenceEqual(new[] { CloudAccountLinks.Purchase, CloudAccountLinks.ManageAccount })
+            && opened.All(uri => string.IsNullOrEmpty(uri.Query)),
+            "account view exposed an identifier-bearing or unexpected external URL");
+        await account.DeactivateAsync();
+        Assert(!account.HasAccount && !accountStore.HasAccount("LicenseKey")
+            && account.Status.Message.Contains("does not support remote key revocation", StringComparison.Ordinal),
+            "account deactivation did not disclose local-only semantics or remove the local key");
+    }
+
+    var blockingAccountHttp = new BlockingCloudAccountHttpHandler();
+    using (var blockingAccountService = new PortableCloudAccountService(
+        new MemoryCredentialStore(),
+        new HttpClient(blockingAccountHttp) { Timeout = Timeout.InfiniteTimeSpan }))
+    {
+        var gatedAccount = new CloudAccountViewModel(
+            blockingAccountService,
+            new StaticDeviceIdentity(),
+            "Ray Linux",
+            _ => PlatformResult.Success()) { AccountKey = "one-at-a-time" };
+        var activation = gatedAccount.ActivateAsync();
+        await blockingAccountHttp.Started.Task;
+        Assert(!gatedAccount.ActivateCommand.CanExecute(null)
+            && !gatedAccount.DeactivateCommand.CanExecute(null)
+            && !gatedAccount.RefreshCreditsCommand.CanExecute(null),
+            "account operation gate allowed overlapping activation, removal, or refresh");
+        blockingAccountHttp.Release.TrySetResult();
+        await activation;
+        Assert(gatedAccount.ActivateCommand.CanExecute(null)
+            && gatedAccount.DeactivateCommand.CanExecute(null),
+            "account operation gate did not re-enable commands after completion");
+    }
 
     var customModes = new HyperWhisper.PortableApplication.ViewModels.ModesViewModel(
         new ModeRepository(database), reloadedSettings, credentialStore)
@@ -1173,6 +1238,58 @@ file sealed class FailWriteCredentialStore : ICredentialStore
     public PlatformResult Write(string resource, string account, ReadOnlySpan<byte> value) =>
         PlatformResult.Failure("credentials.write_failed", "simulated secure store failure");
     public PlatformResult Delete(string resource, string account) => PlatformResult.Success();
+}
+
+file sealed class StaticDeviceIdentity : IDeviceIdentityProvider
+{
+    public PlatformResult<DeviceIdentity> GetDeviceIdentity() => PlatformResult<DeviceIdentity>.Success(
+        new DeviceIdentity("privacy-preserving-device-id", DeviceIdentitySource.StoredFallback));
+}
+
+file sealed class CloudAccountHttpHandler : HttpMessageHandler
+{
+    public string? ValidateDeviceName { get; private set; }
+
+    protected override async Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken)
+    {
+        var path = request.RequestUri?.AbsolutePath;
+        if (path == "/api/license/validate")
+        {
+            using var body = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(cancellationToken));
+            ValidateDeviceName = body.RootElement.GetProperty("device_name").GetString();
+            return Json("{\"valid\":true,\"customer_id\":\"customer-1\",\"customer_email\":\"ray@example.test\",\"expires_at\":\"2030-01-02T03:04:05Z\"}");
+        }
+        if (path == "/usage")
+            return Json("{\"credits_remaining\":42.5,\"minutes_remaining\":7,\"credits_per_minute\":5.5,\"is_licensed\":true,\"is_anonymous\":false}");
+        if (path == "/api/license/deactivate")
+            return Json("{\"success\":true}");
+        return new HttpResponseMessage(System.Net.HttpStatusCode.NotFound);
+    }
+
+    private static HttpResponseMessage Json(string body) => new(System.Net.HttpStatusCode.OK)
+    {
+        Content = new StringContent(body, Encoding.UTF8, "application/json"),
+    };
+}
+
+file sealed class BlockingCloudAccountHttpHandler : HttpMessageHandler
+{
+    public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    protected override async Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken)
+    {
+        Started.TrySetResult();
+        await Release.Task.WaitAsync(cancellationToken);
+        return new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+        {
+            Content = new StringContent("{\"valid\":true}", Encoding.UTF8, "application/json"),
+        };
+    }
 }
 
 file sealed class DelayedHttpHandler : HttpMessageHandler
