@@ -16,6 +16,7 @@ public enum StorageLifecycleStatus
     Disabled,
     InvalidPolicy,
     UnsafeRecordingsRoot,
+    PersistenceFailure,
     PartialFailure
 }
 
@@ -65,6 +66,10 @@ public sealed class PortableStorageLifecycleService
             _operationGate.Release();
         }
     }
+
+    /// <summary>Returns true only for an existing regular file reached without crossing a link.</summary>
+    public bool IsAppOwnedRecording(string? path) =>
+        !string.IsNullOrWhiteSpace(path) && IsSafeRoot() && InspectCandidate(path) is not null;
 
     /// <summary>Runs the configured age cleanup immediately, matching the Windows Delete Now behavior.</summary>
     public Task<StorageCleanupResult> DeleteNowAsync(

@@ -599,6 +599,8 @@ public sealed class ApplicationBackupService(ApplicationDb database, PortableSet
         linuxSettings["autoIncreaseMicVolume"] = _settings.Get("autoIncreaseMicVolume", false);
         linuxSettings["keepMicrophoneWarm"] = _settings.Get("keepMicrophoneWarm", false);
         linuxSettings["audioEnvironmentPolicy"] = _settings.Get("audioEnvironmentPolicy", "unchanged");
+        linuxSettings["autoDeleteEnabled"] = _settings.Get("autoDeleteEnabled", false);
+        linuxSettings["autoDeleteDaysOld"] = _settings.Get("autoDeleteDaysOld", 30);
         linuxSettings["customEndpoints"] = JsonSerializer.SerializeToNode(
             _settings.Get<PortableCustomPostProcessingEndpoint[]>("customEndpoints", []), SerializerOptions);
         linuxExtension["settings"] = linuxSettings;
@@ -707,6 +709,8 @@ public sealed class ApplicationBackupService(ApplicationDb database, PortableSet
                     CopySetting<bool>(linuxSettings, "autoIncreaseMicVolume");
                     CopySetting<bool>(linuxSettings, "keepMicrophoneWarm");
                     CopySetting<string>(linuxSettings, "audioEnvironmentPolicy");
+                    CopySetting<bool>(linuxSettings, "autoDeleteEnabled");
+                    CopySetting<int>(linuxSettings, "autoDeleteDaysOld");
                     if (linuxSettings["customEndpoints"] is { } customEndpoints)
                         _settings.Set("customEndpoints", customEndpoints.Deserialize<PortableCustomPostProcessingEndpoint[]>(SerializerOptions) ?? []);
                 }

@@ -1037,6 +1037,9 @@ public sealed class SettingsViewModel : ViewModelBase
     private bool _enableSoundEffects = true;
     private bool _autoIncreaseMicVolume;
     private bool _keepMicrophoneWarm;
+    private bool _keepAudioFiles = true;
+    private bool _autoDeleteEnabled;
+    private int _autoDeleteDaysOld = 30;
     private string _audioEnvironmentPolicy = "unchanged";
     private string _desktopContextStatus = "Desktop context capability not checked";
     private bool _enableErrorLogging = true;
@@ -1082,6 +1085,9 @@ public sealed class SettingsViewModel : ViewModelBase
     public bool EnableSoundEffects { get => _enableSoundEffects; set => Set(ref _enableSoundEffects, value); }
     public bool AutoIncreaseMicVolume { get => _autoIncreaseMicVolume; set => Set(ref _autoIncreaseMicVolume, value); }
     public bool KeepMicrophoneWarm { get => _keepMicrophoneWarm; set => Set(ref _keepMicrophoneWarm, value); }
+    public bool KeepAudioFiles { get => _keepAudioFiles; set => Set(ref _keepAudioFiles, value); }
+    public bool AutoDeleteEnabled { get => _autoDeleteEnabled; set => Set(ref _autoDeleteEnabled, value); }
+    public int AutoDeleteDaysOld { get => _autoDeleteDaysOld; set => Set(ref _autoDeleteDaysOld, Math.Clamp(value, 1, 365)); }
     public string AudioEnvironmentPolicy { get => _audioEnvironmentPolicy; set => Set(ref _audioEnvironmentPolicy, NormalizeAudioPolicy(value)); }
     public string DesktopContextStatus { get => _desktopContextStatus; set => Set(ref _desktopContextStatus, value ?? string.Empty); }
     public bool EnableErrorLogging { get => _enableErrorLogging; set => Set(ref _enableErrorLogging, value); }
@@ -1127,6 +1133,7 @@ public sealed class SettingsViewModel : ViewModelBase
     public event EventHandler? LocalApiSettingsChanged;
     public event EventHandler? DesktopSettingsChanged;
     public event EventHandler? TelemetrySettingsChanged;
+    public event EventHandler? StorageSettingsChanged;
     public void Load()
     {
         var result = _settings.Load();
@@ -1157,6 +1164,9 @@ public sealed class SettingsViewModel : ViewModelBase
         EnableSoundEffects = _settings.Get("general.enableSoundEffects", true);
         AutoIncreaseMicVolume = _settings.Get("autoIncreaseMicVolume", false);
         KeepMicrophoneWarm = _settings.Get("keepMicrophoneWarm", false);
+        KeepAudioFiles = _settings.Get("storage.keepAudioFiles", true);
+        AutoDeleteEnabled = _settings.Get("autoDeleteEnabled", false);
+        AutoDeleteDaysOld = _settings.Get("autoDeleteDaysOld", 30);
         AudioEnvironmentPolicy = _settings.Get("audioEnvironmentPolicy", "unchanged") ?? "unchanged";
         EnableErrorLogging = _settings.Get("general.enableErrorLogging", true);
         LocalWhisperBackend = _settings.Get("localWhisperBackend", "auto") ?? "auto";
@@ -1199,12 +1209,15 @@ public sealed class SettingsViewModel : ViewModelBase
         _settings.Set("general.enableSoundEffects", EnableSoundEffects);
         _settings.Set("autoIncreaseMicVolume", AutoIncreaseMicVolume);
         _settings.Set("keepMicrophoneWarm", KeepMicrophoneWarm);
+        _settings.Set("storage.keepAudioFiles", KeepAudioFiles);
+        _settings.Set("autoDeleteEnabled", AutoDeleteEnabled);
+        _settings.Set("autoDeleteDaysOld", Math.Clamp(AutoDeleteDaysOld, 1, 365));
         _settings.Set("audioEnvironmentPolicy", NormalizeAudioPolicy(AudioEnvironmentPolicy));
         _settings.Set("general.enableErrorLogging", EnableErrorLogging);
         _settings.Set("localWhisperBackend", NormalizeWhisperBackend(LocalWhisperBackend));
         _settings.Set("allowLocalWhisperCpuFallback", AllowLocalWhisperCpuFallback);
         var result = _settings.Save();
-        if (result.IsSuccess) { Status.Success("Settings saved"); LocalApiSettingsChanged?.Invoke(this, EventArgs.Empty); DesktopSettingsChanged?.Invoke(this, EventArgs.Empty); TelemetrySettingsChanged?.Invoke(this, EventArgs.Empty); }
+        if (result.IsSuccess) { Status.Success("Settings saved"); LocalApiSettingsChanged?.Invoke(this, EventArgs.Empty); DesktopSettingsChanged?.Invoke(this, EventArgs.Empty); TelemetrySettingsChanged?.Invoke(this, EventArgs.Empty); StorageSettingsChanged?.Invoke(this, EventArgs.Empty); }
         else Status.Failure(result.Error!.Code, result.Error.Message);
     }
 

@@ -3,6 +3,7 @@ using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.SpeechOutput;
 using HyperWhisper.SharedCore;
+using HyperWhisper.Storage;
 
 namespace HyperWhisper.PortableApplication.Transcription;
 
@@ -72,6 +73,19 @@ public interface IRecordedAudioTranscriber
         string audioPath,
         string? language,
         CancellationToken cancellationToken = default);
+}
+
+public sealed class CompletedAudioRetention(
+    Func<bool> keepAudio,
+    PortableStorageLifecycleService storage)
+{
+    private readonly Func<bool> _keepAudio = keepAudio ?? throw new ArgumentNullException(nameof(keepAudio));
+    private readonly PortableStorageLifecycleService _storage = storage ?? throw new ArgumentNullException(nameof(storage));
+
+    public bool ShouldKeepAudio => _keepAudio();
+
+    public Task<StorageCleanupResult> DeleteAsync(string path, CancellationToken cancellationToken) =>
+        _storage.EnforceKeepAudioAsync(path, keepAudio: false, cancellationToken);
 }
 
 public sealed record PortablePostProcessingResult(
@@ -205,6 +219,7 @@ public sealed class TranscriptionWorkflow : IDisposable
     private readonly ITranscriptionPostProcessor? _postProcessor;
     private readonly ITextInjectionService? _textInjection;
     private readonly ITranscriptionHistoryStore _history;
+    private readonly CompletedAudioRetention? _audioRetention;
     private readonly bool _ownsDependencies;
     private IReadOnlyList<AudioInputDevice> _audioDevices = [];
     private string? _selectedDeviceId;
@@ -222,12 +237,14 @@ public sealed class TranscriptionWorkflow : IDisposable
         ITranscriptionHistoryStore history,
         ITranscriptionPostProcessor? postProcessor = null,
         ITextInjectionService? textInjection = null,
-        bool ownsDependencies = false)
+        bool ownsDependencies = false,
+        CompletedAudioRetention? audioRetention = null)
     {
         _recorder = recorder ?? throw new ArgumentNullException(nameof(recorder));
         _devices = devices ?? throw new ArgumentNullException(nameof(devices));
         _transcriber = transcriber ?? throw new ArgumentNullException(nameof(transcriber));
         _history = history ?? throw new ArgumentNullException(nameof(history));
+        _audioRetention = audioRetention;
         _postProcessor = postProcessor;
         _textInjection = textInjection;
         _ownsDependencies = ownsDependencies;
@@ -638,8 +655,22 @@ public sealed class TranscriptionWorkflow : IDisposable
             transcript.Status = TranscriptStatus.Completed;
             transcript.TranscriptionProvider = result.Provider ?? _transcriber.Capability.DisplayName;
             transcript.PostProcessingProvider = postProcessingProvider;
+            var deleteCompletedAudio = ownsAudio && _audioRetention is not null && !_audioRetention.ShouldKeepAudio;
+            if (deleteCompletedAudio) transcript.AudioFilePath = null;
             if (!await _history.UpdateAsync(transcript, operation.Token).ConfigureAwait(false))
                 throw new InvalidOperationException("The processing transcript disappeared before completion.");
+            if (deleteCompletedAudio)
+            {
+                try
+                {
+                    _ = await _audioRetention!.DeleteAsync(audioPath, operation.Token).ConfigureAwait(false);
+                }
+                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+                {
+                    // The transcript is complete and no longer references the file.
+                    // The recording-root inventory still reports the orphan.
+                }
+            }
             lock (_sync)
             {
                 FinishOperationLocked(operation);

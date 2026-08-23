@@ -17,6 +17,7 @@ using HyperWhisper.FileTranscription;
 using HyperWhisper.TranscriptionRouting;
 using HyperWhisper.CloudAccount;
 using System.Diagnostics;
+using HyperWhisper.Storage;
 
 namespace HyperWhisper.Linux;
 
@@ -31,6 +32,8 @@ public partial class MainWindow : Window
     private readonly PortableModelManager _modelManager;
     private readonly HttpClient _modelHttp = new();
     private readonly PortableCloudAccountService _cloudAccount;
+    private readonly PortableStorageLifecycleService _storageLifecycle;
+    private readonly TranscriptStorageCoordinator _storageCoordinator;
     private readonly TranscriptionWorkflow _workflow;
     private readonly LinuxInteractionRecordingSession _recordingSession;
     private readonly LinuxInteractionCoordinator _interaction;
@@ -38,7 +41,11 @@ public partial class MainWindow : Window
     private PortableLocalApiHost? _localApiHost;
     private Task? _initialization;
     private readonly SemaphoreSlim _localApiSettingsGate = new(1, 1);
+    private readonly SemaphoreSlim _storageMaintenanceGate = new(1, 1);
     private readonly CancellationTokenSource _lifetime = new();
+    private readonly PeriodicTimer _storageTimer = new(TimeSpan.FromHours(1));
+    private Task? _storageMaintenance;
+    private TranscriptStorageCleanupResult? _lastStorageCleanup;
     private bool _allowClose;
 
     public MainWindow() : this(new LinuxDesktopServices())
@@ -53,6 +60,9 @@ public partial class MainWindow : Window
         _settings = new PortableSettingsService(_platformServices.PrivateFiles, _platformServices.Paths);
         _modelManager = new PortableModelManager(_platformServices.Paths, _modelHttp);
         _cloudAccount = new PortableCloudAccountService(_platformServices.CredentialStore);
+        _storageLifecycle = new PortableStorageLifecycleService(
+            _platformServices.Paths, _platformServices.PrivateFiles);
+        _storageCoordinator = new TranscriptStorageCoordinator(_database, _storageLifecycle);
         _postProcessor = new LinuxLocalPostProcessor(
             _platformServices.Paths.ModelsDirectory, _settings, _database);
         _postProcessingRouter = new LinuxPostProcessingRouter(
@@ -67,7 +77,9 @@ public partial class MainWindow : Window
             _platformServices.AudioTranscriber,
             new HistoryRepository(_database, _platformServices.Paths),
             _postProcessingRouter,
-            _platformServices.TextInjection);
+            _platformServices.TextInjection,
+            audioRetention: new CompletedAudioRetention(
+                () => _settings.Get("storage.keepAudioFiles", true), _storageLifecycle));
         _viewModel = new ApplicationShellViewModel(
             _database, _settings, _workflow, LinuxLocalPostProcessor.RuntimeStatus,
             _modelManager, _platformServices.AudioPlayback,
@@ -106,6 +118,7 @@ public partial class MainWindow : Window
         _viewModel.Settings.LocalApiSettingsChanged += OnLocalApiSettingsChanged;
         _viewModel.Settings.DesktopSettingsChanged += OnDesktopSettingsChanged;
         _viewModel.Settings.TelemetrySettingsChanged += OnTelemetrySettingsChanged;
+        _viewModel.Settings.StorageSettingsChanged += OnStorageSettingsChanged;
         _interaction.OperationFailed += OnInteractionFailed;
         _interaction.ChangeModeRequested += OnChangeModeRequested;
         _platformServices.Tray.ShowRequested += OnTrayShowRequested;
@@ -121,6 +134,8 @@ public partial class MainWindow : Window
             await ApplyLocalApiSettingsAsync(_lifetime.Token);
             ApplyTelemetrySettings();
             ApplyDesktopSettings();
+            await RunStorageMaintenanceAsync(_lifetime.Token);
+            _storageMaintenance = RunStorageMaintenanceLoopAsync(_lifetime.Token);
             var tray = await _platformServices.Tray.StartAsync(_lifetime.Token);
             if (tray.IsFailure)
                 PlatformStatusText.Text += $" · Tray unavailable; window fallback active ({tray.Error!.Message})";
@@ -136,12 +151,14 @@ public partial class MainWindow : Window
     {
         if (_allowClose) return;
         _lifetime.Cancel();
-        if (!_recordingSession.IsActive && _localApiHost is null) return;
+        if (!_recordingSession.IsActive && _localApiHost is null
+            && _storageMaintenance is not { IsCompleted: false }) return;
         e.Cancel = true;
         try
         {
             if (_recordingSession.IsActive) await _interaction.CancelRecordingAsync();
             await ShutdownLocalApiAsync();
+            if (_storageMaintenance is not null) await _storageMaintenance;
         }
         catch { _viewModel.Status.Failure("interaction.close_cancel_failed", "The active recording could not be cancelled cleanly."); }
         finally
@@ -160,6 +177,7 @@ public partial class MainWindow : Window
         _viewModel.Settings.LocalApiSettingsChanged -= OnLocalApiSettingsChanged;
         _viewModel.Settings.DesktopSettingsChanged -= OnDesktopSettingsChanged;
         _viewModel.Settings.TelemetrySettingsChanged -= OnTelemetrySettingsChanged;
+        _viewModel.Settings.StorageSettingsChanged -= OnStorageSettingsChanged;
         _interaction.OperationFailed -= OnInteractionFailed;
         _interaction.ChangeModeRequested -= OnChangeModeRequested;
         _platformServices.Tray.ShowRequested -= OnTrayShowRequested;
@@ -172,6 +190,7 @@ public partial class MainWindow : Window
         _postProcessingRouter.Dispose();
         _cloudAccount.Dispose();
         _modelHttp.Dispose();
+        _storageTimer.Dispose();
     }
 
     private Task EnsureInitializedAsync() => _initialization ??= _viewModel.InitializeAsync();
@@ -190,6 +209,101 @@ public partial class MainWindow : Window
     }
 
     private void OnTelemetrySettingsChanged(object? sender, EventArgs e) => ApplyTelemetrySettings();
+
+    private async void OnStorageSettingsChanged(object? sender, EventArgs e)
+    {
+        try { await RunStorageMaintenanceAsync(_lifetime.Token); }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch { SetStorageText("StorageStatusText", "Storage maintenance could not be completed."); }
+    }
+
+    private async Task RunStorageMaintenanceLoopAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            while (await _storageTimer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false))
+                await RunStorageMaintenanceAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+    }
+
+    private async Task RunStorageMaintenanceAsync(CancellationToken cancellationToken)
+    {
+        await _storageMaintenanceGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            var settings = _viewModel.Settings;
+            _lastStorageCleanup = await _storageCoordinator.CleanupAsync(
+                new StorageRetentionPolicy(settings.KeepAudioFiles, settings.AutoDeleteEnabled, settings.AutoDeleteDaysOld),
+                DateTimeOffset.UtcNow,
+                cancellationToken).ConfigureAwait(false);
+            var inventory = await _storageCoordinator.InventoryAsync(cancellationToken).ConfigureAwait(false);
+            await Dispatcher.UIThread.InvokeAsync(() => UpdateStorageStatus(inventory, _lastStorageCleanup));
+        }
+        finally
+        {
+            _storageMaintenanceGate.Release();
+        }
+    }
+
+    private void UpdateStorageStatus(RecordingInventoryResult inventory, TranscriptStorageCleanupResult? cleanup)
+    {
+        var size = inventory.TotalBytes < 1024 * 1024
+            ? $"{inventory.TotalBytes / 1024d:0.0} KiB"
+            : $"{inventory.TotalBytes / (1024d * 1024d):0.0} MiB";
+        var cleanupText = cleanup is null || cleanup.Status == StorageLifecycleStatus.Disabled
+            ? "No enabled cleanup has run."
+            : $"Last cleanup: {cleanup.CompletedAtUtc.LocalDateTime:g}; {cleanup.TranscriptsDeleted} transcripts and {cleanup.AudioFilesDeleted} audio files removed.";
+        SetStorageText("StoragePathText", _platformServices.Paths.RecordingsDirectory);
+        SetStorageText("StorageStatusText", $"{inventory.FileCount} app-owned audio files · {size}. {cleanupText}");
+    }
+
+    private async void OnDeleteStoredAudioNow(object? sender, RoutedEventArgs e)
+    {
+        try { await RunStorageMaintenanceAsync(_lifetime.Token); }
+        catch { SetStorageText("StorageStatusText", "Storage cleanup failed; external audio was not touched."); }
+    }
+
+    private async void OnRefreshStorage(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            await _storageMaintenanceGate.WaitAsync(_lifetime.Token);
+            try
+            {
+                var inventory = await _storageCoordinator.InventoryAsync(_lifetime.Token);
+                UpdateStorageStatus(inventory, _lastStorageCleanup);
+            }
+            finally
+            {
+                _storageMaintenanceGate.Release();
+            }
+        }
+        catch { SetStorageText("StorageStatusText", "Storage inventory could not be read."); }
+    }
+
+    private void OnOpenRecordingsFolder(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            Directory.CreateDirectory(_platformServices.Paths.RecordingsDirectory,
+                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            var start = new ProcessStartInfo("xdg-open")
+            {
+                UseShellExecute = false,
+            };
+            start.ArgumentList.Add(_platformServices.Paths.RecordingsDirectory);
+            _ = Process.Start(start);
+        }
+        catch { SetStorageText("StorageStatusText", "The fixed XDG recordings folder could not be opened."); }
+    }
+
+    private void SetStorageText(string name, string text)
+    {
+        var control = this.GetLogicalDescendants().OfType<TextBlock>()
+            .FirstOrDefault(candidate => candidate.Name == name);
+        if (control is not null) control.Text = text;
+    }
 
     private void ApplyTelemetrySettings()
     {
@@ -432,6 +546,11 @@ public partial class MainWindow : Window
                 || !HasVisibleControl("SettingsStreamingEnabled")
                 || !HasVisibleControl("SettingsStreamingProvider")
                 || !HasVisibleControl("SettingsAudioEnvironmentPolicy")
+                || !HasVisibleControl("SettingsKeepAudioFiles")
+                || !HasVisibleControl("SettingsAutoDeleteEnabled")
+                || !HasVisibleControl("SettingsAutoDeleteDays")
+                || !HasVisibleControl("SettingsStorageDeleteNow")
+                || !HasVisibleControl("SettingsStorageOpenFolder")
                 || !HasVisibleControl("SettingsAutostart")
                 || !HasVisibleControl("SettingsDesktopContextStatus")
                 || !HasVisibleControl("SettingsEnableErrorLogging")) return 10;
