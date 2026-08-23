@@ -158,6 +158,8 @@ jobs:
             libsm6 \
             libx11-6 \
             shellcheck \
+            weston \
+            xwayland \
             xvfb
 
       - name: Build shared .NET platform abstractions
@@ -246,6 +248,7 @@ jobs:
           fi
 
           app/linux/scripts/run-ui-smoke.sh
+          app/linux/scripts/run-ui-smoke-xwayland.sh
 
           dotnet publish \
             app/linux/HyperWhisper.Linux/HyperWhisper.Linux.csproj \
@@ -268,6 +271,8 @@ jobs:
         run: |
           set -euo pipefail
           shellcheck \
+            app/linux/scripts/run-ui-smoke-xwayland.sh \
+            app/linux/scripts/run-ui-smoke.sh \
             packaging/linux/scripts/build-deb.sh \
             packaging/linux/scripts/test-package.sh \
             packaging/linux/scripts/generate-apt-repository.sh \
