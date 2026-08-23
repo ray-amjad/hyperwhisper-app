@@ -2078,9 +2078,12 @@ public sealed class BackupViewModel : ViewModelBase
     private bool _exportSettings = true;
     private bool _exportModes = true;
     private bool _exportVocabulary = true;
+    private bool _exportCredentials;
+    private bool _plaintextCredentialExportAcknowledged;
     private bool _importSettings = true;
     private bool _importModes = true;
     private bool _importVocabulary = true;
+    private bool _importCredentials;
     private bool _replaceAllModes = true;
     private VocabularyConflictPolicy _vocabularyConflictPolicy = VocabularyConflictPolicy.Replace;
     private BackupContents? _contents;
@@ -2112,9 +2115,26 @@ public sealed class BackupViewModel : ViewModelBase
     public bool ExportSettings { get => _exportSettings; set => Set(ref _exportSettings, value); }
     public bool ExportModes { get => _exportModes; set => Set(ref _exportModes, value); }
     public bool ExportVocabulary { get => _exportVocabulary; set => Set(ref _exportVocabulary, value); }
+    public bool ExportCredentials
+    {
+        get => _exportCredentials;
+        set
+        {
+            if (!Set(ref _exportCredentials, value)) return;
+            if (!value) PlaintextCredentialExportAcknowledged = false;
+        }
+    }
+    public bool PlaintextCredentialExportAcknowledged
+    {
+        get => _plaintextCredentialExportAcknowledged;
+        set => Set(ref _plaintextCredentialExportAcknowledged, value);
+    }
+    public string PlaintextCredentialWarning =>
+        "Warning: exported API keys are stored as plaintext in this backup file. Anyone with the file can use them. Store it securely and delete it when finished.";
     public bool ImportSettings { get => _importSettings; set { if (Set(ref _importSettings, value)) InvalidatePreview(); } }
     public bool ImportModes { get => _importModes; set { if (Set(ref _importModes, value)) InvalidatePreview(); } }
     public bool ImportVocabulary { get => _importVocabulary; set { if (Set(ref _importVocabulary, value)) InvalidatePreview(); } }
+    public bool ImportCredentials { get => _importCredentials; set { if (Set(ref _importCredentials, value)) InvalidatePreview(); } }
     public bool ReplaceAllModes { get => _replaceAllModes; set { if (Set(ref _replaceAllModes, value)) InvalidatePreview(); } }
     public VocabularyConflictPolicy VocabularyConflictPolicy
     {
@@ -2143,10 +2163,16 @@ public sealed class BackupViewModel : ViewModelBase
     public string PreviewSummary { get => _previewSummary; private set => Set(ref _previewSummary, value); }
     public string OperationSummary { get => _operationSummary; private set => Set(ref _operationSummary, value); }
     public bool HasInspectedBackup => Contents is not null;
-    public bool ContainsUnsupportedSensitiveData => Contents is { ContainsCredentials: true } or { ContainsLicenseKey: true };
-    public string SensitiveDataNotice => ContainsUnsupportedSensitiveData
-        ? "Credentials and account/license keys are not supported and will not be imported. Reconnect accounts on this device."
-        : "Credentials and account/license keys are never exported or imported.";
+    public bool ContainsImportableCredentials => Contents is { ContainsCredentials: true };
+    public bool ContainsUnsupportedSensitiveData => Contents is { ContainsLicenseKey: true };
+    public string SensitiveDataNotice => Contents switch
+    {
+        { ContainsCredentials: true, ContainsLicenseKey: true } =>
+            "API keys can be imported only when explicitly selected. Account, license, and entitlement keys are never imported.",
+        { ContainsCredentials: true } => "API keys can be imported only when explicitly selected.",
+        { ContainsLicenseKey: true } => "Account, license, and entitlement keys are never imported.",
+        _ => "API keys are opt-in. Account, license, and entitlement keys are never exported or imported.",
+    };
     public bool ImportConfirmed
     {
         get => _importConfirmed;
@@ -2210,7 +2236,8 @@ public sealed class BackupViewModel : ViewModelBase
             Preview = result.Value!;
             PreviewSummary = $"Settings {(Preview.WillImportSettings ? "will be imported" : "unchanged")}; "
                 + $"modes +{Preview.ModesAdded}, replace {Preview.ModesReplaced}, remove {Preview.ModesRemoved}; "
-                + $"vocabulary +{Preview.VocabularyAdded}, replace {Preview.VocabularyReplaced}, skip {Preview.VocabularySkipped}.";
+                + $"vocabulary +{Preview.VocabularyAdded}, replace {Preview.VocabularyReplaced}, skip {Preview.VocabularySkipped}; "
+                + $"API keys {Preview.CredentialsToImport}.";
             Status.Success("Import preview ready for confirmation");
         }
         catch (OperationCanceledException) { Status.Failure("backup.cancelled", "Backup preview was cancelled."); }
@@ -2222,12 +2249,18 @@ public sealed class BackupViewModel : ViewModelBase
     public async Task ExportAsync(CancellationToken cancellationToken = default)
     {
         if (!ValidatePath("Choose a backup destination.")) return;
+        if (ExportCredentials && !PlaintextCredentialExportAcknowledged)
+        {
+            Status.Failure("backup.plaintext_acknowledgement_required", "Acknowledge the plaintext API-key warning before exporting credentials.");
+            return;
+        }
         try
         {
             Status.Busy("Exporting universal backup…");
-            var selection = new BackupExportSelection(ExportSettings, ExportModes, ExportVocabulary);
+            var selection = new BackupExportSelection(ExportSettings, ExportModes, ExportVocabulary, ExportCredentials);
             await File.WriteAllTextAsync(Path, await _service.ExportAsync(selection, cancellationToken), cancellationToken);
-            OperationSummary = $"Exported settings: {ExportSettings}; modes: {ExportModes}; vocabulary: {ExportVocabulary}. Credentials and account/license keys were excluded.";
+            OperationSummary = $"Exported settings: {ExportSettings}; modes: {ExportModes}; vocabulary: {ExportVocabulary}; "
+                + $"API keys: {ExportCredentials}. Account, license, and entitlement keys were excluded.";
             Status.Success("Universal backup exported");
         }
         catch (OperationCanceledException) { Status.Failure("backup.cancelled", "Backup export was cancelled."); }
@@ -2249,7 +2282,8 @@ public sealed class BackupViewModel : ViewModelBase
             var summary = result.Value!;
             OperationSummary = $"Imported settings: {summary.SettingsImported}; modes +{summary.ModesAdded}, "
                 + $"replaced {summary.ModesReplaced}, removed {summary.ModesRemoved}; vocabulary +{summary.VocabularyAdded}, "
-                + $"replaced {summary.VocabularyReplaced}, skipped {summary.VocabularySkipped}.";
+                + $"replaced {summary.VocabularyReplaced}, skipped {summary.VocabularySkipped}; API keys {summary.CredentialsImported}. "
+                + "Account, license, and entitlement keys were ignored.";
             InvalidatePreview();
             Status.Success("Universal backup imported");
             Imported?.Invoke(this, EventArgs.Empty);
@@ -2267,7 +2301,8 @@ public sealed class BackupViewModel : ViewModelBase
         ReplaceAllModes ? BackupModeImportBehavior.ReplaceAll : BackupModeImportBehavior.MergeSelected,
         ReplaceAllModes ? null : System.Collections.Immutable.ImmutableHashSet.CreateRange(
             ImportModeSelections.Where(item => item.IsSelected).Select(item => item.Id)),
-        VocabularyConflictPolicy);
+        VocabularyConflictPolicy,
+        ImportCredentials);
 
     private bool ValidatePath(string message)
     {
@@ -2296,6 +2331,7 @@ public sealed class BackupViewModel : ViewModelBase
     {
         Notify(nameof(HasInspectedBackup));
         Notify(nameof(ContainsUnsupportedSensitiveData));
+        Notify(nameof(ContainsImportableCredentials));
         Notify(nameof(SensitiveDataNotice));
         Notify(nameof(CanConfirmImport));
         ((AsyncCommand)ImportCommand).RaiseCanExecuteChanged();
@@ -2448,7 +2484,7 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
                 PasteResultText: Settings.PasteResultText), token);
         }, retryModes: Modes.Items, textInjection: historyTextInjection);
         Models = modelManager is null ? null : new ModelLibraryViewModel(modelManager, modelReadiness);
-        Backup = new BackupViewModel(new ApplicationBackupService(database, settings));
+        Backup = new BackupViewModel(new ApplicationBackupService(database, settings, credentials));
         Credentials = credentials is null ? null : new CredentialManagementViewModel(credentials);
         Account = cloudAccount is not null && deviceIdentity is not null && openAccountUri is not null
             ? new CloudAccountViewModel(cloudAccount, deviceIdentity, deviceName, openAccountUri)

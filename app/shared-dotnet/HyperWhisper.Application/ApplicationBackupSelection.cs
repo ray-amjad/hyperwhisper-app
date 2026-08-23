@@ -85,6 +85,7 @@ public sealed partial class ApplicationBackupService
         var merge = calculation.Value!;
         var previousSettings = _settings.Snapshot();
         var settingsWereSaved = false;
+        CredentialRestoreState? credentialRestore = null;
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -111,7 +112,19 @@ public sealed partial class ApplicationBackupService
                 settingsWereSaved = true;
             }
 
+            if (selection.ImportCredentials && backup.Credentials.Count > 0)
+            {
+                var imported = ImportCredentials(backup.Credentials, cancellationToken);
+                if (imported.IsFailure)
+                {
+                    RestoreSettings(previousSettings, settingsWereSaved);
+                    return PlatformResult<BackupImportSummary>.Failure(imported.Error!.Code, imported.Error.Message);
+                }
+                credentialRestore = imported.Value!;
+            }
+
             await transaction.CommitAsync(cancellationToken);
+            credentialRestore?.Complete();
             var preview = merge.Preview;
             return PlatformResult<BackupImportSummary>.Success(new BackupImportSummary(
                 preview.WillImportSettings,
@@ -120,10 +133,12 @@ public sealed partial class ApplicationBackupService
                 preview.ModesRemoved,
                 preview.VocabularyAdded,
                 preview.VocabularyReplaced,
-                preview.VocabularySkipped));
+                preview.VocabularySkipped,
+                preview.CredentialsToImport));
         }
         catch (Exception exception) when (exception is JsonException or FormatException or InvalidOperationException)
         {
+            credentialRestore?.Rollback();
             RestoreSettings(previousSettings, settingsWereSaved);
             return PlatformResult<BackupImportSummary>.Failure(
                 "backup.invalid_settings",
@@ -131,6 +146,7 @@ public sealed partial class ApplicationBackupService
         }
         catch
         {
+            credentialRestore?.Rollback();
             RestoreSettings(previousSettings, settingsWereSaved);
             throw;
         }
@@ -302,7 +318,8 @@ public sealed partial class ApplicationBackupService
             vocabulary.Count - vocabularyConflicts,
             selection.VocabularyConflictPolicy == VocabularyConflictPolicy.Replace ? vocabularyConflicts : 0,
             selection.VocabularyConflictPolicy == VocabularyConflictPolicy.Skip ? vocabularyConflicts : 0,
-            missing);
+            missing,
+            selection.ImportCredentials ? backup.Credentials.Count : 0);
         return PlatformResult<MergeCalculation>.Success(new MergeCalculation(preview, modes, vocabulary));
     }
 
@@ -347,6 +364,9 @@ public sealed partial class ApplicationBackupService
             }
             var platform = root["platform"]!.GetValue<string>();
             var exportDate = DateTimeOffset.Parse(root["exportDate"]!.GetValue<string>(), System.Globalization.CultureInfo.InvariantCulture);
+            var credentials = ParseCredentials(root);
+            if (credentials.IsFailure)
+                return PlatformResult<ParsedBackup>.Failure(credentials.Error!.Code, credentials.Error.Message);
             return PlatformResult<ParsedBackup>.Success(new ParsedBackup(
                 root,
                 schemaVersion,
@@ -358,7 +378,8 @@ public sealed partial class ApplicationBackupService
                 root["apiKeys"] is JsonObject keys && keys.Count > 0,
                 root["licenseKey"] is JsonValue license && !string.IsNullOrEmpty(license.GetValue<string?>()),
                 modes,
-                vocabulary));
+                vocabulary,
+                credentials.Value!));
         }
         catch (Exception exception) when (exception is JsonException or FormatException or InvalidOperationException or ArgumentException)
         {
@@ -377,7 +398,8 @@ public sealed partial class ApplicationBackupService
         bool ContainsCredentials,
         bool ContainsLicenseKey,
         List<Mode>? Modes,
-        List<VocabularyItem>? Vocabulary);
+        List<VocabularyItem>? Vocabulary,
+        ImmutableDictionary<string, string> Credentials);
 
     private sealed record MergeCalculation(
         BackupMergePreview Preview,

@@ -708,7 +708,10 @@ public sealed record PortableCustomPostProcessingEndpoint(
     [property: JsonPropertyName("endpointURL")] string EndpointUrl,
     [property: JsonPropertyName("modelName")] string ModelName);
 
-public sealed partial class ApplicationBackupService(ApplicationDb database, PortableSettingsService settings)
+public sealed partial class ApplicationBackupService(
+    ApplicationDb database,
+    PortableSettingsService settings,
+    ICredentialStore? credentialStore = null)
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web)
     {
@@ -717,6 +720,7 @@ public sealed partial class ApplicationBackupService(ApplicationDb database, Por
     };
     private readonly ApplicationDb _database = database ?? throw new ArgumentNullException(nameof(database));
     private readonly PortableSettingsService _settings = settings ?? throw new ArgumentNullException(nameof(settings));
+    private readonly ICredentialStore? _credentialStore = credentialStore;
 
     public Task<string> ExportAsync(CancellationToken cancellationToken = default)
         => ExportAsync(BackupExportSelection.All, cancellationToken);
@@ -726,8 +730,6 @@ public sealed partial class ApplicationBackupService(ApplicationDb database, Por
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(selection);
-        if (selection.IncludeCredentials)
-            throw new NotSupportedException("Credentials cannot be exported. Reconnect providers on the destination device.");
         if (!selection.IncludeModes && selection.SelectedModeIds is not null)
             throw new ArgumentException("Selected mode IDs require mode export to be enabled.", nameof(selection));
         await using var context = _database.CreateContext();
@@ -805,6 +807,8 @@ public sealed partial class ApplicationBackupService(ApplicationDb database, Por
                 ["replacement"] = item.Replacement, ["sortOrder"] = item.SortOrder,
                 ["source"] = "manual",
             }).ToArray());
+        if (selection.IncludeCredentials)
+            root["apiKeys"] = ExportCredentials();
         var json = root.ToJsonString(SerializerOptions);
         var failures = SharedCoreBridge.ValidateBackup(json);
         if (failures.Count != 0) throw new InvalidOperationException("The generated universal backup did not pass shared-core validation.");

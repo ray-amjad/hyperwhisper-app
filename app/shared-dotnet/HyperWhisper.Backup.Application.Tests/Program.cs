@@ -25,7 +25,11 @@ try
     await modes.UpsertAsync(second);
     var vocabulary = new VocabularyRepository(database);
     await vocabulary.AddAsync(new VocabularyItem { Id = Guid.NewGuid(), Word = "Alpha", Replacement = "old", SortOrder = 0 });
-    var service = new ApplicationBackupService(database, settings);
+    var credentialStore = new MemoryCredentialStore();
+    credentialStore.Seed("OpenAIApiKey", "openai-export-secret");
+    credentialStore.Seed("AnthropicApiKey", "anthropic-export-secret");
+    credentialStore.Seed("LicenseKey", "account-key-must-never-export");
+    var service = new ApplicationBackupService(database, settings, credentialStore);
 
     var vocabularyOnly = await service.ExportAsync(new BackupExportSelection(
         IncludeSettings: false, IncludeModes: false, IncludeVocabulary: true));
@@ -39,9 +43,15 @@ try
     Assert(inspectedVocabulary.IsSuccess && inspectedVocabulary.Value is
         { HasSettings: false, HasModes: false, HasVocabulary: true, VocabularyCount: 1 },
         "inspection did not distinguish absent sections");
-    await AssertThrowsAsync<NotSupportedException>(
-        () => service.ExportAsync(new BackupExportSelection(IncludeCredentials: true)),
-        "credential export opt-in was not rejected");
+    var credentialExport = JsonNode.Parse(await service.ExportAsync(new BackupExportSelection(
+        IncludeSettings: false, IncludeModes: false, IncludeVocabulary: false, IncludeCredentials: true)))!.AsObject();
+    Assert(credentialExport["apiKeys"] is JsonObject exportedKeys
+        && exportedKeys.Count == 2
+        && exportedKeys["openai"]!.GetValue<string>() == "openai-export-secret"
+        && exportedKeys["anthropic"]!.GetValue<string>() == "anthropic-export-secret"
+        && !credentialExport.ContainsKey("licenseKey")
+        && !credentialExport.ToJsonString().Contains("account-key-must-never-export", StringComparison.Ordinal),
+        "explicit API-key export was incomplete or leaked an account/license key");
     var selectedExport = JsonNode.Parse(await service.ExportAsync(BackupExportSelection.SelectedModes([second.Id])))!.AsObject();
     Assert(selectedExport["modes"]!.AsArray() is [{ } selectedMode]
         && selectedMode["id"]!.GetValue<string>() == second.Id.ToString("D")
@@ -49,7 +59,13 @@ try
         "selected-mode export did not explicitly produce a self-contained default mode");
 
     var full = JsonNode.Parse(await service.ExportAsync())!.AsObject();
-    full["apiKeys"] = new JsonObject { ["openai"] = "must-not-import" };
+    full["apiKeys"] = new JsonObject
+    {
+        ["openai"] = "openai-import-secret",
+        ["anthropic"] = "anthropic-import-secret",
+        ["groq"] = "groq-import-secret",
+        ["unknown-future-provider"] = "must-be-ignored",
+    };
     full["licenseKey"] = "must-not-import";
     full["platformExtensions"]!["windows"] = new JsonObject { ["futureWindows"] = 17 };
     full["platformExtensions"]!["linux"]!["settings"]!["language"] = "fr";
@@ -88,6 +104,45 @@ try
         "skip-conflict import changed the conflicting value or omitted the new value");
     Assert((await modes.ListAsync()).Any(item => item.Name == "First") && settings.Get<string>("language") == "en",
         "unselected sections were imported");
+    Assert(credentialStore.Text("OpenAIApiKey") == "openai-export-secret"
+        && credentialStore.Text("AnthropicApiKey") == "anthropic-export-secret"
+        && !credentialStore.Contains("unknown-future-provider"),
+        "credentials were imported without explicit selection");
+
+    var credentialSelection = new BackupImportSelection(
+        ImportSettings: false, ImportModes: false, ImportVocabulary: false, ImportCredentials: true);
+    var credentialPreview = await service.PreviewImportAsync(importJson, credentialSelection);
+    Assert(credentialPreview.IsSuccess && credentialPreview.Value!.CredentialsToImport == 3,
+        "credential preview did not count only recognized non-empty API keys");
+    var credentialImport = await service.ImportAsync(importJson, credentialSelection);
+    Assert(credentialImport.IsSuccess && credentialImport.Value!.CredentialsImported == 3
+        && credentialStore.Text("OpenAIApiKey") == "openai-import-secret"
+        && credentialStore.Text("AnthropicApiKey") == "anthropic-import-secret"
+        && credentialStore.Text("GroqApiKey") == "groq-import-secret"
+        && credentialStore.Text("LicenseKey") == "account-key-must-never-export",
+        "selected API keys were not imported directly into secure storage or an account key changed");
+
+    credentialStore.Seed("AnthropicApiKey", "anthropic-before-failure");
+    credentialStore.Seed("GroqApiKey", "groq-before-failure");
+    credentialStore.FailWriteAccount = "GroqApiKey";
+    var failedCredentialImport = await service.ImportAsync(importJson, credentialSelection);
+    credentialStore.FailWriteAccount = null;
+    Assert(failedCredentialImport.Error?.Code == "backup.credential_store_failed"
+        && credentialStore.Text("AnthropicApiKey") == "anthropic-before-failure"
+        && credentialStore.Text("GroqApiKey") == "groq-before-failure",
+        "failed secure-store import did not roll back previously written API keys");
+
+    var invalidProvider = full.DeepClone().AsObject();
+    invalidProvider["apiKeys"] = new JsonObject { [new string('p', 65)] = "value" };
+    Assert(service.Inspect(invalidProvider.ToJsonString()).Error?.Code == "backup.invalid_credentials",
+        "an unbounded API-key provider identifier was accepted");
+    invalidProvider["apiKeys"] = new JsonObject { ["Invalid Provider"] = "value" };
+    Assert(service.Inspect(invalidProvider.ToJsonString()).Error?.Code == "backup.invalid_credentials",
+        "an invalid API-key provider identifier was accepted");
+    var oversizedCredential = full.DeepClone().AsObject();
+    oversizedCredential["apiKeys"] = new JsonObject { ["openai"] = new string('s', 16 * 1024 + 1) };
+    Assert(service.Inspect(oversizedCredential.ToJsonString()).Error?.Code == "backup.invalid_credentials",
+        "an oversized API-key value was accepted");
 
     var replaceSelection = skipSelection with { VocabularyConflictPolicy = VocabularyConflictPolicy.Replace };
     var replaced = await service.ImportAsync(importJson, replaceSelection);
@@ -155,9 +210,10 @@ try
     await backupViewModel.InspectAsync();
     Assert(backupViewModel.HasInspectedBackup && backupViewModel.Contents is
         { ContainsCredentials: true, ContainsLicenseKey: true }
-        && backupViewModel.ContainsUnsupportedSensitiveData
-        && backupViewModel.SensitiveDataNotice.Contains("not supported", StringComparison.Ordinal),
-        "view model did not inspect or visibly reject sensitive backup fields");
+        && backupViewModel.ContainsImportableCredentials && backupViewModel.ContainsUnsupportedSensitiveData
+        && backupViewModel.SensitiveDataNotice.Contains("explicitly selected", StringComparison.Ordinal)
+        && backupViewModel.SensitiveDataNotice.Contains("never imported", StringComparison.Ordinal),
+        "view model did not distinguish importable API keys from unsupported account/license fields");
     Assert(backupViewModel.ImportModeSelections.Count == 2 && !backupViewModel.CanConfirmImport,
         "view model did not expose inspected modes or required a preview");
     backupViewModel.ImportSettings = false;
@@ -191,8 +247,18 @@ try
     var viewModelExport = JsonNode.Parse(await File.ReadAllTextAsync(viewModelExportPath))!.AsObject();
     Assert(!viewModelExport.ContainsKey("settings") && !viewModelExport.ContainsKey("modes")
         && viewModelExport.ContainsKey("vocabulary") && !viewModelExport.ContainsKey("apiKeys")
-        && backupViewModel.OperationSummary.Contains("account/license keys were excluded", StringComparison.Ordinal),
+        && backupViewModel.OperationSummary.Contains("license", StringComparison.Ordinal),
         "view model export did not honor section selection or disclose sensitive-field exclusion");
+    backupViewModel.ExportCredentials = true;
+    await backupViewModel.ExportAsync();
+    Assert(backupViewModel.Status.ErrorCode == "backup.plaintext_acknowledgement_required"
+        && backupViewModel.PlaintextCredentialWarning.Contains("plaintext", StringComparison.Ordinal)
+        && backupViewModel.PlaintextCredentialWarning.Contains("Anyone with the file", StringComparison.Ordinal),
+        "view model exported API keys without a strong explicit plaintext warning acknowledgement");
+    backupViewModel.PlaintextCredentialExportAcknowledged = true;
+    await backupViewModel.ExportAsync();
+    Assert(JsonNode.Parse(await File.ReadAllTextAsync(viewModelExportPath))!["apiKeys"] is JsonObject,
+        "view model did not export explicitly acknowledged API keys");
     backupViewModel.Path = "relative.json";
     await backupViewModel.InspectAsync();
     Assert(backupViewModel.Status.ErrorCode == "backup.path_required", "view model path validation was not stable");
@@ -208,7 +274,7 @@ try
             ["platformExtensions"]!["macos"]!["futureMac"]!.GetValue<string>() == "keep",
         "foreign platform extensions were not preserved across import/export");
 
-    Console.WriteLine("Backup application tests passed (27/27).");
+    Console.WriteLine("Backup application tests passed (37/37).");
 }
 finally
 {
@@ -258,4 +324,31 @@ file sealed class MemoryPrivateFileService : IPrivateFileService
         => PlatformResult<string?>.Success(_files.TryGetValue(path, out var bytes) ? Encoding.UTF8.GetString(bytes) : null);
     public PlatformResult Delete(string path) { _files.Remove(path); return PlatformResult.Success(); }
     public PlatformResult<bool> IsRestrictedToCurrentUser(string path) => PlatformResult<bool>.Success(true);
+}
+
+file sealed class MemoryCredentialStore : ICredentialStore
+{
+    private readonly Dictionary<string, byte[]> _values = new(StringComparer.Ordinal);
+    public string? FailWriteAccount { get; set; }
+
+    public void Seed(string account, string value) => _values[account] = Encoding.UTF8.GetBytes(value);
+    public bool Contains(string account) => _values.ContainsKey(account);
+    public string? Text(string account) => _values.TryGetValue(account, out var value) ? Encoding.UTF8.GetString(value) : null;
+
+    public PlatformResult<byte[]?> Read(string resource, string account)
+        => PlatformResult<byte[]?>.Success(_values.TryGetValue(account, out var value) ? value.ToArray() : null);
+
+    public PlatformResult Write(string resource, string account, ReadOnlySpan<byte> value)
+    {
+        if (string.Equals(account, FailWriteAccount, StringComparison.Ordinal))
+            return PlatformResult.Failure("test.write_failed", "Simulated secure-store failure.");
+        _values[account] = value.ToArray();
+        return PlatformResult.Success();
+    }
+
+    public PlatformResult Delete(string resource, string account)
+    {
+        _values.Remove(account);
+        return PlatformResult.Success();
+    }
 }

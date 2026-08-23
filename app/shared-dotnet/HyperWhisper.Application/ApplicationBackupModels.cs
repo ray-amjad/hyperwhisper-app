@@ -50,7 +50,8 @@ public sealed record BackupImportSelection(
     bool ImportVocabulary = true,
     BackupModeImportBehavior ModeBehavior = BackupModeImportBehavior.ReplaceAll,
     ImmutableHashSet<Guid>? SelectedModeIds = null,
-    VocabularyConflictPolicy VocabularyConflictPolicy = VocabularyConflictPolicy.Replace)
+    VocabularyConflictPolicy VocabularyConflictPolicy = VocabularyConflictPolicy.Replace,
+    bool ImportCredentials = false)
 {
     public static BackupImportSelection All { get; } = new();
 
@@ -70,7 +71,8 @@ public sealed record BackupMergePreview(
     int VocabularyAdded,
     int VocabularyReplaced,
     int VocabularySkipped,
-    ImmutableArray<Guid> MissingSelectedModeIds);
+    ImmutableArray<Guid> MissingSelectedModeIds,
+    int CredentialsToImport);
 
 public sealed record BackupImportSummary(
     bool SettingsImported,
@@ -79,4 +81,5 @@ public sealed record BackupImportSummary(
     int ModesRemoved,
     int VocabularyAdded,
     int VocabularyReplaced,
-    int VocabularySkipped);
+    int VocabularySkipped,
+    int CredentialsImported);
