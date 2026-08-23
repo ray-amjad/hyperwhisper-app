@@ -389,8 +389,8 @@ sudo usermod -aG hyperwhisper-input "$USER"`}
                 <p className="text-sm text-gray-400">
                   Linux releases also include a static APT repository archive.
                   HyperWhisper does not currently operate a public APT endpoint;
-                  see the Linux installation guide for signed, self-hosted setup,
-                  desktop companions, privacy details, and removal.
+                  see the Linux installation guide for signed, self-hosted
+                  setup, desktop companions, privacy details, and removal.
                 </p>
                 <Button
                   as="a"
