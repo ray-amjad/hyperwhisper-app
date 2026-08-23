@@ -97,9 +97,12 @@ static Task OnboardingStateMachine()
     onboarding.Next();
     Assert(onboarding.IsVisible && decisions.Count == 0, "onboarding completed without a successful test dictation");
     onboarding.SetTestStatus("complete", succeeded: true);
+    onboarding.SelectedDevice = new AudioInputDevice("mic-2", "Second microphone", false);
+    Assert(!onboarding.CanGoNext, "changing the selected microphone retained a stale successful test");
+    onboarding.SetTestStatus("complete", succeeded: true);
     onboarding.Next();
     Assert(!onboarding.IsVisible && decisions.SequenceEqual([false]), "completion was not durably requested");
-    Assert(selectedMode == mode && selectedDevice == microphone, "selections did not reach the live adapters");
+    Assert(selectedMode == mode && selectedDevice?.Id == "mic-2", "selections did not reach the live adapters");
 
     var unavailable = new LinuxOnboardingViewModel(
         new(true, true, false, false, false, true, false),

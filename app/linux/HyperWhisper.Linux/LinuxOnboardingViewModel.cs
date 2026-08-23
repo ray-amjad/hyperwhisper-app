@@ -94,6 +94,7 @@ internal sealed class LinuxOnboardingViewModel : ViewModelBase
         set
         {
             if (!Set(ref _selectedDevice, value)) return;
+            TestSucceeded = false;
             _selectDevice(value);
             NotifyReadiness();
         }
@@ -111,7 +112,7 @@ internal sealed class LinuxOnboardingViewModel : ViewModelBase
     public void SetTestStatus(string status, bool succeeded = false)
     {
         TestStatus = status;
-        if (succeeded) TestSucceeded = true;
+        TestSucceeded = succeeded;
         Notify(nameof(CanGoNext));
     }
 
