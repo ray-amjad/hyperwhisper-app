@@ -2,6 +2,8 @@ using System.Buffers.Binary;
 using System.Runtime.Versioning;
 using HyperWhisper.Linux.Platform.Files;
 using HyperWhisper.Linux.Platform.Input;
+using HyperWhisper.Linux.Platform.Audio;
+using HyperWhisper.Linux.Platform.Injection;
 using HyperWhisper.Platform.Abstractions;
 
 [assembly: SupportedOSPlatform("linux")]
@@ -17,6 +19,14 @@ var tests = new (string Name, Func<Task> Run)[]
     ("evdev drops unrelated keys at boundary", DropsUnrelatedKeys),
     ("evdev emits configured logical shortcut", EmitsConfiguredShortcut),
     ("event dispatch isolates failing subscribers", IsolatesSubscribers),
+    ("Pulse recorder writes private canonical WAV", PulseRecorderWritesWave),
+    ("Pulse recorder reports unavailable capability", PulseRecorderUnavailable),
+    ("Pulse playback delegates PCM and ends safely", PulsePlaybackDelegates),
+    ("injection falls back losslessly to clipboard", InjectionClipboardFallback),
+    ("injection uses uinput after clipboard", InjectionUsesUInput),
+    ("injection restores captured clipboard", InjectionRestoresClipboard),
+    ("clipboard failure prevents uinput", ClipboardFailurePreventsUInput),
+    ("uinput exception preserves clipboard fallback", UInputExceptionFallsBack),
 };
 
 var failed = 0;
@@ -157,6 +167,110 @@ static async Task IsolatesSubscribers()
     Assert.Equal(1, diagnostics.SubscriberFailures);
 }
 
+static async Task PulseRecorderWritesWave()
+{
+    await WithTemporaryDirectoryAsync(async directory =>
+    {
+        var session = new FakeRecordSession([1, 0, 2, 0]);
+        var api = new FakePulseApi { RecordSession = session };
+        using var recorder = new PulseAudioRecorder(api, new FakeAppPaths(directory));
+        var levels = 0;
+        recorder.AudioLevelChanged += (_, _) => levels++;
+        Assert.Success(recorder.Start(new AudioRecordingOptions("default")));
+        await session.Completed.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        var stopped = recorder.Stop();
+        Assert.True(stopped.IsSuccess);
+        Assert.Equal(48L, new FileInfo(stopped.Value!).Length);
+        Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite, File.GetUnixFileMode(stopped.Value!));
+        Assert.Equal(1, levels);
+    });
+}
+
+static Task PulseRecorderUnavailable()
+{
+    using var recorder = new PulseAudioRecorder(
+        new FakePulseApi { Available = false },
+        new FakeAppPaths("/tmp/not-used"));
+    var result = recorder.Start(new AudioRecordingOptions("default"));
+    Assert.True(result.IsFailure);
+    Assert.Equal("pulse_unavailable", result.Error!.Code);
+    return Task.CompletedTask;
+}
+
+static async Task PulsePlaybackDelegates()
+{
+    await WithTemporaryDirectoryAsync(async directory =>
+    {
+        var path = Path.Combine(directory, "sample.wav");
+        using (var stream = File.Create(path))
+        {
+            WaveFile.WriteHeader(stream, new WaveFormat(16_000, 16, 1), 4);
+            stream.Position = WaveFile.HeaderSize;
+            stream.Write([1, 0, 2, 0]);
+        }
+        var playback = new FakePlaybackSession();
+        using var service = new PulseAudioPlaybackService(new FakePulseApi { PlaybackSession = playback });
+        var ended = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.PlaybackEnded += (_, _) => ended.TrySetResult();
+        Assert.Success(service.Load(path));
+        service.Play();
+        await ended.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.Equal(4, playback.BytesWritten);
+        Assert.Equal(1, playback.DrainCalls);
+    });
+}
+
+static async Task InjectionClipboardFallback()
+{
+    var clipboard = new FakeClipboard("old");
+    var uinput = new FakeUInput(false);
+    using var service = new LinuxTextInjectionService(clipboard, uinput);
+    var outcome = await service.InjectTranscriptAsync("transcript");
+    Assert.Equal(TextInjectionOutcome.CopiedToClipboard, outcome);
+    Assert.Equal("transcript", clipboard.Text);
+    Assert.Equal(1, uinput.PasteCalls);
+}
+
+static async Task InjectionUsesUInput()
+{
+    var clipboard = new FakeClipboard("old");
+    var uinput = new FakeUInput(true);
+    using var service = new LinuxTextInjectionService(clipboard, uinput);
+    var outcome = await service.InjectTranscriptAsync("transcript");
+    Assert.Equal(TextInjectionOutcome.Pasted, outcome);
+    Assert.Equal("transcript", clipboard.Text);
+    Assert.Equal(1, uinput.PasteCalls);
+}
+
+static async Task InjectionRestoresClipboard()
+{
+    var clipboard = new FakeClipboard("old");
+    using var service = new LinuxTextInjectionService(clipboard, new FakeUInput(false));
+    service.StartSession();
+    await service.CopyToClipboardAsync("transcript");
+    Assert.Success(await service.RestoreClipboardImmediatelyAsync());
+    Assert.Equal("old", clipboard.Text);
+}
+
+static async Task ClipboardFailurePreventsUInput()
+{
+    var clipboard = new FakeClipboard("old") { FailWrites = true };
+    var uinput = new FakeUInput(true);
+    using var service = new LinuxTextInjectionService(clipboard, uinput);
+    var outcome = await service.InjectTranscriptAsync("transcript");
+    Assert.Equal(TextInjectionOutcome.Failed, outcome);
+    Assert.Equal(0, uinput.PasteCalls);
+}
+
+static async Task UInputExceptionFallsBack()
+{
+    var clipboard = new FakeClipboard("old");
+    using var service = new LinuxTextInjectionService(clipboard, new ThrowingUInput());
+    var outcome = await service.InjectTranscriptAsync("transcript");
+    Assert.Equal(TextInjectionOutcome.CopiedToClipboard, outcome);
+    Assert.Equal("transcript", clipboard.Text);
+}
+
 static async Task WithTemporaryDirectory(Action<string> action)
 {
     var directory = Path.Combine(Path.GetTempPath(), $"hyperwhisper-platform-tests-{Guid.NewGuid():N}");
@@ -171,6 +285,14 @@ static async Task WithTemporaryDirectory(Action<string> action)
     }
 
     await Task.CompletedTask;
+}
+
+static async Task WithTemporaryDirectoryAsync(Func<string, Task> action)
+{
+    var directory = Path.Combine(Path.GetTempPath(), $"hyperwhisper-platform-tests-{Guid.NewGuid():N}");
+    Directory.CreateDirectory(directory, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+    try { await action(directory); }
+    finally { Directory.Delete(directory, recursive: true); }
 }
 
 static byte[] Frame(ushort code, int value)
@@ -229,6 +351,90 @@ sealed class FakeDiagnostics : IGlobalShortcutDiagnostics
     public void MalformedFrame() { }
     public void SourceFailed() { }
     public void SubscriberFailed() => SubscriberFailures++;
+}
+
+sealed class FakeAppPaths(string root) : IAppPaths
+{
+    public string DataDirectory => root;
+    public string ConfigDirectory => root;
+    public string CacheDirectory => root;
+    public string StateDirectory => root;
+    public string LogsDirectory => root;
+    public string ModelsDirectory => root;
+    public string RecordingsDirectory => root;
+    public string RuntimeDirectory => root;
+    public string TemporaryDirectory => root;
+}
+
+sealed class FakePulseApi : IPulseAudioApi
+{
+    public bool Available { get; init; } = true;
+    public FakeRecordSession? RecordSession { get; init; }
+    public FakePlaybackSession? PlaybackSession { get; init; }
+    public PulseAudioCapabilities GetCapabilities() => new(Available, Available ? "fake" : "none", "test");
+    public PlatformResult<IPulseAudioRecordSession> OpenRecord(AudioRecordingOptions options) =>
+        PlatformResult<IPulseAudioRecordSession>.Success(RecordSession ?? new FakeRecordSession([]));
+    public PlatformResult<IPulseAudioPlaybackSession> OpenPlayback(WaveFormat format) =>
+        PlatformResult<IPulseAudioPlaybackSession>.Success(PlaybackSession ?? new FakePlaybackSession());
+}
+
+sealed class FakeRecordSession(byte[] bytes) : IPulseAudioRecordSession
+{
+    private bool _read;
+    public TaskCompletionSource Completed { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    public PlatformResult<int> Read(byte[] buffer)
+    {
+        if (_read)
+        {
+            Completed.TrySetResult();
+            return PlatformResult<int>.Success(0);
+        }
+        _read = true;
+        bytes.CopyTo(buffer, 0);
+        return PlatformResult<int>.Success(bytes.Length);
+    }
+    public void Dispose() { }
+}
+
+sealed class FakePlaybackSession : IPulseAudioPlaybackSession
+{
+    public int BytesWritten { get; private set; }
+    public int DrainCalls { get; private set; }
+    public PlatformResult Write(byte[] buffer, int count) { BytesWritten += count; return PlatformResult.Success(); }
+    public PlatformResult Drain() { DrainCalls++; return PlatformResult.Success(); }
+    public void Dispose() { }
+}
+
+sealed class FakeClipboard(string initial) : ILinuxClipboardBackend
+{
+    public string Text { get; private set; } = initial;
+    public bool FailWrites { get; init; }
+    public LinuxTextInjectionCapabilities GetCapabilities() => new(true, "fake", false, false, false);
+    public ValueTask<PlatformResult<ClipboardSnapshot?>> CaptureAsync(CancellationToken cancellationToken) =>
+        ValueTask.FromResult(PlatformResult<ClipboardSnapshot?>.Success(new ClipboardSnapshot(Text)));
+    public ValueTask<PlatformResult> SetTextAsync(string text, CancellationToken cancellationToken)
+    {
+        if (FailWrites) return ValueTask.FromResult(PlatformResult.Failure("clipboard_failed", "test"));
+        Text = text;
+        return ValueTask.FromResult(PlatformResult.Success());
+    }
+}
+
+sealed class FakeUInput(bool succeeds) : IUInputPasteBackend
+{
+    public bool IsAvailable => succeeds;
+    public int PasteCalls { get; private set; }
+    public PlatformResult Paste()
+    {
+        PasteCalls++;
+        return succeeds ? PlatformResult.Success() : PlatformResult.Failure("uinput_unavailable", "test");
+    }
+}
+
+sealed class ThrowingUInput : IUInputPasteBackend
+{
+    public bool IsAvailable => true;
+    public PlatformResult Paste() => throw new IOException("simulated");
 }
 
 static class Assert
