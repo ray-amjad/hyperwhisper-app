@@ -45,6 +45,13 @@ public sealed record PortableCompletionEvaluation(
     bool Accepted,
     string? Failure);
 
+public enum PortableCursorContext
+{
+    Unknown,
+    StartOfSentence,
+    MidSentence,
+}
+
 /// <summary>
 /// Stable public surface over the generated UniFFI binding. Platform projects
 /// consume this assembly instead of compiling private copies of the binding.
@@ -69,6 +76,19 @@ public static class SharedCoreBridge
         ArgumentNullException.ThrowIfNull(text);
         ArgumentNullException.ThrowIfNull(language);
         return HyperwhisperCoreMethods.AppendTrailingSpace(text, language);
+    }
+
+    public static string ApplyAutocapitalize(string text, PortableCursorContext context)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        var native = context switch
+        {
+            PortableCursorContext.Unknown => CursorContext.Unknown,
+            PortableCursorContext.StartOfSentence => CursorContext.StartOfSentence,
+            PortableCursorContext.MidSentence => CursorContext.MidSentence,
+            _ => throw new ArgumentOutOfRangeException(nameof(context), context, null),
+        };
+        return HyperwhisperCoreMethods.ApplyAutocapitalize(text, native);
     }
 
     public static IReadOnlyList<BackupValidationFailure> ValidateBackup(string json)
@@ -140,6 +160,26 @@ public static class SharedCoreBridge
     {
         ArgumentNullException.ThrowIfNull(text);
         return HyperwhisperCoreMethods.RemoveTrailingPeriod(text);
+    }
+
+    public static string RemoveFillerWords(string text, string? language)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        return HyperwhisperCoreMethods.RemoveFillerWords(text, language);
+    }
+
+    public static string ProcessVoiceCommands(string text)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        return HyperwhisperCoreMethods.ProcessVoiceCommands(text);
+    }
+
+    public static string ApplyHardenedReplacement(string text, string word, string replacement)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        ArgumentNullException.ThrowIfNull(word);
+        ArgumentNullException.ThrowIfNull(replacement);
+        return HyperwhisperCoreMethods.ApplyHardenedReplacement(text, word, replacement);
     }
 
     public static string CanonicalCloudSttTier(string? value) =>
