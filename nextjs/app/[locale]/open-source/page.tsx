@@ -3,7 +3,7 @@ import { Metadata } from "next";
 const GITHUB_URL = "https://github.com/ray-amjad/hyperwhisper-app";
 const LICENSE_URL =
   "https://github.com/ray-amjad/hyperwhisper-app/blob/main/LICENSE";
-const SUPPORT_EMAIL = "support@hyperwhisper.com";
+const SUPPORT_EMAIL = "hi@support.hyperwhisper.com";
 const REFUND_MAILTO = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
   "HyperWhisper — refund request"
 )}`;

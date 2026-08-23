@@ -203,7 +203,7 @@ export const downloadRouter = createTRPCRouter({
             "https://www.loom.com/share/fd73e59755f9473b8bde341845c402e9?sid=e1892b2e-3ce6-4542-b512-31777a400909",
           loomThumbnailUrl:
             "https://www.hyperwhisper.com/email-assets/welcome-email-thumbnail.png",
-          supportEmail: process.env.SUPPORT_EMAIL ?? "support@hyperwhisper.com",
+          supportEmail: process.env.SUPPORT_EMAIL ?? "hi@support.hyperwhisper.com",
         };
 
         try {

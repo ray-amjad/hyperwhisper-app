@@ -63,9 +63,9 @@ export default function RefundPolicyPage() {
           <strong>Contact our support team</strong> via email at{" "}
           <a
             className="text-blue-600 dark:text-blue-400 hover:underline"
-            href="mailto:support@hyperwhisper.com"
+            href="mailto:hi@support.hyperwhisper.com"
           >
-            support@hyperwhisper.com
+            hi@support.hyperwhisper.com
           </a>
         </li>
         <li>
@@ -234,9 +234,9 @@ export default function RefundPolicyPage() {
           <strong>Email:</strong>{" "}
           <a
             className="text-blue-600 dark:text-blue-400 hover:underline"
-            href="mailto:support@hyperwhisper.com"
+            href="mailto:hi@support.hyperwhisper.com"
           >
-            support@hyperwhisper.com
+            hi@support.hyperwhisper.com
           </a>
         </p>
         <p className="mb-2">

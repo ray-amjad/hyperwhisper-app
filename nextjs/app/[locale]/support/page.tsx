@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 
 export default function SupportPage() {
   const t = useTranslations("support");
-  const emailAddress = "support@hyperwhisper.com";
+  const emailAddress = "hi@support.hyperwhisper.com";
   const subject = t("emailTemplate.subject");
   const body = t("emailTemplate.body");
 

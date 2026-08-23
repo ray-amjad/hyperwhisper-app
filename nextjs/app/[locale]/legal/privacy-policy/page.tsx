@@ -456,9 +456,9 @@ export default function PrivacyPolicyPage() {
         , United Kingdom). Questions or requests:{" "}
         <a
           className="text-blue-600 dark:text-blue-400 hover:underline"
-          href="mailto:support@hyperwhisper.com"
+          href="mailto:hi@support.hyperwhisper.com"
         >
-          support@hyperwhisper.com
+          hi@support.hyperwhisper.com
         </a>
       </p>
     </div>

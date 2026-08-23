@@ -80,8 +80,8 @@ export default function UserDashboardClient({
       {/* Help */}
       <p className="text-sm text-gray-500">
         Need help?{" "}
-        <a href="mailto:support@hyperwhisper.com" className="text-gray-400 hover:text-white">
-          support@hyperwhisper.com
+        <a href="mailto:hi@support.hyperwhisper.com" className="text-gray-400 hover:text-white">
+          hi@support.hyperwhisper.com
         </a>
       </p>
     </div>

@@ -129,9 +129,9 @@ export default function FAQSection() {
             {t("contactPrompt")}{" "}
             <a
               className="text-purple-400 hover:text-purple-300 transition-colors"
-              href="mailto:support@hyperwhisper.com"
+              href="mailto:hi@support.hyperwhisper.com"
             >
-              support@hyperwhisper.com
+              hi@support.hyperwhisper.com
             </a>
           </p>
         </m.div>
