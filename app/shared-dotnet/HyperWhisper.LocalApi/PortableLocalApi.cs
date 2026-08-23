@@ -53,10 +53,10 @@ public static class PortableLocalApi
 
     public static void Map(WebApplication app, PortableLocalApiOptions options)
     {
-        app.MapGet("/health", async (ILocalApiBackend backend, CancellationToken ct) =>
+        app.MapGet("/health", async (HttpContext context, ILocalApiBackend backend, CancellationToken ct) =>
         {
             var health = await backend.GetHealthAsync(ct);
-            return Results.Ok(new { ok = true, app_version = health.AppVersion, api_version = 1, port = options.Port, pid = Environment.ProcessId, health.Providers, post_processing_providers = health.PostProcessingProviders, local_models = health.LocalModels });
+            return Results.Ok(new { ok = true, app_version = health.AppVersion, api_version = 1, port = context.Connection.LocalPort, pid = Environment.ProcessId, health.Providers, post_processing_providers = health.PostProcessingProviders, local_models = health.LocalModels });
         });
 
         app.Use(async (context, next) =>

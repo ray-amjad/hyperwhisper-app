@@ -16,6 +16,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("bounded multipart transcription", Multipart),
     ("path traversal rejected", Traversal),
     ("request cancellation propagates", Cancellation),
+    ("health reports actual bound port", HealthReportsBoundPort),
     ("bind fallback", BindFallback),
     ("private token persistence", TokenPersistence)
 };
@@ -92,6 +93,18 @@ static async Task BindFallback()
         return port == 1234 ? Task.FromException(new SocketException((int)SocketError.AddressAlreadyInUse)) : Task.CompletedTask;
     });
     Assert(result == 0 && attempts.SequenceEqual([1234, 0]), "did not fall back to ephemeral loopback port");
+}
+
+static async Task HealthReportsBoundPort()
+{
+    await using var app = PortableLocalApi.Build([], new PortableLocalApiOptions(Fixture.Token, 0), new FakeBackend());
+    await app.StartAsync();
+    var address = new Uri(app.Urls.Single());
+    using var client = new HttpClient { BaseAddress = address };
+    using var response = await client.GetAsync("/health");
+    using var body = JsonDocument.Parse(await response.Content.ReadAsStreamAsync());
+    Assert(address.Port != 0 && body.RootElement.GetProperty("port").GetInt32() == address.Port,
+        "health returned the configured sentinel instead of the actual listener port");
 }
 
 static Task TokenPersistence()
