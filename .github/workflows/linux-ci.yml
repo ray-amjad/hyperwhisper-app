@@ -252,6 +252,14 @@ jobs:
             --configuration Release \
             --no-build
 
+          # Deterministic Tier-2 harness: production workflow and persistence
+          # with fake audio/transcription boundaries. The credential-free live
+          # null-source/Whisper gate is documented for release verification.
+          dotnet run \
+            --project app/linux/HyperWhisper.Linux.E2E.Tests/HyperWhisper.Linux.E2E.Tests.csproj \
+            --configuration Release \
+            --no-build
+
       - name: Render and publish Avalonia Linux head
         shell: bash
         run: |
@@ -295,6 +303,8 @@ jobs:
         run: |
           set -euo pipefail
           shellcheck \
+            app/linux/scripts/generate-virtual-mic-fixture.sh \
+            app/linux/scripts/run-virtual-mic-e2e.sh \
             app/linux/scripts/run-ui-smoke-xwayland.sh \
             app/linux/scripts/run-ui-smoke.sh \
             packaging/linux/scripts/build-deb.sh \

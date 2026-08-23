@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../shared-dotnet/HyperWhisper.Application/HyperWhisper.Application.csproj" />
+    <ProjectReference Include="../../shared-dotnet/HyperWhisper.LocalInference/HyperWhisper.LocalInference.csproj" />
+    <ProjectReference Include="../../shared-dotnet/HyperWhisper.ModelManagement/HyperWhisper.ModelManagement.csproj" />
+    <ProjectReference Include="../../shared-dotnet/HyperWhisper.Platform.Abstractions/HyperWhisper.Platform.Abstractions.csproj" />
+    <ProjectReference Include="../HyperWhisper.Linux.Platform/HyperWhisper.Linux.Platform.csproj" />
+    <!-- Compile the production Linux adapter from its authoritative source so
+         this independent harness does not depend on the Avalonia executable. -->
+    <Compile Include="../HyperWhisper.Linux/LinuxLocalWhisperTranscriber.cs" Link="Production/LinuxLocalWhisperTranscriber.cs" />
+  </ItemGroup>
+</Project>
