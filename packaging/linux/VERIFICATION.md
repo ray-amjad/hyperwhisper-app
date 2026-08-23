@@ -6,6 +6,14 @@ compositor behavior, portal UX, physical input-device access, or GPU inference.
 Every release candidate must therefore complete this checklist on three clean
 x86_64 desktop installations plus a physical GPU host.
 
+Publishing is fail-closed: after completing the matrix, upload each redacted
+evidence bundle, record its HTTPS URL and SHA-256 in
+`release-evidence/VERSION.json`, and have the manifest reviewed against the
+exact tested commit. The release commit may add only evidence manifests after
+that commit. Tag pushes only build a dry run. The manually approved release
+workflow validates this ancestry/diff invariant and includes the manifest in
+the published checksums.
+
 Use `PASS`, `FAIL`, `BLOCKED`, or `NOT IMPLEMENTED` for every result. A release
 requires `PASS` everywhere marked **gate**; `NOT IMPLEMENTED` is not a pass.
 

@@ -1,6 +1,7 @@
 # Linux v1 release builder. Build and unsigned metadata generation have no
-# external side effects. A GitHub Release is created only for a linux/v1.0.* tag
-# or an explicitly approved workflow_dispatch run with publish_github=true.
+# external side effects. Tag builds are dry runs. A GitHub Release is created
+# only by an explicitly approved workflow_dispatch run with publish_github=true
+# and checked-in Tier-3/physical-GPU evidence for the exact release commit.
 # APT metadata is signed only when requested/available from the Production
 # environment secret; the private key is never persisted as an artifact.
 name: Linux Release
@@ -73,7 +74,7 @@ jobs:
           set -euo pipefail
           if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
             version="${GITHUB_REF_NAME#linux/v}"
-            publish="true"
+            publish="false"
             require_apt_signature="false"
           else
             version="$DISPATCH_VERSION"
@@ -99,6 +100,17 @@ jobs:
           echo "Version: $version"
           echo "GitHub publishing enabled: $publish"
           echo "APT signature explicitly required: $require_apt_signature"
+
+      - name: Enforce reviewed Tier-3 and physical-GPU evidence
+        if: steps.release.outputs.publish == 'true'
+        shell: bash
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          evidence="packaging/linux/release-evidence/${VERSION}.json"
+          packaging/linux/scripts/validate-release-evidence.py \
+            "$evidence" "$VERSION" "$GITHUB_SHA"
 
       - name: Install release dependencies
         shell: bash
@@ -201,6 +213,7 @@ jobs:
             packaging/linux/scripts/test-apt-repository.sh \
             packaging/linux/debian/postinst \
             packaging/linux/debian/postrm
+          packaging/linux/scripts/test-release-evidence.py
           desktop-file-validate packaging/linux/debian/hyperwhisper.desktop
 
           package_path="$(
@@ -279,9 +292,17 @@ jobs:
 
           (
             cd artifacts/release
-            sha256sum \
-              "hyperwhisper_${VERSION}_amd64.deb" \
-              "hyperwhisper-apt-${VERSION}.tar.gz" > SHA256SUMS
+            checksum_files=(
+              "hyperwhisper_${VERSION}_amd64.deb"
+              "hyperwhisper-apt-${VERSION}.tar.gz"
+            )
+            if [[ -f "../../packaging/linux/release-evidence/${VERSION}.json" ]]; then
+              install -m0644 \
+                "../../packaging/linux/release-evidence/${VERSION}.json" \
+                linux-release-evidence.json
+              checksum_files+=(linux-release-evidence.json)
+            fi
+            sha256sum "${checksum_files[@]}" > SHA256SUMS
           )
           (
             cd artifacts/release
@@ -314,6 +335,7 @@ jobs:
             --notes "$notes" \
             "artifacts/release/hyperwhisper_${VERSION}_amd64.deb" \
             "artifacts/release/hyperwhisper-apt-${VERSION}.tar.gz" \
+            artifacts/release/linux-release-evidence.json \
             artifacts/release/SHA256SUMS
 
       - name: Report dry-run artifacts
