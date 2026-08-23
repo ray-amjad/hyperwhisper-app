@@ -190,8 +190,11 @@ public sealed partial class ApplicationBackupService
                 CopySetting<string>(linuxSettings, "audioEnvironmentPolicy");
                 CopySetting<bool>(linuxSettings, "autoDeleteEnabled");
                 CopySetting<int>(linuxSettings, "autoDeleteDaysOld");
+                if (linuxSettings["enableVoiceActivityTrimming"] is { } vad)
+                    _settings.Set("audio.enableVoiceActivityTrimming", vad.GetValue<bool>());
                 CopySetting<string>(linuxSettings, "themeMode");
                 CopySetting<bool>(linuxSettings, "minimizeToTray");
+                CopySetting<double>(linuxSettings, "soundEffectsVolume");
                 if (linuxSettings["customEndpoints"] is { } customEndpoints)
                     _settings.Set("customEndpoints", customEndpoints.Deserialize<PortableCustomPostProcessingEndpoint[]>(SerializerOptions) ?? []);
             }
@@ -199,6 +202,9 @@ public sealed partial class ApplicationBackupService
             {
                 _settings.Set("customEndpoints", windowsCustomEndpoints.Deserialize<PortableCustomPostProcessingEndpoint[]>(SerializerOptions) ?? []);
             }
+            if (extensions["linux"]?["settings"]?["soundEffectsVolume"] is null
+                && extensions["macos"]?["settings"]?["audio"]?["soundEffectsVolume"] is { } macVolume)
+                _settings.Set("soundEffectsVolume", Math.Clamp(macVolume.GetValue<double>(), 0, 1));
         }
         if (root["settings"] is JsonObject sharedSettings) ApplySharedSettings(sharedSettings);
     }

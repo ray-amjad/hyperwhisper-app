@@ -76,6 +76,13 @@ public interface IRecordedAudioTranscriber
         CancellationToken cancellationToken = default);
 }
 
+public sealed record BatchAudioPreprocessResult(string TranscriptionPath, string? TrimmedAudioPath, string Reason);
+
+public interface IBatchAudioPreprocessor
+{
+    Task<BatchAudioPreprocessResult> PreprocessAsync(string path, CancellationToken cancellationToken = default);
+}
+
 public interface ICompletedAudioTransformer
 {
     Task<PlatformResult<string>> TransformAsync(string path, CancellationToken cancellationToken = default);
@@ -236,6 +243,7 @@ public sealed class TranscriptionWorkflow : IDisposable
     private readonly ITextInjectionService? _textInjection;
     private readonly ITranscriptionHistoryStore _history;
     private readonly CompletedAudioRetention? _audioRetention;
+    private readonly IBatchAudioPreprocessor? _audioPreprocessor;
     private readonly bool _ownsDependencies;
     private IReadOnlyList<AudioInputDevice> _audioDevices = [];
     private string? _selectedDeviceId;
@@ -254,13 +262,15 @@ public sealed class TranscriptionWorkflow : IDisposable
         ITranscriptionPostProcessor? postProcessor = null,
         ITextInjectionService? textInjection = null,
         bool ownsDependencies = false,
-        CompletedAudioRetention? audioRetention = null)
+        CompletedAudioRetention? audioRetention = null,
+        IBatchAudioPreprocessor? audioPreprocessor = null)
     {
         _recorder = recorder ?? throw new ArgumentNullException(nameof(recorder));
         _devices = devices ?? throw new ArgumentNullException(nameof(devices));
         _transcriber = transcriber ?? throw new ArgumentNullException(nameof(transcriber));
         _history = history ?? throw new ArgumentNullException(nameof(history));
         _audioRetention = audioRetention;
+        _audioPreprocessor = audioPreprocessor;
         _postProcessor = postProcessor;
         _textInjection = textInjection;
         _ownsDependencies = ownsDependencies;
@@ -661,10 +671,33 @@ public sealed class TranscriptionWorkflow : IDisposable
                 ownsAudio);
         }
 
+        var transcriptionPath = audioPath;
+        if (_audioPreprocessor is not null)
+        {
+            try
+            {
+                var preprocessed = await _audioPreprocessor.PreprocessAsync(audioPath, operation.Token).ConfigureAwait(false);
+                if (Path.IsPathFullyQualified(preprocessed.TranscriptionPath)
+                    && File.Exists(preprocessed.TranscriptionPath))
+                {
+                    transcriptionPath = preprocessed.TranscriptionPath;
+                    transcript.TrimmedAudioFilePath = preprocessed.TrimmedAudioPath;
+                    _ = await _history.UpdateAsync(transcript, operation.Token).ConfigureAwait(false);
+                }
+            }
+            catch (OperationCanceledException) when (operation.IsCancellationRequested || callerToken.IsCancellationRequested)
+            {
+                return retryCancellation is not null
+                    ? await CompleteRetryCancelledAsync(transcript, retryCancellation, operation).ConfigureAwait(false)
+                    : await CompleteCancelledAsync(transcript, operation, audioPath, ownsAudio).ConfigureAwait(false);
+            }
+            catch { transcriptionPath = audioPath; transcript.TrimmedAudioFilePath = null; }
+        }
+
         PortableTranscriptionResult result;
         try
         {
-            result = await _transcriber.TranscribeAsync(audioPath, request, operation.Token).ConfigureAwait(false);
+            result = await _transcriber.TranscribeAsync(transcriptionPath, request, operation.Token).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (operation.IsCancellationRequested || callerToken.IsCancellationRequested)
         {

@@ -775,8 +775,10 @@ public sealed partial class ApplicationBackupService(
         linuxSettings["audioEnvironmentPolicy"] = _settings.Get("audioEnvironmentPolicy", "unchanged");
         linuxSettings["autoDeleteEnabled"] = _settings.Get("autoDeleteEnabled", false);
         linuxSettings["autoDeleteDaysOld"] = _settings.Get("autoDeleteDaysOld", 30);
+        linuxSettings["enableVoiceActivityTrimming"] = _settings.Get("audio.enableVoiceActivityTrimming", true);
         linuxSettings["themeMode"] = _settings.Get("themeMode", "system");
         linuxSettings["minimizeToTray"] = _settings.Get("minimizeToTray", true);
+        linuxSettings["soundEffectsVolume"] = _settings.Get("soundEffectsVolume", 1d);
         linuxSettings["customEndpoints"] = JsonSerializer.SerializeToNode(
             _settings.Get<PortableCustomPostProcessingEndpoint[]>("customEndpoints", []), SerializerOptions);
         linuxExtension["settings"] = linuxSettings;

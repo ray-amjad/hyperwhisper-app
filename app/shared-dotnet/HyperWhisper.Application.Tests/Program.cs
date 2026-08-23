@@ -14,6 +14,7 @@ using HyperWhisper.CloudAccount;
 using HyperWhisper.Statistics;
 using HyperWhisper.Diagnostics;
 using System.IO.Compression;
+using HyperWhisper.PortableApplication.Audio;
 
 var root = Path.Combine(Path.GetTempPath(), "HyperWhisper.Application.Tests", Guid.NewGuid().ToString("N"));
 Directory.CreateDirectory(root);
@@ -25,6 +26,8 @@ try
     await RunTranscriptionWorkflowTestsAsync(root);
     await RunHistoryRetryTestsAsync(root);
     await RunHistoryExperienceTestsAsync(root);
+    await RunCrashAudioRecoveryTestsAsync(Path.Combine(root, "crash-recovery"));
+    await RunVoiceActivityTrimTestsAsync(Path.Combine(root, "vad"));
 
     var freshDatabase = new ApplicationDb(new TestPaths(Path.Combine(root, "fresh-defaults")));
     await freshDatabase.InitializeAsync();
@@ -155,6 +158,7 @@ try
     settings.Set("textOutput.hideFromClipboardHistory", false);
     settings.Set("textOutput.clipboardRestoreDelaySeconds", 2.5d);
     settings.Set("general.showRecordingWindow", false);
+    settings.Set("soundEffectsVolume", 0.375d);
     settings.Set("themeMode", "dark");
     settings.Set("general.launchMinimized", true);
     settings.Set("minimizeToTray", false);
@@ -169,6 +173,7 @@ try
         && !outputSettings.HideFromClipboardHistory
         && !outputSettings.ShowRecordingWindow && outputSettings.ThemeMode == "dark"
         && outputSettings.LaunchMinimized && !outputSettings.MinimizeToTray
+        && outputSettings.SoundEffectsVolume == 0.375d
         && outputSettings.ClipboardRestoreDelaySeconds == 2.5d,
         "text-output settings did not load from their canonical shared keys");
     outputSettings.CancelShortcutModifiers = outputSettings.ToggleShortcutModifiers;
@@ -243,6 +248,7 @@ try
     Assert(exportedLinuxSettings["cancelShortcutKey"]!.GetValue<string>() == "Escape"
         && exportedLinuxSettings["changeModeShortcutKey"]!.GetValue<string>() == "Period"
         && exportedLinuxSettings["streamingShortcutKey"]!.GetValue<string>() == "Space"
+        && exportedLinuxSettings["soundEffectsVolume"]!.GetValue<double>() == 0.375d
         && !exported.Contains("selectedModeId", StringComparison.Ordinal),
         "Linux backup did not map shortcut settings or exported device-local mode selection");
     Assert(!exported.Contains("apiKeys", StringComparison.Ordinal), "backup exported an API-key container without explicit opt-in");
@@ -811,6 +817,78 @@ static async Task RunHistoryExperienceTestsAsync(string root)
     {
         // The containment behavior is covered wherever the host permits symlink creation.
     }
+}
+
+static async Task RunCrashAudioRecoveryTestsAsync(string root)
+{
+    var paths = new TestPaths(root);
+    Directory.CreateDirectory(root);
+    var database = new ApplicationDb(paths);
+    await database.MigrateAsync();
+    var history = new HistoryRepository(database, paths);
+    var valid = WriteWave(Path.Combine(root, "recording-valid.wav"), 16000);
+    var incomplete = WriteWave(Path.Combine(root, "recording-incomplete.wav"), 8000, incompleteHeader: true);
+    await File.WriteAllBytesAsync(Path.Combine(root, "recording-empty.wav"), new byte[44]);
+    await File.WriteAllBytesAsync(Path.Combine(root, "recording-truncated.wav"), [1, 2, 3]);
+    var active = WriteWave(Path.Combine(root, "recording-active.wav"), 4000);
+    var outside = Path.Combine(Path.GetDirectoryName(root)!, $"outside-{Guid.NewGuid():N}.wav");
+    WriteWave(outside, 4000);
+    try { File.CreateSymbolicLink(Path.Combine(root, "recording-linked.wav"), outside); } catch { }
+
+    var service = new CrashAudioRecoveryService(paths, history, () => active);
+    var first = await service.RecoverAsync();
+    Assert(first.Recovered == 2 && first.Quarantined == 2,
+        $"unexpected recovery summary {first}");
+    Assert(CanonicalPcmWave.InspectAndRepair(incomplete, false).IsSuccess,
+        "incomplete WAV header was not repaired");
+    var rows = await history.ListAsync();
+    Assert(rows.Count == 2 && rows.All(row => row.Status == TranscriptStatus.Failed
+        && row.AudioFilePath is not null && File.Exists(row.AudioFilePath)),
+        "valid recovered audio was not imported as retryable failed history");
+    var second = await service.RecoverAsync();
+    Assert(second.Recovered == 0 && (await history.ListAsync()).Count == 2,
+        "recovery was not idempotent");
+    Assert(File.Exists(active) && File.Exists(outside), "recovery touched active or symlink-target audio");
+    try { File.Delete(outside); } catch { }
+}
+
+static async Task RunVoiceActivityTrimTestsAsync(string root)
+{
+    Directory.CreateDirectory(root);
+    var path = WriteWave(Path.Combine(root, "recording-long.wav"), 16000 * 31,
+        sample: index => index is > 16000 and < 32000 ? (short)8000 : (short)0);
+    var trimmer = new PortableWaveVoiceActivityTrimmer(new PcmEnergyVoiceActivityDetector(), minimumDurationSeconds: 30);
+    var trimmed = await trimmer.TrimAsync(path, root);
+    Assert(trimmed.WasTrimmed && trimmed.TrimmedAudioPath is not null && File.Exists(trimmed.TrimmedAudioPath)
+        && File.Exists(path), "VAD did not retain original while producing trimmed audio");
+    Assert(CanonicalPcmWave.InspectAndRepair(trimmed.TrimmedAudioPath!, false).Value!.DurationSeconds < 2,
+        "VAD output did not remove bounded silence");
+
+    var silent = WriteWave(Path.Combine(root, "recording-silent.wav"), 16000 * 31);
+    var noSpeech = await trimmer.TrimAsync(silent, root);
+    Assert(!noSpeech.WasTrimmed && noSpeech.TranscriptionPath == silent && File.Exists(silent),
+        "no-speech fallback did not preserve original audio");
+    using var cancelled = new CancellationTokenSource();
+    cancelled.Cancel();
+    var cancellation = await trimmer.TrimAsync(path, root, cancelled.Token);
+    Assert(!cancellation.WasTrimmed && cancellation.TranscriptionPath == path && File.Exists(path),
+        "cancelled VAD did not preserve original audio");
+}
+
+static string WriteWave(string path, int samples, bool incompleteHeader = false, Func<int, short>? sample = null)
+{
+    Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+    using var stream = File.Create(path);
+    var info = new WavePcmInfo(16000, 1, 16, samples * 2L);
+    CanonicalPcmWave.WriteHeader(stream, info, incompleteHeader ? 0 : samples * 2L);
+    stream.Position = CanonicalPcmWave.HeaderSize;
+    Span<byte> bytes = stackalloc byte[2];
+    for (var index = 0; index < samples; index++)
+    {
+        System.Buffers.Binary.BinaryPrimitives.WriteInt16LittleEndian(bytes, sample?.Invoke(index) ?? 0);
+        stream.Write(bytes);
+    }
+    return path;
 }
 
 static void Assert(bool condition, string message)

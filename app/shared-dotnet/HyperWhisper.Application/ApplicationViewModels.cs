@@ -1381,11 +1381,13 @@ public sealed class SettingsViewModel : ViewModelBase
     private bool _launchMinimized;
     private bool _minimizeToTray = true;
     private bool _enableSoundEffects = true;
+    private double _soundEffectsVolume = 1;
     private bool _showRecordingWindow = true;
     private string _themeMode = "system";
     private bool _autoIncreaseMicVolume;
     private bool _keepMicrophoneWarm;
     private bool _keepAudioFiles = true;
+    private bool _enableVoiceActivityTrimming = true;
     private bool _storeAsM4A;
     private string _recordingsDirectory = string.Empty;
     private bool _autoDeleteEnabled;
@@ -1445,12 +1447,14 @@ public sealed class SettingsViewModel : ViewModelBase
     public bool LaunchMinimized { get => _launchMinimized; set => Set(ref _launchMinimized, value); }
     public bool MinimizeToTray { get => _minimizeToTray; set => Set(ref _minimizeToTray, value); }
     public bool EnableSoundEffects { get => _enableSoundEffects; set => Set(ref _enableSoundEffects, value); }
+    public double SoundEffectsVolume { get => _soundEffectsVolume; set => Set(ref _soundEffectsVolume, Math.Clamp(double.IsFinite(value) ? value : 1, 0, 1)); }
     public bool ShowRecordingWindow { get => _showRecordingWindow; set => Set(ref _showRecordingWindow, value); }
     public string ThemeMode { get => _themeMode; set => Set(ref _themeMode, NormalizeThemeMode(value)); }
     public IReadOnlyList<string> ThemeModes { get; } = ["system", "light", "dark"];
     public bool AutoIncreaseMicVolume { get => _autoIncreaseMicVolume; set => Set(ref _autoIncreaseMicVolume, value); }
     public bool KeepMicrophoneWarm { get => _keepMicrophoneWarm; set => Set(ref _keepMicrophoneWarm, value); }
     public bool KeepAudioFiles { get => _keepAudioFiles; set => Set(ref _keepAudioFiles, value); }
+    public bool EnableVoiceActivityTrimming { get => _enableVoiceActivityTrimming; set => Set(ref _enableVoiceActivityTrimming, value); }
     public bool StoreAsM4A { get => _storeAsM4A; set => Set(ref _storeAsM4A, value); }
     public string RecordingsDirectory
     {
@@ -1545,11 +1549,13 @@ public sealed class SettingsViewModel : ViewModelBase
         LaunchMinimized = _settings.Get("general.launchMinimized", false);
         MinimizeToTray = _settings.Get("minimizeToTray", true);
         EnableSoundEffects = _settings.Get("general.enableSoundEffects", true);
+        SoundEffectsVolume = _settings.Get("soundEffectsVolume", 1d);
         ShowRecordingWindow = _settings.Get("general.showRecordingWindow", true);
         ThemeMode = _settings.Get("themeMode", "system") ?? "system";
         AutoIncreaseMicVolume = _settings.Get("autoIncreaseMicVolume", false);
         KeepMicrophoneWarm = _settings.Get("keepMicrophoneWarm", false);
         KeepAudioFiles = _settings.Get("storage.keepAudioFiles", true);
+        EnableVoiceActivityTrimming = _settings.Get("audio.enableVoiceActivityTrimming", true);
         StoreAsM4A = _settings.Get("storage.storeAsM4A", false);
         RecordingsDirectory = _settings.Get("storage.recordingsDirectory", string.Empty) ?? string.Empty;
         AutoDeleteEnabled = _settings.Get("autoDeleteEnabled", false);
@@ -1615,11 +1621,13 @@ public sealed class SettingsViewModel : ViewModelBase
         _settings.Set("general.launchMinimized", LaunchMinimized);
         _settings.Set("minimizeToTray", MinimizeToTray);
         _settings.Set("general.enableSoundEffects", EnableSoundEffects);
+        _settings.Set("soundEffectsVolume", SoundEffectsVolume);
         _settings.Set("general.showRecordingWindow", ShowRecordingWindow);
         _settings.Set("themeMode", NormalizeThemeMode(ThemeMode));
         _settings.Set("autoIncreaseMicVolume", AutoIncreaseMicVolume);
         _settings.Set("keepMicrophoneWarm", KeepMicrophoneWarm);
         _settings.Set("storage.keepAudioFiles", KeepAudioFiles);
+        _settings.Set("audio.enableVoiceActivityTrimming", EnableVoiceActivityTrimming);
         _settings.Set("storage.storeAsM4A", StoreAsM4A);
         _settings.Set("storage.recordingsDirectory", RecordingsDirectory);
         _settings.Set("autoDeleteEnabled", AutoDeleteEnabled);
