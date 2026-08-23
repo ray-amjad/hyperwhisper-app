@@ -30,7 +30,8 @@ try
         passed++;
     }
 
-    var injectionMarker = Path.Combine(root, "SHELL_INJECTION_OCCURRED");
+    var injectionMarker = Path.Combine(Environment.CurrentDirectory, "SHELL_INJECTION_OCCURRED.wav");
+    File.Delete(injectionMarker);
     var hostileSource = Path.Combine(root, "audio;touch SHELL_INJECTION_OCCURRED.wav");
     File.Copy(sourceWave, hostileSource);
     var hostileResult = await new FfmpegAudioNormalizationService().NormalizeAsync(hostileSource, Path.Combine(root, "hostile-output"));
@@ -95,6 +96,7 @@ try
 }
 finally
 {
+    File.Delete(Path.Combine(Environment.CurrentDirectory, "SHELL_INJECTION_OCCURRED.wav"));
     try { Directory.Delete(root, recursive: true); } catch (IOException) { }
 }
 
