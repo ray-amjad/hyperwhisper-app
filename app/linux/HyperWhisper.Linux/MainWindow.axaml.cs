@@ -26,6 +26,10 @@ using System.Reflection;
 using HyperWhisper.Linux.Localization;
 using HyperWhisper.Linux.Platform.Files;
 using HyperWhisper.Linux.Platform.SystemIntegration;
+using HyperWhisper.Linux.Platform.Audio;
+using HyperWhisper.Linux.Platform.Injection;
+using HyperWhisper.Linux.Platform.Input;
+using HyperWhisper.PortableApplication.Audio;
 
 namespace HyperWhisper.Linux;
 
@@ -46,6 +50,8 @@ public partial class MainWindow : Window
     private readonly PrivacySafeRotatingLogger _diagnosticLogger;
     private readonly LinuxLifecycleDiagnostics _lifecycleDiagnostics;
     private readonly LinuxPackageUpdateProbe _packageUpdateProbe = new();
+    private readonly bool _isFreshProfile;
+    private LinuxOnboardingViewModel? _onboarding;
     private readonly TranscriptionWorkflow _workflow;
     private readonly LinuxInteractionRecordingSession _recordingSession;
     private readonly LinuxInteractionCoordinator _interaction;
@@ -73,6 +79,9 @@ public partial class MainWindow : Window
         _localization = (Avalonia.Application.Current as App)?.Localization
             ?? throw new InvalidOperationException("The application localization service is unavailable.");
         _platformServices = platformServices ?? throw new ArgumentNullException(nameof(platformServices));
+        var priorSettings = _platformServices.PrivateFiles.ReadAllText(
+            Path.Combine(_platformServices.Paths.ConfigDirectory, "settings.json"));
+        _isFreshProfile = priorSettings.IsSuccess && priorSettings.Value is null;
         _database = new ApplicationDb(_platformServices.Paths);
         _settings = new PortableSettingsService(_platformServices.PrivateFiles, _platformServices.Paths);
         _modelManager = new PortableModelManager(_platformServices.Paths, _modelHttp);
@@ -102,7 +111,8 @@ public partial class MainWindow : Window
             audioRetention: new CompletedAudioRetention(
                 () => _settings.Get("storage.keepAudioFiles", true), _storageLifecycle,
                 new FfmpegM4aAudioTransformer(
-                    () => _settings.Get("storage.storeAsM4A", false))));
+                    () => _settings.Get("storage.storeAsM4A", false))),
+            audioPreprocessor: _platformServices.AudioPreprocessor);
         _viewModel = new ApplicationShellViewModel(
             _database, _settings, _workflow, LinuxLocalPostProcessor.RuntimeStatus,
             _modelManager, _platformServices.AudioPlayback,
@@ -180,6 +190,7 @@ public partial class MainWindow : Window
         _interaction.ChangeModeRequested += OnChangeModeRequested;
         _platformServices.Tray.ActionRequested += OnTrayActionRequested;
         _platformServices.Tray.Unavailable += OnTrayUnavailable;
+        if (_viewModel.Recording is not null) _viewModel.Recording.TranscriptionSaved += OnOnboardingTranscriptionSaved;
     }
 
     private async void OnOpened(object? sender, EventArgs e)
@@ -187,6 +198,13 @@ public partial class MainWindow : Window
         try
         {
             await EnsureInitializedAsync();
+            await new CrashAudioRecoveryService(
+                _platformServices.Paths,
+                new HistoryRepository(_database, _platformServices.Paths),
+                () => _platformServices.AudioRecorder.IsRecording ? "active" : null)
+                .RecoverAsync(_lifetime.Token);
+            await _viewModel.History.RefreshAsync(_lifetime.Token);
+            InitializeOnboarding();
             await WriteDiagnosticAsync(DiagnosticSeverity.Information, DiagnosticComponent.Application, DiagnosticOutcome.Started);
             await ApplyLocalApiSettingsAsync(_lifetime.Token);
             ApplyTelemetrySettings();
@@ -253,6 +271,7 @@ public partial class MainWindow : Window
         _interaction.ChangeModeRequested -= OnChangeModeRequested;
         _platformServices.Tray.ActionRequested -= OnTrayActionRequested;
         _platformServices.Tray.Unavailable -= OnTrayUnavailable;
+        if (_viewModel.Recording is not null) _viewModel.Recording.TranscriptionSaved -= OnOnboardingTranscriptionSaved;
         _trayActions.Dispose();
         _interaction.Dispose();
         _overlay.Dispose();
@@ -392,6 +411,76 @@ public partial class MainWindow : Window
     {
         if (this.FindControl<TextBlock>("AboutUpdateStatus") is { } status) status.Text = text;
     }
+
+    private void InitializeOnboarding()
+    {
+        if (Program.IsSmokeTest || !_isFreshProfile || _settings.Get("onboarding.completed", false)
+                            || _settings.Get("onboarding.skipped", false)) return;
+        var audio = (_platformServices.AudioRecorder as PulseAudioRecorder)?.GetCapabilities();
+        var injection = (_platformServices.TextInjection as LinuxTextInjectionService)?.GetCapabilities();
+        var shortcuts = (_platformServices.GlobalShortcuts as LinuxGlobalShortcutService)?.GetCapabilities();
+        var capture = (_platformServices.ScreenOcr as LinuxScreenOcrService)?.GetCapabilities();
+        _onboarding = new LinuxOnboardingViewModel(
+            new(
+                audio?.Available == true,
+                injection?.ClipboardAvailable == true,
+                injection?.UInputAvailable == true,
+                shortcuts?.Available == true,
+                capture?.UsesDesktopPortal == true,
+                _platformServices.LocalWhisperCapability.IsAvailable,
+                _platformServices.LocalParakeetCapability.IsAvailable),
+            _viewModel.Modes.Items,
+            _viewModel.Modes.Selected,
+            _viewModel.Recording?.AudioDevices ?? [],
+            _viewModel.Recording?.SelectedAudioDevice,
+            PersistOnboardingDecision,
+            mode => _viewModel.Modes.Selected = mode,
+            device => { if (_viewModel.Recording is not null) _viewModel.Recording.SelectedAudioDevice = device; },
+            L);
+        OnboardingOverlay.DataContext = _onboarding;
+        _onboarding.Show();
+    }
+
+    private bool PersistOnboardingDecision(bool skipped)
+    {
+        _settings.Set("onboarding.completed", !skipped);
+        _settings.Set("onboarding.skipped", skipped);
+        var saved = _settings.Save();
+        if (saved.IsSuccess) return true;
+        _viewModel.Status.Failure(saved.Error!.Code, L("linux.onboarding.save_failed"));
+        return false;
+    }
+
+    private void OnOnboardingBack(object? sender, RoutedEventArgs e) => _onboarding?.Back();
+    private void OnOnboardingNext(object? sender, RoutedEventArgs e) => _onboarding?.Next();
+    private void OnOnboardingSkip(object? sender, RoutedEventArgs e) => _onboarding?.Skip();
+
+    private async void OnOnboardingTestDictation(object? sender, RoutedEventArgs e)
+    {
+        if (_onboarding is null || !_onboarding.IsTestReady)
+        {
+            _onboarding?.SetTestStatus(L("linux.onboarding.test.not_ready"));
+            return;
+        }
+        try
+        {
+            if (_recordingSession.IsActive)
+            {
+                _onboarding.SetTestStatus(L("linux.onboarding.test.transcribing"));
+                await _interaction.StopRecordingAsync(_lifetime.Token);
+            }
+            else
+            {
+                await _interaction.StartRecordingAsync(_lifetime.Token);
+                _onboarding.SetTestStatus(L("linux.onboarding.test.recording"));
+            }
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch { _onboarding.SetTestStatus(L("linux.onboarding.test.failed")); }
+    }
+
+    private void OnOnboardingTranscriptionSaved(object? sender, EventArgs e) =>
+        _onboarding?.SetTestStatus(L("linux.onboarding.test.succeeded"), succeeded: true);
 
     private void OpenFixedLocation(string path)
     {
