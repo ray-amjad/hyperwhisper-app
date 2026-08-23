@@ -88,6 +88,12 @@ Linux-only settings go into `platformExtensions.linux.settings`:
 | `autostartEnabled` | Linux autostart preference | Bool; controls the per-user XDG autostart entry. |
 | `toggleShortcutModifiers` | Linux transcription shortcut modifiers | `ShortcutModifiers` names, comma separated. |
 | `toggleShortcutKey` | Linux transcription shortcut key | Stable portable key name. |
+| `cancelShortcutModifiers` | Linux active-session cancellation modifiers | `None` for the default session-scoped Escape binding. |
+| `cancelShortcutKey` | Linux active-session cancellation key | Stable portable key name; registered only while recording. |
+| `changeModeShortcutModifiers` | Linux mode-cycle shortcut modifiers | `ShortcutModifiers` names, comma separated. |
+| `changeModeShortcutKey` | Linux mode-cycle shortcut key | Stable portable key name. |
+| `streamingShortcutModifiers` | Linux dedicated live-transcription modifiers | `ShortcutModifiers` names, comma separated. |
+| `streamingShortcutKey` | Linux dedicated live-transcription key | Stable portable key name. |
 | `pushToTalkMode` | Linux push-to-talk mode | `Disabled`, `Modifier`, or `CustomShortcut`. |
 | `pushToTalkModifier` | Linux modifier-only push-to-talk input | Stable `ModifierSide` name. |
 | `pushToTalkShortcutModifiers` | Linux custom push-to-talk modifiers | `ShortcutModifiers` names, comma separated. |
@@ -99,6 +105,10 @@ Linux-only settings go into `platformExtensions.linux.settings`:
 | `autoDeleteEnabled` | Linux recording-history retention preference | Bool; enables startup/hourly transcript and app-owned audio cleanup. |
 | `autoDeleteDaysOld` | Linux recording-history retention age | Integer clamped to 1–365 days. |
 | `customEndpoints` | Linux custom post-processing endpoints | Windows-compatible array of `id`, `name`, `endpointURL`, and `modelName`; credentials remain in secure storage and are never exported. |
+
+The Linux `selectedModeId` setting is intentionally device-local and is not exported: a
+mode selection is transient UI state, and importing it could silently change the active
+recording workflow on another device.
 </important>
 
 <important if="you are adding or modifying a Mode property, or editing the mode field-mapping tables">

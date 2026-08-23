@@ -159,6 +159,26 @@ try
         && !outputSettings.AutocapitalizeInsert && !outputSettings.RestoreClipboardAfterPaste
         && outputSettings.ClipboardRestoreDelaySeconds == 2.5d,
         "text-output settings did not load from their canonical shared keys");
+    outputSettings.CancelShortcutModifiers = outputSettings.ToggleShortcutModifiers;
+    outputSettings.CancelShortcutKey = outputSettings.ToggleShortcutKey;
+    outputSettings.Save();
+    Assert(outputSettings.Status.ErrorCode == "settings.shortcut_conflict"
+        && reloadedSettings.Get<string>("cancelShortcutKey") is null,
+        "conflicting shortcuts were persisted before validation");
+    outputSettings.ResetShortcuts();
+    Assert(outputSettings.ToggleShortcutModifiers == "Control, Alt"
+        && outputSettings.ToggleShortcutKey == string.Empty
+        && outputSettings.CancelShortcutKey == "Escape"
+        && outputSettings.ChangeModeShortcutKey == "Period"
+        && outputSettings.StreamingShortcutKey == "Space",
+        "shortcut reset did not restore Linux parity defaults");
+    outputSettings.ToggleShortcutModifiers = "Control, Alt";
+    outputSettings.ToggleShortcutKey = "F9";
+    outputSettings.CancelShortcutModifiers = "None";
+    outputSettings.CancelShortcutKey = "Escape";
+    outputSettings.PushToTalkMode = "Modifier";
+    outputSettings.PushToTalkModifier = "LeftAlt";
+    outputSettings.PushToTalkDoublePressLock = true;
     outputSettings.PasteResultText = true;
     outputSettings.RemoveFillerWords = false;
     outputSettings.AutocapitalizeInsert = true;
@@ -172,6 +192,26 @@ try
         && reloadedSettings.Get("textOutput.clipboardRestoreDelaySeconds", 0d) == 4.5d,
         "text-output settings did not save to their canonical shared keys");
 
+    var alternateMode = new Mode { Name = "Remembered mode", SortOrder = -1 };
+    await modes.UpsertAsync(alternateMode);
+    reloadedSettings.Set("selectedModeId", Guid.NewGuid().ToString("D"));
+    Assert(reloadedSettings.Save().IsSuccess, "stale selected-mode test setting did not save");
+    var modeSelection = new ModesViewModel(modes, reloadedSettings);
+    await modeSelection.RefreshAsync();
+    Assert(modeSelection.Selected?.Id == mode.Id,
+        "missing selected mode did not prefer the default over sort order");
+    modeSelection.Selected = modeSelection.Items.Single(item => item.Id == alternateMode.Id);
+    var reloadedModeSelection = new ModesViewModel(modes, reloadedSettings);
+    await reloadedModeSelection.RefreshAsync();
+    Assert(reloadedModeSelection.Selected?.Id == alternateMode.Id,
+        "selected mode did not persist device-locally");
+    await modes.DeleteAsync(alternateMode.Id);
+    var fallbackModeSelection = new ModesViewModel(modes, reloadedSettings);
+    await fallbackModeSelection.RefreshAsync();
+    Assert(fallbackModeSelection.Selected?.Id == mode.Id
+        && reloadedSettings.Get<string>("selectedModeId") == mode.Id.ToString("D"),
+        "missing selected mode did not fall back and repair device-local state");
+
     var backupService = new ApplicationBackupService(database, reloadedSettings);
     var exported = await backupService.ExportAsync();
     Assert(exported.Contains("Portable Updated", StringComparison.Ordinal), "backup omitted modes");
@@ -183,6 +223,12 @@ try
         && exportedSettings["restoreClipboardAfterPaste"]!.GetValue<bool>()
         && exportedSettings["clipboardRestoreDelaySeconds"]!.GetValue<double>() == 4.5d,
         "universal backup omitted canonical text-output settings");
+    var exportedLinuxSettings = JsonNode.Parse(exported)!["platformExtensions"]!["linux"]!["settings"]!;
+    Assert(exportedLinuxSettings["cancelShortcutKey"]!.GetValue<string>() == "Escape"
+        && exportedLinuxSettings["changeModeShortcutKey"]!.GetValue<string>() == "Period"
+        && exportedLinuxSettings["streamingShortcutKey"]!.GetValue<string>() == "Space"
+        && !exported.Contains("selectedModeId", StringComparison.Ordinal),
+        "Linux backup did not map shortcut settings or exported device-local mode selection");
     Assert(!exported.Contains("apiKeys", StringComparison.Ordinal), "backup exported an API-key container without explicit opt-in");
     var nonIntegerVersion = JsonNode.Parse(exported)!.AsObject();
     nonIntegerVersion["schemaVersion"] = "2";

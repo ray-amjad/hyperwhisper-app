@@ -49,18 +49,31 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
     public bool IsActive => _streaming
         ? _services.LiveStreaming.IsRunning
         : _workflow.Snapshot.State is TranscriptionWorkflowState.Recording
-            or TranscriptionWorkflowState.Stopping or TranscriptionWorkflowState.Transcribing;
+            or TranscriptionWorkflowState.Stopping or TranscriptionWorkflowState.Transcribing
+            or TranscriptionWorkflowState.Retrying;
     public bool IsStreaming => _streaming;
 
-    public async ValueTask<PlatformResult> StartAsync(CancellationToken cancellationToken = default)
+    public async ValueTask<PlatformResult> StartAsync(
+        InteractionRecordingKind kind,
+        CancellationToken cancellationToken = default)
     {
-        try { return await StartCoreAsync(cancellationToken); }
-        catch (OperationCanceledException) { _overlay.Cancelled(); throw; }
+        try { return await StartCoreAsync(kind, cancellationToken); }
+        catch (OperationCanceledException)
+        {
+            await RestoreAudioAsync();
+            ClearSession();
+            _overlay.Cancelled();
+            throw;
+        }
         catch { _overlay.Failed(LinuxRecordingOverlayError.RecordingFailed); throw; }
     }
 
-    private async ValueTask<PlatformResult> StartCoreAsync(CancellationToken cancellationToken)
+    private async ValueTask<PlatformResult> StartCoreAsync(
+        InteractionRecordingKind kind,
+        CancellationToken cancellationToken)
     {
+        if (kind == InteractionRecordingKind.Streaming && !_viewModel.Settings.StreamingEnabled)
+            return PlatformResult.Failure("interaction.streaming_disabled", "Enable live transcription before starting a streaming session.");
         if (IsActive) return PlatformResult.Failure("interaction.already_recording", "A transcription is already active.");
         _mode = _viewModel.Modes.Selected ?? _viewModel.Modes.Items.FirstOrDefault(item => item.IsDefault)
             ?? _viewModel.Modes.Items.FirstOrDefault();
@@ -81,7 +94,7 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         _overlay.RecordingStarted(LinuxOverlayModeLabel.Create(_mode.Name));
         var deviceId = _viewModel.Recording?.SelectedAudioDevice?.Id ?? "default";
         PrepareAudio(deviceId);
-        _streaming = _viewModel.Settings.StreamingEnabled;
+        _streaming = kind == InteractionRecordingKind.Streaming;
         PlatformResult started;
         if (_streaming)
             started = await StartStreamingAsync(deviceId, cancellationToken);
@@ -140,9 +153,15 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
             TranscriptionProvider = resolved.Value.Config.Provider.ToString(),
         };
         try { await _history.AddAsync(_liveTranscript, cancellationToken); }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            _ = await _services.LiveStreaming.CancelAsync(CancellationToken.None);
+            _liveTranscript = null;
+            throw;
+        }
         catch
         {
-            _ = await _services.LiveStreaming.CancelAsync(cancellationToken);
+            _ = await _services.LiveStreaming.CancelAsync(CancellationToken.None);
             _liveTranscript = null;
             return PlatformResult.Failure("streaming.persistence_failed", "The live transcription history row could not be created.");
         }

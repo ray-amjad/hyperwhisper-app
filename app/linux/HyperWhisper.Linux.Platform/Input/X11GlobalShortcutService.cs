@@ -3,7 +3,11 @@ using HyperWhisper.Platform.Abstractions;
 
 namespace HyperWhisper.Linux.Platform.Input;
 
-internal sealed record X11ShortcutBinding(NamedShortcut Shortcut, IReadOnlyList<uint> Keysyms, uint Modifiers, bool ModifierOnly);
+internal sealed record X11ShortcutTrigger(uint Keysym, uint Modifiers, uint PrimaryModifier = 0);
+internal sealed record X11ShortcutBinding(
+    NamedShortcut Shortcut,
+    IReadOnlyList<X11ShortcutTrigger> Triggers,
+    bool ModifierOnly);
 internal readonly record struct X11HotkeyEvent(byte Keycode, uint State, bool Pressed);
 
 internal interface IX11HotkeyConnection : IDisposable
@@ -32,7 +36,7 @@ internal sealed class X11GlobalShortcutService : IGlobalShortcutService
     private readonly object _gate = new();
     private readonly IX11HotkeyConnectionFactory _factory;
     private IReadOnlyList<X11ShortcutBinding> _bindings = [];
-    private Dictionary<byte, List<X11ShortcutBinding>> _byKeycode = [];
+    private Dictionary<byte, List<(X11ShortcutBinding Binding, uint Modifiers)>> _byKeycode = [];
     private HashSet<string> _active = new(StringComparer.Ordinal);
     private IX11HotkeyConnection? _connection;
     private CancellationTokenSource? _cancellation;
@@ -109,18 +113,18 @@ internal sealed class X11GlobalShortcutService : IGlobalShortcutService
     private bool ApplyGrabs()
     {
         _connection!.UngrabAll();
-        var byCode = new Dictionary<byte, List<X11ShortcutBinding>>();
+        var byCode = new Dictionary<byte, List<(X11ShortcutBinding, uint)>>();
         foreach (var binding in _bindings)
-        foreach (var keysym in binding.Keysyms)
+        foreach (var trigger in binding.Triggers)
         {
-            var code = _connection.Keycode(keysym);
+            var code = _connection.Keycode(trigger.Keysym);
             if (code == 0) { _connection.UngrabAll(); _byKeycode = []; return false; }
-            var variants = binding.ModifierOnly ? [1u << 15] : new uint[] { 0, CapsLockMask, NumLockMask, CapsLockMask | NumLockMask };
+            var variants = new uint[] { 0, CapsLockMask, NumLockMask, CapsLockMask | NumLockMask };
             foreach (var locks in variants)
-                if (!_connection.Grab(code, binding.Modifiers | locks))
+                if (!_connection.Grab(code, trigger.Modifiers | locks))
                 { _connection.UngrabAll(); _byKeycode = []; return false; }
             if (!byCode.TryGetValue(code, out var entries)) byCode[code] = entries = [];
-            entries.Add(binding);
+            entries.Add((binding, trigger.Modifiers));
         }
         _byKeycode = byCode;
         return true;
@@ -142,9 +146,14 @@ internal sealed class X11GlobalShortcutService : IGlobalShortcutService
         lock (_gate)
         {
             if (!_byKeycode.TryGetValue(input.Keycode, out var candidates)) return;
-            foreach (var binding in candidates)
+            foreach (var candidate in candidates)
             {
-                if (!binding.ModifierOnly && (input.State & RelevantMask) != binding.Modifiers) continue;
+                var binding = candidate.Binding;
+                var state = input.State & RelevantMask;
+                if (binding.ModifierOnly && !input.Pressed)
+                    state &= ~binding.Triggers.First(trigger =>
+                        _connection!.Keycode(trigger.Keysym) == input.Keycode).PrimaryModifier;
+                if (state != candidate.Modifiers) continue;
                 var changed = input.Pressed ? _active.Add(binding.Shortcut.Name) : _active.Remove(binding.Shortcut.Name);
                 if (changed) signals.Add((input.Pressed, binding.Shortcut));
             }
@@ -187,21 +196,37 @@ internal static class X11ShortcutMapper
             (named.Shortcut.Modifiers.HasFlag(ShortcutModifiers.Control) ? Control : 0) |
             (named.Shortcut.Modifiers.HasFlag(ShortcutModifiers.Alt) ? Alt : 0) |
             (named.Shortcut.Modifiers.HasFlag(ShortcutModifiers.Meta) ? Meta : 0);
-        IReadOnlyList<uint> keysyms;
+        IReadOnlyList<X11ShortcutTrigger> triggers;
         if (named.Shortcut.Key.IsNone)
         {
-            keysyms = named.Shortcut.Modifiers switch
-            {
-                ShortcutModifiers.Control => [0xffe3, 0xffe4], ShortcutModifiers.Alt => [0xffe9, 0xffea],
-                ShortcutModifiers.Shift => [0xffe1, 0xffe2], ShortcutModifiers.Meta => [0xffeb, 0xffec], _ => []
-            };
-            mask = 0; // a modifier's own KeyPress state does not include itself
+            triggers = ModifierTriggers(named.Shortcut.Modifiers);
         }
-        else keysyms = MapKey(named.Shortcut.Key);
-        return keysyms.Count == 0
+        else triggers = MapKey(named.Shortcut.Key).Select(keysym => new X11ShortcutTrigger(keysym, mask)).ToArray();
+        return triggers.Count == 0
             ? PlatformResult<X11ShortcutBinding>.Failure("shortcut_unsupported", "The shortcut key is not supported by X11.")
-            : PlatformResult<X11ShortcutBinding>.Success(new(named, keysyms, mask, named.Shortcut.Key.IsNone));
+            : PlatformResult<X11ShortcutBinding>.Success(new(named, triggers, named.Shortcut.Key.IsNone));
     }
+
+    private static IReadOnlyList<X11ShortcutTrigger> ModifierTriggers(ShortcutModifiers modifiers)
+    {
+        var groups = new (ShortcutModifiers Modifier, uint Mask, uint[] Keysyms)[]
+        {
+            (ShortcutModifiers.Control, Control, [0xffe3, 0xffe4]),
+            (ShortcutModifiers.Alt, Alt, [0xffe9, 0xffea]),
+            (ShortcutModifiers.Shift, Shift, [0xffe1, 0xffe2]),
+            (ShortcutModifiers.Meta, Meta, [0xffeb, 0xffec]),
+        };
+        return groups.Where(group => modifiers.HasFlag(group.Modifier))
+            .SelectMany(group => group.Keysyms.Select(keysym => new X11ShortcutTrigger(keysym,
+                MaskFor(modifiers & ~group.Modifier), group.Mask)))
+            .ToArray();
+    }
+
+    private static uint MaskFor(ShortcutModifiers modifiers) =>
+        (modifiers.HasFlag(ShortcutModifiers.Shift) ? Shift : 0)
+        | (modifiers.HasFlag(ShortcutModifiers.Control) ? Control : 0)
+        | (modifiers.HasFlag(ShortcutModifiers.Alt) ? Alt : 0)
+        | (modifiers.HasFlag(ShortcutModifiers.Meta) ? Meta : 0);
 
     private static IReadOnlyList<uint> MapKey(ShortcutKeyCode key)
     {

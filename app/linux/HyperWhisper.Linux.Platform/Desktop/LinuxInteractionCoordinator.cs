@@ -3,17 +3,20 @@ using HyperWhisper.Platform.Abstractions;
 namespace HyperWhisper.Linux.Platform.Desktop;
 
 public sealed record LinuxInteractionConfiguration(
-    GlobalShortcut ToggleShortcut,
+    GlobalShortcut? ToggleShortcut,
     PushToTalkConfiguration PushToTalk,
     TimeSpan ClipboardRestoreDelay,
     GlobalShortcut? CancelShortcut = null,
     GlobalShortcut? ChangeModeShortcut = null)
 {
+    public GlobalShortcut? StreamingShortcut { get; init; } = new(
+        ShortcutModifiers.Control | ShortcutModifiers.Shift, new ShortcutKeyCode("Space"));
+    public bool StreamingEnabled { get; init; }
     public GlobalShortcut? SessionCancelShortcut { get; init; } = new(
         ShortcutModifiers.None, new ShortcutKeyCode("Escape"));
 
     public static LinuxInteractionConfiguration Default { get; } = new(
-        new GlobalShortcut(ShortcutModifiers.Control | ShortcutModifiers.Shift, new ShortcutKeyCode("Space")),
+        new GlobalShortcut(ShortcutModifiers.Control | ShortcutModifiers.Alt),
         new PushToTalkConfiguration(PushToTalkMode.Disabled),
         TimeSpan.FromMilliseconds(750),
         // XGrabKey would steal a persistent bare Escape from every application.
@@ -21,6 +24,8 @@ public sealed record LinuxInteractionConfiguration(
         null,
         new GlobalShortcut(ShortcutModifiers.Control | ShortcutModifiers.Shift, new ShortcutKeyCode("Period")));
 }
+
+public enum InteractionRecordingKind { Batch, Streaming }
 
 public sealed record InteractionStopOutcome(PlatformResult Result, bool RestoreClipboard = true)
 {
@@ -41,7 +46,9 @@ public interface IInteractionRecordingSession
 {
     bool IsActive { get; }
     bool IsStreaming => false;
-    ValueTask<PlatformResult> StartAsync(CancellationToken cancellationToken = default);
+    ValueTask<PlatformResult> StartAsync(
+        InteractionRecordingKind kind,
+        CancellationToken cancellationToken = default);
     ValueTask<InteractionStopOutcome> StopAsync(CancellationToken cancellationToken = default);
     ValueTask CancelAsync(CancellationToken cancellationToken = default);
 }
@@ -81,6 +88,7 @@ public sealed class LinuxInteractionCoordinator : IDisposable
     public const string ToggleActionName = "toggle-transcription";
     public const string CancelActionName = "cancel-transcription";
     public const string ChangeModeActionName = "change-mode";
+    public const string StreamingActionName = "streaming-transcription";
     public const string SessionCancelActionName = "session-cancel-transcription";
 
     private readonly IGlobalShortcutService _shortcuts;
@@ -93,6 +101,8 @@ public sealed class LinuxInteractionCoordinator : IDisposable
     private readonly SemaphoreSlim _operation = new(1, 1);
     private readonly object _durationGate = new();
     private readonly object _sessionCancelGate = new();
+    private readonly object _streamingStartGate = new();
+    private CancellationTokenSource? _streamingStartCancellation;
     private IDisposable? _durationLimit;
     private long _durationGeneration;
     private LinuxInteractionConfiguration _configuration = LinuxInteractionConfiguration.Default;
@@ -205,30 +215,66 @@ public sealed class LinuxInteractionCoordinator : IDisposable
         var bindings = Bindings(configuration, configuration.SessionCancelShortcut is not null);
         foreach (var binding in bindings)
         {
-            if (binding.Shortcut.IsEmpty || binding.Shortcut.IsModifierOnly)
-                return PlatformResult.Failure($"interaction.{binding.Name}_invalid", "Every configured interaction shortcut must include a non-modifier key.");
+            if (IsBareModifier(binding.Shortcut))
+                return PlatformResult.Failure($"interaction.{binding.Name}_invalid", "A modifier-only shortcut must contain at least two modifiers.");
         }
         for (var left = 0; left < bindings.Count; left++)
         for (var right = left + 1; right < bindings.Count; right++)
             if (SameShortcut(bindings[left].Shortcut, bindings[right].Shortcut))
                 return PlatformResult.Failure("interaction.shortcut_conflict", "Interaction shortcuts must be different.");
         if (configuration.PushToTalk.Mode == PushToTalkMode.CustomShortcut
-            && configuration.PushToTalk.CustomShortcut is { } pushToTalk
+            && configuration.PushToTalk.CustomShortcut is { } customPushToTalk
+            && IsBareModifier(customPushToTalk))
+            return PlatformResult.Failure("interaction.push_to_talk_invalid", "A custom modifier-only push-to-talk shortcut needs at least two modifiers.");
+        if (ConfiguredPushToTalkShortcut(configuration.PushToTalk) is { } pushToTalk
             && bindings.Any(binding => SameShortcut(binding.Shortcut, pushToTalk)))
             return PlatformResult.Failure("interaction.shortcut_conflict", "Interaction and push-to-talk shortcuts must be different.");
         return PlatformResult.Success();
     }
 
+    private static GlobalShortcut? ConfiguredPushToTalkShortcut(PushToTalkConfiguration configuration) =>
+        configuration.Mode switch
+        {
+            PushToTalkMode.CustomShortcut => configuration.CustomShortcut,
+            PushToTalkMode.Modifier => configuration.Modifier switch
+            {
+                ModifierSide.Control => new(ShortcutModifiers.Control),
+                ModifierSide.Alt => new(ShortcutModifiers.Alt),
+                ModifierSide.Shift => new(ShortcutModifiers.Shift),
+                ModifierSide.Meta => new(ShortcutModifiers.Meta),
+                _ => new(ShortcutModifiers.None, new ShortcutKeyCode(configuration.Modifier.ToString())),
+            },
+            _ => null,
+        };
+
     private static IReadOnlyList<NamedShortcut> Bindings(
         LinuxInteractionConfiguration configuration,
         bool includeSessionCancel = false)
     {
-        var values = new List<NamedShortcut> { new(ToggleActionName, configuration.ToggleShortcut) };
-        if (configuration.CancelShortcut is { } cancel) values.Add(new(CancelActionName, cancel));
-        if (configuration.ChangeModeShortcut is { } changeMode) values.Add(new(ChangeModeActionName, changeMode));
+        var values = new List<NamedShortcut>();
+        Add(values, ToggleActionName, configuration.ToggleShortcut);
+        Add(values, CancelActionName, configuration.CancelShortcut);
+        Add(values, ChangeModeActionName, configuration.ChangeModeShortcut);
+        if (configuration.StreamingEnabled) Add(values, StreamingActionName, configuration.StreamingShortcut);
         if (includeSessionCancel && configuration.SessionCancelShortcut is { } sessionCancel)
             values.Add(new(SessionCancelActionName, sessionCancel));
         return values;
+    }
+
+    private static void Add(List<NamedShortcut> values, string name, GlobalShortcut? shortcut)
+    {
+        if (shortcut is { IsEmpty: false }) values.Add(new(name, shortcut));
+    }
+
+    private static bool IsBareModifier(GlobalShortcut shortcut) =>
+        shortcut.IsModifierOnly && CountModifiers(shortcut.Modifiers) == 1;
+
+    private static int CountModifiers(ShortcutModifiers modifiers)
+    {
+        var value = (uint)modifiers;
+        var count = 0;
+        while (value != 0) { count += (int)(value & 1); value >>= 1; }
+        return count;
     }
 
     private static bool SameShortcut(GlobalShortcut left, GlobalShortcut right) =>
@@ -277,7 +323,14 @@ public sealed class LinuxInteractionCoordinator : IDisposable
         switch (args.Name)
         {
             case ToggleActionName:
-                Dispatch(_recording.IsActive ? StopCoreAsync : StartCoreAsync);
+                if (IsStreamingStartPending())
+                    RaiseFailure(new PlatformError("interaction.batch_while_streaming_starting", "Batch recording cannot start while live transcription is connecting."));
+                else if (!_recording.IsActive) Dispatch(token => StartCoreAsync(InteractionRecordingKind.Batch, token));
+                else if (!_recording.IsStreaming) Dispatch(StopCoreAsync);
+                else RaiseFailure(new PlatformError("interaction.batch_while_streaming", "Use the live-transcription shortcut to stop live transcription."));
+                break;
+            case StreamingActionName:
+                HandleStreamingShortcut();
                 break;
             case CancelActionName when _recording.IsActive:
             case SessionCancelActionName when _recording.IsActive:
@@ -295,22 +348,30 @@ public sealed class LinuxInteractionCoordinator : IDisposable
     }
 
     private static bool IsInteractionAction(string name) => name is
-        ToggleActionName or CancelActionName or ChangeModeActionName or SessionCancelActionName;
+        ToggleActionName or CancelActionName or ChangeModeActionName or StreamingActionName or SessionCancelActionName;
 
     private void OnPushToTalkPressed(object? sender, EventArgs args)
     {
-        if (_started && !_heldActions.Contains(ToggleActionName) && !_recording.IsActive) Dispatch(StartCoreAsync);
+        if (IsStreamingStartPending())
+        {
+            _pushToTalk.ResetToIdle();
+            RaiseFailure(new PlatformError("interaction.batch_while_streaming_starting", "Push-to-talk cannot start while live transcription is connecting."));
+        }
+        else if (_started && !_heldActions.Contains(ToggleActionName) && !_recording.IsActive)
+            Dispatch(token => StartCoreAsync(InteractionRecordingKind.Batch, token));
         else if (_recording.IsActive) _pushToTalk.ResetToIdle();
     }
 
     private void OnPushToTalkReleased(object? sender, EventArgs args)
     {
-        if (_started && !_heldActions.Contains(ToggleActionName) && _recording.IsActive) Dispatch(StopCoreAsync);
+        if (_started && !_heldActions.Contains(ToggleActionName) && _recording.IsActive && !_recording.IsStreaming)
+            Dispatch(StopCoreAsync);
     }
 
     private void OnPushToTalkInterfered(object? sender, EventArgs args)
     {
-        if (_started && !_heldActions.Contains(ToggleActionName) && _recording.IsActive) Dispatch(CancelCoreAsync);
+        if (_started && !_heldActions.Contains(ToggleActionName) && _recording.IsActive && !_recording.IsStreaming)
+            Dispatch(CancelCoreAsync);
     }
 
     private void Dispatch(Func<CancellationToken, ValueTask> operation)
@@ -337,7 +398,10 @@ public sealed class LinuxInteractionCoordinator : IDisposable
     }
 
     public Task StartRecordingAsync(CancellationToken cancellationToken = default) =>
-        RunGuardedAsync(token => StartCoreAsync(token), cancellationToken);
+        RunGuardedAsync(token => StartCoreAsync(InteractionRecordingKind.Batch, token), cancellationToken);
+
+    public Task StartStreamingAsync(CancellationToken cancellationToken = default) =>
+        RunGuardedAsync(token => StartCoreAsync(InteractionRecordingKind.Streaming, token), cancellationToken);
 
     public Task StopRecordingAsync(CancellationToken cancellationToken = default) =>
         RunGuardedAsync(token => StopCoreAsync(token), cancellationToken);
@@ -362,14 +426,23 @@ public sealed class LinuxInteractionCoordinator : IDisposable
         finally { _operation.Release(); }
     }
 
-    private async ValueTask StartCoreAsync(CancellationToken cancellationToken)
+    private async ValueTask StartCoreAsync(
+        InteractionRecordingKind kind,
+        CancellationToken cancellationToken)
     {
+        if (kind == InteractionRecordingKind.Streaming && !_configuration.StreamingEnabled)
+        {
+            RaiseFailure(new PlatformError(
+                "interaction.streaming_disabled",
+                "Enable live transcription before starting a streaming session."));
+            return;
+        }
         if (_recording.IsActive) return;
         _textInjection.CaptureTarget();
         _textInjection.StartSession();
         try
         {
-            var started = await _recording.StartAsync(cancellationToken);
+            var started = await _recording.StartAsync(kind, cancellationToken);
             if (started.IsSuccess)
             {
                 var sessionCancel = ArmSessionCancel();
@@ -389,6 +462,53 @@ public sealed class LinuxInteractionCoordinator : IDisposable
                 _ = await _textInjection.RestoreClipboardImmediatelyAsync(CancellationToken.None);
                 _pushToTalk.ResetToIdle();
             }
+        }
+    }
+
+    private void HandleStreamingShortcut()
+    {
+        CancellationTokenSource? pending;
+        lock (_streamingStartGate) pending = _streamingStartCancellation;
+        if (pending is not null)
+        {
+            pending.Cancel();
+            return;
+        }
+        if (_recording.IsActive)
+        {
+            if (_recording.IsStreaming) Dispatch(StopCoreAsync);
+            else RaiseFailure(new PlatformError("interaction.streaming_while_batch", "Live transcription cannot start while batch recording is active."));
+            return;
+        }
+
+        var cancellation = new CancellationTokenSource();
+        lock (_streamingStartGate)
+        {
+            if (_disposed || _streamingStartCancellation is not null)
+            {
+                cancellation.Dispose();
+                return;
+            }
+            _streamingStartCancellation = cancellation;
+        }
+        Dispatch(_ => StartStreamingFromShortcutAsync(cancellation));
+    }
+
+    private bool IsStreamingStartPending()
+    {
+        lock (_streamingStartGate) return _streamingStartCancellation is not null;
+    }
+
+    private async ValueTask StartStreamingFromShortcutAsync(CancellationTokenSource cancellation)
+    {
+        try { await StartCoreAsync(InteractionRecordingKind.Streaming, cancellation.Token); }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
+        finally
+        {
+            lock (_streamingStartGate)
+                if (ReferenceEquals(_streamingStartCancellation, cancellation))
+                    _streamingStartCancellation = null;
+            cancellation.Dispose();
         }
     }
 
@@ -594,6 +714,7 @@ public sealed class LinuxInteractionCoordinator : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        lock (_streamingStartGate) _streamingStartCancellation?.Cancel();
         DisarmSessionCancel();
         DisarmDurationLimit();
         _started = false;

@@ -26,6 +26,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("evdev disposal is bounded for uncooperative devices", EvdevDisposalBounded),
     ("X11 mapper preserves logical shortcut privacy", X11ShortcutPrivacy),
     ("X11 modifier-only shortcuts emit press and release", X11ModifierShortcut),
+    ("X11 maps multi-modifier-only shortcuts in either order", X11MultiModifierShortcut),
     ("true Xorg selects XGrabKey instead of evdev", XorgSelectsXGrabKey),
     ("X11 XGrabKey host integration", X11GrabIntegration),
     ("X11 Display mutation is serialized with reader", X11ConcurrentMutationIntegration),
@@ -96,6 +97,9 @@ var tests = new (string Name, Func<Task> Run)[]
     ("push-to-talk active interference cancels without key data", PushToTalkActiveInterference),
     ("interaction registers cancel and change-mode actions atomically", InteractionActionRegistration),
     ("interaction suppresses repeats and emits content-free mode changes", InteractionActionPrivacy),
+    ("streaming startup is cancellable and excludes batch starts", StreamingStartupCancellation),
+    ("batch and streaming shortcuts refuse the opposite active kind", InteractionKindMutualExclusion),
+    ("interaction accepts unassigned and multi-modifier shortcuts", InteractionFlexibleShortcutValidation),
     ("interaction conflicts and registration failures restore prior bindings", InteractionActionRollback),
     ("interaction restores live X11 grabs after registration failure", InteractionX11Rollback),
     ("bare Escape is armed only for an active recording", SessionCancelLifecycle),
@@ -324,7 +328,19 @@ static async Task X11ModifierShortcut()
     Assert.Success(service.Start());
     await connection.Drained.Task.WaitAsync(TimeSpan.FromSeconds(2)); await Task.Delay(30);
     Assert.Equal(2, events);
-    Assert.True(connection.Grabs.All(value => value.Modifiers == 1u << 15));
+    Assert.Equal(8, connection.Grabs.Count);
+    Assert.True(connection.Grabs.All(value => value.Modifiers is 0 or 2 or 16 or 18));
+}
+
+static Task X11MultiModifierShortcut()
+{
+    var mapped = X11ShortcutMapper.Map(new NamedShortcut("toggle",
+        new GlobalShortcut(ShortcutModifiers.Control | ShortcutModifiers.Alt)));
+    Assert.True(mapped.IsSuccess);
+    Assert.Equal(4, mapped.Value!.Triggers.Count);
+    Assert.True(mapped.Value.Triggers.Count(trigger => trigger.Modifiers == 4) == 2);
+    Assert.True(mapped.Value.Triggers.Count(trigger => trigger.Modifiers == 8) == 2);
+    return Task.CompletedTask;
 }
 
 static Task XorgSelectsXGrabKey()
@@ -1363,6 +1379,77 @@ static Task InteractionActionPrivacy()
     return Task.CompletedTask;
 }
 
+static async Task StreamingStartupCancellation()
+{
+    var shortcuts = new FakeInteractionShortcutService();
+    var recording = new BlockingInteractionRecordingSession();
+    using var coordinator = new LinuxInteractionCoordinator(
+        shortcuts, new FakeInteractionPushToTalk(), new FakeInteractionTextInjection(), recording,
+        new ImmediateUiDispatcher());
+    var configuration = InteractionConfiguration() with
+    {
+        StreamingEnabled = true,
+        StreamingShortcut = new(ShortcutModifiers.Control | ShortcutModifiers.Alt, new("S")),
+    };
+    Assert.Success(coordinator.ConfigureAndStart(configuration));
+    var failures = new List<PlatformError>();
+    coordinator.OperationFailed += (_, error) => failures.Add(error);
+
+    shortcuts.Emit(LinuxInteractionCoordinator.StreamingActionName, true);
+    await recording.StreamingStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+    shortcuts.Emit(LinuxInteractionCoordinator.ToggleActionName, true);
+    Assert.Equal("interaction.batch_while_streaming_starting", failures.Single().Code);
+    shortcuts.Emit(LinuxInteractionCoordinator.StreamingActionName, false);
+    shortcuts.Emit(LinuxInteractionCoordinator.StreamingActionName, true);
+    await recording.StreamingCancelled.Task.WaitAsync(TimeSpan.FromSeconds(2));
+    await Task.Delay(30);
+    Assert.True(recording.StartKinds.SequenceEqual([InteractionRecordingKind.Streaming]));
+}
+
+static Task InteractionKindMutualExclusion()
+{
+    var shortcuts = new FakeInteractionShortcutService();
+    var recording = new FakeInteractionRecordingSession { Active = true, Streaming = true };
+    using var coordinator = new LinuxInteractionCoordinator(
+        shortcuts, new FakeInteractionPushToTalk(), new FakeInteractionTextInjection(), recording,
+        new ImmediateUiDispatcher());
+    Assert.Success(coordinator.ConfigureAndStart(InteractionConfiguration() with
+    {
+        StreamingEnabled = true,
+        StreamingShortcut = new(ShortcutModifiers.Control | ShortcutModifiers.Alt, new("S")),
+    }));
+    var failures = new List<PlatformError>();
+    coordinator.OperationFailed += (_, error) => failures.Add(error);
+    shortcuts.Emit(LinuxInteractionCoordinator.ToggleActionName, true);
+    Assert.Equal("interaction.batch_while_streaming", failures.Single().Code);
+    recording.Streaming = false;
+    shortcuts.Emit(LinuxInteractionCoordinator.StreamingActionName, true);
+    Assert.Equal("interaction.streaming_while_batch", failures.Last().Code);
+    Assert.Equal(0, recording.StopCalls);
+    return Task.CompletedTask;
+}
+
+static Task InteractionFlexibleShortcutValidation()
+{
+    using var coordinator = new LinuxInteractionCoordinator(
+        new FakeInteractionShortcutService(), new FakeInteractionPushToTalk(),
+        new FakeInteractionTextInjection(), new FakeInteractionRecordingSession(),
+        new ImmediateUiDispatcher());
+    var valid = InteractionConfiguration() with
+    {
+        ToggleShortcut = new(ShortcutModifiers.Control | ShortcutModifiers.Alt),
+        ChangeModeShortcut = null,
+        SessionCancelShortcut = null,
+    };
+    Assert.Success(coordinator.ConfigureAndStart(valid));
+    var invalid = coordinator.ConfigureAndStart(valid with
+    {
+        ToggleShortcut = new(ShortcutModifiers.Control),
+    });
+    Assert.Equal("interaction.toggle-transcription_invalid", invalid.Error!.Code);
+    return Task.CompletedTask;
+}
+
 static Task InteractionActionRollback()
 {
     var shortcuts = new FakeInteractionShortcutService();
@@ -1557,8 +1644,12 @@ static async Task InteractionDurationLimitStopsOnce()
     scheduler.Advance(TimeSpan.FromMinutes(1));
     Assert.Equal(1, recording.StopCalls);
 
-    recording.Streaming = true;
-    shortcuts.Emit(LinuxInteractionCoordinator.ToggleActionName, true);
+    Assert.Success(coordinator.ConfigureAndStart(InteractionConfiguration() with
+    {
+        StreamingEnabled = true,
+        StreamingShortcut = new(ShortcutModifiers.Control | ShortcutModifiers.Alt, new("S")),
+    }));
+    await coordinator.StartStreamingAsync();
     scheduler.Advance(TimeSpan.FromMilliseconds(25));
     Assert.Equal(2, recording.StopCalls);
     Assert.Equal(2, errors.Count);
@@ -2162,12 +2253,41 @@ sealed class FakeInteractionRecordingSession : IInteractionRecordingSession
     public int StopCalls { get; private set; }
     public int CancelCalls { get; private set; }
     public PlatformResult StartResult { get; set; } = PlatformResult.Success();
-    public ValueTask<PlatformResult> StartAsync(CancellationToken cancellationToken = default)
-    { cancellationToken.ThrowIfCancellationRequested(); StartCalls++; Active = StartResult.IsSuccess; return ValueTask.FromResult(StartResult); }
+    public List<InteractionRecordingKind> StartKinds { get; } = [];
+    public ValueTask<PlatformResult> StartAsync(
+        InteractionRecordingKind kind,
+        CancellationToken cancellationToken = default)
+    { cancellationToken.ThrowIfCancellationRequested(); StartCalls++; StartKinds.Add(kind); Streaming = kind == InteractionRecordingKind.Streaming; Active = StartResult.IsSuccess; return ValueTask.FromResult(StartResult); }
     public ValueTask<InteractionStopOutcome> StopAsync(CancellationToken cancellationToken = default)
     { cancellationToken.ThrowIfCancellationRequested(); StopCalls++; Active = false; return ValueTask.FromResult(new InteractionStopOutcome(PlatformResult.Success())); }
     public ValueTask CancelAsync(CancellationToken cancellationToken = default)
     { cancellationToken.ThrowIfCancellationRequested(); CancelCalls++; Active = false; return ValueTask.CompletedTask; }
+}
+
+sealed class BlockingInteractionRecordingSession : IInteractionRecordingSession
+{
+    public bool IsActive => false;
+    public List<InteractionRecordingKind> StartKinds { get; } = [];
+    public TaskCompletionSource StreamingStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    public TaskCompletionSource StreamingCancelled { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    public async ValueTask<PlatformResult> StartAsync(
+        InteractionRecordingKind kind,
+        CancellationToken cancellationToken = default)
+    {
+        StartKinds.Add(kind);
+        if (kind == InteractionRecordingKind.Batch) return PlatformResult.Success();
+        StreamingStarted.TrySetResult();
+        try { await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken); }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            StreamingCancelled.TrySetResult();
+            throw;
+        }
+        return PlatformResult.Success();
+    }
+    public ValueTask<InteractionStopOutcome> StopAsync(CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult(new InteractionStopOutcome(PlatformResult.Success()));
+    public ValueTask CancelAsync(CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
 }
 
 sealed class FakeInteractionDurationScheduler : IInteractionDurationScheduler

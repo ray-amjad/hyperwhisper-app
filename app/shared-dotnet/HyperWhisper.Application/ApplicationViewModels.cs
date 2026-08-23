@@ -747,6 +747,7 @@ public sealed class ModesViewModel : ViewModelBase
         set
         {
             if (!Set(ref _selected, value) || value is null) return;
+            PersistSelectedMode(value.Id);
             Name = value.Name;
             Language = value.Language;
             LocalPostProcessingEnabled = value.PostProcessingMode == 2
@@ -850,8 +851,26 @@ public sealed class ModesViewModel : ViewModelBase
 
     public async Task RefreshAsync(CancellationToken cancellationToken = default)
     {
-        try { Items.Clear(); foreach (var item in await _repository.ListAsync(cancellationToken)) Items.Add(item); Selected = Items.FirstOrDefault(); Status.Success($"{Items.Count} mode(s)"); }
+        try
+        {
+            Items.Clear();
+            foreach (var item in await _repository.ListAsync(cancellationToken)) Items.Add(item);
+            var selectedId = _settings?.Get<string>("selectedModeId");
+            Selected = Guid.TryParse(selectedId, out var id)
+                ? Items.FirstOrDefault(item => item.Id == id) ?? FallbackSelection()
+                : FallbackSelection();
+            Status.Success($"{Items.Count} mode(s)");
+        }
         catch (Exception) { Status.Failure("modes.load_failed", "Could not load modes."); }
+    }
+    private Mode? FallbackSelection() => Items.FirstOrDefault(item => item.IsDefault)
+        ?? Items.OrderBy(item => item.SortOrder).FirstOrDefault();
+    private void PersistSelectedMode(Guid id)
+    {
+        if (_settings is null) return;
+        _settings.Set("selectedModeId", id.ToString("D"));
+        var saved = _settings.Save();
+        if (saved.IsFailure) Status.Failure(saved.Error!.Code, "The selected mode could not be remembered on this device.");
     }
     public async Task SaveAsync(CancellationToken cancellationToken = default)
     {
@@ -978,7 +997,7 @@ public sealed class ModesViewModel : ViewModelBase
     {
         if (Selected == null) { Status.Failure("modes.no_selection", "Select a mode to delete."); return; }
         var selected = Selected;
-        try { if (await _repository.DeleteSafelyAsync(selected.Id, cancellationToken)) { Items.Remove(selected); Selected = Items.FirstOrDefault(); Status.Success("Mode deleted"); } else Status.Failure("modes.not_found", "The mode no longer exists."); }
+        try { if (await _repository.DeleteSafelyAsync(selected.Id, cancellationToken)) { Items.Remove(selected); Selected = FallbackSelection(); Status.Success("Mode deleted"); } else Status.Failure("modes.not_found", "The mode no longer exists."); }
         catch (InvalidOperationException exception) { Status.Failure("modes.last_mode", exception.Message); }
         catch (Exception) { Status.Failure("modes.delete_failed", "Could not delete the mode."); }
     }
@@ -1053,8 +1072,14 @@ public sealed class SettingsViewModel : ViewModelBase
     private bool _allowLocalLlmCpuFallback = true;
     private bool _localApiEnabled;
     private int _localApiPort = 51671;
-    private string _toggleShortcutModifiers = "Control, Shift";
-    private string _toggleShortcutKey = "Space";
+    private string _toggleShortcutModifiers = "Control, Alt";
+    private string _toggleShortcutKey = string.Empty;
+    private string _cancelShortcutModifiers = "None";
+    private string _cancelShortcutKey = "Escape";
+    private string _changeModeShortcutModifiers = "Control, Shift";
+    private string _changeModeShortcutKey = "Period";
+    private string _streamingShortcutModifiers = "Control, Shift";
+    private string _streamingShortcutKey = "Space";
     private string _pushToTalkMode = "Disabled";
     private string _pushToTalkModifier = "LeftAlt";
     private string _pushToTalkShortcutModifiers = "None";
@@ -1093,6 +1118,7 @@ public sealed class SettingsViewModel : ViewModelBase
     {
         _settings = settings;
         SaveCommand = new AsyncCommand(_ => { Save(); return Task.CompletedTask; });
+        ResetShortcutsCommand = new AsyncCommand(_ => { ResetShortcuts(); return Task.CompletedTask; });
         LocalLlmRuntimeStatus = localLlmRuntimeStatus;
         _currentWhisperRuntimeStatus = localWhisperRuntimeStatus;
     }
@@ -1103,6 +1129,12 @@ public sealed class SettingsViewModel : ViewModelBase
     public int LocalApiPort { get => _localApiPort; set => Set(ref _localApiPort, Math.Clamp(value, 0, 65535)); }
     public string ToggleShortcutModifiers { get => _toggleShortcutModifiers; set => Set(ref _toggleShortcutModifiers, value ?? string.Empty); }
     public string ToggleShortcutKey { get => _toggleShortcutKey; set => Set(ref _toggleShortcutKey, value ?? string.Empty); }
+    public string CancelShortcutModifiers { get => _cancelShortcutModifiers; set => Set(ref _cancelShortcutModifiers, value ?? string.Empty); }
+    public string CancelShortcutKey { get => _cancelShortcutKey; set => Set(ref _cancelShortcutKey, value ?? string.Empty); }
+    public string ChangeModeShortcutModifiers { get => _changeModeShortcutModifiers; set => Set(ref _changeModeShortcutModifiers, value ?? string.Empty); }
+    public string ChangeModeShortcutKey { get => _changeModeShortcutKey; set => Set(ref _changeModeShortcutKey, value ?? string.Empty); }
+    public string StreamingShortcutModifiers { get => _streamingShortcutModifiers; set => Set(ref _streamingShortcutModifiers, value ?? string.Empty); }
+    public string StreamingShortcutKey { get => _streamingShortcutKey; set => Set(ref _streamingShortcutKey, value ?? string.Empty); }
     public string PushToTalkMode { get => _pushToTalkMode; set => Set(ref _pushToTalkMode, value ?? "Disabled"); }
     public string PushToTalkModifier { get => _pushToTalkModifier; set => Set(ref _pushToTalkModifier, value ?? "LeftAlt"); }
     public string PushToTalkShortcutModifiers { get => _pushToTalkShortcutModifiers; set => Set(ref _pushToTalkShortcutModifiers, value ?? "None"); }
@@ -1167,6 +1199,7 @@ public sealed class SettingsViewModel : ViewModelBase
     public IReadOnlyList<string> AudioEnvironmentPolicies { get; } = ["unchanged", "duck", "mute"];
     public UiStatus Status { get; } = new();
     public ICommand SaveCommand { get; }
+    public ICommand ResetShortcutsCommand { get; }
     public event EventHandler? LocalApiSettingsChanged;
     public event EventHandler? DesktopSettingsChanged;
     public event EventHandler? TelemetrySettingsChanged;
@@ -1180,8 +1213,14 @@ public sealed class SettingsViewModel : ViewModelBase
         AllowLocalLlmCpuFallback = _settings.Get("allowLocalLlmCpuFallback", true);
         LocalApiEnabled = _settings.Get("localApiEnabled", false);
         LocalApiPort = _settings.Get("localApiPort", 51671);
-        ToggleShortcutModifiers = _settings.Get("toggleShortcutModifiers", "Control, Shift") ?? "Control, Shift";
-        ToggleShortcutKey = _settings.Get("toggleShortcutKey", "Space") ?? "Space";
+        ToggleShortcutModifiers = _settings.Get("toggleShortcutModifiers", "Control, Alt") ?? "Control, Alt";
+        ToggleShortcutKey = _settings.Get("toggleShortcutKey", string.Empty) ?? string.Empty;
+        CancelShortcutModifiers = _settings.Get("cancelShortcutModifiers", "None") ?? "None";
+        CancelShortcutKey = _settings.Get("cancelShortcutKey", "Escape") ?? "Escape";
+        ChangeModeShortcutModifiers = _settings.Get("changeModeShortcutModifiers", "Control, Shift") ?? "Control, Shift";
+        ChangeModeShortcutKey = _settings.Get("changeModeShortcutKey", "Period") ?? "Period";
+        StreamingShortcutModifiers = _settings.Get("streamingShortcutModifiers", "Control, Shift") ?? "Control, Shift";
+        StreamingShortcutKey = _settings.Get("streamingShortcutKey", "Space") ?? "Space";
         PushToTalkMode = _settings.Get("pushToTalkMode", "Disabled") ?? "Disabled";
         PushToTalkModifier = _settings.Get("pushToTalkModifier", "LeftAlt") ?? "LeftAlt";
         PushToTalkShortcutModifiers = _settings.Get("pushToTalkShortcutModifiers", "None") ?? "None";
@@ -1220,6 +1259,12 @@ public sealed class SettingsViewModel : ViewModelBase
     }
     public void Save()
     {
+        var shortcutValidation = ValidateShortcuts();
+        if (shortcutValidation.IsFailure)
+        {
+            Status.Failure(shortcutValidation.Error!.Code, shortcutValidation.Error.Message);
+            return;
+        }
         _settings.Set("language", Language);
         _settings.Set("localLlmBackend", NormalizeBackend(LocalLlmBackend));
         _settings.Set("allowLocalLlmCpuFallback", AllowLocalLlmCpuFallback);
@@ -1227,6 +1272,12 @@ public sealed class SettingsViewModel : ViewModelBase
         _settings.Set("localApiPort", LocalApiPort);
         _settings.Set("toggleShortcutModifiers", ToggleShortcutModifiers);
         _settings.Set("toggleShortcutKey", ToggleShortcutKey);
+        _settings.Set("cancelShortcutModifiers", CancelShortcutModifiers);
+        _settings.Set("cancelShortcutKey", CancelShortcutKey);
+        _settings.Set("changeModeShortcutModifiers", ChangeModeShortcutModifiers);
+        _settings.Set("changeModeShortcutKey", ChangeModeShortcutKey);
+        _settings.Set("streamingShortcutModifiers", StreamingShortcutModifiers);
+        _settings.Set("streamingShortcutKey", StreamingShortcutKey);
         _settings.Set("pushToTalkMode", PushToTalkMode);
         _settings.Set("pushToTalkModifier", PushToTalkModifier);
         _settings.Set("pushToTalkShortcutModifiers", PushToTalkShortcutModifiers);
@@ -1256,6 +1307,94 @@ public sealed class SettingsViewModel : ViewModelBase
         var result = _settings.Save();
         if (result.IsSuccess) { Status.Success("Settings saved"); LocalApiSettingsChanged?.Invoke(this, EventArgs.Empty); DesktopSettingsChanged?.Invoke(this, EventArgs.Empty); TelemetrySettingsChanged?.Invoke(this, EventArgs.Empty); StorageSettingsChanged?.Invoke(this, EventArgs.Empty); }
         else Status.Failure(result.Error!.Code, result.Error.Message);
+    }
+
+    public void ResetShortcuts()
+    {
+        ToggleShortcutModifiers = "Control, Alt";
+        ToggleShortcutKey = string.Empty;
+        CancelShortcutModifiers = "None";
+        CancelShortcutKey = "Escape";
+        ChangeModeShortcutModifiers = "Control, Shift";
+        ChangeModeShortcutKey = "Period";
+        StreamingShortcutModifiers = "Control, Shift";
+        StreamingShortcutKey = "Space";
+        PushToTalkMode = "Disabled";
+        PushToTalkModifier = "LeftAlt";
+        PushToTalkShortcutModifiers = "None";
+        PushToTalkShortcutKey = string.Empty;
+        PushToTalkDoublePressLock = false;
+        Status.Success("Shortcut defaults restored; save settings to apply them");
+    }
+
+    private PlatformResult ValidateShortcuts()
+    {
+        if (PushToTalkMode is not ("Disabled" or "Modifier" or "CustomShortcut"))
+            return PlatformResult.Failure("settings.push_to_talk_mode_invalid", "Select a valid push-to-talk mode.");
+        var configured = new List<(string Name, GlobalShortcut Shortcut)>();
+        foreach (var item in new[]
+        {
+            ("toggle", ToggleShortcutModifiers, ToggleShortcutKey),
+            ("cancel", CancelShortcutModifiers, CancelShortcutKey),
+            ("change mode", ChangeModeShortcutModifiers, ChangeModeShortcutKey),
+            ("streaming", StreamingShortcutModifiers, StreamingShortcutKey),
+        })
+        {
+            var parsed = ParseShortcut(item.Item2, item.Item3);
+            if (parsed.IsFailure) return PlatformResult.Failure(parsed.Error!.Code, $"{item.Item1}: {parsed.Error.Message}");
+            if (parsed.Value is { } shortcut) configured.Add((item.Item1, shortcut));
+        }
+
+        if (PushToTalkMode == "CustomShortcut")
+        {
+            var parsed = ParseShortcut(PushToTalkShortcutModifiers, PushToTalkShortcutKey);
+            if (parsed.IsFailure || parsed.Value is null)
+                return PlatformResult.Failure("settings.shortcut_invalid", "push-to-talk: enter a valid assigned shortcut.");
+            configured.Add(("push-to-talk", parsed.Value));
+        }
+        else if (PushToTalkMode == "Modifier")
+        {
+            if (!Enum.TryParse<ModifierSide>(PushToTalkModifier, true, out var modifier))
+                return PlatformResult.Failure("settings.push_to_talk_modifier_invalid", "Select a valid push-to-talk modifier.");
+            configured.Add(("push-to-talk", modifier switch
+            {
+                ModifierSide.Control => new GlobalShortcut(ShortcutModifiers.Control),
+                ModifierSide.Alt => new GlobalShortcut(ShortcutModifiers.Alt),
+                ModifierSide.Shift => new GlobalShortcut(ShortcutModifiers.Shift),
+                ModifierSide.Meta => new GlobalShortcut(ShortcutModifiers.Meta),
+                _ => new GlobalShortcut(ShortcutModifiers.None, new ShortcutKeyCode(modifier.ToString())),
+            }));
+        }
+
+        for (var left = 0; left < configured.Count; left++)
+        for (var right = left + 1; right < configured.Count; right++)
+            if (configured[left].Shortcut.Modifiers == configured[right].Shortcut.Modifiers
+                && string.Equals(configured[left].Shortcut.Key.Value, configured[right].Shortcut.Key.Value, StringComparison.OrdinalIgnoreCase))
+                return PlatformResult.Failure("settings.shortcut_conflict",
+                    $"{configured[left].Name} and {configured[right].Name} must use different shortcuts.");
+        return PlatformResult.Success();
+    }
+
+    private static PlatformResult<GlobalShortcut?> ParseShortcut(string? modifiersText, string? keyText)
+    {
+        var text = string.IsNullOrWhiteSpace(modifiersText) ? "None" : modifiersText.Trim();
+        if (!Enum.TryParse<ShortcutModifiers>(text, true, out var modifiers)
+            || (modifiers & ~(ShortcutModifiers.Control | ShortcutModifiers.Alt | ShortcutModifiers.Shift | ShortcutModifiers.Meta)) != 0)
+            return PlatformResult<GlobalShortcut?>.Failure("settings.shortcut_modifiers_invalid", "Use only Control, Alt, Shift, or Meta modifiers.");
+        var key = keyText?.Trim() ?? string.Empty;
+        if (modifiers == ShortcutModifiers.None && key.Length == 0)
+            return PlatformResult<GlobalShortcut?>.Success(null);
+        if (key.Length == 0 && CountModifiers(modifiers) == 1)
+            return PlatformResult<GlobalShortcut?>.Failure("settings.shortcut_bare_modifier", "A modifier-only shortcut needs at least two modifiers.");
+        return PlatformResult<GlobalShortcut?>.Success(new GlobalShortcut(modifiers, new ShortcutKeyCode(key)));
+    }
+
+    private static int CountModifiers(ShortcutModifiers modifiers)
+    {
+        var value = (uint)modifiers;
+        var count = 0;
+        while (value != 0) { count += (int)(value & 1); value >>= 1; }
+        return count;
     }
 
     private static string NormalizeBackend(string? value) => value?.Trim().ToLowerInvariant() switch

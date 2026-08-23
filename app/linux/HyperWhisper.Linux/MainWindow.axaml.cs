@@ -321,10 +321,17 @@ public partial class MainWindow : Window
                 ? $"Application context: {capability.Detail} The optional packaged GNOME companion improves title discovery; AT-SPI remains the local fallback."
                 : $"Application context: {capability.Detail}";
         }
-        var toggleModifiers = Enum.TryParse<ShortcutModifiers>(settings.ToggleShortcutModifiers, true, out var parsedModifiers)
-            ? parsedModifiers : ShortcutModifiers.Control | ShortcutModifiers.Shift;
-        var toggle = new GlobalShortcut(toggleModifiers,
-            string.IsNullOrWhiteSpace(settings.ToggleShortcutKey) ? new ShortcutKeyCode("Space") : new ShortcutKeyCode(settings.ToggleShortcutKey.Trim()));
+        var toggle = ParseShortcut(settings.ToggleShortcutModifiers, settings.ToggleShortcutKey);
+        var cancel = ParseShortcut(settings.CancelShortcutModifiers, settings.CancelShortcutKey);
+        var changeMode = ParseShortcut(settings.ChangeModeShortcutModifiers, settings.ChangeModeShortcutKey);
+        var streaming = ParseShortcut(settings.StreamingShortcutModifiers, settings.StreamingShortcutKey);
+        var shortcutFailure = new[] { toggle, cancel, changeMode, streaming }.FirstOrDefault(item => item.IsFailure);
+        if (shortcutFailure?.Error is { } shortcutError)
+        {
+            PlatformStatusText.Text = $"Linux integration warning · {shortcutError.Message}";
+            settings.Status.Failure(shortcutError.Code, shortcutError.Message);
+            return;
+        }
         var pttMode = Enum.TryParse<PushToTalkMode>(settings.PushToTalkMode, true, out var parsedMode)
             ? parsedMode : PushToTalkMode.Disabled;
         var modifier = Enum.TryParse<ModifierSide>(settings.PushToTalkModifier, true, out var parsedModifier)
@@ -334,10 +341,15 @@ public partial class MainWindow : Window
         GlobalShortcut? custom = string.IsNullOrWhiteSpace(settings.PushToTalkShortcutKey) ? null
             : new GlobalShortcut(customModifiers, new ShortcutKeyCode(settings.PushToTalkShortcutKey.Trim()));
         var result = _interaction.ConfigureAndStart(new LinuxInteractionConfiguration(
-            toggle,
+            toggle.Value,
             new PushToTalkConfiguration(pttMode, modifier, custom, settings.PushToTalkDoublePressLock),
             TimeSpan.FromSeconds(settings.ClipboardRestoreDelaySeconds),
-            ChangeModeShortcut: LinuxInteractionConfiguration.Default.ChangeModeShortcut));
+            ChangeModeShortcut: changeMode.Value)
+        {
+            SessionCancelShortcut = cancel.Value,
+            StreamingEnabled = settings.StreamingEnabled,
+            StreamingShortcut = streaming.Value,
+        });
         if (result.IsFailure) PlatformStatusText.Text = $"Linux integration warning · {result.Error!.Message}";
         else PlatformStatusText.Text = $"Linux platform connected · {_platformServices.Paths.DataDirectory}";
 
@@ -346,6 +358,20 @@ public partial class MainWindow : Window
             _viewModel.Settings.Status.Failure(autostart.Error!.Code, autostart.Error.Message);
         _platformServices.MicrophoneKeepWarm.Configure(
             settings.KeepMicrophoneWarm, _viewModel.Recording?.SelectedAudioDevice?.Id);
+    }
+
+    private static PlatformResult<GlobalShortcut?> ParseShortcut(string? modifiersText, string? keyText)
+    {
+        var normalizedModifiers = string.IsNullOrWhiteSpace(modifiersText) ? "None" : modifiersText.Trim();
+        if (!Enum.TryParse<ShortcutModifiers>(normalizedModifiers, true, out var modifiers)
+            || (modifiers & ~(ShortcutModifiers.Control | ShortcutModifiers.Alt | ShortcutModifiers.Shift | ShortcutModifiers.Meta)) != 0)
+            return PlatformResult<GlobalShortcut?>.Failure(
+                "interaction.shortcut_modifiers_invalid",
+                "Shortcut modifiers must use Control, Alt, Shift, or Meta separated by commas.");
+        var key = keyText?.Trim() ?? string.Empty;
+        if (modifiers == ShortcutModifiers.None && key.Length == 0)
+            return PlatformResult<GlobalShortcut?>.Success(null);
+        return PlatformResult<GlobalShortcut?>.Success(new GlobalShortcut(modifiers, new ShortcutKeyCode(key)));
     }
 
     private void OnInteractionFailed(object? sender, PlatformError error)
