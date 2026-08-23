@@ -1,13 +1,34 @@
 import { describe, expect, test } from 'bun:test';
 import {
+  ASSEMBLYAI_SYNC_COST_PER_AUDIO_MINUTE,
+  computeAnthropicCost,
+  computeAssemblyAISyncTranscriptionCost,
   computeAssemblyAITranscriptionCost,
+  computeAzureMaiTranscriptionCost,
+  computeCerebrasChatCost,
+  computeDeepgramTranscriptionCost,
   computeElevenLabsTranscriptionCost,
+  computeGeminiChatCost,
   computeGeminiTranscriptionCost,
+  computeGoogleChirpTranscriptionCost,
+  computeGroqChatCost,
   computeGroqTranscriptionCost,
+  computeMistralChatCost,
   computeMistralTranscriptionCost,
+  computeOpenAIChatCost,
   computeOpenAITranscriptionCost,
   computeSonioxTranscriptionCost,
+  computeXaiGrokFastChatCost,
+  computeXaiTranscriptionCost,
+  creditsForCost,
   estimatePromptInputReservationUsd,
+  estimateSonioxContextTokens,
+  estimateUsageFromChars,
+  formatUsd,
+  isGroqUsage,
+  roundUsd,
+  usdToCredits,
+  type GroqUsage,
 } from './cost-calculator';
 
 describe('new STT provider cost functions', () => {
@@ -202,5 +223,264 @@ describe('new STT provider cost functions', () => {
     const floor = computeGroqTranscriptionCost(10, 'whisper-large-v3-turbo');
     const shorter = computeGroqTranscriptionCost(5, 'whisper-large-v3-turbo');
     expect(shorter).toBe(floor);
+  });
+});
+
+describe('flat per-audio-minute STT rates', () => {
+  test('each duration-billed provider charges its own published rate', () => {
+    // One audio minute at each provider's documented rate. These are the
+    // numbers we actually pay upstream, so a silent edit here is a margin bug.
+    expect(computeDeepgramTranscriptionCost(60)).toBeCloseTo(0.0055, 6);   // $0.0055/min
+    expect(computeAzureMaiTranscriptionCost(60)).toBeCloseTo(0.006, 6);    // $0.006/min
+    expect(computeGoogleChirpTranscriptionCost(60)).toBeCloseTo(0.016, 6); // $0.016/min
+    expect(computeXaiTranscriptionCost(3600)).toBeCloseTo(0.10, 6);        // $0.10/hour
+  });
+
+  test('flat per-minute rates scale linearly with duration', () => {
+    // No minimum-billable floor on these providers (unlike Groq), so half the
+    // audio is half the cost and zero audio is free.
+    expect(computeDeepgramTranscriptionCost(30)).toBeCloseTo(computeDeepgramTranscriptionCost(60) / 2, 6);
+    expect(computeGoogleChirpTranscriptionCost(120)).toBeCloseTo(computeGoogleChirpTranscriptionCost(60) * 2, 6);
+    expect(computeAzureMaiTranscriptionCost(0)).toBe(0);
+  });
+
+  test('AssemblyAI sync bills its own $0.45/hr rate, above every async tier', () => {
+    // The sync product always runs universal-3-5-pro and publishes a higher
+    // rate than the async tiers. Reserving at the async rate would under-bill.
+    expect(computeAssemblyAISyncTranscriptionCost(3600)).toBeCloseTo(0.45, 6);
+    expect(computeAssemblyAISyncTranscriptionCost(60))
+      .toBeGreaterThan(computeAssemblyAITranscriptionCost(60, 'universal-3-5-pro', true, true));
+  });
+
+  test('the exported sync rate constant is the rate the sync cost fn charges', () => {
+    // stt-models.ts imports ASSEMBLYAI_SYNC_COST_PER_AUDIO_MINUTE for its
+    // preflight reservation instead of copying the literal. Pin the two
+    // together so the amount reserved can never drift from the amount billed.
+    expect(computeAssemblyAISyncTranscriptionCost(60)).toBeCloseTo(ASSEMBLYAI_SYNC_COST_PER_AUDIO_MINUTE, 9);
+  });
+});
+
+describe('credit conversion', () => {
+  test('1 credit is $0.001', () => {
+    expect(usdToCredits(0.001)).toBeCloseTo(1, 9);
+    expect(usdToCredits(0.005)).toBeCloseTo(5, 9);
+    expect(usdToCredits(1)).toBeCloseTo(1000, 9);
+  });
+
+  test('usdToCredits fails closed to 0.1 credits on a non-positive or non-finite cost', () => {
+    // A $0 / NaN / Infinity cost must never convert to 0 credits, or a broken
+    // upstream usage object becomes free transcription.
+    expect(usdToCredits(0)).toBe(0.1);
+    expect(usdToCredits(-1)).toBe(0.1);
+    expect(usdToCredits(Number.NaN)).toBe(0.1);
+    expect(usdToCredits(Number.POSITIVE_INFINITY)).toBe(0.1);
+  });
+
+  test('creditsForCost rounds UP to the next tenth of a credit', () => {
+    // $0.00551 = 5.51 credits → 5.6, never 5.5.
+    expect(creditsForCost(0.00551)).toBeCloseTo(5.6, 9);
+    // $0.00983 (one ElevenLabs minute) = 9.83 credits → 9.9.
+    expect(creditsForCost(0.00983)).toBeCloseTo(9.9, 9);
+  });
+
+  test('creditsForCost leaves a value already on a tenth alone', () => {
+    // The `- Number.EPSILON` in roundUpToTenth exists for this: an exact
+    // 0.6/5.5 credits must not inflate to 0.7/5.6 through float dust.
+    expect(creditsForCost(0.0006)).toBeCloseTo(0.6, 9);
+    expect(creditsForCost(0.0055)).toBeCloseTo(5.5, 9);
+  });
+
+  test('creditsForCost floors at 0.1 credits', () => {
+    expect(creditsForCost(0)).toBe(0.1);
+    expect(creditsForCost(-0.5)).toBe(0.1);
+    expect(creditsForCost(Number.NaN)).toBe(0.1);
+    // A sub-tenth-of-a-credit cost still bills the 0.1 minimum.
+    expect(creditsForCost(0.0000001)).toBe(0.1);
+    expect(creditsForCost(0.0001)).toBe(0.1);
+  });
+
+  test('creditsForCost never bills less than the underlying cost', () => {
+    // Property sweep across an irrational-ish step so tenth boundaries are
+    // hit from both sides: credits * $0.001 must always cover the USD cost.
+    for (let i = 1; i <= 5000; i++) {
+      const costUsd = i * 0.0000137;
+      const billedUsd = creditsForCost(costUsd) * 0.001;
+      expect(billedUsd).toBeGreaterThanOrEqual(costUsd - 1e-12);
+    }
+  });
+
+  test('creditsForCost is monotonic in cost', () => {
+    // A more expensive transcription can never bill fewer credits.
+    let previous = 0;
+    for (let i = 0; i <= 400; i++) {
+      const credits = creditsForCost(i * 0.00013);
+      expect(credits).toBeGreaterThanOrEqual(previous);
+      previous = credits;
+    }
+  });
+});
+
+describe('USD rounding and formatting', () => {
+  test('roundUsd removes binary floating-point dust', () => {
+    expect(roundUsd(0.1 + 0.2)).toBe(0.3);
+    expect(roundUsd(0.0055 * 3)).toBe(0.0165);
+  });
+
+  test('roundUsd rounds at the 6th decimal', () => {
+    expect(roundUsd(0.0000005)).toBe(0.000001);  // half rounds up
+    expect(roundUsd(0.00000049)).toBe(0);        // below half rounds to zero
+    expect(roundUsd(1.23456749)).toBe(1.234567);
+  });
+
+  test('formatUsd always emits exactly 6 decimal places', () => {
+    // The value goes out on the X-Total-Cost-Usd response header, so the
+    // width is part of the wire contract, not cosmetic.
+    expect(formatUsd(0.006)).toBe('0.006000');
+    expect(formatUsd(0)).toBe('0.000000');
+    expect(formatUsd(12)).toBe('12.000000');
+  });
+
+  test('formatUsd rounds before formatting rather than truncating', () => {
+    expect(formatUsd(0.1 + 0.2)).toBe('0.300000');
+    expect(formatUsd(1.23456789)).toBe('1.234568');
+  });
+});
+
+describe('LLM chat costs', () => {
+  const usage = (prompt: number, completion: number): GroqUsage => ({
+    prompt_tokens: prompt,
+    completion_tokens: completion,
+    total_tokens: prompt + completion,
+  });
+
+  test('Anthropic bills prompt and completion tokens at the Haiku 4.5 rates', () => {
+    // $1.00/1M input, $5.00/1M output.
+    expect(computeAnthropicCost(1_000_000, 0)).toBeCloseTo(1.00, 6);
+    expect(computeAnthropicCost(0, 1_000_000)).toBeCloseTo(5.00, 6);
+  });
+
+  test('Anthropic prices cache writes at 1.25x input and cache reads at 0.10x input', () => {
+    const input = computeAnthropicCost(1_000_000, 0);
+    const cacheWrite = computeAnthropicCost(0, 0, 1_000_000, 0);
+    const cacheRead = computeAnthropicCost(0, 0, 0, 1_000_000);
+    expect(cacheWrite).toBeCloseTo(input * 1.25, 6);
+    expect(cacheRead).toBeCloseTo(input * 0.10, 6);
+    // A cache read must be the cheapest of the three, or caching costs money.
+    expect(cacheRead).toBeLessThan(input);
+    expect(input).toBeLessThan(cacheWrite);
+  });
+
+  test('Anthropic sums all four token buckets and defaults the cache buckets to 0', () => {
+    // 1000 of each: 0.001 + 0.005 + 0.00125 + 0.0001.
+    expect(computeAnthropicCost(1000, 1000, 1000, 1000)).toBeCloseTo(0.00735, 9);
+    // Omitting the cache arguments must not add a charge.
+    expect(computeAnthropicCost(1000, 1000)).toBeCloseTo(0.006, 9);
+    expect(computeAnthropicCost(1000, 1000)).toBe(computeAnthropicCost(1000, 1000, 0, 0));
+  });
+
+  test('the single-model chat providers bill their published token rates', () => {
+    // Cerebras $0.35/$0.75 per 1M, Groq $0.15/$0.60, xAI Grok 4.1 Fast $1.25/$2.50.
+    expect(computeCerebrasChatCost(usage(1_000_000, 1_000_000))).toBeCloseTo(0.35 + 0.75, 6);
+    expect(computeGroqChatCost(usage(1_000_000, 1_000_000))).toBeCloseTo(0.15 + 0.60, 6);
+    expect(computeXaiGrokFastChatCost(usage(1_000_000, 1_000_000))).toBeCloseTo(1.25 + 2.50, 6);
+    // Groq GPT-OSS is the cheapest of the three on identical usage.
+    expect(computeGroqChatCost(usage(1000, 1000))).toBeLessThan(computeCerebrasChatCost(usage(1000, 1000)));
+    expect(computeCerebrasChatCost(usage(1000, 1000))).toBeLessThan(computeXaiGrokFastChatCost(usage(1000, 1000)));
+  });
+
+  test('the multi-model chat providers price each model separately', () => {
+    // gpt-5-nano is cheaper than gpt-5-mini; flash-lite cheaper than flash.
+    expect(computeOpenAIChatCost('gpt-5-mini', usage(1_000_000, 0))).toBeCloseTo(0.25, 6);
+    expect(computeOpenAIChatCost('gpt-5-nano', usage(1_000_000, 0))).toBeCloseTo(0.05, 6);
+    expect(computeGeminiChatCost('gemini-2.5-flash', usage(1_000_000, 1_000_000))).toBeCloseTo(0.30 + 2.50, 6);
+    expect(computeGeminiChatCost('gemini-2.5-flash-lite', usage(1_000_000, 1_000_000))).toBeCloseTo(0.10 + 0.40, 6);
+    expect(computeMistralChatCost('mistral-small-latest', usage(1_000_000, 1_000_000))).toBeCloseTo(0.15 + 0.60, 6);
+  });
+
+  test('an unknown chat model falls back to the provider default rate, never $0', () => {
+    // Catalog or response-header drift must fail closed: a model id we do not
+    // recognise bills at the provider default, not free.
+    const tokens = usage(1_000_000, 1_000_000);
+    expect(computeOpenAIChatCost('gpt-9-imaginary', tokens)).toBe(computeOpenAIChatCost('gpt-5-mini', tokens));
+    expect(computeGeminiChatCost('gemini-99-ultra', tokens)).toBe(computeGeminiChatCost('gemini-2.5-flash', tokens));
+    // The retired Nemo id is no longer allowlisted; old clients still sending
+    // it resolve to the Mistral default rate.
+    expect(computeMistralChatCost('open-mistral-nemo', tokens)).toBe(computeMistralChatCost('mistral-small-latest', tokens));
+    expect(computeOpenAIChatCost('', tokens)).toBeGreaterThan(0);
+  });
+
+  test('zero usage costs nothing at the chat layer', () => {
+    // The 0.1-credit minimum is applied later by creditsForCost, not here —
+    // the raw USD figure for zero tokens is genuinely 0.
+    expect(computeGroqChatCost(usage(0, 0))).toBe(0);
+    expect(computeOpenAIChatCost('gpt-5-mini', usage(0, 0))).toBe(0);
+    expect(creditsForCost(computeGroqChatCost(usage(0, 0)))).toBe(0.1);
+  });
+});
+
+describe('usage-object fallbacks and guards', () => {
+  test('estimateUsageFromChars converts at ~4 chars per token, rounding up', () => {
+    // 10 prompt chars → 3 tokens, 5 completion chars → 2 tokens.
+    expect(estimateUsageFromChars(10, 5)).toEqual({
+      prompt_tokens: 3,
+      completion_tokens: 2,
+      total_tokens: 5,
+    });
+    // Exact multiples do not gain a token.
+    expect(estimateUsageFromChars(400, 400)).toEqual({
+      prompt_tokens: 100,
+      completion_tokens: 100,
+      total_tokens: 200,
+    });
+    // A single character still costs one token.
+    expect(estimateUsageFromChars(1, 0).prompt_tokens).toBe(1);
+    expect(estimateUsageFromChars(0, 0)).toEqual({
+      prompt_tokens: 0,
+      completion_tokens: 0,
+      total_tokens: 0,
+    });
+  });
+
+  test('the char estimate is what makes a missing usage object bill non-zero', () => {
+    // groq-llm.ts feeds this estimate to computeGroqChatCost when the upstream
+    // response omits `usage`. A 2000-char prompt must produce a real charge.
+    const estimated = estimateUsageFromChars(2000, 800);
+    expect(computeGroqChatCost(estimated)).toBeGreaterThan(0);
+  });
+
+  test('isGroqUsage accepts a complete numeric usage object', () => {
+    expect(isGroqUsage({ prompt_tokens: 1, completion_tokens: 2, total_tokens: 3 })).toBe(true);
+    // Extra fields from a newer vendor schema do not disqualify it.
+    expect(isGroqUsage({ prompt_tokens: 0, completion_tokens: 0, total_tokens: 0, cached_tokens: 5 })).toBe(true);
+  });
+
+  test('isGroqUsage rejects anything that would bill $0 by accident', () => {
+    expect(isGroqUsage(null)).toBe(false);
+    expect(isGroqUsage(undefined)).toBe(false);
+    expect(isGroqUsage('usage')).toBe(false);
+    expect(isGroqUsage(42)).toBe(false);
+    expect(isGroqUsage([])).toBe(false);
+    expect(isGroqUsage({})).toBe(false);
+    // Missing one field.
+    expect(isGroqUsage({ prompt_tokens: 1, completion_tokens: 2 })).toBe(false);
+    // String-typed counts (a real vendor drift) must not pass.
+    expect(isGroqUsage({ prompt_tokens: '1', completion_tokens: 2, total_tokens: 3 })).toBe(false);
+  });
+
+  test('estimateSonioxContextTokens converts at ~0.3 tokens per char, rounding up', () => {
+    expect(estimateSonioxContextTokens('abcdefghij')).toBe(3); // ceil(10 * 0.3)
+    expect(estimateSonioxContextTokens('a')).toBe(1);          // ceil(0.3)
+    expect(estimateSonioxContextTokens('')).toBe(0);
+    expect(estimateSonioxContextTokens(undefined)).toBe(0);
+  });
+
+  test('the Soniox token estimate is the same one the context charge uses', () => {
+    // estimatePromptInputReservationUsd('soniox', ...) must reserve exactly
+    // what computeSonioxTranscriptionCost later bills for the same terms.
+    const contextText = 'kubernetes, kubectl, etcd, containerd';
+    const tokens = estimateSonioxContextTokens(contextText);
+    const reserved = estimatePromptInputReservationUsd('soniox', 'stt-async-v4', contextText);
+    const billedContext = computeSonioxTranscriptionCost(60, tokens) - computeSonioxTranscriptionCost(60, 0);
+    expect(reserved).toBeCloseTo(billedContext, 9);
   });
 });
