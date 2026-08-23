@@ -201,6 +201,56 @@ internal static class Program
                 }
             });
 
+            Run("Windows audio seams implement portable contracts", () =>
+            {
+                Assert(typeof(PlatformContracts.IAudioInputDeviceService)
+                    .IsAssignableFrom(typeof(WindowsAudioInputDeviceService)), "audio device adapter contract missing");
+                Assert(typeof(PlatformContracts.IAudioRecorder)
+                    .IsAssignableFrom(typeof(WindowsAudioRecorder)), "audio recorder adapter contract missing");
+                Assert(typeof(PlatformContracts.IStreamingAudioCapture)
+                    .IsAssignableFrom(typeof(WindowsStreamingAudioCapture)), "streaming capture adapter contract missing");
+                Assert(typeof(PlatformContracts.IMicrophoneKeepWarmService)
+                    .IsAssignableFrom(typeof(WindowsMicrophoneKeepWarmService)), "keep-warm adapter contract missing");
+                Assert(typeof(PlatformContracts.IAudioPlaybackService)
+                    .IsAssignableFrom(typeof(WindowsAudioPlaybackService)), "playback adapter contract missing");
+                Assert(typeof(PlatformContracts.ISoundEffectsService)
+                    .IsAssignableFrom(typeof(WindowsSoundEffectsService)), "sound-effects adapter contract missing");
+                Assert(WindowsAudioRecorder.TryGetDeviceNumber("-1", out var defaultDevice) && defaultDevice == -1,
+                    "default WaveIn device ID did not round-trip");
+                Assert(!WindowsAudioRecorder.TryGetDeviceNumber("not-a-device", out _),
+                    "invalid WaveIn device ID was accepted");
+            });
+
+            Run("Windows system seams preserve portable metadata", () =>
+            {
+                var windowsGpu = new GpuInfoService.GpuInfo
+                {
+                    Name = "Test GPU",
+                    DedicatedVramBytes = 8L * 1024 * 1024 * 1024,
+                    SharedMemoryBytes = 16L * 1024 * 1024 * 1024,
+                    IsDiscrete = true
+                };
+                var portableGpu = WindowsGpuInfoProvider.ToPlatform(windowsGpu);
+                Assert(portableGpu.Name == windowsGpu.Name, "GPU name was lost");
+                Assert(portableGpu.DedicatedMemoryBytes == windowsGpu.DedicatedVramBytes, "dedicated GPU memory was lost");
+                Assert(portableGpu.SharedMemoryBytes == windowsGpu.SharedMemoryBytes, "shared GPU memory was lost");
+                Assert(portableGpu.IsDiscrete, "discrete GPU classification was lost");
+
+                Assert(typeof(PlatformContracts.IGpuInfoProvider)
+                    .IsAssignableFrom(typeof(WindowsGpuInfoProvider)), "GPU adapter contract missing");
+                Assert(typeof(PlatformContracts.IScreenOcrService)
+                    .IsAssignableFrom(typeof(ScreenOCRCaptureService)), "screen OCR contract missing");
+                Assert(typeof(PlatformContracts.IAppPaths)
+                    .IsAssignableFrom(typeof(WindowsAppPaths)), "app paths contract missing");
+                Assert(typeof(PlatformContracts.IDeviceIdentityProvider)
+                    .IsAssignableFrom(typeof(WindowsDeviceIdentityProvider)), "device identity contract missing");
+
+                PlatformContracts.IAppPaths paths = new WindowsAppPaths();
+                Assert(paths.DataDirectory == AppPaths.AppDataRoot, "data directory mapping changed");
+                Assert(paths.LogsDirectory == AppPaths.LogsDirectory, "logs directory mapping changed");
+                Assert(paths.RecordingsDirectory == AppPaths.ProfileRecordingsDirectory, "recordings directory mapping changed");
+            });
+
             Run("ApplyHardenedReplacement keeps $-tokens literal", () =>
             {
                 var result = HyperwhisperCoreMethods.ApplyHardenedReplacement(

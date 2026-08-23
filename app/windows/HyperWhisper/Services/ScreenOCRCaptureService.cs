@@ -26,7 +26,7 @@ using Windows.Storage.Streams;
 
 namespace HyperWhisper.Services;
 
-public class ScreenOCRCaptureService
+public class ScreenOCRCaptureService : HyperWhisper.Platform.Abstractions.IScreenOcrService
 {
     // =========================================================================
     // SINGLETON
@@ -102,6 +102,29 @@ public class ScreenOCRCaptureService
         {
             LoggingService.Warn($"ScreenOCRCaptureService: CaptureAndOcrAsync failed: {ex.Message}");
             return null;
+        }
+    }
+
+    async ValueTask<HyperWhisper.Platform.Abstractions.PlatformResult<string?>>
+        HyperWhisper.Platform.Abstractions.IScreenOcrService.CaptureAndRecognizeAsync(
+            int maxCharacters,
+            CancellationToken cancellationToken)
+    {
+        if (maxCharacters <= 0)
+            throw new ArgumentOutOfRangeException(nameof(maxCharacters), maxCharacters, "The maximum character count must be positive.");
+        if (cancellationToken.IsCancellationRequested)
+            return HyperWhisper.Platform.Abstractions.PlatformResult<string?>.Failure(
+                "screen_ocr.cancelled", "Screen OCR was cancelled.");
+
+        try
+        {
+            var text = await CaptureAndOcrAsync(maxCharacters).WaitAsync(cancellationToken);
+            return HyperWhisper.Platform.Abstractions.PlatformResult<string?>.Success(text);
+        }
+        catch (OperationCanceledException)
+        {
+            return HyperWhisper.Platform.Abstractions.PlatformResult<string?>.Failure(
+                "screen_ocr.cancelled", "Screen OCR was cancelled.");
         }
     }
 
