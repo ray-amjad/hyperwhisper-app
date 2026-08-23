@@ -5,6 +5,8 @@ using HyperWhisper.Linux.Platform.Input;
 using HyperWhisper.Linux.Platform.Audio;
 using HyperWhisper.Linux.Platform.Injection;
 using HyperWhisper.Linux.Platform.Desktop;
+using HyperWhisper.Linux.Platform.Security;
+using HyperWhisper.Linux.Platform.SystemIntegration;
 using HyperWhisper.Platform.Abstractions;
 
 [assembly: SupportedOSPlatform("linux")]
@@ -50,6 +52,20 @@ var tests = new (string Name, Func<Task> Run)[]
     ("OCR cancellation propagates and cleans up", OcrCancellationCleanup),
     ("OCR exposes portal capture hook capability", OcrPortalCapability),
     ("Xvfb active-window integration", X11ApplicationContextIntegration),
+    ("Linux runtime locator resolves packaged backend variants", RuntimeLocatorVariants),
+    ("Linux runtime locator matches published app output", RuntimeLocatorPublishedOutput),
+    ("child launcher preserves literal argv", ChildProcessLiteralArgv),
+    ("child launcher terminates process tree", ChildProcessTermination),
+    ("GPU detector rejects software Vulkan renderer", GpuRejectsSoftwareRenderer),
+    ("GPU detector requires CUDA hardware evidence", GpuCudaEvidence),
+    ("host GPU evidence never promotes software renderer", HostGpuEvidence),
+    ("Pulse input enumeration parses sources and default", PulseInputEnumeration),
+    ("streaming audio emits copied chunks safely", StreamingAudioCapture),
+    ("streaming audio Stop interrupts a blocked source", StreamingAudioBlockedStop),
+    ("private credential fallback is owner-only", PrivateCredentialFallback),
+    ("Secret Service keeps credential out of argv", SecretServiceArgvPrivacy),
+    ("single-instance socket signals primary safely", SingleInstanceSocket),
+    ("XDG autostart is atomic and owner-only", XdgAutostart),
 };
 
 var failed = 0;
@@ -575,6 +591,184 @@ static async Task X11ApplicationContextIntegration()
     Assert.True(result.Value!.WindowTitle.Contains("HyperWhisper Context Test", StringComparison.Ordinal));
 }
 
+static Task RuntimeLocatorVariants() => WithTemporaryDirectory(directory =>
+{
+    var whisper = Path.Combine(directory, "runtimes", "vulkan", "linux-x64", "libwhisper.so");
+    var whisperCpu = Path.Combine(directory, "runtimes", "linux-x64", "libwhisper.so");
+    var llama = Path.Combine(directory, "runtimes", "linux-x64", "native", "cuda12", "libllama.so");
+    var parakeet = Path.Combine(directory, "parakeet-engine", "parakeet-engine");
+    Directory.CreateDirectory(Path.GetDirectoryName(whisper)!); File.WriteAllBytes(whisper, [1]);
+    Directory.CreateDirectory(Path.GetDirectoryName(whisperCpu)!); File.WriteAllBytes(whisperCpu, [1]);
+    Directory.CreateDirectory(Path.GetDirectoryName(llama)!); File.WriteAllBytes(llama, [1]);
+    Directory.CreateDirectory(Path.GetDirectoryName(parakeet)!); File.WriteAllBytes(parakeet, [1]);
+    File.SetUnixFileMode(parakeet, UnixFileMode.UserRead | UnixFileMode.UserExecute);
+    var locator = new LinuxNativeRuntimeLocator(directory, System.Runtime.InteropServices.Architecture.X64);
+    Assert.True(locator.FindLibrary("whisper", NativeComputeBackend.Vulkan).IsSuccess);
+    Assert.True(locator.FindLibrary("whisper", NativeComputeBackend.Cpu).IsSuccess);
+    Assert.True(locator.FindLibrary("llama", NativeComputeBackend.Cuda).IsSuccess);
+    Assert.True(locator.FindExecutable("parakeet").IsSuccess);
+    Assert.True(locator.Capabilities.ComputeBackends.Contains(NativeComputeBackend.Cuda));
+});
+
+static Task RuntimeLocatorPublishedOutput()
+{
+    var output = Path.GetFullPath("app/linux/HyperWhisper.Linux/bin/Release/net10.0");
+    if (!Directory.Exists(output)) return Task.CompletedTask;
+    var locator = new LinuxNativeRuntimeLocator(output, System.Runtime.InteropServices.Architecture.X64);
+    var cpu = locator.FindLibrary("whisper", NativeComputeBackend.Cpu);
+    var vulkan = locator.FindLibrary("whisper", NativeComputeBackend.Vulkan);
+    Assert.True(cpu.IsSuccess && cpu.Value?.EndsWith("runtimes/linux-x64/libwhisper.so", StringComparison.Ordinal) == true);
+    Assert.True(vulkan.IsSuccess && vulkan.Value?.EndsWith("runtimes/vulkan/linux-x64/libwhisper.so", StringComparison.Ordinal) == true);
+    return Task.CompletedTask;
+}
+
+static async Task ChildProcessLiteralArgv()
+{
+    var launcher = new LinuxChildProcessLauncher();
+    var started = launcher.Start(new ChildProcessStartRequest
+    {
+        ExecutablePath = "/usr/bin/printf", Arguments = ["%s", "$(touch /tmp/should-not-exist)"], RedirectStandardOutput = true,
+    });
+    Assert.True(started.IsSuccess);
+    await using var child = started.Value!;
+    var text = await new StreamReader(child.StandardOutput!).ReadToEndAsync();
+    Assert.Equal(0, await child.WaitForExitAsync());
+    Assert.Equal("$(touch /tmp/should-not-exist)", text);
+}
+
+static async Task ChildProcessTermination()
+{
+    var started = new LinuxChildProcessLauncher().Start(new ChildProcessStartRequest
+    { ExecutablePath = "/bin/sh", Arguments = ["-c", "sleep 30 & wait"] });
+    Assert.True(started.IsSuccess);
+    await using var child = started.Value!;
+    await child.TerminateAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(3));
+    Assert.True(child.HasExited);
+}
+
+static Task GpuRejectsSoftwareRenderer()
+{
+    var runner = new FakeDesktopCommandRunner(new ExternalProcessResult(0,
+        "deviceName = llvmpipe (LLVM 20)\ndeviceType = PHYSICAL_DEVICE_TYPE_CPU\n"u8.ToArray()));
+    var provider = new LinuxGpuInfoProvider(runner, "/usr/bin/vulkaninfo", null);
+    var result = provider.GetBestGpu();
+    Assert.True(result.IsSuccess && result.Value is null);
+    Assert.True(provider.GetCapabilities().SoftwareRendererDetected);
+    return Task.CompletedTask;
+}
+
+static Task GpuCudaEvidence()
+{
+    var runner = new FakeDesktopCommandRunner(new ExternalProcessResult(0, "NVIDIA RTX Test, 8192\n"u8.ToArray()));
+    var provider = new LinuxGpuInfoProvider(runner, null, "/usr/bin/nvidia-smi");
+    var result = provider.GetBestGpu();
+    var gpu = result.Value;
+    Assert.True(result.IsSuccess && gpu is not null && gpu.SupportsCuda);
+    Assert.Equal(8192L * 1024 * 1024, gpu!.DedicatedMemoryBytes);
+    Assert.True(!gpu.SupportsVulkan);
+    return Task.CompletedTask;
+}
+
+static Task HostGpuEvidence()
+{
+    var provider = new LinuxGpuInfoProvider();
+    var result = provider.GetBestGpu();
+    if (result.IsSuccess && provider.GetCapabilities().SoftwareRendererDetected) Assert.True(result.Value is null);
+    if (result.IsSuccess && result.Value is not null)
+        Assert.True(result.Value.SupportsCuda || result.Value.SupportsVulkan);
+    return Task.CompletedTask;
+}
+
+static Task PulseInputEnumeration()
+{
+    var json = """[{"name":"mic.one","description":"Microphone","monitor_of_sink":null},{"name":"sink.monitor","description":"Monitor","monitor_of_sink":1}]""";
+    var runner = new FakeDesktopCommandRunner(new ExternalProcessResult(0, System.Text.Encoding.UTF8.GetBytes(json)),
+        new ExternalProcessResult(0, "mic.one\n"u8.ToArray()));
+    using var service = new PulseAudioInputDeviceService(runner, "/usr/bin/pactl");
+    var result = service.GetAvailableDevices();
+    Assert.True(result.IsSuccess);
+    Assert.Equal(1, result.Value!.Count);
+    Assert.True(result.Value[0].IsDefault);
+    return Task.CompletedTask;
+}
+
+static async Task StreamingAudioCapture()
+{
+    var source = new FakeStreamingAudioSource(new MemoryStream([1, 0, 2, 0]));
+    using var capture = new PulseStreamingAudioCapture(new FakeStreamingAudioSourceFactory(source));
+    var chunk = new TaskCompletionSource<ReadOnlyMemory<byte>>(TaskCreationOptions.RunContinuationsAsynchronously);
+    var stopped = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+    capture.AudioChunkAvailable += (_, _) => throw new InvalidOperationException("subscriber");
+    capture.AudioChunkAvailable += (_, value) => chunk.TrySetResult(value);
+    capture.CaptureStopped += (_, _) => stopped.TrySetResult();
+    Assert.Success(capture.Start(new AudioRecordingOptions("default")));
+    Assert.SequenceEqual([1, 0, 2, 0], (await chunk.Task.WaitAsync(TimeSpan.FromSeconds(2))).ToArray());
+    await stopped.Task.WaitAsync(TimeSpan.FromSeconds(2));
+    Assert.True(capture.Duration > TimeSpan.Zero);
+}
+
+static async Task StreamingAudioBlockedStop()
+{
+    var stream = new BlockingAudioStream();
+    var source = new FakeStreamingAudioSource(stream);
+    using var capture = new PulseStreamingAudioCapture(new FakeStreamingAudioSourceFactory(source));
+    var stopped = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+    capture.CaptureStopped += (_, _) => stopped.TrySetResult();
+    Assert.Success(capture.Start(new AudioRecordingOptions("default")));
+    await stream.ReadStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+    capture.Stop();
+    await stopped.Task.WaitAsync(TimeSpan.FromSeconds(2));
+    Assert.True(!capture.IsCapturing);
+    Assert.Equal(1, source.TerminateCalls);
+}
+
+static Task PrivateCredentialFallback() => WithTemporaryDirectory(directory =>
+{
+    var backend = new PrivateFileCredentialBackend(new LinuxPrivateFileService(), directory);
+    var store = new LinuxCredentialStore(backend, new("private-file-0600", false, true));
+    Assert.Success(store.Write("service", "account", [4, 5, 6]));
+    Assert.SequenceEqual([4, 5, 6], store.Read("service", "account").Value!);
+    var file = Directory.GetFiles(directory).Single();
+    Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite, File.GetUnixFileMode(file));
+    Assert.True(!Path.GetFileName(file).Contains("service", StringComparison.Ordinal));
+    Assert.Success(store.Delete("service", "account"));
+});
+
+static Task SecretServiceArgvPrivacy()
+{
+    var runner = new FakeDesktopCommandRunner(new ExternalProcessResult(0, []));
+    var backend = new SecretToolCredentialBackend(runner, "/usr/bin/secret-tool");
+    Assert.Success(backend.Write("resource", "account", "private-value"u8));
+    Assert.True(!string.Join(' ', runner.Calls[0].Arguments).Contains("private-value", StringComparison.Ordinal));
+    Assert.True(runner.Calls[0].Input is { Length: > 0 });
+    return Task.CompletedTask;
+}
+
+static Task SingleInstanceSocket() => WithTemporaryDirectoryAsync(async directory =>
+{
+    using var primary = new LinuxSingleInstanceCoordinator(new FakeAppPaths(directory));
+    using var secondary = new LinuxSingleInstanceCoordinator(new FakeAppPaths(directory));
+    Assert.True(primary.TryAcquire().Value);
+    Assert.True(!secondary.TryAcquire().Value);
+    var activated = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+    primary.ActivationRequested += (_, _) => activated.TrySetResult();
+    Assert.Success(secondary.SignalExistingInstance());
+    await activated.Task.WaitAsync(TimeSpan.FromSeconds(2));
+    secondary.Dispose();
+    Assert.True(File.Exists(Path.Combine(directory, "instance.sock")));
+});
+
+static Task XdgAutostart() => WithTemporaryDirectory(directory =>
+{
+    var service = new LinuxAutostartService(new FakeAppPaths(directory), "/bin/true", new LinuxPrivateFileService());
+    Assert.Success(service.Enable());
+    var path = Path.Combine(directory, "autostart", "hyperwhisper.desktop");
+    Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite, File.GetUnixFileMode(path));
+    Assert.True(service.IsEnabled().Value);
+    Assert.Success(service.Disable());
+    Assert.True(!File.Exists(path));
+});
+
 static LinuxTextInjectionService NewInjection(FakeClipboard clipboard, IUInputPasteBackend uinput,
     ISecureFieldGuard? guard = null, ICapturedTargetService? targets = null) =>
     new(clipboard, uinput, guard ?? new FakeSecureFieldGuard(SecureFieldState.NotSecure),
@@ -712,6 +906,45 @@ sealed class FakePlaybackSession : IPulseAudioPlaybackSession
     public PlatformResult Write(byte[] buffer, int count) { BytesWritten += count; return PlatformResult.Success(); }
     public PlatformResult Drain() { DrainCalls++; return PlatformResult.Success(); }
     public void Dispose() { }
+}
+
+sealed class FakeStreamingAudioSourceFactory(FakeStreamingAudioSource source) : IStreamingAudioSourceFactory
+{
+    public PlatformResult<IStreamingAudioSource> Open(AudioRecordingOptions options) =>
+        PlatformResult<IStreamingAudioSource>.Success(source);
+}
+
+sealed class FakeStreamingAudioSource(Stream output) : IStreamingAudioSource
+{
+    public Stream Output { get; } = output;
+    public int TerminateCalls { get; private set; }
+    public ValueTask TerminateAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        TerminateCalls++;
+        if (Output is BlockingAudioStream blocked) blocked.Release();
+        return ValueTask.CompletedTask;
+    }
+    public ValueTask DisposeAsync() { Output.Dispose(); return ValueTask.CompletedTask; }
+}
+
+sealed class BlockingAudioStream : Stream
+{
+    private readonly TaskCompletionSource _released = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    public TaskCompletionSource ReadStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    public void Release() => _released.TrySetResult();
+    public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+    { ReadStarted.TrySetResult(); await _released.Task.ConfigureAwait(false); return 0; }
+    public override bool CanRead => true;
+    public override bool CanSeek => false;
+    public override bool CanWrite => false;
+    public override long Length => throw new NotSupportedException();
+    public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+    public override void Flush() { }
+    public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+    public override void SetLength(long value) => throw new NotSupportedException();
+    public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
 }
 
 sealed class FakeClipboard : ILinuxClipboardBackend
