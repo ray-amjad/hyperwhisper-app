@@ -301,4 +301,5 @@
   <data name="linux.overlay.secure_glyph" xml:space="preserve"><value>🔒</value></data>
   <data name="linux.overlay.escape_hint" xml:space="preserve"><value>Esc ·</value></data>
   <data name="linux.storage.restart_required" xml:space="preserve"><value>Save and restart HyperWhisper to use this folder for new recordings. Existing history keeps its original absolute audio paths.</value></data>
+  <data name="linux.ui.use.for.live.transcription" xml:space="preserve"><value>Use for live transcription</value></data>
 </root>

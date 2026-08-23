@@ -37,17 +37,24 @@ static IReadOnlyList<ModelCapability> Load(CustomEndpointDefinition[]? custom = 
 static Task TestLocalCatalogAsync()
 {
     var rows = Load().Where(x => x.Deployment == ModelDeployment.Local).ToArray();
-    Equal(PortableModelCatalog.All.Count, rows.Length);
+    Equal(PortableModelCatalog.All.Count + PortableModelCatalog.All.Count(x => x.SupportsStreaming), rows.Length);
     foreach (var model in PortableModelCatalog.All)
     {
-        var row = rows.Single(x => x.ModelId == model.Id);
+        var modelRows = rows.Where(x => x.ModelId == model.Id).ToArray();
+        Equal(model.SupportsStreaming ? 2 : 1, modelRows.Length);
+        var row = modelRows.Single(x => x.Surface != ModelSurface.StreamingTranscription);
         Equal(model.ApproximateSizeBytes, row.ApproximateSizeBytes);
         Equal(model.RecommendedVramBytes, row.RecommendedVramBytes);
         True(row.Runtime is "whisper.cpp" or "sherpa-onnx" or "llama.cpp");
         Equal(model.IsEnglishOnly, row.IsEnglishOnly);
         True(!row.RequiresCredential);
     }
-    True(rows.Single(x => x.ModelId.StartsWith("nemotron-", StringComparison.Ordinal)).SupportsStreaming);
+    var localLive = rows.Where(x => x.Surface == ModelSurface.StreamingTranscription).ToArray();
+    Equal(3, localLive.Length);
+    True(localLive.Count(x => x.ProviderId == "parakeetLocal") == 2);
+    var nemotron = localLive.Single(x => x.ProviderId == "nemotronLocal");
+    Equal(32, nemotron.SupportedLanguages.Count);
+    True(nemotron.SupportedLanguages.Contains("en-US") && nemotron.SupportedLanguages.Contains("zh-CN"));
     return Task.CompletedTask;
 }
 

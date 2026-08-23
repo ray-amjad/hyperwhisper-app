@@ -1,6 +1,7 @@
 using HyperWhisper.ModelManagement;
 using HyperWhisper.ModelReadiness;
 using HyperWhisper.Platform.Abstractions;
+using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.PortableApplication.ViewModels;
 
 var root = Path.Combine(Path.GetTempPath(), $"hyperwhisper-model-library-{Guid.NewGuid():N}");
@@ -14,9 +15,17 @@ try
     var local = new CountingLocalSource();
     var readiness = new ModelReadinessService(credentials, probe, local);
     using (var bundled = new ModelLibraryViewModel(manager))
+    {
         Assert(bundled.Items.Count > PortableModelCatalog.All.Count
             && bundled.Items.Any(item => item.Deployment == nameof(ModelDeployment.Cloud)),
             "default construction did not load the bundled unified catalog");
+        var localLive = bundled.Items.Where(item => item.Capability.Deployment == ModelDeployment.Local
+            && item.Capability.Surface == ModelSurface.StreamingTranscription).ToArray();
+        Assert(localLive.Length == 3
+            && localLive.Count(item => item.ProviderId == "parakeetLocal") == 2
+            && localLive.Single(item => item.ProviderId == "nemotronLocal").Capability.SupportedLanguages.Count == 32,
+            "local live model rows or Nemotron production locales were not exposed");
+    }
     var capabilities = new ModelCapability[]
     {
         new("local/localWhisper/base", "Whisper Base", "localWhisper", "base",
@@ -65,6 +74,28 @@ try
     Assert(viewModel.Items.Select(item => item.DisplayName).SequenceEqual(
         viewModel.Items.Select(item => item.DisplayName).Order(StringComparer.OrdinalIgnoreCase)),
         "name sorting was not deterministic");
+
+    var liveCapability = new ModelCapability(
+        "local/streaming/parakeetLocal/base", "Whisper Base Live Fixture", "parakeetLocal", "base",
+        ModelDeployment.Local, ModelWorkload.Voice, ModelSurface.StreamingTranscription,
+        false, false, ["en"], true, Runtime: "test", RequiresCredential: false);
+    var privateFiles = new MemoryPrivateFiles();
+    var settingsPath = Path.Combine(root, "settings.json");
+    var settings = new SettingsViewModel(new PortableSettingsService(privateFiles, settingsPath))
+        { StreamingLanguage = "fr" };
+    using (var liveViewModel = new ModelLibraryViewModel(manager, capabilities: [liveCapability], streamingSettings: settings))
+    {
+        liveViewModel.Selected!.Installed = true;
+        await liveViewModel.UseForLiveStreamingAsync();
+        Assert(settings.StreamingEnabled && settings.StreamingProvider == "parakeetLocal"
+            && settings.StreamingModel == "base" && settings.StreamingLanguage == "auto",
+            "local live model action did not configure provider, model, or safe language fallback");
+        var persisted = new SettingsViewModel(new PortableSettingsService(privateFiles, settingsPath));
+        persisted.Load();
+        Assert(persisted.StreamingEnabled && persisted.StreamingProvider == "parakeetLocal"
+            && persisted.StreamingModel == "base" && persisted.StreamingLanguage == "auto",
+            "local live model action was not durable across settings reload");
+    }
 
     viewModel.Selected = cloudRow;
     await viewModel.RefreshSelectedReadinessAsync();
@@ -149,6 +180,22 @@ sealed class RejectNetworkHandler : HttpMessageHandler
 {
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         => throw new InvalidOperationException("Unexpected network access.");
+}
+
+sealed class MemoryPrivateFiles : IPrivateFileService
+{
+    private readonly Dictionary<string, byte[]> _files = new(StringComparer.Ordinal);
+    public PlatformResult WriteAllBytesAtomically(string path, ReadOnlySpan<byte> contents)
+    { _files[path] = contents.ToArray(); return PlatformResult.Success(); }
+    public PlatformResult WriteAllTextAtomically(string path, string contents)
+        => WriteAllBytesAtomically(path, System.Text.Encoding.UTF8.GetBytes(contents));
+    public PlatformResult<byte[]?> ReadAllBytes(string path)
+        => PlatformResult<byte[]?>.Success(_files.TryGetValue(path, out var bytes) ? bytes.ToArray() : null);
+    public PlatformResult<string?> ReadAllText(string path)
+        => PlatformResult<string?>.Success(_files.TryGetValue(path, out var bytes)
+            ? System.Text.Encoding.UTF8.GetString(bytes) : null);
+    public PlatformResult Delete(string path) { _files.Remove(path); return PlatformResult.Success(); }
+    public PlatformResult<bool> IsRestrictedToCurrentUser(string path) => PlatformResult<bool>.Success(true);
 }
 
 sealed class BlockingNetworkHandler : HttpMessageHandler

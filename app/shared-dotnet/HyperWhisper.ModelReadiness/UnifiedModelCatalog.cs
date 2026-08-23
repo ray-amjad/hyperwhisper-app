@@ -77,9 +77,21 @@ public static class UnifiedModelCatalog
                 model.Kind == ManagedModelKind.Whisper,
                 !model.IsEnglishOnly && model.SupportedLanguages.Count == 0,
                 model.SupportedLanguages,
-                model.Id.StartsWith("nemotron-", StringComparison.Ordinal),
+                model.SupportsStreaming,
                 runtime, model.RecommendedVramBytes,
                 model.ApproximateSizeBytes, model.IsEnglishOnly,
+                RequiresCredential: false));
+
+            if (!model.SupportsStreaming) continue;
+            var streamingProvider = model.Id.StartsWith("nemotron-", StringComparison.Ordinal)
+                ? "nemotronLocal"
+                : "parakeetLocal";
+            result.Add(new ModelCapability(
+                $"local/streaming/{streamingProvider}/{model.Id}", model.DisplayName,
+                streamingProvider, model.Id, ModelDeployment.Local, ModelWorkload.Voice,
+                ModelSurface.StreamingTranscription, SupportsCustomVocabulary: false,
+                SupportsAllLanguages: false, model.SupportedLanguages, SupportsStreaming: true,
+                runtime, model.RecommendedVramBytes, model.ApproximateSizeBytes, model.IsEnglishOnly,
                 RequiresCredential: false));
         }
     }

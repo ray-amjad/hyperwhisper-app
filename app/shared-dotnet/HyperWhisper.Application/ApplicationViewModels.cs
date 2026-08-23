@@ -1503,7 +1503,8 @@ public sealed class SettingsViewModel : ViewModelBase
     public IReadOnlyList<string> LocalLlmBackends { get; } = ["cpu", "vulkan", "cuda"];
     public IReadOnlyList<string> PushToTalkModes { get; } = ["Disabled", "Modifier", "CustomShortcut"];
     public IReadOnlyList<string> PushToTalkModifiers { get; } = Enum.GetNames<ModifierSide>();
-    public IReadOnlyList<string> StreamingProviders { get; } = ["deepgram", "elevenlabs", "openai", "grok", "hyperwhisper"];
+    public IReadOnlyList<string> StreamingProviders { get; } =
+        ["deepgram", "elevenlabs", "openai", "grok", "hyperwhisper", "parakeetLocal", "nemotronLocal"];
     public IReadOnlyList<string> AudioEnvironmentPolicies { get; } = ["unchanged", "duck", "mute"];
     public UiStatus Status { get; } = new();
     public ICommand SaveCommand { get; }
@@ -1756,7 +1757,10 @@ public sealed class SettingsViewModel : ViewModelBase
     private static string NormalizeStreamingProvider(string? value) => value?.Trim().ToLowerInvariant() switch
     {
         "elevenlabs" => "elevenlabs", "openai" => "openai", "grok" or "xai" => "grok",
-        "hyperwhisper" or "hyperwhispercloud" => "hyperwhisper", _ => "deepgram",
+        "hyperwhisper" or "hyperwhispercloud" => "hyperwhisper",
+        "parakeetlocal" or "parakeet_local" => "parakeetLocal",
+        "nemotronlocal" or "nemotron_local" => "nemotronLocal",
+        _ => "deepgram",
     };
 
     private static string NormalizeAudioPolicy(string? value) => value?.Trim().ToLowerInvariant() switch
@@ -1802,7 +1806,9 @@ public sealed class ManagedModelViewModel : ViewModelBase
     {
         Capability.SupportsStreaming ? "Streaming" : null,
         Capability.SupportsCustomVocabulary ? "Custom vocabulary" : null,
-        Capability.SupportsAllLanguages ? "All languages" : Capability.IsEnglishOnly ? "English only" : null,
+        Capability.SupportsAllLanguages ? "All languages"
+            : Capability.IsEnglishOnly ? "English only"
+            : Capability.SupportedLanguages.Count > 0 ? $"{Capability.SupportedLanguages.Count} languages/locales" : null,
         Capability.CloudTierEligible ? "Cloud tier" : null,
         Capability.ByokEligible ? "BYOK" : null,
     }.Where(value => value is not null));
@@ -1853,6 +1859,7 @@ public sealed class ModelLibraryViewModel : ViewModelBase, IDisposable
 {
     private readonly PortableModelManager _manager;
     private readonly ModelReadinessService? _readiness;
+    private readonly SettingsViewModel? _streamingSettings;
     private readonly List<ManagedModelViewModel> _allItems = [];
     private readonly SynchronizationContext? _synchronizationContext = SynchronizationContext.Current;
     private CancellationTokenSource? _download;
@@ -1867,10 +1874,12 @@ public sealed class ModelLibraryViewModel : ViewModelBase, IDisposable
     public ModelLibraryViewModel(
         PortableModelManager manager,
         ModelReadinessService? readiness = null,
-        IReadOnlyList<ModelCapability>? capabilities = null)
+        IReadOnlyList<ModelCapability>? capabilities = null,
+        SettingsViewModel? streamingSettings = null)
     {
         _manager = manager ?? throw new ArgumentNullException(nameof(manager));
         _readiness = readiness;
+        _streamingSettings = streamingSettings;
         var managed = PortableModelCatalog.All.ToDictionary(model => model.Id, StringComparer.Ordinal);
         foreach (var capability in capabilities ?? UnifiedModelCatalog.LoadBundled())
         {
@@ -1886,6 +1895,13 @@ public sealed class ModelLibraryViewModel : ViewModelBase, IDisposable
         DeleteCommand = new AsyncCommand(_ => DeleteAsync(), _ => Selected is { Model: not null, Installed: true });
         RefreshReadinessCommand = new AsyncCommand(_ => RefreshSelectedReadinessAsync(), _ => Selected is not null && _readiness is not null);
         RefreshVisibleReadinessCommand = new AsyncCommand(_ => RefreshVisibleReadinessAsync(), _ => Items.Count > 0 && _readiness is not null);
+        UseForLiveStreamingCommand = new AsyncCommand(_ => UseForLiveStreamingAsync(),
+            _ => _streamingSettings is not null && Selected is
+            {
+                Installed: true,
+                Capability.Deployment: ModelDeployment.Local,
+                Capability.Surface: ModelSurface.StreamingTranscription,
+            });
         Selected = Items.FirstOrDefault(item => item.Model?.IsRecommended == true) ?? Items.FirstOrDefault();
         if (_readiness is not null)
         {
@@ -1910,6 +1926,7 @@ public sealed class ModelLibraryViewModel : ViewModelBase, IDisposable
     public ICommand DeleteCommand { get; }
     public ICommand RefreshReadinessCommand { get; }
     public ICommand RefreshVisibleReadinessCommand { get; }
+    public ICommand UseForLiveStreamingCommand { get; }
     public async Task DownloadAsync()
     {
         var target = Selected;
@@ -1929,7 +1946,11 @@ public sealed class ModelLibraryViewModel : ViewModelBase, IDisposable
             var result = await _manager.DownloadAsync(model, progress, download.Token);
             target.Installed = result.IsSuccess;
             target.Status = result.IsSuccess ? "Installed" : result.Failure!.Message;
-            if (result.IsSuccess) target.ApplyReadiness(new(target.Id, ReadinessState.Installed));
+            if (result.IsSuccess)
+            {
+                foreach (var row in RowsFor(model))
+                    row.ApplyReadiness(new(row.Id, ReadinessState.Installed));
+            }
             if (result.IsSuccess) Status.Success("Model installed");
             else Status.Failure($"models.{result.Failure!.Code.ToString().ToLowerInvariant()}", result.Failure.Message);
         }
@@ -1947,7 +1968,16 @@ public sealed class ModelLibraryViewModel : ViewModelBase, IDisposable
     {
         if (Selected?.Model is not { } model) return Task.CompletedTask;
         var result = _manager.Delete(model);
-        if (result.IsSuccess) { Selected.Installed = false; Selected.Progress = 0; Selected.Status = "Not installed"; Status.Success("Model deleted"); }
+        if (result.IsSuccess)
+        {
+            foreach (var row in RowsFor(model))
+            {
+                row.Installed = false;
+                row.Progress = 0;
+                row.ApplyReadiness(new(row.Id, ReadinessState.Downloadable));
+            }
+            Status.Success("Model deleted");
+        }
         else Status.Failure("models.delete_failed", result.Failure!.Message);
         RaiseCommands(); return Task.CompletedTask;
     }
@@ -1960,6 +1990,45 @@ public sealed class ModelLibraryViewModel : ViewModelBase, IDisposable
 
     public Task RefreshVisibleReadinessAsync(CancellationToken cancellationToken = default)
         => _readiness is null ? Task.CompletedTask : RefreshAsync(Items.ToArray(), cancellationToken);
+
+    public Task UseForLiveStreamingAsync()
+    {
+        var target = Selected;
+        if (_streamingSettings is null || target is not
+            {
+                Installed: true,
+                Capability.Deployment: ModelDeployment.Local,
+                Capability.Surface: ModelSurface.StreamingTranscription,
+            }) return Task.CompletedTask;
+
+        _streamingSettings.StreamingEnabled = true;
+        _streamingSettings.StreamingProvider = target.ProviderId;
+        _streamingSettings.StreamingModel = target.ModelId;
+        if (!SupportsLanguage(target.Capability, _streamingSettings.StreamingLanguage))
+            _streamingSettings.StreamingLanguage = "auto";
+        _streamingSettings.Save();
+        if (_streamingSettings.Status.HasError)
+        {
+            Status.Failure(_streamingSettings.Status.ErrorCode ?? "models.live_selection_failed",
+                _streamingSettings.Status.Message);
+            return Task.CompletedTask;
+        }
+        Status.Success($"{target.DisplayName} selected for live transcription");
+        return Task.CompletedTask;
+    }
+
+    private IEnumerable<ManagedModelViewModel> RowsFor(ManagedModel model)
+        => _allItems.Where(row => string.Equals(row.Model?.Id, model.Id, StringComparison.Ordinal));
+
+    private static bool SupportsLanguage(ModelCapability capability, string? language)
+    {
+        if (capability.SupportsAllLanguages || string.IsNullOrWhiteSpace(language)
+            || string.Equals(language, "auto", StringComparison.OrdinalIgnoreCase)) return true;
+        var normalized = language.Trim();
+        return capability.SupportedLanguages.Any(supported =>
+            string.Equals(supported, normalized, StringComparison.OrdinalIgnoreCase)
+            || supported.StartsWith(normalized + "-", StringComparison.OrdinalIgnoreCase));
+    }
 
     private async Task RefreshAsync(IReadOnlyList<ManagedModelViewModel> targets, CancellationToken cancellationToken)
     {
@@ -2048,6 +2117,7 @@ public sealed class ModelLibraryViewModel : ViewModelBase, IDisposable
         (DeleteCommand as AsyncCommand)?.RaiseCanExecuteChanged();
         (RefreshReadinessCommand as AsyncCommand)?.RaiseCanExecuteChanged();
         (RefreshVisibleReadinessCommand as AsyncCommand)?.RaiseCanExecuteChanged();
+        (UseForLiveStreamingCommand as AsyncCommand)?.RaiseCanExecuteChanged();
     }
 }
 
@@ -2491,7 +2561,8 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
                 OutputOptions: BuildOutputOptions(retryMode),
                 PasteResultText: Settings.PasteResultText), token);
         }, retryModes: Modes.Items, textInjection: historyTextInjection);
-        Models = modelManager is null ? null : new ModelLibraryViewModel(modelManager, modelReadiness);
+        Models = modelManager is null ? null : new ModelLibraryViewModel(
+            modelManager, modelReadiness, streamingSettings: Settings);
         Backup = new BackupViewModel(new ApplicationBackupService(database, settings, credentials));
         Credentials = credentials is null ? null : new CredentialManagementViewModel(credentials);
         Account = cloudAccount is not null && deviceIdentity is not null && openAccountUri is not null

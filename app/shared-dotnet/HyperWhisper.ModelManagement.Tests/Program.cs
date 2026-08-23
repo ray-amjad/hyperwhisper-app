@@ -15,6 +15,13 @@ await CheckAsync("catalog matches authoritative Windows registries", () =>
         "Whisper byte-exact sizes are not enforced");
     Assert(PortableModelCatalog.Parakeet.Single(m => m.Id == "parakeet-v3").SupportedLanguages.Count == 26,
         "Parakeet v3 languages changed");
+    var nemotron = PortableModelCatalog.Parakeet.Single(m => m.Id == "nemotron-3.5-ml-560ms");
+    Assert(nemotron.SupportsStreaming && nemotron.SupportedLanguages.Count == 32
+        && nemotron.SupportedLanguages.Contains("en-US") && nemotron.SupportedLanguages.Contains("zh-CN")
+        && !nemotron.SupportedLanguages.Contains("mt-MT"),
+        "Nemotron production locale metadata changed");
+    Assert(PortableModelCatalog.Parakeet.Count(m => m.SupportsStreaming) == 3,
+        "local streaming model metadata changed");
     Assert(PortableModelCatalog.LocalLlm.Count(m => m.IsRecommended) == 1, "recommended LLM must be unique");
     Assert(PortableModelCatalog.All.SelectMany(m => m.Artifacts).All(a => a.DownloadUri.Scheme == "https"),
         "catalog contains a non-HTTPS artifact");

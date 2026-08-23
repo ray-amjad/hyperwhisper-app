@@ -22,7 +22,8 @@ public sealed record ManagedModel(
     string? HuggingFaceRepository = null,
     string? Description = null,
     long? RecommendedVramBytes = null,
-    bool IsRecommended = false);
+    bool IsRecommended = false,
+    bool SupportsStreaming = false);
 
 /// <summary>Authoritative portable copy of the Windows local-model registries.</summary>
 public static class PortableModelCatalog
@@ -47,16 +48,22 @@ public static class PortableModelCatalog
     public static IReadOnlyList<ManagedModel> Parakeet { get; } =
     [
         FixedAsr("parakeet-v2", "Parakeet v2 (English)", 661_000_000, true, ["en"],
-            "csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8"),
+            "csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8", supportsStreaming: true),
         FixedAsr("parakeet-v3", "Parakeet v3 (Multilingual)", 671_000_000, false,
             ["en", "de", "es", "fr", "it", "pt", "nl", "pl", "ro", "sv", "da", "fi", "no", "cs", "sk", "hu", "hr", "sl", "bg", "uk", "el", "lt", "lv", "et", "ca", "eu"],
-            "csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8"),
+            "csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8", supportsStreaming: true),
         TreeAsr("qwen3-asr-0.6b", "Qwen3 ASR 0.6B", 985_000_000,
             ["ja", "en", "zh", "ko", "es", "fr", "de", "it", "pt", "ru", "ar"],
             "csukuangfj2/sherpa-onnx-qwen3-asr-0.6B-int8-2026-03-25"),
         FixedAsr("nemotron-3.5-ml-560ms", "Nemotron 3.5 Streaming (Multilingual)", 682_000_000, false,
-            ["en", "ja"],
-            "csukuangfj2/sherpa-onnx-nemotron-3.5-asr-streaming-0.6b-560ms-int8-2026-06-11"),
+            [
+                "en-US", "en-GB", "es-US", "es-ES", "fr-FR", "fr-CA", "it-IT", "pt-BR", "pt-PT",
+                "nl-NL", "de-DE", "tr-TR", "ru-RU", "ar-AR", "hi-IN", "ja-JP", "ko-KR", "vi-VN",
+                "uk-UA", "pl-PL", "sv-SE", "cs-CZ", "nb-NO", "da-DK", "bg-BG", "fi-FI", "hr-HR",
+                "sk-SK", "zh-CN", "hu-HU", "ro-RO", "et-EE",
+            ],
+            "csukuangfj2/sherpa-onnx-nemotron-3.5-asr-streaming-0.6b-560ms-int8-2026-06-11",
+            supportsStreaming: true),
     ];
 
     public static IReadOnlyList<ManagedModel> LocalLlm { get; } =
@@ -78,11 +85,12 @@ public static class PortableModelCatalog
     }
 
     private static ManagedModel FixedAsr(string id, string name, long bytes, bool englishOnly,
-        IReadOnlyList<string> languages, string repo)
+        IReadOnlyList<string> languages, string repo, bool supportsStreaming = false)
     {
         string[] files = ["encoder.int8.onnx", "decoder.int8.onnx", "joiner.int8.onnx", "tokens.txt"];
         return new(id, name, ManagedModelKind.Parakeet, ManagedModelLayout.FixedFiles, id, bytes,
-            englishOnly, languages, files.Select(file => Artifact(repo, file)).ToArray(), repo);
+            englishOnly, languages, files.Select(file => Artifact(repo, file)).ToArray(), repo,
+            SupportsStreaming: supportsStreaming);
     }
 
     private static ManagedModel TreeAsr(string id, string name, long bytes,
