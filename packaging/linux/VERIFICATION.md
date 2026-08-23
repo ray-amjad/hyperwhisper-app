@@ -136,6 +136,25 @@ Complete each row and record the evidence fields above.
 | Backup | Export, import into a clean profile, then re-export | Linux settings/modes/vocabulary survive and foreign `macos`/`windows` extension slices remain byte-semantically equal |
 | Autostart | Enable autostart, reboot, and sign in | One app instance starts; disabling autostart prevents the next-login launch |
 
+## Credentialed service gates — gate on one clean desktop
+
+These checks require release-test accounts or API keys and cannot be replaced
+by fake HTTP transports in CI. Use a short non-sensitive audio fixture, redact
+request identifiers and account data, and never write credentials to evidence.
+
+| Check | Exact action | Acceptance condition |
+|---|---|---|
+| Cloud batch STT matrix | With production credentials, transcribe the fixture once through OpenAI, Groq, ElevenLabs, Mistral, Grok, Deepgram, AssemblyAI, Soniox, Gemini, Azure MAI, Google Chirp, and HyperWhisper Cloud | Every enabled provider returns a non-empty accurate transcript through its advertised model; history records the selected provider/model and no credential appears in logs |
+| Cloud file uploads | Import one supported non-WAV fixture through every enabled cloud provider, including a provider-native container | The original is never modified; upload limits are enforced before transmission; the provider receives the supported container and the app-owned copy is cleaned according to storage policy |
+| Live streaming matrix | Stream the microphone through Deepgram, ElevenLabs, OpenAI, Grok, and HyperWhisper Cloud | Partial/final text arrives, stop completes once, the final transcript is persisted, and cancellation/timeout leaves no stuck session |
+| Cloud post-processing matrix | Enhance a fixed transcript through OpenAI, Anthropic, Groq, Grok, Gemini, Cerebras, Mistral, HyperWhisper Cloud, and a loopback custom endpoint | Each enabled route uses the selected model and returns the expected transformed text; malformed/rejected output retains the original transcript |
+| HyperWhisper account | Activate a release-test account, refresh details and credits, open purchase/manage links, then deactivate locally | Status/details/credits refresh without exposing the key; links contain no account identifier; deactivation behavior matches the server capability reported by the app |
+| Local LLM CPU | Run local post-processing with CUDA disabled | A supported model produces the expected transformed text on CPU and reports the CPU backend |
+
+If a provider is intentionally unavailable for the release, record `BLOCKED` or
+`NOT IMPLEMENTED`; removing it from the UI/catalog is a product-scope decision,
+not a verification pass.
+
 Local API evidence commands (redact the token value from saved output):
 
 ```bash
