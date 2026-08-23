@@ -115,6 +115,7 @@ internal sealed class DesktopSelectionCaptureHook : IScreenCaptureHook
 {
     private static readonly TimeSpan CaptureTimeout = TimeSpan.FromMinutes(2);
     private readonly IDesktopCommandRunner _runner;
+    private readonly IScreenCaptureHook? _portal;
     private readonly string? _executable;
     private readonly CaptureKind _kind;
 
@@ -122,7 +123,9 @@ internal sealed class DesktopSelectionCaptureHook : IScreenCaptureHook
     internal DesktopSelectionCaptureHook(IDesktopCommandRunner runner)
     {
         _runner = runner;
-        if ((Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP") ?? string.Empty).Contains("KDE", StringComparison.OrdinalIgnoreCase)
+        if (IsWayland() && CommandClipboardBackend.FindExecutable("python3") is { } python)
+            _portal = new PortalScreenshotCaptureHook(runner, python, HasSessionBus());
+        else if ((Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP") ?? string.Empty).Contains("KDE", StringComparison.OrdinalIgnoreCase)
             && CommandClipboardBackend.FindExecutable("spectacle") is { } spectacle)
             (_executable, _kind) = (spectacle, CaptureKind.Spectacle);
         else if (CommandClipboardBackend.FindExecutable("gnome-screenshot") is { } gnome)
@@ -131,13 +134,15 @@ internal sealed class DesktopSelectionCaptureHook : IScreenCaptureHook
             (_executable, _kind) = (import, CaptureKind.ImageMagick);
     }
 
-    public ScreenCaptureCapabilities GetCapabilities() => new(_executable is not null,
+    public ScreenCaptureCapabilities GetCapabilities() => _portal?.GetCapabilities() ?? new(_executable is not null,
         _kind switch { CaptureKind.Spectacle => "kde-spectacle", CaptureKind.Gnome => "gnome-screenshot",
             CaptureKind.ImageMagick => "x11-imagemagick", _ => "none" }, false);
 
     public async ValueTask<PlatformResult> CaptureSelectionAsync(string privateDestinationPath,
         CancellationToken cancellationToken = default)
     {
+        if (_portal is not null)
+            return await _portal.CaptureSelectionAsync(privateDestinationPath, cancellationToken).ConfigureAwait(false);
         if (_executable is null) return PlatformResult.Failure("screen_capture_unsupported", "No supported interactive capture tool is installed.");
         var arguments = _kind switch
         {
@@ -159,5 +164,146 @@ internal sealed class DesktopSelectionCaptureHook : IScreenCaptureHook
 
     private static bool IsWayland() => !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("WAYLAND_DISPLAY"))
         || string.Equals(Environment.GetEnvironmentVariable("XDG_SESSION_TYPE"), "wayland", StringComparison.OrdinalIgnoreCase);
+    private static bool HasSessionBus()
+    {
+        if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("DBUS_SESSION_BUS_ADDRESS"))) return true;
+        var runtime = Environment.GetEnvironmentVariable("XDG_RUNTIME_DIR");
+        return !string.IsNullOrWhiteSpace(runtime) && File.Exists(Path.Combine(runtime, "bus"));
+    }
     private enum CaptureKind { None, Spectacle, Gnome, ImageMagick }
+}
+
+internal sealed class PortalScreenshotCaptureHook : IScreenCaptureHook
+{
+    private const string PortalScript = """
+import os,secrets,sys
+import gi
+gi.require_version('Gio','2.0')
+from gi.repository import Gio,GLib
+
+destination=sys.argv[1]
+loop=GLib.MainLoop()
+bus=None
+request_path=None
+subscription=0
+finished=False
+
+def emit(value):
+    global finished
+    if finished: return
+    finished=True
+    print(value,flush=True)
+    loop.quit()
+
+def close_request():
+    if bus is None or request_path is None: return
+    try:
+        bus.call_sync('org.freedesktop.portal.Desktop',request_path,
+            'org.freedesktop.portal.Request','Close',None,None,
+            Gio.DBusCallFlags.NONE,1000,None)
+    except Exception:
+        pass
+
+def on_timeout():
+    close_request()
+    emit('TIMEOUT')
+    return GLib.SOURCE_REMOVE
+
+def on_response(connection,sender,path,interface,signal,parameters,user_data):
+    try:
+        response,results=parameters.unpack()
+        if response == 1:
+            emit('CANCELLED'); return
+        if response != 0:
+            emit('DENIED'); return
+        uri=results.get('uri')
+        if not isinstance(uri,str) or not uri:
+            emit('FAILED'); return
+        ok,contents,_=Gio.File.new_for_uri(uri).load_contents(None)
+        if not ok:
+            emit('FAILED'); return
+        descriptor=os.open(destination,os.O_WRONLY|os.O_TRUNC|os.O_NOFOLLOW)
+        try:
+            view=memoryview(contents)
+            while view:
+                written=os.write(descriptor,view)
+                view=view[written:]
+        finally:
+            os.close(descriptor)
+        emit('SUCCESS')
+    except Exception:
+        emit('FAILED')
+
+try:
+    bus=Gio.bus_get_sync(Gio.BusType.SESSION,None)
+    token='hyperwhisper_'+secrets.token_hex(16)
+    sender=bus.get_unique_name()[1:].replace('.','_')
+    expected='/org/freedesktop/portal/desktop/request/'+sender+'/'+token
+    request_path=expected
+    subscription=bus.signal_subscribe('org.freedesktop.portal.Desktop',
+        'org.freedesktop.portal.Request','Response',expected,None,
+        Gio.DBusSignalFlags.NONE,on_response,None)
+    options={'handle_token':GLib.Variant('s',token),'interactive':GLib.Variant('b',True)}
+    reply=bus.call_sync('org.freedesktop.portal.Desktop','/org/freedesktop/portal/desktop',
+        'org.freedesktop.portal.Screenshot','Screenshot',GLib.Variant('(sa{sv})',('',options)),
+        GLib.VariantType('(o)'),Gio.DBusCallFlags.NONE,25000,None)
+    returned=reply.unpack()[0]
+    if returned != expected:
+        bus.signal_unsubscribe(subscription)
+        request_path=returned
+        subscription=bus.signal_subscribe('org.freedesktop.portal.Desktop',
+            'org.freedesktop.portal.Request','Response',returned,None,
+            Gio.DBusSignalFlags.NONE,on_response,None)
+    GLib.timeout_add_seconds(120,on_timeout)
+    loop.run()
+except Exception:
+    emit('UNAVAILABLE')
+finally:
+    if bus is not None and subscription:
+        bus.signal_unsubscribe(subscription)
+""";
+
+    private static readonly TimeSpan PortalTimeout = TimeSpan.FromSeconds(125);
+    private readonly IDesktopCommandRunner _runner;
+    private readonly string? _python;
+    private readonly bool _sessionBusAvailable;
+
+    internal PortalScreenshotCaptureHook(IDesktopCommandRunner runner, string? python, bool sessionBusAvailable)
+    {
+        _runner = runner;
+        _python = python;
+        _sessionBusAvailable = sessionBusAvailable;
+    }
+
+    public ScreenCaptureCapabilities GetCapabilities() => new(
+        _python is not null && _sessionBusAvailable, "xdg-desktop-portal-screenshot", true);
+
+    public async ValueTask<PlatformResult> CaptureSelectionAsync(string privateDestinationPath,
+        CancellationToken cancellationToken = default)
+    {
+        if (_python is null || !_sessionBusAvailable)
+            return PlatformResult.Failure("screen_capture_unsupported", "The desktop screenshot portal is unavailable.");
+        try
+        {
+            var result = await _runner.RunAsync(_python, ["-c", PortalScript, privateDestinationPath], null,
+                cancellationToken, PortalTimeout).ConfigureAwait(false);
+            if (result.ExitCode != 0)
+                return PlatformResult.Failure("screen_capture_failed", "The desktop screenshot portal failed.");
+            return ParsePortalOutcome(Encoding.UTF8.GetString(result.Output).Trim());
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch (TimeoutException) { return PlatformResult.Failure("screen_capture_timeout", "The desktop screenshot portal timed out."); }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException)
+        { return PlatformResult.Failure("screen_capture_failed", "The desktop screenshot portal failed."); }
+    }
+
+    internal static PlatformResult ParsePortalOutcome(string outcome) => outcome switch
+    {
+        "SUCCESS" => PlatformResult.Success(),
+        "CANCELLED" => PlatformResult.Failure("screen_capture_cancelled", "Screen capture was cancelled."),
+        "DENIED" => PlatformResult.Failure("screen_capture_denied", "Screen capture permission was denied."),
+        "UNAVAILABLE" => PlatformResult.Failure("screen_capture_unavailable", "The desktop screenshot portal is unavailable."),
+        "TIMEOUT" => PlatformResult.Failure("screen_capture_timeout", "The desktop screenshot portal timed out."),
+        _ => PlatformResult.Failure("screen_capture_failed", "The desktop screenshot portal failed."),
+    };
 }

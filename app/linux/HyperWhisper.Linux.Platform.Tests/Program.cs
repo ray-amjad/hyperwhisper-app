@@ -45,12 +45,19 @@ var tests = new (string Name, Func<Task> Run)[]
     ("external desktop helpers have a hard timeout", ExternalHelperTimeout),
     ("X11 application context parses active window safely", X11ApplicationContext),
     ("Wayland application context uses AT-SPI", WaylandApplicationContext),
+    ("GNOME Wayland prefers companion D-Bus", GnomeWaylandApplicationContext),
+    ("KDE Wayland prefers KWin companion D-Bus", KdeWaylandApplicationContext),
+    ("Wayland companion falls back explicitly to AT-SPI", WaylandCompanionFallback),
     ("Wayland context reports unsupported without AT-SPI", WaylandContextUnsupported),
     ("active application timeout is explicit", ApplicationContextTimeout),
     ("OCR uses private files, truncates, and cleans up", OcrPrivateCleanup),
     ("OCR capture failure cleans up", OcrCaptureFailureCleanup),
     ("OCR cancellation propagates and cleans up", OcrCancellationCleanup),
     ("OCR exposes portal capture hook capability", OcrPortalCapability),
+    ("portal screenshot maps consent outcomes", PortalScreenshotOutcomes),
+    ("portal screenshot cancellation propagates", PortalScreenshotCancellation),
+    ("Wayland active-app host integration", WaylandApplicationContextIntegration),
+    ("portal screenshot host integration", PortalScreenshotIntegration),
     ("Xvfb active-window integration", X11ApplicationContextIntegration),
     ("Linux runtime locator resolves packaged backend variants", RuntimeLocatorVariants),
     ("Linux runtime locator matches published app output", RuntimeLocatorPublishedOutput),
@@ -533,6 +540,53 @@ static async Task WaylandApplicationContext()
     Assert.Equal("-c", runner.Calls[0].Arguments[0]);
 }
 
+static async Task GnomeWaylandApplicationContext()
+{
+    var app = Convert.ToBase64String("Browser"u8);
+    var title = Convert.ToBase64String("Private tab title"u8);
+    var runner = new FakeDesktopCommandRunner(new ExternalProcessResult(0,
+        System.Text.Encoding.UTF8.GetBytes($"('CONTEXT|999999|{app}|{title}',)\n")));
+    using var provider = new LinuxApplicationContextProvider(runner, null, "/usr/bin/python3", true,
+        gdbus: "/usr/bin/gdbus", desktop: "GNOME");
+    var result = await provider.GatherAsync();
+    Assert.True(result.IsSuccess && result.Value is not null);
+    Assert.Equal("Browser", result.Value!.ProcessName);
+    Assert.Equal("Private tab title", result.Value.WindowTitle);
+    Assert.Equal("gnome-companion-dbus+atspi", provider.GetCapabilities().Backend);
+    Assert.True(runner.Calls[0].Arguments.Contains(LinuxApplicationContextProvider.GnomeBusName));
+}
+
+static async Task KdeWaylandApplicationContext()
+{
+    var app = Convert.ToBase64String("Konsole"u8);
+    var title = Convert.ToBase64String("Shell"u8);
+    var runner = new FakeDesktopCommandRunner(new ExternalProcessResult(0,
+        System.Text.Encoding.UTF8.GetBytes($"('CONTEXT|999999|{app}|{title}',)\n")));
+    using var provider = new LinuxApplicationContextProvider(runner, null, "/usr/bin/python3", true,
+        gdbus: "/usr/bin/gdbus", desktop: "KDE");
+    var result = await provider.GatherAsync();
+    Assert.True(result.IsSuccess && result.Value is not null);
+    Assert.Equal("Konsole", result.Value!.ProcessName);
+    Assert.Equal("kde-kwin-dbus+atspi", provider.GetCapabilities().Backend);
+    Assert.True(runner.Calls[0].Arguments.Contains(LinuxApplicationContextProvider.KdeBusName));
+}
+
+static async Task WaylandCompanionFallback()
+{
+    var app = Convert.ToBase64String("Writer"u8);
+    var title = Convert.ToBase64String("Fallback"u8);
+    var runner = new FakeDesktopCommandRunner(
+        new ExternalProcessResult(1, []),
+        new ExternalProcessResult(0, System.Text.Encoding.UTF8.GetBytes($"CONTEXT|999999|{app}|{title}\n")));
+    using var provider = new LinuxApplicationContextProvider(runner, null, "/usr/bin/python3", true,
+        gdbus: "/usr/bin/gdbus", desktop: "GNOME");
+    var result = await provider.GatherAsync();
+    Assert.True(result.IsSuccess && result.Value is not null);
+    Assert.Equal("Writer", result.Value!.ProcessName);
+    Assert.Equal(2, runner.Calls.Count);
+    Assert.Equal("-c", runner.Calls[1].Arguments[0]);
+}
+
 static async Task WaylandContextUnsupported()
 {
     using var provider = new LinuxApplicationContextProvider(new FakeDesktopCommandRunner(), null, null, true);
@@ -599,6 +653,68 @@ static Task OcrPortalCapability()
     Assert.True(service.GetCapabilities().UsesDesktopPortal);
     return Task.CompletedTask;
 }
+
+static async Task PortalScreenshotOutcomes()
+{
+    foreach (var test in new[]
+    {
+        (Outcome: "SUCCESS", Error: (string?)null),
+        (Outcome: "CANCELLED", Error: "screen_capture_cancelled"),
+        (Outcome: "DENIED", Error: "screen_capture_denied"),
+        (Outcome: "UNAVAILABLE", Error: "screen_capture_unavailable"),
+        (Outcome: "TIMEOUT", Error: "screen_capture_timeout"),
+        (Outcome: "INVALID", Error: "screen_capture_failed"),
+    })
+    {
+        var runner = new FakeDesktopCommandRunner(new ExternalProcessResult(0,
+            System.Text.Encoding.UTF8.GetBytes(test.Outcome + "\n")));
+        var hook = new PortalScreenshotCaptureHook(runner, "/usr/bin/python3", true);
+        var result = await hook.CaptureSelectionAsync("/tmp/private-capture-test.png");
+        Assert.Equal(test.Error, result.Error?.Code);
+        Assert.True(hook.GetCapabilities().UsesDesktopPortal);
+        Assert.Equal("-c", runner.Calls[0].Arguments[0]);
+        Assert.Equal("/tmp/private-capture-test.png", runner.Calls[0].Arguments[2]);
+    }
+}
+
+static async Task PortalScreenshotCancellation()
+{
+    using var cancellation = new CancellationTokenSource();
+    cancellation.Cancel();
+    var hook = new PortalScreenshotCaptureHook(new FakeDesktopCommandRunner(), "/usr/bin/python3", true);
+    await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+        await hook.CaptureSelectionAsync("/tmp/not-created", cancellation.Token));
+    var unavailable = new PortalScreenshotCaptureHook(new FakeDesktopCommandRunner(), null, false);
+    var result = await unavailable.CaptureSelectionAsync("/tmp/not-created");
+    Assert.Equal("screen_capture_unsupported", result.Error!.Code);
+}
+
+static async Task WaylandApplicationContextIntegration()
+{
+    if (Environment.GetEnvironmentVariable("HYPERWHISPER_WAYLAND_CONTEXT_INTEGRATION") != "1") return;
+    using var provider = new LinuxApplicationContextProvider();
+    var result = await provider.GatherAsync();
+    Assert.True(result.IsSuccess && result.Value is not null);
+    Assert.True(!string.IsNullOrWhiteSpace(result.Value!.ProcessName));
+}
+
+static Task PortalScreenshotIntegration() => WithTemporaryDirectoryAsync(async directory =>
+{
+    if (Environment.GetEnvironmentVariable("HYPERWHISPER_PORTAL_INTEGRATION") != "1") return;
+    var python = CommandClipboardBackend.FindExecutable("python3");
+    Assert.True(python is not null);
+    var destination = Path.Combine(directory, "portal.png");
+    using (new FileStream(destination, new FileStreamOptions
+    {
+        Mode = FileMode.CreateNew,
+        Access = FileAccess.Write,
+        UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite,
+    })) { }
+    var hook = new PortalScreenshotCaptureHook(new DesktopCommandRunner(), python, true);
+    var result = await hook.CaptureSelectionAsync(destination);
+    Assert.True(result.IsSuccess);
+    Assert.True(new FileInfo(destination).Length > 0);
+});
 
 static async Task X11ApplicationContextIntegration()
 {
