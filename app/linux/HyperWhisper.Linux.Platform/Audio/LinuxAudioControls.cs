@@ -80,7 +80,7 @@ public sealed class LinuxMicrophoneKeepWarmService : IMicrophoneKeepWarmService
 
 public sealed class LinuxSoundEffectsService : ISoundEffectsService
 {
-    private readonly IDesktopCommandRunner _runner; private readonly string? _player; private readonly string _assets; private bool _disposed;
+    private readonly IDesktopCommandRunner _runner; private readonly string? _player; private readonly string _assets; private bool _disposed; private double _volume = 1;
     public LinuxSoundEffectsService() : this(new DesktopCommandRunner(), CommandClipboardBackend.FindExecutable("paplay") ?? CommandClipboardBackend.FindExecutable("pw-play"), Path.Combine(AppContext.BaseDirectory, "Assets", "Sounds")) { }
     internal LinuxSoundEffectsService(IDesktopCommandRunner runner, string? player, string assets) { _runner = runner; _player = player; _assets = assets; }
     public PlatformResult Play(SoundEffect effect)
@@ -88,9 +88,24 @@ public sealed class LinuxSoundEffectsService : ISoundEffectsService
         if (_disposed) return PlatformResult.Failure("sound_effects.disposed", "Sound effects are disposed.");
         var path = Path.Combine(_assets, effect == SoundEffect.RecordingStarted ? "start1.wav" : "stop1.wav");
         if (_player is null || !File.Exists(path)) return PlatformResult.Failure("sound_effects.unsupported", "A packaged sound effect or supported player is unavailable.");
-        try { var result = _runner.RunAsync(_player, [path], null, CancellationToken.None, TimeSpan.FromSeconds(5)).GetAwaiter().GetResult();
+        try { var result = _runner.RunAsync(_player, PlaybackArguments(_player, path, _volume), null, CancellationToken.None, TimeSpan.FromSeconds(5)).GetAwaiter().GetResult();
             return result.ExitCode == 0 ? PlatformResult.Success() : PlatformResult.Failure("sound_effects.play_failed", "The sound effect could not be played."); }
         catch { return PlatformResult.Failure("sound_effects.play_failed", "The sound effect could not be played."); }
+    }
+    public PlatformResult ConfigureVolume(double volume)
+    {
+        if (_disposed) return PlatformResult.Failure("sound_effects.disposed", "Sound effects are disposed.");
+        if (!double.IsFinite(volume) || volume is < 0 or > 1)
+            return PlatformResult.Failure("sound_effects.invalid_volume", "Sound effect volume must be between zero and one.");
+        _volume = volume;
+        return PlatformResult.Success();
+    }
+    internal static IReadOnlyList<string> PlaybackArguments(string player, string path, double volume)
+    {
+        var executable = Path.GetFileName(player);
+        return string.Equals(executable, "paplay", StringComparison.Ordinal)
+            ? [$"--volume={(int)Math.Round(volume * 65_536, MidpointRounding.AwayFromZero)}", path]
+            : [$"--volume={volume.ToString("0.###", CultureInfo.InvariantCulture)}", path];
     }
     public void Dispose() => _disposed = true;
 }

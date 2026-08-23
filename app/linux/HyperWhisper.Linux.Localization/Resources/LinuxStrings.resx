@@ -16,6 +16,7 @@
   <data name="linux.ui.application.version" xml:space="preserve"><value>Application version</value></data>
   <data name="linux.ui.archive.allowlist.system.json.capabilities.json.and.logs.eve.266126c8" xml:space="preserve"><value>Archive allowlist: system.json, capabilities.json, and logs/events.jsonl. Nothing else is added.</value></data>
   <data name="linux.ui.audio.and.desktop" xml:space="preserve"><value>Audio and desktop</value></data>
+  <data name="linux.ui.sound.effects.volume" xml:space="preserve"><value>Sound effect volume</value></data>
   <data name="linux.ui.audio.input" xml:space="preserve"><value>Audio input</value></data>
   <data name="linux.ui.auto.prefers.nvidia.cuda.12.then.a.physical.vulkan.gpu.then.91d87e48" xml:space="preserve"><value>Auto prefers NVIDIA CUDA 12, then a physical Vulkan GPU, then CPU. Whisper runtime selection is process-wide; saved changes take effect after restart.</value></data>
   <data name="linux.ui.automatically.delete.old.transcripts.and.app.owned.audio" xml:space="preserve"><value>Automatically delete old transcripts and app-owned audio</value></data>

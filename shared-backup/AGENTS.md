@@ -105,6 +105,7 @@ Linux-only settings go into `platformExtensions.linux.settings` (including `them
 | `autoDeleteEnabled` | Linux recording-history retention preference | Bool; enables startup/hourly transcript and app-owned audio cleanup. |
 | `autoDeleteDaysOld` | Linux recording-history retention age | Integer clamped to 1–365 days. |
 | `customEndpoints` | Linux custom post-processing endpoints | Windows-compatible array of `id`, `name`, `endpointURL`, and `modelName`; credentials remain in secure storage and are never exported. |
+| `soundEffectsVolume` | Linux recording cue volume | Number clamped to 0–1; Linux also accepts the equivalent macOS audio-extension value when importing a macOS backup. |
 
 The Linux `selectedModeId` setting is intentionally device-local and is not exported: a
 mode selection is transient UI state, and importing it could silently change the active

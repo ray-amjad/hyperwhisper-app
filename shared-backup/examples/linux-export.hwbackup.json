@@ -96,6 +96,7 @@
         "autoDeleteDaysOld": 30,
         "themeMode": "system",
         "minimizeToTray": true,
+        "soundEffectsVolume": 0.75,
         "customEndpoints": [
           {
             "id": "3a0e8400-e29b-41d4-a716-446655440032",

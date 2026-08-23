@@ -2081,8 +2081,12 @@ static Task SoundEffectsPaths() => WithTemporaryDirectory(directory =>
     File.WriteAllBytes(Path.Combine(directory, "start1.wav"), [1]);
     var runner = new FakeDesktopCommandRunner(new ExternalProcessResult(0, []));
     using var supported = new LinuxSoundEffectsService(runner, "/usr/bin/pw-play", directory);
+    Assert.True(supported.ConfigureVolume(0.375).IsSuccess);
     Assert.Success(supported.Play(SoundEffect.RecordingStarted));
-    Assert.Equal(Path.Combine(directory, "start1.wav"), runner.Calls[0].Arguments[0]);
+    Assert.Equal("--volume=0.375", runner.Calls[0].Arguments[0]);
+    Assert.Equal(Path.Combine(directory, "start1.wav"), runner.Calls[0].Arguments[1]);
+    Assert.True(supported.ConfigureVolume(double.NaN).IsFailure);
+    Assert.Equal("--volume=32768", LinuxSoundEffectsService.PlaybackArguments("/usr/bin/paplay", "sound.wav", 0.5)[0]);
     supported.Dispose(); Assert.True(supported.Play(SoundEffect.RecordingStarted).IsFailure);
     Assert.True(File.Exists(Path.Combine(AppContext.BaseDirectory, "Assets", "Sounds", "start1.wav")));
     Assert.True(File.Exists(Path.Combine(AppContext.BaseDirectory, "Assets", "Sounds", "stop1.wav")));

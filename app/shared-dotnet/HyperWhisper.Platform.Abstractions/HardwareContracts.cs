@@ -104,6 +104,12 @@ public enum SoundEffect
 public interface ISoundEffectsService : IDisposable
 {
     PlatformResult Play(SoundEffect effect);
+
+    /// <summary>Configures playback gain for subsequent effects. Unsupported platforms may ignore it.</summary>
+    PlatformResult ConfigureVolume(double volume) =>
+        double.IsFinite(volume) && volume is >= 0 and <= 1
+            ? PlatformResult.Success()
+            : PlatformResult.Failure("sound_effects.invalid_volume", "Sound effect volume must be between zero and one.");
 }
 
 public enum AudioEnvironmentPolicy

@@ -506,6 +506,9 @@ public partial class MainWindow : Window
                 _ => ThemeVariant.Default,
             };
         _overlay.ApplyPreference();
+        var soundVolume = _platformServices.SoundEffects.ConfigureVolume(settings.SoundEffectsVolume);
+        if (soundVolume.IsFailure)
+            settings.Status.Failure(soundVolume.Error!.Code, soundVolume.Error.Message);
         _platformServices.TextInjection.SetClipboardHistoryPrivacyPolicy(
             settings.HideFromClipboardHistory
                 ? ClipboardHistoryPrivacyPolicy.BestEffort
