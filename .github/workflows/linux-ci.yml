@@ -39,7 +39,9 @@ concurrency:
 jobs:
   build-and-test:
     name: Build & Test (linux-x64)
-    runs-on: ubuntu-latest
+    # Build native artifacts on the oldest supported Ubuntu release so the
+    # resulting glibc baseline remains compatible with the documented floor.
+    runs-on: ubuntu-22.04
     timeout-minutes: 45
     env:
       DOTNET_CLI_TELEMETRY_OPTOUT: "1"

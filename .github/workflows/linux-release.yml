@@ -54,7 +54,8 @@ jobs:
 
   build-package-release:
     name: Build Linux release (amd64)
-    runs-on: ubuntu-latest
+    # Keep release-native artifacts on the documented Ubuntu 22.04 ABI floor.
+    runs-on: ubuntu-22.04
     needs: quality-gates
     timeout-minutes: 60
     environment: Production
