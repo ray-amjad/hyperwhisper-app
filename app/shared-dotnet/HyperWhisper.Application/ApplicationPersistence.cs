@@ -615,7 +615,7 @@ public sealed record PortableCustomPostProcessingEndpoint(
     [property: JsonPropertyName("endpointURL")] string EndpointUrl,
     [property: JsonPropertyName("modelName")] string ModelName);
 
-public sealed class ApplicationBackupService(ApplicationDb database, PortableSettingsService settings)
+public sealed partial class ApplicationBackupService(ApplicationDb database, PortableSettingsService settings)
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web)
     {
@@ -625,11 +625,32 @@ public sealed class ApplicationBackupService(ApplicationDb database, PortableSet
     private readonly ApplicationDb _database = database ?? throw new ArgumentNullException(nameof(database));
     private readonly PortableSettingsService _settings = settings ?? throw new ArgumentNullException(nameof(settings));
 
-    public async Task<string> ExportAsync(CancellationToken cancellationToken = default)
+    public Task<string> ExportAsync(CancellationToken cancellationToken = default)
+        => ExportAsync(BackupExportSelection.All, cancellationToken);
+
+    public async Task<string> ExportAsync(
+        BackupExportSelection selection,
+        CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(selection);
+        if (selection.IncludeCredentials)
+            throw new NotSupportedException("Credentials cannot be exported. Reconnect providers on the destination device.");
+        if (!selection.IncludeModes && selection.SelectedModeIds is not null)
+            throw new ArgumentException("Selected mode IDs require mode export to be enabled.", nameof(selection));
         await using var context = _database.CreateContext();
-        var modes = await context.Modes.AsNoTracking().OrderBy(item => item.SortOrder).ToListAsync(cancellationToken);
-        var vocabulary = await context.VocabularyItems.AsNoTracking().OrderBy(item => item.SortOrder).ToListAsync(cancellationToken);
+        var modes = selection.IncludeModes
+            ? await context.Modes.AsNoTracking().OrderBy(item => item.SortOrder).ToListAsync(cancellationToken)
+            : [];
+        if (selection.SelectedModeIds is { } selectedModeIds)
+        {
+            var availableIds = modes.Select(item => item.Id).ToHashSet();
+            if (selectedModeIds.Any(id => !availableIds.Contains(id)))
+                throw new ArgumentException("A selected mode does not exist.", nameof(selection));
+            modes = modes.Where(item => selectedModeIds.Contains(item.Id)).ToList();
+        }
+        var vocabulary = selection.IncludeVocabulary
+            ? await context.VocabularyItems.AsNoTracking().OrderBy(item => item.SortOrder).ToListAsync(cancellationToken)
+            : [];
         var platformExtensions = ReadObject(_settings.Get<JsonElement?>("backup.platformExtensions")) ?? new JsonObject();
         var linuxExtension = platformExtensions["linux"]?.DeepClone() as JsonObject ?? new JsonObject();
         var linuxSettings = linuxExtension["settings"]?.DeepClone() as JsonObject ?? new JsonObject();
@@ -669,144 +690,30 @@ public sealed class ApplicationBackupService(ApplicationDb database, PortableSet
             ["exportDate"] = DateTimeOffset.UtcNow.ToString("O"),
             ["appVersion"] = "1.0.0",
             ["platform"] = "linux",
-            ["settings"] = BuildSharedSettings(),
-            ["modes"] = new JsonArray(modes.Select(ToUniversalMode).ToArray()),
-            ["vocabulary"] = new JsonArray(vocabulary.Select(item => new JsonObject
+        };
+        if (selection.IncludeSettings)
+        {
+            root["settings"] = BuildSharedSettings();
+            root["platformExtensions"] = platformExtensions;
+        }
+        if (selection.IncludeModes)
+        {
+            var modeNodes = modes.Select(ToUniversalMode).ToArray();
+            if (modeNodes.Length > 0 && !modeNodes.Any(item => item["isDefault"]?.GetValue<bool>() == true))
+                modeNodes[0]["isDefault"] = true;
+            root["modes"] = new JsonArray(modeNodes);
+        }
+        if (selection.IncludeVocabulary)
+            root["vocabulary"] = new JsonArray(vocabulary.Select(item => new JsonObject
             {
                 ["id"] = item.Id.ToString("D"), ["word"] = item.Word,
                 ["replacement"] = item.Replacement, ["sortOrder"] = item.SortOrder,
                 ["source"] = "manual",
-            }).ToArray()),
-            ["licenseKey"] = null,
-            ["platformExtensions"] = platformExtensions,
-        };
+            }).ToArray());
         var json = root.ToJsonString(SerializerOptions);
         var failures = SharedCoreBridge.ValidateBackup(json);
         if (failures.Count != 0) throw new InvalidOperationException("The generated universal backup did not pass shared-core validation.");
         return json;
-    }
-
-    public async Task<PlatformResult> ImportAsync(string json, CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(json)) throw new ArgumentException("Backup JSON is required.", nameof(json));
-        JsonObject? backup;
-        try { backup = JsonNode.Parse(json) as JsonObject; }
-        catch (JsonException) { return PlatformResult.Failure("backup.invalid_json", "The application backup is not valid JSON."); }
-        int? schemaVersion;
-        try { schemaVersion = backup?["schemaVersion"]?.GetValue<int>(); }
-        catch (Exception exception) when (exception is InvalidOperationException or FormatException)
-        { return PlatformResult.Failure("backup.unsupported_version", "The application backup version must be an integer."); }
-        if (backup is null || schemaVersion != 2)
-            return PlatformResult.Failure("backup.unsupported_version", "The application backup version is not supported.");
-        var validation = SharedCoreBridge.ValidateBackup(json);
-        if (validation.Count != 0)
-            return PlatformResult.Failure("backup.invalid", $"The universal backup failed validation at {validation[0].Path}.");
-
-        List<Mode>? importedModes = null;
-        List<VocabularyItem> vocabulary;
-        try
-        {
-            if (backup["modes"] is JsonArray modeNodes)
-            {
-                importedModes = modeNodes.Select(ParseMode).ToList();
-                if (importedModes.Count == 0) return PlatformResult.Failure("backup.no_modes", "A full modes backup must contain at least one mode.");
-                ValidateModes(importedModes);
-                if (!importedModes.Any(item => item.IsDefault)) importedModes[0].IsDefault = true;
-                var firstDefault = importedModes.First(item => item.IsDefault);
-                foreach (var mode in importedModes.Where(item => item.Id != firstDefault.Id)) mode.IsDefault = false;
-            }
-            vocabulary = backup["vocabulary"] is JsonArray vocabularyNodes
-                ? vocabularyNodes.Select(ParseVocabulary).ToList()
-                : [];
-            ValidateVocabulary(vocabulary);
-        }
-        catch (Exception exception) when (exception is JsonException or FormatException or InvalidOperationException or ArgumentException)
-        {
-            return PlatformResult.Failure("backup.invalid_records", "The universal backup contains invalid or duplicate records.");
-        }
-
-        await using var context = _database.CreateContext();
-        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
-        var previousSettings = _settings.Snapshot();
-        try
-        {
-            if (importedModes is not null)
-            {
-                await context.Modes.ExecuteDeleteAsync(cancellationToken);
-                context.Modes.AddRange(importedModes);
-            }
-            var existingVocabulary = await context.VocabularyItems.ToListAsync(cancellationToken);
-            foreach (var item in vocabulary)
-            {
-                var existing = existingVocabulary.FirstOrDefault(candidate => string.Equals(candidate.Word, item.Word, StringComparison.OrdinalIgnoreCase));
-                if (existing is null) { context.VocabularyItems.Add(item); existingVocabulary.Add(item); }
-                else { existing.Replacement = item.Replacement; existing.SortOrder = item.SortOrder; }
-            }
-            await context.SaveChangesAsync(cancellationToken);
-
-            if (backup["platformExtensions"] is JsonObject extensions)
-            {
-                _settings.Set("backup.platformExtensions", JsonSerializer.SerializeToElement(extensions, SerializerOptions));
-                if (extensions["linux"]?["settings"] is JsonObject linuxSettings)
-                {
-                    CopySetting<string>(linuxSettings, "language");
-                    CopySetting<string>(linuxSettings, "localWhisperBackend");
-                    CopySetting<bool>(linuxSettings, "allowLocalWhisperCpuFallback");
-                    CopySetting<string>(linuxSettings, "localLlmBackend");
-                    CopySetting<bool>(linuxSettings, "allowLocalLlmCpuFallback");
-                    CopySetting<bool>(linuxSettings, "localApiEnabled");
-                    CopySetting<int>(linuxSettings, "localApiPort");
-                    CopySetting<bool>(linuxSettings, "autostartEnabled");
-                    CopySetting<string>(linuxSettings, "toggleShortcutModifiers");
-                    CopySetting<string>(linuxSettings, "toggleShortcutKey");
-                    CopySetting<string>(linuxSettings, "cancelShortcutModifiers");
-                    CopySetting<string>(linuxSettings, "cancelShortcutKey");
-                    CopySetting<string>(linuxSettings, "changeModeShortcutModifiers");
-                    CopySetting<string>(linuxSettings, "changeModeShortcutKey");
-                    CopySetting<string>(linuxSettings, "streamingShortcutModifiers");
-                    CopySetting<string>(linuxSettings, "streamingShortcutKey");
-                    CopySetting<string>(linuxSettings, "pushToTalkMode");
-                    CopySetting<string>(linuxSettings, "pushToTalkModifier");
-                    CopySetting<string>(linuxSettings, "pushToTalkShortcutModifiers");
-                    CopySetting<string>(linuxSettings, "pushToTalkShortcutKey");
-                    CopySetting<bool>(linuxSettings, "pushToTalkDoublePressLock");
-                    CopySetting<bool>(linuxSettings, "autoIncreaseMicVolume");
-                    CopySetting<bool>(linuxSettings, "keepMicrophoneWarm");
-                    CopySetting<string>(linuxSettings, "audioEnvironmentPolicy");
-                    CopySetting<bool>(linuxSettings, "autoDeleteEnabled");
-                    CopySetting<int>(linuxSettings, "autoDeleteDaysOld");
-                    if (linuxSettings["customEndpoints"] is { } customEndpoints)
-                        _settings.Set("customEndpoints", customEndpoints.Deserialize<PortableCustomPostProcessingEndpoint[]>(SerializerOptions) ?? []);
-                }
-                else if (extensions["windows"]?["settings"]?["customEndpoints"] is { } windowsCustomEndpoints)
-                {
-                    _settings.Set("customEndpoints",
-                        windowsCustomEndpoints.Deserialize<PortableCustomPostProcessingEndpoint[]>(SerializerOptions) ?? []);
-                }
-            }
-            if (backup["settings"] is JsonObject sharedSettings) ApplySharedSettings(sharedSettings);
-            var saved = _settings.Save();
-            if (saved.IsFailure)
-            {
-                _settings.Replace(previousSettings);
-                return PlatformResult.Failure(saved.Error!.Code, saved.Error.Message);
-            }
-
-            await transaction.CommitAsync(cancellationToken);
-            return PlatformResult.Success();
-        }
-        catch (Exception exception) when (exception is JsonException or FormatException or InvalidOperationException)
-        {
-            _settings.Replace(previousSettings);
-            _ = _settings.Save();
-            return PlatformResult.Failure("backup.invalid_settings", "The universal backup contains invalid Linux settings.");
-        }
-        catch
-        {
-            _settings.Replace(previousSettings);
-            _ = _settings.Save();
-            throw;
-        }
     }
 
     private void CopySetting<T>(JsonObject source, string key)
