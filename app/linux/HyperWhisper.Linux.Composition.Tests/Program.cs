@@ -9,6 +9,7 @@ using HyperWhisper.LocalInference;
 using HyperWhisper.LocalApi;
 using HyperWhisper.SpeechOutput;
 using HyperWhisper.SharedCore;
+using HyperWhisper.Diagnostics;
 
 [assembly: SupportedOSPlatform("linux")]
 
@@ -41,6 +42,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("mode cycling is deterministic and wraps", ModeCyclingIsDeterministic),
     ("typed tray actions route without unsafe overlap", TypedTrayActionsRouteSafely),
     ("tray microphone selection is deterministic", TrayMicrophoneSelectionIsDeterministic),
+    ("diagnostic capabilities fail closed from platform evidence", DiagnosticCapabilitiesFailClosed),
+    ("lifecycle diagnostics expose only fixed fields", LifecycleDiagnosticsAreContentFree),
 };
 
 foreach (var test in tests)
@@ -49,6 +52,62 @@ foreach (var test in tests)
     Console.WriteLine($"PASS {test.Name}");
 }
 Console.WriteLine($"{tests.Length}/{tests.Length} Linux composition tests passed");
+
+static Task DiagnosticCapabilitiesFailClosed()
+{
+    var unavailable = LinuxDiagnosticCapabilityProbe.Create(new(
+        AudioCapture: true,
+        Clipboard: true,
+        UInput: false,
+        CapturedTargetFocus: true,
+        GlobalShortcuts: false,
+        ScreenCapture: true,
+        UsesDesktopPortal: false,
+        LocalInference: false,
+        Cuda: true));
+    Assert(unavailable.AudioCapture && unavailable.Clipboard,
+        "independently verified capabilities were lost");
+    Assert(!unavailable.TextInjection && !unavailable.GlobalShortcuts,
+        "missing injection or shortcut evidence was promoted");
+    Assert(!unavailable.PortalScreenCapture,
+        "non-portal capture was reported as portal capture");
+    Assert(!unavailable.LocalInference && !unavailable.Cuda,
+        "CUDA was reported without available local inference");
+
+    var available = LinuxDiagnosticCapabilityProbe.Create(new(
+        true, true, true, true, true, true, true, true, true));
+    Assert(available.AudioCapture && available.Clipboard && available.GlobalShortcuts
+        && available.TextInjection && available.PortalScreenCapture
+        && available.LocalInference && available.Cuda,
+        "fully evidenced capabilities were not reported");
+    return Task.CompletedTask;
+}
+
+static async Task LifecycleDiagnosticsAreContentFree()
+{
+    var events = new List<DiagnosticEvent>();
+    var diagnostics = new LinuxLifecycleDiagnostics(
+        () => true,
+        (value, _) =>
+        {
+            events.Add(value);
+            return Task.FromResult(DiagnosticWriteResult.Ok);
+        });
+    await diagnostics.ReportAsync(DiagnosticComponent.Transcription, DiagnosticOutcome.Failed);
+    Assert(events.Count == 1, "lifecycle event was not written exactly once");
+    Assert(events[0].Severity == DiagnosticSeverity.Error
+        && events[0].Component == DiagnosticComponent.Transcription
+        && events[0].Outcome == DiagnosticOutcome.Failed,
+        "fixed lifecycle fields were mapped incorrectly");
+    Assert(typeof(DiagnosticEvent).GetProperties().Select(property => property.Name).Order().SequenceEqual(
+        new[] { "Component", "Outcome", "Severity", "TimestampUtc" }),
+        "diagnostic event contract gained a content-bearing field");
+
+    var disabled = new LinuxLifecycleDiagnostics(
+        () => false,
+        (_, _) => throw new InvalidOperationException("disabled writer was invoked"));
+    await disabled.ReportAsync(DiagnosticComponent.Audio, DiagnosticOutcome.Started);
+}
 
 static async Task TypedTrayActionsRouteSafely()
 {
@@ -915,7 +974,8 @@ sealed class FakeTrayTarget
         () => Events.Add("feedback"),
         () => Events.Add("show"),
         () => Events.Add("hide"),
-        () => Events.Add("quit"));
+        () => Events.Add("quit"),
+        text => text);
 }
 
 sealed class FakeHistory(Transcript transcript) : ITranscriptionHistoryStore

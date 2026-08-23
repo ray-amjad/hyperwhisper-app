@@ -24,6 +24,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("evdev emits configured logical shortcut", EmitsConfiguredShortcut),
     ("evdev session binding replacement preserves held actions", EvdevSessionBindingReplacement),
     ("evdev disposal is bounded for uncooperative devices", EvdevDisposalBounded),
+    ("global shortcut capability probe is content-free and closes sources", ShortcutCapabilityProbe),
     ("X11 mapper preserves logical shortcut privacy", X11ShortcutPrivacy),
     ("X11 modifier-only shortcuts emit press and release", X11ModifierShortcut),
     ("X11 maps multi-modifier-only shortcuts in either order", X11MultiModifierShortcut),
@@ -115,6 +116,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("interaction conflicts and registration failures restore prior bindings", InteractionActionRollback),
     ("interaction restores live X11 grabs after registration failure", InteractionX11Rollback),
     ("bare Escape is armed only for an active recording", SessionCancelLifecycle),
+    ("cancel confirmation preserves the active desktop session", SessionCancelConfirmationPreservesSession),
     ("session cancel registration failure restores idle bindings", SessionCancelRegistrationRollback),
     ("session cancel arm racing disposal restores idle bindings", SessionCancelDisposalRace),
     ("X11 session cancel failure restores existing grabs", SessionCancelX11Rollback),
@@ -295,6 +297,18 @@ static Task EvdevDisposalBounded()
     service.Dispose();
     Assert.True(started.Elapsed < TimeSpan.FromSeconds(2));
     source.Release();
+    return Task.CompletedTask;
+}
+
+static Task ShortcutCapabilityProbe()
+{
+    var source = new ProbeSource();
+    using var service = new LinuxGlobalShortcutService(new FakeSourceFactory(source), null);
+    var capability = service.GetCapabilities();
+    Assert.True(capability.Available);
+    Assert.Equal("evdev", capability.Backend);
+    Assert.True(source.Disposed);
+    Assert.Equal(0, source.ReadCount);
     return Task.CompletedTask;
 }
 
@@ -1209,7 +1223,9 @@ static Task OcrPortalCapability()
     var capture = new FakeCaptureHook([1]) { UsesPortal = true };
     var service = new LinuxScreenOcrService(capture, new FakeDesktopCommandRunner(),
         new FakeAppPaths("/tmp/not-used"), "/usr/bin/tesseract");
-    Assert.True(service.GetCapabilities().UsesDesktopPortal);
+    var capability = service.GetCapabilities();
+    Assert.True(capability.UsesDesktopPortal);
+    Assert.True(capability.CaptureAvailable);
     return Task.CompletedTask;
 }
 
@@ -1787,6 +1803,30 @@ static async Task SessionCancelLifecycle()
     Assert.True(shortcuts.Current.Any(item => item.Name == LinuxInteractionCoordinator.ChangeModeActionName));
 }
 
+static async Task SessionCancelConfirmationPreservesSession()
+{
+    var shortcuts = new FakeInteractionShortcutService();
+    var recording = new FakeInteractionRecordingSession { DeferCancelRequest = true };
+    var injection = new FakeInteractionTextInjection();
+    using var coordinator = new LinuxInteractionCoordinator(
+        shortcuts, new FakeInteractionPushToTalk(), injection, recording, new ImmediateUiDispatcher());
+    Assert.Success(coordinator.ConfigureAndStart(InteractionConfiguration()));
+    await coordinator.StartRecordingAsync();
+
+    await coordinator.CancelRecordingAsync();
+    Assert.Equal(1, recording.CancelRequestCalls);
+    Assert.Equal(0, recording.CancelCalls);
+    Assert.True(recording.IsActive);
+    Assert.Equal(0, injection.EndSessionCalls);
+    Assert.True(shortcuts.Current.Any(item => item.Name == LinuxInteractionCoordinator.SessionCancelActionName));
+
+    await coordinator.ConfirmCancelRecordingAsync();
+    Assert.Equal(1, recording.CancelCalls);
+    Assert.True(!recording.IsActive);
+    Assert.Equal(1, injection.EndSessionCalls);
+    Assert.True(shortcuts.Current.All(item => item.Name != LinuxInteractionCoordinator.SessionCancelActionName));
+}
+
 static async Task SessionCancelRegistrationRollback()
 {
     var shortcuts = new FakeInteractionShortcutService();
@@ -2171,6 +2211,23 @@ sealed class UncooperativeSource : IEvdevSource
     public void Release() => _completion.TrySetResult(false);
 }
 
+sealed class ProbeSource : IEvdevSource
+{
+    public string Id => "probe";
+    public int ReadCount { get; private set; }
+    public bool Disposed { get; private set; }
+    public ValueTask<bool> ReadFrameAsync(Memory<byte> frame, CancellationToken cancellationToken)
+    {
+        ReadCount++;
+        return ValueTask.FromResult(false);
+    }
+    public ValueTask DisposeAsync()
+    {
+        Disposed = true;
+        return ValueTask.CompletedTask;
+    }
+}
+
 sealed class FakeDiagnostics : IGlobalShortcutDiagnostics
 {
     public int SubscriberFailures { get; private set; }
@@ -2484,6 +2541,8 @@ sealed class FakeInteractionRecordingSession : IInteractionRecordingSession
     public int StartCalls { get; private set; }
     public int StopCalls { get; private set; }
     public int CancelCalls { get; private set; }
+    public int CancelRequestCalls { get; private set; }
+    public bool DeferCancelRequest { get; set; }
     public PlatformResult StartResult { get; set; } = PlatformResult.Success();
     public List<InteractionRecordingKind> StartKinds { get; } = [];
     public ValueTask<PlatformResult> StartAsync(
@@ -2494,6 +2553,14 @@ sealed class FakeInteractionRecordingSession : IInteractionRecordingSession
     { cancellationToken.ThrowIfCancellationRequested(); StopCalls++; Active = false; return ValueTask.FromResult(new InteractionStopOutcome(PlatformResult.Success())); }
     public ValueTask CancelAsync(CancellationToken cancellationToken = default)
     { cancellationToken.ThrowIfCancellationRequested(); CancelCalls++; Active = false; return ValueTask.CompletedTask; }
+    public ValueTask<bool> RequestCancelAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        CancelRequestCalls++;
+        if (DeferCancelRequest) return ValueTask.FromResult(false);
+        CancelCalls++; Active = false;
+        return ValueTask.FromResult(true);
+    }
 }
 
 sealed class BlockingInteractionRecordingSession : IInteractionRecordingSession
@@ -2557,10 +2624,11 @@ sealed class FakeInteractionDurationScheduler : IInteractionDurationScheduler
 
 sealed class FakeInteractionTextInjection : ITextInjectionService
 {
+    public int EndSessionCalls { get; private set; }
     public bool IsCapturedTargetAvailable => true;
     public void CaptureTarget() { }
     public void StartSession() { }
-    public void EndSession() { }
+    public void EndSession() => EndSessionCalls++;
     public void CancelPendingClipboardRestore() { }
     public void ScheduleClipboardRestore(TimeSpan delay) { }
     public ValueTask<PlatformResult> RestoreClipboardImmediatelyAsync(CancellationToken cancellationToken = default)

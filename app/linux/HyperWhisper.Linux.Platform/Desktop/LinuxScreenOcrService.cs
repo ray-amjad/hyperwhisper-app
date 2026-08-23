@@ -15,7 +15,10 @@ public interface IScreenCaptureHook
 }
 
 public sealed record LinuxScreenOcrCapabilities(bool Available, string CaptureBackend,
-    bool UsesDesktopPortal, bool TesseractAvailable);
+    bool UsesDesktopPortal, bool TesseractAvailable)
+{
+    public bool CaptureAvailable { get; init; }
+}
 
 public sealed class LinuxScreenOcrService : IScreenOcrService
 {
@@ -45,7 +48,10 @@ public sealed class LinuxScreenOcrService : IScreenOcrService
     {
         var capture = _capture.GetCapabilities();
         return new(capture.Available && _tesseract is not null, capture.Backend,
-            capture.UsesDesktopPortal, _tesseract is not null);
+            capture.UsesDesktopPortal, _tesseract is not null)
+        {
+            CaptureAvailable = capture.Available,
+        };
     }
 
     public async ValueTask<PlatformResult<string?>> CaptureAndRecognizeAsync(int maxCharacters = 2000,

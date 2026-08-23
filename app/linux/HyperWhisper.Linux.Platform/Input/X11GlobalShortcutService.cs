@@ -49,6 +49,16 @@ internal sealed class X11GlobalShortcutService : IGlobalShortcutService
     public event EventHandler<ShortcutTriggeredEventArgs>? ShortcutPressed;
     public event EventHandler<ShortcutTriggeredEventArgs>? ShortcutReleased;
 
+    internal bool ProbeAvailability()
+    {
+        if (_disposed) return false;
+        var opened = _factory.Open();
+        if (opened.IsFailure) return false;
+        try { opened.Value!.Dispose(); }
+        catch { return false; }
+        return true;
+    }
+
     public IReadOnlyDictionary<string, PlatformResult> RegisterShortcuts(IReadOnlyCollection<NamedShortcut> shortcuts)
     {
         ArgumentNullException.ThrowIfNull(shortcuts);

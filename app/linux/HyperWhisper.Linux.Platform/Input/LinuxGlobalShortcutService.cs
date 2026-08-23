@@ -9,6 +9,8 @@ public interface IGlobalShortcutDiagnostics
     void SubscriberFailed();
 }
 
+public sealed record LinuxGlobalShortcutCapabilities(bool Available, string Backend);
+
 internal interface IShortcutInterferenceSource
 {
     event EventHandler? Interfered;
@@ -51,6 +53,26 @@ public sealed class LinuxGlobalShortcutService : IGlobalShortcutService, IShortc
     public event EventHandler<ShortcutTriggeredEventArgs>? ShortcutPressed;
     public event EventHandler<ShortcutTriggeredEventArgs>? ShortcutReleased;
     public event EventHandler? Interfered;
+
+    /// <summary>
+    /// Performs a bounded, content-free availability probe. Keyboard devices are
+    /// opened only to verify access and are closed before this method returns;
+    /// no event frames are read or exposed.
+    /// </summary>
+    public LinuxGlobalShortcutCapabilities GetCapabilities()
+    {
+        if (_disposed) return new(false, "disposed");
+        if (_x11 is X11GlobalShortcutService x11)
+            return new(x11.ProbeAvailability(), "x11-xgrabkey");
+
+        var opened = _sourceFactory.OpenKeyboardSources();
+        foreach (var source in opened.Sources.Reverse())
+        {
+            try { source.DisposeAsync().AsTask().GetAwaiter().GetResult(); }
+            catch { }
+        }
+        return new(opened.ErrorCode is null && opened.Sources.Count > 0, "evdev");
+    }
 
     public PlatformResult Start()
     {
