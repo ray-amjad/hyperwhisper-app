@@ -163,14 +163,27 @@ jobs:
             xwayland \
             xvfb
 
-      - name: Build shared .NET platform abstractions
+      - name: Build and execute portable .NET tests
         shell: bash
         run: |
           set -euo pipefail
-          dotnet build \
-            app/shared-dotnet/HyperWhisper.Platform.Abstractions/HyperWhisper.Platform.Abstractions.csproj \
-            --configuration Release \
-            -p:TreatWarningsAsErrors=true
+          mapfile -t test_projects < <(
+            find app/shared-dotnet -mindepth 2 -maxdepth 2 \
+              -type f -path '*Tests/*.csproj' -print | sort
+          )
+          if (( ${#test_projects[@]} == 0 )); then
+            echo "No portable .NET test harnesses were found." >&2
+            exit 1
+          fi
+          for project in "${test_projects[@]}"; do
+            dotnet build "$project" \
+              --configuration Release \
+              -p:TreatWarningsAsErrors=true
+            dotnet run \
+              --project "$project" \
+              --configuration Release \
+              --no-build
+          done
 
       - name: Build and run Linux integration-spike tests
         shell: bash
