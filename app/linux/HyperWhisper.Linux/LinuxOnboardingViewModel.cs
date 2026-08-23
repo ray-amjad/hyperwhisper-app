@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using HyperWhisper.Data.Entities;
+using HyperWhisper.ModelReadiness;
 using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.PortableApplication.ViewModels;
 
@@ -24,6 +25,7 @@ internal sealed class LinuxOnboardingViewModel : ViewModelBase
     private LinuxOnboardingStep _step;
     private bool _isVisible;
     private bool _testSucceeded;
+    private bool _selectedModeAvailable;
     private string _testStatus;
     private Mode? _selectedMode;
     private AudioInputDevice? _selectedDevice;
@@ -34,6 +36,7 @@ internal sealed class LinuxOnboardingViewModel : ViewModelBase
         Mode? selectedMode,
         IEnumerable<AudioInputDevice> devices,
         AudioInputDevice? selectedDevice,
+        bool selectedModeAvailable,
         Func<bool, bool> persistDecision,
         Action<Mode?> selectMode,
         Action<AudioInputDevice?> selectDevice,
@@ -44,6 +47,7 @@ internal sealed class LinuxOnboardingViewModel : ViewModelBase
         Devices = new(devices);
         _selectedMode = selectedMode ?? Modes.FirstOrDefault();
         _selectedDevice = selectedDevice ?? Devices.FirstOrDefault();
+        _selectedModeAvailable = selectedModeAvailable;
         _persistDecision = persistDecision;
         _selectMode = selectMode;
         _selectDevice = selectDevice;
@@ -63,16 +67,13 @@ internal sealed class LinuxOnboardingViewModel : ViewModelBase
     public bool CanGoBack => Step != LinuxOnboardingStep.Welcome;
     public bool CanGoNext => Step switch
     {
-        LinuxOnboardingStep.Provider => SelectedMode is not null,
+        LinuxOnboardingStep.Provider => SelectedMode is not null && IsSelectedModeAvailable,
         LinuxOnboardingStep.Microphone => SelectedDevice is not null,
-        LinuxOnboardingStep.Test => IsTestReady,
+        LinuxOnboardingStep.Test => IsTestReady && TestSucceeded,
         _ => true,
     };
     public bool IsTestReady => Capabilities.AudioCapture && SelectedMode is not null && SelectedDevice is not null && IsSelectedModeAvailable;
-    public bool IsSelectedModeAvailable => SelectedMode is { } mode &&
-        (!string.Equals(mode.ProviderType, "local", StringComparison.OrdinalIgnoreCase)
-         || (string.Equals(mode.LocalEngine, "parakeet", StringComparison.OrdinalIgnoreCase)
-             ? Capabilities.LocalParakeet : Capabilities.LocalWhisper));
+    public bool IsSelectedModeAvailable => SelectedMode is not null && _selectedModeAvailable;
     public bool TestSucceeded { get => _testSucceeded; private set => Set(ref _testSucceeded, value); }
     public string TestStatus { get => _testStatus; private set => Set(ref _testStatus, value); }
     public Mode? SelectedMode
@@ -81,6 +82,8 @@ internal sealed class LinuxOnboardingViewModel : ViewModelBase
         set
         {
             if (!Set(ref _selectedMode, value)) return;
+            _selectedModeAvailable = false;
+            TestSucceeded = false;
             _selectMode(value);
             NotifyReadiness();
         }
@@ -109,6 +112,14 @@ internal sealed class LinuxOnboardingViewModel : ViewModelBase
     {
         TestStatus = status;
         if (succeeded) TestSucceeded = true;
+        Notify(nameof(CanGoNext));
+    }
+
+    public void SetSelectedModeAvailable(bool available)
+    {
+        _selectedModeAvailable = available;
+        if (!available) TestSucceeded = false;
+        NotifyReadiness();
     }
 
     private void Complete(bool skipped)
@@ -124,4 +135,59 @@ internal sealed class LinuxOnboardingViewModel : ViewModelBase
     {
         Notify(nameof(IsSelectedModeAvailable)); Notify(nameof(IsTestReady)); Notify(nameof(CanGoNext));
     }
+}
+
+internal sealed class LinuxOnboardingModeReadiness(
+    IProviderCredentialSource credentials,
+    ILocalModelReadinessSource localModels,
+    IReadOnlyList<ModelCapability>? capabilities = null)
+{
+    private readonly IProviderCredentialSource _credentials = credentials ?? throw new ArgumentNullException(nameof(credentials));
+    private readonly ILocalModelReadinessSource _localModels = localModels ?? throw new ArgumentNullException(nameof(localModels));
+    private readonly IReadOnlyList<ModelCapability> _capabilities = capabilities ?? UnifiedModelCatalog.LoadBundled();
+
+    public async ValueTask<bool> IsReadyAsync(Mode mode, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(mode);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (string.Equals(mode.ProviderType, "local", StringComparison.OrdinalIgnoreCase))
+        {
+            var parakeet = string.Equals(mode.LocalEngine, "parakeet", StringComparison.OrdinalIgnoreCase);
+            var modelId = parakeet
+                ? mode.LocalParakeetModel ?? mode.Model ?? "parakeet-v3"
+                : mode.ModelType ?? mode.Model ?? "base";
+            var provider = parakeet ? "parakeet" : "localWhisper";
+            var capability = _capabilities.FirstOrDefault(item =>
+                item.Deployment == ModelDeployment.Local
+                && item.Workload == ModelWorkload.Voice
+                && item.Surface == ModelSurface.BatchTranscription
+                && string.Equals(item.ProviderId, provider, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(item.ModelId, modelId, StringComparison.Ordinal));
+            return capability is not null
+                && await _localModels.IsInstalledAsync(capability, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (!string.Equals(mode.ProviderType, "cloud", StringComparison.OrdinalIgnoreCase)
+            || string.IsNullOrWhiteSpace(mode.CloudProvider)) return false;
+        var providerId = NormalizeCloudProvider(mode.CloudProvider);
+        var knownProvider = string.Equals(providerId, "hyperwhisper", StringComparison.Ordinal)
+            || _capabilities.Any(item => item.Deployment == ModelDeployment.Cloud
+                && item.Workload == ModelWorkload.Voice
+                && item.Surface == ModelSurface.BatchTranscription
+                && string.Equals(item.ProviderId, providerId, StringComparison.OrdinalIgnoreCase)
+                && (string.IsNullOrWhiteSpace(mode.CloudTranscriptionModel)
+                    || string.Equals(item.ModelId, mode.CloudTranscriptionModel, StringComparison.Ordinal)));
+        if (!knownProvider) return false;
+        var credential = await _credentials.GetCredentialAsync(
+            UnifiedModelCatalog.CredentialAccountFor(providerId), cancellationToken).ConfigureAwait(false);
+        return credential?.IsPresent == true;
+    }
+
+    private static string NormalizeCloudProvider(string provider) => provider.Trim().ToLowerInvariant() switch
+    {
+        "microsoftazurespeech" => "azure-mai",
+        "googlespeech" => "google-chirp",
+        "xai" => "grok",
+        _ => provider.Trim().ToLowerInvariant(),
+    };
 }

@@ -18,7 +18,8 @@
       "restoreClipboardAfterPaste": true,
       "hideFromClipboardHistory": false,
       "clipboardRestoreDelaySeconds": 10.0,
-      "autocapitalizeInsert": true
+      "autocapitalizeInsert": true,
+      "storeWordTimestamps": true
     },
     "storage": {
       "keepAudioFiles": true,

@@ -43,6 +43,7 @@ public partial class MainWindow : Window
     private readonly LinuxPostProcessingRouter _postProcessingRouter;
     private readonly PortableSettingsService _settings;
     private readonly PortableModelManager _modelManager;
+    private readonly LinuxOnboardingModeReadiness _onboardingReadiness;
     private readonly HttpClient _modelHttp = new();
     private readonly PortableCloudAccountService _cloudAccount;
     private readonly PortableStorageLifecycleService _storageLifecycle;
@@ -85,6 +86,9 @@ public partial class MainWindow : Window
         _database = new ApplicationDb(_platformServices.Paths);
         _settings = new PortableSettingsService(_platformServices.PrivateFiles, _platformServices.Paths);
         _modelManager = new PortableModelManager(_platformServices.Paths, _modelHttp);
+        _onboardingReadiness = new LinuxOnboardingModeReadiness(
+            new SecureStoreProviderCredentialSource(_platformServices.CredentialStore),
+            new PortableLocalModelReadinessSource(_modelManager));
         _cloudAccount = new PortableCloudAccountService(_platformServices.CredentialStore);
         _storageLifecycle = new PortableStorageLifecycleService(
             _platformServices.Paths, _platformServices.PrivateFiles);
@@ -204,7 +208,7 @@ public partial class MainWindow : Window
                 () => _platformServices.AudioRecorder.IsRecording ? "active" : null)
                 .RecoverAsync(_lifetime.Token);
             await _viewModel.History.RefreshAsync(_lifetime.Token);
-            InitializeOnboarding();
+            await InitializeOnboardingAsync();
             await WriteDiagnosticAsync(DiagnosticSeverity.Information, DiagnosticComponent.Application, DiagnosticOutcome.Started);
             await ApplyLocalApiSettingsAsync(_lifetime.Token);
             ApplyTelemetrySettings();
@@ -412,7 +416,7 @@ public partial class MainWindow : Window
         if (this.FindControl<TextBlock>("AboutUpdateStatus") is { } status) status.Text = text;
     }
 
-    private void InitializeOnboarding()
+    private async Task InitializeOnboardingAsync()
     {
         if (Program.IsSmokeTest || !_isFreshProfile || _settings.Get("onboarding.completed", false)
                             || _settings.Get("onboarding.skipped", false)) return;
@@ -420,6 +424,10 @@ public partial class MainWindow : Window
         var injection = (_platformServices.TextInjection as LinuxTextInjectionService)?.GetCapabilities();
         var shortcuts = (_platformServices.GlobalShortcuts as LinuxGlobalShortcutService)?.GetCapabilities();
         var capture = (_platformServices.ScreenOcr as LinuxScreenOcrService)?.GetCapabilities();
+        var selectedMode = _viewModel.Modes.Selected;
+        var selectedModeAvailable = selectedMode is not null
+            && IsOnboardingEngineAvailable(selectedMode)
+            && await _onboardingReadiness.IsReadyAsync(selectedMode, _lifetime.Token);
         _onboarding = new LinuxOnboardingViewModel(
             new(
                 audio?.Available == true,
@@ -430,15 +438,42 @@ public partial class MainWindow : Window
                 _platformServices.LocalWhisperCapability.IsAvailable,
                 _platformServices.LocalParakeetCapability.IsAvailable),
             _viewModel.Modes.Items,
-            _viewModel.Modes.Selected,
+            selectedMode,
             _viewModel.Recording?.AudioDevices ?? [],
             _viewModel.Recording?.SelectedAudioDevice,
+            selectedModeAvailable,
             PersistOnboardingDecision,
             mode => _viewModel.Modes.Selected = mode,
             device => { if (_viewModel.Recording is not null) _viewModel.Recording.SelectedAudioDevice = device; },
             L);
         OnboardingOverlay.DataContext = _onboarding;
         _onboarding.Show();
+    }
+
+    private bool IsOnboardingEngineAvailable(Mode mode) =>
+        !string.Equals(mode.ProviderType, "local", StringComparison.OrdinalIgnoreCase)
+        || (string.Equals(mode.LocalEngine, "parakeet", StringComparison.OrdinalIgnoreCase)
+            ? _platformServices.LocalParakeetCapability.IsAvailable
+            : _platformServices.LocalWhisperCapability.IsAvailable);
+
+    private async void OnOnboardingModeChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        var onboarding = _onboarding;
+        var mode = onboarding?.SelectedMode;
+        if (onboarding is null || mode is null) return;
+        try
+        {
+            var available = IsOnboardingEngineAvailable(mode)
+                && await _onboardingReadiness.IsReadyAsync(mode, _lifetime.Token);
+            if (ReferenceEquals(onboarding, _onboarding) && ReferenceEquals(mode, onboarding.SelectedMode))
+                onboarding.SetSelectedModeAvailable(available);
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch
+        {
+            if (ReferenceEquals(onboarding, _onboarding) && ReferenceEquals(mode, onboarding.SelectedMode))
+                onboarding.SetSelectedModeAvailable(false);
+        }
     }
 
     private bool PersistOnboardingDecision(bool skipped)

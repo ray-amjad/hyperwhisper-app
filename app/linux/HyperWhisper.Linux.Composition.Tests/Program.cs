@@ -11,6 +11,7 @@ using HyperWhisper.SpeechOutput;
 using HyperWhisper.SharedCore;
 using HyperWhisper.Diagnostics;
 using HyperWhisper.LiveStreaming;
+using HyperWhisper.ModelReadiness;
 using System.Diagnostics;
 
 [assembly: SupportedOSPlatform("linux")]
@@ -56,6 +57,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Silero detector preserves bounded recurrent state", SileroDetectorStateIsBounded),
     ("packaged Silero ONNX model executes silence fixture", PackagedSileroExecutes),
     ("first-run onboarding persists decisions and gates real readiness", OnboardingStateMachine),
+    ("onboarding checks secure credentials and installed local models", OnboardingModeReadiness),
 };
 
 foreach (var test in tests)
@@ -74,7 +76,7 @@ static Task OnboardingStateMachine()
     AudioInputDevice? selectedDevice = microphone;
     var onboarding = new LinuxOnboardingViewModel(
         new(true, true, true, true, true, true, false),
-        [mode], mode, [microphone], microphone,
+        [mode], mode, [microphone], microphone, selectedModeAvailable: true,
         skipped => { decisions.Add(skipped); return true; },
         value => selectedMode = value,
         value => selectedDevice = value,
@@ -92,6 +94,8 @@ static Task OnboardingStateMachine()
     onboarding.SelectedDevice = microphone;
     onboarding.Next();
     Assert(onboarding.IsTest && onboarding.IsTestReady, "test readiness did not use the selected mode and microphone");
+    onboarding.Next();
+    Assert(onboarding.IsVisible && decisions.Count == 0, "onboarding completed without a successful test dictation");
     onboarding.SetTestStatus("complete", succeeded: true);
     onboarding.Next();
     Assert(!onboarding.IsVisible && decisions.SequenceEqual([false]), "completion was not durably requested");
@@ -100,13 +104,55 @@ static Task OnboardingStateMachine()
     var unavailable = new LinuxOnboardingViewModel(
         new(true, true, false, false, false, true, false),
         [new Mode { Id = Guid.NewGuid(), Name = "Parakeet", ProviderType = "local", LocalEngine = "parakeet" }],
-        null, [microphone], microphone,
+        null, [microphone], microphone, selectedModeAvailable: false,
         skipped => { decisions.Add(skipped); return true; }, _ => { }, _ => { }, key => key);
-    unavailable.Show(); unavailable.Next(); unavailable.Next(); unavailable.Next(); unavailable.Next();
-    Assert(unavailable.IsTest && !unavailable.IsTestReady, "unavailable local engine incorrectly passed readiness");
+    unavailable.Show(); unavailable.Next(); unavailable.Next(); unavailable.Next();
+    Assert(unavailable.IsProvider && !unavailable.CanGoNext,
+        "unavailable local engine incorrectly passed the provider readiness gate");
     unavailable.Skip();
     Assert(!unavailable.IsVisible && decisions.SequenceEqual([false, true]), "skip was not durably requested");
     return Task.CompletedTask;
+}
+
+static async Task OnboardingModeReadiness()
+{
+    var localCapability = new ModelCapability(
+        "local/localWhisper/base", "Base", "localWhisper", "base",
+        ModelDeployment.Local, ModelWorkload.Voice, ModelSurface.BatchTranscription,
+        true, true, [], false, RequiresCredential: false);
+    var cloudCapability = new ModelCapability(
+        "cloud/stt/openai/whisper-1", "OpenAI", "openai", "whisper-1",
+        ModelDeployment.Cloud, ModelWorkload.Voice, ModelSurface.BatchTranscription,
+        true, true, [], false, CredentialAccount: "OpenAIApiKey");
+    var credentials = new OnboardingCredentials(("OpenAIApiKey", "private-test-key"), ("LicenseKey", "private-license"));
+    var localModels = new OnboardingLocalModels("base");
+    var readiness = new LinuxOnboardingModeReadiness(credentials, localModels, [localCapability, cloudCapability]);
+
+    Assert(await readiness.IsReadyAsync(new Mode
+    {
+        ProviderType = "local", LocalEngine = "whisper", Model = "base",
+    }), "installed local model was rejected");
+    Assert(!await readiness.IsReadyAsync(new Mode
+    {
+        ProviderType = "local", LocalEngine = "whisper", Model = "medium",
+    }), "missing local model was accepted");
+    Assert(await readiness.IsReadyAsync(new Mode
+    {
+        ProviderType = "cloud", CloudProvider = "openai", CloudTranscriptionModel = "whisper-1",
+    }), "credentialed catalog cloud mode was rejected");
+    Assert(!await readiness.IsReadyAsync(new Mode
+    {
+        ProviderType = "cloud", CloudProvider = "openai", CloudTranscriptionModel = "unknown-model",
+    }), "unknown cloud model was accepted");
+    Assert(await readiness.IsReadyAsync(new Mode
+    {
+        ProviderType = "cloud", CloudProvider = "hyperwhisper", CloudTranscriptionModel = "scribe_v2",
+    }), "credentialed HyperWhisper mode was rejected");
+    Assert(!await new LinuxOnboardingModeReadiness(
+        new OnboardingCredentials(), localModels, [localCapability, cloudCapability]).IsReadyAsync(new Mode
+        {
+            ProviderType = "cloud", CloudProvider = "openai", CloudTranscriptionModel = "whisper-1",
+        }), "credentialless cloud mode was accepted");
 }
 
 static async Task M4aStorageEncodes()
@@ -1283,4 +1329,29 @@ sealed class FakeSileroSession : ISileroInferenceSession
             Enumerable.Repeat(1f, 256).ToArray()));
     }
     public void Dispose() { }
+}
+
+sealed class OnboardingCredentials(params (string Account, string Value)[] values) : IProviderCredentialSource
+{
+    private readonly Dictionary<string, string> _values = values.ToDictionary(item => item.Account, item => item.Value);
+
+    public ValueTask<ProviderCredential?> GetCredentialAsync(
+        string account, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return ValueTask.FromResult(_values.TryGetValue(account, out var value)
+            ? new ProviderCredential(value) : null);
+    }
+}
+
+sealed class OnboardingLocalModels(params string[] installed) : ILocalModelReadinessSource
+{
+    private readonly HashSet<string> _installed = installed.ToHashSet(StringComparer.Ordinal);
+
+    public ValueTask<bool> IsInstalledAsync(
+        ModelCapability model, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return ValueTask.FromResult(_installed.Contains(model.ModelId));
+    }
 }
