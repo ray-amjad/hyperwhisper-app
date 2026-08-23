@@ -137,6 +137,13 @@ public static class PortableLocalApi
             if (request is null) return Failure(400, LocalApiErrorCodes.InvalidRequest, "The request body is required.");
             if (string.IsNullOrWhiteSpace(request.Text) || request.Text.Length > options.MaxTextCharacters)
                 return Failure(400, LocalApiErrorCodes.InvalidRequest, "Post-processing text is empty or exceeds the configured limit.");
+            var hasMode = !string.IsNullOrWhiteSpace(request.ModeId);
+            var hasPreset = !string.IsNullOrWhiteSpace(request.Preset);
+            var hasPrompt = !string.IsNullOrWhiteSpace(request.Prompt);
+            if (hasPreset && hasPrompt)
+                return Failure(400, LocalApiErrorCodes.InvalidRequest, "'preset' and 'prompt' are mutually exclusive.");
+            if (!hasMode && !hasPreset && !hasPrompt)
+                return Failure(400, LocalApiErrorCodes.InvalidRequest, "Provide at least one of 'mode_id', 'preset', or 'prompt'.");
             var result = await b.PostProcessAsync(request, ct);
             return Results.Ok(new
             {

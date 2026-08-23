@@ -6,6 +6,7 @@ using HyperWhisper.Linux;
 using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.PortableApplication.Transcription;
 using HyperWhisper.LocalInference;
+using HyperWhisper.LocalApi;
 
 [assembly: SupportedOSPlatform("linux")]
 
@@ -29,6 +30,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("production Whisper backend selection reaches inference", WhisperBackendSelectionReachesInference),
     ("production Whisper CPU fallback policy is enforced", WhisperCpuFallbackPolicyIsEnforced),
     ("production Whisper settings select detected and explicit backends", WhisperSettingsSelectBackends),
+    ("Local API post-processing matches Windows transient modes", LocalApiPostProcessingTransientModes),
 };
 
 foreach (var test in tests)
@@ -331,6 +333,63 @@ static string RuntimeFor(LocalWhisperBackend backend) => backend switch
     _ => "Cpu: test runtime",
 };
 
+static async Task LocalApiPostProcessingTransientModes()
+{
+    var root = Path.Combine(Path.GetTempPath(), $"hyperwhisper-local-api-pp-{Guid.NewGuid():N}");
+    Directory.CreateDirectory(root);
+    try
+    {
+        var database = new ApplicationDb(new StaticPaths(root));
+        await database.MigrateAsync();
+        var repository = new ModeRepository(database);
+        var disabled = new Mode
+        {
+            Name = "Disabled", IsDefault = true, PostProcessingMode = 0,
+            PostProcessingProvider = "none", Preset = "hyper",
+        };
+        await repository.UpsertAsync(disabled);
+        var processor = new CapturingPostProcessor();
+        var adapter = new LinuxLocalApiPostProcessor(processor, repository);
+
+        try
+        {
+            _ = await adapter.ProcessAsync(
+                new PostProcessRequest("raw", disabled.Id.ToString("D"), null, null, null, null),
+                CancellationToken.None);
+            throw new InvalidOperationException("disabled saved mode was accepted without an override");
+        }
+        catch (ArgumentException)
+        {
+        }
+
+        var context = new LocalApiApplicationContext(
+            "terminal", "Shell", null, null, null, null, null, "command",
+            "terminal", "strong", "localApi", null);
+        var cloud = await adapter.ProcessAsync(
+            new PostProcessRequest(
+                "raw", disabled.Id.ToString("D"), "message", null, "openai", "gpt-test", context),
+            CancellationToken.None);
+        Assert(processor.Mode is { PostProcessingMode: 1, PostProcessingProvider: "openai", LanguageModel: "gpt-test", Preset: "message" }
+            && processor.Mode.Id != disabled.Id,
+            "saved-mode cloud overrides were not applied to a transient clone");
+        Assert(processor.Context?.AppType == "terminal" && cloud.Model == "gpt-test",
+            "cloud override context/model response was lost");
+        Assert((await repository.ListAsync()).Single().PostProcessingMode == 0,
+            "Local API override mutated the persisted mode");
+
+        _ = await adapter.ProcessAsync(
+            new PostProcessRequest("raw", null, null, "custom prompt", "localLlm", "local.gguf"),
+            CancellationToken.None);
+        Assert(processor.Mode is
+            { PostProcessingMode: 2, PostProcessingProvider: "local_llm", Preset: "custom", LocalPostProcessingModel: "local.gguf" },
+            "local transient prompt/provider/model overrides did not match Windows semantics");
+    }
+    finally
+    {
+        Directory.Delete(root, recursive: true);
+    }
+}
+
 static async Task UntilAsync(Func<bool> condition)
 {
     using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(3));
@@ -396,6 +455,29 @@ sealed class FakeLocalWhisperService(string runtime) : ILocalWhisperService
         return Task.FromResult(LocalWhisperResult.Success("Ray GPU route", runtime));
     }
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+}
+
+sealed class CapturingPostProcessor : ITranscriptionPostProcessor
+{
+    public Mode? Mode { get; private set; }
+    public ApplicationContextSnapshot? Context { get; private set; }
+
+    public Task<PortablePostProcessingResult> ProcessAsync(
+        string transcript,
+        Mode mode,
+        CancellationToken cancellationToken = default) =>
+        ProcessAsync(transcript, mode, null, cancellationToken);
+
+    public Task<PortablePostProcessingResult> ProcessAsync(
+        string transcript,
+        Mode mode,
+        ApplicationContextSnapshot? applicationContext,
+        CancellationToken cancellationToken = default)
+    {
+        Mode = mode;
+        Context = applicationContext;
+        return Task.FromResult(PortablePostProcessingResult.Applied($"processed {transcript}", "test-provider"));
+    }
 }
 
 sealed class FixedGpu(GpuInfo? gpu) : IGpuInfoProvider

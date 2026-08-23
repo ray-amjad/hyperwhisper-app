@@ -178,6 +178,13 @@ static async Task PostProcessContextContract()
     string[] exact = ["ok", "text", "provider", "model", "preset", "latency_ms"];
     Assert(json.RootElement.EnumerateObject().Select(item => item.Name).Order().SequenceEqual(exact.Order()), "post-process response drifted from Windows shape");
     Assert(fixture.Backend.PostProcess?.ApplicationContext?.ToSnapshot().AppType == "terminal", "post-process applicationContext was lost");
+
+    using var conflicting = JsonContent("""{"text":"raw","preset":"hyper","prompt":"custom"}""");
+    Assert((await fixture.Client.PostAsync("/post-process", conflicting)).StatusCode == HttpStatusCode.BadRequest,
+        "mutually exclusive preset and prompt were accepted");
+    using var missingSelector = JsonContent("""{"text":"raw","provider":"openai","model":"gpt-test"}""");
+    Assert((await fixture.Client.PostAsync("/post-process", missingSelector)).StatusCode == HttpStatusCode.BadRequest,
+        "post-process request without mode_id/preset/prompt was accepted");
 }
 
 static StringContent JsonContent(string json) => new(json, Encoding.UTF8, "application/json");
