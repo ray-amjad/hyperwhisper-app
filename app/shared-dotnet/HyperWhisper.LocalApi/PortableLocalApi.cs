@@ -74,19 +74,65 @@ public static class PortableLocalApi
                 await context.Response.WriteAsJsonAsync(new LocalApiFailure(new("UNAUTHORIZED", "A valid bearer token is required.")));
                 return;
             }
-            await next(context);
+            try
+            {
+                await next(context);
+            }
+            catch (ArgumentException)
+            {
+                if (context.Response.HasStarted) throw;
+                context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                await context.Response.WriteAsJsonAsync(new LocalApiFailure(new(LocalApiErrorCodes.InvalidRequest, "The request contains invalid or conflicting values.")));
+            }
+            catch (BadHttpRequestException)
+            {
+                if (context.Response.HasStarted) throw;
+                context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                await context.Response.WriteAsJsonAsync(new LocalApiFailure(new(LocalApiErrorCodes.InvalidRequest, "The request body is invalid.")));
+            }
+            catch (JsonException)
+            {
+                if (context.Response.HasStarted) throw;
+                context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                await context.Response.WriteAsJsonAsync(new LocalApiFailure(new(LocalApiErrorCodes.InvalidRequest, "The request body is invalid JSON.")));
+            }
+            catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+            {
+                if (context.Response.HasStarted) throw;
+                context.Response.StatusCode = StatusCodes.Status408RequestTimeout;
+                await context.Response.WriteAsJsonAsync(new LocalApiFailure(new(LocalApiErrorCodes.Cancelled, "The request was cancelled.")));
+            }
+            catch (InvalidOperationException)
+            {
+                if (context.Response.HasStarted) throw;
+                context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+                await context.Response.WriteAsJsonAsync(new LocalApiFailure(new("ENGINE_UNAVAILABLE", "The requested application capability is unavailable.")));
+            }
         });
 
         app.MapGet("/models", async (ILocalApiBackend b, CancellationToken ct) => Results.Ok(new { ok = true, models = await b.GetModelsAsync(ct) }));
         app.MapGet("/modes", async (ILocalApiBackend b, CancellationToken ct) => Results.Ok(new { ok = true, modes = await b.GetModesAsync(ct) }));
         app.MapGet("/modes/{id}", async (string id, ILocalApiBackend b, CancellationToken ct) => await b.GetModeAsync(id, ct) is { } mode ? Results.Ok(new { ok = true, mode }) : Failure(404, LocalApiErrorCodes.ModeNotFound, "Mode not found."));
-        app.MapPost("/modes", async (JsonElement body, ILocalApiBackend b, CancellationToken ct) => Results.Ok(new { ok = true, mode = await b.CreateModeAsync(body, ct) }));
-        app.MapPatch("/modes/{id}", async (string id, JsonElement body, ILocalApiBackend b, CancellationToken ct) => await b.PatchModeAsync(id, body, ct) is { } mode ? Results.Ok(new { ok = true, mode }) : Failure(404, LocalApiErrorCodes.ModeNotFound, "Mode not found."));
+        app.MapPost("/modes", async (HttpContext context, ILocalApiBackend b, CancellationToken ct) =>
+        {
+            var body = await ReadJsonObject(context, ct);
+            return body is null ? Failure(400, LocalApiErrorCodes.InvalidRequest, "The request body is invalid JSON.") : Results.Ok(new { ok = true, mode = await b.CreateModeAsync(body.Value, ct) });
+        });
+        app.MapPatch("/modes/{id}", async (string id, HttpContext context, ILocalApiBackend b, CancellationToken ct) =>
+        {
+            var body = await ReadJsonObject(context, ct);
+            if (body is null) return Failure(400, LocalApiErrorCodes.InvalidRequest, "The request body is invalid JSON.");
+            return await b.PatchModeAsync(id, body.Value, ct) is { } mode ? Results.Ok(new { ok = true, mode }) : Failure(404, LocalApiErrorCodes.ModeNotFound, "Mode not found.");
+        });
         app.MapDelete("/modes/{id}", async (string id, ILocalApiBackend b, CancellationToken ct) => await b.DeleteModeAsync(id, ct) ? Results.Ok(new { ok = true }) : Failure(404, LocalApiErrorCodes.ModeNotFound, "Mode not found."));
         app.MapPost("/recording/toggle", async (ILocalApiBackend b, CancellationToken ct) => Results.Ok(new { ok = true, recording = await b.ToggleRecordingAsync(ct) }));
         app.MapPost("/recording/cancel", async (ILocalApiBackend b, CancellationToken ct) => Results.Ok(new { ok = true, recording = await b.CancelRecordingAsync(ct) }));
-        app.MapPost("/post-process", async (PostProcessRequest request, ILocalApiBackend b, CancellationToken ct) =>
+        app.MapPost("/post-process", async (HttpContext context, ILocalApiBackend b, CancellationToken ct) =>
         {
+            PostProcessRequest? request;
+            try { request = await context.Request.ReadFromJsonAsync<PostProcessRequest>(cancellationToken: ct); }
+            catch (JsonException) { return Failure(400, LocalApiErrorCodes.InvalidRequest, "The request body is invalid JSON."); }
+            if (request is null) return Failure(400, LocalApiErrorCodes.InvalidRequest, "The request body is required.");
             if (string.IsNullOrWhiteSpace(request.Text) || request.Text.Length > options.MaxTextCharacters)
                 return Failure(400, LocalApiErrorCodes.InvalidRequest, "Post-processing text is empty or exceeds the configured limit.");
             var result = await b.PostProcessAsync(request, ct);
@@ -129,6 +175,16 @@ public static class PortableLocalApi
             var rows = await backend.GetRecordingsAsync(new(context.Request.Query["q"], since == default ? null : since, until == default ? null : until, limit), ct);
             return Results.Ok(new { ok = true, total = rows.Count, returned = rows.Count, recordings = rows });
         }
+
+        static async Task<JsonElement?> ReadJsonObject(HttpContext context, CancellationToken ct)
+        {
+            try
+            {
+                var body = await context.Request.ReadFromJsonAsync<JsonElement>(cancellationToken: ct);
+                return body.ValueKind == JsonValueKind.Object ? body : null;
+            }
+            catch (JsonException) { return null; }
+        }
     }
 
     private static IResult Failure(int status, string code, string message) => Results.Json(new LocalApiFailure(new(code, message)), statusCode: status);
@@ -142,5 +198,8 @@ public static class LocalApiBindFallback
         catch (Exception ex) when (preferredPort != 0 && IsBindFailure(ex)) { await start(0, cancellationToken); return 0; }
     }
 
-    private static bool IsBindFailure(Exception ex) => ex is SocketException || ex.InnerException is SocketException || ex.Message.Contains("address already in use", StringComparison.OrdinalIgnoreCase);
+    internal static bool IsBindFailure(Exception ex) => ex is SocketException
+        || ex.InnerException is SocketException
+        || ex.InnerException is not null && IsBindFailure(ex.InnerException)
+        || ex.Message.Contains("address already in use", StringComparison.OrdinalIgnoreCase);
 }
