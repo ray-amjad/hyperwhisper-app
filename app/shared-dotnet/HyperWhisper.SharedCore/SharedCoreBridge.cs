@@ -34,6 +34,17 @@ public sealed record PortablePromptContext(
 
 public sealed record PortablePostProcessingPrompt(string SystemPrompt, string SystemInfo);
 
+public enum PortableLlmWireProtocol
+{
+    OpenAiChat,
+    AnthropicMessages,
+}
+
+public sealed record PortableCompletionEvaluation(
+    string Text,
+    bool Accepted,
+    string? Failure);
+
 /// <summary>
 /// Stable public surface over the generated UniFFI binding. Platform projects
 /// consume this assembly instead of compiling private copies of the binding.
@@ -101,6 +112,28 @@ public static class SharedCoreBridge
         return new PortablePostProcessingPrompt(
             HyperwhisperCoreMethods.BuildSystemPrompt(native),
             HyperwhisperCoreMethods.BuildSystemInfo(native));
+    }
+
+    public static PortableCompletionEvaluation EvaluateLlmResponseJson(
+        PortableLlmWireProtocol wireProtocol,
+        string responseJson,
+        string original)
+    {
+        ArgumentNullException.ThrowIfNull(responseJson);
+        ArgumentNullException.ThrowIfNull(original);
+        var native = HyperwhisperCoreMethods.EvaluateLlmResponseJson(
+            wireProtocol switch
+            {
+                PortableLlmWireProtocol.OpenAiChat => WireProtocol.OpenAiChat,
+                PortableLlmWireProtocol.AnthropicMessages => WireProtocol.AnthropicMessages,
+                _ => throw new ArgumentOutOfRangeException(nameof(wireProtocol), wireProtocol, null),
+            },
+            responseJson,
+            original);
+        return new PortableCompletionEvaluation(
+            native.text,
+            native.accepted,
+            native.failure.ToString());
     }
 
     public static string CanonicalCloudSttTier(string? value) =>
