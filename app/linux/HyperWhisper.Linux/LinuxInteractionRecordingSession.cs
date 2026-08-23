@@ -15,7 +15,7 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
     private readonly LinuxDesktopServices _services;
     private readonly LinuxContextCaptureCoordinator _contextCapture;
     private readonly LiveStreamingModeRouter _liveRouter;
-    private readonly LinuxLocalPostProcessor _postProcessor;
+    private readonly ITranscriptionPostProcessor _postProcessor;
     private readonly HistoryRepository _history;
     private ApplicationContextSnapshot? _context;
     private Mode? _mode;
@@ -28,7 +28,7 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         TranscriptionWorkflow workflow,
         LinuxDesktopServices services,
         LinuxContextCaptureCoordinator contextCapture,
-        LinuxLocalPostProcessor postProcessor,
+        ITranscriptionPostProcessor postProcessor,
         HistoryRepository history)
     {
         _viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));

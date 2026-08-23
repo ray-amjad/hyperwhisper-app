@@ -9,5 +9,6 @@
   <ItemGroup>
     <ProjectReference Include="../HyperWhisper.Linux.Platform/HyperWhisper.Linux.Platform.csproj" />
     <ProjectReference Include="../HyperWhisper.Linux/HyperWhisper.Linux.csproj" />
+    <ProjectReference Include="../../shared-dotnet/HyperWhisper.CloudPostProcessing/HyperWhisper.CloudPostProcessing.csproj" />
   </ItemGroup>
 </Project>

@@ -94,6 +94,7 @@ Linux-only settings go into `platformExtensions.linux.settings`:
 | `autoIncreaseMicVolume` | Linux temporary microphone boost | Bool; restored after every recording. |
 | `keepMicrophoneWarm` | Linux microphone keep-warm preference | Bool. |
 | `audioEnvironmentPolicy` | Linux other-audio behavior | `unchanged`, `duck`, or `mute`. |
+| `customEndpoints` | Linux custom post-processing endpoints | Windows-compatible array of `id`, `name`, `endpointURL`, and `modelName`; credentials remain in secure storage and are never exported. |
 </important>
 
 <important if="you are adding or modifying a Mode property, or editing the mode field-mapping tables">

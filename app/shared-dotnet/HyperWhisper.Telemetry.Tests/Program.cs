@@ -8,6 +8,7 @@ var tests = new (string Name, Action Run)[]
     ("environment DSN is trimmed and preferred", EnvironmentDsnIsPreferred),
     ("configuration matches desktop telemetry defaults", ConfigurationMatchesDefaults),
     ("sensitive telemetry fields are identified", SensitiveFieldsAreIdentified),
+    ("exception and context content are sanitized", ExceptionContentIsSanitized),
     ("initialized telemetry captures and flushes", InitializedTelemetryCapturesAndFlushes),
     ("backend failures never escape telemetry", BackendFailuresNeverEscape),
     ("concurrent initialization creates one session", ConcurrentInitializationCreatesOneSession),
@@ -84,6 +85,37 @@ static void SensitiveFieldsAreIdentified()
     Assert.False(SentryTelemetryBackend.IsSensitiveExtra("provider"));
 }
 
+static void ExceptionContentIsSanitized()
+{
+    Exception original;
+    try
+    {
+        ThrowSensitiveException();
+        throw new InvalidOperationException("unreachable");
+    }
+    catch (Exception exception)
+    {
+        original = exception;
+    }
+    var sanitized = TelemetryPrivacy.SanitizeException(original);
+    Assert.False(sanitized.Message.Contains("private", StringComparison.Ordinal));
+    Assert.True(sanitized.InnerException is null);
+    Assert.Equal(0, sanitized.Data.Count);
+    Assert.True(sanitized.StackTrace?.Contains(nameof(ThrowSensitiveException), StringComparison.Ordinal) == true);
+    Assert.False(sanitized.StackTrace?.Contains(" in ", StringComparison.Ordinal) == true);
+    Assert.Equal("Unhandled UI exception", TelemetryPrivacy.SanitizeContext("Unhandled UI exception"));
+    Assert.Equal<string?>(null, TelemetryPrivacy.SanitizeContext("transcript=private words"));
+}
+
+static void ThrowSensitiveException()
+{
+    var inner = new ArgumentException("prompt=private instructions");
+    var exception = new InvalidOperationException(
+        "transcript=private words audio=/private/ray.wav", inner);
+    exception.Data["transcript"] = "private words";
+    throw exception;
+}
+
 static void InitializedTelemetryCapturesAndFlushes()
 {
     var backend = new FakeBackend();
@@ -142,6 +174,7 @@ sealed class FakeBackend : ITelemetryBackend
     public bool SessionDisposed { get; private set; }
     public string? Context { get; private set; }
     public TelemetryConfiguration? Configuration { get; private set; }
+    public Exception? CapturedException { get; private set; }
 
     public IDisposable? Initialize(TelemetryConfiguration configuration)
     {
@@ -154,6 +187,7 @@ sealed class FakeBackend : ITelemetryBackend
     {
         CaptureCalls++;
         Context = context;
+        CapturedException = exception;
     }
 
     public void Flush(TimeSpan timeout) => FlushCalls++;

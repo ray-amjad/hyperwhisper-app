@@ -244,6 +244,57 @@ try
     await credentialViewModel.DeleteAsync();
     Assert(!credentialViewModel.Items.Single(item => item.Account == "OpenAIApiKey").IsPresent,
         "credential UI did not delete the stored credential");
+    Assert(credentialViewModel.Items.Any(item => item.Account == "AnthropicApiKey")
+        && credentialViewModel.Items.Any(item => item.Account == "CerebrasApiKey"),
+        "credential UI omitted cloud post-processing providers");
+
+    var customModes = new HyperWhisper.PortableApplication.ViewModels.ModesViewModel(
+        new ModeRepository(database), reloadedSettings, credentialStore)
+    {
+        Name = "Custom endpoint",
+        ProviderType = "local",
+        LocalEngine = "whisper",
+        TranscriptionModel = "base",
+        PostProcessingMode = "cloud",
+        PostProcessingProvider = "custom",
+        CustomEndpointName = "Local compatible endpoint",
+        CustomEndpointUrl = "http://127.0.0.1:11434/v1/chat/completions",
+        CustomEndpointModel = "llama3.2",
+        CustomEndpointApiKey = "custom-secret-never-export",
+    };
+    await customModes.SaveAsync();
+    Assert(!customModes.Status.HasError, "custom post-processing endpoint was not saved");
+    var customMode = (await new ModeRepository(database).ListAsync())
+        .Single(item => item.Name == "Custom endpoint");
+    Assert(customMode.PostProcessingMode == 1
+        && customMode.PostProcessingProvider?.StartsWith("custom:", StringComparison.Ordinal) == true,
+        "mode editor did not persist cloud/custom routing");
+    var customEndpoint = reloadedSettings.Get<PortableCustomPostProcessingEndpoint[]>("customEndpoints", [])!.Single();
+    Assert(customEndpoint.EndpointUrl == "http://127.0.0.1:11434/v1/chat/completions"
+        && credentialStore.HasAccount($"CustomEndpoint_{customEndpoint.Id:D}"),
+        "custom endpoint configuration or secure credential was not persisted");
+    var endpointCountBeforeFailure = reloadedSettings.Get<PortableCustomPostProcessingEndpoint[]>("customEndpoints", [])!.Length;
+    var failingCustomModes = new HyperWhisper.PortableApplication.ViewModels.ModesViewModel(
+        new ModeRepository(database), reloadedSettings, new FailWriteCredentialStore())
+    {
+        Name = "Rejected custom endpoint",
+        ProviderType = "local",
+        LocalEngine = "whisper",
+        TranscriptionModel = "base",
+        PostProcessingMode = "cloud",
+        PostProcessingProvider = "custom",
+        CustomEndpointName = "Rejected endpoint",
+        CustomEndpointUrl = "http://127.0.0.1:11435/v1/chat/completions",
+        CustomEndpointModel = "test-model",
+        CustomEndpointApiKey = "must-not-partially-persist",
+    };
+    await failingCustomModes.SaveAsync();
+    Assert(failingCustomModes.Status.ErrorCode == "modes.save_failed"
+        && failingCustomModes.CustomEndpointApiKey == "must-not-partially-persist",
+        "secure custom endpoint failure escaped or cleared the retryable UI value");
+    Assert(reloadedSettings.Get<PortableCustomPostProcessingEndpoint[]>("customEndpoints", [])!.Length == endpointCountBeforeFailure
+        && !(await new ModeRepository(database).ListAsync()).Any(item => item.Name == "Rejected custom endpoint"),
+        "failed custom endpoint save left partial settings or mode persistence");
 
     var delayedModels = new DelayedHttpHandler();
     using (var modelHttp = new HttpClient(delayedModels))
@@ -361,6 +412,13 @@ static async Task RunTranscriptionWorkflowTestsAsync(string root)
         PostProcessingProvider = "local_llm",
         LocalPostProcessingModel = "test.gguf",
     };
+    var cloudMode = new Mode
+    {
+        Name = "Cloud cleanup",
+        PostProcessingMode = 1,
+        PostProcessingProvider = "anthropic",
+        LanguageModel = "claude-haiku-4-5",
+    };
     var appliedPostProcessor = new FakePostProcessor((text, _, _) => Task.FromResult(
         PortablePostProcessingResult.Applied("Cleaned words", "Local LLM · test.gguf · cpu")));
     var modeAwareTranscriber = new FakeTranscriber((_, _, _) => Task.FromResult(
@@ -397,6 +455,11 @@ static async Task RunTranscriptionWorkflowTestsAsync(string root)
         Assert(result.InjectionOutcome == TextInjectionOutcome.Pasted
             && workflow.Snapshot.Message == "Transcription pasted and saved to history",
             "successful paste outcome was not surfaced honestly");
+
+        var cloudResult = await workflow.TranscribeFileAsync(
+            postAudio, new TranscriptionWorkflowRequest("en", cloudMode.Name, cloudMode.Id, cloudMode));
+        Assert(cloudResult.IsSuccess && appliedPostProcessor.CallCount == 2,
+            "enabled cloud post-processing was not routed through the shared processor");
 
         var injectionCalls = appliedInjection.CallCount;
         var fileResult = await workflow.TranscribeFileAsync(
@@ -736,6 +799,15 @@ file sealed class MemoryCredentialStore : ICredentialStore
     { _values[(resource, account)] = value.ToArray(); return PlatformResult.Success(); }
     public PlatformResult Delete(string resource, string account)
     { _values.Remove((resource, account)); return PlatformResult.Success(); }
+    public bool HasAccount(string account) => _values.ContainsKey(("HyperWhisper", account));
+}
+
+file sealed class FailWriteCredentialStore : ICredentialStore
+{
+    public PlatformResult<byte[]?> Read(string resource, string account) => PlatformResult<byte[]?>.Success(null);
+    public PlatformResult Write(string resource, string account, ReadOnlySpan<byte> value) =>
+        PlatformResult.Failure("credentials.write_failed", "simulated secure store failure");
+    public PlatformResult Delete(string resource, string account) => PlatformResult.Success();
 }
 
 file sealed class DelayedHttpHandler : HttpMessageHandler

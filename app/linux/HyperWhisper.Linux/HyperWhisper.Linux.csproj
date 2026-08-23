@@ -13,6 +13,13 @@
     <FileVersion>1.0.0.0</FileVersion>
   </PropertyGroup>
 
+  <ItemGroup Condition="'$(SENTRY_DSN)' != ''">
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>SentryDsn</_Parameter1>
+      <_Parameter2>$(SENTRY_DSN)</_Parameter2>
+    </AssemblyAttribute>
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="12.1.1" />
     <PackageReference Include="Avalonia.Desktop" Version="12.1.1" />
@@ -39,6 +46,8 @@
     <ProjectReference Include="../../shared-dotnet/HyperWhisper.LiveStreaming/HyperWhisper.LiveStreaming.csproj" />
     <ProjectReference Include="../../shared-dotnet/HyperWhisper.SharedCore/HyperWhisper.SharedCore.csproj" />
     <ProjectReference Include="../../shared-dotnet/HyperWhisper.TranscriptionRouting/HyperWhisper.TranscriptionRouting.csproj" />
+    <ProjectReference Include="../../shared-dotnet/HyperWhisper.CloudPostProcessing/HyperWhisper.CloudPostProcessing.csproj" />
+    <ProjectReference Include="../../shared-dotnet/HyperWhisper.Telemetry/HyperWhisper.Telemetry.csproj" />
     <ProjectReference Include="../HyperWhisper.Linux.Platform/HyperWhisper.Linux.Platform.csproj" />
   </ItemGroup>
 

@@ -8,15 +8,19 @@ using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.SharedCore;
 using HyperWhisper.PortableApplication.Transcription;
 using HyperWhisper.LiveStreaming;
+using HyperWhisper.Telemetry;
 
 namespace HyperWhisper.Linux;
 
 internal sealed class LinuxDesktopServices : IDisposable
 {
     private bool _disposed;
+    private readonly bool _ownsTelemetry;
 
-    public LinuxDesktopServices()
+    public LinuxDesktopServices(LinuxSentryService? telemetry = null)
     {
+        Telemetry = telemetry ?? new LinuxSentryService();
+        _ownsTelemetry = telemetry is null;
         Paths = new LinuxAppPaths();
         PrivateFiles = new LinuxPrivateFileService();
         CredentialStore = new LinuxCredentialStore();
@@ -63,6 +67,7 @@ internal sealed class LinuxDesktopServices : IDisposable
     public ISoundEffectsService SoundEffects { get; }
     public IAudioEnvironmentService AudioEnvironment { get; }
     public LiveStreamingSessionController LiveStreaming { get; }
+    public LinuxSentryService Telemetry { get; }
 
     public bool ProbeSharedCore() =>
         !SharedCoreBridge.ContainsCjk("HyperWhisper")
@@ -90,5 +95,6 @@ internal sealed class LinuxDesktopServices : IDisposable
         MicrophoneKeepWarm.Dispose();
         SoundEffects.Dispose();
         LiveStreaming.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        if (_ownsTelemetry) Telemetry.Dispose();
     }
 }

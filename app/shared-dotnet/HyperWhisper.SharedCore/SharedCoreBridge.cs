@@ -136,6 +136,12 @@ public static class SharedCoreBridge
             native.failure.ToString());
     }
 
+    public static string RemoveTrailingPeriod(string text)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        return HyperwhisperCoreMethods.RemoveTrailingPeriod(text);
+    }
+
     public static string CanonicalCloudSttTier(string? value) =>
         HyperwhisperCoreMethods.MigrateCloudAccuracyTier(value);
 

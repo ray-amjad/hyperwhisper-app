@@ -433,6 +433,12 @@ public sealed class PortableSettingsService
     }
 }
 
+public sealed record PortableCustomPostProcessingEndpoint(
+    [property: JsonPropertyName("id")] Guid Id,
+    [property: JsonPropertyName("name")] string Name,
+    [property: JsonPropertyName("endpointURL")] string EndpointUrl,
+    [property: JsonPropertyName("modelName")] string ModelName);
+
 public sealed class ApplicationBackupService(ApplicationDb database, PortableSettingsService settings)
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web)
@@ -467,6 +473,8 @@ public sealed class ApplicationBackupService(ApplicationDb database, PortableSet
         linuxSettings["autoIncreaseMicVolume"] = _settings.Get("autoIncreaseMicVolume", false);
         linuxSettings["keepMicrophoneWarm"] = _settings.Get("keepMicrophoneWarm", false);
         linuxSettings["audioEnvironmentPolicy"] = _settings.Get("audioEnvironmentPolicy", "unchanged");
+        linuxSettings["customEndpoints"] = JsonSerializer.SerializeToNode(
+            _settings.Get<PortableCustomPostProcessingEndpoint[]>("customEndpoints", []), SerializerOptions);
         linuxExtension["settings"] = linuxSettings;
         platformExtensions["linux"] = linuxExtension;
         var root = new JsonObject
@@ -571,6 +579,13 @@ public sealed class ApplicationBackupService(ApplicationDb database, PortableSet
                     CopySetting<bool>(linuxSettings, "autoIncreaseMicVolume");
                     CopySetting<bool>(linuxSettings, "keepMicrophoneWarm");
                     CopySetting<string>(linuxSettings, "audioEnvironmentPolicy");
+                    if (linuxSettings["customEndpoints"] is { } customEndpoints)
+                        _settings.Set("customEndpoints", customEndpoints.Deserialize<PortableCustomPostProcessingEndpoint[]>(SerializerOptions) ?? []);
+                }
+                else if (extensions["windows"]?["settings"]?["customEndpoints"] is { } windowsCustomEndpoints)
+                {
+                    _settings.Set("customEndpoints",
+                        windowsCustomEndpoints.Deserialize<PortableCustomPostProcessingEndpoint[]>(SerializerOptions) ?? []);
                 }
             }
             if (backup["settings"] is JsonObject sharedSettings) ApplySharedSettings(sharedSettings);

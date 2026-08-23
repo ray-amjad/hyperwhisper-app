@@ -28,8 +28,9 @@ public static class LinuxLiveTranscriptionFinalizer
         var final = raw;
         string? processed = null;
         string? processingProvider = null;
-        if (mode.PostProcessingMode == 2
-            && string.Equals(mode.PostProcessingProvider, "local_llm", StringComparison.OrdinalIgnoreCase))
+        if (mode.PostProcessingMode == 1
+            || (mode.PostProcessingMode == 2
+                && string.Equals(mode.PostProcessingProvider, "local_llm", StringComparison.OrdinalIgnoreCase)))
         {
             try
             {
@@ -50,7 +51,10 @@ public static class LinuxLiveTranscriptionFinalizer
         }
 
         TextInjectionOutcome injection;
-        try { injection = await textInjection.InjectTranscriptAsync(final, cancellationToken); }
+        var injectionText = mode.RemoveTrailingPeriod
+            ? HyperWhisper.SharedCore.SharedCoreBridge.RemoveTrailingPeriod(final)
+            : final;
+        try { injection = await textInjection.InjectTranscriptAsync(injectionText, cancellationToken); }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch { injection = TextInjectionOutcome.Failed; }
 

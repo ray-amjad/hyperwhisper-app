@@ -22,6 +22,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("OCR survives unavailable context", OcrSurvivesUnavailableContext),
     ("context survives OCR failure", ContextSurvivesOcrFailure),
     ("live post-processing failure persists raw transcript", LivePostProcessingFailurePersistsRaw),
+    ("cloud provider storage values route deterministically", CloudProviderStorageRoutes),
     ("audio restoration is never caller-cancelled", AudioRestorationIsNonCancelable),
     ("live models are provider-specific", LiveModelsAreProviderSpecific),
 };
@@ -198,6 +199,35 @@ static async Task LivePostProcessingFailurePersistsRaw()
     Assert(history.Updated?.Status == TranscriptStatus.Completed, "history remained Processing");
     Assert(history.Updated?.Text == "Ray raw transcript" && history.Updated.PostProcessedText is null,
         "raw transcript fallback was not persisted");
+
+    var cloudTranscript = new Transcript { Status = TranscriptStatus.Processing, Text = "processing" };
+    var cloudHistory = new FakeHistory(cloudTranscript);
+    var cloudMode = new Mode { Name = "Cloud", PostProcessingMode = 1, PostProcessingProvider = "anthropic" };
+    var cloudResult = await LinuxLiveTranscriptionFinalizer.FinalizeAndPersistAsync(
+        "  Ray cloud raw transcript  ", cloudTranscript, cloudMode, null, new ThrowingPostProcessor(),
+        new FakeTextInjection(), cloudHistory);
+    Assert(cloudResult.Result.IsSuccess && cloudHistory.Updated?.Text == "Ray cloud raw transcript"
+        && cloudHistory.Updated.PostProcessedText is null,
+        "cloud post-processing failure did not preserve live raw transcript");
+}
+
+static Task CloudProviderStorageRoutes()
+{
+    var expected = new[]
+    {
+        "openai", "anthropic", "groq", "grok", "gemini", "cerebras", "mistral",
+        "hyperwhispercloud", "hyperwhisper", "hyperwhisper_cloud",
+    };
+    foreach (var value in expected)
+        Assert(LinuxPostProcessingRouter.TryResolveProvider(value, out _, out var endpointId) && endpointId is null,
+            $"cloud post-processing provider {value} was not resolved");
+    var id = Guid.NewGuid();
+    Assert(LinuxPostProcessingRouter.TryResolveProvider($"custom:{id:D}", out var custom, out var resolved)
+        && custom == HyperWhisper.CloudPostProcessing.CloudPostProcessingProvider.Custom && resolved == id,
+        "custom endpoint provider was not resolved");
+    Assert(!LinuxPostProcessingRouter.TryResolveProvider("unknown", out _, out _),
+        "unknown cloud provider was accepted");
+    return Task.CompletedTask;
 }
 
 static async Task AudioRestorationIsNonCancelable()

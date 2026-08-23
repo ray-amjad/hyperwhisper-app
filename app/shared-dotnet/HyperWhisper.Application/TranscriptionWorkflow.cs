@@ -522,7 +522,10 @@ public sealed class TranscriptionWorkflow : IDisposable
                 try
                 {
                     injectionOutcome = await _textInjection.InjectTranscriptAsync(
-                        finalText, operation.Token).ConfigureAwait(false);
+                        request.SelectedMode?.RemoveTrailingPeriod == true
+                            ? HyperWhisper.SharedCore.SharedCoreBridge.RemoveTrailingPeriod(finalText)
+                            : finalText,
+                        operation.Token).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) when (operation.IsCancellationRequested)
                 {
@@ -580,8 +583,9 @@ public sealed class TranscriptionWorkflow : IDisposable
 
     private static bool ShouldPostProcess(Mode? mode) =>
         mode is not null
-        && mode.PostProcessingMode == 2
-        && string.Equals(mode.PostProcessingProvider, "local_llm", StringComparison.OrdinalIgnoreCase);
+        && (mode.PostProcessingMode == 1
+            || (mode.PostProcessingMode == 2
+                && string.Equals(mode.PostProcessingProvider, "local_llm", StringComparison.OrdinalIgnoreCase)));
 
     private async Task<PortableTranscriptionResult> CompleteTerminalFailureAsync(
         Transcript transcript,

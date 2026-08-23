@@ -11,6 +11,7 @@ using HyperWhisper.LocalApi;
 using HyperWhisper.ModelManagement;
 using HyperWhisper.Linux.Platform.Desktop;
 using HyperWhisper.Platform.Abstractions;
+using HyperWhisper.CloudPostProcessing;
 
 namespace HyperWhisper.Linux;
 
@@ -20,6 +21,7 @@ public partial class MainWindow : Window
     private readonly ApplicationDb _database;
     private readonly ApplicationShellViewModel _viewModel;
     private readonly LinuxLocalPostProcessor _postProcessor;
+    private readonly LinuxPostProcessingRouter _postProcessingRouter;
     private readonly PortableSettingsService _settings;
     private readonly PortableModelManager _modelManager;
     private readonly HttpClient _modelHttp = new();
@@ -45,12 +47,18 @@ public partial class MainWindow : Window
         _modelManager = new PortableModelManager(_platformServices.Paths, _modelHttp);
         _postProcessor = new LinuxLocalPostProcessor(
             _platformServices.Paths.ModelsDirectory, _settings, _database);
+        _postProcessingRouter = new LinuxPostProcessingRouter(
+            _postProcessor,
+            new CloudPostProcessingService(new CredentialStorePostProcessingCredentialSource(
+                _platformServices.CredentialStore, _platformServices.DeviceIdentity)),
+            _settings,
+            _database);
         _workflow = new TranscriptionWorkflow(
             _platformServices.AudioRecorder,
             _platformServices.AudioDevices,
             _platformServices.AudioTranscriber,
             new HistoryRepository(_database, _platformServices.Paths),
-            _postProcessor,
+            _postProcessingRouter,
             _platformServices.TextInjection);
         _viewModel = new ApplicationShellViewModel(
             _database, _settings, _workflow, LinuxLocalPostProcessor.RuntimeStatus,
@@ -61,7 +69,7 @@ public partial class MainWindow : Window
         var contextCapture = new LinuxContextCaptureCoordinator(
             _platformServices.ApplicationContext, _platformServices.ScreenOcr);
         _recordingSession = new LinuxInteractionRecordingSession(
-            _viewModel, _workflow, _platformServices, contextCapture, _postProcessor, history);
+            _viewModel, _workflow, _platformServices, contextCapture, _postProcessingRouter, history);
         _interaction = new LinuxInteractionCoordinator(
             _platformServices.GlobalShortcuts, _platformServices.PushToTalk,
             _platformServices.TextInjection, _recordingSession, new AvaloniaUiDispatcher());
@@ -73,6 +81,7 @@ public partial class MainWindow : Window
         Closed += OnClosed;
         _viewModel.Settings.LocalApiSettingsChanged += OnLocalApiSettingsChanged;
         _viewModel.Settings.DesktopSettingsChanged += OnDesktopSettingsChanged;
+        _viewModel.Settings.TelemetrySettingsChanged += OnTelemetrySettingsChanged;
         _interaction.OperationFailed += OnInteractionFailed;
         _platformServices.Tray.ShowRequested += OnTrayShowRequested;
         _platformServices.Tray.HideRequested += OnTrayHideRequested;
@@ -85,6 +94,7 @@ public partial class MainWindow : Window
         {
             await EnsureInitializedAsync();
             await ApplyLocalApiSettingsAsync(_lifetime.Token);
+            ApplyTelemetrySettings();
             ApplyDesktopSettings();
             var tray = await _platformServices.Tray.StartAsync(_lifetime.Token);
             if (tray.IsFailure)
@@ -124,6 +134,7 @@ public partial class MainWindow : Window
         _lifetime.Cancel();
         _viewModel.Settings.LocalApiSettingsChanged -= OnLocalApiSettingsChanged;
         _viewModel.Settings.DesktopSettingsChanged -= OnDesktopSettingsChanged;
+        _viewModel.Settings.TelemetrySettingsChanged -= OnTelemetrySettingsChanged;
         _interaction.OperationFailed -= OnInteractionFailed;
         _platformServices.Tray.ShowRequested -= OnTrayShowRequested;
         _platformServices.Tray.HideRequested -= OnTrayHideRequested;
@@ -131,6 +142,7 @@ public partial class MainWindow : Window
         _interaction.Dispose();
         _viewModel.Dispose();
         _postProcessor.Dispose();
+        _postProcessingRouter.Dispose();
         _modelHttp.Dispose();
     }
 
@@ -147,6 +159,14 @@ public partial class MainWindow : Window
     {
         try { ApplyDesktopSettings(); }
         catch { _viewModel.Settings.Status.Failure("desktop_settings.apply_failed", "Desktop settings could not be applied."); }
+    }
+
+    private void OnTelemetrySettingsChanged(object? sender, EventArgs e) => ApplyTelemetrySettings();
+
+    private void ApplyTelemetrySettings()
+    {
+        if (_viewModel.Settings.EnableErrorLogging) _ = _platformServices.Telemetry.Initialize();
+        else _platformServices.Telemetry.Shutdown();
     }
 
     private void ApplyDesktopSettings()
@@ -211,11 +231,13 @@ public partial class MainWindow : Window
                 modes,
                 new HistoryRepository(_database, _platformServices.Paths),
                 _workflow,
-                new LinuxLocalApiCapabilityCatalog(_modelManager, _platformServices.AudioTranscriber),
+                new LinuxLocalApiCapabilityCatalog(
+                    _modelManager, _platformServices.AudioTranscriber, _platformServices.CredentialStore,
+                    _platformServices.DeviceIdentity, _settings),
                 _platformServices.PrivateFiles,
                 _platformServices.Paths,
                 "1.0.0",
-                new LinuxLocalApiPostProcessor(_postProcessor, modes),
+                new LinuxLocalApiPostProcessor(_postProcessingRouter, modes),
                 vocabulary: new VocabularyRepository(_database));
             _localApiHost = new PortableLocalApiHost(
                 _platformServices.PrivateFiles, _platformServices.Paths, backend, "1.0.0",
@@ -314,8 +336,14 @@ public partial class MainWindow : Window
 
             _viewModel.Navigate("modes");
             await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
-            if (!HasVisibleControl("ModeLocalPostProcessingEnabled")
+            if (!HasVisibleControl("ModePostProcessingMode")
+                || !HasVisibleControl("ModePostProcessingProvider")
+                || !HasVisibleControl("ModePostProcessingModel")
+                || !HasVisibleControl("ModeHyperWhisperCloudModel")
                 || !HasVisibleControl("ModeLocalPostProcessingModel")
+                || !HasVisibleControl("ModeCustomEndpointUrl")
+                || !HasVisibleControl("ModeCustomInstructions")
+                || !HasVisibleControl("ModePunctuation")
                 || !HasVisibleControl("ModeUserSystemPrompt")
                 || !HasVisibleControl("ModeProviderType")
                 || !HasVisibleControl("ModeLocalEngine")
@@ -347,7 +375,8 @@ public partial class MainWindow : Window
                 || !HasVisibleControl("SettingsStreamingProvider")
                 || !HasVisibleControl("SettingsAudioEnvironmentPolicy")
                 || !HasVisibleControl("SettingsAutostart")
-                || !HasVisibleControl("SettingsDesktopContextStatus")) return 10;
+                || !HasVisibleControl("SettingsDesktopContextStatus")
+                || !HasVisibleControl("SettingsEnableErrorLogging")) return 10;
 
             if (_viewModel.History.Items.Count == 0
                 || _viewModel.Vocabulary.Items.Count == 0

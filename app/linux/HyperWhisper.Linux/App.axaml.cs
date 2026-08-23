@@ -2,12 +2,14 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
+using HyperWhisper.Telemetry;
 
 namespace HyperWhisper.Linux;
 
 public partial class App : Application
 {
     private LinuxDesktopServices? _platformServices;
+    private readonly LinuxSentryService _telemetry = new();
 
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
@@ -15,7 +17,8 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            _platformServices = new LinuxDesktopServices();
+            SubscribeUnhandledExceptions();
+            _platformServices = new LinuxDesktopServices(_telemetry);
             var acquired = _platformServices.SingleInstance.TryAcquire();
             if (acquired.IsFailure)
             {
@@ -40,7 +43,12 @@ public partial class App : Application
                 window.WindowState = Avalonia.Controls.WindowState.Normal;
                 window.Activate();
             });
-            desktop.Exit += (_, _) => _platformServices.Dispose();
+            desktop.Exit += (_, _) =>
+            {
+                UnsubscribeUnhandledExceptions();
+                _platformServices.Dispose();
+                _telemetry.Dispose();
+            };
 
             if (Program.IsSmokeTest)
             {
@@ -53,5 +61,34 @@ public partial class App : Application
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    private void SubscribeUnhandledExceptions()
+    {
+        Dispatcher.UIThread.UnhandledException += OnUiUnhandledException;
+        AppDomain.CurrentDomain.UnhandledException += OnDomainUnhandledException;
+        TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
+    }
+
+    private void UnsubscribeUnhandledExceptions()
+    {
+        Dispatcher.UIThread.UnhandledException -= OnUiUnhandledException;
+        AppDomain.CurrentDomain.UnhandledException -= OnDomainUnhandledException;
+        TaskScheduler.UnobservedTaskException -= OnUnobservedTaskException;
+    }
+
+    private void OnUiUnhandledException(object? sender, DispatcherUnhandledExceptionEventArgs args) =>
+        _telemetry.Capture(args.Exception, "Unhandled UI exception");
+
+    private void OnDomainUnhandledException(object? sender, UnhandledExceptionEventArgs args)
+    {
+        if (args.ExceptionObject is Exception exception)
+            _telemetry.Capture(exception, "Unhandled application exception");
+    }
+
+    private void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs args)
+    {
+        _telemetry.Capture(args.Exception, "Unobserved task exception");
+        args.SetObserved();
     }
 }

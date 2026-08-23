@@ -83,7 +83,15 @@
         "pushToTalkDoublePressLock": true,
         "autoIncreaseMicVolume": false,
         "keepMicrophoneWarm": true,
-        "audioEnvironmentPolicy": "duck"
+        "audioEnvironmentPolicy": "duck",
+        "customEndpoints": [
+          {
+            "id": "3a0e8400-e29b-41d4-a716-446655440032",
+            "name": "Local compatible endpoint",
+            "endpointURL": "http://127.0.0.1:11434/v1/chat/completions",
+            "modelName": "llama3.2"
+          }
+        ]
       }
     }
   }

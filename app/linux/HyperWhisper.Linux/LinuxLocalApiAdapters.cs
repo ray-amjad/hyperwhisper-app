@@ -4,12 +4,18 @@ using HyperWhisper.LocalApi;
 using HyperWhisper.ModelManagement;
 using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.PortableApplication.Transcription;
+using HyperWhisper.CloudPostProcessing;
+using HyperWhisper.Platform.Abstractions;
+using System.Security.Cryptography;
 
 namespace HyperWhisper.Linux;
 
 internal sealed class LinuxLocalApiCapabilityCatalog(
     PortableModelManager models,
-    IRecordedAudioTranscriber transcriber) : ILocalApiCapabilityCatalog
+    IRecordedAudioTranscriber transcriber,
+    ICredentialStore credentials,
+    IDeviceIdentityProvider deviceIdentity,
+    PortableSettingsService settings) : ILocalApiCapabilityCatalog
 {
     public IReadOnlyList<ModelEntry> Models => PortableModelCatalog.All.Select(model => new ModelEntry(
         model.Id, model.Kind == ManagedModelKind.LocalLlm ? "text" : "voice", "local",
@@ -21,11 +27,27 @@ internal sealed class LinuxLocalApiCapabilityCatalog(
             transcriber.Capability.IsAvailable ? "ready" : "unavailable"),
     ];
 
-    public IReadOnlyList<ProviderStatus> PostProcessingProviders =>
-    [
-        new("local_llm", false, PortableModelCatalog.LocalLlm.Any(models.IsInstalled),
-            PortableModelCatalog.LocalLlm.Any(models.IsInstalled) ? "ready" : "model_required"),
-    ];
+    public IReadOnlyList<ProviderStatus> PostProcessingProviders
+    {
+        get
+        {
+            var statuses = new List<ProviderStatus>
+            {
+                new("local_llm", false, PortableModelCatalog.LocalLlm.Any(models.IsInstalled),
+                    PortableModelCatalog.LocalLlm.Any(models.IsInstalled) ? "ready" : "model_required"),
+            };
+            foreach (var (id, provider) in BuiltInPostProcessingProviders)
+            {
+                var available = provider == CloudPostProcessingProvider.HyperWhisperCloud
+                    ? HasCredential("LicenseKey") || deviceIdentity.GetDeviceIdentity().IsSuccess
+                    : HasCredential(CredentialStorePostProcessingCredentialSource.AccountFor(provider));
+                statuses.Add(new(id, true, available, available ? "ready" : "credential_required"));
+            }
+            foreach (var endpoint in settings.Get<PortableCustomPostProcessingEndpoint[]>("customEndpoints", []) ?? [])
+                statuses.Add(new($"custom:{endpoint.Id:D}", true, true, "configured"));
+            return statuses;
+        }
+    }
 
     public object LocalModels => new
     {
@@ -37,10 +59,30 @@ internal sealed class LinuxLocalApiCapabilityCatalog(
     };
 
     private object Status(ManagedModel model) => new { id = model.Id, displayName = model.DisplayName, installed = models.IsInstalled(model) };
+
+    private bool HasCredential(string? account)
+    {
+        if (string.IsNullOrWhiteSpace(account)) return false;
+        var result = credentials.Read("HyperWhisper", account);
+        try { return result.IsSuccess && result.Value is { Length: > 0 }; }
+        finally { if (result.Value is { } bytes) CryptographicOperations.ZeroMemory(bytes); }
+    }
+
+    private static readonly (string Id, CloudPostProcessingProvider Provider)[] BuiltInPostProcessingProviders =
+    [
+        ("hyperwhispercloud", CloudPostProcessingProvider.HyperWhisperCloud),
+        ("openai", CloudPostProcessingProvider.OpenAi),
+        ("anthropic", CloudPostProcessingProvider.Anthropic),
+        ("groq", CloudPostProcessingProvider.Groq),
+        ("grok", CloudPostProcessingProvider.Grok),
+        ("gemini", CloudPostProcessingProvider.Gemini),
+        ("cerebras", CloudPostProcessingProvider.Cerebras),
+        ("mistral", CloudPostProcessingProvider.Mistral),
+    ];
 }
 
 internal sealed class LinuxLocalApiPostProcessor(
-    LinuxLocalPostProcessor processor,
+    ITranscriptionPostProcessor processor,
     ModeRepository modes) : ILocalApiPostProcessor
 {
     public async ValueTask<PostProcessResult> ProcessAsync(PostProcessRequest request, CancellationToken cancellationToken)

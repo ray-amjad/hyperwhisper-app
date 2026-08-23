@@ -1,10 +1,8 @@
-using System.Globalization;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.LocalPostProcessing;
 using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.PortableApplication.Transcription;
-using HyperWhisper.SharedCore;
 
 namespace HyperWhisper.Linux;
 
@@ -64,33 +62,7 @@ internal sealed class LinuxLocalPostProcessor : ITranscriptionPostProcessor, IDi
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Take(100)
             .ToArray();
-        var prompt = SharedCoreBridge.BuildPostProcessingPrompt(new PortablePromptContext(
-            mode.Preset,
-            mode.CustomInstructions ?? string.Empty,
-            mode.EnglishSpelling ?? string.Empty,
-            ResolveLanguage(mode.Language),
-            mode.UserSystemPrompt ?? string.Empty,
-            vocabulary,
-            mode.Punctuation,
-            mode.Capitalization,
-            mode.ProfanityFilter,
-            DateTime.Now.ToString("t", CultureInfo.CurrentCulture),
-            TimeZoneInfo.Local.StandardName,
-            CultureInfo.CurrentCulture.Name,
-            Environment.MachineName,
-            AppType: applicationContext?.AppType ?? "other",
-            AppName: applicationContext?.ProcessName ?? string.Empty,
-            Category: applicationContext?.Category ?? string.Empty,
-            Description: applicationContext?.WindowTitle ?? string.Empty,
-            TextFormat: applicationContext?.TextFormat ?? string.Empty,
-            BrowserHost: applicationContext?.BrowserHost ?? string.Empty,
-            BrowserTabTitle: applicationContext?.BrowserTabTitle ?? string.Empty,
-            FocusedElement: applicationContext?.FocusedElementType ?? string.Empty,
-            FocusedContent: applicationContext?.FocusedContent ?? string.Empty,
-            ScreenOcrText: applicationContext?.ScreenOcrText ?? string.Empty,
-            AppTypeConfidence: applicationContext?.AppTypeConfidence ?? "unknown",
-            AppTypeSource: applicationContext?.AppTypeSource ?? "default",
-            HasApplicationContext: applicationContext is not null));
+        var prompt = LinuxPostProcessingPromptFactory.Build(mode, applicationContext, vocabulary);
 
         var backend = ParseBackend(_settings.Get("localLlmBackend", "cpu"));
         var result = await _service.ProcessAsync(new LocalPostProcessingRequest(
@@ -136,10 +108,4 @@ internal sealed class LinuxLocalPostProcessor : ITranscriptionPostProcessor, IDi
         _ => LocalLlmBackend.Cpu,
     };
 
-    private static string ResolveLanguage(string? language)
-    {
-        if (string.IsNullOrWhiteSpace(language) || language == "auto") return string.Empty;
-        try { return CultureInfo.GetCultureInfo(language).DisplayName; }
-        catch (CultureNotFoundException) { return language; }
-    }
 }

@@ -80,7 +80,7 @@ public sealed class LinuxSentryService : IDisposable
 
             try
             {
-                _backend.Capture(exception, context);
+                _backend.Capture(TelemetryPrivacy.SanitizeException(exception), TelemetryPrivacy.SanitizeContext(context));
             }
             catch
             {
@@ -121,6 +121,42 @@ public sealed class LinuxSentryService : IDisposable
     }
 
     public void Dispose() => Shutdown();
+}
+
+internal static class TelemetryPrivacy
+{
+    internal static Exception SanitizeException(Exception exception) =>
+        new TelemetryReportedException(
+            exception.GetType().FullName ?? "System.Exception",
+            SanitizeStackTrace(exception.StackTrace));
+
+    internal static string? SanitizeStackTrace(string? stackTrace)
+    {
+        if (string.IsNullOrWhiteSpace(stackTrace)) return null;
+        var lines = stackTrace.Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Take(128)
+            .Select(line =>
+            {
+                var pathStart = line.IndexOf(" in ", StringComparison.Ordinal);
+                return (pathStart >= 0 ? line[..pathStart] : line).TrimEnd('\r');
+            });
+        var sanitized = string.Join('\n', lines);
+        return sanitized.Length <= 16_384 ? sanitized : sanitized[..16_384];
+    }
+
+    internal static string? SanitizeContext(string? context) => context switch
+    {
+        "Unhandled UI exception" => context,
+        "Unhandled application exception" => context,
+        "Unobserved task exception" => context,
+        _ => null,
+    };
+
+    private sealed class TelemetryReportedException(string originalType, string? sanitizedStack)
+        : Exception($"A {originalType} was reported with message, inner-exception, and data content removed.")
+    {
+        public override string? StackTrace => sanitizedStack;
+    }
 }
 
 internal sealed record TelemetryConfiguration(
