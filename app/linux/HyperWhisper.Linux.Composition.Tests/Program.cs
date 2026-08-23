@@ -54,6 +54,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("anonymous speed opt-out is scoped to HyperWhisper Cloud", LatencyOptOutIsScoped),
     ("Silero detector preserves bounded recurrent state", SileroDetectorStateIsBounded),
     ("packaged Silero ONNX model executes silence fixture", PackagedSileroExecutes),
+    ("first-run onboarding persists decisions and gates real readiness", OnboardingStateMachine),
 };
 
 foreach (var test in tests)
@@ -62,6 +63,50 @@ foreach (var test in tests)
     Console.WriteLine($"PASS {test.Name}");
 }
 Console.WriteLine($"{tests.Length}/{tests.Length} Linux composition tests passed");
+
+static Task OnboardingStateMachine()
+{
+    var mode = new Mode { Id = Guid.NewGuid(), Name = "Local Whisper", ProviderType = "local", LocalEngine = "whisper" };
+    var microphone = new AudioInputDevice("mic-1", "Test microphone", true);
+    var decisions = new List<bool>();
+    Mode? selectedMode = mode;
+    AudioInputDevice? selectedDevice = microphone;
+    var onboarding = new LinuxOnboardingViewModel(
+        new(true, true, true, true, true, true, false),
+        [mode], mode, [microphone], microphone,
+        skipped => { decisions.Add(skipped); return true; },
+        value => selectedMode = value,
+        value => selectedDevice = value,
+        key => key);
+
+    onboarding.Show();
+    Assert(onboarding.IsVisible && onboarding.IsWelcome, "onboarding did not start at welcome");
+    onboarding.Next();
+    Assert(onboarding.IsCapabilities && onboarding.Capabilities.DesktopPortal, "capability step is not evidence-backed");
+    onboarding.Next();
+    Assert(onboarding.IsProvider && onboarding.IsSelectedModeAvailable, "ready local mode was rejected");
+    onboarding.SelectedMode = mode;
+    onboarding.Next();
+    Assert(onboarding.IsMicrophone, "provider step did not advance");
+    onboarding.SelectedDevice = microphone;
+    onboarding.Next();
+    Assert(onboarding.IsTest && onboarding.IsTestReady, "test readiness did not use the selected mode and microphone");
+    onboarding.SetTestStatus("complete", succeeded: true);
+    onboarding.Next();
+    Assert(!onboarding.IsVisible && decisions.SequenceEqual([false]), "completion was not durably requested");
+    Assert(selectedMode == mode && selectedDevice == microphone, "selections did not reach the live adapters");
+
+    var unavailable = new LinuxOnboardingViewModel(
+        new(true, true, false, false, false, true, false),
+        [new Mode { Id = Guid.NewGuid(), Name = "Parakeet", ProviderType = "local", LocalEngine = "parakeet" }],
+        null, [microphone], microphone,
+        skipped => { decisions.Add(skipped); return true; }, _ => { }, _ => { }, key => key);
+    unavailable.Show(); unavailable.Next(); unavailable.Next(); unavailable.Next(); unavailable.Next();
+    Assert(unavailable.IsTest && !unavailable.IsTestReady, "unavailable local engine incorrectly passed readiness");
+    unavailable.Skip();
+    Assert(!unavailable.IsVisible && decisions.SequenceEqual([false, true]), "skip was not durably requested");
+    return Task.CompletedTask;
+}
 
 static async Task M4aStorageEncodes()
 {
