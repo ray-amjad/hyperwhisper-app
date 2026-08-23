@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Text.Json;
 using HyperWhisper.Platform.Abstractions;
 
 namespace HyperWhisper.Linux.Platform.Files;
@@ -25,7 +26,9 @@ public sealed class LinuxAppPaths : IAppPaths
 
         LogsDirectory = Path.Combine(StateDirectory, "logs");
         ModelsDirectory = Path.Combine(DataDirectory, "models");
-        RecordingsDirectory = Path.Combine(DataDirectory, "recordings");
+        RecordingsDirectory = ResolveRecordingsDirectory(
+            Path.Combine(DataDirectory, "recordings"),
+            Path.Combine(ConfigDirectory, "settings.json"));
 
         var runtimeHome = AbsoluteOrNull(environment.Get("XDG_RUNTIME_DIR"));
         RuntimeDirectory = runtimeHome is null
@@ -61,6 +64,34 @@ public sealed class LinuxAppPaths : IAppPaths
     private static string RequireAbsolute(string? path, string name) =>
         AbsoluteOrNull(path)
         ?? throw new InvalidOperationException($"{name} must resolve to an absolute directory.");
+
+    private static string ResolveRecordingsDirectory(string fallback, string settingsPath)
+    {
+        try
+        {
+            using var stream = File.OpenRead(settingsPath);
+            using var document = JsonDocument.Parse(stream, new JsonDocumentOptions
+            {
+                AllowTrailingCommas = false,
+                CommentHandling = JsonCommentHandling.Disallow,
+                MaxDepth = 16,
+            });
+            if (document.RootElement.ValueKind != JsonValueKind.Object
+                || !document.RootElement.TryGetProperty("storage.recordingsDirectory", out var configured)
+                || configured.ValueKind != JsonValueKind.String)
+                return fallback;
+            var path = configured.GetString();
+            if (string.IsNullOrWhiteSpace(path) || !Path.IsPathFullyQualified(path)) return fallback;
+            var fullPath = Path.GetFullPath(path);
+            return string.Equals(fullPath, Path.GetPathRoot(fullPath), StringComparison.Ordinal)
+                ? fallback
+                : fullPath;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or JsonException or ArgumentException)
+        {
+            return fallback;
+        }
+    }
 }
 
 internal interface IProcessEnvironment

@@ -16,6 +16,9 @@ var tests = new (string Name, Func<Task> Run)[]
 {
     ("XDG paths honor absolute overrides", XdgOverrides),
     ("XDG paths ignore relative overrides", XdgRelativeFallback),
+    ("recordings path honors safe persisted override", RecordingsPathOverride),
+    ("recordings path rejects relative and root overrides", RecordingsPathRejectsUnsafe),
+    ("recordings directory validator requires private writable path", RecordingsDirectoryValidation),
     ("private writes create exact 0600 files", PrivateFileMode),
     ("private overwrite restores exact 0600", PrivateOverwriteMode),
     ("atomic failure preserves prior contents", AtomicFailurePreservesTarget),
@@ -192,6 +195,50 @@ static Task XdgRelativeFallback()
     Assert.Equal("/users/test/.local/share/hyperwhisper/runtime", paths.RuntimeDirectory);
     return Task.CompletedTask;
 }
+
+static Task RecordingsPathOverride() => WithTemporaryDirectory(directory =>
+{
+    var configHome = Path.Combine(directory, "config");
+    var custom = Path.Combine(directory, "voice");
+    var configDirectory = Path.Combine(configHome, "hyperwhisper");
+    Directory.CreateDirectory(configDirectory);
+    File.WriteAllText(Path.Combine(configDirectory, "settings.json"),
+        System.Text.Json.JsonSerializer.Serialize(new Dictionary<string, object?>
+        {
+            ["storage.recordingsDirectory"] = custom,
+        }));
+    var paths = new LinuxAppPaths(
+        new FakeEnvironment(directory, new Dictionary<string, string> { ["XDG_CONFIG_HOME"] = configHome }),
+        new FakeUser(9));
+    Assert.Equal(custom, paths.RecordingsDirectory);
+});
+
+static Task RecordingsPathRejectsUnsafe() => WithTemporaryDirectory(directory =>
+{
+    var configHome = Path.Combine(directory, "config");
+    var configDirectory = Path.Combine(configHome, "hyperwhisper");
+    Directory.CreateDirectory(configDirectory);
+    var settings = Path.Combine(configDirectory, "settings.json");
+    File.WriteAllText(settings, "{\"storage.recordingsDirectory\":\"relative\"}");
+    var environment = new FakeEnvironment(directory, new Dictionary<string, string> { ["XDG_CONFIG_HOME"] = configHome });
+    var paths = new LinuxAppPaths(environment, new FakeUser(9));
+    Assert.Equal(Path.Combine(directory, ".local/share/hyperwhisper/recordings"), paths.RecordingsDirectory);
+    File.WriteAllText(settings, "{\"storage.recordingsDirectory\":\"/\"}");
+    paths = new LinuxAppPaths(environment, new FakeUser(9));
+    Assert.Equal(Path.Combine(directory, ".local/share/hyperwhisper/recordings"), paths.RecordingsDirectory);
+});
+
+static Task RecordingsDirectoryValidation() => WithTemporaryDirectory(directory =>
+{
+    Assert.Equal("storage.path_relative", LinuxRecordingDirectoryValidator.ValidateAndPrepare("relative").Error?.Code);
+    Assert.Equal("storage.path_root", LinuxRecordingDirectoryValidator.ValidateAndPrepare("/").Error?.Code);
+    var target = Path.Combine(directory, "private-recordings");
+    var valid = LinuxRecordingDirectoryValidator.ValidateAndPrepare(target);
+    Assert.True(valid.IsSuccess);
+    Assert.Equal(target, valid.Value);
+    Assert.True(Directory.Exists(target));
+    Assert.True(!Directory.EnumerateFileSystemEntries(target).Any());
+});
 
 static Task PrivateFileMode() => WithTemporaryDirectory(directory =>
 {
