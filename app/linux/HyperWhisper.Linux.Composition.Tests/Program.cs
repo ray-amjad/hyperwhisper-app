@@ -5,6 +5,7 @@ using HyperWhisper.Data.Entities;
 using HyperWhisper.Linux;
 using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.PortableApplication.Transcription;
+using HyperWhisper.LocalInference;
 
 [assembly: SupportedOSPlatform("linux")]
 
@@ -25,6 +26,9 @@ var tests = new (string Name, Func<Task> Run)[]
     ("cloud provider storage values route deterministically", CloudProviderStorageRoutes),
     ("audio restoration is never caller-cancelled", AudioRestorationIsNonCancelable),
     ("live models are provider-specific", LiveModelsAreProviderSpecific),
+    ("production Whisper backend selection reaches inference", WhisperBackendSelectionReachesInference),
+    ("production Whisper CPU fallback policy is enforced", WhisperCpuFallbackPolicyIsEnforced),
+    ("production Whisper settings select detected and explicit backends", WhisperSettingsSelectBackends),
 };
 
 foreach (var test in tests)
@@ -253,6 +257,80 @@ static Task LiveModelsAreProviderSpecific()
     return Task.CompletedTask;
 }
 
+static async Task WhisperBackendSelectionReachesInference()
+{
+    foreach (var backend in new[] { LocalWhisperBackend.Cpu, LocalWhisperBackend.Vulkan, LocalWhisperBackend.Cuda12 })
+    {
+        using var fixture = new WhisperTranscriberFixture(backend, allowFallback: false, RuntimeFor(backend));
+        var result = await fixture.Transcriber.TranscribeAsync(fixture.AudioPath, "en");
+        Assert(result.IsSuccess, $"production transcriber rejected {backend}");
+        Assert(fixture.Service.LoadOptions?.Backend == backend
+            && fixture.Service.LoadOptions.AllowCpuFallback == false,
+            $"production transcriber did not forward {backend} and fallback policy");
+        Assert(fixture.Service.TranscribeCalls == 1, $"production transcriber did not invoke {backend} inference");
+        Assert(fixture.Transcriber.Capability.DisplayName.Contains(
+            backend == LocalWhisperBackend.Cuda12 ? "CUDA 12" : backend.ToString(),
+            StringComparison.OrdinalIgnoreCase), $"{backend} capability was not reported");
+    }
+}
+
+static async Task WhisperCpuFallbackPolicyIsEnforced()
+{
+    using (var allowed = new WhisperTranscriberFixture(
+        LocalWhisperBackend.Vulkan, allowFallback: true, "Cpu: fallback runtime"))
+    {
+        var result = await allowed.Transcriber.TranscribeAsync(allowed.AudioPath, "en");
+        Assert(result.IsSuccess && result.Provider == "Local Whisper (CPU fallback)",
+            "allowed GPU fallback was not surfaced honestly");
+        Assert(allowed.Service.LoadOptions?.AllowCpuFallback == true,
+            "allowed CPU fallback policy was not forwarded");
+    }
+    using (var denied = new WhisperTranscriberFixture(
+        LocalWhisperBackend.Cuda12, allowFallback: false, "Cpu: fallback runtime"))
+    {
+        var result = await denied.Transcriber.TranscribeAsync(denied.AudioPath, "en");
+        Assert(!result.IsSuccess && result.Failure?.Code == PortableTranscriptionErrorCode.BackendUnavailable,
+            "forbidden CUDA fallback was accepted");
+        Assert(denied.Service.TranscribeCalls == 0,
+            "transcription ran after forbidden CUDA fallback");
+    }
+}
+
+static Task WhisperSettingsSelectBackends()
+{
+    var previousBackend = Environment.GetEnvironmentVariable("HYPERWHISPER_WHISPER_BACKEND");
+    var previousFallback = Environment.GetEnvironmentVariable("HYPERWHISPER_WHISPER_CPU_FALLBACK");
+    var root = Path.Combine(Path.GetTempPath(), $"hyperwhisper-whisper-settings-{Guid.NewGuid():N}");
+    try
+    {
+        Environment.SetEnvironmentVariable("HYPERWHISPER_WHISPER_BACKEND", null);
+        Environment.SetEnvironmentVariable("HYPERWHISPER_WHISPER_CPU_FALLBACK", null);
+        var detected = new LinuxWhisperRuntimePreferenceSource(
+            new MissingPrivateFiles(), new StaticPaths(root),
+            new FixedGpu(new GpuInfo { Name = "NVIDIA", SupportsCuda = true, SupportsVulkan = true }));
+        Assert(detected.Resolve() == new LinuxWhisperRuntimePreference(LocalWhisperBackend.Cuda12, true),
+            "automatic selection did not prefer detected CUDA 12");
+
+        Environment.SetEnvironmentVariable("HYPERWHISPER_WHISPER_BACKEND", "vulkan");
+        Environment.SetEnvironmentVariable("HYPERWHISPER_WHISPER_CPU_FALLBACK", "0");
+        Assert(detected.Resolve() == new LinuxWhisperRuntimePreference(LocalWhisperBackend.Vulkan, false),
+            "explicit strict Vulkan setting was not honored");
+    }
+    finally
+    {
+        Environment.SetEnvironmentVariable("HYPERWHISPER_WHISPER_BACKEND", previousBackend);
+        Environment.SetEnvironmentVariable("HYPERWHISPER_WHISPER_CPU_FALLBACK", previousFallback);
+    }
+    return Task.CompletedTask;
+}
+
+static string RuntimeFor(LocalWhisperBackend backend) => backend switch
+{
+    LocalWhisperBackend.Cuda12 => "Cuda12: test runtime",
+    LocalWhisperBackend.Vulkan => "Vulkan: test runtime",
+    _ => "Cpu: test runtime",
+};
+
 static async Task UntilAsync(Func<bool> condition)
 {
     using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(3));
@@ -271,6 +349,82 @@ sealed class InteractionFixture
     public FakeTextInjection Injection { get; } = new();
     public FakeRecording Recording { get; } = new();
     public LinuxInteractionCoordinator Create() => new(Shortcuts, PushToTalk, Injection, Recording, new InlineDispatcher());
+}
+
+sealed class WhisperTranscriberFixture : IDisposable
+{
+    private readonly string _root = Path.Combine(Path.GetTempPath(), $"hyperwhisper-whisper-route-{Guid.NewGuid():N}");
+    public WhisperTranscriberFixture(LocalWhisperBackend backend, bool allowFallback, string runtime)
+    {
+        Directory.CreateDirectory(_root);
+        File.WriteAllBytes(Path.Combine(_root, "ggml-test.bin"), [1]);
+        AudioPath = Path.Combine(_root, "audio.wav");
+        File.WriteAllBytes(AudioPath, [1]);
+        Service = new FakeLocalWhisperService(runtime);
+        Transcriber = new LinuxLocalWhisperTranscriber(
+            _root, Service, new FixedWhisperPreferences(new(backend, allowFallback)));
+    }
+    public string AudioPath { get; }
+    public FakeLocalWhisperService Service { get; }
+    public LinuxLocalWhisperTranscriber Transcriber { get; }
+    public void Dispose()
+    {
+        Transcriber.Dispose();
+        Directory.Delete(_root, recursive: true);
+    }
+}
+
+sealed class FixedWhisperPreferences(LinuxWhisperRuntimePreference preference) : ILinuxWhisperRuntimePreferenceSource
+{
+    public LinuxWhisperRuntimePreference Resolve() => preference;
+}
+
+sealed class FakeLocalWhisperService(string runtime) : ILocalWhisperService
+{
+    public LocalWhisperLoadOptions? LoadOptions { get; private set; }
+    public int TranscribeCalls { get; private set; }
+    public bool IsLoaded => LoadOptions is not null;
+    public string? Runtime => runtime;
+    public Task<LocalWhisperResult> LoadAsync(LocalWhisperLoadOptions options, CancellationToken cancellationToken = default)
+    {
+        LoadOptions = options;
+        return Task.FromResult(LocalWhisperResult.Success(string.Empty, runtime));
+    }
+    public Task<LocalWhisperResult> TranscribeAsync(LocalWhisperRequest request, CancellationToken cancellationToken = default)
+    {
+        TranscribeCalls++;
+        return Task.FromResult(LocalWhisperResult.Success("Ray GPU route", runtime));
+    }
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+}
+
+sealed class FixedGpu(GpuInfo? gpu) : IGpuInfoProvider
+{
+    public PlatformResult<GpuInfo?> GetBestGpu() => PlatformResult<GpuInfo?>.Success(gpu);
+    public void ClearCache() { }
+}
+
+sealed class MissingPrivateFiles : IPrivateFileService
+{
+    public PlatformResult WriteAllBytesAtomically(string path, ReadOnlySpan<byte> contents) => PlatformResult.Success();
+    public PlatformResult WriteAllTextAtomically(string path, string contents) => PlatformResult.Success();
+    public PlatformResult<byte[]?> ReadAllBytes(string path) => PlatformResult<byte[]?>.Success(null);
+    public PlatformResult<string?> ReadAllText(string path) => PlatformResult<string?>.Success(null);
+    public PlatformResult Delete(string path) => PlatformResult.Success();
+    public PlatformResult<bool> IsRestrictedToCurrentUser(string path) => PlatformResult<bool>.Success(true);
+}
+
+sealed class StaticPaths(string root) : IAppPaths
+{
+    public string DataDirectory => root;
+    public string ConfigDirectory => root;
+    public string CacheDirectory => root;
+    public string StateDirectory => root;
+    public string LogsDirectory => root;
+    public string ModelsDirectory => root;
+    public string RecordingsDirectory => root;
+    public string RuntimeDirectory => root;
+    public string TemporaryDirectory => root;
 }
 
 sealed class FakeShortcuts : IGlobalShortcutService

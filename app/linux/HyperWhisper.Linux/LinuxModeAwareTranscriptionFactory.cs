@@ -25,7 +25,13 @@ internal static class LinuxModeAwareTranscriptionFactory
             new LinuxChildProcessLauncher(),
             paths.ModelsDirectory);
         return new ModeAwareTranscriptionRouter(
-            new LinuxLocalWhisperTranscriber(paths.ModelsDirectory),
+            new LinuxLocalWhisperTranscriber(
+                paths.ModelsDirectory,
+                new HyperWhisper.LocalInference.LocalWhisperService(),
+                new LinuxWhisperRuntimePreferenceSource(
+                    new HyperWhisper.Linux.Platform.Files.LinuxPrivateFileService(),
+                    paths,
+                    new LinuxGpuInfoProvider())),
             parakeet,
             cloud,
             ownsDependencies: true);

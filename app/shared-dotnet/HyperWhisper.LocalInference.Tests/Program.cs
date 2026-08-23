@@ -1,4 +1,5 @@
 using HyperWhisper.LocalInference;
+using Whisper.net.LibraryLoader;
 
 var failures = 0;
 await CheckAsync("missing model returns a structured failure", async () =>
@@ -42,6 +43,20 @@ await CheckAsync("pre-cancelled requests return structured cancellation", async 
         File.Delete(model);
     }
 });
+await CheckAsync("runtime order preserves GPU fallback policy", () =>
+{
+    Assert(LocalWhisperService.RuntimeOrderFor(LocalWhisperBackend.Cpu, true).SequenceEqual([RuntimeLibrary.Cpu]),
+        "CPU runtime order changed");
+    Assert(LocalWhisperService.RuntimeOrderFor(LocalWhisperBackend.Vulkan, false).SequenceEqual([RuntimeLibrary.Vulkan]),
+        "strict Vulkan runtime order admitted fallback");
+    Assert(LocalWhisperService.RuntimeOrderFor(LocalWhisperBackend.Vulkan, true).SequenceEqual([RuntimeLibrary.Vulkan, RuntimeLibrary.Cpu]),
+        "Vulkan CPU fallback order changed");
+    Assert(LocalWhisperService.RuntimeOrderFor(LocalWhisperBackend.Cuda12, false).SequenceEqual([RuntimeLibrary.Cuda12]),
+        "strict CUDA 12 runtime order admitted fallback");
+    Assert(LocalWhisperService.RuntimeOrderFor(LocalWhisperBackend.Cuda12, true).SequenceEqual([RuntimeLibrary.Cuda12, RuntimeLibrary.Cpu]),
+        "CUDA 12 CPU fallback order changed");
+    return Task.CompletedTask;
+});
 
 if (args.Length == 2)
 {
@@ -50,17 +65,22 @@ if (args.Length == 2)
         await using var service = new LocalWhisperService();
         var loaded = await service.LoadAsync(new LocalWhisperLoadOptions(
             args[0],
-            ParseBackend(Environment.GetEnvironmentVariable("HW_WHISPER_TEST_BACKEND"))));
+            ParseBackend(Environment.GetEnvironmentVariable("HW_WHISPER_TEST_BACKEND")),
+            AllowCpuFallback: Environment.GetEnvironmentVariable("HW_WHISPER_ALLOW_CPU_FALLBACK") != "0"));
         Assert(loaded.IsSuccess, loaded.Failure?.Message ?? "model load failed");
         var result = await service.TranscribeAsync(new LocalWhisperRequest(args[1], "en"));
         Assert(result.IsSuccess, result.Failure?.Message ?? "transcription failed");
         Assert(!string.IsNullOrWhiteSpace(result.Text), "transcript was empty");
+        var expectedRuntime = Environment.GetEnvironmentVariable("HW_WHISPER_EXPECT_RUNTIME");
+        if (!string.IsNullOrWhiteSpace(expectedRuntime))
+            Assert(result.Runtime?.Contains(expectedRuntime, StringComparison.OrdinalIgnoreCase) == true,
+                $"expected runtime {expectedRuntime}, got {result.Runtime ?? "unknown"}");
         Console.WriteLine($"RUNTIME {result.Runtime}");
         Console.WriteLine($"TRANSCRIPT {result.Text}");
     });
 }
 
-Console.WriteLine($"{(args.Length == 2 ? 4 : 3) - failures}/{(args.Length == 2 ? 4 : 3)} tests passed");
+Console.WriteLine($"{(args.Length == 2 ? 5 : 4) - failures}/{(args.Length == 2 ? 5 : 4)} tests passed");
 return failures == 0 ? 0 : 1;
 
 async Task CheckAsync(string name, Func<Task> run)
@@ -78,9 +98,12 @@ async Task CheckAsync(string name, Func<Task> run)
 }
 
 static LocalWhisperBackend ParseBackend(string? value) =>
-    string.Equals(value, "vulkan", StringComparison.OrdinalIgnoreCase)
-        ? LocalWhisperBackend.Vulkan
-        : LocalWhisperBackend.Cpu;
+    value?.Trim().ToLowerInvariant() switch
+    {
+        "cuda" or "cuda12" => LocalWhisperBackend.Cuda12,
+        "vulkan" => LocalWhisperBackend.Vulkan,
+        _ => LocalWhisperBackend.Cpu,
+    };
 
 static void Assert(bool value, string message)
 {

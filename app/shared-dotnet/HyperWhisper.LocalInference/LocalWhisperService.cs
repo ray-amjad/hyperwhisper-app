@@ -8,7 +8,7 @@ namespace HyperWhisper.LocalInference;
 /// Cross-platform Whisper.net host. Runtime selection is process-wide in
 /// Whisper.net, so one service instance owns the factory and serializes work.
 /// </summary>
-public sealed class LocalWhisperService : IAsyncDisposable
+public sealed class LocalWhisperService : ILocalWhisperService
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
     private WhisperFactory? _factory;
@@ -50,8 +50,8 @@ public sealed class LocalWhisperService : IAsyncDisposable
                         Path.GetFullPath(options.ModelPath),
                         new WhisperFactoryOptions
                         {
-                            UseGpu = options.Backend == LocalWhisperBackend.Vulkan,
-                            UseFlashAttention = options.Backend == LocalWhisperBackend.Vulkan,
+                            UseGpu = options.Backend != LocalWhisperBackend.Cpu,
+                            UseFlashAttention = options.Backend != LocalWhisperBackend.Cpu,
                             GpuDevice = Math.Max(0, options.GpuDevice),
                         }),
                     cancellationToken).ConfigureAwait(false);
@@ -201,14 +201,21 @@ public sealed class LocalWhisperService : IAsyncDisposable
         {
             return;
         }
-        RuntimeOptions.RuntimeLibraryOrder = options.Backend switch
+        RuntimeOptions.RuntimeLibraryOrder = RuntimeOrderFor(options.Backend, options.AllowCpuFallback);
+    }
+
+    internal static List<RuntimeLibrary> RuntimeOrderFor(
+        LocalWhisperBackend backend,
+        bool allowCpuFallback) => backend switch
         {
-            LocalWhisperBackend.Vulkan when options.AllowCpuFallback =>
+            LocalWhisperBackend.Cuda12 when allowCpuFallback =>
+                [RuntimeLibrary.Cuda12, RuntimeLibrary.Cpu],
+            LocalWhisperBackend.Cuda12 => [RuntimeLibrary.Cuda12],
+            LocalWhisperBackend.Vulkan when allowCpuFallback =>
                 [RuntimeLibrary.Vulkan, RuntimeLibrary.Cpu],
             LocalWhisperBackend.Vulkan => [RuntimeLibrary.Vulkan],
             _ => [RuntimeLibrary.Cpu],
         };
-    }
 
     private Task DisposeFactoryAsync()
     {

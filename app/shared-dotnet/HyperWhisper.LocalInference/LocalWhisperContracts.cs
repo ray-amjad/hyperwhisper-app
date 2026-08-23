@@ -4,6 +4,7 @@ public enum LocalWhisperBackend
 {
     Cpu,
     Vulkan,
+    Cuda12,
 }
 
 public sealed record LocalWhisperLoadOptions(
@@ -41,4 +42,12 @@ public sealed record LocalWhisperResult(
 
     public static LocalWhisperResult Failed(LocalWhisperErrorCode code, string message, string? runtime = null) =>
         new(null, new LocalWhisperFailure(code, message), runtime);
+}
+
+public interface ILocalWhisperService : IAsyncDisposable
+{
+    bool IsLoaded { get; }
+    string? Runtime { get; }
+    Task<LocalWhisperResult> LoadAsync(LocalWhisperLoadOptions options, CancellationToken cancellationToken = default);
+    Task<LocalWhisperResult> TranscribeAsync(LocalWhisperRequest request, CancellationToken cancellationToken = default);
 }
