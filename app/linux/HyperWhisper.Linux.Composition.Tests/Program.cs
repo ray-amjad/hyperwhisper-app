@@ -10,6 +10,7 @@ using HyperWhisper.LocalApi;
 using HyperWhisper.SpeechOutput;
 using HyperWhisper.SharedCore;
 using HyperWhisper.Diagnostics;
+using HyperWhisper.LiveStreaming;
 using System.Diagnostics;
 
 [assembly: SupportedOSPlatform("linux")]
@@ -38,6 +39,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("cloud provider storage values route deterministically", CloudProviderStorageRoutes),
     ("audio restoration is never caller-cancelled", AudioRestorationIsNonCancelable),
     ("live models are provider-specific", LiveModelsAreProviderSpecific),
+    ("local and cloud live sessions select isolated engines", LiveEngineRoutingIsIsolated),
     ("production Whisper backend selection reaches inference", WhisperBackendSelectionReachesInference),
     ("production Whisper CPU fallback policy is enforced", WhisperCpuFallbackPolicyIsEnforced),
     ("production Whisper settings select detected and explicit backends", WhisperSettingsSelectBackends),
@@ -662,7 +664,36 @@ static Task LiveModelsAreProviderSpecific()
     foreach (var provider in new[] { "openai", "elevenlabs", "grok", "hyperwhisper" })
         Assert(LinuxLiveStreamingSettingsMapper.ModelForProvider(provider, "nova-3-general") is null,
             $"Deepgram model leaked to {provider}");
+    Assert(LinuxLiveStreamingSettingsMapper.ModelForProvider("parakeetLocal", null) == "parakeet-v3",
+        "local Parakeet did not receive its production default model");
+    Assert(LinuxLiveStreamingSettingsMapper.ModelForProvider("parakeet_local", "parakeet-v2") == "parakeet-v2",
+        "local Parakeet selection was not preserved");
+    Assert(LinuxLiveStreamingSettingsMapper.ModelForProvider("parakeetLocal", "nova-3-general") == "parakeet-v3",
+        "a stale cloud model leaked into local Parakeet");
+    Assert(LinuxLiveStreamingSettingsMapper.ModelForProvider("nemotronLocal", "wrong")
+        == "nemotron-3.5-ml-560ms", "local Nemotron did not enforce its streaming model");
     return Task.CompletedTask;
+}
+
+static async Task LiveEngineRoutingIsIsolated()
+{
+    var cloud = new RecordingLiveTranscriber("cloud");
+    var local = new RecordingLiveTranscriber("local");
+    var router = new LinuxRoutingLiveTranscriber(cloud, local);
+    _ = await router.TranscribeAsync(new(LiveTranscriptionProvider.Deepgram), EmptyAudio());
+    _ = await router.TranscribeAsync(new(LiveTranscriptionProvider.ParakeetLocal), EmptyAudio());
+    _ = await router.TranscribeAsync(new(LiveTranscriptionProvider.NemotronLocal), EmptyAudio());
+    Assert(cloud.Providers.SequenceEqual([LiveTranscriptionProvider.Deepgram]),
+        "cloud live mode reached the local daemon");
+    Assert(local.Providers.SequenceEqual([
+        LiveTranscriptionProvider.ParakeetLocal, LiveTranscriptionProvider.NemotronLocal]),
+        "local live mode reached the network client");
+}
+
+static async IAsyncEnumerable<ReadOnlyMemory<byte>> EmptyAudio()
+{
+    await Task.CompletedTask;
+    yield break;
 }
 
 static async Task WhisperBackendSelectionReachesInference()

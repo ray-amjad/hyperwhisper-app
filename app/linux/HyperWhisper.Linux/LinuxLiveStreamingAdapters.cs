@@ -29,26 +29,51 @@ internal sealed class LinuxLiveStreamingCredentialSource(ICredentialStore creden
 }
 
 /// <summary>Forwards bounded provider transcript updates without logging or retaining them.</summary>
-internal sealed class LinuxLiveTranscriptSink : ILiveTranscriptSink
+internal sealed class LinuxLiveTranscriptSink(ILiveTranscriptSink? preview = null) : ILiveTranscriptSink
 {
+    private readonly ILiveTranscriptSink? _preview = preview;
     public event EventHandler<LiveTranscriptUpdate>? TranscriptReceived;
 
     public void OnTranscript(LiveTranscriptUpdate update)
     {
         if (string.IsNullOrWhiteSpace(update.Text) || update.Text.Length > 512 * 1024) return;
+        var safe = update with { Text = update.Text.Trim() };
+        try { _preview?.OnTranscript(safe); } catch { }
         var handlers = TranscriptReceived;
         if (handlers is null) return;
-        var safe = update with { Text = update.Text.Trim() };
         foreach (EventHandler<LiveTranscriptUpdate> handler in handlers.GetInvocationList())
             try { handler(this, safe); } catch { }
     }
 }
 
+internal sealed class LinuxRoutingLiveTranscriber(
+    ILiveTranscriber cloud,
+    ILiveTranscriber local) : ILiveTranscriber
+{
+    private readonly ILiveTranscriber _cloud = cloud ?? throw new ArgumentNullException(nameof(cloud));
+    private readonly ILiveTranscriber _local = local ?? throw new ArgumentNullException(nameof(local));
+
+    public Task<LiveTranscriptionResult> TranscribeAsync(
+        LiveTranscriptionConfig config,
+        IAsyncEnumerable<ReadOnlyMemory<byte>> audio,
+        CancellationToken cancellationToken = default) =>
+        (config.Provider is LiveTranscriptionProvider.ParakeetLocal or LiveTranscriptionProvider.NemotronLocal
+            ? _local : _cloud).TranscribeAsync(config, audio, cancellationToken);
+}
+
 public static class LinuxLiveStreamingSettingsMapper
 {
-    public static string? ModelForProvider(string? provider, string? configuredModel) =>
-        string.Equals(provider?.Trim(), "deepgram", StringComparison.OrdinalIgnoreCase)
-            && !string.IsNullOrWhiteSpace(configuredModel)
-                ? configuredModel.Trim()
-                : null;
+    public static string? ModelForProvider(string? provider, string? configuredModel)
+    {
+        var normalized = provider?.Trim().Replace("_", "", StringComparison.Ordinal).ToLowerInvariant();
+        var configured = string.IsNullOrWhiteSpace(configuredModel) ? null : configuredModel.Trim();
+        return normalized switch
+        {
+            "deepgram" => configured,
+            "parakeetlocal" => configured is "parakeet-v2" or "parakeet-v3"
+                ? configured : "parakeet-v3",
+            "nemotronlocal" => "nemotron-3.5-ml-560ms",
+            _ => null,
+        };
+    }
 }

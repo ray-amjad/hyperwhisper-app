@@ -114,11 +114,19 @@ public sealed class EphemeralLiveTranscriptPreview : ILiveTranscriptSink
     {
         if (current.Length == 0) return addition;
         if (addition.StartsWith(current, StringComparison.OrdinalIgnoreCase)) return addition;
-        var maximum = Math.Min(current.Length, addition.Length);
+        var currentWords = current.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var additionWords = addition.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var maximum = Math.Min(currentWords.Length, additionWords.Length);
         for (var count = maximum; count > 0; count--)
         {
-            if (string.Equals(current[^count..], addition[..count], StringComparison.OrdinalIgnoreCase))
-                return Normalize(current + addition[count..]);
+            var matches = true;
+            for (var index = 0; index < count; index++)
+            {
+                if (!string.Equals(currentWords[currentWords.Length - count + index], additionWords[index],
+                        StringComparison.OrdinalIgnoreCase))
+                { matches = false; break; }
+            }
+            if (matches) return Normalize(string.Join(' ', currentWords.Concat(additionWords.Skip(count))));
         }
         return $"{current} {addition}";
     }

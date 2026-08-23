@@ -8,7 +8,7 @@ internal static class LinuxOverlayWindowPolicy
     private const long InputHint = 1L;
     private const int PropertyReplace = 0;
 
-    public static void TryApply(Window window)
+    public static void TryApply(Window window, bool clickThrough = false)
     {
         IntPtr display = IntPtr.Zero;
         try
@@ -23,6 +23,9 @@ internal static class LinuxOverlayWindowPolicy
                 ["_NET_WM_STATE_ABOVE", "_NET_WM_STATE_SKIP_TASKBAR", "_NET_WM_STATE_SKIP_PAGER"]);
             var hints = new XWindowManagerHints { Flags = InputHint, Input = 0 };
             _ = XSetWMHints(display, handle.Handle, ref hints);
+            if (clickThrough)
+                _ = XShapeCombineRectangles(display, handle.Handle, ShapeInput, 0, 0,
+                    IntPtr.Zero, 0, ShapeSet, Unsorted);
             _ = XFlush(display);
         }
         catch { /* Window-manager hints are best-effort. */ }
@@ -68,4 +71,10 @@ internal static class LinuxOverlayWindowPolicy
     [DllImport("libX11.so.6")] private static extern int XSetWMHints(IntPtr display, IntPtr window,
         ref XWindowManagerHints hints);
     [DllImport("libX11.so.6")] private static extern int XFlush(IntPtr display);
+    private const int ShapeInput = 2;
+    private const int ShapeSet = 0;
+    private const int Unsorted = 0;
+    [DllImport("libXext.so.6")]
+    private static extern int XShapeCombineRectangles(IntPtr display, IntPtr window, int destinationKind,
+        int xOffset, int yOffset, IntPtr rectangles, int count, int operation, int ordering);
 }

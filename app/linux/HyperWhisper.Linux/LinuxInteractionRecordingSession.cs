@@ -120,7 +120,11 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
             await ReportAsync(DiagnosticComponent.Portal, DiagnosticOutcome.Succeeded);
 
         _streaming = kind == InteractionRecordingKind.Streaming;
-        if (_streaming) BeginLiveDelivery();
+        if (_streaming)
+        {
+            BeginLiveDelivery();
+            _services.LivePreview.Begin();
+        }
         if (_streaming) _overlay.StreamingStarted(LinuxOverlayModeLabel.Create(_mode.Name));
         else _overlay.RecordingStarted(LinuxOverlayModeLabel.Create(_mode.Name));
         var deviceId = _viewModel.Recording?.SelectedAudioDevice?.Id ?? "default";
@@ -155,8 +159,9 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
     private async Task<PlatformResult> StartStreamingAsync(string deviceId, CancellationToken cancellationToken)
     {
         var identity = _services.DeviceIdentity.GetDeviceIdentity();
-        if (string.Equals(_viewModel.Settings.StreamingProvider, "hyperwhisper", StringComparison.Ordinal)
-            && identity.IsFailure)
+        _ = LiveStreamingModeRouter.TryProvider(
+            _viewModel.Settings.StreamingProvider, out _, out _, out var usesLicense);
+        if (usesLicense && identity.IsFailure)
             return PlatformResult.Failure(identity.Error!.Code, identity.Error.Message);
         var resolved = await _liveRouter.ResolveAsync(new LiveStreamingModeSettings(
             _mode!.Id.ToString("D"),
@@ -501,5 +506,6 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         _cursorContext = PortableCursorContext.Unknown;
         _showingCancelConfirmation = false;
         _lastInjectionOutcome = null;
+        _services.LivePreview.Cancel();
     }
 }

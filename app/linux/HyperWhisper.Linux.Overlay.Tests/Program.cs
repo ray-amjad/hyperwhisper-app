@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Globalization;
 using HyperWhisper.Linux.Overlay;
 using HyperWhisper.Linux.Localization;
+using HyperWhisper.LiveStreaming;
 
 var tests = new (string Name, Func<Task> Run)[]
 {
@@ -25,6 +26,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("placement persists in the private config store", PlacementRoundTripsPrivately),
     ("placement store failures are isolated", PlacementStoreFailuresAreIsolated),
     ("overlay interaction policy cannot activate or focus", OverlayDoesNotActivate),
+    ("live preview remains ephemeral bounded and lifecycle-owned", LivePreviewIsEphemeral),
 };
 
 var failed = 0;
@@ -307,6 +309,29 @@ static Task OverlayDoesNotActivate()
     return Task.CompletedTask;
 }
 
+static Task LivePreviewIsEphemeral()
+{
+    var state = new EphemeralLiveTranscriptPreview();
+    state.Begin();
+    Assert(!LinuxLivePreviewVisibilityPolicy.ShouldShow(state.Snapshot),
+        "empty preview opened a window");
+    state.OnTranscript(new("private partial", false));
+    Assert(LinuxLivePreviewVisibilityPolicy.ShouldShow(state.Snapshot)
+        && state.Snapshot.DisplayText == "private partial", "partial preview was not visible in memory");
+    state.Complete();
+    Assert(!LinuxLivePreviewVisibilityPolicy.ShouldShow(state.Snapshot)
+        && state.Snapshot.DisplayText.Length == 0, "completed preview retained content or remained visible");
+    state.Begin();
+    state.OnTranscript(new("second private partial", false));
+    state.Cancel();
+    Assert(!state.Snapshot.IsActive && state.Snapshot.DisplayText.Length == 0,
+        "cancelled preview retained active state");
+    Assert(!LinuxLivePreviewVisibilityPolicy.ShouldShow(new("", "", "", true))
+        && LinuxLivePreviewVisibilityPolicy.ShouldShow(new("", "partial", "partial", true)),
+        "preview visibility policy opened empty or inactive content");
+    return Task.CompletedTask;
+}
+
 static async Task WaitUntil(Func<bool> condition)
 {
     for (var attempt = 0; attempt < 100 && !condition(); attempt++) await Task.Delay(5);
@@ -395,6 +420,7 @@ sealed class ThrowingSurface : FakeSurface
 {
     public override void ShowBestEffort() => throw new InvalidOperationException("expected surface failure");
 }
+
 
 sealed class FakeDelay : ILinuxOverlayDelay
 {

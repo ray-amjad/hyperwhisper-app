@@ -4,11 +4,15 @@ using HyperWhisper.Linux.Platform.Audio;
 using HyperWhisper.Linux.Platform.Injection;
 using HyperWhisper.Linux.Platform.Security;
 using HyperWhisper.Linux.Platform.Desktop;
+using HyperWhisper.Linux.Platform.SystemIntegration;
+using HyperWhisper.Linux.Overlay;
 using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.SharedCore;
 using HyperWhisper.PortableApplication.Transcription;
 using HyperWhisper.LiveStreaming;
 using HyperWhisper.Telemetry;
+using HyperWhisper.PortableApplication.Audio;
+using HyperWhisper.TranscriptionRouting;
 
 namespace HyperWhisper.Linux;
 
@@ -45,10 +49,19 @@ internal sealed class LinuxDesktopServices : IDisposable
         MicrophoneKeepWarm = new LinuxMicrophoneKeepWarmService();
         SoundEffects = new LinuxSoundEffectsService();
         AudioEnvironment = new LinuxAudioEnvironmentService();
-        LiveTranscripts = new LinuxLiveTranscriptSink();
+        LivePreviewState = new EphemeralLiveTranscriptPreview();
+        LivePreview = new LinuxLiveTranscriptPreviewFeedback(LivePreviewState);
+        LiveTranscripts = new LinuxLiveTranscriptSink(LivePreviewState);
+        var cloudLive = new SharedCoreLiveCloudTranscriber(
+            new LiveCloudTranscriptionService(transcripts: LiveTranscripts));
+        var localLive = new ParakeetDaemonLiveTranscriber(
+            new LinuxNativeRuntimeLocator(),
+            new LinuxChildProcessLauncher(),
+            Paths.ModelsDirectory,
+            LiveTranscripts);
         LiveStreaming = new LiveStreamingSessionController(
             new PulseStreamingAudioCapture(),
-            new SharedCoreLiveCloudTranscriber(new LiveCloudTranscriptionService(transcripts: LiveTranscripts)));
+            new LinuxRoutingLiveTranscriber(cloudLive, localLive));
     }
 
     public IAppPaths Paths { get; }
@@ -74,6 +87,8 @@ internal sealed class LinuxDesktopServices : IDisposable
     public IAudioEnvironmentService AudioEnvironment { get; }
     public LiveStreamingSessionController LiveStreaming { get; }
     public LinuxLiveTranscriptSink LiveTranscripts { get; }
+    public EphemeralLiveTranscriptPreview LivePreviewState { get; }
+    public LinuxLiveTranscriptPreviewFeedback LivePreview { get; }
     public LinuxSentryService Telemetry { get; }
     public TranscriptionBackendCapability LocalWhisperCapability => _localWhisper.Capability;
     public TranscriptionBackendCapability LocalParakeetCapability => _localParakeet.Capability;
@@ -104,6 +119,7 @@ internal sealed class LinuxDesktopServices : IDisposable
         MicrophoneKeepWarm.Dispose();
         SoundEffects.Dispose();
         LiveStreaming.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        LivePreview.Dispose();
         if (_ownsTelemetry) Telemetry.Dispose();
     }
 }
