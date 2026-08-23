@@ -841,7 +841,7 @@ public sealed partial class ApplicationBackupService(
             ["hideFromClipboardHistory"] = _settings.Get("textOutput.hideFromClipboardHistory", true),
             ["clipboardRestoreDelaySeconds"] = _settings.Get("textOutput.clipboardRestoreDelaySeconds", 10d),
             ["autocapitalizeInsert"] = _settings.Get("textOutput.autocapitalizeInsert", true),
-            ["storeWordTimestamps"] = _settings.Get("textOutput.storeWordTimestamps", false),
+            ["storeWordTimestamps"] = _settings.Get("textOutput.storeWordTimestamps", true),
         },
         ["storage"] = new JsonObject
         {

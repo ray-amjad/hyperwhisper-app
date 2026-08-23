@@ -1372,6 +1372,7 @@ public sealed class SettingsViewModel : ViewModelBase
     private bool _restoreClipboardAfterPaste = true;
     private bool _hideFromClipboardHistory = true;
     private double _clipboardRestoreDelaySeconds = 10;
+    private bool _storeWordTimestamps = true;
     private bool _streamingEnabled;
     private string _streamingProvider = "deepgram";
     private string _streamingLanguage = "auto";
@@ -1438,6 +1439,7 @@ public sealed class SettingsViewModel : ViewModelBase
     public bool RestoreClipboardAfterPaste { get => _restoreClipboardAfterPaste; set => Set(ref _restoreClipboardAfterPaste, value); }
     public bool HideFromClipboardHistory { get => _hideFromClipboardHistory; set => Set(ref _hideFromClipboardHistory, value); }
     public double ClipboardRestoreDelaySeconds { get => _clipboardRestoreDelaySeconds; set => Set(ref _clipboardRestoreDelaySeconds, Math.Clamp(value, 0, 60)); }
+    public bool StoreWordTimestamps { get => _storeWordTimestamps; set => Set(ref _storeWordTimestamps, value); }
     public bool StreamingEnabled { get => _streamingEnabled; set => Set(ref _streamingEnabled, value); }
     public string StreamingProvider { get => _streamingProvider; set => Set(ref _streamingProvider, NormalizeStreamingProvider(value)); }
     public string StreamingLanguage { get => _streamingLanguage; set => Set(ref _streamingLanguage, string.IsNullOrWhiteSpace(value) ? "auto" : value.Trim()); }
@@ -1541,6 +1543,7 @@ public sealed class SettingsViewModel : ViewModelBase
         RestoreClipboardAfterPaste = _settings.Get("textOutput.restoreClipboardAfterPaste", true);
         HideFromClipboardHistory = _settings.Get("textOutput.hideFromClipboardHistory", true);
         ClipboardRestoreDelaySeconds = _settings.Get("textOutput.clipboardRestoreDelaySeconds", 10d);
+        StoreWordTimestamps = _settings.Get("textOutput.storeWordTimestamps", true);
         StreamingEnabled = _settings.Get("streaming.enabled", false);
         StreamingProvider = _settings.Get("streaming.provider", "deepgram") ?? "deepgram";
         StreamingLanguage = _settings.Get("streaming.language", "auto") ?? "auto";
@@ -1613,6 +1616,7 @@ public sealed class SettingsViewModel : ViewModelBase
         _settings.Set("textOutput.restoreClipboardAfterPaste", RestoreClipboardAfterPaste);
         _settings.Set("textOutput.hideFromClipboardHistory", HideFromClipboardHistory);
         _settings.Set("textOutput.clipboardRestoreDelaySeconds", ClipboardRestoreDelaySeconds);
+        _settings.Set("textOutput.storeWordTimestamps", StoreWordTimestamps);
         _settings.Set("streaming.enabled", StreamingEnabled);
         _settings.Set("streaming.provider", NormalizeStreamingProvider(StreamingProvider));
         _settings.Set("streaming.language", StreamingLanguage);
@@ -2559,7 +2563,8 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
                 Vocabulary: Vocabulary.Items.Select(term => term.Word).ToArray(),
                 VocabularyReplacements: BuildVocabularyReplacements(),
                 OutputOptions: BuildOutputOptions(retryMode),
-                PasteResultText: Settings.PasteResultText), token);
+                PasteResultText: Settings.PasteResultText,
+                StoreWordTimestamps: Settings.StoreWordTimestamps), token);
         }, retryModes: Modes.Items, textInjection: historyTextInjection);
         Models = modelManager is null ? null : new ModelLibraryViewModel(
             modelManager, modelReadiness, streamingSettings: Settings);
@@ -2616,7 +2621,8 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
         ModeVocabularyReplacements: [],
         OutputOptions: BuildOutputOptions(mode),
         PasteResultText: Settings.PasteResultText,
-        CursorContext: cursorContext);
+        CursorContext: cursorContext,
+        StoreWordTimestamps: Settings.StoreWordTimestamps);
 
     public async Task InitializeAsync()
     {

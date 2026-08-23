@@ -4,6 +4,8 @@ using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.SpeechOutput;
 using HyperWhisper.SharedCore;
 using HyperWhisper.Storage;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace HyperWhisper.PortableApplication.Transcription;
 
@@ -36,6 +38,31 @@ public sealed record PortableTranscriptionFailure(
     PortableTranscriptionErrorCode Code,
     string Message);
 
+public sealed record TranscriptionWordTimestamp(
+    [property: JsonPropertyName("word")] string Word,
+    [property: JsonPropertyName("start")] double Start,
+    [property: JsonPropertyName("end")] double End,
+    [property: JsonPropertyName("probability")] double? Probability = null);
+
+public sealed record TranscriptionSegmentTimestamp(
+    [property: JsonPropertyName("id")] int Id,
+    [property: JsonPropertyName("start")] double Start,
+    [property: JsonPropertyName("end")] double End,
+    [property: JsonPropertyName("text")] string Text);
+
+public sealed record TranscriptionTimestamps(
+    [property: JsonPropertyName("segments")] IReadOnlyList<TranscriptionSegmentTimestamp> Segments,
+    [property: JsonPropertyName("words")] IReadOnlyList<TranscriptionWordTimestamp>? Words,
+    [property: JsonPropertyName("raw_text")] string RawText)
+{
+    [JsonPropertyName("basis")]
+    public string Basis => "raw_text";
+
+    public string? ToPersistedJson() => Segments.Count == 0 && (Words?.Count ?? 0) == 0
+        ? null
+        : JsonSerializer.Serialize(this);
+}
+
 public sealed record PortableTranscriptionResult(
     string? Text,
     string? Provider,
@@ -43,7 +70,8 @@ public sealed record PortableTranscriptionResult(
     string? RawText = null,
     string? PostProcessedText = null,
     string? PostProcessingProvider = null,
-    TextInjectionOutcome? InjectionOutcome = null)
+    TextInjectionOutcome? InjectionOutcome = null,
+    TranscriptionTimestamps? Timestamps = null)
 {
     public bool IsSuccess => Failure is null && !string.IsNullOrWhiteSpace(Text);
 
@@ -153,7 +181,8 @@ public sealed record TranscriptionWorkflowRequest(
     IReadOnlyList<PortableVocabularyReplacement>? ModeVocabularyReplacements = null,
     SpeechOutputProcessingOptions? OutputOptions = null,
     bool PasteResultText = true,
-    PortableCursorContext CursorContext = PortableCursorContext.Unknown)
+    PortableCursorContext CursorContext = PortableCursorContext.Unknown,
+    bool StoreWordTimestamps = true)
 {
     /// <summary>Freezes mutable mode and list state for one transcription operation.</summary>
     public TranscriptionWorkflowRequest Snapshot() => this with
@@ -818,6 +847,9 @@ public sealed class TranscriptionWorkflow : IDisposable
             transcript.Text = finalText;
             transcript.TranscribedText = rawText;
             transcript.PostProcessedText = postProcessedText;
+            transcript.WordTimestampsJson = request.StoreWordTimestamps
+                ? result.Timestamps?.ToPersistedJson()
+                : null;
             transcript.Status = TranscriptStatus.Completed;
             transcript.FailedReason = null;
             transcript.TranscriptionProvider = result.Provider ?? _transcriber.Capability.DisplayName;
@@ -860,6 +892,7 @@ public sealed class TranscriptionWorkflow : IDisposable
                 PostProcessedText = postProcessedText,
                 PostProcessingProvider = postProcessingProvider,
                 InjectionOutcome = injectionOutcome,
+                Timestamps = request.StoreWordTimestamps ? result.Timestamps : null,
             };
         }
         catch (OperationCanceledException) when (operation.IsCancellationRequested || callerToken.IsCancellationRequested)
@@ -1089,6 +1122,7 @@ public sealed class TranscriptionWorkflow : IDisposable
         string Text,
         string? TranscribedText,
         string? PostProcessedText,
+        string? WordTimestampsJson,
         string? FailedReason,
         string? TranscriptionProvider,
         string? PostProcessingProvider,
@@ -1099,6 +1133,7 @@ public sealed class TranscriptionWorkflow : IDisposable
             transcript.Text,
             transcript.TranscribedText,
             transcript.PostProcessedText,
+            transcript.WordTimestampsJson,
             transcript.FailedReason,
             transcript.TranscriptionProvider,
             transcript.PostProcessingProvider,
@@ -1110,6 +1145,7 @@ public sealed class TranscriptionWorkflow : IDisposable
             transcript.Text = Text;
             transcript.TranscribedText = TranscribedText;
             transcript.PostProcessedText = PostProcessedText;
+            transcript.WordTimestampsJson = WordTimestampsJson;
             transcript.FailedReason = FailedReason;
             transcript.TranscriptionProvider = TranscriptionProvider;
             transcript.PostProcessingProvider = PostProcessingProvider;

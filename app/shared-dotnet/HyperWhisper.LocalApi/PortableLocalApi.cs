@@ -179,7 +179,18 @@ public static class PortableLocalApi
                 await using var input = file.OpenReadStream();
                 using var output = new MemoryStream((int)file.Length);
                 await input.CopyToAsync(output, ct);
-                var result = await backend.TranscribeAsync(new(name, file.ContentType, output.ToArray(), form["mode_id"], form["engine"], form["model"], form["language"]), ct);
+                var result = await backend.TranscribeAsync(new(
+                    name,
+                    file.ContentType,
+                    output.ToArray(),
+                    form["mode_id"],
+                    form["engine"],
+                    form["model"],
+                    form["language"],
+                    TimestampGranularities: form["timestamp_granularities"]
+                        .Where(value => !string.IsNullOrWhiteSpace(value))
+                        .Select(value => value!)
+                        .ToArray()), ct);
                 return TranscriptionSuccess(result);
             }
             catch (InvalidDataException) { return Failure(413, LocalApiErrorCodes.PayloadTooLarge, "Request exceeds the configured limit."); }
@@ -234,7 +245,7 @@ public static class PortableLocalApi
             var result = await backend.TranscribeAsync(new(
                 fileName, contentType, content, request.ModeId,
                 request.Engine ?? request.Provider, request.Model, request.Language,
-                request.ApplicationContext), ct).ConfigureAwait(false);
+                request.ApplicationContext, request.TimestampGranularities), ct).ConfigureAwait(false);
             return TranscriptionSuccess(result);
         }
 
@@ -257,16 +268,23 @@ public static class PortableLocalApi
             catch (JsonException) { return null; }
         }
 
-        static IResult TranscriptionSuccess(TranscriptionResult result) => Results.Ok(new
+        static IResult TranscriptionSuccess(TranscriptionResult result)
         {
-            ok = true,
-            text = result.Text,
-            engine = result.Engine,
-            model = result.Model,
-            language = result.Language,
-            timings = new { load_ms = result.LoadMs, decode_ms = result.DecodeMs },
-            latency_ms = result.LatencyMs,
-        });
+            var response = new Dictionary<string, object?>
+            {
+                ["ok"] = true,
+                ["text"] = result.Text,
+                ["engine"] = result.Engine,
+                ["model"] = result.Model,
+                ["language"] = result.Language,
+                ["timings"] = new { load_ms = result.LoadMs, decode_ms = result.DecodeMs },
+                ["latency_ms"] = result.LatencyMs,
+            };
+            if (result.RawText is not null) response["raw_text"] = result.RawText;
+            if (result.Segments is not null) response["segments"] = result.Segments;
+            if (result.Words is not null) response["words"] = result.Words;
+            return Results.Ok(response);
+        }
     }
 
     private sealed record TranscribeJsonRequest(
@@ -275,6 +293,7 @@ public static class PortableLocalApi
         [property: JsonPropertyName("mime_type")] string? MimeType,
         [property: JsonPropertyName("mode_id")] string? ModeId,
         string? Engine,
+        [property: JsonPropertyName("timestamp_granularities")] string[]? TimestampGranularities,
         string? Provider,
         string? Model,
         string? Language,

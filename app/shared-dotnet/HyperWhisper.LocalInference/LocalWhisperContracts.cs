@@ -17,7 +17,25 @@ public sealed record LocalWhisperRequest(
     string AudioPath,
     string? Language = null,
     int? ThreadCount = null,
-    bool SingleSegment = true);
+    bool SingleSegment = true,
+    bool IncludeWordTimestamps = false);
+
+public sealed record LocalWhisperWordTimestamp(
+    string Word,
+    double Start,
+    double End,
+    double? Probability = null);
+
+public sealed record LocalWhisperSegmentTimestamp(
+    int Id,
+    double Start,
+    double End,
+    string Text);
+
+public sealed record LocalWhisperTimestamps(
+    IReadOnlyList<LocalWhisperSegmentTimestamp> Segments,
+    IReadOnlyList<LocalWhisperWordTimestamp> Words,
+    string RawText);
 
 public enum LocalWhisperErrorCode
 {
@@ -33,12 +51,16 @@ public sealed record LocalWhisperFailure(LocalWhisperErrorCode Code, string Mess
 public sealed record LocalWhisperResult(
     string? Text,
     LocalWhisperFailure? Failure,
-    string? Runtime)
+    string? Runtime,
+    LocalWhisperTimestamps? Timestamps = null)
 {
     public bool IsSuccess => Text is not null && Failure is null;
 
-    public static LocalWhisperResult Success(string text, string runtime) =>
-        new(text, null, runtime);
+    public static LocalWhisperResult Success(
+        string text,
+        string runtime,
+        LocalWhisperTimestamps? timestamps = null) =>
+        new(text, null, runtime, timestamps);
 
     public static LocalWhisperResult Failed(LocalWhisperErrorCode code, string message, string? runtime = null) =>
         new(null, new LocalWhisperFailure(code, message), runtime);

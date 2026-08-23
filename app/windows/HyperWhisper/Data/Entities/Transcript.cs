@@ -71,6 +71,12 @@ public class Transcript
     /// </summary>
     public string? TrimmedAudioFilePath { get; set; }
 
+    /// <summary>
+    /// Provider-neutral segment/word timestamp JSON aligned to TranscribedText.
+    /// The v1 payload declares basis="raw_text" and is never aligned to post-processed text.
+    /// </summary>
+    public string? WordTimestampsJson { get; set; }
+
     // =========================================================================
     // STATUS
     // =========================================================================

@@ -47,7 +47,7 @@ try
     await using (var context = database.CreateContext())
     {
         var applied = await context.Database.GetAppliedMigrationsAsync();
-        Assert(applied.Count() == 14, $"expected all 14 EF migrations, got {applied.Count()}");
+        Assert(applied.Count() == 15, $"expected all 15 EF migrations, got {applied.Count()}");
         Assert(await context.Database.CanConnectAsync(), "SQLite database is not connectable");
     }
 
@@ -60,8 +60,15 @@ try
         Duration = 1.25,
         Date = new DateTime(2026, 8, 23, 12, 0, 0, DateTimeKind.Utc)
     };
+    transcript.WordTimestampsJson = new TranscriptionTimestamps(
+        [new(0, 0, 0.5, "portable")],
+        [new("portable", 0, 0.5, 0.9)],
+        "portable history").ToPersistedJson();
     await history.AddAsync(transcript);
-    Assert((await history.GetAsync(transcript.Id))?.Text == "portable history", "history create/read failed");
+    var persistedTranscript = await history.GetAsync(transcript.Id);
+    Assert(persistedTranscript?.Text == "portable history"
+        && persistedTranscript.WordTimestampsJson?.Contains("\"basis\":\"raw_text\"", StringComparison.Ordinal) == true,
+        "history create/read did not preserve raw-text word timestamps");
     transcript.Text = "updated history";
     Assert(await history.UpdateAsync(transcript), "history update failed");
     Assert((await history.GetAsync(transcript.Id))?.Text == "updated history", "history update did not persist");
@@ -157,6 +164,7 @@ try
     settings.Set("textOutput.restoreClipboardAfterPaste", false);
     settings.Set("textOutput.hideFromClipboardHistory", false);
     settings.Set("textOutput.clipboardRestoreDelaySeconds", 2.5d);
+    settings.Set("textOutput.storeWordTimestamps", false);
     settings.Set("general.showRecordingWindow", false);
     settings.Set("soundEffectsVolume", 0.375d);
     settings.Set("themeMode", "dark");
@@ -174,6 +182,7 @@ try
         && !outputSettings.ShowRecordingWindow && outputSettings.ThemeMode == "dark"
         && outputSettings.LaunchMinimized && !outputSettings.MinimizeToTray
         && outputSettings.SoundEffectsVolume == 0.375d
+        && !outputSettings.StoreWordTimestamps
         && outputSettings.ClipboardRestoreDelaySeconds == 2.5d,
         "text-output settings did not load from their canonical shared keys");
     outputSettings.CancelShortcutModifiers = outputSettings.ToggleShortcutModifiers;
@@ -205,13 +214,20 @@ try
     outputSettings.AutocapitalizeInsert = true;
     outputSettings.RestoreClipboardAfterPaste = true;
     outputSettings.ClipboardRestoreDelaySeconds = 4.5d;
+    outputSettings.StoreWordTimestamps = true;
     outputSettings.Save();
     Assert(reloadedSettings.Get("textOutput.pasteResultText", false)
         && !reloadedSettings.Get("textOutput.removeFillerWords", true)
         && reloadedSettings.Get("textOutput.autocapitalizeInsert", false)
         && reloadedSettings.Get("textOutput.restoreClipboardAfterPaste", false)
+        && reloadedSettings.Get("textOutput.storeWordTimestamps", false)
         && reloadedSettings.Get("textOutput.clipboardRestoreDelaySeconds", 0d) == 4.5d,
         "text-output settings did not save to their canonical shared keys");
+    var restartedOutputSettings = new SettingsViewModel(
+        new PortableSettingsService(files, Path.Combine(root, "settings.json")));
+    restartedOutputSettings.Load();
+    Assert(restartedOutputSettings.StoreWordTimestamps,
+        "word-timestamp preference did not survive a settings-service restart");
 
     var alternateMode = new Mode { Name = "Remembered mode", SortOrder = -1 };
     await modes.UpsertAsync(alternateMode);
@@ -242,6 +258,7 @@ try
         && !exportedSettings["removeFillerWords"]!.GetValue<bool>()
         && exportedSettings["autocapitalizeInsert"]!.GetValue<bool>()
         && exportedSettings["restoreClipboardAfterPaste"]!.GetValue<bool>()
+        && exportedSettings["storeWordTimestamps"]!.GetValue<bool>()
         && exportedSettings["clipboardRestoreDelaySeconds"]!.GetValue<double>() == 4.5d,
         "universal backup omitted canonical text-output settings");
     var exportedLinuxSettings = JsonNode.Parse(exported)!["platformExtensions"]!["linux"]!["settings"]!;
@@ -291,6 +308,7 @@ try
         && !reloadedSettings.Get<bool>("textOutput.removeFillerWords")
         && reloadedSettings.Get<bool>("textOutput.autocapitalizeInsert")
         && reloadedSettings.Get<bool>("textOutput.restoreClipboardAfterPaste")
+        && reloadedSettings.Get<bool>("textOutput.storeWordTimestamps")
         && reloadedSettings.Get<double>("textOutput.clipboardRestoreDelaySeconds") == 4.5d,
         "backup did not restore Linux interaction and audio settings");
     var reexported = JsonNode.Parse(await backupService.ExportAsync())!.AsObject()["platformExtensions"]!.AsObject();
@@ -921,7 +939,14 @@ static async Task RunTranscriptionWorkflowTestsAsync(string root)
     using (var workflow = new TranscriptionWorkflow(
         recorder,
         devices,
-        new FakeTranscriber((_, _, _) => Task.FromResult(PortableTranscriptionResult.Success("portable words", "Test Whisper"))),
+        new FakeTranscriber((_, _, _) => Task.FromResult(
+            PortableTranscriptionResult.Success("portable words", "Test Whisper") with
+            {
+                Timestamps = new(
+                    [new(0, 0, 0.8, "portable words")],
+                    [new("portable", 0, 0.4, 0.95), new("words", 0.4, 0.8, 0.9)],
+                    "portable words"),
+            })),
         successStore.History))
     {
         var observedStates = new List<TranscriptionWorkflowState>();
@@ -934,12 +959,16 @@ static async Task RunTranscriptionWorkflowTestsAsync(string root)
         var result = await workflow.StopAndTranscribeAsync(new TranscriptionWorkflowRequest("en", "Test", Guid.NewGuid()));
         Assert(result.IsSuccess, "successful recording transcription failed");
         var saved = await successStore.History.ListAsync();
-        Assert(saved.Count == 1 && saved[0].Text == "portable words" && saved[0].Status == TranscriptStatus.Completed,
+        Assert(saved.Count == 1 && saved[0].Text == "portable words" && saved[0].Status == TranscriptStatus.Completed
+            && saved[0].WordTimestampsJson?.Contains("\"raw_text\":\"portable words\"", StringComparison.Ordinal) == true,
             "successful transcription was not persisted exactly once");
         Assert(observedStates.Contains(TranscriptionWorkflowState.Completed), "completion transition was not notified");
-        var fileResult = await workflow.TranscribeFileAsync(successAudio, new TranscriptionWorkflowRequest("en", "File test"));
-        Assert(fileResult.IsSuccess && (await successStore.History.ListAsync()).Count == 2,
-            "successful file transcription was not persisted");
+        var fileResult = await workflow.TranscribeFileAsync(successAudio,
+            new TranscriptionWorkflowRequest("en", "File test", StoreWordTimestamps: false));
+        var afterOptOut = await successStore.History.ListAsync();
+        Assert(fileResult.IsSuccess && fileResult.Timestamps is null && afterOptOut.Count == 2
+            && afterOptOut.Single(item => item.Mode == "File test").WordTimestampsJson is null,
+            "word-timestamp opt-out did not omit result and persisted timing data");
     }
 
     var outputStore = await CreateStoreAsync(root, "workflow-speech-output");

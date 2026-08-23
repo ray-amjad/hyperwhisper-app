@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using HyperWhisper.Platform.Abstractions;
+using HyperWhisper.PortableApplication.Transcription;
 
 namespace HyperWhisper.LocalApi;
 
@@ -88,8 +89,19 @@ public sealed record AudioUpload(
     string? Engine,
     string? Model,
     string? Language,
-    LocalApiApplicationContext? ApplicationContext = null);
-public sealed record TranscriptionResult(string Text, string Engine, string Model, string? Language, int LoadMs, int DecodeMs, int LatencyMs);
+    LocalApiApplicationContext? ApplicationContext = null,
+    IReadOnlyList<string>? TimestampGranularities = null);
+public sealed record TranscriptionResult(
+    string Text,
+    string Engine,
+    string Model,
+    string? Language,
+    int LoadMs,
+    int DecodeMs,
+    int LatencyMs,
+    string? RawText = null,
+    IReadOnlyList<TranscriptionSegmentTimestamp>? Segments = null,
+    IReadOnlyList<TranscriptionWordTimestamp>? Words = null);
 public sealed record PostProcessRequest(
     string Text,
     [property: JsonPropertyName("mode_id")] string? ModeId,

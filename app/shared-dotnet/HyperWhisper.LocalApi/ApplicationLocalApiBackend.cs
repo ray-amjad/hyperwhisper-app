@@ -209,7 +209,8 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
         {
             var request = await BuildRequestAsync(
                 upload.ModeId, upload.Language, cancellationToken,
-                upload.Engine, upload.Model, upload.ApplicationContext?.ToSnapshot()).ConfigureAwait(false);
+                upload.Engine, upload.Model, upload.ApplicationContext?.ToSnapshot(),
+                RequestsTimestamps(upload.TimestampGranularities)).ConfigureAwait(false);
             var mode = request.SelectedMode;
             // Match the Windows Local API contract: /transcribe returns the
             // transcription result and never runs a mode's post-processing.
@@ -225,7 +226,10 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
                 ModelLabel(mode),
                 string.Equals(request.Language, "auto", StringComparison.OrdinalIgnoreCase) ? null : request.Language,
                 0, 0,
-                (int)Stopwatch.GetElapsedTime(started).TotalMilliseconds);
+                (int)Stopwatch.GetElapsedTime(started).TotalMilliseconds,
+                result.Timestamps?.RawText,
+                result.Timestamps?.Segments,
+                result.Timestamps?.Words);
         }
         catch
         {
@@ -280,7 +284,8 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
         CancellationToken cancellationToken,
         string? engineOverride = null,
         string? modelOverride = null,
-        ApplicationContextSnapshot? applicationContext = null)
+        ApplicationContextSnapshot? applicationContext = null,
+        bool storeWordTimestamps = false)
     {
         var modes = await _modes.ListAsync(cancellationToken).ConfigureAwait(false);
         Mode? mode;
@@ -318,8 +323,21 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
                 .Where(item => item.Length != 0)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToArray();
-        return new(languageOverride ?? mode?.Language, mode?.Name, mode?.Id, mode, vocabulary, applicationContext);
+        return new(
+            languageOverride ?? mode?.Language,
+            mode?.Name,
+            mode?.Id,
+            mode,
+            vocabulary,
+            applicationContext,
+            StoreWordTimestamps: storeWordTimestamps);
     }
+
+    private static bool RequestsTimestamps(IReadOnlyList<string>? granularities) =>
+        granularities?.Any(value => value.Equals("word", StringComparison.OrdinalIgnoreCase)
+            || value.Equals("words", StringComparison.OrdinalIgnoreCase)
+            || value.Equals("segment", StringComparison.OrdinalIgnoreCase)
+            || value.Equals("segments", StringComparison.OrdinalIgnoreCase)) == true;
 
     private static void ApplyTranscriptionOverrides(Mode mode, string? engine, string? model)
     {

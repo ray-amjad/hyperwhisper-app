@@ -112,6 +112,8 @@ public sealed class LocalWhisperService : ILocalWhisperService
             }
 
             var text = new StringBuilder();
+            var segments = new List<LocalWhisperSegmentTimestamp>();
+            var words = new List<LocalWhisperWordTimestamp>();
             try
             {
                 var builder = _factory.CreateBuilder();
@@ -121,7 +123,28 @@ public sealed class LocalWhisperService : ILocalWhisperService
                 builder.WithNoSpeechThreshold(0.6f);
                 builder.WithEntropyThreshold(2.4f);
                 builder.WithNoContext();
-                builder.WithSegmentEventHandler(segment => text.Append(segment.Text));
+                if (request.IncludeWordTimestamps) builder.WithTokenTimestamps();
+                builder.WithSegmentEventHandler(segment =>
+                {
+                    text.Append(segment.Text);
+                    if (!request.IncludeWordTimestamps) return;
+                    segments.Add(new(
+                        segments.Count,
+                        segment.Start.TotalSeconds,
+                        segment.End.TotalSeconds,
+                        segment.Text));
+                    foreach (var token in segment.Tokens)
+                    {
+                        var word = token.Text?.Trim() ?? string.Empty;
+                        if (word.Length == 0 || word.StartsWith("<|", StringComparison.Ordinal)
+                            || token.Start < 0 || token.End < token.Start) continue;
+                        words.Add(new(
+                            word,
+                            token.Start / 100d,
+                            token.End / 100d,
+                            float.IsFinite(token.Probability) ? token.Probability : null));
+                    }
+                });
                 if (request.SingleSegment)
                 {
                     builder.WithTemperatureInc(0).WithSingleSegment();
@@ -153,7 +176,11 @@ public sealed class LocalWhisperService : ILocalWhisperService
                     .ConfigureAwait(false))
                 {
                 }
-                return LocalWhisperResult.Success(text.ToString().Trim(), _runtime);
+                var rawText = text.ToString().Trim();
+                var timestamps = request.IncludeWordTimestamps && (segments.Count > 0 || words.Count > 0)
+                    ? new LocalWhisperTimestamps(segments, words, rawText)
+                    : null;
+                return LocalWhisperResult.Success(rawText, _runtime, timestamps);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {

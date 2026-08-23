@@ -52,7 +52,7 @@ internal sealed class LinuxLocalWhisperTranscriber : IRecordedAudioTranscriber, 
         string audioPath,
         string? language,
         CancellationToken cancellationToken = default)
-        => await TranscribeSelectedAsync(audioPath, language, null, cancellationToken).ConfigureAwait(false);
+        => await TranscribeSelectedAsync(audioPath, language, null, false, cancellationToken).ConfigureAwait(false);
 
     public Task<PortableTranscriptionResult> TranscribeAsync(
         string audioPath,
@@ -62,12 +62,14 @@ internal sealed class LinuxLocalWhisperTranscriber : IRecordedAudioTranscriber, 
             audioPath,
             request.Language,
             request.SelectedMode?.ModelType ?? request.SelectedMode?.Model,
+            request.StoreWordTimestamps,
             cancellationToken);
 
     private async Task<PortableTranscriptionResult> TranscribeSelectedAsync(
         string audioPath,
         string? language,
         string? modelId,
+        bool requestWordTimestamps,
         CancellationToken cancellationToken)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -107,10 +109,16 @@ internal sealed class LinuxLocalWhisperTranscriber : IRecordedAudioTranscriber, 
             }
 
             var result = await _service.TranscribeAsync(
-                new LocalWhisperRequest(audioPath, NormalizeLanguage(language)),
+                new LocalWhisperRequest(
+                    audioPath,
+                    NormalizeLanguage(language),
+                    IncludeWordTimestamps: requestWordTimestamps),
                 cancellationToken).ConfigureAwait(false);
             return result.IsSuccess
-                ? PortableTranscriptionResult.Success(result.Text!, DisplayNameForRuntime(result.Runtime, preference))
+                ? PortableTranscriptionResult.Success(result.Text!, DisplayNameForRuntime(result.Runtime, preference)) with
+                {
+                    Timestamps = MapTimestamps(result.Timestamps),
+                }
                 : MapFailure(result, preference.DisplayName);
         }
         catch (OperationCanceledException)
@@ -125,6 +133,15 @@ internal sealed class LinuxLocalWhisperTranscriber : IRecordedAudioTranscriber, 
             _loadGate.Release();
         }
     }
+
+    private static TranscriptionTimestamps? MapTimestamps(LocalWhisperTimestamps? timestamps) => timestamps is null
+        ? null
+        : new(
+            timestamps.Segments.Select(item => new TranscriptionSegmentTimestamp(
+                item.Id, item.Start, item.End, item.Text)).ToArray(),
+            timestamps.Words.Select(item => new TranscriptionWordTimestamp(
+                item.Word, item.Start, item.End, item.Probability)).ToArray(),
+            timestamps.RawText);
 
     public void Dispose()
     {

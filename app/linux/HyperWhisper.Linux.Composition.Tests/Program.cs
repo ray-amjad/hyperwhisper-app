@@ -41,6 +41,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("live models are provider-specific", LiveModelsAreProviderSpecific),
     ("local and cloud live sessions select isolated engines", LiveEngineRoutingIsIsolated),
     ("production Whisper backend selection reaches inference", WhisperBackendSelectionReachesInference),
+    ("local Whisper timestamps route through portable result", LocalWhisperTimestampsRoute),
     ("production Whisper CPU fallback policy is enforced", WhisperCpuFallbackPolicyIsEnforced),
     ("production Whisper settings select detected and explicit backends", WhisperSettingsSelectBackends),
     ("Local API post-processing matches Windows transient modes", LocalApiPostProcessingTransientModes),
@@ -793,6 +794,20 @@ static async Task WhisperBackendSelectionReachesInference()
     }
 }
 
+static async Task LocalWhisperTimestampsRoute()
+{
+    using var fixture = new WhisperTranscriberFixture(LocalWhisperBackend.Cpu, allowFallback: true, RuntimeFor(LocalWhisperBackend.Cpu));
+    var result = await fixture.Transcriber.TranscribeAsync(
+        fixture.AudioPath,
+        new TranscriptionWorkflowRequest(Language: "en", StoreWordTimestamps: true));
+    Assert(result.IsSuccess && fixture.Service.LastRequest?.IncludeWordTimestamps == true,
+        "portable timestamp preference did not reach local Whisper");
+    Assert(result.Timestamps is { Segments.Count: 1, Words.Count: 2 }
+        && result.Timestamps.RawText == "Ray GPU route"
+        && result.Timestamps.Words![0].Word == "Ray",
+        "local Whisper timestamps were not mapped into the provider-neutral result");
+}
+
 static async Task WhisperCpuFallbackPolicyIsEnforced()
 {
     using (var allowed = new WhisperTranscriberFixture(
@@ -959,6 +974,7 @@ sealed class FakeLocalWhisperService(string runtime) : ILocalWhisperService
 {
     public LocalWhisperLoadOptions? LoadOptions { get; private set; }
     public int TranscribeCalls { get; private set; }
+    public LocalWhisperRequest? LastRequest { get; private set; }
     public bool IsLoaded => LoadOptions is not null;
     public string? Runtime => runtime;
     public Task<LocalWhisperResult> LoadAsync(LocalWhisperLoadOptions options, CancellationToken cancellationToken = default)
@@ -969,7 +985,14 @@ sealed class FakeLocalWhisperService(string runtime) : ILocalWhisperService
     public Task<LocalWhisperResult> TranscribeAsync(LocalWhisperRequest request, CancellationToken cancellationToken = default)
     {
         TranscribeCalls++;
-        return Task.FromResult(LocalWhisperResult.Success("Ray GPU route", runtime));
+        LastRequest = request;
+        var timestamps = request.IncludeWordTimestamps
+            ? new LocalWhisperTimestamps(
+                [new(0, 0, 0.8, "Ray GPU route")],
+                [new("Ray", 0, 0.3, 0.95), new("GPU", 0.3, 0.8, 0.9)],
+                "Ray GPU route")
+            : null;
+        return Task.FromResult(LocalWhisperResult.Success("Ray GPU route", runtime, timestamps));
     }
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 }

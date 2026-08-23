@@ -166,6 +166,20 @@ static async Task JsonTranscriptionContract()
     var context = fixture.Backend.Upload?.ApplicationContext?.ToSnapshot();
     Assert(context?.ProcessName == "code" && context.ScreenOcrText == "visible words", "applicationContext was not propagated");
 
+    using var timestampRequest = new StringContent(
+        """{"audio_base64":"AQIDBA==","engine":"whisperLocal","model":"base","timestamp_granularities":["segment","word"]}""",
+        Encoding.UTF8,
+        "application/json");
+    using var timestampResponse = await fixture.Client.PostAsync("/transcribe", timestampRequest);
+    using var timestampJson = JsonDocument.Parse(await timestampResponse.Content.ReadAsStreamAsync());
+    Assert(timestampResponse.StatusCode == HttpStatusCode.OK
+        && fixture.Backend.Upload?.TimestampGranularities?.SequenceEqual(["segment", "word"]) == true,
+        "timestamp granularities were not propagated to the backend");
+    Assert(timestampJson.RootElement.GetProperty("raw_text").GetString() == "hello"
+        && timestampJson.RootElement.GetProperty("segments")[0].GetProperty("text").GetString() == "hello"
+        && timestampJson.RootElement.GetProperty("words")[0].GetProperty("word").GetString() == "hello",
+        "timestamp response omitted the mac-compatible raw/segment/word shape");
+
     using var both = new StringContent("""{"file":"/tmp/a.wav","audio_base64":"AQ==","engine":"whisper","model":"base"}""", Encoding.UTF8, "application/json");
     Assert((await fixture.Client.PostAsync("/transcribe", both)).StatusCode == HttpStatusCode.BadRequest, "file plus base64 was accepted");
     using var missingEngine = new StringContent("""{"audio_base64":"AQ=="}""", Encoding.UTF8, "application/json");
@@ -667,7 +681,10 @@ sealed class FakeBackend : ILocalApiBackend
         {
             try { await Task.Delay(Timeout.InfiniteTimeSpan, ct); } catch (OperationCanceledException) { CancellationObserved.TrySetResult(); throw; }
         }
-        return new("hello", "fake", "fake", "en", 1, 1, 2);
+        return upload.TimestampGranularities is { Count: > 0 }
+            ? new("hello", "fake", "fake", "en", 1, 1, 2, "hello",
+                [new(0, 0, 0.5, "hello")], [new("hello", 0, 0.5, 0.9)])
+            : new("hello", "fake", "fake", "en", 1, 1, 2);
     }
     public ValueTask<PostProcessResult> PostProcessAsync(PostProcessRequest request, CancellationToken ct)
     { PostProcess = request; return ValueTask.FromResult(new PostProcessResult(request.Text, "fake", "fake", "hyper", 1)); }
