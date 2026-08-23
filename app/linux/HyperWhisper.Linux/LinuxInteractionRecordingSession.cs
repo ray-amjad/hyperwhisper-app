@@ -6,6 +6,7 @@ using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.PortableApplication.Transcription;
 using HyperWhisper.PortableApplication.ViewModels;
 using HyperWhisper.SharedCore;
+using HyperWhisper.Linux.Overlay;
 
 namespace HyperWhisper.Linux;
 
@@ -18,6 +19,7 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
     private readonly LiveStreamingModeRouter _liveRouter;
     private readonly ITranscriptionPostProcessor _postProcessor;
     private readonly HistoryRepository _history;
+    private readonly ILinuxRecordingOverlayFeedback _overlay;
     private ApplicationContextSnapshot? _context;
     private Mode? _mode;
     private Transcript? _liveTranscript;
@@ -31,7 +33,8 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         LinuxDesktopServices services,
         LinuxContextCaptureCoordinator contextCapture,
         ITranscriptionPostProcessor postProcessor,
-        HistoryRepository history)
+        HistoryRepository history,
+        ILinuxRecordingOverlayFeedback overlay)
     {
         _viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
         _workflow = workflow ?? throw new ArgumentNullException(nameof(workflow));
@@ -39,6 +42,7 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         _contextCapture = contextCapture ?? throw new ArgumentNullException(nameof(contextCapture));
         _postProcessor = postProcessor ?? throw new ArgumentNullException(nameof(postProcessor));
         _history = history ?? throw new ArgumentNullException(nameof(history));
+        _overlay = overlay ?? throw new ArgumentNullException(nameof(overlay));
         _liveRouter = new LiveStreamingModeRouter(new LinuxLiveStreamingCredentialSource(services.CredentialStore));
     }
 
@@ -49,10 +53,21 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
 
     public async ValueTask<PlatformResult> StartAsync(CancellationToken cancellationToken = default)
     {
+        try { return await StartCoreAsync(cancellationToken); }
+        catch (OperationCanceledException) { _overlay.Cancelled(); throw; }
+        catch { _overlay.Failed(LinuxRecordingOverlayError.RecordingFailed); throw; }
+    }
+
+    private async ValueTask<PlatformResult> StartCoreAsync(CancellationToken cancellationToken)
+    {
         if (IsActive) return PlatformResult.Failure("interaction.already_recording", "A transcription is already active.");
         _mode = _viewModel.Modes.Selected ?? _viewModel.Modes.Items.FirstOrDefault(item => item.IsDefault)
             ?? _viewModel.Modes.Items.FirstOrDefault();
-        if (_mode is null) return PlatformResult.Failure("interaction.mode_missing", "Create a transcription mode before recording.");
+        if (_mode is null)
+        {
+            _overlay.Failed(LinuxRecordingOverlayError.RecordingFailed);
+            return PlatformResult.Failure("interaction.mode_missing", "Create a transcription mode before recording.");
+        }
 
         _cursorContext = MapCursorContext(
             await _services.InsertionContext.GetCursorContextAsync(cancellationToken));
@@ -62,6 +77,7 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         if (captured.OcrFailure is not null)
             _viewModel.Status.Failure(captured.OcrFailure.Code, captured.OcrFailure.Message);
 
+        _overlay.RecordingStarted(LinuxOverlayModeLabel.Create(_mode.Name));
         var deviceId = _viewModel.Recording?.SelectedAudioDevice?.Id ?? "default";
         PrepareAudio(deviceId);
         _streaming = _viewModel.Settings.StreamingEnabled;
@@ -82,6 +98,7 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
             _streaming = false;
             _context = null;
             _mode = null;
+            _overlay.Failed(LinuxRecordingOverlayErrorMapper.FromCode(started.Error?.Code, transcription: false));
             return started;
         }
         if (_viewModel.Settings.EnableSoundEffects) _ = _services.SoundEffects.Play(SoundEffect.RecordingStarted);
@@ -134,16 +151,27 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
     public async ValueTask<InteractionStopOutcome> StopAsync(CancellationToken cancellationToken = default)
     {
         if (!IsActive) return new(PlatformResult.Failure("interaction.not_recording", "No transcription is active."), false);
+        _overlay.Transcribing();
         try
         {
             if (_viewModel.Settings.EnableSoundEffects) _ = _services.SoundEffects.Play(SoundEffect.RecordingStopped);
-            if (_streaming) return await StopStreamingAsync(cancellationToken);
-            var result = await _workflow.StopAndTranscribeAsync(BuildRequest(), cancellationToken);
-            var status = result.IsSuccess ? PlatformResult.Success()
-                : PlatformResult.Failure("workflow.transcription_failed", result.Failure?.Message ?? "Transcription failed.");
-            return InteractionStopOutcome.FromInjection(
-                status, result.InjectionOutcome, _viewModel.Settings.RestoreClipboardAfterPaste);
+            InteractionStopOutcome outcome;
+            if (_streaming) outcome = await StopStreamingAsync(cancellationToken);
+            else
+            {
+                var result = await _workflow.StopAndTranscribeAsync(BuildRequest(), cancellationToken);
+                var status = result.IsSuccess ? PlatformResult.Success()
+                    : PlatformResult.Failure("workflow.transcription_failed", result.Failure?.Message ?? "Transcription failed.");
+                outcome = InteractionStopOutcome.FromInjection(
+                    status, result.InjectionOutcome, _viewModel.Settings.RestoreClipboardAfterPaste);
+            }
+            if (outcome.Result.IsSuccess) _overlay.Completed();
+            else _overlay.Failed(LinuxRecordingOverlayErrorMapper.FromCode(
+                outcome.Result.Error?.Code, transcription: true));
+            return outcome;
         }
+        catch (OperationCanceledException) { _overlay.Cancelled(); throw; }
+        catch { _overlay.Failed(LinuxRecordingOverlayError.TranscriptionFailed); throw; }
         finally
         {
             await RestoreAudioAsync();
@@ -191,6 +219,7 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
 
     public async ValueTask CancelAsync(CancellationToken cancellationToken = default)
     {
+        _overlay.Cancelled();
         try
         {
             if (_streaming)

@@ -12,6 +12,7 @@ using HyperWhisper.ModelManagement;
 using HyperWhisper.Linux.Platform.Desktop;
 using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.CloudPostProcessing;
+using HyperWhisper.Linux.Overlay;
 
 namespace HyperWhisper.Linux;
 
@@ -28,6 +29,7 @@ public partial class MainWindow : Window
     private readonly TranscriptionWorkflow _workflow;
     private readonly LinuxInteractionRecordingSession _recordingSession;
     private readonly LinuxInteractionCoordinator _interaction;
+    private readonly LazyLinuxRecordingOverlayFeedback _overlay;
     private PortableLocalApiHost? _localApiHost;
     private Task? _initialization;
     private readonly SemaphoreSlim _localApiSettingsGate = new(1, 1);
@@ -69,8 +71,9 @@ public partial class MainWindow : Window
         var history = new HistoryRepository(_database, _platformServices.Paths);
         var contextCapture = new LinuxContextCaptureCoordinator(
             _platformServices.ApplicationContext, _platformServices.ScreenOcr);
+        _overlay = new LazyLinuxRecordingOverlayFeedback(new AvaloniaLinuxOverlayDispatcher());
         _recordingSession = new LinuxInteractionRecordingSession(
-            _viewModel, _workflow, _platformServices, contextCapture, _postProcessingRouter, history);
+            _viewModel, _workflow, _platformServices, contextCapture, _postProcessingRouter, history, _overlay);
         _interaction = new LinuxInteractionCoordinator(
             _platformServices.GlobalShortcuts, _platformServices.PushToTalk,
             _platformServices.TextInjection, _recordingSession, new AvaloniaUiDispatcher());
@@ -84,6 +87,7 @@ public partial class MainWindow : Window
         _viewModel.Settings.DesktopSettingsChanged += OnDesktopSettingsChanged;
         _viewModel.Settings.TelemetrySettingsChanged += OnTelemetrySettingsChanged;
         _interaction.OperationFailed += OnInteractionFailed;
+        _interaction.ChangeModeRequested += OnChangeModeRequested;
         _platformServices.Tray.ShowRequested += OnTrayShowRequested;
         _platformServices.Tray.HideRequested += OnTrayHideRequested;
         _platformServices.Tray.QuitRequested += OnTrayQuitRequested;
@@ -137,10 +141,12 @@ public partial class MainWindow : Window
         _viewModel.Settings.DesktopSettingsChanged -= OnDesktopSettingsChanged;
         _viewModel.Settings.TelemetrySettingsChanged -= OnTelemetrySettingsChanged;
         _interaction.OperationFailed -= OnInteractionFailed;
+        _interaction.ChangeModeRequested -= OnChangeModeRequested;
         _platformServices.Tray.ShowRequested -= OnTrayShowRequested;
         _platformServices.Tray.HideRequested -= OnTrayHideRequested;
         _platformServices.Tray.QuitRequested -= OnTrayQuitRequested;
         _interaction.Dispose();
+        _overlay.Dispose();
         _viewModel.Dispose();
         _postProcessor.Dispose();
         _postProcessingRouter.Dispose();
@@ -195,7 +201,8 @@ public partial class MainWindow : Window
         var result = _interaction.ConfigureAndStart(new LinuxInteractionConfiguration(
             toggle,
             new PushToTalkConfiguration(pttMode, modifier, custom, settings.PushToTalkDoublePressLock),
-            TimeSpan.FromSeconds(settings.ClipboardRestoreDelaySeconds)));
+            TimeSpan.FromSeconds(settings.ClipboardRestoreDelaySeconds),
+            ChangeModeShortcut: LinuxInteractionConfiguration.Default.ChangeModeShortcut));
         if (result.IsFailure) PlatformStatusText.Text = $"Linux integration warning · {result.Error!.Message}";
         else PlatformStatusText.Text = $"Linux platform connected · {_platformServices.Paths.DataDirectory}";
 
@@ -206,8 +213,26 @@ public partial class MainWindow : Window
             settings.KeepMicrophoneWarm, _viewModel.Recording?.SelectedAudioDevice?.Id);
     }
 
-    private void OnInteractionFailed(object? sender, PlatformError error) =>
-        _viewModel.Status.Failure(error.Code, error.Message);
+    private void OnInteractionFailed(object? sender, PlatformError error)
+        => _viewModel.Status.Failure(error.Code, error.Message);
+
+    private void OnChangeModeRequested(object? sender, EventArgs args)
+    {
+        if (Dispatcher.UIThread.CheckAccess()) CycleMode();
+        else Dispatcher.UIThread.Post(CycleMode);
+    }
+
+    private void CycleMode()
+    {
+        try
+        {
+            var next = LinuxModeCycler.Next(_viewModel.Modes.Items, _viewModel.Modes.Selected);
+            if (next is null) return;
+            _viewModel.Modes.Selected = next;
+            _overlay.ModeChanged(LinuxOverlayModeLabel.Create(next.Name));
+        }
+        catch { /* Mode feedback and cycling must not interrupt recording. */ }
+    }
 
     private void OnTrayShowRequested(object? sender, EventArgs e) => Dispatcher.UIThread.Post(() =>
     {
@@ -392,6 +417,15 @@ public partial class MainWindow : Window
             if (_viewModel.History.Items.Count == 0
                 || _viewModel.Vocabulary.Items.Count == 0
                 || _viewModel.Modes.Items.Count == 0) return 6;
+            _overlay.RecordingStarted(LinuxOverlayModeLabel.Create("Smoke Mode"));
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+            if (_overlay.Snapshot is not { State: LinuxRecordingOverlayState.Recording, IsVisible: true }) return 13;
+            _overlay.Transcribing();
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+            if (_overlay.Snapshot is not { State: LinuxRecordingOverlayState.Transcribing, IsVisible: true }) return 14;
+            _overlay.Completed();
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+            if (_overlay.Snapshot is not { State: LinuxRecordingOverlayState.Hidden, IsVisible: false }) return 15;
             _viewModel.Settings.Language = "en";
             _viewModel.Settings.Save();
             if (_viewModel.Settings.Status.HasError) return 7;

@@ -38,6 +38,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("production Whisper CPU fallback policy is enforced", WhisperCpuFallbackPolicyIsEnforced),
     ("production Whisper settings select detected and explicit backends", WhisperSettingsSelectBackends),
     ("Local API post-processing matches Windows transient modes", LocalApiPostProcessingTransientModes),
+    ("mode cycling is deterministic and wraps", ModeCyclingIsDeterministic),
 };
 
 foreach (var test in tests)
@@ -46,6 +47,26 @@ foreach (var test in tests)
     Console.WriteLine($"PASS {test.Name}");
 }
 Console.WriteLine($"{tests.Length}/{tests.Length} Linux composition tests passed");
+
+static Task ModeCyclingIsDeterministic()
+{
+    var alpha = new Mode { Id = Guid.Parse("00000000-0000-0000-0000-000000000003"), Name = "Alpha", SortOrder = 1 };
+    var beta = new Mode { Id = Guid.Parse("00000000-0000-0000-0000-000000000002"), Name = "beta", SortOrder = 1 };
+    var first = new Mode { Id = Guid.Parse("00000000-0000-0000-0000-000000000001"), Name = "Last by name", SortOrder = 0 };
+    var modes = new[] { beta, first, alpha };
+    var activeRecordingModeSnapshot = first;
+
+    Assert(ReferenceEquals(LinuxModeCycler.Next(modes, null), first), "no selection did not choose the first ordered mode");
+    Assert(ReferenceEquals(LinuxModeCycler.Next(modes, first), alpha), "sort/name ordering changed");
+    Assert(ReferenceEquals(LinuxModeCycler.Next(modes, alpha), beta), "case-insensitive name ordering changed");
+    Assert(ReferenceEquals(LinuxModeCycler.Next(modes, beta), first), "mode cycle did not wrap");
+    Assert(ReferenceEquals(activeRecordingModeSnapshot, first),
+        "cycling a future mode changed the active recording snapshot");
+    Assert(ReferenceEquals(LinuxModeCycler.Next(modes, new Mode { Id = Guid.NewGuid() }), first),
+        "unknown selection did not recover at the first mode");
+    Assert(LinuxModeCycler.Next(Array.Empty<Mode>(), null) is null, "empty mode list produced a selection");
+    return Task.CompletedTask;
+}
 
 static async Task ToggleOwnsSafeInjectionLifecycle()
 {
