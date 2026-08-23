@@ -460,7 +460,7 @@ export const customersRouter = createTRPCRouter({
         customerEmail: email,
         licenseKey: key!,
         productName: "HyperWhisper",
-        supportEmail: "support@hyperwhisper.com",
+        supportEmail: "hi@support.hyperwhisper.com",
       });
 
       return { email, licenseKey: key! };

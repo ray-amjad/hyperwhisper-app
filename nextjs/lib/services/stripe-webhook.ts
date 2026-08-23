@@ -158,7 +158,7 @@ async function sendLicenseEmail(
     licenseKey,
     productName: "HyperWhisper",
     downloadUrl: "https://www.hyperwhisper.com",
-    supportEmail: "support@hyperwhisper.com",
+    supportEmail: "hi@support.hyperwhisper.com",
   });
 
   if (!emailResult.success) {
@@ -274,7 +274,7 @@ async function handleCreditTopUp(
     creditAmount,
     newBalance,
     productName: "HyperWhisper",
-    supportEmail: "support@hyperwhisper.com",
+    supportEmail: "hi@support.hyperwhisper.com",
   });
 
   if (!emailResult.success) {
@@ -423,7 +423,7 @@ async function handleCreditMint(
       creditAmount,
       newBalance,
       productName: "HyperWhisper",
-      supportEmail: "support@hyperwhisper.com",
+      supportEmail: "hi@support.hyperwhisper.com",
     });
 
     if (!emailResult.success) {
@@ -442,7 +442,7 @@ async function handleCreditMint(
     licenseKey: license.key,
     creditAmount,
     productName: "HyperWhisper",
-    supportEmail: "support@hyperwhisper.com",
+    supportEmail: "hi@support.hyperwhisper.com",
   });
 
   if (!emailResult.success) {
