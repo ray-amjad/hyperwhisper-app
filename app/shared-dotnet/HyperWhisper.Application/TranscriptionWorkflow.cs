@@ -35,7 +35,11 @@ public sealed record PortableTranscriptionFailure(
 public sealed record PortableTranscriptionResult(
     string? Text,
     string? Provider,
-    PortableTranscriptionFailure? Failure)
+    PortableTranscriptionFailure? Failure,
+    string? RawText = null,
+    string? PostProcessedText = null,
+    string? PostProcessingProvider = null,
+    TextInjectionOutcome? InjectionOutcome = null)
 {
     public bool IsSuccess => Failure is null && !string.IsNullOrWhiteSpace(Text);
 
@@ -59,10 +63,36 @@ public interface IRecordedAudioTranscriber
         CancellationToken cancellationToken = default);
 }
 
+public sealed record PortablePostProcessingResult(
+    string Text,
+    bool WasApplied,
+    string? Provider,
+    string? FailureCode = null,
+    string? FailureMessage = null)
+{
+    public static PortablePostProcessingResult Applied(string text, string provider) =>
+        new(text, true, provider);
+
+    public static PortablePostProcessingResult Skipped(
+        string original,
+        string? failureCode = null,
+        string? failureMessage = null) =>
+        new(original, false, null, failureCode, failureMessage);
+}
+
+public interface ITranscriptionPostProcessor
+{
+    Task<PortablePostProcessingResult> ProcessAsync(
+        string transcript,
+        Mode mode,
+        CancellationToken cancellationToken = default);
+}
+
 public sealed record TranscriptionWorkflowRequest(
     string? Language = null,
     string? ModeName = null,
-    Guid? ModeId = null);
+    Guid? ModeId = null,
+    Mode? SelectedMode = null);
 
 public sealed record TranscriptionWorkflowSnapshot(
     TranscriptionWorkflowState State,
@@ -86,8 +116,8 @@ public sealed record TranscriptionWorkflowSnapshot(
 }
 
 /// <summary>
-/// Portable recording/transcription state machine. History is written only
-/// after a backend returns a non-empty successful transcription.
+/// Portable recording/transcription state machine. A processing history row is
+/// created before transcription and finalized as completed or failed.
 /// </summary>
 public sealed class TranscriptionWorkflow : IDisposable
 {
@@ -95,7 +125,9 @@ public sealed class TranscriptionWorkflow : IDisposable
     private readonly IAudioRecorder _recorder;
     private readonly IAudioInputDeviceService _devices;
     private readonly IRecordedAudioTranscriber _transcriber;
-    private readonly HistoryRepository _history;
+    private readonly ITranscriptionPostProcessor? _postProcessor;
+    private readonly ITextInjectionService? _textInjection;
+    private readonly ITranscriptionHistoryStore _history;
     private readonly bool _ownsDependencies;
     private IReadOnlyList<AudioInputDevice> _audioDevices = [];
     private string? _selectedDeviceId;
@@ -110,13 +142,17 @@ public sealed class TranscriptionWorkflow : IDisposable
         IAudioRecorder recorder,
         IAudioInputDeviceService devices,
         IRecordedAudioTranscriber transcriber,
-        HistoryRepository history,
+        ITranscriptionHistoryStore history,
+        ITranscriptionPostProcessor? postProcessor = null,
+        ITextInjectionService? textInjection = null,
         bool ownsDependencies = false)
     {
         _recorder = recorder ?? throw new ArgumentNullException(nameof(recorder));
         _devices = devices ?? throw new ArgumentNullException(nameof(devices));
         _transcriber = transcriber ?? throw new ArgumentNullException(nameof(transcriber));
         _history = history ?? throw new ArgumentNullException(nameof(history));
+        _postProcessor = postProcessor;
+        _textInjection = textInjection;
         _ownsDependencies = ownsDependencies;
         _devices.DevicesChanged += OnDevicesChanged;
     }
@@ -259,7 +295,8 @@ public sealed class TranscriptionWorkflow : IDisposable
         if (cancelledAfterStop)
             return PortableTranscriptionResult.Failed(PortableTranscriptionErrorCode.Cancelled, "Transcription was cancelled.");
 
-        return await TranscribeAndPersistAsync(audioPath, duration, request, operation, ownsAudio: true, cancellationToken).ConfigureAwait(false);
+        return await TranscribeAndPersistAsync(
+            audioPath, duration, request, operation, ownsAudio: true, injectText: true, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<PortableTranscriptionResult> TranscribeFileAsync(
@@ -292,7 +329,9 @@ public sealed class TranscriptionWorkflow : IDisposable
         }
         RaiseChanged();
         if (immediateFailure is not null) return immediateFailure;
-        return await TranscribeAndPersistAsync(Path.GetFullPath(audioPath), TimeSpan.Zero, request, operation, ownsAudio: false, cancellationToken).ConfigureAwait(false);
+        return await TranscribeAndPersistAsync(
+            Path.GetFullPath(audioPath), TimeSpan.Zero, request, operation,
+            ownsAudio: false, injectText: false, cancellationToken).ConfigureAwait(false);
     }
 
     public Task CancelAsync()
@@ -340,6 +379,7 @@ public sealed class TranscriptionWorkflow : IDisposable
             _recorder.Dispose();
             _devices.Dispose();
             if (_transcriber is IDisposable disposable) disposable.Dispose();
+            _textInjection?.Dispose();
         }
     }
 
@@ -349,8 +389,38 @@ public sealed class TranscriptionWorkflow : IDisposable
         TranscriptionWorkflowRequest request,
         CancellationTokenSource operation,
         bool ownsAudio,
+        bool injectText,
         CancellationToken callerToken)
     {
+        var transcript = new Transcript
+        {
+            Status = TranscriptStatus.Processing,
+            Duration = duration.TotalSeconds,
+            Date = DateTime.UtcNow,
+            AudioFilePath = audioPath,
+            TranscriptionProvider = _transcriber.Capability.DisplayName,
+            Mode = request.SelectedMode?.Name ?? request.ModeName,
+            ModeId = request.SelectedMode?.Id ?? request.ModeId,
+        };
+        try
+        {
+            await _history.AddAsync(transcript, operation.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (operation.IsCancellationRequested || callerToken.IsCancellationRequested)
+        {
+            return CompleteCancelled(operation, audioPath, ownsAudio);
+        }
+        catch (Exception)
+        {
+            return CompleteFailure(
+                "workflow.persistence_failed",
+                "The processing transcription could not be saved.",
+                PortableTranscriptionErrorCode.TranscriptionFailed,
+                operation,
+                audioPath,
+                ownsAudio);
+        }
+
         PortableTranscriptionResult result;
         try
         {
@@ -358,57 +428,211 @@ public sealed class TranscriptionWorkflow : IDisposable
         }
         catch (OperationCanceledException) when (operation.IsCancellationRequested || callerToken.IsCancellationRequested)
         {
-            return CompleteCancelled(operation, audioPath, ownsAudio);
+            return await CompleteCancelledAsync(transcript, operation, audioPath, ownsAudio).ConfigureAwait(false);
         }
         catch (Exception)
         {
-            return CompleteFailure("workflow.backend_failed", "The transcription backend failed unexpectedly.", PortableTranscriptionErrorCode.TranscriptionFailed, operation, audioPath, ownsAudio);
+            return await CompleteTerminalFailureAsync(
+                transcript,
+                "workflow.backend_failed",
+                "The transcription backend failed unexpectedly.",
+                PortableTranscriptionErrorCode.TranscriptionFailed,
+                operation).ConfigureAwait(false);
         }
 
         if (operation.IsCancellationRequested || result.Failure?.Code == PortableTranscriptionErrorCode.Cancelled)
-            return CompleteCancelled(operation, audioPath, ownsAudio);
+            return await CompleteCancelledAsync(transcript, operation, audioPath, ownsAudio).ConfigureAwait(false);
         if (!result.IsSuccess)
-            return CompleteFailure(
+            return await CompleteTerminalFailureAsync(
+                transcript,
                 $"workflow.{result.Failure?.Code.ToString().ToLowerInvariant() ?? "empty_result"}",
                 result.Failure?.Message ?? "The transcription backend returned no text.",
                 result.Failure?.Code ?? PortableTranscriptionErrorCode.TranscriptionFailed,
                 operation,
-                audioPath,
-                ownsAudio);
+                result.Provider).ConfigureAwait(false);
 
         try
         {
             operation.Token.ThrowIfCancellationRequested();
-            var transcript = new Transcript
+            var rawText = result.Text!.Trim();
+            var finalText = rawText;
+            string? postProcessedText = null;
+            string? postProcessingProvider = null;
+            if (ShouldPostProcess(request.SelectedMode) && _postProcessor is not null)
             {
-                Text = result.Text!.Trim(),
-                TranscribedText = result.Text.Trim(),
-                Status = TranscriptStatus.Completed,
-                Duration = duration.TotalSeconds,
-                Date = DateTime.UtcNow,
-                AudioFilePath = audioPath,
-                TranscriptionProvider = result.Provider ?? _transcriber.Capability.DisplayName,
-                Mode = request.ModeName,
-                ModeId = request.ModeId,
-            };
-            await _history.AddAsync(transcript, operation.Token).ConfigureAwait(false);
+                PortablePostProcessingResult postProcessing;
+                try
+                {
+                    postProcessing = await _postProcessor.ProcessAsync(
+                        rawText, request.SelectedMode!, operation.Token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    postProcessing = PortablePostProcessingResult.Skipped(
+                        rawText, "postprocessing.cancelled", "Post-processing was cancelled.");
+                }
+                catch (Exception)
+                {
+                    postProcessing = PortablePostProcessingResult.Skipped(
+                        rawText, "postprocessing.failed", "Post-processing failed.");
+                }
+
+                // Windows keeps the raw transcription whenever post-processing
+                // fails, is cancelled, or returns empty output. Never persist a
+                // provider or synthetic completion unless enhancement applied.
+                if (postProcessing.WasApplied
+                    && !string.IsNullOrWhiteSpace(postProcessing.Text)
+                    && !string.IsNullOrWhiteSpace(postProcessing.Provider))
+                {
+                    finalText = postProcessing.Text.Trim();
+                    postProcessedText = finalText;
+                    postProcessingProvider = postProcessing.Provider;
+                }
+            }
+
+            if (operation.IsCancellationRequested || callerToken.IsCancellationRequested)
+                return await CompleteCancelledAsync(transcript, operation, audioPath, ownsAudio).ConfigureAwait(false);
+
+            TextInjectionOutcome? injectionOutcome = null;
+            if (injectText && _textInjection is not null)
+            {
+                try
+                {
+                    injectionOutcome = await _textInjection.InjectTranscriptAsync(
+                        finalText, operation.Token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (operation.IsCancellationRequested)
+                {
+                    return await CompleteCancelledAsync(
+                        transcript, operation, audioPath, ownsAudio).ConfigureAwait(false);
+                }
+                catch (Exception)
+                {
+                    // Paste/clipboard failure never invalidates a successful
+                    // transcription; Linux injection already degrades to copy.
+                    injectionOutcome = TextInjectionOutcome.Failed;
+                }
+            }
+
+            transcript.Text = finalText;
+            transcript.TranscribedText = rawText;
+            transcript.PostProcessedText = postProcessedText;
+            transcript.Status = TranscriptStatus.Completed;
+            transcript.TranscriptionProvider = result.Provider ?? _transcriber.Capability.DisplayName;
+            transcript.PostProcessingProvider = postProcessingProvider;
+            if (!await _history.UpdateAsync(transcript, operation.Token).ConfigureAwait(false))
+                throw new InvalidOperationException("The processing transcript disappeared before completion.");
             lock (_sync)
             {
                 FinishOperationLocked(operation);
-                SetStateLocked(TranscriptionWorkflowState.Completed, "Transcription saved to history", null);
+                SetStateLocked(
+                    TranscriptionWorkflowState.Completed,
+                    BuildCompletionMessage(injectionOutcome),
+                    null);
             }
             RaiseChanged();
-            return result;
+            return PortableTranscriptionResult.Success(finalText, result.Provider ?? _transcriber.Capability.DisplayName) with
+            {
+                RawText = rawText,
+                PostProcessedText = postProcessedText,
+                PostProcessingProvider = postProcessingProvider,
+                InjectionOutcome = injectionOutcome,
+            };
         }
         catch (OperationCanceledException) when (operation.IsCancellationRequested || callerToken.IsCancellationRequested)
         {
-            return CompleteCancelled(operation, audioPath, ownsAudio);
+            return await CompleteCancelledAsync(transcript, operation, audioPath, ownsAudio).ConfigureAwait(false);
         }
         catch (Exception)
         {
-            return CompleteFailure("workflow.persistence_failed", "The completed transcription could not be saved.", PortableTranscriptionErrorCode.TranscriptionFailed, operation, audioPath, ownsAudio);
+            return await CompleteTerminalFailureAsync(
+                transcript,
+                "workflow.persistence_failed",
+                "The completed transcription could not be saved.",
+                PortableTranscriptionErrorCode.TranscriptionFailed,
+                operation,
+                result.Provider).ConfigureAwait(false);
         }
     }
+
+    private static bool ShouldPostProcess(Mode? mode) =>
+        mode is not null
+        && mode.PostProcessingMode == 2
+        && string.Equals(mode.PostProcessingProvider, "local_llm", StringComparison.OrdinalIgnoreCase);
+
+    private async Task<PortableTranscriptionResult> CompleteTerminalFailureAsync(
+        Transcript transcript,
+        string code,
+        string message,
+        PortableTranscriptionErrorCode resultCode,
+        CancellationTokenSource operation,
+        string? provider = null)
+    {
+        transcript.Status = TranscriptStatus.Failed;
+        transcript.FailedReason = message;
+        transcript.Text = $"Transcription failed: {message}";
+        if (!string.IsNullOrWhiteSpace(provider)) transcript.TranscriptionProvider = provider;
+        try { await _history.UpdateAsync(transcript, CancellationToken.None).ConfigureAwait(false); }
+        catch (Exception) { }
+
+        PortableTranscriptionResult result;
+        lock (_sync)
+        {
+            FinishOperationLocked(operation);
+            result = FailLocked(code, message, resultCode);
+        }
+        RaiseChanged();
+        return result;
+    }
+
+    private async Task<PortableTranscriptionResult> CompleteCancelledAsync(
+        Transcript transcript,
+        CancellationTokenSource operation,
+        string audioPath,
+        bool ownsAudio)
+    {
+        var safeToDeleteOwnedAudio = false;
+        try
+        {
+            safeToDeleteOwnedAudio = await _history.DeleteAsync(
+                transcript.Id, CancellationToken.None).ConfigureAwait(false);
+            if (!safeToDeleteOwnedAudio)
+            {
+                // A false result normally means the row is already gone. Check
+                // explicitly so a custom/racing store can never leave a row
+                // pointing at audio that cancellation then deletes.
+                safeToDeleteOwnedAudio = await _history.GetAsync(
+                    transcript.Id, CancellationToken.None).ConfigureAwait(false) is null;
+            }
+        }
+        catch (Exception) { }
+
+        if (!safeToDeleteOwnedAudio)
+            await MarkCancellationCleanupFailedAsync(transcript).ConfigureAwait(false);
+
+        return CompleteCancelled(
+            operation,
+            audioPath,
+            ownsAudio && safeToDeleteOwnedAudio);
+    }
+
+    private async Task MarkCancellationCleanupFailedAsync(Transcript transcript)
+    {
+        transcript.Status = TranscriptStatus.Failed;
+        transcript.FailedReason = "Cancellation cleanup did not finish";
+        transcript.Text = transcript.FailedReason;
+        try { await _history.UpdateAsync(transcript, CancellationToken.None).ConfigureAwait(false); }
+        catch (Exception) { }
+    }
+
+    private static string BuildCompletionMessage(TextInjectionOutcome? outcome) => outcome switch
+    {
+        TextInjectionOutcome.Pasted => "Transcription pasted and saved to history",
+        TextInjectionOutcome.CopiedToClipboard => "Transcription copied to clipboard and saved to history",
+        TextInjectionOutcome.SecureFieldSkipped => "Transcription saved; secure field was not modified",
+        TextInjectionOutcome.Failed => "Transcription saved, but text injection failed",
+        _ => "Transcription saved to history",
+    };
 
     private PortableTranscriptionResult CompleteFailure(
         string code,

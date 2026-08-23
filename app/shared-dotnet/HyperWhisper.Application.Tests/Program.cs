@@ -99,6 +99,26 @@ try
         shell.Modes.Name = "";
         await shell.Modes.SaveAsync();
         Assert(shell.Modes.Status.ErrorCode == "modes.name_required", "modes accepted an empty name");
+        shell.Modes.Selected = shell.Modes.Items.First();
+        shell.Modes.LocalPostProcessingEnabled = true;
+        shell.Modes.LocalPostProcessingModel = "../escape.gguf";
+        await shell.Modes.SaveAsync();
+        Assert(shell.Modes.Status.ErrorCode == "modes.local_llm_model_required",
+            "modes accepted a local LLM path outside the models directory");
+        shell.Modes.LocalPostProcessingModel = "local-test.gguf";
+        shell.Modes.UserSystemPrompt = "Keep the dictated wording.";
+        await shell.Modes.SaveAsync();
+        var localMode = (await new ModeRepository(database).ListAsync()).Single();
+        Assert(localMode.PostProcessingMode == 2
+            && localMode.PostProcessingProvider == "local_llm"
+            && localMode.LocalPostProcessingModel == "local-test.gguf"
+            && localMode.UserSystemPrompt == "Keep the dictated wording.",
+            "mode editor did not persist credential-free local LLM configuration");
+        shell.Settings.LocalLlmBackend = "vulkan";
+        shell.Settings.AllowLocalLlmCpuFallback = false;
+        shell.Settings.Save();
+        Assert(!shell.Settings.Status.HasError,
+            "settings did not persist local LLM backend configuration");
     }
 
     var failingHome = new HyperWhisper.PortableApplication.ViewModels.HomeViewModel(
@@ -162,6 +182,125 @@ static async Task RunTranscriptionWorkflowTestsAsync(string root)
             "successful file transcription was not persisted");
     }
 
+    var postStore = await CreateStoreAsync(root, "workflow-postprocessing");
+    var postAudio = Path.Combine(root, "post.wav");
+    await File.WriteAllBytesAsync(postAudio, [1]);
+    var localMode = new Mode
+    {
+        Name = "Local cleanup",
+        PostProcessingMode = 2,
+        PostProcessingProvider = "local_llm",
+        LocalPostProcessingModel = "test.gguf",
+    };
+    var appliedPostProcessor = new FakePostProcessor((text, _, _) => Task.FromResult(
+        PortablePostProcessingResult.Applied("Cleaned words", "Local LLM · test.gguf · cpu")));
+    using var appliedInjection = new FakeTextInjection();
+    using (var recorder = new FakeRecorder(postAudio))
+    using (var devices = new FakeDevices())
+    using (var workflow = new TranscriptionWorkflow(
+        recorder,
+        devices,
+        new FakeTranscriber((_, _, _) => Task.FromResult(
+            PortableTranscriptionResult.Success("raw words", "Test Whisper"))),
+        postStore.History,
+        appliedPostProcessor,
+        appliedInjection))
+    {
+        workflow.RefreshDevices();
+        await workflow.StartRecordingAsync();
+        var result = await workflow.StopAndTranscribeAsync(
+            new TranscriptionWorkflowRequest("en", localMode.Name, localMode.Id, localMode));
+        Assert(result.IsSuccess && result.Text == "Cleaned words" && result.RawText == "raw words",
+            "applied post-processing result did not preserve raw output");
+        var saved = (await postStore.History.ListAsync()).Single();
+        Assert(saved.Status == TranscriptStatus.Completed
+            && saved.Text == "Cleaned words"
+            && saved.TranscribedText == "raw words"
+            && saved.PostProcessedText == "Cleaned words"
+            && saved.PostProcessingProvider == "Local LLM · test.gguf · cpu",
+            "post-processing fields were not persisted with Windows semantics");
+        Assert(appliedPostProcessor.CallCount == 1, "enabled local post-processing was not invoked exactly once");
+        Assert(appliedInjection.LastText == "Cleaned words",
+            "text injection ran before local post-processing or received raw text");
+        Assert(result.InjectionOutcome == TextInjectionOutcome.Pasted
+            && workflow.Snapshot.Message == "Transcription pasted and saved to history",
+            "successful paste outcome was not surfaced honestly");
+
+        var injectionCalls = appliedInjection.CallCount;
+        var fileResult = await workflow.TranscribeFileAsync(
+            postAudio,
+            new TranscriptionWorkflowRequest("en", localMode.Name, localMode.Id, localMode));
+        Assert(fileResult.IsSuccess && fileResult.InjectionOutcome is null
+            && appliedInjection.CallCount == injectionCalls,
+            "file transcription injected into the active application");
+    }
+
+    foreach (var (outcome, expectedMessage) in new[]
+    {
+        (TextInjectionOutcome.Pasted, "Transcription pasted and saved to history"),
+        (TextInjectionOutcome.CopiedToClipboard, "Transcription copied to clipboard and saved to history"),
+        (TextInjectionOutcome.SecureFieldSkipped, "Transcription saved; secure field was not modified"),
+        (TextInjectionOutcome.Failed, "Transcription saved, but text injection failed"),
+    })
+    {
+        var outcomeStore = await CreateStoreAsync(root, $"workflow-injection-{outcome}");
+        var outcomeAudio = Path.Combine(root, $"injection-{outcome}.wav");
+        await File.WriteAllBytesAsync(outcomeAudio, [1]);
+        using var recorder = new FakeRecorder(outcomeAudio);
+        using var devices = new FakeDevices();
+        using var injection = new FakeTextInjection(outcome);
+        using var workflow = new TranscriptionWorkflow(
+            recorder,
+            devices,
+            new FakeTranscriber((_, _, _) => Task.FromResult(
+                PortableTranscriptionResult.Success("injected words", "Test Whisper"))),
+            outcomeStore.History,
+            textInjection: injection);
+        workflow.RefreshDevices();
+        await workflow.StartRecordingAsync();
+        var result = await workflow.StopAndTranscribeAsync(new TranscriptionWorkflowRequest());
+        Assert(result.IsSuccess && result.InjectionOutcome == outcome,
+            $"{outcome} injection outcome was not returned");
+        Assert(workflow.Snapshot.Message == expectedMessage,
+            $"{outcome} injection status was not surfaced honestly");
+        Assert((await outcomeStore.History.ListAsync()).Single().Status == TranscriptStatus.Completed,
+            $"{outcome} injection outcome incorrectly invalidated transcription");
+    }
+
+    var fallbackStore = await CreateStoreAsync(root, "workflow-postprocessing-fallback");
+    var fallbackAudio = Path.Combine(root, "post-fallback.wav");
+    await File.WriteAllBytesAsync(fallbackAudio, [1]);
+    foreach (var failure in new[]
+    {
+        PortablePostProcessingResult.Skipped("raw fallback", "postprocessing.failed", "expected failure"),
+        PortablePostProcessingResult.Skipped("raw fallback", "postprocessing.cancelled", "expected cancellation"),
+        new PortablePostProcessingResult("", true, "Local LLM"),
+    })
+    {
+        using var recorder = new FakeRecorder(fallbackAudio);
+        using var devices = new FakeDevices();
+        using var workflow = new TranscriptionWorkflow(
+            recorder,
+            devices,
+            new FakeTranscriber((_, _, _) => Task.FromResult(
+                PortableTranscriptionResult.Success("raw fallback", "Test Whisper"))),
+            fallbackStore.History,
+            new FakePostProcessor((_, _, _) => Task.FromResult(failure)));
+        workflow.RefreshDevices();
+        var result = await workflow.TranscribeFileAsync(
+            fallbackAudio,
+            new TranscriptionWorkflowRequest("en", localMode.Name, localMode.Id, localMode));
+        Assert(result.IsSuccess && result.Text == "raw fallback" && result.PostProcessedText is null,
+            "post-processing failure/cancellation did not preserve raw transcription");
+    }
+    Assert((await fallbackStore.History.ListAsync()).All(item =>
+        item.Status == TranscriptStatus.Completed
+        && item.Text == "raw fallback"
+        && item.TranscribedText == "raw fallback"
+        && item.PostProcessedText is null
+        && item.PostProcessingProvider is null),
+        "fallback history claimed a fake post-processing completion");
+
     var persistenceStore = await CreateStoreAsync(root, "workflow-persistence-failure");
     await using (var context = persistenceStore.Database.CreateContext())
     {
@@ -205,7 +344,12 @@ static async Task RunTranscriptionWorkflowTestsAsync(string root)
         await workflow.StartRecordingAsync();
         var result = await workflow.StopAndTranscribeAsync(new TranscriptionWorkflowRequest());
         Assert(!result.IsSuccess && failedWasNotified, "backend result failure transition was not visible");
-        Assert((await failureStore.History.ListAsync()).Count == 0, "failed transcription created fake history");
+        var failed = (await failureStore.History.ListAsync()).Single();
+        Assert(failed.Status == TranscriptStatus.Failed
+            && failed.FailedReason == "expected backend rejection"
+            && failed.AudioFilePath == failureAudio,
+            "backend failure did not persist a terminal retryable history row");
+        Assert(File.Exists(failureAudio), "owned audio was deleted after a non-cancel failure");
     }
 
     var exceptionStore = await CreateStoreAsync(root, "workflow-exception");
@@ -223,7 +367,10 @@ static async Task RunTranscriptionWorkflowTestsAsync(string root)
         var result = await workflow.TranscribeFileAsync(exceptionAudio, new TranscriptionWorkflowRequest());
         Assert(!result.IsSuccess && workflow.Snapshot.ErrorCode == "workflow.backend_failed",
             "backend exception was misclassified as a persistence failure");
-        Assert((await exceptionStore.History.ListAsync()).Count == 0, "backend exception created fake history");
+        var failed = (await exceptionStore.History.ListAsync()).Single();
+        Assert(failed.Status == TranscriptStatus.Failed && failed.FailedReason?.Length > 0,
+            "backend exception did not terminate its processing history row");
+        Assert(File.Exists(exceptionAudio), "external source was deleted after backend failure");
     }
 
     var cancellationStore = await CreateStoreAsync(root, "workflow-cancel");
@@ -252,6 +399,72 @@ static async Task RunTranscriptionWorkflowTestsAsync(string root)
         Assert((await cancellationStore.History.ListAsync()).Count == 0, "cancelled transcription created fake history");
     }
 
+    var cleanupStore = await CreateStoreAsync(root, "workflow-cancel-cleanup-failure");
+    await using (var context = cleanupStore.Database.CreateContext())
+    {
+        await context.Database.ExecuteSqlRawAsync(
+            "CREATE TRIGGER reject_cancel_delete BEFORE DELETE ON Transcripts BEGIN SELECT RAISE(ABORT, 'simulated delete failure'); END;");
+    }
+    var cleanupAudio = Path.Combine(root, "cancel-cleanup.wav");
+    await File.WriteAllBytesAsync(cleanupAudio, [1]);
+    var cleanupEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+    using (var recorder = new FakeRecorder(cleanupAudio))
+    using (var devices = new FakeDevices())
+    using (var workflow = new TranscriptionWorkflow(
+        recorder,
+        devices,
+        new FakeTranscriber(async (_, _, cancellationToken) =>
+        {
+            cleanupEntered.SetResult();
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            return PortableTranscriptionResult.Success("unreachable", "Test Whisper");
+        }),
+        cleanupStore.History))
+    {
+        workflow.RefreshDevices();
+        await workflow.StartRecordingAsync();
+        var task = workflow.StopAndTranscribeAsync(new TranscriptionWorkflowRequest());
+        await cleanupEntered.Task;
+        await workflow.CancelAsync();
+        var result = await task;
+        var retained = (await cleanupStore.History.ListAsync()).Single();
+        Assert(result.Failure?.Code == PortableTranscriptionErrorCode.Cancelled,
+            "cleanup failure changed structured cancellation result");
+        Assert(retained.Status == TranscriptStatus.Failed
+            && retained.FailedReason == "Cancellation cleanup did not finish",
+            "failed cancellation deletion left a Processing row");
+        Assert(File.Exists(cleanupAudio),
+            "failed cancellation deletion created a dangling history audio path");
+    }
+
+    var falseDeleteStore = await CreateStoreAsync(root, "workflow-cancel-delete-false");
+    var falseDeleteAudio = Path.Combine(root, "cancel-delete-false.wav");
+    await File.WriteAllBytesAsync(falseDeleteAudio, [1]);
+    var falseDeleteEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+    using (var recorder = new FakeRecorder(falseDeleteAudio))
+    using (var devices = new FakeDevices())
+    using (var workflow = new TranscriptionWorkflow(
+        recorder,
+        devices,
+        new FakeTranscriber(async (_, _, cancellationToken) =>
+        {
+            falseDeleteEntered.SetResult();
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            return PortableTranscriptionResult.Success("unreachable", "Test Whisper");
+        }),
+        new FalseDeleteHistoryStore(falseDeleteStore.History)))
+    {
+        workflow.RefreshDevices();
+        await workflow.StartRecordingAsync();
+        var task = workflow.StopAndTranscribeAsync(new TranscriptionWorkflowRequest());
+        await falseDeleteEntered.Task;
+        await workflow.CancelAsync();
+        await task;
+        var retained = (await falseDeleteStore.History.ListAsync()).Single();
+        Assert(retained.Status == TranscriptStatus.Failed && File.Exists(falseDeleteAudio),
+            "false cancellation deletion left a dangling or Processing history row");
+    }
+
     var raceStore = await CreateStoreAsync(root, "workflow-stop-race");
     var raceAudio = Path.Combine(root, "race.wav");
     await File.WriteAllBytesAsync(raceAudio, [1]);
@@ -275,6 +488,15 @@ static async Task RunTranscriptionWorkflowTestsAsync(string root)
         Assert(recorder.StopCount == 1, "stop/cancel race called recorder.Stop twice after completion");
         Assert((await raceStore.History.ListAsync()).Count == 0, "stop/cancel race created fake history");
     }
+
+    var orphanStore = await CreateStoreAsync(root, "workflow-orphan");
+    var orphan = new Transcript { Status = TranscriptStatus.Processing, AudioFilePath = "/tmp/orphan.wav" };
+    await orphanStore.History.AddAsync(orphan);
+    Assert(await orphanStore.History.FailOrphanedProcessingAsync() == 1,
+        "orphan processing safety net did not find the row");
+    var repaired = await orphanStore.History.GetAsync(orphan.Id);
+    Assert(repaired?.Status == TranscriptStatus.Failed && repaired.FailedReason?.Length > 0,
+        "orphan processing row remained non-terminal");
 }
 
 file sealed class TestPaths(string root) : IAppPaths
@@ -366,4 +588,58 @@ file sealed class FakeTranscriber(
     public TranscriptionBackendCapability Capability { get; } = new(true, "Test Whisper");
     public Task<PortableTranscriptionResult> TranscribeAsync(string audioPath, string? language, CancellationToken cancellationToken = default) =>
         transcribe(audioPath, language, cancellationToken);
+}
+
+file sealed class FakePostProcessor(
+    Func<string, Mode, CancellationToken, Task<PortablePostProcessingResult>> process) : ITranscriptionPostProcessor
+{
+    public int CallCount { get; private set; }
+    public Task<PortablePostProcessingResult> ProcessAsync(
+        string transcript,
+        Mode mode,
+        CancellationToken cancellationToken = default)
+    {
+        CallCount++;
+        return process(transcript, mode, cancellationToken);
+    }
+}
+
+file sealed class FalseDeleteHistoryStore(HistoryRepository inner) : ITranscriptionHistoryStore
+{
+    public Task<Transcript?> GetAsync(Guid id, CancellationToken cancellationToken = default) =>
+        inner.GetAsync(id, cancellationToken);
+    public Task AddAsync(Transcript transcript, CancellationToken cancellationToken = default) =>
+        inner.AddAsync(transcript, cancellationToken);
+    public Task<bool> UpdateAsync(Transcript transcript, CancellationToken cancellationToken = default) =>
+        inner.UpdateAsync(transcript, cancellationToken);
+    public Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default) =>
+        Task.FromResult(false);
+}
+
+file sealed class FakeTextInjection(TextInjectionOutcome outcome = TextInjectionOutcome.Pasted) : ITextInjectionService
+{
+    public string? LastText { get; private set; }
+    public int CallCount { get; private set; }
+    public bool IsCapturedTargetAvailable => true;
+    public void CaptureTarget() { }
+    public void StartSession() { }
+    public void EndSession() { }
+    public void CancelPendingClipboardRestore() { }
+    public void ScheduleClipboardRestore(TimeSpan delay) { }
+    public ValueTask<PlatformResult> RestoreClipboardImmediatelyAsync(
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult(PlatformResult.Success());
+    public ValueTask<PlatformResult> CopyToClipboardAsync(
+        string text,
+        CancellationToken cancellationToken = default) =>
+        ValueTask.FromResult(PlatformResult.Success());
+    public ValueTask<TextInjectionOutcome> InjectTranscriptAsync(
+        string text,
+        CancellationToken cancellationToken = default)
+    {
+        LastText = text;
+        CallCount++;
+        return ValueTask.FromResult(outcome);
+    }
+    public void Dispose() { }
 }

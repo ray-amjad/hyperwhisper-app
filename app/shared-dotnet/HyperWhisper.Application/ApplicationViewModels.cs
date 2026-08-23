@@ -310,17 +310,45 @@ public sealed class ModesViewModel : ViewModelBase
     private Mode? _selected;
     private string _name = string.Empty;
     private string _language = "en";
+    private bool _localPostProcessingEnabled;
+    private string _localPostProcessingModel = string.Empty;
+    private string _userSystemPrompt = string.Empty;
     public ModesViewModel(ModeRepository repository)
     {
         _repository = repository;
         SaveCommand = new AsyncCommand(_ => SaveAsync());
-        NewCommand = new AsyncCommand(_ => { Selected = null; Name = string.Empty; Language = "en"; return Task.CompletedTask; });
+        NewCommand = new AsyncCommand(_ =>
+        {
+            Selected = null;
+            Name = string.Empty;
+            Language = "en";
+            LocalPostProcessingEnabled = false;
+            LocalPostProcessingModel = string.Empty;
+            UserSystemPrompt = string.Empty;
+            return Task.CompletedTask;
+        });
         DeleteCommand = new AsyncCommand(_ => DeleteAsync());
     }
     public ObservableCollection<Mode> Items { get; } = new();
-    public Mode? Selected { get => _selected; set { if (Set(ref _selected, value) && value != null) { Name = value.Name; Language = value.Language; } } }
+    public Mode? Selected
+    {
+        get => _selected;
+        set
+        {
+            if (!Set(ref _selected, value) || value is null) return;
+            Name = value.Name;
+            Language = value.Language;
+            LocalPostProcessingEnabled = value.PostProcessingMode == 2
+                && string.Equals(value.PostProcessingProvider, "local_llm", StringComparison.OrdinalIgnoreCase);
+            LocalPostProcessingModel = value.LocalPostProcessingModel ?? string.Empty;
+            UserSystemPrompt = value.UserSystemPrompt ?? string.Empty;
+        }
+    }
     public string Name { get => _name; set => Set(ref _name, value); }
     public string Language { get => _language; set => Set(ref _language, value); }
+    public bool LocalPostProcessingEnabled { get => _localPostProcessingEnabled; set => Set(ref _localPostProcessingEnabled, value); }
+    public string LocalPostProcessingModel { get => _localPostProcessingModel; set => Set(ref _localPostProcessingModel, value); }
+    public string UserSystemPrompt { get => _userSystemPrompt; set => Set(ref _userSystemPrompt, value); }
     public UiStatus Status { get; } = new();
     public ICommand SaveCommand { get; }
     public ICommand NewCommand { get; }
@@ -334,8 +362,30 @@ public sealed class ModesViewModel : ViewModelBase
     public async Task SaveAsync(CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(Name)) { Status.Failure("modes.name_required", "Enter a mode name."); return; }
+        if (LocalPostProcessingEnabled
+            && (string.IsNullOrWhiteSpace(LocalPostProcessingModel)
+                || LocalPostProcessingModel != Path.GetFileName(LocalPostProcessingModel)
+                || LocalPostProcessingModel.Contains('\\')
+                || !LocalPostProcessingModel.EndsWith(".gguf", StringComparison.OrdinalIgnoreCase)))
+        {
+            Status.Failure("modes.local_llm_model_required", "Enter a GGUF model filename from the local LLM models directory.");
+            return;
+        }
+        if (UserSystemPrompt.Length > 2000)
+        {
+            Status.Failure("modes.prompt_too_long", "The system prompt cannot exceed 2000 characters.");
+            return;
+        }
         var mode = Selected ?? new Mode { SortOrder = Items.Count };
-        mode.Name = Name.Trim(); mode.Language = string.IsNullOrWhiteSpace(Language) ? "auto" : Language.Trim(); mode.ModifiedDate = DateTime.UtcNow;
+        mode.Name = Name.Trim();
+        mode.Language = string.IsNullOrWhiteSpace(Language) ? "auto" : Language.Trim();
+        mode.PostProcessingMode = LocalPostProcessingEnabled ? 2 : 0;
+        if (LocalPostProcessingEnabled) mode.PostProcessingProvider = "local_llm";
+        mode.LocalPostProcessingModel = string.IsNullOrWhiteSpace(LocalPostProcessingModel)
+            ? null
+            : LocalPostProcessingModel.Trim();
+        mode.UserSystemPrompt = string.IsNullOrWhiteSpace(UserSystemPrompt) ? null : UserSystemPrompt.Trim();
+        mode.ModifiedDate = DateTime.UtcNow;
         try
         {
             await _repository.UpsertAsync(mode, cancellationToken);
@@ -360,12 +410,19 @@ public sealed class SettingsViewModel : ViewModelBase
 {
     private readonly PortableSettingsService _settings;
     private string _language = "auto";
-    public SettingsViewModel(PortableSettingsService settings)
+    private string _localLlmBackend = "cpu";
+    private bool _allowLocalLlmCpuFallback = true;
+    public SettingsViewModel(PortableSettingsService settings, string localLlmRuntimeStatus = "Local LLM runtime not connected")
     {
         _settings = settings;
         SaveCommand = new AsyncCommand(_ => { Save(); return Task.CompletedTask; });
+        LocalLlmRuntimeStatus = localLlmRuntimeStatus;
     }
     public string Language { get => _language; set => Set(ref _language, value); }
+    public string LocalLlmBackend { get => _localLlmBackend; set => Set(ref _localLlmBackend, NormalizeBackend(value)); }
+    public bool AllowLocalLlmCpuFallback { get => _allowLocalLlmCpuFallback; set => Set(ref _allowLocalLlmCpuFallback, value); }
+    public string LocalLlmRuntimeStatus { get; }
+    public IReadOnlyList<string> LocalLlmBackends { get; } = ["cpu", "vulkan", "cuda"];
     public UiStatus Status { get; } = new();
     public ICommand SaveCommand { get; }
     public void Load()
@@ -373,15 +430,26 @@ public sealed class SettingsViewModel : ViewModelBase
         var result = _settings.Load();
         if (result.IsFailure) { Status.Failure(result.Error!.Code, result.Error.Message); return; }
         Language = _settings.Get("language", "auto") ?? "auto";
+        LocalLlmBackend = _settings.Get("localLlmBackend", "cpu") ?? "cpu";
+        AllowLocalLlmCpuFallback = _settings.Get("allowLocalLlmCpuFallback", true);
         Status.Success("Settings loaded");
     }
     public void Save()
     {
         _settings.Set("language", Language);
+        _settings.Set("localLlmBackend", NormalizeBackend(LocalLlmBackend));
+        _settings.Set("allowLocalLlmCpuFallback", AllowLocalLlmCpuFallback);
         var result = _settings.Save();
         if (result.IsSuccess) Status.Success("Settings saved");
         else Status.Failure(result.Error!.Code, result.Error.Message);
     }
+
+    private static string NormalizeBackend(string? value) => value?.Trim().ToLowerInvariant() switch
+    {
+        "vulkan" => "vulkan",
+        "cuda" => "cuda",
+        _ => "cpu",
+    };
 }
 
 public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
@@ -396,7 +464,8 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
     public ApplicationShellViewModel(
         ApplicationDb database,
         PortableSettingsService settings,
-        TranscriptionWorkflow? transcriptionWorkflow = null)
+        TranscriptionWorkflow? transcriptionWorkflow = null,
+        string localLlmRuntimeStatus = "Local LLM runtime not connected")
     {
         _database = database;
         var historyRepository = new HistoryRepository(database);
@@ -405,13 +474,14 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
         History = new HistoryViewModel(historyRepository);
         Vocabulary = new VocabularyViewModel(vocabularyRepository);
         Modes = new ModesViewModel(modeRepository);
-        Settings = new SettingsViewModel(settings);
+        Settings = new SettingsViewModel(settings, localLlmRuntimeStatus);
         Recording = transcriptionWorkflow is null ? null : new TranscriptionWorkflowViewModel(
             transcriptionWorkflow,
             () => new TranscriptionWorkflowRequest(
                 Settings.Language,
                 Modes.Selected?.Name,
-                Modes.Selected?.Id));
+                Modes.Selected?.Id,
+                Modes.Selected));
         Home = new HomeViewModel(historyRepository, vocabularyRepository, modeRepository, Recording);
         if (Recording is not null) Recording.TranscriptionSaved += OnTranscriptionSaved;
         _currentPage = Home;
@@ -434,6 +504,7 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
         try
         {
             await _database.MigrateAsync(_lifetime.Token);
+            await new HistoryRepository(_database).FailOrphanedProcessingAsync(_lifetime.Token);
             Settings.Load();
             await Task.WhenAll(Home.RefreshAsync(_lifetime.Token), History.RefreshAsync(_lifetime.Token), Vocabulary.RefreshAsync(_lifetime.Token), Modes.RefreshAsync(_lifetime.Token));
             if (Settings.Status.HasError || Home.Status.HasError || History.Status.HasError

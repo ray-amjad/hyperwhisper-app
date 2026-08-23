@@ -25,6 +25,17 @@ var tests = new (string Name, Func<Task> Run)[]
         Assert.True(SharedCoreBridge.ValidateBackup("{}").Count > 0);
         return Task.CompletedTask;
     }),
+    ("post-processing prompts use shared Rust presets and dynamic context", () =>
+    {
+        var prompt = SharedCoreBridge.BuildPostProcessingPrompt(new PortablePromptContext(
+            "hyper", "", "british", "English", "Keep names exact.", ["HyperWhisper"],
+            true, true, false, "12:00", "UTC", "en-GB", "test-host"));
+        Assert.True(prompt.SystemPrompt.Contains("<USER_SYSTEM_PROMPT>", StringComparison.Ordinal));
+        Assert.True(prompt.SystemPrompt.Contains("Keep names exact.", StringComparison.Ordinal));
+        Assert.True(prompt.SystemInfo.Contains("HyperWhisper", StringComparison.Ordinal));
+        Assert.True(prompt.SystemInfo.Contains("test-host", StringComparison.Ordinal));
+        return Task.CompletedTask;
+    }),
     ("cloud catalog enumerates every batch provider", () =>
     {
         var providers = CloudTranscriptionService.Providers;

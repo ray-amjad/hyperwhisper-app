@@ -15,6 +15,7 @@ public partial class MainWindow : Window
     private readonly LinuxDesktopServices _platformServices;
     private readonly ApplicationDb _database;
     private readonly ApplicationShellViewModel _viewModel;
+    private readonly LinuxLocalPostProcessor _postProcessor;
     private Task? _initialization;
 
     public MainWindow() : this(new LinuxDesktopServices())
@@ -27,12 +28,17 @@ public partial class MainWindow : Window
         _platformServices = platformServices ?? throw new ArgumentNullException(nameof(platformServices));
         _database = new ApplicationDb(_platformServices.Paths);
         var settings = new PortableSettingsService(_platformServices.PrivateFiles, _platformServices.Paths);
+        _postProcessor = new LinuxLocalPostProcessor(
+            _platformServices.Paths.ModelsDirectory, settings, _database);
         var workflow = new TranscriptionWorkflow(
             _platformServices.AudioRecorder,
             _platformServices.AudioDevices,
             _platformServices.AudioTranscriber,
-            new HistoryRepository(_database));
-        _viewModel = new ApplicationShellViewModel(_database, settings, workflow);
+            new HistoryRepository(_database),
+            _postProcessor,
+            _platformServices.TextInjection);
+        _viewModel = new ApplicationShellViewModel(
+            _database, settings, workflow, LinuxLocalPostProcessor.RuntimeStatus);
         InitializeComponent();
         DataContext = _viewModel;
         PlatformStatusText.Text = $"Linux platform connected · {_platformServices.Paths.DataDirectory}";
@@ -47,6 +53,7 @@ public partial class MainWindow : Window
         Opened -= OnOpened;
         Closed -= OnClosed;
         _viewModel.Dispose();
+        _postProcessor.Dispose();
     }
 
     private Task EnsureInitializedAsync() => _initialization ??= _viewModel.InitializeAsync();
@@ -114,6 +121,16 @@ public partial class MainWindow : Window
                     || !string.Equals(_viewModel.Status.Message, $"{_viewModel.PageTitle} ready", StringComparison.Ordinal))
                     return 3;
             }
+
+            _viewModel.Navigate("modes");
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+            if (!HasVisibleControl("ModeLocalPostProcessingEnabled")
+                || !HasVisibleControl("ModeLocalPostProcessingModel")
+                || !HasVisibleControl("ModeUserSystemPrompt")) return 9;
+            _viewModel.Navigate("settings");
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+            if (!HasVisibleControl("SettingsLocalLlmBackend")
+                || !HasVisibleControl("SettingsLocalLlmCpuFallback")) return 10;
 
             if (_viewModel.History.Items.Count == 0
                 || _viewModel.Vocabulary.Items.Count == 0

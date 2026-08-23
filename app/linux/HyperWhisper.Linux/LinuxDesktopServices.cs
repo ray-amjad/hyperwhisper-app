@@ -1,6 +1,7 @@
 using HyperWhisper.Linux.Platform.Files;
 using HyperWhisper.Linux.Platform.Input;
 using HyperWhisper.Linux.Platform.Audio;
+using HyperWhisper.Linux.Platform.Injection;
 using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.SharedCore;
 
@@ -18,6 +19,7 @@ internal sealed class LinuxDesktopServices : IDisposable
         AudioDevices = new PulseAudioInputDeviceService();
         AudioRecorder = new PulseAudioRecorder(Paths);
         AudioTranscriber = new LinuxLocalWhisperTranscriber(Paths.ModelsDirectory);
+        TextInjection = new LinuxTextInjectionService();
     }
 
     public IAppPaths Paths { get; }
@@ -26,6 +28,7 @@ internal sealed class LinuxDesktopServices : IDisposable
     public IAudioInputDeviceService AudioDevices { get; }
     public IAudioRecorder AudioRecorder { get; }
     public LinuxLocalWhisperTranscriber AudioTranscriber { get; }
+    public ITextInjectionService TextInjection { get; }
 
     public bool ProbeSharedCore() =>
         !SharedCoreBridge.ContainsCjk("HyperWhisper")
@@ -44,5 +47,6 @@ internal sealed class LinuxDesktopServices : IDisposable
         AudioRecorder.Dispose();
         AudioDevices.Dispose();
         AudioTranscriber.Dispose();
+        TextInjection.Dispose();
     }
 }

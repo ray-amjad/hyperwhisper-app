@@ -26,7 +26,15 @@ public sealed class ApplicationDb(Func<HyperWhisperDbContext> createContext)
     }
 }
 
-public sealed class HistoryRepository(ApplicationDb database)
+public interface ITranscriptionHistoryStore
+{
+    Task<Transcript?> GetAsync(Guid id, CancellationToken cancellationToken = default);
+    Task AddAsync(Transcript transcript, CancellationToken cancellationToken = default);
+    Task<bool> UpdateAsync(Transcript transcript, CancellationToken cancellationToken = default);
+    Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default);
+}
+
+public sealed class HistoryRepository(ApplicationDb database) : ITranscriptionHistoryStore
 {
     private readonly ApplicationDb _database = database ?? throw new ArgumentNullException(nameof(database));
 
@@ -72,6 +80,25 @@ public sealed class HistoryRepository(ApplicationDb database)
         context.Transcripts.Remove(transcript);
         await context.SaveChangesAsync(cancellationToken);
         return true;
+    }
+
+    public async Task<int> FailOrphanedProcessingAsync(CancellationToken cancellationToken = default)
+    {
+        await using var context = _database.CreateContext();
+        var orphaned = await context.Transcripts
+            .Where(item => item.Status == TranscriptStatus.Processing)
+            .ToListAsync(cancellationToken);
+        foreach (var transcript in orphaned)
+        {
+            const string reason = "Transcription did not finish";
+            transcript.Status = TranscriptStatus.Failed;
+            transcript.FailedReason = string.IsNullOrWhiteSpace(transcript.FailedReason)
+                ? reason
+                : transcript.FailedReason;
+            transcript.Text = string.IsNullOrWhiteSpace(transcript.Text) ? reason : transcript.Text;
+        }
+        if (orphaned.Count > 0) await context.SaveChangesAsync(cancellationToken);
+        return orphaned.Count;
     }
 }
 
