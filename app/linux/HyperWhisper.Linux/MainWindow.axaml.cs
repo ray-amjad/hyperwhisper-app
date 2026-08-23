@@ -24,6 +24,11 @@ namespace HyperWhisper.Linux;
 
 public partial class MainWindow : Window
 {
+    private static readonly FilePickerFileType UniversalBackupFileType = new("HyperWhisper universal backup")
+    {
+        Patterns = ["*.hwbackup", "*.json"],
+        MimeTypes = ["application/json"],
+    };
     private readonly LinuxDesktopServices _platformServices;
     private readonly ApplicationDb _database;
     private readonly ApplicationShellViewModel _viewModel;
@@ -214,6 +219,32 @@ public partial class MainWindow : Window
     }
 
     private Task EnsureInitializedAsync() => _initialization ??= _viewModel.InitializeAsync();
+
+    private async void OnChooseBackup(object? sender, RoutedEventArgs e)
+    {
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Choose a HyperWhisper backup",
+            AllowMultiple = false,
+            FileTypeFilter = [UniversalBackupFileType],
+        });
+        if (files.Count == 1) _viewModel.Backup.Path = files[0].Path.LocalPath;
+    }
+
+    private async void OnExportBackup(object? sender, RoutedEventArgs e)
+    {
+        var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = "Export HyperWhisper backup",
+            SuggestedFileName = $"hyperwhisper-{DateTime.UtcNow:yyyy-MM-dd}.hwbackup",
+            DefaultExtension = "hwbackup",
+            FileTypeChoices = [UniversalBackupFileType],
+            ShowOverwritePrompt = true,
+        });
+        if (file is null) return;
+        _viewModel.Backup.Path = file.Path.LocalPath;
+        await _viewModel.Backup.ExportAsync(_lifetime.Token);
+    }
 
     private async void OnLocalApiSettingsChanged(object? sender, EventArgs e)
     {

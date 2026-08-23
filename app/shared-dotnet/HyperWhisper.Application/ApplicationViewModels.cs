@@ -2068,6 +2068,7 @@ public sealed class BackupViewModel : ViewModelBase
     private string _contentsSummary = "Inspect a universal backup to see its contents.";
     private string _previewSummary = "Preview the selected import before confirming.";
     private string _operationSummary = string.Empty;
+    private bool _importConfirmed;
 
     public BackupViewModel(ApplicationBackupService service)
     {
@@ -2125,7 +2126,17 @@ public sealed class BackupViewModel : ViewModelBase
     public string SensitiveDataNotice => ContainsUnsupportedSensitiveData
         ? "Credentials and account/license keys are not supported and will not be imported. Reconnect accounts on this device."
         : "Credentials and account/license keys are never exported or imported.";
-    public bool CanConfirmImport => Contents is not null && Preview is not null;
+    public bool ImportConfirmed
+    {
+        get => _importConfirmed;
+        set
+        {
+            if (!Set(ref _importConfirmed, value)) return;
+            Notify(nameof(CanConfirmImport));
+            ((AsyncCommand)ImportCommand).RaiseCanExecuteChanged();
+        }
+    }
+    public bool CanConfirmImport => Contents is not null && Preview is not null && ImportConfirmed;
     public int PreviewModesAdded => Preview?.ModesAdded ?? 0;
     public int PreviewModesReplaced => Preview?.ModesReplaced ?? 0;
     public int PreviewModesRemoved => Preview?.ModesRemoved ?? 0;
@@ -2256,6 +2267,7 @@ public sealed class BackupViewModel : ViewModelBase
     private void InvalidatePreview()
     {
         Preview = null;
+        ImportConfirmed = false;
         PreviewSummary = "Preview the selected import before confirming.";
     }
 

@@ -97,7 +97,36 @@
       </Grid>
     </DataTemplate>
     <DataTemplate DataType="vm:BackupViewModel">
-      <StackPanel x:Name="BackupScreen" Spacing="14" MaxWidth="680" HorizontalAlignment="Left"><TextBlock Text="Universal backup" FontSize="22" FontWeight="SemiBold"/><TextBlock Text="Export or import the cross-platform universal-v2 format. API keys and transcript history are intentionally excluded." TextWrapping="Wrap"/><TextBlock Text="Unknown Linux, Windows, and macOS platform extension fields are preserved across an import/export round trip." TextWrapping="Wrap" Opacity="0.7"/><TextBox x:Name="BackupPathInput" Text="{Binding Path}" PlaceholderText="/path/to/hyperwhisper.hwbackup" Width="640"/><StackPanel Orientation="Horizontal" Spacing="8"><Button x:Name="BackupExportButton" Content="Export backup" Command="{Binding ExportCommand}"/><Button x:Name="BackupImportButton" Content="Import backup" Command="{Binding ImportCommand}"/></StackPanel><TextBlock Text="{Binding Status.Message}"/><TextBlock Text="{Binding Status.ErrorCode}" IsVisible="{Binding Status.HasError}" Opacity="0.7"/></StackPanel>
+      <ScrollViewer><StackPanel x:Name="BackupScreen" Spacing="14" MaxWidth="720" HorizontalAlignment="Left">
+        <TextBlock Text="Universal backup" FontSize="22" FontWeight="SemiBold"/>
+        <TextBlock Text="Export or import the cross-platform universal-v2 format. Transcript history, credentials, and account/license keys are always excluded." TextWrapping="Wrap"/>
+        <TextBlock Text="Unknown Linux, Windows, and macOS platform extension fields are preserved across an import/export round trip." TextWrapping="Wrap" Opacity="0.7"/>
+        <TextBlock Text="Export sections" FontWeight="SemiBold"/>
+        <StackPanel Orientation="Horizontal" Spacing="12"><CheckBox x:Name="BackupExportSettings" Content="Settings" IsChecked="{Binding ExportSettings}"/><CheckBox x:Name="BackupExportModes" Content="Modes" IsChecked="{Binding ExportModes}"/><CheckBox x:Name="BackupExportVocabulary" Content="Vocabulary" IsChecked="{Binding ExportVocabulary}"/></StackPanel>
+        <Button x:Name="BackupExportButton" Content="Choose destination and export…" Click="OnExportBackup" HorizontalAlignment="Left"/>
+        <Separator/>
+        <TextBlock Text="Import backup" FontWeight="SemiBold"/>
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8"><TextBox x:Name="BackupPathInput" Text="{Binding Path}" IsReadOnly="True" PlaceholderText="No backup selected"/><Button x:Name="BackupChooseImportButton" Grid.Column="1" Content="Choose backup…" Click="OnChooseBackup"/></Grid>
+        <Button x:Name="BackupInspectButton" Content="Inspect selected backup" Command="{Binding InspectCommand}" HorizontalAlignment="Left"/>
+        <TextBlock Text="{Binding ContentsSummary}" TextWrapping="Wrap"/>
+        <TextBlock Text="{Binding SensitiveDataNotice}" TextWrapping="Wrap" Foreground="DarkOrange"/>
+        <StackPanel IsVisible="{Binding HasInspectedBackup}" Spacing="10">
+          <TextBlock Text="Import sections" FontWeight="SemiBold"/>
+          <StackPanel Orientation="Horizontal" Spacing="12"><CheckBox x:Name="BackupImportSettings" Content="Settings" IsChecked="{Binding ImportSettings}"/><CheckBox x:Name="BackupImportModes" Content="Modes" IsChecked="{Binding ImportModes}"/><CheckBox x:Name="BackupImportVocabulary" Content="Vocabulary" IsChecked="{Binding ImportVocabulary}"/></StackPanel>
+          <CheckBox x:Name="BackupReplaceAllModes" Content="Replace all modes (uncheck to merge only selected modes)" IsChecked="{Binding ReplaceAllModes}"/>
+          <ItemsControl ItemsSource="{Binding ImportModeSelections}" IsVisible="{Binding ImportModes}"><ItemsControl.ItemTemplate><DataTemplate><CheckBox Content="{Binding Name}" IsChecked="{Binding IsSelected}" Margin="16,2,0,2"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+          <TextBlock Text="Vocabulary conflicts" FontWeight="SemiBold"/>
+          <StackPanel Orientation="Horizontal" Spacing="12"><RadioButton x:Name="BackupVocabularyReplace" GroupName="VocabularyConflict" Content="Replace existing" IsChecked="{Binding ReplaceVocabularyConflicts}"/><RadioButton x:Name="BackupVocabularySkip" GroupName="VocabularyConflict" Content="Skip existing" IsChecked="{Binding SkipVocabularyConflicts}"/></StackPanel>
+          <Button x:Name="BackupPreviewButton" Content="Preview selected import" Command="{Binding PreviewCommand}" HorizontalAlignment="Left"/>
+          <TextBlock Text="{Binding PreviewSummary}" TextWrapping="Wrap"/>
+          <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8"><TextBlock Text="{Binding PreviewModesAdded, StringFormat='Modes added: {0}'}"/><TextBlock Grid.Column="1" Text="{Binding PreviewModesReplaced, StringFormat='Modes replaced: {0}'}"/><TextBlock Grid.Column="2" Text="{Binding PreviewModesRemoved, StringFormat='Modes removed: {0}'}"/></Grid>
+          <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8"><TextBlock Text="{Binding PreviewVocabularyAdded, StringFormat='Words added: {0}'}"/><TextBlock Grid.Column="1" Text="{Binding PreviewVocabularyReplaced, StringFormat='Words replaced: {0}'}"/><TextBlock Grid.Column="2" Text="{Binding PreviewVocabularySkipped, StringFormat='Words skipped: {0}'}"/></Grid>
+          <CheckBox x:Name="BackupConfirmImport" Content="I reviewed this preview and confirm these changes" IsChecked="{Binding ImportConfirmed}"/>
+          <Button x:Name="BackupImportButton" Content="Confirm import" Command="{Binding ImportCommand}" HorizontalAlignment="Left"/>
+        </StackPanel>
+        <TextBlock Text="{Binding OperationSummary}" TextWrapping="Wrap"/>
+        <TextBlock Text="{Binding Status.Message}"/><TextBlock Text="{Binding Status.ErrorCode}" IsVisible="{Binding Status.HasError}" Opacity="0.7"/>
+      </StackPanel></ScrollViewer>
     </DataTemplate>
     <DataTemplate DataType="vm:CloudAccountViewModel">
       <ScrollViewer x:Name="AccountScreen">

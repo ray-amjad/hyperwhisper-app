@@ -164,13 +164,16 @@ try
     backupViewModel.ImportModes = false;
     backupViewModel.SkipVocabularyConflicts = true;
     await backupViewModel.PreviewAsync();
-    Assert(backupViewModel.CanConfirmImport && backupViewModel.Preview is
+    Assert(!backupViewModel.CanConfirmImport && backupViewModel.Preview is
         { WillImportSettings: false, ModesAdded: 0, ModesReplaced: 0, VocabularySkipped: 2 }
         && backupViewModel.PreviewSummary.Contains("skip 2", StringComparison.Ordinal),
-        "view model preview did not reflect selected sections and conflict policy");
+        "view model preview did not reflect selected sections, conflict policy, or require confirmation");
+    backupViewModel.ImportConfirmed = true;
+    Assert(backupViewModel.CanConfirmImport, "explicit preview confirmation did not enable import");
     backupViewModel.ReplaceVocabularyConflicts = true;
     Assert(!backupViewModel.CanConfirmImport, "changing a selection did not invalidate stale confirmation");
     await backupViewModel.PreviewAsync();
+    backupViewModel.ImportConfirmed = true;
     await File.WriteAllTextAsync(viewModelImportPath, "not the inspected backup");
     var importedEventRaised = false;
     backupViewModel.Imported += (_, _) => importedEventRaised = true;
