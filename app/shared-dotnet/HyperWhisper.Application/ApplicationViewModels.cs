@@ -2391,7 +2391,8 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
         string deviceName = "Linux device",
         Func<Uri, PlatformResult>? openAccountUri = null,
         ITextInjectionService? historyTextInjection = null,
-        ModelReadinessService? modelReadiness = null)
+        ModelReadinessService? modelReadiness = null,
+        AboutViewModel? about = null)
     {
         _database = database;
         var historyRepository = new HistoryRepository(database, paths);
@@ -2428,6 +2429,7 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
         Account = cloudAccount is not null && deviceIdentity is not null && openAccountUri is not null
             ? new CloudAccountViewModel(cloudAccount, deviceIdentity, deviceName, openAccountUri)
             : null;
+        About = about;
         Recording = transcriptionWorkflow is null ? null : new TranscriptionWorkflowViewModel(
             transcriptionWorkflow,
             () => CreateTranscriptionRequest(Modes.Selected), audioImport, filePreflight);
@@ -2452,6 +2454,7 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
     public BackupViewModel Backup { get; }
     public CredentialManagementViewModel? Credentials { get; }
     public CloudAccountViewModel? Account { get; }
+    public AboutViewModel? About { get; }
     public TranscriptionWorkflowViewModel? Recording { get; }
     public UiStatus Status { get; } = new();
     public object? CurrentPage { get => _currentPage; private set => Set(ref _currentPage, value); }
@@ -2513,6 +2516,7 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
             "backup" => ("Backup", Backup),
             "credentials" when Credentials is not null => ("Credentials", Credentials),
             "account" when Account is not null => ("Cloud account", Account),
+            "about" when About is not null => ("About", About),
             _ => throw new ArgumentException("Unknown navigation page.", nameof(pageId))
         };
         PageTitle = selection.Title;

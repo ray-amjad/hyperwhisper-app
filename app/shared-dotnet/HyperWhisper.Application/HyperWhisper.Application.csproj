@@ -13,6 +13,7 @@
     <ProjectReference Include="..\HyperWhisper.AudioNormalization\HyperWhisper.AudioNormalization.csproj" />
     <ProjectReference Include="..\HyperWhisper.CloudAccount\HyperWhisper.CloudAccount.csproj" />
     <ProjectReference Include="..\HyperWhisper.FileTranscription\HyperWhisper.FileTranscription.csproj" />
+    <ProjectReference Include="..\HyperWhisper.Diagnostics\HyperWhisper.Diagnostics.csproj" />
     <ProjectReference Include="..\HyperWhisper.ModelManagement\HyperWhisper.ModelManagement.csproj" />
     <ProjectReference Include="..\HyperWhisper.ModelReadiness\HyperWhisper.ModelReadiness.csproj" />
     <ProjectReference Include="..\HyperWhisper.SharedCore\HyperWhisper.SharedCore.csproj" />

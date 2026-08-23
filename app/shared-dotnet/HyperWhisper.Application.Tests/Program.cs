@@ -12,6 +12,8 @@ using HyperWhisper.SharedCore;
 using HyperWhisper.PortableApplication.ViewModels;
 using HyperWhisper.CloudAccount;
 using HyperWhisper.Statistics;
+using HyperWhisper.Diagnostics;
+using System.IO.Compression;
 
 var root = Path.Combine(Path.GetTempPath(), "HyperWhisper.Application.Tests", Guid.NewGuid().ToString("N"));
 Directory.CreateDirectory(root);
@@ -688,6 +690,20 @@ try
     Assert(reloadedStatisticsSettings.Load().IsSuccess
         && reloadedStatisticsSettings.Get("advanced.typingSpeedWPM", 0) == 80,
         "home typing speed did not persist");
+
+    var diagnosticsDirectory = Path.Combine(root, "about-diagnostics");
+    var about = new AboutViewModel(
+        "1.2.3", "1.2.3-1",
+        new DiagnosticArchiveExporter(diagnosticsDirectory),
+        DiagnosticSystemInfo.Create("1.2.3", "Linux", "Test Linux", "kernel", "X64", "GNOME", "wayland"),
+        new DiagnosticCapabilities(true, true, true, true, true, true, false));
+    var diagnosticsArchive = Path.Combine(root, "about.zip");
+    await about.ExportDiagnosticsAsync(diagnosticsArchive);
+    using (var archive = ZipFile.OpenRead(diagnosticsArchive))
+        Assert(about.Status.Message.Contains("exported", StringComparison.OrdinalIgnoreCase)
+            && archive.Entries.Select(entry => entry.FullName).Order().SequenceEqual(
+                new[] { "capabilities.json", "logs/events.jsonl", "system.json" }),
+            "about diagnostics did not enforce the exact archive allowlist");
 
     Console.WriteLine("HyperWhisper.Application persistence tests passed.");
     return 0;

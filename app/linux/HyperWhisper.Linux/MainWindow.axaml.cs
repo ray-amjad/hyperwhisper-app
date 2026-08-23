@@ -21,6 +21,8 @@ using System.Diagnostics;
 using HyperWhisper.Storage;
 using HyperWhisper.ModelReadiness;
 using HyperWhisper.PortableApplication.ModelLibrary;
+using HyperWhisper.Diagnostics;
+using System.Reflection;
 
 namespace HyperWhisper.Linux;
 
@@ -42,6 +44,7 @@ public partial class MainWindow : Window
     private readonly PortableCloudAccountService _cloudAccount;
     private readonly PortableStorageLifecycleService _storageLifecycle;
     private readonly TranscriptStorageCoordinator _storageCoordinator;
+    private readonly PrivacySafeRotatingLogger _diagnosticLogger;
     private readonly TranscriptionWorkflow _workflow;
     private readonly LinuxInteractionRecordingSession _recordingSession;
     private readonly LinuxInteractionCoordinator _interaction;
@@ -72,6 +75,8 @@ public partial class MainWindow : Window
         _storageLifecycle = new PortableStorageLifecycleService(
             _platformServices.Paths, _platformServices.PrivateFiles);
         _storageCoordinator = new TranscriptStorageCoordinator(_database, _storageLifecycle);
+        var diagnosticDirectory = Path.Combine(_platformServices.Paths.LogsDirectory, "diagnostics");
+        _diagnosticLogger = new PrivacySafeRotatingLogger(diagnosticDirectory);
         _postProcessor = new LinuxLocalPostProcessor(
             _platformServices.Paths.ModelsDirectory, _settings, _database);
         _postProcessingRouter = new LinuxPostProcessingRouter(
@@ -113,7 +118,8 @@ public partial class MainWindow : Window
             ModelReadinessComposition.Create(
                 _modelManager,
                 _platformServices.CredentialStore,
-                new LinuxMetadataOnlyHealthProbe()));
+            new LinuxMetadataOnlyHealthProbe()),
+            CreateAboutViewModel(diagnosticDirectory));
         var history = new HistoryRepository(_database, _platformServices.Paths);
         var contextCapture = new LinuxContextCaptureCoordinator(
             _platformServices.ApplicationContext, _platformServices.ScreenOcr);
@@ -149,6 +155,7 @@ public partial class MainWindow : Window
         try
         {
             await EnsureInitializedAsync();
+            await WriteDiagnosticAsync(DiagnosticSeverity.Information, DiagnosticComponent.Application, DiagnosticOutcome.Started);
             await ApplyLocalApiSettingsAsync(_lifetime.Token);
             ApplyTelemetrySettings();
             ApplyDesktopSettings();
@@ -162,10 +169,12 @@ public partial class MainWindow : Window
                 _trayAvailable = true;
                 if (_viewModel.Settings.LaunchMinimized) Hide();
             }
+            await WriteDiagnosticAsync(DiagnosticSeverity.Information, DiagnosticComponent.Application, DiagnosticOutcome.Succeeded);
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
         catch
         {
+            await WriteDiagnosticAsync(DiagnosticSeverity.Error, DiagnosticComponent.Application, DiagnosticOutcome.Failed);
             _viewModel.Status.Failure("app.desktop_start_failed", "Linux desktop integration could not be started.");
         }
     }
@@ -220,11 +229,42 @@ public partial class MainWindow : Window
         _postProcessor.Dispose();
         _postProcessingRouter.Dispose();
         _cloudAccount.Dispose();
+        _diagnosticLogger.Dispose();
         _modelHttp.Dispose();
         _storageTimer.Dispose();
     }
 
     private Task EnsureInitializedAsync() => _initialization ??= _viewModel.InitializeAsync();
+
+    private AboutViewModel CreateAboutViewModel(string diagnosticDirectory)
+    {
+        var version = typeof(MainWindow).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+            ?? typeof(MainWindow).Assembly.GetName().Version?.ToString()
+            ?? "unknown";
+        var packageVersion = typeof(MainWindow).Assembly.GetName().Version?.ToString() ?? version;
+        var capabilities = new DiagnosticCapabilities(
+            AudioCapture: true,
+            Clipboard: true,
+            GlobalShortcuts: true,
+            TextInjection: true,
+            PortalScreenCapture: true,
+            LocalInference: _platformServices.LocalWhisperCapability.IsAvailable || _platformServices.LocalParakeetCapability.IsAvailable,
+            Cuda: _platformServices.LocalWhisperCapability.DisplayName.Contains("CUDA", StringComparison.OrdinalIgnoreCase));
+        return new AboutViewModel(
+            version,
+            packageVersion,
+            new DiagnosticArchiveExporter(diagnosticDirectory),
+            DiagnosticSystemInfo.Detect(version),
+            capabilities);
+    }
+
+    private Task<DiagnosticWriteResult> WriteDiagnosticAsync(
+        DiagnosticSeverity severity,
+        DiagnosticComponent component,
+        DiagnosticOutcome outcome)
+        => !_viewModel.Settings.EnableErrorLogging
+            ? Task.FromResult(DiagnosticWriteResult.Ok)
+            : _diagnosticLogger.WriteAsync(new(DateTimeOffset.UtcNow, severity, component, outcome), _lifetime.Token);
 
     private async void OnChooseBackup(object? sender, RoutedEventArgs e)
     {
@@ -278,6 +318,42 @@ public partial class MainWindow : Window
                 { Navigation.SelectedItem = item; break; }
         }
         catch (ArgumentException) { _viewModel.Status.Failure("models.navigation_unavailable", "That setup page is unavailable in this build."); }
+    }
+
+    private async void OnExportDiagnostics(object? sender, RoutedEventArgs e)
+    {
+        if (_viewModel.About is null) return;
+        var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = "Export privacy-safe diagnostics",
+            SuggestedFileName = $"hyperwhisper-diagnostics-{DateTime.UtcNow:yyyy-MM-dd}.zip",
+            DefaultExtension = "zip",
+            FileTypeChoices = [new FilePickerFileType("ZIP archive") { Patterns = ["*.zip"], MimeTypes = ["application/zip"] }],
+            ShowOverwritePrompt = true,
+        });
+        if (file is not null) await _viewModel.About.ExportDiagnosticsAsync(file.Path.LocalPath, _lifetime.Token);
+    }
+
+    private void OnOpenLogs(object? sender, RoutedEventArgs e) => OpenFixedLocation(_platformServices.Paths.LogsDirectory);
+    private void OnOpenDocumentation(object? sender, RoutedEventArgs e) => OpenSafeUri(new Uri("https://hyperwhisper.com/docs"));
+    private void OnOpenSupport(object? sender, RoutedEventArgs e) => OpenSafeUri(new Uri("https://hyperwhisper.com/support"));
+
+    private void OpenFixedLocation(string path)
+    {
+        try
+        {
+            Directory.CreateDirectory(path, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            var start = new ProcessStartInfo("xdg-open") { UseShellExecute = false };
+            start.ArgumentList.Add(path);
+            _ = Process.Start(start);
+        }
+        catch { _viewModel.About?.Status.Failure("about.open_logs_failed", "The private logs folder could not be opened."); }
+    }
+
+    private void OpenSafeUri(Uri uri)
+    {
+        var result = OpenAccountUri(uri);
+        if (result.IsFailure) _viewModel.About?.Status.Failure(result.Error!.Code, result.Error.Message);
     }
 
     private async void OnLocalApiSettingsChanged(object? sender, EventArgs e)
