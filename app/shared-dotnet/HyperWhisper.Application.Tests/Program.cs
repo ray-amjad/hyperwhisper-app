@@ -78,6 +78,34 @@ try
     Assert((await modes.ListAsync()).Single().Name == "Portable Updated", "backup did not restore modes");
     Assert(reloadedSettings.Get<string>("language") == "en", "backup did not restore settings");
 
+    using (var shell = new HyperWhisper.PortableApplication.ViewModels.ApplicationShellViewModel(database, reloadedSettings))
+    {
+        await shell.InitializeAsync();
+        Assert(!shell.Status.HasError, $"shell initialization failed: {shell.Status.ErrorCode}");
+        foreach (var page in new[] { "home", "history", "vocabulary", "modes", "settings" })
+        {
+            shell.Navigate(page);
+            Assert(shell.CurrentPage != null && shell.PageTitle.Length > 0, $"navigation failed for {page}");
+        }
+
+        await shell.History.DeleteAsync(null);
+        Assert(shell.History.Status.ErrorCode == "history.no_selection", "history did not expose a structured selection failure");
+        shell.Vocabulary.Word = " ";
+        await shell.Vocabulary.AddAsync();
+        Assert(shell.Vocabulary.Status.ErrorCode == "vocabulary.word_required", "vocabulary accepted an empty term");
+        shell.Modes.Selected = null;
+        shell.Modes.Name = "";
+        await shell.Modes.SaveAsync();
+        Assert(shell.Modes.Status.ErrorCode == "modes.name_required", "modes accepted an empty name");
+    }
+
+    var failingHome = new HyperWhisper.PortableApplication.ViewModels.HomeViewModel(
+        new HistoryRepository(new ApplicationDb(() => throw new IOException("expected test failure"))),
+        new VocabularyRepository(database),
+        new ModeRepository(database));
+    await failingHome.RefreshAsync();
+    Assert(failingHome.Status.ErrorCode == "home.refresh_failed", "repository failure was reported as success");
+
     Console.WriteLine("HyperWhisper.Application persistence tests passed.");
     return 0;
 }

@@ -1,55 +1,46 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="HyperWhisper.Linux.MainWindow"
-        Title="HyperWhisper"
-        Width="1040"
-        Height="680"
-        MinWidth="800"
-        MinHeight="520"
-        WindowStartupLocation="CenterScreen">
-  <Grid ColumnDefinitions="220,*" RowDefinitions="*,Auto">
-    <Border Grid.RowSpan="2" Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
-            BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="0,0,1,0">
-      <Grid RowDefinitions="Auto,*,Auto" Margin="16">
-        <StackPanel Spacing="4" Margin="8,8,8,24">
-          <TextBlock Text="HyperWhisper" FontSize="24" FontWeight="SemiBold" />
-          <TextBlock Text="Linux 1.0" Opacity="0.65" />
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:HyperWhisper.PortableApplication.ViewModels" x:Class="HyperWhisper.Linux.MainWindow" x:DataType="vm:ApplicationShellViewModel"
+        Title="HyperWhisper" Width="1040" Height="680" MinWidth="800" MinHeight="520" WindowStartupLocation="CenterScreen">
+  <Window.DataTemplates>
+    <DataTemplate DataType="vm:HomeViewModel">
+      <StackPanel x:Name="HomeScreen" Spacing="20">
+        <TextBlock Text="Local library" FontSize="22" FontWeight="SemiBold" />
+        <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12">
+          <Border Padding="18" CornerRadius="8" Background="{DynamicResource ControlFillColorDefaultBrush}"><StackPanel><TextBlock Text="History"/><TextBlock Text="{Binding HistoryCount}" FontSize="28"/></StackPanel></Border>
+          <Border Grid.Column="1" Padding="18" CornerRadius="8" Background="{DynamicResource ControlFillColorDefaultBrush}"><StackPanel><TextBlock Text="Vocabulary"/><TextBlock Text="{Binding VocabularyCount}" FontSize="28"/></StackPanel></Border>
+          <Border Grid.Column="2" Padding="18" CornerRadius="8" Background="{DynamicResource ControlFillColorDefaultBrush}"><StackPanel><TextBlock Text="Modes"/><TextBlock Text="{Binding ModeCount}" FontSize="28"/></StackPanel></Border>
+        </Grid>
+        <Button x:Name="HomeRefreshButton" Content="Refresh" Command="{Binding RefreshCommand}" HorizontalAlignment="Left" />
+        <TextBlock Text="{Binding Status.Message}" /><TextBlock Text="{Binding Status.ErrorCode}" IsVisible="{Binding Status.HasError}" Opacity="0.7"/>
+      </StackPanel>
+    </DataTemplate>
+    <DataTemplate DataType="vm:HistoryViewModel">
+      <Grid x:Name="HistoryScreen" ColumnDefinitions="2*,3*" ColumnSpacing="20">
+        <StackPanel Spacing="10"><Button Content="Refresh" Command="{Binding RefreshCommand}" HorizontalAlignment="Left" />
+          <ListBox x:Name="HistoryList" ItemsSource="{Binding Items}" SelectedItem="{Binding Selected}"><ListBox.ItemTemplate><DataTemplate><StackPanel Margin="4"><TextBlock Text="{Binding Text}"/><TextBlock Text="{Binding Date}" FontSize="11" Opacity="0.65"/></StackPanel></DataTemplate></ListBox.ItemTemplate></ListBox>
         </StackPanel>
-
-        <ListBox x:Name="Navigation" Grid.Row="1" SelectionChanged="OnNavigationChanged">
-          <ListBoxItem Content="Home" Tag="home" IsSelected="True" />
-          <ListBoxItem Content="Modes" Tag="modes" />
-          <ListBoxItem Content="History" Tag="history" />
-          <ListBoxItem Content="Vocabulary" Tag="vocabulary" />
-          <ListBoxItem Content="Settings" Tag="settings" />
-        </ListBox>
-
-        <Border Grid.Row="2" Padding="10" CornerRadius="8"
-                Background="{DynamicResource ControlFillColorDefaultBrush}">
-          <TextBlock x:Name="PlatformStatusText" Text="Connecting Linux platform…"
-                     FontSize="12" TextWrapping="Wrap" Opacity="0.7" />
-        </Border>
+        <StackPanel Grid.Column="1" Spacing="12"><TextBlock Text="Transcript detail" FontSize="20" FontWeight="SemiBold"/><TextBlock x:Name="HistoryDetailText" Text="{Binding Selected.Text}" TextWrapping="Wrap"/><TextBlock Text="{Binding Selected.TranscriptionProvider, StringFormat='Provider: {0}'}"/><TextBlock Text="{Binding Selected.Duration, StringFormat='Duration: {0:F1}s'}"/><Button x:Name="HistoryDeleteButton" Content="Delete" Command="{Binding DeleteCommand}" CommandParameter="{Binding Selected}" HorizontalAlignment="Left"/><TextBlock Text="{Binding Status.Message}"/><TextBlock Text="{Binding Status.ErrorCode}" IsVisible="{Binding Status.HasError}" Opacity="0.7"/></StackPanel>
       </Grid>
-    </Border>
-
-    <Grid Grid.Column="1" RowDefinitions="Auto,*" Margin="36,28">
-      <TextBlock x:Name="PageTitle" Text="Home" FontSize="30" FontWeight="SemiBold" />
-      <Border Grid.Row="1" Margin="0,24,0,0" Padding="28" CornerRadius="12"
-              Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
-              BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1">
-        <StackPanel Spacing="14" VerticalAlignment="Center" HorizontalAlignment="Center">
-          <TextBlock x:Name="PageHeading" Text="Linux application shell is running"
-                     FontSize="22" FontWeight="SemiBold" TextAlignment="Center" />
-          <TextBlock x:Name="PageDescription"
-                     Text="Platform services are connected here as each parity milestone lands."
-                     MaxWidth="560" TextWrapping="Wrap" TextAlignment="Center" Opacity="0.72" />
-        </StackPanel>
-      </Border>
-    </Grid>
-
-    <Border Grid.Column="1" Grid.Row="1" Padding="36,10"
-            BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="0,1,0,0">
-      <TextBlock x:Name="StatusText" Text="Ready" FontSize="12" Opacity="0.7" />
-    </Border>
+    </DataTemplate>
+    <DataTemplate DataType="vm:VocabularyViewModel">
+      <Grid x:Name="VocabularyScreen" RowDefinitions="Auto,*" RowSpacing="16">
+        <StackPanel Orientation="Horizontal" Spacing="8"><TextBox x:Name="VocabularyWordInput" PlaceholderText="Word or phrase" Text="{Binding Word}" Width="220"/><TextBox x:Name="VocabularyReplacementInput" PlaceholderText="Replacement (optional)" Text="{Binding Replacement}" Width="220"/><Button x:Name="VocabularyAddButton" Content="Add" Command="{Binding AddCommand}"/></StackPanel>
+        <StackPanel Grid.Row="1" Spacing="10"><ItemsControl x:Name="VocabularyList" ItemsSource="{Binding Items}"><ItemsControl.ItemTemplate><DataTemplate><Grid ColumnDefinitions="2*,2*,Auto" Margin="0,4"><TextBlock Text="{Binding Word}"/><TextBlock Grid.Column="1" Text="{Binding Replacement}"/><Button Grid.Column="2" Content="Delete" Command="{Binding $parent[ItemsControl].DataContext.DeleteCommand}" CommandParameter="{Binding}"/></Grid></DataTemplate></ItemsControl.ItemTemplate></ItemsControl><TextBlock Text="{Binding Status.Message}"/><TextBlock Text="{Binding Status.ErrorCode}" IsVisible="{Binding Status.HasError}" Opacity="0.7"/></StackPanel>
+      </Grid>
+    </DataTemplate>
+    <DataTemplate DataType="vm:ModesViewModel">
+      <Grid x:Name="ModesScreen" ColumnDefinitions="2*,3*" ColumnSpacing="20">
+        <ListBox x:Name="ModesList" ItemsSource="{Binding Items}" SelectedItem="{Binding Selected}"><ListBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}" Margin="6"/></DataTemplate></ListBox.ItemTemplate></ListBox>
+        <StackPanel Grid.Column="1" Spacing="10"><TextBlock Text="Mode editor" FontSize="20" FontWeight="SemiBold"/><TextBox x:Name="ModeNameInput" PlaceholderText="Name" Text="{Binding Name}"/><TextBox x:Name="ModeLanguageInput" PlaceholderText="Language code" Text="{Binding Language}"/><StackPanel Orientation="Horizontal" Spacing="8"><Button Content="New" Command="{Binding NewCommand}"/><Button x:Name="ModeSaveButton" Content="Save" Command="{Binding SaveCommand}"/><Button x:Name="ModeDeleteButton" Content="Delete" Command="{Binding DeleteCommand}"/></StackPanel><TextBlock Text="{Binding Status.Message}"/><TextBlock Text="{Binding Status.ErrorCode}" IsVisible="{Binding Status.HasError}" Opacity="0.7"/></StackPanel>
+      </Grid>
+    </DataTemplate>
+    <DataTemplate DataType="vm:SettingsViewModel">
+      <StackPanel x:Name="SettingsScreen" Spacing="14" MaxWidth="520" HorizontalAlignment="Left"><TextBlock Text="Application settings" FontSize="22" FontWeight="SemiBold"/><TextBlock Text="Default transcription language preference"/><TextBox x:Name="SettingsLanguageInput" Text="{Binding Language}"/><Button x:Name="SettingsSaveButton" Content="Save settings" Command="{Binding SaveCommand}" HorizontalAlignment="Left"/><TextBlock Text="{Binding Status.Message}"/><TextBlock Text="{Binding Status.ErrorCode}" IsVisible="{Binding Status.HasError}" Opacity="0.7"/></StackPanel>
+    </DataTemplate>
+  </Window.DataTemplates>
+  <Grid ColumnDefinitions="220,*" RowDefinitions="*,Auto">
+    <Border Grid.RowSpan="2" Background="{DynamicResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="0,0,1,0"><Grid RowDefinitions="Auto,*,Auto" Margin="16"><StackPanel Spacing="4" Margin="8,8,8,24"><TextBlock Text="HyperWhisper" FontSize="24" FontWeight="SemiBold"/><TextBlock Text="Linux 1.0" Opacity="0.65"/></StackPanel><ListBox x:Name="Navigation" Grid.Row="1" SelectionChanged="OnNavigationChanged"><ListBoxItem Content="Home" Tag="home" IsSelected="True"/><ListBoxItem Content="Modes" Tag="modes"/><ListBoxItem Content="History" Tag="history"/><ListBoxItem Content="Vocabulary" Tag="vocabulary"/><ListBoxItem Content="Settings" Tag="settings"/></ListBox><Border Grid.Row="2" Padding="10" CornerRadius="8" Background="{DynamicResource ControlFillColorDefaultBrush}"><TextBlock x:Name="PlatformStatusText" Text="Connecting Linux platform…" FontSize="12" TextWrapping="Wrap" Opacity="0.7"/></Border></Grid></Border>
+    <Grid Grid.Column="1" RowDefinitions="Auto,*" Margin="36,28"><TextBlock x:Name="PageTitle" Text="{Binding PageTitle}" FontSize="30" FontWeight="SemiBold"/><Border Grid.Row="1" Margin="0,24,0,0" Padding="24" CornerRadius="12" Background="{DynamicResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1"><ContentControl x:Name="PageContent" Content="{Binding CurrentPage}"/></Border></Grid>
+    <Border Grid.Column="1" Grid.Row="1" Padding="36,10" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="0,1,0,0"><StackPanel Orientation="Horizontal" Spacing="8"><TextBlock x:Name="StatusText" Text="{Binding Status.Message}" FontSize="12" Opacity="0.7"/><TextBlock Text="{Binding Status.ErrorCode}" IsVisible="{Binding Status.HasError}" FontSize="12" Opacity="0.7"/></StackPanel></Border>
   </Grid>
 </Window>

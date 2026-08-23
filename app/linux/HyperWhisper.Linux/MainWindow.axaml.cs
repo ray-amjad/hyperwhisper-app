@@ -1,25 +1,21 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.LogicalTree;
 using Avalonia.Threading;
+using HyperWhisper.Data.Entities;
+using HyperWhisper.PortableApplication.Persistence;
+using HyperWhisper.PortableApplication.ViewModels;
 
 namespace HyperWhisper.Linux;
 
 public partial class MainWindow : Window
 {
     private readonly LinuxDesktopServices _platformServices;
+    private readonly ApplicationDb _database;
+    private readonly ApplicationShellViewModel _viewModel;
+    private Task? _initialization;
 
-    private static readonly IReadOnlyDictionary<string, (string Heading, string Description)> Pages =
-        new Dictionary<string, (string, string)>(StringComparer.Ordinal)
-        {
-            ["home"] = ("Linux application shell is running", "Platform services are connected here as each parity milestone lands."),
-            ["modes"] = ("Modes", "Mode selection and context-aware switching share the portable HyperWhisper core."),
-            ["history"] = ("History", "Recordings and transcripts use Linux XDG data and state directories."),
-            ["vocabulary"] = ("Vocabulary", "Custom terms and replacements remain compatible with Windows and macOS backups."),
-            ["settings"] = ("Settings", "Hotkeys, audio, models, privacy, local API, and desktop integration are configured here."),
-        };
-
-    public MainWindow()
-        : this(new LinuxDesktopServices())
+    public MainWindow() : this(new LinuxDesktopServices())
     {
         Closed += (_, _) => _platformServices.Dispose();
     }
@@ -27,68 +23,97 @@ public partial class MainWindow : Window
     internal MainWindow(LinuxDesktopServices platformServices)
     {
         _platformServices = platformServices ?? throw new ArgumentNullException(nameof(platformServices));
+        _database = new ApplicationDb(_platformServices.Paths);
+        var settings = new PortableSettingsService(_platformServices.PrivateFiles, _platformServices.Paths);
+        _viewModel = new ApplicationShellViewModel(_database, settings);
         InitializeComponent();
-        PlatformStatusText.Text = $"Linux platform ready · {_platformServices.Paths.DataDirectory}";
+        DataContext = _viewModel;
+        PlatformStatusText.Text = $"Linux platform connected · {_platformServices.Paths.DataDirectory}";
+        Opened += OnOpened;
+        Closed += OnClosed;
     }
+
+    private async void OnOpened(object? sender, EventArgs e) => await EnsureInitializedAsync();
+
+    private void OnClosed(object? sender, EventArgs e)
+    {
+        Opened -= OnOpened;
+        Closed -= OnClosed;
+        _viewModel.Dispose();
+    }
+
+    private Task EnsureInitializedAsync() => _initialization ??= _viewModel.InitializeAsync();
 
     private void OnNavigationChanged(object? sender, SelectionChangedEventArgs e)
     {
-        if (Navigation.SelectedItem is not ListBoxItem { Tag: string pageId })
-        {
-            return;
-        }
-
-        ShowPage(pageId);
-    }
-
-    private void ShowPage(string pageId)
-    {
-        if (!Pages.TryGetValue(pageId, out var page))
-        {
-            throw new ArgumentException("Unknown navigation page.", nameof(pageId));
-        }
-
-        PageTitle.Text = char.ToUpperInvariant(pageId[0]) + pageId[1..];
-        PageHeading.Text = page.Heading;
-        PageDescription.Text = page.Description;
-        StatusText.Text = $"{PageTitle.Text} ready";
+        if (Navigation.SelectedItem is ListBoxItem { Tag: string pageId })
+            _viewModel.Navigate(pageId);
     }
 
     internal async Task<int> RunSmokeTestAsync()
     {
         try
         {
+            await EnsureInitializedAsync();
             await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
-
-            if (Bounds.Width <= 0 || Bounds.Height <= 0 || !IsVisible)
-            {
-                return 2;
-            }
-
+            if (Bounds.Width <= 0 || Bounds.Height <= 0 || !IsVisible) return 2;
             if (!Path.IsPathFullyQualified(_platformServices.Paths.DataDirectory)
                 || _platformServices.PrivateFiles is null
                 || _platformServices.GlobalShortcuts is null
-                || !_platformServices.ProbeSharedCore())
-            {
-                return 4;
-            }
+                || !_platformServices.ProbeSharedCore()) return 4;
+            if (_viewModel.Status.HasError) return 5;
 
-            foreach (var pageId in Pages.Keys)
+            await SeedSmokeDataAsync();
+            var expectedControls = new Dictionary<string, string>(StringComparer.Ordinal)
             {
-                ShowPage(pageId);
+                ["home"] = "HomeRefreshButton",
+                ["modes"] = "ModeSaveButton",
+                ["history"] = "HistoryDeleteButton",
+                ["vocabulary"] = "VocabularyAddButton",
+                ["settings"] = "SettingsSaveButton"
+            };
+            foreach (var page in expectedControls)
+            {
+                _viewModel.Navigate(page.Key);
                 await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
-
-                if (!string.Equals(StatusText.Text, $"{PageTitle.Text} ready", StringComparison.Ordinal))
-                {
+                if (!HasVisibleControl(page.Value)
+                    || !string.Equals(_viewModel.Status.Message, $"{_viewModel.PageTitle} ready", StringComparison.Ordinal))
                     return 3;
-                }
             }
 
+            if (_viewModel.History.Items.Count == 0
+                || _viewModel.Vocabulary.Items.Count == 0
+                || _viewModel.Modes.Items.Count == 0) return 6;
+            _viewModel.Settings.Language = "en";
+            _viewModel.Settings.Save();
+            if (_viewModel.Settings.Status.HasError) return 7;
             return 0;
         }
         catch
         {
             return 1;
         }
+    }
+
+    private bool HasVisibleControl(string name)
+        => this.GetLogicalDescendants().OfType<Control>().Any(control => control.Name == name && control.IsVisible);
+
+    private async Task SeedSmokeDataAsync()
+    {
+        await using (var context = _database.CreateContext())
+        {
+            if (!context.Transcripts.Any())
+                context.Transcripts.Add(new Transcript { Text = "Smoke transcript", Status = TranscriptStatus.Completed, Date = DateTime.UtcNow });
+            if (!context.VocabularyItems.Any())
+                context.VocabularyItems.Add(new VocabularyItem { Word = "SmokeTerm" });
+            if (!context.Modes.Any())
+                context.Modes.Add(new Mode { Name = "Smoke Mode", Language = "en" });
+            await context.SaveChangesAsync();
+        }
+        await Task.WhenAll(
+            _viewModel.Home.RefreshAsync(),
+            _viewModel.History.RefreshAsync(),
+            _viewModel.Vocabulary.RefreshAsync(),
+            _viewModel.Modes.RefreshAsync());
     }
 }
