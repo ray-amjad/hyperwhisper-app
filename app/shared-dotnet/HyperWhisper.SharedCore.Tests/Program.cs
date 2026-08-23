@@ -36,6 +36,74 @@ var tests = new (string Name, Func<Task> Run)[]
         Assert.True(prompt.SystemInfo.Contains("test-host", StringComparison.Ordinal));
         return Task.CompletedTask;
     }),
+    ("application and OCR context reaches the shared Rust prompt", () =>
+    {
+        var withoutContext = Prompt();
+        var withContext = Prompt(
+            AppType: "browser",
+            AppName: "Firefox",
+            Category: "browser",
+            Description: "Compose message",
+            TextFormat: "plain text",
+            BrowserHost: "example.test",
+            BrowserTabTitle: "Inbox",
+            FocusedElement: "text area",
+            FocusedContent: "Hello team",
+            ScreenOcrText: "Visible screen text",
+            AppTypeConfidence: "high",
+            AppTypeSource: "desktop",
+            HasApplicationContext: true);
+
+        Assert.Equal(withoutContext.SystemPrompt, withContext.SystemPrompt);
+        Assert.False(withoutContext.SystemInfo.Contains("<APPLICATION_CONTEXT>", StringComparison.Ordinal));
+        Assert.True(withContext.SystemInfo.Contains("<APPLICATION_CONTEXT>", StringComparison.Ordinal));
+        foreach (var expected in new[] { "Firefox", "browser", "Compose message", "plain text", "example.test", "Inbox", "text area", "Visible screen text", "high", "desktop" })
+            Assert.True(withContext.SystemInfo.Contains(expected, StringComparison.Ordinal));
+        return Task.CompletedTask;
+    }),
+    ("application prompt privacy bounds match desktop capture limits", () =>
+    {
+        var focused = new string('F', 100) + "FOCUSED_SECRET";
+        var ocr = new string('O', 2000) + "OCR_SECRET";
+        var boundedFocus = Prompt(
+            AppType: "editor",
+            AppName: "Editor",
+            FocusedContent: focused,
+            HasApplicationContext: true);
+        var boundedOcr = Prompt(
+            AppType: "editor",
+            AppName: "Editor",
+            ScreenOcrText: ocr,
+            HasApplicationContext: true);
+
+        Assert.DoesNotContain("FOCUSED_SECRET", boundedFocus.SystemInfo);
+        Assert.True(boundedFocus.SystemInfo.Contains(new string('F', 100) + "...", StringComparison.Ordinal));
+        Assert.DoesNotContain("OCR_SECRET", boundedOcr.SystemInfo);
+        Assert.True(boundedOcr.SystemInfo.Contains(new string('O', 2000), StringComparison.Ordinal));
+        return Task.CompletedTask;
+    }),
+    ("context fields are inert when context is absent", () =>
+    {
+        var baseline = Prompt();
+        var disabled = Prompt(
+            AppType: "browser",
+            AppName: "must-not-appear",
+            FocusedContent: "must-not-appear",
+            ScreenOcrText: "must-not-appear",
+            HasApplicationContext: false);
+        Assert.Equal(baseline.SystemPrompt, disabled.SystemPrompt);
+        Assert.Equal(baseline.SystemInfo, disabled.SystemInfo);
+        return Task.CompletedTask;
+    }),
+    ("OCR-only snapshots produce application context without an app name", () =>
+    {
+        var prompt = Prompt(
+            ScreenOcrText: "OCR-only visible text",
+            HasApplicationContext: true);
+        Assert.True(prompt.SystemInfo.Contains("<APPLICATION_CONTEXT>", StringComparison.Ordinal));
+        Assert.True(prompt.SystemInfo.Contains("OCR-only visible text", StringComparison.Ordinal));
+        return Task.CompletedTask;
+    }),
     ("cloud catalog enumerates every batch provider", () =>
     {
         var providers = CloudTranscriptionService.Providers;
@@ -74,6 +142,27 @@ foreach (var test in tests)
 
 Console.WriteLine($"{tests.Length - failures}/{tests.Length} tests passed");
 return failures == 0 ? 0 : 1;
+
+static PortablePostProcessingPrompt Prompt(
+    string AppType = "other",
+    string AppName = "",
+    string Category = "",
+    string Description = "",
+    string TextFormat = "",
+    string BrowserHost = "",
+    string BrowserTabTitle = "",
+    string FocusedElement = "",
+    string FocusedContent = "",
+    string ScreenOcrText = "",
+    string AppTypeConfidence = "unknown",
+    string AppTypeSource = "default",
+    bool HasApplicationContext = false) =>
+    SharedCoreBridge.BuildPostProcessingPrompt(new PortablePromptContext(
+        "hyper", "", "british", "English", "", ["HyperWhisper"],
+        true, true, false, "12:00", "UTC", "en-GB", "test-host",
+        AppType, AppName, Category, Description, TextFormat, BrowserHost,
+        BrowserTabTitle, FocusedElement, FocusedContent, ScreenOcrText,
+        AppTypeConfidence, AppTypeSource, HasApplicationContext));
 
 static async Task TestSingleShotProvidersAsync()
 {

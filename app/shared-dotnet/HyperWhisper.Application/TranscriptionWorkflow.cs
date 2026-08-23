@@ -94,6 +94,15 @@ public interface ITranscriptionPostProcessor
     Task<PortablePostProcessingResult> ProcessAsync(
         string transcript,
         Mode mode,
+        ApplicationContextSnapshot? applicationContext,
+        CancellationToken cancellationToken = default) =>
+        ProcessAsync(transcript, mode, cancellationToken);
+
+    // Compatibility entry point for processors that do not consume desktop
+    // context. New processors should override the context-aware overload.
+    Task<PortablePostProcessingResult> ProcessAsync(
+        string transcript,
+        Mode mode,
         CancellationToken cancellationToken = default);
 }
 
@@ -102,7 +111,8 @@ public sealed record TranscriptionWorkflowRequest(
     string? ModeName = null,
     Guid? ModeId = null,
     Mode? SelectedMode = null,
-    IReadOnlyList<string>? Vocabulary = null);
+    IReadOnlyList<string>? Vocabulary = null,
+    ApplicationContextSnapshot? ApplicationContext = null);
 
 public sealed record TranscriptionWorkflowSnapshot(
     TranscriptionWorkflowState State,
@@ -474,7 +484,10 @@ public sealed class TranscriptionWorkflow : IDisposable
                 try
                 {
                     postProcessing = await _postProcessor.ProcessAsync(
-                        rawText, request.SelectedMode!, operation.Token).ConfigureAwait(false);
+                        rawText,
+                        request.SelectedMode!,
+                        request.ApplicationContext,
+                        operation.Token).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException)
                 {

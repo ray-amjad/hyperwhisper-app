@@ -1,6 +1,7 @@
 using System.Globalization;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.LocalPostProcessing;
+using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.PortableApplication.Transcription;
 using HyperWhisper.SharedCore;
@@ -37,6 +38,7 @@ internal sealed class LinuxLocalPostProcessor : ITranscriptionPostProcessor, IDi
     public async Task<PortablePostProcessingResult> ProcessAsync(
         string transcript,
         Mode mode,
+        ApplicationContextSnapshot? applicationContext,
         CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -75,7 +77,20 @@ internal sealed class LinuxLocalPostProcessor : ITranscriptionPostProcessor, IDi
             DateTime.Now.ToString("t", CultureInfo.CurrentCulture),
             TimeZoneInfo.Local.StandardName,
             CultureInfo.CurrentCulture.Name,
-            Environment.MachineName));
+            Environment.MachineName,
+            AppType: applicationContext?.AppType ?? "other",
+            AppName: applicationContext?.ProcessName ?? string.Empty,
+            Category: applicationContext?.Category ?? string.Empty,
+            Description: applicationContext?.WindowTitle ?? string.Empty,
+            TextFormat: applicationContext?.TextFormat ?? string.Empty,
+            BrowserHost: applicationContext?.BrowserHost ?? string.Empty,
+            BrowserTabTitle: applicationContext?.BrowserTabTitle ?? string.Empty,
+            FocusedElement: applicationContext?.FocusedElementType ?? string.Empty,
+            FocusedContent: applicationContext?.FocusedContent ?? string.Empty,
+            ScreenOcrText: applicationContext?.ScreenOcrText ?? string.Empty,
+            AppTypeConfidence: applicationContext?.AppTypeConfidence ?? "unknown",
+            AppTypeSource: applicationContext?.AppTypeSource ?? "default",
+            HasApplicationContext: applicationContext is not null));
 
         var backend = ParseBackend(_settings.Get("localLlmBackend", "cpu"));
         var result = await _service.ProcessAsync(new LocalPostProcessingRequest(
@@ -97,6 +112,12 @@ internal sealed class LinuxLocalPostProcessor : ITranscriptionPostProcessor, IDi
             result.Text,
             $"Local LLM · {fileName} · {result.Runtime}");
     }
+
+    public Task<PortablePostProcessingResult> ProcessAsync(
+        string transcript,
+        Mode mode,
+        CancellationToken cancellationToken = default) =>
+        ProcessAsync(transcript, mode, null, cancellationToken);
 
     public void Dispose()
     {

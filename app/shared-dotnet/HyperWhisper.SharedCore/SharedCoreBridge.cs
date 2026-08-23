@@ -17,7 +17,20 @@ public sealed record PortablePromptContext(
     string Time,
     string Timezone,
     string Locale,
-    string ComputerName);
+    string ComputerName,
+    string AppType = "other",
+    string AppName = "",
+    string Category = "",
+    string Description = "",
+    string TextFormat = "",
+    string BrowserHost = "",
+    string BrowserTabTitle = "",
+    string FocusedElement = "",
+    string FocusedContent = "",
+    string ScreenOcrText = "",
+    string AppTypeConfidence = "unknown",
+    string AppTypeSource = "default",
+    bool HasApplicationContext = false);
 
 public sealed record PortablePostProcessingPrompt(string SystemPrompt, string SystemInfo);
 
@@ -64,19 +77,19 @@ public static class SharedCoreBridge
             EnglishSpellingFromRaw(context.EnglishSpelling),
             context.Language ?? string.Empty,
             context.UserSystemPrompt ?? string.Empty,
-            HwAppType.Other,
-            string.Empty,
-            string.Empty,
-            string.Empty,
-            string.Empty,
-            string.Empty,
-            string.Empty,
-            string.Empty,
-            string.Empty,
-            string.Empty,
-            "unknown",
-            "default",
-            false,
+            AppTypeFromRaw(context.AppType),
+            Bound(context.AppName, 256),
+            Bound(context.Category, 128),
+            Bound(context.Description, 500),
+            Bound(context.TextFormat, 64),
+            Bound(context.BrowserHost, 253),
+            Bound(context.BrowserTabTitle, 500),
+            Bound(context.FocusedElement, 128),
+            BoundWithEllipsis(context.FocusedContent, 100),
+            Bound(context.ScreenOcrText, 2000),
+            Bound(context.AppTypeConfidence, 32, "unknown"),
+            Bound(context.AppTypeSource, 64, "default"),
+            context.HasApplicationContext,
             context.VocabularyWords?.Where(item => !string.IsNullOrWhiteSpace(item)).ToList() ?? [],
             context.Time ?? string.Empty,
             context.Timezone ?? string.Empty,
@@ -113,6 +126,23 @@ public static class SharedCoreBridge
         "custom" => Preset.Custom,
         _ => Preset.Hyper,
     };
+
+    private static HwAppType AppTypeFromRaw(string? value) =>
+        HyperwhisperCoreMethods.AppTypeFromRaw(value ?? string.Empty);
+
+    private static string Bound(string? value, int maxCharacters, string fallback = "")
+    {
+        if (string.IsNullOrEmpty(value)) return fallback;
+        return value.Length <= maxCharacters ? value : value[..maxCharacters];
+    }
+
+    private static string BoundWithEllipsis(string? value, int maxSourceCharacters)
+    {
+        if (string.IsNullOrEmpty(value)) return string.Empty;
+        return value.Length <= maxSourceCharacters
+            ? value
+            : string.Concat(value.AsSpan(0, maxSourceCharacters), "...");
+    }
 
     private static HwEnglishSpelling EnglishSpellingFromRaw(string? value) =>
         value?.Trim().ToLowerInvariant() switch
