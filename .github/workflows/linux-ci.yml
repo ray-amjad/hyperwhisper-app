@@ -1,0 +1,249 @@
+# Fork-safe Linux compile and test gate for issue #179.
+#
+# The repository only permits local Actions, so checkout and tool setup use
+# shell commands rather than marketplace actions. This job intentionally uses
+# no environments, credentials, signing material, or provider API keys.
+name: Linux CI
+
+on:
+  pull_request:
+    branches: [main]
+    paths: &linux-paths
+      - "app/shared-dotnet/**"
+      - "app/linux-spike/**"
+      - "app/linux/**"
+      - "shared-core-rs/**"
+      - "shared-backup/**"
+      - ".github/workflows/linux-ci.yml"
+  push:
+    branches: [main]
+    paths: *linux-paths
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: linux-ci-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build-and-test:
+    name: Build & Test (linux-x64)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_NOLOGO: "1"
+      NUGET_XMLDOC_MODE: skip
+    steps:
+      - name: Checkout repository
+        shell: bash
+        run: |
+          set -euo pipefail
+          git init -q .
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git fetch -q --depth=1 origin "$GITHUB_SHA"
+          git checkout -q FETCH_HEAD
+          git remote set-url origin "https://github.com/${GITHUB_REPOSITORY}.git"
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Install pinned Rust toolchain
+        working-directory: shared-core-rs
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup show
+          rustup target add x86_64-unknown-linux-gnu
+
+      - name: Test and lint shared Rust core
+        working-directory: shared-core-rs
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo test --locked
+          cargo clippy --locked --all-targets -- -D warnings
+
+      - name: Build and inspect Linux Rust core
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build \
+            --manifest-path shared-core-rs/Cargo.toml \
+            --locked \
+            --release \
+            --target x86_64-unknown-linux-gnu \
+            -p hw-core
+
+          source_path="shared-core-rs/target/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so"
+          staging_dir="artifacts/linux-x64"
+          test -s "$source_path"
+          install -Dm755 "$source_path" "$staging_dir/libhyperwhisper_core.so"
+          if [[ -d app/linux/HyperWhisper.Linux ]]; then
+            install -Dm755 \
+              "$source_path" \
+              app/linux/HyperWhisper.Linux/Resources/rust-core/linux-x64/libhyperwhisper_core.so
+          fi
+
+          file "$staging_dir/libhyperwhisper_core.so"
+          readelf -h "$staging_dir/libhyperwhisper_core.so"
+          if ldd "$staging_dir/libhyperwhisper_core.so" | grep -q "not found"; then
+            echo "A required native dependency is missing." >&2
+            exit 1
+          fi
+
+      - name: Validate universal backup fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          for fixture in shared-backup/examples/*.hwbackup.json; do
+            npx --yes ajv-cli@5.0.0 validate \
+              --spec=draft2020 \
+              --strict=false \
+              -s shared-backup/hyperwhisper-backup.schema.json \
+              -d "$fixture"
+          done
+
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          linux = json.loads(
+              Path("shared-backup/examples/linux-export.hwbackup.json").read_text()
+          )
+          assert linux["platform"] == "linux"
+          assert isinstance(
+              linux["platformExtensions"]["linux"]["settings"]["autostartEnabled"],
+              bool,
+          )
+          assert linux["modes"]
+          assert all("linux" in mode["platformExtensions"] for mode in linux["modes"])
+          PY
+
+      - name: Ensure .NET 10 SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          if command -v dotnet >/dev/null 2>&1 && dotnet --list-sdks | grep -q '^10\.'; then
+            dotnet --info
+            exit 0
+          fi
+
+          install_dir="${RUNNER_TEMP}/dotnet"
+          installer="${RUNNER_TEMP}/dotnet-install.sh"
+          curl --fail --silent --show-error --location \
+            https://dot.net/v1/dotnet-install.sh \
+            --output "$installer"
+          chmod 755 "$installer"
+          "$installer" --channel 10.0 --quality ga --install-dir "$install_dir"
+          echo "$install_dir" >> "$GITHUB_PATH"
+          "$install_dir/dotnet" --info
+
+      - name: Install headless Linux desktop dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install --yes \
+            dbus-x11 \
+            libfontconfig1 \
+            libice6 \
+            libsm6 \
+            libx11-6 \
+            xvfb
+
+      - name: Build shared .NET platform abstractions
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet build \
+            app/shared-dotnet/HyperWhisper.Platform.Abstractions/HyperWhisper.Platform.Abstractions.csproj \
+            --configuration Release \
+            -p:TreatWarningsAsErrors=true
+
+      - name: Build and run Linux integration-spike tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet build \
+            app/linux-spike/HyperWhisper.LinuxSpike.Tests/HyperWhisper.LinuxSpike.Tests.csproj \
+            --configuration Release \
+            -p:TreatWarningsAsErrors=true
+          dotnet run \
+            --project app/linux-spike/HyperWhisper.LinuxSpike.Tests/HyperWhisper.LinuxSpike.Tests.csproj \
+            --configuration Release \
+            --no-build
+          dotnet build \
+            app/linux-spike/HyperWhisper.LinuxSpike.Probe/HyperWhisper.LinuxSpike.Probe.csproj \
+            --configuration Release \
+            -p:TreatWarningsAsErrors=true
+          dotnet run \
+            --project app/linux-spike/HyperWhisper.LinuxSpike.Probe/HyperWhisper.LinuxSpike.Probe.csproj \
+            --configuration Release \
+            --no-build
+
+      - name: Build and test Avalonia Linux head when present
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! -d app/linux ]]; then
+            echo "app/linux is not present yet; the integration spike is the current Linux head."
+            exit 0
+          fi
+
+          mapfile -t solutions < <(find app/linux -maxdepth 2 -type f \
+            \( -name '*.sln' -o -name '*.slnx' \) -print | sort)
+          mapfile -t projects < <(find app/linux -type f -name '*.csproj' -print | sort)
+
+          if (( ${#solutions[@]} > 0 )); then
+            for solution in "${solutions[@]}"; do
+              dotnet build "$solution" \
+                --configuration Release \
+                -p:TreatWarningsAsErrors=true
+            done
+          elif (( ${#projects[@]} > 0 )); then
+            for project in "${projects[@]}"; do
+              dotnet build "$project" \
+                --configuration Release \
+                -p:TreatWarningsAsErrors=true
+            done
+          else
+            echo "app/linux exists but contains no solution or project." >&2
+            exit 1
+          fi
+
+          for project in "${projects[@]}"; do
+            if [[ "$(basename "$project")" == *Tests.csproj ]]; then
+              dotnet test "$project" \
+                --configuration Release \
+                --no-build
+            fi
+          done
+
+      - name: Render and publish Avalonia Linux head
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! -x app/linux/scripts/run-ui-smoke.sh ]]; then
+            echo "The Linux UI smoke script is missing or not executable." >&2
+            exit 1
+          fi
+
+          app/linux/scripts/run-ui-smoke.sh
+
+          dotnet publish \
+            app/linux/HyperWhisper.Linux/HyperWhisper.Linux.csproj \
+            --configuration Release \
+            --runtime linux-x64 \
+            --self-contained true \
+            --output artifacts/hyperwhisper-linux
+
+          test -x artifacts/hyperwhisper-linux/HyperWhisper
+          test -s artifacts/hyperwhisper-linux/libhyperwhisper_core.so
+          file artifacts/hyperwhisper-linux/HyperWhisper
+          file artifacts/hyperwhisper-linux/libhyperwhisper_core.so
+          if ldd artifacts/hyperwhisper-linux/libhyperwhisper_core.so | grep -q "not found"; then
+            echo "The published Rust core has a missing dependency." >&2
+            exit 1
+          fi

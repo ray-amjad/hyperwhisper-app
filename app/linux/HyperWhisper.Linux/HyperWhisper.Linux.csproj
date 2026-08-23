@@ -28,4 +28,18 @@
     <ProjectReference Include="../../shared-dotnet/HyperWhisper.Platform.Abstractions/HyperWhisper.Platform.Abstractions.csproj" />
   </ItemGroup>
 
+  <ItemGroup Condition="('$(RuntimeIdentifier)' == '' Or '$(RuntimeIdentifier)' == 'linux-x64') And Exists('Resources/rust-core/linux-x64/libhyperwhisper_core.so')">
+    <Content Include="Resources/rust-core/linux-x64/libhyperwhisper_core.so">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <Link>libhyperwhisper_core.so</Link>
+    </Content>
+  </ItemGroup>
+
+  <Target Name="EnsureLinuxRustCore" BeforeTargets="Publish"
+          Condition="'$(DesignTimeBuild)' != 'true' And '$(RuntimeIdentifier)' == 'linux-x64'">
+    <Error Condition="!Exists('Resources/rust-core/linux-x64/libhyperwhisper_core.so')"
+           Text="libhyperwhisper_core.so is missing. Build shared-core-rs for x86_64-unknown-linux-gnu and copy the release library to Resources/rust-core/linux-x64 before publishing." />
+  </Target>
+
 </Project>

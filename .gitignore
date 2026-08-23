@@ -21,6 +21,9 @@ target/
 # side, which tracks only .gitkeep under Resources/rust-core/.
 # The generated hyperwhisper_coreFFI.h alongside it IS committed.
 app/macos/hyperwhisper/Libraries/libhyperwhisper_core.a
+# Linux CI and local release builds stage the Rust core here before publish.
+# Keep only the directory placeholder; the ELF is rebuilt from source.
+app/linux/HyperWhisper.Linux/Resources/rust-core/linux-x64/libhyperwhisper_core.so
 .vs/
 *.DotSettings.user
 
