@@ -21,6 +21,7 @@ try
     await database.MigrateAsync();
     await RunTranscriptionWorkflowTestsAsync(root);
     await RunHistoryRetryTestsAsync(root);
+    await RunHistoryExperienceTestsAsync(root);
 
     var freshDatabase = new ApplicationDb(new TestPaths(Path.Combine(root, "fresh-defaults")));
     await freshDatabase.InitializeAsync();
@@ -172,6 +173,10 @@ try
         && outputSettings.ChangeModeShortcutKey == "Period"
         && outputSettings.StreamingShortcutKey == "Space",
         "shortcut reset did not restore Linux parity defaults");
+    outputSettings.Save();
+    Assert(!outputSettings.Status.HasError
+        && reloadedSettings.Get<string>("toggleShortcutKey") == string.Empty,
+        "modifier-only default toggle shortcut could not be validated and saved");
     outputSettings.ToggleShortcutModifiers = "Control, Alt";
     outputSettings.ToggleShortcutKey = "F9";
     outputSettings.CancelShortcutModifiers = "None";
@@ -641,6 +646,105 @@ finally
 {
     try { Directory.Delete(root, recursive: true); }
     catch (IOException) { }
+}
+
+static async Task RunHistoryExperienceTestsAsync(string root)
+{
+    var testRoot = Path.Combine(root, "history-experience");
+    var paths = new TestPaths(testRoot);
+    Directory.CreateDirectory(paths.RecordingsDirectory);
+    var database = new ApplicationDb(paths);
+    await database.MigrateAsync();
+    var repository = new HistoryRepository(database, paths);
+    var ownedAudio = Path.Combine(paths.RecordingsDirectory, "owned.wav");
+    var externalAudio = Path.Combine(root, "history-external.wav");
+    await File.WriteAllBytesAsync(ownedAudio, [1]);
+    await File.WriteAllBytesAsync(externalAudio, [2]);
+    var first = new Transcript
+    {
+        Text = "final first", TranscribedText = "raw first", PostProcessedText = "processed first",
+        Status = TranscriptStatus.Failed, FailedReason = "network unavailable", RetryCount = 2,
+        AudioFilePath = ownedAudio,
+    };
+    var second = new Transcript { Text = "second", Status = TranscriptStatus.Completed, AudioFilePath = externalAudio };
+    await repository.AddAsync(first);
+    await repository.AddAsync(second);
+
+    using var playback = new FakeHistoryPlayback();
+    using var injection = new FakeTextInjection();
+    Mode? retryMode = null;
+    var modeA = new Mode { Name = "Ray mode", SortOrder = 1, IsDefault = true };
+    using var viewModel = new HistoryViewModel(
+        repository,
+        playback,
+        retryWithMode: (item, mode, _) =>
+        {
+            retryMode = mode;
+            return Task.FromResult(PortableTranscriptionResult.Failed(
+                PortableTranscriptionErrorCode.TranscriptionFailed, "expected"));
+        },
+        retryModes: [modeA],
+        textInjection: injection);
+
+    viewModel.UpdateSelection([first]);
+    Assert(viewModel.IsPlaybackAvailable && playback.LoadedFilePath == ownedAudio
+        && viewModel.SelectedStatusLabel == "Failed" && viewModel.SelectedFailureReason == "network unavailable",
+        "history selection did not eagerly load playback and expose failure status");
+    await viewModel.TogglePlaybackAsync();
+    Assert(viewModel.IsPlaying && viewModel.PlayPauseLabel == "Pause", "history playback did not start");
+    playback.ReportPosition(TimeSpan.FromSeconds(3));
+    Assert(viewModel.PlaybackPositionSeconds == 3 && viewModel.FormattedPlaybackPosition == "0:03",
+        "history playback position event was not reflected");
+    viewModel.PlaybackPositionSeconds = 4;
+    Assert(playback.LastSeek == TimeSpan.FromSeconds(4), "history seek did not reach the playback service");
+    await viewModel.TogglePlaybackAsync();
+    Assert(!viewModel.IsPlaying, "history playback did not pause");
+    await viewModel.TogglePlaybackAsync();
+    playback.EndNaturally();
+    Assert(!viewModel.IsPlaying && viewModel.PlaybackPositionSeconds == 0,
+        "natural playback completion did not reset the UI");
+
+    viewModel.ShowRawTranscript = true;
+    await viewModel.CopyAsync();
+    Assert(injection.LastCopiedText == "raw first" && viewModel.IsCopiedRecently && viewModel.CopyLabel == "Copied!",
+        "history copy did not use the displayed detail text or show feedback");
+    await Task.Delay(1600);
+    Assert(!viewModel.IsCopiedRecently && viewModel.CopyLabel == "Copy", "history copy feedback did not expire");
+
+    viewModel.SelectedRetryMode = modeA;
+    await viewModel.RetryAsync();
+    Assert(retryMode?.Id == modeA.Id, "history explicit retry mode was not passed to the retry workflow");
+
+    viewModel.UpdateSelection([first, second]);
+    Assert(viewModel.Selected is null && !viewModel.IsPlaying, "multi-selection retained stale detail or playback state");
+    viewModel.DeleteAudio = true;
+    await viewModel.DeleteSelectedAsync();
+    var remainingAfterBulkDelete = await repository.ListAsync();
+    Assert(remainingAfterBulkDelete.Count == 0 && !File.Exists(ownedAudio) && File.Exists(externalAudio),
+        $"bulk history deletion did not atomically remove rows while protecting caller-owned audio "
+        + $"(rows={remainingAfterBulkDelete.Count}, owned={File.Exists(ownedAudio)}, external={File.Exists(externalAudio)})");
+    Assert(viewModel.Status.ErrorCode == "history.audio_delete_failed",
+        "bulk deletion did not disclose retained external audio");
+
+    var symlinkTargetDirectory = Path.Combine(root, "history-external-directory");
+    var symlinkDirectory = Path.Combine(paths.RecordingsDirectory, "linked");
+    Directory.CreateDirectory(symlinkTargetDirectory);
+    try
+    {
+        Directory.CreateSymbolicLink(symlinkDirectory, symlinkTargetDirectory);
+        var symlinkTarget = Path.Combine(symlinkTargetDirectory, "target.wav");
+        var throughSymlink = Path.Combine(symlinkDirectory, "target.wav");
+        await File.WriteAllBytesAsync(symlinkTarget, [3]);
+        var linked = new Transcript { Text = "linked", Status = TranscriptStatus.Completed, AudioFilePath = throughSymlink };
+        await repository.AddAsync(linked);
+        var result = await repository.DeleteManyAsync([linked.Id], true);
+        Assert(result.TranscriptsDeleted == 1 && result.AudioFilesRetained == 1 && File.Exists(symlinkTarget),
+            "bulk deletion followed a symbolic-link directory outside app-owned storage");
+    }
+    catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or PlatformNotSupportedException)
+    {
+        // The containment behavior is covered wherever the host permits symlink creation.
+    }
 }
 
 static void Assert(bool condition, string message)
@@ -1721,5 +1825,32 @@ file sealed class FakeTextInjection(TextInjectionOutcome outcome = TextInjection
         CallCount++;
         return ValueTask.FromResult(outcome);
     }
+    public void Dispose() { }
+}
+
+file sealed class FakeHistoryPlayback : IAudioPlaybackService
+{
+    public event EventHandler? PlaybackEnded;
+    public event EventHandler<TimeSpan>? PositionChanged;
+    public event EventHandler<TimeSpan>? DurationReady;
+    public event EventHandler<PlatformError>? PlaybackFailed;
+    public bool IsPlaying { get; private set; }
+    public bool IsLoaded => LoadedFilePath is not null;
+    public TimeSpan TotalDuration { get; private set; } = TimeSpan.FromSeconds(8);
+    public string? LoadedFilePath { get; private set; }
+    public TimeSpan LastSeek { get; private set; }
+    public PlatformResult Load(string audioPath)
+    {
+        LoadedFilePath = audioPath;
+        DurationReady?.Invoke(this, TotalDuration);
+        return PlatformResult.Success();
+    }
+    public void Play() => IsPlaying = true;
+    public void Pause() => IsPlaying = false;
+    public void Stop() => IsPlaying = false;
+    public void Seek(TimeSpan position) => LastSeek = position;
+    public void ReportPosition(TimeSpan position) => PositionChanged?.Invoke(this, position);
+    public void EndNaturally() { IsPlaying = false; PlaybackEnded?.Invoke(this, EventArgs.Empty); }
+    public void Fail() => PlaybackFailed?.Invoke(this, new PlatformError("playback.failed", "Playback failed"));
     public void Dispose() { }
 }

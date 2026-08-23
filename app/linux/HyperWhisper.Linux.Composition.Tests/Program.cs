@@ -754,8 +754,11 @@ sealed class FakeRecording : IInteractionRecordingSession
     public PlatformResult StartResult { get; set; } = PlatformResult.Success();
     public InteractionStopOutcome StopOutcome { get; set; } = new(PlatformResult.Success());
     public bool ThrowOnStop { get; set; }
-    public ValueTask<PlatformResult> StartAsync(CancellationToken cancellationToken = default)
-    { StartCount++; IsActive = StartResult.IsSuccess; return ValueTask.FromResult(StartResult); }
+    public bool IsStreaming { get; private set; }
+    public ValueTask<PlatformResult> StartAsync(
+        InteractionRecordingKind kind,
+        CancellationToken cancellationToken = default)
+    { StartCount++; IsStreaming = kind == InteractionRecordingKind.Streaming; IsActive = StartResult.IsSuccess; return ValueTask.FromResult(StartResult); }
     public ValueTask<InteractionStopOutcome> StopAsync(CancellationToken cancellationToken = default)
     { StopCount++; IsActive = false; if (ThrowOnStop) throw new InvalidOperationException("expected"); return ValueTask.FromResult(StopOutcome); }
     public ValueTask CancelAsync(CancellationToken cancellationToken = default)

@@ -185,31 +185,95 @@ public sealed class HistoryRepository : ITranscriptionHistoryStore, ITranscripti
 
     public async Task<HistoryDeletionResult> DeleteAsync(Guid id, bool deleteAudio, CancellationToken cancellationToken = default)
     {
+        var result = await DeleteManyAsync([id], deleteAudio, cancellationToken);
+        return new(
+            result.TranscriptsDeleted == 1,
+            result.AudioFilesDeleted > 0 && result.AudioFilesRetained == 0,
+            result.Warnings.FirstOrDefault());
+    }
+
+    public async Task<HistoryBulkDeletionResult> DeleteManyAsync(
+        IReadOnlyCollection<Guid> ids,
+        bool deleteAudio,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(ids);
+        var distinctIds = ids.Distinct().ToArray();
+        if (distinctIds.Length == 0) return new(0, 0, 0, []);
+
         await using var context = _database.CreateContext();
-        var transcript = await context.Transcripts.FindAsync(new object[] { id }, cancellationToken);
-        if (transcript == null) return new(false, false, null);
-        var paths = new[] { transcript.AudioFilePath, transcript.TrimmedAudioFilePath }
-            .Where(path => !string.IsNullOrWhiteSpace(path)).Distinct(StringComparer.Ordinal).ToArray();
-        context.Transcripts.Remove(transcript);
+        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+        var transcripts = await context.Transcripts
+            .Where(item => distinctIds.Contains(item.Id))
+            .ToListAsync(cancellationToken);
+        var paths = transcripts
+            .SelectMany(item => new[] { item.AudioFilePath, item.TrimmedAudioFilePath })
+            .Where(path => !string.IsNullOrWhiteSpace(path))
+            .Select(path => path!)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        context.Transcripts.RemoveRange(transcripts);
         await context.SaveChangesAsync(cancellationToken);
-        if (!deleteAudio) return new(true, false, null);
-        if (_recordingsRoot is null || paths.Any(path => !IsContainedRecording(path!)))
-            return new(true, false, "The transcript was removed, but external audio was retained for safety.");
-        try
+        await transaction.CommitAsync(cancellationToken);
+
+        if (!deleteAudio) return new(transcripts.Count, 0, paths.Length, []);
+
+        var audioDeleted = 0;
+        var retained = 0;
+        var warnings = new List<string>();
+        foreach (var path in paths)
         {
-            foreach (var path in paths) File.Delete(path!);
-            return new(true, true, null);
+            if (!IsContainedRecording(path) || HasSymbolicLinkComponent(path))
+            {
+                retained++;
+                continue;
+            }
+
+            try
+            {
+                File.Delete(path);
+                audioDeleted++;
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                retained++;
+                warnings.Add("An app-owned audio file could not be deleted.");
+            }
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            return new(true, false, "The transcript was removed, but an audio file could not be deleted.");
-        }
+
+        if (retained > 0 && warnings.Count == 0)
+            warnings.Add("External or symbolic-link audio was retained for safety.");
+        return new(transcripts.Count, audioDeleted, retained, warnings);
     }
 
     private bool IsContainedRecording(string path)
     {
         try { return Path.GetFullPath(path).StartsWith(_recordingsRoot!, StringComparison.Ordinal); }
         catch (Exception exception) when (exception is ArgumentException or NotSupportedException) { return false; }
+    }
+
+    private bool HasSymbolicLinkComponent(string path)
+    {
+        if (_recordingsRoot is null) return true;
+        try
+        {
+            var root = _recordingsRoot.TrimEnd(Path.DirectorySeparatorChar);
+            var fullPath = Path.GetFullPath(path);
+            if (!fullPath.StartsWith(_recordingsRoot, StringComparison.Ordinal)) return true;
+            var relative = Path.GetRelativePath(root, fullPath);
+            var current = root;
+            foreach (var component in relative.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries))
+            {
+                current = Path.Combine(current, component);
+                if (!Path.Exists(current)) continue;
+                if ((File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0) return true;
+            }
+            return false;
+        }
+        catch (Exception exception) when (exception is ArgumentException or NotSupportedException or IOException or UnauthorizedAccessException)
+        {
+            return true;
+        }
     }
 
     public async Task<int> FailOrphanedProcessingAsync(CancellationToken cancellationToken = default)
@@ -233,6 +297,12 @@ public sealed class HistoryRepository : ITranscriptionHistoryStore, ITranscripti
 }
 
 public sealed record HistoryDeletionResult(bool TranscriptDeleted, bool AudioDeleted, string? Warning);
+
+public sealed record HistoryBulkDeletionResult(
+    int TranscriptsDeleted,
+    int AudioFilesDeleted,
+    int AudioFilesRetained,
+    IReadOnlyList<string> Warnings);
 
 public sealed class VocabularyRepository(ApplicationDb database)
 {

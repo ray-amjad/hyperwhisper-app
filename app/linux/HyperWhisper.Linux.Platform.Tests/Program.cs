@@ -470,6 +470,17 @@ static async Task PulsePlaybackDelegates()
         await ended.Task.WaitAsync(TimeSpan.FromSeconds(2));
         Assert.Equal(4, playback.BytesWritten);
         Assert.Equal(1, playback.DrainCalls);
+        var endedAgain = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.PlaybackEnded += (_, _) => endedAgain.TrySetResult();
+        service.Play();
+        await endedAgain.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.Equal(8, playback.BytesWritten);
+        Assert.Equal(2, playback.DrainCalls);
+        var invalid = Path.Combine(directory, "invalid.wav");
+        await File.WriteAllBytesAsync(invalid, [1, 2, 3]);
+        Assert.True(service.Load(invalid).IsFailure);
+        Assert.True(!service.IsLoaded);
+        Assert.True(service.LoadedFilePath is null);
     });
 }
 

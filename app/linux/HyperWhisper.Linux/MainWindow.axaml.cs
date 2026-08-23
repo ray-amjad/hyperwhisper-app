@@ -99,7 +99,8 @@ public partial class MainWindow : Window
             _cloudAccount,
             _platformServices.DeviceIdentity,
             Environment.MachineName,
-            OpenAccountUri);
+            OpenAccountUri,
+            _platformServices.TextInjection);
         var history = new HistoryRepository(_database, _platformServices.Paths);
         var contextCapture = new LinuxContextCaptureCoordinator(
             _platformServices.ApplicationContext, _platformServices.ScreenOcr);
@@ -371,7 +372,14 @@ public partial class MainWindow : Window
         var key = keyText?.Trim() ?? string.Empty;
         if (modifiers == ShortcutModifiers.None && key.Length == 0)
             return PlatformResult<GlobalShortcut?>.Success(null);
-        return PlatformResult<GlobalShortcut?>.Success(new GlobalShortcut(modifiers, new ShortcutKeyCode(key)));
+        if (key.Length == 0 && modifiers is ShortcutModifiers.Control or ShortcutModifiers.Alt
+            or ShortcutModifiers.Shift or ShortcutModifiers.Meta)
+            return PlatformResult<GlobalShortcut?>.Failure(
+                "interaction.shortcut_bare_modifier",
+                "A modifier-only shortcut needs at least two modifiers.");
+        return PlatformResult<GlobalShortcut?>.Success(key.Length == 0
+            ? new GlobalShortcut(modifiers)
+            : new GlobalShortcut(modifiers, new ShortcutKeyCode(key)));
     }
 
     private void OnInteractionFailed(object? sender, PlatformError error)
@@ -456,6 +464,12 @@ public partial class MainWindow : Window
             _viewModel.Navigate(pageId);
     }
 
+    private void OnHistorySelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (sender is not ListBox list || list.DataContext is not HistoryViewModel history) return;
+        history.UpdateSelection(list.SelectedItems?.Cast<Transcript>() ?? []);
+    }
+
     private async void OnStartRecording(object? sender, RoutedEventArgs e) => await _interaction.StartRecordingAsync();
     private async void OnStopRecording(object? sender, RoutedEventArgs e) => await _interaction.StopRecordingAsync();
     private async void OnCancelRecording(object? sender, RoutedEventArgs e) => await _interaction.CancelRecordingAsync();
@@ -501,7 +515,14 @@ public partial class MainWindow : Window
                 || _platformServices.PrivateFiles is null
                 || _platformServices.GlobalShortcuts is null
                 || !_platformServices.ProbeSharedCore()) return 4;
-            if (_viewModel.Status.HasError) return 5;
+            if (_viewModel.Status.HasError)
+            {
+                Console.Error.WriteLine($"Smoke startup failed: {_viewModel.Status.ErrorCode} · "
+                    + $"settings={_viewModel.Settings.Status.ErrorCode}, home={_viewModel.Home.Status.ErrorCode}, "
+                    + $"history={_viewModel.History.Status.ErrorCode}, vocabulary={_viewModel.Vocabulary.Status.ErrorCode}, "
+                    + $"modes={_viewModel.Modes.Status.ErrorCode}");
+                return 5;
+            }
             if (_viewModel.Recording is null || string.IsNullOrWhiteSpace(_viewModel.Recording.Message)) return 8;
 
             await SeedSmokeDataAsync();
@@ -549,7 +570,9 @@ public partial class MainWindow : Window
             _viewModel.Navigate("history");
             await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
             if (!HasVisibleControl("HistorySearchInput") || !HasVisibleControl("HistoryPlayButton")
-                || !HasVisibleControl("HistoryRetryButton") || !HasVisibleControl("HistoryDeleteAudio")) return 11;
+                || !HasVisibleControl("HistoryPlaybackSlider") || !HasVisibleControl("HistoryCopyButton")
+                || !HasVisibleControl("HistoryRetryMode") || !HasVisibleControl("HistoryRetryButton")
+                || !HasVisibleControl("HistoryDeleteAudio")) return 11;
             _viewModel.Navigate("vocabulary");
             await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
             if (!HasVisibleControl("VocabularyTransferPath") || !HasVisibleControl("VocabularyImportButton")
@@ -601,13 +624,19 @@ public partial class MainWindow : Window
             _overlay.Completed();
             await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
             if (_overlay.Snapshot is not { State: LinuxRecordingOverlayState.Hidden, IsVisible: false }) return 15;
+            _viewModel.Settings.ResetShortcuts();
             _viewModel.Settings.Language = "en";
             _viewModel.Settings.Save();
-            if (_viewModel.Settings.Status.HasError) return 7;
+            if (_viewModel.Settings.Status.HasError)
+            {
+                Console.Error.WriteLine($"Smoke settings save failed: {_viewModel.Settings.Status.ErrorCode}");
+                return 7;
+            }
             return 0;
         }
-        catch
+        catch (Exception exception)
         {
+            Console.Error.WriteLine($"Smoke failed: {exception}");
             return 1;
         }
     }

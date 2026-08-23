@@ -34,6 +34,11 @@ public sealed class PulseAudioPlaybackService : IAudioPlaybackService
             return PlatformResult.Failure("audio_path_invalid", "A fully qualified audio path is required.");
         if (_disposed) return PlatformResult.Failure("audio_playback_disposed", "The playback service is disposed.");
         Pause();
+        LoadedFilePath = null;
+        _format = null;
+        _dataOffset = 0;
+        _dataLength = 0;
+        Interlocked.Exchange(ref _positionBytes, 0);
         try
         {
             using var stream = File.OpenRead(audioPath);
@@ -142,7 +147,12 @@ public sealed class PulseAudioPlaybackService : IAudioPlaybackService
                 _playbackCancellation = null;
             }
             if (error is not null) Raise(PlaybackFailed, error);
-            else if (ended) Raise(PlaybackEnded);
+            else if (ended)
+            {
+                Interlocked.Exchange(ref _positionBytes, 0);
+                Raise(PositionChanged, TimeSpan.Zero);
+                Raise(PlaybackEnded);
+            }
         }
     }
 
