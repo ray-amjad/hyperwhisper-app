@@ -47,6 +47,7 @@ assert_file "$ROOTFS/usr/share/hyperwhisper/companions/kde/package/contents/code
 assert_file "$ROOTFS/usr/share/hyperwhisper/companions/kde/kde-active-window.py"
 assert_file "$ROOTFS/usr/share/man/man1/hyperwhisper.1.gz"
 assert_file "$ROOTFS/usr/share/man/man1/hyperwhisper-companionctl.1.gz"
+assert_file "$ROOTFS/usr/share/doc/hyperwhisper/changelog.gz"
 test -x "$ROOTFS/usr/lib/hyperwhisper/HyperWhisper"
 test -x "$ROOTFS/usr/lib/hyperwhisper/parakeet-engine/parakeet-engine"
 test "$(readlink "$ROOTFS/usr/bin/hyperwhisper")" = "../lib/hyperwhisper/HyperWhisper"
@@ -55,6 +56,29 @@ test -x "$ROOTFS/usr/share/hyperwhisper/companions/status-notifier.py"
 test -x "$ROOTFS/usr/share/hyperwhisper/companions/hyperwhisper-companionctl"
 test "$(dpkg-deb --field "$PACKAGE_PATH" Architecture)" = "amd64"
 test "$(dpkg-deb --field "$PACKAGE_PATH" Version)" = "$EXPECTED_VERSION"
+
+for foreign_runtime in \
+    linux-arm linux-arm64 macos-arm64 macos-x64 win-arm64 win-x64 win-x86 \
+    cuda12/win-x64 vulkan/win-x64; do
+    if [[ -e "$ROOTFS/usr/lib/hyperwhisper/runtimes/$foreign_runtime" ]]; then
+        echo "Foreign runtime was packaged: $foreign_runtime" >&2
+        exit 1
+    fi
+done
+for runtime_library in \
+    "$ROOTFS/usr/lib/hyperwhisper/runtimes/linux-x64/libwhisper.so" \
+    "$ROOTFS/usr/lib/hyperwhisper/runtimes/cuda12/linux-x64/libwhisper.so" \
+    "$ROOTFS/usr/lib/hyperwhisper/runtimes/vulkan/linux-x64/libwhisper.so"; do
+    assert_file "$runtime_library"
+    if readelf -d "$runtime_library" | grep -Eq '(RPATH|RUNPATH)'; then
+        echo "Packaged runtime retains a build-host library path: $runtime_library" >&2
+        exit 1
+    fi
+    if file "$runtime_library" | grep -q 'not stripped'; then
+        echo "Packaged runtime retains debug symbols: $runtime_library" >&2
+        exit 1
+    fi
+done
 
 dependencies="$(dpkg-deb --field "$PACKAGE_PATH" Depends)"
 for dependency in \

@@ -157,6 +157,7 @@ jobs:
             gnupg \
             lintian \
             openssh-client \
+            patchelf \
             rsync \
             shellcheck
 

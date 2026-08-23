@@ -73,6 +73,12 @@ if [[ "$ARCHITECTURE" != "amd64" ]]; then
     echo "Linux v1 packaging supports amd64 only." >&2
     exit 2
 fi
+for tool in patchelf strip; do
+    if ! command -v "$tool" >/dev/null 2>&1; then
+        echo "$tool is required to normalize packaged native libraries." >&2
+        exit 2
+    fi
+done
 
 BUILD_ROOT="$(mktemp -d -t hyperwhisper-deb.XXXXXXXX)"
 cleanup() {
@@ -94,6 +100,38 @@ install -d -m 0755 \
     "$PACKAGE_ROOT/usr/share/doc/hyperwhisper"
 
 cp -a -- "$PUBLISH_DIR/." "$PACKAGE_ROOT/usr/lib/hyperwhisper/"
+# NuGet publish assets include every supported host RID. The Debian artifact is
+# amd64-only, so retaining foreign binaries is both wasteful and misleading to
+# package tooling. Keep the three Linux x64 Whisper backends and the x64 LLama
+# variants; discard Windows, macOS, ARM, and foreign accelerator assets.
+rm -rf -- \
+    "$PACKAGE_ROOT/usr/lib/hyperwhisper/runtimes/linux-arm" \
+    "$PACKAGE_ROOT/usr/lib/hyperwhisper/runtimes/linux-arm64" \
+    "$PACKAGE_ROOT/usr/lib/hyperwhisper/runtimes/macos-arm64" \
+    "$PACKAGE_ROOT/usr/lib/hyperwhisper/runtimes/macos-x64" \
+    "$PACKAGE_ROOT/usr/lib/hyperwhisper/runtimes/win-arm64" \
+    "$PACKAGE_ROOT/usr/lib/hyperwhisper/runtimes/win-x64" \
+    "$PACKAGE_ROOT/usr/lib/hyperwhisper/runtimes/win-x86" \
+    "$PACKAGE_ROOT/usr/lib/hyperwhisper/runtimes/cuda12/win-x64" \
+    "$PACKAGE_ROOT/usr/lib/hyperwhisper/runtimes/vulkan/win-x64"
+
+# Upstream Whisper binaries embed their CI build directories as RUNPATHs.
+# Runtime siblings are resolved through the loader and application directory,
+# so remove those non-portable paths. Strip only the native objects that ship
+# debug symbols in the upstream NuGet payload; do not rewrite managed files.
+mapfile -d '' PACKAGED_RUNTIME_LIBRARIES < <(
+    find \
+        "$PACKAGE_ROOT/usr/lib/hyperwhisper/runtimes/linux-x64" \
+        "$PACKAGE_ROOT/usr/lib/hyperwhisper/runtimes/cuda12/linux-x64" \
+        "$PACKAGE_ROOT/usr/lib/hyperwhisper/runtimes/vulkan/linux-x64" \
+        -type f -name '*.so' -print0
+)
+for library in "${PACKAGED_RUNTIME_LIBRARIES[@]}"; do
+    patchelf --remove-rpath "$library"
+    strip --strip-unneeded "$library"
+done
+strip --strip-unneeded "$PACKAGE_ROOT/usr/lib/hyperwhisper/libe_sqlite3.so"
+
 find "$PACKAGE_ROOT/usr/lib/hyperwhisper" -type d -exec chmod 0755 {} +
 find "$PACKAGE_ROOT/usr/lib/hyperwhisper" -type f -exec chmod 0644 {} +
 find "$PACKAGE_ROOT/usr/lib/hyperwhisper" -type f -name '*.pdb' -delete
@@ -123,8 +161,8 @@ install -m 0644 "$DEBIAN_SOURCE/copyright" \
 install -m 0644 "$DEBIAN_SOURCE/lintian-overrides" \
     "$PACKAGE_ROOT/usr/share/lintian/overrides/hyperwhisper"
 gzip -n -9 -c "$DEBIAN_SOURCE/changelog" \
-    > "$PACKAGE_ROOT/usr/share/doc/hyperwhisper/changelog.Debian.gz"
-chmod 0644 "$PACKAGE_ROOT/usr/share/doc/hyperwhisper/changelog.Debian.gz"
+    > "$PACKAGE_ROOT/usr/share/doc/hyperwhisper/changelog.gz"
+chmod 0644 "$PACKAGE_ROOT/usr/share/doc/hyperwhisper/changelog.gz"
 gzip -n -9 -c "$DEBIAN_SOURCE/hyperwhisper.1" \
     > "$PACKAGE_ROOT/usr/share/man/man1/hyperwhisper.1.gz"
 chmod 0644 "$PACKAGE_ROOT/usr/share/man/man1/hyperwhisper.1.gz"
