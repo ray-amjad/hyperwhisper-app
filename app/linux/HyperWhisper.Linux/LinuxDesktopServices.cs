@@ -22,6 +22,7 @@ internal sealed class LinuxDesktopServices : IDisposable
     private readonly bool _ownsTelemetry;
     private readonly IRecordedAudioTranscriber _localWhisper;
     private readonly IRecordedAudioTranscriber _localParakeet;
+    private readonly IDisposable? _voiceActivityDetector;
 
     public LinuxDesktopServices(LinuxSentryService? telemetry = null)
     {
@@ -35,6 +36,21 @@ internal sealed class LinuxDesktopServices : IDisposable
         PushToTalk = new LinuxPushToTalkMonitor();
         AudioDevices = new PulseAudioInputDeviceService();
         AudioRecorder = new PulseAudioRecorder(Paths);
+        IVoiceActivityDetector detector;
+        try
+        {
+            var silero = new SileroVoiceActivityDetector(new OnnxSileroInferenceSession(
+                Path.Combine(AppContext.BaseDirectory, "parakeet-engine", "silero_vad.onnx")));
+            detector = silero;
+            _voiceActivityDetector = silero;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
+                                           or Microsoft.ML.OnnxRuntime.OnnxRuntimeException or DllNotFoundException
+                                           or TypeInitializationException or InvalidOperationException)
+        {
+            detector = new PcmEnergyVoiceActivityDetector();
+        }
+        AudioPreprocessor = new PortableWaveVoiceActivityTrimmer(detector, ShareVoiceActivityTrimming);
         AudioTranscriber = LinuxModeAwareTranscriptionFactory.Create(
             Paths, PrivateFiles, CredentialStore, DeviceIdentity, out _localWhisper, out _localParakeet);
         AudioPlayback = new FfmpegDecodingAudioPlaybackService(new PulseAudioPlaybackService(), Paths);
@@ -72,6 +88,7 @@ internal sealed class LinuxDesktopServices : IDisposable
     public IAudioInputDeviceService AudioDevices { get; }
     public IAudioRecorder AudioRecorder { get; }
     public IRecordedAudioTranscriber AudioTranscriber { get; }
+    public IBatchAudioPreprocessor AudioPreprocessor { get; }
     public IAudioPlaybackService AudioPlayback { get; }
     public ITextInjectionService TextInjection { get; }
     public IInsertionContextProvider InsertionContext { get; }
@@ -111,6 +128,7 @@ internal sealed class LinuxDesktopServices : IDisposable
         AudioRecorder.Dispose();
         AudioDevices.Dispose();
         if (AudioTranscriber is IDisposable transcriber) transcriber.Dispose();
+        _voiceActivityDetector?.Dispose();
         AudioPlayback.Dispose();
         TextInjection.Dispose();
         ApplicationContext.Dispose();
@@ -121,5 +139,11 @@ internal sealed class LinuxDesktopServices : IDisposable
         LiveStreaming.DisposeAsync().AsTask().GetAwaiter().GetResult();
         LivePreview.Dispose();
         if (_ownsTelemetry) Telemetry.Dispose();
+    }
+
+    private bool ShareVoiceActivityTrimming()
+    {
+        var settings = new HyperWhisper.PortableApplication.Persistence.PortableSettingsService(PrivateFiles, Paths);
+        return settings.Load().IsFailure || settings.Get("audio.enableVoiceActivityTrimming", true);
     }
 }

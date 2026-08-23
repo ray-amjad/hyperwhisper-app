@@ -34,6 +34,14 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.5" />
     <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.5" />
     <PackageReference Include="Microsoft.Extensions.Primitives" Version="10.0.5" />
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.29.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="../../windows/HyperWhisper/Resources/parakeet-engine/x64/silero_vad.onnx"
+             Link="parakeet-engine/silero_vad.onnx"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

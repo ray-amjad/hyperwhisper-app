@@ -176,6 +176,7 @@ public sealed class CrashAudioRecoveryService(
 
 public interface IVoiceActivityDetector
 {
+    ValueTask ResetAsync(CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
     ValueTask<PlatformResult<bool>> ContainsSpeechAsync(
         ReadOnlyMemory<float> mono16KhzPcm,
         CancellationToken cancellationToken = default);
@@ -251,6 +252,7 @@ public sealed class PortableWaveVoiceActivityTrimmer(
             var samples = new float[WindowSamples];
             long written = 0;
             var speechWindows = 0;
+            await _detector.ResetAsync(cancellationToken);
             while (input.Position < input.Length)
             {
                 cancellationToken.ThrowIfCancellationRequested();

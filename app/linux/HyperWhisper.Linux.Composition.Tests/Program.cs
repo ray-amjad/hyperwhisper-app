@@ -52,6 +52,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("M4A storage performs a real private FFmpeg encode", M4aStorageEncodes),
     ("M4A history playback performs a real FFmpeg decode", M4aPlaybackDecodes),
     ("anonymous speed opt-out is scoped to HyperWhisper Cloud", LatencyOptOutIsScoped),
+    ("Silero detector preserves bounded recurrent state", SileroDetectorStateIsBounded),
+    ("packaged Silero ONNX model executes silence fixture", PackagedSileroExecutes),
 };
 
 foreach (var test in tests)
@@ -116,6 +118,39 @@ static async Task M4aPlaybackDecodes()
             && File.Exists(playback.LoadedPath), "M4A playback did not decode a temporary WAV");
     }
     finally { Directory.Delete(directory, recursive: true); }
+}
+
+static async Task SileroDetectorStateIsBounded()
+{
+    var session = new FakeSileroSession();
+    using var detector = new SileroVoiceActivityDetector(session);
+    var first = await detector.ContainsSpeechAsync(new float[512]);
+    var second = await detector.ContainsSpeechAsync(new float[512]);
+    Assert(first.IsSuccess && first.Value == false && second.Value == true,
+        "Silero threshold or recurrent state was not applied deterministically");
+    Assert(session.States.Count == 2 && session.States[0].All(value => value == 0)
+        && session.States[1].All(value => value == 1), "Silero state did not advance exactly once per frame");
+    await detector.ResetAsync();
+    _ = await detector.ContainsSpeechAsync(new float[512]);
+    Assert(session.States[^1].All(value => value == 0), "Silero state was not reset between audio files");
+    var invalid = await detector.ContainsSpeechAsync(new float[513]);
+    Assert(invalid.IsFailure && invalid.Error!.Code == "vad.window_invalid", "oversized Silero frame was accepted");
+}
+
+static async Task PackagedSileroExecutes()
+{
+    var model = Path.Combine(AppContext.BaseDirectory, "parakeet-engine", "silero_vad.onnx");
+    Assert(File.Exists(model), "packaged Silero model was not copied to the composition output");
+    using var session = new OnnxSileroInferenceSession(model);
+    var inference = session.Run(new float[512], new float[256]);
+    Assert(inference.IsSuccess && inference.Value is not null,
+        $"packaged Silero model did not execute safely: {inference.Error?.Code} {inference.Error?.Message}");
+    var output = inference.Value!;
+    Assert(output.State.Length == 256
+        && float.IsFinite(output.SpeechProbability)
+        && output.SpeechProbability is >= 0 and <= 1,
+        "packaged Silero model returned invalid output tensor shapes or probability");
+    await Task.CompletedTask;
 }
 
 static Task DiagnosticCapabilitiesFailClosed()
@@ -1167,5 +1202,17 @@ sealed class InspectingPlaybackService : IAudioPlaybackService
     public void Pause() { }
     public void Stop() { }
     public void Seek(TimeSpan position) { }
+    public void Dispose() { }
+}
+
+sealed class FakeSileroSession : ISileroInferenceSession
+{
+    public List<float[]> States { get; } = [];
+    public PlatformResult<SileroInferenceResult> Run(float[] frame, float[] state)
+    {
+        States.Add(state.ToArray());
+        return PlatformResult<SileroInferenceResult>.Success(new(States.Count == 2 ? 0.75f : 0.25f,
+            Enumerable.Repeat(1f, 256).ToArray()));
+    }
     public void Dispose() { }
 }
