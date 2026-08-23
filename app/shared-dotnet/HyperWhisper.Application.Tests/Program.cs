@@ -55,6 +55,62 @@ try
     transcript.Text = "updated history";
     Assert(await history.UpdateAsync(transcript), "history update failed");
     Assert((await history.GetAsync(transcript.Id))?.Text == "updated history", "history update did not persist");
+    var previousDay = new Transcript
+    {
+        Text = "previous day",
+        Status = TranscriptStatus.Completed,
+        Date = new DateTime(2026, 8, 22, 23, 59, 59, DateTimeKind.Utc),
+    };
+    var nextDay = new Transcript
+    {
+        Text = "next day",
+        Status = TranscriptStatus.Completed,
+        Date = new DateTime(2026, 8, 24, 0, 0, 0, DateTimeKind.Utc),
+    };
+    await history.AddAsync(previousDay);
+    await history.AddAsync(nextDay);
+    var dateMatches = await history.SearchAsync(
+        null,
+        new DateTime(2026, 8, 23, 0, 0, 0, DateTimeKind.Utc),
+        new DateTime(2026, 8, 24, 0, 0, 0, DateTimeKind.Utc));
+    Assert(dateMatches.Count == 1 && dateMatches[0].Id == transcript.Id,
+        "history date range did not use inclusive start and exclusive next-day boundaries");
+    Assert(await history.DeleteAsync(previousDay.Id) && await history.DeleteAsync(nextDay.Id),
+        "history date-filter fixtures were not cleaned up");
+
+    var historyDetails = new HistoryViewModel(history)
+    {
+        Selected = new Transcript
+        {
+            Text = "final canonical text",
+            TranscribedText = "raw provider text",
+            PostProcessedText = "post-processed text",
+            Status = TranscriptStatus.Completed,
+        },
+    };
+    Assert(historyDetails.DetailText == "post-processed text"
+        && historyDetails.DetailLabel == "Post-processed transcript"
+        && historyDetails.HasRawTranscript,
+        "history detail did not prefer the explicit final post-processed value");
+    historyDetails.ShowRawTranscript = true;
+    Assert(historyDetails.DetailText == "raw provider text"
+        && historyDetails.DetailLabel == "Raw transcription",
+        "history raw transcript toggle did not use TranscribedText");
+    historyDetails.Selected = new Transcript
+    {
+        Text = "legacy final fallback",
+        TranscribedText = " ",
+        Status = TranscriptStatus.Completed,
+    };
+    Assert(!historyDetails.ShowRawTranscript && !historyDetails.HasRawTranscript
+        && historyDetails.DetailText == "legacy final fallback"
+        && historyDetails.DetailLabel == "Final transcript",
+        "history detail did not safely fall back when raw/post-processed text was unavailable");
+    historyDetails.StartDate = new DateTimeOffset(2026, 8, 24, 0, 0, 0, TimeSpan.Zero);
+    historyDetails.EndDate = new DateTimeOffset(2026, 8, 23, 0, 0, 0, TimeSpan.Zero);
+    await historyDetails.SearchAsync();
+    Assert(historyDetails.Status.ErrorCode == "history.date_range_invalid",
+        "history accepted an inverted date range");
 
     var vocabulary = new VocabularyRepository(database);
     var vocabularyItem = new VocabularyItem { Word = "HyperWhisper", Replacement = "HyperWhisper", SortOrder = 2 };

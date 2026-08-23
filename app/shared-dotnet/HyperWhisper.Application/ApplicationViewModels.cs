@@ -332,6 +332,9 @@ public sealed class HistoryViewModel : ViewModelBase
     private readonly Func<Transcript, CancellationToken, Task>? _retry;
     private Transcript? _selected;
     private string _searchText = string.Empty;
+    private DateTimeOffset? _startDate;
+    private DateTimeOffset? _endDate;
+    private bool _showRawTranscript;
     private bool _deleteAudio;
     public HistoryViewModel(HistoryRepository repository, IAudioPlaybackService? playback = null, Func<Transcript, CancellationToken, Task>? retry = null)
     {
@@ -341,17 +344,53 @@ public sealed class HistoryViewModel : ViewModelBase
         RefreshCommand = new AsyncCommand(_ => RefreshAsync());
         DeleteCommand = new AsyncCommand(item => DeleteAsync(item as Transcript), item => item is Transcript);
         SearchCommand = new AsyncCommand(_ => SearchAsync());
+        ClearFiltersCommand = new AsyncCommand(_ => ClearFiltersAsync());
         PlayCommand = new AsyncCommand(_ => PlayAsync(), _ => Selected?.AudioFilePath is not null);
         RetryCommand = new AsyncCommand(_ => RetryAsync(), _ => Selected?.AudioFilePath is not null && _retry is not null);
     }
     public ObservableCollection<Transcript> Items { get; } = new();
-    public Transcript? Selected { get => _selected; set { if (Set(ref _selected, value)) { ((AsyncCommand)PlayCommand).RaiseCanExecuteChanged(); ((AsyncCommand)RetryCommand).RaiseCanExecuteChanged(); } } }
+    public Transcript? Selected
+    {
+        get => _selected;
+        set
+        {
+            if (!Set(ref _selected, value)) return;
+            if (!HasRawTranscript) _showRawTranscript = false;
+            Notify(nameof(ShowRawTranscript));
+            NotifyDetail();
+            ((AsyncCommand)PlayCommand).RaiseCanExecuteChanged();
+            ((AsyncCommand)RetryCommand).RaiseCanExecuteChanged();
+        }
+    }
     public string SearchText { get => _searchText; set => Set(ref _searchText, value); }
+    public DateTimeOffset? StartDate { get => _startDate; set => Set(ref _startDate, value); }
+    public DateTimeOffset? EndDate { get => _endDate; set => Set(ref _endDate, value); }
+    public bool ShowRawTranscript
+    {
+        get => _showRawTranscript;
+        set
+        {
+            var next = value && HasRawTranscript;
+            if (Set(ref _showRawTranscript, next)) NotifyDetail();
+        }
+    }
+    public bool HasRawTranscript => !string.IsNullOrWhiteSpace(Selected?.TranscribedText);
+    public string DetailText => ShowRawTranscript && HasRawTranscript
+        ? Selected!.TranscribedText!
+        : !string.IsNullOrWhiteSpace(Selected?.PostProcessedText)
+            ? Selected!.PostProcessedText!
+            : Selected?.Text ?? string.Empty;
+    public string DetailLabel => ShowRawTranscript && HasRawTranscript
+        ? "Raw transcription"
+        : !string.IsNullOrWhiteSpace(Selected?.PostProcessedText)
+            ? "Post-processed transcript"
+            : "Final transcript";
     public bool DeleteAudio { get => _deleteAudio; set => Set(ref _deleteAudio, value); }
     public UiStatus Status { get; } = new();
     public ICommand RefreshCommand { get; }
     public ICommand DeleteCommand { get; }
     public ICommand SearchCommand { get; }
+    public ICommand ClearFiltersCommand { get; }
     public ICommand PlayCommand { get; }
     public ICommand RetryCommand { get; }
 
@@ -371,14 +410,30 @@ public sealed class HistoryViewModel : ViewModelBase
 
     public async Task SearchAsync(CancellationToken cancellationToken = default)
     {
+        if (StartDate is { } start && EndDate is { } end && start.Date > end.Date)
+        {
+            Status.Failure("history.date_range_invalid", "The start date must not be after the end date.");
+            return;
+        }
         try
         {
             Items.Clear();
-            foreach (var item in await _repository.SearchAsync(SearchText, cancellationToken)) Items.Add(item);
+            var fromUtc = StartDate is { } from ? LocalDateStartUtc(from) : (DateTime?)null;
+            var toUtcExclusive = EndDate is { } to ? LocalDateStartUtc(to, dayOffset: 1) : (DateTime?)null;
+            foreach (var item in await _repository.SearchAsync(
+                SearchText, fromUtc, toUtcExclusive, cancellationToken)) Items.Add(item);
             Selected = Items.FirstOrDefault();
             Status.Success($"{Items.Count} matching transcript(s)");
         }
         catch (Exception) { Status.Failure("history.search_failed", "Could not search transcript history."); }
+    }
+
+    public async Task ClearFiltersAsync(CancellationToken cancellationToken = default)
+    {
+        SearchText = string.Empty;
+        StartDate = null;
+        EndDate = null;
+        await RefreshAsync(cancellationToken);
     }
 
     public async Task DeleteAsync(Transcript? transcript, CancellationToken cancellationToken = default)
@@ -412,6 +467,19 @@ public sealed class HistoryViewModel : ViewModelBase
         if (_retry is null || Selected is null) { Status.Failure("history.retry_unavailable", "Retry is unavailable."); return; }
         try { await _retry(Selected, cancellationToken); await RefreshAsync(cancellationToken); }
         catch (Exception) { Status.Failure("history.retry_failed", "The transcription retry failed."); }
+    }
+
+    private void NotifyDetail()
+    {
+        Notify(nameof(HasRawTranscript));
+        Notify(nameof(DetailText));
+        Notify(nameof(DetailLabel));
+    }
+
+    private static DateTime LocalDateStartUtc(DateTimeOffset value, int dayOffset = 0)
+    {
+        var localDate = new DateTime(value.Year, value.Month, value.Day).AddDays(dayOffset);
+        return new DateTimeOffset(localDate, TimeZoneInfo.Local.GetUtcOffset(localDate)).UtcDateTime;
     }
 }
 

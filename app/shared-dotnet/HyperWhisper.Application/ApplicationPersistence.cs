@@ -105,7 +105,16 @@ public sealed class HistoryRepository : ITranscriptionHistoryStore
         return true;
     }
 
-    public async Task<IReadOnlyList<Transcript>> SearchAsync(string? query, CancellationToken cancellationToken = default)
+    public Task<IReadOnlyList<Transcript>> SearchAsync(
+        string? query,
+        CancellationToken cancellationToken = default) =>
+        SearchAsync(query, null, null, cancellationToken);
+
+    public async Task<IReadOnlyList<Transcript>> SearchAsync(
+        string? query,
+        DateTime? fromUtc,
+        DateTime? toUtcExclusive,
+        CancellationToken cancellationToken = default)
     {
         await using var context = _database.CreateContext();
         var rows = context.Transcripts.AsNoTracking();
@@ -116,6 +125,8 @@ public sealed class HistoryRepository : ITranscriptionHistoryStore
                 || (item.TranscribedText != null && item.TranscribedText.Contains(term))
                 || (item.PostProcessedText != null && item.PostProcessedText.Contains(term)));
         }
+        if (fromUtc is { } from) rows = rows.Where(item => item.Date >= from);
+        if (toUtcExclusive is { } to) rows = rows.Where(item => item.Date < to);
         return await rows.OrderByDescending(item => item.Date).ToListAsync(cancellationToken);
     }
 
