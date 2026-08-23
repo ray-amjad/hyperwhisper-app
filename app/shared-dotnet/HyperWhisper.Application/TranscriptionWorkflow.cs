@@ -59,6 +59,15 @@ public interface IRecordedAudioTranscriber
 
     Task<PortableTranscriptionResult> TranscribeAsync(
         string audioPath,
+        TranscriptionWorkflowRequest request,
+        CancellationToken cancellationToken = default) =>
+        TranscribeAsync(audioPath, request.Language, cancellationToken);
+
+    // Compatibility entry point for fixed local backends. Mode-aware routers
+    // override the request overload above; existing platform implementations
+    // continue to receive the normalized language without losing compatibility.
+    Task<PortableTranscriptionResult> TranscribeAsync(
+        string audioPath,
         string? language,
         CancellationToken cancellationToken = default);
 }
@@ -92,7 +101,8 @@ public sealed record TranscriptionWorkflowRequest(
     string? Language = null,
     string? ModeName = null,
     Guid? ModeId = null,
-    Mode? SelectedMode = null);
+    Mode? SelectedMode = null,
+    IReadOnlyList<string>? Vocabulary = null);
 
 public sealed record TranscriptionWorkflowSnapshot(
     TranscriptionWorkflowState State,
@@ -424,7 +434,7 @@ public sealed class TranscriptionWorkflow : IDisposable
         PortableTranscriptionResult result;
         try
         {
-            result = await _transcriber.TranscribeAsync(audioPath, request.Language, operation.Token).ConfigureAwait(false);
+            result = await _transcriber.TranscribeAsync(audioPath, request, operation.Token).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (operation.IsCancellationRequested || callerToken.IsCancellationRequested)
         {

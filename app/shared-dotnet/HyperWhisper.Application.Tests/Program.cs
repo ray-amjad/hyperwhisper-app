@@ -194,14 +194,15 @@ static async Task RunTranscriptionWorkflowTestsAsync(string root)
     };
     var appliedPostProcessor = new FakePostProcessor((text, _, _) => Task.FromResult(
         PortablePostProcessingResult.Applied("Cleaned words", "Local LLM · test.gguf · cpu")));
+    var modeAwareTranscriber = new FakeTranscriber((_, _, _) => Task.FromResult(
+        PortableTranscriptionResult.Success("raw words", "Test Whisper")));
     using var appliedInjection = new FakeTextInjection();
     using (var recorder = new FakeRecorder(postAudio))
     using (var devices = new FakeDevices())
     using (var workflow = new TranscriptionWorkflow(
         recorder,
         devices,
-        new FakeTranscriber((_, _, _) => Task.FromResult(
-            PortableTranscriptionResult.Success("raw words", "Test Whisper"))),
+        modeAwareTranscriber,
         postStore.History,
         appliedPostProcessor,
         appliedInjection))
@@ -220,6 +221,8 @@ static async Task RunTranscriptionWorkflowTestsAsync(string root)
             && saved.PostProcessingProvider == "Local LLM · test.gguf · cpu",
             "post-processing fields were not persisted with Windows semantics");
         Assert(appliedPostProcessor.CallCount == 1, "enabled local post-processing was not invoked exactly once");
+        Assert(modeAwareTranscriber.LastRequest?.SelectedMode == localMode,
+            "selected mode was not passed safely to the transcription backend");
         Assert(appliedInjection.LastText == "Cleaned words",
             "text injection ran before local post-processing or received raw text");
         Assert(result.InjectionOutcome == TextInjectionOutcome.Pasted
@@ -585,7 +588,16 @@ file sealed class FakeRecorder(string outputPath) : IAudioRecorder
 file sealed class FakeTranscriber(
     Func<string, string?, CancellationToken, Task<PortableTranscriptionResult>> transcribe) : IRecordedAudioTranscriber
 {
+    public TranscriptionWorkflowRequest? LastRequest { get; private set; }
     public TranscriptionBackendCapability Capability { get; } = new(true, "Test Whisper");
+    public Task<PortableTranscriptionResult> TranscribeAsync(
+        string audioPath,
+        TranscriptionWorkflowRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        LastRequest = request;
+        return transcribe(audioPath, request.Language, cancellationToken);
+    }
     public Task<PortableTranscriptionResult> TranscribeAsync(string audioPath, string? language, CancellationToken cancellationToken = default) =>
         transcribe(audioPath, language, cancellationToken);
 }

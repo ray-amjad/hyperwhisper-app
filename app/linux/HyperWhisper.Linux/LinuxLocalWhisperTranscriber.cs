@@ -1,4 +1,5 @@
 using HyperWhisper.LocalInference;
+using HyperWhisper.ModelManagement;
 using HyperWhisper.PortableApplication.Transcription;
 
 namespace HyperWhisper.Linux;
@@ -34,13 +35,30 @@ internal sealed class LinuxLocalWhisperTranscriber : IRecordedAudioTranscriber, 
         string audioPath,
         string? language,
         CancellationToken cancellationToken = default)
+        => await TranscribeSelectedAsync(audioPath, language, null, cancellationToken).ConfigureAwait(false);
+
+    public Task<PortableTranscriptionResult> TranscribeAsync(
+        string audioPath,
+        TranscriptionWorkflowRequest request,
+        CancellationToken cancellationToken = default) =>
+        TranscribeSelectedAsync(
+            audioPath,
+            request.Language,
+            request.SelectedMode?.ModelType ?? request.SelectedMode?.Model,
+            cancellationToken);
+
+    private async Task<PortableTranscriptionResult> TranscribeSelectedAsync(
+        string audioPath,
+        string? language,
+        string? modelId,
+        CancellationToken cancellationToken)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        var (modelPath, _) = TryResolveModelPath();
+        var (modelPath, modelFailure) = TryResolveModelPath(modelId);
         if (modelPath is null)
             return PortableTranscriptionResult.Failed(
                 PortableTranscriptionErrorCode.BackendUnavailable,
-                Capability.UnavailableReason!,
+                modelFailure ?? Capability.UnavailableReason!,
                 Capability.DisplayName);
 
         await _loadGate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -84,7 +102,7 @@ internal sealed class LinuxLocalWhisperTranscriber : IRecordedAudioTranscriber, 
         _loadGate.Dispose();
     }
 
-    private (string? Path, string? Failure) TryResolveModelPath()
+    private (string? Path, string? Failure) TryResolveModelPath(string? modelId = null)
     {
         try
         {
@@ -97,6 +115,17 @@ internal sealed class LinuxLocalWhisperTranscriber : IRecordedAudioTranscriber, 
                     : (null, "The configured local Whisper model does not exist or is inaccessible.");
             }
             if (!Directory.Exists(_modelsDirectory)) return (null, null);
+            if (!string.IsNullOrWhiteSpace(modelId))
+            {
+                var selected = PortableModelCatalog.Whisper.FirstOrDefault(model =>
+                    string.Equals(model.Id, modelId.Trim(), StringComparison.OrdinalIgnoreCase));
+                if (selected is null)
+                    return (null, "The selected local Whisper model is not supported.");
+                var selectedPath = Path.Combine(_modelsDirectory, selected.StorageName);
+                return File.Exists(selectedPath)
+                    ? (selectedPath, null)
+                    : (null, "The selected local Whisper model is not downloaded.");
+            }
             return (Directory.EnumerateFiles(_modelsDirectory, "ggml*.bin", SearchOption.TopDirectoryOnly)
                 .Order(StringComparer.Ordinal)
                 .FirstOrDefault(), null);

@@ -90,6 +90,19 @@ public static class SharedCoreBridge
             HyperwhisperCoreMethods.BuildSystemInfo(native));
     }
 
+    public static string CanonicalCloudSttTier(string? value) =>
+        HyperwhisperCoreMethods.MigrateCloudAccuracyTier(value);
+
+    public static string? CloudSttProvider(string tierId) =>
+        HyperwhisperCoreMethods.CloudSttProvider(tierId);
+
+    public static string? CloudSttDefaultModel(string tierId) =>
+        HyperwhisperCoreMethods.CloudSttDefaultModelId(tierId);
+
+    public static bool CloudSttContainsModel(string tierId, string modelId) =>
+        HyperwhisperCoreMethods.CloudSttModels(tierId)
+            .Any(model => string.Equals(model.id, modelId, StringComparison.Ordinal));
+
     private static Preset PresetFromRaw(string? value) => value?.Trim().ToLowerInvariant() switch
     {
         "message" => Preset.Message,
