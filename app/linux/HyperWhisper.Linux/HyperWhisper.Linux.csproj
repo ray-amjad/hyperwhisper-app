@@ -53,6 +53,7 @@
     <ProjectReference Include="../../shared-dotnet/HyperWhisper.Telemetry/HyperWhisper.Telemetry.csproj" />
     <ProjectReference Include="../../shared-dotnet/HyperWhisper.Storage/HyperWhisper.Storage.csproj" />
     <ProjectReference Include="../../shared-dotnet/HyperWhisper.Diagnostics/HyperWhisper.Diagnostics.csproj" />
+    <ProjectReference Include="../HyperWhisper.Linux.Localization/HyperWhisper.Linux.Localization.csproj" />
     <ProjectReference Include="../HyperWhisper.Linux.Platform/HyperWhisper.Linux.Platform.csproj" />
   </ItemGroup>
 
