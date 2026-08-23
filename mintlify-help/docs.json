@@ -2,7 +2,7 @@
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
   "name": "HyperWhisper",
-  "description": "AI-powered speech-to-text transcription for macOS",
+  "description": "AI-powered speech-to-text transcription for macOS, Windows, and Linux",
   "redirects": [
     {
       "source": "/model-management",
@@ -31,6 +31,7 @@
         "pages": [
           "index",
           "system-requirements",
+          "linux-installation",
           "macos-first-run",
           "permissions",
           "best-practices"

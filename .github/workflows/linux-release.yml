@@ -155,6 +155,11 @@ jobs:
 
       - name: Publish self-contained Avalonia application
         shell: bash
+        env:
+          # The Linux project emits this as assembly metadata only when the
+          # Production secret exists. Fork/source builds leave it blank, and
+          # LinuxSentryService then remains a strict no-op.
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
         run: |
           set -euo pipefail
           dotnet publish \
