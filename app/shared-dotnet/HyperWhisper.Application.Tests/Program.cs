@@ -5,6 +5,7 @@ using HyperWhisper.Data.Entities;
 using HyperWhisper.Platform.Abstractions;
 using Microsoft.EntityFrameworkCore;
 using HyperWhisper.PortableApplication.Transcription;
+using HyperWhisper.AudioNormalization;
 
 var root = Path.Combine(Path.GetTempPath(), "HyperWhisper.Application.Tests", Guid.NewGuid().ToString("N"));
 Directory.CreateDirectory(root);
@@ -14,6 +15,21 @@ try
     var database = new ApplicationDb(paths);
     await database.MigrateAsync();
     await RunTranscriptionWorkflowTestsAsync(root);
+
+    var freshDatabase = new ApplicationDb(new TestPaths(Path.Combine(root, "fresh-defaults")));
+    await freshDatabase.InitializeAsync();
+    await freshDatabase.InitializeAsync();
+    var freshModes = await new ModeRepository(freshDatabase).ListAsync();
+    Assert(freshModes.Count == 6 && freshModes.Single(item => item.IsDefault).Id == PortableModeDefaults.HyperModeId,
+        "fresh database initialization did not idempotently seed the six portable defaults");
+
+    var existingDatabase = new ApplicationDb(new TestPaths(Path.Combine(root, "existing-defaults")));
+    await existingDatabase.MigrateAsync();
+    var existingMode = new Mode { Name = "Existing", IsDefault = true };
+    await new ModeRepository(existingDatabase).UpsertAsync(existingMode);
+    await existingDatabase.InitializeAsync();
+    Assert((await new ModeRepository(existingDatabase).ListAsync()).Single().Id == existingMode.Id,
+        "database initialization replaced or supplemented an existing mode library");
 
     await using (var context = database.CreateContext())
     {
@@ -132,12 +148,20 @@ try
         "history deletion erased caller-owned external audio");
     File.Delete(externalAudio);
 
-    var largeSource = Path.Combine(root, "large-source.wav");
-    await using (var stream = new FileStream(largeSource, FileMode.CreateNew, FileAccess.Write, FileShare.None))
-    { stream.SetLength(8 * 1024 * 1024); }
-    var importedAudio = await new DurableAudioImportService(new AcceptPrivateFileService(), paths).ImportAsync(largeSource);
-    Assert(importedAudio.IsSuccess && new FileInfo(importedAudio.Value!).Length == 8 * 1024 * 1024,
-        "durable audio importer did not stream a representative large file");
+    var sourceAudio = Path.Combine(root, "source.mp3");
+    await File.WriteAllBytesAsync(sourceAudio, [7, 8, 9]);
+    var fakeNormalizer = new FakeAudioNormalizer();
+    var importedAudio = await new DurableAudioImportService(
+        new AcceptPrivateFileService(), paths, normalizer: fakeNormalizer).ImportAsync(sourceAudio);
+    Assert(importedAudio.IsSuccess && Path.GetExtension(importedAudio.Value!) == ".wav" && fakeNormalizer.Calls == 1,
+        "durable audio importer did not delegate to canonical audio normalization");
+    var externalNormalized = Path.Combine(Path.GetDirectoryName(root)!, $"external-normalized-{Guid.NewGuid():N}.wav");
+    await File.WriteAllBytesAsync(externalNormalized, new byte[48]);
+    var escapedImport = await new DurableAudioImportService(
+        new AcceptPrivateFileService(), paths, normalizer: new EscapingAudioNormalizer(externalNormalized)).ImportAsync(sourceAudio);
+    Assert(escapedImport.Error?.Code == "audio_import.invalid_output_path" && File.Exists(externalNormalized),
+        "durable audio importer accepted or deleted a normalizer path outside app-owned storage");
+    File.Delete(externalNormalized);
 
     using (var shell = new HyperWhisper.PortableApplication.ViewModels.ApplicationShellViewModel(database, reloadedSettings))
     {
@@ -339,6 +363,29 @@ try
         await requestShell.Recording.TranscribeFileAsync();
         Assert(requestTranscriber.LastRequest?.Vocabulary?.Contains("HyperWhisper") == true,
             "transcription routing request omitted persisted global vocabulary");
+    }
+
+    var cancellationSource = Path.Combine(root, "import-cancellation.mp3");
+    await File.WriteAllBytesAsync(cancellationSource, [1, 2, 3]);
+    var blockingNormalizer = new BlockingAudioNormalizer();
+    using (var cancellationDevices = new FakeDevices())
+    using (var cancellationRecorder = new FakeRecorder(requestAudio))
+    using (var cancellationWorkflow = new TranscriptionWorkflow(
+        cancellationRecorder, cancellationDevices, requestTranscriber, new HistoryRepository(database, paths)))
+    using (var cancellationViewModel = new HyperWhisper.PortableApplication.ViewModels.TranscriptionWorkflowViewModel(
+        cancellationWorkflow,
+        () => new TranscriptionWorkflowRequest("en", "Import cancellation"),
+        new DurableAudioImportService(new AcceptPrivateFileService(), paths, normalizer: blockingNormalizer)))
+    {
+        cancellationViewModel.FilePath = cancellationSource;
+        var importing = cancellationViewModel.TranscribeFileAsync();
+        await blockingNormalizer.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert(cancellationViewModel.IsImporting && cancellationViewModel.CanCancel && !cancellationViewModel.CanTranscribeFile,
+            "file normalization did not expose a cancellable busy UI state");
+        await cancellationViewModel.CancelAsync();
+        await importing;
+        Assert(!cancellationViewModel.IsImporting && cancellationViewModel.ErrorCode == "audio_import.cancelled",
+            "file normalization cancellation did not restore a terminal UI state");
     }
 
     var failingHome = new HyperWhisper.PortableApplication.ViewModels.HomeViewModel(
@@ -788,6 +835,52 @@ file sealed class AcceptPrivateFileService : IPrivateFileService
     public PlatformResult<string?> ReadAllText(string path) => PlatformResult<string?>.Success(null);
     public PlatformResult Delete(string path) { if (File.Exists(path)) File.Delete(path); return PlatformResult.Success(); }
     public PlatformResult<bool> IsRestrictedToCurrentUser(string path) => PlatformResult<bool>.Success(File.Exists(path));
+}
+
+file sealed class FakeAudioNormalizer : IAudioNormalizationService
+{
+    public int Calls { get; private set; }
+
+    public async Task<PlatformResult<string>> NormalizeAsync(
+        string sourcePath,
+        string destinationDirectory,
+        IProgress<AudioNormalizationProgress>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        Calls++;
+        Directory.CreateDirectory(destinationDirectory);
+        var destination = Path.Combine(destinationDirectory, $"import-{Guid.NewGuid():N}.wav");
+        await File.WriteAllBytesAsync(destination, new byte[48], cancellationToken);
+        progress?.Report(new AudioNormalizationProgress("complete", 3, 3, 1));
+        return PlatformResult<string>.Success(destination);
+    }
+}
+
+file sealed class BlockingAudioNormalizer : IAudioNormalizationService
+{
+    public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    public async Task<PlatformResult<string>> NormalizeAsync(
+        string sourcePath,
+        string destinationDirectory,
+        IProgress<AudioNormalizationProgress>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        progress?.Report(new AudioNormalizationProgress("staging", 1, 3, 0.03));
+        Started.TrySetResult();
+        await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+        throw new InvalidOperationException("unreachable");
+    }
+}
+
+file sealed class EscapingAudioNormalizer(string path) : IAudioNormalizationService
+{
+    public Task<PlatformResult<string>> NormalizeAsync(
+        string sourcePath,
+        string destinationDirectory,
+        IProgress<AudioNormalizationProgress>? progress = null,
+        CancellationToken cancellationToken = default)
+        => Task.FromResult(PlatformResult<string>.Success(path));
 }
 
 file sealed class MemoryCredentialStore : ICredentialStore

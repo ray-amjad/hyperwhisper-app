@@ -5,6 +5,7 @@ using HyperWhisper.Data;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.SharedCore;
+using HyperWhisper.AudioNormalization;
 using Microsoft.EntityFrameworkCore;
 
 namespace HyperWhisper.PortableApplication.Persistence;
@@ -25,6 +26,19 @@ public sealed class ApplicationDb(Func<HyperWhisperDbContext> createContext)
     {
         await using var context = CreateContext();
         await context.Database.MigrateAsync(cancellationToken);
+    }
+
+    public async Task InitializeAsync(CancellationToken cancellationToken = default)
+    {
+        await MigrateAsync(cancellationToken);
+        await using var context = CreateContext();
+        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+        if (!await context.Modes.AnyAsync(cancellationToken))
+        {
+            context.Modes.AddRange(PortableModeDefaults.CreateForCurrentRegion());
+            await context.SaveChangesAsync(cancellationToken);
+        }
+        await transaction.CommitAsync(cancellationToken);
     }
 }
 
@@ -298,59 +312,70 @@ public sealed class ModeRepository(ApplicationDb database)
     }
 }
 
-public sealed class DurableAudioImportService(IPrivateFileService privateFiles, IAppPaths paths, long maximumBytes = 1_073_741_824)
+public sealed class DurableAudioImportService
 {
-    private readonly IPrivateFileService _privateFiles = privateFiles ?? throw new ArgumentNullException(nameof(privateFiles));
-    private readonly string _recordingsDirectory = (paths ?? throw new ArgumentNullException(nameof(paths))).RecordingsDirectory;
+    private readonly IPrivateFileService _privateFiles;
+    private readonly string _recordingsDirectory;
+    private readonly IAudioNormalizationService _normalizer;
+
+    public DurableAudioImportService(
+        IPrivateFileService privateFiles,
+        IAppPaths paths,
+        long maximumBytes = 1_073_741_824,
+        IAudioNormalizationService? normalizer = null)
+    {
+        _privateFiles = privateFiles ?? throw new ArgumentNullException(nameof(privateFiles));
+        _recordingsDirectory = Path.GetFullPath(
+            (paths ?? throw new ArgumentNullException(nameof(paths))).RecordingsDirectory);
+        _normalizer = normalizer ?? new FfmpegAudioNormalizationService(new FfmpegAudioNormalizationOptions
+        {
+            MaximumInputBytes = maximumBytes,
+            MaximumOutputBytes = maximumBytes
+        });
+    }
 
     public async Task<PlatformResult<string>> ImportAsync(string sourcePath, CancellationToken cancellationToken = default)
+        => await ImportAsync(sourcePath, progress: null, cancellationToken);
+
+    public async Task<PlatformResult<string>> ImportAsync(
+        string sourcePath,
+        IProgress<AudioNormalizationProgress>? progress,
+        CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(sourcePath) || !Path.IsPathFullyQualified(sourcePath))
-            return PlatformResult<string>.Failure("audio_import.invalid_path", "Choose a local audio file.");
+        string? normalizedPath = null;
         try
         {
-            await using var stream = new FileStream(Path.GetFullPath(sourcePath), FileMode.Open, FileAccess.Read, FileShare.Read, 81920, FileOptions.Asynchronous | FileOptions.SequentialScan);
-            if (stream.Length <= 0 || stream.Length > maximumBytes)
-                return PlatformResult<string>.Failure("audio_import.invalid_size", "The audio file is empty or exceeds the import limit.");
-            var extension = Path.GetExtension(sourcePath).ToLowerInvariant();
-            if (extension is not (".wav" or ".mp3" or ".m4a" or ".flac" or ".ogg" or ".webm")) extension = ".audio";
-            var destination = Path.Combine(_recordingsDirectory, $"import-{Guid.NewGuid():N}{extension}");
-            Directory.CreateDirectory(_recordingsDirectory);
-            var temporary = Path.Combine(_recordingsDirectory, $".{Path.GetFileName(destination)}.partial");
-            try
+            var normalized = await _normalizer.NormalizeAsync(sourcePath, _recordingsDirectory, progress, cancellationToken);
+            if (normalized.IsFailure) return normalized;
+            var candidate = Path.GetFullPath(normalized.Value!);
+            var relative = Path.GetRelativePath(_recordingsDirectory, candidate);
+            if (relative == ".." || relative.StartsWith($"..{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
+                || Path.IsPathFullyQualified(relative))
+                return PlatformResult<string>.Failure("audio_import.invalid_output_path", "The normalized audio destination was invalid.");
+            normalizedPath = candidate;
+            if (!File.Exists(normalizedPath) || !string.Equals(Path.GetExtension(normalizedPath), ".wav", StringComparison.OrdinalIgnoreCase))
+                return PlatformResult<string>.Failure("audio_import.invalid_output", "The normalized audio file was invalid.");
+            var restricted = _privateFiles.IsRestrictedToCurrentUser(normalizedPath);
+            if (restricted.IsFailure || restricted.Value != true)
             {
-                var options = new FileStreamOptions { Mode = FileMode.CreateNew, Access = FileAccess.Write, Share = FileShare.None, Options = FileOptions.Asynchronous | FileOptions.WriteThrough };
-                if (!OperatingSystem.IsWindows()) options.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
-                await using (var output = new FileStream(temporary, options))
-                {
-                    var buffer = new byte[128 * 1024];
-                    long copied = 0;
-                    while (true)
-                    {
-                        var read = await stream.ReadAsync(buffer, cancellationToken);
-                        if (read == 0) break;
-                        copied += read;
-                        if (copied > maximumBytes) return PlatformResult<string>.Failure("audio_import.invalid_size", "The audio file exceeds the import limit.");
-                        await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
-                    }
-                    await output.FlushAsync(cancellationToken);
-                    output.Flush(flushToDisk: true);
-                }
-                File.Move(temporary, destination);
-                var restricted = _privateFiles.IsRestrictedToCurrentUser(destination);
-                if (restricted.IsFailure || restricted.Value != true)
-                {
-                    File.Delete(destination);
-                    return PlatformResult<string>.Failure("audio_import.permissions", "The imported audio could not be made private.");
-                }
-                return PlatformResult<string>.Success(destination);
+                return PlatformResult<string>.Failure("audio_import.permissions", "The normalized audio could not be made private.");
             }
-            finally { try { File.Delete(temporary); } catch (IOException) { } }
+            var completedPath = normalizedPath;
+            normalizedPath = null;
+            return PlatformResult<string>.Success(completedPath);
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             return PlatformResult<string>.Failure("audio_import.failed", "The audio file could not be imported.");
+        }
+        finally
+        {
+            if (normalizedPath is not null)
+            {
+                try { File.Delete(normalizedPath); }
+                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException) { }
+            }
         }
     }
 }

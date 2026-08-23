@@ -279,11 +279,15 @@ public partial class MainWindow : Window
         {
             var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
             {
-                Title = "Choose a WAV recording",
+                Title = "Choose an audio recording",
                 AllowMultiple = false,
                 FileTypeFilter =
                 [
-                    new FilePickerFileType("WAV audio") { Patterns = ["*.wav"] },
+                    new FilePickerFileType("Supported audio")
+                    {
+                        Patterns = ["*.wav", "*.mp3", "*.m4a", "*.flac", "*.ogg", "*.webm"],
+                        MimeTypes = ["audio/wav", "audio/mpeg", "audio/mp4", "audio/x-m4a", "audio/flac", "audio/ogg", "audio/webm"]
+                    },
                     FilePickerFileTypes.All,
                 ],
             });

@@ -152,6 +152,7 @@ jobs:
             dbus-x11 \
             desktop-file-utils \
             dpkg-dev \
+            ffmpeg \
             file \
             lintian \
             libfontconfig1 \

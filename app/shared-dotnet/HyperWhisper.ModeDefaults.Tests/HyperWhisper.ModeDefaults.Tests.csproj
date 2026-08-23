@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../HyperWhisper.Application/HyperWhisper.Application.csproj" />
+    <None Include="../../../shared-app-classification/cloud-stt-catalog.json" Link="cloud-stt-catalog.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../../shared-app-classification/cloud-pp-catalog.json" Link="cloud-pp-catalog.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

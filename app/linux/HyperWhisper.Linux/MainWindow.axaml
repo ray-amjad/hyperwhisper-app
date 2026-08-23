@@ -12,8 +12,9 @@
             <StackPanel Orientation="Horizontal" Spacing="8"><Button x:Name="HomeStartRecordingButton" Content="Start recording" Click="OnStartRecording"/><Button x:Name="HomeStopRecordingButton" Content="Stop and transcribe" Click="OnStopRecording"/><Button x:Name="HomeCancelRecordingButton" Content="Cancel" Click="OnCancelRecording"/><Button Content="Refresh devices" Command="{Binding Recording.RefreshDevicesCommand}"/></StackPanel>
             <TextBlock Text="{Binding Recording.State, StringFormat='State: {0}'}"/><TextBlock Text="{Binding Recording.Message}" TextWrapping="Wrap"/><TextBlock Text="{Binding Recording.ErrorCode}" IsVisible="{Binding Recording.HasError}" Opacity="0.7"/>
             <Separator/>
-            <TextBlock Text="Transcribe an existing WAV file" FontWeight="SemiBold"/>
-            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8"><TextBox x:Name="HomeAudioFileInput" Text="{Binding Recording.FilePath}" PlaceholderText="/path/to/audio.wav"/><Button Grid.Column="1" Content="Browse…" Click="OnBrowseAudioFile"/><Button x:Name="HomeTranscribeFileButton" Grid.Column="2" Content="Transcribe file" Command="{Binding Recording.TranscribeFileCommand}"/></Grid>
+            <TextBlock Text="Transcribe an existing audio file" FontWeight="SemiBold"/>
+            <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8"><TextBox x:Name="HomeAudioFileInput" Text="{Binding Recording.FilePath}" PlaceholderText="WAV, MP3, M4A, FLAC, OGG, or WebM"/><Button Grid.Column="1" Content="Browse…" Click="OnBrowseAudioFile"/><Button x:Name="HomeTranscribeFileButton" Grid.Column="2" Content="Transcribe file" Command="{Binding Recording.TranscribeFileCommand}"/><Button Grid.Column="3" Content="Cancel import" Command="{Binding Recording.CancelCommand}" IsVisible="{Binding Recording.IsImporting}"/></Grid>
+            <ProgressBar Minimum="0" Maximum="1" Value="{Binding Recording.ImportProgress}" IsVisible="{Binding Recording.IsImporting}"/>
           </StackPanel>
         </Border>
         <TextBlock Text="Local library" FontSize="22" FontWeight="SemiBold" />

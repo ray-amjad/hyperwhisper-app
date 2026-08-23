@@ -9,6 +9,7 @@ using HyperWhisper.PortableApplication.Transcription;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.ModelManagement;
+using HyperWhisper.AudioNormalization;
 
 namespace HyperWhisper.PortableApplication.ViewModels;
 
@@ -68,6 +69,9 @@ public sealed class TranscriptionWorkflowViewModel : ViewModelBase, IDisposable
     private bool _canStop;
     private bool _canCancel;
     private bool _canTranscribeFile;
+    private bool _isImporting;
+    private double _importProgress;
+    private CancellationTokenSource? _importCancellation;
     private bool _disposed;
 
     public TranscriptionWorkflowViewModel(
@@ -106,6 +110,8 @@ public sealed class TranscriptionWorkflowViewModel : ViewModelBase, IDisposable
     public bool CanStop { get => _canStop; private set => Set(ref _canStop, value); }
     public bool CanCancel { get => _canCancel; private set => Set(ref _canCancel, value); }
     public bool CanTranscribeFile { get => _canTranscribeFile; private set => Set(ref _canTranscribeFile, value); }
+    public bool IsImporting { get => _isImporting; private set => Set(ref _isImporting, value); }
+    public double ImportProgress { get => _importProgress; private set => Set(ref _importProgress, value); }
     public ICommand StartCommand { get; }
     public ICommand StopCommand { get; }
     public ICommand CancelCommand { get; }
@@ -116,13 +122,57 @@ public sealed class TranscriptionWorkflowViewModel : ViewModelBase, IDisposable
     public void RefreshDevices() => _workflow.RefreshDevices();
     public Task StartAsync(CancellationToken cancellationToken = default) => _workflow.StartRecordingAsync(cancellationToken);
     public Task StopAsync(CancellationToken cancellationToken = default) => _workflow.StopAndTranscribeAsync(_requestFactory(), cancellationToken);
-    public Task CancelAsync() => _workflow.CancelAsync();
+    public Task CancelAsync()
+    {
+        if (_importCancellation is { } import)
+        {
+            import.Cancel();
+            return Task.CompletedTask;
+        }
+        return _workflow.CancelAsync();
+    }
     public async Task TranscribeFileAsync(CancellationToken cancellationToken = default)
     {
+        if (_importCancellation is not null)
+        {
+            ReportInputFailure("audio_import.in_progress", "Another audio import is already running.");
+            return;
+        }
         var path = FilePath;
         if (_audioImport is not null)
         {
-            var imported = await _audioImport.ImportAsync(path, cancellationToken);
+            using var import = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            _importCancellation = import;
+            BeginImport();
+            PlatformResult<string>? imported = null;
+            var cancelled = false;
+            try
+            {
+                var progress = new Progress<AudioNormalizationProgress>(value =>
+                {
+                    if (!IsImporting) return;
+                    ImportProgress = value.Fraction;
+                    Message = value.Phase == "staging"
+                        ? $"Preparing audio… {value.Fraction:P0}"
+                        : $"Converting audio… {value.Fraction:P0}";
+                });
+                imported = await _audioImport.ImportAsync(path, progress, import.Token);
+            }
+            catch (OperationCanceledException) when (import.IsCancellationRequested)
+            {
+                cancelled = true;
+            }
+            finally
+            {
+                if (ReferenceEquals(_importCancellation, import)) _importCancellation = null;
+                EndImport();
+            }
+            if (cancelled)
+            {
+                ReportInputFailure("audio_import.cancelled", "Audio import cancelled.");
+                return;
+            }
+            if (imported is null) return;
             if (imported.IsFailure) { ReportInputFailure(imported.Error!.Code, imported.Error.Message); return; }
             path = imported.Value!;
             FilePath = path;
@@ -141,6 +191,7 @@ public sealed class TranscriptionWorkflowViewModel : ViewModelBase, IDisposable
         if (_disposed) return;
         _disposed = true;
         _workflow.Changed -= OnWorkflowChanged;
+        _importCancellation?.Cancel();
         _workflow.Dispose();
     }
 
@@ -167,18 +218,50 @@ public sealed class TranscriptionWorkflowViewModel : ViewModelBase, IDisposable
         foreach (var device in snapshot.AudioDevices) AudioDevices.Add(device);
         _selectedAudioDevice = AudioDevices.FirstOrDefault(item => item.Id == snapshot.SelectedAudioDeviceId);
         Notify(nameof(SelectedAudioDevice));
-        State = snapshot.State.ToString();
-        Message = snapshot.Message;
-        ErrorCode = snapshot.ErrorCode;
-        CanStartRecording = snapshot.CanStartRecording;
-        CanStop = snapshot.CanStop;
-        CanCancel = snapshot.CanCancel;
-        CanTranscribeFile = snapshot.CanTranscribeFile;
+        if (!_isImporting)
+        {
+            State = snapshot.State.ToString();
+            Message = snapshot.Message;
+            ErrorCode = snapshot.ErrorCode;
+            CanStartRecording = snapshot.CanStartRecording;
+            CanStop = snapshot.CanStop;
+            CanCancel = snapshot.CanCancel;
+            CanTranscribeFile = snapshot.CanTranscribeFile;
+        }
         ((AsyncCommand)StartCommand).RaiseCanExecuteChanged();
         ((AsyncCommand)StopCommand).RaiseCanExecuteChanged();
         ((AsyncCommand)CancelCommand).RaiseCanExecuteChanged();
         ((AsyncCommand)TranscribeFileCommand).RaiseCanExecuteChanged();
         if (completedNow) TranscriptionSaved?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void BeginImport()
+    {
+        IsImporting = true;
+        ImportProgress = 0;
+        State = "Importing";
+        Message = "Preparing audio…";
+        ErrorCode = null;
+        CanStartRecording = false;
+        CanStop = false;
+        CanCancel = true;
+        CanTranscribeFile = false;
+        RaiseWorkflowCommands();
+    }
+
+    private void EndImport()
+    {
+        IsImporting = false;
+        ImportProgress = 0;
+        ApplySnapshot(_workflow.Snapshot);
+    }
+
+    private void RaiseWorkflowCommands()
+    {
+        ((AsyncCommand)StartCommand).RaiseCanExecuteChanged();
+        ((AsyncCommand)StopCommand).RaiseCanExecuteChanged();
+        ((AsyncCommand)CancelCommand).RaiseCanExecuteChanged();
+        ((AsyncCommand)TranscribeFileCommand).RaiseCanExecuteChanged();
     }
 }
 
@@ -1190,7 +1273,7 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
         Status.Busy("Preparing local database…");
         try
         {
-            await _database.MigrateAsync(_lifetime.Token);
+            await _database.InitializeAsync(_lifetime.Token);
             await new HistoryRepository(_database).FailOrphanedProcessingAsync(_lifetime.Token);
             Settings.Load();
             await Task.WhenAll(Home.RefreshAsync(_lifetime.Token), History.RefreshAsync(_lifetime.Token), Vocabulary.RefreshAsync(_lifetime.Token), Modes.RefreshAsync(_lifetime.Token));

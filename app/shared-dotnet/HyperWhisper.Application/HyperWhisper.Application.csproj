@@ -9,9 +9,17 @@
 
   <ItemGroup>
     <ProjectReference Include="..\HyperWhisper.Platform.Abstractions\HyperWhisper.Platform.Abstractions.csproj" />
+    <ProjectReference Include="..\HyperWhisper.AudioNormalization\HyperWhisper.AudioNormalization.csproj" />
     <ProjectReference Include="..\HyperWhisper.ModelManagement\HyperWhisper.ModelManagement.csproj" />
     <ProjectReference Include="..\HyperWhisper.SharedCore\HyperWhisper.SharedCore.csproj" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.19" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\..\shared-app-classification\cloud-stt-catalog.json"
+                      LogicalName="HyperWhisper.SharedAppClassification.cloud-stt-catalog.json" />
+    <EmbeddedResource Include="..\..\..\shared-app-classification\cloud-pp-catalog.json"
+                      LogicalName="HyperWhisper.SharedAppClassification.cloud-pp-catalog.json" />
   </ItemGroup>
 
   <!-- These remain at stable source paths during the extraction, but this is
