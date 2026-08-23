@@ -171,6 +171,11 @@
         <TextBlock Text="{ReflectionBinding [linux.ui.about.hyperwhisper], Source={StaticResource Localization}}" FontSize="22" FontWeight="SemiBold"/>
         <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12" RowDefinitions="Auto,Auto" RowSpacing="8"><TextBlock Text="{ReflectionBinding [linux.ui.application.version], Source={StaticResource Localization}}" FontWeight="SemiBold"/><TextBlock Grid.Column="1" Text="{Binding AppVersion}"/><TextBlock Grid.Row="1" Text="{ReflectionBinding [linux.ui.package.version], Source={StaticResource Localization}}" FontWeight="SemiBold"/><TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding PackageVersion}"/></Grid>
         <TextBlock Text="{Binding UpdateDescription}" TextWrapping="Wrap"/>
+        <Separator/>
+        <TextBlock Text="{ReflectionBinding [linux.update.title], Source={StaticResource Localization}}" FontSize="18" FontWeight="SemiBold"/>
+        <TextBlock x:Name="AboutUpdateStatus" Text="{ReflectionBinding [linux.update.not_checked], Source={StaticResource Localization}}" TextWrapping="Wrap"/>
+        <TextBlock Text="{ReflectionBinding [linux.update.instructions], Source={StaticResource Localization}}" TextWrapping="Wrap" Opacity="0.7"/>
+        <Button x:Name="AboutUpdateRefreshButton" Content="{ReflectionBinding [linux.update.refresh], Source={StaticResource Localization}}" Click="OnRefreshPackageStatus" HorizontalAlignment="Left"/>
         <StackPanel Orientation="Horizontal" Spacing="8"><Button x:Name="AboutDocsButton" Content="{ReflectionBinding [linux.ui.documentation], Source={StaticResource Localization}}" Click="OnOpenDocumentation"/><Button x:Name="AboutSupportButton" Content="{ReflectionBinding [linux.ui.support], Source={StaticResource Localization}}" Click="OnOpenSupport"/><Button x:Name="AboutLogsButton" Content="{ReflectionBinding [linux.ui.open.private.logs], Source={StaticResource Localization}}" Click="OnOpenLogs"/></StackPanel>
         <Separator/>
         <TextBlock Text="{ReflectionBinding [linux.ui.privacy.safe.diagnostics], Source={StaticResource Localization}}" FontSize="18" FontWeight="SemiBold"/>

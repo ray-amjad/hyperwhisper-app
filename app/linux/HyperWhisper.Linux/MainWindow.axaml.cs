@@ -25,6 +25,7 @@ using HyperWhisper.Diagnostics;
 using System.Reflection;
 using HyperWhisper.Linux.Localization;
 using HyperWhisper.Linux.Platform.Files;
+using HyperWhisper.Linux.Platform.SystemIntegration;
 
 namespace HyperWhisper.Linux;
 
@@ -44,6 +45,7 @@ public partial class MainWindow : Window
     private readonly TranscriptStorageCoordinator _storageCoordinator;
     private readonly PrivacySafeRotatingLogger _diagnosticLogger;
     private readonly LinuxLifecycleDiagnostics _lifecycleDiagnostics;
+    private readonly LinuxPackageUpdateProbe _packageUpdateProbe = new();
     private readonly TranscriptionWorkflow _workflow;
     private readonly LinuxInteractionRecordingSession _recordingSession;
     private readonly LinuxInteractionCoordinator _interaction;
@@ -359,6 +361,37 @@ public partial class MainWindow : Window
     private void OnOpenLogs(object? sender, RoutedEventArgs e) => OpenFixedLocation(_platformServices.Paths.LogsDirectory);
     private void OnOpenDocumentation(object? sender, RoutedEventArgs e) => OpenSafeUri(new Uri("https://hyperwhisper.com/docs"));
     private void OnOpenSupport(object? sender, RoutedEventArgs e) => OpenSafeUri(new Uri("https://hyperwhisper.com/support"));
+
+    private async void OnRefreshPackageStatus(object? sender, RoutedEventArgs e)
+    {
+        if (this.FindControl<Button>("AboutUpdateRefreshButton") is { } refreshButton) refreshButton.IsEnabled = false;
+        SetAboutUpdateStatus(L("linux.update.checking"));
+        try
+        {
+            var status = await _packageUpdateProbe.CheckAsync(_lifetime.Token);
+            SetAboutUpdateStatus(status.State switch
+            {
+                LinuxPackageUpdateState.Current when status.InstalledVersion is not null =>
+                    LF("linux.update.current_version", status.InstalledVersion),
+                LinuxPackageUpdateState.UpdateAvailable when status.InstalledVersion is not null && status.CandidateVersion is not null =>
+                    LF("linux.update.available_versions", status.InstalledVersion, status.CandidateVersion),
+                LinuxPackageUpdateState.UpdateAvailable => L("linux.update.available"),
+                LinuxPackageUpdateState.NotPackageManaged => L("linux.update.not_package_managed"),
+                LinuxPackageUpdateState.Unavailable => L("linux.update.unavailable"),
+                _ => L("linux.update.failed"),
+            });
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        finally
+        {
+            if (this.FindControl<Button>("AboutUpdateRefreshButton") is { } completedButton) completedButton.IsEnabled = true;
+        }
+    }
+
+    private void SetAboutUpdateStatus(string text)
+    {
+        if (this.FindControl<TextBlock>("AboutUpdateStatus") is { } status) status.Text = text;
+    }
 
     private void OpenFixedLocation(string path)
     {

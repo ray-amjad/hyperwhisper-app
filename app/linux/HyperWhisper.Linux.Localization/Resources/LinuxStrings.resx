@@ -14,6 +14,17 @@
   <data name="linux.ui.also.delete.app.owned.recordings.off.by.default" xml:space="preserve"><value>Also delete app-owned recordings (off by default)</value></data>
   <data name="linux.ui.application.settings" xml:space="preserve"><value>Application settings</value></data>
   <data name="linux.ui.application.version" xml:space="preserve"><value>Application version</value></data>
+  <data name="linux.update.title" xml:space="preserve"><value>Package updates</value></data>
+  <data name="linux.update.not_checked" xml:space="preserve"><value>Not checked. Refresh uses the package manager's existing metadata.</value></data>
+  <data name="linux.update.checking" xml:space="preserve"><value>Checking cached package metadata…</value></data>
+  <data name="linux.update.current_version" xml:space="preserve"><value>Version {0} is current according to cached package metadata.</value></data>
+  <data name="linux.update.available_versions" xml:space="preserve"><value>Version {1} is available (installed: {0}).</value></data>
+  <data name="linux.update.available" xml:space="preserve"><value>A HyperWhisper package update is available.</value></data>
+  <data name="linux.update.not_package_managed" xml:space="preserve"><value>This build is not installed as the HyperWhisper system package.</value></data>
+  <data name="linux.update.unavailable" xml:space="preserve"><value>APT and PackageKit metadata are unavailable on this system.</value></data>
+  <data name="linux.update.failed" xml:space="preserve"><value>Package metadata could not be checked.</value></data>
+  <data name="linux.update.instructions" xml:space="preserve"><value>HyperWhisper never refreshes or installs packages itself. Use your distribution's normal software updater to refresh metadata and install an available version.</value></data>
+  <data name="linux.update.refresh" xml:space="preserve"><value>Refresh package status</value></data>
   <data name="linux.ui.archive.allowlist.system.json.capabilities.json.and.logs.eve.266126c8" xml:space="preserve"><value>Archive allowlist: system.json, capabilities.json, and logs/events.jsonl. Nothing else is added.</value></data>
   <data name="linux.ui.audio.and.desktop" xml:space="preserve"><value>Audio and desktop</value></data>
   <data name="linux.ui.sound.effects.volume" xml:space="preserve"><value>Sound effect volume</value></data>

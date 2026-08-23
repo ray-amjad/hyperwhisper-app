@@ -95,6 +95,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Linux runtime locator matches published app output", RuntimeLocatorPublishedOutput),
     ("child launcher preserves literal argv", ChildProcessLiteralArgv),
     ("child launcher terminates process tree", ChildProcessTermination),
+    ("package update probe is read-only and parses bounded metadata", PackageUpdateProbe),
     ("GPU detector rejects software Vulkan renderer", GpuRejectsSoftwareRenderer),
     ("GPU detector requires CUDA hardware evidence", GpuCudaEvidence),
     ("host GPU evidence never promotes software renderer", HostGpuEvidence),
@@ -2091,6 +2092,34 @@ static Task SoundEffectsPaths() => WithTemporaryDirectory(directory =>
     Assert.True(File.Exists(Path.Combine(AppContext.BaseDirectory, "Assets", "Sounds", "start1.wav")));
     Assert.True(File.Exists(Path.Combine(AppContext.BaseDirectory, "Assets", "Sounds", "stop1.wav")));
 });
+
+static async Task PackageUpdateProbe()
+{
+    var runner = new FakeDesktopCommandRunner(
+        new ExternalProcessResult(0, "Installed: 1.2.0-1\nCandidate: 1.3.0-1\n"u8.ToArray()),
+        new ExternalProcessResult(0, "Installed: 1.3.0-1\nCandidate: 1.3.0-1\n"u8.ToArray()));
+    var probe = new LinuxPackageUpdateProbe(runner, "/usr/bin/apt-cache", null);
+    var available = await probe.CheckAsync();
+    Assert.Equal(LinuxPackageUpdateState.UpdateAvailable, available.State);
+    Assert.Equal("1.2.0-1", available.InstalledVersion);
+    Assert.Equal("1.3.0-1", available.CandidateVersion);
+    Assert.Equal("policy,hyperwhisper", string.Join(',', runner.Calls[0].Arguments));
+    Assert.True(!runner.Calls[0].Arguments.Contains("update"));
+    Assert.Equal(LinuxPackageUpdateState.Current, (await probe.CheckAsync()).State);
+
+    var unmanaged = LinuxPackageUpdateProbe.ParseAptPolicy("Installed: (none)\nCandidate: 1.3\n"u8.ToArray());
+    Assert.Equal(LinuxPackageUpdateState.NotPackageManaged, unmanaged.State);
+    var malformed = LinuxPackageUpdateProbe.ParseAptPolicy("Installed: 1.2 $(bad)\nCandidate: 1.3\n"u8.ToArray());
+    Assert.Equal(LinuxPackageUpdateState.NotPackageManaged, malformed.State);
+
+    var packageKitRunner = new FakeDesktopCommandRunner(
+        new ExternalProcessResult(0, "Available hyperwhisper;1.4;amd64;updates\n"u8.ToArray()));
+    var packageKit = new LinuxPackageUpdateProbe(packageKitRunner, null, "/usr/bin/pkcon");
+    Assert.Equal(LinuxPackageUpdateState.UpdateAvailable, (await packageKit.CheckAsync()).State);
+    Assert.Equal("--noninteractive,--plain,get-updates", string.Join(',', packageKitRunner.Calls[0].Arguments));
+    Assert.Equal(LinuxPackageUpdateState.Unavailable,
+        (await new LinuxPackageUpdateProbe(new FakeDesktopCommandRunner(), null, null).CheckAsync()).State);
+}
 
 static async Task AudioEnvironmentMuteRestore()
 {
