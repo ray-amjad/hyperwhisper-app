@@ -39,6 +39,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("production Whisper settings select detected and explicit backends", WhisperSettingsSelectBackends),
     ("Local API post-processing matches Windows transient modes", LocalApiPostProcessingTransientModes),
     ("mode cycling is deterministic and wraps", ModeCyclingIsDeterministic),
+    ("typed tray actions route without unsafe overlap", TypedTrayActionsRouteSafely),
+    ("tray microphone selection is deterministic", TrayMicrophoneSelectionIsDeterministic),
 };
 
 foreach (var test in tests)
@@ -47,6 +49,93 @@ foreach (var test in tests)
     Console.WriteLine($"PASS {test.Name}");
 }
 Console.WriteLine($"{tests.Length}/{tests.Length} Linux composition tests passed");
+
+static async Task TypedTrayActionsRouteSafely()
+{
+    var target = new FakeTrayTarget();
+    using var handler = target.CreateHandler();
+
+    Assert((await handler.HandleAsync(StatusNotifierAction.StartRecording)).IsSuccess,
+        "safe recording start was rejected");
+    Assert(target.Events.SequenceEqual(["start"]), "start action routed incorrectly");
+    Assert((await handler.HandleAsync(StatusNotifierAction.StartRecording)).Error?.Code == "tray.unsafe_state",
+        "duplicate start was not refused");
+    Assert((await handler.HandleAsync(StatusNotifierAction.SelectNextMicrophone)).Error?.Code == "tray.unsafe_state",
+        "microphone changed during recording");
+    Assert((await handler.HandleAsync(StatusNotifierAction.TranscribeFile)).Error?.Code == "tray.unsafe_state",
+        "file import started during recording");
+    Assert((await handler.HandleAsync(StatusNotifierAction.CycleMode)).IsSuccess,
+        "future mode could not be cycled during recording");
+    Assert((await handler.HandleAsync(StatusNotifierAction.StopRecording)).IsSuccess,
+        "active recording could not be stopped");
+
+    var immediate = new[]
+    {
+        StatusNotifierAction.SelectDefaultMicrophone,
+        StatusNotifierAction.SelectPreviousMicrophone,
+        StatusNotifierAction.SelectNextMicrophone,
+        StatusNotifierAction.TranscribeFile,
+        StatusNotifierAction.OpenHistory,
+        StatusNotifierAction.OpenSettings,
+        StatusNotifierAction.OpenHelp,
+        StatusNotifierAction.OpenSupport,
+        StatusNotifierAction.SendFeedback,
+        StatusNotifierAction.Show,
+        StatusNotifierAction.Hide,
+        StatusNotifierAction.Quit,
+    };
+    foreach (var action in immediate)
+        Assert((await handler.HandleAsync(action)).IsSuccess, $"{action} did not route");
+
+    Assert(target.Events.SequenceEqual([
+        "start", "mode", "stop", "mic-default", "mic-previous", "mic-next", "file", "history",
+        "settings", "help", "support", "feedback", "show", "hide", "quit"]),
+        "typed tray action mapping changed");
+
+    target.Importing = true;
+    Assert((await handler.HandleAsync(StatusNotifierAction.StartRecording)).Error?.Code == "tray.unsafe_state",
+        "recording overlapped an import");
+    target.Importing = false;
+
+    var blockedTarget = new FakeTrayTarget { StartGate = new(TaskCreationOptions.RunContinuationsAsynchronously) };
+    using var blockedHandler = blockedTarget.CreateHandler();
+    var pendingStart = blockedHandler.HandleAsync(StatusNotifierAction.StartRecording);
+    Assert((await blockedHandler.HandleAsync(StatusNotifierAction.SelectDefaultMicrophone)).Error?.Code == "tray.busy",
+        "overlapping state mutation was not refused");
+    Assert((await blockedHandler.HandleAsync(StatusNotifierAction.Show)).IsSuccess,
+        "window recovery was blocked by a long-running action");
+    blockedTarget.StartGate.SetResult();
+    Assert((await pendingStart).IsSuccess, "blocked start did not complete");
+
+    using var cancelled = new CancellationTokenSource();
+    cancelled.Cancel();
+    Assert((await blockedHandler.HandleAsync(StatusNotifierAction.StopRecording, cancelled.Token)).Error?.Code == "tray.cancelled",
+        "pre-cancelled tray action escaped the handler");
+    handler.Dispose();
+    Assert((await handler.HandleAsync(StatusNotifierAction.Show)).Error?.Code == "tray.disposed",
+        "disposed handler accepted an action");
+}
+
+static Task TrayMicrophoneSelectionIsDeterministic()
+{
+    var devices = new[]
+    {
+        new AudioInputDevice("z-id", "Private microphone name"),
+        new AudioInputDevice("a-id", "Another private name"),
+        new AudioInputDevice("m-id", "Default private name", true),
+    };
+    Assert(LinuxTrayMicrophoneSelector.SelectDefault(devices)?.Id == "m-id",
+        "default microphone was not selected by stable identity");
+    Assert(LinuxTrayMicrophoneSelector.SelectAdjacent(devices, "m-id", 1)?.Id == "z-id",
+        "next microphone order was not deterministic");
+    Assert(LinuxTrayMicrophoneSelector.SelectAdjacent(devices, "m-id", -1)?.Id == "a-id",
+        "previous microphone order was not deterministic");
+    Assert(LinuxTrayMicrophoneSelector.SelectAdjacent(devices, "missing", 1)?.Id == "z-id",
+        "unknown selection did not recover from the default microphone");
+    Assert(LinuxTrayMicrophoneSelector.SelectAdjacent([], null, 1) is null,
+        "empty microphone list produced a selection");
+    return Task.CompletedTask;
+}
 
 static Task ModeCyclingIsDeterministic()
 {
@@ -795,6 +884,38 @@ sealed class ThrowingPostProcessor : ITranscriptionPostProcessor
 {
     public Task<PortablePostProcessingResult> ProcessAsync(string transcript, Mode mode,
         CancellationToken cancellationToken = default) => throw new InvalidOperationException("expected");
+}
+
+sealed class FakeTrayTarget
+{
+    public List<string> Events { get; } = [];
+    public bool Active { get; private set; }
+    public bool Importing { get; set; }
+    public TaskCompletionSource? StartGate { get; init; }
+
+    public LinuxTrayActionHandler CreateHandler() => new(
+        () => Active,
+        () => Importing,
+        async _ =>
+        {
+            Events.Add("start");
+            Active = true;
+            if (StartGate is not null) await StartGate.Task;
+        },
+        _ => { Events.Add("stop"); Active = false; return Task.CompletedTask; },
+        _ => { Events.Add("file"); return Task.CompletedTask; },
+        () => Events.Add("mic-default"),
+        () => Events.Add("mic-previous"),
+        () => Events.Add("mic-next"),
+        () => Events.Add("mode"),
+        () => Events.Add("history"),
+        () => Events.Add("settings"),
+        () => Events.Add("help"),
+        () => Events.Add("support"),
+        () => Events.Add("feedback"),
+        () => Events.Add("show"),
+        () => Events.Add("hide"),
+        () => Events.Add("quit"));
 }
 
 sealed class FakeHistory(Transcript transcript) : ITranscriptionHistoryStore

@@ -48,6 +48,7 @@ public partial class MainWindow : Window
     private readonly TranscriptionWorkflow _workflow;
     private readonly LinuxInteractionRecordingSession _recordingSession;
     private readonly LinuxInteractionCoordinator _interaction;
+    private readonly LinuxTrayActionHandler _trayActions;
     private readonly LazyLinuxRecordingOverlayFeedback _overlay;
     private PortableLocalApiHost? _localApiHost;
     private Task? _initialization;
@@ -131,6 +132,24 @@ public partial class MainWindow : Window
         _interaction = new LinuxInteractionCoordinator(
             _platformServices.GlobalShortcuts, _platformServices.PushToTalk,
             _platformServices.TextInjection, _recordingSession, new AvaloniaUiDispatcher());
+        _trayActions = new LinuxTrayActionHandler(
+            () => _recordingSession.IsActive,
+            () => _viewModel.Recording?.IsImporting == true,
+            _interaction.StartRecordingAsync,
+            _interaction.StopRecordingAsync,
+            TranscribeFileFromTrayAsync,
+            SelectDefaultMicrophone,
+            () => SelectAdjacentMicrophone(-1),
+            () => SelectAdjacentMicrophone(1),
+            CycleMode,
+            () => NavigateFromTray("history"),
+            () => NavigateFromTray("settings"),
+            () => OpenTrayUri(TrayHelpUri),
+            () => OpenTrayUri(TraySupportUri),
+            () => OpenTrayUri(TrayFeedbackUri),
+            ShowFromTray,
+            HideFromTray,
+            QuitFromTray);
         InitializeComponent();
         DataContext = _viewModel;
         PlatformStatusText.Text = $"Linux platform connected · {_platformServices.Paths.DataDirectory}";
@@ -144,9 +163,7 @@ public partial class MainWindow : Window
         _viewModel.Settings.StorageSettingsChanged += OnStorageSettingsChanged;
         _interaction.OperationFailed += OnInteractionFailed;
         _interaction.ChangeModeRequested += OnChangeModeRequested;
-        _platformServices.Tray.ShowRequested += OnTrayShowRequested;
-        _platformServices.Tray.HideRequested += OnTrayHideRequested;
-        _platformServices.Tray.QuitRequested += OnTrayQuitRequested;
+        _platformServices.Tray.ActionRequested += OnTrayActionRequested;
         _platformServices.Tray.Unavailable += OnTrayUnavailable;
     }
 
@@ -219,10 +236,9 @@ public partial class MainWindow : Window
         _viewModel.Settings.StorageSettingsChanged -= OnStorageSettingsChanged;
         _interaction.OperationFailed -= OnInteractionFailed;
         _interaction.ChangeModeRequested -= OnChangeModeRequested;
-        _platformServices.Tray.ShowRequested -= OnTrayShowRequested;
-        _platformServices.Tray.HideRequested -= OnTrayHideRequested;
-        _platformServices.Tray.QuitRequested -= OnTrayQuitRequested;
+        _platformServices.Tray.ActionRequested -= OnTrayActionRequested;
         _platformServices.Tray.Unavailable -= OnTrayUnavailable;
+        _trayActions.Dispose();
         _interaction.Dispose();
         _overlay.Dispose();
         _viewModel.Dispose();
@@ -580,19 +596,70 @@ public partial class MainWindow : Window
         catch { /* Mode feedback and cycling must not interrupt recording. */ }
     }
 
-    private void OnTrayShowRequested(object? sender, EventArgs e) => Dispatcher.UIThread.Post(() =>
+    private void OnTrayActionRequested(object? sender, StatusNotifierActionEventArgs e)
+        => Dispatcher.UIThread.Post(async () =>
+        {
+            var result = await _trayActions.HandleAsync(e.Action, _lifetime.Token);
+            if (result.IsFailure && result.Error?.Code is not "tray.busy" and not "tray.unsafe_state"
+                and not "tray.cancelled" and not "tray.disposed")
+                _viewModel.Status.Failure(result.Error!.Code, result.Error.Message);
+        });
+
+    private void ShowFromTray()
     {
         Show(); WindowState = WindowState.Normal; Activate();
-    });
-    private void OnTrayHideRequested(object? sender, EventArgs e) => Dispatcher.UIThread.Post(() =>
+    }
+
+    private void HideFromTray()
     {
         if (_trayAvailable) Hide();
-    });
-    private void OnTrayQuitRequested(object? sender, EventArgs e) => Dispatcher.UIThread.Post(() =>
+    }
+
+    private void QuitFromTray()
     {
         _trayAvailable = false;
         Close();
-    });
+    }
+
+    private void NavigateFromTray(string page)
+    {
+        ShowFromTray();
+        _viewModel.Navigate(page);
+        foreach (var item in Navigation.Items.OfType<ListBoxItem>())
+        {
+            if (!string.Equals(item.Tag?.ToString(), page, StringComparison.Ordinal)) continue;
+            Navigation.SelectedItem = item;
+            break;
+        }
+    }
+
+    private void SelectDefaultMicrophone()
+    {
+        var recording = _viewModel.Recording;
+        if (recording is null) return;
+        recording.RefreshDevices();
+        recording.SelectedAudioDevice = LinuxTrayMicrophoneSelector.SelectDefault(recording.AudioDevices);
+    }
+
+    private void SelectAdjacentMicrophone(int direction)
+    {
+        var recording = _viewModel.Recording;
+        if (recording is null) return;
+        recording.RefreshDevices();
+        recording.SelectedAudioDevice = LinuxTrayMicrophoneSelector.SelectAdjacent(
+            recording.AudioDevices, recording.SelectedAudioDevice?.Id, direction);
+    }
+
+    private static readonly Uri TrayHelpUri = new("https://hyperwhisper.com/docs");
+    private static readonly Uri TraySupportUri = new("https://hyperwhisper.com/support");
+    private static readonly Uri TrayFeedbackUri = new("https://hyperwhisper.userjot.com");
+
+    private void OpenTrayUri(Uri uri)
+    {
+        if (uri != TrayHelpUri && uri != TraySupportUri && uri != TrayFeedbackUri) return;
+        try { _ = Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true }); }
+        catch { _viewModel.Status.Failure("tray.link_failed", "The requested HyperWhisper page could not be opened."); }
+    }
     private void OnTrayUnavailable(object? sender, EventArgs e) => Dispatcher.UIThread.Post(() =>
     {
         _trayAvailable = false;
@@ -677,6 +744,19 @@ public partial class MainWindow : Window
 
     private async void OnBrowseAudioFile(object? sender, RoutedEventArgs e)
     {
+        await ChooseAudioFileAsync();
+    }
+
+    private async Task TranscribeFileFromTrayAsync(CancellationToken cancellationToken)
+    {
+        ShowFromTray();
+        if (!await ChooseAudioFileAsync()) return;
+        if (_viewModel.Recording is { CanTranscribeFile: true } recording)
+            await recording.TranscribeFileAsync(cancellationToken);
+    }
+
+    private async Task<bool> ChooseAudioFileAsync()
+    {
         try
         {
             var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
@@ -695,7 +775,10 @@ public partial class MainWindow : Window
             });
             var path = files.FirstOrDefault()?.TryGetLocalPath();
             if (path is not null && _viewModel.Recording is not null)
+            {
                 _viewModel.Recording.FilePath = path;
+                return true;
+            }
         }
         catch (Exception)
         {
@@ -703,6 +786,7 @@ public partial class MainWindow : Window
                 "workflow.file_picker_failed",
                 "The desktop file picker could not be opened.");
         }
+        return false;
     }
 
     internal async Task<int> RunSmokeTestAsync()
@@ -878,5 +962,161 @@ public partial class MainWindow : Window
             _viewModel.History.RefreshAsync(),
             _viewModel.Vocabulary.RefreshAsync(),
             _viewModel.Modes.RefreshAsync());
+    }
+}
+
+internal sealed class LinuxTrayActionHandler : IDisposable
+{
+    private readonly Func<bool> _isRecording;
+    private readonly Func<bool> _isImporting;
+    private readonly Func<CancellationToken, Task> _start;
+    private readonly Func<CancellationToken, Task> _stop;
+    private readonly Func<CancellationToken, Task> _transcribeFile;
+    private readonly IReadOnlyDictionary<StatusNotifierAction, Action> _immediateActions;
+    private readonly SemaphoreSlim _operation = new(1, 1);
+    private bool _disposed;
+
+    internal LinuxTrayActionHandler(
+        Func<bool> isRecording,
+        Func<bool> isImporting,
+        Func<CancellationToken, Task> start,
+        Func<CancellationToken, Task> stop,
+        Func<CancellationToken, Task> transcribeFile,
+        Action selectDefaultMicrophone,
+        Action selectPreviousMicrophone,
+        Action selectNextMicrophone,
+        Action cycleMode,
+        Action openHistory,
+        Action openSettings,
+        Action openHelp,
+        Action openSupport,
+        Action sendFeedback,
+        Action show,
+        Action hide,
+        Action quit)
+    {
+        _isRecording = isRecording;
+        _isImporting = isImporting;
+        _start = start;
+        _stop = stop;
+        _transcribeFile = transcribeFile;
+        _immediateActions = new Dictionary<StatusNotifierAction, Action>
+        {
+            [StatusNotifierAction.SelectDefaultMicrophone] = selectDefaultMicrophone,
+            [StatusNotifierAction.SelectPreviousMicrophone] = selectPreviousMicrophone,
+            [StatusNotifierAction.SelectNextMicrophone] = selectNextMicrophone,
+            [StatusNotifierAction.CycleMode] = cycleMode,
+            [StatusNotifierAction.OpenHistory] = openHistory,
+            [StatusNotifierAction.OpenSettings] = openSettings,
+            [StatusNotifierAction.OpenHelp] = openHelp,
+            [StatusNotifierAction.OpenSupport] = openSupport,
+            [StatusNotifierAction.SendFeedback] = sendFeedback,
+            [StatusNotifierAction.Show] = show,
+            [StatusNotifierAction.Hide] = hide,
+            [StatusNotifierAction.Quit] = quit,
+        };
+    }
+
+    internal async Task<PlatformResult> HandleAsync(
+        StatusNotifierAction action,
+        CancellationToken cancellationToken = default)
+    {
+        if (_disposed)
+            return PlatformResult.Failure("tray.disposed", "The tray action handler is unavailable.");
+        if (action is StatusNotifierAction.CycleMode or StatusNotifierAction.OpenHistory
+            or StatusNotifierAction.OpenSettings or StatusNotifierAction.OpenHelp
+            or StatusNotifierAction.OpenSupport or StatusNotifierAction.SendFeedback
+            or StatusNotifierAction.Show or StatusNotifierAction.Hide or StatusNotifierAction.Quit)
+        {
+            try
+            {
+                _immediateActions[action]();
+                return PlatformResult.Success();
+            }
+            catch
+            {
+                return PlatformResult.Failure("tray.action_failed", "The tray action could not be completed.");
+            }
+        }
+        try
+        {
+            if (!await _operation.WaitAsync(0, cancellationToken).ConfigureAwait(true))
+                return PlatformResult.Failure("tray.busy", "Another tray action is already running.");
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return PlatformResult.Failure("tray.cancelled", "The tray action was cancelled.");
+        }
+        try
+        {
+            switch (action)
+            {
+                case StatusNotifierAction.StartRecording:
+                    if (_isRecording() || _isImporting()) return UnsafeState();
+                    await _start(cancellationToken).ConfigureAwait(true);
+                    break;
+                case StatusNotifierAction.StopRecording:
+                    if (!_isRecording() || _isImporting()) return UnsafeState();
+                    await _stop(cancellationToken).ConfigureAwait(true);
+                    break;
+                case StatusNotifierAction.TranscribeFile:
+                    if (_isRecording() || _isImporting()) return UnsafeState();
+                    await _transcribeFile(cancellationToken).ConfigureAwait(true);
+                    break;
+                case StatusNotifierAction.SelectDefaultMicrophone:
+                case StatusNotifierAction.SelectPreviousMicrophone:
+                case StatusNotifierAction.SelectNextMicrophone:
+                    if (_isRecording() || _isImporting()) return UnsafeState();
+                    _immediateActions[action]();
+                    break;
+                default:
+                    return PlatformResult.Failure("tray.action_unknown", "The tray action was not recognized.");
+            }
+            return PlatformResult.Success();
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return PlatformResult.Failure("tray.cancelled", "The tray action was cancelled.");
+        }
+        catch
+        {
+            return PlatformResult.Failure("tray.action_failed", "The tray action could not be completed.");
+        }
+        finally
+        {
+            _operation.Release();
+        }
+    }
+
+    private static PlatformResult UnsafeState() => PlatformResult.Failure(
+        "tray.unsafe_state", "That tray action is unavailable during the current transcription operation.");
+
+    public void Dispose()
+    {
+        _disposed = true;
+    }
+}
+
+internal static class LinuxTrayMicrophoneSelector
+{
+    internal static AudioInputDevice? SelectDefault(IEnumerable<AudioInputDevice> source)
+    {
+        var devices = source.OrderBy(device => device.Id, StringComparer.Ordinal).ToArray();
+        return devices.FirstOrDefault(device => device.IsDefault) ?? devices.FirstOrDefault();
+    }
+
+    internal static AudioInputDevice? SelectAdjacent(
+        IEnumerable<AudioInputDevice> source,
+        string? selectedId,
+        int direction)
+    {
+        var devices = source.OrderBy(device => device.Id, StringComparer.Ordinal).ToArray();
+        if (devices.Length == 0) return null;
+        var selected = Array.FindIndex(devices,
+            device => string.Equals(device.Id, selectedId, StringComparison.Ordinal));
+        if (selected < 0) selected = Array.FindIndex(devices, device => device.IsDefault);
+        if (selected < 0) selected = 0;
+        var step = direction < 0 ? -1 : 1;
+        return devices[(selected + step + devices.Length) % devices.Length];
     }
 }
