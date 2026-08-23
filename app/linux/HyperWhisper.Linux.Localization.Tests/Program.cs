@@ -20,6 +20,7 @@ var tests = new (string Name, Action Run)[]
     ("Linux-specific copy remains an explicit invariant fallback", LinuxSpecificFallbackIsExplicit),
     ("production XAML contains no localizable literals", ProductionXamlHasNoLocalizableLiterals),
     ("production code uses catalogued user feedback", ProductionCodeUsesCataloguedFeedback),
+    ("word timestamp setting is localized and bound", WordTimestampSettingIsLocalizedAndBound),
     ("tray labels are catalogued with RTL metadata", TrayLabelsAreCatalogued),
     ("startup culture selection is bounded", StartupCultureSelectionIsBounded),
 };
@@ -220,6 +221,23 @@ static void ProductionCodeUsesCataloguedFeedback()
     ];
     foreach (var value in forbidden)
         True(!source.Contains(value, StringComparison.Ordinal), $"uncatalogued feedback pattern: {value}");
+}
+
+static void WordTimestampSettingIsLocalizedAndBound()
+{
+    var source = File.ReadAllText(Path.Combine(AppContext.BaseDirectory,
+        "LocalizationSurface", "MainWindow.axaml"));
+    True(source.Contains("x:Name=\"SettingsStoreWordTimestamps\"", StringComparison.Ordinal),
+        "word timestamp checkbox is missing");
+    True(source.Contains("IsChecked=\"{Binding StoreWordTimestamps, Mode=TwoWay}\"", StringComparison.Ordinal),
+        "word timestamp setting is not two-way bound");
+    True(source.Contains("[linux.timestamps.title]", StringComparison.Ordinal)
+         && source.Contains("[linux.timestamps.subtitle]", StringComparison.Ordinal),
+        "word timestamp copy bypasses localization");
+
+    using var bridge = new AvaloniaLocalizationBridge(CultureInfo.GetCultureInfo("en"));
+    Equal("Store word timestamps", bridge.GetRequired("linux.timestamps.title"), "timestamp title");
+    Contains("raw transcript", bridge.GetRequired("linux.timestamps.subtitle"), "timestamp subtitle");
 }
 
 static void TrayLabelsAreCatalogued()

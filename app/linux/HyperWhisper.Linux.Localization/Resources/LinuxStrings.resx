@@ -27,6 +27,8 @@
   <data name="linux.update.refresh" xml:space="preserve"><value>Refresh package status</value></data>
   <data name="linux.vad.title" xml:space="preserve"><value>Trim silence before batch transcription</value></data>
   <data name="linux.vad.subtitle" xml:space="preserve"><value>For recordings of at least 30 seconds, remove detected silence before transcription. If analysis fails or produces unsafe output, HyperWhisper uses the original audio.</value></data>
+  <data name="linux.timestamps.title" xml:space="preserve"><value>Store word timestamps</value></data>
+  <data name="linux.timestamps.subtitle" xml:space="preserve"><value>Local Whisper stores segment and word timing aligned to the raw transcript for History and retries.</value></data>
   <data name="linux.onboarding.welcome.title" xml:space="preserve"><value>Welcome to HyperWhisper on Linux</value></data>
   <data name="linux.onboarding.welcome.body" xml:space="preserve"><value>This short setup checks your desktop's actual capabilities, then helps you choose a transcription mode and microphone.</value></data>
   <data name="linux.onboarding.capabilities.title" xml:space="preserve"><value>Desktop capabilities</value></data>
