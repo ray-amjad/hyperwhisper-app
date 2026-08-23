@@ -22,6 +22,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("private reads reject permissive files", RejectPermissiveRead),
     ("evdev drops unrelated keys at boundary", DropsUnrelatedKeys),
     ("evdev emits configured logical shortcut", EmitsConfiguredShortcut),
+    ("evdev session binding replacement preserves held actions", EvdevSessionBindingReplacement),
     ("evdev disposal is bounded for uncooperative devices", EvdevDisposalBounded),
     ("X11 mapper preserves logical shortcut privacy", X11ShortcutPrivacy),
     ("X11 modifier-only shortcuts emit press and release", X11ModifierShortcut),
@@ -97,6 +98,10 @@ var tests = new (string Name, Func<Task> Run)[]
     ("interaction suppresses repeats and emits content-free mode changes", InteractionActionPrivacy),
     ("interaction conflicts and registration failures restore prior bindings", InteractionActionRollback),
     ("interaction restores live X11 grabs after registration failure", InteractionX11Rollback),
+    ("bare Escape is armed only for an active recording", SessionCancelLifecycle),
+    ("session cancel registration failure restores idle bindings", SessionCancelRegistrationRollback),
+    ("session cancel arm racing disposal restores idle bindings", SessionCancelDisposalRace),
+    ("X11 session cancel failure restores existing grabs", SessionCancelX11Rollback),
     ("interaction duration limit stops UI and shortcut recordings once", InteractionDurationLimitStopsOnce),
     ("manual completion disarms interaction duration limit", InteractionDurationLimitManualCompletion),
     ("disposing interaction disarms duration limit callback", InteractionDurationLimitDisposal),
@@ -235,6 +240,34 @@ static async Task EmitsConfiguredShortcut()
     Assert.Success(service.Start());
     await source.Completed.Task.WaitAsync(TimeSpan.FromSeconds(2));
     Assert.Equal("down:record,up:record", string.Join(',', events));
+}
+
+static Task EvdevSessionBindingReplacement()
+{
+    var toggle = EvdevShortcutMapper.Map(new NamedShortcut(
+        LinuxInteractionCoordinator.ToggleActionName,
+        new GlobalShortcut(ShortcutModifiers.Control | ShortcutModifiers.Shift, new("Space")))).Value!;
+    var escape = EvdevShortcutMapper.Map(new NamedShortcut(
+        LinuxInteractionCoordinator.SessionCancelActionName,
+        new GlobalShortcut(ShortcutModifiers.None, new("Escape")))).Value!;
+    var filter = new EvdevShortcutFilter();
+    filter.ReplaceBindings([toggle]);
+    _ = filter.Process("keyboard", new EvdevEvent(EvdevEvent.KeyType, 29, 1));
+    _ = filter.Process("keyboard", new EvdevEvent(EvdevEvent.KeyType, 42, 1));
+    var pressed = filter.Process("keyboard", new EvdevEvent(EvdevEvent.KeyType, 57, 1));
+    Assert.Equal(LinuxInteractionCoordinator.ToggleActionName, pressed.Signals.Single().Shortcut.Name);
+
+    filter.ReplaceBindings([toggle, escape]);
+    var released = filter.Process("keyboard", new EvdevEvent(EvdevEvent.KeyType, 57, 0));
+    Assert.True(!released.Signals.Single().Pressed);
+    var cancelled = filter.Process("keyboard", new EvdevEvent(EvdevEvent.KeyType, 1, 1));
+    Assert.Equal(LinuxInteractionCoordinator.SessionCancelActionName, cancelled.Signals.Single().Shortcut.Name);
+
+    filter.ReplaceBindings([toggle]);
+    filter.ReplaceBindings([toggle, escape]);
+    var unrelatedRelease = filter.Process("keyboard", new EvdevEvent(EvdevEvent.KeyType, 29, 0));
+    Assert.True(unrelatedRelease.Signals.All(signal => signal.Shortcut.Name != LinuxInteractionCoordinator.SessionCancelActionName));
+    return Task.CompletedTask;
 }
 
 static Task EvdevDisposalBounded()
@@ -1287,7 +1320,7 @@ static Task InteractionActionRegistration()
     Assert.Success(coordinator.ConfigureAndStart(InteractionConfiguration()));
     Assert.Equal(
         string.Join(',', LinuxInteractionCoordinator.ToggleActionName, LinuxInteractionCoordinator.CancelActionName,
-            LinuxInteractionCoordinator.ChangeModeActionName),
+            LinuxInteractionCoordinator.ChangeModeActionName, LinuxInteractionCoordinator.SessionCancelActionName),
         string.Join(',', shortcuts.Current.Select(item => item.Name)));
     Assert.Equal(1, shortcuts.StartCalls);
     Assert.Equal(1, pushToTalk.StartCalls);
@@ -1355,6 +1388,7 @@ static Task InteractionActionRollback()
         original with { CancelShortcut = original.ToggleShortcut },
         original with { ChangeModeShortcut = original.ToggleShortcut },
         original with { ChangeModeShortcut = original.CancelShortcut },
+        original with { SessionCancelShortcut = original.ToggleShortcut },
         original with { PushToTalk = new(PushToTalkMode.CustomShortcut, CustomShortcut: original.ToggleShortcut) },
         original with { PushToTalk = new(PushToTalkMode.CustomShortcut, CustomShortcut: original.CancelShortcut) },
         original with { PushToTalk = new(PushToTalkMode.CustomShortcut, CustomShortcut: original.ChangeModeShortcut) },
@@ -1416,6 +1450,92 @@ static Task InteractionX11Rollback()
         string.Join(',', originalGrabs.Select(value => $"{value.Keycode}:{value.Modifiers}")),
         string.Join(',', connection.Grabs.Select(value => $"{value.Keycode}:{value.Modifiers}")));
     return Task.CompletedTask;
+}
+
+static async Task SessionCancelLifecycle()
+{
+    var shortcuts = new FakeInteractionShortcutService();
+    var recording = new FakeInteractionRecordingSession();
+    using var coordinator = new LinuxInteractionCoordinator(
+        shortcuts, new FakeInteractionPushToTalk(), new FakeInteractionTextInjection(),
+        recording, new ImmediateUiDispatcher());
+    Assert.Success(coordinator.ConfigureAndStart(InteractionConfiguration()));
+    Assert.True(shortcuts.Current.All(item => item.Name != LinuxInteractionCoordinator.SessionCancelActionName));
+
+    shortcuts.EmitUnregistered(
+        LinuxInteractionCoordinator.SessionCancelActionName,
+        new GlobalShortcut(ShortcutModifiers.None, new("Escape")));
+    Assert.Equal(0, recording.CancelCalls);
+
+    await coordinator.StartRecordingAsync();
+    Assert.True(shortcuts.Current.Any(item => item.Name == LinuxInteractionCoordinator.SessionCancelActionName));
+    shortcuts.Emit(LinuxInteractionCoordinator.SessionCancelActionName, true);
+    Assert.Equal(1, recording.CancelCalls);
+    Assert.True(shortcuts.Current.All(item => item.Name != LinuxInteractionCoordinator.SessionCancelActionName));
+    Assert.True(shortcuts.Current.Any(item => item.Name == LinuxInteractionCoordinator.ToggleActionName));
+    Assert.True(shortcuts.Current.Any(item => item.Name == LinuxInteractionCoordinator.ChangeModeActionName));
+}
+
+static async Task SessionCancelRegistrationRollback()
+{
+    var shortcuts = new FakeInteractionShortcutService();
+    var recording = new FakeInteractionRecordingSession();
+    using var coordinator = new LinuxInteractionCoordinator(
+        shortcuts, new FakeInteractionPushToTalk(), new FakeInteractionTextInjection(),
+        recording, new ImmediateUiDispatcher());
+    var configuration = InteractionConfiguration();
+    Assert.Success(coordinator.ConfigureAndStart(configuration));
+    var idleNames = shortcuts.Current.Select(item => item.Name).ToArray();
+    PlatformError? failure = null;
+    coordinator.OperationFailed += (_, error) => failure = error;
+
+    shortcuts.FailNextName = LinuxInteractionCoordinator.SessionCancelActionName;
+    await coordinator.StartRecordingAsync();
+    Assert.True(recording.IsActive);
+    Assert.Equal("interaction.session_cancel_registration_failed", failure!.Code);
+    Assert.Equal(string.Join(',', idleNames), string.Join(',', shortcuts.Current.Select(item => item.Name)));
+    await coordinator.StopRecordingAsync();
+
+    recording.StartResult = PlatformResult.Failure("recording.failed", "failed");
+    await coordinator.StartRecordingAsync();
+    Assert.True(shortcuts.Current.All(item => item.Name != LinuxInteractionCoordinator.SessionCancelActionName));
+}
+
+static async Task SessionCancelX11Rollback()
+{
+    var connection = new FakeX11Connection();
+    using var shortcuts = new X11GlobalShortcutService(new FakeX11Factory(connection));
+    var recording = new FakeInteractionRecordingSession();
+    using var coordinator = new LinuxInteractionCoordinator(
+        shortcuts, new FakeInteractionPushToTalk(), new FakeInteractionTextInjection(),
+        recording, new ImmediateUiDispatcher());
+    Assert.Success(coordinator.ConfigureAndStart(InteractionConfiguration()));
+    var idleGrabs = connection.Grabs.ToArray();
+    connection.FailNextGrabForKeycode = connection.Keycode(0xff1b);
+
+    await coordinator.StartRecordingAsync();
+    Assert.True(recording.IsActive);
+    Assert.Equal(
+        string.Join(',', idleGrabs.Select(value => $"{value.Keycode}:{value.Modifiers}")),
+        string.Join(',', connection.Grabs.Select(value => $"{value.Keycode}:{value.Modifiers}")));
+}
+
+static async Task SessionCancelDisposalRace()
+{
+    var shortcuts = new FakeInteractionShortcutService();
+    var recording = new FakeInteractionRecordingSession();
+    var coordinator = new LinuxInteractionCoordinator(
+        shortcuts, new FakeInteractionPushToTalk(), new FakeInteractionTextInjection(),
+        recording, new ImmediateUiDispatcher());
+    Assert.Success(coordinator.ConfigureAndStart(InteractionConfiguration()));
+    shortcuts.Registering = desired =>
+    {
+        if (desired.Any(item => item.Name == LinuxInteractionCoordinator.SessionCancelActionName))
+            coordinator.Dispose();
+    };
+
+    await coordinator.StartRecordingAsync();
+    Assert.Equal(0, shortcuts.Current.Count);
 }
 
 static async Task InteractionDurationLimitStopsOnce()
@@ -1982,6 +2102,7 @@ sealed class FakeInteractionShortcutService : IGlobalShortcutService
     public IReadOnlyList<NamedShortcut> Current { get; private set; } = [];
     public List<IReadOnlyList<NamedShortcut>> RegistrationHistory { get; } = [];
     public string? FailNextName { get; set; }
+    public Action<IReadOnlyCollection<NamedShortcut>>? Registering { get; set; }
     public int StartCalls { get; private set; }
     public event EventHandler<ShortcutTriggeredEventArgs>? ShortcutPressed;
     public event EventHandler<ShortcutTriggeredEventArgs>? ShortcutReleased;
@@ -1998,6 +2119,7 @@ sealed class FakeInteractionShortcutService : IGlobalShortcutService
                 : PlatformResult.Success(),
             StringComparer.Ordinal);
         FailNextName = null;
+        Registering?.Invoke(snapshot);
         return results;
     }
     public void Emit(string name, bool pressed)
@@ -2039,8 +2161,9 @@ sealed class FakeInteractionRecordingSession : IInteractionRecordingSession
     public int StartCalls { get; private set; }
     public int StopCalls { get; private set; }
     public int CancelCalls { get; private set; }
+    public PlatformResult StartResult { get; set; } = PlatformResult.Success();
     public ValueTask<PlatformResult> StartAsync(CancellationToken cancellationToken = default)
-    { cancellationToken.ThrowIfCancellationRequested(); StartCalls++; Active = true; return ValueTask.FromResult(PlatformResult.Success()); }
+    { cancellationToken.ThrowIfCancellationRequested(); StartCalls++; Active = StartResult.IsSuccess; return ValueTask.FromResult(StartResult); }
     public ValueTask<InteractionStopOutcome> StopAsync(CancellationToken cancellationToken = default)
     { cancellationToken.ThrowIfCancellationRequested(); StopCalls++; Active = false; return ValueTask.FromResult(new InteractionStopOutcome(PlatformResult.Success())); }
     public ValueTask CancelAsync(CancellationToken cancellationToken = default)

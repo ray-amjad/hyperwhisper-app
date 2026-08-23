@@ -27,7 +27,12 @@ internal sealed class EvdevShortcutFilter
                         .Concat(binding.Primary is { } primary ? [primary] : []))
                 .Concat(bindings.SelectMany(binding => binding.NonInterferingCodes))
                 .ToHashSet();
-            _states.Clear();
+            var names = bindings.Select(binding => binding.NamedShortcut.Name).ToHashSet(StringComparer.Ordinal);
+            foreach (var state in _states.Values)
+            {
+                state.Down.IntersectWith(_relevantCodes);
+                state.Active.IntersectWith(names);
+            }
         }
     }
 

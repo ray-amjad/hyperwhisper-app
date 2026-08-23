@@ -9,13 +9,15 @@ public sealed record LinuxInteractionConfiguration(
     GlobalShortcut? CancelShortcut = null,
     GlobalShortcut? ChangeModeShortcut = null)
 {
+    public GlobalShortcut? SessionCancelShortcut { get; init; } = new(
+        ShortcutModifiers.None, new ShortcutKeyCode("Escape"));
+
     public static LinuxInteractionConfiguration Default { get; } = new(
         new GlobalShortcut(ShortcutModifiers.Control | ShortcutModifiers.Shift, new ShortcutKeyCode("Space")),
         new PushToTalkConfiguration(PushToTalkMode.Disabled),
         TimeSpan.FromMilliseconds(750),
         // XGrabKey would steal a persistent bare Escape from every application.
-        // Windows-style Escape cancellation needs session-scoped registration,
-        // which this persistent coordinator deliberately does not provide.
+        // Bare Escape is instead supplied by SessionCancelShortcut only while active.
         null,
         new GlobalShortcut(ShortcutModifiers.Control | ShortcutModifiers.Shift, new ShortcutKeyCode("Period")));
 }
@@ -79,6 +81,7 @@ public sealed class LinuxInteractionCoordinator : IDisposable
     public const string ToggleActionName = "toggle-transcription";
     public const string CancelActionName = "cancel-transcription";
     public const string ChangeModeActionName = "change-mode";
+    public const string SessionCancelActionName = "session-cancel-transcription";
 
     private readonly IGlobalShortcutService _shortcuts;
     private readonly IPushToTalkMonitor _pushToTalk;
@@ -89,11 +92,14 @@ public sealed class LinuxInteractionCoordinator : IDisposable
     private readonly TimeSpan _maximumRecordingDuration;
     private readonly SemaphoreSlim _operation = new(1, 1);
     private readonly object _durationGate = new();
+    private readonly object _sessionCancelGate = new();
     private IDisposable? _durationLimit;
     private long _durationGeneration;
     private LinuxInteractionConfiguration _configuration = LinuxInteractionConfiguration.Default;
     private readonly HashSet<string> _heldActions = new(StringComparer.Ordinal);
     private bool _started;
+    private bool _sessionCancelArmed;
+    private long _sessionCancelGeneration;
     private bool _disposed;
 
     public LinuxInteractionCoordinator(
@@ -147,15 +153,17 @@ public sealed class LinuxInteractionCoordinator : IDisposable
         if (validated.IsFailure) return validated;
 
         var wasStarted = _started;
+        var previousSessionCancelArmed = _sessionCancelArmed;
         var previous = _configuration;
         _started = false;
         _heldActions.Clear();
-        var desiredBindings = Bindings(configuration);
+        var armSessionCancel = _recording.IsActive && configuration.SessionCancelShortcut is not null;
+        var desiredBindings = Bindings(configuration, armSessionCancel);
         var registered = _shortcuts.RegisterShortcuts(desiredBindings);
         var registrationFailure = FirstRegistrationFailure(desiredBindings, registered);
         if (registrationFailure is not null)
         {
-            RestoreConfiguration(previous, wasStarted);
+            RestoreConfiguration(previous, wasStarted, previousSessionCancelArmed);
             return registrationFailure;
         }
         if (!wasStarted)
@@ -163,7 +171,7 @@ public sealed class LinuxInteractionCoordinator : IDisposable
             var shortcutStart = _shortcuts.Start();
             if (shortcutStart.IsFailure)
             {
-                RestoreConfiguration(previous, wasStarted);
+                RestoreConfiguration(previous, wasStarted, previousSessionCancelArmed);
                 return shortcutStart;
             }
         }
@@ -172,10 +180,11 @@ public sealed class LinuxInteractionCoordinator : IDisposable
         var pushToTalkStart = _pushToTalk.Start();
         if (pushToTalkStart.IsFailure)
         {
-            RestoreConfiguration(previous, wasStarted);
+            RestoreConfiguration(previous, wasStarted, previousSessionCancelArmed);
             return pushToTalkStart;
         }
         _configuration = configuration;
+        _sessionCancelArmed = armSessionCancel;
         _started = true;
         return PlatformResult.Success();
     }
@@ -188,7 +197,12 @@ public sealed class LinuxInteractionCoordinator : IDisposable
             return PlatformResult.Failure(
                 "interaction.cancel_shortcut_unsafe",
                 "A persistent cancel shortcut must include a modifier; bare Escape requires session-scoped registration.");
-        var bindings = Bindings(configuration);
+        if (configuration.SessionCancelShortcut is { } sessionCancel
+            && (sessionCancel.IsEmpty || sessionCancel.IsModifierOnly))
+            return PlatformResult.Failure(
+                "interaction.session_cancel_shortcut_invalid",
+                "The session cancel shortcut must include a non-modifier key.");
+        var bindings = Bindings(configuration, configuration.SessionCancelShortcut is not null);
         foreach (var binding in bindings)
         {
             if (binding.Shortcut.IsEmpty || binding.Shortcut.IsModifierOnly)
@@ -205,11 +219,15 @@ public sealed class LinuxInteractionCoordinator : IDisposable
         return PlatformResult.Success();
     }
 
-    private static IReadOnlyList<NamedShortcut> Bindings(LinuxInteractionConfiguration configuration)
+    private static IReadOnlyList<NamedShortcut> Bindings(
+        LinuxInteractionConfiguration configuration,
+        bool includeSessionCancel = false)
     {
         var values = new List<NamedShortcut> { new(ToggleActionName, configuration.ToggleShortcut) };
         if (configuration.CancelShortcut is { } cancel) values.Add(new(CancelActionName, cancel));
         if (configuration.ChangeModeShortcut is { } changeMode) values.Add(new(ChangeModeActionName, changeMode));
+        if (includeSessionCancel && configuration.SessionCancelShortcut is { } sessionCancel)
+            values.Add(new(SessionCancelActionName, sessionCancel));
         return values;
     }
 
@@ -228,7 +246,10 @@ public sealed class LinuxInteractionCoordinator : IDisposable
         return null;
     }
 
-    private void RestoreConfiguration(LinuxInteractionConfiguration previous, bool wasStarted)
+    private void RestoreConfiguration(
+        LinuxInteractionConfiguration previous,
+        bool wasStarted,
+        bool sessionCancelArmed)
     {
         _heldActions.Clear();
         if (!wasStarted)
@@ -237,22 +258,29 @@ public sealed class LinuxInteractionCoordinator : IDisposable
             _pushToTalk.Reset();
             return;
         }
-        _ = _shortcuts.RegisterShortcuts(Bindings(previous));
+        _ = _shortcuts.RegisterShortcuts(Bindings(previous, sessionCancelArmed));
         _pushToTalk.Configure(previous.PushToTalk);
         _ = _pushToTalk.Start();
         _configuration = previous;
+        _sessionCancelArmed = sessionCancelArmed;
         _started = true;
     }
 
     private void OnShortcutPressed(object? sender, ShortcutTriggeredEventArgs args)
     {
         if (!_started || !IsInteractionAction(args.Name) || !_heldActions.Add(args.Name)) return;
+        if (args.Name == SessionCancelActionName && !IsSessionCancelArmed())
+        {
+            _heldActions.Remove(args.Name);
+            return;
+        }
         switch (args.Name)
         {
             case ToggleActionName:
                 Dispatch(_recording.IsActive ? StopCoreAsync : StartCoreAsync);
                 break;
             case CancelActionName when _recording.IsActive:
+            case SessionCancelActionName when _recording.IsActive:
                 Dispatch(CancelCoreAsync);
                 break;
             case ChangeModeActionName:
@@ -267,7 +295,7 @@ public sealed class LinuxInteractionCoordinator : IDisposable
     }
 
     private static bool IsInteractionAction(string name) => name is
-        ToggleActionName or CancelActionName or ChangeModeActionName;
+        ToggleActionName or CancelActionName or ChangeModeActionName or SessionCancelActionName;
 
     private void OnPushToTalkPressed(object? sender, EventArgs args)
     {
@@ -344,9 +372,12 @@ public sealed class LinuxInteractionCoordinator : IDisposable
             var started = await _recording.StartAsync(cancellationToken);
             if (started.IsSuccess)
             {
+                var sessionCancel = ArmSessionCancel();
+                if (sessionCancel.IsFailure) RaiseFailure(sessionCancel.Error!);
                 ArmDurationLimit();
                 return;
             }
+            DisarmSessionCancel();
             DisarmDurationLimit();
             RaiseFailure(started.Error!);
         }
@@ -363,6 +394,7 @@ public sealed class LinuxInteractionCoordinator : IDisposable
 
     private async ValueTask StopCoreAsync(CancellationToken cancellationToken)
     {
+        DisarmSessionCancel();
         DisarmDurationLimit();
         if (!_recording.IsActive) return;
         InteractionStopOutcome outcome;
@@ -386,6 +418,7 @@ public sealed class LinuxInteractionCoordinator : IDisposable
 
     private async ValueTask CancelCoreAsync(CancellationToken cancellationToken)
     {
+        DisarmSessionCancel();
         DisarmDurationLimit();
         try { await _recording.CancelAsync(cancellationToken); }
         finally
@@ -412,6 +445,68 @@ public sealed class LinuxInteractionCoordinator : IDisposable
         if (handlers is null) return;
         foreach (EventHandler<PlatformError> handler in handlers.GetInvocationList())
             try { handler(this, error); } catch { }
+    }
+
+    private PlatformResult ArmSessionCancel()
+    {
+        long generation;
+        lock (_sessionCancelGate)
+        {
+            if (_disposed || _sessionCancelArmed || _configuration.SessionCancelShortcut is null)
+                return PlatformResult.Success();
+            generation = ++_sessionCancelGeneration;
+        }
+        var desired = Bindings(_configuration, includeSessionCancel: true);
+        var registered = _shortcuts.RegisterShortcuts(desired);
+        var failure = FirstRegistrationFailure(desired, registered);
+        if (failure is null)
+        {
+            lock (_sessionCancelGate)
+            {
+                if (!_disposed && generation == _sessionCancelGeneration)
+                {
+                    _sessionCancelArmed = true;
+                    return PlatformResult.Success();
+                }
+            }
+        }
+
+        _heldActions.Remove(SessionCancelActionName);
+        bool disposed;
+        lock (_sessionCancelGate) disposed = _disposed;
+        if (disposed) _shortcuts.Clear();
+        else _ = _shortcuts.RegisterShortcuts(Bindings(_configuration));
+        if (failure is null) return PlatformResult.Success();
+        return PlatformResult.Failure(
+            "interaction.session_cancel_registration_failed",
+            "Escape cancellation is unavailable for this recording session.");
+    }
+
+    private void DisarmSessionCancel()
+    {
+        lock (_sessionCancelGate)
+        {
+            ++_sessionCancelGeneration;
+            if (!_sessionCancelArmed) return;
+            _sessionCancelArmed = false;
+        }
+        _heldActions.Remove(SessionCancelActionName);
+        var idle = Bindings(_configuration);
+        var registered = _shortcuts.RegisterShortcuts(idle);
+        if (FirstRegistrationFailure(idle, registered) is null) return;
+
+        // Fail closed: never leave bare Escape grabbed after the session ends.
+        _shortcuts.Clear();
+        registered = _shortcuts.RegisterShortcuts(idle);
+        if (FirstRegistrationFailure(idle, registered) is not null)
+            RaiseFailure(new PlatformError(
+                "interaction.shortcut_restore_failed",
+                "Desktop shortcuts could not be restored after recording."));
+    }
+
+    private bool IsSessionCancelArmed()
+    {
+        lock (_sessionCancelGate) return _sessionCancelArmed;
     }
 
     private void ArmDurationLimit()
@@ -499,6 +594,7 @@ public sealed class LinuxInteractionCoordinator : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        DisarmSessionCancel();
         DisarmDurationLimit();
         _started = false;
         _shortcuts.ShortcutPressed -= OnShortcutPressed;

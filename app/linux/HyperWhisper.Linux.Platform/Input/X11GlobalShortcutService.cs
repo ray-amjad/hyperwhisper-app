@@ -63,12 +63,25 @@ internal sealed class X11GlobalShortcutService : IGlobalShortcutService
             if (result.IsFailure) results[shortcut.Name] = PlatformResult.Failure(result.Error!.Code, result.Error.Message);
             else { mapped.Add(result.Value!); results[shortcut.Name] = PlatformResult.Success(); }
         }
+        if (results.Values.Any(result => result.IsFailure) || mapped.Count != shortcuts.Count)
+            return results;
         lock (_gate)
         {
+            var previousBindings = _bindings;
+            var previousActive = new HashSet<string>(_active, StringComparer.Ordinal);
             _bindings = mapped;
-            _active.Clear();
             if (_connection is not null && !ApplyGrabs())
+            {
                 foreach (var binding in mapped) results[binding.Shortcut.Name] = PlatformResult.Failure("shortcut_grab_failed", "The X11 shortcut is already in use.");
+                _bindings = previousBindings;
+                _active = previousActive;
+                _ = ApplyGrabs();
+            }
+            else
+            {
+                var names = mapped.Select(binding => binding.Shortcut.Name).ToHashSet(StringComparer.Ordinal);
+                _active.IntersectWith(names);
+            }
         }
         return results;
     }

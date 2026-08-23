@@ -113,7 +113,8 @@ public sealed class LinuxGlobalShortcutService : IGlobalShortcutService, IShortc
             output[shortcut.Name] = PlatformResult.Success();
         }
 
-        _filter.ReplaceBindings(bindings);
+        if (output.Values.All(result => result.IsSuccess) && bindings.Count == shortcuts.Count)
+            _filter.ReplaceBindings(bindings);
         return output;
     }
 
