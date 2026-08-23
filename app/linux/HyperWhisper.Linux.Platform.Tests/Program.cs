@@ -97,6 +97,9 @@ var tests = new (string Name, Func<Task> Run)[]
     ("interaction suppresses repeats and emits content-free mode changes", InteractionActionPrivacy),
     ("interaction conflicts and registration failures restore prior bindings", InteractionActionRollback),
     ("interaction restores live X11 grabs after registration failure", InteractionX11Rollback),
+    ("interaction duration limit stops UI and shortcut recordings once", InteractionDurationLimitStopsOnce),
+    ("manual completion disarms interaction duration limit", InteractionDurationLimitManualCompletion),
+    ("disposing interaction disarms duration limit callback", InteractionDurationLimitDisposal),
     ("device identity hashes machine id internally", DeviceIdentityHashesMachineId),
     ("device identity persists owner-only fallback", DeviceIdentityFallback),
     ("host device identity is privacy-preserving", HostDeviceIdentity),
@@ -1415,6 +1418,78 @@ static Task InteractionX11Rollback()
     return Task.CompletedTask;
 }
 
+static async Task InteractionDurationLimitStopsOnce()
+{
+    var shortcuts = new FakeInteractionShortcutService();
+    var recording = new FakeInteractionRecordingSession();
+    var scheduler = new FakeInteractionDurationScheduler();
+    using var coordinator = new LinuxInteractionCoordinator(
+        shortcuts, new FakeInteractionPushToTalk(), new FakeInteractionTextInjection(), recording,
+        new ImmediateUiDispatcher(), scheduler, TimeSpan.FromMilliseconds(25));
+    Assert.Success(coordinator.ConfigureAndStart(InteractionConfiguration()));
+    var errors = new List<PlatformError>();
+    coordinator.OperationFailed += (_, error) => errors.Add(error);
+
+    await coordinator.StartRecordingAsync();
+    scheduler.Advance(TimeSpan.FromMilliseconds(25));
+    Assert.Equal(1, recording.StopCalls);
+    Assert.Equal("interaction.recording_duration_limit_reached", errors.Single().Code);
+    scheduler.Advance(TimeSpan.FromMinutes(1));
+    Assert.Equal(1, recording.StopCalls);
+
+    recording.Streaming = true;
+    shortcuts.Emit(LinuxInteractionCoordinator.ToggleActionName, true);
+    scheduler.Advance(TimeSpan.FromMilliseconds(25));
+    Assert.Equal(2, recording.StopCalls);
+    Assert.Equal(2, errors.Count);
+    Assert.Equal("interaction.streaming_duration_limit_reached", errors[1].Code);
+}
+
+static async Task InteractionDurationLimitManualCompletion()
+{
+    var recording = new FakeInteractionRecordingSession();
+    var scheduler = new FakeInteractionDurationScheduler();
+    var dispatcher = new QueuedInteractionUiDispatcher();
+    using var coordinator = new LinuxInteractionCoordinator(
+        new FakeInteractionShortcutService(), new FakeInteractionPushToTalk(),
+        new FakeInteractionTextInjection(), recording, dispatcher, scheduler,
+        TimeSpan.FromMilliseconds(25));
+
+    await coordinator.StartRecordingAsync();
+    await coordinator.StopRecordingAsync();
+    scheduler.Advance(TimeSpan.FromMinutes(1));
+    Assert.Equal(1, recording.StopCalls);
+
+    await coordinator.StartRecordingAsync();
+    await coordinator.CancelRecordingAsync();
+    scheduler.Advance(TimeSpan.FromMinutes(1));
+    Assert.Equal(1, recording.StopCalls);
+    Assert.Equal(1, recording.CancelCalls);
+
+    await coordinator.StartRecordingAsync();
+    scheduler.Advance(TimeSpan.FromMilliseconds(25));
+    await coordinator.StopRecordingAsync();
+    dispatcher.RunAll();
+    Assert.Equal(2, recording.StopCalls);
+}
+
+static async Task InteractionDurationLimitDisposal()
+{
+    var recording = new FakeInteractionRecordingSession();
+    var scheduler = new FakeInteractionDurationScheduler();
+    var dispatcher = new QueuedInteractionUiDispatcher();
+    var coordinator = new LinuxInteractionCoordinator(
+        new FakeInteractionShortcutService(), new FakeInteractionPushToTalk(),
+        new FakeInteractionTextInjection(), recording, dispatcher, scheduler,
+        TimeSpan.FromMilliseconds(25));
+    await coordinator.StartRecordingAsync();
+    scheduler.Advance(TimeSpan.FromMilliseconds(25));
+    coordinator.Dispose();
+    dispatcher.RunAll();
+    scheduler.Advance(TimeSpan.FromMinutes(1));
+    Assert.Equal(0, recording.StopCalls);
+}
+
 static Task DeviceIdentityHashesMachineId()
 {
     var raw = "0123456789abcdef0123456789abcdef"u8.ToArray();
@@ -1959,6 +2034,8 @@ sealed class FakeInteractionRecordingSession : IInteractionRecordingSession
 {
     public bool Active { get; set; }
     public bool IsActive => Active;
+    public bool Streaming { get; set; }
+    public bool IsStreaming => Streaming;
     public int StartCalls { get; private set; }
     public int StopCalls { get; private set; }
     public int CancelCalls { get; private set; }
@@ -1968,6 +2045,39 @@ sealed class FakeInteractionRecordingSession : IInteractionRecordingSession
     { cancellationToken.ThrowIfCancellationRequested(); StopCalls++; Active = false; return ValueTask.FromResult(new InteractionStopOutcome(PlatformResult.Success())); }
     public ValueTask CancelAsync(CancellationToken cancellationToken = default)
     { cancellationToken.ThrowIfCancellationRequested(); CancelCalls++; Active = false; return ValueTask.CompletedTask; }
+}
+
+sealed class FakeInteractionDurationScheduler : IInteractionDurationScheduler
+{
+    private readonly List<ScheduledInteractionDuration> _scheduled = [];
+    private TimeSpan _now;
+
+    public IDisposable Schedule(TimeSpan delay, Action callback)
+    {
+        var scheduled = new ScheduledInteractionDuration(_now + delay, callback);
+        _scheduled.Add(scheduled);
+        return scheduled;
+    }
+
+    public void Advance(TimeSpan amount)
+    {
+        _now += amount;
+        var due = _scheduled.Where(item => !item.IsDisposed && !item.HasRun && item.Due <= _now).ToArray();
+        foreach (var item in due)
+        {
+            item.HasRun = true;
+            item.Callback();
+        }
+    }
+
+    private sealed class ScheduledInteractionDuration(TimeSpan due, Action callback) : IDisposable
+    {
+        public TimeSpan Due { get; } = due;
+        public Action Callback { get; } = callback;
+        public bool HasRun { get; set; }
+        public bool IsDisposed { get; private set; }
+        public void Dispose() => IsDisposed = true;
+    }
 }
 
 sealed class FakeInteractionTextInjection : ITextInjectionService
@@ -1993,6 +2103,19 @@ sealed class ImmediateUiDispatcher : IUiDispatcher
     public void Post(Action action) => action();
     public ValueTask InvokeAsync(Func<ValueTask> action, CancellationToken cancellationToken = default)
     { cancellationToken.ThrowIfCancellationRequested(); return action(); }
+}
+
+sealed class QueuedInteractionUiDispatcher : IUiDispatcher
+{
+    private readonly Queue<Action> _actions = new();
+    public bool CheckAccess() => true;
+    public void Post(Action action) => _actions.Enqueue(action);
+    public ValueTask InvokeAsync(Func<ValueTask> action, CancellationToken cancellationToken = default)
+    { cancellationToken.ThrowIfCancellationRequested(); return action(); }
+    public void RunAll()
+    {
+        while (_actions.TryDequeue(out var action)) action();
+    }
 }
 
 sealed class FakePushToTalkScheduler : IPushToTalkScheduler

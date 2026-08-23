@@ -50,6 +50,7 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         ? _services.LiveStreaming.IsRunning
         : _workflow.Snapshot.State is TranscriptionWorkflowState.Recording
             or TranscriptionWorkflowState.Stopping or TranscriptionWorkflowState.Transcribing;
+    public bool IsStreaming => _streaming;
 
     public async ValueTask<PlatformResult> StartAsync(CancellationToken cancellationToken = default)
     {

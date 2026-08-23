@@ -38,9 +38,35 @@ public sealed record InteractionStopOutcome(PlatformResult Result, bool RestoreC
 public interface IInteractionRecordingSession
 {
     bool IsActive { get; }
+    bool IsStreaming => false;
     ValueTask<PlatformResult> StartAsync(CancellationToken cancellationToken = default);
     ValueTask<InteractionStopOutcome> StopAsync(CancellationToken cancellationToken = default);
     ValueTask CancelAsync(CancellationToken cancellationToken = default);
+}
+
+internal interface IInteractionDurationScheduler
+{
+    IDisposable Schedule(TimeSpan delay, Action callback);
+}
+
+internal sealed class InteractionDurationScheduler : IInteractionDurationScheduler
+{
+    public IDisposable Schedule(TimeSpan delay, Action callback)
+    {
+        var cancellation = new CancellationTokenSource();
+        _ = RunAsync(delay, callback, cancellation.Token);
+        return cancellation;
+    }
+
+    private static async Task RunAsync(TimeSpan delay, Action callback, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+            callback();
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+    }
 }
 
 /// <summary>
@@ -59,7 +85,12 @@ public sealed class LinuxInteractionCoordinator : IDisposable
     private readonly ITextInjectionService _textInjection;
     private readonly IInteractionRecordingSession _recording;
     private readonly IUiDispatcher _dispatcher;
+    private readonly IInteractionDurationScheduler _durationScheduler;
+    private readonly TimeSpan _maximumRecordingDuration;
     private readonly SemaphoreSlim _operation = new(1, 1);
+    private readonly object _durationGate = new();
+    private IDisposable? _durationLimit;
+    private long _durationGeneration;
     private LinuxInteractionConfiguration _configuration = LinuxInteractionConfiguration.Default;
     private readonly HashSet<string> _heldActions = new(StringComparer.Ordinal);
     private bool _started;
@@ -71,12 +102,29 @@ public sealed class LinuxInteractionCoordinator : IDisposable
         ITextInjectionService textInjection,
         IInteractionRecordingSession recording,
         IUiDispatcher dispatcher)
+        : this(shortcuts, pushToTalk, textInjection, recording, dispatcher,
+            new InteractionDurationScheduler(), TimeSpan.FromMinutes(20))
+    {
+    }
+
+    internal LinuxInteractionCoordinator(
+        IGlobalShortcutService shortcuts,
+        IPushToTalkMonitor pushToTalk,
+        ITextInjectionService textInjection,
+        IInteractionRecordingSession recording,
+        IUiDispatcher dispatcher,
+        IInteractionDurationScheduler durationScheduler,
+        TimeSpan maximumRecordingDuration)
     {
         _shortcuts = shortcuts ?? throw new ArgumentNullException(nameof(shortcuts));
         _pushToTalk = pushToTalk ?? throw new ArgumentNullException(nameof(pushToTalk));
         _textInjection = textInjection ?? throw new ArgumentNullException(nameof(textInjection));
         _recording = recording ?? throw new ArgumentNullException(nameof(recording));
         _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
+        _durationScheduler = durationScheduler ?? throw new ArgumentNullException(nameof(durationScheduler));
+        if (maximumRecordingDuration <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(maximumRecordingDuration));
+        _maximumRecordingDuration = maximumRecordingDuration;
         _shortcuts.ShortcutPressed += OnShortcutPressed;
         _shortcuts.ShortcutReleased += OnShortcutReleased;
         _pushToTalk.Pressed += OnPushToTalkPressed;
@@ -294,7 +342,12 @@ public sealed class LinuxInteractionCoordinator : IDisposable
         try
         {
             var started = await _recording.StartAsync(cancellationToken);
-            if (started.IsSuccess) return;
+            if (started.IsSuccess)
+            {
+                ArmDurationLimit();
+                return;
+            }
+            DisarmDurationLimit();
             RaiseFailure(started.Error!);
         }
         finally
@@ -310,6 +363,7 @@ public sealed class LinuxInteractionCoordinator : IDisposable
 
     private async ValueTask StopCoreAsync(CancellationToken cancellationToken)
     {
+        DisarmDurationLimit();
         if (!_recording.IsActive) return;
         InteractionStopOutcome outcome;
         try
@@ -332,6 +386,7 @@ public sealed class LinuxInteractionCoordinator : IDisposable
 
     private async ValueTask CancelCoreAsync(CancellationToken cancellationToken)
     {
+        DisarmDurationLimit();
         try { await _recording.CancelAsync(cancellationToken); }
         finally
         {
@@ -359,10 +414,92 @@ public sealed class LinuxInteractionCoordinator : IDisposable
             try { handler(this, error); } catch { }
     }
 
+    private void ArmDurationLimit()
+    {
+        IDisposable? previous;
+        long generation;
+        lock (_durationGate)
+        {
+            previous = _durationLimit;
+            _durationLimit = null;
+            generation = ++_durationGeneration;
+        }
+        previous?.Dispose();
+        var scheduled = _durationScheduler.Schedule(
+            _maximumRecordingDuration, () => OnDurationLimit(generation));
+        var retain = false;
+        lock (_durationGate)
+        {
+            if (!_disposed && generation == _durationGeneration)
+            {
+                _durationLimit = scheduled;
+                retain = true;
+            }
+        }
+        if (!retain) scheduled.Dispose();
+    }
+
+    private void OnDurationLimit(long generation)
+    {
+        lock (_durationGate)
+        {
+            if (_disposed || generation != _durationGeneration) return;
+        }
+        try { _dispatcher.Post(() => _ = RunDurationLimitAsync(generation)); }
+        catch { /* A failed UI dispatch must not stop or leak a background callback. */ }
+    }
+
+    private async Task RunDurationLimitAsync(long generation)
+    {
+        await _operation.WaitAsync();
+        try
+        {
+            lock (_durationGate)
+            {
+                if (_disposed || generation != _durationGeneration) return;
+            }
+            if (!_recording.IsActive)
+            {
+                DisarmDurationLimit();
+                return;
+            }
+            var limitError = _recording.IsStreaming
+                ? new PlatformError(
+                    "interaction.streaming_duration_limit_reached",
+                    "Streaming reached the 20-minute safety limit.")
+                : new PlatformError(
+                    "interaction.recording_duration_limit_reached",
+                    "Recording stopped after reaching the 20-minute safety limit.");
+            RaiseFailure(limitError);
+            await StopCoreAsync(CancellationToken.None);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            RaiseFailure(new PlatformError(
+                "interaction.duration_limit_stop_failed",
+                "The recording safety limit could not stop transcription cleanly."));
+            _pushToTalk.ResetToIdle();
+        }
+        finally { _operation.Release(); }
+    }
+
+    private void DisarmDurationLimit()
+    {
+        IDisposable? durationLimit;
+        lock (_durationGate)
+        {
+            ++_durationGeneration;
+            durationLimit = _durationLimit;
+            _durationLimit = null;
+        }
+        durationLimit?.Dispose();
+    }
+
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
+        DisarmDurationLimit();
         _started = false;
         _shortcuts.ShortcutPressed -= OnShortcutPressed;
         _shortcuts.ShortcutReleased -= OnShortcutReleased;
