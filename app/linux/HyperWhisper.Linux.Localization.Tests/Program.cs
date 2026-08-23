@@ -16,6 +16,8 @@ var tests = new (string Name, Action Run)[]
     ("disposed resources detach and clear notifications", DisposedResourcesDetach),
     ("disposed bridge releases subscribers", DisposedBridgeReleasesSubscribers),
     ("every Linux key falls back in every supported locale", LinuxCatalogFallbacks),
+    ("every supported locale has exact reusable Linux translations", LinuxSatelliteCompleteness),
+    ("Linux-specific copy remains an explicit invariant fallback", LinuxSpecificFallbackIsExplicit),
     ("production XAML contains no localizable literals", ProductionXamlHasNoLocalizableLiterals),
     ("production code uses catalogued user feedback", ProductionCodeUsesCataloguedFeedback),
     ("tray labels are catalogued with RTL metadata", TrayLabelsAreCatalogued),
@@ -148,6 +150,39 @@ static void LinuxCatalogFallbacks()
         foreach (var key in AvaloniaLocalizationBridge.LinuxCatalogKeys)
             NotBlank(bridge.GetRequired(key), $"{culture.Name}:{key}");
     }
+}
+
+static void LinuxSatelliteCompleteness()
+{
+    IReadOnlySet<string>? expected = null;
+    foreach (var culture in PortableLocalizer.SupportedCultures)
+    {
+        var keys = AvaloniaLocalizationBridge.LinuxTranslatedKeys(culture);
+        True(keys.Count >= 7, $"{culture.Name} Linux satellite is incomplete");
+        expected ??= keys;
+        True(expected.SetEquals(keys), $"{culture.Name} reusable-key set differs");
+    }
+    foreach (var cultureName in new[] { "de", "ar", "zh-Hans" })
+    {
+        using var bridge = new AvaloniaLocalizationBridge(CultureInfo.GetCultureInfo(cultureName));
+        NotEqual("Import", bridge.GetRequired("linux.ui.import"), $"{cultureName} exact reused translation");
+    }
+}
+
+static void LinuxSpecificFallbackIsExplicit()
+{
+    foreach (var cultureName in new[] { "de", "ar", "zh-Hans" })
+    {
+        var culture = CultureInfo.GetCultureInfo(cultureName);
+        using var bridge = new AvaloniaLocalizationBridge(culture);
+        True(!AvaloniaLocalizationBridge.LinuxTranslatedKeys(culture).Contains("linux.update.instructions"),
+            $"{cultureName} unreviewed Linux-only key was marked translated");
+        Equal("HyperWhisper never refreshes or installs packages itself. Use your distribution's normal software updater to refresh metadata and install an available version.",
+            bridge.GetRequired("linux.update.instructions"), $"{cultureName} invariant fallback");
+    }
+
+    using var arabic = new AvaloniaLocalizationBridge(CultureInfo.GetCultureInfo("ar"));
+    Equal(FlowDirection.RightToLeft, arabic.FlowDirection, "Arabic satellite RTL flow");
 }
 
 static void ProductionXamlHasNoLocalizableLiterals()

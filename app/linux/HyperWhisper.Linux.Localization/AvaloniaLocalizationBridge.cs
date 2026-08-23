@@ -85,6 +85,15 @@ public sealed class AvaloniaLocalizationBridge : INotifyPropertyChanged, IDispos
     public IReadOnlyList<CultureInfo> SupportedCultures => PortableLocalizer.SupportedCultures;
     public static IReadOnlySet<string> LinuxCatalogKeys => LinuxKeys;
 
+    public static IReadOnlySet<string> LinuxTranslatedKeys(CultureInfo culture)
+    {
+        ArgumentNullException.ThrowIfNull(culture);
+        var set = LinuxResources.GetResourceSet(culture, createIfNotExists: true, tryParents: false);
+        return set is null
+            ? new HashSet<string>(StringComparer.Ordinal)
+            : set.Cast<DictionaryEntry>().Select(entry => (string)entry.Key).ToHashSet(StringComparer.Ordinal);
+    }
+
     public static CultureInfo ResolveStartupCulture(string? requestedCulture = null)
     {
         CultureInfo requested;

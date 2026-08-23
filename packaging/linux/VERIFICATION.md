@@ -121,6 +121,7 @@ Complete each row and record the evidence fields above.
 | Check | Exact action | Acceptance condition |
 |---|---|---|
 | Window and navigation | Launch from the desktop menu, then visit every top-level page | Window renders without corruption; every page opens; app remains usable without a tray |
+| First-run onboarding | Move the existing profile aside, launch once, inspect every capability row, choose a real mode and microphone, complete one test dictation, relaunch; repeat once using Skip setup | Reported audio, clipboard/uinput, shortcut, portal, and local-engine capabilities match the host; selections reach the live app; test dictation uses the normal privacy/storage path; completion and skip each remain dismissed after relaunch |
 | Tray | Hide/show the window from the tray; on stock GNOME also repeat with AppIndicator disabled | StatusNotifierItem works where supported; missing GNOME tray never makes the app unreachable |
 | Hotkey | Configure `Ctrl+Alt+R`; press it in Terminal, Firefox, and LibreOffice | One press/release action per chord in every app; no repeats or stuck modifiers |
 | Privacy invariant | While log capture runs, type `UNRELATED-KEY-PROBE-7391` without the configured chord, stop the app, then run `grep -R 'UNRELATED-KEY-PROBE-7391' "$HW_EVIDENCE_DIR"` | Grep returns no raw-key or phrase record except this checklist/evidence command itself; public app events contain configured action IDs only |
@@ -129,12 +130,18 @@ Complete each row and record the evidence fields above.
 | Clipboard fallback | Temporarily remove membership with `sudo gpasswd -d "$USER" hyperwhisper-input`, re-login, dictate once, then restore membership | Transcript remains on clipboard and a notification explains that uinput is unavailable; no text is lost |
 | Clipboard restore | Put text, HTML, and an image on the clipboard in turn; inject text; wait the configured restore delay | Every original clipboard format is restored after the delay |
 | Audio | Select the default PulseAudio/pipewire-pulse microphone and record the phrase `deterministic microphone sentence` | Recording starts/stops once and playback/transcript contains the spoken phrase |
+| Sound-effect gain | With recording cues enabled, repeat start/stop at volume 0, 0.5, and 1 using the same output device | Zero is silent, half is audibly reduced, full is not clipped, and changing gain does not alter microphone capture or other application audio |
 | File transcription | Select a known WAV and transcribe locally | Progress reaches completion; history and output are persisted |
 | Local Parakeet | Download Parakeet v2, select it, and transcribe a known 16 kHz WAV | Packaged sherpa-onnx daemon reports `provider=cpu`, returns a non-empty accurate transcript, and exits cleanly after model unload |
+| Local Parakeet live | In Model Library select the installed Parakeet v2 streaming row and press **Use for live transcription**; dictate `parakeet local live sentence`, pause, continue, then stop; repeat once and cancel mid-sentence | The credential-free local daemon stays alive for the session; bounded rolling-window partial and committed text appears without duplicate words; stop injects and persists the final transcript exactly once; cancel injects/persists nothing and leaves no daemon or stuck session |
+| Local Nemotron live | Download Nemotron 3.5 Streaming, select its streaming row, press **Use for live transcription**, choose `auto` and dictate short phrases in two advertised production locales; stop each session; repeat and cancel once | The packaged sherpa-onnx online stream uses the installed 560 ms multilingual artifact without credentials; each language produces non-empty incremental/final text; stop injects and persists exactly once; cancellation leaves no text, process, or stuck session |
+| Interim transcript preview privacy | During each local-live check, keep the console capture running and record the preview on video; while a partial phrase is visible, switch focus and attempt to click through its full bounds. In a separate session dictate a unique token, cancel before finalization, then run `grep -R '<unique-partial-only-token>' "$HW_EVIDENCE_DIR" "${XDG_DATA_HOME:-$HOME/.local/share}/hyperwhisper"` | Preview text is bounded, updates without taking focus, and is click-through on the tested X11/XWayland desktop; committed text replaces overlapping partials without duplication; preview clears on final and cancel; the cancelled partial-only token is absent from logs, settings, database/history, and other persisted app data |
 | OCR portal | Enable screen OCR and trigger it once, then repeat and deny the portal dialog | Capture occurs only after the user action/consent; denial is handled without stale OCR text |
 | Local API | Enable the API, then inspect the discovery file using the commands below | Listener is IPv4 loopback-only, unauthenticated call is `401`, discovery file is `0600`, and no recording-delete route exists |
 | Backup | Export, import into a clean profile, then re-export | Linux settings/modes/vocabulary survive and foreign `macos`/`windows` extension slices remain byte-semantically equal |
 | Autostart | Enable autostart, reboot, and sign in | One app instance starts; disabling autostart prevents the next-login launch |
+| Package update awareness | Open About, record `apt-cache policy hyperwhisper`, press Refresh package status, then repeat with `apt-cache` hidden from `PATH` on a PackageKit host | UI agrees with existing package metadata and gives distribution-updater instructions; it never runs cache refresh, install, upgrade, elevation, or self-update |
+| Locale and RTL | Switch to German, Arabic, and Simplified Chinese; visit onboarding, Settings, About, dialogs, and tray; capture screenshots with non-sensitive sample data | Exact shared translations resolve from reviewed satellites, deliberate Linux-only fallback is visible where review is pending, Arabic mirrors layout, and IDs/paths/models/protocol values remain byte-identical |
 
 ## Credentialed service gates — gate on one clean desktop
 
@@ -154,6 +161,31 @@ request identifiers and account data, and never write credentials to evidence.
 If a provider is intentionally unavailable for the release, record `BLOCKED` or
 `NOT IMPLEMENTED`; removing it from the UI/catalog is a product-scope decision,
 not a verification pass.
+
+## Linux-specific localization content gate — human review required
+
+Automated checks prove that every supported culture has a loadable satellite,
+exact semantics-identical macOS translations are reused, fallback is deterministic,
+format placeholders remain valid, and RTL metadata is applied. They do not prove
+that Linux-specific English fallback copy has been professionally translated.
+
+For any release claiming complete Linux UI-language parity, a native speaker for
+each supported culture must review every key absent from
+`AvaloniaLocalizationBridge.LinuxTranslatedKeys(culture)`, supply the translation,
+and record reviewer, culture, commit, screenshots, placeholder audit, and result in
+the evidence bundle. Machine translation alone is not acceptance evidence. Do not
+record this gate as `PASS` while any Linux-specific key still resolves to invariant
+English, unless the reviewer explicitly confirms that English is the correct locale
+value. Provider/model identifiers, paths, shortcut tokens, protocol values, command
+examples, and redacted opaque IDs must remain untranslated.
+
+Run the infrastructure checks before physical review:
+
+```bash
+dotnet run --project \
+  app/linux/HyperWhisper.Linux.Localization.Tests/HyperWhisper.Linux.Localization.Tests.csproj \
+  -c Release
+```
 
 Local API evidence commands (redact the token value from saved output):
 

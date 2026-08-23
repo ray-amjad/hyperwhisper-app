@@ -1,0 +1,24 @@
+<?xml version='1.0' encoding='utf-8'?>
+<root>
+  <data name="linux.overlay.recording" xml:space="preserve">
+    <value>Ierakstīšana</value>
+  </data>
+  <data name="linux.ui.api.keys" xml:space="preserve">
+    <value>API atslēgas</value>
+  </data>
+  <data name="linux.ui.import" xml:space="preserve">
+    <value>Importēt</value>
+  </data>
+  <data name="linux.ui.replace.existing" xml:space="preserve">
+    <value>Aizstāt esošos</value>
+  </data>
+  <data name="linux.ui.search" xml:space="preserve">
+    <value>Meklēt</value>
+  </data>
+  <data name="linux.ui.skip.existing" xml:space="preserve">
+    <value>Izlaist esošos</value>
+  </data>
+  <data name="linux.ui.start.recording" xml:space="preserve">
+    <value>Sākt ierakstīt</value>
+  </data>
+</root>

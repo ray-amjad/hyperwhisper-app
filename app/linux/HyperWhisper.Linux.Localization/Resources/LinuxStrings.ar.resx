@@ -1,0 +1,24 @@
+<?xml version='1.0' encoding='utf-8'?>
+<root>
+  <data name="linux.overlay.recording" xml:space="preserve">
+    <value>التسجيل</value>
+  </data>
+  <data name="linux.ui.api.keys" xml:space="preserve">
+    <value>مفاتيح API</value>
+  </data>
+  <data name="linux.ui.import" xml:space="preserve">
+    <value>استيراد</value>
+  </data>
+  <data name="linux.ui.replace.existing" xml:space="preserve">
+    <value>استبدال الموجودة</value>
+  </data>
+  <data name="linux.ui.search" xml:space="preserve">
+    <value>بحث</value>
+  </data>
+  <data name="linux.ui.skip.existing" xml:space="preserve">
+    <value>تخطي الموجودة</value>
+  </data>
+  <data name="linux.ui.start.recording" xml:space="preserve">
+    <value>ابدأ التسجيل</value>
+  </data>
+</root>

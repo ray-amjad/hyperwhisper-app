@@ -1,0 +1,24 @@
+<?xml version='1.0' encoding='utf-8'?>
+<root>
+  <data name="linux.overlay.recording" xml:space="preserve">
+    <value>Aufnahme</value>
+  </data>
+  <data name="linux.ui.api.keys" xml:space="preserve">
+    <value>API-Schlüssel</value>
+  </data>
+  <data name="linux.ui.import" xml:space="preserve">
+    <value>Importieren</value>
+  </data>
+  <data name="linux.ui.replace.existing" xml:space="preserve">
+    <value>Vorhandenes ersetzen</value>
+  </data>
+  <data name="linux.ui.search" xml:space="preserve">
+    <value>Suchen</value>
+  </data>
+  <data name="linux.ui.skip.existing" xml:space="preserve">
+    <value>Vorhandenes überspringen</value>
+  </data>
+  <data name="linux.ui.start.recording" xml:space="preserve">
+    <value>Starten Sie die Aufnahme</value>
+  </data>
+</root>
