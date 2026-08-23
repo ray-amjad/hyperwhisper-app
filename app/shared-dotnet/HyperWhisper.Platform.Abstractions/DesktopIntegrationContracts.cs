@@ -9,11 +9,34 @@ public enum TextInjectionOutcome
 }
 
 /// <summary>
+/// Controls whether transient transcript clipboard ownership should ask compatible
+/// desktop clipboard managers not to retain the payload in history.
+/// </summary>
+public enum ClipboardHistoryPrivacyPolicy
+{
+    Disabled,
+    BestEffort,
+}
+
+/// <summary>
+/// Describes the platform's ability to attach a best-effort clipboard-history hint.
+/// This is never a guarantee that a clipboard manager will honor the hint.
+/// </summary>
+public enum ClipboardHistoryPrivacyCapability
+{
+    Unsupported,
+    BestEffortAvailable,
+}
+
+/// <summary>
 /// The sole capability through which transcribed text enters another application.
 /// Clipboard capture and restoration remain private implementation details.
 /// </summary>
 public interface ITextInjectionService : IDisposable
 {
+    ClipboardHistoryPrivacyCapability ClipboardHistoryPrivacyCapability =>
+        ClipboardHistoryPrivacyCapability.Unsupported;
+    void SetClipboardHistoryPrivacyPolicy(ClipboardHistoryPrivacyPolicy policy) { }
     void CaptureTarget();
     bool IsCapturedTargetAvailable { get; }
     void StartSession();

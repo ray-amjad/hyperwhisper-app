@@ -40,6 +40,10 @@ var tests = new (string Name, Func<Task> Run)[]
     ("injection uses uinput after clipboard", InjectionUsesUInput),
     ("injection restores captured clipboard", InjectionRestoresClipboard),
     ("injection restores every captured MIME format", InjectionRestoresAllFormats),
+    ("clipboard privacy policy reaches copy-only and paste paths", ClipboardPrivacyPolicyPropagation),
+    ("clipboard privacy policy is safe under concurrent updates", ClipboardPrivacyPolicyConcurrency),
+    ("clipboard privacy hint is enabled only by policy", ClipboardPrivacyMimePolicy),
+    ("clipboard privacy reports unsupported without native ownership", ClipboardPrivacyUnsupported),
     ("injection refuses a secure field before clipboard mutation", InjectionRefusesSecureField),
     ("injection falls back when captured target is lost", InjectionTargetLost),
     ("injection falls back when target changes before paste", InjectionTargetChanged),
@@ -556,6 +560,65 @@ static async Task InjectionRestoresAllFormats()
     Assert.SequenceEqual(formats["image/png"], clipboard.Formats["image/png"]);
 }
 
+static async Task ClipboardPrivacyPolicyPropagation()
+{
+    var clipboard = new FakeClipboard("old");
+    using var service = NewInjection(clipboard, new FakeUInput(true));
+    service.SetClipboardHistoryPrivacyPolicy(ClipboardHistoryPrivacyPolicy.BestEffort);
+    service.StartSession();
+    Assert.Success(await service.CopyToClipboardAsync("copy-only"));
+    Assert.Equal(ClipboardHistoryPrivacyPolicy.BestEffort, clipboard.LastPrivacyPolicy);
+    service.CaptureTarget();
+    Assert.Equal(TextInjectionOutcome.Pasted, await service.InjectTranscriptAsync("paste"));
+    Assert.Equal(ClipboardHistoryPrivacyPolicy.BestEffort, clipboard.LastPrivacyPolicy);
+    Assert.Success(await service.RestoreClipboardImmediatelyAsync());
+    Assert.Equal("old", clipboard.Text);
+    Assert.Equal(1, clipboard.Formats.Count);
+}
+
+static async Task ClipboardPrivacyPolicyConcurrency()
+{
+    var clipboard = new FakeClipboard("old");
+    using var service = NewInjection(clipboard, new FakeUInput(false));
+    var updates = Enumerable.Range(0, 200).Select(index => Task.Run(() =>
+        service.SetClipboardHistoryPrivacyPolicy(index % 2 == 0
+            ? ClipboardHistoryPrivacyPolicy.Disabled
+            : ClipboardHistoryPrivacyPolicy.BestEffort)));
+    await Task.WhenAll(updates);
+    Assert.Success(await service.CopyToClipboardAsync("transcript"));
+    Assert.True(clipboard.LastPrivacyPolicy is ClipboardHistoryPrivacyPolicy.Disabled
+        or ClipboardHistoryPrivacyPolicy.BestEffort);
+}
+
+static async Task ClipboardPrivacyMimePolicy()
+{
+    var owner = new FakeNativeClipboardOwner();
+    using var backend = new CommandClipboardBackend("/bin/true", "/bin/true", false, owner);
+    Assert.Equal(ClipboardHistoryPrivacyCapability.BestEffortAvailable,
+        backend.GetCapabilities().ClipboardHistoryPrivacy);
+    Assert.Success(await backend.SetTextAsync("private transcript", ClipboardHistoryPrivacyPolicy.BestEffort,
+        CancellationToken.None));
+    Assert.Equal(2, owner.Owned!.Formats.Count);
+    Assert.SequenceEqual("private transcript"u8.ToArray(), owner.Owned.Formats["text/plain;charset=utf-8"]);
+    Assert.SequenceEqual("secret"u8.ToArray(), owner.Owned.Formats["x-kde-passwordManagerHint"]);
+
+    owner.Clear();
+    _ = await backend.SetTextAsync("ordinary transcript", ClipboardHistoryPrivacyPolicy.Disabled,
+        CancellationToken.None);
+    Assert.True(owner.Owned is null);
+}
+
+static Task ClipboardPrivacyUnsupported()
+{
+    using var backend = new CommandClipboardBackend("/bin/true", "/bin/true", true, null);
+    Assert.Equal(ClipboardHistoryPrivacyCapability.Unsupported,
+        backend.GetCapabilities().ClipboardHistoryPrivacy);
+    ITextInjectionService fake = new FakeInteractionTextInjection();
+    Assert.Equal(ClipboardHistoryPrivacyCapability.Unsupported, fake.ClipboardHistoryPrivacyCapability);
+    fake.SetClipboardHistoryPrivacyPolicy(ClipboardHistoryPrivacyPolicy.BestEffort);
+    return Task.CompletedTask;
+}
+
 static async Task InjectionRefusesSecureField()
 {
     var clipboard = new FakeClipboard("old");
@@ -827,7 +890,8 @@ static async Task XWaylandRoundTrip()
     }
     foreach (var pair in snapshot.Formats)
         Assert.SequenceEqual(pair.Value, captured.Value!.Formats[pair.Key]);
-    Assert.Success(await backend.SetTextAsync("temporary transcript", CancellationToken.None));
+    Assert.Success(await backend.SetTextAsync("temporary transcript", ClipboardHistoryPrivacyPolicy.Disabled,
+        CancellationToken.None));
     Assert.Success(await backend.RestoreAsync(captured.Value!, CancellationToken.None));
     foreach (var pair in snapshot.Formats)
     {
@@ -2070,7 +2134,9 @@ sealed class FakeClipboard : ILinuxClipboardBackend
     public bool FailWrites { get; init; }
     public bool BlockWrites { get; init; }
     public int RestoreCalls { get; private set; }
-    public LinuxTextInjectionCapabilities GetCapabilities() => new(true, "fake", false, true, true, true);
+    public ClipboardHistoryPrivacyPolicy LastPrivacyPolicy { get; private set; }
+    public LinuxTextInjectionCapabilities GetCapabilities() => new(true, "fake", false, true, true, true,
+        ClipboardHistoryPrivacyCapability.BestEffortAvailable);
     public ValueTask<PlatformResult<ClipboardSnapshot?>> CaptureAsync(CancellationToken cancellationToken) =>
         ValueTask.FromResult(PlatformResult<ClipboardSnapshot?>.Success(new ClipboardSnapshot(Clone(Formats))));
     public ValueTask<PlatformResult> RestoreAsync(ClipboardSnapshot snapshot, CancellationToken cancellationToken)
@@ -2080,12 +2146,17 @@ sealed class FakeClipboard : ILinuxClipboardBackend
         Formats = Clone(snapshot.Formats);
         return ValueTask.FromResult(PlatformResult.Success());
     }
-    public async ValueTask<PlatformResult> SetTextAsync(string text, CancellationToken cancellationToken)
+    public async ValueTask<PlatformResult> SetTextAsync(string text, ClipboardHistoryPrivacyPolicy privacyPolicy,
+        CancellationToken cancellationToken)
     {
         if (BlockWrites) await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
         if (FailWrites) return PlatformResult.Failure("clipboard_failed", "test");
-        Formats = new Dictionary<string, byte[]>(StringComparer.Ordinal)
+        LastPrivacyPolicy = privacyPolicy;
+        var formats = new Dictionary<string, byte[]>(StringComparer.Ordinal)
             { ["text/plain;charset=utf-8"] = System.Text.Encoding.UTF8.GetBytes(text) };
+        if (privacyPolicy == ClipboardHistoryPrivacyPolicy.BestEffort)
+            formats["x-kde-passwordManagerHint"] = "secret"u8.ToArray();
+        Formats = formats;
         return PlatformResult.Success();
     }
     private static Dictionary<string, byte[]> Clone(IReadOnlyDictionary<string, byte[]> source) =>
@@ -2130,6 +2201,7 @@ sealed class FakeNativeClipboardOwner : INativeClipboardOwner
 {
     public bool IsAvailable => true;
     public ClipboardSnapshot? Owned { get; private set; }
+    public void Clear() => Owned = null;
     public ValueTask<PlatformResult> OwnAsync(ClipboardSnapshot snapshot, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();

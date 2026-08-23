@@ -6,6 +6,8 @@ namespace HyperWhisper.Linux.Platform.Injection;
 internal sealed class CommandClipboardBackend : ILinuxClipboardBackend, IDisposable
 {
     private const int MaximumSnapshotBytes = 32 * 1024 * 1024;
+    private const int MaximumTranscriptBytes = 8 * 1024 * 1024;
+    private const string PrivacyHintMimeType = "x-kde-passwordManagerHint";
     private readonly string? _copy;
     private readonly string? _paste;
     private readonly bool _wayland;
@@ -49,7 +51,10 @@ internal sealed class CommandClipboardBackend : ILinuxClipboardBackend, IDisposa
         false,
         _nativeOwner?.IsAvailable == true,
         false,
-        false);
+        false,
+        _nativeOwner?.IsAvailable == true
+            ? ClipboardHistoryPrivacyCapability.BestEffortAvailable
+            : ClipboardHistoryPrivacyCapability.Unsupported);
 
     public async ValueTask<PlatformResult<ClipboardSnapshot?>> CaptureAsync(CancellationToken token)
     {
@@ -97,10 +102,23 @@ internal sealed class CommandClipboardBackend : ILinuxClipboardBackend, IDisposa
         return PlatformResult.Success();
     }
 
-    public async ValueTask<PlatformResult> SetTextAsync(string text, CancellationToken token)
+    public async ValueTask<PlatformResult> SetTextAsync(string text, ClipboardHistoryPrivacyPolicy privacyPolicy,
+        CancellationToken token)
     {
         if (_copy is null) return PlatformResult.Failure("clipboard_unavailable", "No supported clipboard helper is installed.");
-        var result = await RunAsync(_copy, WriteArguments("text/plain;charset=utf-8"), Encoding.UTF8.GetBytes(text), token).ConfigureAwait(false);
+        var textBytes = Encoding.UTF8.GetBytes(text);
+        if (textBytes.Length > MaximumTranscriptBytes)
+            return PlatformResult.Failure("clipboard_text_too_large", "The transcript exceeds the private clipboard limit.");
+        if (privacyPolicy == ClipboardHistoryPrivacyPolicy.BestEffort && _nativeOwner?.IsAvailable == true)
+        {
+            var privatePayload = new ClipboardSnapshot(new Dictionary<string, byte[]>(StringComparer.Ordinal)
+            {
+                ["text/plain;charset=utf-8"] = textBytes,
+                [PrivacyHintMimeType] = "secret"u8.ToArray(),
+            });
+            return await _nativeOwner.OwnAsync(privatePayload, token).ConfigureAwait(false);
+        }
+        var result = await RunAsync(_copy, WriteArguments("text/plain;charset=utf-8"), textBytes, token).ConfigureAwait(false);
         return result.IsSuccess ? PlatformResult.Success() : PlatformResult.Failure(result.Error!.Code, result.Error.Message);
     }
 

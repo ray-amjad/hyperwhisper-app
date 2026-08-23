@@ -4,7 +4,8 @@ namespace HyperWhisper.Linux.Platform.Injection;
 
 public sealed record LinuxTextInjectionCapabilities(bool ClipboardAvailable, string ClipboardBackend,
     bool UInputAvailable, bool PreservesAllClipboardFormats, bool SecureFieldGuardAvailable,
-    bool CapturedTargetFocusAvailable);
+    bool CapturedTargetFocusAvailable,
+    ClipboardHistoryPrivacyCapability ClipboardHistoryPrivacy = ClipboardHistoryPrivacyCapability.Unsupported);
 
 internal sealed record ClipboardSnapshot(IReadOnlyDictionary<string, byte[]> Formats);
 internal sealed record CapturedTarget(string OpaqueId);
@@ -16,7 +17,8 @@ internal interface ILinuxClipboardBackend
     LinuxTextInjectionCapabilities GetCapabilities();
     ValueTask<PlatformResult<ClipboardSnapshot?>> CaptureAsync(CancellationToken cancellationToken);
     ValueTask<PlatformResult> RestoreAsync(ClipboardSnapshot snapshot, CancellationToken cancellationToken);
-    ValueTask<PlatformResult> SetTextAsync(string text, CancellationToken cancellationToken);
+    ValueTask<PlatformResult> SetTextAsync(string text, ClipboardHistoryPrivacyPolicy privacyPolicy,
+        CancellationToken cancellationToken);
 }
 internal interface ISecureFieldGuard
 {
@@ -41,6 +43,7 @@ public sealed class LinuxTextInjectionService : ITextInjectionService
     private ClipboardSnapshot? _snapshot;
     private CapturedTarget? _capturedTarget;
     private CancellationTokenSource? _restoreCancellation;
+    private int _clipboardHistoryPrivacyPolicy;
     private bool _disposed;
 
     public LinuxTextInjectionService() : this(new CommandClipboardBackend(), new UInputPasteBackend(),
@@ -61,6 +64,13 @@ public sealed class LinuxTextInjectionService : ITextInjectionService
     }
 
     public bool IsCapturedTargetAvailable => _capturedTarget is not null && !_disposed;
+    public ClipboardHistoryPrivacyCapability ClipboardHistoryPrivacyCapability =>
+        _clipboard.GetCapabilities().ClipboardHistoryPrivacy;
+    public void SetClipboardHistoryPrivacyPolicy(ClipboardHistoryPrivacyPolicy policy)
+    {
+        if (!Enum.IsDefined(policy)) throw new ArgumentOutOfRangeException(nameof(policy));
+        Interlocked.Exchange(ref _clipboardHistoryPrivacyPolicy, (int)policy);
+    }
     public LinuxTextInjectionCapabilities GetCapabilities()
     {
         var clipboard = _clipboard.GetCapabilities();
@@ -162,7 +172,11 @@ public sealed class LinuxTextInjectionService : ITextInjectionService
     }
     private async ValueTask<PlatformResult> TrySetTextAsync(string text, CancellationToken token)
     {
-        try { return await _clipboard.SetTextAsync(text, token).ConfigureAwait(false); }
+        try
+        {
+            var policy = (ClipboardHistoryPrivacyPolicy)Volatile.Read(ref _clipboardHistoryPrivacyPolicy);
+            return await _clipboard.SetTextAsync(text, policy, token).ConfigureAwait(false);
+        }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
         catch { return PlatformResult.Failure("clipboard_failed", "The clipboard operation failed."); }
     }
