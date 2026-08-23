@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=HyperWhisper
+Comment=Private, fast speech-to-text
+Exec=/usr/bin/hyperwhisper
+Icon=hyperwhisper
+Terminal=false
+Categories=AudioVideo;Audio;Utility;
+StartupNotify=true
+DBusActivatable=false

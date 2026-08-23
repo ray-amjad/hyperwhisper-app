@@ -1,0 +1,28 @@
+#!/bin/sh
+set -eu
+
+RULE_NAME="70-hyperwhisper-input.rules"
+STAGING_ROOT="${HYPERWHISPER_MAINTAINER_ROOT:-}"
+RULE_DESTINATION="${STAGING_ROOT}/etc/udev/rules.d/${RULE_NAME}"
+
+reload_udev() {
+    if [ -n "$STAGING_ROOT" ]; then
+        return
+    fi
+    if command -v udevadm >/dev/null 2>&1; then
+        udevadm control --reload-rules || true
+        udevadm trigger --subsystem-match=input || true
+        udevadm trigger --subsystem-match=misc --sysname-match=uinput || true
+    fi
+}
+
+case "${1:-}" in
+    remove|purge)
+        rm -f "$RULE_DESTINATION"
+        reload_udev
+        ;;
+esac
+
+# Deliberately retain the system group. Removing a group during purge can
+# silently invalidate administrator-managed memberships or reuse its GID.
+exit 0

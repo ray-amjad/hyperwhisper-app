@@ -1,0 +1,9 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: HyperWhisper
+Source: https://github.com/ray-amjad/hyperwhisper-app
+
+Files: *
+Copyright: 2026 HyperWhisper contributors
+License: Apache-2.0
+ On Debian systems, the complete text of the Apache License, Version 2.0 is
+ available at /usr/share/common-licenses/Apache-2.0.

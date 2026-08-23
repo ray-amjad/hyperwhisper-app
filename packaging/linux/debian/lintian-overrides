@@ -1,0 +1,9 @@
+# The linux-x64 self-contained .NET/Avalonia publish intentionally bundles the
+# runtime and Skia/HarfBuzz native assets. Replacing those release-pinned assets
+# with system libraries is unsupported by their upstream NuGet packages.
+hyperwhisper: embedded-library freetype [usr/lib/hyperwhisper/libSkiaSharp.so]
+hyperwhisper: embedded-library libjpeg [usr/lib/hyperwhisper/libSkiaSharp.so]
+hyperwhisper: embedded-library libpng [usr/lib/hyperwhisper/libSkiaSharp.so]
+hyperwhisper: embedded-library zlib [usr/lib/hyperwhisper/libSystem.IO.Compression.Native.so]
+hyperwhisper: unstripped-binary-or-object [usr/lib/hyperwhisper/libHarfBuzzSharp.so]
+hyperwhisper: unstripped-binary-or-object [usr/lib/hyperwhisper/libSkiaSharp.so]

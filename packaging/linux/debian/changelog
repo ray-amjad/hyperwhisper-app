@@ -1,0 +1,5 @@
+hyperwhisper (1.0.0) stable; urgency=medium
+
+  * Initial amd64 Linux package.
+
+ -- HyperWhisper Contributors <opensource@hyperwhisper.com>  Sun, 23 Aug 2026 00:00:00 +0000

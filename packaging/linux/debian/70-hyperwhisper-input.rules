@@ -1,0 +1,7 @@
+# HyperWhisper reads configured global hotkeys from keyboard event devices.
+# The dedicated group receives read-only access; other users receive no access.
+SUBSYSTEM=="input", KERNEL=="event*", ENV{ID_INPUT_KEYBOARD}=="1", GROUP="hyperwhisper-input", MODE="0640"
+
+# Transcript injection uses the kernel uinput device. Only the dedicated group
+# may open it; no TAG+="uaccess" is used because that would bypass membership.
+SUBSYSTEM=="misc", KERNEL=="uinput", GROUP="hyperwhisper-input", MODE="0660"

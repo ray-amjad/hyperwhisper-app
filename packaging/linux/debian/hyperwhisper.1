@@ -1,0 +1,22 @@
+.TH HYPERWHISPER 1 "August 2026" "HyperWhisper 1.0.0" "User Commands"
+.SH NAME
+hyperwhisper \- private, fast speech-to-text desktop application
+.SH SYNOPSIS
+.B hyperwhisper
+.SH DESCRIPTION
+.B HyperWhisper
+records speech and turns it into text using local or cloud transcription
+engines. Configuration and recording controls are available through the
+desktop application.
+.SH INPUT ACCESS
+Global hotkeys and transcript injection require membership in the
+.B hyperwhisper-input
+system group. An administrator can add a user with
+.B usermod -aG hyperwhisper-input USER
+and the user must then re-login.
+.SH FILES
+.TP
+.B /etc/udev/rules.d/70-hyperwhisper-input.rules
+Device permissions installed by the package maintainer script.
+.SH SEE ALSO
+.BR tesseract (1)
