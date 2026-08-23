@@ -13,6 +13,7 @@ public enum TranscriptionWorkflowState
     Recording,
     Stopping,
     Transcribing,
+    Retrying,
     Completed,
     Cancelled,
     Failed,
@@ -194,16 +195,19 @@ public sealed record TranscriptionWorkflowSnapshot(
     TranscriptionBackendCapability Backend)
 {
     public bool CanStartRecording => State is not (TranscriptionWorkflowState.Recording
-        or TranscriptionWorkflowState.Stopping or TranscriptionWorkflowState.Transcribing)
+        or TranscriptionWorkflowState.Stopping or TranscriptionWorkflowState.Transcribing
+        or TranscriptionWorkflowState.Retrying)
         && Backend.IsAvailable && AudioDevices.Count > 0;
 
     public bool CanTranscribeFile => State is not (TranscriptionWorkflowState.Recording
-        or TranscriptionWorkflowState.Stopping or TranscriptionWorkflowState.Transcribing)
+        or TranscriptionWorkflowState.Stopping or TranscriptionWorkflowState.Transcribing
+        or TranscriptionWorkflowState.Retrying)
         && Backend.IsAvailable;
 
     public bool CanStop => State == TranscriptionWorkflowState.Recording;
     public bool CanCancel => State is TranscriptionWorkflowState.Recording
-        or TranscriptionWorkflowState.Stopping or TranscriptionWorkflowState.Transcribing;
+        or TranscriptionWorkflowState.Stopping or TranscriptionWorkflowState.Transcribing
+        or TranscriptionWorkflowState.Retrying;
 }
 
 /// <summary>
@@ -323,8 +327,8 @@ public sealed class TranscriptionWorkflow : IDisposable
                 result = FailLocked("workflow.backend_unavailable", capability.UnavailableReason ?? "No transcription backend is available.", PortableTranscriptionErrorCode.BackendUnavailable);
             else if (_selectedDeviceId is null)
                 result = FailLocked("workflow.no_audio_device", "No audio input device is available.", PortableTranscriptionErrorCode.BackendUnavailable);
-            else if (_state is TranscriptionWorkflowState.Recording or TranscriptionWorkflowState.Stopping or TranscriptionWorkflowState.Transcribing)
-                result = FailLocked("workflow.busy", "A recording or transcription is already active.", PortableTranscriptionErrorCode.InvalidRequest);
+            else if (IsActiveState(_state))
+                result = BusyLocked();
             else
             {
                 var started = _recorder.Start(new AudioRecordingOptions(_selectedDeviceId));
@@ -425,8 +429,8 @@ public sealed class TranscriptionWorkflow : IDisposable
             var capability = _transcriber.Capability;
             if (!capability.IsAvailable)
                 immediateFailure = FailLocked("workflow.backend_unavailable", capability.UnavailableReason ?? "No transcription backend is available.", PortableTranscriptionErrorCode.BackendUnavailable);
-            else if (_state is TranscriptionWorkflowState.Recording or TranscriptionWorkflowState.Stopping or TranscriptionWorkflowState.Transcribing)
-                immediateFailure = FailLocked("workflow.busy", "A recording or transcription is already active.", PortableTranscriptionErrorCode.InvalidRequest);
+            else if (IsActiveState(_state))
+                immediateFailure = BusyLocked();
             if (immediateFailure is not null) operation = null!;
             else
             {
@@ -448,13 +452,117 @@ public sealed class TranscriptionWorkflow : IDisposable
             injectText: false, cancellationToken).ConfigureAwait(false);
     }
 
+    public async Task<PortableTranscriptionResult> RetryTranscriptAsync(
+        Guid transcriptId,
+        TranscriptionWorkflowRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        var frozenRequest = request.Snapshot();
+        var retryStore = _history as ITranscriptionRetryStore;
+
+        CancellationTokenSource operation;
+        PortableTranscriptionResult? immediateFailure = null;
+        lock (_sync)
+        {
+            var capability = _transcriber.Capability;
+            if (!capability.IsAvailable)
+                immediateFailure = FailLocked("workflow.backend_unavailable", capability.UnavailableReason ?? "No transcription backend is available.", PortableTranscriptionErrorCode.BackendUnavailable);
+            else if (IsActiveState(_state))
+                immediateFailure = BusyLocked();
+            else if (frozenRequest.SelectedMode is null)
+                immediateFailure = FailLocked("workflow.retry_mode_required", "Choose a mode to retry this transcription.", PortableTranscriptionErrorCode.InvalidRequest);
+            else if (retryStore is null)
+                immediateFailure = FailLocked("workflow.retry_unavailable", "This history store does not support retry.", PortableTranscriptionErrorCode.InvalidRequest);
+
+            if (immediateFailure is not null) operation = null!;
+            else
+            {
+                operation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                _activeOperation = operation;
+                _cancelRequested = false;
+                SetStateLocked(TranscriptionWorkflowState.Retrying, "Retrying transcription…", null);
+            }
+        }
+        RaiseChanged();
+        if (immediateFailure is not null) return immediateFailure;
+
+        Transcript? claimedTranscript = null;
+        try
+        {
+            var candidate = await _history.GetAsync(transcriptId, operation.Token).ConfigureAwait(false);
+            if (candidate is null)
+                return CompleteFailure("workflow.retry_not_found", "The transcript no longer exists.", PortableTranscriptionErrorCode.InvalidRequest, operation);
+            if (candidate.Status != TranscriptStatus.Failed)
+                return CompleteFailure("workflow.retry_not_failed", "Only failed transcriptions can be retried.", PortableTranscriptionErrorCode.InvalidRequest, operation);
+            if (!TryResolveRetryAudio(candidate.AudioFilePath, out var audioPath))
+                return CompleteFailure("workflow.retry_audio_unavailable", "The retry audio is missing or unsafe to open.", PortableTranscriptionErrorCode.InvalidRequest, operation);
+
+            var started = await retryStore!.TryBeginRetryAsync(
+                transcriptId, DateTime.UtcNow, operation.Token).ConfigureAwait(false);
+            if (!started.IsStarted)
+            {
+                var (code, message) = started.Status switch
+                {
+                    HistoryRetryStartStatus.NotFound => ("workflow.retry_not_found", "The transcript no longer exists."),
+                    HistoryRetryStartStatus.NotFailed => ("workflow.retry_not_failed", "Only failed transcriptions can be retried."),
+                    _ => ("workflow.retry_conflict", "The transcript changed before retry could start."),
+                };
+                return CompleteFailure(code, message, PortableTranscriptionErrorCode.InvalidRequest, operation);
+            }
+            claimedTranscript = started.Transcript;
+
+            // Recheck after the database claim so a swapped/deleted path never
+            // reaches a transcription backend as a valid retry input.
+            if (!TryResolveRetryAudio(started.Transcript!.AudioFilePath, out var claimedAudioPath)
+                || !string.Equals(audioPath, claimedAudioPath, StringComparison.Ordinal))
+            {
+                return await CompleteTerminalFailureAsync(
+                    started.Transcript,
+                    "workflow.retry_audio_unavailable",
+                    "The retry audio became unavailable.",
+                    PortableTranscriptionErrorCode.InvalidRequest,
+                    operation).ConfigureAwait(false);
+            }
+
+            return await TranscribeAndPersistAsync(
+                claimedAudioPath, TimeSpan.FromSeconds(started.Transcript.Duration), frozenRequest, operation,
+                ownsAudio: false, deleteOwnedAudioOnTerminalFailure: false,
+                injectText: false, cancellationToken, started.Transcript,
+                RetryCancellationSnapshot.Capture(started.Transcript)).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (operation.IsCancellationRequested || cancellationToken.IsCancellationRequested)
+        {
+            return claimedTranscript is null
+                ? CompleteCancelled(operation)
+                : await CompleteRetryCancelledAsync(
+                    claimedTranscript, RetryCancellationSnapshot.Capture(claimedTranscript), operation).ConfigureAwait(false);
+        }
+        catch (Exception)
+        {
+            if (claimedTranscript is not null)
+                return await CompleteTerminalFailureAsync(
+                    claimedTranscript,
+                    "workflow.retry_failed",
+                    "The transcription retry failed unexpectedly.",
+                    PortableTranscriptionErrorCode.TranscriptionFailed,
+                    operation).ConfigureAwait(false);
+            return CompleteFailure(
+                "workflow.retry_failed",
+                "The transcription retry failed unexpectedly.",
+                PortableTranscriptionErrorCode.TranscriptionFailed,
+                operation);
+        }
+    }
+
     public Task CancelAsync()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         var shouldStopRecorder = false;
         lock (_sync)
         {
-            if (_state is not (TranscriptionWorkflowState.Recording or TranscriptionWorkflowState.Stopping or TranscriptionWorkflowState.Transcribing))
+            if (!IsActiveState(_state))
                 return Task.CompletedTask;
             shouldStopRecorder = _state == TranscriptionWorkflowState.Recording;
             _cancelRequested = true;
@@ -505,9 +613,11 @@ public sealed class TranscriptionWorkflow : IDisposable
         bool ownsAudio,
         bool deleteOwnedAudioOnTerminalFailure,
         bool injectText,
-        CancellationToken callerToken)
+        CancellationToken callerToken,
+        Transcript? existingTranscript = null,
+        RetryCancellationSnapshot? retryCancellation = null)
     {
-        var transcript = new Transcript
+        var transcript = existingTranscript ?? new Transcript
         {
             Status = TranscriptStatus.Processing,
             Duration = duration.TotalSeconds,
@@ -519,11 +629,14 @@ public sealed class TranscriptionWorkflow : IDisposable
         };
         try
         {
-            await _history.AddAsync(transcript, operation.Token).ConfigureAwait(false);
+            if (existingTranscript is null)
+                await _history.AddAsync(transcript, operation.Token).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (operation.IsCancellationRequested || callerToken.IsCancellationRequested)
         {
-            return CompleteCancelled(operation, audioPath, ownsAudio);
+            return retryCancellation is not null
+                ? await CompleteRetryCancelledAsync(transcript, retryCancellation, operation).ConfigureAwait(false)
+                : CompleteCancelled(operation, audioPath, ownsAudio);
         }
         catch (Exception)
         {
@@ -543,7 +656,9 @@ public sealed class TranscriptionWorkflow : IDisposable
         }
         catch (OperationCanceledException) when (operation.IsCancellationRequested || callerToken.IsCancellationRequested)
         {
-            return await CompleteCancelledAsync(transcript, operation, audioPath, ownsAudio).ConfigureAwait(false);
+            return retryCancellation is not null
+                ? await CompleteRetryCancelledAsync(transcript, retryCancellation, operation).ConfigureAwait(false)
+                : await CompleteCancelledAsync(transcript, operation, audioPath, ownsAudio).ConfigureAwait(false);
         }
         catch (Exception)
         {
@@ -558,7 +673,9 @@ public sealed class TranscriptionWorkflow : IDisposable
         }
 
         if (operation.IsCancellationRequested || result.Failure?.Code == PortableTranscriptionErrorCode.Cancelled)
-            return await CompleteCancelledAsync(transcript, operation, audioPath, ownsAudio).ConfigureAwait(false);
+            return retryCancellation is not null
+                ? await CompleteRetryCancelledAsync(transcript, retryCancellation, operation).ConfigureAwait(false)
+                : await CompleteCancelledAsync(transcript, operation, audioPath, ownsAudio).ConfigureAwait(false);
         if (!result.IsSuccess)
             return await CompleteTerminalFailureAsync(
                 transcript,
@@ -623,7 +740,9 @@ public sealed class TranscriptionWorkflow : IDisposable
             if (postProcessingProvider is not null) postProcessedText = finalText;
 
             if (operation.IsCancellationRequested || callerToken.IsCancellationRequested)
-                return await CompleteCancelledAsync(transcript, operation, audioPath, ownsAudio).ConfigureAwait(false);
+                return retryCancellation is not null
+                    ? await CompleteRetryCancelledAsync(transcript, retryCancellation, operation).ConfigureAwait(false)
+                    : await CompleteCancelledAsync(transcript, operation, audioPath, ownsAudio).ConfigureAwait(false);
 
             TextInjectionOutcome? injectionOutcome = null;
             if (injectText && _textInjection is not null)
@@ -638,8 +757,10 @@ public sealed class TranscriptionWorkflow : IDisposable
                 }
                 catch (OperationCanceledException) when (operation.IsCancellationRequested)
                 {
-                    return await CompleteCancelledAsync(
-                        transcript, operation, audioPath, ownsAudio).ConfigureAwait(false);
+                    return retryCancellation is not null
+                        ? await CompleteRetryCancelledAsync(transcript, retryCancellation, operation).ConfigureAwait(false)
+                        : await CompleteCancelledAsync(
+                            transcript, operation, audioPath, ownsAudio).ConfigureAwait(false);
                 }
                 catch (Exception)
                 {
@@ -653,8 +774,11 @@ public sealed class TranscriptionWorkflow : IDisposable
             transcript.TranscribedText = rawText;
             transcript.PostProcessedText = postProcessedText;
             transcript.Status = TranscriptStatus.Completed;
+            transcript.FailedReason = null;
             transcript.TranscriptionProvider = result.Provider ?? _transcriber.Capability.DisplayName;
             transcript.PostProcessingProvider = postProcessingProvider;
+            transcript.Mode = request.SelectedMode?.Name ?? request.ModeName;
+            transcript.ModeId = request.SelectedMode?.Id ?? request.ModeId;
             var deleteCompletedAudio = ownsAudio && _audioRetention is not null && !_audioRetention.ShouldKeepAudio;
             if (deleteCompletedAudio) transcript.AudioFilePath = null;
             if (!await _history.UpdateAsync(transcript, operation.Token).ConfigureAwait(false))
@@ -690,7 +814,9 @@ public sealed class TranscriptionWorkflow : IDisposable
         }
         catch (OperationCanceledException) when (operation.IsCancellationRequested || callerToken.IsCancellationRequested)
         {
-            return await CompleteCancelledAsync(transcript, operation, audioPath, ownsAudio).ConfigureAwait(false);
+            return retryCancellation is not null
+                ? await CompleteRetryCancelledAsync(transcript, retryCancellation, operation).ConfigureAwait(false)
+                : await CompleteCancelledAsync(transcript, operation, audioPath, ownsAudio).ConfigureAwait(false);
         }
         catch (Exception)
         {
@@ -791,6 +917,18 @@ public sealed class TranscriptionWorkflow : IDisposable
             ownsAudio && safeToDeleteOwnedAudio);
     }
 
+    private async Task<PortableTranscriptionResult> CompleteRetryCancelledAsync(
+        Transcript transcript,
+        RetryCancellationSnapshot snapshot,
+        CancellationTokenSource operation)
+    {
+        snapshot.Restore(transcript);
+        transcript.Status = TranscriptStatus.Failed;
+        try { _ = await _history.UpdateAsync(transcript, CancellationToken.None).ConfigureAwait(false); }
+        catch (Exception) { }
+        return CompleteCancelled(operation);
+    }
+
     private async Task MarkCancellationCleanupFailedAsync(Transcript transcript)
     {
         transcript.Status = TranscriptStatus.Failed;
@@ -863,11 +1001,71 @@ public sealed class TranscriptionWorkflow : IDisposable
         return PortableTranscriptionResult.Failed(resultCode, message, _transcriber.Capability.DisplayName);
     }
 
+    private PortableTranscriptionResult BusyLocked() => PortableTranscriptionResult.Failed(
+        PortableTranscriptionErrorCode.InvalidRequest,
+        "A recording or transcription is already active.",
+        _transcriber.Capability.DisplayName);
+
     private void SetStateLocked(TranscriptionWorkflowState state, string message, string? errorCode)
     {
         _state = state;
         _message = message;
         _errorCode = errorCode;
+    }
+
+    private static bool IsActiveState(TranscriptionWorkflowState state) => state is
+        TranscriptionWorkflowState.Recording or TranscriptionWorkflowState.Stopping
+        or TranscriptionWorkflowState.Transcribing or TranscriptionWorkflowState.Retrying;
+
+    private static bool TryResolveRetryAudio(string? path, out string fullPath)
+    {
+        fullPath = string.Empty;
+        if (string.IsNullOrWhiteSpace(path)) return false;
+        try
+        {
+            fullPath = Path.GetFullPath(path);
+            var info = new FileInfo(fullPath);
+            return info.Exists && !info.Attributes.HasFlag(FileAttributes.ReparsePoint);
+        }
+        catch (Exception exception) when (exception is ArgumentException or NotSupportedException
+            or IOException or UnauthorizedAccessException)
+        {
+            fullPath = string.Empty;
+            return false;
+        }
+    }
+
+    private sealed record RetryCancellationSnapshot(
+        string Text,
+        string? TranscribedText,
+        string? PostProcessedText,
+        string? FailedReason,
+        string? TranscriptionProvider,
+        string? PostProcessingProvider,
+        string? Mode,
+        Guid? ModeId)
+    {
+        public static RetryCancellationSnapshot Capture(Transcript transcript) => new(
+            transcript.Text,
+            transcript.TranscribedText,
+            transcript.PostProcessedText,
+            transcript.FailedReason,
+            transcript.TranscriptionProvider,
+            transcript.PostProcessingProvider,
+            transcript.Mode,
+            transcript.ModeId);
+
+        public void Restore(Transcript transcript)
+        {
+            transcript.Text = Text;
+            transcript.TranscribedText = TranscribedText;
+            transcript.PostProcessedText = PostProcessedText;
+            transcript.FailedReason = FailedReason;
+            transcript.TranscriptionProvider = TranscriptionProvider;
+            transcript.PostProcessingProvider = PostProcessingProvider;
+            transcript.Mode = Mode;
+            transcript.ModeId = ModeId;
+        }
     }
 
     private string BuildAvailabilityMessage()

@@ -51,7 +51,28 @@ public interface ITranscriptionHistoryStore
     Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default);
 }
 
-public sealed class HistoryRepository : ITranscriptionHistoryStore
+public enum HistoryRetryStartStatus
+{
+    Started,
+    NotFound,
+    NotFailed,
+    ConcurrentlyChanged,
+}
+
+public sealed record HistoryRetryStartResult(HistoryRetryStartStatus Status, Transcript? Transcript = null)
+{
+    public bool IsStarted => Status == HistoryRetryStartStatus.Started && Transcript is not null;
+}
+
+public interface ITranscriptionRetryStore
+{
+    Task<HistoryRetryStartResult> TryBeginRetryAsync(
+        Guid id,
+        DateTime retryDateUtc,
+        CancellationToken cancellationToken = default);
+}
+
+public sealed class HistoryRepository : ITranscriptionHistoryStore, ITranscriptionRetryStore
 {
     private readonly ApplicationDb _database;
     private readonly string? _recordingsRoot;
@@ -94,6 +115,37 @@ public sealed class HistoryRepository : ITranscriptionHistoryStore
         context.Transcripts.Update(transcript);
         await context.SaveChangesAsync(cancellationToken);
         return true;
+    }
+
+    public async Task<HistoryRetryStartResult> TryBeginRetryAsync(
+        Guid id,
+        DateTime retryDateUtc,
+        CancellationToken cancellationToken = default)
+    {
+        if (retryDateUtc.Kind != DateTimeKind.Utc)
+            throw new ArgumentException("Retry timestamp must be UTC.", nameof(retryDateUtc));
+
+        await using var context = _database.CreateContext();
+        var candidate = await context.Transcripts.AsNoTracking()
+            .SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
+        if (candidate is null) return new(HistoryRetryStartStatus.NotFound);
+        if (candidate.Status != TranscriptStatus.Failed) return new(HistoryRetryStartStatus.NotFailed);
+
+        // The retry counter is also the optimistic concurrency token. This
+        // prevents two app processes from claiming the same failed row.
+        var affected = await context.Transcripts
+            .Where(item => item.Id == id
+                && item.Status == TranscriptStatus.Failed
+                && item.RetryCount == candidate.RetryCount)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(item => item.Status, TranscriptStatus.Processing)
+                .SetProperty(item => item.RetryCount, item => item.RetryCount + 1)
+                .SetProperty(item => item.LastRetryDate, retryDateUtc), cancellationToken);
+        if (affected != 1) return new(HistoryRetryStartStatus.ConcurrentlyChanged);
+
+        var claimed = await context.Transcripts.AsNoTracking()
+            .SingleAsync(item => item.Id == id, cancellationToken);
+        return new(HistoryRetryStartStatus.Started, claimed);
     }
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
@@ -589,8 +641,14 @@ public sealed class ApplicationBackupService(ApplicationDb database, PortableSet
         linuxSettings["localApiEnabled"] = _settings.Get("localApiEnabled", false);
         linuxSettings["localApiPort"] = _settings.Get("localApiPort", 51671);
         linuxSettings["autostartEnabled"] = _settings.Get("autostartEnabled", false);
-        linuxSettings["toggleShortcutModifiers"] = _settings.Get("toggleShortcutModifiers", "Control, Shift");
-        linuxSettings["toggleShortcutKey"] = _settings.Get("toggleShortcutKey", "Space");
+        linuxSettings["toggleShortcutModifiers"] = _settings.Get("toggleShortcutModifiers", "Control, Alt");
+        linuxSettings["toggleShortcutKey"] = _settings.Get("toggleShortcutKey", string.Empty);
+        linuxSettings["cancelShortcutModifiers"] = _settings.Get("cancelShortcutModifiers", "None");
+        linuxSettings["cancelShortcutKey"] = _settings.Get("cancelShortcutKey", "Escape");
+        linuxSettings["changeModeShortcutModifiers"] = _settings.Get("changeModeShortcutModifiers", "Control, Shift");
+        linuxSettings["changeModeShortcutKey"] = _settings.Get("changeModeShortcutKey", "Period");
+        linuxSettings["streamingShortcutModifiers"] = _settings.Get("streamingShortcutModifiers", "Control, Shift");
+        linuxSettings["streamingShortcutKey"] = _settings.Get("streamingShortcutKey", "Space");
         linuxSettings["pushToTalkMode"] = _settings.Get("pushToTalkMode", "Disabled");
         linuxSettings["pushToTalkModifier"] = _settings.Get("pushToTalkModifier", "LeftAlt");
         linuxSettings["pushToTalkShortcutModifiers"] = _settings.Get("pushToTalkShortcutModifiers", "None");
@@ -701,6 +759,12 @@ public sealed class ApplicationBackupService(ApplicationDb database, PortableSet
                     CopySetting<bool>(linuxSettings, "autostartEnabled");
                     CopySetting<string>(linuxSettings, "toggleShortcutModifiers");
                     CopySetting<string>(linuxSettings, "toggleShortcutKey");
+                    CopySetting<string>(linuxSettings, "cancelShortcutModifiers");
+                    CopySetting<string>(linuxSettings, "cancelShortcutKey");
+                    CopySetting<string>(linuxSettings, "changeModeShortcutModifiers");
+                    CopySetting<string>(linuxSettings, "changeModeShortcutKey");
+                    CopySetting<string>(linuxSettings, "streamingShortcutModifiers");
+                    CopySetting<string>(linuxSettings, "streamingShortcutKey");
                     CopySetting<string>(linuxSettings, "pushToTalkMode");
                     CopySetting<string>(linuxSettings, "pushToTalkModifier");
                     CopySetting<string>(linuxSettings, "pushToTalkShortcutModifiers");

@@ -20,6 +20,7 @@ try
     var database = new ApplicationDb(paths);
     await database.MigrateAsync();
     await RunTranscriptionWorkflowTestsAsync(root);
+    await RunHistoryRetryTestsAsync(root);
 
     var freshDatabase = new ApplicationDb(new TestPaths(Path.Combine(root, "fresh-defaults")));
     await freshDatabase.InitializeAsync();
@@ -536,7 +537,8 @@ try
         requestShell.Modes.Selected = requestShell.Modes.Items.First(item => item.Id != retryTargetMode.Id);
         var retryTranscript = new Transcript
         {
-            Text = "retry target", Status = TranscriptStatus.Completed, AudioFilePath = requestAudio,
+            Text = "Transcription failed: old failure", FailedReason = "old failure",
+            Status = TranscriptStatus.Failed, AudioFilePath = requestAudio,
             ModeId = retryTargetMode.Id, Mode = retryTargetMode.Name
         };
         await new HistoryRepository(database, paths).AddAsync(retryTranscript);
@@ -545,6 +547,11 @@ try
         await requestShell.History.RetryAsync();
         Assert(requestTranscriber.LastRequest?.SelectedMode?.Id == retryTargetMode.Id,
             "history retry used the currently selected mode instead of the transcript's persisted mode");
+        var retried = await new HistoryRepository(database, paths).GetAsync(retryTranscript.Id);
+        Assert(retried is { Status: TranscriptStatus.Completed, RetryCount: 1 }
+            && retried.FailedReason is null
+            && (await new HistoryRepository(database, paths).ListAsync()).Count(item => item.Id == retryTranscript.Id) == 1,
+            "history retry did not update the failed row exactly once");
         requestShell.Recording!.FilePath = requestAudio;
         await requestShell.Recording.TranscribeFileAsync();
         Assert(requestTranscriber.LastRequest?.Vocabulary?.Contains("HyperWhisper") == true,
@@ -1118,6 +1125,258 @@ static async Task RunTranscriptionWorkflowTestsAsync(string root)
         "orphan processing row remained non-terminal");
 }
 
+static async Task RunHistoryRetryTestsAsync(string root)
+{
+    static async Task<(ApplicationDb Database, HistoryRepository History)> CreateStoreAsync(string parent, string name)
+    {
+        var storeRoot = Path.Combine(parent, name);
+        Directory.CreateDirectory(storeRoot);
+        var database = new ApplicationDb(new TestPaths(storeRoot));
+        await database.MigrateAsync();
+        return (database, new HistoryRepository(database));
+    }
+
+    static Mode RetryMode(string name = "Retry mode") => new()
+    {
+        Id = Guid.NewGuid(),
+        Name = name,
+        Language = "en",
+        Punctuation = true,
+        Capitalization = true,
+    };
+
+    var successStore = await CreateStoreAsync(root, "retry-success");
+    var successAudio = Path.Combine(root, "retry-success.wav");
+    await File.WriteAllBytesAsync(successAudio, [1, 2, 3]);
+    var oldRetryDate = new DateTime(2026, 1, 2, 3, 4, 5, DateTimeKind.Utc);
+    var successTarget = new Transcript
+    {
+        Text = "Transcription failed: original",
+        TranscribedText = "old raw",
+        PostProcessedText = "old processed",
+        FailedReason = "original",
+        Status = TranscriptStatus.Failed,
+        AudioFilePath = successAudio,
+        RetryCount = 2,
+        LastRetryDate = oldRetryDate,
+        Mode = "Old mode",
+    };
+    await successStore.History.AddAsync(successTarget);
+    var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+    var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+    var successTranscriber = new FakeTranscriber(async (_, _, token) =>
+    {
+        entered.TrySetResult();
+        await release.Task.WaitAsync(token);
+        return PortableTranscriptionResult.Success("new words", "Retry provider");
+    });
+    var selectedMode = RetryMode("Explicit retry mode");
+    var mutableVocabulary = new List<string> { "Ray" };
+    using (var recorder = new FakeRecorder(successAudio))
+    using (var devices = new FakeDevices())
+    using (var workflow = new TranscriptionWorkflow(recorder, devices, successTranscriber, successStore.History))
+    {
+        var observed = new List<TranscriptionWorkflowState>();
+        workflow.Changed += (_, _) => observed.Add(workflow.Snapshot.State);
+        var retrying = workflow.RetryTranscriptAsync(successTarget.Id, new TranscriptionWorkflowRequest(
+            Language: "en", SelectedMode: selectedMode, Vocabulary: mutableVocabulary));
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var claimed = await successStore.History.GetAsync(successTarget.Id);
+        Assert(workflow.Snapshot.State == TranscriptionWorkflowState.Retrying
+            && claimed is { Status: TranscriptStatus.Processing, RetryCount: 3 }
+            && claimed.LastRetryDate > oldRetryDate,
+            "retry claim was not durable and observable before backend completion");
+        var overlapping = await workflow.RetryTranscriptAsync(
+            successTarget.Id, new TranscriptionWorkflowRequest(SelectedMode: RetryMode("Overlapping")));
+        Assert(overlapping.Failure?.Code == PortableTranscriptionErrorCode.InvalidRequest
+            && workflow.Snapshot.State == TranscriptionWorkflowState.Retrying
+            && workflow.Snapshot.CanCancel,
+            "overlapping retry corrupted the active retry state or disabled cancellation");
+        selectedMode.Name = "mutated after start";
+        mutableVocabulary.Add("late mutation");
+        release.TrySetResult();
+        var result = await retrying;
+        var saved = await successStore.History.ListAsync();
+        Assert(result.IsSuccess && saved.Count == 1 && saved[0].Id == successTarget.Id,
+            "successful retry duplicated or replaced the transcript identity");
+        Assert(saved[0].Status == TranscriptStatus.Completed
+            && saved[0].Text == "new words"
+            && saved[0].TranscribedText == "new words"
+            && saved[0].FailedReason is null
+            && saved[0].RetryCount == 3
+            && saved[0].Mode == "Explicit retry mode"
+            && saved[0].ModeId == selectedMode.Id,
+            "successful retry did not finalize the original row with retry metadata");
+        Assert(successTranscriber.LastRequest?.SelectedMode?.Name == "Explicit retry mode"
+            && successTranscriber.LastRequest.Vocabulary?.SequenceEqual(["Ray"]) == true,
+            "retry request did not snapshot mutable mode and vocabulary state");
+        Assert(observed.Contains(TranscriptionWorkflowState.Retrying)
+            && observed.Contains(TranscriptionWorkflowState.Completed),
+            "retry workflow transitions were not observable");
+    }
+
+    var failureStore = await CreateStoreAsync(root, "retry-failure");
+    var failureAudio = Path.Combine(root, "retry-failure.wav");
+    await File.WriteAllBytesAsync(failureAudio, [1]);
+    var failureTarget = new Transcript
+    {
+        Text = "Transcription failed: stale",
+        FailedReason = "stale",
+        Status = TranscriptStatus.Failed,
+        AudioFilePath = failureAudio,
+    };
+    await failureStore.History.AddAsync(failureTarget);
+    using (var recorder = new FakeRecorder(failureAudio))
+    using (var devices = new FakeDevices())
+    using (var workflow = new TranscriptionWorkflow(
+        recorder, devices,
+        new FakeTranscriber((_, _, _) => Task.FromResult(PortableTranscriptionResult.Failed(
+            PortableTranscriptionErrorCode.TranscriptionFailed, "fresh backend failure"))),
+        failureStore.History))
+    {
+        var result = await workflow.RetryTranscriptAsync(
+            failureTarget.Id, new TranscriptionWorkflowRequest(SelectedMode: RetryMode()));
+        var saved = await failureStore.History.GetAsync(failureTarget.Id);
+        Assert(!result.IsSuccess && saved is
+            { Status: TranscriptStatus.Failed, FailedReason: "fresh backend failure", RetryCount: 1 }
+            && saved.Text == "Transcription failed: fresh backend failure"
+            && File.Exists(failureAudio),
+            "failed retry did not replace stale failure details while retaining retry audio");
+    }
+    var historyRetryEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+    var historyRetryRelease = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+    var historyViewModel = new HistoryViewModel(
+        failureStore.History,
+        retry: async (_, token) =>
+        {
+            historyRetryEntered.TrySetResult();
+            await historyRetryRelease.Task.WaitAsync(token);
+            return PortableTranscriptionResult.Failed(
+                PortableTranscriptionErrorCode.Cancelled, "Transcription was cancelled.");
+        });
+    await historyViewModel.RefreshAsync();
+    var historyRetry = historyViewModel.RetryAsync();
+    await historyRetryEntered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+    Assert(historyViewModel.IsRetrying && !historyViewModel.CanRetry,
+        "history view model did not expose and command-gate its in-flight retry");
+    historyRetryRelease.TrySetResult();
+    await historyRetry;
+    Assert(!historyViewModel.IsRetrying
+        && historyViewModel.Selected?.Id == failureTarget.Id
+        && historyViewModel.Status.ErrorCode == "history.retry_cancelled",
+        "history view model did not refresh the same row after retry cancellation");
+
+    var cancellationStore = await CreateStoreAsync(root, "retry-cancellation");
+    var cancellationAudio = Path.Combine(root, "retry-cancellation.wav");
+    await File.WriteAllBytesAsync(cancellationAudio, [1]);
+    var cancellationTarget = new Transcript
+    {
+        Text = "Transcription failed: preserve me",
+        TranscribedText = "preserved raw",
+        PostProcessedText = "preserved processed",
+        FailedReason = "preserve me",
+        TranscriptionProvider = "Old provider",
+        PostProcessingProvider = "Old post provider",
+        Status = TranscriptStatus.Failed,
+        AudioFilePath = cancellationAudio,
+    };
+    await cancellationStore.History.AddAsync(cancellationTarget);
+    var cancellationEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+    using (var recorder = new FakeRecorder(cancellationAudio))
+    using (var devices = new FakeDevices())
+    using (var workflow = new TranscriptionWorkflow(
+        recorder, devices,
+        new FakeTranscriber(async (_, _, token) =>
+        {
+            cancellationEntered.TrySetResult();
+            await Task.Delay(Timeout.InfiniteTimeSpan, token);
+            return PortableTranscriptionResult.Success("unreachable", "provider");
+        }),
+        cancellationStore.History))
+    {
+        var retrying = workflow.RetryTranscriptAsync(
+            cancellationTarget.Id, new TranscriptionWorkflowRequest(SelectedMode: RetryMode()));
+        await cancellationEntered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await workflow.CancelAsync();
+        var result = await retrying;
+        var saved = await cancellationStore.History.GetAsync(cancellationTarget.Id);
+        Assert(result.Failure?.Code == PortableTranscriptionErrorCode.Cancelled
+            && saved is { Status: TranscriptStatus.Failed, RetryCount: 1, FailedReason: "preserve me" }
+            && saved.Text == cancellationTarget.Text
+            && saved.TranscribedText == cancellationTarget.TranscribedText
+            && saved.PostProcessedText == cancellationTarget.PostProcessedText
+            && saved.TranscriptionProvider == cancellationTarget.TranscriptionProvider
+            && saved.PostProcessingProvider == cancellationTarget.PostProcessingProvider
+            && saved.LastRetryDate is not null
+            && File.Exists(cancellationAudio),
+            "cancelled retry did not restore the original failed row and retain its audio");
+    }
+
+    var eligibilityStore = await CreateStoreAsync(root, "retry-eligibility");
+    var eligibilityAudio = Path.Combine(root, "retry-eligibility.wav");
+    await File.WriteAllBytesAsync(eligibilityAudio, [1]);
+    var completed = new Transcript
+    {
+        Text = "complete", Status = TranscriptStatus.Completed, AudioFilePath = eligibilityAudio,
+    };
+    var missing = new Transcript
+    {
+        Text = "failed", FailedReason = "failed", Status = TranscriptStatus.Failed,
+        AudioFilePath = Path.Combine(root, "missing-retry.wav"),
+    };
+    var linkedPath = Path.Combine(root, "retry-linked.wav");
+    File.CreateSymbolicLink(linkedPath, eligibilityAudio);
+    var linked = new Transcript
+    {
+        Text = "failed", FailedReason = "failed", Status = TranscriptStatus.Failed, AudioFilePath = linkedPath,
+    };
+    await eligibilityStore.History.AddAsync(completed);
+    await eligibilityStore.History.AddAsync(missing);
+    await eligibilityStore.History.AddAsync(linked);
+    var eligibilityTranscriber = new FakeTranscriber((_, _, _) => Task.FromResult(
+        PortableTranscriptionResult.Success("must not run", "provider")));
+    using (var recorder = new FakeRecorder(eligibilityAudio))
+    using (var devices = new FakeDevices())
+    using (var workflow = new TranscriptionWorkflow(recorder, devices, eligibilityTranscriber, eligibilityStore.History))
+    {
+        var noMode = await workflow.RetryTranscriptAsync(missing.Id, new TranscriptionWorkflowRequest());
+        var completedResult = await workflow.RetryTranscriptAsync(
+            completed.Id, new TranscriptionWorkflowRequest(SelectedMode: RetryMode()));
+        var missingResult = await workflow.RetryTranscriptAsync(
+            missing.Id, new TranscriptionWorkflowRequest(SelectedMode: RetryMode()));
+        var linkedResult = await workflow.RetryTranscriptAsync(
+            linked.Id, new TranscriptionWorkflowRequest(SelectedMode: RetryMode()));
+        Assert(noMode.Failure?.Code == PortableTranscriptionErrorCode.InvalidRequest
+            && completedResult.Failure?.Code == PortableTranscriptionErrorCode.InvalidRequest
+            && missingResult.Failure?.Code == PortableTranscriptionErrorCode.InvalidRequest
+            && linkedResult.Failure?.Code == PortableTranscriptionErrorCode.InvalidRequest
+            && eligibilityTranscriber.CallCount == 0,
+            "retry eligibility allowed a missing mode, non-failed row, missing file, or symlink");
+        Assert((await eligibilityStore.History.GetAsync(missing.Id))?.RetryCount == 0
+            && (await eligibilityStore.History.GetAsync(linked.Id))?.RetryCount == 0,
+            "rejected retry changed retry metadata");
+    }
+
+    var claimStore = await CreateStoreAsync(root, "retry-claim");
+    var claim = new Transcript
+    {
+        Text = "failed", FailedReason = "failed", Status = TranscriptStatus.Failed,
+        AudioFilePath = eligibilityAudio,
+    };
+    await claimStore.History.AddAsync(claim);
+    var timestamp = DateTime.UtcNow;
+    var firstClaim = await claimStore.History.TryBeginRetryAsync(claim.Id, timestamp);
+    var secondClaim = await claimStore.History.TryBeginRetryAsync(claim.Id, timestamp.AddSeconds(1));
+    Assert(firstClaim.IsStarted && firstClaim.Transcript is { Status: TranscriptStatus.Processing, RetryCount: 1 }
+        && secondClaim.Status == HistoryRetryStartStatus.NotFailed,
+        "retry repository allowed a second claim on an in-progress retry");
+    Assert(await claimStore.History.FailOrphanedProcessingAsync() == 1,
+        "startup recovery did not detect an interrupted retry claim");
+    var recoveredClaim = await claimStore.History.GetAsync(claim.Id);
+    Assert(recoveredClaim is { Status: TranscriptStatus.Failed, FailedReason: "failed", Text: "failed", RetryCount: 1 },
+        "startup recovery did not restore an interrupted retry's original failure details");
+}
+
 file sealed class TestPaths(string root) : IAppPaths
 {
     public string DataDirectory => root;
@@ -1344,12 +1603,14 @@ file sealed class FakeTranscriber(
     Func<string, string?, CancellationToken, Task<PortableTranscriptionResult>> transcribe) : IRecordedAudioTranscriber
 {
     public TranscriptionWorkflowRequest? LastRequest { get; private set; }
+    public int CallCount { get; private set; }
     public TranscriptionBackendCapability Capability { get; } = new(true, "Test Whisper");
     public Task<PortableTranscriptionResult> TranscribeAsync(
         string audioPath,
         TranscriptionWorkflowRequest request,
         CancellationToken cancellationToken = default)
     {
+        CallCount++;
         LastRequest = request;
         return transcribe(audioPath, request.Language, cancellationToken);
     }

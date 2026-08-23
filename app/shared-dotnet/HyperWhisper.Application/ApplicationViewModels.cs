@@ -404,14 +404,15 @@ public sealed class HistoryViewModel : ViewModelBase
 {
     private readonly HistoryRepository _repository;
     private readonly IAudioPlaybackService? _playback;
-    private readonly Func<Transcript, CancellationToken, Task>? _retry;
+    private readonly Func<Transcript, CancellationToken, Task<PortableTranscriptionResult>>? _retry;
     private Transcript? _selected;
     private string _searchText = string.Empty;
     private DateTimeOffset? _startDate;
     private DateTimeOffset? _endDate;
     private bool _showRawTranscript;
     private bool _deleteAudio;
-    public HistoryViewModel(HistoryRepository repository, IAudioPlaybackService? playback = null, Func<Transcript, CancellationToken, Task>? retry = null)
+    private bool _isRetrying;
+    public HistoryViewModel(HistoryRepository repository, IAudioPlaybackService? playback = null, Func<Transcript, CancellationToken, Task<PortableTranscriptionResult>>? retry = null)
     {
         _repository = repository;
         _playback = playback;
@@ -421,7 +422,7 @@ public sealed class HistoryViewModel : ViewModelBase
         SearchCommand = new AsyncCommand(_ => SearchAsync());
         ClearFiltersCommand = new AsyncCommand(_ => ClearFiltersAsync());
         PlayCommand = new AsyncCommand(_ => PlayAsync(), _ => Selected?.AudioFilePath is not null);
-        RetryCommand = new AsyncCommand(_ => RetryAsync(), _ => Selected?.AudioFilePath is not null && _retry is not null);
+        RetryCommand = new AsyncCommand(_ => RetryAsync(), _ => CanRetry);
     }
     public ObservableCollection<Transcript> Items { get; } = new();
     public Transcript? Selected
@@ -433,6 +434,7 @@ public sealed class HistoryViewModel : ViewModelBase
             if (!HasRawTranscript) _showRawTranscript = false;
             Notify(nameof(ShowRawTranscript));
             NotifyDetail();
+            Notify(nameof(CanRetry));
             ((AsyncCommand)PlayCommand).RaiseCanExecuteChanged();
             ((AsyncCommand)RetryCommand).RaiseCanExecuteChanged();
         }
@@ -461,6 +463,18 @@ public sealed class HistoryViewModel : ViewModelBase
             ? "Post-processed transcript"
             : "Final transcript";
     public bool DeleteAudio { get => _deleteAudio; set => Set(ref _deleteAudio, value); }
+    public bool IsRetrying
+    {
+        get => _isRetrying;
+        private set
+        {
+            if (!Set(ref _isRetrying, value)) return;
+            Notify(nameof(CanRetry));
+            ((AsyncCommand)RetryCommand).RaiseCanExecuteChanged();
+        }
+    }
+    public bool CanRetry => !IsRetrying && _retry is not null && Selected is
+        { Status: TranscriptStatus.Failed, AudioFilePath: not null };
     public UiStatus Status { get; } = new();
     public ICommand RefreshCommand { get; }
     public ICommand DeleteCommand { get; }
@@ -539,9 +553,32 @@ public sealed class HistoryViewModel : ViewModelBase
 
     public async Task RetryAsync(CancellationToken cancellationToken = default)
     {
-        if (_retry is null || Selected is null) { Status.Failure("history.retry_unavailable", "Retry is unavailable."); return; }
-        try { await _retry(Selected, cancellationToken); await RefreshAsync(cancellationToken); }
+        if (_retry is null || Selected is not { Status: TranscriptStatus.Failed } selected)
+        {
+            Status.Failure("history.retry_unavailable", "Only a failed transcription with retained audio can be retried.");
+            return;
+        }
+
+        var selectedId = selected.Id;
+        IsRetrying = true;
+        try
+        {
+            var result = await _retry(selected, cancellationToken);
+            await RefreshAsync(CancellationToken.None);
+            Selected = Items.FirstOrDefault(item => item.Id == selectedId) ?? Items.FirstOrDefault();
+            if (result.IsSuccess) Status.Success("Transcription retry completed");
+            else if (result.Failure?.Code == PortableTranscriptionErrorCode.Cancelled)
+                Status.Failure("history.retry_cancelled", "Transcription retry cancelled");
+            else Status.Failure("history.retry_failed", result.Failure?.Message ?? "The transcription retry failed.");
+        }
+        catch (OperationCanceledException)
+        {
+            await RefreshAsync(CancellationToken.None);
+            Selected = Items.FirstOrDefault(item => item.Id == selectedId) ?? Items.FirstOrDefault();
+            Status.Failure("history.retry_cancelled", "Transcription retry cancelled");
+        }
         catch (Exception) { Status.Failure("history.retry_failed", "The transcription retry failed."); }
+        finally { IsRetrying = false; }
     }
 
     private void NotifyDetail()
@@ -1471,7 +1508,7 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
                 ?? Modes.Items.FirstOrDefault(mode => string.Equals(mode.Name, item.Mode, StringComparison.OrdinalIgnoreCase))
                 ?? Modes.Items.FirstOrDefault(mode => mode.IsDefault)
                 ?? Modes.Selected;
-            _ = await transcriptionWorkflow!.TranscribeFileAsync(audioPath, new(
+            return await transcriptionWorkflow!.RetryTranscriptAsync(item.Id, new(
                 Language: Settings.Language,
                 ModeName: retryMode?.Name ?? item.Mode,
                 ModeId: retryMode?.Id ?? item.ModeId,
