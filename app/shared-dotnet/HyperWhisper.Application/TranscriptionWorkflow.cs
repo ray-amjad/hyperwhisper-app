@@ -76,17 +76,29 @@ public interface IRecordedAudioTranscriber
         CancellationToken cancellationToken = default);
 }
 
+public interface ICompletedAudioTransformer
+{
+    Task<PlatformResult<string>> TransformAsync(string path, CancellationToken cancellationToken = default);
+}
+
 public sealed class CompletedAudioRetention(
     Func<bool> keepAudio,
-    PortableStorageLifecycleService storage)
+    PortableStorageLifecycleService storage,
+    ICompletedAudioTransformer? transformer = null)
 {
     private readonly Func<bool> _keepAudio = keepAudio ?? throw new ArgumentNullException(nameof(keepAudio));
     private readonly PortableStorageLifecycleService _storage = storage ?? throw new ArgumentNullException(nameof(storage));
+    private readonly ICompletedAudioTransformer? _transformer = transformer;
 
     public bool ShouldKeepAudio => _keepAudio();
 
     public Task<StorageCleanupResult> DeleteAsync(string path, CancellationToken cancellationToken) =>
         _storage.EnforceKeepAudioAsync(path, keepAudio: false, cancellationToken);
+
+    public Task<PlatformResult<string>> TransformAsync(string path, CancellationToken cancellationToken) =>
+        _transformer is null
+            ? Task.FromResult(PlatformResult<string>.Success(path))
+            : _transformer.TransformAsync(path, cancellationToken);
 }
 
 public sealed record PortablePostProcessingResult(
@@ -780,6 +792,11 @@ public sealed class TranscriptionWorkflow : IDisposable
             transcript.Mode = request.SelectedMode?.Name ?? request.ModeName;
             transcript.ModeId = request.SelectedMode?.Id ?? request.ModeId;
             var deleteCompletedAudio = ownsAudio && _audioRetention is not null && !_audioRetention.ShouldKeepAudio;
+            if (ownsAudio && _audioRetention is { ShouldKeepAudio: true })
+            {
+                var transformed = await _audioRetention.TransformAsync(audioPath, operation.Token).ConfigureAwait(false);
+                if (transformed.IsSuccess) transcript.AudioFilePath = transformed.Value;
+            }
             if (deleteCompletedAudio) transcript.AudioFilePath = null;
             if (!await _history.UpdateAsync(transcript, operation.Token).ConfigureAwait(false))
                 throw new InvalidOperationException("The processing transcript disappeared before completion.");

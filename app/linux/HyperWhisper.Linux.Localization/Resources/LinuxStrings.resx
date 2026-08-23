@@ -254,4 +254,9 @@
   <data name="linux.format.words.replaced.value" xml:space="preserve"><value>Words replaced: {0}</value></data>
   <data name="linux.format.words.skipped.value" xml:space="preserve"><value>Words skipped: {0}</value></data>
   <data name="linux.format.words.value" xml:space="preserve"><value>Words: {0}</value></data>
+  <data name="linux.overlay.success_glyph" xml:space="preserve"><value>✓</value></data>
+  <data name="linux.overlay.copy_glyph" xml:space="preserve"><value>▣</value></data>
+  <data name="linux.overlay.secure_glyph" xml:space="preserve"><value>🔒</value></data>
+  <data name="linux.overlay.escape_hint" xml:space="preserve"><value>Esc ·</value></data>
+  <data name="linux.storage.restart_required" xml:space="preserve"><value>Save and restart HyperWhisper to use this folder for new recordings. Existing history keeps its original absolute audio paths.</value></data>
 </root>

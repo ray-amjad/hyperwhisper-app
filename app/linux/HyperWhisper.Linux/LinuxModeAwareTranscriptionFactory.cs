@@ -4,6 +4,7 @@ using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.SharedCore;
 using HyperWhisper.TranscriptionRouting;
 using HyperWhisper.PortableApplication.Transcription;
+using HyperWhisper.PortableApplication.Persistence;
 
 namespace HyperWhisper.Linux;
 
@@ -15,6 +16,7 @@ internal static class LinuxModeAwareTranscriptionFactory
 {
     public static ModeAwareTranscriptionRouter Create(
         IAppPaths paths,
+        IPrivateFileService privateFiles,
         ICredentialStore credentialStore,
         IDeviceIdentityProvider deviceIdentity,
         out IRecordedAudioTranscriber whisper,
@@ -24,8 +26,13 @@ internal static class LinuxModeAwareTranscriptionFactory
         var credentials = new CredentialStoreCloudCredentialSource(
             credentialStore ?? throw new ArgumentNullException(nameof(credentialStore)),
             deviceIdentity ?? throw new ArgumentNullException(nameof(deviceIdentity)));
-        var cloud = new SharedCoreBatchCloudClient(
-            new CloudTranscriptionService(new HttpClientHandler(), credentials));
+        bool ShareAnonymousSpeedData()
+        {
+            var settings = new PortableSettingsService(privateFiles, paths);
+            return settings.Load().IsFailure || settings.Get("general.shareAnonymousSpeedData", true);
+        }
+        var cloud = new SharedCoreBatchCloudClient(new CloudTranscriptionService(
+            new LinuxLatencyOptOutHandler(ShareAnonymousSpeedData, new HttpClientHandler()), credentials));
         parakeet = new ParakeetDaemonTranscriber(
             new LinuxNativeRuntimeLocator(),
             new LinuxChildProcessLauncher(),

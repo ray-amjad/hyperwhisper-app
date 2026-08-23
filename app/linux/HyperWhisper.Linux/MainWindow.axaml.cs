@@ -24,6 +24,7 @@ using HyperWhisper.PortableApplication.ModelLibrary;
 using HyperWhisper.Diagnostics;
 using System.Reflection;
 using HyperWhisper.Linux.Localization;
+using HyperWhisper.Linux.Platform.Files;
 
 namespace HyperWhisper.Linux;
 
@@ -58,6 +59,7 @@ public partial class MainWindow : Window
     private TranscriptStorageCleanupResult? _lastStorageCleanup;
     private bool _allowClose;
     private bool _trayAvailable;
+    private bool _localApiTokenRevealed;
 
     public MainWindow() : this(new LinuxDesktopServices())
     {
@@ -96,7 +98,9 @@ public partial class MainWindow : Window
             _postProcessingRouter,
             _platformServices.TextInjection,
             audioRetention: new CompletedAudioRetention(
-                () => _settings.Get("storage.keepAudioFiles", true), _storageLifecycle));
+                () => _settings.Get("storage.keepAudioFiles", true), _storageLifecycle,
+                new FfmpegM4aAudioTransformer(
+                    () => _settings.Get("storage.storeAsM4A", false))));
         _viewModel = new ApplicationShellViewModel(
             _database, _settings, _workflow, LinuxLocalPostProcessor.RuntimeStatus,
             _modelManager, _platformServices.AudioPlayback,
@@ -697,7 +701,11 @@ public partial class MainWindow : Window
                 await _localApiHost.DisposeAsync().ConfigureAwait(false);
                 _localApiHost = null;
             }
-            if (!_viewModel.Settings.LocalApiEnabled) return;
+            if (!_viewModel.Settings.LocalApiEnabled)
+            {
+                await Dispatcher.UIThread.InvokeAsync(UpdateLocalApiConnectionUi);
+                return;
+            }
             var modes = new ModeRepository(_database);
             var backend = new ApplicationLocalApiBackend(
                 modes,
@@ -718,6 +726,7 @@ public partial class MainWindow : Window
             if (!state.IsRunning)
                 _viewModel.Settings.Status.Failure(state.Failure?.Code ?? "local_api.start_failed",
                     state.Failure?.Message ?? L("linux.error.local_api_start_failed"));
+            await Dispatcher.UIThread.InvokeAsync(UpdateLocalApiConnectionUi);
         }
         finally { _localApiSettingsGate.Release(); }
     }
@@ -736,10 +745,107 @@ public partial class MainWindow : Window
         finally { _localApiSettingsGate.Release(); }
     }
 
+    private async void OnChooseRecordingsDirectory(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+            {
+                Title = _localization.GetRequired("settings.storage.recordings.title"),
+                AllowMultiple = false,
+            });
+            var path = folders.FirstOrDefault()?.TryGetLocalPath();
+            if (path is null) return;
+            var validated = LinuxRecordingDirectoryValidator.ValidateAndPrepare(path);
+            if (validated.IsFailure)
+            {
+                _viewModel.Settings.Status.Failure(validated.Error!.Code, validated.Error.Message);
+                return;
+            }
+            _viewModel.Settings.RecordingsDirectory = validated.Value!;
+            _viewModel.Settings.Status.Success(L("linux.storage.restart_required"));
+        }
+        catch { _viewModel.Settings.Status.Failure("storage.folder_picker_failed", L("linux.error.file_picker_failed")); }
+    }
+
+    private void OnRevealLocalApiToken(object? sender, RoutedEventArgs e)
+    {
+        _localApiTokenRevealed = !_localApiTokenRevealed;
+        UpdateLocalApiConnectionUi();
+    }
+
+    private async void OnCopyLocalApiToken(object? sender, RoutedEventArgs e) =>
+        await CopyLocalApiTextAsync(TryReadLocalApiToken());
+
+    private async void OnCopyLocalApiPort(object? sender, RoutedEventArgs e) =>
+        await CopyLocalApiTextAsync(_localApiHost?.State.Port > 0
+            ? _localApiHost.State.Port.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            : null);
+
+    private async void OnCopyLocalApiMcpSnippet(object? sender, RoutedEventArgs e) =>
+        await CopyLocalApiTextAsync(LocalApiMcpSnippet);
+
+    private async void OnCopyLocalApiCurlSnippet(object? sender, RoutedEventArgs e) =>
+        await CopyLocalApiTextAsync(LocalApiCurlSnippet);
+
+    private async void OnRegenerateLocalApiToken(object? sender, RoutedEventArgs e)
+    {
+        if (_localApiHost is null) return;
+        var state = await _localApiHost.RegenerateBearerTokenAsync(_lifetime.Token);
+        _localApiTokenRevealed = false;
+        if (state.Failure is not null)
+            _viewModel.Settings.Status.Failure(state.Failure.Code, state.Failure.Message);
+        UpdateLocalApiConnectionUi();
+    }
+
+    private async Task CopyLocalApiTextAsync(string? value)
+    {
+        if (string.IsNullOrEmpty(value)) return;
+        var copied = await _platformServices.TextInjection.CopyToClipboardAsync(value, _lifetime.Token);
+        if (copied.IsFailure) _viewModel.Settings.Status.Failure(copied.Error!.Code, copied.Error.Message);
+    }
+
+    private string? TryReadLocalApiToken()
+    {
+        try { return _localApiHost?.RevealBearerToken(); }
+        catch { return null; }
+    }
+
+    private void UpdateLocalApiConnectionUi()
+    {
+        var state = _localApiHost?.State ?? LocalApiHostState.Stopped;
+        SetNamedText("SettingsLocalApiStatus", state.IsRunning
+            ? $"127.0.0.1:{state.Port}"
+            : state.Failure?.Message ?? _localization.GetRequired("settings.localApi.status.idle"));
+        SetNamedText("SettingsLocalApiBoundPort", state.Port > 0
+            ? state.Port.ToString(System.Globalization.CultureInfo.InvariantCulture) : "—");
+        SetNamedText("SettingsLocalApiDiscoveryPath", _localApiHost?.DiscoveryPath ??
+            Path.Combine(_platformServices.Paths.DataDirectory, "local-api.json"));
+        var token = TryReadLocalApiToken();
+        SetNamedText("SettingsLocalApiToken", token is null ? "—" : _localApiTokenRevealed
+            ? token : new string('•', Math.Max(0, token.Length - 4)) + token[^Math.Min(4, token.Length)..]);
+        SetNamedText("SettingsLocalApiMcpSnippet", LocalApiMcpSnippet);
+        SetNamedText("SettingsLocalApiCurlSnippet", LocalApiCurlSnippet);
+    }
+
+    private void SetNamedText(string name, string text)
+    {
+        var descendant = this.GetLogicalDescendants().OfType<Control>()
+            .FirstOrDefault(candidate => candidate.Name == name);
+        if (descendant is TextBlock block) block.Text = text;
+        else if (descendant is TextBox box) box.Text = text;
+    }
+
+    private const string LocalApiMcpSnippet = "{\n  \"mcpServers\": {\n    \"hyperwhisper\": {\n      \"command\": \"npx\",\n      \"args\": [\"-y\", \"@hyperwhisper/mcp\"]\n    }\n  }\n}";
+    private const string LocalApiCurlSnippet = "DISCOVERY=\"${XDG_DATA_HOME:-$HOME/.local/share}/hyperwhisper/local-api.json\"\nPORT=\"$(jq -r .port \"$DISCOVERY\")\"\nTOKEN=\"$(jq -r .token \"$DISCOVERY\")\"\ncurl \"http://127.0.0.1:$PORT/health\"\ncurl -H \"Authorization: Bearer $TOKEN\" \"http://127.0.0.1:$PORT/models\"";
+
     private void OnNavigationChanged(object? sender, SelectionChangedEventArgs e)
     {
         if (Navigation.SelectedItem is ListBoxItem { Tag: string pageId })
+        {
             _viewModel.Navigate(pageId);
+            if (pageId == "settings") Dispatcher.UIThread.Post(UpdateLocalApiConnectionUi);
+        }
     }
 
     private void OnHistorySelectionChanged(object? sender, SelectionChangedEventArgs e)
@@ -888,6 +994,9 @@ public partial class MainWindow : Window
                 || !HasVisibleControl("SettingsLocalWhisperRuntimeStatus")
                 || !HasVisibleControl("SettingsLocalApiEnabled")
                 || !HasVisibleControl("SettingsLocalApiPort")
+                || !HasVisibleControl("SettingsLocalApiStatus")
+                || !HasVisibleControl("SettingsLocalApiToken")
+                || !HasVisibleControl("SettingsLocalApiDiscoveryPath")
                 || !HasVisibleControl("SettingsToggleKey")
                 || !HasVisibleControl("SettingsPushToTalkMode")
                 || !HasVisibleControl("SettingsPasteResultText")
@@ -898,13 +1007,17 @@ public partial class MainWindow : Window
                 || !HasVisibleControl("SettingsStreamingProvider")
                 || !HasVisibleControl("SettingsAudioEnvironmentPolicy")
                 || !HasVisibleControl("SettingsKeepAudioFiles")
+                || !HasVisibleControl("SettingsStoreAsM4A")
+                || !HasVisibleControl("SettingsRecordingsDirectory")
+                || !HasVisibleControl("SettingsChooseRecordingsDirectory")
                 || !HasVisibleControl("SettingsAutoDeleteEnabled")
                 || !HasVisibleControl("SettingsAutoDeleteDays")
                 || !HasVisibleControl("SettingsStorageDeleteNow")
                 || !HasVisibleControl("SettingsStorageOpenFolder")
                 || !HasVisibleControl("SettingsAutostart")
                 || !HasVisibleControl("SettingsDesktopContextStatus")
-                || !HasVisibleControl("SettingsEnableErrorLogging")) return 10;
+                || !HasVisibleControl("SettingsEnableErrorLogging")
+                || !HasVisibleControl("SettingsShareSpeedData")) return 10;
 
             _viewModel.Navigate("account");
             await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);

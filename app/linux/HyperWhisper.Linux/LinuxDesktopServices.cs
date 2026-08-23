@@ -32,8 +32,8 @@ internal sealed class LinuxDesktopServices : IDisposable
         AudioDevices = new PulseAudioInputDeviceService();
         AudioRecorder = new PulseAudioRecorder(Paths);
         AudioTranscriber = LinuxModeAwareTranscriptionFactory.Create(
-            Paths, CredentialStore, DeviceIdentity, out _localWhisper, out _localParakeet);
-        AudioPlayback = new PulseAudioPlaybackService();
+            Paths, PrivateFiles, CredentialStore, DeviceIdentity, out _localWhisper, out _localParakeet);
+        AudioPlayback = new FfmpegDecodingAudioPlaybackService(new PulseAudioPlaybackService(), Paths);
         TextInjection = new LinuxTextInjectionService();
         InsertionContext = new AtSpiInsertionContextProvider();
         ApplicationContext = new LinuxApplicationContextProvider();

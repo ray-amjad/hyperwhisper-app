@@ -10,6 +10,7 @@ using HyperWhisper.LocalApi;
 using HyperWhisper.SpeechOutput;
 using HyperWhisper.SharedCore;
 using HyperWhisper.Diagnostics;
+using System.Diagnostics;
 
 [assembly: SupportedOSPlatform("linux")]
 
@@ -46,6 +47,9 @@ var tests = new (string Name, Func<Task> Run)[]
     ("tray microphone selection is deterministic", TrayMicrophoneSelectionIsDeterministic),
     ("diagnostic capabilities fail closed from platform evidence", DiagnosticCapabilitiesFailClosed),
     ("lifecycle diagnostics expose only fixed fields", LifecycleDiagnosticsAreContentFree),
+    ("M4A storage performs a real private FFmpeg encode", M4aStorageEncodes),
+    ("M4A history playback performs a real FFmpeg decode", M4aPlaybackDecodes),
+    ("anonymous speed opt-out is scoped to HyperWhisper Cloud", LatencyOptOutIsScoped),
 };
 
 foreach (var test in tests)
@@ -54,6 +58,63 @@ foreach (var test in tests)
     Console.WriteLine($"PASS {test.Name}");
 }
 Console.WriteLine($"{tests.Length}/{tests.Length} Linux composition tests passed");
+
+static async Task M4aStorageEncodes()
+{
+    const string ffmpeg = "/usr/bin/ffmpeg";
+    Assert(File.Exists(ffmpeg), "FFmpeg is required for M4A storage parity");
+    var directory = Path.Combine(Path.GetTempPath(), $"hyperwhisper-m4a-{Guid.NewGuid():N}");
+    Directory.CreateDirectory(directory);
+    try
+    {
+        var source = Path.Combine(directory, "recording.wav");
+        using (var process = Process.Start(new ProcessStartInfo(ffmpeg)
+        {
+            UseShellExecute = false,
+            ArgumentList = { "-nostdin", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "anullsrc=r=16000:cl=mono", "-t", "0.1", source },
+        })!) await process.WaitForExitAsync();
+        Assert(File.Exists(source), "FFmpeg test WAV was not created");
+        var result = await new FfmpegM4aAudioTransformer(() => true, ffmpeg).TransformAsync(source);
+        Assert(result.IsSuccess && result.Value!.EndsWith(".m4a", StringComparison.Ordinal), "M4A transform failed");
+        var destination = result.Value!;
+        Assert(!File.Exists(source) && File.Exists(destination), "successful transform did not atomically replace WAV");
+        Assert((File.GetUnixFileMode(destination) & (UnixFileMode.GroupRead | UnixFileMode.OtherRead)) == 0,
+            "M4A output was readable outside the current user");
+    }
+    finally { Directory.Delete(directory, recursive: true); }
+}
+
+static async Task LatencyOptOutIsScoped()
+{
+    var sink = new CapturingHttpHandler();
+    using var client = new HttpClient(new LinuxLatencyOptOutHandler(() => false, sink));
+    _ = await client.GetAsync("https://transcribe-prod-v2.hyperwhisper.com/transcribe");
+    _ = await client.GetAsync("https://api.openai.com/v1/audio/transcriptions");
+    Assert(sink.OptOutValues.SequenceEqual(["1", null]), "latency opt-out leaked to a direct provider or was omitted");
+}
+
+static async Task M4aPlaybackDecodes()
+{
+    const string ffmpeg = "/usr/bin/ffmpeg";
+    var directory = Path.Combine(Path.GetTempPath(), $"hyperwhisper-m4a-play-{Guid.NewGuid():N}");
+    Directory.CreateDirectory(directory);
+    try
+    {
+        var source = Path.Combine(directory, "recording.m4a");
+        using (var process = Process.Start(new ProcessStartInfo(ffmpeg)
+        {
+            UseShellExecute = false,
+            ArgumentList = { "-nostdin", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "anullsrc=r=16000:cl=mono", "-t", "0.1", "-c:a", "aac", source },
+        })!) await process.WaitForExitAsync();
+        using var playback = new InspectingPlaybackService();
+        using var decoding = new FfmpegDecodingAudioPlaybackService(playback, new StaticPaths(directory), ffmpeg);
+        var loaded = decoding.Load(source);
+        Assert(loaded.IsSuccess && decoding.LoadedFilePath == source, "M4A playback wrapper did not preserve the history path");
+        Assert(playback.LoadedPath is not null && Path.GetExtension(playback.LoadedPath) == ".wav"
+            && File.Exists(playback.LoadedPath), "M4A playback did not decode a temporary WAV");
+    }
+    finally { Directory.Delete(directory, recursive: true); }
+}
 
 static Task DiagnosticCapabilitiesFailClosed()
 {
@@ -1046,4 +1107,34 @@ sealed class FakeAudioEnvironmentSession : IAudioEnvironmentSession
     public ValueTask RestoreAsync(CancellationToken cancellationToken = default)
     { RestoreCalls++; ObservedCancellationCanBeCanceled = cancellationToken.CanBeCanceled; return ValueTask.CompletedTask; }
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+}
+
+sealed class CapturingHttpHandler : HttpMessageHandler
+{
+    public List<string?> OptOutValues { get; } = [];
+    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        OptOutValues.Add(request.Headers.TryGetValues(LinuxLatencyOptOutHandler.HeaderName, out var values)
+            ? values.Single() : null);
+        return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK));
+    }
+}
+
+sealed class InspectingPlaybackService : IAudioPlaybackService
+{
+    public event EventHandler? PlaybackEnded { add { } remove { } }
+    public event EventHandler<TimeSpan>? PositionChanged { add { } remove { } }
+    public event EventHandler<TimeSpan>? DurationReady { add { } remove { } }
+    public event EventHandler<PlatformError>? PlaybackFailed { add { } remove { } }
+    public bool IsPlaying => false;
+    public bool IsLoaded => LoadedPath is not null;
+    public TimeSpan TotalDuration => TimeSpan.Zero;
+    public string? LoadedFilePath => LoadedPath;
+    public string? LoadedPath { get; private set; }
+    public PlatformResult Load(string audioPath) { LoadedPath = audioPath; return PlatformResult.Success(); }
+    public void Play() { }
+    public void Pause() { }
+    public void Stop() { }
+    public void Seek(TimeSpan position) { }
+    public void Dispose() { }
 }

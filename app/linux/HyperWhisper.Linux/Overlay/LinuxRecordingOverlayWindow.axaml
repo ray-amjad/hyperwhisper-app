@@ -101,20 +101,20 @@
       <StackPanel IsVisible="{Binding IsPasted}" Orientation="Horizontal"
                   HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
         <Border Width="18" Height="18" CornerRadius="9" Background="#FF34C759">
-          <TextBlock Text="✓" Foreground="White" FontWeight="Bold" HorizontalAlignment="Center"/>
+          <TextBlock Text="{ReflectionBinding [linux.overlay.success_glyph], Source={StaticResource Localization}}" Foreground="White" FontWeight="Bold" HorizontalAlignment="Center"/>
         </Border>
         <TextBlock Text="{Binding StatusText}" Foreground="#F2FFFFFF" FontSize="12" FontWeight="SemiBold"/>
       </StackPanel>
 
       <StackPanel IsVisible="{Binding IsCopied}" Orientation="Horizontal"
                   HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
-        <TextBlock Text="▣" Foreground="#FF5AC8FA" FontSize="18"/>
+        <TextBlock Text="{ReflectionBinding [linux.overlay.copy_glyph], Source={StaticResource Localization}}" Foreground="#FF5AC8FA" FontSize="18"/>
         <TextBlock Text="{Binding StatusText}" Foreground="#F2FFFFFF" FontSize="12" FontWeight="SemiBold"/>
       </StackPanel>
 
       <StackPanel IsVisible="{Binding IsSecureField}" Orientation="Horizontal"
                   HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
-        <TextBlock Text="🔒" FontSize="14"/>
+        <TextBlock Text="{ReflectionBinding [linux.overlay.secure_glyph], Source={StaticResource Localization}}" FontSize="14"/>
         <TextBlock Text="{Binding StatusText}" Foreground="#F2FFFFFF" FontSize="11" FontWeight="SemiBold"/>
       </StackPanel>
 
@@ -123,7 +123,7 @@
                    FontWeight="SemiBold" VerticalAlignment="Center"/>
         <Border x:Name="DismissCancelTarget" Grid.Column="1" Background="#33FFFFFF" CornerRadius="11" Padding="9,5">
           <StackPanel Orientation="Horizontal" Spacing="3">
-            <TextBlock Text="Esc ·" Foreground="#B3FFFFFF" FontSize="9"/>
+            <TextBlock Text="{ReflectionBinding [linux.overlay.escape_hint], Source={StaticResource Localization}}" Foreground="#B3FFFFFF" FontSize="9"/>
             <TextBlock Text="{ReflectionBinding [common.no], Source={StaticResource Localization}}" Foreground="White" FontSize="9"/>
           </StackPanel>
         </Border>
