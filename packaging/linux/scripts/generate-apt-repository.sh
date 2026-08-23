@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/../../.." && pwd)"
-DEB_PATH=""
+DEB_PATHS=()
 OUTPUT_DIR="$REPO_ROOT/artifacts/apt-repository"
 SUITE="stable"
 CODENAME="stable"
@@ -13,9 +13,10 @@ SIGNING_KEY_FILE=""
 
 usage() {
     cat >&2 <<'EOF'
-Usage: generate-apt-repository.sh --deb PACKAGE.deb [options]
+Usage: generate-apt-repository.sh --deb PACKAGE.deb [--deb PACKAGE.deb ...] [options]
 
 Options:
+  --deb PACKAGE.deb         Package to retain; repeat for prior releases
   --output-dir DIR          New or empty output directory
   --suite NAME              Distribution suite (default: stable)
   --codename NAME           Distribution codename (default: stable)
@@ -30,7 +31,7 @@ EOF
 while (($# > 0)); do
     case "$1" in
         --deb)
-            DEB_PATH="${2:-}"
+            DEB_PATHS+=("${2:-}")
             shift 2
             ;;
         --output-dir)
@@ -69,10 +70,21 @@ while (($# > 0)); do
     esac
 done
 
-if [[ ! -f "$DEB_PATH" ]]; then
-    echo "--deb must name an existing Debian package." >&2
+if (( ${#DEB_PATHS[@]} == 0 )); then
+    echo "At least one --deb package is required." >&2
     exit 2
 fi
+for deb_path in "${DEB_PATHS[@]}"; do
+    if [[ ! -f "$deb_path" || -L "$deb_path" ]]; then
+        echo "--deb must name an existing regular Debian package: $deb_path" >&2
+        exit 2
+    fi
+    if [[ "$(dpkg-deb --field "$deb_path" Package)" != "hyperwhisper" ]] \
+        || [[ "$(dpkg-deb --field "$deb_path" Architecture)" != "amd64" ]]; then
+        echo "Only amd64 HyperWhisper packages may enter this repository: $deb_path" >&2
+        exit 2
+    fi
+done
 if [[ ! "$SUITE" =~ ^[a-z0-9][a-z0-9._-]*$ ]] \
     || [[ ! "$CODENAME" =~ ^[a-z0-9][a-z0-9._-]*$ ]]; then
     echo "Suite and codename must contain only lowercase letters, digits, dot, underscore, or dash." >&2
@@ -130,12 +142,20 @@ trap cleanup EXIT
 POOL_DIR="$STAGING_ROOT/pool/main/h/hyperwhisper"
 BINARY_DIR="$STAGING_ROOT/dists/$SUITE/main/binary-amd64"
 install -d -m 0755 "$POOL_DIR" "$BINARY_DIR"
-PACKAGE_NAME="$(basename -- "$DEB_PATH")"
-install -m 0644 "$DEB_PATH" "$POOL_DIR/$PACKAGE_NAME"
+declare -A PACKAGE_NAMES=()
+for deb_path in "${DEB_PATHS[@]}"; do
+    package_name="$(basename -- "$deb_path")"
+    if [[ -n "${PACKAGE_NAMES[$package_name]:-}" ]]; then
+        echo "Duplicate package filename: $package_name" >&2
+        exit 2
+    fi
+    PACKAGE_NAMES[$package_name]=1
+    install -m 0644 "$deb_path" "$POOL_DIR/$package_name"
+done
 
 (
     cd "$STAGING_ROOT"
-    dpkg-scanpackages --arch amd64 pool /dev/null > \
+    dpkg-scanpackages --arch amd64 --multiversion pool /dev/null > \
         "dists/$SUITE/main/binary-amd64/Packages"
 )
 gzip -n -9 -c "$BINARY_DIR/Packages" > "$BINARY_DIR/Packages.gz"

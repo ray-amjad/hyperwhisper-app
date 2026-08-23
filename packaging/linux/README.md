@@ -43,6 +43,19 @@ SOURCE_DATE_EPOCH=0 packaging/linux/scripts/generate-apt-repository.sh \
   --output-dir artifacts/apt-repository
 ```
 
+Repeat `--deb` for every older package that must remain installable. The
+generator validates that each input is a regular `hyperwhisper` `amd64` Debian
+package, rejects duplicate filenames, and rebuilds metadata over the complete
+set. The release workflow's optional deployment job first downloads the current
+remote pool, adds the new package, signs the regenerated repository, uploads an
+immutable release directory, and atomically switches a `current` symlink.
+
+Remote deployment is off by default and fails closed. An operator must enable
+`deploy_apt` on an approved manual release and configure the Production
+environment's `LINUX_APT_ORIGIN` HTTPS variable, SSH host/user/path variables,
+and pinned-known-hosts/private-key secrets. No public origin is assumed or
+advertised by this repository.
+
 The output contains `pool/`, `Packages`, `Packages.gz`, and a checksum-complete
 `Release` file suitable for static hosting. The output directory must be new or
 empty; the generator refuses broad or symlink destinations and never deletes an

@@ -6,6 +6,11 @@
 name: Linux CI
 
 on:
+  workflow_call:
+    outputs:
+      verified_sha:
+        description: "Exact commit that completed every Linux quality gate"
+        value: ${{ jobs.build-and-test.outputs.verified_sha }}
   pull_request:
     branches: [main]
     paths: &linux-paths
@@ -39,6 +44,8 @@ jobs:
       DOTNET_CLI_TELEMETRY_OPTOUT: "1"
       DOTNET_NOLOGO: "1"
       NUGET_XMLDOC_MODE: skip
+    outputs:
+      verified_sha: ${{ steps.verified.outputs.sha }}
     steps:
       - name: Checkout repository
         shell: bash
@@ -162,6 +169,7 @@ jobs:
             pipewire \
             pipewire-pulse \
             pulseaudio-utils \
+            python3-yaml \
             shellcheck \
             weston \
             wireplumber \
@@ -241,29 +249,22 @@ jobs:
             exit 1
           fi
 
-          for project in "${projects[@]}"; do
-            if [[ "$(basename "$project")" == *Tests.csproj ]]; then
-              dotnet test "$project" \
-                --configuration Release \
-                --no-build
-            fi
+          # All Linux test projects are dependency-free executable harnesses,
+          # rather than Microsoft.NET.Test.Sdk projects. `dotnet test` would
+          # silently discover zero tests, so every harness must execute.
+          mapfile -t test_projects < <(
+            printf '%s\n' "${projects[@]}" | grep 'Tests\.csproj$'
+          )
+          if (( ${#test_projects[@]} == 0 )); then
+            echo "No Linux test harnesses were found." >&2
+            exit 1
+          fi
+          for project in "${test_projects[@]}"; do
+            dotnet run \
+              --project "$project" \
+              --configuration Release \
+              --no-build
           done
-
-          # HyperWhisper.Linux.Platform.Tests is a dependency-free executable
-          # harness, not a Microsoft.NET.Test.Sdk project. `dotnet test` only
-          # builds it and discovers zero tests, so execute it explicitly.
-          dotnet run \
-            --project app/linux/HyperWhisper.Linux.Platform.Tests/HyperWhisper.Linux.Platform.Tests.csproj \
-            --configuration Release \
-            --no-build
-
-          # Deterministic Tier-2 harness: production workflow and persistence
-          # with fake audio/transcription boundaries. The credential-free live
-          # null-source/Whisper gate is documented for release verification.
-          dotnet run \
-            --project app/linux/HyperWhisper.Linux.E2E.Tests/HyperWhisper.Linux.E2E.Tests.csproj \
-            --configuration Release \
-            --no-build
 
       - name: Verify live PipeWire microphone transcription
         shell: bash
@@ -346,3 +347,12 @@ jobs:
           packaging/linux/scripts/test-apt-repository.sh "$package_path"
           lintian --fail-on warning "$package_path"
           dpkg-deb --info "$package_path"
+
+      - name: Verify release policy and exact tested commit
+        id: verified
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/test-linux-release-policy.py
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          echo "sha=$GITHUB_SHA" >> "$GITHUB_OUTPUT"

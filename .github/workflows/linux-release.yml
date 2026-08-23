@@ -27,6 +27,11 @@ on:
         required: true
         default: false
         type: boolean
+      deploy_apt:
+        description: "Atomically deploy the signed repository to the configured HTTPS origin"
+        required: true
+        default: false
+        type: boolean
       release_notes:
         description: "Optional GitHub Release notes"
         required: false
@@ -41,9 +46,16 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  quality-gates:
+    name: Required Linux quality gates
+    permissions:
+      contents: read
+    uses: ./.github/workflows/linux-ci.yml
+
   build-package-release:
     name: Build Linux release (amd64)
     runs-on: ubuntu-latest
+    needs: quality-gates
     timeout-minutes: 60
     environment: Production
     env:
@@ -70,16 +82,25 @@ jobs:
           DISPATCH_VERSION: ${{ inputs.version }}
           DISPATCH_PUBLISH: ${{ inputs.publish_github }}
           DISPATCH_SIGN_APT: ${{ inputs.sign_apt }}
+          DISPATCH_DEPLOY_APT: ${{ inputs.deploy_apt }}
         run: |
           set -euo pipefail
           if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
             version="${GITHUB_REF_NAME#linux/v}"
             publish="false"
             require_apt_signature="false"
+            deploy_apt="false"
           else
             version="$DISPATCH_VERSION"
             publish="$DISPATCH_PUBLISH"
             require_apt_signature="$DISPATCH_SIGN_APT"
+            deploy_apt="$DISPATCH_DEPLOY_APT"
+          fi
+
+          if [[ "$deploy_apt" == "true" \
+              && ( "$publish" != "true" || "$require_apt_signature" != "true" ) ]]; then
+            echo "APT deployment requires publish_github=true and sign_apt=true." >&2
+            exit 1
           fi
 
           if [[ ! "$version" =~ ^1\.0\.[0-9]+([.-][0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
@@ -94,12 +115,23 @@ jobs:
             echo "tag=$tag"
             echo "publish=$publish"
             echo "require_apt_signature=$require_apt_signature"
+            echo "deploy_apt=$deploy_apt"
             echo "source_date_epoch=$source_date_epoch"
           } >> "$GITHUB_OUTPUT"
 
           echo "Version: $version"
           echo "GitHub publishing enabled: $publish"
           echo "APT signature explicitly required: $require_apt_signature"
+          echo "APT deployment enabled: $deploy_apt"
+
+      - name: Confirm required gates tested this exact commit
+        shell: bash
+        env:
+          VERIFIED_SHA: ${{ needs.quality-gates.outputs.verified_sha }}
+        run: |
+          set -euo pipefail
+          test "$VERIFIED_SHA" = "$GITHUB_SHA"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
 
       - name: Enforce reviewed Tier-3 and physical-GPU evidence
         if: steps.release.outputs.publish == 'true'
@@ -123,6 +155,8 @@ jobs:
             file \
             gnupg \
             lintian \
+            openssh-client \
+            rsync \
             shellcheck
 
       - name: Ensure .NET 10 SDK
@@ -337,6 +371,149 @@ jobs:
             "artifacts/release/hyperwhisper-apt-${VERSION}.tar.gz" \
             artifacts/release/linux-release-evidence.json \
             artifacts/release/SHA256SUMS
+
+      - name: Atomically deploy signed APT repository
+        if: steps.release.outputs.deploy_apt == 'true'
+        shell: bash
+        env:
+          APT_ORIGIN: ${{ vars.LINUX_APT_ORIGIN }}
+          APT_DEPLOY_HOST: ${{ vars.LINUX_APT_DEPLOY_HOST }}
+          APT_DEPLOY_USER: ${{ vars.LINUX_APT_DEPLOY_USER }}
+          APT_DEPLOY_PATH: ${{ vars.LINUX_APT_DEPLOY_PATH }}
+          APT_SSH_PRIVATE_KEY: ${{ secrets.LINUX_APT_SSH_PRIVATE_KEY }}
+          APT_SSH_KNOWN_HOSTS: ${{ secrets.LINUX_APT_SSH_KNOWN_HOSTS }}
+          APT_SIGNING_KEY: ${{ secrets.LINUX_APT_SIGNING_KEY }}
+          PACKAGE_PATH: ${{ steps.package.outputs.path }}
+          SOURCE_DATE_EPOCH: ${{ steps.release.outputs.source_date_epoch }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$APT_ORIGIN" =~ ^https://[A-Za-z0-9.-]+(:[0-9]+)?(/[A-Za-z0-9._~!$\&\(\)*+,\;=:@%/-]*)?$ ]]; then
+            echo "LINUX_APT_ORIGIN must be an explicitly configured HTTPS URL." >&2
+            exit 1
+          fi
+          if [[ ! "$APT_DEPLOY_HOST" =~ ^[A-Za-z0-9.-]+$ ]] \
+              || [[ ! "$APT_DEPLOY_USER" =~ ^[A-Za-z_][A-Za-z0-9_-]*$ ]] \
+              || [[ ! "$APT_DEPLOY_PATH" =~ ^/[A-Za-z0-9._/-]+$ ]] \
+              || [[ "$APT_DEPLOY_PATH" == "/" ]]; then
+            echo "APT SSH host, user, or absolute deployment path is missing or unsafe." >&2
+            exit 1
+          fi
+          if [[ -z "$APT_SSH_PRIVATE_KEY" || -z "$APT_SSH_KNOWN_HOSTS" \
+              || -z "$APT_SIGNING_KEY" ]]; then
+            echo "APT deployment requires pinned SSH and signing secrets." >&2
+            exit 1
+          fi
+
+          ssh_dir="${RUNNER_TEMP}/apt-ssh"
+          prior_dir="${RUNNER_TEMP}/apt-prior"
+          deploy_repo="${RUNNER_TEMP}/apt-deploy-repository"
+          key_file="${RUNNER_TEMP}/apt-signing-key.asc"
+          install -d -m 0700 "$ssh_dir"
+          install -d -m 0755 "$prior_dir"
+          umask 077
+          printf '%s' "$APT_SSH_PRIVATE_KEY" > "$ssh_dir/id"
+          printf '%s\n' "$APT_SSH_KNOWN_HOSTS" > "$ssh_dir/known_hosts"
+          printf '%s' "$APT_SIGNING_KEY" > "$key_file"
+          chmod 0600 "$ssh_dir/id" "$ssh_dir/known_hosts" "$key_file"
+          ssh_args=(
+            -i "$ssh_dir/id"
+            -o BatchMode=yes
+            -o IdentitiesOnly=yes
+            -o StrictHostKeyChecking=yes
+            -o "UserKnownHostsFile=$ssh_dir/known_hosts"
+          )
+          remote="${APT_DEPLOY_USER}@${APT_DEPLOY_HOST}"
+
+          # Distinguish an intentional first deploy from transfer failure so a
+          # partial pool can never silently replace prior package versions.
+          pool_state="$(ssh "${ssh_args[@]}" "$remote" bash -s -- \
+              "$APT_DEPLOY_PATH" <<'REMOTE_HAS_POOL'
+          set -euo pipefail
+          if [[ -d "$1/current/pool/main/h/hyperwhisper" ]]; then
+            printf 'present\n'
+          else
+            printf 'absent\n'
+          fi
+          REMOTE_HAS_POOL
+          )"
+          if [[ "$pool_state" == present ]]; then
+            rsync -a --protect-args -e "ssh ${ssh_args[*]}" \
+              "$remote:$APT_DEPLOY_PATH/current/pool/main/h/hyperwhisper/" \
+              "$prior_dir/"
+          elif [[ "$pool_state" == absent ]]; then
+            echo "No current APT pool exists; preparing the initial deployment."
+          else
+            echo "Remote APT pool probe returned an invalid response." >&2
+            exit 1
+          fi
+
+          package_args=(--deb "$PACKAGE_PATH")
+          while IFS= read -r -d '' prior_package; do
+            test ! -L "$prior_package"
+            test "$(dpkg-deb --field "$prior_package" Package)" = hyperwhisper
+            test "$(dpkg-deb --field "$prior_package" Architecture)" = amd64
+            if [[ "$(basename "$prior_package")" != "$(basename "$PACKAGE_PATH")" ]]; then
+              package_args+=(--deb "$prior_package")
+            fi
+          done < <(find "$prior_dir" -maxdepth 1 -type f -name '*.deb' -print0 | sort -z)
+
+          packaging/linux/scripts/generate-apt-repository.sh \
+            "${package_args[@]}" \
+            --output-dir "$deploy_repo" \
+            --suite stable \
+            --codename stable \
+            --signing-key-file "$key_file"
+          test -s "$deploy_repo/dists/stable/InRelease"
+          test -s "$deploy_repo/dists/stable/Release.gpg"
+
+          release_id="${VERSION}-${GITHUB_SHA}"
+          remote_stage="$APT_DEPLOY_PATH/releases/.${release_id}.tmp"
+          remote_release="$APT_DEPLOY_PATH/releases/${release_id}"
+          ssh "${ssh_args[@]}" "$remote" bash -s -- \
+            "$APT_DEPLOY_PATH" "$remote_stage" "$remote_release" <<'REMOTE_PREPARE'
+          set -euo pipefail
+          deploy_path="$1"
+          stage="$2"
+          release="$3"
+          install -d -m 0755 "$deploy_path/releases"
+          test ! -e "$stage"
+          test ! -e "$release"
+          install -d -m 0755 "$stage"
+          REMOTE_PREPARE
+          rsync -a --delete --protect-args -e "ssh ${ssh_args[*]}" \
+            "$deploy_repo/" "$remote:$remote_stage/"
+          ssh "${ssh_args[@]}" "$remote" bash -s -- \
+            "$APT_DEPLOY_PATH" "$remote_stage" "$remote_release" "$release_id" <<'REMOTE_COMMIT'
+          set -euo pipefail
+          deploy_path="$1"
+          stage="$2"
+          release="$3"
+          release_id="$4"
+          test -s "$stage/dists/stable/InRelease"
+          mv -- "$stage" "$release"
+          ln -s -- "releases/$release_id" "$deploy_path/.current-$release_id"
+          mv -Tf -- "$deploy_path/.current-$release_id" "$deploy_path/current"
+          REMOTE_COMMIT
+
+          origin="${APT_ORIGIN%/}"
+          curl --fail --silent --show-error --location --retry 6 --retry-all-errors \
+            "$origin/hyperwhisper-archive-keyring.asc" --output "${RUNNER_TEMP}/apt-key.asc"
+          curl --fail --silent --show-error --location --retry 6 --retry-all-errors \
+            "$origin/dists/stable/InRelease" --output "${RUNNER_TEMP}/InRelease"
+          curl --fail --silent --show-error --location --retry 6 --retry-all-errors \
+            "$origin/dists/stable/main/binary-amd64/Packages.gz" --output "${RUNNER_TEMP}/Packages.gz"
+          gpg --batch --yes --dearmor \
+            --output "${RUNNER_TEMP}/apt-keyring.gpg" "${RUNNER_TEMP}/apt-key.asc"
+          gpgv --keyring "${RUNNER_TEMP}/apt-keyring.gpg" "${RUNNER_TEMP}/InRelease"
+          gzip -dc "${RUNNER_TEMP}/Packages.gz" > "${RUNNER_TEMP}/Packages"
+          awk -v version="$VERSION" '
+            $1 == "Package:" && $2 == "hyperwhisper" { package = 1; next }
+            package && $1 == "Version:" && $2 == version { found = 1 }
+            /^$/ { package = 0 }
+            END { exit(found ? 0 : 1) }
+          ' "${RUNNER_TEMP}/Packages"
+          echo "Signed APT repository deployed and read back from $origin"
 
       - name: Report dry-run artifacts
         if: steps.release.outputs.publish != 'true'
