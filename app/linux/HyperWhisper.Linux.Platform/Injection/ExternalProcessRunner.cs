@@ -9,7 +9,8 @@ internal static class ExternalProcessRunner
     internal static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(5);
 
     public static async Task<ExternalProcessResult> RunAsync(string executable, IReadOnlyList<string> arguments,
-        byte[]? input, CancellationToken cancellationToken, TimeSpan? timeout = null)
+        byte[]? input, CancellationToken cancellationToken, TimeSpan? timeout = null,
+        int maximumOutputBytes = int.MaxValue)
     {
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         deadline.CancelAfter(timeout ?? DefaultTimeout);
@@ -30,10 +31,12 @@ internal static class ExternalProcessRunner
                 await process.StandardInput.BaseStream.WriteAsync(input, deadline.Token).ConfigureAwait(false);
                 process.StandardInput.Close();
             }
-            using var output = new MemoryStream();
-            var stdout = process.StandardOutput.BaseStream.CopyToAsync(output, deadline.Token);
-            await Task.WhenAll(stdout, stderr, process.WaitForExitAsync(deadline.Token)).ConfigureAwait(false);
-            return new ExternalProcessResult(process.ExitCode, output.ToArray());
+            var stdout = ReadBoundedAsync(process.StandardOutput.BaseStream, maximumOutputBytes, deadline.Token);
+            // Await the bounded reader first so an oversized stream faults
+            // immediately and the outer handler kills a producer blocked on stdout.
+            var bytes = await stdout.ConfigureAwait(false);
+            await Task.WhenAll(stderr, process.WaitForExitAsync(deadline.Token)).ConfigureAwait(false);
+            return new ExternalProcessResult(process.ExitCode, bytes);
         }
         catch (OperationCanceledException)
         {
@@ -45,6 +48,21 @@ internal static class ExternalProcessRunner
         {
             TryKill(process);
             throw;
+        }
+    }
+
+    private static async Task<byte[]> ReadBoundedAsync(Stream source, int maximumBytes, CancellationToken token)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(maximumBytes);
+        using var output = new MemoryStream(Math.Min(maximumBytes, 64 * 1024));
+        var buffer = new byte[16 * 1024];
+        while (true)
+        {
+            var read = await source.ReadAsync(buffer, token).ConfigureAwait(false);
+            if (read == 0) return output.ToArray();
+            if (output.Length + read > maximumBytes)
+                throw new InvalidDataException("The helper output exceeded its configured limit.");
+            output.Write(buffer, 0, read);
         }
     }
 

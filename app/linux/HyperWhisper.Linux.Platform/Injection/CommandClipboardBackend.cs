@@ -22,7 +22,15 @@ internal sealed class CommandClipboardBackend : ILinuxClipboardBackend, IDisposa
             _copy = FindExecutable("xclip");
             _paste = _copy;
         }
-        if (!_wayland) _nativeOwner = new NativeX11ClipboardOwner();
+        if (_wayland)
+        {
+            // Stable Avalonia is hosted by XWayland. Owning CLIPBOARD through
+            // that same X server lets the compositor bridge one multi-target
+            // selection to native Wayland clients on GNOME and KDE.
+            if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("DISPLAY")))
+                _nativeOwner = new NativeX11ClipboardOwner(allowXWayland: true);
+        }
+        else _nativeOwner = new NativeX11ClipboardOwner();
     }
 
     internal CommandClipboardBackend(string copy, string paste, bool wayland, INativeClipboardOwner? nativeOwner)
@@ -35,7 +43,9 @@ internal sealed class CommandClipboardBackend : ILinuxClipboardBackend, IDisposa
 
     public LinuxTextInjectionCapabilities GetCapabilities() => new(
         _copy is not null && _paste is not null,
-        _copy is null || _paste is null ? "none" : _wayland ? "wayland-wl-clipboard" : "x11-xclip",
+        _copy is null || _paste is null ? "none" : _wayland
+            ? _nativeOwner?.IsAvailable == true ? "wayland-wl-clipboard+xwayland-owner" : "wayland-wl-clipboard"
+            : "x11-xclip",
         false,
         _nativeOwner?.IsAvailable == true,
         false,
@@ -44,15 +54,24 @@ internal sealed class CommandClipboardBackend : ILinuxClipboardBackend, IDisposa
     public async ValueTask<PlatformResult<ClipboardSnapshot?>> CaptureAsync(CancellationToken token)
     {
         if (_paste is null) return PlatformResult<ClipboardSnapshot?>.Failure("clipboard_unavailable", "No supported clipboard helper is installed.");
-        var listed = await RunAsync(_paste, ListArguments(), null, token).ConfigureAwait(false);
+        var listed = await RunAsync(_paste, ListArguments(), null, token, 64 * 1024).ConfigureAwait(false);
         if (listed.IsFailure) return PlatformResult<ClipboardSnapshot?>.Failure(listed.Error!.Code, listed.Error.Message);
         var formats = ParseFormats(Encoding.UTF8.GetString(listed.Value!));
+        if (formats.Count > 64)
+            return PlatformResult<ClipboardSnapshot?>.Failure("clipboard_snapshot_invalid", "The clipboard advertises too many formats.");
         var captured = new Dictionary<string, byte[]>(StringComparer.Ordinal);
         var total = 0;
         foreach (var format in formats)
         {
-            var value = await RunAsync(_paste, ReadArguments(format), null, token).ConfigureAwait(false);
-            if (value.IsFailure) continue;
+            var value = await RunAsync(_paste, ReadArguments(format), null, token,
+                MaximumSnapshotBytes - total).ConfigureAwait(false);
+            if (value.IsFailure)
+            {
+                if (value.Error!.Code == "clipboard_snapshot_too_large")
+                    return PlatformResult<ClipboardSnapshot?>.Failure(value.Error.Code, value.Error.Message);
+                return PlatformResult<ClipboardSnapshot?>.Failure("clipboard_capture_incomplete",
+                    "A clipboard MIME payload could not be captured; the clipboard was left unchanged.");
+            }
             total = checked(total + value.Value!.Length);
             if (total > MaximumSnapshotBytes)
                 return PlatformResult<ClipboardSnapshot?>.Failure("clipboard_snapshot_too_large", "The clipboard exceeds the private snapshot limit.");
@@ -65,14 +84,17 @@ internal sealed class CommandClipboardBackend : ILinuxClipboardBackend, IDisposa
     {
         if (_copy is null) return PlatformResult.Failure("clipboard_unavailable", "No supported clipboard helper is installed.");
         if (snapshot.Formats.Count == 0) return PlatformResult.Success();
+        var validation = ValidateSnapshot(snapshot);
+        if (validation.IsFailure) return validation;
         if (_nativeOwner?.IsAvailable == true)
             return await _nativeOwner.OwnAsync(snapshot, token).ConfigureAwait(false);
+        if (snapshot.Formats.Count > 1)
+            return PlatformResult.Failure("clipboard_restore_partial",
+                "No multi-format clipboard owner is available; the clipboard was left unchanged.");
         var preferred = SelectPreferred(snapshot.Formats);
         var restored = await RunAsync(_copy, WriteArguments(preferred.Key), preferred.Value, token).ConfigureAwait(false);
         if (restored.IsFailure) return PlatformResult.Failure(restored.Error!.Code, restored.Error.Message);
-        return snapshot.Formats.Count == 1
-            ? PlatformResult.Success()
-            : PlatformResult.Failure("clipboard_restore_partial", "The installed clipboard helper cannot restore multiple MIME types atomically.");
+        return PlatformResult.Success();
     }
 
     public async ValueTask<PlatformResult> SetTextAsync(string text, CancellationToken token)
@@ -92,11 +114,12 @@ internal sealed class CommandClipboardBackend : ILinuxClipboardBackend, IDisposa
         ? ["--type", format]
         : ["-selection", "clipboard", "-target", format, "-in"];
 
-    private static IEnumerable<string> ParseFormats(string output) => output
+    private static IReadOnlyList<string> ParseFormats(string output) => output
         .Split(['\r', '\n', ' ', '\t'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
         .Where(value => value is not "TARGETS" and not "TIMESTAMP" and not "MULTIPLE" and not "SAVE_TARGETS")
         .Distinct(StringComparer.Ordinal)
-        .Take(64);
+        .Take(65)
+        .ToArray();
 
     private static KeyValuePair<string, byte[]> SelectPreferred(IReadOnlyDictionary<string, byte[]> formats)
     {
@@ -106,17 +129,36 @@ internal sealed class CommandClipboardBackend : ILinuxClipboardBackend, IDisposa
     }
 
     private static async Task<PlatformResult<byte[]>> RunAsync(string executable, IReadOnlyList<string> arguments,
-        byte[]? input, CancellationToken token)
+        byte[]? input, CancellationToken token, int maximumOutputBytes = int.MaxValue)
     {
         try
         {
-            var result = await ExternalProcessRunner.RunAsync(executable, arguments, input, token).ConfigureAwait(false);
+            var result = await ExternalProcessRunner.RunAsync(executable, arguments, input, token,
+                maximumOutputBytes: maximumOutputBytes).ConfigureAwait(false);
             return result.ExitCode == 0 ? PlatformResult<byte[]>.Success(result.Output)
                 : PlatformResult<byte[]>.Failure("clipboard_command_failed", "The clipboard helper reported an error.");
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
+        catch (InvalidDataException)
+        { return PlatformResult<byte[]>.Failure("clipboard_snapshot_too_large", "The clipboard exceeds the private snapshot limit."); }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException or TimeoutException)
         { return PlatformResult<byte[]>.Failure("clipboard_command_failed", "The clipboard helper failed."); }
+    }
+
+    private static PlatformResult ValidateSnapshot(ClipboardSnapshot snapshot)
+    {
+        if (snapshot.Formats.Count > 64)
+            return PlatformResult.Failure("clipboard_snapshot_invalid", "The clipboard snapshot has too many formats.");
+        long total = 0;
+        foreach (var pair in snapshot.Formats)
+        {
+            if (string.IsNullOrWhiteSpace(pair.Key) || pair.Key.IndexOfAny(['\0', '\r', '\n']) >= 0)
+                return PlatformResult.Failure("clipboard_snapshot_invalid", "The clipboard snapshot contains an invalid MIME type.");
+            total += pair.Value.LongLength;
+            if (total > MaximumSnapshotBytes)
+                return PlatformResult.Failure("clipboard_snapshot_too_large", "The clipboard exceeds the private snapshot limit.");
+        }
+        return PlatformResult.Success();
     }
 
     internal static string? FindExecutable(string name)

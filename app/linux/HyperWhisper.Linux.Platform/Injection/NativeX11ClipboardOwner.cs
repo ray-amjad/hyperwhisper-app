@@ -22,16 +22,17 @@ internal sealed class NativeX11ClipboardOwner : INativeClipboardOwner
     private readonly Thread? _thread;
     private readonly TaskCompletionSource<bool> _initialized = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private volatile bool _stopping;
+    private int _disposed;
     private IntPtr _display;
     private IntPtr _window;
     private IntPtr _clipboard;
     private IntPtr _targets;
     private Dictionary<IntPtr, byte[]> _formats = [];
 
-    public NativeX11ClipboardOwner()
+    public NativeX11ClipboardOwner(bool allowXWayland = false)
     {
         if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("DISPLAY"))
-            || string.Equals(Environment.GetEnvironmentVariable("XDG_SESSION_TYPE"), "wayland", StringComparison.OrdinalIgnoreCase))
+            || (!allowXWayland && string.Equals(Environment.GetEnvironmentVariable("XDG_SESSION_TYPE"), "wayland", StringComparison.OrdinalIgnoreCase)))
         {
             _initialized.TrySetResult(false);
             return;
@@ -44,6 +45,7 @@ internal sealed class NativeX11ClipboardOwner : INativeClipboardOwner
     {
         get
         {
+            if (Volatile.Read(ref _disposed) != 0) return false;
             try { return _initialized.Task.Wait(TimeSpan.FromSeconds(2)) && _initialized.Task.Result; }
             catch { return false; }
         }
@@ -53,7 +55,8 @@ internal sealed class NativeX11ClipboardOwner : INativeClipboardOwner
     {
         if (!IsAvailable) return PlatformResult.Failure("x11_clipboard_unavailable", "Native X11 clipboard ownership is unavailable.");
         var completion = new TaskCompletionSource<PlatformResult>(TaskCreationOptions.RunContinuationsAsynchronously);
-        _requests.Enqueue(new OwnershipRequest(Clone(snapshot.Formats), completion));
+        cancellationToken.ThrowIfCancellationRequested();
+        _requests.Enqueue(new OwnershipRequest(Clone(snapshot.Formats), completion, cancellationToken));
         _wake.Set();
         return await completion.Task.WaitAsync(ExternalProcessRunner.DefaultTimeout, cancellationToken).ConfigureAwait(false);
     }
@@ -101,6 +104,11 @@ internal sealed class NativeX11ClipboardOwner : INativeClipboardOwner
     {
         while (_requests.TryDequeue(out var request))
         {
+            if (request.CancellationToken.IsCancellationRequested)
+            {
+                request.Completion.TrySetCanceled(request.CancellationToken);
+                continue;
+            }
             var mapped = new Dictionary<IntPtr, byte[]>();
             foreach (var pair in request.Formats)
             {
@@ -169,6 +177,7 @@ internal sealed class NativeX11ClipboardOwner : INativeClipboardOwner
 
     public void Dispose()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _stopping = true;
         _wake.Set();
         _thread?.Join(TimeSpan.FromSeconds(2));
@@ -177,7 +186,7 @@ internal sealed class NativeX11ClipboardOwner : INativeClipboardOwner
     }
 
     private sealed record OwnershipRequest(Dictionary<string, byte[]> Formats,
-        TaskCompletionSource<PlatformResult> Completion);
+        TaskCompletionSource<PlatformResult> Completion, CancellationToken CancellationToken);
 
     [StructLayout(LayoutKind.Sequential)]
     private struct XSelectionRequestEvent

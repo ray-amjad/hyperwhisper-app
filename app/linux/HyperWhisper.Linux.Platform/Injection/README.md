@@ -18,19 +18,24 @@ payloads, or window identifiers.
   Paste is allowed only when that exact accessible remains focused at both
   checks. A changed, missing, or unavailable accessible safely stops at copy.
 - Both adapters capture every advertised MIME payload (up to 64 formats and 32
-  MiB). X11 restoration uses an in-process `libX11` selection owner and serves
-  every captured target exactly while the service lives, so
-  `PreservesAllClipboardFormats` is true. Core Wayland requires a compositor
-  input serial to set `wl_data_device` selection plus a live protocol event loop;
-  this non-window service owns neither. `wl-clipboard` can own only one requested
-  MIME type, so Wayland reports `PreservesAllClipboardFormats=false` and
-  `clipboard_restore_partial` for multi-format snapshots.
+  MiB). Restoration uses one in-process `libX11` selection owner, replacing its
+  prior in-memory snapshot atomically and serving every captured target exactly
+  while the service lives. Stable Avalonia is hosted by X11/XWayland, so on
+  GNOME and KDE Wayland the compositor's XWayland clipboard bridge exposes that
+  multi-target selection to native Wayland clients. No snapshot bytes are
+  written to temporary files. `PreservesAllClipboardFormats` is true only when
+  that owner successfully connects to `DISPLAY`; a pure Wayland session without
+  XWayland reports false. It can restore a genuinely single-format snapshot
+  through `wl-copy`, but rejects a multi-format snapshot with
+  `clipboard_restore_partial` before changing the clipboard.
 - Every clipboard, X11 focus, and Python AT-SPI helper is bounded by a five-second
   deadline. Timeout terminates the helper process tree and degrades to the safe
   capability/fallback result.
 
-Before shipping, manually verify the advertised capability values and behavior
-on GNOME Wayland, KDE Plasma Wayland, and an Xorg session. Exact Wayland
-multi-MIME restore requires the future Avalonia window integration to supply a
-valid seat serial and host a `wl_data_source` event loop for the selection
-lifetime. X11 exact restoration is implemented by the current native owner.
+Before shipping, manually verify text, HTML, and PNG round trips across the
+XWayland bridge and the advertised capability values on GNOME Wayland, KDE
+Plasma Wayland, and an Xorg session. `wl-paste` capture consists of one bounded
+request per advertised MIME type, so a source application replacing its
+clipboard midway causes capture to fail or produce only the still-readable
+targets; the Wayland protocol does not offer third-party clients a transaction
+that freezes another owner's payloads.

@@ -47,10 +47,14 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Wayland AT-SPI target rejects changed identity", AtSpiTargetChanged),
     ("clipboard failure prevents uinput", ClipboardFailurePreventsUInput),
     ("uinput exception preserves clipboard fallback", UInputExceptionFallsBack),
-    ("Wayland helper advertises partial multi-MIME restore", CommandClipboardCapability),
+    ("Wayland fallback advertises partial multi-MIME restore", CommandClipboardCapability),
+    ("Wayland native owner receives every MIME format", NativeWaylandRestore),
+    ("clipboard restore rejects snapshots above 32 MiB", ClipboardSnapshotBound),
     ("native X11 owner receives every MIME format", NativeX11Restore),
     ("native X11 owner serves every MIME format", NativeX11RoundTrip),
+    ("XWayland owner bridges text HTML and PNG", XWaylandRoundTrip),
     ("external desktop helpers have a hard timeout", ExternalHelperTimeout),
+    ("external desktop helper output is bounded promptly", ExternalHelperOutputBound),
     ("X11 application context parses active window safely", X11ApplicationContext),
     ("Wayland application context uses AT-SPI", WaylandApplicationContext),
     ("GNOME Wayland prefers companion D-Bus", GnomeWaylandApplicationContext),
@@ -87,6 +91,10 @@ var tests = new (string Name, Func<Task> Run)[]
     ("push-to-talk isolates event subscribers", PushToTalkSubscriberIsolation),
     ("evdev interference is content-free", PushToTalkInterferencePrivacy),
     ("push-to-talk active interference cancels without key data", PushToTalkActiveInterference),
+    ("interaction registers cancel and change-mode actions atomically", InteractionActionRegistration),
+    ("interaction suppresses repeats and emits content-free mode changes", InteractionActionPrivacy),
+    ("interaction conflicts and registration failures restore prior bindings", InteractionActionRollback),
+    ("interaction restores live X11 grabs after registration failure", InteractionX11Rollback),
     ("device identity hashes machine id internally", DeviceIdentityHashesMachineId),
     ("device identity persists owner-only fallback", DeviceIdentityFallback),
     ("host device identity is privacy-preserving", HostDeviceIdentity),
@@ -583,11 +591,47 @@ static async Task UInputExceptionFallsBack()
     Assert.Equal("transcript", clipboard.Text);
 }
 
-static Task CommandClipboardCapability()
+static async Task CommandClipboardCapability()
 {
-    using var backend = new CommandClipboardBackend("/bin/true", "/bin/true", true, null);
+    using var backend = new CommandClipboardBackend("/bin/cat", "/bin/true", true, null);
     Assert.True(!backend.GetCapabilities().PreservesAllClipboardFormats);
-    return Task.CompletedTask;
+    var result = await backend.RestoreAsync(new ClipboardSnapshot(new Dictionary<string, byte[]>(StringComparer.Ordinal)
+    {
+        ["text/plain"] = "text"u8.ToArray(),
+        ["text/html"] = "<b>text</b>"u8.ToArray(),
+    }), CancellationToken.None);
+    Assert.True(result.IsFailure && result.Error!.Code == "clipboard_restore_partial");
+}
+
+static async Task NativeWaylandRestore()
+{
+    var owner = new FakeNativeClipboardOwner();
+    using var backend = new CommandClipboardBackend("/bin/true", "/bin/true", true, owner);
+    var snapshot = new ClipboardSnapshot(new Dictionary<string, byte[]>(StringComparer.Ordinal)
+    {
+        ["text/plain;charset=utf-8"] = "text"u8.ToArray(),
+        ["text/html"] = "<b>text</b>"u8.ToArray(),
+        ["image/png"] = [0x89, 0x50, 0x00, 0x4e, 0x47],
+    });
+    Assert.Success(await backend.RestoreAsync(snapshot, CancellationToken.None));
+    Assert.True(backend.GetCapabilities().PreservesAllClipboardFormats);
+    Assert.Equal(3, owner.Owned!.Formats.Count);
+    Assert.SequenceEqual(snapshot.Formats["image/png"], owner.Owned.Formats["image/png"]);
+    using var cancelled = new CancellationTokenSource();
+    cancelled.Cancel();
+    await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+        await backend.RestoreAsync(snapshot, cancelled.Token));
+}
+
+static async Task ClipboardSnapshotBound()
+{
+    var owner = new FakeNativeClipboardOwner();
+    using var backend = new CommandClipboardBackend("/bin/true", "/bin/true", true, owner);
+    var snapshot = new ClipboardSnapshot(new Dictionary<string, byte[]>(StringComparer.Ordinal)
+        { ["application/octet-stream"] = new byte[32 * 1024 * 1024 + 1] });
+    var result = await backend.RestoreAsync(snapshot, CancellationToken.None);
+    Assert.True(result.IsFailure && result.Error!.Code == "clipboard_snapshot_too_large");
+    Assert.True(owner.Owned is null);
 }
 
 static async Task NativeX11Restore()
@@ -610,22 +654,88 @@ static async Task NativeX11RoundTrip()
     if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("DISPLAY"))) return;
     var xclip = CommandClipboardBackend.FindExecutable("xclip");
     if (xclip is null) return;
-    using var owner = new NativeX11ClipboardOwner();
-    Assert.True(owner.IsAvailable);
+    var owner = new NativeX11ClipboardOwner(allowXWayland:
+        string.Equals(Environment.GetEnvironmentVariable("XDG_SESSION_TYPE"), "wayland", StringComparison.OrdinalIgnoreCase));
+    try
+    {
+        Assert.True(owner.IsAvailable);
+        var snapshot = new ClipboardSnapshot(new Dictionary<string, byte[]>(StringComparer.Ordinal)
+        {
+            ["text/plain"] = "native-text"u8.ToArray(),
+            ["text/html"] = "<b>native</b>"u8.ToArray(),
+            ["image/png"] = [0x89, 0x50, 0x4e, 0x47, 0x00, 0xff],
+        });
+        Assert.Success(await owner.OwnAsync(snapshot, CancellationToken.None));
+        var targets = await ExternalProcessRunner.RunAsync(xclip,
+            ["-selection", "clipboard", "-target", "TARGETS", "-out"], null, CancellationToken.None);
+        var targetNames = System.Text.Encoding.UTF8.GetString(targets.Output);
+        Assert.True(targetNames.Contains("text/plain", StringComparison.Ordinal));
+        Assert.True(targetNames.Contains("text/html", StringComparison.Ordinal));
+        Assert.True(targetNames.Contains("image/png", StringComparison.Ordinal));
+        var image = await ExternalProcessRunner.RunAsync(xclip,
+            ["-selection", "clipboard", "-target", "image/png", "-out"], null, CancellationToken.None);
+        Assert.SequenceEqual(snapshot.Formats["image/png"], image.Output);
+
+        Assert.Success(await owner.OwnAsync(new ClipboardSnapshot(new Dictionary<string, byte[]>(StringComparer.Ordinal)
+            { ["text/plain"] = "replacement"u8.ToArray() }), CancellationToken.None));
+        targets = await ExternalProcessRunner.RunAsync(xclip,
+            ["-selection", "clipboard", "-target", "TARGETS", "-out"], null, CancellationToken.None);
+        targetNames = System.Text.Encoding.UTF8.GetString(targets.Output);
+        Assert.True(targetNames.Contains("text/plain", StringComparison.Ordinal)
+            && !targetNames.Contains("image/png", StringComparison.Ordinal));
+    }
+    finally { owner.Dispose(); }
+    owner.Dispose();
+}
+
+static async Task XWaylandRoundTrip()
+{
+    var required = string.Equals(Environment.GetEnvironmentVariable("HW_REQUIRE_XWAYLAND_CLIPBOARD_BRIDGE"), "1", StringComparison.Ordinal);
+    if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("WAYLAND_DISPLAY")))
+    {
+        if (required) throw new InvalidOperationException("WAYLAND_DISPLAY is required for the XWayland clipboard bridge gate.");
+        return;
+    }
+    var wlPaste = CommandClipboardBackend.FindExecutable("wl-paste");
+    var wlCopy = CommandClipboardBackend.FindExecutable("wl-copy");
+    if (wlPaste is null || wlCopy is null || string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("DISPLAY")))
+    {
+        if (required) throw new InvalidOperationException("DISPLAY, wl-copy, and wl-paste are required for the XWayland clipboard bridge gate.");
+        return;
+    }
+    using var sourceOwner = new NativeX11ClipboardOwner(allowXWayland: true);
+    using var restoreOwner = new NativeX11ClipboardOwner(allowXWayland: true);
+    if (!sourceOwner.IsAvailable || !restoreOwner.IsAvailable)
+    {
+        if (required) throw new InvalidOperationException("The native XWayland clipboard owner is unavailable.");
+        return;
+    }
+    using var backend = new CommandClipboardBackend(wlCopy, wlPaste, true, restoreOwner);
     var snapshot = new ClipboardSnapshot(new Dictionary<string, byte[]>(StringComparer.Ordinal)
     {
-        ["text/plain"] = "native-text"u8.ToArray(),
-        ["image/png"] = [0x89, 0x50, 0x4e, 0x47],
+        ["text/plain;charset=utf-8"] = "wayland text"u8.ToArray(),
+        ["text/html"] = "<p>wayland <b>html</b></p>"u8.ToArray(),
+        ["image/png"] = [0x89, 0x50, 0x4e, 0x47, 0x00, 0xff, 0x01],
     });
-    Assert.Success(await owner.OwnAsync(snapshot, CancellationToken.None));
-    var targets = await ExternalProcessRunner.RunAsync(xclip,
-        ["-selection", "clipboard", "-target", "TARGETS", "-out"], null, CancellationToken.None);
-    var targetNames = System.Text.Encoding.UTF8.GetString(targets.Output);
-    Assert.True(targetNames.Contains("text/plain", StringComparison.Ordinal));
-    Assert.True(targetNames.Contains("image/png", StringComparison.Ordinal));
-    var image = await ExternalProcessRunner.RunAsync(xclip,
-        ["-selection", "clipboard", "-target", "image/png", "-out"], null, CancellationToken.None);
-    Assert.SequenceEqual(snapshot.Formats["image/png"], image.Output);
+    Assert.Success(await sourceOwner.OwnAsync(snapshot, CancellationToken.None));
+    var captured = await backend.CaptureAsync(CancellationToken.None);
+    if (!captured.IsSuccess || captured.Value is null)
+    {
+        if (required) throw new InvalidOperationException(
+            $"The compositor did not bridge the XWayland selection to wl-paste: {captured.Error?.Code}: {captured.Error?.Message}");
+        return;
+    }
+    foreach (var pair in snapshot.Formats)
+        Assert.SequenceEqual(pair.Value, captured.Value!.Formats[pair.Key]);
+    Assert.Success(await backend.SetTextAsync("temporary transcript", CancellationToken.None));
+    Assert.Success(await backend.RestoreAsync(captured.Value!, CancellationToken.None));
+    foreach (var pair in snapshot.Formats)
+    {
+        var read = await ExternalProcessRunner.RunAsync(wlPaste, ["--type", pair.Key], null,
+            CancellationToken.None, maximumOutputBytes: pair.Value.Length + 1);
+        Assert.Equal(0, read.ExitCode);
+        Assert.SequenceEqual(pair.Value, read.Output);
+    }
 }
 
 static async Task ExternalHelperTimeout()
@@ -633,6 +743,15 @@ static async Task ExternalHelperTimeout()
     await Assert.ThrowsAsync<TimeoutException>(async () =>
         await ExternalProcessRunner.RunAsync("/bin/sh", ["-c", "sleep 30"], null,
             CancellationToken.None, TimeSpan.FromMilliseconds(50)));
+}
+
+static async Task ExternalHelperOutputBound()
+{
+    var started = Stopwatch.StartNew();
+    await Assert.ThrowsAsync<InvalidDataException>(async () =>
+        await ExternalProcessRunner.RunAsync("/usr/bin/head", ["-c", "1048576", "/dev/zero"], null,
+            CancellationToken.None, maximumOutputBytes: 16));
+    Assert.True(started.Elapsed < TimeSpan.FromSeconds(2));
 }
 
 static async Task X11ApplicationContext()
@@ -1118,6 +1237,147 @@ static Task PushToTalkActiveInterference()
     return Task.CompletedTask;
 }
 
+static Task InteractionActionRegistration()
+{
+    var shortcuts = new FakeInteractionShortcutService();
+    var pushToTalk = new FakeInteractionPushToTalk();
+    var recording = new FakeInteractionRecordingSession { Active = true };
+    using var coordinator = new LinuxInteractionCoordinator(
+        shortcuts, pushToTalk, new FakeInteractionTextInjection(), recording, new ImmediateUiDispatcher());
+    Assert.Success(coordinator.ConfigureAndStart(InteractionConfiguration()));
+    Assert.Equal(
+        string.Join(',', LinuxInteractionCoordinator.ToggleActionName, LinuxInteractionCoordinator.CancelActionName,
+            LinuxInteractionCoordinator.ChangeModeActionName),
+        string.Join(',', shortcuts.Current.Select(item => item.Name)));
+    Assert.Equal(1, shortcuts.StartCalls);
+    Assert.Equal(1, pushToTalk.StartCalls);
+
+    shortcuts.Emit(LinuxInteractionCoordinator.CancelActionName, true);
+    Assert.Equal(1, recording.CancelCalls);
+    return Task.CompletedTask;
+}
+
+static Task InteractionActionPrivacy()
+{
+    var shortcuts = new FakeInteractionShortcutService();
+    var recording = new FakeInteractionRecordingSession { Active = true };
+    using var coordinator = new LinuxInteractionCoordinator(
+        shortcuts, new FakeInteractionPushToTalk(), new FakeInteractionTextInjection(), recording, new ImmediateUiDispatcher());
+    Assert.Success(coordinator.ConfigureAndStart(InteractionConfiguration()));
+
+    var modeChanges = 0;
+    coordinator.ChangeModeRequested += (_, args) => Assert.True(ReferenceEquals(args, EventArgs.Empty));
+    coordinator.ChangeModeRequested += (_, _) => throw new InvalidOperationException("subscriber");
+    coordinator.ChangeModeRequested += (_, _) => modeChanges++;
+    shortcuts.Emit(LinuxInteractionCoordinator.ChangeModeActionName, true);
+    shortcuts.Emit(LinuxInteractionCoordinator.ChangeModeActionName, true);
+    Assert.Equal(1, modeChanges);
+    shortcuts.Emit(LinuxInteractionCoordinator.ChangeModeActionName, false);
+    shortcuts.Emit(LinuxInteractionCoordinator.ChangeModeActionName, true);
+    Assert.Equal(2, modeChanges);
+
+    shortcuts.Emit(LinuxInteractionCoordinator.CancelActionName, true);
+    shortcuts.Emit(LinuxInteractionCoordinator.CancelActionName, true);
+    Assert.Equal(1, recording.CancelCalls);
+    shortcuts.Emit(LinuxInteractionCoordinator.CancelActionName, false);
+    recording.Active = true;
+    shortcuts.Emit(LinuxInteractionCoordinator.CancelActionName, true);
+    Assert.Equal(2, recording.CancelCalls);
+
+    shortcuts.EmitUnregistered("raw-key-material", new GlobalShortcut(ShortcutModifiers.Meta, new("Q")));
+    Assert.Equal(2, modeChanges);
+    Assert.Equal(2, recording.CancelCalls);
+    return Task.CompletedTask;
+}
+
+static Task InteractionActionRollback()
+{
+    var shortcuts = new FakeInteractionShortcutService();
+    var pushToTalk = new FakeInteractionPushToTalk();
+    var recording = new FakeInteractionRecordingSession { Active = true };
+    using var coordinator = new LinuxInteractionCoordinator(
+        shortcuts, pushToTalk, new FakeInteractionTextInjection(), recording, new ImmediateUiDispatcher());
+    var original = InteractionConfiguration();
+    Assert.Success(coordinator.ConfigureAndStart(original));
+    var originalNames = shortcuts.Current.Select(item => item.Name).ToArray();
+    var originalRegistrationCalls = shortcuts.RegistrationHistory.Count;
+
+    var unsafeCancel = coordinator.ConfigureAndStart(original with
+    {
+        CancelShortcut = new(ShortcutModifiers.None, new("Escape")),
+    });
+    Assert.True(unsafeCancel.IsFailure);
+    Assert.Equal("interaction.cancel_shortcut_unsafe", unsafeCancel.Error!.Code);
+    Assert.Equal(originalRegistrationCalls, shortcuts.RegistrationHistory.Count);
+
+    var conflicts = new[]
+    {
+        original with { CancelShortcut = original.ToggleShortcut },
+        original with { ChangeModeShortcut = original.ToggleShortcut },
+        original with { ChangeModeShortcut = original.CancelShortcut },
+        original with { PushToTalk = new(PushToTalkMode.CustomShortcut, CustomShortcut: original.ToggleShortcut) },
+        original with { PushToTalk = new(PushToTalkMode.CustomShortcut, CustomShortcut: original.CancelShortcut) },
+        original with { PushToTalk = new(PushToTalkMode.CustomShortcut, CustomShortcut: original.ChangeModeShortcut) },
+    };
+    foreach (var conflict in conflicts)
+    {
+        var result = coordinator.ConfigureAndStart(conflict);
+        Assert.True(result.IsFailure);
+        Assert.Equal("interaction.shortcut_conflict", result.Error!.Code);
+        Assert.Equal(originalRegistrationCalls, shortcuts.RegistrationHistory.Count);
+        Assert.Equal(string.Join(',', originalNames), string.Join(',', shortcuts.Current.Select(item => item.Name)));
+    }
+
+    var replacement = original with
+    {
+        ToggleShortcut = new(ShortcutModifiers.Control, new("F8")),
+        CancelShortcut = new(ShortcutModifiers.Control, new("F9")),
+        ChangeModeShortcut = new(ShortcutModifiers.Control, new("F10")),
+    };
+    shortcuts.FailNextName = LinuxInteractionCoordinator.ChangeModeActionName;
+    Assert.True(coordinator.ConfigureAndStart(replacement).IsFailure);
+    Assert.Equal(string.Join(',', originalNames), string.Join(',', shortcuts.Current.Select(item => item.Name)));
+    Assert.Equal(originalRegistrationCalls + 2, shortcuts.RegistrationHistory.Count);
+    shortcuts.Emit(LinuxInteractionCoordinator.CancelActionName, true);
+    Assert.Equal(1, recording.CancelCalls);
+    return Task.CompletedTask;
+}
+
+static LinuxInteractionConfiguration InteractionConfiguration() => new(
+    new GlobalShortcut(ShortcutModifiers.Control | ShortcutModifiers.Shift, new("Space")),
+    new PushToTalkConfiguration(PushToTalkMode.Disabled),
+    TimeSpan.FromSeconds(10),
+    new GlobalShortcut(ShortcutModifiers.Control, new("Escape")),
+    new GlobalShortcut(ShortcutModifiers.Control | ShortcutModifiers.Shift, new("Period")));
+
+static Task InteractionX11Rollback()
+{
+    var connection = new FakeX11Connection();
+    using var shortcuts = new X11GlobalShortcutService(new FakeX11Factory(connection));
+    using var coordinator = new LinuxInteractionCoordinator(
+        shortcuts, new FakeInteractionPushToTalk(), new FakeInteractionTextInjection(),
+        new FakeInteractionRecordingSession(), new ImmediateUiDispatcher());
+    var original = InteractionConfiguration();
+    Assert.Success(coordinator.ConfigureAndStart(original));
+    var originalGrabs = connection.Grabs.ToArray();
+    Assert.True(originalGrabs.Length > 0);
+
+    connection.FailNextGrabForKeycode = connection.Keycode(0xffc7); // F10
+    var replacement = original with
+    {
+        ToggleShortcut = new(ShortcutModifiers.Control, new("F8")),
+        CancelShortcut = new(ShortcutModifiers.Control, new("F9")),
+        ChangeModeShortcut = new(ShortcutModifiers.Control, new("F10")),
+    };
+    var failed = coordinator.ConfigureAndStart(replacement);
+    Assert.True(failed.IsFailure);
+    Assert.Equal("shortcut_grab_failed", failed.Error!.Code);
+    Assert.Equal(
+        string.Join(',', originalGrabs.Select(value => $"{value.Keycode}:{value.Modifiers}")),
+        string.Join(',', connection.Grabs.Select(value => $"{value.Keycode}:{value.Modifiers}")));
+    return Task.CompletedTask;
+}
+
 static Task DeviceIdentityHashesMachineId()
 {
     var raw = "0123456789abcdef0123456789abcdef"u8.ToArray();
@@ -1311,9 +1571,24 @@ sealed class FakeX11Connection(params X11HotkeyEvent[] events) : IX11HotkeyConne
 {
     private readonly Queue<X11HotkeyEvent> _events = new(events);
     public List<(byte Keycode, uint Modifiers)> Grabs { get; } = [];
+    public byte? FailNextGrabForKeycode { get; set; }
     public TaskCompletionSource Drained { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
-    public byte Keycode(uint keysym) => keysym switch { 0x41 => 38, 0xffe3 => 37, 0xffe4 => 105, _ => 0 };
-    public bool Grab(byte keycode, uint modifiers) { Grabs.Add((keycode, modifiers)); return true; }
+    public byte Keycode(uint keysym) => keysym switch
+    {
+        0x20 => 65, 0x2e => 60, 0x41 => 38, 0xff1b => 9,
+        0xffc5 => 74, 0xffc6 => 75, 0xffc7 => 76,
+        0xffe3 => 37, 0xffe4 => 105, _ => 0,
+    };
+    public bool Grab(byte keycode, uint modifiers)
+    {
+        if (FailNextGrabForKeycode == keycode)
+        {
+            FailNextGrabForKeycode = null;
+            return false;
+        }
+        Grabs.Add((keycode, modifiers));
+        return true;
+    }
     public void UngrabAll() => Grabs.Clear();
     public bool TryRead(out X11HotkeyEvent value)
     { if (_events.TryDequeue(out value)) return true; Drained.TrySetResult(); return false; }
@@ -1588,6 +1863,99 @@ sealed class FakeGlobalShortcutService : IGlobalShortcutService, IShortcutInterf
     public void Clear() => Registered = null;
     public void ResetKeyboardState() { }
     public void Dispose() { }
+}
+
+sealed class FakeInteractionShortcutService : IGlobalShortcutService
+{
+    public IReadOnlyList<NamedShortcut> Current { get; private set; } = [];
+    public List<IReadOnlyList<NamedShortcut>> RegistrationHistory { get; } = [];
+    public string? FailNextName { get; set; }
+    public int StartCalls { get; private set; }
+    public event EventHandler<ShortcutTriggeredEventArgs>? ShortcutPressed;
+    public event EventHandler<ShortcutTriggeredEventArgs>? ShortcutReleased;
+    public PlatformResult Start() { StartCalls++; return PlatformResult.Success(); }
+    public IReadOnlyDictionary<string, PlatformResult> RegisterShortcuts(IReadOnlyCollection<NamedShortcut> shortcuts)
+    {
+        var snapshot = shortcuts.ToArray();
+        RegistrationHistory.Add(snapshot);
+        Current = snapshot.Where(item => item.Name != FailNextName).ToArray();
+        var results = snapshot.ToDictionary(
+            item => item.Name,
+            item => item.Name == FailNextName
+                ? PlatformResult.Failure("shortcut.conflict", "The shortcut is already registered.")
+                : PlatformResult.Success(),
+            StringComparer.Ordinal);
+        FailNextName = null;
+        return results;
+    }
+    public void Emit(string name, bool pressed)
+    {
+        var configured = Current.FirstOrDefault(item => item.Name == name);
+        if (configured is null) return;
+        EmitUnregistered(name, configured.Shortcut, pressed);
+    }
+    public void EmitUnregistered(string name, GlobalShortcut shortcut, bool pressed = true)
+    {
+        var args = new ShortcutTriggeredEventArgs(name, shortcut);
+        if (pressed) ShortcutPressed?.Invoke(this, args); else ShortcutReleased?.Invoke(this, args);
+    }
+    public void Clear() => Current = [];
+    public void ResetKeyboardState() { }
+    public void Dispose() { }
+}
+
+sealed class FakeInteractionPushToTalk : IPushToTalkMonitor
+{
+    public int StartCalls { get; private set; }
+    public PushToTalkConfiguration Configuration { get; private set; } = new(PushToTalkMode.Disabled);
+    public event EventHandler? Pressed { add { } remove { } }
+    public event EventHandler? Released { add { } remove { } }
+    public event EventHandler? Interfered { add { } remove { } }
+    public void Configure(PushToTalkConfiguration configuration) => Configuration = configuration;
+    public PlatformResult Start() { StartCalls++; return PlatformResult.Success(); }
+    public void Reset() { }
+    public void ResetToIdle() { }
+    public void Dispose() { }
+}
+
+sealed class FakeInteractionRecordingSession : IInteractionRecordingSession
+{
+    public bool Active { get; set; }
+    public bool IsActive => Active;
+    public int StartCalls { get; private set; }
+    public int StopCalls { get; private set; }
+    public int CancelCalls { get; private set; }
+    public ValueTask<PlatformResult> StartAsync(CancellationToken cancellationToken = default)
+    { cancellationToken.ThrowIfCancellationRequested(); StartCalls++; Active = true; return ValueTask.FromResult(PlatformResult.Success()); }
+    public ValueTask<InteractionStopOutcome> StopAsync(CancellationToken cancellationToken = default)
+    { cancellationToken.ThrowIfCancellationRequested(); StopCalls++; Active = false; return ValueTask.FromResult(new InteractionStopOutcome(PlatformResult.Success())); }
+    public ValueTask CancelAsync(CancellationToken cancellationToken = default)
+    { cancellationToken.ThrowIfCancellationRequested(); CancelCalls++; Active = false; return ValueTask.CompletedTask; }
+}
+
+sealed class FakeInteractionTextInjection : ITextInjectionService
+{
+    public bool IsCapturedTargetAvailable => true;
+    public void CaptureTarget() { }
+    public void StartSession() { }
+    public void EndSession() { }
+    public void CancelPendingClipboardRestore() { }
+    public void ScheduleClipboardRestore(TimeSpan delay) { }
+    public ValueTask<PlatformResult> RestoreClipboardImmediatelyAsync(CancellationToken cancellationToken = default)
+    { cancellationToken.ThrowIfCancellationRequested(); return ValueTask.FromResult(PlatformResult.Success()); }
+    public ValueTask<PlatformResult> CopyToClipboardAsync(string text, CancellationToken cancellationToken = default)
+    { cancellationToken.ThrowIfCancellationRequested(); return ValueTask.FromResult(PlatformResult.Success()); }
+    public ValueTask<TextInjectionOutcome> InjectTranscriptAsync(string text, CancellationToken cancellationToken = default)
+    { cancellationToken.ThrowIfCancellationRequested(); return ValueTask.FromResult(TextInjectionOutcome.Pasted); }
+    public void Dispose() { }
+}
+
+sealed class ImmediateUiDispatcher : IUiDispatcher
+{
+    public bool CheckAccess() => true;
+    public void Post(Action action) => action();
+    public ValueTask InvokeAsync(Func<ValueTask> action, CancellationToken cancellationToken = default)
+    { cancellationToken.ThrowIfCancellationRequested(); return action(); }
 }
 
 sealed class FakePushToTalkScheduler : IPushToTalkScheduler

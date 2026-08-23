@@ -156,6 +156,20 @@ unset token
 
 ### GNOME Wayland
 
+Run the required all-MIME clipboard bridge gate from the graphical user session
+(not SSH or a headless compositor):
+
+```bash
+HW_REQUIRE_XWAYLAND_CLIPBOARD_BRIDGE=1 dotnet run \
+  --project app/linux/HyperWhisper.Linux.Platform.Tests/HyperWhisper.Linux.Platform.Tests.csproj \
+  -c Release
+```
+
+The `XWayland owner bridges text HTML and PNG` test must pass. It captures the
+three formats, replaces the clipboard with a transcript, restores through one
+native owner, and reads each payload back through the independent `wl-paste`
+Wayland client, including NUL and non-UTF-8 PNG bytes.
+
 ```bash
 test "$XDG_SESSION_TYPE" = wayland
 printf '%s\n' "$XDG_CURRENT_DESKTOP" | grep -qi GNOME
@@ -182,6 +196,11 @@ X11 active window without the GNOME companion extension. Run global hotkey and
 injection checks on both a native X11 app and an Electron app.
 
 ### KDE Wayland
+
+Run the same `HW_REQUIRE_XWAYLAND_CLIPBOARD_BRIDGE=1` command above from the
+physical Plasma Wayland session and require the bridge test to pass. A missing
+`DISPLAY` or a compositor that does not expose the XWayland selection to
+`wl-paste` is a release blocker, not a skipped test.
 
 ```bash
 test "$XDG_SESSION_TYPE" = wayland
