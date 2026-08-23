@@ -1,0 +1,54 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="HyperWhisper.Linux.MainWindow"
+        Title="HyperWhisper"
+        Width="1040"
+        Height="680"
+        MinWidth="800"
+        MinHeight="520"
+        WindowStartupLocation="CenterScreen">
+  <Grid ColumnDefinitions="220,*" RowDefinitions="*,Auto">
+    <Border Grid.RowSpan="2" Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+            BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="0,0,1,0">
+      <Grid RowDefinitions="Auto,*,Auto" Margin="16">
+        <StackPanel Spacing="4" Margin="8,8,8,24">
+          <TextBlock Text="HyperWhisper" FontSize="24" FontWeight="SemiBold" />
+          <TextBlock Text="Linux 1.0" Opacity="0.65" />
+        </StackPanel>
+
+        <ListBox x:Name="Navigation" Grid.Row="1" SelectionChanged="OnNavigationChanged">
+          <ListBoxItem Content="Home" Tag="home" IsSelected="True" />
+          <ListBoxItem Content="Modes" Tag="modes" />
+          <ListBoxItem Content="History" Tag="history" />
+          <ListBoxItem Content="Vocabulary" Tag="vocabulary" />
+          <ListBoxItem Content="Settings" Tag="settings" />
+        </ListBox>
+
+        <Border Grid.Row="2" Padding="10" CornerRadius="8"
+                Background="{DynamicResource ControlFillColorDefaultBrush}">
+          <TextBlock Text="X11 / XWayland desktop head" FontSize="12" Opacity="0.7" />
+        </Border>
+      </Grid>
+    </Border>
+
+    <Grid Grid.Column="1" RowDefinitions="Auto,*" Margin="36,28">
+      <TextBlock x:Name="PageTitle" Text="Home" FontSize="30" FontWeight="SemiBold" />
+      <Border Grid.Row="1" Margin="0,24,0,0" Padding="28" CornerRadius="12"
+              Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+              BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+        <StackPanel Spacing="14" VerticalAlignment="Center" HorizontalAlignment="Center">
+          <TextBlock x:Name="PageHeading" Text="Linux application shell is running"
+                     FontSize="22" FontWeight="SemiBold" TextAlignment="Center" />
+          <TextBlock x:Name="PageDescription"
+                     Text="Platform services are connected here as each parity milestone lands."
+                     MaxWidth="560" TextWrapping="Wrap" TextAlignment="Center" Opacity="0.72" />
+        </StackPanel>
+      </Border>
+    </Grid>
+
+    <Border Grid.Column="1" Grid.Row="1" Padding="36,10"
+            BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="0,1,0,0">
+      <TextBlock x:Name="StatusText" Text="Ready" FontSize="12" Opacity="0.7" />
+    </Border>
+  </Grid>
+</Window>
