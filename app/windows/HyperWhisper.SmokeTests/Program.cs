@@ -21,16 +21,19 @@ using System.Net.Http;
 using System.Net.WebSockets;
 using System.Text.Json;
 using System.Windows;
+using System.Windows.Input;
 using HyperWhisper.Data;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Models;
 using HyperWhisper.Services;
+using HyperWhisper.Services.Platform;
 using HyperWhisper.Services.Streaming;
 using HyperWhisper.Services.Transcription;
 using HyperWhisper.Utilities;
 using HyperWhisper.ViewModels;
 using HyperWhisper.Views.Pages.Settings;
 using uniffi.hyperwhisper_core;
+using PlatformContracts = HyperWhisper.Platform.Abstractions;
 
 namespace HyperWhisper.SmokeTests;
 
@@ -59,6 +62,59 @@ internal static class Program
             {
                 var credits = HyperwhisperCoreMethods.CloudSttCreditsPerMinute("balanced");
                 Assert(credits >= 0, $"expected credits/min >= 0, got {credits}");
+            });
+
+            Run("Windows shortcut seam round-trips WPF keys losslessly", () =>
+            {
+                foreach (var key in new[] { Key.A, Key.D9, Key.F24, Key.OemPeriod, Key.Return })
+                {
+                    var windows = new KeyboardShortcut
+                    {
+                        Control = true,
+                        Alt = true,
+                        Shift = true,
+                        Win = true,
+                        Key = key
+                    };
+
+                    var portable = WindowsShortcutMapper.ToPlatform(windows);
+                    var roundTrip = WindowsShortcutMapper.FromPlatform(portable);
+                    Assert(roundTrip.IsSuccess, roundTrip.Error?.Message ?? $"failed to map {key}");
+                    Assert(roundTrip.Value == windows, $"{key} did not round-trip");
+                }
+
+                var unsupported = WindowsShortcutMapper.FromPlatform(
+                    new PlatformContracts.GlobalShortcut(
+                        PlatformContracts.ShortcutModifiers.Control,
+                        new PlatformContracts.ShortcutKeyCode("NotAWindowsKey")));
+                Assert(unsupported.IsFailure, "unknown platform key should fail explicitly");
+                Assert(unsupported.Error?.Code == "shortcut.unsupported_key", "unexpected error code");
+            });
+
+            Run("Windows push-to-talk seam round-trips every modifier", () =>
+            {
+                foreach (var modifier in Enum.GetValues<PlatformContracts.ModifierSide>())
+                {
+                    var portable = new PlatformContracts.PushToTalkConfiguration(
+                        PlatformContracts.PushToTalkMode.Modifier,
+                        modifier,
+                        DoublePressLock: true);
+                    var windows = WindowsShortcutMapper.FromPlatform(portable);
+                    Assert(windows.IsSuccess, windows.Error?.Message ?? $"failed to map {modifier}");
+
+                    var roundTrip = WindowsShortcutMapper.ToPlatform(windows.Value!);
+                    Assert(roundTrip.Modifier == modifier, $"{modifier} did not round-trip");
+                    Assert(roundTrip.DoublePressLock, "double-press lock was lost");
+                }
+
+                Assert(
+                    typeof(PlatformContracts.IGlobalShortcutService)
+                        .IsAssignableFrom(typeof(KeyboardShortcutService)),
+                    "KeyboardShortcutService does not implement the portable contract");
+                Assert(
+                    typeof(PlatformContracts.IPushToTalkMonitor)
+                        .IsAssignableFrom(typeof(PushToTalkMonitor)),
+                    "PushToTalkMonitor does not implement the portable contract");
             });
 
             Run("ApplyHardenedReplacement keeps $-tokens literal", () =>

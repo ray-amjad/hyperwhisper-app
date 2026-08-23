@@ -11,53 +11,38 @@ public enum ShortcutModifiers
 }
 
 /// <summary>
-/// Stable logical key codes used in settings and translated by each platform
-/// adapter. These deliberately do not expose WPF Key, Win32 virtual-key values,
-/// Linux evdev codes, or Avalonia key types.
+/// Stable logical key name used across settings and platform adapters. A name is
+/// used instead of an OS enum so the contract can round-trip uncommon keys without
+/// exposing WPF, Win32 virtual-key, Linux evdev, or Avalonia values. Adapters own
+/// translation to their native key vocabulary and reject names they cannot support.
 /// </summary>
-public enum ShortcutKeyCode
+public readonly record struct ShortcutKeyCode
 {
-    None,
-    A, B, C, D, E, F, G, H, I, J, K, L, M,
-    N, O, P, Q, R, S, T, U, V, W, X, Y, Z,
-    Digit0, Digit1, Digit2, Digit3, Digit4,
-    Digit5, Digit6, Digit7, Digit8, Digit9,
-    F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12,
-    F13, F14, F15, F16, F17, F18, F19, F20, F21, F22, F23, F24,
-    Escape,
-    Space,
-    Enter,
-    Tab,
-    Backspace,
-    Delete,
-    Insert,
-    Home,
-    End,
-    PageUp,
-    PageDown,
-    ArrowUp,
-    ArrowDown,
-    ArrowLeft,
-    ArrowRight,
-    Period,
-    Comma,
-    Minus,
-    Equal,
-    Slash,
-    Backslash,
-    Semicolon,
-    Quote,
-    LeftBracket,
-    RightBracket,
-    Grave
+    private readonly string? _value;
+
+    public ShortcutKeyCode(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new ArgumentException("A shortcut key code cannot be empty.", nameof(value));
+        }
+
+        _value = value;
+    }
+
+    public static ShortcutKeyCode None => default;
+    public string Value => _value ?? string.Empty;
+    public bool IsNone => string.IsNullOrEmpty(_value);
+
+    public override string ToString() => Value;
 }
 
 public sealed record GlobalShortcut(
     ShortcutModifiers Modifiers,
-    ShortcutKeyCode Key = ShortcutKeyCode.None)
+    ShortcutKeyCode Key = default)
 {
-    public bool IsEmpty => Modifiers == ShortcutModifiers.None && Key == ShortcutKeyCode.None;
-    public bool IsModifierOnly => Modifiers != ShortcutModifiers.None && Key == ShortcutKeyCode.None;
+    public bool IsEmpty => Modifiers == ShortcutModifiers.None && Key.IsNone;
+    public bool IsModifierOnly => Modifiers != ShortcutModifiers.None && Key.IsNone;
 }
 
 public sealed record NamedShortcut(string Name, GlobalShortcut Shortcut);
@@ -91,6 +76,10 @@ public enum PushToTalkMode
 
 public enum ModifierSide
 {
+    Control,
+    Alt,
+    Shift,
+    Meta,
     LeftControl,
     RightControl,
     LeftAlt,

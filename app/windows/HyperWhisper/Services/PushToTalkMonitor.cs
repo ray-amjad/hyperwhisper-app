@@ -4,6 +4,8 @@ using System.Windows;
 using System.Windows.Input;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Models;
+using HyperWhisper.Services.Platform;
+using PlatformContracts = HyperWhisper.Platform.Abstractions;
 
 namespace HyperWhisper.Services;
 
@@ -19,7 +21,7 @@ namespace HyperWhisper.Services;
 ///
 /// Emits Pressed (start recording), Released (stop recording), and Interfered (cancel) events.
 /// </summary>
-public sealed class PushToTalkMonitor : IDisposable
+public sealed class PushToTalkMonitor : IDisposable, PlatformContracts.IPushToTalkMonitor
 {
     private const int WH_KEYBOARD_LL = 13;
     private const int WM_KEYDOWN = 0x0100;
@@ -131,6 +133,7 @@ public sealed class PushToTalkMonitor : IDisposable
     // from the timer callback (UI thread, after the hook has returned) to confirm whether
     // the key is genuinely up before committing the release.
     private const int KeyUpDebounceMs = 100;
+    private bool _disposed;
 
     public event EventHandler? Pressed;
     public event EventHandler? Released;
@@ -143,15 +146,47 @@ public sealed class PushToTalkMonitor : IDisposable
 
     public void Configure(PushToTalkSettings settings)
     {
+        ArgumentNullException.ThrowIfNull(settings);
+
         _settings.Mode = settings.Mode;
         _settings.Modifier = settings.Modifier;
         _settings.DoublePressLock = settings.DoublePressLock;
         _settings.CustomShortcut = settings.CustomShortcut?.Clone();
     }
 
+    void PlatformContracts.IPushToTalkMonitor.Configure(PlatformContracts.PushToTalkConfiguration configuration)
+    {
+        ArgumentNullException.ThrowIfNull(configuration);
+
+        var mapped = WindowsShortcutMapper.FromPlatform(configuration);
+        if (mapped.IsFailure)
+        {
+            throw new ArgumentException(mapped.Error!.Message, nameof(configuration));
+        }
+
+        Configure(mapped.Value!);
+    }
+
     public void Start()
     {
         EnsureHook();
+    }
+
+    PlatformContracts.PlatformResult PlatformContracts.IPushToTalkMonitor.Start()
+    {
+        if (_disposed)
+        {
+            return PlatformContracts.PlatformResult.Failure(
+                "push_to_talk.disposed",
+                "The Windows push-to-talk monitor has been disposed.");
+        }
+
+        EnsureHook();
+        return _hookId != IntPtr.Zero
+            ? PlatformContracts.PlatformResult.Success()
+            : PlatformContracts.PlatformResult.Failure(
+                "push_to_talk.hook_unavailable",
+                "The Windows low-level keyboard hook could not be installed.");
     }
 
     public void Reset()
@@ -182,6 +217,9 @@ public sealed class PushToTalkMonitor : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
+
         Reset(); // also calls CancelKeyUpDebounce
         if (_hookId != IntPtr.Zero)
         {
@@ -426,10 +464,18 @@ public sealed class PushToTalkMonitor : IDisposable
         {
             return _settings.Modifier.ToLowerInvariant() switch
             {
+                "leftcontrol" or "leftctrl" => new[] { VK_LCONTROL },
+                "rightcontrol" or "rightctrl" => new[] { VK_RCONTROL },
+                "control" or "ctrl" => new[] { VK_LCONTROL, VK_RCONTROL },
                 "leftalt" => new[] { VK_LMENU },
                 "rightalt" => new[] { VK_RMENU },
                 "alt" => new[] { VK_LMENU, VK_RMENU },
+                "leftshift" => new[] { VK_LSHIFT },
+                "rightshift" => new[] { VK_RSHIFT },
                 "shift" => new[] { VK_LSHIFT, VK_RSHIFT },
+                "leftmeta" or "leftwin" => new[] { VK_LWIN },
+                "rightmeta" or "rightwin" => new[] { VK_RWIN },
+                "meta" => new[] { VK_LWIN, VK_RWIN },
                 "win" => new[] { VK_LWIN, VK_RWIN },
                 _ => new[] { VK_LCONTROL, VK_RCONTROL }
             };
@@ -463,8 +509,14 @@ public sealed class PushToTalkMonitor : IDisposable
             // Check if the key is the opposite side of the same modifier family
             return _settings.Modifier.ToLowerInvariant() switch
             {
+                "leftcontrol" or "leftctrl" => vkCode == VK_RCONTROL,
+                "rightcontrol" or "rightctrl" => vkCode == VK_LCONTROL,
                 "leftalt" => vkCode == VK_RMENU,
                 "rightalt" => vkCode == VK_LMENU,
+                "leftshift" => vkCode == VK_RSHIFT,
+                "rightshift" => vkCode == VK_LSHIFT,
+                "leftmeta" or "leftwin" => vkCode == VK_RWIN,
+                "rightmeta" or "rightwin" => vkCode == VK_LWIN,
                 _ => false
             };
         }
@@ -492,10 +544,18 @@ public sealed class PushToTalkMonitor : IDisposable
 
     private bool IsModifierPressed(string modifier) => modifier.ToLowerInvariant() switch
     {
+        "leftcontrol" or "leftctrl" => _pressedKeys.Contains(VK_LCONTROL),
+        "rightcontrol" or "rightctrl" => _pressedKeys.Contains(VK_RCONTROL),
+        "control" or "ctrl" => IsAnyCtrlDown(),
         "leftalt" => _pressedKeys.Contains(VK_LMENU),
         "rightalt" => _pressedKeys.Contains(VK_RMENU),
         "alt" => IsAnyAltDown(),
+        "leftshift" => _pressedKeys.Contains(VK_LSHIFT),
+        "rightshift" => _pressedKeys.Contains(VK_RSHIFT),
         "shift" => IsAnyShiftDown(),
+        "leftmeta" or "leftwin" => _pressedKeys.Contains(VK_LWIN),
+        "rightmeta" or "rightwin" => _pressedKeys.Contains(VK_RWIN),
+        "meta" => IsAnyWinDown(),
         "win" => IsAnyWinDown(),
         _ => IsAnyCtrlDown()
     };
@@ -669,10 +729,18 @@ public sealed class PushToTalkMonitor : IDisposable
         {
             return _settings.Modifier.ToLowerInvariant() switch
             {
+                "leftcontrol" or "leftctrl" => (GetAsyncKeyState(VK_LCONTROL) & down) != 0,
+                "rightcontrol" or "rightctrl" => (GetAsyncKeyState(VK_RCONTROL) & down) != 0,
+                "control" or "ctrl" => (GetAsyncKeyState(VK_LCONTROL) & down) != 0 || (GetAsyncKeyState(VK_RCONTROL) & down) != 0,
                 "leftalt"  => (GetAsyncKeyState(VK_LMENU)    & down) != 0,
                 "rightalt" => (GetAsyncKeyState(VK_RMENU)     & down) != 0,
                 "alt"      => (GetAsyncKeyState(VK_LMENU)     & down) != 0 || (GetAsyncKeyState(VK_RMENU)    & down) != 0,
+                "leftshift" => (GetAsyncKeyState(VK_LSHIFT) & down) != 0,
+                "rightshift" => (GetAsyncKeyState(VK_RSHIFT) & down) != 0,
                 "shift"    => (GetAsyncKeyState(VK_LSHIFT)    & down) != 0 || (GetAsyncKeyState(VK_RSHIFT)   & down) != 0,
+                "leftmeta" or "leftwin" => (GetAsyncKeyState(VK_LWIN) & down) != 0,
+                "rightmeta" or "rightwin" => (GetAsyncKeyState(VK_RWIN) & down) != 0,
+                "meta" => (GetAsyncKeyState(VK_LWIN) & down) != 0 || (GetAsyncKeyState(VK_RWIN) & down) != 0,
                 "win"      => (GetAsyncKeyState(VK_LWIN)      & down) != 0 || (GetAsyncKeyState(VK_RWIN)     & down) != 0,
                 _          => (GetAsyncKeyState(VK_LCONTROL)  & down) != 0 || (GetAsyncKeyState(VK_RCONTROL) & down) != 0,
             };
@@ -754,10 +822,27 @@ public sealed class PushToTalkMonitor : IDisposable
 
     private void RaiseSafe(EventHandler? evt)
     {
-        void Invoke() => evt?.Invoke(this, EventArgs.Empty);
-        if (WpfApplication.Current?.Dispatcher != null)
+        void Invoke()
         {
-            WpfApplication.Current.Dispatcher.BeginInvoke(Invoke);
+            if (evt == null) return;
+
+            foreach (EventHandler handler in evt.GetInvocationList())
+            {
+                try
+                {
+                    handler(this, EventArgs.Empty);
+                }
+                catch (Exception ex)
+                {
+                    LoggingService.Error("PushToTalkMonitor: event handler failed", ex);
+                }
+            }
+        }
+
+        var dispatcher = WpfApplication.Current?.Dispatcher;
+        if (dispatcher != null && !dispatcher.HasShutdownStarted)
+        {
+            dispatcher.BeginInvoke(Invoke);
         }
         else
         {
