@@ -303,17 +303,29 @@ static async Task X11GrabIntegration()
     Assert.Success(registered["integration"]); Assert.Success(service.Start());
     using var window = Process.Start(new ProcessStartInfo("xmessage", "-title hw-xgrab-test -buttons ok -timeout 5 test") { UseShellExecute = false });
     if (window is null) throw new InvalidOperationException("X11 test window failed to start");
-    await Task.Delay(150);
-    var search = new ProcessStartInfo("xdotool", "search --name hw-xgrab-test") { UseShellExecute = false, RedirectStandardOutput = true };
-    using var finder = Process.Start(search);
-    if (finder is null) throw new InvalidOperationException("xdotool search failed to start");
-    var id = (await finder.StandardOutput.ReadToEndAsync()).Trim().Split('\n')[0];
-    await finder.WaitForExitAsync(); Assert.Equal(0, finder.ExitCode);
-    using var process = Process.Start(new ProcessStartInfo("xdotool", $"windowfocus {id} key a") { UseShellExecute = false });
-    if (process is null) throw new InvalidOperationException("xdotool failed to start");
-    await process.WaitForExitAsync(); Assert.Equal(0, process.ExitCode);
-    await pressed.Task.WaitAsync(TimeSpan.FromSeconds(2)); await released.Task.WaitAsync(TimeSpan.FromSeconds(2));
-    if (!window.HasExited) window.Kill();
+    try
+    {
+        await Task.Delay(150);
+        var search = new ProcessStartInfo("xdotool", "search --name hw-xgrab-test") { UseShellExecute = false, RedirectStandardOutput = true };
+        using var finder = Process.Start(search);
+        if (finder is null) throw new InvalidOperationException("xdotool search failed to start");
+        var id = (await finder.StandardOutput.ReadToEndAsync()).Trim().Split('\n')[0];
+        await finder.WaitForExitAsync(); Assert.Equal(0, finder.ExitCode);
+        using var process = Process.Start(new ProcessStartInfo("xdotool", $"windowfocus {id} key a") { UseShellExecute = false });
+        if (process is null) throw new InvalidOperationException("xdotool failed to start");
+        await process.WaitForExitAsync(); Assert.Equal(0, process.ExitCode);
+        await pressed.Task.WaitAsync(TimeSpan.FromSeconds(2)); await released.Task.WaitAsync(TimeSpan.FromSeconds(2));
+    }
+    finally
+    {
+        if (!window.HasExited) window.Kill(entireProcessTree: true);
+        await window.WaitForExitAsync();
+        service.Dispose();
+        // Let Xvfb process the final client close before the next host test
+        // opens a fresh Display. Real desktop servers are long-lived, but the
+        // in-process test sequence otherwise exposes an Xvfb teardown race.
+        await Task.Delay(100);
+    }
 }
 
 static async Task X11ConcurrentMutationIntegration()
