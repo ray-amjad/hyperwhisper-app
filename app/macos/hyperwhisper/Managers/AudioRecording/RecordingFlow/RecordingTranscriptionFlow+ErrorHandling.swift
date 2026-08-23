@@ -310,22 +310,33 @@ extension RecordingTranscriptionFlow {
     /// failed status by then).
     func handleTranscriptionError(_ error: Error, processingTranscriptID: NSManagedObjectID?, mode: String, duration: TimeInterval, audioURL: URL) {
         // HYPERWHISPER-EX: `TranscriptionPipeline` deliberately excludes
-        // `.noSpeechDetected` from Sentry capture as "user-recoverable" — which
-        // also hides the case where the mic auto-boost silently failed (fire-and-
-        // forget task, see `RecordingLifecycle.lastMicBoostFailed`) and the
-        // resulting quiet-but-not-silent recording got misclassified as no-speech.
-        // That's a capture-quality defect, not the user simply staying silent, so
-        // report it distinctly here (this call site isn't covered by the
-        // pipeline's blanket exclusion — no duplicate event for the common case).
-        if AppLogger.isErrorLoggingEnabled,
-           let te = error as? TranscriptionError, case .noSpeechDetected = te,
-           recordingLifecycle.lastMicBoostFailed {
-            SentryService.capture(
-                error: te,
-                message: "No speech detected after mic auto-boost failure",
-                extras: ["mode": mode, "durationSeconds": duration],
-                tags: ["category": "audio", "kind": "no_speech_after_boost_failure"]
-            )
+        // `.noSpeechDetected` from Sentry capture as "user-recoverable", which
+        // also hid every case where the audio DID contain speech and a provider
+        // returned an empty transcript anyway. Windows measures that cohort and
+        // it is real (57 backend-confirmed events / 90 days, median peak
+        // -18.47 dBFS, across Deepgram and ElevenLabs); macOS reported nothing.
+        //
+        // `TranscriptionDiagnosticsService` is the narrow reporting path: it
+        // measures the audio and skips genuine silence, so the pipeline's
+        // blanket exclusion stays and the common case still produces no event.
+        // It subsumes the previous mic-auto-boost-only capture — that signal
+        // now rides along as the `mic_boost_failed` tag, so a quiet recording
+        // caused by a failed boost stays distinguishable from a provider fault.
+        if let te = error as? TranscriptionError, case .noSpeechDetected = te {
+            let micBoostFailed = recordingLifecycle.lastMicBoostFailed
+            let deviceName = recordingLifecycle.deviceManager.activeInputDeviceName
+            Task.detached(priority: .utility) {
+                await TranscriptionDiagnosticsService.captureNoSpeechDiagnostic(
+                    audioURL: audioURL,
+                    fallbackDurationSeconds: duration,
+                    mode: mode,
+                    diagnosticStage: "live_recording",
+                    diagnosticSource: "provider_no_speech",
+                    error: te,
+                    inputDeviceName: deviceName,
+                    micBoostFailed: micBoostFailed
+                )
+            }
         }
 
         let isNetworkOutage: Bool
