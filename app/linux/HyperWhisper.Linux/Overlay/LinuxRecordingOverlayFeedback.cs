@@ -14,11 +14,15 @@ internal interface ILinuxRecordingOverlayFeedback : IDisposable
 internal sealed class LazyLinuxRecordingOverlayFeedback : ILinuxRecordingOverlayFeedback
 {
     private readonly ILinuxOverlayDispatcher _dispatcher;
+    private readonly Func<bool> _isEnabled;
     private LinuxRecordingOverlayController? _controller;
     private bool _disposed;
 
-    public LazyLinuxRecordingOverlayFeedback(ILinuxOverlayDispatcher dispatcher) =>
+    public LazyLinuxRecordingOverlayFeedback(ILinuxOverlayDispatcher dispatcher, Func<bool>? isEnabled = null)
+    {
         _dispatcher = dispatcher;
+        _isEnabled = isEnabled ?? (() => true);
+    }
 
     public void RecordingStarted(LinuxOverlayModeLabel mode) => Post(controller => controller.ShowRecording(mode));
     public void Transcribing() => Post(controller => controller.ShowTranscribing());
@@ -30,6 +34,7 @@ internal sealed class LazyLinuxRecordingOverlayFeedback : ILinuxRecordingOverlay
 
     private void Post(Action<LinuxRecordingOverlayController> action)
     {
+        if (!_isEnabled()) return;
         try
         {
             _dispatcher.Post(() =>
@@ -43,6 +48,13 @@ internal sealed class LazyLinuxRecordingOverlayFeedback : ILinuxRecordingOverlay
                 catch { /* Overlay creation/rendering cannot block speech. */ }
             });
         }
+        catch { }
+    }
+
+    public void ApplyPreference()
+    {
+        if (_isEnabled()) return;
+        try { _dispatcher.Post(() => { try { _controller?.Hide(); } catch { } }); }
         catch { }
     }
 

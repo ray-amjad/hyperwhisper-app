@@ -18,6 +18,7 @@
     <ProjectReference Include="..\HyperWhisper.SharedCore\HyperWhisper.SharedCore.csproj" />
     <ProjectReference Include="..\HyperWhisper.SpeechOutput\HyperWhisper.SpeechOutput.csproj" />
     <ProjectReference Include="..\HyperWhisper.Storage\HyperWhisper.Storage.csproj" />
+    <ProjectReference Include="..\HyperWhisper.Statistics\HyperWhisper.Statistics.csproj" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.19" />
   </ItemGroup>
 

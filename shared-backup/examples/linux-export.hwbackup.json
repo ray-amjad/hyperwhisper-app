@@ -26,7 +26,7 @@
     },
     "advanced": {
       "maxRecordingDuration": 3600,
-      "typingSpeedWPM": 45
+      "typingSpeedWPM": 40
     }
   },
   "modes": [
@@ -94,6 +94,8 @@
         "audioEnvironmentPolicy": "duck",
         "autoDeleteEnabled": true,
         "autoDeleteDaysOld": 30,
+        "themeMode": "system",
+        "minimizeToTray": true,
         "customEndpoints": [
           {
             "id": "3a0e8400-e29b-41d4-a716-446655440032",

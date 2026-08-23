@@ -11,6 +11,7 @@ using HyperWhisper.SpeechOutput;
 using HyperWhisper.SharedCore;
 using HyperWhisper.PortableApplication.ViewModels;
 using HyperWhisper.CloudAccount;
+using HyperWhisper.Statistics;
 
 var root = Path.Combine(Path.GetTempPath(), "HyperWhisper.Application.Tests", Guid.NewGuid().ToString("N"));
 Directory.CreateDirectory(root);
@@ -149,7 +150,12 @@ try
     settings.Set("textOutput.removeFillerWords", true);
     settings.Set("textOutput.autocapitalizeInsert", false);
     settings.Set("textOutput.restoreClipboardAfterPaste", false);
+    settings.Set("textOutput.hideFromClipboardHistory", false);
     settings.Set("textOutput.clipboardRestoreDelaySeconds", 2.5d);
+    settings.Set("general.showRecordingWindow", false);
+    settings.Set("themeMode", "dark");
+    settings.Set("general.launchMinimized", true);
+    settings.Set("minimizeToTray", false);
     Assert(settings.Save().IsSuccess, "settings save failed");
     var reloadedSettings = new PortableSettingsService(files, Path.Combine(root, "settings.json"));
     Assert(reloadedSettings.Load().IsSuccess, "settings load failed");
@@ -158,6 +164,9 @@ try
     outputSettings.Load();
     Assert(!outputSettings.PasteResultText && outputSettings.RemoveFillerWords
         && !outputSettings.AutocapitalizeInsert && !outputSettings.RestoreClipboardAfterPaste
+        && !outputSettings.HideFromClipboardHistory
+        && !outputSettings.ShowRecordingWindow && outputSettings.ThemeMode == "dark"
+        && outputSettings.LaunchMinimized && !outputSettings.MinimizeToTray
         && outputSettings.ClipboardRestoreDelaySeconds == 2.5d,
         "text-output settings did not load from their canonical shared keys");
     outputSettings.CancelShortcutModifiers = outputSettings.ToggleShortcutModifiers;
@@ -635,9 +644,50 @@ try
     var failingHome = new HyperWhisper.PortableApplication.ViewModels.HomeViewModel(
         new HistoryRepository(new ApplicationDb(() => throw new IOException("expected test failure"))),
         new VocabularyRepository(database),
-        new ModeRepository(database));
+        new ModeRepository(database),
+        new HomeStatisticsService(new StatisticsTranscriptProvider(database)),
+        settings);
     await failingHome.RefreshAsync();
     Assert(failingHome.Status.ErrorCode == "home.refresh_failed", "repository failure was reported as success");
+
+    var statisticsRoot = Path.Combine(root, "home-statistics");
+    var statisticsPaths = new TestPaths(statisticsRoot);
+    var statisticsDatabase = new ApplicationDb(statisticsPaths);
+    await statisticsDatabase.InitializeAsync();
+    var statisticsHistory = new HistoryRepository(statisticsDatabase);
+    await statisticsHistory.AddAsync(new Transcript
+    {
+        Text = "one two three four",
+        Duration = 60,
+        Date = DateTime.UtcNow,
+        Status = TranscriptStatus.Completed,
+    });
+    await statisticsHistory.AddAsync(new Transcript
+    {
+        Text = "failed words are excluded",
+        Duration = 60,
+        Date = DateTime.UtcNow,
+        Status = TranscriptStatus.Failed,
+    });
+    var statisticsFiles = new MemoryPrivateFileService();
+    var statisticsSettings = new PortableSettingsService(
+        statisticsFiles, Path.Combine(statisticsRoot, "settings.json"));
+    var statisticsHome = new HyperWhisper.PortableApplication.ViewModels.HomeViewModel(
+        statisticsHistory,
+        new VocabularyRepository(statisticsDatabase),
+        new ModeRepository(statisticsDatabase),
+        new HomeStatisticsService(new StatisticsTranscriptProvider(statisticsDatabase)),
+        statisticsSettings);
+    await statisticsHome.RefreshAsync();
+    Assert(statisticsHome.AllTime.WordCount == 4 && statisticsHome.AllTime.DictatedDurationSeconds == 60,
+        "home statistics projection did not filter status and preserve duration");
+    statisticsHome.TypingSpeedWordsPerMinute = 80;
+    await statisticsHome.RefreshAsync();
+    var reloadedStatisticsSettings = new PortableSettingsService(
+        statisticsFiles, Path.Combine(statisticsRoot, "settings.json"));
+    Assert(reloadedStatisticsSettings.Load().IsSuccess
+        && reloadedStatisticsSettings.Get("advanced.typingSpeedWPM", 0) == 80,
+        "home typing speed did not persist");
 
     Console.WriteLine("HyperWhisper.Application persistence tests passed.");
     return 0;

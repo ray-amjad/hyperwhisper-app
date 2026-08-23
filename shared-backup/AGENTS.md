@@ -79,7 +79,7 @@ under `platformExtensions.macos.settings`:
 | `autocapitalizeInsert` | `SettingsData.AutocapitalizeInsert` | Bool |
 | `customEndpoints` | `SettingsData.CustomEndpoints` | Array of custom OpenAI-compatible endpoints (`id`, `name`, `endpointURL`, `modelName`, …). Required so modes whose `postProcessingProvider` is `custom:<uuid>` resolve after restore. API keys are stored separately in Credential Manager and are NOT round-tripped. |
 
-Linux-only settings go into `platformExtensions.linux.settings`:
+Linux-only settings go into `platformExtensions.linux.settings` (including `themeMode` with `system`, `light`, or `dark`, and `minimizeToTray`):
 
 | Key | Linux Source | Notes |
 |---|---|---|

@@ -53,6 +53,11 @@ try
     full["licenseKey"] = "must-not-import";
     full["platformExtensions"]!["windows"] = new JsonObject { ["futureWindows"] = 17 };
     full["platformExtensions"]!["linux"]!["settings"]!["language"] = "fr";
+    full["platformExtensions"]!["linux"]!["settings"]!["themeMode"] = "dark";
+    full["platformExtensions"]!["linux"]!["settings"]!["minimizeToTray"] = false;
+    full["settings"]!["general"]!["launchMinimized"] = true;
+    full["settings"]!["general"]!["showRecordingWindow"] = false;
+    full["settings"]!["advanced"]!["typingSpeedWPM"] = 80;
     var fullModes = full["modes"]!.AsArray();
     fullModes[0]!["name"] = "Imported First";
     fullModes[0]!["platformExtensions"]!["macos"] = new JsonObject { ["futureMac"] = "keep" };
@@ -117,6 +122,10 @@ try
     var beforeAbsentModes = (await modes.ListAsync()).Select(item => (item.Id, item.Name)).ToArray();
     Assert((await service.ImportAsync(noModes.ToJsonString(), BackupImportSelection.All)).IsSuccess,
         "backup with an absent modes section failed");
+    Assert(settings.Get<string>("themeMode") == "dark" && !settings.Get("minimizeToTray", true)
+        && settings.Get("general.launchMinimized", false) && !settings.Get("general.showRecordingWindow", true)
+        && settings.Get("advanced.typingSpeedWPM", 0) == 80,
+        "shell, overlay, tray, or typing-speed settings did not import through their canonical mappings");
     Assert(beforeAbsentModes.SequenceEqual((await modes.ListAsync()).Select(item => (item.Id, item.Name))),
         "an absent modes section modified the current mode library");
 

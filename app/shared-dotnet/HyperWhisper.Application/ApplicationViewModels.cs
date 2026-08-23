@@ -15,6 +15,7 @@ using HyperWhisper.SpeechOutput;
 using HyperWhisper.SharedCore;
 using HyperWhisper.CloudAccount;
 using HyperWhisper.ModelReadiness;
+using HyperWhisper.Statistics;
 
 namespace HyperWhisper.PortableApplication.ViewModels;
 
@@ -367,13 +368,27 @@ public sealed class HomeViewModel : ViewModelBase
     private readonly HistoryRepository _history;
     private readonly VocabularyRepository _vocabulary;
     private readonly ModeRepository _modes;
+    private readonly HomeStatisticsService _statistics;
+    private readonly PortableSettingsService _settings;
     private int _historyCount;
     private int _vocabularyCount;
     private int _modeCount;
+    private int _typingSpeedWordsPerMinute = 40;
+    private HomeStatisticsSnapshot _statisticsSnapshot = HomeStatisticsCalculator.Calculate(
+        [], 40, DateTimeOffset.UtcNow, TimeZoneInfo.Utc);
 
-    public HomeViewModel(HistoryRepository history, VocabularyRepository vocabulary, ModeRepository modes, TranscriptionWorkflowViewModel? recording = null)
+    public HomeViewModel(
+        HistoryRepository history,
+        VocabularyRepository vocabulary,
+        ModeRepository modes,
+        HomeStatisticsService statistics,
+        PortableSettingsService settings,
+        TranscriptionWorkflowViewModel? recording = null)
     {
         _history = history; _vocabulary = vocabulary; _modes = modes;
+        _statistics = statistics ?? throw new ArgumentNullException(nameof(statistics));
+        _settings = settings ?? throw new ArgumentNullException(nameof(settings));
+        _typingSpeedWordsPerMinute = NormalizeTypingSpeed(_settings.Get("advanced.typingSpeedWPM", 40));
         Recording = recording;
         RefreshCommand = new AsyncCommand(_ => RefreshAsync());
     }
@@ -383,6 +398,24 @@ public sealed class HomeViewModel : ViewModelBase
     public int HistoryCount { get => _historyCount; private set => Set(ref _historyCount, value); }
     public int VocabularyCount { get => _vocabularyCount; private set => Set(ref _vocabularyCount, value); }
     public int ModeCount { get => _modeCount; private set => Set(ref _modeCount, value); }
+    public IReadOnlyList<int> TypingSpeedChoices { get; } = [30, 40, 50, 60, 80, 100];
+    public int TypingSpeedWordsPerMinute
+    {
+        get => _typingSpeedWordsPerMinute;
+        set
+        {
+            var normalized = NormalizeTypingSpeed(value);
+            if (!Set(ref _typingSpeedWordsPerMinute, normalized)) return;
+            _settings.Set("advanced.typingSpeedWPM", normalized);
+            var saved = _settings.Save();
+            if (saved.IsFailure) Status.Failure(saved.Error!.Code, saved.Error.Message);
+            else _ = RefreshAsync();
+        }
+    }
+    public PeriodStatistics ThisWeek => _statisticsSnapshot.ThisWeek;
+    public PeriodStatistics ThisMonth => _statisticsSnapshot.ThisMonth;
+    public PeriodStatistics AllTime => _statisticsSnapshot.AllTime;
+    public int SavedThisWeekMinutes => _statisticsSnapshot.SavedThisWeekMinutes;
     public ICommand RefreshCommand { get; }
 
     public async Task RefreshAsync(CancellationToken cancellationToken = default)
@@ -390,15 +423,25 @@ public sealed class HomeViewModel : ViewModelBase
         Status.Busy("Refreshing library…");
         try
         {
+            var persistedTypingSpeed = NormalizeTypingSpeed(_settings.Get("advanced.typingSpeedWPM", 40));
+            Set(ref _typingSpeedWordsPerMinute, persistedTypingSpeed, nameof(TypingSpeedWordsPerMinute));
             HistoryCount = (await _history.ListAsync(cancellationToken)).Count;
             VocabularyCount = (await _vocabulary.ListAsync(cancellationToken)).Count;
             ModeCount = (await _modes.ListAsync(cancellationToken)).Count;
+            _statisticsSnapshot = await _statistics.GetAsync(
+                TypingSpeedWordsPerMinute, DateTimeOffset.UtcNow, TimeZoneInfo.Local, cancellationToken);
+            Notify(nameof(ThisWeek));
+            Notify(nameof(ThisMonth));
+            Notify(nameof(AllTime));
+            Notify(nameof(SavedThisWeekMinutes));
             Recording?.RefreshDevices();
             Status.Success("Library ready");
         }
         catch (OperationCanceledException) { Status.Failure("home.cancelled", "Refresh cancelled"); }
         catch (Exception) { Status.Failure("home.refresh_failed", "Could not load the local library."); }
     }
+
+    private static int NormalizeTypingSpeed(int value) => Math.Clamp(value, 1, 300);
 }
 
 public sealed class HistoryViewModel : ViewModelBase, IDisposable
@@ -1327,6 +1370,7 @@ public sealed class SettingsViewModel : ViewModelBase
     private bool _removeFillerWords = true;
     private bool _autocapitalizeInsert = true;
     private bool _restoreClipboardAfterPaste = true;
+    private bool _hideFromClipboardHistory = true;
     private double _clipboardRestoreDelaySeconds = 10;
     private bool _streamingEnabled;
     private string _streamingProvider = "deepgram";
@@ -1334,7 +1378,11 @@ public sealed class SettingsViewModel : ViewModelBase
     private string _streamingModel = "nova-3-general";
     private bool _streamingFastFormatting;
     private bool _autostartEnabled;
+    private bool _launchMinimized;
+    private bool _minimizeToTray = true;
     private bool _enableSoundEffects = true;
+    private bool _showRecordingWindow = true;
+    private string _themeMode = "system";
     private bool _autoIncreaseMicVolume;
     private bool _keepMicrophoneWarm;
     private bool _keepAudioFiles = true;
@@ -1382,6 +1430,7 @@ public sealed class SettingsViewModel : ViewModelBase
     public bool RemoveFillerWords { get => _removeFillerWords; set => Set(ref _removeFillerWords, value); }
     public bool AutocapitalizeInsert { get => _autocapitalizeInsert; set => Set(ref _autocapitalizeInsert, value); }
     public bool RestoreClipboardAfterPaste { get => _restoreClipboardAfterPaste; set => Set(ref _restoreClipboardAfterPaste, value); }
+    public bool HideFromClipboardHistory { get => _hideFromClipboardHistory; set => Set(ref _hideFromClipboardHistory, value); }
     public double ClipboardRestoreDelaySeconds { get => _clipboardRestoreDelaySeconds; set => Set(ref _clipboardRestoreDelaySeconds, Math.Clamp(value, 0, 60)); }
     public bool StreamingEnabled { get => _streamingEnabled; set => Set(ref _streamingEnabled, value); }
     public string StreamingProvider { get => _streamingProvider; set => Set(ref _streamingProvider, NormalizeStreamingProvider(value)); }
@@ -1389,7 +1438,12 @@ public sealed class SettingsViewModel : ViewModelBase
     public string StreamingModel { get => _streamingModel; set => Set(ref _streamingModel, value?.Trim() ?? string.Empty); }
     public bool StreamingFastFormatting { get => _streamingFastFormatting; set => Set(ref _streamingFastFormatting, value); }
     public bool AutostartEnabled { get => _autostartEnabled; set => Set(ref _autostartEnabled, value); }
+    public bool LaunchMinimized { get => _launchMinimized; set => Set(ref _launchMinimized, value); }
+    public bool MinimizeToTray { get => _minimizeToTray; set => Set(ref _minimizeToTray, value); }
     public bool EnableSoundEffects { get => _enableSoundEffects; set => Set(ref _enableSoundEffects, value); }
+    public bool ShowRecordingWindow { get => _showRecordingWindow; set => Set(ref _showRecordingWindow, value); }
+    public string ThemeMode { get => _themeMode; set => Set(ref _themeMode, NormalizeThemeMode(value)); }
+    public IReadOnlyList<string> ThemeModes { get; } = ["system", "light", "dark"];
     public bool AutoIncreaseMicVolume { get => _autoIncreaseMicVolume; set => Set(ref _autoIncreaseMicVolume, value); }
     public bool KeepMicrophoneWarm { get => _keepMicrophoneWarm; set => Set(ref _keepMicrophoneWarm, value); }
     public bool KeepAudioFiles { get => _keepAudioFiles; set => Set(ref _keepAudioFiles, value); }
@@ -1468,6 +1522,7 @@ public sealed class SettingsViewModel : ViewModelBase
         RemoveFillerWords = _settings.Get("textOutput.removeFillerWords", true);
         AutocapitalizeInsert = _settings.Get("textOutput.autocapitalizeInsert", true);
         RestoreClipboardAfterPaste = _settings.Get("textOutput.restoreClipboardAfterPaste", true);
+        HideFromClipboardHistory = _settings.Get("textOutput.hideFromClipboardHistory", true);
         ClipboardRestoreDelaySeconds = _settings.Get("textOutput.clipboardRestoreDelaySeconds", 10d);
         StreamingEnabled = _settings.Get("streaming.enabled", false);
         StreamingProvider = _settings.Get("streaming.provider", "deepgram") ?? "deepgram";
@@ -1475,7 +1530,11 @@ public sealed class SettingsViewModel : ViewModelBase
         StreamingModel = _settings.Get("streaming.deepgramModel", "nova-3-general") ?? "nova-3-general";
         StreamingFastFormatting = _settings.Get("streaming.fastFormatting", false);
         AutostartEnabled = _settings.Get("autostartEnabled", false);
+        LaunchMinimized = _settings.Get("general.launchMinimized", false);
+        MinimizeToTray = _settings.Get("minimizeToTray", true);
         EnableSoundEffects = _settings.Get("general.enableSoundEffects", true);
+        ShowRecordingWindow = _settings.Get("general.showRecordingWindow", true);
+        ThemeMode = _settings.Get("themeMode", "system") ?? "system";
         AutoIncreaseMicVolume = _settings.Get("autoIncreaseMicVolume", false);
         KeepMicrophoneWarm = _settings.Get("keepMicrophoneWarm", false);
         KeepAudioFiles = _settings.Get("storage.keepAudioFiles", true);
@@ -1525,6 +1584,7 @@ public sealed class SettingsViewModel : ViewModelBase
         _settings.Set("textOutput.removeFillerWords", RemoveFillerWords);
         _settings.Set("textOutput.autocapitalizeInsert", AutocapitalizeInsert);
         _settings.Set("textOutput.restoreClipboardAfterPaste", RestoreClipboardAfterPaste);
+        _settings.Set("textOutput.hideFromClipboardHistory", HideFromClipboardHistory);
         _settings.Set("textOutput.clipboardRestoreDelaySeconds", ClipboardRestoreDelaySeconds);
         _settings.Set("streaming.enabled", StreamingEnabled);
         _settings.Set("streaming.provider", NormalizeStreamingProvider(StreamingProvider));
@@ -1532,7 +1592,11 @@ public sealed class SettingsViewModel : ViewModelBase
         _settings.Set("streaming.deepgramModel", StreamingModel);
         _settings.Set("streaming.fastFormatting", StreamingFastFormatting);
         _settings.Set("autostartEnabled", AutostartEnabled);
+        _settings.Set("general.launchMinimized", LaunchMinimized);
+        _settings.Set("minimizeToTray", MinimizeToTray);
         _settings.Set("general.enableSoundEffects", EnableSoundEffects);
+        _settings.Set("general.showRecordingWindow", ShowRecordingWindow);
+        _settings.Set("themeMode", NormalizeThemeMode(ThemeMode));
         _settings.Set("autoIncreaseMicVolume", AutoIncreaseMicVolume);
         _settings.Set("keepMicrophoneWarm", KeepMicrophoneWarm);
         _settings.Set("storage.keepAudioFiles", KeepAudioFiles);
@@ -1642,6 +1706,12 @@ public sealed class SettingsViewModel : ViewModelBase
         "vulkan" => "vulkan",
         "cuda" => "cuda",
         _ => "cpu",
+    };
+    private static string NormalizeThemeMode(string? value) => value?.Trim().ToLowerInvariant() switch
+    {
+        "light" => "light",
+        "dark" => "dark",
+        _ => "system",
     };
 
     private static string NormalizeWhisperBackend(string? value) => value?.Trim().ToLowerInvariant() switch
@@ -2341,7 +2411,13 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
         Recording = transcriptionWorkflow is null ? null : new TranscriptionWorkflowViewModel(
             transcriptionWorkflow,
             () => CreateTranscriptionRequest(Modes.Selected), audioImport, filePreflight);
-        Home = new HomeViewModel(historyRepository, vocabularyRepository, modeRepository, Recording);
+        Home = new HomeViewModel(
+            historyRepository,
+            vocabularyRepository,
+            modeRepository,
+            new HomeStatisticsService(new StatisticsTranscriptProvider(database)),
+            settings,
+            Recording);
         if (Recording is not null) Recording.TranscriptionSaved += OnTranscriptionSaved;
         Backup.Imported += OnBackupImported;
         _currentPage = Home;

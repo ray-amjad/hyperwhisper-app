@@ -29,6 +29,7 @@ public sealed class LinuxStatusNotifierItemService : IDisposable
     public event EventHandler? ShowRequested;
     public event EventHandler? HideRequested;
     public event EventHandler? QuitRequested;
+    public event EventHandler? Unavailable;
 
     public DesktopShellCapability GetCapability()
     {
@@ -69,6 +70,7 @@ public sealed class LinuxStatusNotifierItemService : IDisposable
 
     private async Task ReadActionsAsync(Process process, TaskCompletionSource<PlatformResult> ready, CancellationToken token)
     {
+        var becameAvailable = false;
         try
         {
             while (!token.IsCancellationRequested)
@@ -77,7 +79,7 @@ public sealed class LinuxStatusNotifierItemService : IDisposable
                 if (line is null) break;
                 switch (ParseMessage(line))
                 {
-                    case StatusNotifierMessage.Available: ready.TrySetResult(PlatformResult.Success()); break;
+                    case StatusNotifierMessage.Available: becameAvailable = true; ready.TrySetResult(PlatformResult.Success()); break;
                     case StatusNotifierMessage.Unsupported: ready.TrySetResult(PlatformResult.Failure("tray_unsupported", "No StatusNotifierItem watcher is available.")); break;
                     case StatusNotifierMessage.Show: Raise(ShowRequested); break;
                     case StatusNotifierMessage.Hide: Raise(HideRequested); break;
@@ -88,6 +90,10 @@ public sealed class LinuxStatusNotifierItemService : IDisposable
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { }
         catch { ready.TrySetResult(PlatformResult.Failure("tray_unavailable", "The StatusNotifierItem helper stopped.")); }
+        finally
+        {
+            if (becameAvailable && !token.IsCancellationRequested) Raise(Unavailable);
+        }
     }
 
     internal static StatusNotifierMessage ParseMessage(string line) => line switch
@@ -119,5 +125,5 @@ public sealed class LinuxStatusNotifierItemService : IDisposable
         if (_process is { HasExited: false }) try { _process.Kill(entireProcessTree: true); _process.WaitForExit(2000); } catch { }
         _process?.Dispose(); _process = null; _readerCancellation?.Dispose(); _readerCancellation = null;
     }
-    public void Dispose() { if (_disposed) return; _disposed = true; StopHelper(); ShowRequested = null; HideRequested = null; QuitRequested = null; }
+    public void Dispose() { if (_disposed) return; _disposed = true; StopHelper(); ShowRequested = null; HideRequested = null; QuitRequested = null; Unavailable = null; }
 }

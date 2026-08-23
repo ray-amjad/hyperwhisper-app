@@ -174,6 +174,8 @@ public sealed partial class ApplicationBackupService
                 CopySetting<string>(linuxSettings, "audioEnvironmentPolicy");
                 CopySetting<bool>(linuxSettings, "autoDeleteEnabled");
                 CopySetting<int>(linuxSettings, "autoDeleteDaysOld");
+                CopySetting<string>(linuxSettings, "themeMode");
+                CopySetting<bool>(linuxSettings, "minimizeToTray");
                 if (linuxSettings["customEndpoints"] is { } customEndpoints)
                     _settings.Set("customEndpoints", customEndpoints.Deserialize<PortableCustomPostProcessingEndpoint[]>(SerializerOptions) ?? []);
             }

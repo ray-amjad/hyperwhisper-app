@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Styling;
 using Avalonia.Interactivity;
 using Avalonia.LogicalTree;
 using Avalonia.Threading;
@@ -47,6 +48,7 @@ public partial class MainWindow : Window
     private Task? _storageMaintenance;
     private TranscriptStorageCleanupResult? _lastStorageCleanup;
     private bool _allowClose;
+    private bool _trayAvailable;
 
     public MainWindow() : this(new LinuxDesktopServices())
     {
@@ -104,7 +106,9 @@ public partial class MainWindow : Window
         var history = new HistoryRepository(_database, _platformServices.Paths);
         var contextCapture = new LinuxContextCaptureCoordinator(
             _platformServices.ApplicationContext, _platformServices.ScreenOcr);
-        _overlay = new LazyLinuxRecordingOverlayFeedback(new AvaloniaLinuxOverlayDispatcher());
+        _overlay = new LazyLinuxRecordingOverlayFeedback(
+            new AvaloniaLinuxOverlayDispatcher(),
+            () => _viewModel.Settings.ShowRecordingWindow);
         _recordingSession = new LinuxInteractionRecordingSession(
             _viewModel, _workflow, _platformServices, contextCapture, _postProcessingRouter, history, _overlay);
         _interaction = new LinuxInteractionCoordinator(
@@ -116,6 +120,7 @@ public partial class MainWindow : Window
         Opened += OnOpened;
         Closing += OnClosing;
         Closed += OnClosed;
+        PropertyChanged += OnWindowPropertyChanged;
         _viewModel.Settings.LocalApiSettingsChanged += OnLocalApiSettingsChanged;
         _viewModel.Settings.DesktopSettingsChanged += OnDesktopSettingsChanged;
         _viewModel.Settings.TelemetrySettingsChanged += OnTelemetrySettingsChanged;
@@ -125,6 +130,7 @@ public partial class MainWindow : Window
         _platformServices.Tray.ShowRequested += OnTrayShowRequested;
         _platformServices.Tray.HideRequested += OnTrayHideRequested;
         _platformServices.Tray.QuitRequested += OnTrayQuitRequested;
+        _platformServices.Tray.Unavailable += OnTrayUnavailable;
     }
 
     private async void OnOpened(object? sender, EventArgs e)
@@ -140,6 +146,11 @@ public partial class MainWindow : Window
             var tray = await _platformServices.Tray.StartAsync(_lifetime.Token);
             if (tray.IsFailure)
                 PlatformStatusText.Text += $" · Tray unavailable; window fallback active ({tray.Error!.Message})";
+            else
+            {
+                _trayAvailable = true;
+                if (_viewModel.Settings.LaunchMinimized) Hide();
+            }
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
         catch
@@ -151,6 +162,12 @@ public partial class MainWindow : Window
     private async void OnClosing(object? sender, WindowClosingEventArgs e)
     {
         if (_allowClose) return;
+        if (_viewModel.Settings.MinimizeToTray && _trayAvailable)
+        {
+            e.Cancel = true;
+            Hide();
+            return;
+        }
         _lifetime.Cancel();
         if (!_recordingSession.IsActive && _localApiHost is null
             && _storageMaintenance is not { IsCompleted: false }) return;
@@ -174,6 +191,7 @@ public partial class MainWindow : Window
         Opened -= OnOpened;
         Closing -= OnClosing;
         Closed -= OnClosed;
+        PropertyChanged -= OnWindowPropertyChanged;
         _lifetime.Cancel();
         _viewModel.Settings.LocalApiSettingsChanged -= OnLocalApiSettingsChanged;
         _viewModel.Settings.DesktopSettingsChanged -= OnDesktopSettingsChanged;
@@ -184,6 +202,7 @@ public partial class MainWindow : Window
         _platformServices.Tray.ShowRequested -= OnTrayShowRequested;
         _platformServices.Tray.HideRequested -= OnTrayHideRequested;
         _platformServices.Tray.QuitRequested -= OnTrayQuitRequested;
+        _platformServices.Tray.Unavailable -= OnTrayUnavailable;
         _interaction.Dispose();
         _overlay.Dispose();
         _viewModel.Dispose();
@@ -315,6 +334,14 @@ public partial class MainWindow : Window
     private void ApplyDesktopSettings()
     {
         var settings = _viewModel.Settings;
+        if (Avalonia.Application.Current is { } application)
+            application.RequestedThemeVariant = settings.ThemeMode switch
+            {
+                "light" => ThemeVariant.Light,
+                "dark" => ThemeVariant.Dark,
+                _ => ThemeVariant.Default,
+            };
+        _overlay.ApplyPreference();
         if (_platformServices.ApplicationContext is LinuxApplicationContextProvider contextProvider)
         {
             var capability = contextProvider.GetCapabilities();
@@ -407,8 +434,32 @@ public partial class MainWindow : Window
     {
         Show(); WindowState = WindowState.Normal; Activate();
     });
-    private void OnTrayHideRequested(object? sender, EventArgs e) => Dispatcher.UIThread.Post(Hide);
-    private void OnTrayQuitRequested(object? sender, EventArgs e) => Dispatcher.UIThread.Post(Close);
+    private void OnTrayHideRequested(object? sender, EventArgs e) => Dispatcher.UIThread.Post(() =>
+    {
+        if (_trayAvailable) Hide();
+    });
+    private void OnTrayQuitRequested(object? sender, EventArgs e) => Dispatcher.UIThread.Post(() =>
+    {
+        _trayAvailable = false;
+        Close();
+    });
+    private void OnTrayUnavailable(object? sender, EventArgs e) => Dispatcher.UIThread.Post(() =>
+    {
+        _trayAvailable = false;
+        if (!IsVisible)
+        {
+            Show();
+            WindowState = WindowState.Normal;
+        }
+        PlatformStatusText.Text += " · Tray disconnected; main window restored";
+    });
+
+    private void OnWindowPropertyChanged(object? sender, Avalonia.AvaloniaPropertyChangedEventArgs e)
+    {
+        if (e.Property == WindowStateProperty && WindowState == WindowState.Minimized
+            && _trayAvailable && _viewModel.Settings.MinimizeToTray)
+            Dispatcher.UIThread.Post(Hide);
+    }
 
     private async Task ApplyLocalApiSettingsAsync(CancellationToken cancellationToken)
     {

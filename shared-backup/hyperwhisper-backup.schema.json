@@ -47,7 +47,7 @@
     },
     "platformExtensions": {
       "type": "object",
-      "description": "Platform-specific data. Keys are platform names (macos, windows, linux). Preserve unknown keys for round-trip fidelity; this is the sanctioned escape hatch for platform-only fields rejected by strict shared objects. The macOS settings blob is category-keyed: platformExtensions.macos.settings.{audio,general,storage,advanced,shortcuts,aiModel}. Linux settings include local runtime, desktop/input, retention (autoDeleteEnabled and autoDeleteDaysOld), and Windows-compatible customEndpoints values without credentials. Each platform also preserves every OTHER platform's per-mode platformExtensions slice across a round-trip.",
+      "description": "Platform-specific data. Keys are platform names (macos, windows, linux). Preserve unknown keys for round-trip fidelity; this is the sanctioned escape hatch for platform-only fields rejected by strict shared objects. The macOS settings blob is category-keyed: platformExtensions.macos.settings.{audio,general,storage,advanced,shortcuts,aiModel}. Linux settings include local runtime, desktop/input, system/light/dark themeMode, minimizeToTray, retention (autoDeleteEnabled and autoDeleteDaysOld), and Windows-compatible customEndpoints values without credentials. Each platform also preserves every OTHER platform's per-mode platformExtensions slice across a round-trip.",
       "additionalProperties": true
     }
   },

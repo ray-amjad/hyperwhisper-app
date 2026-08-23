@@ -7,6 +7,7 @@ using HyperWhisper.Data.Entities;
 using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.SharedCore;
 using HyperWhisper.AudioNormalization;
+using HyperWhisper.Statistics;
 using Microsoft.EntityFrameworkCore;
 
 namespace HyperWhisper.PortableApplication.Persistence;
@@ -293,6 +294,28 @@ public sealed class HistoryRepository : ITranscriptionHistoryStore, ITranscripti
         }
         if (orphaned.Count > 0) await context.SaveChangesAsync(cancellationToken);
         return orphaned.Count;
+    }
+}
+
+public sealed class StatisticsTranscriptProvider(ApplicationDb database) : IStatisticsTranscriptProvider
+{
+    private readonly ApplicationDb _database = database ?? throw new ArgumentNullException(nameof(database));
+
+    public async ValueTask<IReadOnlyList<StatisticsTranscript>> ReadAllAsync(
+        CancellationToken cancellationToken = default)
+    {
+        await using var context = _database.CreateContext();
+        return await context.Transcripts.AsNoTracking()
+            .Select(item => new StatisticsTranscript(
+                new DateTimeOffset(DateTime.SpecifyKind(item.Date, DateTimeKind.Utc)),
+                item.Text,
+                item.Duration,
+                item.Status == TranscriptStatus.Completed
+                    ? StatisticsTranscriptStatus.Completed
+                    : item.Status == TranscriptStatus.Failed
+                        ? StatisticsTranscriptStatus.Failed
+                        : StatisticsTranscriptStatus.Processing))
+            .ToListAsync(cancellationToken);
     }
 }
 
@@ -750,6 +773,8 @@ public sealed partial class ApplicationBackupService(ApplicationDb database, Por
         linuxSettings["audioEnvironmentPolicy"] = _settings.Get("audioEnvironmentPolicy", "unchanged");
         linuxSettings["autoDeleteEnabled"] = _settings.Get("autoDeleteEnabled", false);
         linuxSettings["autoDeleteDaysOld"] = _settings.Get("autoDeleteDaysOld", 30);
+        linuxSettings["themeMode"] = _settings.Get("themeMode", "system");
+        linuxSettings["minimizeToTray"] = _settings.Get("minimizeToTray", true);
         linuxSettings["customEndpoints"] = JsonSerializer.SerializeToNode(
             _settings.Get<PortableCustomPostProcessingEndpoint[]>("customEndpoints", []), SerializerOptions);
         linuxExtension["settings"] = linuxSettings;
@@ -807,7 +832,7 @@ public sealed partial class ApplicationBackupService(ApplicationDb database, Por
             ["pasteResultText"] = _settings.Get("textOutput.pasteResultText", true),
             ["removeFillerWords"] = _settings.Get("textOutput.removeFillerWords", true),
             ["restoreClipboardAfterPaste"] = _settings.Get("textOutput.restoreClipboardAfterPaste", true),
-            ["hideFromClipboardHistory"] = _settings.Get("textOutput.hideFromClipboardHistory", false),
+            ["hideFromClipboardHistory"] = _settings.Get("textOutput.hideFromClipboardHistory", true),
             ["clipboardRestoreDelaySeconds"] = _settings.Get("textOutput.clipboardRestoreDelaySeconds", 10d),
             ["autocapitalizeInsert"] = _settings.Get("textOutput.autocapitalizeInsert", true),
             ["storeWordTimestamps"] = _settings.Get("textOutput.storeWordTimestamps", false),
@@ -829,7 +854,7 @@ public sealed partial class ApplicationBackupService(ApplicationDb database, Por
         ["advanced"] = new JsonObject
         {
             ["maxRecordingDuration"] = _settings.Get("advanced.maxRecordingDuration", 3600),
-            ["typingSpeedWPM"] = _settings.Get("advanced.typingSpeedWPM", 45),
+            ["typingSpeedWPM"] = _settings.Get("advanced.typingSpeedWPM", 40),
         },
     };
 
