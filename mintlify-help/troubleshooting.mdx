@@ -96,7 +96,9 @@ This page lists the most common problems and their fixes. Go to the symptom that
 
 <AccordionGroup>
   <Accordion title="No speech detected in the recording">
-    The transcription provider analyzed the audio and found no speech. This result is a true signal, not a hidden failure.
+    The transcription provider analyzed the audio and found no speech. Usually this result is correct, and not a hidden failure.
+
+    The app does a check on the result. After each **No speech detected**, the app measures the audio. If the measurement shows speech, the engine and the recording disagree, and the app sends one report to the crash reporter. This report holds measurements only, and no audio and no text. It goes only if you turn on **Error logging** (macOS) or **Send error reports** (Windows). Read [Data Privacy](/data-privacy#the-no-speech-diagnostic) for the full list.
 
     The usual causes are:
     - The recording contains only silence (muted microphone, very low input volume)

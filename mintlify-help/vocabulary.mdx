@@ -67,6 +67,12 @@ On **macOS**, two more local engines use vocabulary. Local Whisper sends your en
 
 The app applies entries with a replacement by regex. This step runs after transcription, and after AI post-processing. The match ignores letter case and holds to word boundaries. Therefore, "eta" matches only the separate abbreviation, and not a word such as "metadata". The app also removes the spaces at the start and at the end of the word and the replacement.
 
+<Warning>
+  On **macOS**, four on-device engines apply an earlier, different replacement pass to their own output: **Apple Speech Analyzer**, **Nemotron 3.5**, **Parakeet**, and **Qwen3 ASR**. This earlier pass holds to no word boundaries, and it also ignores accent marks. Therefore an entry such as "eta" also changes the text inside a longer word such as "metadata". Local Whisper on macOS, and all engines on Windows, use only the word-boundary pass above.
+
+  To prevent an unwanted match with these four engines, make the original phrase longer. For example, use "ETA arrival" and not "eta".
+</Warning>
+
 ### AI post-processing context
 
 The app puts entries without a replacement into the user-message context of each AI post-processing request. This context helps the model to understand your terms when it cleans up text for the Meeting, Custom, and other presets. Entries with a replacement stay out of this context. Their regex substitution runs later, on the output of the AI, so the app does not need to send them again.

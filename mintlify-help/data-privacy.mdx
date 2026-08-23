@@ -87,6 +87,30 @@ Two other things are never measured, whatever you send:
 - **App versions that predate this setting.** The switch arrived in macOS 2.43.0 and Windows 1.10.0. Sharing is on by default, and the server does not apply that default to a build that could not turn it off. Older versions are not measured at all. Update to take part.
 - **Direct calls to the HyperWhisper Cloud API.** A caller who is not one of the apps never saw the setting, so nothing it sends is stored. You do not need to send any header.
 
+## Error reports
+
+Error reports go to the crash reporter (Sentry). They are off unless you turn on **Error logging** (macOS) or **Send error reports** (Windows) in **Settings → General**. Read [General Settings](/general-settings) for that setting.
+
+### The no-speech diagnostic
+
+A transcription that finds no speech is usually correct: you said nothing, or the microphone heard nothing. HyperWhisper does not report that case.
+
+But an engine can also return an empty result for a recording that does contain speech. To find these faults, the app measures the audio after each **No speech detected** result. If the measurement contradicts the result, the app sends one error report. If the measurement agrees that the recording is silent or very quiet, the app sends nothing.
+
+The report holds measurements only. **It holds no audio and no text.** It holds:
+
+- Whether the measurement worked, and the error if it did not
+- The length of the recording, in seconds, and the size of the file, in bytes
+- The file name extension, the sample rate, and the number of channels
+- The peak level and the average level, in dBFS, and how much of the recording is above the silence threshold
+- The number of audio samples that the app decoded
+- The name of your mode, and the name of your selected input device
+- Whether the automatic microphone boost failed
+
+On **Windows**, the report also holds the preset of the mode, the name of the engine, the path of the audio file, and the identifier, the status code, and the answer time of the cloud request.
+
+The app sends one report for each recording. To send none, turn the error-report setting off.
+
 ## Your own API keys (BYOK)
 
 If you configure your own API key in **Model Library → API Keys**, your device sends the audio **directly to that provider**. The request uses your account with that provider, under the terms of that provider.
@@ -149,6 +173,7 @@ You can do these three things:
 - **Local**: the audio stays on your device.
 - **HyperWhisper Cloud**: HyperWhisper does not store your audio, and applies the strongest no-train / no-store control of each provider. Most providers store nothing. Some providers store data for a short time for abuse monitoring, and do not train on it. ElevenLabs stores data by default, until HyperWhisper completes an enterprise zero-retention upgrade. HyperWhisper stores anonymous timing rows for the public latency page, and deletes them after 1 year. To stop them, turn off **Share anonymous speed data** in **Settings → General**.
 - **Your own API key**: the opt-out is mostly your responsibility. Deepgram is the exception, because HyperWhisper adds `mip_opt_out=true` to every request from the app.
+- **Error reports**: these hold no audio and no text. To stop them, turn off **Error logging** (macOS) or **Send error reports** (Windows) in **Settings → General**.
 
 ---
 
