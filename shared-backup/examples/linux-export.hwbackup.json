@@ -73,7 +73,17 @@
   "platformExtensions": {
     "linux": {
       "settings": {
-        "autostartEnabled": true
+        "autostartEnabled": true,
+        "toggleShortcutModifiers": "Control, Shift",
+        "toggleShortcutKey": "Space",
+        "pushToTalkMode": "Modifier",
+        "pushToTalkModifier": "LeftAlt",
+        "pushToTalkShortcutModifiers": "None",
+        "pushToTalkShortcutKey": "",
+        "pushToTalkDoublePressLock": true,
+        "autoIncreaseMicVolume": false,
+        "keepMicrophoneWarm": true,
+        "audioEnvironmentPolicy": "duck"
       }
     }
   }

@@ -586,6 +586,26 @@ public sealed class SettingsViewModel : ViewModelBase
     private bool _allowLocalLlmCpuFallback = true;
     private bool _localApiEnabled;
     private int _localApiPort = 51671;
+    private string _toggleShortcutModifiers = "Control, Shift";
+    private string _toggleShortcutKey = "Space";
+    private string _pushToTalkMode = "Disabled";
+    private string _pushToTalkModifier = "LeftAlt";
+    private string _pushToTalkShortcutModifiers = "None";
+    private string _pushToTalkShortcutKey = string.Empty;
+    private bool _pushToTalkDoublePressLock;
+    private bool _restoreClipboardAfterPaste = true;
+    private double _clipboardRestoreDelaySeconds = 10;
+    private bool _streamingEnabled;
+    private string _streamingProvider = "deepgram";
+    private string _streamingLanguage = "auto";
+    private string _streamingModel = "nova-3-general";
+    private bool _streamingFastFormatting;
+    private bool _autostartEnabled;
+    private bool _enableSoundEffects = true;
+    private bool _autoIncreaseMicVolume;
+    private bool _keepMicrophoneWarm;
+    private string _audioEnvironmentPolicy = "unchanged";
+    private string _desktopContextStatus = "Desktop context capability not checked";
     public SettingsViewModel(PortableSettingsService settings, string localLlmRuntimeStatus = "Local LLM runtime not connected")
     {
         _settings = settings;
@@ -597,11 +617,36 @@ public sealed class SettingsViewModel : ViewModelBase
     public bool AllowLocalLlmCpuFallback { get => _allowLocalLlmCpuFallback; set => Set(ref _allowLocalLlmCpuFallback, value); }
     public bool LocalApiEnabled { get => _localApiEnabled; set => Set(ref _localApiEnabled, value); }
     public int LocalApiPort { get => _localApiPort; set => Set(ref _localApiPort, Math.Clamp(value, 0, 65535)); }
+    public string ToggleShortcutModifiers { get => _toggleShortcutModifiers; set => Set(ref _toggleShortcutModifiers, value ?? string.Empty); }
+    public string ToggleShortcutKey { get => _toggleShortcutKey; set => Set(ref _toggleShortcutKey, value ?? string.Empty); }
+    public string PushToTalkMode { get => _pushToTalkMode; set => Set(ref _pushToTalkMode, value ?? "Disabled"); }
+    public string PushToTalkModifier { get => _pushToTalkModifier; set => Set(ref _pushToTalkModifier, value ?? "LeftAlt"); }
+    public string PushToTalkShortcutModifiers { get => _pushToTalkShortcutModifiers; set => Set(ref _pushToTalkShortcutModifiers, value ?? "None"); }
+    public string PushToTalkShortcutKey { get => _pushToTalkShortcutKey; set => Set(ref _pushToTalkShortcutKey, value ?? string.Empty); }
+    public bool PushToTalkDoublePressLock { get => _pushToTalkDoublePressLock; set => Set(ref _pushToTalkDoublePressLock, value); }
+    public bool RestoreClipboardAfterPaste { get => _restoreClipboardAfterPaste; set => Set(ref _restoreClipboardAfterPaste, value); }
+    public double ClipboardRestoreDelaySeconds { get => _clipboardRestoreDelaySeconds; set => Set(ref _clipboardRestoreDelaySeconds, Math.Clamp(value, 0, 60)); }
+    public bool StreamingEnabled { get => _streamingEnabled; set => Set(ref _streamingEnabled, value); }
+    public string StreamingProvider { get => _streamingProvider; set => Set(ref _streamingProvider, NormalizeStreamingProvider(value)); }
+    public string StreamingLanguage { get => _streamingLanguage; set => Set(ref _streamingLanguage, string.IsNullOrWhiteSpace(value) ? "auto" : value.Trim()); }
+    public string StreamingModel { get => _streamingModel; set => Set(ref _streamingModel, value?.Trim() ?? string.Empty); }
+    public bool StreamingFastFormatting { get => _streamingFastFormatting; set => Set(ref _streamingFastFormatting, value); }
+    public bool AutostartEnabled { get => _autostartEnabled; set => Set(ref _autostartEnabled, value); }
+    public bool EnableSoundEffects { get => _enableSoundEffects; set => Set(ref _enableSoundEffects, value); }
+    public bool AutoIncreaseMicVolume { get => _autoIncreaseMicVolume; set => Set(ref _autoIncreaseMicVolume, value); }
+    public bool KeepMicrophoneWarm { get => _keepMicrophoneWarm; set => Set(ref _keepMicrophoneWarm, value); }
+    public string AudioEnvironmentPolicy { get => _audioEnvironmentPolicy; set => Set(ref _audioEnvironmentPolicy, NormalizeAudioPolicy(value)); }
+    public string DesktopContextStatus { get => _desktopContextStatus; set => Set(ref _desktopContextStatus, value ?? string.Empty); }
     public string LocalLlmRuntimeStatus { get; }
     public IReadOnlyList<string> LocalLlmBackends { get; } = ["cpu", "vulkan", "cuda"];
+    public IReadOnlyList<string> PushToTalkModes { get; } = ["Disabled", "Modifier", "CustomShortcut"];
+    public IReadOnlyList<string> PushToTalkModifiers { get; } = Enum.GetNames<ModifierSide>();
+    public IReadOnlyList<string> StreamingProviders { get; } = ["deepgram", "elevenlabs", "openai", "grok", "hyperwhisper"];
+    public IReadOnlyList<string> AudioEnvironmentPolicies { get; } = ["unchanged", "duck", "mute"];
     public UiStatus Status { get; } = new();
     public ICommand SaveCommand { get; }
     public event EventHandler? LocalApiSettingsChanged;
+    public event EventHandler? DesktopSettingsChanged;
     public void Load()
     {
         var result = _settings.Load();
@@ -611,6 +656,25 @@ public sealed class SettingsViewModel : ViewModelBase
         AllowLocalLlmCpuFallback = _settings.Get("allowLocalLlmCpuFallback", true);
         LocalApiEnabled = _settings.Get("localApiEnabled", false);
         LocalApiPort = _settings.Get("localApiPort", 51671);
+        ToggleShortcutModifiers = _settings.Get("toggleShortcutModifiers", "Control, Shift") ?? "Control, Shift";
+        ToggleShortcutKey = _settings.Get("toggleShortcutKey", "Space") ?? "Space";
+        PushToTalkMode = _settings.Get("pushToTalkMode", "Disabled") ?? "Disabled";
+        PushToTalkModifier = _settings.Get("pushToTalkModifier", "LeftAlt") ?? "LeftAlt";
+        PushToTalkShortcutModifiers = _settings.Get("pushToTalkShortcutModifiers", "None") ?? "None";
+        PushToTalkShortcutKey = _settings.Get("pushToTalkShortcutKey", string.Empty) ?? string.Empty;
+        PushToTalkDoublePressLock = _settings.Get("pushToTalkDoublePressLock", false);
+        RestoreClipboardAfterPaste = _settings.Get("textOutput.restoreClipboardAfterPaste", true);
+        ClipboardRestoreDelaySeconds = _settings.Get("textOutput.clipboardRestoreDelaySeconds", 10d);
+        StreamingEnabled = _settings.Get("streaming.enabled", false);
+        StreamingProvider = _settings.Get("streaming.provider", "deepgram") ?? "deepgram";
+        StreamingLanguage = _settings.Get("streaming.language", "auto") ?? "auto";
+        StreamingModel = _settings.Get("streaming.deepgramModel", "nova-3-general") ?? "nova-3-general";
+        StreamingFastFormatting = _settings.Get("streaming.fastFormatting", false);
+        AutostartEnabled = _settings.Get("autostartEnabled", false);
+        EnableSoundEffects = _settings.Get("general.enableSoundEffects", true);
+        AutoIncreaseMicVolume = _settings.Get("autoIncreaseMicVolume", false);
+        KeepMicrophoneWarm = _settings.Get("keepMicrophoneWarm", false);
+        AudioEnvironmentPolicy = _settings.Get("audioEnvironmentPolicy", "unchanged") ?? "unchanged";
         Status.Success("Settings loaded");
     }
     public void Save()
@@ -620,8 +684,27 @@ public sealed class SettingsViewModel : ViewModelBase
         _settings.Set("allowLocalLlmCpuFallback", AllowLocalLlmCpuFallback);
         _settings.Set("localApiEnabled", LocalApiEnabled);
         _settings.Set("localApiPort", LocalApiPort);
+        _settings.Set("toggleShortcutModifiers", ToggleShortcutModifiers);
+        _settings.Set("toggleShortcutKey", ToggleShortcutKey);
+        _settings.Set("pushToTalkMode", PushToTalkMode);
+        _settings.Set("pushToTalkModifier", PushToTalkModifier);
+        _settings.Set("pushToTalkShortcutModifiers", PushToTalkShortcutModifiers);
+        _settings.Set("pushToTalkShortcutKey", PushToTalkShortcutKey);
+        _settings.Set("pushToTalkDoublePressLock", PushToTalkDoublePressLock);
+        _settings.Set("textOutput.restoreClipboardAfterPaste", RestoreClipboardAfterPaste);
+        _settings.Set("textOutput.clipboardRestoreDelaySeconds", ClipboardRestoreDelaySeconds);
+        _settings.Set("streaming.enabled", StreamingEnabled);
+        _settings.Set("streaming.provider", NormalizeStreamingProvider(StreamingProvider));
+        _settings.Set("streaming.language", StreamingLanguage);
+        _settings.Set("streaming.deepgramModel", StreamingModel);
+        _settings.Set("streaming.fastFormatting", StreamingFastFormatting);
+        _settings.Set("autostartEnabled", AutostartEnabled);
+        _settings.Set("general.enableSoundEffects", EnableSoundEffects);
+        _settings.Set("autoIncreaseMicVolume", AutoIncreaseMicVolume);
+        _settings.Set("keepMicrophoneWarm", KeepMicrophoneWarm);
+        _settings.Set("audioEnvironmentPolicy", NormalizeAudioPolicy(AudioEnvironmentPolicy));
         var result = _settings.Save();
-        if (result.IsSuccess) { Status.Success("Settings saved"); LocalApiSettingsChanged?.Invoke(this, EventArgs.Empty); }
+        if (result.IsSuccess) { Status.Success("Settings saved"); LocalApiSettingsChanged?.Invoke(this, EventArgs.Empty); DesktopSettingsChanged?.Invoke(this, EventArgs.Empty); }
         else Status.Failure(result.Error!.Code, result.Error.Message);
     }
 
@@ -630,6 +713,17 @@ public sealed class SettingsViewModel : ViewModelBase
         "vulkan" => "vulkan",
         "cuda" => "cuda",
         _ => "cpu",
+    };
+
+    private static string NormalizeStreamingProvider(string? value) => value?.Trim().ToLowerInvariant() switch
+    {
+        "elevenlabs" => "elevenlabs", "openai" => "openai", "grok" or "xai" => "grok",
+        "hyperwhisper" or "hyperwhispercloud" => "hyperwhisper", _ => "deepgram",
+    };
+
+    private static string NormalizeAudioPolicy(string? value) => value?.Trim().ToLowerInvariant() switch
+    {
+        "duck" => "duck", "mute" => "mute", _ => "unchanged",
     };
 }
 

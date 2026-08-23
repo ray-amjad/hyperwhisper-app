@@ -73,7 +73,14 @@ internal sealed class FileEvdevSource(string path) : IEvdevSource
         return true;
     }
 
-    public ValueTask DisposeAsync() => _stream.DisposeAsync();
+    public ValueTask DisposeAsync()
+    {
+        // FileStream.DisposeAsync can wait for an outstanding character-device
+        // read. Closing the descriptor synchronously lets desktop shutdown
+        // continue while the reader observes cancellation or end-of-stream.
+        _stream.Dispose();
+        return ValueTask.CompletedTask;
+    }
 }
 
 internal sealed class LinuxKeyboardSourceFactory : IEvdevSourceFactory

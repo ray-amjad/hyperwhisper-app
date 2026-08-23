@@ -3,9 +3,11 @@ using HyperWhisper.Linux.Platform.Input;
 using HyperWhisper.Linux.Platform.Audio;
 using HyperWhisper.Linux.Platform.Injection;
 using HyperWhisper.Linux.Platform.Security;
+using HyperWhisper.Linux.Platform.Desktop;
 using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.SharedCore;
 using HyperWhisper.PortableApplication.Transcription;
+using HyperWhisper.LiveStreaming;
 
 namespace HyperWhisper.Linux;
 
@@ -19,22 +21,48 @@ internal sealed class LinuxDesktopServices : IDisposable
         PrivateFiles = new LinuxPrivateFileService();
         CredentialStore = new LinuxCredentialStore();
         GlobalShortcuts = new LinuxGlobalShortcutService();
+        PushToTalk = new LinuxPushToTalkMonitor();
         AudioDevices = new PulseAudioInputDeviceService();
         AudioRecorder = new PulseAudioRecorder(Paths);
         AudioTranscriber = LinuxModeAwareTranscriptionFactory.Create(Paths);
         AudioPlayback = new PulseAudioPlaybackService();
         TextInjection = new LinuxTextInjectionService();
+        ApplicationContext = new LinuxApplicationContextProvider();
+        ScreenOcr = new LinuxScreenOcrService();
+        Tray = new LinuxStatusNotifierItemService();
+        Autostart = new LinuxAutostartService();
+        SingleInstance = new LinuxSingleInstanceCoordinator(Paths);
+        DeviceIdentity = new LinuxDeviceIdentityProvider();
+        MicrophoneVolume = new LinuxMicrophoneVolumeService();
+        MicrophoneKeepWarm = new LinuxMicrophoneKeepWarmService();
+        SoundEffects = new LinuxSoundEffectsService();
+        AudioEnvironment = new LinuxAudioEnvironmentService();
+        LiveStreaming = new LiveStreamingSessionController(
+            new PulseStreamingAudioCapture(),
+            new SharedCoreLiveCloudTranscriber(new LiveCloudTranscriptionService()));
     }
 
     public IAppPaths Paths { get; }
     public IPrivateFileService PrivateFiles { get; }
     public ICredentialStore CredentialStore { get; }
     public IGlobalShortcutService GlobalShortcuts { get; }
+    public IPushToTalkMonitor PushToTalk { get; }
     public IAudioInputDeviceService AudioDevices { get; }
     public IAudioRecorder AudioRecorder { get; }
     public IRecordedAudioTranscriber AudioTranscriber { get; }
     public IAudioPlaybackService AudioPlayback { get; }
     public ITextInjectionService TextInjection { get; }
+    public IApplicationContextProvider ApplicationContext { get; }
+    public IScreenOcrService ScreenOcr { get; }
+    public LinuxStatusNotifierItemService Tray { get; }
+    public IAutostartService Autostart { get; }
+    public ISingleInstanceCoordinator SingleInstance { get; }
+    public IDeviceIdentityProvider DeviceIdentity { get; }
+    public IMicrophoneVolumeService MicrophoneVolume { get; }
+    public IMicrophoneKeepWarmService MicrophoneKeepWarm { get; }
+    public ISoundEffectsService SoundEffects { get; }
+    public IAudioEnvironmentService AudioEnvironment { get; }
+    public LiveStreamingSessionController LiveStreaming { get; }
 
     public bool ProbeSharedCore() =>
         !SharedCoreBridge.ContainsCjk("HyperWhisper")
@@ -50,10 +78,17 @@ internal sealed class LinuxDesktopServices : IDisposable
 
         _disposed = true;
         GlobalShortcuts.Dispose();
+        PushToTalk.Dispose();
         AudioRecorder.Dispose();
         AudioDevices.Dispose();
         if (AudioTranscriber is IDisposable transcriber) transcriber.Dispose();
         AudioPlayback.Dispose();
         TextInjection.Dispose();
+        ApplicationContext.Dispose();
+        Tray.Dispose();
+        SingleInstance.Dispose();
+        MicrophoneKeepWarm.Dispose();
+        SoundEffects.Dispose();
+        LiveStreaming.DisposeAsync().AsTask().GetAwaiter().GetResult();
     }
 }

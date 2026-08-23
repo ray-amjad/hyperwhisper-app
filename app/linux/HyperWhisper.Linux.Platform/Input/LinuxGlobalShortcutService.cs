@@ -220,13 +220,14 @@ public sealed class LinuxGlobalShortcutService : IGlobalShortcutService, IShortc
             }
         }
 
-        try
-        {
-            Task.WhenAll(tasks).GetAwaiter().GetResult();
-        }
-        catch
-        {
-        }
+        // Some evdev character-device drivers do not complete an outstanding
+        // read promptly after close. The readers own no state after sources are
+        // detached, so observe completion without blocking the desktop UI thread.
+        _ = Task.WhenAll(tasks).ContinueWith(
+            static completed => _ = completed.Exception,
+            CancellationToken.None,
+            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
 
         _cancellation?.Dispose();
         _cancellation = null;

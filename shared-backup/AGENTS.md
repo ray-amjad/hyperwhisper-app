@@ -84,6 +84,16 @@ Linux-only settings go into `platformExtensions.linux.settings`:
 | Key | Linux Source | Notes |
 |---|---|---|
 | `autostartEnabled` | Linux autostart preference | Bool; controls the per-user XDG autostart entry. |
+| `toggleShortcutModifiers` | Linux transcription shortcut modifiers | `ShortcutModifiers` names, comma separated. |
+| `toggleShortcutKey` | Linux transcription shortcut key | Stable portable key name. |
+| `pushToTalkMode` | Linux push-to-talk mode | `Disabled`, `Modifier`, or `CustomShortcut`. |
+| `pushToTalkModifier` | Linux modifier-only push-to-talk input | Stable `ModifierSide` name. |
+| `pushToTalkShortcutModifiers` | Linux custom push-to-talk modifiers | `ShortcutModifiers` names, comma separated. |
+| `pushToTalkShortcutKey` | Linux custom push-to-talk key | Stable portable key name. |
+| `pushToTalkDoublePressLock` | Linux push-to-talk latch preference | Bool. |
+| `autoIncreaseMicVolume` | Linux temporary microphone boost | Bool; restored after every recording. |
+| `keepMicrophoneWarm` | Linux microphone keep-warm preference | Bool. |
+| `audioEnvironmentPolicy` | Linux other-audio behavior | `unchanged`, `duck`, or `mute`. |
 </important>
 
 <important if="you are adding or modifying a Mode property, or editing the mode field-mapping tables">

@@ -22,6 +22,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("private reads reject permissive files", RejectPermissiveRead),
     ("evdev drops unrelated keys at boundary", DropsUnrelatedKeys),
     ("evdev emits configured logical shortcut", EmitsConfiguredShortcut),
+    ("evdev disposal is bounded for uncooperative devices", EvdevDisposalBounded),
     ("X11 mapper preserves logical shortcut privacy", X11ShortcutPrivacy),
     ("X11 modifier-only shortcuts emit press and release", X11ModifierShortcut),
     ("true Xorg selects XGrabKey instead of evdev", XorgSelectsXGrabKey),
@@ -221,6 +222,18 @@ static async Task EmitsConfiguredShortcut()
     Assert.Success(service.Start());
     await source.Completed.Task.WaitAsync(TimeSpan.FromSeconds(2));
     Assert.Equal("down:record,up:record", string.Join(',', events));
+}
+
+static Task EvdevDisposalBounded()
+{
+    var source = new UncooperativeSource();
+    var service = new LinuxGlobalShortcutService(new FakeSourceFactory(source), null);
+    Assert.Success(service.Start());
+    var started = Stopwatch.StartNew();
+    service.Dispose();
+    Assert.True(started.Elapsed < TimeSpan.FromSeconds(2));
+    source.Release();
+    return Task.CompletedTask;
 }
 
 static async Task IsolatesSubscribers()
@@ -1324,6 +1337,16 @@ sealed class FakeSource(string id, params byte[][] frames) : IEvdevSource
         return ValueTask.FromResult(true);
     }
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+}
+
+sealed class UncooperativeSource : IEvdevSource
+{
+    private readonly TaskCompletionSource<bool> _completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    public string Id => "uncooperative";
+    public ValueTask<bool> ReadFrameAsync(Memory<byte> frame, CancellationToken cancellationToken) =>
+        new(_completion.Task);
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    public void Release() => _completion.TrySetResult(false);
 }
 
 sealed class FakeDiagnostics : IGlobalShortcutDiagnostics

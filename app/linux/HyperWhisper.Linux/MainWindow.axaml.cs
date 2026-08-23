@@ -9,6 +9,8 @@ using HyperWhisper.PortableApplication.Transcription;
 using Avalonia.Platform.Storage;
 using HyperWhisper.LocalApi;
 using HyperWhisper.ModelManagement;
+using HyperWhisper.Linux.Platform.Desktop;
+using HyperWhisper.Platform.Abstractions;
 
 namespace HyperWhisper.Linux;
 
@@ -22,8 +24,13 @@ public partial class MainWindow : Window
     private readonly PortableModelManager _modelManager;
     private readonly HttpClient _modelHttp = new();
     private readonly TranscriptionWorkflow _workflow;
+    private readonly LinuxInteractionRecordingSession _recordingSession;
+    private readonly LinuxInteractionCoordinator _interaction;
     private PortableLocalApiHost? _localApiHost;
     private Task? _initialization;
+    private readonly SemaphoreSlim _localApiSettingsGate = new(1, 1);
+    private readonly CancellationTokenSource _lifetime = new();
+    private bool _allowClose;
 
     public MainWindow() : this(new LinuxDesktopServices())
     {
@@ -50,26 +57,78 @@ public partial class MainWindow : Window
             _modelManager, _platformServices.AudioPlayback,
             new DurableAudioImportService(_platformServices.PrivateFiles, _platformServices.Paths),
             _platformServices.Paths, _platformServices.CredentialStore);
+        var history = new HistoryRepository(_database, _platformServices.Paths);
+        var contextCapture = new LinuxContextCaptureCoordinator(
+            _platformServices.ApplicationContext, _platformServices.ScreenOcr);
+        _recordingSession = new LinuxInteractionRecordingSession(
+            _viewModel, _workflow, _platformServices, contextCapture, _postProcessor, history);
+        _interaction = new LinuxInteractionCoordinator(
+            _platformServices.GlobalShortcuts, _platformServices.PushToTalk,
+            _platformServices.TextInjection, _recordingSession, new AvaloniaUiDispatcher());
         InitializeComponent();
         DataContext = _viewModel;
         PlatformStatusText.Text = $"Linux platform connected · {_platformServices.Paths.DataDirectory}";
         Opened += OnOpened;
+        Closing += OnClosing;
         Closed += OnClosed;
         _viewModel.Settings.LocalApiSettingsChanged += OnLocalApiSettingsChanged;
+        _viewModel.Settings.DesktopSettingsChanged += OnDesktopSettingsChanged;
+        _interaction.OperationFailed += OnInteractionFailed;
+        _platformServices.Tray.ShowRequested += OnTrayShowRequested;
+        _platformServices.Tray.HideRequested += OnTrayHideRequested;
+        _platformServices.Tray.QuitRequested += OnTrayQuitRequested;
     }
 
     private async void OnOpened(object? sender, EventArgs e)
     {
-        await EnsureInitializedAsync();
-        await ApplyLocalApiSettingsAsync();
+        try
+        {
+            await EnsureInitializedAsync();
+            await ApplyLocalApiSettingsAsync(_lifetime.Token);
+            ApplyDesktopSettings();
+            var tray = await _platformServices.Tray.StartAsync(_lifetime.Token);
+            if (tray.IsFailure)
+                PlatformStatusText.Text += $" · Tray unavailable; window fallback active ({tray.Error!.Message})";
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch
+        {
+            _viewModel.Status.Failure("app.desktop_start_failed", "Linux desktop integration could not be started.");
+        }
+    }
+
+    private async void OnClosing(object? sender, WindowClosingEventArgs e)
+    {
+        if (_allowClose) return;
+        _lifetime.Cancel();
+        if (!_recordingSession.IsActive && _localApiHost is null) return;
+        e.Cancel = true;
+        try
+        {
+            if (_recordingSession.IsActive) await _interaction.CancelRecordingAsync();
+            await ShutdownLocalApiAsync();
+        }
+        catch { _viewModel.Status.Failure("interaction.close_cancel_failed", "The active recording could not be cancelled cleanly."); }
+        finally
+        {
+            _allowClose = true;
+            Dispatcher.UIThread.Post(Close);
+        }
     }
 
     private void OnClosed(object? sender, EventArgs e)
     {
         Opened -= OnOpened;
+        Closing -= OnClosing;
         Closed -= OnClosed;
+        _lifetime.Cancel();
         _viewModel.Settings.LocalApiSettingsChanged -= OnLocalApiSettingsChanged;
-        if (_localApiHost is not null) _localApiHost.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        _viewModel.Settings.DesktopSettingsChanged -= OnDesktopSettingsChanged;
+        _interaction.OperationFailed -= OnInteractionFailed;
+        _platformServices.Tray.ShowRequested -= OnTrayShowRequested;
+        _platformServices.Tray.HideRequested -= OnTrayHideRequested;
+        _platformServices.Tray.QuitRequested -= OnTrayQuitRequested;
+        _interaction.Dispose();
         _viewModel.Dispose();
         _postProcessor.Dispose();
         _modelHttp.Dispose();
@@ -77,32 +136,109 @@ public partial class MainWindow : Window
 
     private Task EnsureInitializedAsync() => _initialization ??= _viewModel.InitializeAsync();
 
-    private async void OnLocalApiSettingsChanged(object? sender, EventArgs e) => await ApplyLocalApiSettingsAsync();
-
-    private async Task ApplyLocalApiSettingsAsync()
+    private async void OnLocalApiSettingsChanged(object? sender, EventArgs e)
     {
-        if (_localApiHost is not null)
+        try { await ApplyLocalApiSettingsAsync(_lifetime.Token); }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch { _viewModel.Settings.Status.Failure("local_api.apply_failed", "Local API settings could not be applied."); }
+    }
+
+    private void OnDesktopSettingsChanged(object? sender, EventArgs e)
+    {
+        try { ApplyDesktopSettings(); }
+        catch { _viewModel.Settings.Status.Failure("desktop_settings.apply_failed", "Desktop settings could not be applied."); }
+    }
+
+    private void ApplyDesktopSettings()
+    {
+        var settings = _viewModel.Settings;
+        if (_platformServices.ApplicationContext is LinuxApplicationContextProvider contextProvider)
         {
-            await _localApiHost.DisposeAsync();
-            _localApiHost = null;
+            var capability = contextProvider.GetCapabilities();
+            settings.DesktopContextStatus = capability.Backend.StartsWith("gnome-", StringComparison.Ordinal)
+                ? $"Application context: {capability.Detail} The optional packaged GNOME companion improves title discovery; AT-SPI remains the local fallback."
+                : $"Application context: {capability.Detail}";
         }
-        if (!_viewModel.Settings.LocalApiEnabled) return;
-        var modes = new ModeRepository(_database);
-        var backend = new ApplicationLocalApiBackend(
-            modes,
-            new HistoryRepository(_database, _platformServices.Paths),
-            _workflow,
-            new LinuxLocalApiCapabilityCatalog(_modelManager, _platformServices.AudioTranscriber),
-            _platformServices.PrivateFiles,
-            _platformServices.Paths,
-            "1.0.0",
-            new LinuxLocalApiPostProcessor(_postProcessor, modes));
-        _localApiHost = new PortableLocalApiHost(
-            _platformServices.PrivateFiles, _platformServices.Paths, backend, "1.0.0",
-            _viewModel.Settings.LocalApiPort);
-        var state = await _localApiHost.StartAsync();
-        if (!state.IsRunning)
-            _viewModel.Settings.Status.Failure(state.Failure?.Code ?? "local_api.start_failed", state.Failure?.Message ?? "Local API could not start.");
+        var toggleModifiers = Enum.TryParse<ShortcutModifiers>(settings.ToggleShortcutModifiers, true, out var parsedModifiers)
+            ? parsedModifiers : ShortcutModifiers.Control | ShortcutModifiers.Shift;
+        var toggle = new GlobalShortcut(toggleModifiers,
+            string.IsNullOrWhiteSpace(settings.ToggleShortcutKey) ? new ShortcutKeyCode("Space") : new ShortcutKeyCode(settings.ToggleShortcutKey.Trim()));
+        var pttMode = Enum.TryParse<PushToTalkMode>(settings.PushToTalkMode, true, out var parsedMode)
+            ? parsedMode : PushToTalkMode.Disabled;
+        var modifier = Enum.TryParse<ModifierSide>(settings.PushToTalkModifier, true, out var parsedModifier)
+            ? parsedModifier : ModifierSide.LeftAlt;
+        var customModifiers = Enum.TryParse<ShortcutModifiers>(settings.PushToTalkShortcutModifiers, true, out var parsedCustomModifiers)
+            ? parsedCustomModifiers : ShortcutModifiers.None;
+        GlobalShortcut? custom = string.IsNullOrWhiteSpace(settings.PushToTalkShortcutKey) ? null
+            : new GlobalShortcut(customModifiers, new ShortcutKeyCode(settings.PushToTalkShortcutKey.Trim()));
+        var result = _interaction.ConfigureAndStart(new LinuxInteractionConfiguration(
+            toggle,
+            new PushToTalkConfiguration(pttMode, modifier, custom, settings.PushToTalkDoublePressLock),
+            TimeSpan.FromSeconds(settings.ClipboardRestoreDelaySeconds)));
+        if (result.IsFailure) PlatformStatusText.Text = $"Linux integration warning · {result.Error!.Message}";
+        else PlatformStatusText.Text = $"Linux platform connected · {_platformServices.Paths.DataDirectory}";
+
+        var autostart = settings.AutostartEnabled ? _platformServices.Autostart.Enable() : _platformServices.Autostart.Disable();
+        if (autostart.IsFailure && settings.AutostartEnabled)
+            _viewModel.Settings.Status.Failure(autostart.Error!.Code, autostart.Error.Message);
+        _platformServices.MicrophoneKeepWarm.Configure(
+            settings.KeepMicrophoneWarm, _viewModel.Recording?.SelectedAudioDevice?.Id);
+    }
+
+    private void OnInteractionFailed(object? sender, PlatformError error) =>
+        _viewModel.Status.Failure(error.Code, error.Message);
+
+    private void OnTrayShowRequested(object? sender, EventArgs e) => Dispatcher.UIThread.Post(() =>
+    {
+        Show(); WindowState = WindowState.Normal; Activate();
+    });
+    private void OnTrayHideRequested(object? sender, EventArgs e) => Dispatcher.UIThread.Post(Hide);
+    private void OnTrayQuitRequested(object? sender, EventArgs e) => Dispatcher.UIThread.Post(Close);
+
+    private async Task ApplyLocalApiSettingsAsync(CancellationToken cancellationToken)
+    {
+        await _localApiSettingsGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (_localApiHost is not null)
+            {
+                await _localApiHost.DisposeAsync().ConfigureAwait(false);
+                _localApiHost = null;
+            }
+            if (!_viewModel.Settings.LocalApiEnabled) return;
+            var modes = new ModeRepository(_database);
+            var backend = new ApplicationLocalApiBackend(
+                modes,
+                new HistoryRepository(_database, _platformServices.Paths),
+                _workflow,
+                new LinuxLocalApiCapabilityCatalog(_modelManager, _platformServices.AudioTranscriber),
+                _platformServices.PrivateFiles,
+                _platformServices.Paths,
+                "1.0.0",
+                new LinuxLocalApiPostProcessor(_postProcessor, modes),
+                vocabulary: new VocabularyRepository(_database));
+            _localApiHost = new PortableLocalApiHost(
+                _platformServices.PrivateFiles, _platformServices.Paths, backend, "1.0.0",
+                _viewModel.Settings.LocalApiPort);
+            var state = await _localApiHost.StartAsync(cancellationToken).ConfigureAwait(false);
+            if (!state.IsRunning)
+                _viewModel.Settings.Status.Failure(state.Failure?.Code ?? "local_api.start_failed", state.Failure?.Message ?? "Local API could not start.");
+        }
+        finally { _localApiSettingsGate.Release(); }
+    }
+
+    private async Task ShutdownLocalApiAsync()
+    {
+        await _localApiSettingsGate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            if (_localApiHost is not null)
+            {
+                await _localApiHost.DisposeAsync().ConfigureAwait(false);
+                _localApiHost = null;
+            }
+        }
+        finally { _localApiSettingsGate.Release(); }
     }
 
     private void OnNavigationChanged(object? sender, SelectionChangedEventArgs e)
@@ -110,6 +246,10 @@ public partial class MainWindow : Window
         if (Navigation.SelectedItem is ListBoxItem { Tag: string pageId })
             _viewModel.Navigate(pageId);
     }
+
+    private async void OnStartRecording(object? sender, RoutedEventArgs e) => await _interaction.StartRecordingAsync();
+    private async void OnStopRecording(object? sender, RoutedEventArgs e) => await _interaction.StopRecordingAsync();
+    private async void OnCancelRecording(object? sender, RoutedEventArgs e) => await _interaction.CancelRecordingAsync();
 
     private async void OnBrowseAudioFile(object? sender, RoutedEventArgs e)
     {
@@ -199,7 +339,15 @@ public partial class MainWindow : Window
             if (!HasVisibleControl("SettingsLocalLlmBackend")
                 || !HasVisibleControl("SettingsLocalLlmCpuFallback")
                 || !HasVisibleControl("SettingsLocalApiEnabled")
-                || !HasVisibleControl("SettingsLocalApiPort")) return 10;
+                || !HasVisibleControl("SettingsLocalApiPort")
+                || !HasVisibleControl("SettingsToggleKey")
+                || !HasVisibleControl("SettingsPushToTalkMode")
+                || !HasVisibleControl("SettingsRestoreClipboard")
+                || !HasVisibleControl("SettingsStreamingEnabled")
+                || !HasVisibleControl("SettingsStreamingProvider")
+                || !HasVisibleControl("SettingsAudioEnvironmentPolicy")
+                || !HasVisibleControl("SettingsAutostart")
+                || !HasVisibleControl("SettingsDesktopContextStatus")) return 10;
 
             if (_viewModel.History.Items.Count == 0
                 || _viewModel.Vocabulary.Items.Count == 0

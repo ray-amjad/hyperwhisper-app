@@ -54,6 +54,16 @@ try
     var settings = new PortableSettingsService(files, Path.Combine(root, "settings.json"));
     settings.Set("language", "en");
     settings.Set("enabled", true);
+    settings.Set("toggleShortcutModifiers", "Control, Alt");
+    settings.Set("toggleShortcutKey", "F9");
+    settings.Set("pushToTalkMode", "Modifier");
+    settings.Set("pushToTalkModifier", "LeftAlt");
+    settings.Set("pushToTalkShortcutModifiers", "None");
+    settings.Set("pushToTalkShortcutKey", "");
+    settings.Set("pushToTalkDoublePressLock", true);
+    settings.Set("autoIncreaseMicVolume", true);
+    settings.Set("keepMicrophoneWarm", true);
+    settings.Set("audioEnvironmentPolicy", "duck");
     Assert(settings.Save().IsSuccess, "settings save failed");
     var reloadedSettings = new PortableSettingsService(files, Path.Combine(root, "settings.json"));
     Assert(reloadedSettings.Load().IsSuccess, "settings load failed");
@@ -91,6 +101,13 @@ try
     Assert((await vocabulary.ListAsync()).Single().Word == "HyperWhisper", "backup did not restore vocabulary");
     Assert((await modes.ListAsync()).Single().Name == "Portable Updated", "backup did not restore modes");
     Assert(reloadedSettings.Get<string>("language") == "en", "backup did not restore settings");
+    Assert(reloadedSettings.Get<string>("toggleShortcutKey") == "F9"
+        && reloadedSettings.Get<string>("pushToTalkMode") == "Modifier"
+        && reloadedSettings.Get<bool>("pushToTalkDoublePressLock")
+        && reloadedSettings.Get<bool>("autoIncreaseMicVolume")
+        && reloadedSettings.Get<bool>("keepMicrophoneWarm")
+        && reloadedSettings.Get<string>("audioEnvironmentPolicy") == "duck",
+        "backup did not restore Linux interaction and audio settings");
     var reexported = JsonNode.Parse(await backupService.ExportAsync())!.AsObject()["platformExtensions"]!.AsObject();
     Assert(reexported["windows"]?["futureWindows"]?.GetValue<int>() == 17
         && reexported["macos"]?["futureMac"]?.GetValue<string>() == "keep"

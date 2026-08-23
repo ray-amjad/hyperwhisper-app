@@ -457,6 +457,16 @@ public sealed class ApplicationBackupService(ApplicationDb database, PortableSet
         linuxSettings["localApiEnabled"] = _settings.Get("localApiEnabled", false);
         linuxSettings["localApiPort"] = _settings.Get("localApiPort", 51671);
         linuxSettings["autostartEnabled"] = _settings.Get("autostartEnabled", false);
+        linuxSettings["toggleShortcutModifiers"] = _settings.Get("toggleShortcutModifiers", "Control, Shift");
+        linuxSettings["toggleShortcutKey"] = _settings.Get("toggleShortcutKey", "Space");
+        linuxSettings["pushToTalkMode"] = _settings.Get("pushToTalkMode", "Disabled");
+        linuxSettings["pushToTalkModifier"] = _settings.Get("pushToTalkModifier", "LeftAlt");
+        linuxSettings["pushToTalkShortcutModifiers"] = _settings.Get("pushToTalkShortcutModifiers", "None");
+        linuxSettings["pushToTalkShortcutKey"] = _settings.Get("pushToTalkShortcutKey", string.Empty);
+        linuxSettings["pushToTalkDoublePressLock"] = _settings.Get("pushToTalkDoublePressLock", false);
+        linuxSettings["autoIncreaseMicVolume"] = _settings.Get("autoIncreaseMicVolume", false);
+        linuxSettings["keepMicrophoneWarm"] = _settings.Get("keepMicrophoneWarm", false);
+        linuxSettings["audioEnvironmentPolicy"] = _settings.Get("audioEnvironmentPolicy", "unchanged");
         linuxExtension["settings"] = linuxSettings;
         platformExtensions["linux"] = linuxExtension;
         var root = new JsonObject
@@ -551,6 +561,16 @@ public sealed class ApplicationBackupService(ApplicationDb database, PortableSet
                     CopySetting<bool>(linuxSettings, "localApiEnabled");
                     CopySetting<int>(linuxSettings, "localApiPort");
                     CopySetting<bool>(linuxSettings, "autostartEnabled");
+                    CopySetting<string>(linuxSettings, "toggleShortcutModifiers");
+                    CopySetting<string>(linuxSettings, "toggleShortcutKey");
+                    CopySetting<string>(linuxSettings, "pushToTalkMode");
+                    CopySetting<string>(linuxSettings, "pushToTalkModifier");
+                    CopySetting<string>(linuxSettings, "pushToTalkShortcutModifiers");
+                    CopySetting<string>(linuxSettings, "pushToTalkShortcutKey");
+                    CopySetting<bool>(linuxSettings, "pushToTalkDoublePressLock");
+                    CopySetting<bool>(linuxSettings, "autoIncreaseMicVolume");
+                    CopySetting<bool>(linuxSettings, "keepMicrophoneWarm");
+                    CopySetting<string>(linuxSettings, "audioEnvironmentPolicy");
                 }
             }
             if (backup["settings"] is JsonObject sharedSettings) ApplySharedSettings(sharedSettings);
