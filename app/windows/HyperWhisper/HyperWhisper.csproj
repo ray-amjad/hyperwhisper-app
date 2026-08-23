@@ -80,6 +80,13 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\shared-dotnet\HyperWhisper.Platform.Abstractions\HyperWhisper.Platform.Abstractions.csproj" />
+    <ProjectReference Include="..\..\shared-dotnet\HyperWhisper.Application\HyperWhisper.Application.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Data\HyperWhisperDbContext.cs" />
+    <Compile Remove="Data\Entities\**\*.cs" />
+    <Compile Remove="Migrations\**\*.cs" />
   </ItemGroup>
 
   <!-- New WPF/MVVM dependencies -->

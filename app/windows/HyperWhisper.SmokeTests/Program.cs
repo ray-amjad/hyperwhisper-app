@@ -2708,7 +2708,7 @@ internal static class Program
             {
                 DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
 
-                var application = new Application();
+                var application = new System.Windows.Application();
                 LoadApplicationResources(application);
 
                 // Constructing the page exercises the exact construction-order NRE this
@@ -3135,14 +3135,14 @@ internal static class Program
         public void Delete(string resource, string account) => StoredValue = null;
     }
 
-    private static void LoadApplicationResources(Application application)
+    private static void LoadApplicationResources(System.Windows.Application application)
     {
         AddResourceDictionary(application, "Themes/LightColors.xaml");
         AddResourceDictionary(application, "Themes/Brushes.xaml");
         AddResourceDictionary(application, "Themes/Generic.xaml");
     }
 
-    private static void AddResourceDictionary(Application application, string resourcePath)
+    private static void AddResourceDictionary(System.Windows.Application application, string resourcePath)
     {
         application.Resources.MergedDictionaries.Add(new ResourceDictionary
         {
