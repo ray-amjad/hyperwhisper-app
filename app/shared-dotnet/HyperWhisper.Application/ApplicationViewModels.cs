@@ -1901,7 +1901,9 @@ public sealed class ModelLibraryViewModel : ViewModelBase, IDisposable
             ModelLibrarySort.Name => query.OrderBy(item => item.DisplayName, StringComparer.OrdinalIgnoreCase),
             ModelLibrarySort.Provider => query.OrderBy(item => item.ProviderId, StringComparer.OrdinalIgnoreCase).ThenBy(item => item.DisplayName, StringComparer.OrdinalIgnoreCase),
             ModelLibrarySort.Readiness => query.OrderBy(item => item.Readiness).ThenBy(item => item.DisplayName, StringComparer.OrdinalIgnoreCase),
-            _ => query.OrderByDescending(item => item.Model?.IsRecommended == true).ThenBy(item => item.DisplayName, StringComparer.OrdinalIgnoreCase),
+            _ => query.OrderByDescending(item => item.Model?.IsRecommended == true)
+                .ThenBy(item => item.Capability.Deployment)
+                .ThenBy(item => item.DisplayName, StringComparer.OrdinalIgnoreCase),
         };
         Items.Clear();
         foreach (var item in query) Items.Add(item);

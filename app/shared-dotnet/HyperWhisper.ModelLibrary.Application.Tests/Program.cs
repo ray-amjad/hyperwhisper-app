@@ -86,7 +86,27 @@ try
         && localRow.Readiness == ReadinessState.Installed,
         "local readiness did not use the local adapter independently of provider health");
 
-    Console.WriteLine("Model library application tests passed (11/11).");
+    var concurrencyRoot = Path.Combine(root, "concurrency");
+    var concurrencyHandler = new BlockingNetworkHandler();
+    var concurrencyManager = new PortableModelManager(
+        new TestPaths(concurrencyRoot), new HttpClient(concurrencyHandler));
+    using (var concurrencyViewModel = new ModelLibraryViewModel(concurrencyManager))
+    {
+        var downloadTarget = concurrencyViewModel.Selected!;
+        var download = concurrencyViewModel.DownloadAsync();
+        await concurrencyHandler.Started.Task;
+        var otherRow = concurrencyViewModel.Items.First(item => item.Id != downloadTarget.Id);
+        Assert(otherRow.Model is not null && otherRow.Status == "Not installed",
+            "recommended ordering did not preserve local download rows ahead of cloud metadata rows");
+        concurrencyViewModel.Selected = otherRow;
+        concurrencyViewModel.Dispose();
+        await download;
+        Assert(downloadTarget.Status.Contains("cancel", StringComparison.OrdinalIgnoreCase)
+            && otherRow.Status == "Not installed" && !otherRow.Installed,
+            "selection change redirected an in-flight download result to another unified row");
+    }
+
+    Console.WriteLine("Model library application tests passed (13/13).");
 }
 finally
 {
@@ -129,6 +149,17 @@ sealed class RejectNetworkHandler : HttpMessageHandler
 {
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         => throw new InvalidOperationException("Unexpected network access.");
+}
+
+sealed class BlockingNetworkHandler : HttpMessageHandler
+{
+    public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        Started.TrySetResult();
+        await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+        throw new InvalidOperationException("Unreachable blocking model response.");
+    }
 }
 
 sealed class TestPaths(string root) : IAppPaths
