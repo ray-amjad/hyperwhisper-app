@@ -9,6 +9,8 @@ public enum LiveTranscriptionProvider
     OpenAi,
     Grok,
     HyperWhisperCloud,
+    ParakeetLocal,
+    NemotronLocal,
 }
 
 public sealed record LiveTranscriptionConfig(

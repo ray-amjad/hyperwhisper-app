@@ -50,8 +50,16 @@ public sealed class LiveStreamingModeRouter(ILiveStreamingCredentialSource crede
                 "streaming_provider_unsupported", "The selected live transcription provider is not supported.");
         }
 
-        var credential = await _credentials.GetCredentialAsync(credentialAccount, cancellationToken).ConfigureAwait(false);
-        if (string.IsNullOrWhiteSpace(credential) &&
+        var isLocal = provider is LiveTranscriptionProvider.ParakeetLocal or LiveTranscriptionProvider.NemotronLocal;
+        if (isLocal && string.IsNullOrWhiteSpace(mode.Model))
+        {
+            return PlatformResult<ResolvedLiveStreamingMode>.Failure(
+                "streaming_local_model_missing", "The selected local live transcription mode requires a model.");
+        }
+        var credential = isLocal
+            ? null
+            : await _credentials.GetCredentialAsync(credentialAccount, cancellationToken).ConfigureAwait(false);
+        if (!isLocal && string.IsNullOrWhiteSpace(credential) &&
             (!usesLicense || string.IsNullOrWhiteSpace(mode.ClientDeviceId)))
         {
             return PlatformResult<ResolvedLiveStreamingMode>.Failure(
@@ -106,6 +114,16 @@ public sealed class LiveStreamingModeRouter(ILiveStreamingCredentialSource crede
                 provider = LiveTranscriptionProvider.HyperWhisperCloud;
                 credentialAccount = "LicenseKey";
                 usesLicense = true;
+                return true;
+            case "parakeetlocal":
+            case "parakeet_local":
+                provider = LiveTranscriptionProvider.ParakeetLocal;
+                credentialAccount = string.Empty;
+                return true;
+            case "nemotronlocal":
+            case "nemotron_local":
+                provider = LiveTranscriptionProvider.NemotronLocal;
+                credentialAccount = string.Empty;
                 return true;
             default:
                 provider = default;

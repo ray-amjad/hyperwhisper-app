@@ -53,6 +53,59 @@ internal static class Program
                     break;
                 }
 
+                if (request?.Command == "start")
+                {
+                    try
+                    {
+                        engine.StartLive();
+                        WriteJson(new LiveResponse("started"));
+                    }
+                    catch (Exception ex)
+                    {
+                        LogError($"Live session start failed: {ex.Message}");
+                        WriteJson(new ErrorResponse("Live session could not be started"));
+                    }
+                    continue;
+                }
+
+                if (request?.Command == "audio")
+                {
+                    try
+                    {
+                        var pcm = DecodePcm16(request.Audio);
+                        var update = engine.AcceptLiveAudio(pcm);
+                        WriteJson(new LiveResponse("transcript", update.Preview, update.Committed));
+                    }
+                    catch (Exception ex)
+                    {
+                        LogError($"Live audio failed: {ex.Message}");
+                        WriteJson(new ErrorResponse("Live audio could not be processed"));
+                    }
+                    continue;
+                }
+
+                if (request?.Command == "finish")
+                {
+                    try
+                    {
+                        var update = engine.FinishLive();
+                        WriteJson(new LiveResponse("transcript", update.Preview, update.Committed, true));
+                    }
+                    catch (Exception ex)
+                    {
+                        LogError($"Live session finish failed: {ex.Message}");
+                        WriteJson(new ErrorResponse("Live session could not be finished"));
+                    }
+                    continue;
+                }
+
+                if (request?.Command == "cancel")
+                {
+                    engine.CancelLive();
+                    WriteJson(new LiveResponse("cancelled"));
+                    continue;
+                }
+
                 if (string.IsNullOrWhiteSpace(request?.AudioPath))
                 {
                     WriteJson(new ErrorResponse("Missing audio_path"));
@@ -128,6 +181,18 @@ internal static class Program
         double sum = 0;
         foreach (var sample in samples) sum += sample * sample;
         return (float)Math.Sqrt(sum / samples.Length);
+    }
+
+    private static float[] DecodePcm16(string? encoded)
+    {
+        if (string.IsNullOrWhiteSpace(encoded)) throw new InvalidDataException("Missing audio");
+        var bytes = Convert.FromBase64String(encoded);
+        if (bytes.Length == 0 || bytes.Length > 128 * 1024 || (bytes.Length & 1) != 0)
+            throw new InvalidDataException("PCM16 audio chunk is invalid");
+        var samples = new float[bytes.Length / 2];
+        for (var index = 0; index < samples.Length; index++)
+            samples[index] = (short)(bytes[index * 2] | bytes[index * 2 + 1] << 8) / 32768f;
+        return samples;
     }
 
     public static AudioData ReadAudio(string path)
@@ -222,6 +287,7 @@ internal sealed class EngineSession : IDisposable
     private readonly string _qwen3Language;
     private readonly bool _isQwen3;
     private readonly bool _isOnline;
+    private LiveEngineSession? _live;
 
     public string Provider { get; }
 
@@ -300,6 +366,30 @@ internal sealed class EngineSession : IDisposable
         }
 
         return DecodeOffline(audio.Samples, audio.SampleRate);
+    }
+
+    public void StartLive()
+    {
+        _live?.Dispose();
+        _live = _isOnline
+            ? LiveEngineSession.CreateOnline(_onlineRecognizer!, _options.Language)
+            : LiveEngineSession.CreateRollingOffline(_offlineRecognizer!, _segmentJoin);
+    }
+
+    public LiveEngineUpdate AcceptLiveAudio(float[] samples) =>
+        (_live ?? throw new InvalidOperationException("No live session is active")).Accept(samples);
+
+    public LiveEngineUpdate FinishLive()
+    {
+        var live = _live ?? throw new InvalidOperationException("No live session is active");
+        try { return live.Finish(); }
+        finally { live.Dispose(); _live = null; }
+    }
+
+    public void CancelLive()
+    {
+        _live?.Dispose();
+        _live = null;
     }
 
     private string DecodeOfflineWithVad(AudioData audio)
@@ -509,6 +599,7 @@ internal sealed class EngineSession : IDisposable
 
     public void Dispose()
     {
+        _live?.Dispose();
         _offlineRecognizer?.Dispose();
         _onlineRecognizer?.Dispose();
         _vad?.Dispose();
@@ -531,6 +622,9 @@ internal sealed class Request
 
     [JsonPropertyName("audio_path")]
     public string? AudioPath { get; set; }
+
+    [JsonPropertyName("audio")]
+    public string? Audio { get; set; }
 }
 
 internal sealed record ReadyResponse(string Status, string Provider);
@@ -539,4 +633,5 @@ internal sealed record ReadyError(string Error)
     public string Status => "error";
 }
 internal sealed record TranscribeResponse(string Text, long DurationMs);
+internal sealed record LiveResponse(string Type, string? Text = null, string? Committed = null, bool IsFinal = false);
 internal sealed record ErrorResponse(string Error);

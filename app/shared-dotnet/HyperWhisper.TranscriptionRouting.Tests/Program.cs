@@ -4,6 +4,8 @@ using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.PortableApplication.Transcription;
 using HyperWhisper.SharedCore;
 using HyperWhisper.TranscriptionRouting;
+using HyperWhisper.LiveStreaming;
+using HyperWhisper.ModelManagement;
 
 var root = Path.Combine(Path.GetTempPath(), "hyperwhisper-routing-tests-" + Guid.NewGuid().ToString("N"));
 Directory.CreateDirectory(root);
@@ -12,6 +14,7 @@ try
     await TestRouterAsync(root);
     await TestParakeetProtocolAsync(root);
     await TestParakeetCancellationAsync(root);
+    await TestParakeetLiveProtocolAsync(root);
     TestCredentials();
     Console.WriteLine("HyperWhisper.TranscriptionRouting tests passed.");
     return 0;
@@ -19,6 +22,62 @@ try
 finally
 {
     try { Directory.Delete(root, recursive: true); } catch { }
+}
+
+static async Task TestParakeetLiveProtocolAsync(string root)
+{
+    var executable = Path.Combine(root, "parakeet-live-engine");
+    await File.WriteAllBytesAsync(executable, [1]);
+    var models = Path.Combine(root, "live-models");
+    var model = PortableModelCatalog.Parakeet.Single(value => value.Id == "parakeet-v3");
+    var modelDirectory = Path.Combine(models, "Parakeet", model.StorageName);
+    Directory.CreateDirectory(modelDirectory);
+    foreach (var artifact in model.Artifacts)
+    {
+        var path = Path.Combine(modelDirectory, artifact.RelativePath);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        await File.WriteAllBytesAsync(path, [1]);
+    }
+    var process = new FakeProcess(string.Join('\n',
+        "{\"status\":\"ready\",\"provider\":\"cpu\"}",
+        "{\"type\":\"started\"}",
+        "{\"type\":\"transcript\",\"text\":\"private partial\",\"committed\":\"stable\"}",
+        "{\"type\":\"transcript\",\"text\":\"stable final\",\"committed\":\"final\",\"is_final\":true}", ""));
+    var sink = new RecordingLiveSink();
+    var launcher = new RecordingLauncher(process);
+    var transcriber = new ParakeetDaemonLiveTranscriber(
+        new StaticRuntime(executable), launcher, models, sink,
+        timeouts: new(TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1), TimeSpan.FromMilliseconds(20)));
+    var result = await transcriber.TranscribeAsync(new(
+        LiveTranscriptionProvider.ParakeetLocal, Language: "en", Model: "parakeet-v3"),
+        OneChunk([1, 0, 2, 0]));
+    Assert(result.IsSuccess && result.Transcript == "stable final"
+        && result.AudioChunksSent == 1 && result.MessagesReceived == 3,
+        "local live daemon result mapping changed");
+    Assert(sink.Updates.SequenceEqual(new[]
+    {
+        new LiveTranscriptUpdate("stable", true),
+        new LiveTranscriptUpdate("private partial", false),
+        new LiveTranscriptUpdate("final", true),
+    }), "local live daemon did not distinguish committed and volatile updates");
+    var lines = Encoding.UTF8.GetString(process.Input.ToArray())
+        .Split('\n', StringSplitOptions.RemoveEmptyEntries);
+    Assert(lines.Length == 3, "local live daemon request count changed");
+    using var start = System.Text.Json.JsonDocument.Parse(lines[0]);
+    using var audio = System.Text.Json.JsonDocument.Parse(lines[1]);
+    using var finish = System.Text.Json.JsonDocument.Parse(lines[2]);
+    Assert(start.RootElement.GetProperty("command").GetString() == "start"
+        && audio.RootElement.GetProperty("command").GetString() == "audio"
+        && Convert.FromBase64String(audio.RootElement.GetProperty("audio").GetString()!).SequenceEqual(new byte[] { 1, 0, 2, 0 })
+        && finish.RootElement.GetProperty("command").GetString() == "finish",
+        "local live daemon JSON protocol changed");
+    Assert(process.Terminated, "local live daemon was not terminated after graceful finish");
+}
+
+static async IAsyncEnumerable<ReadOnlyMemory<byte>> OneChunk(byte[] value)
+{
+    yield return value;
+    await Task.CompletedTask;
 }
 
 static async Task TestRouterAsync(string root)
@@ -263,4 +322,10 @@ sealed class StaticIdentity : IDeviceIdentityProvider
 {
     public PlatformResult<DeviceIdentity> GetDeviceIdentity() =>
         PlatformResult<DeviceIdentity>.Success(new("device-id", DeviceIdentitySource.PlatformMachineId));
+}
+
+sealed class RecordingLiveSink : ILiveTranscriptSink
+{
+    public List<LiveTranscriptUpdate> Updates { get; } = [];
+    public void OnTranscript(LiveTranscriptUpdate update) => Updates.Add(update);
 }

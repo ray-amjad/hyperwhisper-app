@@ -38,7 +38,9 @@ public sealed class LiveCloudTranscriptionService
         LiveTranscriptionProvider.Deepgram
             or LiveTranscriptionProvider.ElevenLabs
             or LiveTranscriptionProvider.Grok
-            or LiveTranscriptionProvider.HyperWhisperCloud => 16000,
+            or LiveTranscriptionProvider.HyperWhisperCloud
+            or LiveTranscriptionProvider.ParakeetLocal
+            or LiveTranscriptionProvider.NemotronLocal => 16000,
         _ => throw new ArgumentOutOfRangeException(nameof(provider)),
     };
 

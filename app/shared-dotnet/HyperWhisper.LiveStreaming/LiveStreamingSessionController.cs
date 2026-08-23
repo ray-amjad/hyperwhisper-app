@@ -25,13 +25,15 @@ public enum LiveStreamingConnectionState
     Error,
 }
 
-public interface ILiveCloudTranscriber
+public interface ILiveTranscriber
 {
     Task<LiveTranscriptionResult> TranscribeAsync(
         LiveTranscriptionConfig config,
         IAsyncEnumerable<ReadOnlyMemory<byte>> audio,
         CancellationToken cancellationToken = default);
 }
+
+public interface ILiveCloudTranscriber : ILiveTranscriber;
 
 public sealed class SharedCoreLiveCloudTranscriber(LiveCloudTranscriptionService service) : ILiveCloudTranscriber
 {
@@ -54,7 +56,7 @@ public sealed class LiveStreamingSessionController : IAsyncDisposable
     private const int ChannelCapacity = 128;
     private readonly object _gate = new();
     private readonly IStreamingAudioCapture _capture;
-    private readonly ILiveCloudTranscriber _transcriber;
+    private readonly ILiveTranscriber _transcriber;
     private Channel<ReadOnlyMemory<byte>>? _audio;
     private CancellationTokenSource? _sessionCancellation;
     private CancellationTokenRegistration _externalCancellation;
@@ -66,7 +68,7 @@ public sealed class LiveStreamingSessionController : IAsyncDisposable
 
     public LiveStreamingSessionController(
         IStreamingAudioCapture capture,
-        ILiveCloudTranscriber transcriber)
+        ILiveTranscriber transcriber)
     {
         _capture = capture ?? throw new ArgumentNullException(nameof(capture));
         _transcriber = transcriber ?? throw new ArgumentNullException(nameof(transcriber));

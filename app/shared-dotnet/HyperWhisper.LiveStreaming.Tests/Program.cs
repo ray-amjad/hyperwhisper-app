@@ -23,6 +23,9 @@ var tests = new (string Name, Func<Task> Run)[]
     ("throwing capture start rolls controller state back", ThrowingCaptureStart),
     ("unsupported provider rolls controller state back", UnsupportedProviderStart),
     ("completed session cancellation cannot stop a restarted session", OldCancellationIsolation),
+    ("local modes route without cloud credentials", LocalModesRoute),
+    ("ephemeral preview bounds deduplicates and clears content", EphemeralPreviewLifecycle),
+    ("ephemeral preview isolates throwing presentation subscribers", EphemeralPreviewSubscriberIsolation),
 };
 
 var failures = 0;
@@ -132,6 +135,60 @@ static async Task ModeRouterFailures()
         "m", true, "hyperwhisperCloud", ClientDeviceId: "device-1"));
     True(deviceFallback.IsSuccess);
     Equal("device-1", deviceFallback.Value!.Config.DeviceId);
+}
+
+static async Task LocalModesRoute()
+{
+    var router = new LiveStreamingModeRouter(new FakeCredentials(new Dictionary<string, string>()));
+    var parakeet = await router.ResolveAsync(new(
+        "p", true, "parakeetLocal", Model: "parakeet-v3", Language: "en"));
+    True(parakeet.IsSuccess);
+    Equal(LiveTranscriptionProvider.ParakeetLocal, parakeet.Value!.Config.Provider);
+    Equal("parakeet-v3", parakeet.Value.Config.Model);
+    var nemotron = await router.ResolveAsync(new(
+        "n", true, "nemotron_local", Model: "nemotron-3.5-ml-560ms"));
+    True(nemotron.IsSuccess);
+    Equal(LiveTranscriptionProvider.NemotronLocal, nemotron.Value!.Config.Provider);
+    Equal(16000, LiveCloudTranscriptionService.GetRequiredSampleRate(nemotron.Value.Config.Provider));
+    var missing = await router.ResolveAsync(new("p", true, "parakeetLocal"));
+    Equal("streaming_local_model_missing", missing.Error!.Code);
+}
+
+static Task EphemeralPreviewLifecycle()
+{
+    var preview = new EphemeralLiveTranscriptPreview();
+    preview.Begin();
+    preview.OnTranscript(new("one two", false));
+    Equal("one two", preview.Snapshot.DisplayText);
+    preview.OnTranscript(new("one two three", false));
+    Equal("one two three", preview.Snapshot.DisplayText);
+    preview.OnTranscript(new("one two", true));
+    Equal("one two", preview.Snapshot.CommittedText);
+    preview.OnTranscript(new("two three", true));
+    Equal("one two three", preview.Snapshot.CommittedText);
+    preview.OnTranscript(new(new string('x', EphemeralLiveTranscriptPreview.MaximumDisplayCharacters + 100), false));
+    True(preview.Snapshot.DisplayText.Length <= EphemeralLiveTranscriptPreview.MaximumDisplayCharacters);
+    preview.Complete();
+    False(preview.Snapshot.IsActive);
+    Equal("", preview.Snapshot.DisplayText);
+    preview.Begin();
+    preview.OnTranscript(new("private interim", false));
+    preview.Cancel();
+    Equal("", preview.Snapshot.PartialText);
+    return Task.CompletedTask;
+}
+
+static Task EphemeralPreviewSubscriberIsolation()
+{
+    var preview = new EphemeralLiveTranscriptPreview();
+    var observed = 0;
+    preview.Changed += (_, _) => throw new InvalidOperationException("presentation");
+    preview.Changed += (_, _) => observed++;
+    preview.Begin();
+    preview.OnTranscript(new("content", false));
+    preview.Cancel();
+    Equal(3, observed);
+    return Task.CompletedTask;
 }
 
 static async Task NormalStopCommits()
