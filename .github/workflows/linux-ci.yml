@@ -14,6 +14,7 @@ on:
       - "app/linux/**"
       - "shared-core-rs/**"
       - "shared-backup/**"
+      - "packaging/linux/**"
       - ".github/workflows/linux-ci.yml"
   push:
     branches: [main]
@@ -140,17 +141,21 @@ jobs:
           echo "$install_dir" >> "$GITHUB_PATH"
           "$install_dir/dotnet" --info
 
-      - name: Install headless Linux desktop dependencies
+      - name: Install Linux desktop and packaging dependencies
         shell: bash
         run: |
           set -euo pipefail
           sudo apt-get update
           sudo DEBIAN_FRONTEND=noninteractive apt-get install --yes \
             dbus-x11 \
+            desktop-file-utils \
+            file \
+            lintian \
             libfontconfig1 \
             libice6 \
             libsm6 \
             libx11-6 \
+            shellcheck \
             xvfb
 
       - name: Build shared .NET platform abstractions
@@ -221,6 +226,14 @@ jobs:
             fi
           done
 
+          # HyperWhisper.Linux.Platform.Tests is a dependency-free executable
+          # harness, not a Microsoft.NET.Test.Sdk project. `dotnet test` only
+          # builds it and discovers zero tests, so execute it explicitly.
+          dotnet run \
+            --project app/linux/HyperWhisper.Linux.Platform.Tests/HyperWhisper.Linux.Platform.Tests.csproj \
+            --configuration Release \
+            --no-build
+
       - name: Render and publish Avalonia Linux head
         shell: bash
         run: |
@@ -247,3 +260,27 @@ jobs:
             echo "The published Rust core has a missing dependency." >&2
             exit 1
           fi
+
+      - name: Build, test, and lint Debian package
+        shell: bash
+        run: |
+          set -euo pipefail
+          shellcheck \
+            packaging/linux/scripts/build-deb.sh \
+            packaging/linux/scripts/test-package.sh \
+            packaging/linux/debian/postinst \
+            packaging/linux/debian/postrm
+          desktop-file-validate packaging/linux/debian/hyperwhisper.desktop
+
+          package_path="$(
+            packaging/linux/scripts/build-deb.sh \
+              --publish-dir artifacts/hyperwhisper-linux \
+              --output-dir artifacts/debian \
+              --version 1.0.0 \
+              --architecture amd64
+          )"
+
+          test -s "$package_path"
+          packaging/linux/scripts/test-package.sh "$package_path"
+          lintian --fail-on warning "$package_path"
+          dpkg-deb --info "$package_path"

@@ -6,7 +6,7 @@ PACKAGE_PATH="${1:-}"
 PUBLISH_DIR="${HYPERWHISPER_PUBLISH_DIR:-/tmp/hyperwhisper-linux-publish}"
 
 if [[ -z "$PACKAGE_PATH" ]]; then
-    PACKAGE_PATH="$($SCRIPT_DIR/build-deb.sh --publish-dir "$PUBLISH_DIR" --output-dir /tmp)"
+    PACKAGE_PATH="$("$SCRIPT_DIR"/build-deb.sh --publish-dir "$PUBLISH_DIR" --output-dir /tmp)"
 fi
 if [[ ! -f "$PACKAGE_PATH" ]]; then
     echo "Package not found: $PACKAGE_PATH" >&2
@@ -60,7 +60,9 @@ if grep -Eq 'MODE="0?[0-7]{2}[1-7]"|TAG\+="uaccess"' <<< "$active_rules"; then
     exit 1
 fi
 
-if grep -Eq '(/home/|/root/|\$HOME|~[/ ])' "$CONTROL/postinst" "$CONTROL/postrm"; then
+home_reference="\$HOME"
+if grep -Eq '(/home/|/root/|~[/ ])' "$CONTROL/postinst" "$CONTROL/postrm" \
+    || grep -Fq "$home_reference" "$CONTROL/postinst" "$CONTROL/postrm"; then
     echo "Maintainer scripts must not write to user homes." >&2
     exit 1
 fi

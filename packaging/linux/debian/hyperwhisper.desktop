@@ -5,6 +5,6 @@ Comment=Private, fast speech-to-text
 Exec=/usr/bin/hyperwhisper
 Icon=hyperwhisper
 Terminal=false
-Categories=AudioVideo;Audio;Utility;
+Categories=AudioVideo;Audio;
 StartupNotify=true
 DBusActivatable=false
