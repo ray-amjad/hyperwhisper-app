@@ -61,7 +61,7 @@
   <data name="linux.ui.estimated.minutes" xml:space="preserve"><value>Estimated minutes</value></data>
   <data name="linux.ui.estimated.typing.speed" xml:space="preserve"><value>Estimated typing speed</value></data>
   <data name="linux.ui.export" xml:space="preserve"><value>Export</value></data>
-  <data name="linux.ui.export.or.import.the.cross.platform.universal.v2.format.tran.be45cc3a" xml:space="preserve"><value>Export or import the cross-platform universal-v2 format. Transcript history, credentials, and account/license keys are always excluded.</value></data>
+  <data name="linux.ui.export.or.import.the.cross.platform.universal.v2.format.tran.be45cc3a" xml:space="preserve"><value>Export or import the cross-platform universal-v2 format. Transcript history and account/license keys are always excluded; API keys require explicit selection.</value></data>
   <data name="linux.ui.export.sections" xml:space="preserve"><value>Export sections</value></data>
   <data name="linux.ui.fall.back.to.cpu.if.gpu.model.loading.fails" xml:space="preserve"><value>Fall back to CPU if GPU model loading fails</value></data>
   <data name="linux.ui.fall.back.to.cpu.if.the.selected.whisper.gpu.runtime.cannot.start" xml:space="preserve"><value>Fall back to CPU if the selected Whisper GPU runtime cannot start</value></data>
@@ -113,7 +113,9 @@
   <data name="linux.ui.preview.selected.import" xml:space="preserve"><value>Preview selected import</value></data>
   <data name="linux.ui.privacy.safe.diagnostics" xml:space="preserve"><value>Privacy-safe diagnostics</value></data>
   <data name="linux.ui.profanity.filter" xml:space="preserve"><value>Profanity filter</value></data>
-  <data name="linux.ui.provider.api.keys.use.secret.service.when.available.otherwis.62849a81" xml:space="preserve"><value>Provider API keys use Secret Service when available, otherwise owner-only private files. Existing values are never displayed or exported. HyperWhisper Account Keys must be validated on the Cloud account page.</value></data>
+  <data name="linux.ui.provider.api.keys.use.secret.service.when.available.otherwis.62849a81" xml:space="preserve"><value>Provider API keys use Secret Service when available, otherwise owner-only private files. Existing values are never displayed; backup export is plaintext and requires explicit opt-in. HyperWhisper Account Keys must be validated on the Cloud account page.</value></data>
+  <data name="linux.ui.api.keys" xml:space="preserve"><value>API keys</value></data>
+  <data name="linux.ui.i.understand.this.backup.will.contain.plaintext.api.keys" xml:space="preserve"><value>I understand this backup will contain plaintext API keys</value></data>
   <data name="linux.ui.provider.credentials" xml:space="preserve"><value>Provider credentials</value></data>
   <data name="linux.ui.provider.model.optional" xml:space="preserve"><value>Provider model (optional)</value></data>
   <data name="linux.ui.readiness.checks.only.run.when.you.press.refresh.no.provider.3a6d1e9f" xml:space="preserve"><value>Readiness checks only run when you press refresh. No provider is contacted while browsing or filtering.</value></data>
