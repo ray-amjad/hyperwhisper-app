@@ -27,6 +27,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("health reports actual bound port", HealthReportsBoundPort),
     ("bind fallback", BindFallback),
     ("private token persistence", TokenPersistence),
+    ("private token regeneration invalidates old credential", TokenRegeneration),
     ("real loopback lifecycle", RealLoopbackLifecycle),
     ("real occupied-port fallback", RealOccupiedPortFallback),
     ("fallback failure is structured", FallbackFailure),
@@ -291,6 +292,18 @@ static Task TokenPersistence()
     Assert(store.LoadOrCreate() == token, "stored token was not reused");
     files.Value = "weak";
     Assert(store.LoadOrCreate() != "weak", "malformed token was reused");
+    return Task.CompletedTask;
+}
+
+static Task TokenRegeneration()
+{
+    var files = new FakePrivateFiles();
+    var store = new LocalApiTokenStore(files, "/config/local-api-token");
+    var original = store.LoadOrCreate();
+    var replacement = store.Regenerate();
+    Assert(original != replacement, "token regeneration retained the old credential");
+    Assert(replacement == store.LoadOrCreate(), "replacement token was not persisted");
+    Assert(!LocalApiTokenStore.FixedTimeEquals(original, replacement), "old token still matched replacement");
     return Task.CompletedTask;
 }
 

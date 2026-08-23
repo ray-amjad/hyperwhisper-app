@@ -79,6 +79,28 @@ public sealed class PortableLocalApiHost : IAsyncDisposable
     public LocalApiHostState State => _state;
     public string DiscoveryPath => _discoveryPath;
 
+    /// <summary>Explicit UI-only credential reveal. Callers must never log or diagnose the returned value.</summary>
+    public string RevealBearerToken() => new LocalApiTokenStore(_privateFiles, _tokenPath).LoadOrCreate();
+
+    /// <summary>Invalidates the old credential before restarting the loopback listener.</summary>
+    public async Task<LocalApiHostState> RegenerateBearerTokenAsync(CancellationToken cancellationToken = default)
+    {
+        if (Volatile.Read(ref _disposed) != 0)
+            return LocalApiHostState.Failed("local_api.disposed", "The Local API host has been disposed.");
+        var restart = _state.IsRunning;
+        if (restart)
+        {
+            var stopped = await StopAsync(CancellationToken.None).ConfigureAwait(false);
+            if (stopped.Failure is not null) return stopped;
+        }
+        try { _ = new LocalApiTokenStore(_privateFiles, _tokenPath).Regenerate(); }
+        catch (InvalidOperationException)
+        {
+            return _state = LocalApiHostState.Failed("local_api.token", "The Local API credential could not be regenerated securely.");
+        }
+        return restart ? await StartAsync(cancellationToken).ConfigureAwait(false) : _state;
+    }
+
     public async Task<LocalApiHostState> StartAsync(CancellationToken cancellationToken = default)
     {
         if (Volatile.Read(ref _disposed) != 0) return LocalApiHostState.Failed("local_api.disposed", "The Local API host has been disposed.");

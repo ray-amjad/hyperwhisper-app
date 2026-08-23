@@ -40,6 +40,21 @@ public sealed class LocalApiTokenStore(IPrivateFileService privateFiles, string 
         return token;
     }
 
+    public string Regenerate()
+    {
+        var token = Base64Url(RandomNumberGenerator.GetBytes(32));
+        var written = privateFiles.WriteAllTextAtomically(tokenPath, token);
+        if (written.IsFailure)
+            throw new InvalidOperationException("Unable to replace the Local API credential.");
+        var verified = privateFiles.IsRestrictedToCurrentUser(tokenPath);
+        if (verified.IsFailure || verified.Value != true)
+        {
+            _ = privateFiles.Delete(tokenPath);
+            throw new InvalidOperationException("The replacement Local API credential file could not be restricted to the current user.");
+        }
+        return token;
+    }
+
     public static bool FixedTimeEquals(string supplied, string expected)
     {
         var left = SHA256.HashData(Encoding.UTF8.GetBytes(supplied));
