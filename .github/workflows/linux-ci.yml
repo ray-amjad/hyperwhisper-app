@@ -159,8 +159,12 @@ jobs:
             libice6 \
             libsm6 \
             libx11-6 \
+            pipewire \
+            pipewire-pulse \
+            pulseaudio-utils \
             shellcheck \
             weston \
+            wireplumber \
             xwayland \
             xvfb
 
@@ -260,6 +264,19 @@ jobs:
             --project app/linux/HyperWhisper.Linux.E2E.Tests/HyperWhisper.Linux.E2E.Tests.csproj \
             --configuration Release \
             --no-build
+
+      - name: Verify live PipeWire microphone transcription
+        shell: bash
+        run: |
+          set -euo pipefail
+          model_path="${RUNNER_TEMP}/ggml-tiny.en.bin"
+          curl --fail --silent --show-error --location \
+            https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin \
+            --output "$model_path"
+          echo "921e4cf8686fdd993dcd081a5da5b6c365bfde1162e72b08d75ac75289920b1f  $model_path" \
+            | sha256sum --check --strict
+          HW_E2E_WHISPER_MODEL="$model_path" \
+            app/linux/scripts/run-virtual-mic-e2e.sh
 
       - name: Render and publish Avalonia Linux head
         shell: bash
