@@ -46,8 +46,8 @@ test "$(dpkg-deb --field "$PACKAGE_PATH" Version)" = "$EXPECTED_VERSION"
 
 dependencies="$(dpkg-deb --field "$PACKAGE_PATH" Depends)"
 for dependency in \
-    libc6 libpulse0 libx11-6 libatspi2.0-0 tesseract-ocr udev \
-    wl-clipboard xclip xdg-desktop-portal; do
+    libc6 libpulse0 libx11-6 libatspi2.0-0 gir1.2-atspi-2.0 python3 python3-gi \
+    tesseract-ocr udev wl-clipboard wmctrl x11-utils xclip xdg-desktop-portal; do
     grep -qw "$dependency" <<< "$dependencies"
 done
 

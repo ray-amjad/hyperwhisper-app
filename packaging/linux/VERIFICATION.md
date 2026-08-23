@@ -74,8 +74,11 @@ dpkg-deb --info "$HW_DEB" | tee "$HW_EVIDENCE_DIR/package-info.txt"
 sudo apt-get install --yes "$HW_DEB"
 dpkg-query -W -f='${Package} ${Version} ${Architecture}\n' hyperwhisper \
   | tee "$HW_EVIDENCE_DIR/package-installed.txt"
-command -v wl-copy wl-paste xclip \
+command -v wl-copy wl-paste wmctrl xclip xprop \
   | tee "$HW_EVIDENCE_DIR/text-injection-tools.txt"
+python3 -c "import gi; gi.require_version('Atspi','2.0'); from gi.repository import Atspi" \
+  && printf 'AT-SPI Python bindings available\n' \
+  | tee "$HW_EVIDENCE_DIR/atspi-bindings.txt"
 
 sudo usermod -aG hyperwhisper-input "$USER"
 printf 'Log out and back in now; do not continue in the old session.\n'
