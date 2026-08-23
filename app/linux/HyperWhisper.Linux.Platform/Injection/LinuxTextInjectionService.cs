@@ -44,7 +44,12 @@ public sealed class LinuxTextInjectionService : ITextInjectionService
     private bool _disposed;
 
     public LinuxTextInjectionService() : this(new CommandClipboardBackend(), new UInputPasteBackend(),
-        new AtSpiSecureFieldGuard(), new X11CapturedTargetService()) { }
+        new AtSpiSecureFieldGuard(), CreateTargetService()) { }
+
+    private static ICapturedTargetService CreateTargetService() =>
+        string.Equals(Environment.GetEnvironmentVariable("XDG_SESSION_TYPE"), "wayland", StringComparison.OrdinalIgnoreCase)
+            || !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("WAYLAND_DISPLAY"))
+            ? new AtSpiCapturedTargetService() : new X11CapturedTargetService();
 
     internal LinuxTextInjectionService(ILinuxClipboardBackend clipboard, IUInputPasteBackend uinput,
         ISecureFieldGuard secureFieldGuard, ICapturedTargetService targets)
@@ -185,6 +190,7 @@ public sealed class LinuxTextInjectionService : ITextInjectionService
         _disposed = true;
         CancelPendingClipboardRestore();
         _snapshot = null; _capturedTarget = null;
+        if (_clipboard is IDisposable disposable) disposable.Dispose();
         GC.SuppressFinalize(this);
     }
 }

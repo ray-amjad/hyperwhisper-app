@@ -1,4 +1,4 @@
-using System.Diagnostics;
+using System.Text;
 using HyperWhisper.Platform.Abstractions;
 
 namespace HyperWhisper.Linux.Platform.Injection;
@@ -56,16 +56,8 @@ internal sealed class X11CapturedTargetService : ICapturedTargetService
     {
         try
         {
-            var start = new ProcessStartInfo(executable) { UseShellExecute = false,
-                RedirectStandardOutput = true, RedirectStandardError = true };
-            foreach (var arg in args) start.ArgumentList.Add(arg);
-            using var process = Process.Start(start);
-            if (process is null) return (-1, string.Empty);
-            var output = process.StandardOutput.ReadToEndAsync(token);
-            var error = process.StandardError.ReadToEndAsync(token);
-            process.WaitForExitAsync(token).GetAwaiter().GetResult();
-            _ = error.GetAwaiter().GetResult();
-            return (process.ExitCode, output.GetAwaiter().GetResult());
+            var result = ExternalProcessRunner.RunAsync(executable, args, null, token).GetAwaiter().GetResult();
+            return (result.ExitCode, Encoding.UTF8.GetString(result.Output));
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
         catch { return (-1, string.Empty); }

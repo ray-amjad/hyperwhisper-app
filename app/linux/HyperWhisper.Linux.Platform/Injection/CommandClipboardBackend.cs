@@ -1,15 +1,15 @@
-using System.Diagnostics;
 using System.Text;
 using HyperWhisper.Platform.Abstractions;
 
 namespace HyperWhisper.Linux.Platform.Injection;
 
-internal sealed class CommandClipboardBackend : ILinuxClipboardBackend
+internal sealed class CommandClipboardBackend : ILinuxClipboardBackend, IDisposable
 {
     private const int MaximumSnapshotBytes = 32 * 1024 * 1024;
     private readonly string? _copy;
     private readonly string? _paste;
     private readonly bool _wayland;
+    private readonly INativeClipboardOwner? _nativeOwner;
 
     public CommandClipboardBackend()
     {
@@ -22,13 +22,22 @@ internal sealed class CommandClipboardBackend : ILinuxClipboardBackend
             _copy = FindExecutable("xclip");
             _paste = _copy;
         }
+        if (!_wayland) _nativeOwner = new NativeX11ClipboardOwner();
+    }
+
+    internal CommandClipboardBackend(string copy, string paste, bool wayland, INativeClipboardOwner? nativeOwner)
+    {
+        _copy = copy;
+        _paste = paste;
+        _wayland = wayland;
+        _nativeOwner = nativeOwner;
     }
 
     public LinuxTextInjectionCapabilities GetCapabilities() => new(
         _copy is not null && _paste is not null,
         _copy is null || _paste is null ? "none" : _wayland ? "wayland-wl-clipboard" : "x11-xclip",
         false,
-        false, // Helpers can own only one restored MIME type at a time.
+        _nativeOwner?.IsAvailable == true,
         false,
         false);
 
@@ -56,6 +65,8 @@ internal sealed class CommandClipboardBackend : ILinuxClipboardBackend
     {
         if (_copy is null) return PlatformResult.Failure("clipboard_unavailable", "No supported clipboard helper is installed.");
         if (snapshot.Formats.Count == 0) return PlatformResult.Success();
+        if (_nativeOwner?.IsAvailable == true)
+            return await _nativeOwner.OwnAsync(snapshot, token).ConfigureAwait(false);
         var preferred = SelectPreferred(snapshot.Formats);
         var restored = await RunAsync(_copy, WriteArguments(preferred.Key), preferred.Value, token).ConfigureAwait(false);
         if (restored.IsFailure) return PlatformResult.Failure(restored.Error!.Code, restored.Error.Message);
@@ -99,26 +110,12 @@ internal sealed class CommandClipboardBackend : ILinuxClipboardBackend
     {
         try
         {
-            var start = new ProcessStartInfo(executable) { UseShellExecute = false,
-                RedirectStandardInput = input is not null, RedirectStandardOutput = true, RedirectStandardError = true };
-            foreach (var argument in arguments) start.ArgumentList.Add(argument);
-            using var process = Process.Start(start);
-            if (process is null) return PlatformResult<byte[]>.Failure("clipboard_start_failed", "The clipboard helper could not start.");
-            var stderr = process.StandardError.ReadToEndAsync(token);
-            if (input is not null)
-            {
-                await process.StandardInput.BaseStream.WriteAsync(input, token).ConfigureAwait(false);
-                process.StandardInput.Close();
-            }
-            using var output = new MemoryStream();
-            await process.StandardOutput.BaseStream.CopyToAsync(output, token).ConfigureAwait(false);
-            await process.WaitForExitAsync(token).ConfigureAwait(false);
-            _ = await stderr.ConfigureAwait(false);
-            return process.ExitCode == 0 ? PlatformResult<byte[]>.Success(output.ToArray())
+            var result = await ExternalProcessRunner.RunAsync(executable, arguments, input, token).ConfigureAwait(false);
+            return result.ExitCode == 0 ? PlatformResult<byte[]>.Success(result.Output)
                 : PlatformResult<byte[]>.Failure("clipboard_command_failed", "The clipboard helper reported an error.");
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException or TimeoutException)
         { return PlatformResult<byte[]>.Failure("clipboard_command_failed", "The clipboard helper failed."); }
     }
 
@@ -132,4 +129,6 @@ internal sealed class CommandClipboardBackend : ILinuxClipboardBackend
         }
         return null;
     }
+
+    public void Dispose() => _nativeOwner?.Dispose();
 }

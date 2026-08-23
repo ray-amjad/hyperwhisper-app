@@ -32,9 +32,14 @@ var tests = new (string Name, Func<Task> Run)[]
     ("injection falls back when target changes before paste", InjectionTargetChanged),
     ("injection propagates cancellation", InjectionCancellation),
     ("disposing injection cancels scheduled restore", InjectionDisposalSafety),
+    ("Wayland AT-SPI target accepts stable focused identity", AtSpiTargetStable),
+    ("Wayland AT-SPI target rejects changed identity", AtSpiTargetChanged),
     ("clipboard failure prevents uinput", ClipboardFailurePreventsUInput),
     ("uinput exception preserves clipboard fallback", UInputExceptionFallsBack),
-    ("command clipboard advertises partial multi-MIME restore", CommandClipboardCapability),
+    ("Wayland helper advertises partial multi-MIME restore", CommandClipboardCapability),
+    ("native X11 owner receives every MIME format", NativeX11Restore),
+    ("native X11 owner serves every MIME format", NativeX11RoundTrip),
+    ("external desktop helpers have a hard timeout", ExternalHelperTimeout),
 };
 
 var failed = 0;
@@ -356,6 +361,30 @@ static async Task InjectionDisposalSafety()
     Assert.Equal(0, clipboard.RestoreCalls);
 }
 
+static async Task AtSpiTargetStable()
+{
+    var query = new FakeAtSpiQuery(
+        new AtSpiFocusInfo("42:0.1", SecureFieldState.NotSecure),
+        new AtSpiFocusInfo("42:0.1", SecureFieldState.NotSecure));
+    var targets = new AtSpiCapturedTargetService(query);
+    var captured = targets.Capture();
+    Assert.True(captured.IsSuccess && captured.Value is not null);
+    Assert.Equal(TargetFocusState.Ready,
+        await targets.ValidateAndFocusAsync(captured.Value!, CancellationToken.None));
+}
+
+static async Task AtSpiTargetChanged()
+{
+    var query = new FakeAtSpiQuery(
+        new AtSpiFocusInfo("42:0.1", SecureFieldState.NotSecure),
+        new AtSpiFocusInfo("42:0.2", SecureFieldState.NotSecure));
+    var targets = new AtSpiCapturedTargetService(query);
+    var captured = targets.Capture();
+    Assert.True(captured.IsSuccess && captured.Value is not null);
+    Assert.Equal(TargetFocusState.Changed,
+        await targets.ValidateAndFocusAsync(captured.Value!, CancellationToken.None));
+}
+
 static async Task ClipboardFailurePreventsUInput()
 {
     var clipboard = new FakeClipboard("old") { FailWrites = true };
@@ -378,8 +407,54 @@ static async Task UInputExceptionFallsBack()
 
 static Task CommandClipboardCapability()
 {
-    Assert.True(!new CommandClipboardBackend().GetCapabilities().PreservesAllClipboardFormats);
+    using var backend = new CommandClipboardBackend("/bin/true", "/bin/true", true, null);
+    Assert.True(!backend.GetCapabilities().PreservesAllClipboardFormats);
     return Task.CompletedTask;
+}
+
+static async Task NativeX11Restore()
+{
+    var owner = new FakeNativeClipboardOwner();
+    using var backend = new CommandClipboardBackend("/bin/true", "/bin/true", false, owner);
+    var snapshot = new ClipboardSnapshot(new Dictionary<string, byte[]>(StringComparer.Ordinal)
+    {
+        ["text/plain"] = "text"u8.ToArray(),
+        ["image/png"] = [1, 2, 3],
+    });
+    Assert.Success(await backend.RestoreAsync(snapshot, CancellationToken.None));
+    Assert.True(backend.GetCapabilities().PreservesAllClipboardFormats);
+    Assert.Equal(2, owner.Owned!.Formats.Count);
+    Assert.SequenceEqual([1, 2, 3], owner.Owned.Formats["image/png"]);
+}
+
+static async Task NativeX11RoundTrip()
+{
+    if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("DISPLAY"))) return;
+    var xclip = CommandClipboardBackend.FindExecutable("xclip");
+    if (xclip is null) return;
+    using var owner = new NativeX11ClipboardOwner();
+    Assert.True(owner.IsAvailable);
+    var snapshot = new ClipboardSnapshot(new Dictionary<string, byte[]>(StringComparer.Ordinal)
+    {
+        ["text/plain"] = "native-text"u8.ToArray(),
+        ["image/png"] = [0x89, 0x50, 0x4e, 0x47],
+    });
+    Assert.Success(await owner.OwnAsync(snapshot, CancellationToken.None));
+    var targets = await ExternalProcessRunner.RunAsync(xclip,
+        ["-selection", "clipboard", "-target", "TARGETS", "-out"], null, CancellationToken.None);
+    var targetNames = System.Text.Encoding.UTF8.GetString(targets.Output);
+    Assert.True(targetNames.Contains("text/plain", StringComparison.Ordinal));
+    Assert.True(targetNames.Contains("image/png", StringComparison.Ordinal));
+    var image = await ExternalProcessRunner.RunAsync(xclip,
+        ["-selection", "clipboard", "-target", "image/png", "-out"], null, CancellationToken.None);
+    Assert.SequenceEqual(snapshot.Formats["image/png"], image.Output);
+}
+
+static async Task ExternalHelperTimeout()
+{
+    await Assert.ThrowsAsync<TimeoutException>(async () =>
+        await ExternalProcessRunner.RunAsync("/bin/sh", ["-c", "sleep 30"], null,
+            CancellationToken.None, TimeSpan.FromMilliseconds(50)));
 }
 
 static LinuxTextInjectionService NewInjection(FakeClipboard clipboard, IUInputPasteBackend uinput,
@@ -575,6 +650,30 @@ sealed class FakeTargetService(params TargetFocusState[] states) : ICapturedTarg
         cancellationToken.ThrowIfCancellationRequested();
         return ValueTask.FromResult(_states.TryDequeue(out var state) ? state : TargetFocusState.Ready);
     }
+}
+
+sealed class FakeAtSpiQuery(params AtSpiFocusInfo?[] focused) : IAtSpiFocusQuery
+{
+    private readonly Queue<AtSpiFocusInfo?> _focused = new(focused);
+    public bool IsAvailable => true;
+    public ValueTask<AtSpiFocusInfo?> GetFocusedAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return ValueTask.FromResult(_focused.TryDequeue(out var value) ? value : null);
+    }
+}
+
+sealed class FakeNativeClipboardOwner : INativeClipboardOwner
+{
+    public bool IsAvailable => true;
+    public ClipboardSnapshot? Owned { get; private set; }
+    public ValueTask<PlatformResult> OwnAsync(ClipboardSnapshot snapshot, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        Owned = snapshot;
+        return ValueTask.FromResult(PlatformResult.Success());
+    }
+    public void Dispose() { }
 }
 
 sealed class FakeUInput(bool succeeds) : IUInputPasteBackend
