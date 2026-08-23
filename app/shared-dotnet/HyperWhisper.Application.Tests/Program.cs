@@ -70,6 +70,8 @@ try
     var settings = new PortableSettingsService(files, Path.Combine(root, "settings.json"));
     settings.Set("language", "en");
     settings.Set("enabled", true);
+    settings.Set("localWhisperBackend", "vulkan");
+    settings.Set("allowLocalWhisperCpuFallback", false);
     settings.Set("toggleShortcutModifiers", "Control, Alt");
     settings.Set("toggleShortcutKey", "F9");
     settings.Set("pushToTalkMode", "Modifier");
@@ -118,6 +120,8 @@ try
     Assert((await modes.ListAsync()).Single().Name == "Portable Updated", "backup did not restore modes");
     Assert(reloadedSettings.Get<string>("language") == "en", "backup did not restore settings");
     Assert(reloadedSettings.Get<string>("toggleShortcutKey") == "F9"
+        && reloadedSettings.Get<string>("localWhisperBackend") == "vulkan"
+        && !reloadedSettings.Get<bool>("allowLocalWhisperCpuFallback")
         && reloadedSettings.Get<string>("pushToTalkMode") == "Modifier"
         && reloadedSettings.Get<bool>("pushToTalkDoublePressLock")
         && reloadedSettings.Get<bool>("autoIncreaseMicVolume")
@@ -163,7 +167,8 @@ try
         "durable audio importer accepted or deleted a normalizer path outside app-owned storage");
     File.Delete(externalNormalized);
 
-    using (var shell = new HyperWhisper.PortableApplication.ViewModels.ApplicationShellViewModel(database, reloadedSettings))
+    using (var shell = new HyperWhisper.PortableApplication.ViewModels.ApplicationShellViewModel(
+        database, reloadedSettings, localWhisperRuntimeStatus: "Local Whisper (Vulkan; no CPU fallback)"))
     {
         await shell.InitializeAsync();
         Assert(!shell.Status.HasError, $"shell initialization failed: {shell.Status.ErrorCode}");
@@ -253,9 +258,23 @@ try
         Assert(shell.Modes.Status.ErrorCode == "modes.local_model_invalid", "mode editor accepted an unknown local model ID");
         shell.Settings.LocalLlmBackend = "vulkan";
         shell.Settings.AllowLocalLlmCpuFallback = false;
+        Assert(shell.Settings.LocalWhisperBackend == "vulkan"
+            && !shell.Settings.AllowLocalWhisperCpuFallback
+            && !shell.Settings.WhisperRestartRequired
+            && shell.Settings.LocalWhisperRuntimeStatus.Contains("Local Whisper (Vulkan; no CPU fallback)", StringComparison.Ordinal),
+            "settings did not load the process-launch Whisper backend baseline");
+        shell.Settings.LocalWhisperBackend = "cuda";
+        shell.Settings.AllowLocalWhisperCpuFallback = true;
+        Assert(shell.Settings.LocalWhisperBackend == "cuda12"
+            && shell.Settings.WhisperRestartRequired
+            && shell.Settings.LocalWhisperRuntimeStatus.Contains("Restart HyperWhisper", StringComparison.Ordinal),
+            "settings did not normalize or report a restart-required Whisper backend change");
         shell.Settings.Save();
         Assert(!shell.Settings.Status.HasError,
-            "settings did not persist local LLM backend configuration");
+            "settings did not persist local inference backend configuration");
+        Assert(reloadedSettings.Get<string>("localWhisperBackend") == "cuda12"
+            && reloadedSettings.Get<bool>("allowLocalWhisperCpuFallback"),
+            "settings did not persist local Whisper backend configuration");
     }
 
     var credentialStore = new MemoryCredentialStore();

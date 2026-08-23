@@ -888,11 +888,21 @@ public sealed class SettingsViewModel : ViewModelBase
     private string _audioEnvironmentPolicy = "unchanged";
     private string _desktopContextStatus = "Desktop context capability not checked";
     private bool _enableErrorLogging = true;
-    public SettingsViewModel(PortableSettingsService settings, string localLlmRuntimeStatus = "Local LLM runtime not connected")
+    private string _localWhisperBackend = "auto";
+    private bool _allowLocalWhisperCpuFallback = true;
+    private string _processWhisperBackend = "auto";
+    private bool _processWhisperCpuFallback = true;
+    private bool _whisperBaselineCaptured;
+    private readonly string _currentWhisperRuntimeStatus;
+    public SettingsViewModel(
+        PortableSettingsService settings,
+        string localLlmRuntimeStatus = "Local LLM runtime not connected",
+        string localWhisperRuntimeStatus = "Local Whisper runtime not connected")
     {
         _settings = settings;
         SaveCommand = new AsyncCommand(_ => { Save(); return Task.CompletedTask; });
         LocalLlmRuntimeStatus = localLlmRuntimeStatus;
+        _currentWhisperRuntimeStatus = localWhisperRuntimeStatus;
     }
     public string Language { get => _language; set => Set(ref _language, value); }
     public string LocalLlmBackend { get => _localLlmBackend; set => Set(ref _localLlmBackend, NormalizeBackend(value)); }
@@ -920,7 +930,38 @@ public sealed class SettingsViewModel : ViewModelBase
     public string AudioEnvironmentPolicy { get => _audioEnvironmentPolicy; set => Set(ref _audioEnvironmentPolicy, NormalizeAudioPolicy(value)); }
     public string DesktopContextStatus { get => _desktopContextStatus; set => Set(ref _desktopContextStatus, value ?? string.Empty); }
     public bool EnableErrorLogging { get => _enableErrorLogging; set => Set(ref _enableErrorLogging, value); }
+    public string LocalWhisperBackend
+    {
+        get => _localWhisperBackend;
+        set
+        {
+            if (Set(ref _localWhisperBackend, NormalizeWhisperBackend(value)))
+            {
+                Notify(nameof(WhisperRestartRequired));
+                Notify(nameof(LocalWhisperRuntimeStatus));
+            }
+        }
+    }
+    public bool AllowLocalWhisperCpuFallback
+    {
+        get => _allowLocalWhisperCpuFallback;
+        set
+        {
+            if (Set(ref _allowLocalWhisperCpuFallback, value))
+            {
+                Notify(nameof(WhisperRestartRequired));
+                Notify(nameof(LocalWhisperRuntimeStatus));
+            }
+        }
+    }
     public string LocalLlmRuntimeStatus { get; }
+    public bool WhisperRestartRequired => _whisperBaselineCaptured
+        && (LocalWhisperBackend != _processWhisperBackend
+            || AllowLocalWhisperCpuFallback != _processWhisperCpuFallback);
+    public string LocalWhisperRuntimeStatus => WhisperRestartRequired
+        ? $"Current process capability: {_currentWhisperRuntimeStatus}. Restart HyperWhisper to activate this Whisper backend change."
+        : $"Current process capability: {_currentWhisperRuntimeStatus}.";
+    public IReadOnlyList<string> LocalWhisperBackends { get; } = ["auto", "cpu", "vulkan", "cuda12"];
     public IReadOnlyList<string> LocalLlmBackends { get; } = ["cpu", "vulkan", "cuda"];
     public IReadOnlyList<string> PushToTalkModes { get; } = ["Disabled", "Modifier", "CustomShortcut"];
     public IReadOnlyList<string> PushToTalkModifiers { get; } = Enum.GetNames<ModifierSide>();
@@ -960,6 +1001,16 @@ public sealed class SettingsViewModel : ViewModelBase
         KeepMicrophoneWarm = _settings.Get("keepMicrophoneWarm", false);
         AudioEnvironmentPolicy = _settings.Get("audioEnvironmentPolicy", "unchanged") ?? "unchanged";
         EnableErrorLogging = _settings.Get("general.enableErrorLogging", true);
+        LocalWhisperBackend = _settings.Get("localWhisperBackend", "auto") ?? "auto";
+        AllowLocalWhisperCpuFallback = _settings.Get("allowLocalWhisperCpuFallback", true);
+        if (!_whisperBaselineCaptured)
+        {
+            _processWhisperBackend = LocalWhisperBackend;
+            _processWhisperCpuFallback = AllowLocalWhisperCpuFallback;
+            _whisperBaselineCaptured = true;
+            Notify(nameof(WhisperRestartRequired));
+            Notify(nameof(LocalWhisperRuntimeStatus));
+        }
         Status.Success("Settings loaded");
     }
     public void Save()
@@ -989,6 +1040,8 @@ public sealed class SettingsViewModel : ViewModelBase
         _settings.Set("keepMicrophoneWarm", KeepMicrophoneWarm);
         _settings.Set("audioEnvironmentPolicy", NormalizeAudioPolicy(AudioEnvironmentPolicy));
         _settings.Set("general.enableErrorLogging", EnableErrorLogging);
+        _settings.Set("localWhisperBackend", NormalizeWhisperBackend(LocalWhisperBackend));
+        _settings.Set("allowLocalWhisperCpuFallback", AllowLocalWhisperCpuFallback);
         var result = _settings.Save();
         if (result.IsSuccess) { Status.Success("Settings saved"); LocalApiSettingsChanged?.Invoke(this, EventArgs.Empty); DesktopSettingsChanged?.Invoke(this, EventArgs.Empty); TelemetrySettingsChanged?.Invoke(this, EventArgs.Empty); }
         else Status.Failure(result.Error!.Code, result.Error.Message);
@@ -999,6 +1052,14 @@ public sealed class SettingsViewModel : ViewModelBase
         "vulkan" => "vulkan",
         "cuda" => "cuda",
         _ => "cpu",
+    };
+
+    private static string NormalizeWhisperBackend(string? value) => value?.Trim().ToLowerInvariant() switch
+    {
+        "cpu" => "cpu",
+        "vulkan" => "vulkan",
+        "cuda" or "cuda12" => "cuda12",
+        _ => "auto",
     };
 
     private static string NormalizeStreamingProvider(string? value) => value?.Trim().ToLowerInvariant() switch
@@ -1213,7 +1274,8 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
         IAudioPlaybackService? playback = null,
         DurableAudioImportService? audioImport = null,
         IAppPaths? paths = null,
-        ICredentialStore? credentials = null)
+        ICredentialStore? credentials = null,
+        string localWhisperRuntimeStatus = "Local Whisper runtime not connected")
     {
         _database = database;
         var historyRepository = new HistoryRepository(database, paths);
@@ -1221,7 +1283,7 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
         var modeRepository = new ModeRepository(database);
         Vocabulary = new VocabularyViewModel(vocabularyRepository);
         Modes = new ModesViewModel(modeRepository, settings, credentials);
-        Settings = new SettingsViewModel(settings, localLlmRuntimeStatus);
+        Settings = new SettingsViewModel(settings, localLlmRuntimeStatus, localWhisperRuntimeStatus);
         History = new HistoryViewModel(historyRepository, playback, transcriptionWorkflow is null ? null : async (item, token) =>
         {
             var audioPath = item.AudioFilePath;

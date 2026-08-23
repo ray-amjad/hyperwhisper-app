@@ -122,6 +122,8 @@ Assert-True ($sources -contains "auto-learn") "Windows fixture must cover non-ma
 $linux = Get-Content -LiteralPath $LinuxExamplePath -Raw | ConvertFrom-Json
 Assert-True ($linux.platform -eq "linux") "Linux fixture must declare platform=linux."
 Assert-True ($null -ne $linux.platformExtensions.linux.settings) "Linux fixture must include platformExtensions.linux.settings."
+Assert-True (@("auto", "cpu", "vulkan", "cuda12") -contains $linux.platformExtensions.linux.settings.localWhisperBackend) "Linux local Whisper backend must be valid."
+Assert-True ($linux.platformExtensions.linux.settings.allowLocalWhisperCpuFallback -is [bool]) "Linux local Whisper CPU fallback must be boolean."
 Assert-True ($linux.platformExtensions.linux.settings.autostartEnabled -is [bool]) "Linux autostartEnabled must be boolean."
 Assert-True ([string]::IsNullOrWhiteSpace($linux.platformExtensions.linux.settings.toggleShortcutKey) -eq $false) "Linux toggle shortcut key must be populated."
 Assert-True ([string]::IsNullOrWhiteSpace($linux.platformExtensions.linux.settings.pushToTalkMode) -eq $false) "Linux push-to-talk mode must be populated."

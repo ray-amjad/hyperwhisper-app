@@ -483,6 +483,8 @@ public sealed class ApplicationBackupService(ApplicationDb database, PortableSet
         var linuxExtension = platformExtensions["linux"]?.DeepClone() as JsonObject ?? new JsonObject();
         var linuxSettings = linuxExtension["settings"]?.DeepClone() as JsonObject ?? new JsonObject();
         linuxSettings["language"] = _settings.Get("language", "auto");
+        linuxSettings["localWhisperBackend"] = _settings.Get("localWhisperBackend", "auto");
+        linuxSettings["allowLocalWhisperCpuFallback"] = _settings.Get("allowLocalWhisperCpuFallback", true);
         linuxSettings["localLlmBackend"] = _settings.Get("localLlmBackend", "cpu");
         linuxSettings["allowLocalLlmCpuFallback"] = _settings.Get("allowLocalLlmCpuFallback", true);
         linuxSettings["localApiEnabled"] = _settings.Get("localApiEnabled", false);
@@ -589,6 +591,8 @@ public sealed class ApplicationBackupService(ApplicationDb database, PortableSet
                 if (extensions["linux"]?["settings"] is JsonObject linuxSettings)
                 {
                     CopySetting<string>(linuxSettings, "language");
+                    CopySetting<string>(linuxSettings, "localWhisperBackend");
+                    CopySetting<bool>(linuxSettings, "allowLocalWhisperCpuFallback");
                     CopySetting<string>(linuxSettings, "localLlmBackend");
                     CopySetting<bool>(linuxSettings, "allowLocalLlmCpuFallback");
                     CopySetting<bool>(linuxSettings, "localApiEnabled");

@@ -64,7 +64,8 @@ public partial class MainWindow : Window
             _database, _settings, _workflow, LinuxLocalPostProcessor.RuntimeStatus,
             _modelManager, _platformServices.AudioPlayback,
             new DurableAudioImportService(_platformServices.PrivateFiles, _platformServices.Paths),
-            _platformServices.Paths, _platformServices.CredentialStore);
+            _platformServices.Paths, _platformServices.CredentialStore,
+            _platformServices.AudioTranscriber.Capability.DisplayName);
         var history = new HistoryRepository(_database, _platformServices.Paths);
         var contextCapture = new LinuxContextCaptureCoordinator(
             _platformServices.ApplicationContext, _platformServices.ScreenOcr);
@@ -370,6 +371,9 @@ public partial class MainWindow : Window
             await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
             if (!HasVisibleControl("SettingsLocalLlmBackend")
                 || !HasVisibleControl("SettingsLocalLlmCpuFallback")
+                || !HasVisibleControl("SettingsLocalWhisperBackend")
+                || !HasVisibleControl("SettingsLocalWhisperCpuFallback")
+                || !HasVisibleControl("SettingsLocalWhisperRuntimeStatus")
                 || !HasVisibleControl("SettingsLocalApiEnabled")
                 || !HasVisibleControl("SettingsLocalApiPort")
                 || !HasVisibleControl("SettingsToggleKey")

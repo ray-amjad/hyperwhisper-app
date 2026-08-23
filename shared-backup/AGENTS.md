@@ -83,6 +83,8 @@ Linux-only settings go into `platformExtensions.linux.settings`:
 
 | Key | Linux Source | Notes |
 |---|---|---|
+| `localWhisperBackend` | Linux local Whisper backend preference | `auto`, `cpu`, `vulkan`, or `cuda12`; process-wide selection takes effect after restart. |
+| `allowLocalWhisperCpuFallback` | Linux local Whisper fallback preference | Bool; permits CPU when the selected GPU runtime cannot start. |
 | `autostartEnabled` | Linux autostart preference | Bool; controls the per-user XDG autostart entry. |
 | `toggleShortcutModifiers` | Linux transcription shortcut modifiers | `ShortcutModifiers` names, comma separated. |
 | `toggleShortcutKey` | Linux transcription shortcut key | Stable portable key name. |

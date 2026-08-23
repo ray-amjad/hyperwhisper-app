@@ -73,6 +73,8 @@
   "platformExtensions": {
     "linux": {
       "settings": {
+        "localWhisperBackend": "vulkan",
+        "allowLocalWhisperCpuFallback": true,
         "autostartEnabled": true,
         "toggleShortcutModifiers": "Control, Shift",
         "toggleShortcutKey": "Space",
