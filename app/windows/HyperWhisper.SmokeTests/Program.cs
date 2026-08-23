@@ -251,6 +251,97 @@ internal static class Program
                 Assert(paths.RecordingsDirectory == AppPaths.ProfileRecordingsDirectory, "recordings directory mapping changed");
             });
 
+            Run("Windows private files are atomic, owner-only, and handle-canonicalized", () =>
+            {
+                var directory = Path.Combine(tempRoot, "private-files");
+                Directory.CreateDirectory(directory);
+                var path = Path.Combine(directory, "state.bin");
+                var service = new WindowsPrivateFileService();
+                Assert(service.WriteAllBytesAtomically(path, new byte[] { 1, 2, 3 }).IsSuccess, "initial private write failed");
+                Assert(service.WriteAllBytesAtomically(path, new byte[] { 4, 5 }).IsSuccess, "atomic replacement failed");
+                Assert(File.ReadAllBytes(path).SequenceEqual(new byte[] { 4, 5 }), "atomic replacement content mismatch");
+                var restricted = service.IsRestrictedToCurrentUser(path);
+                Assert(restricted.IsSuccess && restricted.Value, restricted.Error?.Message ?? "private ACL was not owner-only");
+                Assert(!Directory.EnumerateFiles(directory, "*.tmp").Any(), "private write left a temporary file");
+                using var openFile = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+                var canonical = new WindowsFileCanonicalizer().GetCanonicalPath(openFile);
+                Assert(canonical.IsSuccess, canonical.Error?.Message ?? "handle canonicalization failed");
+                Assert(string.Equals(canonical.Value, Path.GetFullPath(path), StringComparison.OrdinalIgnoreCase),
+                    $"canonical path mismatch: {canonical.Value}");
+            });
+
+            Run("Windows credential adapter round-trips arbitrary bytes without a real vault", () =>
+            {
+                var backend = new InMemoryCredentialBackend();
+                var store = new WindowsCredentialStore(backend);
+                var missing = store.Read("test-resource", "test-account");
+                Assert(missing.IsSuccess && missing.Value == null, "missing credential was not distinguished from failure");
+                var expected = new byte[] { 0, 1, 127, 128, 255 };
+                Assert(store.Write("test-resource", "test-account", expected).IsSuccess, "credential write failed");
+                var read = store.Read("test-resource", "test-account");
+                Assert(read.IsSuccess && read.Value!.SequenceEqual(expected), "credential bytes did not round-trip");
+                Assert(backend.StoredValue?.StartsWith("hyperwhisper-bytes-v1:", StringComparison.Ordinal) == true,
+                    "credential encoding was not explicit/versioned");
+                Assert(store.Delete("test-resource", "test-account").IsSuccess, "credential delete failed");
+                Assert(store.Read("test-resource", "test-account").Value == null, "credential was not deleted");
+                backend.ThrowOnRead = true;
+                Assert(store.Read("test-resource", "test-account").IsFailure, "backend error was mistaken for missing credential");
+            });
+
+            Run("Windows runtime locator and child-process lifecycle are deterministic", () =>
+            {
+                var runtimeRoot = Path.Combine(tempRoot, "runtime-locator");
+                var nativeDirectory = Path.Combine(runtimeRoot, "runtimes", "win-x64", "native");
+                Directory.CreateDirectory(nativeDirectory);
+                var whisperPath = Path.Combine(nativeDirectory, "whisper.dll");
+                File.WriteAllBytes(whisperPath, Array.Empty<byte>());
+                var engineDirectory = Path.Combine(runtimeRoot, "parakeet-engine");
+                Directory.CreateDirectory(engineDirectory);
+                var enginePath = Path.Combine(engineDirectory, "parakeet-engine.exe");
+                File.WriteAllBytes(enginePath, Array.Empty<byte>());
+                var locator = new WindowsNativeRuntimeLocator(runtimeRoot, System.Runtime.InteropServices.Architecture.X64);
+                Assert(locator.FindLibrary("whisper", PlatformContracts.NativeComputeBackend.Cpu).Value == whisperPath,
+                    "Whisper runtime path mismatch");
+                Assert(locator.FindExecutable("parakeet-engine").Value == enginePath, "engine runtime path mismatch");
+                Assert(locator.FindLibrary("whisper", PlatformContracts.NativeComputeBackend.Vulkan).IsFailure,
+                    "Windows locator falsely claimed Vulkan support");
+                Assert(!locator.Capabilities.ComputeBackends.Contains(PlatformContracts.NativeComputeBackend.Cuda),
+                    "Windows locator falsely claimed CUDA support");
+
+                var launcher = new WindowsChildProcessLauncher();
+                var started = launcher.Start(new PlatformContracts.ChildProcessStartRequest
+                {
+                    ExecutablePath = Environment.GetEnvironmentVariable("ComSpec") ?? @"C:\Windows\System32\cmd.exe",
+                    Arguments = new[] { "/d", "/c", "ping -n 30 127.0.0.1 > nul" }
+                });
+                Assert(started.IsSuccess, started.Error?.Message ?? "child process did not start");
+                var child = started.Value!;
+                using var cancelled = new CancellationTokenSource();
+                cancelled.Cancel();
+                try
+                {
+                    child.WaitForExitAsync(cancelled.Token).AsTask().GetAwaiter().GetResult();
+                    Assert(false, "cancelled process wait completed successfully");
+                }
+                catch (OperationCanceledException) { }
+                child.TerminateAsync().AsTask().GetAwaiter().GetResult();
+                Assert(child.HasExited, "terminated process remained alive");
+                child.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            });
+
+            Run("WPF dispatcher seam invokes inline on its owning thread", () =>
+            {
+                PlatformContracts.IUiDispatcher dispatcher = new WpfUiDispatcher();
+                Assert(dispatcher.CheckAccess(), "STA smoke thread does not own its dispatcher");
+                var invoked = false;
+                dispatcher.InvokeAsync(() =>
+                {
+                    invoked = true;
+                    return ValueTask.CompletedTask;
+                }).AsTask().GetAwaiter().GetResult();
+                Assert(invoked, "dispatcher did not invoke the callback");
+            });
+
             Run("ApplyHardenedReplacement keeps $-tokens literal", () =>
             {
                 var result = HyperwhisperCoreMethods.ApplyHardenedReplacement(
@@ -3026,6 +3117,22 @@ internal static class Program
         public Task OnAudioSendOpportunityAsync(
             Func<byte[], WebSocketMessageType, CancellationToken, Task> webSocketSendAsync,
             CancellationToken cancellationToken) => throw new NotSupportedException();
+    }
+
+    private sealed class InMemoryCredentialBackend : IWindowsCredentialBackend
+    {
+        public string? StoredValue { get; private set; }
+        public bool ThrowOnRead { get; set; }
+
+        public bool TryRead(string resource, string account, out string? value)
+        {
+            if (ThrowOnRead) throw new InvalidOperationException("expected backend failure");
+            value = StoredValue;
+            return value != null;
+        }
+
+        public void Write(string resource, string account, string value) => StoredValue = value;
+        public void Delete(string resource, string account) => StoredValue = null;
     }
 
     private static void LoadApplicationResources(Application application)
