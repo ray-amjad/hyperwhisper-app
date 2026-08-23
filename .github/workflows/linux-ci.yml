@@ -21,6 +21,7 @@ on:
       - "shared-backup/**"
       - "packaging/linux/**"
       - "tools/parakeet-engine-dotnet/**"
+      - ".github/scripts/test-linux-release-policy.py"
       - ".github/workflows/linux-ci.yml"
       - ".github/workflows/linux-release.yml"
   push:
