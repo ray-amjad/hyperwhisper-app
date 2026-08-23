@@ -5,6 +5,8 @@ using Avalonia.Threading;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.PortableApplication.ViewModels;
+using HyperWhisper.PortableApplication.Transcription;
+using Avalonia.Platform.Storage;
 
 namespace HyperWhisper.Linux;
 
@@ -25,7 +27,12 @@ public partial class MainWindow : Window
         _platformServices = platformServices ?? throw new ArgumentNullException(nameof(platformServices));
         _database = new ApplicationDb(_platformServices.Paths);
         var settings = new PortableSettingsService(_platformServices.PrivateFiles, _platformServices.Paths);
-        _viewModel = new ApplicationShellViewModel(_database, settings);
+        var workflow = new TranscriptionWorkflow(
+            _platformServices.AudioRecorder,
+            _platformServices.AudioDevices,
+            _platformServices.AudioTranscriber,
+            new HistoryRepository(_database));
+        _viewModel = new ApplicationShellViewModel(_database, settings, workflow);
         InitializeComponent();
         DataContext = _viewModel;
         PlatformStatusText.Text = $"Linux platform connected · {_platformServices.Paths.DataDirectory}";
@@ -50,6 +57,32 @@ public partial class MainWindow : Window
             _viewModel.Navigate(pageId);
     }
 
+    private async void OnBrowseAudioFile(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "Choose a WAV recording",
+                AllowMultiple = false,
+                FileTypeFilter =
+                [
+                    new FilePickerFileType("WAV audio") { Patterns = ["*.wav"] },
+                    FilePickerFileTypes.All,
+                ],
+            });
+            var path = files.FirstOrDefault()?.TryGetLocalPath();
+            if (path is not null && _viewModel.Recording is not null)
+                _viewModel.Recording.FilePath = path;
+        }
+        catch (Exception)
+        {
+            _viewModel.Recording?.ReportInputFailure(
+                "workflow.file_picker_failed",
+                "The desktop file picker could not be opened.");
+        }
+    }
+
     internal async Task<int> RunSmokeTestAsync()
     {
         try
@@ -62,11 +95,12 @@ public partial class MainWindow : Window
                 || _platformServices.GlobalShortcuts is null
                 || !_platformServices.ProbeSharedCore()) return 4;
             if (_viewModel.Status.HasError) return 5;
+            if (_viewModel.Recording is null || string.IsNullOrWhiteSpace(_viewModel.Recording.Message)) return 8;
 
             await SeedSmokeDataAsync();
             var expectedControls = new Dictionary<string, string>(StringComparer.Ordinal)
             {
-                ["home"] = "HomeRefreshButton",
+                ["home"] = "HomeStartRecordingButton",
                 ["modes"] = "ModeSaveButton",
                 ["history"] = "HistoryDeleteButton",
                 ["vocabulary"] = "VocabularyAddButton",

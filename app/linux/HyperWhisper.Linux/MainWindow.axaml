@@ -3,16 +3,29 @@
         Title="HyperWhisper" Width="1040" Height="680" MinWidth="800" MinHeight="520" WindowStartupLocation="CenterScreen">
   <Window.DataTemplates>
     <DataTemplate DataType="vm:HomeViewModel">
-      <StackPanel x:Name="HomeScreen" Spacing="20">
+      <ScrollViewer x:Name="HomeScreen">
+      <StackPanel Spacing="20">
+        <TextBlock Text="Record and transcribe" FontSize="22" FontWeight="SemiBold" />
+        <Border Padding="16" CornerRadius="8" Background="{DynamicResource ControlFillColorDefaultBrush}">
+          <StackPanel Spacing="10">
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12"><TextBlock Text="Audio input" VerticalAlignment="Center"/><ComboBox Grid.Column="1" ItemsSource="{Binding Recording.AudioDevices}" SelectedItem="{Binding Recording.SelectedAudioDevice}"><ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}"/></DataTemplate></ComboBox.ItemTemplate></ComboBox></Grid>
+            <StackPanel Orientation="Horizontal" Spacing="8"><Button x:Name="HomeStartRecordingButton" Content="Start recording" Command="{Binding Recording.StartCommand}"/><Button x:Name="HomeStopRecordingButton" Content="Stop and transcribe" Command="{Binding Recording.StopCommand}"/><Button x:Name="HomeCancelRecordingButton" Content="Cancel" Command="{Binding Recording.CancelCommand}"/><Button Content="Refresh devices" Command="{Binding Recording.RefreshDevicesCommand}"/></StackPanel>
+            <TextBlock Text="{Binding Recording.State, StringFormat='State: {0}'}"/><TextBlock Text="{Binding Recording.Message}" TextWrapping="Wrap"/><TextBlock Text="{Binding Recording.ErrorCode}" IsVisible="{Binding Recording.HasError}" Opacity="0.7"/>
+            <Separator/>
+            <TextBlock Text="Transcribe an existing WAV file" FontWeight="SemiBold"/>
+            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8"><TextBox x:Name="HomeAudioFileInput" Text="{Binding Recording.FilePath}" PlaceholderText="/path/to/audio.wav"/><Button Grid.Column="1" Content="Browse…" Click="OnBrowseAudioFile"/><Button x:Name="HomeTranscribeFileButton" Grid.Column="2" Content="Transcribe file" Command="{Binding Recording.TranscribeFileCommand}"/></Grid>
+          </StackPanel>
+        </Border>
         <TextBlock Text="Local library" FontSize="22" FontWeight="SemiBold" />
         <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12">
           <Border Padding="18" CornerRadius="8" Background="{DynamicResource ControlFillColorDefaultBrush}"><StackPanel><TextBlock Text="History"/><TextBlock Text="{Binding HistoryCount}" FontSize="28"/></StackPanel></Border>
           <Border Grid.Column="1" Padding="18" CornerRadius="8" Background="{DynamicResource ControlFillColorDefaultBrush}"><StackPanel><TextBlock Text="Vocabulary"/><TextBlock Text="{Binding VocabularyCount}" FontSize="28"/></StackPanel></Border>
           <Border Grid.Column="2" Padding="18" CornerRadius="8" Background="{DynamicResource ControlFillColorDefaultBrush}"><StackPanel><TextBlock Text="Modes"/><TextBlock Text="{Binding ModeCount}" FontSize="28"/></StackPanel></Border>
         </Grid>
-        <Button x:Name="HomeRefreshButton" Content="Refresh" Command="{Binding RefreshCommand}" HorizontalAlignment="Left" />
+        <Button x:Name="HomeRefreshButton" Content="Refresh library" Command="{Binding RefreshCommand}" HorizontalAlignment="Left" />
         <TextBlock Text="{Binding Status.Message}" /><TextBlock Text="{Binding Status.ErrorCode}" IsVisible="{Binding Status.HasError}" Opacity="0.7"/>
       </StackPanel>
+      </ScrollViewer>
     </DataTemplate>
     <DataTemplate DataType="vm:HistoryViewModel">
       <Grid x:Name="HistoryScreen" ColumnDefinitions="2*,3*" ColumnSpacing="20">
@@ -35,7 +48,7 @@
       </Grid>
     </DataTemplate>
     <DataTemplate DataType="vm:SettingsViewModel">
-      <StackPanel x:Name="SettingsScreen" Spacing="14" MaxWidth="520" HorizontalAlignment="Left"><TextBlock Text="Application settings" FontSize="22" FontWeight="SemiBold"/><TextBlock Text="Default transcription language preference"/><TextBox x:Name="SettingsLanguageInput" Text="{Binding Language}"/><Button x:Name="SettingsSaveButton" Content="Save settings" Command="{Binding SaveCommand}" HorizontalAlignment="Left"/><TextBlock Text="{Binding Status.Message}"/><TextBlock Text="{Binding Status.ErrorCode}" IsVisible="{Binding Status.HasError}" Opacity="0.7"/></StackPanel>
+      <StackPanel x:Name="SettingsScreen" Spacing="14" MaxWidth="520" HorizontalAlignment="Left"><TextBlock Text="Application settings" FontSize="22" FontWeight="SemiBold"/><TextBlock Text="Default transcription language preference"/><TextBox x:Name="SettingsLanguageInput" Text="{Binding Language}"/><TextBlock Text="Local transcription uses the first ggml .bin model in the application models directory. HYPERWHISPER_MODEL_PATH can select an explicit model." TextWrapping="Wrap" Opacity="0.7"/><Button x:Name="SettingsSaveButton" Content="Save settings" Command="{Binding SaveCommand}" HorizontalAlignment="Left"/><TextBlock Text="{Binding Status.Message}"/><TextBlock Text="{Binding Status.ErrorCode}" IsVisible="{Binding Status.HasError}" Opacity="0.7"/></StackPanel>
     </DataTemplate>
   </Window.DataTemplates>
   <Grid ColumnDefinitions="220,*" RowDefinitions="*,Auto">

@@ -3,6 +3,7 @@ using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Platform.Abstractions;
 using Microsoft.EntityFrameworkCore;
+using HyperWhisper.PortableApplication.Transcription;
 
 var root = Path.Combine(Path.GetTempPath(), "HyperWhisper.Application.Tests", Guid.NewGuid().ToString("N"));
 Directory.CreateDirectory(root);
@@ -11,6 +12,7 @@ try
     var paths = new TestPaths(root);
     var database = new ApplicationDb(paths);
     await database.MigrateAsync();
+    await RunTranscriptionWorkflowTestsAsync(root);
 
     await using (var context = database.CreateContext())
     {
@@ -120,6 +122,161 @@ static void Assert(bool condition, string message)
     if (!condition) throw new InvalidOperationException(message);
 }
 
+static async Task RunTranscriptionWorkflowTestsAsync(string root)
+{
+    static async Task<(ApplicationDb Database, HistoryRepository History)> CreateStoreAsync(string parent, string name)
+    {
+        var storeRoot = Path.Combine(parent, name);
+        Directory.CreateDirectory(storeRoot);
+        var database = new ApplicationDb(new TestPaths(storeRoot));
+        await database.MigrateAsync();
+        return (database, new HistoryRepository(database));
+    }
+
+    var successStore = await CreateStoreAsync(root, "workflow-success");
+    var successAudio = Path.Combine(root, "success.wav");
+    await File.WriteAllBytesAsync(successAudio, [1, 2, 3]);
+    using (var recorder = new FakeRecorder(successAudio))
+    using (var devices = new FakeDevices())
+    using (var workflow = new TranscriptionWorkflow(
+        recorder,
+        devices,
+        new FakeTranscriber((_, _, _) => Task.FromResult(PortableTranscriptionResult.Success("portable words", "Test Whisper"))),
+        successStore.History))
+    {
+        var observedStates = new List<TranscriptionWorkflowState>();
+        workflow.Changed += (_, _) => throw new InvalidOperationException("simulated subscriber failure");
+        workflow.Changed += (_, _) => observedStates.Add(workflow.Snapshot.State);
+        workflow.RefreshDevices();
+        var started = await workflow.StartRecordingAsync();
+        Assert(started.IsSuccess, "recording start did not report unambiguous success");
+        Assert(workflow.Snapshot.State == TranscriptionWorkflowState.Recording, "recording did not enter Recording state");
+        var result = await workflow.StopAndTranscribeAsync(new TranscriptionWorkflowRequest("en", "Test", Guid.NewGuid()));
+        Assert(result.IsSuccess, "successful recording transcription failed");
+        var saved = await successStore.History.ListAsync();
+        Assert(saved.Count == 1 && saved[0].Text == "portable words" && saved[0].Status == TranscriptStatus.Completed,
+            "successful transcription was not persisted exactly once");
+        Assert(observedStates.Contains(TranscriptionWorkflowState.Completed), "completion transition was not notified");
+        var fileResult = await workflow.TranscribeFileAsync(successAudio, new TranscriptionWorkflowRequest("en", "File test"));
+        Assert(fileResult.IsSuccess && (await successStore.History.ListAsync()).Count == 2,
+            "successful file transcription was not persisted");
+    }
+
+    var persistenceStore = await CreateStoreAsync(root, "workflow-persistence-failure");
+    await using (var context = persistenceStore.Database.CreateContext())
+    {
+        await context.Database.ExecuteSqlRawAsync(
+            "CREATE TRIGGER reject_transcript BEFORE INSERT ON Transcripts BEGIN SELECT RAISE(ABORT, 'simulated persistence failure'); END;");
+    }
+    var persistenceAudio = Path.Combine(root, "persistence.wav");
+    await File.WriteAllBytesAsync(persistenceAudio, [1]);
+    using (var recorder = new FakeRecorder(persistenceAudio))
+    using (var devices = new FakeDevices())
+    using (var workflow = new TranscriptionWorkflow(
+        recorder,
+        devices,
+        new FakeTranscriber((_, _, _) => Task.FromResult(PortableTranscriptionResult.Success("valid backend text", "Test Whisper"))),
+        persistenceStore.History))
+    {
+        workflow.RefreshDevices();
+        var result = await workflow.TranscribeFileAsync(persistenceAudio, new TranscriptionWorkflowRequest());
+        Assert(!result.IsSuccess && workflow.Snapshot.State == TranscriptionWorkflowState.Failed
+            && workflow.Snapshot.ErrorCode == "workflow.persistence_failed",
+            "persistence failure after backend success was not classified or exposed correctly");
+        Assert((await persistenceStore.History.ListAsync()).Count == 0, "persistence failure created fake completed history");
+    }
+
+    var failureStore = await CreateStoreAsync(root, "workflow-failure");
+    var failureAudio = Path.Combine(root, "failure.wav");
+    await File.WriteAllBytesAsync(failureAudio, [1]);
+    using (var recorder = new FakeRecorder(failureAudio))
+    using (var devices = new FakeDevices())
+    using (var workflow = new TranscriptionWorkflow(
+        recorder,
+        devices,
+        new FakeTranscriber((_, _, _) => Task.FromResult(PortableTranscriptionResult.Failed(
+            PortableTranscriptionErrorCode.TranscriptionFailed,
+            "expected backend rejection"))),
+        failureStore.History))
+    {
+        var failedWasNotified = false;
+        workflow.Changed += (_, _) => failedWasNotified |= workflow.Snapshot.State == TranscriptionWorkflowState.Failed;
+        workflow.RefreshDevices();
+        await workflow.StartRecordingAsync();
+        var result = await workflow.StopAndTranscribeAsync(new TranscriptionWorkflowRequest());
+        Assert(!result.IsSuccess && failedWasNotified, "backend result failure transition was not visible");
+        Assert((await failureStore.History.ListAsync()).Count == 0, "failed transcription created fake history");
+    }
+
+    var exceptionStore = await CreateStoreAsync(root, "workflow-exception");
+    var exceptionAudio = Path.Combine(root, "exception.wav");
+    await File.WriteAllBytesAsync(exceptionAudio, [1]);
+    using (var recorder = new FakeRecorder(exceptionAudio))
+    using (var devices = new FakeDevices())
+    using (var workflow = new TranscriptionWorkflow(
+        recorder,
+        devices,
+        new FakeTranscriber((_, _, _) => throw new InvalidOperationException("simulated backend exception")),
+        exceptionStore.History))
+    {
+        workflow.RefreshDevices();
+        var result = await workflow.TranscribeFileAsync(exceptionAudio, new TranscriptionWorkflowRequest());
+        Assert(!result.IsSuccess && workflow.Snapshot.ErrorCode == "workflow.backend_failed",
+            "backend exception was misclassified as a persistence failure");
+        Assert((await exceptionStore.History.ListAsync()).Count == 0, "backend exception created fake history");
+    }
+
+    var cancellationStore = await CreateStoreAsync(root, "workflow-cancel");
+    var cancellationAudio = Path.Combine(root, "cancel.wav");
+    await File.WriteAllBytesAsync(cancellationAudio, [1]);
+    var transcriptionEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+    using (var recorder = new FakeRecorder(cancellationAudio))
+    using (var devices = new FakeDevices())
+    using (var workflow = new TranscriptionWorkflow(
+        recorder,
+        devices,
+        new FakeTranscriber(async (_, _, cancellationToken) =>
+        {
+            transcriptionEntered.SetResult();
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            return PortableTranscriptionResult.Success("unreachable", "Test Whisper");
+        }),
+        cancellationStore.History))
+    {
+        workflow.RefreshDevices();
+        var task = workflow.TranscribeFileAsync(cancellationAudio, new TranscriptionWorkflowRequest());
+        await transcriptionEntered.Task;
+        await workflow.CancelAsync();
+        var result = await task;
+        Assert(result.Failure?.Code == PortableTranscriptionErrorCode.Cancelled, "file transcription cancellation was not structured");
+        Assert((await cancellationStore.History.ListAsync()).Count == 0, "cancelled transcription created fake history");
+    }
+
+    var raceStore = await CreateStoreAsync(root, "workflow-stop-race");
+    var raceAudio = Path.Combine(root, "race.wav");
+    await File.WriteAllBytesAsync(raceAudio, [1]);
+    using (var recorder = new FakeRecorder(raceAudio) { BlockStop = true })
+    using (var devices = new FakeDevices())
+    using (var workflow = new TranscriptionWorkflow(
+        recorder,
+        devices,
+        new FakeTranscriber((_, _, _) => Task.FromResult(PortableTranscriptionResult.Success("should cancel", "Test Whisper"))),
+        raceStore.History))
+    {
+        workflow.RefreshDevices();
+        await workflow.StartRecordingAsync();
+        var stopping = Task.Run(() => workflow.StopAndTranscribeAsync(new TranscriptionWorkflowRequest()));
+        await recorder.StopEntered.Task;
+        await workflow.CancelAsync();
+        Assert(recorder.StopCount == 1, "cancel raced with stop and called recorder.Stop twice");
+        recorder.ReleaseStop.Set();
+        var result = await stopping;
+        Assert(result.Failure?.Code == PortableTranscriptionErrorCode.Cancelled, "stop/cancel race did not cancel transcription");
+        Assert(recorder.StopCount == 1, "stop/cancel race called recorder.Stop twice after completion");
+        Assert((await raceStore.History.ListAsync()).Count == 0, "stop/cancel race created fake history");
+    }
+}
+
 file sealed class TestPaths(string root) : IAppPaths
 {
     public string DataDirectory => root;
@@ -164,4 +321,49 @@ file sealed class MemoryPrivateFileService : IPrivateFileService
 
     public PlatformResult<bool> IsRestrictedToCurrentUser(string path)
         => PlatformResult<bool>.Success(_files.ContainsKey(path));
+}
+
+file sealed class FakeDevices : IAudioInputDeviceService
+{
+    public event EventHandler? DevicesChanged { add { } remove { } }
+    public PlatformResult<IReadOnlyList<AudioInputDevice>> GetAvailableDevices() =>
+        PlatformResult<IReadOnlyList<AudioInputDevice>>.Success([new AudioInputDevice("test", "Test microphone", true)]);
+    public void Dispose() { }
+}
+
+file sealed class FakeRecorder(string outputPath) : IAudioRecorder
+{
+    public event EventHandler<float>? AudioLevelChanged { add { } remove { } }
+    public bool IsRecording { get; private set; }
+    public TimeSpan Duration => TimeSpan.FromSeconds(1.5);
+    public bool BlockStop { get; init; }
+    public int StopCount { get; private set; }
+    public TaskCompletionSource StopEntered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    public ManualResetEventSlim ReleaseStop { get; } = new(initialState: false);
+    public PlatformResult Start(AudioRecordingOptions options)
+    {
+        IsRecording = true;
+        return PlatformResult.Success();
+    }
+    public PlatformResult<string> Stop()
+    {
+        StopCount++;
+        StopEntered.TrySetResult();
+        if (BlockStop) ReleaseStop.Wait(TimeSpan.FromSeconds(5));
+        IsRecording = false;
+        return PlatformResult<string>.Success(outputPath);
+    }
+    public void Dispose()
+    {
+        ReleaseStop.Set();
+        ReleaseStop.Dispose();
+    }
+}
+
+file sealed class FakeTranscriber(
+    Func<string, string?, CancellationToken, Task<PortableTranscriptionResult>> transcribe) : IRecordedAudioTranscriber
+{
+    public TranscriptionBackendCapability Capability { get; } = new(true, "Test Whisper");
+    public Task<PortableTranscriptionResult> TranscribeAsync(string audioPath, string? language, CancellationToken cancellationToken = default) =>
+        transcribe(audioPath, language, cancellationToken);
 }

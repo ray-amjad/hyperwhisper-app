@@ -3,7 +3,9 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using HyperWhisper.PortableApplication.Persistence;
+using HyperWhisper.PortableApplication.Transcription;
 using HyperWhisper.Data.Entities;
+using HyperWhisper.Platform.Abstractions;
 
 namespace HyperWhisper.PortableApplication.ViewModels;
 
@@ -44,6 +46,124 @@ public sealed class AsyncCommand(Func<object?, Task> execute, Func<object?, bool
             CanExecuteChanged?.Invoke(this, EventArgs.Empty);
         }
     }
+
+    public void RaiseCanExecuteChanged() => CanExecuteChanged?.Invoke(this, EventArgs.Empty);
+}
+
+public sealed class TranscriptionWorkflowViewModel : ViewModelBase, IDisposable
+{
+    private readonly TranscriptionWorkflow _workflow;
+    private readonly Func<TranscriptionWorkflowRequest> _requestFactory;
+    private readonly SynchronizationContext? _synchronizationContext = SynchronizationContext.Current;
+    private AudioInputDevice? _selectedAudioDevice;
+    private string _filePath = string.Empty;
+    private string _state = "Idle";
+    private string _message = "Preparing audio…";
+    private string? _errorCode;
+    private bool _canStartRecording;
+    private bool _canStop;
+    private bool _canCancel;
+    private bool _canTranscribeFile;
+    private bool _disposed;
+
+    public TranscriptionWorkflowViewModel(
+        TranscriptionWorkflow workflow,
+        Func<TranscriptionWorkflowRequest> requestFactory)
+    {
+        _workflow = workflow ?? throw new ArgumentNullException(nameof(workflow));
+        _requestFactory = requestFactory ?? throw new ArgumentNullException(nameof(requestFactory));
+        StartCommand = new AsyncCommand(_ => StartAsync(), _ => CanStartRecording);
+        StopCommand = new AsyncCommand(_ => StopAsync(), _ => CanStop);
+        CancelCommand = new AsyncCommand(_ => CancelAsync(), _ => CanCancel);
+        TranscribeFileCommand = new AsyncCommand(_ => TranscribeFileAsync(), _ => CanTranscribeFile);
+        RefreshDevicesCommand = new AsyncCommand(_ => { RefreshDevices(); return Task.CompletedTask; });
+        _workflow.Changed += OnWorkflowChanged;
+        ApplySnapshot(_workflow.Snapshot);
+    }
+
+    public ObservableCollection<AudioInputDevice> AudioDevices { get; } = new();
+    public AudioInputDevice? SelectedAudioDevice
+    {
+        get => _selectedAudioDevice;
+        set
+        {
+            if (!Set(ref _selectedAudioDevice, value)) return;
+            _workflow.SelectDevice(value?.Id);
+        }
+    }
+    public string FilePath { get => _filePath; set => Set(ref _filePath, value); }
+    public string State { get => _state; private set => Set(ref _state, value); }
+    public string Message { get => _message; private set => Set(ref _message, value); }
+    public string? ErrorCode { get => _errorCode; private set { if (Set(ref _errorCode, value)) Notify(nameof(HasError)); } }
+    public bool HasError => ErrorCode != null;
+    public bool CanStartRecording { get => _canStartRecording; private set => Set(ref _canStartRecording, value); }
+    public bool CanStop { get => _canStop; private set => Set(ref _canStop, value); }
+    public bool CanCancel { get => _canCancel; private set => Set(ref _canCancel, value); }
+    public bool CanTranscribeFile { get => _canTranscribeFile; private set => Set(ref _canTranscribeFile, value); }
+    public ICommand StartCommand { get; }
+    public ICommand StopCommand { get; }
+    public ICommand CancelCommand { get; }
+    public ICommand TranscribeFileCommand { get; }
+    public ICommand RefreshDevicesCommand { get; }
+    public event EventHandler? TranscriptionSaved;
+
+    public void RefreshDevices() => _workflow.RefreshDevices();
+    public Task StartAsync(CancellationToken cancellationToken = default) => _workflow.StartRecordingAsync(cancellationToken);
+    public Task StopAsync(CancellationToken cancellationToken = default) => _workflow.StopAndTranscribeAsync(_requestFactory(), cancellationToken);
+    public Task CancelAsync() => _workflow.CancelAsync();
+    public Task TranscribeFileAsync(CancellationToken cancellationToken = default) =>
+        _workflow.TranscribeFileAsync(FilePath, _requestFactory(), cancellationToken);
+
+    public void ReportInputFailure(string code, string message)
+    {
+        ErrorCode = code;
+        Message = message;
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _workflow.Changed -= OnWorkflowChanged;
+        _workflow.Dispose();
+    }
+
+    private void OnWorkflowChanged(object? sender, EventArgs e)
+    {
+        if (_disposed) return;
+        var snapshot = _workflow.Snapshot;
+        if (_synchronizationContext is not null && SynchronizationContext.Current != _synchronizationContext)
+        {
+            _synchronizationContext.Post(_ =>
+            {
+                if (!_disposed) ApplySnapshot(snapshot);
+            }, null);
+            return;
+        }
+        ApplySnapshot(snapshot);
+    }
+
+    private void ApplySnapshot(TranscriptionWorkflowSnapshot snapshot)
+    {
+        var completedNow = snapshot.State == TranscriptionWorkflowState.Completed
+            && !string.Equals(State, nameof(TranscriptionWorkflowState.Completed), StringComparison.Ordinal);
+        AudioDevices.Clear();
+        foreach (var device in snapshot.AudioDevices) AudioDevices.Add(device);
+        _selectedAudioDevice = AudioDevices.FirstOrDefault(item => item.Id == snapshot.SelectedAudioDeviceId);
+        Notify(nameof(SelectedAudioDevice));
+        State = snapshot.State.ToString();
+        Message = snapshot.Message;
+        ErrorCode = snapshot.ErrorCode;
+        CanStartRecording = snapshot.CanStartRecording;
+        CanStop = snapshot.CanStop;
+        CanCancel = snapshot.CanCancel;
+        CanTranscribeFile = snapshot.CanTranscribeFile;
+        ((AsyncCommand)StartCommand).RaiseCanExecuteChanged();
+        ((AsyncCommand)StopCommand).RaiseCanExecuteChanged();
+        ((AsyncCommand)CancelCommand).RaiseCanExecuteChanged();
+        ((AsyncCommand)TranscribeFileCommand).RaiseCanExecuteChanged();
+        if (completedNow) TranscriptionSaved?.Invoke(this, EventArgs.Empty);
+    }
 }
 
 public sealed class UiStatus : ViewModelBase
@@ -70,13 +190,15 @@ public sealed class HomeViewModel : ViewModelBase
     private int _vocabularyCount;
     private int _modeCount;
 
-    public HomeViewModel(HistoryRepository history, VocabularyRepository vocabulary, ModeRepository modes)
+    public HomeViewModel(HistoryRepository history, VocabularyRepository vocabulary, ModeRepository modes, TranscriptionWorkflowViewModel? recording = null)
     {
         _history = history; _vocabulary = vocabulary; _modes = modes;
+        Recording = recording;
         RefreshCommand = new AsyncCommand(_ => RefreshAsync());
     }
 
     public UiStatus Status { get; } = new();
+    public TranscriptionWorkflowViewModel? Recording { get; }
     public int HistoryCount { get => _historyCount; private set => Set(ref _historyCount, value); }
     public int VocabularyCount { get => _vocabularyCount; private set => Set(ref _vocabularyCount, value); }
     public int ModeCount { get => _modeCount; private set => Set(ref _modeCount, value); }
@@ -90,6 +212,7 @@ public sealed class HomeViewModel : ViewModelBase
             HistoryCount = (await _history.ListAsync(cancellationToken)).Count;
             VocabularyCount = (await _vocabulary.ListAsync(cancellationToken)).Count;
             ModeCount = (await _modes.ListAsync(cancellationToken)).Count;
+            Recording?.RefreshDevices();
             Status.Success("Library ready");
         }
         catch (OperationCanceledException) { Status.Failure("home.cancelled", "Refresh cancelled"); }
@@ -268,18 +391,29 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
     private object? _currentPage;
     private string _pageTitle = "Home";
     private bool _initialized;
+    private bool _disposed;
 
-    public ApplicationShellViewModel(ApplicationDb database, PortableSettingsService settings)
+    public ApplicationShellViewModel(
+        ApplicationDb database,
+        PortableSettingsService settings,
+        TranscriptionWorkflow? transcriptionWorkflow = null)
     {
         _database = database;
         var historyRepository = new HistoryRepository(database);
         var vocabularyRepository = new VocabularyRepository(database);
         var modeRepository = new ModeRepository(database);
-        Home = new HomeViewModel(historyRepository, vocabularyRepository, modeRepository);
         History = new HistoryViewModel(historyRepository);
         Vocabulary = new VocabularyViewModel(vocabularyRepository);
         Modes = new ModesViewModel(modeRepository);
         Settings = new SettingsViewModel(settings);
+        Recording = transcriptionWorkflow is null ? null : new TranscriptionWorkflowViewModel(
+            transcriptionWorkflow,
+            () => new TranscriptionWorkflowRequest(
+                Settings.Language,
+                Modes.Selected?.Name,
+                Modes.Selected?.Id));
+        Home = new HomeViewModel(historyRepository, vocabularyRepository, modeRepository, Recording);
+        if (Recording is not null) Recording.TranscriptionSaved += OnTranscriptionSaved;
         _currentPage = Home;
     }
 
@@ -288,6 +422,7 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
     public VocabularyViewModel Vocabulary { get; }
     public ModesViewModel Modes { get; }
     public SettingsViewModel Settings { get; }
+    public TranscriptionWorkflowViewModel? Recording { get; }
     public UiStatus Status { get; } = new();
     public object? CurrentPage { get => _currentPage; private set => Set(ref _currentPage, value); }
     public string PageTitle { get => _pageTitle; private set => Set(ref _pageTitle, value); }
@@ -332,7 +467,29 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _lifetime.Cancel();
+        if (Recording is not null) Recording.TranscriptionSaved -= OnTranscriptionSaved;
+        Recording?.Dispose();
         _lifetime.Dispose();
+    }
+
+    private async void OnTranscriptionSaved(object? sender, EventArgs e)
+    {
+        try
+        {
+            if (_disposed) return;
+            var cancellationToken = _lifetime.Token;
+            await Task.WhenAll(History.RefreshAsync(cancellationToken), Home.RefreshAsync(cancellationToken));
+            if (History.Status.HasError || Home.Status.HasError)
+                Status.Failure("app.history_refresh_failed", "The transcription was saved, but the library view could not be refreshed.");
+        }
+        catch (OperationCanceledException) when (_disposed) { }
+        catch (ObjectDisposedException) when (_disposed) { }
+        catch (Exception)
+        {
+            if (!_disposed) Status.Failure("app.history_refresh_failed", "The transcription was saved, but the library view could not be refreshed.");
+        }
     }
 }
