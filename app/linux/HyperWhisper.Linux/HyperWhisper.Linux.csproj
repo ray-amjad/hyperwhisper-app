@@ -26,6 +26,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../../shared-dotnet/HyperWhisper.Platform.Abstractions/HyperWhisper.Platform.Abstractions.csproj" />
+    <ProjectReference Include="../../shared-dotnet/HyperWhisper.LocalInference/HyperWhisper.LocalInference.csproj" />
     <ProjectReference Include="../../shared-dotnet/HyperWhisper.SharedCore/HyperWhisper.SharedCore.csproj" />
     <ProjectReference Include="../HyperWhisper.Linux.Platform/HyperWhisper.Linux.Platform.csproj" />
   </ItemGroup>
