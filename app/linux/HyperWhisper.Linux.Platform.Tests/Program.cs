@@ -22,11 +22,19 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Pulse recorder writes private canonical WAV", PulseRecorderWritesWave),
     ("Pulse recorder reports unavailable capability", PulseRecorderUnavailable),
     ("Pulse playback delegates PCM and ends safely", PulsePlaybackDelegates),
+    ("Pulse playback isolates failing subscribers", PulsePlaybackSubscriberSafety),
     ("injection falls back losslessly to clipboard", InjectionClipboardFallback),
     ("injection uses uinput after clipboard", InjectionUsesUInput),
     ("injection restores captured clipboard", InjectionRestoresClipboard),
+    ("injection restores every captured MIME format", InjectionRestoresAllFormats),
+    ("injection refuses a secure field before clipboard mutation", InjectionRefusesSecureField),
+    ("injection falls back when captured target is lost", InjectionTargetLost),
+    ("injection falls back when target changes before paste", InjectionTargetChanged),
+    ("injection propagates cancellation", InjectionCancellation),
+    ("disposing injection cancels scheduled restore", InjectionDisposalSafety),
     ("clipboard failure prevents uinput", ClipboardFailurePreventsUInput),
     ("uinput exception preserves clipboard fallback", UInputExceptionFallsBack),
+    ("command clipboard advertises partial multi-MIME restore", CommandClipboardCapability),
 };
 
 var failed = 0;
@@ -220,11 +228,33 @@ static async Task PulsePlaybackDelegates()
     });
 }
 
+static async Task PulsePlaybackSubscriberSafety()
+{
+    await WithTemporaryDirectoryAsync(async directory =>
+    {
+        var path = Path.Combine(directory, "sample.wav");
+        using (var stream = File.Create(path))
+        {
+            WaveFile.WriteHeader(stream, new WaveFormat(16_000, 16, 1), 2);
+            stream.Position = WaveFile.HeaderSize;
+            stream.Write([1, 0]);
+        }
+        using var service = new PulseAudioPlaybackService(new FakePulseApi { PlaybackSession = new FakePlaybackSession() });
+        var reached = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.PlaybackEnded += (_, _) => throw new InvalidOperationException("subscriber");
+        service.PlaybackEnded += (_, _) => reached.TrySetResult();
+        Assert.Success(service.Load(path));
+        service.Play();
+        await reached.Task.WaitAsync(TimeSpan.FromSeconds(2));
+    });
+}
+
 static async Task InjectionClipboardFallback()
 {
     var clipboard = new FakeClipboard("old");
     var uinput = new FakeUInput(false);
-    using var service = new LinuxTextInjectionService(clipboard, uinput);
+    using var service = NewInjection(clipboard, uinput);
+    service.CaptureTarget();
     var outcome = await service.InjectTranscriptAsync("transcript");
     Assert.Equal(TextInjectionOutcome.CopiedToClipboard, outcome);
     Assert.Equal("transcript", clipboard.Text);
@@ -235,7 +265,8 @@ static async Task InjectionUsesUInput()
 {
     var clipboard = new FakeClipboard("old");
     var uinput = new FakeUInput(true);
-    using var service = new LinuxTextInjectionService(clipboard, uinput);
+    using var service = NewInjection(clipboard, uinput);
+    service.CaptureTarget();
     var outcome = await service.InjectTranscriptAsync("transcript");
     Assert.Equal(TextInjectionOutcome.Pasted, outcome);
     Assert.Equal("transcript", clipboard.Text);
@@ -245,18 +276,91 @@ static async Task InjectionUsesUInput()
 static async Task InjectionRestoresClipboard()
 {
     var clipboard = new FakeClipboard("old");
-    using var service = new LinuxTextInjectionService(clipboard, new FakeUInput(false));
+    using var service = NewInjection(clipboard, new FakeUInput(false));
     service.StartSession();
     await service.CopyToClipboardAsync("transcript");
     Assert.Success(await service.RestoreClipboardImmediatelyAsync());
     Assert.Equal("old", clipboard.Text);
 }
 
+static async Task InjectionRestoresAllFormats()
+{
+    var formats = new Dictionary<string, byte[]>(StringComparer.Ordinal)
+    {
+        ["text/plain;charset=utf-8"] = "old"u8.ToArray(),
+        ["image/png"] = [0x89, 0x50, 0x4e, 0x47],
+    };
+    var clipboard = new FakeClipboard(formats);
+    using var service = NewInjection(clipboard, new FakeUInput(false));
+    service.StartSession();
+    await service.CopyToClipboardAsync("transcript");
+    Assert.Success(await service.RestoreClipboardImmediatelyAsync());
+    Assert.Equal(2, clipboard.Formats.Count);
+    Assert.SequenceEqual(formats["text/plain;charset=utf-8"], clipboard.Formats["text/plain;charset=utf-8"]);
+    Assert.SequenceEqual(formats["image/png"], clipboard.Formats["image/png"]);
+}
+
+static async Task InjectionRefusesSecureField()
+{
+    var clipboard = new FakeClipboard("old");
+    var uinput = new FakeUInput(true);
+    using var service = NewInjection(clipboard, uinput, new FakeSecureFieldGuard(SecureFieldState.Secure));
+    service.CaptureTarget();
+    var outcome = await service.InjectTranscriptAsync("secret transcript");
+    Assert.Equal(TextInjectionOutcome.SecureFieldSkipped, outcome);
+    Assert.Equal("old", clipboard.Text);
+    Assert.Equal(0, uinput.PasteCalls);
+}
+
+static async Task InjectionTargetLost()
+{
+    var clipboard = new FakeClipboard("old");
+    var uinput = new FakeUInput(true);
+    using var service = NewInjection(clipboard, uinput, targets: new FakeTargetService(TargetFocusState.Lost));
+    service.CaptureTarget();
+    var outcome = await service.InjectTranscriptAsync("transcript");
+    Assert.Equal(TextInjectionOutcome.CopiedToClipboard, outcome);
+    Assert.Equal(0, uinput.PasteCalls);
+}
+
+static async Task InjectionTargetChanged()
+{
+    var clipboard = new FakeClipboard("old");
+    var uinput = new FakeUInput(true);
+    using var service = NewInjection(clipboard, uinput,
+        targets: new FakeTargetService(TargetFocusState.Ready, TargetFocusState.Changed));
+    service.CaptureTarget();
+    var outcome = await service.InjectTranscriptAsync("transcript");
+    Assert.Equal(TextInjectionOutcome.CopiedToClipboard, outcome);
+    Assert.Equal(0, uinput.PasteCalls);
+}
+
+static async Task InjectionCancellation()
+{
+    var clipboard = new FakeClipboard("old") { BlockWrites = true };
+    using var service = NewInjection(clipboard, new FakeUInput(true));
+    using var cancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));
+    await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+        await service.InjectTranscriptAsync("transcript", cancellation.Token));
+}
+
+static async Task InjectionDisposalSafety()
+{
+    var clipboard = new FakeClipboard("old");
+    var service = NewInjection(clipboard, new FakeUInput(false));
+    service.StartSession();
+    await service.CopyToClipboardAsync("transcript");
+    service.ScheduleClipboardRestore(TimeSpan.FromMilliseconds(200));
+    service.Dispose();
+    await Task.Delay(300);
+    Assert.Equal(0, clipboard.RestoreCalls);
+}
+
 static async Task ClipboardFailurePreventsUInput()
 {
     var clipboard = new FakeClipboard("old") { FailWrites = true };
     var uinput = new FakeUInput(true);
-    using var service = new LinuxTextInjectionService(clipboard, uinput);
+    using var service = NewInjection(clipboard, uinput);
     var outcome = await service.InjectTranscriptAsync("transcript");
     Assert.Equal(TextInjectionOutcome.Failed, outcome);
     Assert.Equal(0, uinput.PasteCalls);
@@ -265,11 +369,23 @@ static async Task ClipboardFailurePreventsUInput()
 static async Task UInputExceptionFallsBack()
 {
     var clipboard = new FakeClipboard("old");
-    using var service = new LinuxTextInjectionService(clipboard, new ThrowingUInput());
+    using var service = NewInjection(clipboard, new ThrowingUInput());
+    service.CaptureTarget();
     var outcome = await service.InjectTranscriptAsync("transcript");
     Assert.Equal(TextInjectionOutcome.CopiedToClipboard, outcome);
     Assert.Equal("transcript", clipboard.Text);
 }
+
+static Task CommandClipboardCapability()
+{
+    Assert.True(!new CommandClipboardBackend().GetCapabilities().PreservesAllClipboardFormats);
+    return Task.CompletedTask;
+}
+
+static LinuxTextInjectionService NewInjection(FakeClipboard clipboard, IUInputPasteBackend uinput,
+    ISecureFieldGuard? guard = null, ICapturedTargetService? targets = null) =>
+    new(clipboard, uinput, guard ?? new FakeSecureFieldGuard(SecureFieldState.NotSecure),
+        targets ?? new FakeTargetService(TargetFocusState.Ready, TargetFocusState.Ready));
 
 static async Task WithTemporaryDirectory(Action<string> action)
 {
@@ -405,18 +521,59 @@ sealed class FakePlaybackSession : IPulseAudioPlaybackSession
     public void Dispose() { }
 }
 
-sealed class FakeClipboard(string initial) : ILinuxClipboardBackend
+sealed class FakeClipboard : ILinuxClipboardBackend
 {
-    public string Text { get; private set; } = initial;
+    public FakeClipboard(string initial) : this(new Dictionary<string, byte[]>(StringComparer.Ordinal)
+        { ["text/plain;charset=utf-8"] = System.Text.Encoding.UTF8.GetBytes(initial) }) { }
+    public FakeClipboard(IReadOnlyDictionary<string, byte[]> initial) => Formats = Clone(initial);
+    public IReadOnlyDictionary<string, byte[]> Formats { get; private set; }
+    public string Text => Formats.TryGetValue("text/plain;charset=utf-8", out var value)
+        ? System.Text.Encoding.UTF8.GetString(value) : string.Empty;
     public bool FailWrites { get; init; }
-    public LinuxTextInjectionCapabilities GetCapabilities() => new(true, "fake", false, false, false);
+    public bool BlockWrites { get; init; }
+    public int RestoreCalls { get; private set; }
+    public LinuxTextInjectionCapabilities GetCapabilities() => new(true, "fake", false, true, true, true);
     public ValueTask<PlatformResult<ClipboardSnapshot?>> CaptureAsync(CancellationToken cancellationToken) =>
-        ValueTask.FromResult(PlatformResult<ClipboardSnapshot?>.Success(new ClipboardSnapshot(Text)));
-    public ValueTask<PlatformResult> SetTextAsync(string text, CancellationToken cancellationToken)
+        ValueTask.FromResult(PlatformResult<ClipboardSnapshot?>.Success(new ClipboardSnapshot(Clone(Formats))));
+    public ValueTask<PlatformResult> RestoreAsync(ClipboardSnapshot snapshot, CancellationToken cancellationToken)
     {
-        if (FailWrites) return ValueTask.FromResult(PlatformResult.Failure("clipboard_failed", "test"));
-        Text = text;
+        cancellationToken.ThrowIfCancellationRequested();
+        RestoreCalls++;
+        Formats = Clone(snapshot.Formats);
         return ValueTask.FromResult(PlatformResult.Success());
+    }
+    public async ValueTask<PlatformResult> SetTextAsync(string text, CancellationToken cancellationToken)
+    {
+        if (BlockWrites) await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+        if (FailWrites) return PlatformResult.Failure("clipboard_failed", "test");
+        Formats = new Dictionary<string, byte[]>(StringComparer.Ordinal)
+            { ["text/plain;charset=utf-8"] = System.Text.Encoding.UTF8.GetBytes(text) };
+        return PlatformResult.Success();
+    }
+    private static Dictionary<string, byte[]> Clone(IReadOnlyDictionary<string, byte[]> source) =>
+        source.ToDictionary(pair => pair.Key, pair => pair.Value.ToArray(), StringComparer.Ordinal);
+}
+
+sealed class FakeSecureFieldGuard(SecureFieldState state) : ISecureFieldGuard
+{
+    public bool IsAvailable => true;
+    public ValueTask<SecureFieldState> GetFocusedFieldStateAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return ValueTask.FromResult(state);
+    }
+}
+
+sealed class FakeTargetService(params TargetFocusState[] states) : ICapturedTargetService
+{
+    private readonly Queue<TargetFocusState> _states = new(states);
+    public bool CanRestoreFocus => true;
+    public PlatformResult<CapturedTarget?> Capture() =>
+        PlatformResult<CapturedTarget?>.Success(new CapturedTarget("opaque-test-target"));
+    public ValueTask<TargetFocusState> ValidateAndFocusAsync(CapturedTarget target, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return ValueTask.FromResult(_states.TryDequeue(out var state) ? state : TargetFocusState.Ready);
     }
 }
 
@@ -451,5 +608,15 @@ static class Assert
     public static void Success(PlatformResult result)
     {
         if (result.IsFailure) throw new InvalidOperationException($"{result.Error!.Code}: {result.Error.Message}");
+    }
+    public static void SequenceEqual(byte[] expected, byte[] actual)
+    {
+        if (!expected.AsSpan().SequenceEqual(actual)) throw new InvalidOperationException("Byte sequences differ.");
+    }
+    public static async Task ThrowsAsync<T>(Func<Task> action) where T : Exception
+    {
+        try { await action(); }
+        catch (T) { return; }
+        throw new InvalidOperationException($"Expected {typeof(T).Name}.");
     }
 }
