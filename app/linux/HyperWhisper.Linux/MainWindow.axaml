@@ -26,7 +26,8 @@
 
         <Border Grid.Row="2" Padding="10" CornerRadius="8"
                 Background="{DynamicResource ControlFillColorDefaultBrush}">
-          <TextBlock Text="X11 / XWayland desktop head" FontSize="12" Opacity="0.7" />
+          <TextBlock x:Name="PlatformStatusText" Text="Connecting Linux platform…"
+                     FontSize="12" TextWrapping="Wrap" Opacity="0.7" />
         </Border>
       </Grid>
     </Border>

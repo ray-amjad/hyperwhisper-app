@@ -6,6 +6,8 @@ namespace HyperWhisper.Linux;
 
 public partial class MainWindow : Window
 {
+    private readonly LinuxDesktopServices _platformServices;
+
     private static readonly IReadOnlyDictionary<string, (string Heading, string Description)> Pages =
         new Dictionary<string, (string, string)>(StringComparer.Ordinal)
         {
@@ -16,7 +18,18 @@ public partial class MainWindow : Window
             ["settings"] = ("Settings", "Hotkeys, audio, models, privacy, local API, and desktop integration are configured here."),
         };
 
-    public MainWindow() => InitializeComponent();
+    public MainWindow()
+        : this(new LinuxDesktopServices())
+    {
+        Closed += (_, _) => _platformServices.Dispose();
+    }
+
+    internal MainWindow(LinuxDesktopServices platformServices)
+    {
+        _platformServices = platformServices ?? throw new ArgumentNullException(nameof(platformServices));
+        InitializeComponent();
+        PlatformStatusText.Text = $"Linux platform ready · {_platformServices.Paths.DataDirectory}";
+    }
 
     private void OnNavigationChanged(object? sender, SelectionChangedEventArgs e)
     {
@@ -50,6 +63,13 @@ public partial class MainWindow : Window
             if (Bounds.Width <= 0 || Bounds.Height <= 0 || !IsVisible)
             {
                 return 2;
+            }
+
+            if (!Path.IsPathFullyQualified(_platformServices.Paths.DataDirectory)
+                || _platformServices.PrivateFiles is null
+                || _platformServices.GlobalShortcuts is null)
+            {
+                return 4;
             }
 
             foreach (var pageId in Pages.Keys)

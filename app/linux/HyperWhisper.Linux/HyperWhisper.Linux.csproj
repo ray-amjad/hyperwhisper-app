@@ -26,6 +26,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../../shared-dotnet/HyperWhisper.Platform.Abstractions/HyperWhisper.Platform.Abstractions.csproj" />
+    <ProjectReference Include="../HyperWhisper.Linux.Platform/HyperWhisper.Linux.Platform.csproj" />
   </ItemGroup>
 
   <ItemGroup Condition="('$(RuntimeIdentifier)' == '' Or '$(RuntimeIdentifier)' == 'linux-x64') And Exists('Resources/rust-core/linux-x64/libhyperwhisper_core.so')">
