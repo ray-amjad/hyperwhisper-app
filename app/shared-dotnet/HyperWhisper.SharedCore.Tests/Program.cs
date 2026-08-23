@@ -40,6 +40,10 @@ var tests = new (string Name, Func<Task> Run)[]
     ("retry policy retries transient responses deterministically", TestRetryAsync),
     ("unauthorized responses are classified without leaking provider bodies", TestUnauthorizedAsync),
     ("cancellation stops in-flight HTTP and returns structured cancellation", TestCancellationAsync),
+    ("live strategies construct and parse all five provider protocols", TestLiveProvidersAsync),
+    ("live diagnostics redact credentials audio and transcript text", TestLiveDiagnosticsRedactionAsync),
+    ("live provider failures and buffer limits are structured", TestLiveFailureAndBoundsAsync),
+    ("live cancellation stops transport deterministically", TestLiveCancellationAsync),
 };
 
 var failures = 0;
@@ -284,6 +288,196 @@ static async Task TestCancellationAsync()
     }
 }
 
+static async Task TestLiveProvidersAsync()
+{
+    var cases = new[]
+    {
+        new LiveCase(
+            new LiveTranscriptionConfig(LiveTranscriptionProvider.Deepgram, ApiKey: "dg-secret", Language: "en", Vocabulary: ["Codex"]),
+            "api.deepgram.com",
+            [
+                TextFrame("{\"type\":\"Metadata\",\"request_id\":\"r1\"}"),
+                TextFrame("{\"type\":\"Results\",\"is_final\":false,\"channel\":{\"alternatives\":[{\"transcript\":\"deep partial\"}]}}"),
+                TextFrame("{\"type\":\"Results\",\"is_final\":true,\"channel\":{\"alternatives\":[{\"transcript\":\"deep final\"}]}}"),
+                CloseFrame(),
+            ],
+            "deep final"),
+        new LiveCase(
+            new LiveTranscriptionConfig(LiveTranscriptionProvider.ElevenLabs, ApiKey: "el-secret", Language: "en-US"),
+            "api.elevenlabs.io",
+            [
+                TextFrame("{\"message_type\":\"session_started\"}"),
+                TextFrame("{\"message_type\":\"partial_transcript\",\"text\":\"eleven partial\"}"),
+                TextFrame("{\"message_type\":\"committed_transcript\",\"text\":\"eleven final\"}"),
+                CloseFrame(),
+            ],
+            "eleven final"),
+        new LiveCase(
+            new LiveTranscriptionConfig(LiveTranscriptionProvider.OpenAi, ApiKey: "oa-secret", Language: "en"),
+            "api.openai.com",
+            [
+                TextFrame("{\"type\":\"session.updated\",\"session\":{\"id\":\"s1\"}}"),
+                TextFrame("{\"type\":\"conversation.item.input_audio_transcription.delta\",\"item_id\":\"i1\",\"delta\":\"open partial\"}"),
+                TextFrame("{\"type\":\"conversation.item.input_audio_transcription.completed\",\"item_id\":\"i1\",\"transcript\":\"open final\"}"),
+                CloseFrame(),
+            ],
+            "open final",
+            4800),
+        new LiveCase(
+            new LiveTranscriptionConfig(LiveTranscriptionProvider.Grok, ApiKey: "xai-secret", Language: "en", Vocabulary: ["Codex"]),
+            "api.x.ai",
+            [
+                TextFrame("{\"type\":\"transcript.created\"}"),
+                TextFrame("{\"type\":\"transcript.partial\",\"text\":\"grok partial\",\"is_final\":false}"),
+                TextFrame("{\"type\":\"transcript.partial\",\"text\":\"grok final\",\"is_final\":true}"),
+                TextFrame("{\"type\":\"transcript.done\",\"text\":\"grok final\"}"),
+                CloseFrame(),
+            ],
+            "grok final"),
+        new LiveCase(
+            new LiveTranscriptionConfig(LiveTranscriptionProvider.HyperWhisperCloud, LicenseKey: "hw-secret", Language: "en", Vocabulary: ["Codex"]),
+            "transcribe-prod-v2.hyperwhisper.com",
+            [
+                TextFrame("{\"type\":\"ready\",\"sessionId\":\"s1\"}"),
+                TextFrame("{\"type\":\"transcript\",\"text\":\"cloud partial\",\"is_final\":false}"),
+                TextFrame("{\"type\":\"transcript\",\"text\":\"cloud final\",\"is_final\":true}"),
+                TextFrame("{\"type\":\"session_complete\"}"),
+                CloseFrame(),
+            ],
+            "cloud final"),
+    };
+
+    foreach (var value in cases)
+    {
+        var socket = new FakeStreamingWebSocket(value.Frames);
+        var sink = new LiveSink();
+        var service = new LiveCloudTranscriptionService(new FakeWebSocketFactory(socket), sink);
+        var result = await service.TranscribeAsync(value.Config, Audio(value.AudioBytes));
+        Assert.True(result.IsSuccess);
+        Assert.Equal(value.Expected, result.Transcript);
+        Assert.Equal(1, result.AudioChunksSent);
+        Assert.Equal(value.Host, socket.Options!.Uri.Host);
+        Assert.True(socket.Sent.Count > 0);
+        Assert.True(sink.Updates.Any(update => update.IsFinal && update.Text == value.Expected));
+    }
+}
+
+static async Task TestLiveDiagnosticsRedactionAsync()
+{
+    const string secret = "live-super-secret";
+    const string transcript = "private dictated phrase";
+    var socket = new FakeStreamingWebSocket(
+    [
+        TextFrame("{\"message_type\":\"session_started\"}"),
+        TextFrame($"{{\"message_type\":\"committed_transcript\",\"text\":\"{transcript}\"}}"),
+        CloseFrame(),
+    ]);
+    var diagnostics = new LiveDiagnostics();
+    var service = new LiveCloudTranscriptionService(new FakeWebSocketFactory(socket), diagnostics: diagnostics);
+    var result = await service.TranscribeAsync(
+        new LiveTranscriptionConfig(LiveTranscriptionProvider.ElevenLabs, ApiKey: secret),
+        Audio(320));
+    Assert.True(result.IsSuccess);
+    var rendered = string.Join("\n", diagnostics.Values.Select(value => value.ToString()));
+    Assert.DoesNotContain(secret, rendered);
+    Assert.DoesNotContain(transcript, rendered);
+    Assert.DoesNotContain(Convert.ToBase64String(new byte[320]), rendered);
+    Assert.DoesNotContain(secret, new LiveTranscriptionConfig(
+        LiveTranscriptionProvider.ElevenLabs,
+        ApiKey: secret).ToString());
+    Assert.DoesNotContain(secret, socket.Options!.ToString());
+}
+
+static async Task TestLiveFailureAndBoundsAsync()
+{
+    Assert.Equal(24000, LiveCloudTranscriptionService.GetRequiredSampleRate(LiveTranscriptionProvider.OpenAi));
+    Assert.Equal(16000, LiveCloudTranscriptionService.GetRequiredSampleRate(LiveTranscriptionProvider.Deepgram));
+
+    var providerError = new FakeStreamingWebSocket(
+    [
+        TextFrame("{\"message_type\":\"auth_error\"}"),
+        CloseFrame(),
+    ]);
+    var errorService = new LiveCloudTranscriptionService(new FakeWebSocketFactory(providerError));
+    var error = await errorService.TranscribeAsync(
+        new LiveTranscriptionConfig(LiveTranscriptionProvider.ElevenLabs, ApiKey: "bad"),
+        Audio(320));
+    Assert.Equal(LiveTranscriptionFailureCode.Unauthorized, error.Failure!.Code);
+
+    var oversized = new FakeStreamingWebSocket([]);
+    var boundService = new LiveCloudTranscriptionService(new FakeWebSocketFactory(oversized));
+    var bound = await boundService.TranscribeAsync(
+        new LiveTranscriptionConfig(LiveTranscriptionProvider.Deepgram, ApiKey: "key"),
+        Audio(256 * 1024 + 1));
+    Assert.Equal(LiveTranscriptionFailureCode.BufferLimit, bound.Failure!.Code);
+    Assert.Equal(0, bound.AudioChunksSent);
+
+    var oddPcm = new FakeStreamingWebSocket([]);
+    var oddPcmService = new LiveCloudTranscriptionService(new FakeWebSocketFactory(oddPcm));
+    var odd = await oddPcmService.TranscribeAsync(
+        new LiveTranscriptionConfig(LiveTranscriptionProvider.Deepgram, ApiKey: "key"),
+        Audio(3));
+    Assert.Equal(LiveTranscriptionFailureCode.InvalidRequest, odd.Failure!.Code);
+    Assert.Equal(0, odd.AudioChunksSent);
+
+    var inboundOversized = new FakeStreamingWebSocket(
+    [
+        new StreamingWebSocketFrame(
+            new byte[1024 * 1024 + 1],
+            System.Net.WebSockets.WebSocketMessageType.Text),
+    ]);
+    var inboundService = new LiveCloudTranscriptionService(new FakeWebSocketFactory(inboundOversized));
+    var inbound = await inboundService.TranscribeAsync(
+        new LiveTranscriptionConfig(LiveTranscriptionProvider.Deepgram, ApiKey: "key"),
+        Audio(320));
+    Assert.Equal(LiveTranscriptionFailureCode.BufferLimit, inbound.Failure!.Code);
+
+    var terminalClose = new FakeStreamingWebSocket(
+    [
+        new StreamingWebSocketFrame(
+            [],
+            System.Net.WebSockets.WebSocketMessageType.Close,
+            CloseStatus: System.Net.WebSockets.WebSocketCloseStatus.PolicyViolation),
+    ]);
+    var terminalService = new LiveCloudTranscriptionService(new FakeWebSocketFactory(terminalClose));
+    var terminal = await terminalService.TranscribeAsync(
+        new LiveTranscriptionConfig(LiveTranscriptionProvider.Deepgram, ApiKey: "key"),
+        Audio(320));
+    Assert.Equal(LiveTranscriptionFailureCode.Protocol, terminal.Failure!.Code);
+    Assert.Equal(1008, terminal.Failure.CloseStatus);
+}
+
+static async Task TestLiveCancellationAsync()
+{
+    var socket = new FakeStreamingWebSocket([]);
+    var service = new LiveCloudTranscriptionService(new FakeWebSocketFactory(socket));
+    using var source = new CancellationTokenSource(TimeSpan.FromMilliseconds(20));
+    var result = await service.TranscribeAsync(
+        new LiveTranscriptionConfig(LiveTranscriptionProvider.Deepgram, ApiKey: "key"),
+        BlockingAudio(source.Token),
+        source.Token);
+    Assert.Equal(LiveTranscriptionFailureCode.Cancelled, result.Failure!.Code);
+}
+
+static async IAsyncEnumerable<ReadOnlyMemory<byte>> Audio(int byteCount)
+{
+    await Task.CompletedTask;
+    yield return new byte[byteCount];
+}
+
+static async IAsyncEnumerable<ReadOnlyMemory<byte>> BlockingAudio(
+    [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
+{
+    await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+    yield break;
+}
+
+static StreamingWebSocketFrame TextFrame(string value) =>
+    new(Encoding.UTF8.GetBytes(value), System.Net.WebSockets.WebSocketMessageType.Text);
+
+static StreamingWebSocketFrame CloseFrame() =>
+    new([], System.Net.WebSockets.WebSocketMessageType.Close, CloseStatus: System.Net.WebSockets.WebSocketCloseStatus.NormalClosure);
+
 static string TempAudio(string content = "RIFF-test-audio")
 {
     var path = Path.Combine(Path.GetTempPath(), $"hyperwhisper-shared-{Guid.NewGuid():N}.wav");
@@ -316,6 +510,13 @@ sealed record MultiStepCase(
     IReadOnlyList<HttpResponseMessage> Responses,
     string Expected,
     int ExpectedAttempts);
+
+sealed record LiveCase(
+    LiveTranscriptionConfig Config,
+    string Host,
+    IReadOnlyList<StreamingWebSocketFrame> Frames,
+    string Expected,
+    int AudioBytes = 320);
 
 sealed class StaticCredentials(string apiKey = "test-api-key") : ICloudCredentialSource
 {
@@ -395,6 +596,68 @@ sealed class QueueHandler(IEnumerable<HttpResponseMessage> responses) : HttpMess
         }
         return Task.FromResult(_responses.Dequeue());
     }
+}
+
+sealed class FakeWebSocketFactory(FakeStreamingWebSocket socket) : IStreamingWebSocketFactory
+{
+    public IStreamingWebSocket Create() => socket;
+}
+
+sealed class FakeStreamingWebSocket(IEnumerable<StreamingWebSocketFrame> frames) : IStreamingWebSocket
+{
+    private readonly Queue<StreamingWebSocketFrame> _frames = new(frames);
+    public StreamingWebSocketConnectOptions? Options { get; private set; }
+    public List<(byte[] Data, System.Net.WebSockets.WebSocketMessageType Type)> Sent { get; } = [];
+
+    public Task ConnectAsync(StreamingWebSocketConnectOptions options, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        Options = options;
+        return Task.CompletedTask;
+    }
+
+    public Task SendAsync(
+        ReadOnlyMemory<byte> data,
+        System.Net.WebSockets.WebSocketMessageType messageType,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        Sent.Add((data.ToArray(), messageType));
+        return Task.CompletedTask;
+    }
+
+    public async Task<StreamingWebSocketFrame> ReceiveAsync(CancellationToken cancellationToken)
+    {
+        if (_frames.Count > 0)
+        {
+            await Task.Yield();
+            return _frames.Dequeue();
+        }
+        await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+        throw new InvalidOperationException("Unreachable.");
+    }
+
+    public Task CloseAsync(
+        System.Net.WebSockets.WebSocketCloseStatus status,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.CompletedTask;
+    }
+
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+}
+
+sealed class LiveSink : ILiveTranscriptSink
+{
+    public List<LiveTranscriptUpdate> Updates { get; } = [];
+    public void OnTranscript(LiveTranscriptUpdate update) => Updates.Add(update);
+}
+
+sealed class LiveDiagnostics : ILiveTranscriptionDiagnostics
+{
+    public List<LiveTranscriptionDiagnostic> Values { get; } = [];
+    public void OnDiagnostic(LiveTranscriptionDiagnostic diagnostic) => Values.Add(diagnostic);
 }
 
 static class Assert
