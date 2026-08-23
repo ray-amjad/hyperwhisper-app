@@ -18,6 +18,9 @@ var tests = new (string Name, Func<Task> Run)[]
     ("route parity", RouteParity),
     ("bearer auth and public health", Auth),
     ("bounded multipart transcription", Multipart),
+    ("Windows JSON transcription contract", JsonTranscriptionContract),
+    ("Windows JSON file source is private and bounded", JsonFileSecurity),
+    ("Windows post-process application context contract", PostProcessContextContract),
     ("path traversal rejected", Traversal),
     ("request cancellation propagates", Cancellation),
     ("health reports actual bound port", HealthReportsBoundPort),
@@ -75,6 +78,109 @@ static async Task Multipart()
     large.Add(new ByteArrayContent([1, 2, 3, 4, 5]), "audio", "clip.wav");
     Assert((await fixture.Client.PostAsync("/transcribe", large)).StatusCode == HttpStatusCode.RequestEntityTooLarge, "large upload accepted");
 }
+
+static async Task JsonTranscriptionContract()
+{
+    await using var fixture = await Fixture.Create();
+    fixture.Authenticate();
+    const string body = """
+    {
+      "audio_base64":"AQIDBA==",
+      "mime_type":"audio/wav",
+      "engine":"whisperLocal",
+      "model":"base",
+      "language":"en",
+      "applicationContext":{
+        "processName":"code",
+        "windowTitle":"Contract test",
+        "category":"Code Editor",
+        "browserTabTitle":null,
+        "browserHost":null,
+        "focusedElementType":"text",
+        "focusedContent":"bounded context",
+        "textFormat":"code",
+        "appType":"code",
+        "appTypeConfidence":"strong",
+        "appTypeSource":"localApi",
+        "screenOCRText":"visible words"
+      }
+    }
+    """;
+    using var response = await fixture.Client.PostAsync("/transcribe", new StringContent(body, Encoding.UTF8, "application/json"));
+    Assert(response.StatusCode == HttpStatusCode.OK, "Windows JSON transcription request failed");
+    using var json = JsonDocument.Parse(await response.Content.ReadAsStreamAsync());
+    var root = json.RootElement;
+    string[] exact = ["ok", "text", "engine", "model", "language", "timings", "latency_ms"];
+    Assert(root.EnumerateObject().Select(item => item.Name).Order().SequenceEqual(exact.Order()), "transcription response drifted from Windows shape");
+    Assert(root.GetProperty("text").GetString() == "hello" && !root.TryGetProperty("result", out _), "legacy nested response leaked into Windows contract");
+    Assert(root.GetProperty("timings").GetProperty("load_ms").GetInt32() == 1, "Windows timing fields changed");
+    Assert(fixture.Backend.Upload?.Content.Span.SequenceEqual(new byte[] { 1, 2, 3, 4 }) == true, "base64 audio bytes changed");
+    Assert(fixture.Backend.Upload?.Engine == "whisperLocal" && fixture.Backend.Upload.Model == "base", "engine/model overrides were lost");
+    var context = fixture.Backend.Upload?.ApplicationContext?.ToSnapshot();
+    Assert(context?.ProcessName == "code" && context.ScreenOcrText == "visible words", "applicationContext was not propagated");
+
+    using var both = new StringContent("""{"file":"/tmp/a.wav","audio_base64":"AQ==","engine":"whisper","model":"base"}""", Encoding.UTF8, "application/json");
+    Assert((await fixture.Client.PostAsync("/transcribe", both)).StatusCode == HttpStatusCode.BadRequest, "file plus base64 was accepted");
+    using var missingEngine = new StringContent("""{"audio_base64":"AQ=="}""", Encoding.UTF8, "application/json");
+    Assert((await fixture.Client.PostAsync("/transcribe", missingEngine)).StatusCode == HttpStatusCode.BadRequest, "request without mode_id/engine was accepted");
+    using var invalid = new StringContent("""{"audio_base64":"%%%","engine":"whisper","model":"base"}""", Encoding.UTF8, "application/json");
+    Assert((await fixture.Client.PostAsync("/transcribe", invalid)).StatusCode == HttpStatusCode.BadRequest, "invalid base64 was accepted");
+    var tooManyBytes = Convert.ToBase64String(new byte[1025]);
+    using var oversized = JsonContent($$"""{"audio_base64":{{JsonSerializer.Serialize(tooManyBytes)}},"engine":"whisper","model":"base"}""");
+    Assert((await fixture.Client.PostAsync("/transcribe", oversized)).StatusCode == HttpStatusCode.RequestEntityTooLarge,
+        "oversized base64 audio was accepted");
+}
+
+static async Task JsonFileSecurity()
+{
+    await using var fixture = await Fixture.Create(maxUpload: 4);
+    fixture.Authenticate();
+    var allowed = Path.Combine(fixture.AllowedRoot, "clip.wav");
+    await File.WriteAllBytesAsync(allowed, [1, 2, 3, 4]);
+    using var valid = JsonContent($$"""{"file":{{JsonSerializer.Serialize(allowed)}},"engine":"whisper","model":"base"}""");
+    Assert((await fixture.Client.PostAsync("/transcribe", valid)).StatusCode == HttpStatusCode.OK, "allowed private file failed");
+    Assert(fixture.Backend.Upload?.Content.Span.SequenceEqual(new byte[] { 1, 2, 3, 4 }) == true, "allowed file bytes changed");
+
+    var outside = Path.Combine(Path.GetTempPath(), $"hyperwhisper-outside-{Guid.NewGuid():N}.wav");
+    await File.WriteAllBytesAsync(outside, [1]);
+    try
+    {
+        using var external = JsonContent($$"""{"file":{{JsonSerializer.Serialize(outside)}},"engine":"whisper","model":"base"}""");
+        var externalResponse = await fixture.Client.PostAsync("/transcribe", external);
+        Assert(externalResponse.StatusCode == HttpStatusCode.BadRequest && await HasFailureEnvelope(externalResponse), "outside file was accepted or leaked details");
+        using var relative = JsonContent("""{"file":"../secret.wav","engine":"whisper","model":"base"}""");
+        Assert((await fixture.Client.PostAsync("/transcribe", relative)).StatusCode == HttpStatusCode.BadRequest, "relative traversal was accepted");
+        await File.WriteAllBytesAsync(allowed, [1, 2, 3, 4, 5]);
+        using var large = JsonContent($$"""{"file":{{JsonSerializer.Serialize(allowed)}},"engine":"whisper","model":"base"}""");
+        Assert((await fixture.Client.PostAsync("/transcribe", large)).StatusCode == HttpStatusCode.RequestEntityTooLarge, "oversized file was accepted");
+        if (!OperatingSystem.IsWindows())
+        {
+            var link = Path.Combine(fixture.AllowedRoot, "link.wav");
+            File.CreateSymbolicLink(link, outside);
+            using var symlink = JsonContent($$"""{"file":{{JsonSerializer.Serialize(link)}},"engine":"whisper","model":"base"}""");
+            Assert((await fixture.Client.PostAsync("/transcribe", symlink)).StatusCode == HttpStatusCode.BadRequest, "symlink escape was accepted");
+        }
+    }
+    finally { File.Delete(outside); }
+}
+
+static async Task PostProcessContextContract()
+{
+    await using var fixture = await Fixture.Create();
+    fixture.Authenticate();
+    const string body = """
+    {"text":"raw words","preset":"hyper","provider":"openai","model":"gpt-test",
+     "applicationContext":{"processName":"terminal","appType":"terminal","screenOCRText":"prompt context"}}
+    """;
+    using var response = await fixture.Client.PostAsync("/post-process", new StringContent(body, Encoding.UTF8, "application/json"));
+    Assert(response.StatusCode == HttpStatusCode.OK, "Windows post-process request failed");
+    using var json = JsonDocument.Parse(await response.Content.ReadAsStreamAsync());
+    string[] exact = ["ok", "text", "provider", "model", "preset", "latency_ms"];
+    Assert(json.RootElement.EnumerateObject().Select(item => item.Name).Order().SequenceEqual(exact.Order()), "post-process response drifted from Windows shape");
+    Assert(fixture.Backend.PostProcess?.ApplicationContext?.ToSnapshot().AppType == "terminal", "post-process applicationContext was lost");
+}
+
+static StringContent JsonContent(string json) => new(json, Encoding.UTF8, "application/json");
 
 static async Task Traversal()
 {
@@ -296,7 +402,8 @@ static async Task ApplicationBackendModeRouting()
     var defaultMode = new HyperWhisper.Data.Entities.Mode
     {
         Name = "Default cloud", IsDefault = true, SortOrder = 1, ProviderType = "cloud",
-        CloudProvider = "groq", Language = "fr",
+        CloudProvider = "groq", Language = "fr", PostProcessingMode = 1,
+        PostProcessingProvider = "openai",
     };
     var selectedMode = new HyperWhisper.Data.Entities.Mode
     {
@@ -316,12 +423,22 @@ static async Task ApplicationBackendModeRouting()
     var defaultResult = await backend.TranscribeAsync(new AudioUpload("default.wav", "audio/wav", new byte[] { 1 }, null, null, null, null), CancellationToken.None);
     Assert(transcriber.Request?.ModeId == defaultMode.Id && transcriber.Request.SelectedMode?.Name == "Default cloud", "omitted mode_id did not select the persisted default");
     Assert(transcriber.Request!.Language == "fr", "default mode language was not used");
+    Assert(transcriber.Request.SelectedMode?.PostProcessingMode == 0, "/transcribe applied the saved mode's post-processing");
     Assert(defaultResult.Language == "fr", "response did not report the resolved default-mode language");
+    Assert(defaultResult.Engine == "groq", "response did not use the Windows cloud engine label");
     Assert(transcriber.Request.Vocabulary?.SequenceEqual(["Ray", "HyperWhisper"]) == true, "global vocabulary was not propagated to uploaded transcription");
 
     _ = await backend.TranscribeAsync(new AudioUpload("selected.wav", "audio/wav", new byte[] { 2 }, selectedMode.Id.ToString("D"), null, null, "de"), CancellationToken.None);
     Assert(transcriber.Request?.ModeId == selectedMode.Id && transcriber.Request.SelectedMode?.Name == "Selected local", "explicit mode_id did not select the exact persisted mode");
     Assert(transcriber.Request!.Language == "de", "explicit language did not override mode language");
+    var apiContext = new LocalApiApplicationContext("terminal", "Shell", null, null, null, null, null,
+        "command", "terminal", "strong", "localApi", null);
+    _ = await backend.TranscribeAsync(new AudioUpload(
+        "transient.wav", "audio/wav", new byte[] { 2 }, null,
+        "parakeet", "parakeet-v3", "ja", apiContext), CancellationToken.None);
+    Assert(transcriber.Request?.SelectedMode is { ProviderType: "local", LocalEngine: "parakeet", LocalParakeetModel: "parakeet-v3" },
+        "engine/model did not construct a transient Windows-compatible mode");
+    Assert(transcriber.Request?.ApplicationContext?.AppType == "terminal", "transcription applicationContext did not reach the workflow");
     var stagedBeforeInvalid = Directory.EnumerateFiles(paths.RecordingsDirectory, "local-api-*").Count();
     await AssertThrowsAsync<ArgumentException>(() => backend.TranscribeAsync(new AudioUpload("bad.wav", "audio/wav", new byte[] { 3 }, Guid.NewGuid().ToString("D"), null, null, null), CancellationToken.None).AsTask());
     Assert(Directory.EnumerateFiles(paths.RecordingsDirectory, "local-api-*").Count() == stagedBeforeInvalid, "invalid mode retained an orphaned upload");
@@ -446,21 +563,25 @@ sealed class Fixture : IAsyncDisposable
     public required Microsoft.AspNetCore.Builder.WebApplication App { get; init; }
     public required HttpClient Client { get; init; }
     public required FakeBackend Backend { get; init; }
+    public required string AllowedRoot { get; init; }
     public void Authenticate() => Client.DefaultRequestHeaders.Authorization = new("Bearer", Token);
     public static async Task<Fixture> Create(int maxUpload = 1024, ILocalApiBackend? backend = null)
     {
         backend ??= new FakeBackend();
-        var options = new PortableLocalApiOptions(Token, 0, 4096, maxUpload);
+        var allowedRoot = Path.Combine(Path.GetTempPath(), $"hyperwhisper-local-api-files-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(allowedRoot);
+        var options = new PortableLocalApiOptions(Token, 0, 4096, maxUpload, AllowedFileRoots: [allowedRoot]);
         var app = PortableLocalApi.Build([], options, backend, builder => builder.WebHost.UseTestServer());
         await app.StartAsync();
-        return new() { App = app, Client = app.GetTestClient(), Backend = backend as FakeBackend ?? new FakeBackend() };
+        return new() { App = app, Client = app.GetTestClient(), Backend = backend as FakeBackend ?? new FakeBackend(), AllowedRoot = allowedRoot };
     }
-    public async ValueTask DisposeAsync() { Client.Dispose(); await App.DisposeAsync(); }
+    public async ValueTask DisposeAsync() { Client.Dispose(); await App.DisposeAsync(); if (Directory.Exists(AllowedRoot)) Directory.Delete(AllowedRoot, true); }
 }
 
 sealed class FakeBackend : ILocalApiBackend
 {
     public AudioUpload? Upload { get; private set; }
+    public PostProcessRequest? PostProcess { get; private set; }
     public bool BlockTranscription { get; init; }
     public TaskCompletionSource CancellationObserved { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
     public ValueTask<HealthSnapshot> GetHealthAsync(CancellationToken ct) => ValueTask.FromResult(new HealthSnapshot("1.0", [], [], new { }));
@@ -481,7 +602,8 @@ sealed class FakeBackend : ILocalApiBackend
         }
         return new("hello", "fake", "fake", "en", 1, 1, 2);
     }
-    public ValueTask<PostProcessResult> PostProcessAsync(PostProcessRequest request, CancellationToken ct) => ValueTask.FromResult(new PostProcessResult(request.Text, "fake", "fake", "hyper", 1));
+    public ValueTask<PostProcessResult> PostProcessAsync(PostProcessRequest request, CancellationToken ct)
+    { PostProcess = request; return ValueTask.FromResult(new PostProcessResult(request.Text, "fake", "fake", "hyper", 1)); }
     public ValueTask<IReadOnlyList<RecordingEntry>> GetRecordingsAsync(RecordingQuery query, CancellationToken ct) => ValueTask.FromResult<IReadOnlyList<RecordingEntry>>([]);
     public ValueTask<RecordingEntry?> GetRecordingAsync(string id, CancellationToken ct) => ValueTask.FromResult<RecordingEntry?>(null);
 }

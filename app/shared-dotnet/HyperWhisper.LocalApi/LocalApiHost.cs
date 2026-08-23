@@ -44,6 +44,7 @@ public sealed class PortableLocalApiHost : IAsyncDisposable
     private readonly int _preferredPort;
     private readonly long _maxRequestBytes;
     private readonly int _maxUploadBytes;
+    private readonly string[] _allowedFileRoots;
     private readonly Func<int, string, CancellationToken, Task<Microsoft.AspNetCore.Builder.WebApplication>> _startApplication;
     private Microsoft.AspNetCore.Builder.WebApplication? _application;
     private LocalApiHostState _state = LocalApiHostState.Stopped;
@@ -69,6 +70,7 @@ public sealed class PortableLocalApiHost : IAsyncDisposable
         _preferredPort = preferredPort;
         _maxRequestBytes = maxRequestBytes;
         _maxUploadBytes = maxUploadBytes;
+        _allowedFileRoots = [paths.RecordingsDirectory, paths.TemporaryDirectory];
         _startApplication = applicationStarter ?? StartOnPortAsync;
         _tokenPath = Path.Combine(paths.DataDirectory, "local-api-token");
         _discoveryPath = Path.Combine(paths.DataDirectory, "local-api.json");
@@ -187,7 +189,9 @@ public sealed class PortableLocalApiHost : IAsyncDisposable
 
     private async Task<Microsoft.AspNetCore.Builder.WebApplication> StartOnPortAsync(int port, string token, CancellationToken cancellationToken)
     {
-        var options = new PortableLocalApiOptions(token, port, _maxRequestBytes, _maxUploadBytes);
+        var options = new PortableLocalApiOptions(
+            token, port, _maxRequestBytes, _maxUploadBytes,
+            AllowedFileRoots: _allowedFileRoots);
         var application = PortableLocalApi.Build([], options, _backend);
         try
         {

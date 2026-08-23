@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
@@ -16,7 +17,8 @@ public sealed record PortableLocalApiOptions(
     int Port = 51671,
     long MaxRequestBytes = 52_428_800,
     int MaxUploadBytes = 50_331_648,
-    int MaxTextCharacters = 131_072)
+    int MaxTextCharacters = 131_072,
+    IReadOnlyList<string>? AllowedFileRoots = null)
 {
     public void Validate()
     {
@@ -136,7 +138,15 @@ public static class PortableLocalApi
             if (string.IsNullOrWhiteSpace(request.Text) || request.Text.Length > options.MaxTextCharacters)
                 return Failure(400, LocalApiErrorCodes.InvalidRequest, "Post-processing text is empty or exceeds the configured limit.");
             var result = await b.PostProcessAsync(request, ct);
-            return Results.Ok(new { ok = true, result.Text, result.Provider, result.Model, result.Preset, latency_ms = result.LatencyMs });
+            return Results.Ok(new
+            {
+                ok = true,
+                text = result.Text,
+                provider = result.Provider,
+                model = result.Model,
+                preset = result.Preset,
+                latency_ms = result.LatencyMs,
+            });
         });
         app.MapPost("/transcribe", Transcribe);
         app.MapGet("/recordings", ListRecordings);
@@ -146,7 +156,8 @@ public static class PortableLocalApi
         async Task<IResult> Transcribe(HttpContext context, ILocalApiBackend backend, CancellationToken ct)
         {
             if (context.Request.ContentLength > options.MaxRequestBytes) return Failure(413, LocalApiErrorCodes.PayloadTooLarge, "Request exceeds the configured limit.");
-            if (!context.Request.HasFormContentType) return Failure(400, LocalApiErrorCodes.InvalidRequest, "multipart/form-data with one 'audio' file is required.");
+            if (!context.Request.HasFormContentType)
+                return await TranscribeJson(context, backend, ct).ConfigureAwait(false);
             try
             {
                 var form = await context.Request.ReadFormAsync(ct);
@@ -162,9 +173,62 @@ public static class PortableLocalApi
                 using var output = new MemoryStream((int)file.Length);
                 await input.CopyToAsync(output, ct);
                 var result = await backend.TranscribeAsync(new(name, file.ContentType, output.ToArray(), form["mode_id"], form["engine"], form["model"], form["language"]), ct);
-                return Results.Ok(new { ok = true, result.Text, result.Engine, result.Model, result.Language, timings = new { load_ms = result.LoadMs, decode_ms = result.DecodeMs }, latency_ms = result.LatencyMs });
+                return TranscriptionSuccess(result);
             }
             catch (InvalidDataException) { return Failure(413, LocalApiErrorCodes.PayloadTooLarge, "Request exceeds the configured limit."); }
+        }
+
+        async Task<IResult> TranscribeJson(HttpContext context, ILocalApiBackend backend, CancellationToken ct)
+        {
+            if (context.Request.ContentType is null
+                || !context.Request.ContentType.StartsWith("application/json", StringComparison.OrdinalIgnoreCase))
+                return Failure(400, LocalApiErrorCodes.InvalidRequest,
+                    "application/json with 'file' or 'audio_base64' is required.");
+            TranscribeJsonRequest? request;
+            try { request = await context.Request.ReadFromJsonAsync<TranscribeJsonRequest>(cancellationToken: ct); }
+            catch (JsonException) { return Failure(400, LocalApiErrorCodes.InvalidRequest, "The request body is invalid JSON."); }
+            if (request is null) return Failure(400, LocalApiErrorCodes.InvalidRequest, "The request body is required.");
+            if (string.IsNullOrWhiteSpace(request.ModeId)
+                && string.IsNullOrWhiteSpace(request.Engine)
+                && string.IsNullOrWhiteSpace(request.Provider))
+                return Failure(400, LocalApiErrorCodes.InvalidRequest, "Provide 'mode_id' or 'engine'.");
+            var hasFile = !string.IsNullOrWhiteSpace(request.File);
+            var hasBase64 = !string.IsNullOrWhiteSpace(request.AudioBase64);
+            if (hasFile == hasBase64)
+                return Failure(400, LocalApiErrorCodes.InvalidRequest, "Pass exactly one of 'file' or 'audio_base64'.");
+
+            byte[] content;
+            string fileName;
+            string contentType;
+            if (hasBase64)
+            {
+                var encoded = request.AudioBase64!.Trim();
+                if (encoded.Length > ((long)options.MaxUploadBytes + 2) / 3 * 4)
+                    return Failure(413, LocalApiErrorCodes.PayloadTooLarge, "Audio exceeds the configured upload limit.");
+                try { content = Convert.FromBase64String(encoded); }
+                catch (FormatException) { return Failure(400, LocalApiErrorCodes.InvalidRequest, "'audio_base64' is not valid base64."); }
+                if (content.Length == 0)
+                    return Failure(400, LocalApiErrorCodes.InvalidRequest, "Audio must not be empty.");
+                if (content.Length > options.MaxUploadBytes)
+                    return Failure(413, LocalApiErrorCodes.PayloadTooLarge, "Audio exceeds the configured upload limit.");
+                contentType = NormalizeMime(request.MimeType);
+                fileName = "local-api-upload" + ExtensionForMime(contentType);
+            }
+            else
+            {
+                var opened = await ReadAllowedFileAsync(request.File!, options, ct).ConfigureAwait(false);
+                if (opened.Error is not null) return opened.Error;
+                content = opened.Content!;
+                fileName = opened.FileName!;
+                contentType = string.IsNullOrWhiteSpace(request.MimeType)
+                    ? MimeForExtension(Path.GetExtension(fileName)) : NormalizeMime(request.MimeType);
+            }
+
+            var result = await backend.TranscribeAsync(new(
+                fileName, contentType, content, request.ModeId,
+                request.Engine ?? request.Provider, request.Model, request.Language,
+                request.ApplicationContext), ct).ConfigureAwait(false);
+            return TranscriptionSuccess(result);
         }
 
         async Task<IResult> ListRecordings(HttpContext context, ILocalApiBackend backend, CancellationToken ct)
@@ -185,7 +249,99 @@ public static class PortableLocalApi
             }
             catch (JsonException) { return null; }
         }
+
+        static IResult TranscriptionSuccess(TranscriptionResult result) => Results.Ok(new
+        {
+            ok = true,
+            text = result.Text,
+            engine = result.Engine,
+            model = result.Model,
+            language = result.Language,
+            timings = new { load_ms = result.LoadMs, decode_ms = result.DecodeMs },
+            latency_ms = result.LatencyMs,
+        });
     }
+
+    private sealed record TranscribeJsonRequest(
+        string? File,
+        [property: JsonPropertyName("audio_base64")] string? AudioBase64,
+        [property: JsonPropertyName("mime_type")] string? MimeType,
+        [property: JsonPropertyName("mode_id")] string? ModeId,
+        string? Engine,
+        string? Provider,
+        string? Model,
+        string? Language,
+        LocalApiApplicationContext? ApplicationContext);
+
+    private sealed record AllowedFileRead(byte[]? Content, string? FileName, IResult? Error);
+
+    private static async Task<AllowedFileRead> ReadAllowedFileAsync(
+        string requestedPath, PortableLocalApiOptions options, CancellationToken cancellationToken)
+    {
+        string path;
+        try { path = Path.GetFullPath(requestedPath.Trim()); }
+        catch (Exception exception) when (exception is ArgumentException or NotSupportedException or PathTooLongException)
+        { return new(null, null, Failure(400, LocalApiErrorCodes.InvalidRequest, "The 'file' field is not a valid path.")); }
+        if (!Path.IsPathFullyQualified(requestedPath.Trim()) || !IsAllowedPath(path, options.AllowedFileRoots))
+            return new(null, null, Failure(400, LocalApiErrorCodes.FileNotAllowed,
+                "The 'file' path is outside HyperWhisper's private audio folders."));
+        try
+        {
+            await using var input = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read,
+                81_920, FileOptions.Asynchronous | FileOptions.SequentialScan);
+            if (input.Length <= 0)
+                return new(null, null, Failure(400, LocalApiErrorCodes.InvalidRequest, "Audio must not be empty."));
+            if (input.Length > options.MaxUploadBytes)
+                return new(null, null, Failure(413, LocalApiErrorCodes.PayloadTooLarge, "Audio exceeds the configured upload limit."));
+            using var output = new MemoryStream((int)input.Length);
+            await input.CopyToAsync(output, cancellationToken).ConfigureAwait(false);
+            return new(output.ToArray(), Path.GetFileName(path), null);
+        }
+        catch (FileNotFoundException)
+        { return new(null, null, Failure(400, LocalApiErrorCodes.FileNotAllowed, "The 'file' path is unavailable.")); }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        { return new(null, null, Failure(400, LocalApiErrorCodes.FileNotAllowed, "The 'file' path is unavailable.")); }
+    }
+
+    private static bool IsAllowedPath(string path, IReadOnlyList<string>? roots)
+    {
+        if (roots is null || roots.Count == 0) return false;
+        try
+        {
+            foreach (var rawRoot in roots)
+            {
+                if (string.IsNullOrWhiteSpace(rawRoot)) continue;
+                var root = Path.GetFullPath(rawRoot);
+                var relative = Path.GetRelativePath(root, path);
+                if (relative == "." || relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal)
+                    || Path.IsPathFullyQualified(relative)) continue;
+                var cursor = root;
+                foreach (var component in relative.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries))
+                {
+                    cursor = Path.Combine(cursor, component);
+                    if (File.GetAttributes(cursor).HasFlag(FileAttributes.ReparsePoint)) return false;
+                }
+                return true;
+            }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
+            or ArgumentException or NotSupportedException or PathTooLongException) { return false; }
+        return false;
+    }
+
+    private static string NormalizeMime(string? value) => value?.Trim().ToLowerInvariant() switch
+    {
+        "audio/mpeg" or "audio/mp3" => "audio/mpeg",
+        "audio/mp4" or "audio/x-m4a" => "audio/mp4",
+        "audio/flac" or "audio/x-flac" => "audio/flac",
+        "audio/ogg" => "audio/ogg",
+        "audio/webm" => "audio/webm",
+        _ => "audio/wav",
+    };
+    private static string ExtensionForMime(string mime) => mime switch
+    { "audio/mpeg" => ".mp3", "audio/mp4" => ".m4a", "audio/flac" => ".flac", "audio/ogg" => ".ogg", "audio/webm" => ".webm", _ => ".wav" };
+    private static string MimeForExtension(string extension) => extension.ToLowerInvariant() switch
+    { ".mp3" => "audio/mpeg", ".m4a" => "audio/mp4", ".flac" => "audio/flac", ".ogg" => "audio/ogg", ".webm" => "audio/webm", _ => "audio/wav" };
 
     private static IResult Failure(int status, string code, string message) => Results.Json(new LocalApiFailure(new(code, message)), statusCode: status);
 }

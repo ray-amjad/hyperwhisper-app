@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using HyperWhisper.Platform.Abstractions;
 
 namespace HyperWhisper.LocalApi;
 
@@ -40,9 +41,63 @@ public sealed record RecordingEntry(
     string? AudioFilePath = null);
 public sealed record RecordingQuery(string? Search, DateTime? Since, DateTime? Until, int Limit);
 public sealed record RecordingState(bool IsRecording, string State);
-public sealed record AudioUpload(string FileName, string ContentType, ReadOnlyMemory<byte> Content, string? ModeId, string? Engine, string? Model, string? Language);
+public sealed record LocalApiApplicationContext(
+    string? ProcessName,
+    string? WindowTitle,
+    string? Category,
+    string? BrowserTabTitle,
+    string? BrowserHost,
+    string? FocusedElementType,
+    string? FocusedContent,
+    string? TextFormat,
+    string? AppType,
+    string? AppTypeConfidence,
+    string? AppTypeSource,
+    [property: JsonPropertyName("screenOCRText")] string? ScreenOcrText)
+{
+    public ApplicationContextSnapshot ToSnapshot() => new()
+    {
+        ProcessName = Bound(ProcessName, 512),
+        WindowTitle = Bound(WindowTitle, 2_000),
+        Category = Bound(Category, 256),
+        BrowserTabTitle = NullIfEmpty(Bound(BrowserTabTitle, 2_000)),
+        BrowserHost = NullIfEmpty(Bound(BrowserHost, 512)),
+        FocusedElementType = NullIfEmpty(Bound(FocusedElementType, 256)),
+        FocusedContent = NullIfEmpty(Bound(FocusedContent, 4_000)),
+        TextFormat = Bound(TextFormat, 128),
+        AppType = Bound(AppType, 128, "other"),
+        AppTypeConfidence = Bound(AppTypeConfidence, 32, "unknown"),
+        AppTypeSource = Bound(AppTypeSource, 64, "localApi"),
+        ScreenOcrText = NullIfEmpty(Bound(ScreenOcrText, 4_000)),
+    };
+
+    private static string Bound(string? value, int maximum, string fallback = "")
+    {
+        var normalized = value?.Trim() ?? string.Empty;
+        return normalized.Length == 0 ? fallback
+            : normalized.Length <= maximum ? normalized : normalized[..maximum];
+    }
+    private static string? NullIfEmpty(string value) => value.Length == 0 ? null : value;
+}
+
+public sealed record AudioUpload(
+    string FileName,
+    string ContentType,
+    ReadOnlyMemory<byte> Content,
+    string? ModeId,
+    string? Engine,
+    string? Model,
+    string? Language,
+    LocalApiApplicationContext? ApplicationContext = null);
 public sealed record TranscriptionResult(string Text, string Engine, string Model, string? Language, int LoadMs, int DecodeMs, int LatencyMs);
-public sealed record PostProcessRequest(string Text, [property: JsonPropertyName("mode_id")] string? ModeId, string? Preset, string? Prompt, string? Provider, string? Model);
+public sealed record PostProcessRequest(
+    string Text,
+    [property: JsonPropertyName("mode_id")] string? ModeId,
+    string? Preset,
+    string? Prompt,
+    string? Provider,
+    string? Model,
+    LocalApiApplicationContext? ApplicationContext = null);
 public sealed record PostProcessResult(string Text, string Provider, string Model, string Preset, int LatencyMs);
 
 public interface ILocalApiBackend

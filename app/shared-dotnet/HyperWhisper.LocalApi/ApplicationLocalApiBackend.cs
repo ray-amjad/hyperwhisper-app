@@ -207,16 +207,25 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
         var retainedByHistory = false;
         try
         {
-            var request = await BuildRequestAsync(upload.ModeId, upload.Language, cancellationToken).ConfigureAwait(false);
+            var request = await BuildRequestAsync(
+                upload.ModeId, upload.Language, cancellationToken,
+                upload.Engine, upload.Model, upload.ApplicationContext?.ToSnapshot()).ConfigureAwait(false);
             var mode = request.SelectedMode;
+            // Match the Windows Local API contract: /transcribe returns the
+            // transcription result and never runs a mode's post-processing.
+            // Callers that want enhancement use the separate /post-process route.
+            if (mode is not null) mode.PostProcessingMode = 0;
             var started = Stopwatch.GetTimestamp();
             var result = await _workflow.TranscribeFileAsync(path, request, cancellationToken).ConfigureAwait(false);
             if (!result.IsSuccess) throw new InvalidOperationException(result.Failure?.Message ?? "Transcription failed.");
             succeeded = true;
-            var model = mode?.ProviderType == "cloud"
-                ? mode.CloudTranscriptionModel
-                : mode?.LocalEngine == "parakeet" ? mode.LocalParakeetModel : mode?.ModelType ?? mode?.Model;
-            return new(result.Text!, result.Provider ?? "", model ?? "", request.Language, 0, 0, (int)Stopwatch.GetElapsedTime(started).TotalMilliseconds);
+            return new(
+                result.Text!,
+                EngineLabel(mode),
+                ModelLabel(mode),
+                string.Equals(request.Language, "auto", StringComparison.OrdinalIgnoreCase) ? null : request.Language,
+                0, 0,
+                (int)Stopwatch.GetElapsedTime(started).TotalMilliseconds);
         }
         catch
         {
@@ -268,7 +277,10 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
     private async Task<TranscriptionWorkflowRequest> BuildRequestAsync(
         string? requestedModeId,
         string? languageOverride,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? engineOverride = null,
+        string? modelOverride = null,
+        ApplicationContextSnapshot? applicationContext = null)
     {
         var modes = await _modes.ListAsync(cancellationToken).ConfigureAwait(false);
         Mode? mode;
@@ -279,12 +291,25 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
             mode = modes.SingleOrDefault(item => item.Id == parsed)
                 ?? throw new ArgumentException("The requested mode does not exist.", nameof(requestedModeId));
         }
-        else
+        else if (string.IsNullOrWhiteSpace(engineOverride))
         {
             mode = modes.SingleOrDefault(item => item.IsDefault);
             if (mode is null && modes.Count != 0)
                 throw new InvalidOperationException("No default transcription mode is configured.");
         }
+        else mode = new Mode
+        {
+            Name = "__local_api_transient__",
+            Language = "auto",
+            ProviderType = "local",
+            LocalEngine = "whisper",
+            Model = "base",
+            ModelType = "base",
+            SortOrder = int.MaxValue,
+        };
+
+        if (mode is not null)
+            ApplyTranscriptionOverrides(mode, engineOverride, modelOverride);
 
         var vocabulary = _vocabulary is null
             ? Array.Empty<string>()
@@ -293,7 +318,87 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
                 .Where(item => item.Length != 0)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToArray();
-        return new(languageOverride ?? mode?.Language, mode?.Name, mode?.Id, mode, vocabulary);
+        return new(languageOverride ?? mode?.Language, mode?.Name, mode?.Id, mode, vocabulary, applicationContext);
+    }
+
+    private static void ApplyTranscriptionOverrides(Mode mode, string? engine, string? model)
+    {
+        var normalizedEngine = engine?.Trim().ToLowerInvariant();
+        var normalizedModel = string.IsNullOrWhiteSpace(model) ? null : model.Trim();
+        if (string.IsNullOrWhiteSpace(normalizedEngine))
+        {
+            if (normalizedModel is null) return;
+            if (string.Equals(mode.ProviderType, "cloud", StringComparison.OrdinalIgnoreCase))
+                mode.CloudTranscriptionModel = normalizedModel;
+            else if (string.Equals(mode.LocalEngine, "parakeet", StringComparison.OrdinalIgnoreCase))
+                mode.LocalParakeetModel = mode.Model = normalizedModel;
+            else mode.ModelType = mode.Model = normalizedModel;
+            return;
+        }
+
+        var cloud = normalizedEngine == "cloud" ? "hyperwhisper" : normalizedEngine switch
+        {
+            "microsoftazurespeech" => "microsoftAzureSpeech",
+            "googlespeech" => "googleSpeech",
+            _ => normalizedEngine,
+        };
+        if (CloudProviders.Contains(cloud))
+        {
+            mode.ProviderType = "cloud";
+            mode.CloudProvider = cloud;
+            mode.Model = "cloud";
+            if (normalizedModel is not null) mode.CloudTranscriptionModel = normalizedModel;
+            return;
+        }
+
+        switch (normalizedEngine)
+        {
+            case "whisper":
+            case "whisperlocal":
+            case "libwhisper":
+                if (normalizedModel is null) throw new ArgumentException("A Whisper model is required.");
+                mode.ProviderType = "local";
+                mode.LocalEngine = "whisper";
+                mode.ModelType = mode.Model = normalizedModel;
+                return;
+            case "parakeet":
+                mode.ProviderType = "local";
+                mode.LocalEngine = "parakeet";
+                mode.LocalParakeetModel = mode.Model = normalizedModel ?? "parakeet-v3";
+                return;
+            case "qwen3":
+            case "qwen3asr":
+            case "qwen3_asr":
+            case "qwen3-asr":
+            case "qwen":
+                mode.ProviderType = "local";
+                mode.LocalEngine = "parakeet";
+                mode.LocalParakeetModel = mode.Model = normalizedModel ?? "qwen3-asr-0.6b";
+                return;
+            default:
+                throw new ArgumentException("The requested transcription engine is unsupported.");
+        }
+    }
+
+    private static string EngineLabel(Mode? mode)
+    {
+        if (mode is null) return string.Empty;
+        if (string.Equals(mode.ProviderType, "cloud", StringComparison.OrdinalIgnoreCase))
+            return mode.CloudProvider ?? "cloud";
+        if (string.Equals(mode.LocalEngine, "parakeet", StringComparison.OrdinalIgnoreCase))
+            return mode.LocalParakeetModel?.StartsWith("qwen3", StringComparison.OrdinalIgnoreCase) == true
+                ? "qwen3_asr" : "parakeet";
+        return "whisperLocal";
+    }
+
+    private static string ModelLabel(Mode? mode)
+    {
+        if (mode is null) return string.Empty;
+        if (string.Equals(mode.ProviderType, "cloud", StringComparison.OrdinalIgnoreCase))
+            return mode.CloudTranscriptionModel ?? string.Empty;
+        return string.Equals(mode.LocalEngine, "parakeet", StringComparison.OrdinalIgnoreCase)
+            ? mode.LocalParakeetModel ?? mode.Model ?? string.Empty
+            : mode.ModelType ?? mode.Model ?? string.Empty;
     }
 
     private static void NormalizeMode(Mode mode)

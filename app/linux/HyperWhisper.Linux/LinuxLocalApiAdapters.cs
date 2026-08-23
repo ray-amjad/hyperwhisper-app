@@ -100,7 +100,8 @@ internal sealed class LinuxLocalApiPostProcessor(
             CustomInstructions = request.Prompt,
         };
         var started = Stopwatch.GetTimestamp();
-        var result = await processor.ProcessAsync(request.Text, mode, cancellationToken);
+        var result = await processor.ProcessAsync(
+            request.Text, mode, request.ApplicationContext?.ToSnapshot(), cancellationToken);
         if (!result.WasApplied || string.IsNullOrWhiteSpace(result.Provider))
             throw new InvalidOperationException("Local post-processing is unavailable for this request.");
         return new(result.Text, result.Provider, mode.LocalPostProcessingModel ?? string.Empty, mode.Preset, (int)Stopwatch.GetElapsedTime(started).TotalMilliseconds);
