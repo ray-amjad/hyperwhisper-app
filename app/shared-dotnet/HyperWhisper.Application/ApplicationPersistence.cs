@@ -661,7 +661,7 @@ public sealed class ApplicationBackupService(ApplicationDb database, PortableSet
         ["textOutput"] = new JsonObject
         {
             ["pasteResultText"] = _settings.Get("textOutput.pasteResultText", true),
-            ["removeFillerWords"] = _settings.Get("textOutput.removeFillerWords", false),
+            ["removeFillerWords"] = _settings.Get("textOutput.removeFillerWords", true),
             ["restoreClipboardAfterPaste"] = _settings.Get("textOutput.restoreClipboardAfterPaste", true),
             ["hideFromClipboardHistory"] = _settings.Get("textOutput.hideFromClipboardHistory", false),
             ["clipboardRestoreDelaySeconds"] = _settings.Get("textOutput.clipboardRestoreDelaySeconds", 10d),

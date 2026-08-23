@@ -6,6 +6,9 @@ using HyperWhisper.Platform.Abstractions;
 using Microsoft.EntityFrameworkCore;
 using HyperWhisper.PortableApplication.Transcription;
 using HyperWhisper.AudioNormalization;
+using HyperWhisper.SpeechOutput;
+using HyperWhisper.SharedCore;
+using HyperWhisper.PortableApplication.ViewModels;
 
 var root = Path.Combine(Path.GetTempPath(), "HyperWhisper.Application.Tests", Guid.NewGuid().ToString("N"));
 Directory.CreateDirectory(root);
@@ -82,15 +85,45 @@ try
     settings.Set("autoIncreaseMicVolume", true);
     settings.Set("keepMicrophoneWarm", true);
     settings.Set("audioEnvironmentPolicy", "duck");
+    settings.Set("textOutput.pasteResultText", false);
+    settings.Set("textOutput.removeFillerWords", true);
+    settings.Set("textOutput.autocapitalizeInsert", false);
+    settings.Set("textOutput.restoreClipboardAfterPaste", false);
+    settings.Set("textOutput.clipboardRestoreDelaySeconds", 2.5d);
     Assert(settings.Save().IsSuccess, "settings save failed");
     var reloadedSettings = new PortableSettingsService(files, Path.Combine(root, "settings.json"));
     Assert(reloadedSettings.Load().IsSuccess, "settings load failed");
     Assert(reloadedSettings.Get<string>("language") == "en", "settings value did not round-trip");
+    var outputSettings = new SettingsViewModel(reloadedSettings);
+    outputSettings.Load();
+    Assert(!outputSettings.PasteResultText && outputSettings.RemoveFillerWords
+        && !outputSettings.AutocapitalizeInsert && !outputSettings.RestoreClipboardAfterPaste
+        && outputSettings.ClipboardRestoreDelaySeconds == 2.5d,
+        "text-output settings did not load from their canonical shared keys");
+    outputSettings.PasteResultText = true;
+    outputSettings.RemoveFillerWords = false;
+    outputSettings.AutocapitalizeInsert = true;
+    outputSettings.RestoreClipboardAfterPaste = true;
+    outputSettings.ClipboardRestoreDelaySeconds = 4.5d;
+    outputSettings.Save();
+    Assert(reloadedSettings.Get("textOutput.pasteResultText", false)
+        && !reloadedSettings.Get("textOutput.removeFillerWords", true)
+        && reloadedSettings.Get("textOutput.autocapitalizeInsert", false)
+        && reloadedSettings.Get("textOutput.restoreClipboardAfterPaste", false)
+        && reloadedSettings.Get("textOutput.clipboardRestoreDelaySeconds", 0d) == 4.5d,
+        "text-output settings did not save to their canonical shared keys");
 
     var backupService = new ApplicationBackupService(database, reloadedSettings);
     var exported = await backupService.ExportAsync();
     Assert(exported.Contains("Portable Updated", StringComparison.Ordinal), "backup omitted modes");
     Assert(exported.Contains("HyperWhisper", StringComparison.Ordinal), "backup omitted vocabulary");
+    var exportedSettings = JsonNode.Parse(exported)!["settings"]!["textOutput"]!;
+    Assert(exportedSettings["pasteResultText"]!.GetValue<bool>()
+        && !exportedSettings["removeFillerWords"]!.GetValue<bool>()
+        && exportedSettings["autocapitalizeInsert"]!.GetValue<bool>()
+        && exportedSettings["restoreClipboardAfterPaste"]!.GetValue<bool>()
+        && exportedSettings["clipboardRestoreDelaySeconds"]!.GetValue<double>() == 4.5d,
+        "universal backup omitted canonical text-output settings");
     Assert(!exported.Contains("apiKeys", StringComparison.Ordinal), "backup exported an API-key container without explicit opt-in");
     var nonIntegerVersion = JsonNode.Parse(exported)!.AsObject();
     nonIntegerVersion["schemaVersion"] = "2";
@@ -126,7 +159,12 @@ try
         && reloadedSettings.Get<bool>("pushToTalkDoublePressLock")
         && reloadedSettings.Get<bool>("autoIncreaseMicVolume")
         && reloadedSettings.Get<bool>("keepMicrophoneWarm")
-        && reloadedSettings.Get<string>("audioEnvironmentPolicy") == "duck",
+        && reloadedSettings.Get<string>("audioEnvironmentPolicy") == "duck"
+        && reloadedSettings.Get<bool>("textOutput.pasteResultText")
+        && !reloadedSettings.Get<bool>("textOutput.removeFillerWords")
+        && reloadedSettings.Get<bool>("textOutput.autocapitalizeInsert")
+        && reloadedSettings.Get<bool>("textOutput.restoreClipboardAfterPaste")
+        && reloadedSettings.Get<double>("textOutput.clipboardRestoreDelaySeconds") == 4.5d,
         "backup did not restore Linux interaction and audio settings");
     var reexported = JsonNode.Parse(await backupService.ExportAsync())!.AsObject()["platformExtensions"]!.AsObject();
     Assert(reexported["windows"]?["futureWindows"]?.GetValue<int>() == 17
@@ -251,6 +289,14 @@ try
         Assert(shell.Modes.CloudProvider == "hyperwhisper" && shell.Modes.CloudDomain == "medical"
             && shell.Modes.CustomVocabulary.Contains("HyperWhisper", StringComparison.Ordinal),
             "cloud mode editor did not reload persisted provider fields");
+        var outputRequest = shell.CreateTranscriptionRequest(
+            shell.Modes.Selected, cursorContext: PortableCursorContext.MidSentence);
+        Assert(outputRequest.VocabularyReplacements?.Count == 1
+            && outputRequest.VocabularyReplacements[0].Word == "HyperWhisper"
+            && outputRequest.ModeVocabularyReplacements?.Count == 0
+            && outputRequest.SelectedMode?.CustomVocabulary?.Contains("Ray") == true
+            && outputRequest.CursorContext == PortableCursorContext.MidSentence,
+            "request composition confused prompt vocabulary with explicit replacement pairs or lost caret context");
         shell.Modes.ProviderType = "local";
         shell.Modes.LocalEngine = "whisper";
         shell.Modes.TranscriptionModel = "not-in-catalog";
@@ -430,6 +476,12 @@ static void Assert(bool condition, string message)
 
 static async Task RunTranscriptionWorkflowTestsAsync(string root)
 {
+    Assert(!typeof(TranscriptionWorkflow).GetMethods()
+        .Where(method => method.Name == nameof(TranscriptionWorkflow.TranscribeFileAsync))
+        .SelectMany(method => method.GetParameters())
+        .Any(parameter => parameter.ParameterType == typeof(bool)),
+        "public file-transcription API exposed spoofable audio ownership");
+
     static async Task<(ApplicationDb Database, HistoryRepository History)> CreateStoreAsync(string parent, string name)
     {
         var storeRoot = Path.Combine(parent, name);
@@ -466,6 +518,82 @@ static async Task RunTranscriptionWorkflowTestsAsync(string root)
         var fileResult = await workflow.TranscribeFileAsync(successAudio, new TranscriptionWorkflowRequest("en", "File test"));
         Assert(fileResult.IsSuccess && (await successStore.History.ListAsync()).Count == 2,
             "successful file transcription was not persisted");
+    }
+
+    var outputStore = await CreateStoreAsync(root, "workflow-speech-output");
+    var outputAudio = Path.Combine(root, "speech-output.wav");
+    await File.WriteAllBytesAsync(outputAudio, [1]);
+    var outputMode = new Mode
+    {
+        Name = "Output parity",
+        PostProcessingMode = 0,
+        RemoveTrailingPeriod = true,
+        Punctuation = true,
+        Capitalization = true,
+    };
+    using (var recorder = new FakeRecorder(outputAudio))
+    using (var devices = new FakeDevices())
+    using (var injection = new FakeTextInjection())
+    using (var workflow = new TranscriptionWorkflow(
+        recorder,
+        devices,
+        new FakeTranscriber((_, _, _) => Task.FromResult(PortableTranscriptionResult.Success(
+            "Um, I think API uses new line hyper whisper.", "Test Whisper"))),
+        outputStore.History,
+        textInjection: injection))
+    {
+        workflow.RefreshDevices();
+        await workflow.StartRecordingAsync();
+        var result = await workflow.StopAndTranscribeAsync(new TranscriptionWorkflowRequest(
+            Language: "en",
+            SelectedMode: outputMode,
+            VocabularyReplacements: [new("hyper whisper", "HyperWhisper")],
+            ModeVocabularyReplacements: [new("uses", "USES")],
+            OutputOptions: new SpeechOutputProcessingOptions(
+                RemoveFillerWords: true,
+                RemoveTrailingPeriod: true,
+                AutocapitalizeInsert: true),
+            CursorContext: PortableCursorContext.MidSentence));
+        const string transcriptText = "I think API USES \n\n HyperWhisper.";
+        Assert(result.IsSuccess && result.RawText == "Um, I think API uses new line hyper whisper."
+            && result.Text == transcriptText,
+            "batch workflow did not preserve raw text or apply ordered filler/voice/global/mode output processing");
+        Assert(injection.LastText == "I think API USES \n\n HyperWhisper ",
+            "batch injection did not use injection-only period/spacing/autocapitalization output");
+        var saved = (await outputStore.History.ListAsync()).Single();
+        Assert(saved.Text == transcriptText && saved.TranscribedText == result.RawText,
+            "history did not preserve transcript output separately from raw provider text");
+    }
+
+    var copyStore = await CreateStoreAsync(root, "workflow-copy-only");
+    using (var recorder = new FakeRecorder(outputAudio))
+    using (var devices = new FakeDevices())
+    using (var injection = new FakeTextInjection())
+    using (var workflow = new TranscriptionWorkflow(
+        recorder,
+        devices,
+        new FakeTranscriber((_, _, _) => Task.FromResult(
+            PortableTranscriptionResult.Success("I think API works.", "Test Whisper"))),
+        copyStore.History,
+        textInjection: injection))
+    {
+        workflow.RefreshDevices();
+        await workflow.StartRecordingAsync();
+        var result = await workflow.StopAndTranscribeAsync(new TranscriptionWorkflowRequest(
+            Language: "en",
+            SelectedMode: outputMode,
+            OutputOptions: new SpeechOutputProcessingOptions(
+                RemoveFillerWords: false,
+                RemoveTrailingPeriod: true,
+                AutocapitalizeInsert: true),
+            PasteResultText: false,
+            CursorContext: PortableCursorContext.MidSentence));
+        Assert(result.IsSuccess && result.InjectionOutcome == TextInjectionOutcome.CopiedToClipboard
+            && injection.CallCount == 0 && injection.CopyCallCount == 1
+            && injection.LastCopiedText == "I think API works ",
+            "auto-paste off did not copy injection output without injecting");
+        Assert((await copyStore.History.ListAsync()).Single().Text == "I think API works.",
+            "auto-paste off did not save completed transcript history");
     }
 
     var postStore = await CreateStoreAsync(root, "workflow-postprocessing");
@@ -516,7 +644,7 @@ static async Task RunTranscriptionWorkflowTestsAsync(string root)
         Assert(appliedPostProcessor.CallCount == 1, "enabled local post-processing was not invoked exactly once");
         Assert(modeAwareTranscriber.LastRequest?.SelectedMode == localMode,
             "selected mode was not passed safely to the transcription backend");
-        Assert(appliedInjection.LastText == "Cleaned words",
+        Assert(appliedInjection.LastText == "Cleaned words ",
             "text injection ran before local post-processing or received raw text");
         Assert(result.InjectionOutcome == TextInjectionOutcome.Pasted
             && workflow.Snapshot.Message == "Transcription pasted and saved to history",
@@ -698,6 +826,75 @@ static async Task RunTranscriptionWorkflowTestsAsync(string root)
         var result = await task;
         Assert(result.Failure?.Code == PortableTranscriptionErrorCode.Cancelled, "file transcription cancellation was not structured");
         Assert((await cancellationStore.History.ListAsync()).Count == 0, "cancelled transcription created fake history");
+    }
+
+    var ownedSuccessStore = await CreateStoreAsync(root, "workflow-owned-import-success");
+    var ownedSuccessAudio = Path.Combine(root, "owned-success.wav");
+    await File.WriteAllBytesAsync(ownedSuccessAudio, [1]);
+    using (var recorder = new FakeRecorder(ownedSuccessAudio))
+    using (var devices = new FakeDevices())
+    using (var workflow = new TranscriptionWorkflow(
+        recorder,
+        devices,
+        new FakeTranscriber((_, _, _) => Task.FromResult(
+            PortableTranscriptionResult.Success("owned import", "Test Whisper"))),
+        ownedSuccessStore.History))
+    {
+        workflow.RefreshDevices();
+        var result = await workflow.TranscribeOwnedFileAsync(
+            ownedSuccessAudio, new TranscriptionWorkflowRequest());
+        Assert(result.IsSuccess && File.Exists(ownedSuccessAudio)
+            && (await ownedSuccessStore.History.ListAsync()).Single().AudioFilePath == ownedSuccessAudio,
+            "completed app-owned import was not retained for history");
+    }
+
+    var ownedFailureStore = await CreateStoreAsync(root, "workflow-owned-import-failure");
+    var ownedFailureAudio = Path.Combine(root, "owned-failure.wav");
+    await File.WriteAllBytesAsync(ownedFailureAudio, [1]);
+    using (var recorder = new FakeRecorder(ownedFailureAudio))
+    using (var devices = new FakeDevices())
+    using (var workflow = new TranscriptionWorkflow(
+        recorder,
+        devices,
+        new FakeTranscriber((_, _, _) => Task.FromResult(PortableTranscriptionResult.Failed(
+            PortableTranscriptionErrorCode.TranscriptionFailed, "expected owned failure"))),
+        ownedFailureStore.History))
+    {
+        workflow.RefreshDevices();
+        var result = await workflow.TranscribeOwnedFileAsync(
+            ownedFailureAudio, new TranscriptionWorkflowRequest());
+        var failed = (await ownedFailureStore.History.ListAsync()).Single();
+        Assert(!result.IsSuccess && !File.Exists(ownedFailureAudio) && failed.AudioFilePath is null,
+            "terminal app-owned import failure orphaned audio or left a dangling history path");
+    }
+
+    var ownedCancellationStore = await CreateStoreAsync(root, "workflow-owned-import-cancel");
+    var ownedCancellationAudio = Path.Combine(root, "owned-cancel.wav");
+    await File.WriteAllBytesAsync(ownedCancellationAudio, [1]);
+    var ownedTranscriptionEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+    using (var recorder = new FakeRecorder(ownedCancellationAudio))
+    using (var devices = new FakeDevices())
+    using (var workflow = new TranscriptionWorkflow(
+        recorder,
+        devices,
+        new FakeTranscriber(async (_, _, cancellationToken) =>
+        {
+            ownedTranscriptionEntered.SetResult();
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            return PortableTranscriptionResult.Success("unreachable", "Test Whisper");
+        }),
+        ownedCancellationStore.History))
+    {
+        workflow.RefreshDevices();
+        var task = workflow.TranscribeOwnedFileAsync(
+            ownedCancellationAudio, new TranscriptionWorkflowRequest());
+        await ownedTranscriptionEntered.Task;
+        await workflow.CancelAsync();
+        var result = await task;
+        Assert(result.Failure?.Code == PortableTranscriptionErrorCode.Cancelled
+            && !File.Exists(ownedCancellationAudio)
+            && (await ownedCancellationStore.History.ListAsync()).Count == 0,
+            "cancelled app-owned import orphaned normalized audio or history");
     }
 
     var cleanupStore = await CreateStoreAsync(root, "workflow-cancel-cleanup-failure");
@@ -1016,7 +1213,9 @@ file sealed class FalseDeleteHistoryStore(HistoryRepository inner) : ITranscript
 file sealed class FakeTextInjection(TextInjectionOutcome outcome = TextInjectionOutcome.Pasted) : ITextInjectionService
 {
     public string? LastText { get; private set; }
+    public string? LastCopiedText { get; private set; }
     public int CallCount { get; private set; }
+    public int CopyCallCount { get; private set; }
     public bool IsCapturedTargetAvailable => true;
     public void CaptureTarget() { }
     public void StartSession() { }
@@ -1028,8 +1227,12 @@ file sealed class FakeTextInjection(TextInjectionOutcome outcome = TextInjection
         ValueTask.FromResult(PlatformResult.Success());
     public ValueTask<PlatformResult> CopyToClipboardAsync(
         string text,
-        CancellationToken cancellationToken = default) =>
-        ValueTask.FromResult(PlatformResult.Success());
+        CancellationToken cancellationToken = default)
+    {
+        LastCopiedText = text;
+        CopyCallCount++;
+        return ValueTask.FromResult(PlatformResult.Success());
+    }
     public ValueTask<TextInjectionOutcome> InjectTranscriptAsync(
         string text,
         CancellationToken cancellationToken = default)

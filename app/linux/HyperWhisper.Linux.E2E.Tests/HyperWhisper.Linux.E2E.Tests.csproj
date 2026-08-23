@@ -12,9 +12,20 @@
     <ProjectReference Include="../../shared-dotnet/HyperWhisper.LocalInference/HyperWhisper.LocalInference.csproj" />
     <ProjectReference Include="../../shared-dotnet/HyperWhisper.ModelManagement/HyperWhisper.ModelManagement.csproj" />
     <ProjectReference Include="../../shared-dotnet/HyperWhisper.Platform.Abstractions/HyperWhisper.Platform.Abstractions.csproj" />
+    <ProjectReference Include="../../shared-dotnet/HyperWhisper.SpeechOutput/HyperWhisper.SpeechOutput.csproj" />
     <ProjectReference Include="../HyperWhisper.Linux.Platform/HyperWhisper.Linux.Platform.csproj" />
+    <Content Include="../../../shared-core-rs/target/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so"
+             Condition="Exists('../../../shared-core-rs/target/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so')">
+      <Link>libhyperwhisper_core.so</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <!-- Compile the production Linux adapter from its authoritative source so
          this independent harness does not depend on the Avalonia executable. -->
     <Compile Include="../HyperWhisper.Linux/LinuxLocalWhisperTranscriber.cs" Link="Production/LinuxLocalWhisperTranscriber.cs" />
   </ItemGroup>
+
+  <Target Name="EnsureSharedCoreNativeLibrary" BeforeTargets="Build">
+    <Error Condition="!Exists('../../../shared-core-rs/target/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so')"
+           Text="Build shared-core-rs in release mode before running Linux E2E tests." />
+  </Target>
 </Project>

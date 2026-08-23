@@ -5,6 +5,7 @@ using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.PortableApplication.Transcription;
 using HyperWhisper.PortableApplication.ViewModels;
+using HyperWhisper.SharedCore;
 
 namespace HyperWhisper.Linux;
 
@@ -22,6 +23,7 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
     private Transcript? _liveTranscript;
     private IAudioEnvironmentSession? _audioEnvironment;
     private bool _streaming;
+    private PortableCursorContext _cursorContext = PortableCursorContext.Unknown;
 
     public LinuxInteractionRecordingSession(
         ApplicationShellViewModel viewModel,
@@ -51,6 +53,9 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         _mode = _viewModel.Modes.Selected ?? _viewModel.Modes.Items.FirstOrDefault(item => item.IsDefault)
             ?? _viewModel.Modes.Items.FirstOrDefault();
         if (_mode is null) return PlatformResult.Failure("interaction.mode_missing", "Create a transcription mode before recording.");
+
+        _cursorContext = MapCursorContext(
+            await _services.InsertionContext.GetCursorContextAsync(cancellationToken));
 
         var captured = await _contextCapture.CaptureAsync(_mode.EnableScreenOCR, cancellationToken: cancellationToken);
         _context = captured.Snapshot;
@@ -170,11 +175,16 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         transcript.Duration = outcome.CaptureDuration.TotalSeconds;
         var finalization = await LinuxLiveTranscriptionFinalizer.FinalizeAndPersistAsync(
             outcome.Transcription.Transcript, transcript, _mode, _context, _postProcessor,
-            _services.TextInjection, _history, cancellationToken);
+            _services.TextInjection, _history, BuildRequest(), cancellationToken);
         if (finalization.Result.IsFailure) return new(finalization.Result, false);
         await RefreshHistoryAsync(cancellationToken);
-        _viewModel.Status.Success(finalization.InjectionOutcome == TextInjectionOutcome.Pasted
-            ? "Live transcription pasted and saved" : "Live transcription copied and saved");
+        _viewModel.Status.Success(finalization.InjectionOutcome switch
+        {
+            TextInjectionOutcome.Pasted => "Live transcription pasted and saved",
+            TextInjectionOutcome.CopiedToClipboard => "Live transcription copied and saved",
+            TextInjectionOutcome.SecureFieldSkipped => "Live transcription saved; secure field was not modified",
+            _ => "Live transcription saved, but text injection failed",
+        });
         return InteractionStopOutcome.FromInjection(
             PlatformResult.Success(), finalization.InjectionOutcome, _viewModel.Settings.RestoreClipboardAfterPaste);
     }
@@ -200,13 +210,15 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         }
     }
 
-    private TranscriptionWorkflowRequest BuildRequest() => new(
-        _viewModel.Settings.Language,
-        _mode?.Name,
-        _mode?.Id,
-        _mode,
-        _viewModel.Vocabulary.Items.Select(item => item.Word).ToArray(),
-        _context);
+    private TranscriptionWorkflowRequest BuildRequest() =>
+        _viewModel.CreateTranscriptionRequest(_mode, _context, _cursorContext);
+
+    internal static PortableCursorContext MapCursorContext(InsertionCursorContext context) => context switch
+    {
+        InsertionCursorContext.StartOfSentence => PortableCursorContext.StartOfSentence,
+        InsertionCursorContext.MidSentence => PortableCursorContext.MidSentence,
+        _ => PortableCursorContext.Unknown,
+    };
 
     private void PrepareAudio(string deviceId)
     {
@@ -242,5 +254,6 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         _liveTranscript = null;
         _context = null;
         _mode = null;
+        _cursorContext = PortableCursorContext.Unknown;
     }
 }

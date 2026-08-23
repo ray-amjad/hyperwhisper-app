@@ -7,6 +7,8 @@ using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.PortableApplication.Transcription;
 using HyperWhisper.LocalInference;
 using HyperWhisper.LocalApi;
+using HyperWhisper.SpeechOutput;
+using HyperWhisper.SharedCore;
 
 [assembly: SupportedOSPlatform("linux")]
 
@@ -19,11 +21,16 @@ var tests = new (string Name, Func<Task> Run)[]
     ("push to talk starts stops and cancels", PushToTalkStartsStopsAndCancels),
     ("conflicting shortcuts are rejected", ConflictingShortcutsAreRejected),
     ("reconfiguration does not duplicate shortcut readers", ReconfigurationDoesNotDuplicateReaders),
+    ("interaction actions are atomic and content-free", InteractionActionsAreAtomicAndContentFree),
+    ("unsafe persistent cancel shortcut is rejected", UnsafePersistentCancelIsRejected),
+    ("interaction registration failure restores prior bindings", InteractionRegistrationRollback),
     ("clipboard restore respects secure fields and preference", ClipboardRestoreRespectsOutcome),
     ("context capture skips disabled OCR", ContextCaptureSkipsDisabledOcr),
     ("OCR survives unavailable context", OcrSurvivesUnavailableContext),
     ("context survives OCR failure", ContextSurvivesOcrFailure),
     ("live post-processing failure persists raw transcript", LivePostProcessingFailurePersistsRaw),
+    ("live output processing matches batch semantics", LiveOutputProcessingMatchesBatch),
+    ("live auto-paste off copies and persists", LiveAutoPasteOffCopiesAndPersists),
     ("cloud provider storage values route deterministically", CloudProviderStorageRoutes),
     ("audio restoration is never caller-cancelled", AudioRestorationIsNonCancelable),
     ("live models are provider-specific", LiveModelsAreProviderSpecific),
@@ -148,6 +155,90 @@ static async Task ReconfigurationDoesNotDuplicateReaders()
     Assert(fixture.Recording.StartCount == 1, "reconfiguration duplicated event handlers");
 }
 
+static async Task InteractionActionsAreAtomicAndContentFree()
+{
+    var fixture = new InteractionFixture();
+    using var coordinator = fixture.Create();
+    var configuration = InteractionConfiguration();
+    Assert(coordinator.ConfigureAndStart(configuration).IsSuccess, "interaction action registration failed");
+    Assert(fixture.Shortcuts.Current.Keys.Order().SequenceEqual(new[]
+    {
+        LinuxInteractionCoordinator.CancelActionName,
+        LinuxInteractionCoordinator.ChangeModeActionName,
+        LinuxInteractionCoordinator.ToggleActionName,
+    }.Order()), "named interaction actions were not registered atomically");
+
+    var modeChanges = 0;
+    coordinator.ChangeModeRequested += (_, args) =>
+    {
+        Assert(ReferenceEquals(args, EventArgs.Empty), "mode callback exposed input details");
+        throw new InvalidOperationException("subscriber isolation");
+    };
+    coordinator.ChangeModeRequested += (_, _) => modeChanges++;
+    fixture.Shortcuts.Press(LinuxInteractionCoordinator.ChangeModeActionName);
+    fixture.Shortcuts.Press(LinuxInteractionCoordinator.ChangeModeActionName);
+    Assert(modeChanges == 1, "repeated mode key-down was not suppressed");
+    fixture.Shortcuts.Release(LinuxInteractionCoordinator.ChangeModeActionName);
+    fixture.Shortcuts.Press(LinuxInteractionCoordinator.ChangeModeActionName);
+    Assert(modeChanges == 2, "released mode shortcut could not be used again");
+
+    fixture.Recording.SetActive(true);
+    fixture.Shortcuts.Press(LinuxInteractionCoordinator.CancelActionName);
+    fixture.Shortcuts.Press(LinuxInteractionCoordinator.CancelActionName);
+    await UntilAsync(() => fixture.Recording.CancelCount == 1);
+    fixture.Shortcuts.EmitRaw("raw-key-material", new(ShortcutModifiers.Meta, new("Q")));
+    Assert(modeChanges == 2 && fixture.Recording.CancelCount == 1,
+        "unregistered raw input escaped the named-action boundary");
+}
+
+static Task UnsafePersistentCancelIsRejected()
+{
+    var fixture = new InteractionFixture();
+    using var coordinator = fixture.Create();
+    var result = coordinator.ConfigureAndStart(InteractionConfiguration() with
+    {
+        CancelShortcut = new(ShortcutModifiers.None, new("Escape")),
+    });
+    Assert(result.IsFailure && result.Error?.Code == "interaction.cancel_shortcut_unsafe",
+        "persistent unmodified cancel shortcut was accepted");
+    Assert(fixture.Shortcuts.RegistrationCount == 0,
+        "unsafe cancel shortcut reached the global registration backend");
+    return Task.CompletedTask;
+}
+
+static async Task InteractionRegistrationRollback()
+{
+    var fixture = new InteractionFixture();
+    using var coordinator = fixture.Create();
+    var original = InteractionConfiguration();
+    Assert(coordinator.ConfigureAndStart(original).IsSuccess, "initial interaction registration failed");
+    fixture.Shortcuts.FailNextName = LinuxInteractionCoordinator.ChangeModeActionName;
+    var replacement = original with
+    {
+        ToggleShortcut = new(ShortcutModifiers.Control, new("F8")),
+        CancelShortcut = new(ShortcutModifiers.Control, new("F9")),
+        ChangeModeShortcut = new(ShortcutModifiers.Control, new("F10")),
+    };
+    var result = coordinator.ConfigureAndStart(replacement);
+    Assert(result.IsFailure, "simulated live registration failure was accepted");
+    Assert(fixture.Shortcuts.RegistrationCount == 3,
+        "failed replacement did not trigger an atomic prior-binding restore");
+    Assert(fixture.Shortcuts.Current[LinuxInteractionCoordinator.ToggleActionName] == original.ToggleShortcut
+        && fixture.Shortcuts.Current[LinuxInteractionCoordinator.CancelActionName] == original.CancelShortcut
+        && fixture.Shortcuts.Current[LinuxInteractionCoordinator.ChangeModeActionName] == original.ChangeModeShortcut,
+        "failed replacement left partial shortcuts active");
+    fixture.Recording.SetActive(true);
+    fixture.Shortcuts.Press(LinuxInteractionCoordinator.CancelActionName);
+    await UntilAsync(() => fixture.Recording.CancelCount == 1);
+}
+
+static LinuxInteractionConfiguration InteractionConfiguration() => new(
+    new(ShortcutModifiers.Control | ShortcutModifiers.Shift, new("Space")),
+    new(PushToTalkMode.Disabled),
+    TimeSpan.FromMilliseconds(750),
+    new(ShortcutModifiers.Control, new("Escape")),
+    new(ShortcutModifiers.Control | ShortcutModifiers.Shift, new("Period")));
+
 static Task ClipboardRestoreRespectsOutcome()
 {
     Assert(!InteractionStopOutcome.FromInjection(PlatformResult.Success(), TextInjectionOutcome.SecureFieldSkipped, true).RestoreClipboard,
@@ -200,7 +291,7 @@ static async Task LivePostProcessingFailurePersistsRaw()
     var mode = new Mode { Name = "Local", PostProcessingMode = 2, PostProcessingProvider = "local_llm" };
     var result = await LinuxLiveTranscriptionFinalizer.FinalizeAndPersistAsync(
         "  Ray raw transcript  ", transcript, mode, null, new ThrowingPostProcessor(),
-        new FakeTextInjection(), history);
+        new FakeTextInjection(), history, new TranscriptionWorkflowRequest());
     Assert(result.Result.IsSuccess, "post-processing exception failed live transcription");
     Assert(history.Updated?.Status == TranscriptStatus.Completed, "history remained Processing");
     Assert(history.Updated?.Text == "Ray raw transcript" && history.Updated.PostProcessedText is null,
@@ -211,10 +302,61 @@ static async Task LivePostProcessingFailurePersistsRaw()
     var cloudMode = new Mode { Name = "Cloud", PostProcessingMode = 1, PostProcessingProvider = "anthropic" };
     var cloudResult = await LinuxLiveTranscriptionFinalizer.FinalizeAndPersistAsync(
         "  Ray cloud raw transcript  ", cloudTranscript, cloudMode, null, new ThrowingPostProcessor(),
-        new FakeTextInjection(), cloudHistory);
+        new FakeTextInjection(), cloudHistory, new TranscriptionWorkflowRequest());
     Assert(cloudResult.Result.IsSuccess && cloudHistory.Updated?.Text == "Ray cloud raw transcript"
         && cloudHistory.Updated.PostProcessedText is null,
         "cloud post-processing failure did not preserve live raw transcript");
+}
+
+static async Task LiveOutputProcessingMatchesBatch()
+{
+    var transcript = new Transcript { Status = TranscriptStatus.Processing, Text = "processing" };
+    var history = new FakeHistory(transcript);
+    var injection = new FakeTextInjection();
+    var mode = new Mode { Name = "Output", PostProcessingMode = 0, RemoveTrailingPeriod = true };
+    var result = await LinuxLiveTranscriptionFinalizer.FinalizeAndPersistAsync(
+        "Um, I think API uses new line hyper whisper.", transcript, mode, null,
+        new ThrowingPostProcessor(), injection, history,
+        new TranscriptionWorkflowRequest(
+            Language: "en",
+            SelectedMode: mode,
+            VocabularyReplacements: [new("hyper whisper", "HyperWhisper")],
+            ModeVocabularyReplacements: [new("uses", "USES")],
+            OutputOptions: new SpeechOutputProcessingOptions(
+                RemoveFillerWords: true,
+                RemoveTrailingPeriod: true,
+                AutocapitalizeInsert: true),
+            CursorContext: PortableCursorContext.MidSentence));
+    Assert(result.Result.IsSuccess && history.Updated?.TranscribedText
+        == "Um, I think API uses new line hyper whisper.", "live raw transcript was not preserved");
+    Assert(history.Updated?.Text == "I think API USES \n\n HyperWhisper."
+        && injection.InjectedText == "I think API USES \n\n HyperWhisper ",
+        "live finalization diverged from batch ordered transcript/injection processing");
+}
+
+static async Task LiveAutoPasteOffCopiesAndPersists()
+{
+    var transcript = new Transcript { Status = TranscriptStatus.Processing, Text = "processing" };
+    var history = new FakeHistory(transcript);
+    var injection = new FakeTextInjection();
+    var mode = new Mode { Name = "Copy", PostProcessingMode = 0, RemoveTrailingPeriod = true };
+    var result = await LinuxLiveTranscriptionFinalizer.FinalizeAndPersistAsync(
+        "I’ll use API.", transcript, mode, null, new ThrowingPostProcessor(), injection, history,
+        new TranscriptionWorkflowRequest(
+            Language: "en",
+            SelectedMode: mode,
+            OutputOptions: new SpeechOutputProcessingOptions(
+                RemoveFillerWords: false,
+                RemoveTrailingPeriod: true,
+                AutocapitalizeInsert: true),
+            PasteResultText: false,
+            CursorContext: PortableCursorContext.MidSentence));
+    Assert(result.Result.IsSuccess && result.InjectionOutcome == TextInjectionOutcome.CopiedToClipboard,
+        "live auto-paste off did not return copied outcome");
+    Assert(injection.InjectedText is null && injection.CopiedText == "I’ll use API ",
+        "live auto-paste off injected or copied the wrong text");
+    Assert(history.Updated?.Text == "I’ll use API." && history.Updated.Status == TranscriptStatus.Completed,
+        "live auto-paste off did not persist transcript history");
 }
 
 static Task CloudProviderStorageRoutes()
@@ -512,17 +654,30 @@ sealed class StaticPaths(string root) : IAppPaths
 sealed class FakeShortcuts : IGlobalShortcutService
 {
     private IReadOnlyDictionary<string, GlobalShortcut> _registered = new Dictionary<string, GlobalShortcut>();
+    public IReadOnlyDictionary<string, GlobalShortcut> Current => _registered;
+    public int RegistrationCount { get; private set; }
+    public string? FailNextName { get; set; }
     public event EventHandler<ShortcutTriggeredEventArgs>? ShortcutPressed;
     public event EventHandler<ShortcutTriggeredEventArgs>? ShortcutReleased;
     public int StartCount { get; private set; }
     public PlatformResult Start() { StartCount++; return PlatformResult.Success(); }
     public IReadOnlyDictionary<string, PlatformResult> RegisterShortcuts(IReadOnlyCollection<NamedShortcut> shortcuts)
     {
-        _registered = shortcuts.ToDictionary(value => value.Name, value => value.Shortcut);
-        return shortcuts.ToDictionary(value => value.Name, _ => PlatformResult.Success());
+        RegistrationCount++;
+        _registered = shortcuts
+            .Where(value => value.Name != FailNextName)
+            .ToDictionary(value => value.Name, value => value.Shortcut);
+        var results = shortcuts.ToDictionary(
+            value => value.Name,
+            value => value.Name == FailNextName
+                ? PlatformResult.Failure("shortcut_grab_failed", "The shortcut is already in use.")
+                : PlatformResult.Success());
+        FailNextName = null;
+        return results;
     }
     public void Press(string name) => ShortcutPressed?.Invoke(this, new(name, _registered[name]));
     public void Release(string name) => ShortcutReleased?.Invoke(this, new(name, _registered[name]));
+    public void EmitRaw(string name, GlobalShortcut shortcut) => ShortcutPressed?.Invoke(this, new(name, shortcut));
     public void Clear() => _registered = new Dictionary<string, GlobalShortcut>();
     public void ResetKeyboardState() { }
     public void Dispose() { }
@@ -546,6 +701,8 @@ sealed class FakePushToTalk : IPushToTalkMonitor
 sealed class FakeTextInjection : ITextInjectionService
 {
     public List<string> Events { get; } = [];
+    public string? CopiedText { get; private set; }
+    public string? InjectedText { get; private set; }
     public bool IsCapturedTargetAvailable => true;
     public void CaptureTarget() => Events.Add("capture");
     public void StartSession() => Events.Add("session-start");
@@ -555,9 +712,15 @@ sealed class FakeTextInjection : ITextInjectionService
     public ValueTask<PlatformResult> RestoreClipboardImmediatelyAsync(CancellationToken cancellationToken = default)
     { Events.Add("restore-now"); return ValueTask.FromResult(PlatformResult.Success()); }
     public ValueTask<PlatformResult> CopyToClipboardAsync(string text, CancellationToken cancellationToken = default)
-        => ValueTask.FromResult(PlatformResult.Success());
+    {
+        CopiedText = text;
+        return ValueTask.FromResult(PlatformResult.Success());
+    }
     public ValueTask<TextInjectionOutcome> InjectTranscriptAsync(string text, CancellationToken cancellationToken = default)
-        => ValueTask.FromResult(TextInjectionOutcome.Pasted);
+    {
+        InjectedText = text;
+        return ValueTask.FromResult(TextInjectionOutcome.Pasted);
+    }
     public void Dispose() { }
 }
 
@@ -576,6 +739,7 @@ sealed class FakeRecording : IInteractionRecordingSession
     { StopCount++; IsActive = false; if (ThrowOnStop) throw new InvalidOperationException("expected"); return ValueTask.FromResult(StopOutcome); }
     public ValueTask CancelAsync(CancellationToken cancellationToken = default)
     { CancelCount++; IsActive = false; return ValueTask.CompletedTask; }
+    public void SetActive(bool active) => IsActive = active;
 }
 
 sealed class InlineDispatcher : IUiDispatcher

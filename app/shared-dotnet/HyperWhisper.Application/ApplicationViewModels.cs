@@ -10,6 +10,8 @@ using HyperWhisper.Data.Entities;
 using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.ModelManagement;
 using HyperWhisper.AudioNormalization;
+using HyperWhisper.SpeechOutput;
+using HyperWhisper.SharedCore;
 
 namespace HyperWhisper.PortableApplication.ViewModels;
 
@@ -139,6 +141,7 @@ public sealed class TranscriptionWorkflowViewModel : ViewModelBase, IDisposable
             return;
         }
         var path = FilePath;
+        var ownsImportedAudio = false;
         if (_audioImport is not null)
         {
             using var import = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -175,9 +178,12 @@ public sealed class TranscriptionWorkflowViewModel : ViewModelBase, IDisposable
             if (imported is null) return;
             if (imported.IsFailure) { ReportInputFailure(imported.Error!.Code, imported.Error.Message); return; }
             path = imported.Value!;
+            ownsImportedAudio = true;
             FilePath = path;
         }
-        _ = await _workflow.TranscribeFileAsync(path, _requestFactory(), cancellationToken);
+        _ = ownsImportedAudio
+            ? await _workflow.TranscribeOwnedFileAsync(path, _requestFactory(), cancellationToken)
+            : await _workflow.TranscribeFileAsync(path, _requestFactory(), cancellationToken);
     }
 
     public void ReportInputFailure(string code, string message)
@@ -874,6 +880,9 @@ public sealed class SettingsViewModel : ViewModelBase
     private string _pushToTalkShortcutModifiers = "None";
     private string _pushToTalkShortcutKey = string.Empty;
     private bool _pushToTalkDoublePressLock;
+    private bool _pasteResultText = true;
+    private bool _removeFillerWords = true;
+    private bool _autocapitalizeInsert = true;
     private bool _restoreClipboardAfterPaste = true;
     private double _clipboardRestoreDelaySeconds = 10;
     private bool _streamingEnabled;
@@ -916,6 +925,9 @@ public sealed class SettingsViewModel : ViewModelBase
     public string PushToTalkShortcutModifiers { get => _pushToTalkShortcutModifiers; set => Set(ref _pushToTalkShortcutModifiers, value ?? "None"); }
     public string PushToTalkShortcutKey { get => _pushToTalkShortcutKey; set => Set(ref _pushToTalkShortcutKey, value ?? string.Empty); }
     public bool PushToTalkDoublePressLock { get => _pushToTalkDoublePressLock; set => Set(ref _pushToTalkDoublePressLock, value); }
+    public bool PasteResultText { get => _pasteResultText; set => Set(ref _pasteResultText, value); }
+    public bool RemoveFillerWords { get => _removeFillerWords; set => Set(ref _removeFillerWords, value); }
+    public bool AutocapitalizeInsert { get => _autocapitalizeInsert; set => Set(ref _autocapitalizeInsert, value); }
     public bool RestoreClipboardAfterPaste { get => _restoreClipboardAfterPaste; set => Set(ref _restoreClipboardAfterPaste, value); }
     public double ClipboardRestoreDelaySeconds { get => _clipboardRestoreDelaySeconds; set => Set(ref _clipboardRestoreDelaySeconds, Math.Clamp(value, 0, 60)); }
     public bool StreamingEnabled { get => _streamingEnabled; set => Set(ref _streamingEnabled, value); }
@@ -988,6 +1000,9 @@ public sealed class SettingsViewModel : ViewModelBase
         PushToTalkShortcutModifiers = _settings.Get("pushToTalkShortcutModifiers", "None") ?? "None";
         PushToTalkShortcutKey = _settings.Get("pushToTalkShortcutKey", string.Empty) ?? string.Empty;
         PushToTalkDoublePressLock = _settings.Get("pushToTalkDoublePressLock", false);
+        PasteResultText = _settings.Get("textOutput.pasteResultText", true);
+        RemoveFillerWords = _settings.Get("textOutput.removeFillerWords", true);
+        AutocapitalizeInsert = _settings.Get("textOutput.autocapitalizeInsert", true);
         RestoreClipboardAfterPaste = _settings.Get("textOutput.restoreClipboardAfterPaste", true);
         ClipboardRestoreDelaySeconds = _settings.Get("textOutput.clipboardRestoreDelaySeconds", 10d);
         StreamingEnabled = _settings.Get("streaming.enabled", false);
@@ -1027,6 +1042,9 @@ public sealed class SettingsViewModel : ViewModelBase
         _settings.Set("pushToTalkShortcutModifiers", PushToTalkShortcutModifiers);
         _settings.Set("pushToTalkShortcutKey", PushToTalkShortcutKey);
         _settings.Set("pushToTalkDoublePressLock", PushToTalkDoublePressLock);
+        _settings.Set("textOutput.pasteResultText", PasteResultText);
+        _settings.Set("textOutput.removeFillerWords", RemoveFillerWords);
+        _settings.Set("textOutput.autocapitalizeInsert", AutocapitalizeInsert);
         _settings.Set("textOutput.restoreClipboardAfterPaste", RestoreClipboardAfterPaste);
         _settings.Set("textOutput.clipboardRestoreDelaySeconds", ClipboardRestoreDelaySeconds);
         _settings.Set("streaming.enabled", StreamingEnabled);
@@ -1293,23 +1311,21 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
                 ?? Modes.Items.FirstOrDefault(mode => mode.IsDefault)
                 ?? Modes.Selected;
             _ = await transcriptionWorkflow!.TranscribeFileAsync(audioPath, new(
-                Settings.Language,
-                retryMode?.Name ?? item.Mode,
-                retryMode?.Id ?? item.ModeId,
-                retryMode,
-                Vocabulary.Items.Select(term => term.Word).ToArray()), token);
+                Language: Settings.Language,
+                ModeName: retryMode?.Name ?? item.Mode,
+                ModeId: retryMode?.Id ?? item.ModeId,
+                SelectedMode: retryMode,
+                Vocabulary: Vocabulary.Items.Select(term => term.Word).ToArray(),
+                VocabularyReplacements: BuildVocabularyReplacements(),
+                OutputOptions: BuildOutputOptions(retryMode),
+                PasteResultText: Settings.PasteResultText), token);
         });
         Models = modelManager is null ? null : new ModelLibraryViewModel(modelManager);
         Backup = new BackupViewModel(new ApplicationBackupService(database, settings));
         Credentials = credentials is null ? null : new CredentialManagementViewModel(credentials);
         Recording = transcriptionWorkflow is null ? null : new TranscriptionWorkflowViewModel(
             transcriptionWorkflow,
-            () => new TranscriptionWorkflowRequest(
-                Settings.Language,
-                Modes.Selected?.Name,
-                Modes.Selected?.Id,
-                Modes.Selected,
-                Vocabulary.Items.Select(item => item.Word).ToArray()), audioImport);
+            () => CreateTranscriptionRequest(Modes.Selected), audioImport);
         Home = new HomeViewModel(historyRepository, vocabularyRepository, modeRepository, Recording);
         if (Recording is not null) Recording.TranscriptionSaved += OnTranscriptionSaved;
         Backup.Imported += OnBackupImported;
@@ -1328,6 +1344,24 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
     public UiStatus Status { get; } = new();
     public object? CurrentPage { get => _currentPage; private set => Set(ref _currentPage, value); }
     public string PageTitle { get => _pageTitle; private set => Set(ref _pageTitle, value); }
+
+    public TranscriptionWorkflowRequest CreateTranscriptionRequest(
+        Mode? mode,
+        ApplicationContextSnapshot? applicationContext = null,
+        PortableCursorContext cursorContext = PortableCursorContext.Unknown) => new(
+        Language: Settings.Language,
+        ModeName: mode?.Name,
+        ModeId: mode?.Id,
+        SelectedMode: mode,
+        Vocabulary: Vocabulary.Items.Select(item => item.Word).ToArray(),
+        ApplicationContext: applicationContext,
+        VocabularyReplacements: BuildVocabularyReplacements(),
+        // Mode.CustomVocabulary contains prompt hints only. Linux does not yet
+        // have a persisted mode-level word/replacement pair model.
+        ModeVocabularyReplacements: [],
+        OutputOptions: BuildOutputOptions(mode),
+        PasteResultText: Settings.PasteResultText,
+        CursorContext: cursorContext);
 
     public async Task InitializeAsync()
     {
@@ -1410,4 +1444,18 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
             if (!_disposed) Status.Failure("app.history_refresh_failed", "The transcription was saved, but the library view could not be refreshed.");
         }
     }
+
+    private PortableVocabularyReplacement[] BuildVocabularyReplacements() => Vocabulary.Items
+        .Where(item => !string.IsNullOrWhiteSpace(item.Replacement))
+        .Select(item => new PortableVocabularyReplacement(item.Word, item.Replacement!))
+        .ToArray();
+
+    private SpeechOutputProcessingOptions BuildOutputOptions(Mode? mode) => new(
+        RemoveFillerWords: Settings.RemoveFillerWords,
+        RemoveTrailingPeriod: mode?.RemoveTrailingPeriod == true,
+        AppendTrailingSpace: true,
+        AutocapitalizeInsert: Settings.AutocapitalizeInsert,
+        Punctuation: mode?.Punctuation ?? true,
+        Capitalization: mode?.Capitalization ?? true,
+        ProfanityFilter: mode?.ProfanityFilter ?? false);
 }

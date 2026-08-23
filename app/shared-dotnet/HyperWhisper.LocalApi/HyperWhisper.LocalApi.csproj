@@ -6,6 +6,7 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="..\HyperWhisper.SpeechOutput\HyperWhisper.SpeechOutput.csproj" />
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="..\HyperWhisper.Platform.Abstractions\HyperWhisper.Platform.Abstractions.csproj" />
     <ProjectReference Include="..\HyperWhisper.Application\HyperWhisper.Application.csproj" />

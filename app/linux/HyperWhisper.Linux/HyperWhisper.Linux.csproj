@@ -45,6 +45,7 @@
     <ProjectReference Include="../../shared-dotnet/HyperWhisper.LocalApi/HyperWhisper.LocalApi.csproj" />
     <ProjectReference Include="../../shared-dotnet/HyperWhisper.LiveStreaming/HyperWhisper.LiveStreaming.csproj" />
     <ProjectReference Include="../../shared-dotnet/HyperWhisper.SharedCore/HyperWhisper.SharedCore.csproj" />
+    <ProjectReference Include="../../shared-dotnet/HyperWhisper.SpeechOutput/HyperWhisper.SpeechOutput.csproj" />
     <ProjectReference Include="../../shared-dotnet/HyperWhisper.TranscriptionRouting/HyperWhisper.TranscriptionRouting.csproj" />
     <ProjectReference Include="../../shared-dotnet/HyperWhisper.CloudPostProcessing/HyperWhisper.CloudPostProcessing.csproj" />
     <ProjectReference Include="../../shared-dotnet/HyperWhisper.Telemetry/HyperWhisper.Telemetry.csproj" />

@@ -2,6 +2,7 @@ using HyperWhisper.Data.Entities;
 using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.PortableApplication.Transcription;
+using HyperWhisper.SpeechOutput;
 
 namespace HyperWhisper.Linux;
 
@@ -19,14 +20,14 @@ public static class LinuxLiveTranscriptionFinalizer
         ITranscriptionPostProcessor postProcessor,
         ITextInjectionService textInjection,
         ITranscriptionHistoryStore history,
+        TranscriptionWorkflowRequest outputRequest,
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(rawTranscript);
         ArgumentNullException.ThrowIfNull(transcript);
         ArgumentNullException.ThrowIfNull(mode);
         var raw = rawTranscript.Trim();
-        var final = raw;
-        string? processed = null;
+        var processingInput = raw;
         string? processingProvider = null;
         if (mode.PostProcessingMode == 1
             || (mode.PostProcessingMode == 2
@@ -37,8 +38,7 @@ public static class LinuxLiveTranscriptionFinalizer
                 var post = await postProcessor.ProcessAsync(raw, mode, applicationContext, cancellationToken);
                 if (post.WasApplied && !string.IsNullOrWhiteSpace(post.Text) && !string.IsNullOrWhiteSpace(post.Provider))
                 {
-                    final = post.Text.Trim();
-                    processed = final;
+                    processingInput = post.Text.Trim();
                     processingProvider = post.Provider;
                 }
             }
@@ -50,17 +50,36 @@ public static class LinuxLiveTranscriptionFinalizer
             }
         }
 
+        var output = SpeechOutputProcessor.Process(new SpeechOutputProcessingRequest(
+            processingInput,
+            outputRequest.Language ?? mode.Language ?? "auto",
+            mode.PostProcessingMode switch
+            {
+                1 => PortablePostProcessingMode.Cloud,
+                2 => PortablePostProcessingMode.Local,
+                _ => PortablePostProcessingMode.Off,
+            },
+            outputRequest.VocabularyReplacements ?? [],
+            outputRequest.ModeVocabularyReplacements ?? [],
+            outputRequest.OutputOptions ?? new SpeechOutputProcessingOptions(
+                RemoveTrailingPeriod: mode.RemoveTrailingPeriod,
+                Punctuation: mode.Punctuation,
+                Capitalization: mode.Capitalization,
+                ProfanityFilter: mode.ProfanityFilter),
+            outputRequest.CursorContext));
+
         TextInjectionOutcome injection;
-        var injectionText = mode.RemoveTrailingPeriod
-            ? HyperWhisper.SharedCore.SharedCoreBridge.RemoveTrailingPeriod(final)
-            : final;
-        try { injection = await textInjection.InjectTranscriptAsync(injectionText, cancellationToken); }
+        try
+        {
+            injection = await TranscriptionTextDelivery.DeliverAsync(
+                textInjection, output.InjectionText, outputRequest.PasteResultText, cancellationToken);
+        }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch { injection = TextInjectionOutcome.Failed; }
 
-        transcript.Text = final;
+        transcript.Text = output.TranscriptText;
         transcript.TranscribedText = raw;
-        transcript.PostProcessedText = processed;
+        transcript.PostProcessedText = processingProvider is null ? null : output.TranscriptText;
         transcript.PostProcessingProvider = processingProvider;
         transcript.Status = TranscriptStatus.Completed;
         if (!await history.UpdateAsync(transcript, cancellationToken))

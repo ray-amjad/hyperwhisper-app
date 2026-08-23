@@ -45,6 +45,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("disposing injection cancels scheduled restore", InjectionDisposalSafety),
     ("Wayland AT-SPI target accepts stable focused identity", AtSpiTargetStable),
     ("Wayland AT-SPI target rejects changed identity", AtSpiTargetChanged),
+    ("AT-SPI insertion context matches Windows terminators", AtSpiInsertionContextClassification),
+    ("AT-SPI insertion context rejects content-bearing output", AtSpiInsertionContextPrivacy),
     ("clipboard failure prevents uinput", ClipboardFailurePreventsUInput),
     ("uinput exception preserves clipboard fallback", UInputExceptionFallsBack),
     ("Wayland fallback advertises partial multi-MIME restore", CommandClipboardCapability),
@@ -569,6 +571,41 @@ static async Task AtSpiTargetChanged()
     Assert.True(captured.IsSuccess && captured.Value is not null);
     Assert.Equal(TargetFocusState.Changed,
         await targets.ValidateAndFocusAsync(captured.Value!, CancellationToken.None));
+}
+
+static Task AtSpiInsertionContextClassification()
+{
+    Assert.Equal(InsertionCursorContext.Unknown,
+        AtSpiInsertionContextProvider.ClassifyPreceding(-1, "ignored"));
+    Assert.Equal(InsertionCursorContext.StartOfSentence,
+        AtSpiInsertionContextProvider.ClassifyPreceding(0, ""));
+    Assert.Equal(InsertionCursorContext.StartOfSentence,
+        AtSpiInsertionContextProvider.ClassifyPreceding(4, "    "));
+    Assert.Equal(InsertionCursorContext.MidSentence,
+        AtSpiInsertionContextProvider.ClassifyPreceding(6, "hello "));
+    Assert.Equal(InsertionCursorContext.MidSentence,
+        AtSpiInsertionContextProvider.ClassifyPreceding(6, "label: "));
+    foreach (var terminator in new[] { '.', '!', '?', '…', '¡', '¿', ';', '\n', '\r' })
+        Assert.Equal(InsertionCursorContext.StartOfSentence,
+            AtSpiInsertionContextProvider.ClassifyPreceding(3, $"{terminator}  "));
+    Assert.Equal(InsertionCursorContext.MidSentence,
+        AtSpiInsertionContextProvider.ClassifyPreceding(65, "." + new string('a', 64)));
+    return Task.CompletedTask;
+}
+
+static Task AtSpiInsertionContextPrivacy()
+{
+    Assert.Equal(InsertionCursorContext.StartOfSentence,
+        AtSpiInsertionContextProvider.ParseClassificationOutput("START\n"u8));
+    Assert.Equal(InsertionCursorContext.MidSentence,
+        AtSpiInsertionContextProvider.ParseClassificationOutput("MID"u8));
+    Assert.Equal(InsertionCursorContext.Unknown,
+        AtSpiInsertionContextProvider.ParseClassificationOutput("UNKNOWN"u8));
+    Assert.Equal(InsertionCursorContext.Unknown,
+        AtSpiInsertionContextProvider.ParseClassificationOutput("START|private text"u8));
+    Assert.Equal(InsertionCursorContext.Unknown,
+        AtSpiInsertionContextProvider.ParseClassificationOutput("MID\nprivate text"u8));
+    return Task.CompletedTask;
 }
 
 static async Task ClipboardFailurePreventsUInput()

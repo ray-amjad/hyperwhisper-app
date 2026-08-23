@@ -8,10 +8,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="HyperWhisper.Application.Tests" />
     <ProjectReference Include="..\HyperWhisper.Platform.Abstractions\HyperWhisper.Platform.Abstractions.csproj" />
     <ProjectReference Include="..\HyperWhisper.AudioNormalization\HyperWhisper.AudioNormalization.csproj" />
     <ProjectReference Include="..\HyperWhisper.ModelManagement\HyperWhisper.ModelManagement.csproj" />
     <ProjectReference Include="..\HyperWhisper.SharedCore\HyperWhisper.SharedCore.csproj" />
+    <ProjectReference Include="..\HyperWhisper.SpeechOutput\HyperWhisper.SpeechOutput.csproj" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.19" />
   </ItemGroup>
 

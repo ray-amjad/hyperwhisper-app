@@ -30,6 +30,23 @@ public interface ITextInjectionService : IDisposable
         CancellationToken cancellationToken = default);
 }
 
+public enum InsertionCursorContext
+{
+    Unknown,
+    StartOfSentence,
+    MidSentence,
+}
+
+/// <summary>
+/// Optional, privacy-minimal caret classification for insertion formatting.
+/// Implementations must not return, retain, or log surrounding application text.
+/// </summary>
+public interface IInsertionContextProvider
+{
+    ValueTask<InsertionCursorContext> GetCursorContextAsync(
+        CancellationToken cancellationToken = default);
+}
+
 public sealed record ApplicationContextSnapshot
 {
     public string ProcessName { get; init; } = string.Empty;

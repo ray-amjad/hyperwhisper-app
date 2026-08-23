@@ -8,6 +8,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\HyperWhisper.Application\HyperWhisper.Application.csproj" />
+    <ProjectReference Include="..\HyperWhisper.SpeechOutput\HyperWhisper.SpeechOutput.csproj" />
     <Content Include="../../../shared-core-rs/target/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so"
              Condition="Exists('../../../shared-core-rs/target/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so')">
       <Link>libhyperwhisper_core.so</Link>

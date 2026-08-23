@@ -31,6 +31,7 @@ internal sealed class LinuxDesktopServices : IDisposable
         AudioTranscriber = LinuxModeAwareTranscriptionFactory.Create(Paths);
         AudioPlayback = new PulseAudioPlaybackService();
         TextInjection = new LinuxTextInjectionService();
+        InsertionContext = new AtSpiInsertionContextProvider();
         ApplicationContext = new LinuxApplicationContextProvider();
         ScreenOcr = new LinuxScreenOcrService();
         Tray = new LinuxStatusNotifierItemService();
@@ -56,6 +57,7 @@ internal sealed class LinuxDesktopServices : IDisposable
     public IRecordedAudioTranscriber AudioTranscriber { get; }
     public IAudioPlaybackService AudioPlayback { get; }
     public ITextInjectionService TextInjection { get; }
+    public IInsertionContextProvider InsertionContext { get; }
     public IApplicationContextProvider ApplicationContext { get; }
     public IScreenOcrService ScreenOcr { get; }
     public LinuxStatusNotifierItemService Tray { get; }
