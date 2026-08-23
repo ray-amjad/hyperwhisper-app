@@ -1,0 +1,518 @@
+using System.Net;
+using System.Text;
+using uniffi.hyperwhisper_core;
+
+namespace HyperWhisper.SharedCore;
+
+/// <summary>
+/// Portable I/O shell over the Rust-owned cloud STT request/response contract.
+/// Provider URLs, headers, multipart fields, prompts and response parsing stay
+/// in the generated UniFFI binding; this class owns HTTP, cancellation and flow.
+/// </summary>
+public sealed class CloudTranscriptionService : IDisposable
+{
+    private const int MaxTransportAttempts = 4;
+    private const int MaxPollAttempts = 500;
+    private static readonly TimeSpan PollDelay = TimeSpan.FromMilliseconds(300);
+
+    private static readonly CloudProviderDescriptor[] ProviderCatalog =
+    [
+        new(CloudTranscriptionProvider.Groq, "groqWhisper", "Groq Whisper", false, true),
+        new(CloudTranscriptionProvider.Deepgram, "deepgramNova3", "Deepgram Nova 3", false, true),
+        new(CloudTranscriptionProvider.Grok, "grokStt", "Grok STT", false, true),
+        new(CloudTranscriptionProvider.AzureMai, "azureMaiTranscribe", "Microsoft MAI-Transcribe 1.5", false, true),
+        new(CloudTranscriptionProvider.GoogleChirp, "googleChirp3", "Google Chirp 3", false, true),
+        new(CloudTranscriptionProvider.ElevenLabs, "elevenLabsScribeV2", "ElevenLabs Scribe v2", false, true),
+        new(CloudTranscriptionProvider.OpenAi, "openaiWhisper", "OpenAI Whisper", false, true),
+        new(CloudTranscriptionProvider.AssemblyAi, "assemblyAI", "AssemblyAI", true, true),
+        new(CloudTranscriptionProvider.Mistral, "mistralVoxtral", "Mistral Voxtral", false, true),
+        new(CloudTranscriptionProvider.Soniox, "soniox", "Soniox", true, true),
+        new(CloudTranscriptionProvider.Gemini, "gemini", "Google Gemini", true, true),
+        new(CloudTranscriptionProvider.HyperWhisperCloud, "hyperwhisperCloud", "HyperWhisper Cloud", false, true),
+    ];
+
+    private readonly HttpClient _client;
+    private readonly ICloudCredentialSource _credentials;
+    private readonly ICloudTranscriptionDelay _delay;
+    private readonly ICloudTranscriptionObserver? _observer;
+    private bool _disposed;
+
+    public CloudTranscriptionService(
+        HttpMessageHandler handler,
+        ICloudCredentialSource credentials,
+        ICloudTranscriptionDelay? delay = null,
+        ICloudTranscriptionObserver? observer = null)
+    {
+        ArgumentNullException.ThrowIfNull(handler);
+        ArgumentNullException.ThrowIfNull(credentials);
+        _client = new HttpClient(handler, disposeHandler: true)
+        {
+            Timeout = Timeout.InfiniteTimeSpan,
+        };
+        _credentials = credentials;
+        _delay = delay ?? new SystemCloudTranscriptionDelay();
+        _observer = observer;
+    }
+
+    public static IReadOnlyList<CloudProviderDescriptor> Providers => ProviderCatalog;
+
+    public async Task<CloudTranscriptionResult> TranscribeAsync(
+        CloudTranscriptionRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ArgumentNullException.ThrowIfNull(request);
+        var state = new ExecutionState();
+        try
+        {
+            Validate(request);
+            var credential = await _credentials
+                .GetCredentialAsync(request.Provider, cancellationToken)
+                .ConfigureAwait(false);
+            var coreParams = CreateParams(request, credential);
+            var transcript = request.Provider switch
+            {
+                CloudTranscriptionProvider.AssemblyAi =>
+                    await TranscribeAssemblyAiAsync(coreParams, request.Provider, state, cancellationToken).ConfigureAwait(false),
+                CloudTranscriptionProvider.Soniox =>
+                    await TranscribeSonioxAsync(coreParams, request.Provider, state, cancellationToken).ConfigureAwait(false),
+                CloudTranscriptionProvider.Gemini =>
+                    await TranscribeGeminiAsync(coreParams, request.Provider, state, cancellationToken).ConfigureAwait(false),
+                _ => await TranscribeSingleShotAsync(coreParams, request.Provider, state, cancellationToken).ConfigureAwait(false),
+            };
+            return CloudTranscriptionResult.Success(ToPublic(transcript), state.Attempts);
+        }
+        catch (OperationCanceledException)
+        {
+            return CloudTranscriptionResult.Failed(
+                new CloudTranscriptionFailure(
+                    CloudTranscriptionErrorCode.Cancelled,
+                    "Transcription was cancelled.",
+                    request.Provider),
+                state.Attempts);
+        }
+        catch (CloudFailureException exception)
+        {
+            return CloudTranscriptionResult.Failed(exception.Failure, state.Attempts);
+        }
+        catch (HwTranscriptionException exception)
+        {
+            return CloudTranscriptionResult.Failed(MapFailure(exception, request.Provider), state.Attempts);
+        }
+        catch (HttpRequestException)
+        {
+            return CloudTranscriptionResult.Failed(
+                new CloudTranscriptionFailure(
+                    CloudTranscriptionErrorCode.Network,
+                    "The transcription service could not be reached.",
+                    request.Provider),
+                state.Attempts);
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+        _disposed = true;
+        _client.Dispose();
+    }
+
+    private static void Validate(CloudTranscriptionRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.AudioPath))
+        {
+            throw new ArgumentException("Audio path is required.", nameof(request));
+        }
+        if (!File.Exists(request.AudioPath))
+        {
+            throw new CloudFailureException(new CloudTranscriptionFailure(
+                CloudTranscriptionErrorCode.InvalidRequest,
+                "The audio file does not exist.",
+                request.Provider));
+        }
+    }
+
+    private static TranscribeParams CreateParams(
+        CloudTranscriptionRequest request,
+        CloudCredential? credential)
+    {
+        var usesLicense = request.Provider is CloudTranscriptionProvider.AzureMai
+            or CloudTranscriptionProvider.GoogleChirp
+            or CloudTranscriptionProvider.HyperWhisperCloud;
+        var apiKey = credential?.ApiKey?.Trim() ?? string.Empty;
+        var licenseKey = credential?.LicenseKey?.Trim();
+        if (usesLicense ? string.IsNullOrWhiteSpace(licenseKey) : string.IsNullOrWhiteSpace(apiKey))
+        {
+            throw new CloudFailureException(new CloudTranscriptionFailure(
+                CloudTranscriptionErrorCode.Unauthorized,
+                usesLicense ? "A HyperWhisper account key is required." : "A provider API key is required.",
+                request.Provider));
+        }
+
+        return new TranscribeParams(
+            @apiKey: apiKey,
+            @model: request.Model ?? string.Empty,
+            @language: NormalizeOptional(request.Language),
+            @vocabulary: request.Vocabulary?.Where(value => !string.IsNullOrWhiteSpace(value)).ToList() ?? [],
+            @prompt: NormalizeOptional(request.Prompt),
+            @temperature: null,
+            @audioPath: Path.GetFullPath(request.AudioPath),
+            @audioMime: NormalizeOptional(request.AudioMime) ?? MimeType(request.AudioPath),
+            @baseUrl: NormalizeOptional(request.BaseUrl),
+            @licenseKey: licenseKey,
+            @deviceId: NormalizeOptional(credential?.DeviceId),
+            @routedProvider: NormalizeOptional(request.RoutedProvider),
+            @routedModel: NormalizeOptional(request.RoutedModel),
+            @routedDomain: NormalizeOptional(request.RoutedDomain));
+    }
+
+    private async Task<HwTranscript> TranscribeSingleShotAsync(
+        TranscribeParams parameters,
+        CloudTranscriptionProvider provider,
+        ExecutionState state,
+        CancellationToken cancellationToken)
+    {
+        var response = await SendWithRetryAsync(
+            () => BuildSingleRequest(provider, parameters),
+            response => ParseSingleResponse(provider, response),
+            provider,
+            "transcribe",
+            state,
+            cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+        return ParseSingleResponse(provider, response);
+    }
+
+    private async Task<HwTranscript> TranscribeAssemblyAiAsync(
+        TranscribeParams parameters,
+        CloudTranscriptionProvider provider,
+        ExecutionState state,
+        CancellationToken cancellationToken)
+    {
+        var upload = await SendWithRetryAsync(
+            () => HyperwhisperCoreMethods.AssemblyaiBuildUploadRequest(parameters),
+            response => HyperwhisperCoreMethods.AssemblyaiParseUploadResponse(response),
+            provider, "upload", state, cancellationToken).ConfigureAwait(false);
+        var audioUrl = HyperwhisperCoreMethods.AssemblyaiParseUploadResponse(upload);
+        var create = await SendWithRetryAsync(
+            () => HyperwhisperCoreMethods.AssemblyaiBuildCreateRequest(parameters, audioUrl),
+            response => HyperwhisperCoreMethods.AssemblyaiParseCreateResponse(response),
+            provider, "create", state, cancellationToken).ConfigureAwait(false);
+        var id = HyperwhisperCoreMethods.AssemblyaiParseCreateResponse(create);
+        for (var poll = 0; poll < MaxPollAttempts; poll++)
+        {
+            var response = await SendWithRetryAsync(
+                () => HyperwhisperCoreMethods.AssemblyaiBuildPollRequest(parameters, id),
+                value => HyperwhisperCoreMethods.AssemblyaiParsePollResponse(value),
+                provider, "poll", state, cancellationToken).ConfigureAwait(false);
+            if (HyperwhisperCoreMethods.AssemblyaiParsePollResponse(response) is AssemblyaiPollOutcome.Done done)
+            {
+                return done.@transcript;
+            }
+            await _delay.DelayAsync(PollDelay, cancellationToken).ConfigureAwait(false);
+        }
+        throw PollTimeout(provider);
+    }
+
+    private async Task<HwTranscript> TranscribeSonioxAsync(
+        TranscribeParams parameters,
+        CloudTranscriptionProvider provider,
+        ExecutionState state,
+        CancellationToken cancellationToken)
+    {
+        string? fileId = null;
+        string? transcriptionId = null;
+        try
+        {
+            var upload = await SendWithRetryAsync(
+                () => HyperwhisperCoreMethods.SonioxBuildUploadRequest(parameters),
+                response => HyperwhisperCoreMethods.SonioxParseUploadResponse(response),
+                provider, "upload", state, cancellationToken).ConfigureAwait(false);
+            fileId = HyperwhisperCoreMethods.SonioxParseUploadResponse(upload);
+            var create = await SendWithRetryAsync(
+                () => HyperwhisperCoreMethods.SonioxBuildCreateRequest(parameters, fileId),
+                response => HyperwhisperCoreMethods.SonioxParseCreateResponse(response),
+                provider, "create", state, cancellationToken).ConfigureAwait(false);
+            transcriptionId = HyperwhisperCoreMethods.SonioxParseCreateResponse(create);
+            for (var poll = 0; poll < MaxPollAttempts; poll++)
+            {
+                var status = await SendWithRetryAsync(
+                    () => HyperwhisperCoreMethods.SonioxBuildStatusRequest(parameters, transcriptionId),
+                    response => HyperwhisperCoreMethods.SonioxParseStatusResponse(response),
+                    provider, "poll", state, cancellationToken).ConfigureAwait(false);
+                if (HyperwhisperCoreMethods.SonioxParseStatusResponse(status) == SonioxPollStatus.Completed)
+                {
+                    var transcript = await SendWithRetryAsync(
+                        () => HyperwhisperCoreMethods.SonioxBuildTranscriptRequest(parameters, transcriptionId),
+                        response => HyperwhisperCoreMethods.SonioxParseTranscriptResponse(response),
+                        provider, "fetch", state, cancellationToken).ConfigureAwait(false);
+                    return HyperwhisperCoreMethods.SonioxParseTranscriptResponse(transcript);
+                }
+                await _delay.DelayAsync(PollDelay, cancellationToken).ConfigureAwait(false);
+            }
+            throw PollTimeout(provider);
+        }
+        finally
+        {
+            if (!string.IsNullOrWhiteSpace(transcriptionId))
+            {
+                await BestEffortAsync(
+                    () => HyperwhisperCoreMethods.SonioxBuildDeleteTranscriptionRequest(parameters, transcriptionId),
+                    cancellationToken).ConfigureAwait(false);
+            }
+            if (!string.IsNullOrWhiteSpace(fileId))
+            {
+                await BestEffortAsync(
+                    () => HyperwhisperCoreMethods.SonioxBuildDeleteFileRequest(parameters, fileId),
+                    cancellationToken).ConfigureAwait(false);
+            }
+        }
+    }
+
+    private async Task<HwTranscript> TranscribeGeminiAsync(
+        TranscribeParams parameters,
+        CloudTranscriptionProvider provider,
+        ExecutionState state,
+        CancellationToken cancellationToken)
+    {
+        GeminiFile? uploaded = null;
+        try
+        {
+            var fileLength = new FileInfo(parameters.@audioPath).Length;
+            var start = await SendWithRetryAsync(
+                () =>
+                {
+                    var request = HyperwhisperCoreMethods.GeminiBuildUploadStartRequest(parameters);
+                    request.@headers.Add(new Header("X-Goog-Upload-Header-Content-Length", fileLength.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+                    return request;
+                },
+                response => HyperwhisperCoreMethods.GeminiParseUploadStartResponse(response),
+                provider, "upload-start", state, cancellationToken).ConfigureAwait(false);
+            var uploadUrl = HyperwhisperCoreMethods.GeminiParseUploadStartResponse(start);
+            var upload = await SendWithRetryAsync(
+                () => HyperwhisperCoreMethods.GeminiBuildUploadBytesRequest(parameters, uploadUrl),
+                response => HyperwhisperCoreMethods.GeminiParseUploadBytesResponse(response),
+                provider, "upload", state, cancellationToken).ConfigureAwait(false);
+            uploaded = HyperwhisperCoreMethods.GeminiParseUploadBytesResponse(upload);
+            var active = uploaded;
+            for (var poll = 0; !string.Equals(active.@state, "ACTIVE", StringComparison.OrdinalIgnoreCase); poll++)
+            {
+                if (poll >= MaxPollAttempts || string.IsNullOrWhiteSpace(active.@name))
+                {
+                    throw PollTimeout(provider);
+                }
+                await _delay.DelayAsync(PollDelay, cancellationToken).ConfigureAwait(false);
+                var response = await SendWithRetryAsync(
+                    () => HyperwhisperCoreMethods.GeminiBuildPollRequest(parameters, active.@name!),
+                    value => HyperwhisperCoreMethods.GeminiParsePollResponse(value),
+                    provider, "poll", state, cancellationToken).ConfigureAwait(false);
+                if (HyperwhisperCoreMethods.GeminiParsePollResponse(response) is GeminiFilePollOutcome.Active done)
+                {
+                    active = done.@file;
+                }
+            }
+            var generate = await SendWithRetryAsync(
+                () => HyperwhisperCoreMethods.GeminiBuildGenerateRequest(parameters, active),
+                response => HyperwhisperCoreMethods.GeminiParseGenerateResponse(response),
+                provider, "generate", state, cancellationToken).ConfigureAwait(false);
+            return HyperwhisperCoreMethods.GeminiParseGenerateResponse(generate);
+        }
+        finally
+        {
+            if (!string.IsNullOrWhiteSpace(uploaded?.@name))
+            {
+                await BestEffortAsync(
+                    () => HyperwhisperCoreMethods.GeminiBuildDeleteRequest(parameters, uploaded.@name!),
+                    cancellationToken).ConfigureAwait(false);
+            }
+        }
+    }
+
+    private async Task<HttpResponse> SendWithRetryAsync<T>(
+        Func<HttpRequest> build,
+        Func<HttpResponse, T> parse,
+        CloudTranscriptionProvider provider,
+        string stage,
+        ExecutionState state,
+        CancellationToken cancellationToken)
+    {
+        uint attempt = 0;
+        var transportFailures = 0;
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            attempt++;
+            state.Attempts++;
+            try
+            {
+                var response = await RustHttpTransport.ExecuteAsync(build(), _client, cancellationToken).ConfigureAwait(false);
+                Observe(new CloudTranscriptionEvent(provider, checked((int)attempt), response.@status, stage));
+                if (response.@status is >= 200 and <= 299)
+                {
+                    return response;
+                }
+                var retryAfter = RetryAfter(response);
+                var decision = HyperwhisperCoreMethods.NextRetry(
+                    attempt,
+                    response.@status,
+                    Encoding.UTF8.GetString(response.@body),
+                    retryAfter.HasValue ? (ulong)Math.Max(0, retryAfter.Value) : null);
+                if (decision is RetryDecision.Retry retry)
+                {
+                    await _delay.DelayAsync(TimeSpan.FromMilliseconds(retry.@delayMs), cancellationToken).ConfigureAwait(false);
+                    continue;
+                }
+                try
+                {
+                    _ = parse(response);
+                }
+                catch (HwTranscriptionException exception)
+                {
+                    throw new CloudFailureException(MapFailure(exception, provider, response.@status, retryAfter));
+                }
+                throw new CloudFailureException(new CloudTranscriptionFailure(
+                    CloudTranscriptionErrorCode.Unknown,
+                    "The provider returned an unsuccessful response.",
+                    provider,
+                    response.@status));
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (HttpRequestException) when (++transportFailures < MaxTransportAttempts)
+            {
+                Observe(new CloudTranscriptionEvent(provider, checked((int)attempt), null, stage));
+                var decision = HyperwhisperCoreMethods.NextRetry(attempt, 503, string.Empty, null);
+                if (decision is not RetryDecision.Retry retry)
+                {
+                    throw;
+                }
+                await _delay.DelayAsync(TimeSpan.FromMilliseconds(retry.@delayMs), cancellationToken).ConfigureAwait(false);
+            }
+        }
+    }
+
+    private async Task BestEffortAsync(Func<HttpRequest> build, CancellationToken cancellationToken)
+    {
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return;
+        }
+        try
+        {
+            using var cleanup = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cleanup.CancelAfter(TimeSpan.FromSeconds(5));
+            await RustHttpTransport.ExecuteAsync(build(), _client, cleanup.Token).ConfigureAwait(false);
+        }
+        catch (Exception)
+        {
+            // Cleanup is deliberately non-fatal and never logged: request URLs can
+            // carry credentials for some providers.
+        }
+    }
+
+    private void Observe(CloudTranscriptionEvent value)
+    {
+        try
+        {
+            _observer?.OnEvent(value);
+        }
+        catch (Exception)
+        {
+            // Diagnostics must never affect transcription.
+        }
+    }
+
+    private static HttpRequest BuildSingleRequest(CloudTranscriptionProvider provider, TranscribeParams parameters) => provider switch
+    {
+        CloudTranscriptionProvider.OpenAi => HyperwhisperCoreMethods.OpenaiBuildTranscribeRequest(parameters),
+        CloudTranscriptionProvider.Groq => HyperwhisperCoreMethods.GroqBuildTranscribeRequest(parameters),
+        CloudTranscriptionProvider.ElevenLabs => HyperwhisperCoreMethods.ElevenlabsBuildTranscribeRequest(parameters),
+        CloudTranscriptionProvider.Mistral => HyperwhisperCoreMethods.MistralBuildTranscribeRequest(parameters),
+        CloudTranscriptionProvider.Grok => HyperwhisperCoreMethods.GrokBuildTranscribeRequest(parameters),
+        CloudTranscriptionProvider.Deepgram => HyperwhisperCoreMethods.DeepgramBuildTranscribeRequest(parameters),
+        CloudTranscriptionProvider.AzureMai => HyperwhisperCoreMethods.AzureMaiBuildTranscribeRequest(parameters),
+        CloudTranscriptionProvider.GoogleChirp => HyperwhisperCoreMethods.GoogleChirpBuildTranscribeRequest(parameters),
+        CloudTranscriptionProvider.HyperWhisperCloud => HyperwhisperCoreMethods.HyperwhisperCloudBuildTranscribeRequest(parameters),
+        _ => throw new ArgumentOutOfRangeException(nameof(provider)),
+    };
+
+    private static HwTranscript ParseSingleResponse(CloudTranscriptionProvider provider, HttpResponse response) => provider switch
+    {
+        CloudTranscriptionProvider.OpenAi => HyperwhisperCoreMethods.OpenaiParseTranscribeResponse(response),
+        CloudTranscriptionProvider.Groq => HyperwhisperCoreMethods.GroqParseTranscribeResponse(response),
+        CloudTranscriptionProvider.ElevenLabs => HyperwhisperCoreMethods.ElevenlabsParseTranscribeResponse(response),
+        CloudTranscriptionProvider.Mistral => HyperwhisperCoreMethods.MistralParseTranscribeResponse(response),
+        CloudTranscriptionProvider.Grok => HyperwhisperCoreMethods.GrokParseTranscribeResponse(response),
+        CloudTranscriptionProvider.Deepgram => HyperwhisperCoreMethods.DeepgramParseTranscribeResponse(response),
+        CloudTranscriptionProvider.AzureMai => HyperwhisperCoreMethods.AzureMaiParseTranscribeResponse(response),
+        CloudTranscriptionProvider.GoogleChirp => HyperwhisperCoreMethods.GoogleChirpParseTranscribeResponse(response),
+        CloudTranscriptionProvider.HyperWhisperCloud => HyperwhisperCoreMethods.HyperwhisperCloudParseTranscribeResponse(response),
+        _ => throw new ArgumentOutOfRangeException(nameof(provider)),
+    };
+
+    private static CloudTranscript ToPublic(HwTranscript value) =>
+        new(value.@text, value.@creditsRemaining, value.@cost, value.@rawProvider);
+
+    private static CloudTranscriptionFailure MapFailure(
+        HwTranscriptionException exception,
+        CloudTranscriptionProvider provider,
+        int? status = null,
+        int? retryAfter = null) => exception switch
+    {
+        HwTranscriptionException.Unauthorized => new(CloudTranscriptionErrorCode.Unauthorized, "The provider rejected the supplied credential.", provider, status),
+        HwTranscriptionException.QuotaExceeded => new(CloudTranscriptionErrorCode.QuotaExceeded, "The provider quota is exhausted.", provider, status),
+        HwTranscriptionException.FileTooLarge => new(CloudTranscriptionErrorCode.FileTooLarge, "The audio file exceeds the provider limit.", provider, status ?? 413),
+        HwTranscriptionException.RateLimited rate => new(CloudTranscriptionErrorCode.RateLimited, "The provider rate limit was reached.", provider, status ?? 429, retryAfter ?? SaturatingInt(rate.@retryAfterSecs)),
+        HwTranscriptionException.ProviderUnavailable unavailable => new(CloudTranscriptionErrorCode.ProviderUnavailable, "The provider is temporarily unavailable.", provider, unavailable.@status),
+        HwTranscriptionException.NoSpeech => new(CloudTranscriptionErrorCode.NoSpeech, "No speech was detected.", provider, status),
+        HwTranscriptionException.BadRequest => new(CloudTranscriptionErrorCode.InvalidRequest, "The provider rejected the transcription request.", provider, status),
+        HwTranscriptionException.Parse => new(CloudTranscriptionErrorCode.InvalidRequest, "The provider returned an invalid response.", provider, status),
+        _ => new(CloudTranscriptionErrorCode.Unknown, "Cloud transcription failed.", provider, status),
+    };
+
+    private static int? SaturatingInt(ulong? value) => value.HasValue
+        ? (int)Math.Min(value.Value, int.MaxValue)
+        : null;
+
+    private static int? RetryAfter(HttpResponse response)
+    {
+        var value = response.@headers.FirstOrDefault(header =>
+            string.Equals(header.@name, "Retry-After", StringComparison.OrdinalIgnoreCase))?.@value;
+        return int.TryParse(value, out var seconds) ? Math.Max(0, seconds) : null;
+    }
+
+    private static CloudFailureException PollTimeout(CloudTranscriptionProvider provider) =>
+        new(new CloudTranscriptionFailure(
+            CloudTranscriptionErrorCode.ProviderUnavailable,
+            "Timed out waiting for provider processing.",
+            provider));
+
+    private static string? NormalizeOptional(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static string MimeType(string path) => Path.GetExtension(path).ToLowerInvariant() switch
+    {
+        ".wav" => "audio/wav",
+        ".mp3" => "audio/mpeg",
+        ".m4a" => "audio/mp4",
+        ".flac" => "audio/flac",
+        ".ogg" => "audio/ogg",
+        ".webm" => "audio/webm",
+        _ => "application/octet-stream",
+    };
+
+    private sealed class ExecutionState
+    {
+        public int Attempts { get; set; }
+    }
+
+    private sealed class CloudFailureException(CloudTranscriptionFailure failure) : Exception(failure.Message)
+    {
+        public CloudTranscriptionFailure Failure { get; } = failure;
+    }
+}
