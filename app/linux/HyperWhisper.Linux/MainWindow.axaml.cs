@@ -67,7 +67,8 @@ public partial class MainWindow : Window
 
             if (!Path.IsPathFullyQualified(_platformServices.Paths.DataDirectory)
                 || _platformServices.PrivateFiles is null
-                || _platformServices.GlobalShortcuts is null)
+                || _platformServices.GlobalShortcuts is null
+                || !_platformServices.ProbeSharedCore())
             {
                 return 4;
             }
