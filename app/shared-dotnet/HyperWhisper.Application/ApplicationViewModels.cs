@@ -1386,12 +1386,15 @@ public sealed class SettingsViewModel : ViewModelBase
     private bool _autoIncreaseMicVolume;
     private bool _keepMicrophoneWarm;
     private bool _keepAudioFiles = true;
+    private bool _storeAsM4A;
+    private string _recordingsDirectory = string.Empty;
     private bool _autoDeleteEnabled;
     private int _autoDeleteDaysOld = 30;
     private string _audioEnvironmentPolicy = "unchanged";
     private string _desktopContextStatus = "Desktop context capability not checked";
     private string _clipboardHistoryPrivacyStatus = "Clipboard-history privacy capability not checked";
     private bool _enableErrorLogging = true;
+    private bool _shareAnonymousSpeedData = true;
     private string _localWhisperBackend = "auto";
     private bool _allowLocalWhisperCpuFallback = true;
     private string _processWhisperBackend = "auto";
@@ -1448,12 +1451,19 @@ public sealed class SettingsViewModel : ViewModelBase
     public bool AutoIncreaseMicVolume { get => _autoIncreaseMicVolume; set => Set(ref _autoIncreaseMicVolume, value); }
     public bool KeepMicrophoneWarm { get => _keepMicrophoneWarm; set => Set(ref _keepMicrophoneWarm, value); }
     public bool KeepAudioFiles { get => _keepAudioFiles; set => Set(ref _keepAudioFiles, value); }
+    public bool StoreAsM4A { get => _storeAsM4A; set => Set(ref _storeAsM4A, value); }
+    public string RecordingsDirectory
+    {
+        get => _recordingsDirectory;
+        set => Set(ref _recordingsDirectory, value?.Trim() ?? string.Empty);
+    }
     public bool AutoDeleteEnabled { get => _autoDeleteEnabled; set => Set(ref _autoDeleteEnabled, value); }
     public int AutoDeleteDaysOld { get => _autoDeleteDaysOld; set => Set(ref _autoDeleteDaysOld, Math.Clamp(value, 1, 365)); }
     public string AudioEnvironmentPolicy { get => _audioEnvironmentPolicy; set => Set(ref _audioEnvironmentPolicy, NormalizeAudioPolicy(value)); }
     public string DesktopContextStatus { get => _desktopContextStatus; set => Set(ref _desktopContextStatus, value ?? string.Empty); }
     public string ClipboardHistoryPrivacyStatus { get => _clipboardHistoryPrivacyStatus; set => Set(ref _clipboardHistoryPrivacyStatus, value ?? string.Empty); }
     public bool EnableErrorLogging { get => _enableErrorLogging; set => Set(ref _enableErrorLogging, value); }
+    public bool ShareAnonymousSpeedData { get => _shareAnonymousSpeedData; set => Set(ref _shareAnonymousSpeedData, value); }
     public string LocalWhisperBackend
     {
         get => _localWhisperBackend;
@@ -1540,10 +1550,13 @@ public sealed class SettingsViewModel : ViewModelBase
         AutoIncreaseMicVolume = _settings.Get("autoIncreaseMicVolume", false);
         KeepMicrophoneWarm = _settings.Get("keepMicrophoneWarm", false);
         KeepAudioFiles = _settings.Get("storage.keepAudioFiles", true);
+        StoreAsM4A = _settings.Get("storage.storeAsM4A", false);
+        RecordingsDirectory = _settings.Get("storage.recordingsDirectory", string.Empty) ?? string.Empty;
         AutoDeleteEnabled = _settings.Get("autoDeleteEnabled", false);
         AutoDeleteDaysOld = _settings.Get("autoDeleteDaysOld", 30);
         AudioEnvironmentPolicy = _settings.Get("audioEnvironmentPolicy", "unchanged") ?? "unchanged";
         EnableErrorLogging = _settings.Get("general.enableErrorLogging", true);
+        ShareAnonymousSpeedData = _settings.Get("general.shareAnonymousSpeedData", true);
         LocalWhisperBackend = _settings.Get("localWhisperBackend", "auto") ?? "auto";
         AllowLocalWhisperCpuFallback = _settings.Get("allowLocalWhisperCpuFallback", true);
         if (!_whisperBaselineCaptured)
@@ -1558,6 +1571,11 @@ public sealed class SettingsViewModel : ViewModelBase
     }
     public void Save()
     {
+        if (RecordingsDirectory.Length > 0 && !Path.IsPathFullyQualified(RecordingsDirectory))
+        {
+            Status.Failure("settings.recordings_directory_relative", "Choose an absolute recordings directory.");
+            return;
+        }
         var shortcutValidation = ValidateShortcuts();
         if (shortcutValidation.IsFailure)
         {
@@ -1602,10 +1620,13 @@ public sealed class SettingsViewModel : ViewModelBase
         _settings.Set("autoIncreaseMicVolume", AutoIncreaseMicVolume);
         _settings.Set("keepMicrophoneWarm", KeepMicrophoneWarm);
         _settings.Set("storage.keepAudioFiles", KeepAudioFiles);
+        _settings.Set("storage.storeAsM4A", StoreAsM4A);
+        _settings.Set("storage.recordingsDirectory", RecordingsDirectory);
         _settings.Set("autoDeleteEnabled", AutoDeleteEnabled);
         _settings.Set("autoDeleteDaysOld", Math.Clamp(AutoDeleteDaysOld, 1, 365));
         _settings.Set("audioEnvironmentPolicy", NormalizeAudioPolicy(AudioEnvironmentPolicy));
         _settings.Set("general.enableErrorLogging", EnableErrorLogging);
+        _settings.Set("general.shareAnonymousSpeedData", ShareAnonymousSpeedData);
         _settings.Set("localWhisperBackend", NormalizeWhisperBackend(LocalWhisperBackend));
         _settings.Set("allowLocalWhisperCpuFallback", AllowLocalWhisperCpuFallback);
         var result = _settings.Save();
