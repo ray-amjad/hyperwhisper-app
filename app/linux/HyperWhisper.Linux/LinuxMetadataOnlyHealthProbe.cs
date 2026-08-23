@@ -9,13 +9,40 @@ namespace HyperWhisper.Linux;
 /// </summary>
 internal sealed class LinuxMetadataOnlyHealthProbe : IProviderHealthProbe
 {
-    public ValueTask<ProviderHealthResponse> CheckAsync(
+    private static readonly HttpMessageInvoker Transport = new(new SocketsHttpHandler
+    {
+        AllowAutoRedirect = false,
+        AutomaticDecompression = System.Net.DecompressionMethods.None,
+        ConnectTimeout = TimeSpan.FromSeconds(3),
+        MaxConnectionsPerServer = 2,
+        PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+    });
+    private static readonly ProviderMetadataHealthProbe Probe = new(Transport);
+
+    public async ValueTask<ProviderHealthResponse> CheckAsync(
         ProviderHealthRequest request,
         CancellationToken cancellationToken = default)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        return ValueTask.FromResult(new ProviderHealthResponse(
-            ProviderHealthOutcome.Unsupported,
-            "This provider has no content-free health endpoint in the Linux build."));
+        var result = await Probe.CheckAsync(request, cancellationToken).ConfigureAwait(false);
+        LinuxProviderReadinessSnapshot.Record(request.ProviderId, request.Surface, result);
+        return result;
     }
+}
+
+internal static class LinuxProviderReadinessSnapshot
+{
+    private static readonly object Sync = new();
+    private static readonly Dictionary<(string Provider, ModelSurface Surface), ProviderHealthResponse> Values = new();
+
+    public static void Record(string provider, ModelSurface surface, ProviderHealthResponse response)
+    {
+        lock (Sync) Values[(Normalize(provider), surface)] = response;
+    }
+
+    public static ProviderHealthResponse? Get(string provider, ModelSurface surface)
+    {
+        lock (Sync) return Values.GetValueOrDefault((Normalize(provider), surface));
+    }
+
+    private static string Normalize(string provider) => provider.Trim().ToLowerInvariant();
 }

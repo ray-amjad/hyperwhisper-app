@@ -12,7 +12,9 @@ public enum ReadinessState
     Checking,
     Healthy,
     Unauthorized,
+    RateLimited,
     Unreachable,
+    Malformed,
     Installed,
     Downloadable,
     Unsupported,
@@ -69,7 +71,7 @@ public sealed record ProviderHealthRequest(
     ProviderCredential Credential,
     Uri? Endpoint = null);
 
-public enum ProviderHealthOutcome { Healthy, Unauthorized, Unreachable, Unsupported }
+public enum ProviderHealthOutcome { Healthy, Unauthorized, RateLimited, Unreachable, Malformed, Unsupported }
 
 public sealed record ProviderHealthResponse(ProviderHealthOutcome Outcome, string? Detail = null)
 {

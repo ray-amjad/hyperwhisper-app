@@ -4,8 +4,8 @@ using HyperWhisper.LocalApi;
 using HyperWhisper.ModelManagement;
 using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.PortableApplication.Transcription;
-using HyperWhisper.CloudPostProcessing;
 using HyperWhisper.Platform.Abstractions;
+using HyperWhisper.ModelReadiness;
 using System.Security.Cryptography;
 
 namespace HyperWhisper.Linux;
@@ -17,35 +17,38 @@ internal sealed class LinuxLocalApiCapabilityCatalog(
     IDeviceIdentityProvider deviceIdentity,
     PortableSettingsService settings) : ILocalApiCapabilityCatalog
 {
-    public IReadOnlyList<ModelEntry> Models => PortableModelCatalog.All.Select(model => new ModelEntry(
-        model.Id, model.Kind == ManagedModelKind.LocalLlm ? "text" : "voice", "local",
-        model.DisplayName, models.IsInstalled(model), model.ApproximateSizeBytes / 1_000_000d)).ToArray();
+    private IReadOnlyList<ModelCapability> Capabilities => UnifiedModelCatalog.LoadBundled(
+        (settings.Get<PortableCustomPostProcessingEndpoint[]>("customEndpoints", []) ?? [])
+        .Where(endpoint => Uri.TryCreate(endpoint.EndpointUrl, UriKind.Absolute, out var uri)
+            && uri.Scheme is "https" or "http")
+        .Select(endpoint => new CustomEndpointDefinition(
+            endpoint.Id, endpoint.Name, new Uri(endpoint.EndpointUrl), endpoint.ModelName,
+            $"CustomEndpoint_{endpoint.Id:D}")));
 
-    public IReadOnlyList<ProviderStatus> TranscriptionProviders =>
-    [
-        new("local", false, transcriber.Capability.IsAvailable,
-            transcriber.Capability.IsAvailable ? "ready" : "unavailable"),
-    ];
+    public IReadOnlyList<ModelEntry> Models => Capabilities
+        .GroupBy(capability => $"{capability.ProviderId}\n{capability.ModelId}\n{capability.Workload}",
+            StringComparer.OrdinalIgnoreCase)
+        .Select(group => group.OrderByDescending(capability =>
+            capability.Key.StartsWith("cloud/pp-byok/", StringComparison.Ordinal)).First())
+        .Select(capability => new ModelEntry(
+            capability.Key,
+            capability.Workload == ModelWorkload.Text ? "text" : "voice",
+            capability.Deployment == ModelDeployment.Local ? "local" : capability.ProviderId,
+            capability.DisplayName,
+            IsEnabled(capability),
+            capability.ApproximateSizeBytes is { } size ? size / 1_000_000d : null)).ToArray();
+
+    public IReadOnlyList<ProviderStatus> TranscriptionProviders => BuildProviders(
+        Capabilities.Where(capability => capability.Workload == ModelWorkload.Voice),
+        includeLocalRuntime: true);
 
     public IReadOnlyList<ProviderStatus> PostProcessingProviders
     {
         get
         {
-            var statuses = new List<ProviderStatus>
-            {
-                new("local_llm", false, PortableModelCatalog.LocalLlm.Any(models.IsInstalled),
-                    PortableModelCatalog.LocalLlm.Any(models.IsInstalled) ? "ready" : "model_required"),
-            };
-            foreach (var (id, provider) in BuiltInPostProcessingProviders)
-            {
-                var available = provider == CloudPostProcessingProvider.HyperWhisperCloud
-                    ? HasCredential("LicenseKey") || deviceIdentity.GetDeviceIdentity().IsSuccess
-                    : HasCredential(CredentialStorePostProcessingCredentialSource.AccountFor(provider));
-                statuses.Add(new(id, true, available, available ? "ready" : "credential_required"));
-            }
-            foreach (var endpoint in settings.Get<PortableCustomPostProcessingEndpoint[]>("customEndpoints", []) ?? [])
-                statuses.Add(new($"custom:{endpoint.Id:D}", true, true, "configured"));
-            return statuses;
+            return BuildProviders(
+                Capabilities.Where(capability => capability.Workload == ModelWorkload.Text),
+                includeLocalRuntime: true);
         }
     }
 
@@ -68,17 +71,71 @@ internal sealed class LinuxLocalApiCapabilityCatalog(
         finally { if (result.Value is { } bytes) CryptographicOperations.ZeroMemory(bytes); }
     }
 
-    private static readonly (string Id, CloudPostProcessingProvider Provider)[] BuiltInPostProcessingProviders =
-    [
-        ("hyperwhispercloud", CloudPostProcessingProvider.HyperWhisperCloud),
-        ("openai", CloudPostProcessingProvider.OpenAi),
-        ("anthropic", CloudPostProcessingProvider.Anthropic),
-        ("groq", CloudPostProcessingProvider.Groq),
-        ("grok", CloudPostProcessingProvider.Grok),
-        ("gemini", CloudPostProcessingProvider.Gemini),
-        ("cerebras", CloudPostProcessingProvider.Cerebras),
-        ("mistral", CloudPostProcessingProvider.Mistral),
-    ];
+    private IReadOnlyList<ProviderStatus> BuildProviders(
+        IEnumerable<ModelCapability> source,
+        bool includeLocalRuntime)
+    {
+        var result = new List<ProviderStatus>();
+        foreach (var group in source.GroupBy(
+            capability => capability.ProviderId,
+            StringComparer.OrdinalIgnoreCase).OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase))
+        {
+            var rows = group.ToArray();
+            if (rows.All(row => row.Deployment == ModelDeployment.Local))
+            {
+                var available = group.Key.Equals("localLLM", StringComparison.OrdinalIgnoreCase)
+                    ? PortableModelCatalog.LocalLlm.Any(models.IsInstalled)
+                    : includeLocalRuntime && transcriber.Capability.IsAvailable;
+                result.Add(new(group.Key, false, available, available ? "ready" : "model_required"));
+                continue;
+            }
+
+            var keyPresent = rows.Any(row => !row.RequiresCredential)
+                || rows.Any(row => HasCredential(row.CredentialAccount))
+                || group.Key.Equals("hyperwhisper", StringComparison.OrdinalIgnoreCase)
+                    && deviceIdentity.GetDeviceIdentity().IsSuccess;
+            var snapshots = rows.Select(row => LinuxProviderReadinessSnapshot.Get(row.ProviderId, row.Surface))
+                .Where(value => value is not null).Cast<ProviderHealthResponse>().ToArray();
+            var outcome = snapshots.Select(value => value.Outcome).FirstOrDefault(value =>
+                value is ProviderHealthOutcome.Healthy or ProviderHealthOutcome.Unauthorized
+                    or ProviderHealthOutcome.RateLimited or ProviderHealthOutcome.Malformed
+                    or ProviderHealthOutcome.Unreachable or ProviderHealthOutcome.Unsupported);
+            result.Add(new(group.Key, keyPresent, outcome == ProviderHealthOutcome.Healthy,
+                !keyPresent ? "credential_required" : Status(outcome, snapshots.Length > 0)));
+        }
+        return result;
+    }
+
+    private static string Status(ProviderHealthOutcome outcome, bool checkedProvider) => !checkedProvider ? "unknown" : outcome switch
+    {
+        ProviderHealthOutcome.Healthy => "healthy",
+        ProviderHealthOutcome.Unauthorized => "unauthorized",
+        ProviderHealthOutcome.RateLimited => "rate_limited",
+        ProviderHealthOutcome.Malformed => "malformed",
+        ProviderHealthOutcome.Unreachable => "unreachable",
+        ProviderHealthOutcome.Unsupported => "unsupported",
+        _ => "unknown",
+    };
+
+    private static bool TryManagedModel(string id, out ManagedModel model)
+    {
+        model = PortableModelCatalog.All.FirstOrDefault(candidate => candidate.Id == id)!;
+        return model is not null;
+    }
+
+    private bool IsEnabled(ModelCapability capability)
+    {
+        if (capability.Deployment == ModelDeployment.Local)
+            return TryManagedModel(capability.ModelId, out var model) && models.IsInstalled(model);
+        var configured = !capability.RequiresCredential
+            || HasCredential(capability.CredentialAccount)
+            || capability.ProviderId.Equals("hyperwhisper", StringComparison.OrdinalIgnoreCase)
+                && deviceIdentity.GetDeviceIdentity().IsSuccess;
+        if (!configured) return false;
+        return LinuxProviderReadinessSnapshot.Get(capability.ProviderId, capability.Surface)?.Outcome
+            is not (ProviderHealthOutcome.Unauthorized or ProviderHealthOutcome.Unreachable
+                or ProviderHealthOutcome.Malformed);
+    }
 }
 
 internal sealed class LinuxLocalApiPostProcessor(

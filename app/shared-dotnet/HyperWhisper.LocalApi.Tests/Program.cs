@@ -21,6 +21,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Windows JSON transcription contract", JsonTranscriptionContract),
     ("Windows JSON file source is private and bounded", JsonFileSecurity),
     ("Windows post-process application context contract", PostProcessContextContract),
+    ("Windows endpoint contract snapshots and overrides", EndpointContractSnapshots),
     ("path traversal rejected", Traversal),
     ("request cancellation propagates", Cancellation),
     ("health reports actual bound port", HealthReportsBoundPort),
@@ -77,6 +78,51 @@ static async Task Multipart()
     using var large = new MultipartFormDataContent();
     large.Add(new ByteArrayContent([1, 2, 3, 4, 5]), "audio", "clip.wav");
     Assert((await fixture.Client.PostAsync("/transcribe", large)).StatusCode == HttpStatusCode.RequestEntityTooLarge, "large upload accepted");
+}
+
+static async Task EndpointContractSnapshots()
+{
+    await using var fixture = await Fixture.Create();
+
+    using (var health = JsonDocument.Parse(await fixture.Client.GetStringAsync("/health")))
+    {
+        AssertProperties(health.RootElement,
+            "ok", "app_version", "api_version", "port", "pid", "providers", "post_processing_providers", "local_models");
+        Assert(health.RootElement.GetProperty("api_version").GetInt32() == 1, "health API version drifted");
+    }
+
+    fixture.Authenticate();
+    using (var models = JsonDocument.Parse(await fixture.Client.GetStringAsync("/models")))
+        AssertProperties(models.RootElement, "ok", "models");
+    using (var modes = JsonDocument.Parse(await fixture.Client.GetStringAsync("/modes")))
+        AssertProperties(modes.RootElement, "ok", "modes");
+
+    using (var postResponse = await fixture.Client.PostAsync("/post-process", JsonContent(
+        """{"text":"hello","prompt":"Be concise","provider":"groq","model":"llama"}""")))
+    using (var post = JsonDocument.Parse(await postResponse.Content.ReadAsStreamAsync()))
+    {
+        Assert(postResponse.StatusCode == HttpStatusCode.OK, "post-process override contract failed");
+        AssertProperties(post.RootElement, "ok", "text", "provider", "model", "preset", "latency_ms");
+        Assert(fixture.Backend.PostProcess is { Prompt: "Be concise", Provider: "groq", Model: "llama" },
+            "post-process provider/model overrides were lost");
+    }
+
+    using (var recordings = JsonDocument.Parse(await fixture.Client.GetStringAsync(
+        "/recordings?q=ray&since=2026-01-01T00:00:00Z&until=2026-01-02T00:00:00Z&limit=999")))
+    {
+        AssertProperties(recordings.RootElement, "ok", "total", "returned", "recordings");
+        Assert(fixture.Backend.RecordingQuery is { Search: "ray", Limit: 500 }
+            && fixture.Backend.RecordingQuery.Since is not null
+            && fixture.Backend.RecordingQuery.Until is not null,
+            "recording search/date/limit overrides drifted");
+    }
+}
+
+static void AssertProperties(JsonElement element, params string[] expected)
+{
+    var actual = element.EnumerateObject().Select(property => property.Name).Order(StringComparer.Ordinal).ToArray();
+    Assert(actual.SequenceEqual(expected.Order(StringComparer.Ordinal)),
+        $"contract properties drifted: {string.Join(',', actual)}");
 }
 
 static async Task JsonTranscriptionContract()
@@ -589,6 +635,7 @@ sealed class FakeBackend : ILocalApiBackend
 {
     public AudioUpload? Upload { get; private set; }
     public PostProcessRequest? PostProcess { get; private set; }
+    public RecordingQuery? RecordingQuery { get; private set; }
     public bool BlockTranscription { get; init; }
     public TaskCompletionSource CancellationObserved { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
     public ValueTask<HealthSnapshot> GetHealthAsync(CancellationToken ct) => ValueTask.FromResult(new HealthSnapshot("1.0", [], [], new { }));
@@ -611,7 +658,8 @@ sealed class FakeBackend : ILocalApiBackend
     }
     public ValueTask<PostProcessResult> PostProcessAsync(PostProcessRequest request, CancellationToken ct)
     { PostProcess = request; return ValueTask.FromResult(new PostProcessResult(request.Text, "fake", "fake", "hyper", 1)); }
-    public ValueTask<IReadOnlyList<RecordingEntry>> GetRecordingsAsync(RecordingQuery query, CancellationToken ct) => ValueTask.FromResult<IReadOnlyList<RecordingEntry>>([]);
+    public ValueTask<IReadOnlyList<RecordingEntry>> GetRecordingsAsync(RecordingQuery query, CancellationToken ct)
+    { RecordingQuery = query; return ValueTask.FromResult<IReadOnlyList<RecordingEntry>>([]); }
     public ValueTask<RecordingEntry?> GetRecordingAsync(string id, CancellationToken ct) => ValueTask.FromResult<RecordingEntry?>(null);
 }
 

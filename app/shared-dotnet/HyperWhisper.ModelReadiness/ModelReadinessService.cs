@@ -68,7 +68,9 @@ public sealed class ModelReadinessService
             {
                 ProviderHealthOutcome.Healthy => ReadinessState.Healthy,
                 ProviderHealthOutcome.Unauthorized => ReadinessState.Unauthorized,
+                ProviderHealthOutcome.RateLimited => ReadinessState.RateLimited,
                 ProviderHealthOutcome.Unreachable => ReadinessState.Unreachable,
+                ProviderHealthOutcome.Malformed => ReadinessState.Malformed,
                 ProviderHealthOutcome.Unsupported => ReadinessState.Unsupported,
                 _ => ReadinessState.Unknown,
             };

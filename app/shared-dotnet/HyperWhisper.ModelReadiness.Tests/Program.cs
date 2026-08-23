@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Net;
 using System.Text;
 using System.Text.Json;
 using HyperWhisper.ModelManagement;
@@ -18,6 +19,9 @@ var tests = new (string Name, Func<Task> Run)[]
     ("health request cannot carry user content", TestRequestSurfaceAsync),
     ("credential lookup is provider scoped", TestCredentialScopeAsync),
     ("credential change hook is scoped", TestCredentialChangeAsync),
+    ("provider metadata probes use fixed content-free requests", TestMetadataProbeRequestsAsync),
+    ("provider metadata outcomes are bounded and explicit", TestMetadataProbeOutcomesAsync),
+    ("provider metadata cancellation propagates", TestMetadataProbeCancellationAsync),
 };
 
 foreach (var test in tests)
@@ -133,7 +137,9 @@ static async Task TestHealthStatesAsync()
     {
         (ProviderHealthOutcome.Healthy, ReadinessState.Healthy),
         (ProviderHealthOutcome.Unauthorized, ReadinessState.Unauthorized),
+        (ProviderHealthOutcome.RateLimited, ReadinessState.RateLimited),
         (ProviderHealthOutcome.Unreachable, ReadinessState.Unreachable),
+        (ProviderHealthOutcome.Malformed, ReadinessState.Malformed),
         (ProviderHealthOutcome.Unsupported, ReadinessState.Unsupported),
     })
     {
@@ -205,6 +211,90 @@ static Task TestCredentialChangeAsync()
     return Task.CompletedTask;
 }
 
+static async Task TestMetadataProbeRequestsAsync()
+{
+    const string secret = "provider-secret";
+    var expected = new Dictionary<string, (string Uri, string Header)>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["openai"] = ("https://api.openai.com/v1/models", "Authorization"),
+        ["groq"] = ("https://api.groq.com/openai/v1/models", "Authorization"),
+        ["grok"] = ("https://api.x.ai/v1/models", "Authorization"),
+        ["mistral"] = ("https://api.mistral.ai/v1/models", "Authorization"),
+        ["cerebras"] = ("https://api.cerebras.ai/v1/models", "Authorization"),
+        ["anthropic"] = ("https://api.anthropic.com/v1/models?limit=1", "x-api-key"),
+        ["gemini"] = ("https://generativelanguage.googleapis.com/v1beta/models?pageSize=1", "x-goog-api-key"),
+        ["deepgram"] = ("https://api.deepgram.com/v1/projects?limit=1", "Authorization"),
+        ["elevenlabs"] = ("https://api.elevenlabs.io/v1/models", "xi-api-key"),
+    };
+    foreach (var (provider, requestExpectation) in expected)
+    {
+        var transport = new FakeMetadataTransport(_ => JsonResponse("{}"));
+        var response = await new ProviderMetadataHealthProbe(transport).CheckAsync(
+            new(provider, "ignored-model", ModelSurface.PostProcessing, new(secret),
+                new Uri("https://attacker.example.test/inference")));
+        Equal(ProviderHealthOutcome.Healthy, response.Outcome);
+        var sent = transport.Requests.Single();
+        Equal(HttpMethod.Get, sent.Method);
+        Equal(requestExpectation.Uri, sent.RequestUri!.AbsoluteUri);
+        True(sent.Content is null && !sent.RequestUri.AbsoluteUri.Contains(secret, StringComparison.Ordinal));
+        True(sent.Headers.Contains(requestExpectation.Header));
+        True(!sent.Headers.SelectMany(header => header.Value).Any(value =>
+            value.Contains("ignored-model", StringComparison.Ordinal)
+            || value.Contains("attacker", StringComparison.Ordinal)));
+    }
+
+    var unsupportedTransport = new FakeMetadataTransport(_ => throw new InvalidOperationException("must not send"));
+    foreach (var provider in new[] { "hyperwhisper", "assemblyai", "soniox", "azure-mai", "google-chirp", "custom" })
+    {
+        var unsupported = await new ProviderMetadataHealthProbe(unsupportedTransport).CheckAsync(
+            new(provider, "model", ModelSurface.BatchTranscription, new(secret)));
+        Equal(ProviderHealthOutcome.Unsupported, unsupported.Outcome);
+    }
+    Equal(0, unsupportedTransport.Requests.Count);
+}
+
+static async Task TestMetadataProbeOutcomesAsync()
+{
+    foreach (var item in new[]
+    {
+        (HttpStatusCode.OK, "{}", ProviderHealthOutcome.Healthy),
+        (HttpStatusCode.NoContent, "", ProviderHealthOutcome.Healthy),
+        (HttpStatusCode.Unauthorized, "{}", ProviderHealthOutcome.Unauthorized),
+        (HttpStatusCode.Forbidden, "{}", ProviderHealthOutcome.Unauthorized),
+        ((HttpStatusCode)429, "{}", ProviderHealthOutcome.RateLimited),
+        (HttpStatusCode.BadGateway, "{}", ProviderHealthOutcome.Unreachable),
+        (HttpStatusCode.OK, "not-json", ProviderHealthOutcome.Malformed),
+    })
+    {
+        var transport = new FakeMetadataTransport(_ => JsonResponse(item.Item2, item.Item1));
+        var result = await new ProviderMetadataHealthProbe(transport).CheckAsync(
+            new("openai", "model", ModelSurface.BatchTranscription, new("secret")));
+        Equal(item.Item3, result.Outcome);
+        True(result.Detail is null || !result.Detail.Contains("secret", StringComparison.Ordinal));
+    }
+
+    var oversized = new FakeMetadataTransport(_ => JsonResponse(new string('x', ProviderHealthResponse.MaximumDetailBytes + 1)));
+    Equal(ProviderHealthOutcome.Healthy,
+        (await new ProviderMetadataHealthProbe(oversized).CheckAsync(
+            new("openai", "model", ModelSurface.BatchTranscription, new("secret")))).Outcome);
+}
+
+static async Task TestMetadataProbeCancellationAsync()
+{
+    var transport = new FakeMetadataTransport(async (_, token) =>
+    {
+        await Task.Delay(Timeout.InfiniteTimeSpan, token);
+        return JsonResponse("{}");
+    });
+    using var cancellation = new CancellationTokenSource();
+    cancellation.Cancel();
+    await ThrowsAsync<OperationCanceledException>(() => new ProviderMetadataHealthProbe(transport).CheckAsync(
+        new("openai", "model", ModelSurface.BatchTranscription, new("secret")), cancellation.Token).AsTask());
+}
+
+static HttpResponseMessage JsonResponse(string body, HttpStatusCode status = HttpStatusCode.OK) =>
+    new(status) { Content = new StringContent(body, Encoding.UTF8, "application/json") };
+
 static ModelCapability CloudRow() => Load().First(x => x.Key.StartsWith("cloud/stt/", StringComparison.Ordinal)
     && x.CredentialAccount == "OpenAIApiKey");
 
@@ -228,6 +318,13 @@ static void Equal<T>(T expected, T actual)
 static void Throws<T>(Action action) where T : Exception
 {
     try { action(); }
+    catch (T) { return; }
+    throw new InvalidOperationException($"Expected {typeof(T).Name}.");
+}
+
+static async Task ThrowsAsync<T>(Func<Task> action) where T : Exception
+{
+    try { await action(); }
     catch (T) { return; }
     throw new InvalidOperationException($"Expected {typeof(T).Name}.");
 }
@@ -262,4 +359,25 @@ sealed class FakeLocal(bool installed) : ILocalModelReadinessSource
 {
     public ValueTask<bool> IsInstalledAsync(ModelCapability model, CancellationToken cancellationToken = default) =>
         ValueTask.FromResult(installed);
+}
+
+sealed class FakeMetadataTransport : HttpMessageInvoker
+{
+    private readonly Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> _response;
+    public FakeMetadataTransport(Func<HttpRequestMessage, HttpResponseMessage> response)
+        : this((request, _) => Task.FromResult(response(request))) { }
+    public FakeMetadataTransport(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> response)
+        : base(new RejectingHandler()) => _response = response;
+    public List<HttpRequestMessage> Requests { get; } = [];
+    public override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        Requests.Add(request);
+        return _response(request, cancellationToken);
+    }
+
+    private sealed class RejectingHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("The test invoker override was bypassed.");
+    }
 }
