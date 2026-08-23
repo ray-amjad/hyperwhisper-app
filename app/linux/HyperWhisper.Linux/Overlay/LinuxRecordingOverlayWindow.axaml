@@ -11,7 +11,8 @@
         ShowInTaskbar="False"
         ShowActivated="False"
         CanResize="False"
-        Focusable="False">
+        Focusable="False"
+        FlowDirection="{ReflectionBinding FlowDirection, Source={StaticResource Localization}}">
   <Border CornerRadius="26"
           Background="#E6000000"
           BorderBrush="#33FFFFFF"
@@ -53,7 +54,7 @@
                   HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
         <TextBlock Text="✨" FontSize="13" VerticalAlignment="Center" />
         <StackPanel Orientation="Horizontal" Spacing="4">
-          <TextBlock Text="Mode:" Foreground="#A6FFFFFF" FontSize="12" />
+        <TextBlock Text="{ReflectionBinding [statusbar.mode], Source={StaticResource Localization}}" Foreground="#A6FFFFFF" FontSize="12" />
           <TextBlock Text="{Binding ModeText}" Foreground="#F2FFFFFF" FontSize="12"
                      FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxWidth="170" />
         </StackPanel>

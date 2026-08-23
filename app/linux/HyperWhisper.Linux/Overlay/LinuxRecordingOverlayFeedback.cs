@@ -15,13 +15,18 @@ internal sealed class LazyLinuxRecordingOverlayFeedback : ILinuxRecordingOverlay
 {
     private readonly ILinuxOverlayDispatcher _dispatcher;
     private readonly Func<bool> _isEnabled;
+    private readonly Func<string, string> _text;
     private LinuxRecordingOverlayController? _controller;
     private bool _disposed;
 
-    public LazyLinuxRecordingOverlayFeedback(ILinuxOverlayDispatcher dispatcher, Func<bool>? isEnabled = null)
+    public LazyLinuxRecordingOverlayFeedback(
+        ILinuxOverlayDispatcher dispatcher,
+        Func<bool>? isEnabled,
+        Func<string, string> text)
     {
         _dispatcher = dispatcher;
         _isEnabled = isEnabled ?? (() => true);
+        _text = text ?? throw new ArgumentNullException(nameof(text));
     }
 
     public void RecordingStarted(LinuxOverlayModeLabel mode) => Post(controller => controller.ShowRecording(mode));
@@ -42,7 +47,7 @@ internal sealed class LazyLinuxRecordingOverlayFeedback : ILinuxRecordingOverlay
                 try
                 {
                     if (_disposed) return;
-                    _controller ??= LinuxRecordingOverlayFactory.Create();
+                    _controller ??= LinuxRecordingOverlayFactory.Create(_text);
                     action(_controller);
                 }
                 catch { /* Overlay creation/rendering cannot block speech. */ }

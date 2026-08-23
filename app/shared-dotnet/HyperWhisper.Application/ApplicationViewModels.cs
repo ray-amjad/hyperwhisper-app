@@ -2373,6 +2373,7 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
     private string _pageTitle = "Home";
     private bool _initialized;
     private bool _disposed;
+    private readonly Func<string, string>? _localize;
 
     public ApplicationShellViewModel(
         ApplicationDb database,
@@ -2392,9 +2393,11 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
         Func<Uri, PlatformResult>? openAccountUri = null,
         ITextInjectionService? historyTextInjection = null,
         ModelReadinessService? modelReadiness = null,
-        AboutViewModel? about = null)
+        AboutViewModel? about = null,
+        Func<string, string>? localize = null)
     {
         _database = database;
+        _localize = localize;
         var historyRepository = new HistoryRepository(database, paths);
         var vocabularyRepository = new VocabularyRepository(database);
         var modeRepository = new ModeRepository(database);
@@ -2443,6 +2446,7 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
         if (Recording is not null) Recording.TranscriptionSaved += OnTranscriptionSaved;
         Backup.Imported += OnBackupImported;
         _currentPage = Home;
+        PageTitle = Text("sidebar.home", "Home");
     }
 
     public HomeViewModel Home { get; }
@@ -2507,22 +2511,24 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
     {
         (string Title, object Page) selection = pageId switch
         {
-            "home" => ("Home", (object)Home),
-            "history" => ("History", History),
-            "vocabulary" => ("Vocabulary", Vocabulary),
-            "modes" => ("Modes", Modes),
-            "settings" => ("Settings", Settings),
-            "models" when Models is not null => ("Models", Models),
-            "backup" => ("Backup", Backup),
-            "credentials" when Credentials is not null => ("Credentials", Credentials),
-            "account" when Account is not null => ("Cloud account", Account),
-            "about" when About is not null => ("About", About),
+            "home" => (Text("sidebar.home", "Home"), (object)Home),
+            "history" => (Text("sidebar.history", "History"), History),
+            "vocabulary" => (Text("sidebar.vocabulary", "Vocabulary"), Vocabulary),
+            "modes" => (Text("sidebar.modes", "Modes"), Modes),
+            "settings" => (Text("sidebar.settings", "Settings"), Settings),
+            "models" when Models is not null => (Text("settings.section.models", "Models"), Models),
+            "backup" => (Text("settings.nav.backup", "Backup"), Backup),
+            "credentials" when Credentials is not null => (Text("linux.ui.provider.credentials", "Credentials"), Credentials),
+            "account" when Account is not null => (Text("linux.ui.cloud.account", "Cloud account"), Account),
+            "about" when About is not null => (Text("settings.nav.about", "About"), About),
             _ => throw new ArgumentException("Unknown navigation page.", nameof(pageId))
         };
         PageTitle = selection.Title;
         CurrentPage = selection.Page;
         Status.Success($"{PageTitle} ready");
     }
+
+    private string Text(string key, string fallback) => _localize?.Invoke(key) ?? fallback;
 
     public void Dispose()
     {

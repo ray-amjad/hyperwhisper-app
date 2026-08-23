@@ -1,0 +1,251 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms</value></resheader>
+  <data name="linux.ui.about.hyperwhisper" xml:space="preserve"><value>About HyperWhisper</value></data>
+  <data name="linux.ui.activate.account" xml:space="preserve"><value>Activate account</value></data>
+  <data name="linux.ui.activate.the.account.key.from.your.purchase.email.the.key.is.e2ee57ef" xml:space="preserve"><value>Activate the Account Key from your purchase email. The key is validated online, stored in Secret Service or owner-only storage, and never displayed after activation.</value></data>
+  <data name="linux.ui.all.deployments" xml:space="preserve"><value>All deployments</value></data>
+  <data name="linux.ui.all.surfaces" xml:space="preserve"><value>All surfaces</value></data>
+  <data name="linux.ui.all.time" xml:space="preserve"><value>All time</value></data>
+  <data name="linux.ui.all.workloads" xml:space="preserve"><value>All workloads</value></data>
+  <data name="linux.ui.also.delete.app.owned.recordings.off.by.default" xml:space="preserve"><value>Also delete app-owned recordings (off by default)</value></data>
+  <data name="linux.ui.application.settings" xml:space="preserve"><value>Application settings</value></data>
+  <data name="linux.ui.application.version" xml:space="preserve"><value>Application version</value></data>
+  <data name="linux.ui.archive.allowlist.system.json.capabilities.json.and.logs.eve.266126c8" xml:space="preserve"><value>Archive allowlist: system.json, capabilities.json, and logs/events.jsonl. Nothing else is added.</value></data>
+  <data name="linux.ui.audio.and.desktop" xml:space="preserve"><value>Audio and desktop</value></data>
+  <data name="linux.ui.audio.input" xml:space="preserve"><value>Audio input</value></data>
+  <data name="linux.ui.auto.prefers.nvidia.cuda.12.then.a.physical.vulkan.gpu.then.91d87e48" xml:space="preserve"><value>Auto prefers NVIDIA CUDA 12, then a physical Vulkan GPU, then CPU. Whisper runtime selection is process-wide; saved changes take effect after restart.</value></data>
+  <data name="linux.ui.automatically.delete.old.transcripts.and.app.owned.audio" xml:space="preserve"><value>Automatically delete old transcripts and app-owned audio</value></data>
+  <data name="linux.ui.best.effort.capitalization.matching.at.the.insertion.point" xml:space="preserve"><value>Best-effort capitalization matching at the insertion point</value></data>
+  <data name="linux.ui.best.effort.only.linux.clipboard.managers.do.not.expose.one.81f7c687" xml:space="preserve"><value>Best effort only: Linux clipboard managers do not expose one standard exclusion mechanism; compatible native owners receive a hint, but the desktop may ignore it.</value></data>
+  <data name="linux.ui.browse" xml:space="preserve"><value>Browse…</value></data>
+  <data name="linux.ui.buy.credits" xml:space="preserve"><value>Buy credits</value></data>
+  <data name="linux.ui.byok.provider.model" xml:space="preserve"><value>BYOK provider model</value></data>
+  <data name="linux.ui.caller.owned.files.and.symbolic.link.targets.are.always.retained" xml:space="preserve"><value>Caller-owned files and symbolic-link targets are always retained.</value></data>
+  <data name="linux.ui.cancel.active.recording.modifiers.and.key" xml:space="preserve"><value>Cancel active recording · modifiers and key</value></data>
+  <data name="linux.ui.cancel.import" xml:space="preserve"><value>Cancel import</value></data>
+  <data name="linux.ui.capitalization" xml:space="preserve"><value>Capitalization</value></data>
+  <data name="linux.ui.change.mode.modifiers.and.key" xml:space="preserve"><value>Change mode · modifiers and key</value></data>
+  <data name="linux.ui.choose.backup" xml:space="preserve"><value>Choose backup…</value></data>
+  <data name="linux.ui.choose.destination.and.export" xml:space="preserve"><value>Choose destination and export…</value></data>
+  <data name="linux.ui.choose.destination.and.export.diagnostics" xml:space="preserve"><value>Choose destination and export diagnostics…</value></data>
+  <data name="linux.ui.clipboard.restore.delay.seconds" xml:space="preserve"><value>Clipboard restore delay (seconds)</value></data>
+  <data name="linux.ui.cloud.account" xml:space="preserve"><value>Cloud account</value></data>
+  <data name="linux.ui.cloud.provider" xml:space="preserve"><value>Cloud provider</value></data>
+  <data name="linux.ui.cloud.provider.credentials" xml:space="preserve"><value>Cloud provider credentials</value></data>
+  <data name="linux.ui.cloud.provider.used.for.cloud.modes" xml:space="preserve"><value>Cloud provider (used for cloud modes)</value></data>
+  <data name="linux.ui.confirm.import" xml:space="preserve"><value>Confirm import</value></data>
+  <data name="linux.ui.connecting.linux.platform" xml:space="preserve"><value>Connecting Linux platform…</value></data>
+  <data name="linux.ui.credentials.are.loaded.from.the.secure.credentials.page.and.9110957e" xml:space="preserve"><value>Credentials are loaded from the secure Credentials page and are never stored in settings.</value></data>
+  <data name="linux.ui.cuda.is.selected.only.when.its.packaged.backend.and.nvidia.d.71c76162" xml:space="preserve"><value>CUDA is selected only when its packaged backend and NVIDIA driver/runtime libraries are available. Physical GPU verification is still required for release.</value></data>
+  <data name="linux.ui.custom.openai.compatible.endpoint" xml:space="preserve"><value>Custom OpenAI-compatible endpoint</value></data>
+  <data name="linux.ui.custom.preset.instructions" xml:space="preserve"><value>Custom preset instructions</value></data>
+  <data name="linux.ui.custom.push.to.talk.modifiers.and.key" xml:space="preserve"><value>Custom push-to-talk modifiers and key</value></data>
+  <data name="linux.ui.default.transcription.language.preference" xml:space="preserve"><value>Default transcription language preference</value></data>
+  <data name="linux.ui.delete.items.older.than.this.many.days.1365" xml:space="preserve"><value>Delete items older than this many days (1–365)</value></data>
+  <data name="linux.ui.delete.now" xml:space="preserve"><value>Delete now</value></data>
+  <data name="linux.ui.delete.selected.transcript.s" xml:space="preserve"><value>Delete selected transcript(s)</value></data>
+  <data name="linux.ui.delete.stored.credential" xml:space="preserve"><value>Delete stored credential</value></data>
+  <data name="linux.ui.documentation" xml:space="preserve"><value>Documentation</value></data>
+  <data name="linux.ui.double.press.to.lock.push.to.talk" xml:space="preserve"><value>Double press to lock push-to-talk</value></data>
+  <data name="linux.ui.enable.provider.fast.formatting" xml:space="preserve"><value>Enable provider fast formatting</value></data>
+  <data name="linux.ui.enable.the.dedicated.live.transcription.shortcut" xml:space="preserve"><value>Enable the dedicated live-transcription shortcut</value></data>
+  <data name="linux.ui.enable.the.loopback.only.local.api" xml:space="preserve"><value>Enable the loopback-only local API</value></data>
+  <data name="linux.ui.endpoint.credentials.are.kept.in.secret.service.or.owner.onl.dfdbd389" xml:space="preserve"><value>Endpoint credentials are kept in Secret Service or owner-only storage and never exported.</value></data>
+  <data name="linux.ui.endpoint.name" xml:space="preserve"><value>Endpoint name</value></data>
+  <data name="linux.ui.english.spelling.american.british" xml:space="preserve"><value>English spelling (american/british)</value></data>
+  <data name="linux.ui.enter.a.new.provider.credential" xml:space="preserve"><value>Enter a new provider credential</value></data>
+  <data name="linux.ui.estimated.minutes" xml:space="preserve"><value>Estimated minutes</value></data>
+  <data name="linux.ui.estimated.typing.speed" xml:space="preserve"><value>Estimated typing speed</value></data>
+  <data name="linux.ui.export" xml:space="preserve"><value>Export</value></data>
+  <data name="linux.ui.export.or.import.the.cross.platform.universal.v2.format.tran.be45cc3a" xml:space="preserve"><value>Export or import the cross-platform universal-v2 format. Transcript history, credentials, and account/license keys are always excluded.</value></data>
+  <data name="linux.ui.export.sections" xml:space="preserve"><value>Export sections</value></data>
+  <data name="linux.ui.fall.back.to.cpu.if.gpu.model.loading.fails" xml:space="preserve"><value>Fall back to CPU if GPU model loading fails</value></data>
+  <data name="linux.ui.fall.back.to.cpu.if.the.selected.whisper.gpu.runtime.cannot.start" xml:space="preserve"><value>Fall back to CPU if the selected Whisper GPU runtime cannot start</value></data>
+  <data name="linux.ui.formatting.and.prompt" xml:space="preserve"><value>Formatting and prompt</value></data>
+  <data name="linux.ui.from.date" xml:space="preserve"><value>From date</value></data>
+  <data name="linux.ui.gemini.custom.prompt" xml:space="preserve"><value>Gemini custom prompt</value></data>
+  <data name="linux.ui.hide.minimized.or.closed.windows.in.the.tray" xml:space="preserve"><value>Hide minimized or closed windows in the tray</value></data>
+  <data name="linux.ui.hyperwhisper.cloud.account" xml:space="preserve"><value>HyperWhisper Cloud account</value></data>
+  <data name="linux.ui.hyperwhisper.cloud.accuracy.tier" xml:space="preserve"><value>HyperWhisper Cloud accuracy tier</value></data>
+  <data name="linux.ui.hyperwhisper.cloud.domain" xml:space="preserve"><value>HyperWhisper Cloud domain</value></data>
+  <data name="linux.ui.hyperwhisper.cloud.provider.model" xml:space="preserve"><value>HyperWhisper Cloud provider:model</value></data>
+  <data name="linux.ui.i.reviewed.this.preview.and.confirm.these.changes" xml:space="preserve"><value>I reviewed this preview and confirm these changes</value></data>
+  <data name="linux.ui.if.this.desktop.has.no.statusnotifieritem.tray.watcher.hyper.265a6b0d" xml:space="preserve"><value>If this desktop has no StatusNotifierItem tray watcher, HyperWhisper always keeps the main window accessible.</value></data>
+  <data name="linux.ui.import" xml:space="preserve"><value>Import</value></data>
+  <data name="linux.ui.import.backup" xml:space="preserve"><value>Import backup</value></data>
+  <data name="linux.ui.import.sections" xml:space="preserve"><value>Import sections</value></data>
+  <data name="linux.ui.insertion.context.is.classified.without.retaining.surroundin.eaea7cd0" xml:space="preserve"><value>Insertion context is classified without retaining surrounding text. Unsupported or inaccessible fields leave capitalization unchanged.</value></data>
+  <data name="linux.ui.inspect.selected.backup" xml:space="preserve"><value>Inspect selected backup</value></data>
+  <data name="linux.ui.keep.app.owned.audio.after.transcription" xml:space="preserve"><value>Keep app-owned audio after transcription</value></data>
+  <data name="linux.ui.keep.the.selected.microphone.warm.between.recordings" xml:space="preserve"><value>Keep the selected microphone warm between recordings</value></data>
+  <data name="linux.ui.language.code" xml:space="preserve"><value>Language code</value></data>
+  <data name="linux.ui.launch.with.the.window.hidden.when.the.tray.is.available" xml:space="preserve"><value>Launch with the window hidden when the tray is available</value></data>
+  <data name="linux.ui.linux.1.0" xml:space="preserve"><value>Linux 1.0</value></data>
+  <data name="linux.ui.linux.securely.stores.canonical.wav.files.in.the.fixed.xdg.d.17cd50e7" xml:space="preserve"><value>Linux securely stores canonical WAV files in the fixed XDG data recordings folder. Custom folders and M4A conversion are unavailable because they would weaken current ownership and portable codec guarantees. Imported caller originals are never deleted.</value></data>
+  <data name="linux.ui.live.transcription" xml:space="preserve"><value>Live transcription</value></data>
+  <data name="linux.ui.local.engine.used.for.local.modes" xml:space="preserve"><value>Local engine (used for local modes)</value></data>
+  <data name="linux.ui.local.gguf.filename.in.models.llm" xml:space="preserve"><value>Local GGUF filename in models/LLM</value></data>
+  <data name="linux.ui.local.library" xml:space="preserve"><value>Local library</value></data>
+  <data name="linux.ui.local.llm.backend" xml:space="preserve"><value>Local LLM backend</value></data>
+  <data name="linux.ui.local.whisper.backend" xml:space="preserve"><value>Local Whisper backend</value></data>
+  <data name="linux.ui.manage.account" xml:space="preserve"><value>Manage account</value></data>
+  <data name="linux.ui.mode.editor" xml:space="preserve"><value>Mode editor</value></data>
+  <data name="linux.ui.mode.vocabulary.comma.or.line.separated" xml:space="preserve"><value>Mode vocabulary (comma or line separated)</value></data>
+  <data name="linux.ui.model.id.or.provider.catalog.model" xml:space="preserve"><value>Model ID or provider catalog model</value></data>
+  <data name="linux.ui.model.name" xml:space="preserve"><value>Model name</value></data>
+  <data name="linux.ui.new" xml:space="preserve"><value>New</value></data>
+  <data name="linux.ui.new.api.key.optional.for.local.endpoints" xml:space="preserve"><value>New API key (optional for local endpoints)</value></data>
+  <data name="linux.ui.no.backup.selected" xml:space="preserve"><value>No backup selected</value></data>
+  <data name="linux.ui.no.transcript.audio.prompt.or.credential.content.is.attached.14a7239e" xml:space="preserve"><value>No transcript, audio, prompt, or credential content is attached. Source builds with no release DSN remain fully offline.</value></data>
+  <data name="linux.ui.open.cloud.account" xml:space="preserve"><value>Open Cloud account</value></data>
+  <data name="linux.ui.open.private.logs" xml:space="preserve"><value>Open private logs</value></data>
+  <data name="linux.ui.open.recordings.folder" xml:space="preserve"><value>Open recordings folder</value></data>
+  <data name="linux.ui.optional.system.prompt.maximum.2000.characters" xml:space="preserve"><value>Optional system prompt (maximum 2000 characters)</value></data>
+  <data name="linux.ui.other.audio.policy" xml:space="preserve"><value>Other-audio policy</value></data>
+  <data name="linux.ui.package.version" xml:space="preserve"><value>Package version</value></data>
+  <data name="linux.ui.paste.the.result.into.the.active.application" xml:space="preserve"><value>Paste the result into the active application</value></data>
+  <data name="linux.ui.play.recording.start.and.stop.sounds" xml:space="preserve"><value>Play recording start and stop sounds</value></data>
+  <data name="linux.ui.preferred.port.falls.back.to.an.available.loopback.port" xml:space="preserve"><value>Preferred port (falls back to an available loopback port)</value></data>
+  <data name="linux.ui.preview.selected.import" xml:space="preserve"><value>Preview selected import</value></data>
+  <data name="linux.ui.privacy.safe.diagnostics" xml:space="preserve"><value>Privacy-safe diagnostics</value></data>
+  <data name="linux.ui.profanity.filter" xml:space="preserve"><value>Profanity filter</value></data>
+  <data name="linux.ui.provider.api.keys.use.secret.service.when.available.otherwis.62849a81" xml:space="preserve"><value>Provider API keys use Secret Service when available, otherwise owner-only private files. Existing values are never displayed or exported. HyperWhisper Account Keys must be validated on the Cloud account page.</value></data>
+  <data name="linux.ui.provider.credentials" xml:space="preserve"><value>Provider credentials</value></data>
+  <data name="linux.ui.provider.model.optional" xml:space="preserve"><value>Provider model (optional)</value></data>
+  <data name="linux.ui.readiness.checks.only.run.when.you.press.refresh.no.provider.3a6d1e9f" xml:space="preserve"><value>Readiness checks only run when you press refresh. No provider is contacted while browsing or filtering.</value></data>
+  <data name="linux.ui.record.and.transcribe" xml:space="preserve"><value>Record and transcribe</value></data>
+  <data name="linux.ui.recording.storage" xml:space="preserve"><value>Recording storage</value></data>
+  <data name="linux.ui.refresh.credits" xml:space="preserve"><value>Refresh credits</value></data>
+  <data name="linux.ui.refresh.devices" xml:space="preserve"><value>Refresh devices</value></data>
+  <data name="linux.ui.refresh.library" xml:space="preserve"><value>Refresh library</value></data>
+  <data name="linux.ui.refresh.selected.readiness" xml:space="preserve"><value>Refresh selected readiness</value></data>
+  <data name="linux.ui.refresh.status" xml:space="preserve"><value>Refresh status</value></data>
+  <data name="linux.ui.refresh.usage" xml:space="preserve"><value>Refresh usage</value></data>
+  <data name="linux.ui.refresh.visible.rows" xml:space="preserve"><value>Refresh visible rows</value></data>
+  <data name="linux.ui.remove.account.from.this.device" xml:space="preserve"><value>Remove account from this device</value></data>
+  <data name="linux.ui.remove.filler.words.when.ai.post.processing.is.off" xml:space="preserve"><value>Remove filler words when AI post-processing is off</value></data>
+  <data name="linux.ui.removing.the.account.contacts.the.compatibility.endpoint.fir.566eb641" xml:space="preserve"><value>Removing the account contacts the compatibility endpoint first, then removes the key from this device. The server currently does not support remote key revocation; use the account portal for account management.</value></data>
+  <data name="linux.ui.replace.all.modes.uncheck.to.merge.only.selected.modes" xml:space="preserve"><value>Replace all modes (uncheck to merge only selected modes)</value></data>
+  <data name="linux.ui.replace.existing" xml:space="preserve"><value>Replace existing</value></data>
+  <data name="linux.ui.replacement.optional" xml:space="preserve"><value>Replacement (optional)</value></data>
+  <data name="linux.ui.request.that.pasted.text.stays.out.of.clipboard.history" xml:space="preserve"><value>Request that pasted text stays out of clipboard history</value></data>
+  <data name="linux.ui.reset.shortcut.defaults" xml:space="preserve"><value>Reset shortcut defaults</value></data>
+  <data name="linux.ui.restore.the.previous.clipboard.after.paste.or.copy" xml:space="preserve"><value>Restore the previous clipboard after paste or copy</value></data>
+  <data name="linux.ui.retry.in.progress" xml:space="preserve"><value>Retry in progress…</value></data>
+  <data name="linux.ui.retry.mode" xml:space="preserve"><value>Retry mode</value></data>
+  <data name="linux.ui.save.securely" xml:space="preserve"><value>Save securely</value></data>
+  <data name="linux.ui.save.settings" xml:space="preserve"><value>Save settings</value></data>
+  <data name="linux.ui.search" xml:space="preserve"><value>Search</value></data>
+  <data name="linux.ui.search.model.provider.or.id" xml:space="preserve"><value>Search model, provider, or ID</value></data>
+  <data name="linux.ui.search.transcripts" xml:space="preserve"><value>Search transcripts</value></data>
+  <data name="linux.ui.select.the.model.id.in.a.mode.after.local.installation.or.pr.9d088bee" xml:space="preserve"><value>Select the model ID in a mode after local installation or provider setup.</value></data>
+  <data name="linux.ui.send.privacy.filtered.crash.and.performance.diagnostics" xml:space="preserve"><value>Send privacy-filtered crash and performance diagnostics</value></data>
+  <data name="linux.ui.set.up.provider.credential" xml:space="preserve"><value>Set up provider credential</value></data>
+  <data name="linux.ui.shortcuts.and.push.to.talk" xml:space="preserve"><value>Shortcuts and push-to-talk</value></data>
+  <data name="linux.ui.show.raw.transcription" xml:space="preserve"><value>Show raw transcription</value></data>
+  <data name="linux.ui.show.the.recording.status.overlay" xml:space="preserve"><value>Show the recording status overlay</value></data>
+  <data name="linux.ui.skip.existing" xml:space="preserve"><value>Skip existing</value></data>
+  <data name="linux.ui.start.hyperwhisper.when.this.desktop.session.starts" xml:space="preserve"><value>Start HyperWhisper when this desktop session starts</value></data>
+  <data name="linux.ui.start.recording" xml:space="preserve"><value>Start recording</value></data>
+  <data name="linux.ui.start.stop.live.streaming.modifiers.and.key" xml:space="preserve"><value>Start/stop live streaming · modifiers and key</value></data>
+  <data name="linux.ui.stop.and.transcribe" xml:space="preserve"><value>Stop and transcribe</value></data>
+  <data name="linux.ui.storage.inventory.loads.at.startup" xml:space="preserve"><value>Storage inventory loads at startup.</value></data>
+  <data name="linux.ui.support" xml:space="preserve"><value>Support</value></data>
+  <data name="linux.ui.temporarily.raise.low.microphone.volume" xml:space="preserve"><value>Temporarily raise low microphone volume</value></data>
+  <data name="linux.ui.text.output" xml:space="preserve"><value>Text output</value></data>
+  <data name="linux.ui.the.generated.bearer.token.and.actual.port.are.stored.in.a.p.cf0462d8" xml:space="preserve"><value>The generated bearer token and actual port are stored in a private local-api.json file.</value></data>
+  <data name="linux.ui.this.month" xml:space="preserve"><value>This month</value></data>
+  <data name="linux.ui.this.week" xml:space="preserve"><value>This week</value></data>
+  <data name="linux.ui.through.date" xml:space="preserve"><value>Through date</value></data>
+  <data name="linux.ui.toggle.batch.recording.modifiers.and.key" xml:space="preserve"><value>Toggle batch recording · modifiers and key</value></data>
+  <data name="linux.ui.transcribe.again" xml:space="preserve"><value>Transcribe again</value></data>
+  <data name="linux.ui.transcribe.an.existing.audio.file" xml:space="preserve"><value>Transcribe an existing audio file</value></data>
+  <data name="linux.ui.transcribe.file" xml:space="preserve"><value>Transcribe file</value></data>
+  <data name="linux.ui.transcript.detail" xml:space="preserve"><value>Transcript detail</value></data>
+  <data name="linux.ui.transcription.provider" xml:space="preserve"><value>Transcription provider</value></data>
+  <data name="linux.ui.unified.model.library" xml:space="preserve"><value>Unified model library</value></data>
+  <data name="linux.ui.universal.backup" xml:space="preserve"><value>Universal backup</value></data>
+  <data name="linux.ui.unknown.linux.windows.and.macos.platform.extension.fields.ar.73aa2e90" xml:space="preserve"><value>Unknown Linux, Windows, and macOS platform extension fields are preserved across an import/export round trip.</value></data>
+  <data name="linux.ui.use.comma.separated.control.alt.shift.and.meta.leave.both.fi.f2eb583d" xml:space="preserve"><value>Use comma-separated Control, Alt, Shift, and Meta. Leave both fields empty to unassign. Modifier-only shortcuts require at least two modifiers.</value></data>
+  <data name="linux.ui.use.screen.ocr.context.for.enhancement" xml:space="preserve"><value>Use screen OCR context for enhancement</value></data>
+  <data name="linux.ui.vocabulary.conflicts" xml:space="preserve"><value>Vocabulary conflicts</value></data>
+  <data name="linux.ui.word.or.phrase" xml:space="preserve"><value>Word or phrase</value></data>
+  <data name="linux.ui.wpm" xml:space="preserve"><value>WPM</value></data>
+  <data name="linux.ui.your.impact" xml:space="preserve"><value>Your impact</value></data>
+  <data name="linux.platform.connecting" xml:space="preserve"><value>Connecting Linux platform…</value></data>
+  <data name="linux.platform.connected" xml:space="preserve"><value>Linux platform connected · {0}</value></data>
+  <data name="linux.platform.tray_unavailable" xml:space="preserve"><value> · Tray unavailable; window fallback active ({0})</value></data>
+  <data name="linux.platform.warning" xml:space="preserve"><value>Linux integration warning · {0}</value></data>
+  <data name="linux.platform.tray_disconnected" xml:space="preserve"><value> · Tray disconnected; main window restored</value></data>
+  <data name="linux.error.desktop_start_failed" xml:space="preserve"><value>Linux desktop integration could not be started.</value></data>
+  <data name="linux.error.close_cancel_failed" xml:space="preserve"><value>The active recording could not be cancelled cleanly.</value></data>
+  <data name="linux.picker.backup.open" xml:space="preserve"><value>Choose a HyperWhisper backup</value></data>
+  <data name="linux.picker.universal_backup" xml:space="preserve"><value>HyperWhisper universal backup</value></data>
+  <data name="linux.picker.zip_archive" xml:space="preserve"><value>ZIP archive</value></data>
+  <data name="linux.picker.supported_audio" xml:space="preserve"><value>Supported audio</value></data>
+  <data name="linux.error.navigation_unavailable" xml:space="preserve"><value>That setup page is unavailable in this build.</value></data>
+  <data name="linux.error.open_logs_failed" xml:space="preserve"><value>The private logs folder could not be opened.</value></data>
+  <data name="linux.error.local_api_apply_failed" xml:space="preserve"><value>Local API settings could not be applied.</value></data>
+  <data name="linux.error.desktop_settings_apply_failed" xml:space="preserve"><value>Desktop settings could not be applied.</value></data>
+  <data name="linux.storage.maintenance_failed" xml:space="preserve"><value>Storage maintenance could not be completed.</value></data>
+  <data name="linux.storage.no_cleanup" xml:space="preserve"><value>No enabled cleanup has run.</value></data>
+  <data name="linux.storage.last_cleanup" xml:space="preserve"><value>Last cleanup: {0:g}; {1} transcripts and {2} audio files removed.</value></data>
+  <data name="linux.storage.inventory" xml:space="preserve"><value>{0} app-owned audio files · {1}. {2}</value></data>
+  <data name="linux.storage.cleanup_failed" xml:space="preserve"><value>Storage cleanup failed; external audio was not touched.</value></data>
+  <data name="linux.storage.inventory_failed" xml:space="preserve"><value>Storage inventory could not be read.</value></data>
+  <data name="linux.storage.open_failed" xml:space="preserve"><value>The fixed XDG recordings folder could not be opened.</value></data>
+  <data name="linux.clipboard.privacy_enabled" xml:space="preserve"><value>Clipboard-history exclusion hints are enabled for compatible clipboard managers; enforcement remains desktop-dependent.</value></data>
+  <data name="linux.clipboard.privacy_unavailable" xml:space="preserve"><value>This clipboard backend cannot attach a history-exclusion hint; restore behavior still applies.</value></data>
+  <data name="linux.clipboard.privacy_disabled" xml:space="preserve"><value>Clipboard-history exclusion hints are disabled.</value></data>
+  <data name="linux.desktop.context_gnome" xml:space="preserve"><value>Application context: {0} The optional packaged GNOME companion improves title discovery; AT-SPI remains the local fallback.</value></data>
+  <data name="linux.desktop.context" xml:space="preserve"><value>Application context: {0}</value></data>
+  <data name="linux.error.shortcut_modifiers_invalid" xml:space="preserve"><value>Shortcut modifiers must use Control, Alt, Shift, or Meta separated by commas.</value></data>
+  <data name="linux.error.shortcut_bare_modifier" xml:space="preserve"><value>A modifier-only shortcut needs at least two modifiers.</value></data>
+  <data name="linux.error.tray_link_failed" xml:space="preserve"><value>The requested HyperWhisper page could not be opened.</value></data>
+  <data name="linux.error.local_api_start_failed" xml:space="preserve"><value>Local API could not start.</value></data>
+  <data name="linux.error.file_picker_failed" xml:space="preserve"><value>The desktop file picker could not be opened.</value></data>
+  <data name="linux.error.account_link_rejected" xml:space="preserve"><value>The account link was not recognized.</value></data>
+  <data name="linux.error.account_link_failed" xml:space="preserve"><value>The account page could not be opened in the browser.</value></data>
+  <data name="linux.error.tray_disposed" xml:space="preserve"><value>The tray action handler is unavailable.</value></data>
+  <data name="linux.error.tray_action_failed" xml:space="preserve"><value>The tray action could not be completed.</value></data>
+  <data name="linux.error.tray_busy" xml:space="preserve"><value>Another tray action is already running.</value></data>
+  <data name="linux.error.tray_cancelled" xml:space="preserve"><value>The tray action was cancelled.</value></data>
+  <data name="linux.error.tray_action_unknown" xml:space="preserve"><value>The tray action was not recognized.</value></data>
+  <data name="linux.error.tray_unsafe_state" xml:space="preserve"><value>That tray action is unavailable during the current transcription operation.</value></data>
+  <data name="linux.overlay.recording" xml:space="preserve"><value>Recording</value></data>
+  <data name="linux.overlay.error.microphone" xml:space="preserve"><value>Microphone unavailable</value></data>
+  <data name="linux.overlay.error.recording" xml:space="preserve"><value>Recording failed</value></data>
+  <data name="linux.overlay.error.transcription" xml:space="preserve"><value>Transcription failed</value></data>
+  <data name="linux.overlay.error.no_speech" xml:space="preserve"><value>No speech detected</value></data>
+  <data name="linux.overlay.error.provider" xml:space="preserve"><value>Speech provider unavailable</value></data>
+  <data name="linux.overlay.error.permission" xml:space="preserve"><value>Permission required</value></data>
+  <data name="linux.overlay.error.unknown" xml:space="preserve"><value>Something went wrong</value></data>
+  <data name="linux.overlay.mode_changed" xml:space="preserve"><value>Mode changed</value></data>
+  <data name="linux.format.customer.value" xml:space="preserve"><value>Customer: {0}</value></data>
+  <data name="linux.format.dictated.values" xml:space="preserve"><value>Dictated: {0:F0}s</value></data>
+  <data name="linux.format.duration.values" xml:space="preserve"><value>Duration: {0:F1}s</value></data>
+  <data name="linux.format.email.value" xml:space="preserve"><value>Email: {0}</value></data>
+  <data name="linux.format.expires.value" xml:space="preserve"><value>Expires: {0}</value></data>
+  <data name="linux.format.model.id.value" xml:space="preserve"><value>Model ID: {0}</value></data>
+  <data name="linux.format.modes.added.value" xml:space="preserve"><value>Modes added: {0}</value></data>
+  <data name="linux.format.modes.removed.value" xml:space="preserve"><value>Modes removed: {0}</value></data>
+  <data name="linux.format.modes.replaced.value" xml:space="preserve"><value>Modes replaced: {0}</value></data>
+  <data name="linux.format.provider.value" xml:space="preserve"><value>Provider: {0}</value></data>
+  <data name="linux.format.saved.value.min" xml:space="preserve"><value>Saved: {0} min</value></data>
+  <data name="linux.format.saved.value.min.0c59c485" xml:space="preserve"><value>Saved: {0:F1} min</value></data>
+  <data name="linux.format.size.value" xml:space="preserve"><value>Size: {0}</value></data>
+  <data name="linux.format.speaking.value.wpm" xml:space="preserve"><value>Speaking: {0} WPM</value></data>
+  <data name="linux.format.state.value" xml:space="preserve"><value>State: {0}</value></data>
+  <data name="linux.format.status.value" xml:space="preserve"><value>Status: {0}</value></data>
+  <data name="linux.format.stored.value" xml:space="preserve"><value>Stored: {0}</value></data>
+  <data name="linux.format.typing.value.min" xml:space="preserve"><value>Typing: {0:F1} min</value></data>
+  <data name="linux.format.value" xml:space="preserve"><value> / {0}</value></data>
+  <data name="linux.format.words.added.value" xml:space="preserve"><value>Words added: {0}</value></data>
+  <data name="linux.format.words.replaced.value" xml:space="preserve"><value>Words replaced: {0}</value></data>
+  <data name="linux.format.words.skipped.value" xml:space="preserve"><value>Words skipped: {0}</value></data>
+  <data name="linux.format.words.value" xml:space="preserve"><value>Words: {0}</value></data>
+</root>

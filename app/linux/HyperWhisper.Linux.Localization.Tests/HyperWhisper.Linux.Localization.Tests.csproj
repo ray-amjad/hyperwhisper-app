@@ -10,4 +10,10 @@
   <ItemGroup>
     <ProjectReference Include="../HyperWhisper.Linux.Localization/HyperWhisper.Linux.Localization.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="../HyperWhisper.Linux/MainWindow.axaml" Link="LocalizationSurface/MainWindow.axaml" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../HyperWhisper.Linux/Overlay/LinuxRecordingOverlayWindow.axaml" Link="LocalizationSurface/LinuxRecordingOverlayWindow.axaml" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../HyperWhisper.Linux/MainWindow.axaml.cs" Link="LocalizationSurface/MainWindow.axaml.cs" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../desktop-companions/status-notifier.py" Link="LocalizationSurface/status-notifier.py" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

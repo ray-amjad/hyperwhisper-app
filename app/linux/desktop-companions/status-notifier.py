@@ -44,6 +44,55 @@ ACTIONS = {
     25: "quit",
 }
 
+# The helper cannot load .NET satellite assemblies, so it mirrors the small,
+# closed tray subset by catalog key. Missing translations deliberately fall
+# back to English, matching the application ResourceManager behavior.
+TRAY_CATALOG = {
+    "en": {
+        "menu.microphone": "Microphone", "linux.tray.microphone.default": "Use system default",
+        "linux.tray.microphone.previous": "Previous microphone", "linux.tray.microphone.next": "Next microphone",
+        "linux.tray.record.start": "Start recording", "menu.recording.stop": "Stop Recording",
+        "sidebar.history": "History", "sidebar.settings": "Settings", "linux.tray.mode.switch": "Switch mode",
+        "menu.transcribe.file": "Transcribe File", "settings.resources.help.center": "Help Center",
+        "settings.resources.contact.support": "Contact Support", "settings.resources.feedback": "Send Feedback",
+        "settings.api.show": "Show", "settings.api.hide": "Hide", "common.quit": "Quit",
+    },
+    "de": {"sidebar.history": "Geschichte", "sidebar.settings": "Einstellungen"},
+    "ar": {"sidebar.history": "السجل", "sidebar.settings": "الإعدادات"},
+    "zh-Hans": {
+        "menu.microphone": "麦克风", "linux.tray.microphone.default": "使用系统默认值",
+        "linux.tray.microphone.previous": "上一个麦克风", "linux.tray.microphone.next": "下一个麦克风",
+        "linux.tray.record.start": "开始录音", "menu.recording.stop": "停止录音",
+        "sidebar.history": "历史记录", "sidebar.settings": "设置", "linux.tray.mode.switch": "切换模式",
+        "menu.transcribe.file": "转写文件", "settings.resources.help.center": "帮助中心",
+        "settings.resources.contact.support": "联系支持", "settings.resources.feedback": "发送反馈",
+        "settings.api.show": "显示", "settings.api.hide": "隐藏", "common.quit": "退出",
+    },
+}
+
+
+def culture_name():
+    raw = next((os.environ.get(name) for name in ("LC_ALL", "LC_MESSAGES", "LANGUAGE", "LANG")
+                if os.environ.get(name)), "en")
+    normalized = raw.split(":", 1)[0].split(".", 1)[0].replace("_", "-")
+    if normalized.lower().startswith("zh"):
+        return "zh-Hans"
+    if normalized.lower().startswith("ar"):
+        return "ar"
+    if normalized.lower().startswith("he"):
+        return "he"
+    if normalized.lower().startswith("de"):
+        return "de"
+    return "en"
+
+
+CULTURE = culture_name()
+RTL_CULTURES = {"ar", "he"}
+
+
+def label(key):
+    return TRAY_CATALOG.get(CULTURE, {}).get(key, TRAY_CATALOG["en"][key])
+
 
 def emit(action):
     if action in ACTIONS.values():
@@ -88,30 +137,30 @@ def node(item_id, label=None, children=None, separator=False):
 
 
 def menu_layout():
-    microphone = node(8, "Microphone", [
-        node(9, "Use system default"),
-        node(10, "Previous microphone"),
-        node(11, "Next microphone"),
+    microphone = node(8, label("menu.microphone"), [
+        node(9, label("linux.tray.microphone.default")),
+        node(10, label("linux.tray.microphone.previous")),
+        node(11, label("linux.tray.microphone.next")),
     ])
     children = [
-        node(1, "Start recording"),
-        node(2, "Stop recording"),
+        node(1, label("linux.tray.record.start")),
+        node(2, label("menu.recording.stop")),
         node(3, separator=True),
-        node(5, "History"),
-        node(6, "Settings"),
+        node(5, label("sidebar.history")),
+        node(6, label("sidebar.settings")),
         node(7, separator=True),
         microphone,
-        node(13, "Switch mode"),
-        node(14, "Transcribe file…"),
+        node(13, label("linux.tray.mode.switch")),
+        node(14, label("menu.transcribe.file")),
         node(15, separator=True),
-        node(17, "Help center"),
-        node(18, "Contact support"),
-        node(19, "Send feedback"),
+        node(17, label("settings.resources.help.center")),
+        node(18, label("settings.resources.contact.support")),
+        node(19, label("settings.resources.feedback")),
         node(20, separator=True),
-        node(22, "Show"),
-        node(23, "Hide"),
+        node(22, label("settings.api.show")),
+        node(23, label("settings.api.hide")),
         node(24, separator=True),
-        node(25, "Quit"),
+        node(25, label("common.quit")),
     ]
     return node(0, children=children)
 
@@ -129,7 +178,7 @@ def menu_call(_conn, _sender, _path, _iface, method, params, invocation):
 def menu_property(_conn, _sender, _path, _iface, prop):
     values = {
         "Version": GLib.Variant("u", 4),
-        "TextDirection": GLib.Variant("s", "ltr"),
+        "TextDirection": GLib.Variant("s", "rtl" if CULTURE in RTL_CULTURES else "ltr"),
         "Status": GLib.Variant("s", "normal"),
     }
     return values[prop]

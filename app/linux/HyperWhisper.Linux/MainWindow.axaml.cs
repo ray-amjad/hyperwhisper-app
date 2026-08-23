@@ -23,16 +23,13 @@ using HyperWhisper.ModelReadiness;
 using HyperWhisper.PortableApplication.ModelLibrary;
 using HyperWhisper.Diagnostics;
 using System.Reflection;
+using HyperWhisper.Linux.Localization;
 
 namespace HyperWhisper.Linux;
 
 public partial class MainWindow : Window
 {
-    private static readonly FilePickerFileType UniversalBackupFileType = new("HyperWhisper universal backup")
-    {
-        Patterns = ["*.hwbackup", "*.json"],
-        MimeTypes = ["application/json"],
-    };
+    private readonly AvaloniaLocalizationBridge _localization;
     private readonly LinuxDesktopServices _platformServices;
     private readonly ApplicationDb _database;
     private readonly ApplicationShellViewModel _viewModel;
@@ -68,6 +65,8 @@ public partial class MainWindow : Window
 
     internal MainWindow(LinuxDesktopServices platformServices)
     {
+        _localization = (Avalonia.Application.Current as App)?.Localization
+            ?? throw new InvalidOperationException("The application localization service is unavailable.");
         _platformServices = platformServices ?? throw new ArgumentNullException(nameof(platformServices));
         _database = new ApplicationDb(_platformServices.Paths);
         _settings = new PortableSettingsService(_platformServices.PrivateFiles, _platformServices.Paths);
@@ -120,13 +119,15 @@ public partial class MainWindow : Window
                 _modelManager,
                 _platformServices.CredentialStore,
             new LinuxMetadataOnlyHealthProbe()),
-            CreateAboutViewModel(diagnosticDirectory));
+            CreateAboutViewModel(diagnosticDirectory),
+            L);
         var history = new HistoryRepository(_database, _platformServices.Paths);
         var contextCapture = new LinuxContextCaptureCoordinator(
             _platformServices.ApplicationContext, _platformServices.ScreenOcr);
         _overlay = new LazyLinuxRecordingOverlayFeedback(
             new AvaloniaLinuxOverlayDispatcher(),
-            () => _viewModel.Settings.ShowRecordingWindow);
+            () => _viewModel.Settings.ShowRecordingWindow,
+            L);
         _recordingSession = new LinuxInteractionRecordingSession(
             _viewModel, _workflow, _platformServices, contextCapture, _postProcessingRouter, history, _overlay);
         _interaction = new LinuxInteractionCoordinator(
@@ -149,10 +150,11 @@ public partial class MainWindow : Window
             () => OpenTrayUri(TrayFeedbackUri),
             ShowFromTray,
             HideFromTray,
-            QuitFromTray);
+            QuitFromTray,
+            L);
         InitializeComponent();
         DataContext = _viewModel;
-        PlatformStatusText.Text = $"Linux platform connected · {_platformServices.Paths.DataDirectory}";
+        PlatformStatusText.Text = LF("linux.platform.connected", _platformServices.Paths.DataDirectory);
         Opened += OnOpened;
         Closing += OnClosing;
         Closed += OnClosed;
@@ -180,7 +182,7 @@ public partial class MainWindow : Window
             _storageMaintenance = RunStorageMaintenanceLoopAsync(_lifetime.Token);
             var tray = await _platformServices.Tray.StartAsync(_lifetime.Token);
             if (tray.IsFailure)
-                PlatformStatusText.Text += $" · Tray unavailable; window fallback active ({tray.Error!.Message})";
+                PlatformStatusText.Text += LF("linux.platform.tray_unavailable", tray.Error!.Message);
             else
             {
                 _trayAvailable = true;
@@ -192,7 +194,7 @@ public partial class MainWindow : Window
         catch
         {
             await WriteDiagnosticAsync(DiagnosticSeverity.Error, DiagnosticComponent.Application, DiagnosticOutcome.Failed);
-            _viewModel.Status.Failure("app.desktop_start_failed", "Linux desktop integration could not be started.");
+            _viewModel.Status.Failure("app.desktop_start_failed", L("linux.error.desktop_start_failed"));
         }
     }
 
@@ -215,7 +217,7 @@ public partial class MainWindow : Window
             await ShutdownLocalApiAsync();
             if (_storageMaintenance is not null) await _storageMaintenance;
         }
-        catch { _viewModel.Status.Failure("interaction.close_cancel_failed", "The active recording could not be cancelled cleanly."); }
+        catch { _viewModel.Status.Failure("interaction.close_cancel_failed", L("linux.error.close_cancel_failed")); }
         finally
         {
             _allowClose = true;
@@ -286,9 +288,9 @@ public partial class MainWindow : Window
     {
         var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Title = "Choose a HyperWhisper backup",
+            Title = L("linux.picker.backup.open"),
             AllowMultiple = false,
-            FileTypeFilter = [UniversalBackupFileType],
+            FileTypeFilter = [CreateUniversalBackupFileType()],
         });
         if (files.Count == 1) _viewModel.Backup.Path = files[0].Path.LocalPath;
     }
@@ -297,10 +299,10 @@ public partial class MainWindow : Window
     {
         var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {
-            Title = "Export HyperWhisper backup",
+            Title = L("settings.backup.export.dialogTitle"),
             SuggestedFileName = $"hyperwhisper-{DateTime.UtcNow:yyyy-MM-dd}.hwbackup",
             DefaultExtension = "hwbackup",
-            FileTypeChoices = [UniversalBackupFileType],
+            FileTypeChoices = [CreateUniversalBackupFileType()],
             ShowOverwritePrompt = true,
         });
         if (file is null) return;
@@ -333,7 +335,7 @@ public partial class MainWindow : Window
                 if (string.Equals(item.Tag?.ToString(), page, StringComparison.Ordinal))
                 { Navigation.SelectedItem = item; break; }
         }
-        catch (ArgumentException) { _viewModel.Status.Failure("models.navigation_unavailable", "That setup page is unavailable in this build."); }
+        catch (ArgumentException) { _viewModel.Status.Failure("models.navigation_unavailable", L("linux.error.navigation_unavailable")); }
     }
 
     private async void OnExportDiagnostics(object? sender, RoutedEventArgs e)
@@ -341,10 +343,10 @@ public partial class MainWindow : Window
         if (_viewModel.About is null) return;
         var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {
-            Title = "Export privacy-safe diagnostics",
+            Title = L("settings.about.exportDiagnostics.dialogTitle"),
             SuggestedFileName = $"hyperwhisper-diagnostics-{DateTime.UtcNow:yyyy-MM-dd}.zip",
             DefaultExtension = "zip",
-            FileTypeChoices = [new FilePickerFileType("ZIP archive") { Patterns = ["*.zip"], MimeTypes = ["application/zip"] }],
+            FileTypeChoices = [new FilePickerFileType(L("linux.picker.zip_archive")) { Patterns = ["*.zip"], MimeTypes = ["application/zip"] }],
             ShowOverwritePrompt = true,
         });
         if (file is not null) await _viewModel.About.ExportDiagnosticsAsync(file.Path.LocalPath, _lifetime.Token);
@@ -363,7 +365,7 @@ public partial class MainWindow : Window
             start.ArgumentList.Add(path);
             _ = Process.Start(start);
         }
-        catch { _viewModel.About?.Status.Failure("about.open_logs_failed", "The private logs folder could not be opened."); }
+        catch { _viewModel.About?.Status.Failure("about.open_logs_failed", L("linux.error.open_logs_failed")); }
     }
 
     private void OpenSafeUri(Uri uri)
@@ -376,13 +378,13 @@ public partial class MainWindow : Window
     {
         try { await ApplyLocalApiSettingsAsync(_lifetime.Token); }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
-        catch { _viewModel.Settings.Status.Failure("local_api.apply_failed", "Local API settings could not be applied."); }
+        catch { _viewModel.Settings.Status.Failure("local_api.apply_failed", L("linux.error.local_api_apply_failed")); }
     }
 
     private void OnDesktopSettingsChanged(object? sender, EventArgs e)
     {
         try { ApplyDesktopSettings(); }
-        catch { _viewModel.Settings.Status.Failure("desktop_settings.apply_failed", "Desktop settings could not be applied."); }
+        catch { _viewModel.Settings.Status.Failure("desktop_settings.apply_failed", L("linux.error.desktop_settings_apply_failed")); }
     }
 
     private void OnTelemetrySettingsChanged(object? sender, EventArgs e) => ApplyTelemetrySettings();
@@ -391,7 +393,7 @@ public partial class MainWindow : Window
     {
         try { await RunStorageMaintenanceAsync(_lifetime.Token); }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
-        catch { SetStorageText("StorageStatusText", "Storage maintenance could not be completed."); }
+        catch { SetStorageText("StorageStatusText", L("linux.storage.maintenance_failed")); }
     }
 
     private async Task RunStorageMaintenanceLoopAsync(CancellationToken cancellationToken)
@@ -429,16 +431,17 @@ public partial class MainWindow : Window
             ? $"{inventory.TotalBytes / 1024d:0.0} KiB"
             : $"{inventory.TotalBytes / (1024d * 1024d):0.0} MiB";
         var cleanupText = cleanup is null || cleanup.Status == StorageLifecycleStatus.Disabled
-            ? "No enabled cleanup has run."
-            : $"Last cleanup: {cleanup.CompletedAtUtc.LocalDateTime:g}; {cleanup.TranscriptsDeleted} transcripts and {cleanup.AudioFilesDeleted} audio files removed.";
+            ? L("linux.storage.no_cleanup")
+            : LF("linux.storage.last_cleanup", cleanup.CompletedAtUtc.LocalDateTime,
+                cleanup.TranscriptsDeleted, cleanup.AudioFilesDeleted);
         SetStorageText("StoragePathText", _platformServices.Paths.RecordingsDirectory);
-        SetStorageText("StorageStatusText", $"{inventory.FileCount} app-owned audio files · {size}. {cleanupText}");
+        SetStorageText("StorageStatusText", LF("linux.storage.inventory", inventory.FileCount, size, cleanupText));
     }
 
     private async void OnDeleteStoredAudioNow(object? sender, RoutedEventArgs e)
     {
         try { await RunStorageMaintenanceAsync(_lifetime.Token); }
-        catch { SetStorageText("StorageStatusText", "Storage cleanup failed; external audio was not touched."); }
+        catch { SetStorageText("StorageStatusText", L("linux.storage.cleanup_failed")); }
     }
 
     private async void OnRefreshStorage(object? sender, RoutedEventArgs e)
@@ -456,7 +459,7 @@ public partial class MainWindow : Window
                 _storageMaintenanceGate.Release();
             }
         }
-        catch { SetStorageText("StorageStatusText", "Storage inventory could not be read."); }
+        catch { SetStorageText("StorageStatusText", L("linux.storage.inventory_failed")); }
     }
 
     private void OnOpenRecordingsFolder(object? sender, RoutedEventArgs e)
@@ -472,7 +475,7 @@ public partial class MainWindow : Window
             start.ArgumentList.Add(_platformServices.Paths.RecordingsDirectory);
             _ = Process.Start(start);
         }
-        catch { SetStorageText("StorageStatusText", "The fixed XDG recordings folder could not be opened."); }
+        catch { SetStorageText("StorageStatusText", L("linux.storage.open_failed")); }
     }
 
     private void SetStorageText(string name, string text)
@@ -505,15 +508,15 @@ public partial class MainWindow : Window
                 : ClipboardHistoryPrivacyPolicy.Disabled);
         settings.ClipboardHistoryPrivacyStatus = settings.HideFromClipboardHistory
             ? _platformServices.TextInjection.ClipboardHistoryPrivacyCapability == ClipboardHistoryPrivacyCapability.BestEffortAvailable
-                ? "Clipboard-history exclusion hints are enabled for compatible clipboard managers; enforcement remains desktop-dependent."
-                : "This clipboard backend cannot attach a history-exclusion hint; restore behavior still applies."
-            : "Clipboard-history exclusion hints are disabled.";
+                ? L("linux.clipboard.privacy_enabled")
+                : L("linux.clipboard.privacy_unavailable")
+            : L("linux.clipboard.privacy_disabled");
         if (_platformServices.ApplicationContext is LinuxApplicationContextProvider contextProvider)
         {
             var capability = contextProvider.GetCapabilities();
             settings.DesktopContextStatus = capability.Backend.StartsWith("gnome-", StringComparison.Ordinal)
-                ? $"Application context: {capability.Detail} The optional packaged GNOME companion improves title discovery; AT-SPI remains the local fallback."
-                : $"Application context: {capability.Detail}";
+                ? LF("linux.desktop.context_gnome", capability.Detail)
+                : LF("linux.desktop.context", capability.Detail);
         }
         var toggle = ParseShortcut(settings.ToggleShortcutModifiers, settings.ToggleShortcutKey);
         var cancel = ParseShortcut(settings.CancelShortcutModifiers, settings.CancelShortcutKey);
@@ -522,7 +525,7 @@ public partial class MainWindow : Window
         var shortcutFailure = new[] { toggle, cancel, changeMode, streaming }.FirstOrDefault(item => item.IsFailure);
         if (shortcutFailure?.Error is { } shortcutError)
         {
-            PlatformStatusText.Text = $"Linux integration warning · {shortcutError.Message}";
+            PlatformStatusText.Text = LF("linux.platform.warning", shortcutError.Message);
             settings.Status.Failure(shortcutError.Code, shortcutError.Message);
             return;
         }
@@ -544,8 +547,8 @@ public partial class MainWindow : Window
             StreamingEnabled = settings.StreamingEnabled,
             StreamingShortcut = streaming.Value,
         });
-        if (result.IsFailure) PlatformStatusText.Text = $"Linux integration warning · {result.Error!.Message}";
-        else PlatformStatusText.Text = $"Linux platform connected · {_platformServices.Paths.DataDirectory}";
+        if (result.IsFailure) PlatformStatusText.Text = LF("linux.platform.warning", result.Error!.Message);
+        else PlatformStatusText.Text = LF("linux.platform.connected", _platformServices.Paths.DataDirectory);
 
         var autostart = settings.AutostartEnabled ? _platformServices.Autostart.Enable() : _platformServices.Autostart.Disable();
         if (autostart.IsFailure && settings.AutostartEnabled)
@@ -554,14 +557,14 @@ public partial class MainWindow : Window
             settings.KeepMicrophoneWarm, _viewModel.Recording?.SelectedAudioDevice?.Id);
     }
 
-    private static PlatformResult<GlobalShortcut?> ParseShortcut(string? modifiersText, string? keyText)
+    private PlatformResult<GlobalShortcut?> ParseShortcut(string? modifiersText, string? keyText)
     {
         var normalizedModifiers = string.IsNullOrWhiteSpace(modifiersText) ? "None" : modifiersText.Trim();
         if (!Enum.TryParse<ShortcutModifiers>(normalizedModifiers, true, out var modifiers)
             || (modifiers & ~(ShortcutModifiers.Control | ShortcutModifiers.Alt | ShortcutModifiers.Shift | ShortcutModifiers.Meta)) != 0)
             return PlatformResult<GlobalShortcut?>.Failure(
                 "interaction.shortcut_modifiers_invalid",
-                "Shortcut modifiers must use Control, Alt, Shift, or Meta separated by commas.");
+                L("linux.error.shortcut_modifiers_invalid"));
         var key = keyText?.Trim() ?? string.Empty;
         if (modifiers == ShortcutModifiers.None && key.Length == 0)
             return PlatformResult<GlobalShortcut?>.Success(null);
@@ -569,7 +572,7 @@ public partial class MainWindow : Window
             or ShortcutModifiers.Shift or ShortcutModifiers.Meta)
             return PlatformResult<GlobalShortcut?>.Failure(
                 "interaction.shortcut_bare_modifier",
-                "A modifier-only shortcut needs at least two modifiers.");
+                L("linux.error.shortcut_bare_modifier"));
         return PlatformResult<GlobalShortcut?>.Success(key.Length == 0
             ? new GlobalShortcut(modifiers)
             : new GlobalShortcut(modifiers, new ShortcutKeyCode(key)));
@@ -658,7 +661,7 @@ public partial class MainWindow : Window
     {
         if (uri != TrayHelpUri && uri != TraySupportUri && uri != TrayFeedbackUri) return;
         try { _ = Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true }); }
-        catch { _viewModel.Status.Failure("tray.link_failed", "The requested HyperWhisper page could not be opened."); }
+        catch { _viewModel.Status.Failure("tray.link_failed", L("linux.error.tray_link_failed")); }
     }
     private void OnTrayUnavailable(object? sender, EventArgs e) => Dispatcher.UIThread.Post(() =>
     {
@@ -668,7 +671,7 @@ public partial class MainWindow : Window
             Show();
             WindowState = WindowState.Normal;
         }
-        PlatformStatusText.Text += " · Tray disconnected; main window restored";
+        PlatformStatusText.Text += L("linux.platform.tray_disconnected");
     });
 
     private void OnWindowPropertyChanged(object? sender, Avalonia.AvaloniaPropertyChangedEventArgs e)
@@ -707,7 +710,8 @@ public partial class MainWindow : Window
                 _viewModel.Settings.LocalApiPort);
             var state = await _localApiHost.StartAsync(cancellationToken).ConfigureAwait(false);
             if (!state.IsRunning)
-                _viewModel.Settings.Status.Failure(state.Failure?.Code ?? "local_api.start_failed", state.Failure?.Message ?? "Local API could not start.");
+                _viewModel.Settings.Status.Failure(state.Failure?.Code ?? "local_api.start_failed",
+                    state.Failure?.Message ?? L("linux.error.local_api_start_failed"));
         }
         finally { _localApiSettingsGate.Release(); }
     }
@@ -761,11 +765,11 @@ public partial class MainWindow : Window
         {
             var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
             {
-                Title = "Choose an audio recording",
+                Title = L("file.transcribe.dialogTitle"),
                 AllowMultiple = false,
                 FileTypeFilter =
                 [
-                    new FilePickerFileType("Supported audio")
+                    new FilePickerFileType(L("linux.picker.supported_audio"))
                     {
                         Patterns = ["*.wav", "*.mp3", "*.m4a", "*.flac", "*.ogg", "*.webm"],
                         MimeTypes = ["audio/wav", "audio/mpeg", "audio/mp4", "audio/x-m4a", "audio/flac", "audio/ogg", "audio/webm"]
@@ -784,7 +788,7 @@ public partial class MainWindow : Window
         {
             _viewModel.Recording?.ReportInputFailure(
                 "workflow.file_picker_failed",
-                "The desktop file picker could not be opened.");
+                L("linux.error.file_picker_failed"));
         }
         return false;
     }
@@ -796,6 +800,13 @@ public partial class MainWindow : Window
             await EnsureInitializedAsync();
             await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
             if (Bounds.Width <= 0 || Bounds.Height <= 0 || !IsVisible) return 2;
+            var expectedCulture = AvaloniaLocalizationBridge.ResolveStartupCulture(
+                Environment.GetEnvironmentVariable("HYPERWHISPER_UI_CULTURE"));
+            if (!string.Equals(_localization.Culture.Name, expectedCulture.Name,
+                    StringComparison.OrdinalIgnoreCase)) return 20;
+            if (FlowDirection != _localization.FlowDirection) return 21;
+            if (Navigation.Items.OfType<ListBoxItem>().FirstOrDefault()?.Content?.ToString()
+                != _localization.GetRequired("sidebar.home")) return 22;
             if (!Path.IsPathFullyQualified(_platformServices.Paths.DataDirectory)
                 || _platformServices.PrivateFiles is null
                 || _platformServices.GlobalShortcuts is null
@@ -929,10 +940,10 @@ public partial class MainWindow : Window
     private bool HasVisibleControl(string name)
         => this.GetLogicalDescendants().OfType<Control>().Any(control => control.Name == name && control.IsVisible);
 
-    private static PlatformResult OpenAccountUri(Uri uri)
+    private PlatformResult OpenAccountUri(Uri uri)
     {
         if (uri != CloudAccountLinks.Purchase && uri != CloudAccountLinks.ManageAccount)
-            return PlatformResult.Failure("account.link_rejected", "The account link was not recognized.");
+            return PlatformResult.Failure("account.link_rejected", L("linux.error.account_link_rejected"));
 
         try
         {
@@ -941,9 +952,18 @@ public partial class MainWindow : Window
         }
         catch
         {
-            return PlatformResult.Failure("account.link_failed", "The account page could not be opened in the browser.");
+            return PlatformResult.Failure("account.link_failed", L("linux.error.account_link_failed"));
         }
     }
+
+    private FilePickerFileType CreateUniversalBackupFileType() => new(L("linux.picker.universal_backup"))
+    {
+        Patterns = ["*.hwbackup", "*.json"],
+        MimeTypes = ["application/json"],
+    };
+
+    private string L(string key) => _localization.GetRequired(key);
+    private string LF(string key, params object?[] arguments) => _localization.Format(key, arguments);
 
     private async Task SeedSmokeDataAsync()
     {
@@ -974,6 +994,7 @@ internal sealed class LinuxTrayActionHandler : IDisposable
     private readonly Func<CancellationToken, Task> _transcribeFile;
     private readonly IReadOnlyDictionary<StatusNotifierAction, Action> _immediateActions;
     private readonly SemaphoreSlim _operation = new(1, 1);
+    private readonly Func<string, string> _text;
     private bool _disposed;
 
     internal LinuxTrayActionHandler(
@@ -993,13 +1014,15 @@ internal sealed class LinuxTrayActionHandler : IDisposable
         Action sendFeedback,
         Action show,
         Action hide,
-        Action quit)
+        Action quit,
+        Func<string, string> text)
     {
         _isRecording = isRecording;
         _isImporting = isImporting;
         _start = start;
         _stop = stop;
         _transcribeFile = transcribeFile;
+        _text = text ?? throw new ArgumentNullException(nameof(text));
         _immediateActions = new Dictionary<StatusNotifierAction, Action>
         {
             [StatusNotifierAction.SelectDefaultMicrophone] = selectDefaultMicrophone,
@@ -1022,7 +1045,7 @@ internal sealed class LinuxTrayActionHandler : IDisposable
         CancellationToken cancellationToken = default)
     {
         if (_disposed)
-            return PlatformResult.Failure("tray.disposed", "The tray action handler is unavailable.");
+            return PlatformResult.Failure("tray.disposed", _text("linux.error.tray_disposed"));
         if (action is StatusNotifierAction.CycleMode or StatusNotifierAction.OpenHistory
             or StatusNotifierAction.OpenSettings or StatusNotifierAction.OpenHelp
             or StatusNotifierAction.OpenSupport or StatusNotifierAction.SendFeedback
@@ -1035,17 +1058,17 @@ internal sealed class LinuxTrayActionHandler : IDisposable
             }
             catch
             {
-                return PlatformResult.Failure("tray.action_failed", "The tray action could not be completed.");
+                return PlatformResult.Failure("tray.action_failed", _text("linux.error.tray_action_failed"));
             }
         }
         try
         {
             if (!await _operation.WaitAsync(0, cancellationToken).ConfigureAwait(true))
-                return PlatformResult.Failure("tray.busy", "Another tray action is already running.");
+                return PlatformResult.Failure("tray.busy", _text("linux.error.tray_busy"));
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            return PlatformResult.Failure("tray.cancelled", "The tray action was cancelled.");
+            return PlatformResult.Failure("tray.cancelled", _text("linux.error.tray_cancelled"));
         }
         try
         {
@@ -1070,17 +1093,17 @@ internal sealed class LinuxTrayActionHandler : IDisposable
                     _immediateActions[action]();
                     break;
                 default:
-                    return PlatformResult.Failure("tray.action_unknown", "The tray action was not recognized.");
+                    return PlatformResult.Failure("tray.action_unknown", _text("linux.error.tray_action_unknown"));
             }
             return PlatformResult.Success();
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            return PlatformResult.Failure("tray.cancelled", "The tray action was cancelled.");
+            return PlatformResult.Failure("tray.cancelled", _text("linux.error.tray_cancelled"));
         }
         catch
         {
-            return PlatformResult.Failure("tray.action_failed", "The tray action could not be completed.");
+            return PlatformResult.Failure("tray.action_failed", _text("linux.error.tray_action_failed"));
         }
         finally
         {
@@ -1088,8 +1111,8 @@ internal sealed class LinuxTrayActionHandler : IDisposable
         }
     }
 
-    private static PlatformResult UnsafeState() => PlatformResult.Failure(
-        "tray.unsafe_state", "That tray action is unavailable during the current transcription operation.");
+    private PlatformResult UnsafeState() => PlatformResult.Failure(
+        "tray.unsafe_state", _text("linux.error.tray_unsafe_state"));
 
     public void Dispose()
     {

@@ -3,6 +3,7 @@ using System.Globalization;
 using Avalonia.Media;
 using HyperWhisper.Localization;
 using HyperWhisper.Linux.Localization;
+using System.Text.RegularExpressions;
 
 var tests = new (string Name, Action Run)[]
 {
@@ -14,6 +15,11 @@ var tests = new (string Name, Action Run)[]
     ("provider and model identifiers remain opaque", IdentifiersRemainOpaque),
     ("disposed resources detach and clear notifications", DisposedResourcesDetach),
     ("disposed bridge releases subscribers", DisposedBridgeReleasesSubscribers),
+    ("every Linux key falls back in every supported locale", LinuxCatalogFallbacks),
+    ("production XAML contains no localizable literals", ProductionXamlHasNoLocalizableLiterals),
+    ("production code uses catalogued user feedback", ProductionCodeUsesCataloguedFeedback),
+    ("tray labels are catalogued with RTL metadata", TrayLabelsAreCatalogued),
+    ("startup culture selection is bounded", StartupCultureSelectionIsBounded),
 };
 
 var failures = 0;
@@ -132,6 +138,71 @@ static void DisposedBridgeReleasesSubscribers()
     bridge.Dispose();
     Throws<ObjectDisposedException>(() => bridge.SetCulture(CultureInfo.GetCultureInfo("de")));
     Throws<ObjectDisposedException>(() => _ = resource.Value);
+}
+
+static void LinuxCatalogFallbacks()
+{
+    foreach (var culture in PortableLocalizer.SupportedCultures.Prepend(CultureInfo.GetCultureInfo("en")))
+    {
+        using var bridge = new AvaloniaLocalizationBridge(culture);
+        foreach (var key in AvaloniaLocalizationBridge.LinuxCatalogKeys)
+            NotBlank(bridge.GetRequired(key), $"{culture.Name}:{key}");
+    }
+}
+
+static void ProductionXamlHasNoLocalizableLiterals()
+{
+    var directory = Path.Combine(AppContext.BaseDirectory, "LocalizationSurface");
+    var allowedOpaqueValues = new HashSet<string>(StringComparer.Ordinal)
+    {
+        "!", "✨", "×", "WAV, MP3, M4A, FLAC, OGG, or WebM", "/path/to/vocabulary.tsv",
+        "gpt-4.1-mini", "anthropic:claude-haiku-4-5", "gemma-4-E2B-it-Q4_K_M.gguf",
+        "https://host/v1/chat/completions", "auto",
+    };
+    var attribute = new Regex("(?:Title|Text|Content|PlaceholderText|Header)=\\\"(?<value>[^\\\"]+)\\\"",
+        RegexOptions.CultureInvariant);
+    foreach (var path in Directory.GetFiles(directory, "*.axaml"))
+    {
+        var source = File.ReadAllText(path);
+        True(!source.Contains("StringFormat=", StringComparison.Ordinal), $"hard-coded StringFormat in {path}");
+        foreach (Match match in attribute.Matches(source))
+        {
+            var value = match.Groups["value"].Value;
+            True(value.StartsWith('{') || allowedOpaqueValues.Contains(value),
+                $"localizable literal '{value}' in {path}");
+        }
+    }
+}
+
+static void ProductionCodeUsesCataloguedFeedback()
+{
+    var source = File.ReadAllText(Path.Combine(AppContext.BaseDirectory,
+        "LocalizationSurface", "MainWindow.axaml.cs"));
+    string[] forbidden =
+    [
+        "Title = \\\"", "new FilePickerFileType(\\\"", "PlatformStatusText.Text = $\\\"",
+        "PlatformStatusText.Text += $\\\"", "SetStorageText(\\\"StorageStatusText\\\", \\\"",
+    ];
+    foreach (var value in forbidden)
+        True(!source.Contains(value, StringComparison.Ordinal), $"uncatalogued feedback pattern: {value}");
+}
+
+static void TrayLabelsAreCatalogued()
+{
+    var source = File.ReadAllText(Path.Combine(AppContext.BaseDirectory,
+        "LocalizationSurface", "status-notifier.py"));
+    True(source.Contains("TRAY_CATALOG", StringComparison.Ordinal), "tray catalog missing");
+    True(source.Contains("label(\"sidebar.history\")", StringComparison.Ordinal), "history label is literal");
+    True(source.Contains("CULTURE in RTL_CULTURES", StringComparison.Ordinal), "tray RTL metadata missing");
+    True(!Regex.IsMatch(source, @"node\(\d+,\s*""[A-Za-z]"), "literal tray menu label");
+}
+
+static void StartupCultureSelectionIsBounded()
+{
+    Equal("de", AvaloniaLocalizationBridge.ResolveStartupCulture("de-DE").Name, "regional German");
+    Equal("zh-Hans", AvaloniaLocalizationBridge.ResolveStartupCulture("zh-CN").Name, "Simplified Chinese");
+    Equal("en", AvaloniaLocalizationBridge.ResolveStartupCulture("eo").Name, "unsupported locale");
+    Equal("en", AvaloniaLocalizationBridge.ResolveStartupCulture("not_a_culture!").Name, "invalid locale");
 }
 
 static void Equal<T>(T expected, T actual, string message)

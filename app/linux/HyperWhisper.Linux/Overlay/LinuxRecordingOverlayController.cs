@@ -15,6 +15,7 @@ public sealed class LinuxRecordingOverlayController : IDisposable
     private readonly ILinuxRecordingOverlaySurface _surface;
     private readonly ILinuxOverlayDelay _delay;
     private readonly Func<DateTimeOffset> _clock;
+    private readonly Func<string, string> _text;
     private readonly Timer? _durationTimer;
     private CancellationTokenSource? _transient;
     private DateTimeOffset? _recordingStarted;
@@ -24,9 +25,10 @@ public sealed class LinuxRecordingOverlayController : IDisposable
     internal LinuxRecordingOverlayController(
         LinuxRecordingOverlayViewModel viewModel,
         ILinuxOverlayDispatcher dispatcher,
-        ILinuxRecordingOverlaySurface surface)
+        ILinuxRecordingOverlaySurface surface,
+        Func<string, string> text)
         : this(viewModel, dispatcher, surface, new SystemLinuxOverlayDelay(),
-            () => DateTimeOffset.UtcNow, startDurationTimer: true) { }
+            () => DateTimeOffset.UtcNow, startDurationTimer: true, text) { }
 
     internal LinuxRecordingOverlayController(
         LinuxRecordingOverlayViewModel viewModel,
@@ -34,13 +36,15 @@ public sealed class LinuxRecordingOverlayController : IDisposable
         ILinuxRecordingOverlaySurface surface,
         ILinuxOverlayDelay delay,
         Func<DateTimeOffset> clock,
-        bool startDurationTimer)
+        bool startDurationTimer,
+        Func<string, string> text)
     {
         ViewModel = viewModel;
         _dispatcher = dispatcher;
         _surface = surface;
         _delay = delay;
         _clock = clock;
+        _text = text ?? throw new ArgumentNullException(nameof(text));
         if (startDurationTimer)
             _durationTimer = new Timer(_ => TickDuration(), null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
     }
@@ -56,7 +60,7 @@ public sealed class LinuxRecordingOverlayController : IDisposable
             _recordingMode = mode;
             _recordingStarted = _clock();
         }
-        Apply(new(LinuxRecordingOverlayState.Recording, true, "Recording", mode.Value, "00:00"));
+        Apply(new(LinuxRecordingOverlayState.Recording, true, _text("linux.overlay.recording"), mode.Value, "00:00"));
     }
 
     public void ShowTranscribing()
@@ -67,7 +71,7 @@ public sealed class LinuxRecordingOverlayController : IDisposable
             CancelTransientLocked();
             _recordingStarted = null;
         }
-        Apply(new(LinuxRecordingOverlayState.Transcribing, true, "Transcribing…", string.Empty,
+        Apply(new(LinuxRecordingOverlayState.Transcribing, true, _text("recording.state.transcribing"), string.Empty,
             ViewModel.DurationText));
     }
 
@@ -75,13 +79,13 @@ public sealed class LinuxRecordingOverlayController : IDisposable
     {
         var message = error switch
         {
-            LinuxRecordingOverlayError.MicrophoneUnavailable => "Microphone unavailable",
-            LinuxRecordingOverlayError.RecordingFailed => "Recording failed",
-            LinuxRecordingOverlayError.TranscriptionFailed => "Transcription failed",
-            LinuxRecordingOverlayError.NoSpeechDetected => "No speech detected",
-            LinuxRecordingOverlayError.ProviderUnavailable => "Speech provider unavailable",
-            LinuxRecordingOverlayError.PermissionDenied => "Permission required",
-            _ => "Something went wrong",
+            LinuxRecordingOverlayError.MicrophoneUnavailable => _text("linux.overlay.error.microphone"),
+            LinuxRecordingOverlayError.RecordingFailed => _text("linux.overlay.error.recording"),
+            LinuxRecordingOverlayError.TranscriptionFailed => _text("linux.overlay.error.transcription"),
+            LinuxRecordingOverlayError.NoSpeechDetected => _text("linux.overlay.error.no_speech"),
+            LinuxRecordingOverlayError.ProviderUnavailable => _text("linux.overlay.error.provider"),
+            LinuxRecordingOverlayError.PermissionDenied => _text("linux.overlay.error.permission"),
+            _ => _text("linux.overlay.error.unknown"),
         };
         lock (_gate)
         {
@@ -105,7 +109,7 @@ public sealed class LinuxRecordingOverlayController : IDisposable
                 ? RecordingSnapshotLocked()
                 : LinuxRecordingOverlayViewModel.HiddenSnapshot;
         }
-        Apply(new(LinuxRecordingOverlayState.ModeChanged, true, "Mode changed", mode.Value,
+        Apply(new(LinuxRecordingOverlayState.ModeChanged, true, _text("linux.overlay.mode_changed"), mode.Value,
             resume.DurationText));
         StartTransient(ModeToastDuration, () => Apply(resume));
     }
@@ -118,7 +122,7 @@ public sealed class LinuxRecordingOverlayController : IDisposable
             CancelTransientLocked();
             _recordingStarted = null;
         }
-        Apply(new(LinuxRecordingOverlayState.Cancelled, true, "Cancelled", string.Empty,
+        Apply(new(LinuxRecordingOverlayState.Cancelled, true, _text("status.recordingCancelled"), string.Empty,
             ViewModel.DurationText));
         StartTransient(CancelledDuration, Hide);
     }
@@ -154,7 +158,7 @@ public sealed class LinuxRecordingOverlayController : IDisposable
         var duration = totalHours > 0
             ? $"{totalHours:00}:{elapsed.Minutes:00}:{elapsed.Seconds:00}"
             : $"{elapsed.Minutes:00}:{elapsed.Seconds:00}";
-        return new(LinuxRecordingOverlayState.Recording, true, "Recording", _recordingMode.Value, duration);
+        return new(LinuxRecordingOverlayState.Recording, true, _text("linux.overlay.recording"), _recordingMode.Value, duration);
     }
 
     private void StartTransient(TimeSpan duration, Action completion)

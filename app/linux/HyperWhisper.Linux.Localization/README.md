@@ -4,6 +4,11 @@
 catalog to Avalonia without copying translations or changing provider/model IDs.
 Create one bridge on the UI thread and keep it for the application lifetime.
 
+Linux-only desktop wording lives in `Resources/LinuxStrings.resx`. It is keyed
+and validated for every supported culture, but currently uses the invariant
+English value as its fallback until native translations are contributed. Shared
+keys continue to use the existing 40 translated satellite catalogs.
+
 - Bind `bridge["common.cancel"]` for simple dynamic text. The bridge raises the
   `Item[]` property notification after `SetCulture`.
 - Use `bridge.Bind(...)` or `bridge.BindFormat(...)` when a view needs an

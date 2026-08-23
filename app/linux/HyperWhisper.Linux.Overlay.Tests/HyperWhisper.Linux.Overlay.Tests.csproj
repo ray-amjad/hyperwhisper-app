@@ -7,6 +7,7 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="../HyperWhisper.Linux.Localization/HyperWhisper.Linux.Localization.csproj" />
     <Compile Include="../HyperWhisper.Linux/Overlay/LinuxRecordingOverlayModels.cs" Link="Production/LinuxRecordingOverlayModels.cs" />
     <Compile Include="../HyperWhisper.Linux/Overlay/LinuxRecordingOverlayViewModel.cs" Link="Production/LinuxRecordingOverlayViewModel.cs" />
     <Compile Include="../HyperWhisper.Linux/Overlay/LinuxRecordingOverlayController.cs" Link="Production/LinuxRecordingOverlayController.cs" />

@@ -13,10 +13,10 @@ internal sealed class AvaloniaLinuxOverlayDispatcher : ILinuxOverlayDispatcher
 
 internal static class LinuxRecordingOverlayFactory
 {
-    public static LinuxRecordingOverlayController Create()
+    public static LinuxRecordingOverlayController Create(Func<string, string> text)
     {
         var viewModel = new LinuxRecordingOverlayViewModel();
         var window = new LinuxRecordingOverlayWindow(viewModel, new JsonLinuxOverlayPlacementStore());
-        return new(viewModel, new AvaloniaLinuxOverlayDispatcher(), window);
+        return new(viewModel, new AvaloniaLinuxOverlayDispatcher(), window, text);
     }
 }

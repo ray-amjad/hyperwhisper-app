@@ -3,6 +3,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using HyperWhisper.Telemetry;
+using HyperWhisper.Linux.Localization;
 
 namespace HyperWhisper.Linux;
 
@@ -10,8 +11,16 @@ public partial class App : Application
 {
     private LinuxDesktopServices? _platformServices;
     private readonly LinuxSentryService _telemetry = new();
+    public AvaloniaLocalizationBridge Localization { get; } = new(
+        AvaloniaLocalizationBridge.ResolveStartupCulture(
+            Environment.GetEnvironmentVariable("HYPERWHISPER_UI_CULTURE")));
 
-    public override void Initialize() => AvaloniaXamlLoader.Load(this);
+    public override void Initialize()
+    {
+        AvaloniaXamlLoader.Load(this);
+        Resources["Localization"] = Localization;
+        Resources["LocalizedFormatConverter"] = new LocalizedFormatConverter(Localization);
+    }
 
     public override void OnFrameworkInitializationCompleted()
     {

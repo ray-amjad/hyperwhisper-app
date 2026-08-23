@@ -1,5 +1,7 @@
 using System.Reflection;
+using System.Globalization;
 using HyperWhisper.Linux.Overlay;
+using HyperWhisper.Linux.Localization;
 
 var tests = new (string Name, Func<Task> Run)[]
 {
@@ -51,7 +53,7 @@ static Task RecordingDurationAdvances()
     Assert(fixture.ViewModel.DurationText == "01:05", "recording duration was formatted incorrectly");
     fixture.Controller.ShowTranscribing();
     Assert(fixture.ViewModel.State == LinuxRecordingOverlayState.Transcribing, "transcribing was not shown");
-    Assert(fixture.ViewModel.StatusText == "Transcribing…", "transcribing text drifted");
+    Assert(fixture.ViewModel.StatusText == TestText.Get("recording.state.transcribing"), "transcribing text drifted");
     return Task.CompletedTask;
 }
 
@@ -77,7 +79,7 @@ static async Task ErrorsAreNormalized()
     using var fixture = OverlayFixture.Create();
     fixture.Controller.ShowError(LinuxRecordingOverlayError.ProviderUnavailable);
     Assert(fixture.ViewModel.State == LinuxRecordingOverlayState.Error, "error was not shown");
-    Assert(fixture.ViewModel.StatusText == "Speech provider unavailable", "error text was not normalized");
+    Assert(fixture.ViewModel.StatusText == TestText.Get("linux.overlay.error.provider"), "error text was not normalized");
     fixture.Delay.CompleteLatest();
     await WaitUntil(() => fixture.ViewModel.State == LinuxRecordingOverlayState.Hidden);
 }
@@ -89,7 +91,7 @@ static async Task ExpiredFeedbackCannotOverwriteReplacement()
     var delay = new FakeDelay();
     using var dispatcher = new BlockingDispatcher();
     using var controller = new LinuxRecordingOverlayController(viewModel, dispatcher, surface,
-        delay, () => DateTimeOffset.UtcNow, false);
+        delay, () => DateTimeOffset.UtcNow, false, TestText.Get);
     controller.ShowModeChanged(LinuxOverlayModeLabel.Create("Old"));
     var oldTimer = delay.Latest ?? throw new InvalidOperationException("old timer was not created");
 
@@ -120,12 +122,12 @@ static Task FailuresAreBestEffort()
 {
     var viewModel = new LinuxRecordingOverlayViewModel();
     using (var controller = new LinuxRecordingOverlayController(viewModel, new ImmediateDispatcher(),
-        new ThrowingSurface(), new FakeDelay(), () => DateTimeOffset.UtcNow, false))
+        new ThrowingSurface(), new FakeDelay(), () => DateTimeOffset.UtcNow, false, TestText.Get))
         controller.ShowRecording(LinuxOverlayModeLabel.Create("Safe"));
     Assert(viewModel.State == LinuxRecordingOverlayState.Recording, "surface failure prevented state transition");
 
     using var dispatchFailure = new LinuxRecordingOverlayController(new(), new ThrowingDispatcher(),
-        new FakeSurface(), new FakeDelay(), () => DateTimeOffset.UtcNow, false);
+        new FakeSurface(), new FakeDelay(), () => DateTimeOffset.UtcNow, false, TestText.Get);
     dispatchFailure.ShowTranscribing();
     dispatchFailure.Hide();
     return Task.CompletedTask;
@@ -271,11 +273,20 @@ sealed class OverlayFixture : IDisposable
             Surface = surface,
             Delay = delay,
             Controller = new(viewModel, new ImmediateDispatcher(), surface, delay,
-                clock ?? (() => DateTimeOffset.UtcNow), false),
+                clock ?? (() => DateTimeOffset.UtcNow), false, TestText.Get),
         };
     }
 
     public void Dispose() => Controller.Dispose();
+}
+
+static class TestText
+{
+    public static string Get(string key)
+    {
+        using var bridge = new AvaloniaLocalizationBridge(CultureInfo.GetCultureInfo("en"));
+        return bridge.GetRequired(key);
+    }
 }
 
 sealed class ImmediateDispatcher : ILinuxOverlayDispatcher
