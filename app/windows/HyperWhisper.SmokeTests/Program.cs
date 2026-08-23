@@ -26,6 +26,7 @@ using HyperWhisper.Data;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Models;
 using HyperWhisper.Services;
+using HyperWhisper.Services.AppClassification;
 using HyperWhisper.Services.Platform;
 using HyperWhisper.Services.Streaming;
 using HyperWhisper.Services.Transcription;
@@ -115,6 +116,89 @@ internal static class Program
                     typeof(PlatformContracts.IPushToTalkMonitor)
                         .IsAssignableFrom(typeof(PushToTalkMonitor)),
                     "PushToTalkMonitor does not implement the portable contract");
+            });
+
+            Run("Windows application-context seam preserves portable fields", () =>
+            {
+                var windows = new Services.ApplicationContext
+                {
+                    ProcessName = "sample-app",
+                    WindowTitle = "Sample window",
+                    Category = "Communication",
+                    BrowserTabTitle = "Sample tab",
+                    BrowserHost = "example.invalid",
+                    FocusedElementType = "TextField",
+                    FocusedContent = "selected text",
+                    TextFormat = "text",
+                    AppType = AppType.WorkMessaging,
+                    AppTypeConfidence = "strong",
+                    AppTypeSource = "processName",
+                    ScreenOCRText = "visible text"
+                };
+
+                var portable = WindowsApplicationContextMapper.ToPlatform(windows);
+                Assert(portable.ProcessName == windows.ProcessName, "process name was lost");
+                Assert(portable.BrowserHost == windows.BrowserHost, "browser host was lost");
+                Assert(portable.FocusedContent == windows.FocusedContent, "focused content was lost");
+                Assert(portable.AppType == "work_messaging", "app type was not canonicalized");
+                Assert(portable.ScreenOcrText == windows.ScreenOCRText, "OCR text was lost");
+                Assert(
+                    typeof(PlatformContracts.IApplicationContextProvider)
+                        .IsAssignableFrom(typeof(ApplicationContextService)),
+                    "ApplicationContextService does not implement the portable contract");
+            });
+
+            Run("Windows text-injection seam maps every outcome", () =>
+            {
+                Assert(
+                    WindowsTextInjectionMapper.ToPlatform(SmartPasteResult.Pasted)
+                        == PlatformContracts.TextInjectionOutcome.Pasted,
+                    "pasted outcome was lost");
+                Assert(
+                    WindowsTextInjectionMapper.ToPlatform(SmartPasteResult.CopiedToClipboard)
+                        == PlatformContracts.TextInjectionOutcome.CopiedToClipboard,
+                    "clipboard outcome was lost");
+                Assert(
+                    WindowsTextInjectionMapper.ToPlatform(SmartPasteResult.SecureFieldSkipped)
+                        == PlatformContracts.TextInjectionOutcome.SecureFieldSkipped,
+                    "secure-field outcome was lost");
+                Assert(
+                    WindowsTextInjectionMapper.ToPlatform(SmartPasteResult.Failed)
+                        == PlatformContracts.TextInjectionOutcome.Failed,
+                    "failure outcome was lost");
+                Assert(
+                    typeof(PlatformContracts.ITextInjectionService)
+                        .IsAssignableFrom(typeof(SmartPasteService)),
+                    "SmartPasteService does not implement the portable contract");
+            });
+
+            Run("Windows lifecycle seams implement contracts and isolate activation handlers", () =>
+            {
+                Assert(
+                    typeof(PlatformContracts.IAutostartService)
+                        .IsAssignableFrom(typeof(StartupService)),
+                    "StartupService does not implement the portable contract");
+                Assert(
+                    typeof(PlatformContracts.ISingleInstanceCoordinator)
+                        .IsAssignableFrom(typeof(WindowsSingleInstanceCoordinator)),
+                    "WindowsSingleInstanceCoordinator does not implement the portable contract");
+
+                var coordinator = WindowsSingleInstanceCoordinator.Instance;
+                var goodHandlerCalled = false;
+                EventHandler badHandler = (_, _) => throw new InvalidOperationException("expected test failure");
+                EventHandler goodHandler = (_, _) => goodHandlerCalled = true;
+                try
+                {
+                    coordinator.ActivationRequested += badHandler;
+                    coordinator.ActivationRequested += goodHandler;
+                    coordinator.NotifyActivationRequested();
+                    Assert(goodHandlerCalled, "one bad activation subscriber blocked another");
+                }
+                finally
+                {
+                    coordinator.ActivationRequested -= badHandler;
+                    coordinator.ActivationRequested -= goodHandler;
+                }
             });
 
             Run("ApplyHardenedReplacement keeps $-tokens literal", () =>

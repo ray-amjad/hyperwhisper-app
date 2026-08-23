@@ -7,6 +7,7 @@ using HyperWhisper.Data.Entities;
 using HyperWhisper.Localization;
 using HyperWhisper.Models;
 using HyperWhisper.Services;
+using HyperWhisper.Services.Platform;
 using HyperWhisper.ViewModels;
 using HyperWhisper.Views.Pages;
 using HyperWhisper.Views.Pages.Settings;
@@ -634,6 +635,7 @@ public partial class MainWindow : Window
     {
         if (msg == (int)SingleInstanceGuard.WM_SHOWME)
         {
+            WindowsSingleInstanceCoordinator.Instance.NotifyActivationRequested();
             Show();
             WindowState = WindowState.Normal;
             Activate();

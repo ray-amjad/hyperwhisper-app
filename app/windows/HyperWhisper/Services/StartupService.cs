@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using Microsoft.Win32;
+using PlatformContracts = HyperWhisper.Platform.Abstractions;
 
 namespace HyperWhisper.Services;
 
@@ -23,7 +24,7 @@ namespace HyperWhisper.Services;
 /// - Startup folder shortcut: Less reliable, can be cleared by cleanup tools
 /// - HKLM Run key: Requires admin, affects all users
 /// </summary>
-public class StartupService
+public class StartupService : PlatformContracts.IAutostartService
 {
     // =========================================================================
     // CONSTANTS
@@ -205,6 +206,23 @@ public class StartupService
     {
         return enabled ? Enable() : Disable();
     }
+
+    PlatformContracts.PlatformResult<bool> PlatformContracts.IAutostartService.IsEnabled()
+        => PlatformContracts.PlatformResult<bool>.Success(IsEnabled);
+
+    PlatformContracts.PlatformResult PlatformContracts.IAutostartService.Enable()
+        => Enable()
+            ? PlatformContracts.PlatformResult.Success()
+            : PlatformContracts.PlatformResult.Failure(
+                "autostart.enable_failed",
+                "Windows could not enable launch at sign-in.");
+
+    PlatformContracts.PlatformResult PlatformContracts.IAutostartService.Disable()
+        => Disable()
+            ? PlatformContracts.PlatformResult.Success()
+            : PlatformContracts.PlatformResult.Failure(
+                "autostart.disable_failed",
+                "Windows could not disable launch at sign-in.");
 
     // =========================================================================
     // PRIVATE METHODS

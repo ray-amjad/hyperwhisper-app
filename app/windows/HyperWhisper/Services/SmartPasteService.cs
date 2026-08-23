@@ -10,6 +10,8 @@ using System.Windows.Media.Imaging;
 using GregsStack.InputSimulatorStandard;
 using GregsStack.InputSimulatorStandard.Native;
 using HyperWhisper.Models;
+using HyperWhisper.Services.Platform;
+using PlatformContracts = HyperWhisper.Platform.Abstractions;
 
 // Alias WPF clipboard types to avoid ambiguity with WinForms
 using Clipboard = System.Windows.Clipboard;
@@ -48,7 +50,7 @@ namespace HyperWhisper.Services;
 /// - Browsers/Electron skip non-text-field UIA gating, but still run secure-field checks
 /// - Non-text-field focus still attempts paste (Ctrl+V is harmless, text stays in clipboard)
 /// </summary>
-public class SmartPasteService : IDisposable
+public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionService
 {
     // =========================================================================
     // WIN32 P/INVOKE DECLARATIONS
@@ -181,6 +183,102 @@ public class SmartPasteService : IDisposable
     public SmartPasteService()
     {
         _inputSimulator = new InputSimulator();
+    }
+
+    void PlatformContracts.ITextInjectionService.CaptureTarget()
+        => CaptureForegroundWindow();
+
+    bool PlatformContracts.ITextInjectionService.IsCapturedTargetAvailable
+        => IsCapturedTargetAvailable();
+
+    void PlatformContracts.ITextInjectionService.StartSession()
+        => StartRecordingSession();
+
+    void PlatformContracts.ITextInjectionService.EndSession()
+        => EndRecordingSession();
+
+    void PlatformContracts.ITextInjectionService.CancelPendingClipboardRestore()
+        => CancelPendingRestore();
+
+    void PlatformContracts.ITextInjectionService.ScheduleClipboardRestore(TimeSpan delay)
+    {
+        if (delay < TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(delay), "Restore delay cannot be negative.");
+        }
+
+        ScheduleClipboardRestore(delay);
+    }
+
+    ValueTask<PlatformContracts.PlatformResult>
+        PlatformContracts.ITextInjectionService.RestoreClipboardImmediatelyAsync(
+            CancellationToken cancellationToken)
+    {
+        if (_disposed)
+        {
+            return ValueTask.FromResult(PlatformContracts.PlatformResult.Failure(
+                "text_injection.disposed",
+                "The Windows text injection service has been disposed."));
+        }
+
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return ValueTask.FromResult(PlatformContracts.PlatformResult.Failure(
+                "text_injection.cancelled",
+                "Clipboard restoration was cancelled."));
+        }
+
+        return ValueTask.FromResult(TryRestoreClipboardImmediately()
+            ? PlatformContracts.PlatformResult.Success()
+            : PlatformContracts.PlatformResult.Failure(
+                "text_injection.clipboard_restore_failed",
+                "Windows could not restore the saved clipboard content."));
+    }
+
+    ValueTask<PlatformContracts.PlatformResult>
+        PlatformContracts.ITextInjectionService.CopyToClipboardAsync(
+            string text,
+            CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return ValueTask.FromResult(PlatformContracts.PlatformResult.Failure(
+                "text_injection.empty_text",
+                "There is no text to copy."));
+        }
+
+        if (_disposed)
+        {
+            return ValueTask.FromResult(PlatformContracts.PlatformResult.Failure(
+                "text_injection.disposed",
+                "The Windows text injection service has been disposed."));
+        }
+
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return ValueTask.FromResult(PlatformContracts.PlatformResult.Failure(
+                "text_injection.cancelled",
+                "Clipboard copy was cancelled."));
+        }
+
+        return ValueTask.FromResult(CopyToClipboard(text)
+            ? PlatformContracts.PlatformResult.Success()
+            : PlatformContracts.PlatformResult.Failure(
+                "text_injection.clipboard_failed",
+                "Windows could not copy the transcript to the clipboard."));
+    }
+
+    ValueTask<PlatformContracts.TextInjectionOutcome>
+        PlatformContracts.ITextInjectionService.InjectTranscriptAsync(
+            string text,
+            CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(text) || _disposed || cancellationToken.IsCancellationRequested)
+        {
+            return ValueTask.FromResult(PlatformContracts.TextInjectionOutcome.Failed);
+        }
+
+        return ValueTask.FromResult(WindowsTextInjectionMapper.ToPlatform(SmartPaste(text)));
     }
 
     // =========================================================================
@@ -386,6 +484,10 @@ public class SmartPasteService : IDisposable
     /// the delay expires, the restoration is cancelled.
     /// </summary>
     public void ScheduleClipboardRestore()
+        => ScheduleClipboardRestore(
+            TimeSpan.FromSeconds(SettingsService.Instance.ClipboardRestoreDelaySeconds));
+
+    private void ScheduleClipboardRestore(TimeSpan delay)
     {
         // Check settings - is restoration enabled?
         if (!SettingsService.Instance.RestoreClipboardAfterPaste)
@@ -404,8 +506,8 @@ public class SmartPasteService : IDisposable
             }
         }
 
-        var delay = SettingsService.Instance.ClipboardRestoreDelaySeconds;
-        LoggingService.Info($"SmartPasteService: Scheduling clipboard restoration in {delay} seconds");
+        LoggingService.Info(
+            $"SmartPasteService: Scheduling clipboard restoration in {delay.TotalSeconds:F1} seconds");
 
         // Cancel any existing restoration timer
         CancelPendingRestore();
@@ -419,7 +521,7 @@ public class SmartPasteService : IDisposable
         {
             try
             {
-                await Task.Delay(TimeSpan.FromSeconds(delay), token);
+                await Task.Delay(delay, token);
 
                 if (token.IsCancellationRequested)
                 {
@@ -449,11 +551,14 @@ public class SmartPasteService : IDisposable
     /// Restores saved clipboard content immediately, used during app shutdown before disposal.
     /// </summary>
     public void RestoreClipboardImmediately()
+        => TryRestoreClipboardImmediately();
+
+    private bool TryRestoreClipboardImmediately()
     {
         if (!SettingsService.Instance.RestoreClipboardAfterPaste)
         {
             LoggingService.Debug("SmartPasteService: Clipboard restoration disabled in settings");
-            return;
+            return true;
         }
 
         CancelPendingRestore();
@@ -461,11 +566,10 @@ public class SmartPasteService : IDisposable
         var dispatcher = System.Windows.Application.Current?.Dispatcher;
         if (dispatcher != null && !dispatcher.CheckAccess())
         {
-            dispatcher.Invoke(RestoreClipboard);
-            return;
+            return dispatcher.Invoke(RestoreClipboard);
         }
 
-        RestoreClipboard();
+        return RestoreClipboard();
     }
 
     /// <summary>
@@ -482,7 +586,7 @@ public class SmartPasteService : IDisposable
     /// Without this lock, a restoration could run while a new recording is capturing
     /// clipboard, leading to corrupted state or restoring the wrong content.
     /// </summary>
-    private void RestoreClipboard()
+    private bool RestoreClipboard()
     {
         lock (_clipboardLock)
         {
@@ -490,14 +594,14 @@ public class SmartPasteService : IDisposable
             if (_disposed)
             {
                 LoggingService.Debug("SmartPasteService: Cannot restore clipboard - service disposed");
-                return;
+                return false;
             }
 
             // Check if we have data to restore
             if (_savedClipboardData == null || _savedClipboardData.Count == 0)
             {
                 LoggingService.Debug("SmartPasteService: No clipboard content to restore");
-                return;
+                return true;
             }
 
             // Make a local copy of the data to restore
@@ -557,11 +661,15 @@ public class SmartPasteService : IDisposable
                 {
                     Clipboard.SetDataObject(dataObject, true);
                     LoggingService.Info($"SmartPasteService: Restored clipboard with {restoredFormats.Count} format(s): {string.Join(", ", restoredFormats)}");
+                    return true;
                 }
+
+                return false;
             }
             catch (Exception ex)
             {
                 LoggingService.Warn($"SmartPasteService: Failed to restore clipboard: {ex.Message}");
+                return false;
             }
         }
     }
