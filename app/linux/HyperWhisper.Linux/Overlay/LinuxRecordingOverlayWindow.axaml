@@ -1,0 +1,70 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:overlay="clr-namespace:HyperWhisper.Linux.Overlay"
+        x:Class="HyperWhisper.Linux.Overlay.LinuxRecordingOverlayWindow"
+        x:DataType="overlay:LinuxRecordingOverlayViewModel"
+        Width="260" Height="52"
+        WindowDecorations="None"
+        Background="Transparent"
+        TransparencyLevelHint="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ShowActivated="False"
+        CanResize="False"
+        Focusable="False">
+  <Border CornerRadius="26"
+          Background="#E6000000"
+          BorderBrush="#33FFFFFF"
+          BorderThickness="1"
+          Padding="14,8">
+    <Grid>
+      <Grid IsVisible="{Binding IsRecording}" ColumnDefinitions="Auto,*,Auto">
+        <Border Width="12" Height="12" CornerRadius="6" Background="#FFFF3B30"
+                VerticalAlignment="Center" Margin="0,0,10,0" />
+        <StackPanel Grid.Column="1" Spacing="1" VerticalAlignment="Center">
+          <TextBlock Text="{Binding StatusText}" Foreground="#F2FFFFFF"
+                     FontSize="12" FontWeight="SemiBold" />
+          <TextBlock Text="{Binding ModeText}" Foreground="#A6FFFFFF"
+                     FontSize="10" TextTrimming="CharacterEllipsis" MaxWidth="155" />
+        </StackPanel>
+        <TextBlock Grid.Column="2" Text="{Binding DurationText}" Foreground="#CCFFFFFF"
+                   FontSize="12" FontFamily="monospace" VerticalAlignment="Center" />
+      </Grid>
+
+      <StackPanel IsVisible="{Binding IsTranscribing}" Orientation="Horizontal"
+                  HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10">
+        <ProgressBar Width="28" Height="4" IsIndeterminate="True" />
+        <TextBlock Text="{Binding StatusText}" Foreground="#F2FFFFFF"
+                   FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
+      </StackPanel>
+
+      <StackPanel IsVisible="{Binding IsError}" Orientation="Horizontal"
+                  HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="9">
+        <Border Width="18" Height="18" CornerRadius="9" Background="#FFFF9500">
+          <TextBlock Text="!" Foreground="Black" FontWeight="Bold"
+                     HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Border>
+        <TextBlock Text="{Binding StatusText}" Foreground="#F2FFFFFF"
+                   FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
+                   MaxWidth="205" VerticalAlignment="Center" />
+      </StackPanel>
+
+      <StackPanel IsVisible="{Binding IsModeChanged}" Orientation="Horizontal"
+                  HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
+        <TextBlock Text="✨" FontSize="13" VerticalAlignment="Center" />
+        <StackPanel Orientation="Horizontal" Spacing="4">
+          <TextBlock Text="Mode:" Foreground="#A6FFFFFF" FontSize="12" />
+          <TextBlock Text="{Binding ModeText}" Foreground="#F2FFFFFF" FontSize="12"
+                     FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxWidth="170" />
+        </StackPanel>
+      </StackPanel>
+
+      <StackPanel IsVisible="{Binding IsCancelled}" Orientation="Horizontal"
+                  HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
+        <TextBlock Text="×" Foreground="#FFFF6961" FontSize="18" FontWeight="Bold" />
+        <TextBlock Text="{Binding StatusText}" Foreground="#F2FFFFFF"
+                   FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
+      </StackPanel>
+    </Grid>
+  </Border>
+</Window>
