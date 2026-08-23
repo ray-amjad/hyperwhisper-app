@@ -27,15 +27,32 @@ public interface ILocalApiPostProcessor
 /// </summary>
 public sealed class ApplicationLocalApiBackend : ILocalApiBackend
 {
+    private static readonly HashSet<string> CloudProviders = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "openai", "groq", "deepgram", "assemblyai", "elevenlabs", "mistral",
+        "soniox", "hyperwhisper", "gemini", "grok", "microsoftazurespeech", "googlespeech",
+    };
+    private static readonly HashSet<string> WhisperModels = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "tiny", "tiny.en", "base", "base.en", "small", "small.en", "medium", "medium.en",
+        "large-v3-turbo", "large-v2", "large-v3",
+    };
+    private static readonly HashSet<string> ParakeetModels = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "parakeet-v2", "parakeet-v3", "qwen3-asr-0.6b", "nemotron-3.5-ml-560ms",
+    };
     private static readonly JsonSerializerOptions WebJson = new(JsonSerializerDefaults.Web);
     private readonly ModeRepository _modes;
     private readonly HistoryRepository _history;
     private readonly TranscriptionWorkflow _workflow;
     private readonly ILocalApiCapabilityCatalog _catalog;
     private readonly ILocalApiPostProcessor? _postProcessor;
+    private readonly VocabularyRepository? _vocabulary;
     private readonly IPrivateFileService _privateFiles;
     private readonly string _recordingsDirectory;
     private readonly string _appVersion;
+    private readonly SemaphoreSlim _recordingToggle = new(1, 1);
+    private TranscriptionWorkflowRequest? _activeRecordingRequest;
 
     public ApplicationLocalApiBackend(
         ModeRepository modes,
@@ -45,7 +62,8 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
         IPrivateFileService privateFiles,
         IAppPaths paths,
         string appVersion,
-        ILocalApiPostProcessor? postProcessor = null)
+        ILocalApiPostProcessor? postProcessor = null,
+        VocabularyRepository? vocabulary = null)
     {
         _modes = modes ?? throw new ArgumentNullException(nameof(modes));
         _history = history ?? throw new ArgumentNullException(nameof(history));
@@ -56,6 +74,7 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
         _recordingsDirectory = paths.RecordingsDirectory;
         _appVersion = appVersion;
         _postProcessor = postProcessor;
+        _vocabulary = vocabulary;
     }
 
     public ValueTask<HealthSnapshot> GetHealthAsync(CancellationToken cancellationToken)
@@ -134,23 +153,47 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
 
     public async ValueTask<RecordingState> ToggleRecordingAsync(CancellationToken cancellationToken)
     {
-        var snapshot = _workflow.Snapshot;
-        if (snapshot.State is TranscriptionWorkflowState.Stopping or TranscriptionWorkflowState.Transcribing)
-            throw new ArgumentException("A transcription is already in progress.");
+        Task<PortableTranscriptionResult>? stopOperation = null;
         PortableTranscriptionResult result;
-        if (snapshot.State == TranscriptionWorkflowState.Recording)
-            result = await _workflow.StopAndTranscribeAsync(new(), cancellationToken).ConfigureAwait(false);
-        else
-            result = await _workflow.StartRecordingAsync(cancellationToken).ConfigureAwait(false);
+        await _recordingToggle.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            var snapshot = _workflow.Snapshot;
+            if (snapshot.State is TranscriptionWorkflowState.Stopping or TranscriptionWorkflowState.Transcribing)
+                throw new ArgumentException("A transcription is already in progress.");
+            if (snapshot.State == TranscriptionWorkflowState.Recording)
+            {
+                var request = _activeRecordingRequest ?? await BuildRequestAsync(null, null, cancellationToken).ConfigureAwait(false);
+                _activeRecordingRequest = null;
+                stopOperation = _workflow.StopAndTranscribeAsync(request, cancellationToken);
+            }
+            else
+            {
+                _activeRecordingRequest = null;
+                var request = await BuildRequestAsync(null, null, cancellationToken).ConfigureAwait(false);
+                result = await _workflow.StartRecordingAsync(cancellationToken).ConfigureAwait(false);
+                if (result.IsSuccess) _activeRecordingRequest = request;
+                ThrowWorkflowFailure(result);
+                return ToRecordingState(_workflow.Snapshot);
+            }
+        }
+        finally { _recordingToggle.Release(); }
+
+        result = await stopOperation!.ConfigureAwait(false);
         ThrowWorkflowFailure(result);
         return ToRecordingState(_workflow.Snapshot);
     }
 
     public async ValueTask<RecordingState> CancelRecordingAsync(CancellationToken cancellationToken)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        await _workflow.CancelAsync().ConfigureAwait(false);
-        return ToRecordingState(_workflow.Snapshot);
+        await _recordingToggle.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await _workflow.CancelAsync().ConfigureAwait(false);
+            _activeRecordingRequest = null;
+            return ToRecordingState(_workflow.Snapshot);
+        }
+        finally { _recordingToggle.Release(); }
     }
 
     public async ValueTask<TranscriptionResult> TranscribeAsync(AudioUpload upload, CancellationToken cancellationToken)
@@ -164,13 +207,16 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
         var retainedByHistory = false;
         try
         {
-            Guid? modeId = Guid.TryParse(upload.ModeId, out var parsed) ? parsed : null;
-            var mode = modeId is null ? null : (await _modes.ListAsync(cancellationToken).ConfigureAwait(false)).SingleOrDefault(item => item.Id == modeId);
+            var request = await BuildRequestAsync(upload.ModeId, upload.Language, cancellationToken).ConfigureAwait(false);
+            var mode = request.SelectedMode;
             var started = Stopwatch.GetTimestamp();
-            var result = await _workflow.TranscribeFileAsync(path, new(upload.Language, mode?.Name, mode?.Id, mode), cancellationToken).ConfigureAwait(false);
+            var result = await _workflow.TranscribeFileAsync(path, request, cancellationToken).ConfigureAwait(false);
             if (!result.IsSuccess) throw new InvalidOperationException(result.Failure?.Message ?? "Transcription failed.");
             succeeded = true;
-            return new(result.Text!, result.Provider ?? "", upload.Model ?? mode?.Model ?? "", upload.Language, 0, 0, (int)Stopwatch.GetElapsedTime(started).TotalMilliseconds);
+            var model = mode?.ProviderType == "cloud"
+                ? mode.CloudTranscriptionModel
+                : mode?.LocalEngine == "parakeet" ? mode.LocalParakeetModel : mode?.ModelType ?? mode?.Model;
+            return new(result.Text!, result.Provider ?? "", model ?? "", request.Language, 0, 0, (int)Stopwatch.GetElapsedTime(started).TotalMilliseconds);
         }
         catch
         {
@@ -219,6 +265,37 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
             throw new ArgumentException("A mode with this name already exists.");
     }
 
+    private async Task<TranscriptionWorkflowRequest> BuildRequestAsync(
+        string? requestedModeId,
+        string? languageOverride,
+        CancellationToken cancellationToken)
+    {
+        var modes = await _modes.ListAsync(cancellationToken).ConfigureAwait(false);
+        Mode? mode;
+        if (!string.IsNullOrWhiteSpace(requestedModeId))
+        {
+            if (!Guid.TryParse(requestedModeId, out var parsed))
+                throw new ArgumentException("The requested mode ID is invalid.", nameof(requestedModeId));
+            mode = modes.SingleOrDefault(item => item.Id == parsed)
+                ?? throw new ArgumentException("The requested mode does not exist.", nameof(requestedModeId));
+        }
+        else
+        {
+            mode = modes.SingleOrDefault(item => item.IsDefault);
+            if (mode is null && modes.Count != 0)
+                throw new InvalidOperationException("No default transcription mode is configured.");
+        }
+
+        var vocabulary = _vocabulary is null
+            ? Array.Empty<string>()
+            : (await _vocabulary.ListAsync(cancellationToken).ConfigureAwait(false))
+                .Select(item => item.Word.Trim())
+                .Where(item => item.Length != 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+        return new(languageOverride ?? mode?.Language, mode?.Name, mode?.Id, mode, vocabulary);
+    }
+
     private static void NormalizeMode(Mode mode)
     {
         mode.LocalEngine = string.IsNullOrWhiteSpace(mode.LocalEngine) ? "whisper" : mode.LocalEngine.Trim().ToLowerInvariant();
@@ -231,7 +308,7 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
         mode.CloudPostProcessingModel = string.IsNullOrWhiteSpace(mode.CloudPostProcessingModel) ? "anthropic:claude-haiku-4-5" : mode.CloudPostProcessingModel;
     }
 
-    private static void ValidateMode(Mode mode)
+    private void ValidateMode(Mode mode)
     {
         mode.Name = mode.Name.Trim();
         if (mode.Name.Length is < 1 or > 100) throw new ArgumentException("Mode name must contain 1 to 100 characters.");
@@ -241,6 +318,23 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
         if (mode.PostProcessingMode != 0 && string.IsNullOrWhiteSpace(mode.PostProcessingProvider)) throw new ArgumentException("An enabled post-processing mode requires a provider.");
         if (mode.UserSystemPrompt?.Length > 2000 || mode.GeminiCustomPrompt?.Length > 2000) throw new ArgumentException("Mode prompt exceeds 2000 characters.");
         if (mode.CustomVocabulary?.Count > 1000 || mode.CustomVocabulary?.Any(term => term.Length > 200) == true) throw new ArgumentException("Custom vocabulary is invalid.");
+        if (mode.ProviderType == "cloud")
+        {
+            if (string.IsNullOrWhiteSpace(mode.CloudProvider) || !CloudProviders.Contains(mode.CloudProvider))
+                throw new ArgumentException("Cloud provider is invalid.");
+        }
+        else
+        {
+            if (mode.LocalEngine is not ("whisper" or "parakeet"))
+                throw new ArgumentException("Local transcription engine is invalid.");
+            var model = mode.LocalEngine == "parakeet" ? mode.LocalParakeetModel ?? mode.Model : mode.ModelType ?? mode.Model;
+            var known = mode.LocalEngine == "parakeet" ? ParakeetModels : WhisperModels;
+            if (string.IsNullOrWhiteSpace(model) || !known.Contains(model))
+                throw new ArgumentException("Local transcription model is invalid.");
+            var advertisedVoiceModels = _catalog.Models.Where(item => string.Equals(item.Kind, "voice", StringComparison.OrdinalIgnoreCase)).ToArray();
+            if (advertisedVoiceModels.Length != 0 && !advertisedVoiceModels.Any(item => string.Equals(item.Id, model, StringComparison.OrdinalIgnoreCase)))
+                throw new ArgumentException("Local transcription model is not present in the capability catalog.");
+        }
     }
 
     private static void ApplyModeDocument(Mode mode, JsonElement document, bool allowIdentity)

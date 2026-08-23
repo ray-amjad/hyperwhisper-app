@@ -33,6 +33,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ,("shutdown failure still cleans discovery", ShutdownFailureCleanup)
     ,("failed-start cleanup survives shutdown failure", FailedStartCleanup)
     ,("host options validate eagerly", HostOptionsValidation)
+    ,("application backend resolves modes and vocabulary", ApplicationBackendModeRouting)
+    ,("application backend validates mode catalogs", ApplicationBackendModeValidation)
 };
 foreach (var test in tests)
 {
@@ -283,6 +285,101 @@ static async Task ApplicationBackendErrors()
     }
 }
 
+static async Task ApplicationBackendModeRouting()
+{
+    using var paths = new TempPaths();
+    var database = new ApplicationDb(paths);
+    await using (var context = database.CreateContext()) await context.Database.EnsureCreatedAsync();
+    var history = new HistoryRepository(database);
+    var modes = new ModeRepository(database);
+    var vocabulary = new VocabularyRepository(database);
+    var defaultMode = new HyperWhisper.Data.Entities.Mode
+    {
+        Name = "Default cloud", IsDefault = true, SortOrder = 1, ProviderType = "cloud",
+        CloudProvider = "groq", Language = "fr",
+    };
+    var selectedMode = new HyperWhisper.Data.Entities.Mode
+    {
+        Name = "Selected local", SortOrder = 2, ProviderType = "local", LocalEngine = "whisper",
+        Model = "tiny.en", ModelType = "tiny.en", Language = "en",
+    };
+    await modes.UpsertAsync(defaultMode);
+    await modes.UpsertAsync(selectedMode);
+    await vocabulary.AddAsync(new HyperWhisper.Data.Entities.VocabularyItem { Word = " Ray ", SortOrder = 1 });
+    await vocabulary.AddAsync(new HyperWhisper.Data.Entities.VocabularyItem { Word = "HyperWhisper", SortOrder = 2 });
+
+    var transcriber = new CapturingTranscriber();
+    using var workflow = new TranscriptionWorkflow(new TestRecorder(paths), new TestDevices(), transcriber, history);
+    workflow.RefreshDevices();
+    var backend = new ApplicationLocalApiBackend(modes, history, workflow, new FullCatalog(), new DiskPrivateFiles(), paths, "1.0", vocabulary: vocabulary);
+
+    var defaultResult = await backend.TranscribeAsync(new AudioUpload("default.wav", "audio/wav", new byte[] { 1 }, null, null, null, null), CancellationToken.None);
+    Assert(transcriber.Request?.ModeId == defaultMode.Id && transcriber.Request.SelectedMode?.Name == "Default cloud", "omitted mode_id did not select the persisted default");
+    Assert(transcriber.Request!.Language == "fr", "default mode language was not used");
+    Assert(defaultResult.Language == "fr", "response did not report the resolved default-mode language");
+    Assert(transcriber.Request.Vocabulary?.SequenceEqual(["Ray", "HyperWhisper"]) == true, "global vocabulary was not propagated to uploaded transcription");
+
+    _ = await backend.TranscribeAsync(new AudioUpload("selected.wav", "audio/wav", new byte[] { 2 }, selectedMode.Id.ToString("D"), null, null, "de"), CancellationToken.None);
+    Assert(transcriber.Request?.ModeId == selectedMode.Id && transcriber.Request.SelectedMode?.Name == "Selected local", "explicit mode_id did not select the exact persisted mode");
+    Assert(transcriber.Request!.Language == "de", "explicit language did not override mode language");
+    var stagedBeforeInvalid = Directory.EnumerateFiles(paths.RecordingsDirectory, "local-api-*").Count();
+    await AssertThrowsAsync<ArgumentException>(() => backend.TranscribeAsync(new AudioUpload("bad.wav", "audio/wav", new byte[] { 3 }, Guid.NewGuid().ToString("D"), null, null, null), CancellationToken.None).AsTask());
+    Assert(Directory.EnumerateFiles(paths.RecordingsDirectory, "local-api-*").Count() == stagedBeforeInvalid, "invalid mode retained an orphaned upload");
+    await using (var fixture = await Fixture.Create(backend: backend))
+    {
+        fixture.Authenticate();
+        using var invalidMode = new MultipartFormDataContent();
+        invalidMode.Add(new ByteArrayContent([4]), "audio", "invalid-mode.wav");
+        invalidMode.Add(new StringContent("not-a-guid"), "mode_id");
+        var response = await fixture.Client.PostAsync("/transcribe", invalidMode);
+        Assert(response.StatusCode == HttpStatusCode.BadRequest && await HasFailureEnvelope(response), "invalid mode_id did not return a structured API failure");
+    }
+
+    _ = await backend.ToggleRecordingAsync(CancellationToken.None);
+    defaultMode.IsDefault = false;
+    selectedMode.IsDefault = true;
+    await modes.UpsertAsync(defaultMode);
+    await modes.UpsertAsync(selectedMode);
+    await vocabulary.AddAsync(new HyperWhisper.Data.Entities.VocabularyItem { Word = "late mutation", SortOrder = 3 });
+    _ = await backend.ToggleRecordingAsync(CancellationToken.None);
+    Assert(transcriber.Request?.ModeId == defaultMode.Id, "recording stop did not retain the mode captured at start");
+    Assert(transcriber.Request!.Vocabulary?.SequenceEqual(["Ray", "HyperWhisper"]) == true, "recording stop did not retain vocabulary captured at start");
+}
+
+static async Task ApplicationBackendModeValidation()
+{
+    using var paths = new TempPaths();
+    var database = new ApplicationDb(paths);
+    await using (var context = database.CreateContext()) await context.Database.EnsureCreatedAsync();
+    var modes = new ModeRepository(database);
+    var history = new HistoryRepository(database);
+    using var workflow = new TranscriptionWorkflow(new NoRecorder(), new NoDevices(), new UnavailableTranscriber(), history);
+    var backend = new ApplicationLocalApiBackend(modes, history, workflow, new FullCatalog(), new DiskPrivateFiles(), paths, "1.0");
+    string[] providers = ["openai", "groq", "deepgram", "assemblyai", "elevenlabs", "mistral", "soniox", "hyperwhisper", "gemini", "grok", "microsoftAzureSpeech", "googleSpeech"];
+    foreach (var provider in providers)
+        _ = await backend.CreateModeAsync(Json($$"""{"name":"{{provider}}","providerType":"cloud","cloudProvider":"{{provider}}"}"""), CancellationToken.None);
+    await AssertThrowsAsync<ArgumentException>(() => backend.CreateModeAsync(Json("""{"name":"Unknown cloud","providerType":"cloud","cloudProvider":"azure"}"""), CancellationToken.None).AsTask());
+    await AssertThrowsAsync<ArgumentException>(() => backend.CreateModeAsync(Json("""{"name":"Unknown engine","providerType":"local","localEngine":"vosk","model":"base"}"""), CancellationToken.None).AsTask());
+    await AssertThrowsAsync<ArgumentException>(() => backend.CreateModeAsync(Json("""{"name":"Wrong whisper","providerType":"local","localEngine":"whisper","model":"parakeet-v3"}"""), CancellationToken.None).AsTask());
+    await AssertThrowsAsync<ArgumentException>(() => backend.CreateModeAsync(Json("""{"name":"Wrong parakeet","providerType":"local","localEngine":"parakeet","localParakeetModel":"base"}"""), CancellationToken.None).AsTask());
+    _ = await backend.CreateModeAsync(Json("""{"name":"Valid whisper","providerType":"local","localEngine":"whisper","model":"large-v3"}"""), CancellationToken.None);
+    _ = await backend.CreateModeAsync(Json("""{"name":"Valid parakeet","providerType":"local","localEngine":"parakeet","localParakeetModel":"parakeet-v3"}"""), CancellationToken.None);
+    Assert((await modes.ListAsync()).Count(item => item.IsDefault) == 1, "create operations did not preserve exactly one default mode");
+}
+
+static JsonElement Json(string value)
+{
+    using var document = JsonDocument.Parse(value);
+    return document.RootElement.Clone();
+}
+
+static async Task AssertThrowsAsync<T>(Func<Task> action) where T : Exception
+{
+    try { await action(); }
+    catch (T) { return; }
+    throw new InvalidOperationException($"Expected {typeof(T).Name}.");
+}
+
 static async Task ShutdownFailureCleanup()
 {
     using var paths = new TempPaths();
@@ -459,6 +556,19 @@ sealed class EmptyCatalog : ILocalApiCapabilityCatalog
     public object LocalModels { get; } = new { };
 }
 
+sealed class FullCatalog : ILocalApiCapabilityCatalog
+{
+    public IReadOnlyList<ModelEntry> Models { get; } =
+    [
+        .. new[] { "tiny", "tiny.en", "base", "base.en", "small", "small.en", "medium", "medium.en", "large-v3-turbo", "large-v2", "large-v3",
+            "parakeet-v2", "parakeet-v3", "qwen3-asr-0.6b", "nemotron-3.5-ml-560ms" }
+            .Select(id => new ModelEntry(id, "voice", "local", id, true)),
+    ];
+    public IReadOnlyList<ProviderStatus> TranscriptionProviders => [];
+    public IReadOnlyList<ProviderStatus> PostProcessingProviders => [];
+    public object LocalModels { get; } = new { };
+}
+
 sealed class NoRecorder : IAudioRecorder
 {
     public event EventHandler<float>? AudioLevelChanged { add { } remove { } }
@@ -490,6 +600,44 @@ sealed class StaticTranscriber(bool success) : IRecordedAudioTranscriber
         => Task.FromResult(success
             ? PortableTranscriptionResult.Success("portable result", "Static")
             : PortableTranscriptionResult.Failed(PortableTranscriptionErrorCode.TranscriptionFailed, "expected failure", "Static"));
+}
+
+sealed class CapturingTranscriber : IRecordedAudioTranscriber
+{
+    public TranscriptionBackendCapability Capability { get; } = new(true, "Capturing");
+    public TranscriptionWorkflowRequest? Request { get; private set; }
+    public Task<PortableTranscriptionResult> TranscribeAsync(string audioPath, string? language, CancellationToken cancellationToken = default)
+        => TranscribeAsync(audioPath, new TranscriptionWorkflowRequest(Language: language), cancellationToken);
+    public Task<PortableTranscriptionResult> TranscribeAsync(string audioPath, TranscriptionWorkflowRequest request, CancellationToken cancellationToken = default)
+    {
+        Request = request;
+        return Task.FromResult(PortableTranscriptionResult.Success("captured", "Capturing"));
+    }
+}
+
+sealed class TestDevices : IAudioInputDeviceService
+{
+    public event EventHandler? DevicesChanged { add { } remove { } }
+    public PlatformResult<IReadOnlyList<AudioInputDevice>> GetAvailableDevices()
+        => PlatformResult<IReadOnlyList<AudioInputDevice>>.Success([new("default", "Default", true)]);
+    public void Dispose() { }
+}
+
+sealed class TestRecorder(TempPaths paths) : IAudioRecorder
+{
+    private bool _recording;
+    public event EventHandler<float>? AudioLevelChanged { add { } remove { } }
+    public bool IsRecording => _recording;
+    public TimeSpan Duration => TimeSpan.FromSeconds(1);
+    public PlatformResult Start(AudioRecordingOptions options) { _recording = true; return PlatformResult.Success(); }
+    public PlatformResult<string> Stop()
+    {
+        _recording = false;
+        var path = Path.Combine(paths.RecordingsDirectory, $"recording-{Guid.NewGuid():N}.wav");
+        File.WriteAllBytes(path, [1, 2, 3]);
+        return PlatformResult<string>.Success(path);
+    }
+    public void Dispose() { }
 }
 
 sealed class ThrowOnStopService : IHostedService
