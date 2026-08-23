@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=HyperWhisper KDE Companion
+Comment=Privacy-bounded active-window bridge for HyperWhisper
+Exec=/usr/share/hyperwhisper/companions/kde/kde-active-window.py
+OnlyShowIn=KDE;
+NoDisplay=true
+X-KDE-autostart-after=panel

@@ -1,0 +1,1 @@
+{"KPlugin":{"Id":"hyperwhisper-active-window","Name":"HyperWhisper Active Window Companion","Description":"Sends privacy-bounded active-window metadata to HyperWhisper","Version":"1.0"},"KPackageStructure":"KWin/Script","X-Plasma-API":"javascript","X-Plasma-MainScript":"code/main.js"}

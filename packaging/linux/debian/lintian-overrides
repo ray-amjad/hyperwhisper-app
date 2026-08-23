@@ -7,3 +7,8 @@ hyperwhisper: embedded-library libpng [usr/lib/hyperwhisper/libSkiaSharp.so]
 hyperwhisper: embedded-library zlib [usr/lib/hyperwhisper/libSystem.IO.Compression.Native.so]
 hyperwhisper: unstripped-binary-or-object [usr/lib/hyperwhisper/libHarfBuzzSharp.so]
 hyperwhisper: unstripped-binary-or-object [usr/lib/hyperwhisper/libSkiaSharp.so]
+# The sherpa-onnx release bundle pins its tested ONNX Runtime and native engine.
+# Re-linking or stripping these upstream artifacts is outside the Debian wrapper.
+hyperwhisper: embedded-library zlib [usr/lib/hyperwhisper/parakeet-engine/parakeet-engine]
+hyperwhisper: unstripped-binary-or-object [usr/lib/hyperwhisper/parakeet-engine/libonnxruntime.so]
+hyperwhisper: unstripped-binary-or-object [usr/lib/hyperwhisper/parakeet-engine/libsherpa-onnx-c-api.so]

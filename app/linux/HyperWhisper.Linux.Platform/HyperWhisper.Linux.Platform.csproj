@@ -16,4 +16,8 @@
     <Content Include="../../windows/HyperWhisper/Assets/Sounds/start1.wav" Link="Assets/Sounds/start1.wav" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="../../windows/HyperWhisper/Assets/Sounds/stop1.wav" Link="Assets/Sounds/stop1.wav" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="../desktop-companions/status-notifier.py" Link="DesktopCompanions/status-notifier.py" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

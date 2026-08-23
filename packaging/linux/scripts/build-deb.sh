@@ -90,6 +90,7 @@ install -d -m 0755 \
     "$PACKAGE_ROOT/usr/share/man/man1" \
     "$PACKAGE_ROOT/usr/share/pixmaps" \
     "$PACKAGE_ROOT/usr/share/hyperwhisper/packaging" \
+    "$PACKAGE_ROOT/usr/share/hyperwhisper/companions" \
     "$PACKAGE_ROOT/usr/share/doc/hyperwhisper"
 
 cp -a -- "$PUBLISH_DIR/." "$PACKAGE_ROOT/usr/lib/hyperwhisper/"
@@ -97,6 +98,9 @@ find "$PACKAGE_ROOT/usr/lib/hyperwhisper" -type d -exec chmod 0755 {} +
 find "$PACKAGE_ROOT/usr/lib/hyperwhisper" -type f -exec chmod 0644 {} +
 find "$PACKAGE_ROOT/usr/lib/hyperwhisper" -type f -name '*.pdb' -delete
 chmod 0755 "$PACKAGE_ROOT/usr/lib/hyperwhisper/HyperWhisper"
+if [[ -f "$PACKAGE_ROOT/usr/lib/hyperwhisper/parakeet-engine/parakeet-engine" ]]; then
+    chmod 0755 "$PACKAGE_ROOT/usr/lib/hyperwhisper/parakeet-engine/parakeet-engine"
+fi
 if [[ -f "$PACKAGE_ROOT/usr/lib/hyperwhisper/createdump" ]]; then
     chmod 0755 "$PACKAGE_ROOT/usr/lib/hyperwhisper/createdump"
 fi
@@ -107,16 +111,26 @@ install -m 0644 "$DEBIAN_SOURCE/hyperwhisper.desktop" \
 install -m 0644 "$ICON_PATH" "$PACKAGE_ROOT/usr/share/pixmaps/hyperwhisper.png"
 install -m 0644 "$DEBIAN_SOURCE/70-hyperwhisper-input.rules" \
     "$PACKAGE_ROOT/usr/share/hyperwhisper/packaging/70-hyperwhisper-input.rules"
+cp -a -- "$REPO_ROOT/app/linux/desktop-companions/." "$PACKAGE_ROOT/usr/share/hyperwhisper/companions/"
+find "$PACKAGE_ROOT/usr/share/hyperwhisper/companions" -type d -exec chmod 0755 {} +
+find "$PACKAGE_ROOT/usr/share/hyperwhisper/companions" -type f -exec chmod 0644 {} +
+chmod 0755 "$PACKAGE_ROOT/usr/share/hyperwhisper/companions/status-notifier.py" \
+    "$PACKAGE_ROOT/usr/share/hyperwhisper/companions/hyperwhisper-companionctl" \
+    "$PACKAGE_ROOT/usr/share/hyperwhisper/companions/kde/kde-active-window.py"
+ln -s ../share/hyperwhisper/companions/hyperwhisper-companionctl "$PACKAGE_ROOT/usr/bin/hyperwhisper-companionctl"
 install -m 0644 "$DEBIAN_SOURCE/copyright" \
     "$PACKAGE_ROOT/usr/share/doc/hyperwhisper/copyright"
 install -m 0644 "$DEBIAN_SOURCE/lintian-overrides" \
     "$PACKAGE_ROOT/usr/share/lintian/overrides/hyperwhisper"
 gzip -n -9 -c "$DEBIAN_SOURCE/changelog" \
-    > "$PACKAGE_ROOT/usr/share/doc/hyperwhisper/changelog.gz"
-chmod 0644 "$PACKAGE_ROOT/usr/share/doc/hyperwhisper/changelog.gz"
+    > "$PACKAGE_ROOT/usr/share/doc/hyperwhisper/changelog.Debian.gz"
+chmod 0644 "$PACKAGE_ROOT/usr/share/doc/hyperwhisper/changelog.Debian.gz"
 gzip -n -9 -c "$DEBIAN_SOURCE/hyperwhisper.1" \
     > "$PACKAGE_ROOT/usr/share/man/man1/hyperwhisper.1.gz"
 chmod 0644 "$PACKAGE_ROOT/usr/share/man/man1/hyperwhisper.1.gz"
+gzip -n -9 -c "$DEBIAN_SOURCE/hyperwhisper-companionctl.1" \
+    > "$PACKAGE_ROOT/usr/share/man/man1/hyperwhisper-companionctl.1.gz"
+chmod 0644 "$PACKAGE_ROOT/usr/share/man/man1/hyperwhisper-companionctl.1.gz"
 
 install -m 0755 "$DEBIAN_SOURCE/postinst" "$PACKAGE_ROOT/DEBIAN/postinst"
 install -m 0755 "$DEBIAN_SOURCE/postrm" "$PACKAGE_ROOT/DEBIAN/postrm"

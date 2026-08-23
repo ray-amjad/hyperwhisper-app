@@ -7,8 +7,9 @@ packaging/linux/scripts/build-deb.sh \
   --publish-dir /tmp/hyperwhisper-linux-publish
 ```
 
-The package installs the application under `/usr/lib/hyperwhisper`, a launcher at
-`/usr/bin/hyperwhisper`, its desktop entry and icon, and a udev-rule template.
+The package installs the application under `/usr/lib/hyperwhisper`, launchers at
+`/usr/bin/hyperwhisper` and `/usr/bin/hyperwhisper-companionctl`, its desktop
+entry and icon, optional GNOME/KDE companion assets, and a udev-rule template.
 `postinst` creates the system group `hyperwhisper-input` and installs the rule.
 It does **not** add users automatically: an administrator must explicitly run
 `sudo usermod -aG hyperwhisper-input <user>` and the user must re-login.
@@ -17,6 +18,11 @@ The rule grants the group read-only access to keyboard event devices and
 read/write access to `/dev/uinput`. It grants no world access and deliberately
 does not use `TAG+="uaccess"`. Maintainer scripts never inspect or write user
 home directories.
+
+Desktop companions are never enabled by package maintainer scripts. The signed-in
+user may explicitly run `hyperwhisper-companionctl install-gnome` on GNOME 42+
+or `hyperwhisper-companionctl install-kde` on Plasma 5 or 6. Matching `remove-*`
+commands undo only that user's companion files.
 
 Run the isolated package tests with:
 

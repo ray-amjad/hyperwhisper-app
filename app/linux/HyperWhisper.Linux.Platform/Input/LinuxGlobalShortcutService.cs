@@ -21,23 +21,31 @@ public sealed class LinuxGlobalShortcutService : IGlobalShortcutService, IShortc
     private readonly IEvdevSourceFactory _sourceFactory;
     private readonly IGlobalShortcutDiagnostics? _diagnostics;
     private readonly EvdevShortcutFilter _filter = new();
+    private readonly IGlobalShortcutService? _x11;
     private IReadOnlyList<IEvdevSource> _sources = [];
     private CancellationTokenSource? _cancellation;
     private Task[] _readerTasks = [];
     private bool _disposed;
     private volatile bool _interferenceArmed;
 
-    public LinuxGlobalShortcutService()
-        : this(new LinuxKeyboardSourceFactory(), null)
-    {
-    }
+    public LinuxGlobalShortcutService() : this(new LinuxKeyboardSourceFactory(), null,
+        IsTrueXorgSession() ? new X11GlobalShortcutService() : null) { }
 
     internal LinuxGlobalShortcutService(
         IEvdevSourceFactory sourceFactory,
-        IGlobalShortcutDiagnostics? diagnostics)
+        IGlobalShortcutDiagnostics? diagnostics) : this(sourceFactory, diagnostics, null) { }
+
+    internal LinuxGlobalShortcutService(IEvdevSourceFactory sourceFactory,
+        IGlobalShortcutDiagnostics? diagnostics, IGlobalShortcutService? x11)
     {
         _sourceFactory = sourceFactory ?? throw new ArgumentNullException(nameof(sourceFactory));
         _diagnostics = diagnostics;
+        _x11 = x11;
+        if (_x11 is not null)
+        {
+            _x11.ShortcutPressed += ForwardPressed;
+            _x11.ShortcutReleased += ForwardReleased;
+        }
     }
 
     public event EventHandler<ShortcutTriggeredEventArgs>? ShortcutPressed;
@@ -46,6 +54,7 @@ public sealed class LinuxGlobalShortcutService : IGlobalShortcutService, IShortc
 
     public PlatformResult Start()
     {
+        if (_x11 is not null) return _x11.Start();
         lock (_gate)
         {
             if (_disposed)
@@ -77,6 +86,7 @@ public sealed class LinuxGlobalShortcutService : IGlobalShortcutService, IShortc
         IReadOnlyCollection<NamedShortcut> shortcuts)
     {
         ArgumentNullException.ThrowIfNull(shortcuts);
+        if (_x11 is not null) return _x11.RegisterShortcuts(shortcuts);
         var output = new Dictionary<string, PlatformResult>(StringComparer.Ordinal);
         var bindings = new List<EvdevBinding>();
         var duplicateNames = shortcuts.GroupBy(item => item.Name, StringComparer.Ordinal)
@@ -107,8 +117,8 @@ public sealed class LinuxGlobalShortcutService : IGlobalShortcutService, IShortc
         return output;
     }
 
-    public void Clear() => _filter.ReplaceBindings([]);
-    public void ResetKeyboardState() => _filter.Reset();
+    public void Clear() { if (_x11 is not null) _x11.Clear(); else _filter.ReplaceBindings([]); }
+    public void ResetKeyboardState() { if (_x11 is not null) _x11.ResetKeyboardState(); else _filter.Reset(); }
 
     private async Task ReadSourceAsync(IEvdevSource source, CancellationToken cancellationToken)
     {
@@ -140,6 +150,11 @@ public sealed class LinuxGlobalShortcutService : IGlobalShortcutService, IShortc
         }
     }
     public void SetInterferenceArmed(bool armed) => _interferenceArmed = armed;
+    private void ForwardPressed(object? sender, ShortcutTriggeredEventArgs args) => Raise(new NamedShortcut(args.Name, args.Shortcut), true);
+    private void ForwardReleased(object? sender, ShortcutTriggeredEventArgs args) => Raise(new NamedShortcut(args.Name, args.Shortcut), false);
+    internal static bool IsTrueXorgSession() =>
+        string.Equals(Environment.GetEnvironmentVariable("XDG_SESSION_TYPE"), "x11", StringComparison.OrdinalIgnoreCase)
+        && !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("DISPLAY"));
 
     private void RaiseInterfered()
     {
@@ -182,6 +197,11 @@ public sealed class LinuxGlobalShortcutService : IGlobalShortcutService, IShortc
             }
 
             _disposed = true;
+            if (_x11 is not null)
+            {
+                _x11.ShortcutPressed -= ForwardPressed; _x11.ShortcutReleased -= ForwardReleased;
+                _x11.Dispose(); GC.SuppressFinalize(this); return;
+            }
             _cancellation?.Cancel();
             tasks = _readerTasks;
             sources = _sources;

@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Diagnostics;
 using System.Runtime.Versioning;
 using HyperWhisper.Linux.Platform.Files;
 using HyperWhisper.Linux.Platform.Input;
@@ -21,6 +22,12 @@ var tests = new (string Name, Func<Task> Run)[]
     ("private reads reject permissive files", RejectPermissiveRead),
     ("evdev drops unrelated keys at boundary", DropsUnrelatedKeys),
     ("evdev emits configured logical shortcut", EmitsConfiguredShortcut),
+    ("X11 mapper preserves logical shortcut privacy", X11ShortcutPrivacy),
+    ("X11 modifier-only shortcuts emit press and release", X11ModifierShortcut),
+    ("true Xorg selects XGrabKey instead of evdev", XorgSelectsXGrabKey),
+    ("X11 XGrabKey host integration", X11GrabIntegration),
+    ("X11 Display mutation is serialized with reader", X11ConcurrentMutationIntegration),
+    ("StatusNotifierItem action protocol is bounded", StatusNotifierProtocol),
     ("event dispatch isolates failing subscribers", IsolatesSubscribers),
     ("Pulse recorder writes private canonical WAV", PulseRecorderWritesWave),
     ("Pulse recorder reports unavailable capability", PulseRecorderUnavailable),
@@ -229,6 +236,101 @@ static async Task IsolatesSubscribers()
     await source.Completed.Task.WaitAsync(TimeSpan.FromSeconds(2));
     Assert.True(reached);
     Assert.Equal(1, diagnostics.SubscriberFailures);
+}
+
+static async Task X11ShortcutPrivacy()
+{
+    var connection = new FakeX11Connection(new X11HotkeyEvent(99, 0, true),
+        new X11HotkeyEvent(38, 4, true), new X11HotkeyEvent(38, 4, false));
+    using var service = new X11GlobalShortcutService(new FakeX11Factory(connection));
+    var events = new List<string>();
+    service.ShortcutPressed += (_, args) => events.Add("down:" + args.Name);
+    service.ShortcutReleased += (_, args) => events.Add("up:" + args.Name);
+    var result = service.RegisterShortcuts([new NamedShortcut("record", new(ShortcutModifiers.Control, new("A")))]);
+    Assert.Success(result["record"]); Assert.Success(service.Start());
+    await connection.Drained.Task.WaitAsync(TimeSpan.FromSeconds(2));
+    await Task.Delay(30);
+    Assert.Equal("down:record,up:record", string.Join(',', events));
+    Assert.Equal(4, connection.Grabs.Count);
+}
+
+static async Task X11ModifierShortcut()
+{
+    var connection = new FakeX11Connection(new X11HotkeyEvent(37, 0, true), new X11HotkeyEvent(37, 4, false));
+    using var service = new X11GlobalShortcutService(new FakeX11Factory(connection));
+    var events = 0;
+    service.ShortcutPressed += (_, _) => events++;
+    service.ShortcutReleased += (_, _) => events++;
+    service.RegisterShortcuts([new NamedShortcut("ptt", new(ShortcutModifiers.Control))]);
+    Assert.Success(service.Start());
+    await connection.Drained.Task.WaitAsync(TimeSpan.FromSeconds(2)); await Task.Delay(30);
+    Assert.Equal(2, events);
+    Assert.True(connection.Grabs.All(value => value.Modifiers == 1u << 15));
+}
+
+static Task XorgSelectsXGrabKey()
+{
+    var x11 = new FakeGlobalShortcutService();
+    var source = new FakeSourceFactory();
+    using var service = new LinuxGlobalShortcutService(source, null, x11);
+    service.RegisterShortcuts([new NamedShortcut("record", new(ShortcutModifiers.None, new("A")))]);
+    Assert.Success(service.Start());
+    Assert.Equal(1, x11.StartCalls);
+    Assert.Equal(0, source.OpenCalls);
+    return Task.CompletedTask;
+}
+
+static Task StatusNotifierProtocol()
+{
+    Assert.Equal(StatusNotifierMessage.Available, LinuxStatusNotifierItemService.ParseMessage("CAPABILITY|available"));
+    Assert.Equal(StatusNotifierMessage.Unsupported, LinuxStatusNotifierItemService.ParseMessage("CAPABILITY|unsupported"));
+    Assert.Equal(StatusNotifierMessage.Show, LinuxStatusNotifierItemService.ParseMessage("ACTION|show"));
+    Assert.Equal(StatusNotifierMessage.Hide, LinuxStatusNotifierItemService.ParseMessage("ACTION|hide"));
+    Assert.Equal(StatusNotifierMessage.Quit, LinuxStatusNotifierItemService.ParseMessage("ACTION|quit"));
+    Assert.Equal(StatusNotifierMessage.Unknown, LinuxStatusNotifierItemService.ParseMessage("ACTION|keystroke:secret"));
+    return Task.CompletedTask;
+}
+
+static async Task X11GrabIntegration()
+{
+    if (Environment.GetEnvironmentVariable("HW_RUN_X11_GRAB_TEST") != "1") return;
+    using var service = new X11GlobalShortcutService();
+    var pressed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+    var released = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+    service.ShortcutPressed += (_, args) => { if (args.Name == "integration") pressed.TrySetResult(); };
+    service.ShortcutReleased += (_, args) => { if (args.Name == "integration") released.TrySetResult(); };
+    var registered = service.RegisterShortcuts([new NamedShortcut("integration", new(ShortcutModifiers.None, new("A")))]);
+    Assert.Success(registered["integration"]); Assert.Success(service.Start());
+    using var window = Process.Start(new ProcessStartInfo("xmessage", "-title hw-xgrab-test -buttons ok -timeout 5 test") { UseShellExecute = false });
+    if (window is null) throw new InvalidOperationException("X11 test window failed to start");
+    await Task.Delay(150);
+    var search = new ProcessStartInfo("xdotool", "search --name hw-xgrab-test") { UseShellExecute = false, RedirectStandardOutput = true };
+    using var finder = Process.Start(search);
+    if (finder is null) throw new InvalidOperationException("xdotool search failed to start");
+    var id = (await finder.StandardOutput.ReadToEndAsync()).Trim().Split('\n')[0];
+    await finder.WaitForExitAsync(); Assert.Equal(0, finder.ExitCode);
+    using var process = Process.Start(new ProcessStartInfo("xdotool", $"windowfocus {id} key a") { UseShellExecute = false });
+    if (process is null) throw new InvalidOperationException("xdotool failed to start");
+    await process.WaitForExitAsync(); Assert.Equal(0, process.ExitCode);
+    await pressed.Task.WaitAsync(TimeSpan.FromSeconds(2)); await released.Task.WaitAsync(TimeSpan.FromSeconds(2));
+    if (!window.HasExited) window.Kill();
+}
+
+static async Task X11ConcurrentMutationIntegration()
+{
+    if (Environment.GetEnvironmentVariable("HW_RUN_X11_GRAB_TEST") != "1") return;
+    using var service = new X11GlobalShortcutService();
+    service.RegisterShortcuts([new NamedShortcut("concurrent", new(ShortcutModifiers.None, new("B")))]);
+    Assert.Success(service.Start());
+    await Task.Run(() =>
+    {
+        for (var index = 0; index < 100; index++)
+        {
+            var result = service.RegisterShortcuts([new NamedShortcut("concurrent", new(ShortcutModifiers.None, new("B")))]);
+            Assert.Success(result["concurrent"]);
+            if (index % 5 == 0) service.ResetKeyboardState();
+        }
+    });
 }
 
 static async Task PulseRecorderWritesWave()
@@ -1173,7 +1275,24 @@ sealed class FailingReplace : IAtomicReplace
 
 sealed class FakeSourceFactory(params IEvdevSource[] sources) : IEvdevSourceFactory
 {
-    public PlatformOpenResult OpenKeyboardSources() => new(sources);
+    public int OpenCalls { get; private set; }
+    public PlatformOpenResult OpenKeyboardSources() { OpenCalls++; return new(sources); }
+}
+
+sealed class FakeX11Factory(FakeX11Connection connection) : IX11HotkeyConnectionFactory
+{ public PlatformResult<IX11HotkeyConnection> Open() => PlatformResult<IX11HotkeyConnection>.Success(connection); }
+
+sealed class FakeX11Connection(params X11HotkeyEvent[] events) : IX11HotkeyConnection
+{
+    private readonly Queue<X11HotkeyEvent> _events = new(events);
+    public List<(byte Keycode, uint Modifiers)> Grabs { get; } = [];
+    public TaskCompletionSource Drained { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    public byte Keycode(uint keysym) => keysym switch { 0x41 => 38, 0xffe3 => 37, 0xffe4 => 105, _ => 0 };
+    public bool Grab(byte keycode, uint modifiers) { Grabs.Add((keycode, modifiers)); return true; }
+    public void UngrabAll() => Grabs.Clear();
+    public bool TryRead(out X11HotkeyEvent value)
+    { if (_events.TryDequeue(out value)) return true; Drained.TrySetResult(); return false; }
+    public void Dispose() { }
 }
 
 sealed class FakeSource(string id, params byte[][] frames) : IEvdevSource
@@ -1419,7 +1538,8 @@ sealed class FakeGlobalShortcutService : IGlobalShortcutService, IShortcutInterf
     public event EventHandler<ShortcutTriggeredEventArgs>? ShortcutReleased;
     public event EventHandler? Interfered;
     public bool InterferenceArmed { get; private set; }
-    public PlatformResult Start() => PlatformResult.Success();
+    public int StartCalls { get; private set; }
+    public PlatformResult Start() { StartCalls++; return PlatformResult.Success(); }
     public IReadOnlyDictionary<string, PlatformResult> RegisterShortcuts(IReadOnlyCollection<NamedShortcut> shortcuts)
     { Registered = shortcuts.Single(); return new Dictionary<string, PlatformResult> { [Registered.Name] = PlatformResult.Success() }; }
     public void Emit(string name, bool pressed)
