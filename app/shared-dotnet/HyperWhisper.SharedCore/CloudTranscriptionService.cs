@@ -14,6 +14,25 @@ public sealed class CloudTranscriptionService : IDisposable
     private const int MaxTransportAttempts = 4;
     private const int MaxPollAttempts = 500;
     private static readonly TimeSpan PollDelay = TimeSpan.FromMilliseconds(300);
+    // Mirrors the Windows file-import provider limits. This final transport
+    // gate stats the owned artifact immediately before request construction so
+    // preflight/copy races cannot upload an oversized file.
+    private static readonly IReadOnlyDictionary<CloudTranscriptionProvider, long> MaximumFileBytes =
+        new Dictionary<CloudTranscriptionProvider, long>
+        {
+            [CloudTranscriptionProvider.OpenAi] = 25L * 1024 * 1024,
+            [CloudTranscriptionProvider.Groq] = 25L * 1024 * 1024,
+            [CloudTranscriptionProvider.Deepgram] = 2L * 1024 * 1024 * 1024,
+            [CloudTranscriptionProvider.AssemblyAi] = 5L * 1024 * 1024 * 1024,
+            [CloudTranscriptionProvider.ElevenLabs] = 3L * 1024 * 1024 * 1024,
+            [CloudTranscriptionProvider.Mistral] = 100L * 1024 * 1024,
+            [CloudTranscriptionProvider.Soniox] = 1L * 1024 * 1024 * 1024,
+            [CloudTranscriptionProvider.Gemini] = 2L * 1024 * 1024 * 1024,
+            [CloudTranscriptionProvider.Grok] = 500L * 1024 * 1024,
+            [CloudTranscriptionProvider.AzureMai] = 300L * 1024 * 1024,
+            [CloudTranscriptionProvider.GoogleChirp] = 9_500_000L,
+            [CloudTranscriptionProvider.HyperWhisperCloud] = 2L * 1024 * 1024 * 1024,
+        };
 
     private static readonly CloudProviderDescriptor[] ProviderCatalog =
     [
@@ -131,6 +150,32 @@ public sealed class CloudTranscriptionService : IDisposable
             throw new CloudFailureException(new CloudTranscriptionFailure(
                 CloudTranscriptionErrorCode.InvalidRequest,
                 "The audio file does not exist.",
+                request.Provider));
+        }
+        long length;
+        try
+        {
+            length = new FileInfo(request.AudioPath).Length;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            throw new CloudFailureException(new CloudTranscriptionFailure(
+                CloudTranscriptionErrorCode.InvalidRequest,
+                "The audio file could not be read.",
+                request.Provider));
+        }
+        if (length <= 0)
+        {
+            throw new CloudFailureException(new CloudTranscriptionFailure(
+                CloudTranscriptionErrorCode.InvalidRequest,
+                "The audio file is empty.",
+                request.Provider));
+        }
+        if (MaximumFileBytes.TryGetValue(request.Provider, out var maximumBytes) && length > maximumBytes)
+        {
+            throw new CloudFailureException(new CloudTranscriptionFailure(
+                CloudTranscriptionErrorCode.FileTooLarge,
+                "The audio file exceeds the selected provider's upload limit.",
                 request.Provider));
         }
     }

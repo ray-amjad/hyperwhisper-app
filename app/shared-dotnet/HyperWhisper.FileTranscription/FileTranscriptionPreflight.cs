@@ -11,7 +11,8 @@ public sealed record FileTranscriptionTarget(
     FileTranscriptionRoute Route,
     string Model,
     LocalTranscriptionEngine? LocalEngine = null,
-    CloudTranscriptionProvider? CloudProvider = null);
+    CloudTranscriptionProvider? CloudProvider = null,
+    string? CloudCatalogTier = null);
 
 public sealed record FileAudioMetadata(long LengthBytes, TimeSpan? Duration);
 
@@ -80,9 +81,8 @@ public interface ILocalFileTranscriptionReadiness
 /// </summary>
 public sealed class PortableFileTranscriptionPreflight
 {
-    // Exact portable normalization input set. Cloud routing may later choose a
-    // normalized WAV transport when an upstream provider accepts fewer source
-    // containers; preflight must not reject a format Linux can normalize first.
+    // Exact Linux import set. Local routes normalize these containers to WAV;
+    // cloud routes retain the selected container for provider-native upload.
     private static readonly IReadOnlySet<string> PortableImportExtensions =
         new HashSet<string>(["wav", "mp3", "m4a", "flac", "ogg", "webm"], StringComparer.OrdinalIgnoreCase);
 
@@ -176,12 +176,12 @@ public sealed class PortableFileTranscriptionPreflight
             if (model is null) return TargetFailure(
                 FileTranscriptionPreflightError.ModelUnsupported, "file_preflight.model_unsupported",
                 "The selected transcription model is not supported.");
-            if (!await _localReadiness.IsBackendAvailableAsync(engine, cancellationToken).ConfigureAwait(false))
-                return TargetFailure(FileTranscriptionPreflightError.BackendUnavailable,
-                    "file_preflight.backend_unavailable", "The selected local transcription engine is unavailable.");
             if (!await _localReadiness.IsModelInstalledAsync(model, cancellationToken).ConfigureAwait(false))
                 return TargetFailure(FileTranscriptionPreflightError.ModelNotInstalled,
                     "file_preflight.model_not_installed", "The selected local transcription model is not installed.");
+            if (!await _localReadiness.IsBackendAvailableAsync(engine, cancellationToken).ConfigureAwait(false))
+                return TargetFailure(FileTranscriptionPreflightError.BackendUnavailable,
+                    "file_preflight.backend_unavailable", "The selected local transcription engine is unavailable.");
             return new(model.Id, LocalConstraints(), null);
         }
 
@@ -191,18 +191,34 @@ public sealed class PortableFileTranscriptionPreflight
                 "file_preflight.provider_unsupported", "The selected cloud transcription provider is not supported.");
 
         var requestedModel = target.Model?.Trim() ?? string.Empty;
-        var modelId = requestedModel.Length == 0 ? descriptor.DefaultModel : requestedModel;
-        if (!descriptor.Models.Contains(modelId)) return TargetFailure(
-            FileTranscriptionPreflightError.ModelUnsupported, "file_preflight.model_unsupported",
-            "The selected transcription model is not supported by this provider.");
+        string modelId;
+        if (provider == CloudTranscriptionProvider.HyperWhisperCloud)
+        {
+            var tier = SharedCoreBridge.CanonicalCloudSttTier(target.CloudCatalogTier);
+            modelId = requestedModel.Length != 0 && SharedCoreBridge.CloudSttContainsModel(tier, requestedModel)
+                ? requestedModel
+                : SharedCoreBridge.CloudSttDefaultModel(tier) ?? string.Empty;
+            if (modelId.Length == 0)
+                return TargetFailure(FileTranscriptionPreflightError.ModelUnsupported,
+                    "file_preflight.model_unsupported", "The selected transcription model is not supported by this provider.");
+        }
+        else
+        {
+            modelId = requestedModel.Length == 0 ? descriptor.DefaultModel : requestedModel;
+            if (!descriptor.Models.Contains(modelId)) return TargetFailure(
+                FileTranscriptionPreflightError.ModelUnsupported, "file_preflight.model_unsupported",
+                "The selected transcription model is not supported by this provider.");
+        }
         CloudCredential? credential;
         try { credential = await _credentials.GetCredentialAsync(provider, cancellationToken).ConfigureAwait(false); }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch { return TargetFailure(FileTranscriptionPreflightError.CredentialUnavailable,
             "file_preflight.credential_unavailable", "The provider credential could not be read securely."); }
-        var present = descriptor.UsesAccountCredential
-            ? !string.IsNullOrWhiteSpace(credential?.LicenseKey)
-            : !string.IsNullOrWhiteSpace(credential?.ApiKey);
+        var present = provider == CloudTranscriptionProvider.HyperWhisperCloud
+            ? !string.IsNullOrWhiteSpace(credential?.LicenseKey) || !string.IsNullOrWhiteSpace(credential?.DeviceId)
+            : descriptor.UsesAccountCredential
+                ? !string.IsNullOrWhiteSpace(credential?.LicenseKey)
+                : !string.IsNullOrWhiteSpace(credential?.ApiKey);
         if (!present) return TargetFailure(FileTranscriptionPreflightError.CredentialMissing,
             "file_preflight.credential_missing", "A credential is required for the selected cloud provider.");
         return new(modelId, descriptor.Constraints, null);

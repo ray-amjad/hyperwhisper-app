@@ -7,6 +7,7 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="../HyperWhisper.Application/HyperWhisper.Application.csproj" />
     <ProjectReference Include="../HyperWhisper.FileTranscription/HyperWhisper.FileTranscription.csproj" />
     <Content Include="../../../shared-core-rs/target/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so"
              Condition="Exists('../../../shared-core-rs/target/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so')">
@@ -14,8 +15,8 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
-  <Target Name="EnsureNativeCore" BeforeTargets="Build">
+  <Target Name="EnsureSharedCoreNativeLibrary" BeforeTargets="Build">
     <Error Condition="!Exists('../../../shared-core-rs/target/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so')"
-           Text="Missing shared-core native library. Run app/linux/scripts/build-shared-core.sh first." />
+           Text="Build shared-core-rs in release mode before running file import integration tests." />
   </Target>
 </Project>

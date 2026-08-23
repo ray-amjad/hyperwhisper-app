@@ -13,6 +13,8 @@ using HyperWhisper.Linux.Platform.Desktop;
 using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.CloudPostProcessing;
 using HyperWhisper.Linux.Overlay;
+using HyperWhisper.FileTranscription;
+using HyperWhisper.TranscriptionRouting;
 
 namespace HyperWhisper.Linux;
 
@@ -67,7 +69,17 @@ public partial class MainWindow : Window
             _modelManager, _platformServices.AudioPlayback,
             new DurableAudioImportService(_platformServices.PrivateFiles, _platformServices.Paths),
             _platformServices.Paths, _platformServices.CredentialStore,
-            _platformServices.AudioTranscriber.Capability.DisplayName);
+            _platformServices.AudioTranscriber.Capability.DisplayName,
+            new PortableFileTranscriptionPreflight(
+                new StreamingFileAudioMetadataSource(),
+                new LinuxFileTranscriptionReadiness(_modelManager, engine => engine switch
+                {
+                    LocalTranscriptionEngine.Whisper => _platformServices.LocalWhisperCapability.IsAvailable,
+                    LocalTranscriptionEngine.Parakeet => _platformServices.LocalParakeetCapability.IsAvailable,
+                    _ => false,
+                }),
+                new CredentialStoreCloudCredentialSource(
+                    _platformServices.CredentialStore, _platformServices.DeviceIdentity)));
         var history = new HistoryRepository(_database, _platformServices.Paths);
         var contextCapture = new LinuxContextCaptureCoordinator(
             _platformServices.ApplicationContext, _platformServices.ScreenOcr);

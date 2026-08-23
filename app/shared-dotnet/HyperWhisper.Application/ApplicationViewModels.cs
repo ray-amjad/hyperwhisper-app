@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Security.Cryptography;
 using System.Text;
 using System.Runtime.CompilerServices;
+using HyperWhisper.FileTranscription;
 using System.Windows.Input;
 using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.PortableApplication.Transcription;
@@ -61,6 +62,7 @@ public sealed class TranscriptionWorkflowViewModel : ViewModelBase, IDisposable
     private readonly TranscriptionWorkflow _workflow;
     private readonly Func<TranscriptionWorkflowRequest> _requestFactory;
     private readonly DurableAudioImportService? _audioImport;
+    private readonly PortableFileTranscriptionPreflight? _filePreflight;
     private readonly SynchronizationContext? _synchronizationContext = SynchronizationContext.Current;
     private AudioInputDevice? _selectedAudioDevice;
     private string _filePath = string.Empty;
@@ -79,11 +81,13 @@ public sealed class TranscriptionWorkflowViewModel : ViewModelBase, IDisposable
     public TranscriptionWorkflowViewModel(
         TranscriptionWorkflow workflow,
         Func<TranscriptionWorkflowRequest> requestFactory,
-        DurableAudioImportService? audioImport = null)
+        DurableAudioImportService? audioImport = null,
+        PortableFileTranscriptionPreflight? filePreflight = null)
     {
         _workflow = workflow ?? throw new ArgumentNullException(nameof(workflow));
         _requestFactory = requestFactory ?? throw new ArgumentNullException(nameof(requestFactory));
         _audioImport = audioImport;
+        _filePreflight = filePreflight;
         StartCommand = new AsyncCommand(_ => StartAsync(), _ => CanStartRecording);
         StopCommand = new AsyncCommand(_ => StopAsync(), _ => CanStop);
         CancelCommand = new AsyncCommand(_ => CancelAsync(), _ => CanCancel);
@@ -140,6 +144,7 @@ public sealed class TranscriptionWorkflowViewModel : ViewModelBase, IDisposable
             ReportInputFailure("audio_import.in_progress", "Another audio import is already running.");
             return;
         }
+        var request = _requestFactory().Snapshot();
         var path = FilePath;
         var ownsImportedAudio = false;
         if (_audioImport is not null)
@@ -159,7 +164,32 @@ public sealed class TranscriptionWorkflowViewModel : ViewModelBase, IDisposable
                         ? $"Preparing audio… {value.Fraction:P0}"
                         : $"Converting audio… {value.Fraction:P0}";
                 });
-                imported = await _audioImport.ImportAsync(path, progress, import.Token);
+                FileTranscriptionPreflightResult? preflight = null;
+                if (_filePreflight is not null)
+                {
+                    var target = CreateFileTarget(request.SelectedMode);
+                    if (target is null)
+                    {
+                        imported = PlatformResult<string>.Failure(
+                            "file_preflight.request_invalid", "Choose a valid transcription mode.");
+                    }
+                    else
+                    {
+                        preflight = await _filePreflight.ValidateAsync(path, target, import.Token);
+                        if (!preflight.IsSuccess)
+                            imported = PlatformResult<string>.Failure(
+                                preflight.Failure!.Code, preflight.Failure.Message);
+                    }
+                }
+                if (imported is null)
+                {
+                    var cloud = string.Equals(
+                        request.SelectedMode?.ProviderType, "cloud", StringComparison.OrdinalIgnoreCase);
+                    imported = cloud
+                        ? await _audioImport.ImportOriginalAsync(
+                            path, preflight?.Constraints?.MaximumBytes ?? long.MaxValue, progress, import.Token)
+                        : await _audioImport.ImportAsync(path, progress, import.Token);
+                }
             }
             catch (OperationCanceledException) when (import.IsCancellationRequested)
             {
@@ -182,8 +212,52 @@ public sealed class TranscriptionWorkflowViewModel : ViewModelBase, IDisposable
             FilePath = path;
         }
         _ = ownsImportedAudio
-            ? await _workflow.TranscribeOwnedFileAsync(path, _requestFactory(), cancellationToken)
-            : await _workflow.TranscribeFileAsync(path, _requestFactory(), cancellationToken);
+            ? await _workflow.TranscribeOwnedFileAsync(path, request, cancellationToken)
+            : await _workflow.TranscribeFileAsync(path, request, cancellationToken);
+    }
+
+    private static FileTranscriptionTarget? CreateFileTarget(Mode? mode)
+    {
+        if (mode is null) return null;
+        if (!string.Equals(mode.ProviderType, "cloud", StringComparison.OrdinalIgnoreCase))
+        {
+            var parakeet = string.Equals(mode.LocalEngine, "parakeet", StringComparison.OrdinalIgnoreCase);
+            return new(
+                FileTranscriptionRoute.Local,
+                parakeet ? mode.LocalParakeetModel ?? mode.Model ?? string.Empty : mode.ModelType ?? mode.Model ?? string.Empty,
+                parakeet ? LocalTranscriptionEngine.Parakeet : LocalTranscriptionEngine.Whisper);
+        }
+        if (!TryMapCloudProvider(mode.CloudProvider, out var provider)) return null;
+        return new(
+            FileTranscriptionRoute.Cloud,
+            mode.CloudTranscriptionModel ?? string.Empty,
+            CloudProvider: provider,
+            CloudCatalogTier: provider == CloudTranscriptionProvider.HyperWhisperCloud
+                ? mode.CloudAccuracyTier : null);
+    }
+
+    private static bool TryMapCloudProvider(string? value, out CloudTranscriptionProvider provider)
+    {
+        provider = value?.Trim().ToLowerInvariant() switch
+        {
+            "openai" => CloudTranscriptionProvider.OpenAi,
+            "groq" => CloudTranscriptionProvider.Groq,
+            "elevenlabs" => CloudTranscriptionProvider.ElevenLabs,
+            "mistral" => CloudTranscriptionProvider.Mistral,
+            "grok" => CloudTranscriptionProvider.Grok,
+            "deepgram" => CloudTranscriptionProvider.Deepgram,
+            "assemblyai" => CloudTranscriptionProvider.AssemblyAi,
+            "soniox" => CloudTranscriptionProvider.Soniox,
+            "gemini" => CloudTranscriptionProvider.Gemini,
+            "microsoftazurespeech" or "azure-mai" => CloudTranscriptionProvider.AzureMai,
+            "googlespeech" or "google-chirp" => CloudTranscriptionProvider.GoogleChirp,
+            "hyperwhisper" => CloudTranscriptionProvider.HyperWhisperCloud,
+            _ => default,
+        };
+        return value?.Trim().ToLowerInvariant() is
+            "openai" or "groq" or "elevenlabs" or "mistral" or "grok" or "deepgram"
+            or "assemblyai" or "soniox" or "gemini" or "microsoftazurespeech" or "azure-mai"
+            or "googlespeech" or "google-chirp" or "hyperwhisper";
     }
 
     public void ReportInputFailure(string code, string message)
@@ -1361,7 +1435,8 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
         DurableAudioImportService? audioImport = null,
         IAppPaths? paths = null,
         ICredentialStore? credentials = null,
-        string localWhisperRuntimeStatus = "Local Whisper runtime not connected")
+        string localWhisperRuntimeStatus = "Local Whisper runtime not connected",
+        PortableFileTranscriptionPreflight? filePreflight = null)
     {
         _database = database;
         var historyRepository = new HistoryRepository(database, paths);
@@ -1393,7 +1468,7 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
         Credentials = credentials is null ? null : new CredentialManagementViewModel(credentials);
         Recording = transcriptionWorkflow is null ? null : new TranscriptionWorkflowViewModel(
             transcriptionWorkflow,
-            () => CreateTranscriptionRequest(Modes.Selected), audioImport);
+            () => CreateTranscriptionRequest(Modes.Selected), audioImport, filePreflight);
         Home = new HomeViewModel(historyRepository, vocabularyRepository, modeRepository, Recording);
         if (Recording is not null) Recording.TranscriptionSaved += OnTranscriptionSaved;
         Backup.Imported += OnBackupImported;

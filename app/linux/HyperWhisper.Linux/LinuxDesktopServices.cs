@@ -16,6 +16,8 @@ internal sealed class LinuxDesktopServices : IDisposable
 {
     private bool _disposed;
     private readonly bool _ownsTelemetry;
+    private readonly IRecordedAudioTranscriber _localWhisper;
+    private readonly IRecordedAudioTranscriber _localParakeet;
 
     public LinuxDesktopServices(LinuxSentryService? telemetry = null)
     {
@@ -24,11 +26,13 @@ internal sealed class LinuxDesktopServices : IDisposable
         Paths = new LinuxAppPaths();
         PrivateFiles = new LinuxPrivateFileService();
         CredentialStore = new LinuxCredentialStore();
+        DeviceIdentity = new LinuxDeviceIdentityProvider();
         GlobalShortcuts = new LinuxGlobalShortcutService();
         PushToTalk = new LinuxPushToTalkMonitor();
         AudioDevices = new PulseAudioInputDeviceService();
         AudioRecorder = new PulseAudioRecorder(Paths);
-        AudioTranscriber = LinuxModeAwareTranscriptionFactory.Create(Paths);
+        AudioTranscriber = LinuxModeAwareTranscriptionFactory.Create(
+            Paths, CredentialStore, DeviceIdentity, out _localWhisper, out _localParakeet);
         AudioPlayback = new PulseAudioPlaybackService();
         TextInjection = new LinuxTextInjectionService();
         InsertionContext = new AtSpiInsertionContextProvider();
@@ -37,7 +41,6 @@ internal sealed class LinuxDesktopServices : IDisposable
         Tray = new LinuxStatusNotifierItemService();
         Autostart = new LinuxAutostartService();
         SingleInstance = new LinuxSingleInstanceCoordinator(Paths);
-        DeviceIdentity = new LinuxDeviceIdentityProvider();
         MicrophoneVolume = new LinuxMicrophoneVolumeService();
         MicrophoneKeepWarm = new LinuxMicrophoneKeepWarmService();
         SoundEffects = new LinuxSoundEffectsService();
@@ -70,6 +73,8 @@ internal sealed class LinuxDesktopServices : IDisposable
     public IAudioEnvironmentService AudioEnvironment { get; }
     public LiveStreamingSessionController LiveStreaming { get; }
     public LinuxSentryService Telemetry { get; }
+    public TranscriptionBackendCapability LocalWhisperCapability => _localWhisper.Capability;
+    public TranscriptionBackendCapability LocalParakeetCapability => _localParakeet.Capability;
 
     public bool ProbeSharedCore() =>
         !SharedCoreBridge.ContainsCjk("HyperWhisper")

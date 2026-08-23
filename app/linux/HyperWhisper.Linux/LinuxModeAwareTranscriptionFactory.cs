@@ -3,6 +3,7 @@ using HyperWhisper.Linux.Platform.SystemIntegration;
 using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.SharedCore;
 using HyperWhisper.TranscriptionRouting;
+using HyperWhisper.PortableApplication.Transcription;
 
 namespace HyperWhisper.Linux;
 
@@ -12,26 +13,32 @@ namespace HyperWhisper.Linux;
 /// </summary>
 internal static class LinuxModeAwareTranscriptionFactory
 {
-    public static ModeAwareTranscriptionRouter Create(IAppPaths paths)
+    public static ModeAwareTranscriptionRouter Create(
+        IAppPaths paths,
+        ICredentialStore credentialStore,
+        IDeviceIdentityProvider deviceIdentity,
+        out IRecordedAudioTranscriber whisper,
+        out IRecordedAudioTranscriber parakeet)
     {
         ArgumentNullException.ThrowIfNull(paths);
         var credentials = new CredentialStoreCloudCredentialSource(
-            new LinuxCredentialStore(),
-            new LinuxDeviceIdentityProvider());
+            credentialStore ?? throw new ArgumentNullException(nameof(credentialStore)),
+            deviceIdentity ?? throw new ArgumentNullException(nameof(deviceIdentity)));
         var cloud = new SharedCoreBatchCloudClient(
             new CloudTranscriptionService(new HttpClientHandler(), credentials));
-        var parakeet = new ParakeetDaemonTranscriber(
+        parakeet = new ParakeetDaemonTranscriber(
             new LinuxNativeRuntimeLocator(),
             new LinuxChildProcessLauncher(),
             paths.ModelsDirectory);
-        return new ModeAwareTranscriptionRouter(
-            new LinuxLocalWhisperTranscriber(
+        whisper = new LinuxLocalWhisperTranscriber(
                 paths.ModelsDirectory,
                 new HyperWhisper.LocalInference.LocalWhisperService(),
                 new LinuxWhisperRuntimePreferenceSource(
                     new HyperWhisper.Linux.Platform.Files.LinuxPrivateFileService(),
                     paths,
-                    new LinuxGpuInfoProvider())),
+                    new LinuxGpuInfoProvider()));
+        return new ModeAwareTranscriptionRouter(
+            whisper,
             parakeet,
             cloud,
             ownsDependencies: true);

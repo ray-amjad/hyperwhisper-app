@@ -9,6 +9,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Windows cloud byte limits are exact", CloudByteLimits),
     ("invalid duration is rejected before downstream work", InvalidDurationGate),
     ("cloud credentials and models fail before metadata", CloudReadinessPrecedesMetadata),
+    ("HyperWhisper guest device readiness and model fallback match routing", HyperWhisperGuestReadiness),
     ("local backend model and install state fail before metadata", LocalReadinessPrecedesMetadata),
     ("local import has no provider byte or duration cap", LocalHasNoProviderLimit),
     ("unsupported format and missing file are stable", FileValidation),
@@ -40,34 +41,52 @@ static async Task CloudByteLimits()
         new ProviderLimit(CloudTranscriptionProvider.Grok, "", 500L * ByteSizes.MiB, false),
         new ProviderLimit(CloudTranscriptionProvider.AzureMai, "mai-transcribe-1.5", 300L * ByteSizes.MiB, true),
         new ProviderLimit(CloudTranscriptionProvider.GoogleChirp, "chirp_3", 9_500_000L, true),
-        new ProviderLimit(CloudTranscriptionProvider.HyperWhisperCloud, "default", 2L * ByteSizes.GiB, true),
+        new ProviderLimit(CloudTranscriptionProvider.HyperWhisperCloud, "nova-3-general", 2L * ByteSizes.GiB, true, "deepgramNova3"),
     };
     foreach (var item in cases)
     {
         var metadata = new FakeMetadata { Value = new(item.Bytes, TimeSpan.FromMinutes(1)) };
         var result = await Service(metadata, account: item.Account).ValidateAsync(
-            "recording.wav", new(FileTranscriptionRoute.Cloud, item.Model, CloudProvider: item.Provider));
+            "recording.wav", new(FileTranscriptionRoute.Cloud, item.Model, CloudProvider: item.Provider, CloudCatalogTier: item.Tier));
         Assert(result.IsSuccess && result.Constraints?.MaximumBytes == item.Bytes,
             $"{item.Provider} exact byte cap failed");
         result = await Service(metadata, account: item.Account).ValidateAsync(
-            "recording.wav", new(FileTranscriptionRoute.Cloud, "", CloudProvider: item.Provider));
+            "recording.wav", new(FileTranscriptionRoute.Cloud, "", CloudProvider: item.Provider, CloudCatalogTier: item.Tier));
         Assert(result.IsSuccess && result.ResolvedModel == item.Model,
             $"{item.Provider} default model mapping failed");
         var invalidMetadata = new FakeMetadata { Value = metadata.Value };
-        AssertCode(await Service(invalidMetadata, account: item.Account).ValidateAsync(
-            "recording.wav", new(FileTranscriptionRoute.Cloud, "unsupported-model", CloudProvider: item.Provider)),
-            "file_preflight.model_unsupported");
-        Assert(invalidMetadata.Calls == 0, $"{item.Provider} invalid model reached file metadata");
+        var invalid = await Service(invalidMetadata, account: item.Account).ValidateAsync(
+            "recording.wav", new(FileTranscriptionRoute.Cloud, "unsupported-model", CloudProvider: item.Provider, CloudCatalogTier: item.Tier));
+        if (item.Provider == CloudTranscriptionProvider.HyperWhisperCloud)
+            Assert(invalid.IsSuccess && invalid.ResolvedModel == item.Model,
+                "HyperWhisper invalid explicit model did not fall back to the tier default");
+        else
+        {
+            AssertCode(invalid, "file_preflight.model_unsupported");
+            Assert(invalidMetadata.Calls == 0, $"{item.Provider} invalid model reached file metadata");
+        }
         var missingCredential = new PortableFileTranscriptionPreflight(
             metadata, new FakeLocalReadiness(), new FakeCredentials(false, false));
         AssertCode(await missingCredential.ValidateAsync("recording.wav",
-            new(FileTranscriptionRoute.Cloud, item.Model, CloudProvider: item.Provider)),
+            new(FileTranscriptionRoute.Cloud, item.Model, CloudProvider: item.Provider, CloudCatalogTier: item.Tier)),
             "file_preflight.credential_missing");
         metadata.Value = new(item.Bytes + 1, TimeSpan.FromMinutes(1));
         result = await Service(metadata, account: item.Account).ValidateAsync(
-            "recording.wav", new(FileTranscriptionRoute.Cloud, item.Model, CloudProvider: item.Provider));
+            "recording.wav", new(FileTranscriptionRoute.Cloud, item.Model, CloudProvider: item.Provider, CloudCatalogTier: item.Tier));
         AssertCode(result, "file_preflight.file_too_large");
     }
+}
+
+static async Task HyperWhisperGuestReadiness()
+{
+    var metadata = new FakeMetadata { Value = new(1024, TimeSpan.FromSeconds(1)) };
+    var guest = new PortableFileTranscriptionPreflight(
+        metadata, new FakeLocalReadiness(), new FakeCredentials(false, false, device: true));
+    var result = await guest.ValidateAsync("recording.wav", new(
+        FileTranscriptionRoute.Cloud, "not-in-tier", CloudProvider: CloudTranscriptionProvider.HyperWhisperCloud,
+        CloudCatalogTier: "deepgramNova3"));
+    Assert(result.IsSuccess && result.ResolvedModel == "nova-3-general",
+        "device-only HyperWhisper guest routing was rejected or failed model fallback");
 }
 
 static async Task InvalidDurationGate()
@@ -235,7 +254,8 @@ static void Assert(bool condition, string message)
     if (!condition) throw new InvalidOperationException(message);
 }
 
-sealed record ProviderLimit(CloudTranscriptionProvider Provider, string Model, long Bytes, bool Account);
+sealed record ProviderLimit(
+    CloudTranscriptionProvider Provider, string Model, long Bytes, bool Account, string? Tier = null);
 
 static class ByteSizes
 {
@@ -261,7 +281,7 @@ sealed class FakeLocalReadiness : ILocalFileTranscriptionReadiness
     { cancellationToken.ThrowIfCancellationRequested(); return ValueTask.FromResult(ModelInstalled); }
 }
 
-sealed class FakeCredentials(bool api, bool account) : ICloudCredentialSource
+sealed class FakeCredentials(bool api, bool account, bool device = false) : ICloudCredentialSource
 {
     public ValueTask<CloudCredential?> GetCredentialAsync(
         CloudTranscriptionProvider provider, CancellationToken cancellationToken)
@@ -270,6 +290,6 @@ sealed class FakeCredentials(bool api, bool account) : ICloudCredentialSource
         return ValueTask.FromResult<CloudCredential?>(new(
             ApiKey: api ? "credential-value" : null,
             LicenseKey: account ? "credential-value" : null,
-            DeviceId: account ? "device" : null));
+            DeviceId: account || device ? "device" : null));
     }
 }
