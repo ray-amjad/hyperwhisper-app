@@ -4,6 +4,7 @@ using HyperWhisper.Linux.Platform.Files;
 using HyperWhisper.Linux.Platform.Input;
 using HyperWhisper.Linux.Platform.Audio;
 using HyperWhisper.Linux.Platform.Injection;
+using HyperWhisper.Linux.Platform.Desktop;
 using HyperWhisper.Platform.Abstractions;
 
 [assembly: SupportedOSPlatform("linux")]
@@ -40,6 +41,15 @@ var tests = new (string Name, Func<Task> Run)[]
     ("native X11 owner receives every MIME format", NativeX11Restore),
     ("native X11 owner serves every MIME format", NativeX11RoundTrip),
     ("external desktop helpers have a hard timeout", ExternalHelperTimeout),
+    ("X11 application context parses active window safely", X11ApplicationContext),
+    ("Wayland application context uses AT-SPI", WaylandApplicationContext),
+    ("Wayland context reports unsupported without AT-SPI", WaylandContextUnsupported),
+    ("active application timeout is explicit", ApplicationContextTimeout),
+    ("OCR uses private files, truncates, and cleans up", OcrPrivateCleanup),
+    ("OCR capture failure cleans up", OcrCaptureFailureCleanup),
+    ("OCR cancellation propagates and cleans up", OcrCancellationCleanup),
+    ("OCR exposes portal capture hook capability", OcrPortalCapability),
+    ("Xvfb active-window integration", X11ApplicationContextIntegration),
 };
 
 var failed = 0;
@@ -457,6 +467,114 @@ static async Task ExternalHelperTimeout()
             CancellationToken.None, TimeSpan.FromMilliseconds(50)));
 }
 
+static async Task X11ApplicationContext()
+{
+    var runner = new FakeDesktopCommandRunner(
+        new ExternalProcessResult(0, "_NET_ACTIVE_WINDOW(WINDOW): window id # 0x420001\n"u8.ToArray()),
+        new ExternalProcessResult(0, """
+_NET_WM_PID(CARDINAL) = 999999
+_NET_WM_NAME(UTF8_STRING) = "Document - Editor"
+WM_CLASS(STRING) = "editor", "Code"
+"""u8.ToArray()));
+    using var provider = new LinuxApplicationContextProvider(runner, "/usr/bin/xprop", null, false);
+    var result = await provider.GatherAsync();
+    Assert.True(result.IsSuccess && result.Value is not null);
+    Assert.Equal("Code", result.Value!.ProcessName);
+    Assert.Equal("Document - Editor", result.Value.WindowTitle);
+    Assert.Equal("-root,_NET_ACTIVE_WINDOW", string.Join(',', runner.Calls[0].Arguments));
+    Assert.Equal("-id,0x420001,_NET_WM_PID,_NET_WM_NAME,WM_NAME,WM_CLASS", string.Join(',', runner.Calls[1].Arguments));
+}
+
+static async Task WaylandApplicationContext()
+{
+    var app = Convert.ToBase64String("Writer"u8);
+    var title = Convert.ToBase64String("Draft"u8);
+    var runner = new FakeDesktopCommandRunner(new ExternalProcessResult(0,
+        System.Text.Encoding.UTF8.GetBytes($"CONTEXT|999999|{app}|{title}\n")));
+    using var provider = new LinuxApplicationContextProvider(runner, null, "/usr/bin/python3", true);
+    var result = await provider.GatherAsync();
+    Assert.True(result.IsSuccess && result.Value is not null);
+    Assert.Equal("Writer", result.Value!.ProcessName);
+    Assert.Equal("Draft", result.Value.WindowTitle);
+    Assert.Equal("-c", runner.Calls[0].Arguments[0]);
+}
+
+static async Task WaylandContextUnsupported()
+{
+    using var provider = new LinuxApplicationContextProvider(new FakeDesktopCommandRunner(), null, null, true);
+    Assert.Equal(LinuxDesktopCapabilityState.Unsupported, provider.GetCapabilities().State);
+    var result = await provider.GatherAsync();
+    Assert.True(result.IsFailure);
+    Assert.Equal("active_app_unsupported", result.Error!.Code);
+}
+
+static async Task ApplicationContextTimeout()
+{
+    var runner = new FakeDesktopCommandRunner(new TimeoutException("simulated"));
+    using var provider = new LinuxApplicationContextProvider(runner, "/usr/bin/xprop", null, false);
+    var result = await provider.GatherAsync();
+    Assert.True(result.IsFailure);
+    Assert.Equal("active_app_timeout", result.Error!.Code);
+}
+
+static Task OcrPrivateCleanup() => WithTemporaryDirectoryAsync(async directory =>
+{
+    var capture = new FakeCaptureHook([1, 2, 3, 4]);
+    var runner = new FakeDesktopCommandRunner(new ExternalProcessResult(0, "recognized private text"u8.ToArray()));
+    var service = new LinuxScreenOcrService(capture, runner, new FakeAppPaths(directory), "/usr/bin/tesseract");
+    var result = await service.CaptureAndRecognizeAsync(10);
+    Assert.True(result.IsSuccess);
+    Assert.Equal("recognized", result.Value);
+    Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite, capture.ModeDuringCapture);
+    Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute, capture.DirectoryModeDuringCapture);
+    Assert.Equal(0, Directory.GetFiles(directory).Length);
+    Assert.Equal(0, Directory.GetDirectories(directory).Length);
+    Assert.Equal("stdout", runner.Calls[0].Arguments[1]);
+    Assert.True(Path.IsPathFullyQualified(runner.Calls[0].Arguments[0]));
+});
+
+static Task OcrCaptureFailureCleanup() => WithTemporaryDirectoryAsync(async directory =>
+{
+    var capture = new FakeCaptureHook([]) { Failure = PlatformResult.Failure("capture_failed", "test") };
+    var service = new LinuxScreenOcrService(capture, new FakeDesktopCommandRunner(),
+        new FakeAppPaths(directory), "/usr/bin/tesseract");
+    var result = await service.CaptureAndRecognizeAsync();
+    Assert.True(result.IsFailure);
+    Assert.Equal(0, Directory.GetFiles(directory).Length);
+    Assert.Equal(0, Directory.GetDirectories(directory).Length);
+});
+
+static Task OcrCancellationCleanup() => WithTemporaryDirectoryAsync(async directory =>
+{
+    var capture = new FakeCaptureHook([1]) { Cancel = true };
+    var service = new LinuxScreenOcrService(capture, new FakeDesktopCommandRunner(),
+        new FakeAppPaths(directory), "/usr/bin/tesseract");
+    using var cancellation = new CancellationTokenSource();
+    cancellation.Cancel();
+    await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+        await service.CaptureAndRecognizeAsync(cancellationToken: cancellation.Token));
+    Assert.Equal(0, Directory.GetFiles(directory).Length);
+    Assert.Equal(0, Directory.GetDirectories(directory).Length);
+});
+
+static Task OcrPortalCapability()
+{
+    var capture = new FakeCaptureHook([1]) { UsesPortal = true };
+    var service = new LinuxScreenOcrService(capture, new FakeDesktopCommandRunner(),
+        new FakeAppPaths("/tmp/not-used"), "/usr/bin/tesseract");
+    Assert.True(service.GetCapabilities().UsesDesktopPortal);
+    return Task.CompletedTask;
+}
+
+static async Task X11ApplicationContextIntegration()
+{
+    if (Environment.GetEnvironmentVariable("HYPERWHISPER_X11_INTEGRATION") != "1") return;
+    using var provider = new LinuxApplicationContextProvider();
+    var result = await provider.GatherAsync();
+    Assert.True(result.IsSuccess && result.Value is not null);
+    Assert.True(result.Value!.WindowTitle.Contains("HyperWhisper Context Test", StringComparison.Ordinal));
+}
+
 static LinuxTextInjectionService NewInjection(FakeClipboard clipboard, IUInputPasteBackend uinput,
     ISecureFieldGuard? guard = null, ICapturedTargetService? targets = null) =>
     new(clipboard, uinput, guard ?? new FakeSecureFieldGuard(SecureFieldState.NotSecure),
@@ -674,6 +792,42 @@ sealed class FakeNativeClipboardOwner : INativeClipboardOwner
         return ValueTask.FromResult(PlatformResult.Success());
     }
     public void Dispose() { }
+}
+
+sealed record DesktopCommandCall(string Executable, IReadOnlyList<string> Arguments, byte[]? Input, TimeSpan Timeout);
+
+sealed class FakeDesktopCommandRunner(params object[] outcomes) : IDesktopCommandRunner
+{
+    private readonly Queue<object> _outcomes = new(outcomes);
+    public List<DesktopCommandCall> Calls { get; } = [];
+    public Task<ExternalProcessResult> RunAsync(string executable, IReadOnlyList<string> arguments,
+        byte[]? input, CancellationToken cancellationToken, TimeSpan timeout)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        Calls.Add(new DesktopCommandCall(executable, arguments.ToArray(), input?.ToArray(), timeout));
+        if (!_outcomes.TryDequeue(out var outcome)) throw new InvalidOperationException("No fake command result was configured.");
+        if (outcome is Exception exception) return Task.FromException<ExternalProcessResult>(exception);
+        return Task.FromResult((ExternalProcessResult)outcome);
+    }
+}
+
+sealed class FakeCaptureHook(byte[] contents) : IScreenCaptureHook
+{
+    public PlatformResult? Failure { get; init; }
+    public bool Cancel { get; init; }
+    public bool UsesPortal { get; init; }
+    public UnixFileMode ModeDuringCapture { get; private set; }
+    public UnixFileMode DirectoryModeDuringCapture { get; private set; }
+    public ScreenCaptureCapabilities GetCapabilities() => new(true, "fake", UsesPortal);
+    public ValueTask<PlatformResult> CaptureSelectionAsync(string privateDestinationPath,
+        CancellationToken cancellationToken = default)
+    {
+        if (Cancel) cancellationToken.ThrowIfCancellationRequested();
+        ModeDuringCapture = File.GetUnixFileMode(privateDestinationPath);
+        DirectoryModeDuringCapture = File.GetUnixFileMode(Path.GetDirectoryName(privateDestinationPath)!);
+        File.WriteAllBytes(privateDestinationPath, contents);
+        return ValueTask.FromResult(Failure ?? PlatformResult.Success());
+    }
 }
 
 sealed class FakeUInput(bool succeeds) : IUInputPasteBackend
