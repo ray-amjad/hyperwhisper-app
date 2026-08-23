@@ -16,7 +16,7 @@ internal static class LinuxRecordingOverlayFactory
     public static LinuxRecordingOverlayController Create()
     {
         var viewModel = new LinuxRecordingOverlayViewModel();
-        var window = new LinuxRecordingOverlayWindow(viewModel);
+        var window = new LinuxRecordingOverlayWindow(viewModel, new JsonLinuxOverlayPlacementStore());
         return new(viewModel, new AvaloniaLinuxOverlayDispatcher(), window);
     }
 }

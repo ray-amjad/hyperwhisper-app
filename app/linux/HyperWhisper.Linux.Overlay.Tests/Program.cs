@@ -12,6 +12,13 @@ var tests = new (string Name, Func<Task> Run)[]
     ("render and dispatch failures never escape", FailuresAreBestEffort),
     ("dispose cancels feedback and owns surface lifetime", DisposalIsSafe),
     ("public event API cannot accept content payloads", PublicApiIsContentFree),
+    ("placement defaults to safe bottom center", PlacementDefaultsSafely),
+    ("placement restores across work areas and scales", PlacementRestoresAcrossScales),
+    ("invalid and offscreen placement is clamped", PlacementIsValidatedAndClamped),
+    ("placement writes are debounced", PlacementWritesAreDebounced),
+    ("placement persists in the private config store", PlacementRoundTripsPrivately),
+    ("placement store failures are isolated", PlacementStoreFailuresAreIsolated),
+    ("overlay interaction policy cannot activate or focus", OverlayDoesNotActivate),
 };
 
 var failed = 0;
@@ -150,6 +157,91 @@ static Task PublicApiIsContentFree()
     return Task.CompletedTask;
 }
 
+static Task PlacementDefaultsSafely()
+{
+    var point = LinuxOverlayPlacementCalculator.Restore(null, new(100, 200, 1920, 1040), 260, 52, 1);
+    Assert(point == new LinuxOverlayPixelPoint(930, 1168), $"unexpected default placement: {point}");
+    return Task.CompletedTask;
+}
+
+static Task PlacementRestoresAcrossScales()
+{
+    var stored = new LinuxOverlayPlacement(.25, .75);
+    var normal = LinuxOverlayPlacementCalculator.Restore(stored, new(0, 0, 1920, 1080), 260, 52, 1);
+    var scaled = LinuxOverlayPlacementCalculator.Restore(stored, new(1920, -100, 2560, 1440), 390, 78, 1.5);
+    Assert(normal == new LinuxOverlayPixelPoint(415, 771), "normal-scale ratio drifted");
+    Assert(scaled == new LinuxOverlayPixelPoint(2462, 922), $"scaled ratio drifted: {scaled}");
+    var captured = LinuxOverlayPlacementCalculator.Capture(scaled, new(1920, -100, 2560, 1440), 390, 78);
+    Assert(Math.Abs(captured.XRatio - .25) < .001 && Math.Abs(captured.YRatio - .75) < .001,
+        "scaled placement did not round-trip");
+    return Task.CompletedTask;
+}
+
+static Task PlacementIsValidatedAndClamped()
+{
+    var area = new LinuxOverlayPixelRect(-1000, 50, 800, 600);
+    var invalid = LinuxOverlayPlacementCalculator.Restore(new(double.NaN, 20), area, 260, 52, 1);
+    Assert(invalid.X == -730 && invalid.Y >= area.Y && invalid.Y + 52 <= area.Bottom,
+        "invalid placement did not fall back within the work area");
+    var left = LinuxOverlayPlacementCalculator.Capture(new(-9000, -9000), area, 260, 52);
+    var right = LinuxOverlayPlacementCalculator.Capture(new(9000, 9000), area, 260, 52);
+    Assert(left == new LinuxOverlayPlacement(0, 0) && right == new LinuxOverlayPlacement(1, 1),
+        "offscreen position was not clamped");
+    return Task.CompletedTask;
+}
+
+static Task PlacementWritesAreDebounced()
+{
+    var store = new FakePlacementStore();
+    var scheduler = new FakePlacementScheduler();
+    using var persistence = new LinuxOverlayPlacementPersistence(store, TimeSpan.FromMilliseconds(1), scheduler.Schedule);
+    persistence.SaveDebounced(new(.1, .2));
+    persistence.SaveDebounced(new(.3, .4));
+    Assert(scheduler.PendingCount == 1 && store.Saves.Count == 0, "drag writes were not coalesced");
+    scheduler.CompleteLatest();
+    Assert(store.Saves.SequenceEqual(new[] { new LinuxOverlayPlacement(.3, .4) }), "latest placement was not saved");
+    return Task.CompletedTask;
+}
+
+static Task PlacementStoreFailuresAreIsolated()
+{
+    var scheduler = new FakePlacementScheduler();
+    using var persistence = new LinuxOverlayPlacementPersistence(new ThrowingPlacementStore(),
+        TimeSpan.Zero, scheduler.Schedule);
+    Assert(persistence.LoadBestEffort() is null, "failed load escaped or returned data");
+    persistence.SaveDebounced(new(.5, .5));
+    scheduler.CompleteLatest();
+    return Task.CompletedTask;
+}
+
+static Task PlacementRoundTripsPrivately()
+{
+    var root = Path.Combine(Path.GetTempPath(), "hyperwhisper-overlay-test-" + Guid.NewGuid().ToString("N"));
+    try
+    {
+        var store = new JsonLinuxOverlayPlacementStore(root);
+        var expected = new LinuxOverlayPlacement(.125, .875);
+        store.Save(expected);
+        Assert(store.Load() == expected, "placement did not survive a config-store round trip");
+        if (!OperatingSystem.IsWindows())
+        {
+            var path = Path.Combine(root, "hyperwhisper", "overlay-placement.json");
+            var mode = File.GetUnixFileMode(path);
+            Assert((mode & (UnixFileMode.GroupRead | UnixFileMode.GroupWrite | UnixFileMode.OtherRead
+                | UnixFileMode.OtherWrite)) == 0, "placement config was readable by another user");
+        }
+    }
+    finally { try { Directory.Delete(root, true); } catch { } }
+    return Task.CompletedTask;
+}
+
+static Task OverlayDoesNotActivate()
+{
+    Assert(!LinuxOverlayInteractionPolicy.ShowActivated && !LinuxOverlayInteractionPolicy.Focusable,
+        "overlay interaction policy could steal the dictated target");
+    return Task.CompletedTask;
+}
+
 static async Task WaitUntil(Func<bool> condition)
 {
     for (var attempt = 0; attempt < 100 && !condition(); attempt++) await Task.Delay(5);
@@ -253,4 +345,37 @@ sealed class FakeDelay : ILinuxOverlayDelay
         lock (_gate) completion = _pending.LastOrDefault(item => !item.Task.IsCompleted);
         completion?.TrySetResult();
     }
+}
+
+sealed class FakePlacementStore : ILinuxOverlayPlacementStore
+{
+    public List<LinuxOverlayPlacement> Saves { get; } = [];
+    public LinuxOverlayPlacement? Load() => null;
+    public void Save(LinuxOverlayPlacement placement) => Saves.Add(placement);
+}
+
+sealed class ThrowingPlacementStore : ILinuxOverlayPlacementStore
+{
+    public LinuxOverlayPlacement? Load() => throw new IOException("expected");
+    public void Save(LinuxOverlayPlacement placement) => throw new IOException("expected");
+}
+
+sealed class FakePlacementScheduler
+{
+    private readonly List<Entry> _entries = [];
+    public int PendingCount => _entries.Count(entry => !entry.Cancelled && !entry.Completed);
+    public IDisposable Schedule(TimeSpan _, Action callback)
+    {
+        var entry = new Entry(callback);
+        _entries.Add(entry);
+        return new Cancellation(() => entry.Cancelled = true);
+    }
+    public void CompleteLatest()
+    {
+        var entry = _entries.Last(item => !item.Cancelled && !item.Completed);
+        entry.Completed = true;
+        entry.Callback();
+    }
+    private sealed class Entry(Action callback) { public Action Callback { get; } = callback; public bool Cancelled; public bool Completed; }
+    private sealed class Cancellation(Action cancel) : IDisposable { public void Dispose() => cancel(); }
 }
