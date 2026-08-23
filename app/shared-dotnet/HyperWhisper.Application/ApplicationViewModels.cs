@@ -1,11 +1,14 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Security.Cryptography;
+using System.Text;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.PortableApplication.Transcription;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Platform.Abstractions;
+using HyperWhisper.ModelManagement;
 
 namespace HyperWhisper.PortableApplication.ViewModels;
 
@@ -54,6 +57,7 @@ public sealed class TranscriptionWorkflowViewModel : ViewModelBase, IDisposable
 {
     private readonly TranscriptionWorkflow _workflow;
     private readonly Func<TranscriptionWorkflowRequest> _requestFactory;
+    private readonly DurableAudioImportService? _audioImport;
     private readonly SynchronizationContext? _synchronizationContext = SynchronizationContext.Current;
     private AudioInputDevice? _selectedAudioDevice;
     private string _filePath = string.Empty;
@@ -68,10 +72,12 @@ public sealed class TranscriptionWorkflowViewModel : ViewModelBase, IDisposable
 
     public TranscriptionWorkflowViewModel(
         TranscriptionWorkflow workflow,
-        Func<TranscriptionWorkflowRequest> requestFactory)
+        Func<TranscriptionWorkflowRequest> requestFactory,
+        DurableAudioImportService? audioImport = null)
     {
         _workflow = workflow ?? throw new ArgumentNullException(nameof(workflow));
         _requestFactory = requestFactory ?? throw new ArgumentNullException(nameof(requestFactory));
+        _audioImport = audioImport;
         StartCommand = new AsyncCommand(_ => StartAsync(), _ => CanStartRecording);
         StopCommand = new AsyncCommand(_ => StopAsync(), _ => CanStop);
         CancelCommand = new AsyncCommand(_ => CancelAsync(), _ => CanCancel);
@@ -111,8 +117,18 @@ public sealed class TranscriptionWorkflowViewModel : ViewModelBase, IDisposable
     public Task StartAsync(CancellationToken cancellationToken = default) => _workflow.StartRecordingAsync(cancellationToken);
     public Task StopAsync(CancellationToken cancellationToken = default) => _workflow.StopAndTranscribeAsync(_requestFactory(), cancellationToken);
     public Task CancelAsync() => _workflow.CancelAsync();
-    public Task TranscribeFileAsync(CancellationToken cancellationToken = default) =>
-        _workflow.TranscribeFileAsync(FilePath, _requestFactory(), cancellationToken);
+    public async Task TranscribeFileAsync(CancellationToken cancellationToken = default)
+    {
+        var path = FilePath;
+        if (_audioImport is not null)
+        {
+            var imported = await _audioImport.ImportAsync(path, cancellationToken);
+            if (imported.IsFailure) { ReportInputFailure(imported.Error!.Code, imported.Error.Message); return; }
+            path = imported.Value!;
+            FilePath = path;
+        }
+        _ = await _workflow.TranscribeFileAsync(path, _requestFactory(), cancellationToken);
+    }
 
     public void ReportInputFailure(string code, string message)
     {
@@ -223,18 +239,32 @@ public sealed class HomeViewModel : ViewModelBase
 public sealed class HistoryViewModel : ViewModelBase
 {
     private readonly HistoryRepository _repository;
+    private readonly IAudioPlaybackService? _playback;
+    private readonly Func<Transcript, CancellationToken, Task>? _retry;
     private Transcript? _selected;
-    public HistoryViewModel(HistoryRepository repository)
+    private string _searchText = string.Empty;
+    private bool _deleteAudio;
+    public HistoryViewModel(HistoryRepository repository, IAudioPlaybackService? playback = null, Func<Transcript, CancellationToken, Task>? retry = null)
     {
         _repository = repository;
+        _playback = playback;
+        _retry = retry;
         RefreshCommand = new AsyncCommand(_ => RefreshAsync());
         DeleteCommand = new AsyncCommand(item => DeleteAsync(item as Transcript), item => item is Transcript);
+        SearchCommand = new AsyncCommand(_ => SearchAsync());
+        PlayCommand = new AsyncCommand(_ => PlayAsync(), _ => Selected?.AudioFilePath is not null);
+        RetryCommand = new AsyncCommand(_ => RetryAsync(), _ => Selected?.AudioFilePath is not null && _retry is not null);
     }
     public ObservableCollection<Transcript> Items { get; } = new();
-    public Transcript? Selected { get => _selected; set => Set(ref _selected, value); }
+    public Transcript? Selected { get => _selected; set { if (Set(ref _selected, value)) { ((AsyncCommand)PlayCommand).RaiseCanExecuteChanged(); ((AsyncCommand)RetryCommand).RaiseCanExecuteChanged(); } } }
+    public string SearchText { get => _searchText; set => Set(ref _searchText, value); }
+    public bool DeleteAudio { get => _deleteAudio; set => Set(ref _deleteAudio, value); }
     public UiStatus Status { get; } = new();
     public ICommand RefreshCommand { get; }
     public ICommand DeleteCommand { get; }
+    public ICommand SearchCommand { get; }
+    public ICommand PlayCommand { get; }
+    public ICommand RetryCommand { get; }
 
     public async Task RefreshAsync(CancellationToken cancellationToken = default)
     {
@@ -250,19 +280,49 @@ public sealed class HistoryViewModel : ViewModelBase
         catch (Exception) { Status.Failure("history.load_failed", "Could not load transcript history."); }
     }
 
+    public async Task SearchAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            Items.Clear();
+            foreach (var item in await _repository.SearchAsync(SearchText, cancellationToken)) Items.Add(item);
+            Selected = Items.FirstOrDefault();
+            Status.Success($"{Items.Count} matching transcript(s)");
+        }
+        catch (Exception) { Status.Failure("history.search_failed", "Could not search transcript history."); }
+    }
+
     public async Task DeleteAsync(Transcript? transcript, CancellationToken cancellationToken = default)
     {
         if (transcript == null) { Status.Failure("history.no_selection", "Select a transcript to delete."); return; }
         try
         {
-            if (!await _repository.DeleteAsync(transcript.Id, cancellationToken))
+            var deletion = await _repository.DeleteAsync(transcript.Id, DeleteAudio, cancellationToken);
+            if (!deletion.TranscriptDeleted)
             { Status.Failure("history.not_found", "The transcript no longer exists."); return; }
             Items.Remove(transcript);
             Selected = Items.FirstOrDefault();
-            Status.Success("Transcript deleted");
+            if (deletion.Warning is null) Status.Success(DeleteAudio ? "Transcript and audio deleted" : "Transcript deleted; audio retained");
+            else Status.Failure("history.audio_delete_failed", deletion.Warning);
         }
         catch (OperationCanceledException) { Status.Failure("history.cancelled", "Delete cancelled"); }
         catch (Exception) { Status.Failure("history.delete_failed", "Could not delete the transcript."); }
+    }
+
+    public Task PlayAsync()
+    {
+        if (_playback is null || Selected?.AudioFilePath is not { } path) { Status.Failure("history.audio_unavailable", "This transcript has no playable audio."); return Task.CompletedTask; }
+        var loaded = _playback.Load(path);
+        if (loaded.IsFailure) Status.Failure(loaded.Error!.Code, loaded.Error.Message);
+        else { _playback.Play(); Status.Success("Playing recording"); }
+        return Task.CompletedTask;
+    }
+
+    public async Task RetryAsync(CancellationToken cancellationToken = default)
+    {
+        if (_retry is null || Selected is null) { Status.Failure("history.retry_unavailable", "Retry is unavailable."); return; }
+        try { await _retry(Selected, cancellationToken); await RefreshAsync(cancellationToken); }
+        catch (Exception) { Status.Failure("history.retry_failed", "The transcription retry failed."); }
     }
 }
 
@@ -271,29 +331,43 @@ public sealed class VocabularyViewModel : ViewModelBase
     private readonly VocabularyRepository _repository;
     private string _word = string.Empty;
     private string _replacement = string.Empty;
+    private VocabularyItem? _selected;
+    private string _transferPath = string.Empty;
     public VocabularyViewModel(VocabularyRepository repository)
     {
         _repository = repository;
-        AddCommand = new AsyncCommand(_ => AddAsync());
+        AddCommand = new AsyncCommand(_ => SaveAsync());
         DeleteCommand = new AsyncCommand(item => DeleteAsync(item as VocabularyItem), item => item is VocabularyItem);
+        ImportCommand = new AsyncCommand(_ => ImportAsync());
+        ExportCommand = new AsyncCommand(_ => ExportAsync());
     }
     public ObservableCollection<VocabularyItem> Items { get; } = new();
     public string Word { get => _word; set => Set(ref _word, value); }
     public string Replacement { get => _replacement; set => Set(ref _replacement, value); }
+    public VocabularyItem? Selected
+    {
+        get => _selected;
+        set { if (Set(ref _selected, value) && value is not null) { Word = value.Word; Replacement = value.Replacement ?? string.Empty; } }
+    }
+    public string TransferPath { get => _transferPath; set => Set(ref _transferPath, value); }
     public UiStatus Status { get; } = new();
     public ICommand AddCommand { get; }
     public ICommand DeleteCommand { get; }
+    public ICommand ImportCommand { get; }
+    public ICommand ExportCommand { get; }
 
     public async Task RefreshAsync(CancellationToken cancellationToken = default)
     {
         try { Items.Clear(); foreach (var item in await _repository.ListAsync(cancellationToken)) Items.Add(item); Status.Success($"{Items.Count} term(s)"); }
         catch (Exception) { Status.Failure("vocabulary.load_failed", "Could not load vocabulary."); }
     }
-    public async Task AddAsync(CancellationToken cancellationToken = default)
+    public Task AddAsync(CancellationToken cancellationToken = default) => SaveAsync(cancellationToken);
+    public async Task SaveAsync(CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(Word)) { Status.Failure("vocabulary.word_required", "Enter a word or phrase."); return; }
-        var item = new VocabularyItem { Word = Word.Trim(), Replacement = string.IsNullOrWhiteSpace(Replacement) ? null : Replacement.Trim(), SortOrder = Items.Count };
-        try { await _repository.AddAsync(item, cancellationToken); Items.Add(item); Word = string.Empty; Replacement = string.Empty; Status.Success("Vocabulary added"); }
+        var item = Selected ?? new VocabularyItem { SortOrder = Items.Count };
+        item.Word = Word.Trim(); item.Replacement = string.IsNullOrWhiteSpace(Replacement) ? null : Replacement.Trim();
+        try { _ = await _repository.UpsertAsync(item, cancellationToken); await RefreshAsync(cancellationToken); Selected = null; Word = string.Empty; Replacement = string.Empty; Status.Success("Vocabulary saved"); }
         catch (Exception) { Status.Failure("vocabulary.add_failed", "Could not add the vocabulary item."); }
     }
     public async Task DeleteAsync(VocabularyItem? item, CancellationToken cancellationToken = default)
@@ -301,6 +375,35 @@ public sealed class VocabularyViewModel : ViewModelBase
         if (item == null) { Status.Failure("vocabulary.no_selection", "Select a vocabulary item to delete."); return; }
         try { if (await _repository.DeleteAsync(item.Id, cancellationToken)) { Items.Remove(item); Status.Success("Vocabulary deleted"); } else Status.Failure("vocabulary.not_found", "The vocabulary item no longer exists."); }
         catch (Exception) { Status.Failure("vocabulary.delete_failed", "Could not delete the vocabulary item."); }
+    }
+
+    public async Task ImportAsync(CancellationToken cancellationToken = default)
+    {
+        if (!Path.IsPathFullyQualified(TransferPath)) { Status.Failure("vocabulary.path_required", "Choose a vocabulary file."); return; }
+        try
+        {
+            var lines = await File.ReadAllLinesAsync(TransferPath, cancellationToken);
+            var items = lines.Select((line, index) => line.Split('\t', 2) switch
+            {
+                var fields => new VocabularyItem { Word = fields[0].Trim(), Replacement = fields.Length > 1 ? fields[1].Trim() : null, SortOrder = index }
+            }).Where(item => item.Word.Length > 0);
+            var count = await _repository.MergeAsync(items, cancellationToken);
+            await RefreshAsync(cancellationToken);
+            Status.Success($"Imported {count} term(s); duplicates merged");
+        }
+        catch (Exception) { Status.Failure("vocabulary.import_failed", "Could not import vocabulary."); }
+    }
+
+    public async Task ExportAsync(CancellationToken cancellationToken = default)
+    {
+        if (!Path.IsPathFullyQualified(TransferPath)) { Status.Failure("vocabulary.path_required", "Choose an export file."); return; }
+        try
+        {
+            var lines = (await _repository.ListAsync(cancellationToken)).Select(item => $"{item.Word}\t{item.Replacement ?? string.Empty}");
+            await File.WriteAllLinesAsync(TransferPath, lines, cancellationToken);
+            Status.Success("Vocabulary exported");
+        }
+        catch (Exception) { Status.Failure("vocabulary.export_failed", "Could not export vocabulary."); }
     }
 }
 
@@ -313,6 +416,15 @@ public sealed class ModesViewModel : ViewModelBase
     private bool _localPostProcessingEnabled;
     private string _localPostProcessingModel = string.Empty;
     private string _userSystemPrompt = string.Empty;
+    private string _providerType = "local";
+    private string _localEngine = "whisper";
+    private string _transcriptionModel = "base";
+    private string _cloudProvider = "elevenlabs";
+    private string _cloudAccuracyTier = "elevenLabsScribeV2";
+    private string _cloudDomain = string.Empty;
+    private string _geminiPrompt = string.Empty;
+    private string _customVocabulary = string.Empty;
+    private bool _enableScreenOcr;
     public ModesViewModel(ModeRepository repository)
     {
         _repository = repository;
@@ -325,6 +437,9 @@ public sealed class ModesViewModel : ViewModelBase
             LocalPostProcessingEnabled = false;
             LocalPostProcessingModel = string.Empty;
             UserSystemPrompt = string.Empty;
+            ProviderType = "local"; LocalEngine = "whisper"; TranscriptionModel = "base";
+            CloudProvider = "elevenlabs"; CloudAccuracyTier = "elevenLabsScribeV2"; CloudDomain = string.Empty;
+            GeminiPrompt = string.Empty; CustomVocabulary = string.Empty; EnableScreenOcr = false;
             return Task.CompletedTask;
         });
         DeleteCommand = new AsyncCommand(_ => DeleteAsync());
@@ -342,6 +457,15 @@ public sealed class ModesViewModel : ViewModelBase
                 && string.Equals(value.PostProcessingProvider, "local_llm", StringComparison.OrdinalIgnoreCase);
             LocalPostProcessingModel = value.LocalPostProcessingModel ?? string.Empty;
             UserSystemPrompt = value.UserSystemPrompt ?? string.Empty;
+            ProviderType = value.ProviderType ?? "local";
+            LocalEngine = value.LocalEngine;
+            TranscriptionModel = value.ProviderType == "cloud" ? value.CloudTranscriptionModel ?? string.Empty : value.LocalEngine == "parakeet" ? value.LocalParakeetModel ?? "parakeet-v3" : value.ModelType ?? value.Model ?? "base";
+            CloudProvider = value.CloudProvider ?? "elevenlabs";
+            CloudAccuracyTier = value.CloudAccuracyTier;
+            CloudDomain = value.CloudTranscriptionDomain ?? string.Empty;
+            GeminiPrompt = value.GeminiCustomPrompt ?? string.Empty;
+            CustomVocabulary = string.Join(", ", value.CustomVocabulary ?? []);
+            EnableScreenOcr = value.EnableScreenOCR;
         }
     }
     public string Name { get => _name; set => Set(ref _name, value); }
@@ -349,6 +473,29 @@ public sealed class ModesViewModel : ViewModelBase
     public bool LocalPostProcessingEnabled { get => _localPostProcessingEnabled; set => Set(ref _localPostProcessingEnabled, value); }
     public string LocalPostProcessingModel { get => _localPostProcessingModel; set => Set(ref _localPostProcessingModel, value); }
     public string UserSystemPrompt { get => _userSystemPrompt; set => Set(ref _userSystemPrompt, value); }
+    public string ProviderType
+    {
+        get => _providerType;
+        set
+        {
+            if (!Set(ref _providerType, value)) return;
+            if (value == "cloud" && PortableModelCatalog.All.Any(model => model.Kind is ManagedModelKind.Whisper or ManagedModelKind.Parakeet
+                && string.Equals(model.Id, TranscriptionModel, StringComparison.Ordinal))) TranscriptionModel = string.Empty;
+        }
+    }
+    public string LocalEngine { get => _localEngine; set => Set(ref _localEngine, value); }
+    public string TranscriptionModel { get => _transcriptionModel; set => Set(ref _transcriptionModel, value); }
+    public IReadOnlyList<string> ProviderTypes { get; } = ["local", "cloud"];
+    public IReadOnlyList<string> LocalEngines { get; } = ["whisper", "parakeet"];
+    public string CloudProvider { get => _cloudProvider; set => Set(ref _cloudProvider, value); }
+    public string CloudAccuracyTier { get => _cloudAccuracyTier; set => Set(ref _cloudAccuracyTier, value); }
+    public string CloudDomain { get => _cloudDomain; set => Set(ref _cloudDomain, value); }
+    public string GeminiPrompt { get => _geminiPrompt; set => Set(ref _geminiPrompt, value); }
+    public string CustomVocabulary { get => _customVocabulary; set => Set(ref _customVocabulary, value); }
+    public bool EnableScreenOcr { get => _enableScreenOcr; set => Set(ref _enableScreenOcr, value); }
+    public IReadOnlyList<string> CloudProviders { get; } = ["openai", "groq", "elevenlabs", "mistral", "grok", "deepgram", "assemblyai", "soniox", "gemini", "microsoftazurespeech", "googlespeech", "hyperwhisper"];
+    public IReadOnlyList<string> CloudAccuracyTiers { get; } = ["groqWhisper", "deepgramNova3", "grokStt", "azureMaiTranscribe", "googleChirp3", "elevenLabsScribeV2", "openaiWhisper", "gemini", "mistralVoxtral", "assemblyAI", "soniox"];
+    public IReadOnlyList<string> CloudDomains { get; } = ["", "medical"];
     public UiStatus Status { get; } = new();
     public ICommand SaveCommand { get; }
     public ICommand NewCommand { get; }
@@ -376,19 +523,43 @@ public sealed class ModesViewModel : ViewModelBase
             Status.Failure("modes.prompt_too_long", "The system prompt cannot exceed 2000 characters.");
             return;
         }
+        if (GeminiPrompt.Length > 2000) { Status.Failure("modes.gemini_prompt_too_long", "The Gemini prompt cannot exceed 2000 characters."); return; }
+        if (ProviderType == "cloud" && !CloudProviders.Contains(CloudProvider, StringComparer.Ordinal))
+        { Status.Failure("modes.cloud_provider_required", "Select a supported cloud provider."); return; }
+        if (ProviderType != "cloud")
+        {
+            var kind = LocalEngine == "parakeet" ? ManagedModelKind.Parakeet : ManagedModelKind.Whisper;
+            if (!PortableModelCatalog.All.Any(model => model.Kind == kind && string.Equals(model.Id, TranscriptionModel, StringComparison.Ordinal)))
+            { Status.Failure("modes.local_model_invalid", "Select a model ID from the local model catalog."); return; }
+        }
         var mode = Selected ?? new Mode { SortOrder = Items.Count };
         mode.Name = Name.Trim();
         mode.Language = string.IsNullOrWhiteSpace(Language) ? "auto" : Language.Trim();
+        mode.ProviderType = ProviderType == "cloud" ? "cloud" : "local";
+        mode.LocalEngine = LocalEngine == "parakeet" ? "parakeet" : "whisper";
+        if (mode.ProviderType == "cloud")
+        {
+            mode.CloudProvider = CloudProvider;
+            mode.CloudTranscriptionModel = string.IsNullOrWhiteSpace(TranscriptionModel) ? null : TranscriptionModel.Trim();
+            mode.CloudAccuracyTier = CloudAccuracyTiers.Contains(CloudAccuracyTier, StringComparer.Ordinal) ? CloudAccuracyTier : "elevenLabsScribeV2";
+            mode.CloudTranscriptionDomain = CloudDomain == "medical" ? "medical" : null;
+            mode.GeminiCustomPrompt = string.IsNullOrWhiteSpace(GeminiPrompt) ? null : GeminiPrompt.Trim();
+        }
+        else if (mode.LocalEngine == "parakeet") { mode.LocalParakeetModel = TranscriptionModel.Trim(); mode.Model = mode.LocalParakeetModel; }
+        else { mode.Model = string.IsNullOrWhiteSpace(TranscriptionModel) ? "base" : TranscriptionModel.Trim(); mode.ModelType = mode.Model; }
         mode.PostProcessingMode = LocalPostProcessingEnabled ? 2 : 0;
         if (LocalPostProcessingEnabled) mode.PostProcessingProvider = "local_llm";
         mode.LocalPostProcessingModel = string.IsNullOrWhiteSpace(LocalPostProcessingModel)
             ? null
             : LocalPostProcessingModel.Trim();
         mode.UserSystemPrompt = string.IsNullOrWhiteSpace(UserSystemPrompt) ? null : UserSystemPrompt.Trim();
+        mode.CustomVocabulary = CustomVocabulary.Split([',', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Distinct(StringComparer.OrdinalIgnoreCase).Take(1000).ToList();
+        mode.EnableScreenOCR = EnableScreenOcr;
         mode.ModifiedDate = DateTime.UtcNow;
         try
         {
-            await _repository.UpsertAsync(mode, cancellationToken);
+            await _repository.UpsertSafelyAsync(mode, cancellationToken);
             var existingIndex = Items.IndexOf(mode);
             if (existingIndex < 0) Items.Add(mode);
             else Items[existingIndex] = mode;
@@ -401,7 +572,8 @@ public sealed class ModesViewModel : ViewModelBase
     {
         if (Selected == null) { Status.Failure("modes.no_selection", "Select a mode to delete."); return; }
         var selected = Selected;
-        try { if (await _repository.DeleteAsync(selected.Id, cancellationToken)) { Items.Remove(selected); Selected = Items.FirstOrDefault(); Status.Success("Mode deleted"); } else Status.Failure("modes.not_found", "The mode no longer exists."); }
+        try { if (await _repository.DeleteSafelyAsync(selected.Id, cancellationToken)) { Items.Remove(selected); Selected = Items.FirstOrDefault(); Status.Success("Mode deleted"); } else Status.Failure("modes.not_found", "The mode no longer exists."); }
+        catch (InvalidOperationException exception) { Status.Failure("modes.last_mode", exception.Message); }
         catch (Exception) { Status.Failure("modes.delete_failed", "Could not delete the mode."); }
     }
 }
@@ -412,6 +584,8 @@ public sealed class SettingsViewModel : ViewModelBase
     private string _language = "auto";
     private string _localLlmBackend = "cpu";
     private bool _allowLocalLlmCpuFallback = true;
+    private bool _localApiEnabled;
+    private int _localApiPort = 51671;
     public SettingsViewModel(PortableSettingsService settings, string localLlmRuntimeStatus = "Local LLM runtime not connected")
     {
         _settings = settings;
@@ -421,10 +595,13 @@ public sealed class SettingsViewModel : ViewModelBase
     public string Language { get => _language; set => Set(ref _language, value); }
     public string LocalLlmBackend { get => _localLlmBackend; set => Set(ref _localLlmBackend, NormalizeBackend(value)); }
     public bool AllowLocalLlmCpuFallback { get => _allowLocalLlmCpuFallback; set => Set(ref _allowLocalLlmCpuFallback, value); }
+    public bool LocalApiEnabled { get => _localApiEnabled; set => Set(ref _localApiEnabled, value); }
+    public int LocalApiPort { get => _localApiPort; set => Set(ref _localApiPort, Math.Clamp(value, 0, 65535)); }
     public string LocalLlmRuntimeStatus { get; }
     public IReadOnlyList<string> LocalLlmBackends { get; } = ["cpu", "vulkan", "cuda"];
     public UiStatus Status { get; } = new();
     public ICommand SaveCommand { get; }
+    public event EventHandler? LocalApiSettingsChanged;
     public void Load()
     {
         var result = _settings.Load();
@@ -432,6 +609,8 @@ public sealed class SettingsViewModel : ViewModelBase
         Language = _settings.Get("language", "auto") ?? "auto";
         LocalLlmBackend = _settings.Get("localLlmBackend", "cpu") ?? "cpu";
         AllowLocalLlmCpuFallback = _settings.Get("allowLocalLlmCpuFallback", true);
+        LocalApiEnabled = _settings.Get("localApiEnabled", false);
+        LocalApiPort = _settings.Get("localApiPort", 51671);
         Status.Success("Settings loaded");
     }
     public void Save()
@@ -439,8 +618,10 @@ public sealed class SettingsViewModel : ViewModelBase
         _settings.Set("language", Language);
         _settings.Set("localLlmBackend", NormalizeBackend(LocalLlmBackend));
         _settings.Set("allowLocalLlmCpuFallback", AllowLocalLlmCpuFallback);
+        _settings.Set("localApiEnabled", LocalApiEnabled);
+        _settings.Set("localApiPort", LocalApiPort);
         var result = _settings.Save();
-        if (result.IsSuccess) Status.Success("Settings saved");
+        if (result.IsSuccess) { Status.Success("Settings saved"); LocalApiSettingsChanged?.Invoke(this, EventArgs.Empty); }
         else Status.Failure(result.Error!.Code, result.Error.Message);
     }
 
@@ -450,6 +631,187 @@ public sealed class SettingsViewModel : ViewModelBase
         "cuda" => "cuda",
         _ => "cpu",
     };
+}
+
+public sealed class ManagedModelViewModel : ViewModelBase
+{
+    private bool _installed;
+    private double _progress;
+    private string _status = "Not installed";
+    public ManagedModelViewModel(ManagedModel model, bool installed) { Model = model; _installed = installed; _status = installed ? "Installed" : "Not installed"; }
+    public ManagedModel Model { get; }
+    public string Id => Model.Id;
+    public string DisplayName => Model.DisplayName;
+    public string Kind => Model.Kind.ToString();
+    public string Size => $"{Model.ApproximateSizeBytes / 1_000_000d:F0} MB";
+    public bool Installed { get => _installed; set => Set(ref _installed, value); }
+    public double Progress { get => _progress; set => Set(ref _progress, value); }
+    public string Status { get => _status; set => Set(ref _status, value); }
+}
+
+public sealed class ModelLibraryViewModel : ViewModelBase, IDisposable
+{
+    private readonly PortableModelManager _manager;
+    private CancellationTokenSource? _download;
+    private ManagedModelViewModel? _selected;
+    public ModelLibraryViewModel(PortableModelManager manager)
+    {
+        _manager = manager;
+        foreach (var model in PortableModelCatalog.All) Items.Add(new(model, manager.IsInstalled(model)));
+        DownloadCommand = new AsyncCommand(_ => DownloadAsync(), _ => Selected is not null && !Selected.Installed);
+        CancelCommand = new AsyncCommand(_ => { _download?.Cancel(); return Task.CompletedTask; }, _ => _download is not null);
+        DeleteCommand = new AsyncCommand(_ => DeleteAsync(), _ => Selected?.Installed == true);
+        Selected = Items.FirstOrDefault(item => item.Model.IsRecommended) ?? Items.FirstOrDefault();
+    }
+    public ObservableCollection<ManagedModelViewModel> Items { get; } = new();
+    public ManagedModelViewModel? Selected { get => _selected; set { if (Set(ref _selected, value)) RaiseCommands(); } }
+    public UiStatus Status { get; } = new();
+    public ICommand DownloadCommand { get; }
+    public ICommand CancelCommand { get; }
+    public ICommand DeleteCommand { get; }
+    public async Task DownloadAsync()
+    {
+        var target = Selected;
+        if (target is null) return;
+        _download?.Dispose();
+        var download = new CancellationTokenSource();
+        _download = download;
+        RaiseCommands();
+        target.Status = "Downloading…";
+        var progress = new Progress<ModelDownloadProgress>(value =>
+        {
+            target.Progress = value.Fraction ?? 0;
+            target.Status = value.TotalBytes is { } total ? $"{value.BytesReceived / 1_000_000d:F0} / {total / 1_000_000d:F0} MB" : $"{value.BytesReceived / 1_000_000d:F0} MB";
+        });
+        try
+        {
+            var result = await _manager.DownloadAsync(target.Model, progress, download.Token);
+            target.Installed = result.IsSuccess;
+            target.Status = result.IsSuccess ? "Installed" : result.Failure!.Message;
+            if (result.IsSuccess) Status.Success("Model installed");
+            else Status.Failure($"models.{result.Failure!.Code.ToString().ToLowerInvariant()}", result.Failure.Message);
+        }
+        catch (OperationCanceledException) { target.Status = "Download cancelled"; Status.Failure("models.cancelled", "Model download cancelled."); }
+        catch (HttpRequestException) { target.Status = "Network download failed"; Status.Failure("models.network_failed", "The model download could not reach its source."); }
+        catch (Exception) { target.Status = "Download failed"; Status.Failure("models.download_failed", "The model download failed unexpectedly."); }
+        finally
+        {
+            download.Dispose();
+            if (ReferenceEquals(_download, download)) _download = null;
+            RaiseCommands();
+        }
+    }
+    public Task DeleteAsync()
+    {
+        if (Selected is null) return Task.CompletedTask;
+        var result = _manager.Delete(Selected.Model);
+        if (result.IsSuccess) { Selected.Installed = false; Selected.Progress = 0; Selected.Status = "Not installed"; Status.Success("Model deleted"); }
+        else Status.Failure("models.delete_failed", result.Failure!.Message);
+        RaiseCommands(); return Task.CompletedTask;
+    }
+    public void Dispose() { _download?.Cancel(); _download?.Dispose(); }
+    private void RaiseCommands() { ((AsyncCommand)DownloadCommand).RaiseCanExecuteChanged(); ((AsyncCommand)CancelCommand).RaiseCanExecuteChanged(); ((AsyncCommand)DeleteCommand).RaiseCanExecuteChanged(); }
+}
+
+public sealed class BackupViewModel : ViewModelBase
+{
+    private readonly ApplicationBackupService _service;
+    private string _path = string.Empty;
+    public BackupViewModel(ApplicationBackupService service)
+    {
+        _service = service;
+        ExportCommand = new AsyncCommand(_ => ExportAsync());
+        ImportCommand = new AsyncCommand(_ => ImportAsync());
+    }
+    public string Path { get => _path; set => Set(ref _path, value); }
+    public UiStatus Status { get; } = new();
+    public ICommand ExportCommand { get; }
+    public ICommand ImportCommand { get; }
+    public event EventHandler? Imported;
+
+    public async Task ExportAsync(CancellationToken cancellationToken = default)
+    {
+        if (!System.IO.Path.IsPathFullyQualified(Path)) { Status.Failure("backup.path_required", "Choose a backup destination."); return; }
+        try { await File.WriteAllTextAsync(Path, await _service.ExportAsync(cancellationToken), cancellationToken); Status.Success("Universal backup exported"); }
+        catch (Exception) { Status.Failure("backup.export_failed", "Could not export the universal backup."); }
+    }
+    public async Task ImportAsync(CancellationToken cancellationToken = default)
+    {
+        if (!System.IO.Path.IsPathFullyQualified(Path)) { Status.Failure("backup.path_required", "Choose a backup file."); return; }
+        try
+        {
+            var result = await _service.ImportAsync(await File.ReadAllTextAsync(Path, cancellationToken), cancellationToken);
+            if (result.IsFailure) Status.Failure(result.Error!.Code, result.Error.Message);
+            else { Status.Success("Universal backup imported"); Imported?.Invoke(this, EventArgs.Empty); }
+        }
+        catch (Exception) { Status.Failure("backup.import_failed", "Could not import the universal backup."); }
+    }
+}
+
+public sealed record CredentialAccount(string Account, string DisplayName, bool IsPresent);
+
+public sealed class CredentialManagementViewModel : ViewModelBase
+{
+    private const string Resource = "HyperWhisper";
+    private readonly ICredentialStore _store;
+    private CredentialAccount? _selected;
+    private string _secret = string.Empty;
+    public CredentialManagementViewModel(ICredentialStore store)
+    {
+        _store = store;
+        SaveCommand = new AsyncCommand(_ => SaveAsync());
+        DeleteCommand = new AsyncCommand(_ => DeleteAsync());
+        Refresh();
+    }
+    public ObservableCollection<CredentialAccount> Items { get; } = new();
+    public CredentialAccount? Selected { get => _selected; set => Set(ref _selected, value); }
+    public string Secret { get => _secret; set => Set(ref _secret, value); }
+    public UiStatus Status { get; } = new();
+    public ICommand SaveCommand { get; }
+    public ICommand DeleteCommand { get; }
+    public void Refresh()
+    {
+        Items.Clear();
+        foreach (var pair in Accounts)
+        {
+            var read = _store.Read(Resource, pair.Account);
+            var present = read.IsSuccess && read.Value is { Length: > 0 } bytes;
+            if (read.Value is { } sensitive) CryptographicOperations.ZeroMemory(sensitive);
+            Items.Add(new(pair.Account, pair.Name, present));
+        }
+        Selected = Items.FirstOrDefault();
+    }
+    public Task SaveAsync()
+    {
+        if (Selected is null || string.IsNullOrWhiteSpace(Secret)) { Status.Failure("credentials.value_required", "Select a credential and enter its value."); return Task.CompletedTask; }
+        var bytes = Encoding.UTF8.GetBytes(Secret.Trim());
+        try
+        {
+            var result = _store.Write(Resource, Selected.Account, bytes);
+            Secret = string.Empty;
+            if (result.IsFailure) Status.Failure(result.Error!.Code, result.Error.Message);
+            else { Refresh(); Status.Success("Credential saved securely"); }
+        }
+        finally { CryptographicOperations.ZeroMemory(bytes); }
+        return Task.CompletedTask;
+    }
+    public Task DeleteAsync()
+    {
+        if (Selected is null) { Status.Failure("credentials.selection_required", "Select a credential."); return Task.CompletedTask; }
+        var result = _store.Delete(Resource, Selected.Account);
+        Secret = string.Empty;
+        if (result.IsFailure) Status.Failure(result.Error!.Code, result.Error.Message);
+        else { Refresh(); Status.Success("Credential deleted"); }
+        return Task.CompletedTask;
+    }
+    private static readonly (string Account, string Name)[] Accounts =
+    [
+        ("OpenAIApiKey", "OpenAI API key"), ("GroqApiKey", "Groq API key"),
+        ("DeepgramApiKey", "Deepgram API key"), ("AssemblyAIApiKey", "AssemblyAI API key"),
+        ("ElevenLabsApiKey", "ElevenLabs API key"), ("MistralApiKey", "Mistral API key"),
+        ("SonioxApiKey", "Soniox API key"), ("GeminiApiKey", "Gemini API key"),
+        ("GrokApiKey", "xAI/Grok API key"), ("LicenseKey", "HyperWhisper account key")
+    ];
 }
 
 public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
@@ -465,25 +827,49 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
         ApplicationDb database,
         PortableSettingsService settings,
         TranscriptionWorkflow? transcriptionWorkflow = null,
-        string localLlmRuntimeStatus = "Local LLM runtime not connected")
+        string localLlmRuntimeStatus = "Local LLM runtime not connected",
+        PortableModelManager? modelManager = null,
+        IAudioPlaybackService? playback = null,
+        DurableAudioImportService? audioImport = null,
+        IAppPaths? paths = null,
+        ICredentialStore? credentials = null)
     {
         _database = database;
-        var historyRepository = new HistoryRepository(database);
+        var historyRepository = new HistoryRepository(database, paths);
         var vocabularyRepository = new VocabularyRepository(database);
         var modeRepository = new ModeRepository(database);
-        History = new HistoryViewModel(historyRepository);
         Vocabulary = new VocabularyViewModel(vocabularyRepository);
         Modes = new ModesViewModel(modeRepository);
         Settings = new SettingsViewModel(settings, localLlmRuntimeStatus);
+        History = new HistoryViewModel(historyRepository, playback, transcriptionWorkflow is null ? null : async (item, token) =>
+        {
+            var audioPath = item.AudioFilePath;
+            if (string.IsNullOrWhiteSpace(audioPath) || !File.Exists(audioPath)) throw new FileNotFoundException();
+            var retryMode = Modes.Items.FirstOrDefault(mode => item.ModeId is { } modeId && mode.Id == modeId)
+                ?? Modes.Items.FirstOrDefault(mode => string.Equals(mode.Name, item.Mode, StringComparison.OrdinalIgnoreCase))
+                ?? Modes.Items.FirstOrDefault(mode => mode.IsDefault)
+                ?? Modes.Selected;
+            _ = await transcriptionWorkflow!.TranscribeFileAsync(audioPath, new(
+                Settings.Language,
+                retryMode?.Name ?? item.Mode,
+                retryMode?.Id ?? item.ModeId,
+                retryMode,
+                Vocabulary.Items.Select(term => term.Word).ToArray()), token);
+        });
+        Models = modelManager is null ? null : new ModelLibraryViewModel(modelManager);
+        Backup = new BackupViewModel(new ApplicationBackupService(database, settings));
+        Credentials = credentials is null ? null : new CredentialManagementViewModel(credentials);
         Recording = transcriptionWorkflow is null ? null : new TranscriptionWorkflowViewModel(
             transcriptionWorkflow,
             () => new TranscriptionWorkflowRequest(
                 Settings.Language,
                 Modes.Selected?.Name,
                 Modes.Selected?.Id,
-                Modes.Selected));
+                Modes.Selected,
+                Vocabulary.Items.Select(item => item.Word).ToArray()), audioImport);
         Home = new HomeViewModel(historyRepository, vocabularyRepository, modeRepository, Recording);
         if (Recording is not null) Recording.TranscriptionSaved += OnTranscriptionSaved;
+        Backup.Imported += OnBackupImported;
         _currentPage = Home;
     }
 
@@ -492,6 +878,9 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
     public VocabularyViewModel Vocabulary { get; }
     public ModesViewModel Modes { get; }
     public SettingsViewModel Settings { get; }
+    public ModelLibraryViewModel? Models { get; }
+    public BackupViewModel Backup { get; }
+    public CredentialManagementViewModel? Credentials { get; }
     public TranscriptionWorkflowViewModel? Recording { get; }
     public UiStatus Status { get; } = new();
     public object? CurrentPage { get => _currentPage; private set => Set(ref _currentPage, value); }
@@ -529,6 +918,9 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
             "vocabulary" => ("Vocabulary", Vocabulary),
             "modes" => ("Modes", Modes),
             "settings" => ("Settings", Settings),
+            "models" when Models is not null => ("Models", Models),
+            "backup" => ("Backup", Backup),
+            "credentials" when Credentials is not null => ("Credentials", Credentials),
             _ => throw new ArgumentException("Unknown navigation page.", nameof(pageId))
         };
         PageTitle = selection.Title;
@@ -542,8 +934,20 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
         _disposed = true;
         _lifetime.Cancel();
         if (Recording is not null) Recording.TranscriptionSaved -= OnTranscriptionSaved;
+        Backup.Imported -= OnBackupImported;
+        Models?.Dispose();
         Recording?.Dispose();
         _lifetime.Dispose();
+    }
+
+    private async void OnBackupImported(object? sender, EventArgs e)
+    {
+        try
+        {
+            Settings.Load();
+            await Task.WhenAll(Home.RefreshAsync(_lifetime.Token), History.RefreshAsync(_lifetime.Token), Vocabulary.RefreshAsync(_lifetime.Token), Modes.RefreshAsync(_lifetime.Token));
+        }
+        catch (Exception) { Status.Failure("backup.refresh_failed", "Backup imported, but the views could not be refreshed."); }
     }
 
     private async void OnTranscriptionSaved(object? sender, EventArgs e)

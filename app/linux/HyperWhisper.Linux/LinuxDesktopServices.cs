@@ -2,8 +2,10 @@ using HyperWhisper.Linux.Platform.Files;
 using HyperWhisper.Linux.Platform.Input;
 using HyperWhisper.Linux.Platform.Audio;
 using HyperWhisper.Linux.Platform.Injection;
+using HyperWhisper.Linux.Platform.Security;
 using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.SharedCore;
+using HyperWhisper.PortableApplication.Transcription;
 
 namespace HyperWhisper.Linux;
 
@@ -15,19 +17,23 @@ internal sealed class LinuxDesktopServices : IDisposable
     {
         Paths = new LinuxAppPaths();
         PrivateFiles = new LinuxPrivateFileService();
+        CredentialStore = new LinuxCredentialStore();
         GlobalShortcuts = new LinuxGlobalShortcutService();
         AudioDevices = new PulseAudioInputDeviceService();
         AudioRecorder = new PulseAudioRecorder(Paths);
-        AudioTranscriber = new LinuxLocalWhisperTranscriber(Paths.ModelsDirectory);
+        AudioTranscriber = LinuxModeAwareTranscriptionFactory.Create(Paths);
+        AudioPlayback = new PulseAudioPlaybackService();
         TextInjection = new LinuxTextInjectionService();
     }
 
     public IAppPaths Paths { get; }
     public IPrivateFileService PrivateFiles { get; }
+    public ICredentialStore CredentialStore { get; }
     public IGlobalShortcutService GlobalShortcuts { get; }
     public IAudioInputDeviceService AudioDevices { get; }
     public IAudioRecorder AudioRecorder { get; }
-    public LinuxLocalWhisperTranscriber AudioTranscriber { get; }
+    public IRecordedAudioTranscriber AudioTranscriber { get; }
+    public IAudioPlaybackService AudioPlayback { get; }
     public ITextInjectionService TextInjection { get; }
 
     public bool ProbeSharedCore() =>
@@ -46,7 +52,8 @@ internal sealed class LinuxDesktopServices : IDisposable
         GlobalShortcuts.Dispose();
         AudioRecorder.Dispose();
         AudioDevices.Dispose();
-        AudioTranscriber.Dispose();
+        if (AudioTranscriber is IDisposable transcriber) transcriber.Dispose();
+        AudioPlayback.Dispose();
         TextInjection.Dispose();
     }
 }

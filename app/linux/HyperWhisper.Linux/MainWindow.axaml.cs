@@ -7,6 +7,8 @@ using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.PortableApplication.ViewModels;
 using HyperWhisper.PortableApplication.Transcription;
 using Avalonia.Platform.Storage;
+using HyperWhisper.LocalApi;
+using HyperWhisper.ModelManagement;
 
 namespace HyperWhisper.Linux;
 
@@ -16,6 +18,11 @@ public partial class MainWindow : Window
     private readonly ApplicationDb _database;
     private readonly ApplicationShellViewModel _viewModel;
     private readonly LinuxLocalPostProcessor _postProcessor;
+    private readonly PortableSettingsService _settings;
+    private readonly PortableModelManager _modelManager;
+    private readonly HttpClient _modelHttp = new();
+    private readonly TranscriptionWorkflow _workflow;
+    private PortableLocalApiHost? _localApiHost;
     private Task? _initialization;
 
     public MainWindow() : this(new LinuxDesktopServices())
@@ -27,36 +34,76 @@ public partial class MainWindow : Window
     {
         _platformServices = platformServices ?? throw new ArgumentNullException(nameof(platformServices));
         _database = new ApplicationDb(_platformServices.Paths);
-        var settings = new PortableSettingsService(_platformServices.PrivateFiles, _platformServices.Paths);
+        _settings = new PortableSettingsService(_platformServices.PrivateFiles, _platformServices.Paths);
+        _modelManager = new PortableModelManager(_platformServices.Paths, _modelHttp);
         _postProcessor = new LinuxLocalPostProcessor(
-            _platformServices.Paths.ModelsDirectory, settings, _database);
-        var workflow = new TranscriptionWorkflow(
+            _platformServices.Paths.ModelsDirectory, _settings, _database);
+        _workflow = new TranscriptionWorkflow(
             _platformServices.AudioRecorder,
             _platformServices.AudioDevices,
             _platformServices.AudioTranscriber,
-            new HistoryRepository(_database),
+            new HistoryRepository(_database, _platformServices.Paths),
             _postProcessor,
             _platformServices.TextInjection);
         _viewModel = new ApplicationShellViewModel(
-            _database, settings, workflow, LinuxLocalPostProcessor.RuntimeStatus);
+            _database, _settings, _workflow, LinuxLocalPostProcessor.RuntimeStatus,
+            _modelManager, _platformServices.AudioPlayback,
+            new DurableAudioImportService(_platformServices.PrivateFiles, _platformServices.Paths),
+            _platformServices.Paths, _platformServices.CredentialStore);
         InitializeComponent();
         DataContext = _viewModel;
         PlatformStatusText.Text = $"Linux platform connected · {_platformServices.Paths.DataDirectory}";
         Opened += OnOpened;
         Closed += OnClosed;
+        _viewModel.Settings.LocalApiSettingsChanged += OnLocalApiSettingsChanged;
     }
 
-    private async void OnOpened(object? sender, EventArgs e) => await EnsureInitializedAsync();
+    private async void OnOpened(object? sender, EventArgs e)
+    {
+        await EnsureInitializedAsync();
+        await ApplyLocalApiSettingsAsync();
+    }
 
     private void OnClosed(object? sender, EventArgs e)
     {
         Opened -= OnOpened;
         Closed -= OnClosed;
+        _viewModel.Settings.LocalApiSettingsChanged -= OnLocalApiSettingsChanged;
+        if (_localApiHost is not null) _localApiHost.DisposeAsync().AsTask().GetAwaiter().GetResult();
         _viewModel.Dispose();
         _postProcessor.Dispose();
+        _modelHttp.Dispose();
     }
 
     private Task EnsureInitializedAsync() => _initialization ??= _viewModel.InitializeAsync();
+
+    private async void OnLocalApiSettingsChanged(object? sender, EventArgs e) => await ApplyLocalApiSettingsAsync();
+
+    private async Task ApplyLocalApiSettingsAsync()
+    {
+        if (_localApiHost is not null)
+        {
+            await _localApiHost.DisposeAsync();
+            _localApiHost = null;
+        }
+        if (!_viewModel.Settings.LocalApiEnabled) return;
+        var modes = new ModeRepository(_database);
+        var backend = new ApplicationLocalApiBackend(
+            modes,
+            new HistoryRepository(_database, _platformServices.Paths),
+            _workflow,
+            new LinuxLocalApiCapabilityCatalog(_modelManager, _platformServices.AudioTranscriber),
+            _platformServices.PrivateFiles,
+            _platformServices.Paths,
+            "1.0.0",
+            new LinuxLocalApiPostProcessor(_postProcessor, modes));
+        _localApiHost = new PortableLocalApiHost(
+            _platformServices.PrivateFiles, _platformServices.Paths, backend, "1.0.0",
+            _viewModel.Settings.LocalApiPort);
+        var state = await _localApiHost.StartAsync();
+        if (!state.IsRunning)
+            _viewModel.Settings.Status.Failure(state.Failure?.Code ?? "local_api.start_failed", state.Failure?.Message ?? "Local API could not start.");
+    }
 
     private void OnNavigationChanged(object? sender, SelectionChangedEventArgs e)
     {
@@ -111,6 +158,9 @@ public partial class MainWindow : Window
                 ["modes"] = "ModeSaveButton",
                 ["history"] = "HistoryDeleteButton",
                 ["vocabulary"] = "VocabularyAddButton",
+                ["models"] = "ModelDownloadButton",
+                ["backup"] = "BackupExportButton",
+                ["credentials"] = "CredentialSaveButton",
                 ["settings"] = "SettingsSaveButton"
             };
             foreach (var page in expectedControls)
@@ -126,11 +176,30 @@ public partial class MainWindow : Window
             await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
             if (!HasVisibleControl("ModeLocalPostProcessingEnabled")
                 || !HasVisibleControl("ModeLocalPostProcessingModel")
-                || !HasVisibleControl("ModeUserSystemPrompt")) return 9;
+                || !HasVisibleControl("ModeUserSystemPrompt")
+                || !HasVisibleControl("ModeProviderType")
+                || !HasVisibleControl("ModeLocalEngine")
+                || !HasVisibleControl("ModeTranscriptionModel")
+                || !HasVisibleControl("ModeCloudProvider")
+                || !HasVisibleControl("ModeCloudAccuracyTier")
+                || !HasVisibleControl("ModeCloudDomain")
+                || !HasVisibleControl("ModeGeminiPrompt")
+                || !HasVisibleControl("ModeCustomVocabulary")
+                || !HasVisibleControl("ModeEnableScreenOcr")) return 9;
+            _viewModel.Navigate("history");
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+            if (!HasVisibleControl("HistorySearchInput") || !HasVisibleControl("HistoryPlayButton")
+                || !HasVisibleControl("HistoryRetryButton") || !HasVisibleControl("HistoryDeleteAudio")) return 11;
+            _viewModel.Navigate("vocabulary");
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
+            if (!HasVisibleControl("VocabularyTransferPath") || !HasVisibleControl("VocabularyImportButton")
+                || !HasVisibleControl("VocabularyExportButton")) return 12;
             _viewModel.Navigate("settings");
             await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
             if (!HasVisibleControl("SettingsLocalLlmBackend")
-                || !HasVisibleControl("SettingsLocalLlmCpuFallback")) return 10;
+                || !HasVisibleControl("SettingsLocalLlmCpuFallback")
+                || !HasVisibleControl("SettingsLocalApiEnabled")
+                || !HasVisibleControl("SettingsLocalApiPort")) return 10;
 
             if (_viewModel.History.Items.Count == 0
                 || _viewModel.Vocabulary.Items.Count == 0

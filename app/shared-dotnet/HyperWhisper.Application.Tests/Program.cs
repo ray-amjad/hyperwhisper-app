@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json.Nodes;
 using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Platform.Abstractions;
@@ -62,6 +63,17 @@ try
     var exported = await backupService.ExportAsync();
     Assert(exported.Contains("Portable Updated", StringComparison.Ordinal), "backup omitted modes");
     Assert(exported.Contains("HyperWhisper", StringComparison.Ordinal), "backup omitted vocabulary");
+    Assert(!exported.Contains("apiKeys", StringComparison.Ordinal), "backup exported an API-key container without explicit opt-in");
+    var nonIntegerVersion = JsonNode.Parse(exported)!.AsObject();
+    nonIntegerVersion["schemaVersion"] = "2";
+    Assert((await backupService.ImportAsync(nonIntegerVersion.ToJsonString())).Error?.Code == "backup.unsupported_version",
+        "non-integer schemaVersion escaped structured validation");
+    var extendedBackup = JsonNode.Parse(exported)!.AsObject();
+    var extensionSlices = extendedBackup["platformExtensions"]!.AsObject();
+    extensionSlices["windows"] = new JsonObject { ["futureWindows"] = 17 };
+    extensionSlices["macos"] = new JsonObject { ["futureMac"] = "keep" };
+    extensionSlices["linux"]!["futureLinux"] = true;
+    exported = extendedBackup.ToJsonString();
 
     Assert(await history.DeleteAsync(transcript.Id), "history delete failed");
     Assert(await vocabulary.DeleteAsync(vocabularyItem.Id), "vocabulary delete failed");
@@ -75,16 +87,46 @@ try
     Assert(reloadedSettings.Get<string>("language") == "fr", "failed backup import changed in-memory settings");
     files.FailWrites = false;
     Assert((await backupService.ImportAsync(exported)).IsSuccess, "backup import failed");
-    Assert((await history.GetAsync(transcript.Id))?.Text == "updated history", "backup did not restore history");
+    Assert(await history.GetAsync(transcript.Id) is null, "universal-v2 backup unexpectedly invented transcript history");
     Assert((await vocabulary.ListAsync()).Single().Word == "HyperWhisper", "backup did not restore vocabulary");
     Assert((await modes.ListAsync()).Single().Name == "Portable Updated", "backup did not restore modes");
     Assert(reloadedSettings.Get<string>("language") == "en", "backup did not restore settings");
+    var reexported = JsonNode.Parse(await backupService.ExportAsync())!.AsObject()["platformExtensions"]!.AsObject();
+    Assert(reexported["windows"]?["futureWindows"]?.GetValue<int>() == 17
+        && reexported["macos"]?["futureMac"]?.GetValue<string>() == "keep"
+        && reexported["linux"]?["futureLinux"]?.GetValue<bool>() == true,
+        "backup did not preserve unknown Linux and foreign platform extensions");
+    var malformedSettingsBackup = JsonNode.Parse(await backupService.ExportAsync())!.AsObject();
+    malformedSettingsBackup["platformExtensions"]!["linux"]!["settings"]!["language"] = 42;
+    var modesBeforeMalformedImport = (await modes.ListAsync()).Select(item => (item.Id, item.Name)).ToArray();
+    var malformedResult = await backupService.ImportAsync(malformedSettingsBackup.ToJsonString());
+    Assert(malformedResult.IsFailure && malformedResult.Error?.Code == "backup.invalid_settings",
+        "malformed Linux setting did not produce a structured failure");
+    Assert(reloadedSettings.Get<string>("language") == "en"
+        && modesBeforeMalformedImport.SequenceEqual((await modes.ListAsync()).Select(item => (item.Id, item.Name))),
+        "malformed Linux setting partially changed settings or database records");
+
+    var externalAudio = Path.Combine(Path.GetDirectoryName(root)!, $"external-{Guid.NewGuid():N}.wav");
+    await File.WriteAllBytesAsync(externalAudio, [7, 8, 9]);
+    var externalTranscript = new Transcript { Text = "external", Status = TranscriptStatus.Completed, AudioFilePath = externalAudio };
+    await history.AddAsync(externalTranscript);
+    var safeDeletion = await new HistoryRepository(database, paths).DeleteAsync(externalTranscript.Id, deleteAudio: true);
+    Assert(safeDeletion.TranscriptDeleted && !safeDeletion.AudioDeleted && File.Exists(externalAudio),
+        "history deletion erased caller-owned external audio");
+    File.Delete(externalAudio);
+
+    var largeSource = Path.Combine(root, "large-source.wav");
+    await using (var stream = new FileStream(largeSource, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+    { stream.SetLength(8 * 1024 * 1024); }
+    var importedAudio = await new DurableAudioImportService(new AcceptPrivateFileService(), paths).ImportAsync(largeSource);
+    Assert(importedAudio.IsSuccess && new FileInfo(importedAudio.Value!).Length == 8 * 1024 * 1024,
+        "durable audio importer did not stream a representative large file");
 
     using (var shell = new HyperWhisper.PortableApplication.ViewModels.ApplicationShellViewModel(database, reloadedSettings))
     {
         await shell.InitializeAsync();
         Assert(!shell.Status.HasError, $"shell initialization failed: {shell.Status.ErrorCode}");
-        foreach (var page in new[] { "home", "history", "vocabulary", "modes", "settings" })
+        foreach (var page in new[] { "home", "history", "vocabulary", "modes", "settings", "backup" })
         {
             shell.Navigate(page);
             Assert(shell.CurrentPage != null && shell.PageTitle.Length > 0, $"navigation failed for {page}");
@@ -114,11 +156,121 @@ try
             && localMode.LocalPostProcessingModel == "local-test.gguf"
             && localMode.UserSystemPrompt == "Keep the dictated wording.",
             "mode editor did not persist credential-free local LLM configuration");
+        shell.Modes.Selected = null;
+        shell.Modes.Name = "Cloud medical";
+        shell.Modes.ProviderType = "cloud";
+        shell.Modes.CloudProvider = "hyperwhisper";
+        shell.Modes.CloudAccuracyTier = "azureMaiTranscribe";
+        shell.Modes.CloudDomain = "medical";
+        shell.Modes.TranscriptionModel = "mai-1.5";
+        shell.Modes.GeminiPrompt = "Verbatim medical transcription";
+        shell.Modes.CustomVocabulary = "HyperWhisper, Ray, ray";
+        shell.Modes.EnableScreenOcr = true;
+        await shell.Modes.SaveAsync();
+        var cloudMode = (await new ModeRepository(database).ListAsync()).Single(item => item.Name == "Cloud medical");
+        Assert(cloudMode.CloudProvider == "hyperwhisper" && cloudMode.CloudAccuracyTier == "azureMaiTranscribe"
+            && cloudMode.CloudTranscriptionDomain == "medical" && cloudMode.CloudTranscriptionModel == "mai-1.5"
+            && cloudMode.CustomVocabulary?.Count == 2 && cloudMode.EnableScreenOCR,
+            "new cloud mode did not persist routing and context fields");
+        cloudMode.ModelType = "linux-model-type";
+        cloudMode.IsSystemProvided = true;
+        cloudMode.CreatedDate = new DateTime(2025, 2, 3, 4, 5, 6, DateTimeKind.Utc);
+        cloudMode.ModifiedDate = new DateTime(2026, 7, 8, 9, 10, 11, DateTimeKind.Utc);
+        await new ModeRepository(database).UpsertAsync(cloudMode);
+        var linuxModeBackup = JsonNode.Parse(await backupService.ExportAsync())!.AsObject();
+        var exportedCloudMode = linuxModeBackup["modes"]!.AsArray().Select(node => node!.AsObject())
+            .Single(node => node["name"]!.GetValue<string>() == "Cloud medical");
+        var linuxModeExtension = exportedCloudMode["platformExtensions"]!["linux"]!.AsObject();
+        Assert(linuxModeExtension["modelType"]!.GetValue<string>() == "linux-model-type"
+            && linuxModeExtension["enableScreenOCR"]!.GetValue<bool>()
+            && linuxModeExtension["customVocabulary"]!.AsArray().Count == 2
+            && linuxModeExtension["isSystemProvided"]!.GetValue<bool>()
+            && linuxModeExtension["createdDate"]!.GetValue<string>().StartsWith("2025-02-03T04:05:06", StringComparison.Ordinal)
+            && linuxModeExtension["modifiedDate"]!.GetValue<string>().StartsWith("2026-07-08T09:10:11", StringComparison.Ordinal),
+            "Linux mode extension omitted Linux-owned fields");
+        cloudMode.ModelType = "mutated"; cloudMode.EnableScreenOCR = false; cloudMode.CustomVocabulary = null;
+        cloudMode.IsSystemProvided = false; cloudMode.CreatedDate = DateTime.UtcNow; cloudMode.ModifiedDate = DateTime.UtcNow;
+        await new ModeRepository(database).UpsertAsync(cloudMode);
+        Assert((await backupService.ImportAsync(linuxModeBackup.ToJsonString())).IsSuccess,
+            "Linux mode extension round-trip import failed");
+        var restoredLinuxMode = (await new ModeRepository(database).ListAsync()).Single(item => item.Name == "Cloud medical");
+        Assert(restoredLinuxMode.ModelType == "linux-model-type" && restoredLinuxMode.EnableScreenOCR
+            && restoredLinuxMode.CustomVocabulary?.SequenceEqual(["HyperWhisper", "Ray"]) == true
+            && restoredLinuxMode.IsSystemProvided
+            && restoredLinuxMode.CreatedDate == new DateTime(2025, 2, 3, 4, 5, 6, DateTimeKind.Utc)
+            && restoredLinuxMode.ModifiedDate == new DateTime(2026, 7, 8, 9, 10, 11, DateTimeKind.Utc),
+            "Linux mode extension fields did not import exactly");
+        await shell.Modes.RefreshAsync();
+        shell.Modes.Selected = shell.Modes.Items.Single(item => item.Name == "Cloud medical");
+        Assert(shell.Modes.CloudProvider == "hyperwhisper" && shell.Modes.CloudDomain == "medical"
+            && shell.Modes.CustomVocabulary.Contains("HyperWhisper", StringComparison.Ordinal),
+            "cloud mode editor did not reload persisted provider fields");
+        shell.Modes.ProviderType = "local";
+        shell.Modes.LocalEngine = "whisper";
+        shell.Modes.TranscriptionModel = "not-in-catalog";
+        await shell.Modes.SaveAsync();
+        Assert(shell.Modes.Status.ErrorCode == "modes.local_model_invalid", "mode editor accepted an unknown local model ID");
         shell.Settings.LocalLlmBackend = "vulkan";
         shell.Settings.AllowLocalLlmCpuFallback = false;
         shell.Settings.Save();
         Assert(!shell.Settings.Status.HasError,
             "settings did not persist local LLM backend configuration");
+    }
+
+    var credentialStore = new MemoryCredentialStore();
+    var credentialViewModel = new HyperWhisper.PortableApplication.ViewModels.CredentialManagementViewModel(credentialStore);
+    credentialViewModel.Selected = credentialViewModel.Items.Single(item => item.Account == "OpenAIApiKey");
+    credentialViewModel.Secret = "test-secret-never-export";
+    await credentialViewModel.SaveAsync();
+    Assert(credentialViewModel.Items.Single(item => item.Account == "OpenAIApiKey").IsPresent
+        && credentialViewModel.Secret.Length == 0, "credential UI did not save securely or clear its input");
+    await credentialViewModel.DeleteAsync();
+    Assert(!credentialViewModel.Items.Single(item => item.Account == "OpenAIApiKey").IsPresent,
+        "credential UI did not delete the stored credential");
+
+    var delayedModels = new DelayedHttpHandler();
+    using (var modelHttp = new HttpClient(delayedModels))
+    {
+        var modelViewModel = new HyperWhisper.PortableApplication.ViewModels.ModelLibraryViewModel(
+            new HyperWhisper.ModelManagement.PortableModelManager(paths, modelHttp));
+        var downloadTarget = modelViewModel.Selected!;
+        var downloadTask = modelViewModel.DownloadAsync();
+        await delayedModels.Started.Task;
+        var otherModel = modelViewModel.Items.First(item => item.Id != downloadTarget.Id);
+        modelViewModel.Selected = otherModel;
+        modelViewModel.Dispose();
+        await downloadTask;
+        Assert(downloadTarget.Status.Contains("cancel", StringComparison.OrdinalIgnoreCase)
+            && otherModel.Status == "Not installed" && !otherModel.Installed,
+            "changing model selection redirected an in-flight download result to the wrong model");
+    }
+
+    var requestTranscriber = new FakeTranscriber((_, _, _) => Task.FromResult(PortableTranscriptionResult.Success("vocabulary routed", "test")));
+    var requestAudio = Path.Combine(root, "request-vocabulary.wav");
+    await File.WriteAllBytesAsync(requestAudio, [1]);
+    using (var requestDevices = new FakeDevices())
+    using (var requestRecorder = new FakeRecorder(requestAudio))
+    using (var requestWorkflow = new TranscriptionWorkflow(requestRecorder, requestDevices, requestTranscriber, new HistoryRepository(database, paths)))
+    using (var requestShell = new HyperWhisper.PortableApplication.ViewModels.ApplicationShellViewModel(database, reloadedSettings, requestWorkflow))
+    {
+        await requestShell.InitializeAsync();
+        var retryTargetMode = requestShell.Modes.Items.Single(item => item.Name == "Cloud medical");
+        requestShell.Modes.Selected = requestShell.Modes.Items.First(item => item.Id != retryTargetMode.Id);
+        var retryTranscript = new Transcript
+        {
+            Text = "retry target", Status = TranscriptStatus.Completed, AudioFilePath = requestAudio,
+            ModeId = retryTargetMode.Id, Mode = retryTargetMode.Name
+        };
+        await new HistoryRepository(database, paths).AddAsync(retryTranscript);
+        await requestShell.History.RefreshAsync();
+        requestShell.History.Selected = requestShell.History.Items.Single(item => item.Id == retryTranscript.Id);
+        await requestShell.History.RetryAsync();
+        Assert(requestTranscriber.LastRequest?.SelectedMode?.Id == retryTargetMode.Id,
+            "history retry used the currently selected mode instead of the transcript's persisted mode");
+        requestShell.Recording!.FilePath = requestAudio;
+        await requestShell.Recording.TranscribeFileAsync();
+        Assert(requestTranscriber.LastRequest?.Vocabulary?.Contains("HyperWhisper") == true,
+            "transcription routing request omitted persisted global vocabulary");
     }
 
     var failingHome = new HyperWhisper.PortableApplication.ViewModels.HomeViewModel(
@@ -546,6 +698,38 @@ file sealed class MemoryPrivateFileService : IPrivateFileService
 
     public PlatformResult<bool> IsRestrictedToCurrentUser(string path)
         => PlatformResult<bool>.Success(_files.ContainsKey(path));
+}
+
+file sealed class AcceptPrivateFileService : IPrivateFileService
+{
+    public PlatformResult WriteAllBytesAtomically(string path, ReadOnlySpan<byte> contents) => PlatformResult.Success();
+    public PlatformResult WriteAllTextAtomically(string path, string contents) => PlatformResult.Success();
+    public PlatformResult<byte[]?> ReadAllBytes(string path) => PlatformResult<byte[]?>.Success(null);
+    public PlatformResult<string?> ReadAllText(string path) => PlatformResult<string?>.Success(null);
+    public PlatformResult Delete(string path) { if (File.Exists(path)) File.Delete(path); return PlatformResult.Success(); }
+    public PlatformResult<bool> IsRestrictedToCurrentUser(string path) => PlatformResult<bool>.Success(File.Exists(path));
+}
+
+file sealed class MemoryCredentialStore : ICredentialStore
+{
+    private readonly Dictionary<(string Resource, string Account), byte[]> _values = [];
+    public PlatformResult<byte[]?> Read(string resource, string account) => PlatformResult<byte[]?>.Success(
+        _values.TryGetValue((resource, account), out var value) ? value.ToArray() : null);
+    public PlatformResult Write(string resource, string account, ReadOnlySpan<byte> value)
+    { _values[(resource, account)] = value.ToArray(); return PlatformResult.Success(); }
+    public PlatformResult Delete(string resource, string account)
+    { _values.Remove((resource, account)); return PlatformResult.Success(); }
+}
+
+file sealed class DelayedHttpHandler : HttpMessageHandler
+{
+    public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        Started.TrySetResult();
+        await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+        throw new InvalidOperationException("unreachable");
+    }
 }
 
 file sealed class FakeDevices : IAudioInputDeviceService
