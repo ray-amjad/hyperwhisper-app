@@ -2326,6 +2326,11 @@ public sealed class CredentialManagementViewModel : ViewModelBase
         }
         Selected = Items.FirstOrDefault();
     }
+    public void SelectAccount(string account)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(account);
+        Selected = Items.FirstOrDefault(item => string.Equals(item.Account, account, StringComparison.Ordinal));
+    }
     public Task SaveAsync()
     {
         if (Selected is null || string.IsNullOrWhiteSpace(Secret)) { Status.Failure("credentials.value_required", "Select a credential and enter its value."); return Task.CompletedTask; }
@@ -2385,7 +2390,8 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
         IDeviceIdentityProvider? deviceIdentity = null,
         string deviceName = "Linux device",
         Func<Uri, PlatformResult>? openAccountUri = null,
-        ITextInjectionService? historyTextInjection = null)
+        ITextInjectionService? historyTextInjection = null,
+        ModelReadinessService? modelReadiness = null)
     {
         _database = database;
         var historyRepository = new HistoryRepository(database, paths);
@@ -2416,7 +2422,7 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
                 OutputOptions: BuildOutputOptions(retryMode),
                 PasteResultText: Settings.PasteResultText), token);
         }, retryModes: Modes.Items, textInjection: historyTextInjection);
-        Models = modelManager is null ? null : new ModelLibraryViewModel(modelManager);
+        Models = modelManager is null ? null : new ModelLibraryViewModel(modelManager, modelReadiness);
         Backup = new BackupViewModel(new ApplicationBackupService(database, settings));
         Credentials = credentials is null ? null : new CredentialManagementViewModel(credentials);
         Account = cloudAccount is not null && deviceIdentity is not null && openAccountUri is not null

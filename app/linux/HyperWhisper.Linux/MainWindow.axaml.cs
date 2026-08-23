@@ -19,6 +19,8 @@ using HyperWhisper.TranscriptionRouting;
 using HyperWhisper.CloudAccount;
 using System.Diagnostics;
 using HyperWhisper.Storage;
+using HyperWhisper.ModelReadiness;
+using HyperWhisper.PortableApplication.ModelLibrary;
 
 namespace HyperWhisper.Linux;
 
@@ -107,7 +109,11 @@ public partial class MainWindow : Window
             _platformServices.DeviceIdentity,
             Environment.MachineName,
             OpenAccountUri,
-            _platformServices.TextInjection);
+            _platformServices.TextInjection,
+            ModelReadinessComposition.Create(
+                _modelManager,
+                _platformServices.CredentialStore,
+                new LinuxMetadataOnlyHealthProbe()));
         var history = new HistoryRepository(_database, _platformServices.Paths);
         var contextCapture = new LinuxContextCaptureCoordinator(
             _platformServices.ApplicationContext, _platformServices.ScreenOcr);
@@ -244,6 +250,34 @@ public partial class MainWindow : Window
         if (file is null) return;
         _viewModel.Backup.Path = file.Path.LocalPath;
         await _viewModel.Backup.ExportAsync(_lifetime.Token);
+    }
+
+    private void OnModelCredentialAction(object? sender, RoutedEventArgs e)
+    {
+        var action = _viewModel.Models?.Selected?.CredentialNavigationActionId;
+        if (action == "navigate.account")
+        {
+            NavigateFromModel("account");
+            return;
+        }
+        const string prefix = "navigate.credentials:";
+        if (action?.StartsWith(prefix, StringComparison.Ordinal) != true) return;
+        _viewModel.Credentials?.SelectAccount(action[prefix.Length..]);
+        NavigateFromModel("credentials");
+    }
+
+    private void OnModelAccountAction(object? sender, RoutedEventArgs e) => NavigateFromModel("account");
+
+    private void NavigateFromModel(string page)
+    {
+        try
+        {
+            _viewModel.Navigate(page);
+            foreach (var item in Navigation.Items.OfType<ListBoxItem>())
+                if (string.Equals(item.Tag?.ToString(), page, StringComparison.Ordinal))
+                { Navigation.SelectedItem = item; break; }
+        }
+        catch (ArgumentException) { _viewModel.Status.Failure("models.navigation_unavailable", "That setup page is unavailable in this build."); }
     }
 
     private async void OnLocalApiSettingsChanged(object? sender, EventArgs e)
