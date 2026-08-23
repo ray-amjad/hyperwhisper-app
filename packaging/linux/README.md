@@ -26,3 +26,32 @@ packaging/linux/scripts/test-package.sh
 
 The tests extract the package into a temporary root and run `postinst`/`postrm`
 there, leaving the host's groups, udev rules, and devices untouched.
+
+## Static APT repository
+
+Generate deterministic unsigned repository metadata from a built package:
+
+```bash
+SOURCE_DATE_EPOCH=0 packaging/linux/scripts/generate-apt-repository.sh \
+  --deb artifacts/linux/hyperwhisper_1.0.0_amd64.deb \
+  --output-dir artifacts/apt-repository
+```
+
+The output contains `pool/`, `Packages`, `Packages.gz`, and a checksum-complete
+`Release` file suitable for static hosting. The output directory must be new or
+empty; the generator refuses broad or symlink destinations and never deletes an
+existing repository.
+
+Unsigned metadata is the default. Signing occurs only when an operator supplies
+an existing private key file with `--signing-key-file`; the key is imported into
+a temporary `GNUPGHOME`, is never copied into repository output, and is deleted
+on exit. Signed output includes `InRelease`, `Release.gpg`, and the exported
+public `hyperwhisper-archive-keyring.asc` needed by repository consumers. CI
+obtains the private key from the optional `LINUX_APT_SIGNING_KEY` Production
+environment secret. No private key or passphrase belongs in this repository.
+
+Run the deterministic unsigned generator tests with:
+
+```bash
+packaging/linux/scripts/test-apt-repository.sh
+```

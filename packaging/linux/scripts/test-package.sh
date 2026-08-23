@@ -4,6 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 PACKAGE_PATH="${1:-}"
 PUBLISH_DIR="${HYPERWHISPER_PUBLISH_DIR:-/tmp/hyperwhisper-linux-publish}"
+EXPECTED_VERSION="${HYPERWHISPER_PACKAGE_VERSION:-1.0.0}"
 
 if [[ -z "$PACKAGE_PATH" ]]; then
     PACKAGE_PATH="$("$SCRIPT_DIR"/build-deb.sh --publish-dir "$PUBLISH_DIR" --output-dir /tmp)"
@@ -41,10 +42,12 @@ assert_file "$ROOTFS/usr/share/man/man1/hyperwhisper.1.gz"
 test -x "$ROOTFS/usr/lib/hyperwhisper/HyperWhisper"
 test "$(readlink "$ROOTFS/usr/bin/hyperwhisper")" = "../lib/hyperwhisper/HyperWhisper"
 test "$(dpkg-deb --field "$PACKAGE_PATH" Architecture)" = "amd64"
-test "$(dpkg-deb --field "$PACKAGE_PATH" Version)" = "1.0.0"
+test "$(dpkg-deb --field "$PACKAGE_PATH" Version)" = "$EXPECTED_VERSION"
 
 dependencies="$(dpkg-deb --field "$PACKAGE_PATH" Depends)"
-for dependency in libc6 libpulse0 libx11-6 libatspi2.0-0 tesseract-ocr udev xdg-desktop-portal; do
+for dependency in \
+    libc6 libpulse0 libx11-6 libatspi2.0-0 tesseract-ocr udev \
+    wl-clipboard xclip xdg-desktop-portal; do
     grep -qw "$dependency" <<< "$dependencies"
 done
 

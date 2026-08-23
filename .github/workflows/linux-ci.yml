@@ -16,6 +16,7 @@ on:
       - "shared-backup/**"
       - "packaging/linux/**"
       - ".github/workflows/linux-ci.yml"
+      - ".github/workflows/linux-release.yml"
   push:
     branches: [main]
     paths: *linux-paths
@@ -149,6 +150,7 @@ jobs:
           sudo DEBIAN_FRONTEND=noninteractive apt-get install --yes \
             dbus-x11 \
             desktop-file-utils \
+            dpkg-dev \
             file \
             lintian \
             libfontconfig1 \
@@ -268,6 +270,8 @@ jobs:
           shellcheck \
             packaging/linux/scripts/build-deb.sh \
             packaging/linux/scripts/test-package.sh \
+            packaging/linux/scripts/generate-apt-repository.sh \
+            packaging/linux/scripts/test-apt-repository.sh \
             packaging/linux/debian/postinst \
             packaging/linux/debian/postrm
           desktop-file-validate packaging/linux/debian/hyperwhisper.desktop
@@ -282,5 +286,6 @@ jobs:
 
           test -s "$package_path"
           packaging/linux/scripts/test-package.sh "$package_path"
+          packaging/linux/scripts/test-apt-repository.sh "$package_path"
           lintian --fail-on warning "$package_path"
           dpkg-deb --info "$package_path"

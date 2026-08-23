@@ -74,6 +74,8 @@ dpkg-deb --info "$HW_DEB" | tee "$HW_EVIDENCE_DIR/package-info.txt"
 sudo apt-get install --yes "$HW_DEB"
 dpkg-query -W -f='${Package} ${Version} ${Architecture}\n' hyperwhisper \
   | tee "$HW_EVIDENCE_DIR/package-installed.txt"
+command -v wl-copy wl-paste xclip \
+  | tee "$HW_EVIDENCE_DIR/text-injection-tools.txt"
 
 sudo usermod -aG hyperwhisper-input "$USER"
 printf 'Log out and back in now; do not continue in the old session.\n'
