@@ -31,6 +31,14 @@ var tests = new (string Name, Func<Task> Run)[]
     ("X11 XGrabKey host integration", X11GrabIntegration),
     ("X11 Display mutation is serialized with reader", X11ConcurrentMutationIntegration),
     ("StatusNotifierItem action protocol is bounded", StatusNotifierProtocol),
+    ("StatusNotifierItem accepts every allowlisted action", StatusNotifierAllowlist),
+    ("StatusNotifierItem rejects payload and casing variants", StatusNotifierRejectsPayloads),
+    ("StatusNotifierItem bounded reader drains oversized lines", StatusNotifierBoundedReader),
+    ("StatusNotifierItem dispatch is typed and subscriber-safe", StatusNotifierDispatch),
+    ("StatusNotifierItem preserves legacy window events", StatusNotifierLegacyEvents),
+    ("StatusNotifierItem helper exposes only fixed actions", StatusNotifierHelperManifest),
+    ("StatusNotifierItem helper disconnect is observable", StatusNotifierDisconnect),
+    ("StatusNotifierItem startup cancellation stops helper", StatusNotifierStartupCancellation),
     ("event dispatch isolates failing subscribers", IsolatesSubscribers),
     ("Pulse recorder writes private canonical WAV", PulseRecorderWritesWave),
     ("Pulse recorder reports unavailable capability", PulseRecorderUnavailable),
@@ -368,6 +376,147 @@ static Task StatusNotifierProtocol()
     Assert.Equal(StatusNotifierMessage.Quit, LinuxStatusNotifierItemService.ParseMessage("ACTION|quit"));
     Assert.Equal(StatusNotifierMessage.Unknown, LinuxStatusNotifierItemService.ParseMessage("ACTION|keystroke:secret"));
     return Task.CompletedTask;
+}
+
+static Task StatusNotifierAllowlist()
+{
+    var cases = new Dictionary<string, StatusNotifierMessage>(StringComparer.Ordinal)
+    {
+        ["record-start"] = StatusNotifierMessage.StartRecording,
+        ["record-stop"] = StatusNotifierMessage.StopRecording,
+        ["microphone-default"] = StatusNotifierMessage.SelectDefaultMicrophone,
+        ["microphone-previous"] = StatusNotifierMessage.SelectPreviousMicrophone,
+        ["microphone-next"] = StatusNotifierMessage.SelectNextMicrophone,
+        ["mode-cycle"] = StatusNotifierMessage.CycleMode,
+        ["transcribe-file"] = StatusNotifierMessage.TranscribeFile,
+        ["history"] = StatusNotifierMessage.OpenHistory,
+        ["settings"] = StatusNotifierMessage.OpenSettings,
+        ["help"] = StatusNotifierMessage.OpenHelp,
+        ["support"] = StatusNotifierMessage.OpenSupport,
+        ["feedback"] = StatusNotifierMessage.SendFeedback,
+        ["show"] = StatusNotifierMessage.Show,
+        ["hide"] = StatusNotifierMessage.Hide,
+        ["quit"] = StatusNotifierMessage.Quit,
+    };
+    foreach (var item in cases)
+        Assert.Equal(item.Value, LinuxStatusNotifierItemService.ParseMessage("ACTION|" + item.Key));
+    Assert.Equal(Enum.GetValues<StatusNotifierAction>().Length, cases.Count);
+    return Task.CompletedTask;
+}
+
+static Task StatusNotifierRejectsPayloads()
+{
+    string?[] rejected =
+    [
+        null, "", " ", "ACTION|", "action|show", "ACTION|SHOW", "ACTION|show ", " ACTION|show",
+        "ACTION|show|extra", "ACTION|microphone-next:device", "ACTION|history/path", "ACTION|settings?key=value",
+        "ACTION|record-start\0", "ACTION|quit\t", "ACTION|help\r", "ACTION|support\n",
+        "ACTION|transcript", "ACTION|credential", "ACTION|keystroke:secret", "EVENT|show",
+        new string('A', LinuxStatusNotifierItemService.MaximumProtocolLineLength + 1)
+    ];
+    foreach (var value in rejected)
+        Assert.Equal(StatusNotifierMessage.Unknown, LinuxStatusNotifierItemService.ParseMessage(value));
+
+    Assert.Equal(StatusNotifierMessage.Unsupported, LinuxStatusNotifierItemService.ParseMessage("CAPABILITY|future"));
+    return Task.CompletedTask;
+}
+
+static async Task StatusNotifierBoundedReader()
+{
+    var exact = new string('a', LinuxStatusNotifierItemService.MaximumProtocolLineLength);
+    using var reader = new StringReader(exact + "\n" + new string('b', 4096) + "\nACTION|show\n");
+    Assert.Equal(exact, await LinuxStatusNotifierItemService.ReadBoundedLineAsync(reader));
+    Assert.Equal(string.Empty, await LinuxStatusNotifierItemService.ReadBoundedLineAsync(reader));
+    Assert.Equal("ACTION|show", await LinuxStatusNotifierItemService.ReadBoundedLineAsync(reader));
+    Assert.Equal<string?>(null, await LinuxStatusNotifierItemService.ReadBoundedLineAsync(reader));
+}
+
+static Task StatusNotifierDispatch()
+{
+    using var service = new LinuxStatusNotifierItemService(null, null);
+    var actions = new List<StatusNotifierAction>();
+    service.ActionRequested += (_, _) => throw new InvalidOperationException("subscriber");
+    service.ActionRequested += (_, args) => actions.Add(args.Action);
+    foreach (var message in Enum.GetValues<StatusNotifierMessage>()) service.Dispatch(message);
+    Assert.Equal(Enum.GetValues<StatusNotifierAction>().Length, actions.Count);
+    Assert.Equal(string.Join(',', Enum.GetValues<StatusNotifierAction>()), string.Join(',', actions));
+    return Task.CompletedTask;
+}
+
+static Task StatusNotifierLegacyEvents()
+{
+    using var service = new LinuxStatusNotifierItemService(null, null);
+    var show = 0; var hide = 0; var quit = 0; var typed = 0;
+    service.ShowRequested += (_, _) => show++;
+    service.HideRequested += (_, _) => hide++;
+    service.QuitRequested += (_, _) => quit++;
+    service.ActionRequested += (_, _) => typed++;
+    service.Dispatch(StatusNotifierMessage.Show);
+    service.Dispatch(StatusNotifierMessage.Hide);
+    service.Dispatch(StatusNotifierMessage.Quit);
+    service.Dispatch(StatusNotifierMessage.Unknown);
+    Assert.Equal(1, show); Assert.Equal(1, hide); Assert.Equal(1, quit); Assert.Equal(3, typed);
+    return Task.CompletedTask;
+}
+
+static Task StatusNotifierHelperManifest()
+{
+    var sourcePath = Path.Combine(AppContext.BaseDirectory, "DesktopCompanions", "status-notifier.py");
+    var source = File.ReadAllText(sourcePath);
+    string[] actions =
+    [
+        "record-start", "record-stop", "microphone-default", "microphone-previous", "microphone-next",
+        "mode-cycle", "transcribe-file", "history", "settings", "help", "support", "feedback", "show", "hide", "quit"
+    ];
+    foreach (var action in actions) Assert.True(source.Contains("\"" + action + "\"", StringComparison.Ordinal));
+    Assert.True(source.Contains("if action in ACTIONS.values()", StringComparison.Ordinal));
+    Assert.True(!source.Contains("_data)", StringComparison.Ordinal));
+    Assert.True(!source.Contains("print(_data", StringComparison.Ordinal));
+    Assert.True(!source.Contains("device_name", StringComparison.OrdinalIgnoreCase));
+    return Task.CompletedTask;
+}
+
+static async Task StatusNotifierDisconnect()
+{
+    await WithTemporaryDirectoryAsync(async directory =>
+    {
+        var script = Path.Combine(directory, "helper.sh");
+        File.WriteAllText(script, "printf 'CAPABILITY|available\\nACTION|history\\n'\n");
+        var prior = Environment.GetEnvironmentVariable("DBUS_SESSION_BUS_ADDRESS");
+        Environment.SetEnvironmentVariable("DBUS_SESSION_BUS_ADDRESS", "test:tray");
+        try
+        {
+            using var service = new LinuxStatusNotifierItemService("/bin/sh", script);
+            var action = new TaskCompletionSource<StatusNotifierAction>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var unavailable = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            service.ActionRequested += (_, args) => action.TrySetResult(args.Action);
+            service.Unavailable += (_, _) => unavailable.TrySetResult();
+            Assert.Success(await service.StartAsync());
+            Assert.Equal(StatusNotifierAction.OpenHistory, await action.Task.WaitAsync(TimeSpan.FromSeconds(2)));
+            await unavailable.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        }
+        finally { Environment.SetEnvironmentVariable("DBUS_SESSION_BUS_ADDRESS", prior); }
+    });
+}
+
+static async Task StatusNotifierStartupCancellation()
+{
+    await WithTemporaryDirectoryAsync(async directory =>
+    {
+        var script = Path.Combine(directory, "helper.sh");
+        File.WriteAllText(script, "sleep 30\n");
+        var prior = Environment.GetEnvironmentVariable("DBUS_SESSION_BUS_ADDRESS");
+        Environment.SetEnvironmentVariable("DBUS_SESSION_BUS_ADDRESS", "test:tray");
+        try
+        {
+            using var service = new LinuxStatusNotifierItemService("/bin/sh", script);
+            using var cancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
+            var started = Stopwatch.StartNew();
+            await Assert.ThrowsAsync<OperationCanceledException>(() => service.StartAsync(cancellation.Token));
+            Assert.True(started.Elapsed < TimeSpan.FromSeconds(3));
+        }
+        finally { Environment.SetEnvironmentVariable("DBUS_SESSION_BUS_ADDRESS", prior); }
+    });
 }
 
 static async Task X11GrabIntegration()
