@@ -14,6 +14,7 @@
     <ProjectReference Include="..\HyperWhisper.CloudAccount\HyperWhisper.CloudAccount.csproj" />
     <ProjectReference Include="..\HyperWhisper.FileTranscription\HyperWhisper.FileTranscription.csproj" />
     <ProjectReference Include="..\HyperWhisper.ModelManagement\HyperWhisper.ModelManagement.csproj" />
+    <ProjectReference Include="..\HyperWhisper.ModelReadiness\HyperWhisper.ModelReadiness.csproj" />
     <ProjectReference Include="..\HyperWhisper.SharedCore\HyperWhisper.SharedCore.csproj" />
     <ProjectReference Include="..\HyperWhisper.SpeechOutput\HyperWhisper.SpeechOutput.csproj" />
     <ProjectReference Include="..\HyperWhisper.Storage\HyperWhisper.Storage.csproj" />
