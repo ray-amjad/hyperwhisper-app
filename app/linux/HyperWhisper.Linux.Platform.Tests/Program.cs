@@ -66,6 +66,24 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Secret Service keeps credential out of argv", SecretServiceArgvPrivacy),
     ("single-instance socket signals primary safely", SingleInstanceSocket),
     ("XDG autostart is atomic and owner-only", XdgAutostart),
+    ("push-to-talk emits only configured logical action", PushToTalkPrivacy),
+    ("push-to-talk double-press latches and unlatches", PushToTalkDoubleLock),
+    ("push-to-talk hold activation and release are debounced", PushToTalkHoldDebounce),
+    ("push-to-talk isolates event subscribers", PushToTalkSubscriberIsolation),
+    ("evdev interference is content-free", PushToTalkInterferencePrivacy),
+    ("push-to-talk active interference cancels without key data", PushToTalkActiveInterference),
+    ("device identity hashes machine id internally", DeviceIdentityHashesMachineId),
+    ("device identity persists owner-only fallback", DeviceIdentityFallback),
+    ("host device identity is privacy-preserving", HostDeviceIdentity),
+    ("microphone volume boosts and restores every channel", MicrophoneVolumeRoundTrip),
+    ("microphone volume reports pactl unsupported", MicrophoneVolumeUnsupported),
+    ("microphone keep-warm suspends and resumes child", MicrophoneKeepWarmLifecycle),
+    ("sound effects expose unsupported and safe success", SoundEffectsPaths),
+    ("audio environment mute restores exact prior state", AudioEnvironmentMuteRestore),
+    ("audio environment unchanged requires no backend", AudioEnvironmentUnchanged),
+    ("audio environment duck restores channel volumes", AudioEnvironmentDuckRestore),
+    ("UI dispatcher posts and invokes through context", UiDispatcherContext),
+    ("UI dispatcher cancellation skips queued work", UiDispatcherCancellation),
 };
 
 var failed = 0;
@@ -769,6 +787,219 @@ static Task XdgAutostart() => WithTemporaryDirectory(directory =>
     Assert.True(!File.Exists(path));
 });
 
+static Task PushToTalkPrivacy()
+{
+    var shortcuts = new FakeGlobalShortcutService(); var scheduler = new FakePushToTalkScheduler();
+    using var monitor = new LinuxPushToTalkMonitor(shortcuts, scheduler);
+    var pressed = 0; var released = 0;
+    monitor.Pressed += (_, _) => pressed++; monitor.Released += (_, _) => released++;
+    monitor.Configure(new PushToTalkConfiguration(PushToTalkMode.Modifier, ModifierSide.LeftAlt));
+    Assert.Success(monitor.Start());
+    Assert.Equal("push-to-talk", shortcuts.Registered!.Name);
+    Assert.Equal("LeftAlt", shortcuts.Registered.Shortcut.Key.Value);
+    shortcuts.Emit("unrelated", true); shortcuts.Emit("push-to-talk", true);
+    scheduler.Advance(TimeSpan.FromMilliseconds(249)); Assert.Equal(0, pressed);
+    scheduler.Advance(TimeSpan.FromMilliseconds(1)); shortcuts.Emit("push-to-talk", false);
+    scheduler.Advance(TimeSpan.FromMilliseconds(100));
+    Assert.Equal(1, pressed); Assert.Equal(1, released);
+    return Task.CompletedTask;
+}
+
+static Task PushToTalkDoubleLock()
+{
+    var shortcuts = new FakeGlobalShortcutService(); var scheduler = new FakePushToTalkScheduler();
+    using var monitor = new LinuxPushToTalkMonitor(shortcuts, scheduler);
+    var pressed = 0; var released = 0; monitor.Pressed += (_, _) => pressed++; monitor.Released += (_, _) => released++;
+    monitor.Configure(new PushToTalkConfiguration(PushToTalkMode.Modifier, DoublePressLock: true)); Assert.Success(monitor.Start());
+    shortcuts.Emit("push-to-talk", true); shortcuts.Emit("push-to-talk", false); scheduler.Advance(TimeSpan.FromMilliseconds(100));
+    shortcuts.Emit("push-to-talk", true); shortcuts.Emit("push-to-talk", false);
+    Assert.Equal(1, pressed); Assert.Equal(0, released);
+    shortcuts.Emit("push-to-talk", true); shortcuts.Emit("push-to-talk", false);
+    shortcuts.Emit("push-to-talk", true); shortcuts.Emit("push-to-talk", false);
+    Assert.Equal(0, released); // ignored during the two-second post-lock bounce window
+    scheduler.Advance(TimeSpan.FromMilliseconds(2000));
+    shortcuts.Emit("push-to-talk", true); shortcuts.Emit("push-to-talk", false);
+    shortcuts.Emit("push-to-talk", true); shortcuts.Emit("push-to-talk", false);
+    Assert.Equal(1, released);
+    shortcuts.Emit("push-to-talk", true); shortcuts.Emit("push-to-talk", false);
+    scheduler.Advance(TimeSpan.FromMilliseconds(100)); scheduler.Advance(TimeSpan.FromMilliseconds(1500));
+    Assert.Equal(2, pressed); Assert.Equal(2, released);
+    return Task.CompletedTask;
+}
+
+static Task PushToTalkHoldDebounce()
+{
+    var shortcuts = new FakeGlobalShortcutService(); var scheduler = new FakePushToTalkScheduler();
+    using var monitor = new LinuxPushToTalkMonitor(shortcuts, scheduler);
+    var pressed = 0; var released = 0; monitor.Pressed += (_, _) => pressed++; monitor.Released += (_, _) => released++;
+    monitor.Configure(new PushToTalkConfiguration(PushToTalkMode.Modifier)); Assert.Success(monitor.Start());
+    shortcuts.Emit("push-to-talk", true); scheduler.Advance(TimeSpan.FromMilliseconds(250)); Assert.Equal(1, pressed);
+    shortcuts.Emit("push-to-talk", false); scheduler.Advance(TimeSpan.FromMilliseconds(50));
+    shortcuts.Emit("push-to-talk", true); scheduler.Advance(TimeSpan.FromMilliseconds(100)); Assert.Equal(0, released);
+    shortcuts.Emit("push-to-talk", false); scheduler.Advance(TimeSpan.FromMilliseconds(100)); Assert.Equal(1, released);
+    shortcuts.Emit("push-to-talk", true); shortcuts.Emit("push-to-talk", false); scheduler.Advance(TimeSpan.FromMilliseconds(100));
+    Assert.Equal(1, pressed); Assert.Equal(1, released); // quick tap without lock is silent
+    return Task.CompletedTask;
+}
+
+static Task PushToTalkSubscriberIsolation()
+{
+    var shortcuts = new FakeGlobalShortcutService(); var scheduler = new FakePushToTalkScheduler();
+    using var monitor = new LinuxPushToTalkMonitor(shortcuts, scheduler); var reached = false;
+    monitor.Pressed += (_, _) => throw new InvalidOperationException("subscriber"); monitor.Pressed += (_, _) => reached = true;
+    monitor.Configure(new PushToTalkConfiguration(PushToTalkMode.Modifier)); Assert.Success(monitor.Start());
+    shortcuts.Emit("push-to-talk", true); scheduler.Advance(TimeSpan.FromMilliseconds(250)); Assert.True(reached);
+    return Task.CompletedTask;
+}
+
+static async Task PushToTalkInterferencePrivacy()
+{
+    var source = new FakeSource("keyboard", Frame(56, 1), Frame(48, 1));
+    using var shortcuts = new LinuxGlobalShortcutService(new FakeSourceFactory(source), null);
+    using var monitor = new LinuxPushToTalkMonitor(shortcuts);
+    var interfered = 0; monitor.Interfered += (_, _) => interfered++;
+    monitor.Configure(new PushToTalkConfiguration(PushToTalkMode.Modifier, ModifierSide.LeftAlt)); Assert.Success(monitor.Start());
+    await source.Completed.Task.WaitAsync(TimeSpan.FromSeconds(2)); Assert.Equal(1, interfered);
+}
+
+static Task PushToTalkActiveInterference()
+{
+    var shortcuts = new FakeGlobalShortcutService(); var scheduler = new FakePushToTalkScheduler();
+    using var monitor = new LinuxPushToTalkMonitor(shortcuts, scheduler); var reached = false;
+    monitor.Interfered += (_, _) => throw new InvalidOperationException("subscriber");
+    monitor.Interfered += (_, _) => reached = true;
+    monitor.Configure(new PushToTalkConfiguration(PushToTalkMode.Modifier, DoublePressLock: true)); Assert.Success(monitor.Start());
+    shortcuts.Emit("push-to-talk", true); shortcuts.Emit("push-to-talk", false); scheduler.Advance(TimeSpan.FromMilliseconds(100));
+    Assert.True(shortcuts.InterferenceArmed); shortcuts.EmitInterference(); Assert.True(reached);
+    Assert.True(!shortcuts.InterferenceArmed); scheduler.Advance(TimeSpan.FromMilliseconds(1500));
+    return Task.CompletedTask;
+}
+
+static Task DeviceIdentityHashesMachineId()
+{
+    var raw = "0123456789abcdef0123456789abcdef"u8.ToArray();
+    var provider = new LinuxDeviceIdentityProvider(new FakeMachineIdentitySource(raw), new LinuxPrivateFileService(), "/tmp/not-used", () => new byte[32]);
+    var result = provider.GetDeviceIdentity();
+    Assert.True(result.IsSuccess); Assert.Equal(DeviceIdentitySource.PlatformMachineId, result.Value!.Source);
+    Assert.True(result.Value.Id != "0123456789abcdef0123456789abcdef"); Assert.Equal(64, result.Value.Id.Length);
+    return Task.CompletedTask;
+}
+
+static Task DeviceIdentityFallback() => WithTemporaryDirectory(directory =>
+{
+    var path = Path.Combine(directory, "identity");
+    var generated = Enumerable.Range(0, 32).Select(value => (byte)value).ToArray();
+    var provider = new LinuxDeviceIdentityProvider(new FakeMachineIdentitySource(null), new LinuxPrivateFileService(), path,
+        () => generated);
+    var first = provider.GetDeviceIdentity(); var second = provider.GetDeviceIdentity();
+    Assert.Equal(DeviceIdentitySource.GeneratedFallback, first.Value!.Source);
+    Assert.Equal(DeviceIdentitySource.StoredFallback, second.Value!.Source); Assert.Equal(first.Value.Id, second.Value.Id);
+    Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite, File.GetUnixFileMode(path));
+    Assert.True(generated.All(value => value == 0));
+});
+
+static Task HostDeviceIdentity()
+{
+    var result = new LinuxDeviceIdentityProvider().GetDeviceIdentity();
+    Assert.True(result.IsSuccess); Assert.Equal(64, result.Value!.Id.Length);
+    Assert.True(!result.Value.Id.Contains('-', StringComparison.Ordinal));
+    return Task.CompletedTask;
+}
+
+static Task MicrophoneVolumeRoundTrip()
+{
+    var runner = new FakeDesktopCommandRunner(
+        new ExternalProcessResult(0, "Volume: front-left: 32768 / 50% / 0.00 dB, front-right: 39322 / 60% / 0.00 dB\n"u8.ToArray()),
+        new ExternalProcessResult(0, []), new ExternalProcessResult(0, []));
+    var service = new LinuxMicrophoneVolumeService(runner, "/usr/bin/pactl");
+    Assert.Success(service.BoostIfNeeded("mic")); Assert.Success(service.Restore());
+    Assert.Equal("set-source-volume,mic,100%", string.Join(',', runner.Calls[1].Arguments));
+    Assert.Equal("set-source-volume,mic,50%,60%", string.Join(',', runner.Calls[2].Arguments));
+    return Task.CompletedTask;
+}
+
+static Task MicrophoneVolumeUnsupported()
+{
+    var service = new LinuxMicrophoneVolumeService(new FakeDesktopCommandRunner(), null);
+    Assert.True(service.ReadLevel("default").IsFailure); Assert.True(service.BoostIfNeeded("default").IsFailure);
+    Assert.Success(service.Restore()); return Task.CompletedTask;
+}
+
+static Task MicrophoneKeepWarmLifecycle()
+{
+    var first = new FakeStreamingAudioSource(new BlockingAudioStream());
+    var second = new FakeStreamingAudioSource(new BlockingAudioStream());
+    var factory = new CyclingStreamingSourceFactory(first, second);
+    using var service = new LinuxMicrophoneKeepWarmService(factory);
+    Assert.True(service.GetCapabilities().Available);
+    service.Configure(true, "mic"); service.SuspendForRecording(); service.ResumeAfterRecording("mic2"); service.Dispose();
+    Assert.Equal(2, factory.OpenCalls); Assert.Equal(1, first.TerminateCalls); Assert.Equal(1, second.TerminateCalls);
+    return Task.CompletedTask;
+}
+
+static Task SoundEffectsPaths() => WithTemporaryDirectory(directory =>
+{
+    var unsupported = new LinuxSoundEffectsService(new FakeDesktopCommandRunner(), null, directory);
+    Assert.True(unsupported.Play(SoundEffect.RecordingStarted).IsFailure);
+    File.WriteAllBytes(Path.Combine(directory, "start1.wav"), [1]);
+    var runner = new FakeDesktopCommandRunner(new ExternalProcessResult(0, []));
+    using var supported = new LinuxSoundEffectsService(runner, "/usr/bin/pw-play", directory);
+    Assert.Success(supported.Play(SoundEffect.RecordingStarted));
+    Assert.Equal(Path.Combine(directory, "start1.wav"), runner.Calls[0].Arguments[0]);
+    supported.Dispose(); Assert.True(supported.Play(SoundEffect.RecordingStarted).IsFailure);
+    Assert.True(File.Exists(Path.Combine(AppContext.BaseDirectory, "Assets", "Sounds", "start1.wav")));
+    Assert.True(File.Exists(Path.Combine(AppContext.BaseDirectory, "Assets", "Sounds", "stop1.wav")));
+});
+
+static async Task AudioEnvironmentMuteRestore()
+{
+    var runner = new FakeDesktopCommandRunner(new ExternalProcessResult(0, "Mute: no\n"u8.ToArray()),
+        new ExternalProcessResult(0, []), new ExternalProcessResult(0, []));
+    var service = new LinuxAudioEnvironmentService(runner, "/usr/bin/pactl");
+    var prepared = service.PrepareForRecording(AudioEnvironmentPolicy.MuteOtherAudio, TimeSpan.Zero);
+    Assert.True(prepared.IsSuccess); await prepared.Value!.RestoreAsync(); await prepared.Value.RestoreAsync();
+    Assert.Equal(3, runner.Calls.Count);
+    Assert.Equal("set-sink-mute,@DEFAULT_SINK@,0", string.Join(',', runner.Calls[2].Arguments));
+}
+
+static async Task AudioEnvironmentUnchanged()
+{
+    var service = new LinuxAudioEnvironmentService(new FakeDesktopCommandRunner(), null);
+    var prepared = service.PrepareForRecording(AudioEnvironmentPolicy.Unchanged, TimeSpan.Zero);
+    Assert.True(prepared.IsSuccess); await prepared.Value!.RestoreAsync();
+    Assert.True(service.PrepareForRecording(AudioEnvironmentPolicy.DuckOtherAudio, TimeSpan.Zero).IsFailure);
+    Assert.True(service.PrepareForRecording(AudioEnvironmentPolicy.Unchanged, TimeSpan.FromMilliseconds(-1)).IsFailure);
+}
+
+static async Task AudioEnvironmentDuckRestore()
+{
+    var runner = new FakeDesktopCommandRunner(
+        new ExternalProcessResult(0, "Volume: left: 40% right: 55%\n"u8.ToArray()),
+        new ExternalProcessResult(0, []), new ExternalProcessResult(0, []));
+    var prepared = new LinuxAudioEnvironmentService(runner, "/usr/bin/pactl")
+        .PrepareForRecording(AudioEnvironmentPolicy.DuckOtherAudio, TimeSpan.Zero);
+    Assert.True(prepared.IsSuccess); await prepared.Value!.DisposeAsync();
+    Assert.Equal("set-sink-volume,@DEFAULT_SINK@,35%,35%", string.Join(',', runner.Calls[1].Arguments));
+    Assert.Equal("set-sink-volume,@DEFAULT_SINK@,40%,55%", string.Join(',', runner.Calls[2].Arguments));
+}
+
+static async Task UiDispatcherContext()
+{
+    var context = new PumpSynchronizationContext(); var dispatcher = new SynchronizationContextUiDispatcher(context); var reached = 0;
+    dispatcher.Post(() => reached++); context.RunOne(); Assert.Equal(1, reached);
+    var invoked = dispatcher.InvokeAsync(() => { reached++; return ValueTask.CompletedTask; }).AsTask();
+    context.RunOne(); await invoked; Assert.Equal(2, reached);
+}
+
+static async Task UiDispatcherCancellation()
+{
+    var context = new PumpSynchronizationContext(); var dispatcher = new SynchronizationContextUiDispatcher(context);
+    var reached = false; using var cancellation = new CancellationTokenSource();
+    var pending = dispatcher.InvokeAsync(() => { reached = true; return ValueTask.CompletedTask; }, cancellation.Token).AsTask();
+    cancellation.Cancel(); await Assert.ThrowsAsync<TaskCanceledException>(async () => await pending);
+    context.RunOne(); Assert.True(!reached);
+}
+
 static LinuxTextInjectionService NewInjection(FakeClipboard clipboard, IUInputPasteBackend uinput,
     ISecureFieldGuard? guard = null, ICapturedTargetService? targets = null) =>
     new(clipboard, uinput, guard ?? new FakeSecureFieldGuard(SecureFieldState.NotSecure),
@@ -910,6 +1141,8 @@ sealed class FakePlaybackSession : IPulseAudioPlaybackSession
 
 sealed class FakeStreamingAudioSourceFactory(FakeStreamingAudioSource source) : IStreamingAudioSourceFactory
 {
+    public bool IsAvailable => true;
+    public string Backend => "fake";
     public PlatformResult<IStreamingAudioSource> Open(AudioRecordingOptions options) =>
         PlatformResult<IStreamingAudioSource>.Success(source);
 }
@@ -1060,6 +1293,80 @@ sealed class FakeCaptureHook(byte[] contents) : IScreenCaptureHook
         DirectoryModeDuringCapture = File.GetUnixFileMode(Path.GetDirectoryName(privateDestinationPath)!);
         File.WriteAllBytes(privateDestinationPath, contents);
         return ValueTask.FromResult(Failure ?? PlatformResult.Success());
+    }
+}
+
+sealed class FakeGlobalShortcutService : IGlobalShortcutService, IShortcutInterferenceSource
+{
+    public NamedShortcut? Registered { get; private set; }
+    public event EventHandler<ShortcutTriggeredEventArgs>? ShortcutPressed;
+    public event EventHandler<ShortcutTriggeredEventArgs>? ShortcutReleased;
+    public event EventHandler? Interfered;
+    public bool InterferenceArmed { get; private set; }
+    public PlatformResult Start() => PlatformResult.Success();
+    public IReadOnlyDictionary<string, PlatformResult> RegisterShortcuts(IReadOnlyCollection<NamedShortcut> shortcuts)
+    { Registered = shortcuts.Single(); return new Dictionary<string, PlatformResult> { [Registered.Name] = PlatformResult.Success() }; }
+    public void Emit(string name, bool pressed)
+    {
+        var shortcut = Registered?.Shortcut ?? new GlobalShortcut(ShortcutModifiers.None, new ShortcutKeyCode("A"));
+        var args = new ShortcutTriggeredEventArgs(name, shortcut);
+        if (pressed) ShortcutPressed?.Invoke(this, args); else ShortcutReleased?.Invoke(this, args);
+    }
+    public void EmitInterference() => Interfered?.Invoke(this, EventArgs.Empty);
+    public void SetInterferenceArmed(bool armed) => InterferenceArmed = armed;
+    public void Clear() => Registered = null;
+    public void ResetKeyboardState() { }
+    public void Dispose() { }
+}
+
+sealed class FakePushToTalkScheduler : IPushToTalkScheduler
+{
+    private readonly List<Scheduled> _scheduled = [];
+    public DateTimeOffset Now { get; private set; } = DateTimeOffset.UnixEpoch;
+    public IDisposable Schedule(TimeSpan delay, Action action)
+    { var value = new Scheduled(Now + delay, action); _scheduled.Add(value); return value; }
+    public void Advance(TimeSpan amount)
+    {
+        Now += amount;
+        while (_scheduled.Where(value => !value.Cancelled && value.Due <= Now).OrderBy(value => value.Due).FirstOrDefault() is { } next)
+        { _scheduled.Remove(next); next.Fire(); }
+        _scheduled.RemoveAll(value => value.Cancelled);
+    }
+    private sealed class Scheduled(DateTimeOffset due, Action action) : IDisposable
+    {
+        private Action? _action = action;
+        public DateTimeOffset Due { get; } = due;
+        public bool Cancelled => _action is null;
+        public void Fire() => Interlocked.Exchange(ref _action, null)?.Invoke();
+        public void Dispose() => _action = null;
+    }
+}
+
+sealed class FakeMachineIdentitySource(byte[]? raw) : IMachineIdentitySource
+{
+    public byte[]? ReadRaw() => raw?.ToArray();
+}
+
+sealed class CyclingStreamingSourceFactory(params FakeStreamingAudioSource[] sources) : IStreamingAudioSourceFactory
+{
+    private readonly Queue<FakeStreamingAudioSource> _sources = new(sources);
+    public int OpenCalls { get; private set; }
+    public bool IsAvailable => true;
+    public string Backend => "fake";
+    public PlatformResult<IStreamingAudioSource> Open(AudioRecordingOptions options)
+    { OpenCalls++; return _sources.TryDequeue(out var source) ? PlatformResult<IStreamingAudioSource>.Success(source)
+        : PlatformResult<IStreamingAudioSource>.Failure("fake_empty", "test"); }
+}
+
+sealed class PumpSynchronizationContext : SynchronizationContext
+{
+    private readonly Queue<(SendOrPostCallback Callback, object? State)> _queue = new();
+    public override void Post(SendOrPostCallback d, object? state) => _queue.Enqueue((d, state));
+    public void RunOne()
+    {
+        var work = _queue.Dequeue(); var prior = Current;
+        try { SetSynchronizationContext(this); work.Callback(work.State); }
+        finally { SetSynchronizationContext(prior); }
     }
 }
 

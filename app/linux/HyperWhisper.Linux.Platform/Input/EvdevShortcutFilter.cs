@@ -5,7 +5,9 @@ namespace HyperWhisper.Linux.Platform.Input;
 internal sealed record EvdevBinding(
     NamedShortcut NamedShortcut,
     ushort? Primary,
-    IReadOnlyDictionary<ShortcutModifiers, IReadOnlySet<ushort>> ModifierGroups);
+    IReadOnlyDictionary<ShortcutModifiers, IReadOnlySet<ushort>> ModifierGroups,
+    IReadOnlySet<ushort> NonInterferingCodes);
+internal sealed record EvdevFilterOutput(IReadOnlyList<(NamedShortcut Shortcut, bool Pressed)> Signals, bool Interfered);
 
 internal sealed class EvdevShortcutFilter
 {
@@ -23,18 +25,19 @@ internal sealed class EvdevShortcutFilter
                 .SelectMany(binding =>
                     binding.ModifierGroups.Values.SelectMany(codes => codes)
                         .Concat(binding.Primary is { } primary ? [primary] : []))
+                .Concat(bindings.SelectMany(binding => binding.NonInterferingCodes))
                 .ToHashSet();
             _states.Clear();
         }
     }
 
-    public IReadOnlyList<(NamedShortcut Shortcut, bool Pressed)> Process(string deviceId, EvdevEvent input)
+    public EvdevFilterOutput Process(string deviceId, EvdevEvent input, bool interferenceArmed = false)
     {
         lock (_gate)
         {
-            if (!input.IsKey || !_relevantCodes.Contains(input.Code))
+            if (!input.IsKey)
             {
-                return [];
+                return new([], false);
             }
 
             if (!_states.TryGetValue(deviceId, out var state))
@@ -42,6 +45,9 @@ internal sealed class EvdevShortcutFilter
                 state = new DeviceState();
                 _states.Add(deviceId, state);
             }
+
+            if (!_relevantCodes.Contains(input.Code))
+                return new([], input.Value == 1 && (interferenceArmed || state.Active.Count > 0));
 
             if (input.Value == 0)
             {
@@ -70,7 +76,7 @@ internal sealed class EvdevShortcutFilter
                 }
             }
 
-            return output;
+            return new(output, false);
         }
     }
 
@@ -120,7 +126,15 @@ internal static class EvdevShortcutMapper
         var groups = ModifierCodes
             .Where(pair => named.Shortcut.Modifiers.HasFlag(pair.Key))
             .ToDictionary(pair => pair.Key, pair => pair.Value);
-        return PlatformResult<EvdevBinding>.Success(new EvdevBinding(named, primary, groups));
+        var nonInterfering = named.Shortcut.Key.Value switch
+        {
+            "LeftControl" => new HashSet<ushort> { 97 }, "RightControl" => new HashSet<ushort> { 29 },
+            "LeftAlt" => new HashSet<ushort> { 100 }, "RightAlt" => new HashSet<ushort> { 56 },
+            "LeftShift" => new HashSet<ushort> { 54 }, "RightShift" => new HashSet<ushort> { 42 },
+            "LeftMeta" => new HashSet<ushort> { 126 }, "RightMeta" => new HashSet<ushort> { 125 },
+            _ => [],
+        };
+        return PlatformResult<EvdevBinding>.Success(new EvdevBinding(named, primary, groups, nonInterfering));
     }
 
     private static ushort? MapKey(ShortcutKeyCode key)
@@ -156,6 +170,10 @@ internal static class EvdevShortcutMapper
         return name switch
         {
             "F11" => 87, "F12" => 88,
+            "LeftControl" => 29, "RightControl" => 97,
+            "LeftAlt" => 56, "RightAlt" => 100,
+            "LeftShift" => 42, "RightShift" => 54,
+            "LeftMeta" => 125, "RightMeta" => 126,
             "Escape" => 1, "Space" => 57, "Enter" => 28, "Tab" => 15,
             "Backspace" => 14, "Delete" => 111, "Insert" => 110,
             "Home" => 102, "End" => 107, "PageUp" => 104, "PageDown" => 109,

@@ -9,7 +9,13 @@ public interface IGlobalShortcutDiagnostics
     void SubscriberFailed();
 }
 
-public sealed class LinuxGlobalShortcutService : IGlobalShortcutService
+internal interface IShortcutInterferenceSource
+{
+    event EventHandler? Interfered;
+    void SetInterferenceArmed(bool armed);
+}
+
+public sealed class LinuxGlobalShortcutService : IGlobalShortcutService, IShortcutInterferenceSource
 {
     private readonly object _gate = new();
     private readonly IEvdevSourceFactory _sourceFactory;
@@ -19,6 +25,7 @@ public sealed class LinuxGlobalShortcutService : IGlobalShortcutService
     private CancellationTokenSource? _cancellation;
     private Task[] _readerTasks = [];
     private bool _disposed;
+    private volatile bool _interferenceArmed;
 
     public LinuxGlobalShortcutService()
         : this(new LinuxKeyboardSourceFactory(), null)
@@ -35,6 +42,7 @@ public sealed class LinuxGlobalShortcutService : IGlobalShortcutService
 
     public event EventHandler<ShortcutTriggeredEventArgs>? ShortcutPressed;
     public event EventHandler<ShortcutTriggeredEventArgs>? ShortcutReleased;
+    public event EventHandler? Interfered;
 
     public PlatformResult Start()
     {
@@ -115,7 +123,9 @@ public sealed class LinuxGlobalShortcutService : IGlobalShortcutService
                     continue;
                 }
 
-                foreach (var signal in _filter.Process(source.Id, input))
+                var filtered = _filter.Process(source.Id, input, _interferenceArmed);
+                if (filtered.Interfered) RaiseInterfered();
+                foreach (var signal in filtered.Signals)
                 {
                     Raise(signal.Shortcut, signal.Pressed);
                 }
@@ -128,6 +138,14 @@ public sealed class LinuxGlobalShortcutService : IGlobalShortcutService
         {
             _diagnostics?.SourceFailed();
         }
+    }
+    public void SetInterferenceArmed(bool armed) => _interferenceArmed = armed;
+
+    private void RaiseInterfered()
+    {
+        var handlers = Interfered; if (handlers is null) return;
+        foreach (EventHandler handler in handlers.GetInvocationList())
+            try { handler(this, EventArgs.Empty); } catch { _diagnostics?.SubscriberFailed(); }
     }
 
     private void Raise(NamedShortcut shortcut, bool pressed)

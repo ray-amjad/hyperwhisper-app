@@ -58,6 +58,8 @@ internal interface IStreamingAudioSource : IAsyncDisposable
 
 internal interface IStreamingAudioSourceFactory
 {
+    bool IsAvailable { get; }
+    string Backend { get; }
     PlatformResult<IStreamingAudioSource> Open(AudioRecordingOptions options);
 }
 
@@ -70,6 +72,8 @@ internal sealed class ChildProcessStreamingAudioSourceFactory : IStreamingAudioS
         CommandClipboardBackend.FindExecutable("parec"), CommandClipboardBackend.FindExecutable("pw-record")) { }
     internal ChildProcessStreamingAudioSourceFactory(IChildProcessLauncher launcher, string? parec, string? pwRecord)
     { _launcher = launcher; _parec = parec; _pwRecord = pwRecord; }
+    public bool IsAvailable => _parec is not null || _pwRecord is not null;
+    public string Backend => _parec is not null ? "parec" : _pwRecord is not null ? "pw-record" : "none";
     public PlatformResult<IStreamingAudioSource> Open(AudioRecordingOptions options)
     {
         var executable = _parec ?? _pwRecord;
