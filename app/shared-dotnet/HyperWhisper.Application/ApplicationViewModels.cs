@@ -1390,6 +1390,7 @@ public sealed class SettingsViewModel : ViewModelBase
     private int _autoDeleteDaysOld = 30;
     private string _audioEnvironmentPolicy = "unchanged";
     private string _desktopContextStatus = "Desktop context capability not checked";
+    private string _clipboardHistoryPrivacyStatus = "Clipboard-history privacy capability not checked";
     private bool _enableErrorLogging = true;
     private string _localWhisperBackend = "auto";
     private bool _allowLocalWhisperCpuFallback = true;
@@ -1451,6 +1452,7 @@ public sealed class SettingsViewModel : ViewModelBase
     public int AutoDeleteDaysOld { get => _autoDeleteDaysOld; set => Set(ref _autoDeleteDaysOld, Math.Clamp(value, 1, 365)); }
     public string AudioEnvironmentPolicy { get => _audioEnvironmentPolicy; set => Set(ref _audioEnvironmentPolicy, NormalizeAudioPolicy(value)); }
     public string DesktopContextStatus { get => _desktopContextStatus; set => Set(ref _desktopContextStatus, value ?? string.Empty); }
+    public string ClipboardHistoryPrivacyStatus { get => _clipboardHistoryPrivacyStatus; set => Set(ref _clipboardHistoryPrivacyStatus, value ?? string.Empty); }
     public bool EnableErrorLogging { get => _enableErrorLogging; set => Set(ref _enableErrorLogging, value); }
     public string LocalWhisperBackend
     {

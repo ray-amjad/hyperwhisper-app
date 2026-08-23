@@ -342,6 +342,15 @@ public partial class MainWindow : Window
                 _ => ThemeVariant.Default,
             };
         _overlay.ApplyPreference();
+        _platformServices.TextInjection.SetClipboardHistoryPrivacyPolicy(
+            settings.HideFromClipboardHistory
+                ? ClipboardHistoryPrivacyPolicy.BestEffort
+                : ClipboardHistoryPrivacyPolicy.Disabled);
+        settings.ClipboardHistoryPrivacyStatus = settings.HideFromClipboardHistory
+            ? _platformServices.TextInjection.ClipboardHistoryPrivacyCapability == ClipboardHistoryPrivacyCapability.BestEffortAvailable
+                ? "Clipboard-history exclusion hints are enabled for compatible clipboard managers; enforcement remains desktop-dependent."
+                : "This clipboard backend cannot attach a history-exclusion hint; restore behavior still applies."
+            : "Clipboard-history exclusion hints are disabled.";
         if (_platformServices.ApplicationContext is LinuxApplicationContextProvider contextProvider)
         {
             var capability = contextProvider.GetCapabilities();
