@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import subprocess
 import tempfile
 from pathlib import Path
 
@@ -58,6 +59,16 @@ def expect_rejected(value: dict, message: str) -> None:
     raise AssertionError(message)
 
 
+def git(repository: Path, *arguments: str) -> str:
+    result = subprocess.run(
+        ["git", "-C", str(repository), *arguments],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.strip()
+
+
 with tempfile.TemporaryDirectory() as directory:
     path = Path(directory) / "evidence.json"
     path.write_text(json.dumps(manifest()), encoding="utf-8")
@@ -82,5 +93,36 @@ expect_rejected(invalid_commit, "an invalid tested commit was accepted")
 credential_url = manifest()
 credential_url["environments"][0]["evidenceUrl"] = "https://token:secret@evidence.example/run.tar.gz"
 expect_rejected(credential_url, "an evidence URL with credentials was accepted")
+
+with tempfile.TemporaryDirectory() as directory:
+    repository = Path(directory)
+    git(repository, "init", "--quiet")
+    git(repository, "config", "user.name", "Release Evidence Test")
+    git(repository, "config", "user.email", "release-evidence@example.test")
+    (repository / "code.txt").write_text("tested\n", encoding="utf-8")
+    git(repository, "add", "code.txt")
+    git(repository, "commit", "--quiet", "-m", "tested code")
+    tested_commit = git(repository, "rev-parse", "HEAD")
+
+    evidence_directory = repository / "packaging" / "linux" / "release-evidence"
+    evidence_directory.mkdir(parents=True)
+    (evidence_directory / f"{VERSION}.json").write_text(
+        json.dumps(manifest()), encoding="utf-8"
+    )
+    git(repository, "add", "packaging/linux/release-evidence")
+    git(repository, "commit", "--quiet", "-m", "add reviewed evidence")
+    evidence_only_commit = git(repository, "rev-parse", "HEAD")
+    MODULE.verify_release_revision(tested_commit, evidence_only_commit, repository)
+
+    (repository / "code.txt").write_text("changed after testing\n", encoding="utf-8")
+    git(repository, "add", "code.txt")
+    git(repository, "commit", "--quiet", "-m", "change release code")
+    changed_code_commit = git(repository, "rev-parse", "HEAD")
+    try:
+        MODULE.verify_release_revision(tested_commit, changed_code_commit, repository)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("a release code change after physical testing was accepted")
 
 print("Linux release evidence gate tests passed.")
