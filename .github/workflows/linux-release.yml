@@ -165,9 +165,20 @@ jobs:
             -p:Version="${{ steps.release.outputs.version }}" \
             --output artifacts/hyperwhisper-linux
 
+          dotnet publish \
+            tools/parakeet-engine-dotnet/parakeet-engine-dotnet.csproj \
+            --configuration Release \
+            --runtime linux-x64 \
+            --self-contained true \
+            -p:Version="${{ steps.release.outputs.version }}" \
+            --output artifacts/hyperwhisper-linux/parakeet-engine
+
           test -x artifacts/hyperwhisper-linux/HyperWhisper
+          test -x artifacts/hyperwhisper-linux/parakeet-engine/parakeet-engine
+          test -s artifacts/hyperwhisper-linux/parakeet-engine/libsherpa-onnx-c-api.so
           test -s artifacts/hyperwhisper-linux/libhyperwhisper_core.so
           file artifacts/hyperwhisper-linux/HyperWhisper
+          file artifacts/hyperwhisper-linux/parakeet-engine/parakeet-engine
           file artifacts/hyperwhisper-linux/libhyperwhisper_core.so
 
       - name: Build, test, and lint Debian package

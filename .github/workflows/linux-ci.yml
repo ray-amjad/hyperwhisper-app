@@ -15,6 +15,7 @@ on:
       - "shared-core-rs/**"
       - "shared-backup/**"
       - "packaging/linux/**"
+      - "tools/parakeet-engine-dotnet/**"
       - ".github/workflows/linux-ci.yml"
       - ".github/workflows/linux-release.yml"
   push:
@@ -257,9 +258,19 @@ jobs:
             --self-contained true \
             --output artifacts/hyperwhisper-linux
 
+          dotnet publish \
+            tools/parakeet-engine-dotnet/parakeet-engine-dotnet.csproj \
+            --configuration Release \
+            --runtime linux-x64 \
+            --self-contained true \
+            --output artifacts/hyperwhisper-linux/parakeet-engine
+
           test -x artifacts/hyperwhisper-linux/HyperWhisper
+          test -x artifacts/hyperwhisper-linux/parakeet-engine/parakeet-engine
+          test -s artifacts/hyperwhisper-linux/parakeet-engine/libsherpa-onnx-c-api.so
           test -s artifacts/hyperwhisper-linux/libhyperwhisper_core.so
           file artifacts/hyperwhisper-linux/HyperWhisper
+          file artifacts/hyperwhisper-linux/parakeet-engine/parakeet-engine
           file artifacts/hyperwhisper-linux/libhyperwhisper_core.so
           if ldd artifacts/hyperwhisper-linux/libhyperwhisper_core.so | grep -q "not found"; then
             echo "The published Rust core has a missing dependency." >&2

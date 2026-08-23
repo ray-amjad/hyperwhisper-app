@@ -264,6 +264,7 @@ internal sealed class EngineSession : IDisposable
         }
 
         var providers = RuntimeInformation.ProcessArchitecture == Architecture.Arm64
+            || !RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
             ? new[] { "cpu" }
             : new[] { "directml", "cpu" };
 

@@ -122,6 +122,7 @@ Complete each row and record the evidence fields above.
 | Clipboard restore | Put text, HTML, and an image on the clipboard in turn; inject text; wait the configured restore delay | Every original clipboard format is restored after the delay |
 | Audio | Select the default PulseAudio/pipewire-pulse microphone and record the phrase `deterministic microphone sentence` | Recording starts/stops once and playback/transcript contains the spoken phrase |
 | File transcription | Select a known WAV and transcribe locally | Progress reaches completion; history and output are persisted |
+| Local Parakeet | Download Parakeet v2, select it, and transcribe a known 16 kHz WAV | Packaged sherpa-onnx daemon reports `provider=cpu`, returns a non-empty accurate transcript, and exits cleanly after model unload |
 | OCR portal | Enable screen OCR and trigger it once, then repeat and deny the portal dialog | Capture occurs only after the user action/consent; denial is handled without stale OCR text |
 | Local API | Enable the API, then inspect the discovery file using the commands below | Listener is IPv4 loopback-only, unauthenticated call is `401`, discovery file is `0600`, and no recording-delete route exists |
 | Backup | Export, import into a clean profile, then re-export | Linux settings/modes/vocabulary survive and foreign `macos`/`windows` extension slices remain byte-semantically equal |
