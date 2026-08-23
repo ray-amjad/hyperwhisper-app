@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using HyperWhisper.LiveStreaming;
 using HyperWhisper.Platform.Abstractions;
+using HyperWhisper.SharedCore;
 
 namespace HyperWhisper.Linux;
 
@@ -24,6 +25,22 @@ internal sealed class LinuxLiveStreamingCredentialSource(ICredentialStore creden
         }
         catch (DecoderFallbackException) { return Task.FromResult<string?>(null); }
         finally { CryptographicOperations.ZeroMemory(bytes); }
+    }
+}
+
+/// <summary>Forwards bounded provider transcript updates without logging or retaining them.</summary>
+internal sealed class LinuxLiveTranscriptSink : ILiveTranscriptSink
+{
+    public event EventHandler<LiveTranscriptUpdate>? TranscriptReceived;
+
+    public void OnTranscript(LiveTranscriptUpdate update)
+    {
+        if (string.IsNullOrWhiteSpace(update.Text) || update.Text.Length > 512 * 1024) return;
+        var handlers = TranscriptReceived;
+        if (handlers is null) return;
+        var safe = update with { Text = update.Text.Trim() };
+        foreach (EventHandler<LiveTranscriptUpdate> handler in handlers.GetInvocationList())
+            try { handler(this, safe); } catch { }
     }
 }
 

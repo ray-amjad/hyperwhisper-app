@@ -32,6 +32,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("live post-processing failure persists raw transcript", LivePostProcessingFailurePersistsRaw),
     ("live output processing matches batch semantics", LiveOutputProcessingMatchesBatch),
     ("live auto-paste off copies and persists", LiveAutoPasteOffCopiesAndPersists),
+    ("live delivered final is not injected twice", LiveDeliveredFinalIsNotDuplicated),
+    ("production live sink forwards partial and final updates", LiveSinkForwardsUpdates),
     ("cloud provider storage values route deterministically", CloudProviderStorageRoutes),
     ("audio restoration is never caller-cancelled", AudioRestorationIsNonCancelable),
     ("live models are provider-specific", LiveModelsAreProviderSpecific),
@@ -526,6 +528,38 @@ static async Task LiveAutoPasteOffCopiesAndPersists()
         "live auto-paste off injected or copied the wrong text");
     Assert(history.Updated?.Text == "I’ll use API." && history.Updated.Status == TranscriptStatus.Completed,
         "live auto-paste off did not persist transcript history");
+}
+
+static async Task LiveDeliveredFinalIsNotDuplicated()
+{
+    var transcript = new Transcript { Status = TranscriptStatus.Processing, Text = "processing" };
+    var history = new FakeHistory(transcript);
+    var injection = new FakeTextInjection();
+    var result = await LinuxLiveTranscriptionFinalizer.FinalizeAndPersistAsync(
+        "already pasted", transcript, new Mode { Name = "Live" }, null,
+        new ThrowingPostProcessor(), injection, history, new TranscriptionWorkflowRequest(),
+        deliveredOutcome: TextInjectionOutcome.Pasted);
+    Assert(result.Result.IsSuccess && result.InjectionOutcome == TextInjectionOutcome.Pasted,
+        "pre-delivered live outcome was lost");
+    Assert(injection.InjectedText is null && injection.CopiedText is null,
+        "live final text was injected a second time at stop");
+    Assert(history.Updated?.Text == "already pasted", "pre-delivered live transcript was not persisted");
+}
+
+static Task LiveSinkForwardsUpdates()
+{
+    var sink = new LinuxLiveTranscriptSink();
+    var updates = new List<LiveTranscriptUpdate>();
+    sink.TranscriptReceived += (_, _) => throw new InvalidOperationException("subscriber");
+    sink.TranscriptReceived += (_, update) => updates.Add(update);
+    sink.OnTranscript(new(" partial ", false));
+    sink.OnTranscript(new(" final ", true));
+    Assert(updates.SequenceEqual(new[]
+    {
+        new LiveTranscriptUpdate("partial", false),
+        new LiveTranscriptUpdate("final", true),
+    }), "production live sink lost or altered transcript update semantics");
+    return Task.CompletedTask;
 }
 
 static Task CloudProviderStorageRoutes()

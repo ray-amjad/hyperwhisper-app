@@ -19,8 +19,8 @@
           BorderThickness="1"
           Padding="14,8">
     <Grid>
-      <Grid IsVisible="{Binding IsRecording}" ColumnDefinitions="Auto,*,Auto">
-        <Border Width="12" Height="12" CornerRadius="6" Background="#FFFF3B30"
+      <Grid IsVisible="{Binding IsRecording}" ColumnDefinitions="Auto,Auto,*,Auto">
+        <Border x:Name="StopTarget" Width="18" Height="18" CornerRadius="9" Background="#FFFF3B30"
                 VerticalAlignment="Center" Margin="0,0,10,0" />
         <StackPanel Grid.Column="1" Spacing="1" VerticalAlignment="Center">
           <TextBlock Text="{Binding StatusText}" Foreground="#F2FFFFFF"
@@ -28,8 +28,39 @@
           <TextBlock Text="{Binding ModeText}" Foreground="#A6FFFFFF"
                      FontSize="10" TextTrimming="CharacterEllipsis" MaxWidth="155" />
         </StackPanel>
-        <TextBlock Grid.Column="2" Text="{Binding DurationText}" Foreground="#CCFFFFFF"
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="2" Height="26"
+                    VerticalAlignment="Center" Margin="8,0">
+          <ProgressBar Width="3" Height="10" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
+          <ProgressBar Width="3" Height="16" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
+          <ProgressBar Width="3" Height="22" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
+          <ProgressBar Width="3" Height="26" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
+          <ProgressBar Width="3" Height="22" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
+          <ProgressBar Width="3" Height="16" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
+          <ProgressBar Width="3" Height="10" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
+        </StackPanel>
+        <TextBlock Grid.Column="3" Text="{Binding DurationText}" Foreground="#CCFFFFFF"
                    FontSize="12" FontFamily="monospace" VerticalAlignment="Center" />
+      </Grid>
+
+      <Grid IsVisible="{Binding IsStreaming}" ColumnDefinitions="Auto,Auto,*,Auto">
+        <Border Width="10" Height="10" CornerRadius="5" Background="{Binding StreamingIndicatorBrush}"
+                VerticalAlignment="Center" Margin="0,0,8,0"/>
+        <StackPanel Grid.Column="1" Spacing="1" VerticalAlignment="Center">
+          <TextBlock Text="{Binding StatusText}" Foreground="#F2FFFFFF" FontSize="11" FontWeight="SemiBold"
+                     TextTrimming="CharacterEllipsis" MaxWidth="112"/>
+          <TextBlock Text="{Binding ModeText}" Foreground="#A6FFFFFF" FontSize="9"
+                     TextTrimming="CharacterEllipsis" MaxWidth="112"/>
+        </StackPanel>
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="2" Height="24"
+                    VerticalAlignment="Center" Margin="7,0">
+          <ProgressBar Width="3" Height="10" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
+          <ProgressBar Width="3" Height="18" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
+          <ProgressBar Width="3" Height="24" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
+          <ProgressBar Width="3" Height="18" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
+          <ProgressBar Width="3" Height="10" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
+        </StackPanel>
+        <TextBlock Grid.Column="3" Text="{Binding DurationText}" Foreground="#CCFFFFFF"
+                   FontSize="11" FontFamily="monospace" VerticalAlignment="Center"/>
       </Grid>
 
       <StackPanel IsVisible="{Binding IsTranscribing}" Orientation="Horizontal"
@@ -66,6 +97,40 @@
         <TextBlock Text="{Binding StatusText}" Foreground="#F2FFFFFF"
                    FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
       </StackPanel>
+
+      <StackPanel IsVisible="{Binding IsPasted}" Orientation="Horizontal"
+                  HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
+        <Border Width="18" Height="18" CornerRadius="9" Background="#FF34C759">
+          <TextBlock Text="✓" Foreground="White" FontWeight="Bold" HorizontalAlignment="Center"/>
+        </Border>
+        <TextBlock Text="{Binding StatusText}" Foreground="#F2FFFFFF" FontSize="12" FontWeight="SemiBold"/>
+      </StackPanel>
+
+      <StackPanel IsVisible="{Binding IsCopied}" Orientation="Horizontal"
+                  HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
+        <TextBlock Text="▣" Foreground="#FF5AC8FA" FontSize="18"/>
+        <TextBlock Text="{Binding StatusText}" Foreground="#F2FFFFFF" FontSize="12" FontWeight="SemiBold"/>
+      </StackPanel>
+
+      <StackPanel IsVisible="{Binding IsSecureField}" Orientation="Horizontal"
+                  HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
+        <TextBlock Text="🔒" FontSize="14"/>
+        <TextBlock Text="{Binding StatusText}" Foreground="#F2FFFFFF" FontSize="11" FontWeight="SemiBold"/>
+      </StackPanel>
+
+      <Grid IsVisible="{Binding IsCancelConfirmation}" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="7">
+        <TextBlock Text="{Binding StatusText}" Foreground="#F2FFFFFF" FontSize="11"
+                   FontWeight="SemiBold" VerticalAlignment="Center"/>
+        <Border x:Name="DismissCancelTarget" Grid.Column="1" Background="#33FFFFFF" CornerRadius="11" Padding="9,5">
+          <StackPanel Orientation="Horizontal" Spacing="3">
+            <TextBlock Text="Esc ·" Foreground="#B3FFFFFF" FontSize="9"/>
+            <TextBlock Text="{ReflectionBinding [common.no], Source={StaticResource Localization}}" Foreground="White" FontSize="9"/>
+          </StackPanel>
+        </Border>
+        <Border x:Name="ConfirmCancelTarget" Grid.Column="2" Background="#E6FF3B30" CornerRadius="11" Padding="9,5">
+          <TextBlock Text="{ReflectionBinding [common.yes], Source={StaticResource Localization}}" Foreground="White" FontSize="9" FontWeight="SemiBold"/>
+        </Border>
+      </Grid>
     </Grid>
   </Border>
 </Window>

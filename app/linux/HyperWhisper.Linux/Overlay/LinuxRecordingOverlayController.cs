@@ -10,6 +10,7 @@ public sealed class LinuxRecordingOverlayController : IDisposable
     private static readonly TimeSpan ModeToastDuration = TimeSpan.FromSeconds(2);
     private static readonly TimeSpan ErrorDuration = TimeSpan.FromSeconds(8);
     private static readonly TimeSpan CancelledDuration = TimeSpan.FromMilliseconds(500);
+    private static readonly TimeSpan CompletionDuration = TimeSpan.FromMilliseconds(900);
     private readonly object _gate = new();
     private readonly ILinuxOverlayDispatcher _dispatcher;
     private readonly ILinuxRecordingOverlaySurface _surface;
@@ -20,6 +21,8 @@ public sealed class LinuxRecordingOverlayController : IDisposable
     private CancellationTokenSource? _transient;
     private DateTimeOffset? _recordingStarted;
     private LinuxOverlayModeLabel _recordingMode = LinuxOverlayModeLabel.Create(null);
+    private LinuxStreamingOverlayConnectionState? _streamingConnection;
+    private double _audioLevel;
     private bool _disposed;
 
     internal LinuxRecordingOverlayController(
@@ -59,8 +62,48 @@ public sealed class LinuxRecordingOverlayController : IDisposable
             CancelTransientLocked();
             _recordingMode = mode;
             _recordingStarted = _clock();
+            _streamingConnection = null;
+            _audioLevel = 0;
         }
-        Apply(new(LinuxRecordingOverlayState.Recording, true, _text("linux.overlay.recording"), mode.Value, "00:00"));
+        Apply(RecordingSnapshotLocked());
+    }
+
+    public void ShowStreaming(LinuxOverlayModeLabel mode)
+    {
+        lock (_gate)
+        {
+            if (_disposed) return;
+            CancelTransientLocked();
+            _recordingMode = mode;
+            _recordingStarted = _clock();
+            _streamingConnection = LinuxStreamingOverlayConnectionState.Connecting;
+            _audioLevel = 0;
+        }
+        Apply(RecordingSnapshotLocked());
+    }
+
+    public void UpdateStreamingConnection(LinuxStreamingOverlayConnectionState state)
+    {
+        LinuxRecordingOverlaySnapshot? snapshot = null;
+        lock (_gate)
+        {
+            if (_disposed || _recordingStarted is null || _streamingConnection is null) return;
+            _streamingConnection = state;
+            snapshot = RecordingSnapshotLocked();
+        }
+        Apply(snapshot);
+    }
+
+    public void UpdateAudioLevel(float level)
+    {
+        LinuxRecordingOverlaySnapshot? snapshot = null;
+        lock (_gate)
+        {
+            if (_disposed || _recordingStarted is null) return;
+            _audioLevel = Math.Clamp(double.IsFinite(level) ? level * 3.25 : 0, 0, 1);
+            snapshot = RecordingSnapshotLocked();
+        }
+        Apply(snapshot);
     }
 
     public void ShowTranscribing()
@@ -127,6 +170,53 @@ public sealed class LinuxRecordingOverlayController : IDisposable
         StartTransient(CancelledDuration, Hide);
     }
 
+    public void ShowCancelConfirmation()
+    {
+        lock (_gate)
+        {
+            if (_disposed || _recordingStarted is null || _streamingConnection is not null) return;
+            CancelTransientLocked();
+        }
+        Apply(new(LinuxRecordingOverlayState.CancelConfirmation, true,
+            _text("recording.cancel.prompt"), string.Empty, ViewModel.DurationText));
+    }
+
+    public void DismissCancelConfirmation()
+    {
+        LinuxRecordingOverlaySnapshot? snapshot = null;
+        lock (_gate)
+        {
+            if (_disposed || _recordingStarted is null || ViewModel.State != LinuxRecordingOverlayState.CancelConfirmation) return;
+            snapshot = RecordingSnapshotLocked();
+        }
+        Apply(snapshot);
+    }
+
+    public void ShowCompletion(LinuxRecordingOverlayCompletion completion)
+    {
+        var state = completion switch
+        {
+            LinuxRecordingOverlayCompletion.Pasted => LinuxRecordingOverlayState.Pasted,
+            LinuxRecordingOverlayCompletion.Copied => LinuxRecordingOverlayState.Copied,
+            _ => LinuxRecordingOverlayState.SecureField,
+        };
+        var text = completion switch
+        {
+            LinuxRecordingOverlayCompletion.Pasted => _text("recording.success.pasted"),
+            LinuxRecordingOverlayCompletion.Copied => _text("recording.copy.copied"),
+            _ => _text("linux.overlay.secure_field"),
+        };
+        lock (_gate)
+        {
+            if (_disposed) return;
+            CancelTransientLocked();
+            _recordingStarted = null;
+            _audioLevel = 0;
+        }
+        Apply(new(state, true, text, string.Empty, ViewModel.DurationText));
+        StartTransient(CompletionDuration, Hide);
+    }
+
     public void Hide()
     {
         lock (_gate)
@@ -144,7 +234,7 @@ public sealed class LinuxRecordingOverlayController : IDisposable
         lock (_gate)
         {
             if (!_disposed && _recordingStarted is not null
-                && ViewModel.State == LinuxRecordingOverlayState.Recording)
+                && ViewModel.State is LinuxRecordingOverlayState.Recording or LinuxRecordingOverlayState.Streaming)
                 snapshot = RecordingSnapshotLocked();
         }
         if (snapshot is not null) Apply(snapshot);
@@ -158,7 +248,17 @@ public sealed class LinuxRecordingOverlayController : IDisposable
         var duration = totalHours > 0
             ? $"{totalHours:00}:{elapsed.Minutes:00}:{elapsed.Seconds:00}"
             : $"{elapsed.Minutes:00}:{elapsed.Seconds:00}";
-        return new(LinuxRecordingOverlayState.Recording, true, _text("linux.overlay.recording"), _recordingMode.Value, duration);
+        var streaming = _streamingConnection is not null;
+        var status = _streamingConnection switch
+        {
+            LinuxStreamingOverlayConnectionState.Connecting => _text("linux.overlay.streaming.connecting"),
+            LinuxStreamingOverlayConnectionState.Reconnecting => _text("linux.overlay.streaming.reconnecting"),
+            LinuxStreamingOverlayConnectionState.Error => _text("linux.overlay.streaming.error"),
+            LinuxStreamingOverlayConnectionState.Connected => _text("recording.state.streaming"),
+            _ => _text("linux.overlay.recording"),
+        };
+        return new(streaming ? LinuxRecordingOverlayState.Streaming : LinuxRecordingOverlayState.Recording,
+            true, status, _recordingMode.Value, duration, _audioLevel, _streamingConnection);
     }
 
     private void StartTransient(TimeSpan duration, Action completion)

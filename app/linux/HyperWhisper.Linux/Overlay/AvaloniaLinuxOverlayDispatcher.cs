@@ -13,10 +13,17 @@ internal sealed class AvaloniaLinuxOverlayDispatcher : ILinuxOverlayDispatcher
 
 internal static class LinuxRecordingOverlayFactory
 {
-    public static LinuxRecordingOverlayController Create(Func<string, string> text)
+    public static LinuxRecordingOverlayController Create(
+        Func<string, string> text,
+        Action? stop = null,
+        Action? confirmCancel = null,
+        Action? dismissCancel = null)
     {
         var viewModel = new LinuxRecordingOverlayViewModel();
         var window = new LinuxRecordingOverlayWindow(viewModel, new JsonLinuxOverlayPlacementStore());
+        if (stop is not null) window.StopRequested += (_, _) => stop();
+        if (confirmCancel is not null) window.ConfirmCancelRequested += (_, _) => confirmCancel();
+        if (dismissCancel is not null) window.DismissCancelRequested += (_, _) => dismissCancel();
         return new(viewModel, new AvaloniaLinuxOverlayDispatcher(), window, text);
     }
 }

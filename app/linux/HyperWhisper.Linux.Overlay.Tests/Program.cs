@@ -7,6 +7,10 @@ var tests = new (string Name, Func<Task> Run)[]
 {
     ("mode labels are bounded and control-free", ModeLabelsAreSanitized),
     ("recording duration and transcribing states advance", RecordingDurationAdvances),
+    ("audio levels drive bounded waveform state", AudioLevelsDriveWaveform),
+    ("streaming connection states remain explicit", StreamingStatesAreExplicit),
+    ("completion outcomes are distinct and transient", CompletionOutcomesAreDistinct),
+    ("cancel confirmation resumes the active recording", CancelConfirmationResumes),
     ("mode changes replace and resume recording", ModeChangeResumesRecording),
     ("errors are normalized and auto-hide", ErrorsAreNormalized),
     ("expired feedback cannot overwrite its replacement", ExpiredFeedbackCannotOverwriteReplacement),
@@ -54,6 +58,63 @@ static Task RecordingDurationAdvances()
     fixture.Controller.ShowTranscribing();
     Assert(fixture.ViewModel.State == LinuxRecordingOverlayState.Transcribing, "transcribing was not shown");
     Assert(fixture.ViewModel.StatusText == TestText.Get("recording.state.transcribing"), "transcribing text drifted");
+    return Task.CompletedTask;
+}
+
+static Task AudioLevelsDriveWaveform()
+{
+    using var fixture = OverlayFixture.Create();
+    fixture.Controller.ShowRecording(LinuxOverlayModeLabel.Create("Default"));
+    fixture.Controller.UpdateAudioLevel(.2f);
+    Assert(fixture.ViewModel.AudioLevel > .6 && fixture.ViewModel.AudioLevel < .7,
+        "real recorder level was not gain-normalized");
+    fixture.Controller.UpdateAudioLevel(float.PositiveInfinity);
+    Assert(fixture.ViewModel.AudioLevel == 0, "non-finite recorder level escaped normalization");
+    fixture.Controller.UpdateAudioLevel(100);
+    Assert(fixture.ViewModel.AudioLevel == 1, "waveform level exceeded its visual bound");
+    return Task.CompletedTask;
+}
+
+static Task StreamingStatesAreExplicit()
+{
+    using var fixture = OverlayFixture.Create();
+    fixture.Controller.ShowStreaming(LinuxOverlayModeLabel.Create("Live"));
+    Assert(fixture.ViewModel.IsStreaming
+        && fixture.ViewModel.Snapshot.StreamingConnection == LinuxStreamingOverlayConnectionState.Connecting,
+        "streaming did not begin in connecting state");
+    fixture.Controller.UpdateStreamingConnection(LinuxStreamingOverlayConnectionState.Connected);
+    Assert(fixture.ViewModel.StreamingIndicatorBrush == "#FF34C759", "connected state was not green");
+    fixture.Controller.UpdateStreamingConnection(LinuxStreamingOverlayConnectionState.Reconnecting);
+    Assert(fixture.ViewModel.StatusText == TestText.Get("linux.overlay.streaming.reconnecting")
+        && fixture.ViewModel.StreamingIndicatorBrush == "#FFFF9500", "reconnecting state was not explicit");
+    fixture.Controller.UpdateStreamingConnection(LinuxStreamingOverlayConnectionState.Error);
+    Assert(fixture.ViewModel.StreamingIndicatorBrush == "#FFFF3B30", "streaming error was not explicit");
+    return Task.CompletedTask;
+}
+
+static async Task CompletionOutcomesAreDistinct()
+{
+    using var fixture = OverlayFixture.Create();
+    fixture.Controller.ShowCompletion(LinuxRecordingOverlayCompletion.Pasted);
+    Assert(fixture.ViewModel.IsPasted, "pasted completion was not shown");
+    fixture.Controller.ShowCompletion(LinuxRecordingOverlayCompletion.Copied);
+    Assert(fixture.ViewModel.IsCopied, "copied completion was not shown");
+    fixture.Controller.ShowCompletion(LinuxRecordingOverlayCompletion.SecureField);
+    Assert(fixture.ViewModel.IsSecureField
+        && fixture.ViewModel.StatusText == TestText.Get("linux.overlay.secure_field"),
+        "secure-field protection was not distinguished");
+    fixture.Delay.CompleteLatest();
+    await WaitUntil(() => fixture.ViewModel.State == LinuxRecordingOverlayState.Hidden);
+}
+
+static Task CancelConfirmationResumes()
+{
+    using var fixture = OverlayFixture.Create();
+    fixture.Controller.ShowRecording(LinuxOverlayModeLabel.Create("Default"));
+    fixture.Controller.ShowCancelConfirmation();
+    Assert(fixture.ViewModel.IsCancelConfirmation, "cancel confirmation was not shown");
+    fixture.Controller.DismissCancelConfirmation();
+    Assert(fixture.ViewModel.IsRecording, "dismissed confirmation did not resume recording");
     return Task.CompletedTask;
 }
 
@@ -154,7 +215,9 @@ static Task PublicApiIsContentFree()
     foreach (var parameter in methods.SelectMany(method => method.GetParameters()))
         Assert(!forbidden.Contains(parameter.ParameterType), $"content-bearing parameter leaked: {parameter.ParameterType}");
     Assert(methods.Select(method => method.Name).Order().SequenceEqual(
-        new[] { "Cancel", "Dispose", "Hide", "ShowError", "ShowModeChanged", "ShowRecording", "ShowTranscribing" }.Order()),
+        new[] { "Cancel", "DismissCancelConfirmation", "Dispose", "Hide", "ShowCancelConfirmation",
+            "ShowCompletion", "ShowError", "ShowModeChanged", "ShowRecording", "ShowStreaming",
+            "ShowTranscribing", "UpdateAudioLevel", "UpdateStreamingConnection" }.Order()),
         "controller public event surface drifted");
     return Task.CompletedTask;
 }

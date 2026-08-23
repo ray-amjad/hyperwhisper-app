@@ -42,6 +42,7 @@ public partial class MainWindow : Window
     private readonly PortableStorageLifecycleService _storageLifecycle;
     private readonly TranscriptStorageCoordinator _storageCoordinator;
     private readonly PrivacySafeRotatingLogger _diagnosticLogger;
+    private readonly LinuxLifecycleDiagnostics _lifecycleDiagnostics;
     private readonly TranscriptionWorkflow _workflow;
     private readonly LinuxInteractionRecordingSession _recordingSession;
     private readonly LinuxInteractionCoordinator _interaction;
@@ -77,6 +78,8 @@ public partial class MainWindow : Window
         _storageCoordinator = new TranscriptStorageCoordinator(_database, _storageLifecycle);
         var diagnosticDirectory = Path.Combine(_platformServices.Paths.LogsDirectory, "diagnostics");
         _diagnosticLogger = new PrivacySafeRotatingLogger(diagnosticDirectory);
+        _lifecycleDiagnostics = new LinuxLifecycleDiagnostics(
+            _diagnosticLogger, () => _settings.Get("general.enableErrorLogging", true));
         _postProcessor = new LinuxLocalPostProcessor(
             _platformServices.Paths.ModelsDirectory, _settings, _database);
         _postProcessingRouter = new LinuxPostProcessingRouter(
@@ -127,9 +130,13 @@ public partial class MainWindow : Window
         _overlay = new LazyLinuxRecordingOverlayFeedback(
             new AvaloniaLinuxOverlayDispatcher(),
             () => _viewModel.Settings.ShowRecordingWindow,
-            L);
+            L,
+            () => _ = StopFromOverlayAsync(),
+            () => _ = ConfirmCancelFromOverlayAsync(),
+            DismissCancelFromOverlay);
         _recordingSession = new LinuxInteractionRecordingSession(
-            _viewModel, _workflow, _platformServices, contextCapture, _postProcessingRouter, history, _overlay);
+            _viewModel, _workflow, _platformServices, contextCapture, _postProcessingRouter, history, _overlay,
+            _lifecycleDiagnostics);
         _interaction = new LinuxInteractionCoordinator(
             _platformServices.GlobalShortcuts, _platformServices.PushToTalk,
             _platformServices.TextInjection, _recordingSession, new AvaloniaUiDispatcher());
@@ -260,14 +267,7 @@ public partial class MainWindow : Window
             ?? typeof(MainWindow).Assembly.GetName().Version?.ToString()
             ?? "unknown";
         var packageVersion = typeof(MainWindow).Assembly.GetName().Version?.ToString() ?? version;
-        var capabilities = new DiagnosticCapabilities(
-            AudioCapture: true,
-            Clipboard: true,
-            GlobalShortcuts: true,
-            TextInjection: true,
-            PortalScreenCapture: true,
-            LocalInference: _platformServices.LocalWhisperCapability.IsAvailable || _platformServices.LocalParakeetCapability.IsAvailable,
-            Cuda: _platformServices.LocalWhisperCapability.DisplayName.Contains("CUDA", StringComparison.OrdinalIgnoreCase));
+        var capabilities = LinuxDiagnosticCapabilityProbe.Detect(_platformServices);
         return new AboutViewModel(
             version,
             packageVersion,
@@ -577,6 +577,12 @@ public partial class MainWindow : Window
             ? new GlobalShortcut(modifiers)
             : new GlobalShortcut(modifiers, new ShortcutKeyCode(key)));
     }
+
+    private Task StopFromOverlayAsync() => _interaction.StopRecordingAsync();
+
+    private Task ConfirmCancelFromOverlayAsync() => _interaction.ConfirmCancelRecordingAsync();
+
+    private void DismissCancelFromOverlay() => _interaction.DismissCancelConfirmation();
 
     private void OnInteractionFailed(object? sender, PlatformError error)
         => _viewModel.Status.Failure(error.Code, error.Message);
@@ -917,9 +923,9 @@ public partial class MainWindow : Window
             _overlay.Transcribing();
             await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
             if (_overlay.Snapshot is not { State: LinuxRecordingOverlayState.Transcribing, IsVisible: true }) return 14;
-            _overlay.Completed();
+            _overlay.Completed(LinuxRecordingOverlayCompletion.Pasted);
             await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
-            if (_overlay.Snapshot is not { State: LinuxRecordingOverlayState.Hidden, IsVisible: false }) return 15;
+            if (_overlay.Snapshot is not { State: LinuxRecordingOverlayState.Pasted, IsVisible: true }) return 15;
             _viewModel.Settings.ResetShortcuts();
             _viewModel.Settings.Language = "en";
             _viewModel.Settings.Save();

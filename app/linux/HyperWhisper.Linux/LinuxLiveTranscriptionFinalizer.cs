@@ -21,7 +21,8 @@ public static class LinuxLiveTranscriptionFinalizer
         ITextInjectionService textInjection,
         ITranscriptionHistoryStore history,
         TranscriptionWorkflowRequest outputRequest,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        TextInjectionOutcome? deliveredOutcome = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(rawTranscript);
         ArgumentNullException.ThrowIfNull(transcript);
@@ -68,11 +69,12 @@ public static class LinuxLiveTranscriptionFinalizer
                 ProfanityFilter: mode.ProfanityFilter),
             outputRequest.CursorContext));
 
-        TextInjectionOutcome injection;
+        TextInjectionOutcome injection = deliveredOutcome ?? TextInjectionOutcome.Failed;
         try
         {
-            injection = await TranscriptionTextDelivery.DeliverAsync(
-                textInjection, output.InjectionText, outputRequest.PasteResultText, cancellationToken);
+            if (deliveredOutcome is null)
+                injection = await TranscriptionTextDelivery.DeliverAsync(
+                    textInjection, output.InjectionText, outputRequest.PasteResultText, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch { injection = TextInjectionOutcome.Failed; }

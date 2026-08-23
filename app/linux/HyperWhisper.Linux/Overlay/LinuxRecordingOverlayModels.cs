@@ -4,10 +4,30 @@ public enum LinuxRecordingOverlayState
 {
     Hidden,
     Recording,
+    Streaming,
     Transcribing,
+    Pasted,
+    Copied,
+    SecureField,
+    CancelConfirmation,
     Error,
     ModeChanged,
     Cancelled,
+}
+
+public enum LinuxStreamingOverlayConnectionState
+{
+    Connecting,
+    Connected,
+    Reconnecting,
+    Error,
+}
+
+public enum LinuxRecordingOverlayCompletion
+{
+    Pasted,
+    Copied,
+    SecureField,
 }
 
 public enum LinuxRecordingOverlayError
@@ -45,7 +65,9 @@ public sealed record LinuxRecordingOverlaySnapshot(
     bool IsVisible,
     string StatusText,
     string ModeText,
-    string DurationText);
+    string DurationText,
+    double AudioLevel = 0,
+    LinuxStreamingOverlayConnectionState? StreamingConnection = null);
 
 internal interface ILinuxRecordingOverlaySurface : IDisposable
 {

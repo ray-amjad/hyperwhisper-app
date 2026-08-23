@@ -45,9 +45,10 @@ internal sealed class LinuxDesktopServices : IDisposable
         MicrophoneKeepWarm = new LinuxMicrophoneKeepWarmService();
         SoundEffects = new LinuxSoundEffectsService();
         AudioEnvironment = new LinuxAudioEnvironmentService();
+        LiveTranscripts = new LinuxLiveTranscriptSink();
         LiveStreaming = new LiveStreamingSessionController(
             new PulseStreamingAudioCapture(),
-            new SharedCoreLiveCloudTranscriber(new LiveCloudTranscriptionService()));
+            new SharedCoreLiveCloudTranscriber(new LiveCloudTranscriptionService(transcripts: LiveTranscripts)));
     }
 
     public IAppPaths Paths { get; }
@@ -72,6 +73,7 @@ internal sealed class LinuxDesktopServices : IDisposable
     public ISoundEffectsService SoundEffects { get; }
     public IAudioEnvironmentService AudioEnvironment { get; }
     public LiveStreamingSessionController LiveStreaming { get; }
+    public LinuxLiveTranscriptSink LiveTranscripts { get; }
     public LinuxSentryService Telemetry { get; }
     public TranscriptionBackendCapability LocalWhisperCapability => _localWhisper.Capability;
     public TranscriptionBackendCapability LocalParakeetCapability => _localParakeet.Capability;

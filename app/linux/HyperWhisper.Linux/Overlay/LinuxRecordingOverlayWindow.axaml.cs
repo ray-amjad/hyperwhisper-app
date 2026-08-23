@@ -9,6 +9,9 @@ internal sealed partial class LinuxRecordingOverlayWindow : Window, ILinuxRecord
 {
     private readonly LinuxOverlayPlacementPersistence _placement;
     private bool _restoring;
+    public event EventHandler? StopRequested;
+    public event EventHandler? ConfirmCancelRequested;
+    public event EventHandler? DismissCancelRequested;
 
     public LinuxRecordingOverlayWindow(LinuxRecordingOverlayViewModel viewModel,
         ILinuxOverlayPlacementStore? placementStore = null)
@@ -75,12 +78,44 @@ internal sealed partial class LinuxRecordingOverlayWindow : Window, ILinuxRecord
     private void BeginNonActivatingMove(object? sender, PointerPressedEventArgs args)
     {
         if (!args.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
+        if (IsWithin(args.Source, "StopTarget"))
+        {
+            Raise(StopRequested);
+            args.Handled = true;
+            return;
+        }
+        if (IsWithin(args.Source, "ConfirmCancelTarget"))
+        {
+            Raise(ConfirmCancelRequested);
+            args.Handled = true;
+            return;
+        }
+        if (IsWithin(args.Source, "DismissCancelTarget"))
+        {
+            Raise(DismissCancelRequested);
+            args.Handled = true;
+            return;
+        }
         try
         {
             BeginMoveDrag(args);
             LinuxOverlayWindowPolicy.TryApply(this);
         }
         catch { /* Compositor support is best-effort. */ }
+    }
+
+    private static bool IsWithin(object? source, string name)
+    {
+        for (var control = source as Control; control is not null; control = control.Parent as Control)
+            if (string.Equals(control.Name, name, StringComparison.Ordinal)) return true;
+        return false;
+    }
+
+    private void Raise(EventHandler? handlers)
+    {
+        if (handlers is null) return;
+        foreach (EventHandler handler in handlers.GetInvocationList())
+            try { handler(this, EventArgs.Empty); } catch { }
     }
 
     private static LinuxOverlayPixelRect ToRect(PixelRect rect) =>

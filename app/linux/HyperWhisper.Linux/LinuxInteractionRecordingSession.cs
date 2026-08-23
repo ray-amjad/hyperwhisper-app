@@ -7,6 +7,8 @@ using HyperWhisper.PortableApplication.Transcription;
 using HyperWhisper.PortableApplication.ViewModels;
 using HyperWhisper.SharedCore;
 using HyperWhisper.Linux.Overlay;
+using HyperWhisper.Diagnostics;
+using System.Text;
 
 namespace HyperWhisper.Linux;
 
@@ -20,11 +22,19 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
     private readonly ITranscriptionPostProcessor _postProcessor;
     private readonly HistoryRepository _history;
     private readonly ILinuxRecordingOverlayFeedback _overlay;
+    private readonly LinuxLifecycleDiagnostics? _diagnostics;
     private ApplicationContextSnapshot? _context;
     private Mode? _mode;
     private Transcript? _liveTranscript;
     private IAudioEnvironmentSession? _audioEnvironment;
     private bool _streaming;
+    private bool _showingCancelConfirmation;
+    private TextInjectionOutcome? _lastInjectionOutcome;
+    private readonly object _liveDeliveryGate = new();
+    private Task _liveDeliveryTail = Task.CompletedTask;
+    private CancellationTokenSource? _liveDeliveryCancellation;
+    private readonly StringBuilder _liveFinalText = new();
+    private int _liveFinalSegments;
     private PortableCursorContext _cursorContext = PortableCursorContext.Unknown;
 
     public LinuxInteractionRecordingSession(
@@ -34,7 +44,8 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         LinuxContextCaptureCoordinator contextCapture,
         ITranscriptionPostProcessor postProcessor,
         HistoryRepository history,
-        ILinuxRecordingOverlayFeedback overlay)
+        ILinuxRecordingOverlayFeedback overlay,
+        LinuxLifecycleDiagnostics? diagnostics = null)
     {
         _viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
         _workflow = workflow ?? throw new ArgumentNullException(nameof(workflow));
@@ -43,7 +54,12 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         _postProcessor = postProcessor ?? throw new ArgumentNullException(nameof(postProcessor));
         _history = history ?? throw new ArgumentNullException(nameof(history));
         _overlay = overlay ?? throw new ArgumentNullException(nameof(overlay));
+        _diagnostics = diagnostics;
         _liveRouter = new LiveStreamingModeRouter(new LinuxLiveStreamingCredentialSource(services.CredentialStore));
+        _services.AudioRecorder.AudioLevelChanged += OnAudioLevelChanged;
+        _services.LiveStreaming.AudioLevelChanged += OnAudioLevelChanged;
+        _services.LiveStreaming.ConnectionStateChanged += OnStreamingConnectionStateChanged;
+        _services.LiveTranscripts.TranscriptReceived += OnLiveTranscriptReceived;
     }
 
     public bool IsActive => _streaming
@@ -60,18 +76,25 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         try { return await StartCoreAsync(kind, cancellationToken); }
         catch (OperationCanceledException)
         {
+            await ReportAsync(DiagnosticComponent.Audio, DiagnosticOutcome.Cancelled);
             await RestoreAudioAsync();
             ClearSession();
             _overlay.Cancelled();
             throw;
         }
-        catch { _overlay.Failed(LinuxRecordingOverlayError.RecordingFailed); throw; }
+        catch
+        {
+            await ReportAsync(DiagnosticComponent.Audio, DiagnosticOutcome.Failed);
+            _overlay.Failed(LinuxRecordingOverlayError.RecordingFailed);
+            throw;
+        }
     }
 
     private async ValueTask<PlatformResult> StartCoreAsync(
         InteractionRecordingKind kind,
         CancellationToken cancellationToken)
     {
+        await ReportAsync(DiagnosticComponent.Audio, DiagnosticOutcome.Started);
         if (kind == InteractionRecordingKind.Streaming && !_viewModel.Settings.StreamingEnabled)
             return PlatformResult.Failure("interaction.streaming_disabled", "Enable live transcription before starting a streaming session.");
         if (IsActive) return PlatformResult.Failure("interaction.already_recording", "A transcription is already active.");
@@ -89,12 +112,19 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         var captured = await _contextCapture.CaptureAsync(_mode.EnableScreenOCR, cancellationToken: cancellationToken);
         _context = captured.Snapshot;
         if (captured.OcrFailure is not null)
+        {
+            await ReportAsync(DiagnosticComponent.Portal, DiagnosticOutcome.Degraded);
             _viewModel.Status.Failure(captured.OcrFailure.Code, captured.OcrFailure.Message);
+        }
+        else if (_mode.EnableScreenOCR)
+            await ReportAsync(DiagnosticComponent.Portal, DiagnosticOutcome.Succeeded);
 
-        _overlay.RecordingStarted(LinuxOverlayModeLabel.Create(_mode.Name));
+        _streaming = kind == InteractionRecordingKind.Streaming;
+        if (_streaming) BeginLiveDelivery();
+        if (_streaming) _overlay.StreamingStarted(LinuxOverlayModeLabel.Create(_mode.Name));
+        else _overlay.RecordingStarted(LinuxOverlayModeLabel.Create(_mode.Name));
         var deviceId = _viewModel.Recording?.SelectedAudioDevice?.Id ?? "default";
         PrepareAudio(deviceId);
-        _streaming = kind == InteractionRecordingKind.Streaming;
         PlatformResult started;
         if (_streaming)
             started = await StartStreamingAsync(deviceId, cancellationToken);
@@ -108,13 +138,15 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
 
         if (started.IsFailure)
         {
+            if (_streaming)
+                _overlay.StreamingConnectionChanged(LinuxStreamingOverlayConnectionState.Error);
+            await ReportAsync(DiagnosticComponent.Audio, DiagnosticOutcome.Failed);
             await RestoreAudioAsync();
-            _streaming = false;
-            _context = null;
-            _mode = null;
+            ClearSession();
             _overlay.Failed(LinuxRecordingOverlayErrorMapper.FromCode(started.Error?.Code, transcription: false));
             return started;
         }
+        await ReportAsync(DiagnosticComponent.Audio, DiagnosticOutcome.Succeeded);
         if (_viewModel.Settings.EnableSoundEffects) _ = _services.SoundEffects.Play(SoundEffect.RecordingStarted);
         _viewModel.Status.Success(_streaming ? "Live transcription recording…" : "Recording…");
         return PlatformResult.Success();
@@ -171,6 +203,7 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
     public async ValueTask<InteractionStopOutcome> StopAsync(CancellationToken cancellationToken = default)
     {
         if (!IsActive) return new(PlatformResult.Failure("interaction.not_recording", "No transcription is active."), false);
+        await ReportAsync(DiagnosticComponent.Transcription, DiagnosticOutcome.Started);
         _overlay.Transcribing();
         try
         {
@@ -184,14 +217,35 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
                     : PlatformResult.Failure("workflow.transcription_failed", result.Failure?.Message ?? "Transcription failed.");
                 outcome = InteractionStopOutcome.FromInjection(
                     status, result.InjectionOutcome, _viewModel.Settings.RestoreClipboardAfterPaste);
+                _lastInjectionOutcome = result.InjectionOutcome;
+                if (result.IsSuccess && result.InjectionOutcome is { } injectionOutcome)
+                    await ReportInjectionAsync(injectionOutcome);
             }
-            if (outcome.Result.IsSuccess) _overlay.Completed();
-            else _overlay.Failed(LinuxRecordingOverlayErrorMapper.FromCode(
-                outcome.Result.Error?.Code, transcription: true));
+            if (outcome.Result.IsSuccess)
+            {
+                await ReportAsync(DiagnosticComponent.Transcription, DiagnosticOutcome.Succeeded);
+                _overlay.Completed(MapCompletion(_lastInjectionOutcome));
+            }
+            else
+            {
+                await ReportAsync(DiagnosticComponent.Transcription, DiagnosticOutcome.Failed);
+                _overlay.Failed(LinuxRecordingOverlayErrorMapper.FromCode(
+                    outcome.Result.Error?.Code, transcription: true));
+            }
             return outcome;
         }
-        catch (OperationCanceledException) { _overlay.Cancelled(); throw; }
-        catch { _overlay.Failed(LinuxRecordingOverlayError.TranscriptionFailed); throw; }
+        catch (OperationCanceledException)
+        {
+            await ReportAsync(DiagnosticComponent.Transcription, DiagnosticOutcome.Cancelled);
+            _overlay.Cancelled();
+            throw;
+        }
+        catch
+        {
+            await ReportAsync(DiagnosticComponent.Transcription, DiagnosticOutcome.Failed);
+            _overlay.Failed(LinuxRecordingOverlayError.TranscriptionFailed);
+            throw;
+        }
         finally
         {
             await RestoreAudioAsync();
@@ -202,8 +256,13 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
     private async ValueTask<InteractionStopOutcome> StopStreamingAsync(CancellationToken cancellationToken)
     {
         var outcome = await _services.LiveStreaming.StopAsync(cancellationToken);
+        await WaitForLiveDeliveryAsync(cancellationToken);
         var transcript = _liveTranscript;
-        if (!outcome.IsSuccess || string.IsNullOrWhiteSpace(outcome.Transcription.Transcript))
+        var deliveredTranscript = ReadDeliveredTranscript();
+        var rawTranscript = string.IsNullOrWhiteSpace(deliveredTranscript)
+            ? outcome.Transcription.Transcript
+            : deliveredTranscript;
+        if (!outcome.IsSuccess || string.IsNullOrWhiteSpace(rawTranscript))
         {
             if (transcript is not null)
             {
@@ -222,9 +281,12 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
             return new(PlatformResult.Failure("streaming.persistence_failed", "The live transcription history row is unavailable."), false);
         transcript.Duration = outcome.CaptureDuration.TotalSeconds;
         var finalization = await LinuxLiveTranscriptionFinalizer.FinalizeAndPersistAsync(
-            outcome.Transcription.Transcript, transcript, _mode, _context, _postProcessor,
-            _services.TextInjection, _history, BuildRequest(), cancellationToken);
+            rawTranscript, transcript, _mode, _context, _postProcessor,
+            _services.TextInjection, _history, BuildRequest(), cancellationToken,
+            _lastInjectionOutcome is TextInjectionOutcome.Pasted or TextInjectionOutcome.SecureFieldSkipped
+                ? _lastInjectionOutcome : null);
         if (finalization.Result.IsFailure) return new(finalization.Result, false);
+        _lastInjectionOutcome = finalization.InjectionOutcome;
         await RefreshHistoryAsync(cancellationToken);
         _viewModel.Status.Success(finalization.InjectionOutcome switch
         {
@@ -233,12 +295,14 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
             TextInjectionOutcome.SecureFieldSkipped => "Live transcription saved; secure field was not modified",
             _ => "Live transcription saved, but text injection failed",
         });
+        await ReportInjectionAsync(finalization.InjectionOutcome);
         return InteractionStopOutcome.FromInjection(
             PlatformResult.Success(), finalization.InjectionOutcome, _viewModel.Settings.RestoreClipboardAfterPaste);
     }
 
     public async ValueTask CancelAsync(CancellationToken cancellationToken = default)
     {
+        await ReportAsync(DiagnosticComponent.Audio, DiagnosticOutcome.Cancelled);
         _overlay.Cancelled();
         try
         {
@@ -258,6 +322,129 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
             ClearSession();
         }
     }
+
+    public ValueTask<bool> RequestCancelAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (_showingCancelConfirmation)
+        {
+            _showingCancelConfirmation = false;
+            _overlay.CancelConfirmationDismissed();
+            return ValueTask.FromResult(false);
+        }
+        if (!_streaming && _workflow.Snapshot.State == TranscriptionWorkflowState.Recording
+            && _services.AudioRecorder.Duration >= TimeSpan.FromSeconds(15))
+        {
+            _showingCancelConfirmation = true;
+            _overlay.CancelConfirmationRequested();
+            return ValueTask.FromResult(false);
+        }
+        return CancelImmediatelyAsync(cancellationToken);
+    }
+
+    private async ValueTask<bool> CancelImmediatelyAsync(CancellationToken cancellationToken)
+    {
+        await CancelAsync(cancellationToken);
+        return true;
+    }
+
+    public void DismissCancelConfirmation()
+    {
+        if (!_showingCancelConfirmation) return;
+        _showingCancelConfirmation = false;
+        _overlay.CancelConfirmationDismissed();
+    }
+
+    private void OnAudioLevelChanged(object? sender, float level) => _overlay.AudioLevelChanged(level);
+
+    private void OnStreamingConnectionStateChanged(object? sender, LiveStreamingConnectionState state) =>
+        _overlay.StreamingConnectionChanged(state switch
+        {
+            LiveStreamingConnectionState.Connecting => LinuxStreamingOverlayConnectionState.Connecting,
+            LiveStreamingConnectionState.Connected => LinuxStreamingOverlayConnectionState.Connected,
+            LiveStreamingConnectionState.Reconnecting => LinuxStreamingOverlayConnectionState.Reconnecting,
+            _ => LinuxStreamingOverlayConnectionState.Error,
+        });
+
+    private void OnLiveTranscriptReceived(object? sender, LiveTranscriptUpdate update)
+    {
+        if (!_streaming) return;
+        _overlay.StreamingConnectionChanged(LinuxStreamingOverlayConnectionState.Connected);
+        if (!update.IsFinal)
+        {
+            _viewModel.Status.Success("Live transcription receiving speech…");
+            return;
+        }
+        CancellationToken token;
+        string injectionText;
+        lock (_liveDeliveryGate)
+        {
+            if (!_streaming || _liveDeliveryCancellation is null) return;
+            if (_liveFinalText.Length > 0) _liveFinalText.Append(' ');
+            _liveFinalText.Append(update.Text);
+            injectionText = (_liveFinalSegments++ == 0 ? string.Empty : " ") + update.Text;
+            token = _liveDeliveryCancellation.Token;
+            if (!_viewModel.Settings.PasteResultText) return;
+            _liveDeliveryTail = DeliverLiveFinalAsync(_liveDeliveryTail, injectionText, token);
+        }
+    }
+
+    private async Task DeliverLiveFinalAsync(Task previous, string text, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await previous.ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            var outcome = await _services.TextInjection.InjectTranscriptAsync(text, cancellationToken);
+            _lastInjectionOutcome = outcome;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+        catch { _lastInjectionOutcome = TextInjectionOutcome.Failed; }
+    }
+
+    private void BeginLiveDelivery()
+    {
+        lock (_liveDeliveryGate)
+        {
+            _liveDeliveryCancellation?.Dispose();
+            _liveDeliveryCancellation = new CancellationTokenSource();
+            _liveDeliveryTail = Task.CompletedTask;
+            _liveFinalText.Clear();
+            _liveFinalSegments = 0;
+        }
+    }
+
+    private async Task WaitForLiveDeliveryAsync(CancellationToken cancellationToken)
+    {
+        Task pending;
+        lock (_liveDeliveryGate) pending = _liveDeliveryTail;
+        await pending.WaitAsync(cancellationToken);
+    }
+
+    private string ReadDeliveredTranscript()
+    {
+        lock (_liveDeliveryGate) return _liveFinalText.ToString();
+    }
+
+    private static LinuxRecordingOverlayCompletion MapCompletion(TextInjectionOutcome? outcome) => outcome switch
+    {
+        TextInjectionOutcome.Pasted => LinuxRecordingOverlayCompletion.Pasted,
+        TextInjectionOutcome.SecureFieldSkipped => LinuxRecordingOverlayCompletion.SecureField,
+        _ => LinuxRecordingOverlayCompletion.Copied,
+    };
+
+    private Task ReportAsync(DiagnosticComponent component, DiagnosticOutcome outcome) =>
+        _diagnostics?.ReportAsync(component, outcome) ?? Task.CompletedTask;
+
+    private Task ReportInjectionAsync(TextInjectionOutcome outcome) => ReportAsync(
+        DiagnosticComponent.Clipboard,
+        outcome switch
+        {
+            TextInjectionOutcome.Pasted => DiagnosticOutcome.Succeeded,
+            TextInjectionOutcome.CopiedToClipboard => DiagnosticOutcome.Degraded,
+            TextInjectionOutcome.SecureFieldSkipped => DiagnosticOutcome.Unavailable,
+            _ => DiagnosticOutcome.Failed,
+        });
 
     private TranscriptionWorkflowRequest BuildRequest() =>
         _viewModel.CreateTranscriptionRequest(_mode, _context, _cursorContext);
@@ -299,10 +486,20 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
 
     private void ClearSession()
     {
+        CancellationTokenSource? liveDelivery;
+        lock (_liveDeliveryGate)
+        {
+            liveDelivery = _liveDeliveryCancellation;
+            _liveDeliveryCancellation = null;
+        }
+        try { liveDelivery?.Cancel(); } catch (ObjectDisposedException) { }
+        liveDelivery?.Dispose();
         _streaming = false;
         _liveTranscript = null;
         _context = null;
         _mode = null;
         _cursorContext = PortableCursorContext.Unknown;
+        _showingCancelConfirmation = false;
+        _lastInjectionOutcome = null;
     }
 }

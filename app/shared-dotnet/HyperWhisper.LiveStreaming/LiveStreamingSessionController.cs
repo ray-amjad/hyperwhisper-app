@@ -17,6 +17,14 @@ public sealed record LiveStreamingSessionOutcome(
     public bool IsSuccess => CaptureFailure is null && Transcription.IsSuccess;
 }
 
+public enum LiveStreamingConnectionState
+{
+    Connecting,
+    Connected,
+    Reconnecting,
+    Error,
+}
+
 public interface ILiveCloudTranscriber
 {
     Task<LiveTranscriptionResult> TranscribeAsync(
@@ -62,7 +70,11 @@ public sealed class LiveStreamingSessionController : IAsyncDisposable
     {
         _capture = capture ?? throw new ArgumentNullException(nameof(capture));
         _transcriber = transcriber ?? throw new ArgumentNullException(nameof(transcriber));
+        _capture.AudioLevelChanged += OnAudioLevelChanged;
     }
+
+    public event EventHandler<float>? AudioLevelChanged;
+    public event EventHandler<LiveStreamingConnectionState>? ConnectionStateChanged;
 
     public bool IsRunning
     {
@@ -155,6 +167,7 @@ public sealed class LiveStreamingSessionController : IAsyncDisposable
                 started, request.Config.Provider, channel, sessionCancellation, completionSource);
         }
 
+        RaiseConnectionState(LiveStreamingConnectionState.Connecting);
         var worker = CompleteSessionAsync(
             request.Config,
             channel.Reader.ReadAllAsync(sessionCancellation.Token),
@@ -253,7 +266,21 @@ public sealed class LiveStreamingSessionController : IAsyncDisposable
         LiveTranscriptionResult transcription;
         try
         {
-            transcription = await _transcriber.TranscribeAsync(config, audio, cancellationToken).ConfigureAwait(false);
+            var reconnects = 0;
+            while (true)
+            {
+                transcription = await _transcriber.TranscribeAsync(config, audio, cancellationToken).ConfigureAwait(false);
+                if (transcription.IsSuccess || !CanReconnect(transcription.Failure) || reconnects >= 2
+                    || !_capture.IsCapturing || cancellationToken.IsCancellationRequested)
+                    break;
+                reconnects++;
+                RaiseConnectionState(LiveStreamingConnectionState.Reconnecting);
+                await Task.Delay(TimeSpan.FromMilliseconds(250 * reconnects), cancellationToken).ConfigureAwait(false);
+                RaiseConnectionState(LiveStreamingConnectionState.Connecting);
+            }
+            RaiseConnectionState(transcription.IsSuccess
+                ? LiveStreamingConnectionState.Connected
+                : LiveStreamingConnectionState.Error);
         }
         finally
         {
@@ -273,6 +300,18 @@ public sealed class LiveStreamingSessionController : IAsyncDisposable
         PlatformError? failure;
         lock (_gate) failure = _captureFailure;
         return new LiveStreamingSessionOutcome(transcription, failure, _capture.Duration);
+    }
+
+    private static bool CanReconnect(LiveTranscriptionFailure? failure) => failure?.Code is
+        LiveTranscriptionFailureCode.Network or LiveTranscriptionFailureCode.Timeout
+        or LiveTranscriptionFailureCode.ProviderUnavailable;
+
+    private void RaiseConnectionState(LiveStreamingConnectionState state)
+    {
+        var handlers = ConnectionStateChanged;
+        if (handlers is null) return;
+        foreach (EventHandler<LiveStreamingConnectionState> handler in handlers.GetInvocationList())
+            try { handler(this, state); } catch { }
     }
 
     private void OnAudioChunkAvailable(object? sender, ReadOnlyMemory<byte> chunk)
@@ -300,6 +339,15 @@ public sealed class LiveStreamingSessionController : IAsyncDisposable
             lock (_gate) _captureFailure ??= error;
         }
         CompleteAudio();
+    }
+
+    private void OnAudioLevelChanged(object? sender, float level)
+    {
+        var handlers = AudioLevelChanged;
+        if (handlers is null) return;
+        var normalized = float.IsFinite(level) ? Math.Clamp(level, 0, 1) : 0;
+        foreach (EventHandler<float> handler in handlers.GetInvocationList())
+            try { handler(this, normalized); } catch { }
     }
 
     private void CompleteAudio()
@@ -346,6 +394,9 @@ public sealed class LiveStreamingSessionController : IAsyncDisposable
             try { await completion.ConfigureAwait(false); } catch { }
         }
         Unsubscribe();
+        _capture.AudioLevelChanged -= OnAudioLevelChanged;
+        AudioLevelChanged = null;
+        ConnectionStateChanged = null;
         lock (_gate)
         {
             registration = _externalCancellation;

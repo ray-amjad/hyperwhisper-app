@@ -225,6 +225,10 @@
   <data name="linux.overlay.error.permission" xml:space="preserve"><value>Permission required</value></data>
   <data name="linux.overlay.error.unknown" xml:space="preserve"><value>Something went wrong</value></data>
   <data name="linux.overlay.mode_changed" xml:space="preserve"><value>Mode changed</value></data>
+  <data name="linux.overlay.secure_field" xml:space="preserve"><value>Copied — secure field protected</value></data>
+  <data name="linux.overlay.streaming.connecting" xml:space="preserve"><value>Live transcription connecting…</value></data>
+  <data name="linux.overlay.streaming.reconnecting" xml:space="preserve"><value>Live transcription reconnecting…</value></data>
+  <data name="linux.overlay.streaming.error" xml:space="preserve"><value>Live transcription connection lost</value></data>
   <data name="linux.format.customer.value" xml:space="preserve"><value>Customer: {0}</value></data>
   <data name="linux.format.dictated.values" xml:space="preserve"><value>Dictated: {0:F0}s</value></data>
   <data name="linux.format.duration.values" xml:space="preserve"><value>Duration: {0:F1}s</value></data>

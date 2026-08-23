@@ -51,6 +51,12 @@ public interface IInteractionRecordingSession
         CancellationToken cancellationToken = default);
     ValueTask<InteractionStopOutcome> StopAsync(CancellationToken cancellationToken = default);
     ValueTask CancelAsync(CancellationToken cancellationToken = default);
+    async ValueTask<bool> RequestCancelAsync(CancellationToken cancellationToken = default)
+    {
+        await CancelAsync(cancellationToken);
+        return true;
+    }
+    void DismissCancelConfirmation() { }
 }
 
 internal interface IInteractionDurationScheduler
@@ -409,6 +415,11 @@ public sealed class LinuxInteractionCoordinator : IDisposable
     public Task CancelRecordingAsync(CancellationToken cancellationToken = default) =>
         RunGuardedAsync(token => CancelCoreAsync(token), cancellationToken);
 
+    public Task ConfirmCancelRecordingAsync(CancellationToken cancellationToken = default) =>
+        RunGuardedAsync(token => ConfirmCancelCoreAsync(token), cancellationToken);
+
+    public void DismissCancelConfirmation() => _recording.DismissCancelConfirmation();
+
     private async Task RunGuardedAsync(
         Func<CancellationToken, ValueTask> action,
         CancellationToken cancellationToken)
@@ -538,15 +549,31 @@ public sealed class LinuxInteractionCoordinator : IDisposable
 
     private async ValueTask CancelCoreAsync(CancellationToken cancellationToken)
     {
-        DisarmSessionCancel();
-        DisarmDurationLimit();
-        try { await _recording.CancelAsync(cancellationToken); }
+        var cancelled = false;
+        try
+        {
+            if (!await _recording.RequestCancelAsync(cancellationToken)) return;
+            cancelled = true;
+        }
         finally
         {
-            _textInjection.EndSession();
-            _ = await _textInjection.RestoreClipboardImmediatelyAsync(CancellationToken.None);
-            _pushToTalk.ResetToIdle();
+            if (cancelled || !_recording.IsActive) CompleteCancellation();
         }
+    }
+
+    private async ValueTask ConfirmCancelCoreAsync(CancellationToken cancellationToken)
+    {
+        try { await _recording.CancelAsync(cancellationToken); }
+        finally { CompleteCancellation(); }
+    }
+
+    private void CompleteCancellation()
+    {
+        DisarmSessionCancel();
+        DisarmDurationLimit();
+        _textInjection.EndSession();
+        _ = _textInjection.RestoreClipboardImmediatelyAsync(CancellationToken.None);
+        _pushToTalk.ResetToIdle();
     }
 
     private ValueTask ChangeModeCoreAsync(CancellationToken cancellationToken)

@@ -10,6 +10,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("mode router rejects disabled unsupported and credentialless modes", ModeRouterFailures),
     ("normal stop completes audio and preserves provider final", NormalStopCommits),
     ("controller drives shared-core audio commit and final protocol", SharedCoreProtocol),
+    ("controller forwards normalized audio levels safely", AudioLevelsForwardSafely),
+    ("transient transport failure reconnects without stopping capture", TransientFailureReconnects),
     ("OpenAI capture uses provider-required 24 kHz PCM", OpenAiSampleRate),
     ("capture chunks are copied before asynchronous consumption", AudioOwnership),
     ("external cancellation cancels rather than commits", ExternalCancellation),
@@ -75,6 +77,45 @@ static async Task ModeRouterProviders()
         Equal(value.License ? null : credentials.Values[value.Account], result.Value.Config.ApiKey);
         True(result.Value.Config.FastFormatting);
     }
+}
+
+static async Task AudioLevelsForwardSafely()
+{
+    var capture = new FakeCapture();
+    var controller = new LiveStreamingSessionController(capture, new CollectingTranscriber());
+    var levels = new List<float>();
+    controller.AudioLevelChanged += (_, _) => throw new InvalidOperationException("subscriber");
+    controller.AudioLevelChanged += (_, level) => levels.Add(level);
+    capture.EmitLevel(.5f);
+    capture.EmitLevel(float.PositiveInfinity);
+    capture.EmitLevel(4);
+    Equal("0.5,0,1", string.Join(',', levels.Select(value => value.ToString(System.Globalization.CultureInfo.InvariantCulture))));
+    await controller.DisposeAsync();
+    capture.EmitLevel(.25f);
+    Equal(3, levels.Count);
+}
+
+static async Task TransientFailureReconnects()
+{
+    var capture = new FakeCapture();
+    var transcriber = new ReconnectOnceTranscriber();
+    await using var controller = new LiveStreamingSessionController(capture, transcriber);
+    var states = new List<LiveStreamingConnectionState>();
+    var reconnecting = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+    controller.ConnectionStateChanged += (_, state) =>
+    {
+        states.Add(state);
+        if (state == LiveStreamingConnectionState.Reconnecting) reconnecting.TrySetResult();
+    };
+    True(controller.Start(Request(LiveTranscriptionProvider.Deepgram)).IsSuccess);
+    await reconnecting.Task.WaitAsync(TimeSpan.FromSeconds(2));
+    True(capture.IsCapturing);
+    capture.Emit([9, 0]);
+    var outcome = await controller.StopAsync().WaitAsync(TimeSpan.FromSeconds(2));
+    True(outcome.IsSuccess);
+    Equal(2, transcriber.Calls);
+    True(states.Contains(LiveStreamingConnectionState.Reconnecting));
+    Equal(LiveStreamingConnectionState.Connected, states.Last());
 }
 
 static async Task ModeRouterFailures()
@@ -313,6 +354,8 @@ sealed class FakeCapture : IStreamingAudioCapture
         AudioLevelChanged?.Invoke(this, 0.5f);
     }
 
+    public void EmitLevel(float value) => AudioLevelChanged?.Invoke(this, value);
+
     public void Fail(PlatformError error)
     {
         IsCapturing = false;
@@ -334,6 +377,24 @@ sealed class FakeCapture : IStreamingAudioCapture
     }
 
     public void Dispose() => Stop();
+}
+
+sealed class ReconnectOnceTranscriber : ILiveCloudTranscriber
+{
+    public int Calls { get; private set; }
+    public async Task<LiveTranscriptionResult> TranscribeAsync(
+        LiveTranscriptionConfig config,
+        IAsyncEnumerable<ReadOnlyMemory<byte>> audio,
+        CancellationToken cancellationToken = default)
+    {
+        Calls++;
+        if (Calls == 1)
+            return new(null, new LiveTranscriptionFailure(
+                LiveTranscriptionFailureCode.Network, "temporary", config.Provider), 0, 0);
+        var chunks = 0;
+        await foreach (var _ in audio.WithCancellation(cancellationToken)) chunks++;
+        return new("reconnected final", null, chunks, 1);
+    }
 }
 
 sealed class CollectingTranscriber : ILiveCloudTranscriber
