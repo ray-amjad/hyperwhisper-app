@@ -7,6 +7,7 @@ $ErrorActionPreference = "Stop"
 $SchemaPath = Join-Path $PSScriptRoot "hyperwhisper-backup.schema.json"
 $ExamplesPath = Join-Path $PSScriptRoot "examples"
 $WindowsExamplePath = Join-Path $ExamplesPath "windows-export.hwbackup.json"
+$LinuxExamplePath = Join-Path $ExamplesPath "linux-export.hwbackup.json"
 
 function Assert-True {
     param(
@@ -117,5 +118,16 @@ foreach ($mode in $modes) {
 $sources = @($windows.vocabulary | ForEach-Object { $_.source })
 Assert-True ($sources -contains "manual") "Windows fixture must cover manual vocabulary source."
 Assert-True ($sources -contains "auto-learn") "Windows fixture must cover non-manual vocabulary source."
+
+$linux = Get-Content -LiteralPath $LinuxExamplePath -Raw | ConvertFrom-Json
+Assert-True ($linux.platform -eq "linux") "Linux fixture must declare platform=linux."
+Assert-True ($null -ne $linux.platformExtensions.linux.settings) "Linux fixture must include platformExtensions.linux.settings."
+Assert-True ($linux.platformExtensions.linux.settings.autostartEnabled -is [bool]) "Linux autostartEnabled must be boolean."
+
+$linuxModes = @($linux.modes)
+Assert-True ($linuxModes.Count -gt 0) "Linux fixture must include at least one mode."
+foreach ($mode in $linuxModes) {
+    Assert-True ($null -ne $mode.platformExtensions.linux) "Linux mode '$($mode.name)' must include platformExtensions.linux."
+}
 
 Write-Host "Backup fixture validation passed."

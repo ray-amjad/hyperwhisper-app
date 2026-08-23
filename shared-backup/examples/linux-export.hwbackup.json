@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 2,
+  "exportDate": "2026-08-23T00:00:00Z",
+  "appVersion": "1.0.0",
+  "platform": "linux",
+  "settings": {
+    "general": {
+      "launchMinimized": false,
+      "showRecordingWindow": true,
+      "checkForUpdatesAutomatically": true,
+      "enableErrorLogging": true,
+      "shareAnonymousSpeedData": true,
+      "enableSoundEffects": true
+    },
+    "textOutput": {
+      "pasteResultText": true,
+      "removeFillerWords": false,
+      "restoreClipboardAfterPaste": true,
+      "hideFromClipboardHistory": false,
+      "clipboardRestoreDelaySeconds": 10.0,
+      "autocapitalizeInsert": true
+    },
+    "storage": {
+      "keepAudioFiles": true,
+      "storeAsM4A": false
+    },
+    "advanced": {
+      "maxRecordingDuration": 3600,
+      "typingSpeedWPM": 45
+    }
+  },
+  "modes": [
+    {
+      "id": "1a0e8400-e29b-41d4-a716-446655440030",
+      "name": "Linux Hyper",
+      "preset": "hyper",
+      "language": "en",
+      "model": "large-v3-turbo",
+      "isDefault": true,
+      "sortOrder": 0,
+      "punctuation": true,
+      "capitalization": true,
+      "profanityFilter": false,
+      "removeTrailingPeriod": false,
+      "englishSpelling": "american",
+      "cloudProvider": null,
+      "cloudTranscriptionModel": null,
+      "cloudTranscriptionDomain": null,
+      "postProcessingMode": 2,
+      "postProcessingProvider": "local",
+      "languageModel": null,
+      "localPostProcessingModel": "gemma-3-4b-it-q4_0",
+      "userSystemPrompt": null,
+      "customInstructions": null,
+      "geminiCustomPrompt": null,
+      "cloudAccuracyTier": null,
+      "cloudPostProcessingModel": null,
+      "platformExtensions": {
+        "linux": {}
+      }
+    }
+  ],
+  "vocabulary": [
+    {
+      "id": "2a0e8400-e29b-41d4-a716-446655440031",
+      "word": "Wayland",
+      "replacement": null,
+      "sortOrder": 0,
+      "source": "manual"
+    }
+  ],
+  "licenseKey": null,
+  "platformExtensions": {
+    "linux": {
+      "settings": {
+        "autostartEnabled": true
+      }
+    }
+  }
+}

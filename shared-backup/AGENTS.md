@@ -1,6 +1,6 @@
 # Cross-Platform Backup Schema
 
-This folder defines the universal backup format for HyperWhisper. Both macOS and Windows use this schema as the contract for cross-platform backup compatibility.
+This folder defines the universal backup format for HyperWhisper. macOS and Windows use this schema as the live contract for cross-platform backup compatibility; the Linux port uses the same contract and is represented by a checked-in fixture while its platform importer is implemented.
 
 ## Overview
 
@@ -78,6 +78,12 @@ under `platformExtensions.macos.settings`:
 | `autoIncreaseMicVolume` | `SettingsData.AutoIncreaseMicVolume` | Bool; macOS also round-trips this key |
 | `autocapitalizeInsert` | `SettingsData.AutocapitalizeInsert` | Bool |
 | `customEndpoints` | `SettingsData.CustomEndpoints` | Array of custom OpenAI-compatible endpoints (`id`, `name`, `endpointURL`, `modelName`, …). Required so modes whose `postProcessingProvider` is `custom:<uuid>` resolve after restore. API keys are stored separately in Credential Manager and are NOT round-tripped. |
+
+Linux-only settings go into `platformExtensions.linux.settings`:
+
+| Key | Linux Source | Notes |
+|---|---|---|
+| `autostartEnabled` | Linux autostart preference | Bool; controls the per-user XDG autostart entry. |
 </important>
 
 <important if="you are adding or modifying a Mode property, or editing the mode field-mapping tables">
@@ -127,13 +133,14 @@ Windows-only mode fields (go into `platformExtensions.windows`):
 
 <important if="you are changing per-mode platformExtensions, foreign-slice retention, or unknown-key round-trip behavior">
 
-**Foreign-slice passthrough (both platforms).** On import, each platform captures every *other*
+**Foreign-slice passthrough (all platforms).** On import, each platform captures every *other*
 platform's per-mode `platformExtensions` slice and persists it, then re-emits it on the next export
 — so a Windows mode's `platformExtensions.windows` survives a macOS round-trip, and a macOS slice
-survives a Windows round-trip. Storage: macOS `Mode.foreignPlatformExtensions` (Core Data, raw JSON);
-Windows `Mode.ForeignPlatformExtensions` (EF Core, raw JSON column). Each platform's own slice always
-wins over a stale preserved copy on re-export. A mac→v2→Windows→v2→mac trip retains the `windows`
-mode slice (and the symmetric trip retains `macos`).
+survives a Windows round-trip. Linux slices obey the same rule. Storage: macOS
+`Mode.foreignPlatformExtensions` (Core Data, raw JSON); Windows and the shared C# Linux core use
+`Mode.ForeignPlatformExtensions` (EF Core, raw JSON column). Each platform's own slice always wins
+over a stale preserved copy on re-export. A mac→v2→Windows→v2→mac trip retains the `windows` mode
+slice, and Linux-authored slices must likewise survive trips through either existing platform.
 
 **Unknown-key fidelity.** The shared core preserves any unknown top-level / settings-category /
 mode / vocabulary key verbatim through a parse → re-serialize round-trip (serde `flatten`), so a
@@ -167,6 +174,7 @@ API keys are a flat object with lowercase provider-name keys. Both platforms map
 |---|---|---|
 | macOS | `app/macos/hyperwhisper/Managers/BackupManager.swift` | `app/macos/hyperwhisper/Models/BackupModels.swift` |
 | Windows | `app/windows/HyperWhisper/Services/BackupService.cs` + `Services/UniversalBackupMapper.cs` | `app/windows/HyperWhisper/Models/UniversalBackupModels.cs` |
+| Linux | Shared C# backup service/mapper (during the Linux port) | Shared C# universal backup models |
 | Shared core | `shared-core-rs/crates/hw-backup` — universal⇄records mapping, the macOS 7→5 settings adapter, lossless `extra` passthrough, and structural validation | `crates/hw-backup/src/records.rs` |
 
 The shared core is sans-I/O: it parses, maps, and validates in memory; each platform owns reading and writing the `.hwbackup.json` bytes and persisting the resulting records.

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://hyperwhisper.com/schemas/backup/v2",
   "title": "HyperWhisper Universal Backup",
-  "description": "Cross-platform backup format for HyperWhisper (macOS & Windows). Version 2 of the backup schema. Shared top-level objects are intentionally strict so schema validation catches accidental contract drift; future platform-specific or provider-specific data must live under platformExtensions or apiKeys, which remain open extension points.",
+  "description": "Cross-platform backup format for HyperWhisper (macOS, Windows, and Linux). Version 2 of the backup schema. Shared top-level objects are intentionally strict so schema validation catches accidental contract drift; future platform-specific or provider-specific data must live under platformExtensions or apiKeys, which remain open extension points.",
   "type": "object",
   "required": ["schemaVersion", "exportDate", "appVersion", "platform"],
   "properties": {
@@ -22,7 +22,7 @@
     },
     "platform": {
       "type": "string",
-      "enum": ["macos", "windows", "ios", "android"],
+      "enum": ["macos", "windows", "linux", "ios", "android"],
       "description": "Platform that created the backup."
     },
     "settings": {
@@ -47,7 +47,7 @@
     },
     "platformExtensions": {
       "type": "object",
-      "description": "Platform-specific data. Keys are platform names (macos, windows). Preserve unknown keys for round-trip fidelity; this is the sanctioned escape hatch for platform-only fields rejected by strict shared objects. The macOS settings blob is category-keyed: platformExtensions.macos.settings.{audio,general,storage,advanced,shortcuts,aiModel}. Each platform also preserves the OTHER platform's per-mode platformExtensions slice across a round-trip.",
+      "description": "Platform-specific data. Keys are platform names (macos, windows, linux). Preserve unknown keys for round-trip fidelity; this is the sanctioned escape hatch for platform-only fields rejected by strict shared objects. The macOS settings blob is category-keyed: platformExtensions.macos.settings.{audio,general,storage,advanced,shortcuts,aiModel}. Each platform also preserves every OTHER platform's per-mode platformExtensions slice across a round-trip.",
       "additionalProperties": true
     }
   },
@@ -225,7 +225,7 @@
         },
         "platformExtensions": {
           "type": "object",
-          "description": "Platform-specific mode fields keyed by platform name (windows, macos). Each platform writes its own slice and PRESERVES the other platform's slice across a round-trip (persisted natively as foreignPlatformExtensions / ForeignPlatformExtensions). Preserve unknown keys.",
+          "description": "Platform-specific mode fields keyed by platform name (windows, macos, linux). Each platform writes its own slice and PRESERVES every other platform's slice across a round-trip (persisted natively as foreignPlatformExtensions / ForeignPlatformExtensions). Preserve unknown keys.",
           "additionalProperties": true
         }
       },
