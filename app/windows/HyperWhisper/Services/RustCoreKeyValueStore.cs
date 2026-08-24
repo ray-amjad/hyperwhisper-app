@@ -3,7 +3,7 @@
 // TODO-verify (Windows/CI): Rust shared-core swap. UNVERIFIED / compile-only —
 // no dotnet/MSVC available in this environment, so none of this has been
 // compiled. Self-checked against the generated binding
-// (Generated/RustCore/hyperwhisper_core.cs) by hand.
+// (shared-core-rs/bindings/csharp/hyperwhisper_core.cs) by hand.
 //
 // Backs the `hw-license` Rust core's persistence. The core is pure (no clock,
 // no storage): it reads/writes license, remote-config, and usage state through
@@ -39,7 +39,8 @@ using uniffi.hyperwhisper_core;
 using Windows.Security.Credentials;
 
 // `KeyValueStore`, the constant routing target, lives in uniffi.hyperwhisper_core
-// and is `internal` (single assembly — fine). There is no `HyperWhisper.*` type
+// and is `internal` to HyperWhisper.SharedCore, which grants this assembly access
+// via InternalsVisibleTo (issue #275). There is no `HyperWhisper.*` type
 // named KeyValueStore / Limits / TrialLimits / UsageSnapshot, so no qualification
 // is needed for those. Only the app's `HyperWhisper.Models.LicenseStatus` is a
 // distinct name from the binding's `HwLicenseStatus`, so they never collide.

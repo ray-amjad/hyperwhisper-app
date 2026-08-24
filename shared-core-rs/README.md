@@ -213,6 +213,22 @@ that principle. Left as a known limitation.
 Generated bindings (`bindings/`) and the UniFFI headers are committed — they're
 text, they diff, and reviewing them is how binding drift gets caught.
 
+`bindings/` is the only place a binding is authored. Two rules keep it that way,
+enforced by `tools/check-binding-drift.sh` (run on every PR by
+`.github/workflows/binding-drift.yml`):
+
+- **The C# binding is never vendored.** Every .NET head — Windows and Linux —
+  compiles `bindings/csharp/hyperwhisper_core.cs` once, through
+  `app/shared-dotnet/HyperWhisper.SharedCore`. Windows used to compile a private
+  copy of it, which put two sets of `namespace uniffi.hyperwhisper_core` types in
+  one process, each assembly holding its own UniFFI callback-vtable handle map
+  (issue #275).
+- **Swift copies must be byte-identical.** Xcode's `project.pbxproj` references
+  `app/macos/hyperwhisper/RustCore/hyperwhisper_core.swift` and
+  `app/macos/hyperwhisper/Libraries/hyperwhisper_coreFFI.h` by path, so those two
+  stay vendored. After regenerating, run `tools/check-binding-drift.sh --fix` and
+  commit the copies with the source.
+
 Compiled binaries are **not**:
 
 | Target | Artifact | How it's obtained |

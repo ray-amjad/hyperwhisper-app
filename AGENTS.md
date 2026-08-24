@@ -42,6 +42,18 @@ Rotate or add a secret **in Infisical only** — never edit GitHub/Vercel/Fly di
 Update the shared backup schema and field mappings in `shared-backup/` in the same change — its `CLAUDE.md` documents the required edits.
 </important>
 
+<important if="you regenerated the UniFFI bindings in shared-core-rs/bindings">
+
+`shared-core-rs/bindings/` is the only place a binding is authored. Never vendor a copy of the **C#** binding — every .NET head compiles it once, through `app/shared-dotnet/HyperWhisper.SharedCore`. The macOS **Swift** copies (`app/macos/hyperwhisper/RustCore/hyperwhisper_core.swift`, `app/macos/hyperwhisper/Libraries/hyperwhisper_coreFFI.h`) stay, because `project.pbxproj` references those paths, but they must be byte-identical to the source.
+
+```bash
+tools/check-binding-drift.sh --fix   # refresh the Swift copies, then commit them with the source
+tools/check-binding-drift.sh         # what CI runs (.github/workflows/binding-drift.yml)
+```
+
+`shared-core-rs/build-bindings.sh` runs the `--fix` step for you.
+</important>
+
 <important if="you are adding, editing, or reverting a Drizzle migration in nextjs/drizzle">
 
 **Migrations are append-only once they are merged.** The migrator keeps one watermark and runs a migration only when its journal `when` is greater than the last applied one. So editing an already-merged migration's SQL never runs in production, and a new entry stamped with a `when` that is not past every entry above it is skipped for good. Both failures are silent.

@@ -1,0 +1,60 @@
+# Guards the committed UniFFI bindings against drift and re-duplication.
+#
+# `shared-core-rs/bindings/` is generated and committed; the macOS app vendors a
+# byte-copy of the Swift half because project.pbxproj references those paths
+# directly. Nothing verified that the copies still matched, and Windows carried a
+# third copy of the C# binding that compiled a second set of
+# `namespace uniffi.hyperwhisper_core` types into the same process (issue #275).
+# tools/check-binding-drift.sh enforces both rules; this job runs it.
+#
+# NO PATH FILTER, deliberately. Every other workflow here scopes itself with
+# paths:, but the rule this job enforces is "no unknown copy of a generated
+# binding exists ANYWHERE in the tree" — a path filter would let a new copy land
+# in an unlisted directory and never be checked. The job is a checkout plus a few
+# `cmp` calls, so running it on every PR costs seconds.
+#
+# NOTE: this repo's Actions policy is `allowed_actions: local_only`, so the
+# checkout below is done manually with git rather than actions/checkout — same
+# reason as shared-core-tests.yml and linux-ci.yml.
+#
+# Runs on ubuntu so the working tree keeps the committed line endings. On a
+# Windows runner, app/windows/.gitattributes (`*.cs text eol=crlf`) would
+# rewrite files on checkout and the byte comparison would report false drift.
+name: Binding Drift
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  # PR runs: a newer push to the same PR branch supersedes the older run.
+  # push-to-main runs are keyed on github.sha so a second commit landing while
+  # the first is still running does not cancel it. (Mirrors windows-ci.yml.)
+  group: binding-drift-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  check:
+    name: Committed bindings match shared-core-rs/bindings
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # Manual checkout (see the local-only note above). GITHUB_SHA is the PR
+      # merge commit on pull_request events and the pushed head on push events.
+      - name: Checkout
+        run: |
+          set -euo pipefail
+          git init -q .
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git fetch -q --depth=1 origin "$GITHUB_SHA"
+          git checkout -q FETCH_HEAD
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Check binding copies
+        run: ./tools/check-binding-drift.sh

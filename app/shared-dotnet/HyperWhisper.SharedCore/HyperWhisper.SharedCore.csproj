@@ -7,8 +7,26 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
 
+  <!-- THE one compiling copy of the generated C# UniFFI binding, for every
+       .NET platform head. Windows used to compile a second, vendored copy
+       (app/windows/HyperWhisper/Generated/RustCore/) into its own assembly:
+       both landed in `namespace uniffi.hyperwhisper_core`, same-assembly
+       resolution silently picked the local one, and each assembly kept its own
+       UniFFI callback-vtable handle map — so a handle lowered through one map
+       could be dispatched against the other (issue #275). Platform heads now
+       reference this project instead. tools/check-binding-drift.sh fails the
+       build if a vendored .cs copy comes back. -->
   <ItemGroup>
     <Compile Include="../../../shared-core-rs/bindings/csharp/hyperwhisper_core.cs"
              Link="Generated/hyperwhisper_core.cs" />
+  </ItemGroup>
+
+  <!-- uniffi-bindgen-cs emits its types as `internal`, so consumers that touch
+       the raw binding (rather than only the Portable* surface in
+       SharedCoreBridge) need explicit access. The Windows head and its smoke
+       suite do; the Linux head does not. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="HyperWhisper" />
+    <InternalsVisibleTo Include="HyperWhisper.SmokeTests" />
   </ItemGroup>
 </Project>
