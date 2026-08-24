@@ -27,6 +27,41 @@ fn trailing_space() {
     assert_eq!(append_trailing_space("text", "zh-CN"), "text"); // prefix match zh
 }
 
+/// The mode language is compared case-insensitively. The Windows table used
+/// `StringComparer.OrdinalIgnoreCase`, so `"JA"` must stay a no-space language
+/// when Windows moves onto this core.
+#[test]
+fn trailing_space_language_is_case_insensitive() {
+    // exact match, upper case
+    assert_eq!(append_trailing_space("今日はいい天気ですね。", "JA"), "今日はいい天気ですね。");
+    assert_eq!(append_trailing_space("text", "KO"), "text");
+    // exact match, mixed case (the table entry is itself mixed case)
+    assert_eq!(append_trailing_space("text", "zh-hant"), "text");
+    assert_eq!(append_trailing_space("text", "ZH-HANT"), "text");
+    // prefix match, upper case
+    assert_eq!(append_trailing_space("text", "ZH-CN"), "text");
+    // "auto" is a code like any other
+    assert_eq!(append_trailing_space("今日はいい天気ですね。", "AUTO"), "今日はいい天気ですね。");
+    assert_eq!(append_trailing_space("Hello world.", "Auto"), "Hello world. ");
+    // a space-delimited language still gets its space
+    assert_eq!(append_trailing_space("Hello world.", "EN"), "Hello world. ");
+    assert_eq!(append_trailing_space("Hallo Welt.", "DE"), "Hallo Welt. ");
+}
+
+/// An empty or whitespace-only mode language means "no language set", which is
+/// the same thing as "auto" — detect from the text instead of appending blindly.
+#[test]
+fn trailing_space_empty_language_means_auto() {
+    assert_eq!(append_trailing_space("今日はいい天気ですね。", ""), "今日はいい天気ですね。");
+    assert_eq!(append_trailing_space("今日はいい天気ですね。", "   "), "今日はいい天気ですね。");
+    assert_eq!(append_trailing_space("今日はいい天気ですね。", "\t"), "今日はいい天気ですね。");
+    assert_eq!(append_trailing_space("Hello world.", ""), "Hello world. ");
+    assert_eq!(append_trailing_space("Hello world.", "  "), "Hello world. ");
+    // a padded real code is still that code
+    assert_eq!(append_trailing_space("今日はいい天気ですね。", " ja "), "今日はいい天気ですね。");
+    assert_eq!(append_trailing_space("Hello world.", " en "), "Hello world. ");
+}
+
 // ---- autocapitalize (unified on macOS: pronoun + acronym guards) ----------
 
 #[test]
@@ -135,6 +170,33 @@ fn filler_words() {
     assert_eq!(remove_filler_words("so uh, I think we should go", Some("en")), "so I think we should go");
     assert_eq!(remove_filler_words("I think, uh, we should go", Some("en")), "I think, we should go");
     assert_eq!(remove_filler_words("I think we should go uh", Some("en")), "I think we should go");
+}
+
+/// Parity spot-check for the Windows migration (#278). Windows removed fillers
+/// with a single lookaround regex; this crate has no lookaround, so it applies a
+/// capture-group replacement to a fixpoint instead. Adjacent fillers are where
+/// the two constructions could disagree — a single pass would leave the second
+/// filler once the shared whitespace is consumed. Every case below was run
+/// against the retired C# regex and produces the identical string.
+#[test]
+fn filler_words_adjacent_parity_with_windows() {
+    assert_eq!(remove_filler_words("uh um", Some("en")), "");
+    assert_eq!(remove_filler_words("uh um I think", Some("en")), "I think");
+    assert_eq!(remove_filler_words("I think uh um so", Some("en")), "I think so");
+    assert_eq!(remove_filler_words("uh, um, well", Some("en")), "Well");
+    // The cases the Windows smoke suite asserts on.
+    assert_eq!(
+        remove_filler_words("I uh think this is, um, correct", Some("en")),
+        "I think this is, correct"
+    );
+    assert_eq!(remove_filler_words("uh", Some("en")), "");
+    assert_eq!(remove_filler_words("um, this works", Some("en")), "This works");
+    // The language gate Windows used to implement in userland.
+    assert_eq!(remove_filler_words("I uh think", Some("EN")), "I think");
+    assert_eq!(
+        remove_filler_words("I uh think this is, um, correct", Some("auto")),
+        "I uh think this is, um, correct"
+    );
 }
 
 #[test]

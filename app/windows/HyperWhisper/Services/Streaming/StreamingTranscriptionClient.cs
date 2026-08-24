@@ -674,12 +674,10 @@ public sealed class StreamingTranscriptionClient : IAsyncDisposable, IDisposable
         // cases) - interim/partial text must never be filler-stripped, to avoid words
         // popping in/out as the partial hypothesis changes.
         //
-        // SmartSpacing.RemoveFillerWords is a hardcoded-English regex with no
-        // language parameter (unlike the shared Rust remove_filler_words used on
-        // macOS/the batch path, which no-ops outside en/en-*) - gate it on the
-        // session's language here so a non-English stream doesn't get real words
-        // stripped (e.g. German "er"/"um").
-        var shouldRemoveFillers = _config.RemoveFillerWords && IsEnglishLanguage(_config.Language);
+        // The shared core's remove_filler_words takes the language and no-ops
+        // outside en/en-*, so a non-English stream keeps its real words (e.g.
+        // German "er"/"um") without a bespoke gate here (issue #278).
+        var shouldRemoveFillers = _config.RemoveFillerWords;
 
         bool isFirstConfirmedDelta;
         lock (_finalTranscriptLock)
@@ -688,11 +686,11 @@ public sealed class StreamingTranscriptionClient : IAsyncDisposable, IDisposable
         }
 
         var withoutFillers = shouldRemoveFillers
-            ? SmartSpacing.RemoveFillerWords(text)
+            ? TranscriptionTextProcessing.RemoveFillerWords(text, _config.Language)
             : text;
 
-        // SmartSpacing.RemoveFillerWords recapitalizes the word after a leading
-        // filler on the assumption that it is processing the START of a whole
+        // RemoveFillerWords recapitalizes the word after a leading filler on the
+        // assumption that it is processing the START of a whole
         // transcript - true for the batch path, and for this session's very
         // first confirmed delta. For later deltas that assumption is wrong: a
         // filler opening a mid-transcript delta (e.g. "um, this works" following
@@ -724,22 +722,6 @@ public sealed class StreamingTranscriptionClient : IAsyncDisposable, IDisposable
         }
 
         return processed;
-    }
-
-    /// <summary>
-    /// True when <paramref name="language"/> is English ("en" or a regional
-    /// variant like "en-GB"). SmartSpacing.RemoveFillerWords has no language
-    /// parameter of its own (unlike the shared Rust remove_filler_words used on
-    /// macOS/the batch path) - callers must gate on this before invoking it for
-    /// any non-English, unset, or "auto" session.
-    /// </summary>
-    private static bool IsEnglishLanguage(string? language)
-    {
-        if (string.IsNullOrWhiteSpace(language))
-            return false;
-
-        return language.Equals("en", StringComparison.OrdinalIgnoreCase) ||
-               language.StartsWith("en-", StringComparison.OrdinalIgnoreCase);
     }
 
     private string BuildLiveTranscript(string partial)

@@ -47,14 +47,25 @@ fn is_punctuation(c: char) -> bool {
     punctuation_re().is_match(c.encode_utf8(&mut buf))
 }
 
+/// Case-insensitive membership test against [`NO_SPACE_LANGUAGE_CODES`].
+///
+/// The codes are ASCII, and the Windows table this was ported from used
+/// `StringComparer.OrdinalIgnoreCase`, so a mode language of `"JA"` or
+/// `"ZH-Hant"` must classify exactly like `"ja"` / `"zh-Hant"`.
+fn is_no_space_code(code: &str) -> bool {
+    NO_SPACE_LANGUAGE_CODES
+        .iter()
+        .any(|c| c.eq_ignore_ascii_case(code))
+}
+
 fn is_no_space_language(language_code: &str) -> bool {
-    if NO_SPACE_LANGUAGE_CODES.contains(&language_code) {
+    if is_no_space_code(language_code) {
         return true;
     }
     // Prefix match for variants (e.g. "zh-CN" matches "zh"). Mirrors the macOS
     // `String(prefix(2))` logic — by Unicode scalars, not bytes.
     let prefix: String = language_code.chars().take(2).collect();
-    NO_SPACE_LANGUAGE_CODES.contains(&prefix.as_str())
+    is_no_space_code(&prefix)
 }
 
 /// Detect whether text *primarily* (>30% of non-space, non-punctuation chars)
@@ -93,11 +104,15 @@ pub fn append_trailing_space(text: &str, mode_language: &str) -> String {
         return text.to_string();
     }
 
-    // STEP 3: decide based on language.
-    let should_add_space = if mode_language == AUTOMATIC_CODE {
+    // STEP 3: decide based on language. An absent language is "auto": the
+    // platforms pass an empty string when the mode has no language set (Windows
+    // `SmartSpacing.cs` checks `string.IsNullOrEmpty`), and treating that as an
+    // explicit code would append a space to CJK text.
+    let language = mode_language.trim();
+    let should_add_space = if language.is_empty() || language.eq_ignore_ascii_case(AUTOMATIC_CODE) {
         !contains_cjk(text)
     } else {
-        !is_no_space_language(mode_language)
+        !is_no_space_language(language)
     };
 
     // STEP 4: apply.

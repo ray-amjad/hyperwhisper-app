@@ -15,6 +15,19 @@ using HyperWhisper.Services;
 
 namespace HyperWhisper.Utilities;
 
+/// <summary>
+/// Where the caret sits relative to sentence boundaries, as read by the UIA
+/// probe below. Mirrors the shared core's <c>CursorContext</c>; the mapping
+/// lives in <see cref="TranscriptionTextProcessing.ApplyAutocapitalize"/>,
+/// because the generated binding's enum is internal to this assembly.
+/// </summary>
+public enum TextFieldContext
+{
+    StartOfSentence,
+    MidSentence,
+    Unknown
+}
+
 public static class TextFieldContextHelper
 {
     /// <summary>
