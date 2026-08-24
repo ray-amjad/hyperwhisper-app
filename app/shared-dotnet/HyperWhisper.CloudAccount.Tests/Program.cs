@@ -14,8 +14,10 @@ var tests = new (string Name, Func<Task> Run)[]
     ("status reports an expired account without transport failure", ExpiredStatus),
     ("credit refresh uses the production usage contract", CreditRefresh),
     ("invalid credit values fail closed", InvalidCredits),
-    ("deactivation acknowledges local-only server contract", Deactivation),
-    ("deactivation preserves the key when server fails", FailedDeactivationPreservesKey),
+    ("deactivation removes the key without a network call", Deactivation),
+    ("deactivation works offline", OfflineDeactivationRemovesKey),
+    ("deactivation reports a keyring delete failure", DeactivationReportsAKeyringFailure),
+    ("deactivation reports a missing key", DeactivationWithoutAKeyIsReported),
     ("credential failures are stable and redacted", CredentialFailures),
     ("HTTP cancellation is distinct from timeout", CancellationAndTimeout),
     ("responses are bounded", BoundedResponse),
@@ -154,28 +156,52 @@ static async Task InvalidCredits()
 
 static async Task Deactivation()
 {
-    RequestSnapshot? seen = null;
-    var handler = new StubHandler(async (request, _) =>
-    {
-        seen = await RequestSnapshot.FromAsync(request);
-        return Json(HttpStatusCode.OK, "{\"success\":true,\"message\":\"License deactivated successfully\"}");
-    });
+    // Deactivation is local only. /api/license/deactivate is a no-op stub, so the
+    // round-trip bought nothing (issue #290) — the handler below must never run.
+    var handler = new StubHandler((_, _) =>
+        Task.FromResult(Json(HttpStatusCode.OK, "{\"success\":true}")));
     var store = new MemoryCredentialStore("local-key");
     using var service = Service(store, handler);
     var result = await service.DeactivateAsync();
-    Assert(result.Value is { ServerAcknowledged: true, ServerRevocationSupported: false }, "stub semantics were not explicit");
+    Assert(result.Value is { ServerAcknowledged: false, ServerRevocationSupported: false }, "stub semantics were not explicit");
     Assert(store.StoredText is null && store.DeleteCount == 1, "local key was not removed");
-    Assert(seen?.Uri == "https://www.hyperwhisper.com/api/license/deactivate", "deactivation endpoint mismatch");
+    Assert(handler.CallCount == 0, "deactivation still made a network call");
 }
 
-static async Task FailedDeactivationPreservesKey()
+static async Task OfflineDeactivationRemovesKey()
 {
-    var handler = new StubHandler((_, _) => Task.FromResult(Json(HttpStatusCode.ServiceUnavailable, "{}")));
-    var store = new MemoryCredentialStore("keep-me");
+    // The bug this replaces: every transport failure was terminal, so an offline
+    // user could not remove their key at all. Removal must not touch the network.
+    var handler = new StubHandler((_, _) =>
+        Task.FromException<HttpResponseMessage>(new HttpRequestException("no route to host")));
+    var store = new MemoryCredentialStore("remove-me");
     using var service = Service(store, handler);
     var result = await service.DeactivateAsync();
-    Assert(result.Failure?.Code == CloudAccountFailureCode.ServerUnavailable, "server failure mismatch");
-    Assert(store.StoredText == "keep-me" && store.DeleteCount == 0, "key was deleted without acknowledgement");
+    Assert(result.IsSuccess, "offline removal failed");
+    Assert(store.StoredText is null && store.DeleteCount == 1, "offline removal left the key in place");
+    Assert(handler.CallCount == 0, "offline removal reached for the network");
+}
+
+static async Task DeactivationReportsAKeyringFailure()
+{
+    // ICredentialStore.Delete has a real error channel (LinuxCredentialStore shells
+    // out to secret-tool). A failed delete must not be reported as a removal.
+    var handler = new StubHandler((_, _) => Task.FromResult(Json(HttpStatusCode.OK, "{}")));
+    var store = new MemoryCredentialStore("keep-me") { FailDelete = true };
+    using var service = Service(store, handler);
+    var result = await service.DeactivateAsync();
+    Assert(result.Failure?.Code == CloudAccountFailureCode.CredentialDeleteFailed, "delete failure mismatch");
+    Assert(store.StoredText == "keep-me", "a failed delete still dropped the key");
+}
+
+static async Task DeactivationWithoutAKeyIsReported()
+{
+    var handler = new StubHandler((_, _) => Task.FromResult(Json(HttpStatusCode.OK, "{}")));
+    var store = new MemoryCredentialStore();
+    using var service = Service(store, handler);
+    var result = await service.DeactivateAsync();
+    Assert(result.Failure?.Code == CloudAccountFailureCode.MissingAccountKey, "missing key mismatch");
+    Assert(store.DeleteCount == 0, "a delete was attempted with no key stored");
 }
 
 static async Task CredentialFailures()
@@ -269,6 +295,7 @@ sealed class MemoryCredentialStore : ICredentialStore
 
     public bool FailRead { get; init; }
     public bool FailWrite { get; init; }
+    public bool FailDelete { get; init; }
     public int DeleteCount { get; private set; }
     public string? StoredText => _stored is null ? null : Encoding.UTF8.GetString(_stored);
 
@@ -285,6 +312,7 @@ sealed class MemoryCredentialStore : ICredentialStore
 
     public PlatformResult Delete(string resource, string account)
     {
+        if (FailDelete) return PlatformResult.Failure("delete", "secret value");
         DeleteCount++;
         _stored = null;
         return PlatformResult.Success();

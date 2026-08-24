@@ -204,7 +204,7 @@ public sealed class CloudAccountViewModel : ViewModelBase
             ClearDetails();
             Status.Success(result.Value!.ServerRevocationSupported
                 ? "Account deactivated and the local key was removed."
-                : "Account removed from this device after server acknowledgement. The server does not support remote key revocation; manage the account online if needed.");
+                : "Account removed from this device. Removal is local and works offline; the server does not support remote key revocation, so manage the account online if needed.");
         }
         catch (OperationCanceledException)
         {
