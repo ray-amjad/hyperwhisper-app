@@ -27,6 +27,41 @@ fn trailing_space() {
     assert_eq!(append_trailing_space("text", "zh-CN"), "text"); // prefix match zh
 }
 
+/// The mode language is compared case-insensitively. The Windows table used
+/// `StringComparer.OrdinalIgnoreCase`, so `"JA"` must stay a no-space language
+/// when Windows moves onto this core.
+#[test]
+fn trailing_space_language_is_case_insensitive() {
+    // exact match, upper case
+    assert_eq!(append_trailing_space("今日はいい天気ですね。", "JA"), "今日はいい天気ですね。");
+    assert_eq!(append_trailing_space("text", "KO"), "text");
+    // exact match, mixed case (the table entry is itself mixed case)
+    assert_eq!(append_trailing_space("text", "zh-hant"), "text");
+    assert_eq!(append_trailing_space("text", "ZH-HANT"), "text");
+    // prefix match, upper case
+    assert_eq!(append_trailing_space("text", "ZH-CN"), "text");
+    // "auto" is a code like any other
+    assert_eq!(append_trailing_space("今日はいい天気ですね。", "AUTO"), "今日はいい天気ですね。");
+    assert_eq!(append_trailing_space("Hello world.", "Auto"), "Hello world. ");
+    // a space-delimited language still gets its space
+    assert_eq!(append_trailing_space("Hello world.", "EN"), "Hello world. ");
+    assert_eq!(append_trailing_space("Hallo Welt.", "DE"), "Hallo Welt. ");
+}
+
+/// An empty or whitespace-only mode language means "no language set", which is
+/// the same thing as "auto" — detect from the text instead of appending blindly.
+#[test]
+fn trailing_space_empty_language_means_auto() {
+    assert_eq!(append_trailing_space("今日はいい天気ですね。", ""), "今日はいい天気ですね。");
+    assert_eq!(append_trailing_space("今日はいい天気ですね。", "   "), "今日はいい天気ですね。");
+    assert_eq!(append_trailing_space("今日はいい天気ですね。", "\t"), "今日はいい天気ですね。");
+    assert_eq!(append_trailing_space("Hello world.", ""), "Hello world. ");
+    assert_eq!(append_trailing_space("Hello world.", "  "), "Hello world. ");
+    // a padded real code is still that code
+    assert_eq!(append_trailing_space("今日はいい天気ですね。", " ja "), "今日はいい天気ですね。");
+    assert_eq!(append_trailing_space("Hello world.", " en "), "Hello world. ");
+}
+
 // ---- autocapitalize (unified on macOS: pronoun + acronym guards) ----------
 
 #[test]
