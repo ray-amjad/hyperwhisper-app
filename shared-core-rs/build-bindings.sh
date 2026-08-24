@@ -24,4 +24,12 @@ else
   echo "!! uniffi-bindgen-cs not installed — skipping C#. Install with:"
   echo "   cargo install uniffi-bindgen-cs --git https://github.com/NordSecurity/uniffi-bindgen-cs --tag v0.9.2+v0.28.3"
 fi
+
+# The macOS app vendors byte-copies of the Swift binding (project.pbxproj
+# references those paths directly). Refresh them here, or CI's binding-drift job
+# fails on the next PR. The C# binding has no copies — every .NET head compiles
+# bindings/csharp/ through HyperWhisper.SharedCore (issue #275).
+echo "==> syncing vendored copies"
+../tools/check-binding-drift.sh --fix
+
 echo "==> done"

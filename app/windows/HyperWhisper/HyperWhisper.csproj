@@ -81,12 +81,26 @@
   <ItemGroup>
     <ProjectReference Include="..\..\shared-dotnet\HyperWhisper.Platform.Abstractions\HyperWhisper.Platform.Abstractions.csproj" />
     <ProjectReference Include="..\..\shared-dotnet\HyperWhisper.Application\HyperWhisper.Application.csproj" />
+    <!-- The generated C# UniFFI binding. This head used to compile its OWN copy
+         of it (Generated\RustCore\hyperwhisper_core.cs), which put a second set
+         of `namespace uniffi.hyperwhisper_core` types in the process and gave
+         each assembly its own callback-vtable handle map (issue #275). The copy
+         is gone; the binding now arrives only through this reference, which
+         also flows in transitively via HyperWhisper.Application. It is listed
+         explicitly because ~30 files under Services\ use the raw binding types
+         directly. -->
+    <ProjectReference Include="..\..\shared-dotnet\HyperWhisper.SharedCore\HyperWhisper.SharedCore.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <Compile Remove="Data\HyperWhisperDbContext.cs" />
     <Compile Remove="Data\Entities\**\*.cs" />
     <Compile Remove="Migrations\**\*.cs" />
+    <!-- Belt-and-braces against the vendored binding returning: if a copy is
+         ever restored under Generated\RustCore\, the SDK glob must not compile
+         it back into this assembly. tools/check-binding-drift.sh fails CI for
+         the same case. -->
+    <Compile Remove="Generated\RustCore\**\*.cs" />
   </ItemGroup>
 
   <!-- New WPF/MVVM dependencies -->
@@ -164,9 +178,11 @@
   </ItemGroup>
 
   <!-- HyperWhisper shared Rust core (hw-core / UniFFI). The generated binding
-       (Generated/RustCore/hyperwhisper_core.cs) P/Invokes hyperwhisper_core.dll,
-       so the DLL is copied to the OUTPUT ROOT (next to the .exe) where the
-       default native-library resolver can find it. The DLL is built from
+       (shared-core-rs/bindings/csharp/hyperwhisper_core.cs, compiled into
+       HyperWhisper.SharedCore) P/Invokes hyperwhisper_core.dll, so the DLL is
+       copied to the OUTPUT ROOT (next to the .exe) where the default
+       native-library resolver can find it — the resolver probes the app base
+       directory whichever assembly declares the DllImport. The DLL is built from
        shared-core-rs (see shared-core-rs/README.md and the README in
        Resources/rust-core/) and placed in Resources/rust-core/<arch>/. The
        Exists() guards keep the build green before the DLL has been produced. -->

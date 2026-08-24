@@ -7,9 +7,14 @@
 # a real .NET 10 / Windows toolchain and survive the smoke suite.
 #
 # Before this existed, Windows-only changes (including regenerated UniFFI
-# bindings under app/windows/HyperWhisper/Generated/RustCore/) merged with zero
-# verification: windows-release.yml is workflow_dispatch-only, so binding↔DLL
-# drift surfaced for the first time at release time.
+# bindings, which Windows then vendored under
+# app/windows/HyperWhisper/Generated/RustCore/) merged with zero verification:
+# windows-release.yml is workflow_dispatch-only, so binding↔DLL drift surfaced
+# for the first time at release time. The vendored copy is gone as of issue
+# #275 — Windows compiles shared-core-rs/bindings/csharp/ through
+# HyperWhisper.SharedCore, and binding-drift.yml keeps it that way — but this
+# job is still where binding↔DLL drift is caught, at the smoke suite's first
+# FFI call.
 name: Windows CI
 
 on:
@@ -17,6 +22,12 @@ on:
     branches: [main]
     paths: &ci-paths
       - "app/windows/**"
+      # ProjectReferenced by the Windows head (HyperWhisper.Application,
+      # HyperWhisper.Platform.Abstractions, HyperWhisper.SharedCore), so a
+      # shared-dotnet-only change can break this build. Since issue #275 the
+      # generated UniFFI binding compiles here too, which makes the coupling
+      # total: nothing Windows-side would catch a break otherwise.
+      - "app/shared-dotnet/**"
       - "shared-core-rs/**"
       # Embedded into the app assembly as resources (see the EmbeddedResource
       # blocks in HyperWhisper.csproj) and read at runtime, so a catalog- or

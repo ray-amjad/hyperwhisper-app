@@ -2,7 +2,9 @@
 
 This folder holds the prebuilt **HyperWhisper shared Rust core** DLL
 (`hyperwhisper_core.dll`) that the generated binding
-(`Generated/RustCore/hyperwhisper_core.cs`) P/Invokes.
+(`shared-core-rs/bindings/csharp/hyperwhisper_core.cs`) P/Invokes. The binding
+compiles into `HyperWhisper.SharedCore`, which this project references; there is
+no Windows-local copy of it (issue #275).
 
 ```
 Resources/rust-core/
@@ -41,8 +43,12 @@ The binding only needs regenerating when the Rust FFI surface changes:
 # from shared-core-rs (any platform — the generator runs on macOS/Linux too)
 cargo build --release
 uniffi-bindgen-cs --library target/release/libhyperwhisper_core.dylib --out-dir bindings/csharp
-cp bindings/csharp/hyperwhisper_core.cs ../app/windows/HyperWhisper/Generated/RustCore/
 ```
+
+Do not copy the result anywhere. `bindings/csharp/hyperwhisper_core.cs` is the
+only C# copy, and `tools/check-binding-drift.sh` fails CI if a second one
+appears. Commit the regenerated file and the Swift copies together — run
+`tools/check-binding-drift.sh --fix` to refresh the Swift copies.
 
 The C# generator is version-locked to the uniffi version — see
 `shared-core-rs/README.md`.
