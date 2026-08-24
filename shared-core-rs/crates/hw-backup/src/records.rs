@@ -260,7 +260,7 @@ pub struct ModeRecord {
     pub cloud_accuracy_tier: Option<String>,
     /// Already-migrated (`<engineId>:<modelId>`) cloud post-processing key.
     pub cloud_post_processing_model: Option<String>,
-    /// Preserved platform-only blobs keyed by platform name (`"windows"`, `"macos"`).
+    /// Preserved platform-only blobs keyed by platform name (`"windows"`, `"macos"`, `"linux"`).
     ///
     /// Mirrors the wire type ([`UniversalMode::platform_extensions`]) as an
     /// `Option` so the absent-vs-explicit-`{}` distinction survives a round-trip.
@@ -291,7 +291,7 @@ pub struct SettingsRecord {
     pub streaming: Option<Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub advanced: Option<Value>,
-    /// Top-level `platformExtensions` map (e.g. `{"macos": {...}, "windows": {...}}`).
+    /// Top-level `platformExtensions` map (e.g. `{"macos": {...}, "linux": {...}}`).
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub platform_extensions: BTreeMap<String, Value>,
     /// Unknown settings categories carried through from the wire
@@ -312,7 +312,7 @@ pub struct BackupRecords {
     pub vocabulary: Vec<UniversalVocabularyItem>,
     pub api_keys: BTreeMap<String, Value>,
     pub license_key: Option<String>,
-    /// Top-level `platformExtensions` map (`{"macos": {...}, "windows": {...}}`),
+    /// Top-level `platformExtensions` map (`{"macos": {...}, "windows": {...}, "linux": {...}}`),
     /// preserved verbatim for round-trip fidelity. Distinct from a mode's own
     /// per-mode `platform_extensions`.
     pub platform_extensions: BTreeMap<String, Value>,

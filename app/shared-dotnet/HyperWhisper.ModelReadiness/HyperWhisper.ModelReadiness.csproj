@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../HyperWhisper.ModelManagement/HyperWhisper.ModelManagement.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="../../../shared-models/models-catalog.json" Link="Catalogs/models-catalog.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../../../shared-app-classification/cloud-stt-catalog.json" Link="Catalogs/cloud-stt-catalog.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../../../shared-app-classification/cloud-pp-catalog.json" Link="Catalogs/cloud-pp-catalog.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

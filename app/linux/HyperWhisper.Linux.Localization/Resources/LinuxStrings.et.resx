@@ -1,0 +1,24 @@
+<?xml version='1.0' encoding='utf-8'?>
+<root>
+  <data name="linux.overlay.recording" xml:space="preserve">
+    <value>Salvestamine</value>
+  </data>
+  <data name="linux.ui.api.keys" xml:space="preserve">
+    <value>API-võtmed</value>
+  </data>
+  <data name="linux.ui.import" xml:space="preserve">
+    <value>Impordi</value>
+  </data>
+  <data name="linux.ui.replace.existing" xml:space="preserve">
+    <value>Asenda olemasolevad</value>
+  </data>
+  <data name="linux.ui.search" xml:space="preserve">
+    <value>Otsi</value>
+  </data>
+  <data name="linux.ui.skip.existing" xml:space="preserve">
+    <value>Jäta olemasolevad vahele</value>
+  </data>
+  <data name="linux.ui.start.recording" xml:space="preserve">
+    <value>Alusta salvestamist</value>
+  </data>
+</root>

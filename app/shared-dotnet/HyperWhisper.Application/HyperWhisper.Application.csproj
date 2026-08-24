@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <RootNamespace>HyperWhisper.Application</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="HyperWhisper.Application.Tests" />
+    <ProjectReference Include="..\HyperWhisper.Platform.Abstractions\HyperWhisper.Platform.Abstractions.csproj" />
+    <ProjectReference Include="..\HyperWhisper.AudioNormalization\HyperWhisper.AudioNormalization.csproj" />
+    <ProjectReference Include="..\HyperWhisper.CloudAccount\HyperWhisper.CloudAccount.csproj" />
+    <ProjectReference Include="..\HyperWhisper.FileTranscription\HyperWhisper.FileTranscription.csproj" />
+    <ProjectReference Include="..\HyperWhisper.Diagnostics\HyperWhisper.Diagnostics.csproj" />
+    <ProjectReference Include="..\HyperWhisper.ModelManagement\HyperWhisper.ModelManagement.csproj" />
+    <ProjectReference Include="..\HyperWhisper.ModelReadiness\HyperWhisper.ModelReadiness.csproj" />
+    <ProjectReference Include="..\HyperWhisper.SharedCore\HyperWhisper.SharedCore.csproj" />
+    <ProjectReference Include="..\HyperWhisper.SpeechOutput\HyperWhisper.SpeechOutput.csproj" />
+    <ProjectReference Include="..\HyperWhisper.Storage\HyperWhisper.Storage.csproj" />
+    <ProjectReference Include="..\HyperWhisper.Statistics\HyperWhisper.Statistics.csproj" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.19" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\..\shared-app-classification\cloud-stt-catalog.json"
+                      LogicalName="HyperWhisper.SharedAppClassification.cloud-stt-catalog.json" />
+    <EmbeddedResource Include="..\..\..\shared-app-classification\cloud-pp-catalog.json"
+                      LogicalName="HyperWhisper.SharedAppClassification.cloud-pp-catalog.json" />
+  </ItemGroup>
+
+  <!-- These remain at stable source paths during the extraction, but this is
+       their sole compiling project. Windows consumes the authoritative types
+       through ProjectReference instead of compiling duplicates. -->
+  <ItemGroup>
+    <Compile Include="..\..\windows\HyperWhisper\Data\HyperWhisperDbContext.cs" Link="Persistence\HyperWhisperDbContext.cs" />
+    <Compile Include="..\..\windows\HyperWhisper\Data\Entities\*.cs" Link="Persistence\Entities\%(Filename)%(Extension)" />
+    <Compile Include="..\..\windows\HyperWhisper\Migrations\*.cs" Link="Persistence\Migrations\%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>

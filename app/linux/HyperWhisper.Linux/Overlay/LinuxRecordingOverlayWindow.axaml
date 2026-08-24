@@ -1,0 +1,136 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:overlay="clr-namespace:HyperWhisper.Linux.Overlay"
+        x:Class="HyperWhisper.Linux.Overlay.LinuxRecordingOverlayWindow"
+        x:DataType="overlay:LinuxRecordingOverlayViewModel"
+        Width="260" Height="52"
+        WindowDecorations="None"
+        Background="Transparent"
+        TransparencyLevelHint="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ShowActivated="False"
+        CanResize="False"
+        Focusable="False"
+        FlowDirection="{ReflectionBinding FlowDirection, Source={StaticResource Localization}}">
+  <Border CornerRadius="26"
+          Background="#E6000000"
+          BorderBrush="#33FFFFFF"
+          BorderThickness="1"
+          Padding="14,8">
+    <Grid>
+      <Grid IsVisible="{Binding IsRecording}" ColumnDefinitions="Auto,Auto,*,Auto">
+        <Border x:Name="StopTarget" Width="18" Height="18" CornerRadius="9" Background="#FFFF3B30"
+                VerticalAlignment="Center" Margin="0,0,10,0" />
+        <StackPanel Grid.Column="1" Spacing="1" VerticalAlignment="Center">
+          <TextBlock Text="{Binding StatusText}" Foreground="#F2FFFFFF"
+                     FontSize="12" FontWeight="SemiBold" />
+          <TextBlock Text="{Binding ModeText}" Foreground="#A6FFFFFF"
+                     FontSize="10" TextTrimming="CharacterEllipsis" MaxWidth="155" />
+        </StackPanel>
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="2" Height="26"
+                    VerticalAlignment="Center" Margin="8,0">
+          <ProgressBar Width="3" Height="10" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
+          <ProgressBar Width="3" Height="16" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
+          <ProgressBar Width="3" Height="22" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
+          <ProgressBar Width="3" Height="26" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
+          <ProgressBar Width="3" Height="22" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
+          <ProgressBar Width="3" Height="16" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
+          <ProgressBar Width="3" Height="10" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
+        </StackPanel>
+        <TextBlock Grid.Column="3" Text="{Binding DurationText}" Foreground="#CCFFFFFF"
+                   FontSize="12" FontFamily="monospace" VerticalAlignment="Center" />
+      </Grid>
+
+      <Grid IsVisible="{Binding IsStreaming}" ColumnDefinitions="Auto,Auto,*,Auto">
+        <Border Width="10" Height="10" CornerRadius="5" Background="{Binding StreamingIndicatorBrush}"
+                VerticalAlignment="Center" Margin="0,0,8,0"/>
+        <StackPanel Grid.Column="1" Spacing="1" VerticalAlignment="Center">
+          <TextBlock Text="{Binding StatusText}" Foreground="#F2FFFFFF" FontSize="11" FontWeight="SemiBold"
+                     TextTrimming="CharacterEllipsis" MaxWidth="112"/>
+          <TextBlock Text="{Binding ModeText}" Foreground="#A6FFFFFF" FontSize="9"
+                     TextTrimming="CharacterEllipsis" MaxWidth="112"/>
+        </StackPanel>
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="2" Height="24"
+                    VerticalAlignment="Center" Margin="7,0">
+          <ProgressBar Width="3" Height="10" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
+          <ProgressBar Width="3" Height="18" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
+          <ProgressBar Width="3" Height="24" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
+          <ProgressBar Width="3" Height="18" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
+          <ProgressBar Width="3" Height="10" Orientation="Vertical" Maximum="1" Value="{Binding AudioLevel}"/>
+        </StackPanel>
+        <TextBlock Grid.Column="3" Text="{Binding DurationText}" Foreground="#CCFFFFFF"
+                   FontSize="11" FontFamily="monospace" VerticalAlignment="Center"/>
+      </Grid>
+
+      <StackPanel IsVisible="{Binding IsTranscribing}" Orientation="Horizontal"
+                  HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10">
+        <ProgressBar Width="28" Height="4" IsIndeterminate="True" />
+        <TextBlock Text="{Binding StatusText}" Foreground="#F2FFFFFF"
+                   FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
+      </StackPanel>
+
+      <StackPanel IsVisible="{Binding IsError}" Orientation="Horizontal"
+                  HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="9">
+        <Border Width="18" Height="18" CornerRadius="9" Background="#FFFF9500">
+          <TextBlock Text="!" Foreground="Black" FontWeight="Bold"
+                     HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Border>
+        <TextBlock Text="{Binding StatusText}" Foreground="#F2FFFFFF"
+                   FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
+                   MaxWidth="205" VerticalAlignment="Center" />
+      </StackPanel>
+
+      <StackPanel IsVisible="{Binding IsModeChanged}" Orientation="Horizontal"
+                  HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
+        <TextBlock Text="✨" FontSize="13" VerticalAlignment="Center" />
+        <StackPanel Orientation="Horizontal" Spacing="4">
+        <TextBlock Text="{ReflectionBinding [statusbar.mode], Source={StaticResource Localization}}" Foreground="#A6FFFFFF" FontSize="12" />
+          <TextBlock Text="{Binding ModeText}" Foreground="#F2FFFFFF" FontSize="12"
+                     FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxWidth="170" />
+        </StackPanel>
+      </StackPanel>
+
+      <StackPanel IsVisible="{Binding IsCancelled}" Orientation="Horizontal"
+                  HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
+        <TextBlock Text="×" Foreground="#FFFF6961" FontSize="18" FontWeight="Bold" />
+        <TextBlock Text="{Binding StatusText}" Foreground="#F2FFFFFF"
+                   FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
+      </StackPanel>
+
+      <StackPanel IsVisible="{Binding IsPasted}" Orientation="Horizontal"
+                  HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
+        <Border Width="18" Height="18" CornerRadius="9" Background="#FF34C759">
+          <TextBlock Text="{ReflectionBinding [linux.overlay.success_glyph], Source={StaticResource Localization}}" Foreground="White" FontWeight="Bold" HorizontalAlignment="Center"/>
+        </Border>
+        <TextBlock Text="{Binding StatusText}" Foreground="#F2FFFFFF" FontSize="12" FontWeight="SemiBold"/>
+      </StackPanel>
+
+      <StackPanel IsVisible="{Binding IsCopied}" Orientation="Horizontal"
+                  HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
+        <TextBlock Text="{ReflectionBinding [linux.overlay.copy_glyph], Source={StaticResource Localization}}" Foreground="#FF5AC8FA" FontSize="18"/>
+        <TextBlock Text="{Binding StatusText}" Foreground="#F2FFFFFF" FontSize="12" FontWeight="SemiBold"/>
+      </StackPanel>
+
+      <StackPanel IsVisible="{Binding IsSecureField}" Orientation="Horizontal"
+                  HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
+        <TextBlock Text="{ReflectionBinding [linux.overlay.secure_glyph], Source={StaticResource Localization}}" FontSize="14"/>
+        <TextBlock Text="{Binding StatusText}" Foreground="#F2FFFFFF" FontSize="11" FontWeight="SemiBold"/>
+      </StackPanel>
+
+      <Grid IsVisible="{Binding IsCancelConfirmation}" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="7">
+        <TextBlock Text="{Binding StatusText}" Foreground="#F2FFFFFF" FontSize="11"
+                   FontWeight="SemiBold" VerticalAlignment="Center"/>
+        <Border x:Name="DismissCancelTarget" Grid.Column="1" Background="#33FFFFFF" CornerRadius="11" Padding="9,5">
+          <StackPanel Orientation="Horizontal" Spacing="3">
+            <TextBlock Text="{ReflectionBinding [linux.overlay.escape_hint], Source={StaticResource Localization}}" Foreground="#B3FFFFFF" FontSize="9"/>
+            <TextBlock Text="{ReflectionBinding [common.no], Source={StaticResource Localization}}" Foreground="White" FontSize="9"/>
+          </StackPanel>
+        </Border>
+        <Border x:Name="ConfirmCancelTarget" Grid.Column="2" Background="#E6FF3B30" CornerRadius="11" Padding="9,5">
+          <TextBlock Text="{ReflectionBinding [common.yes], Source={StaticResource Localization}}" Foreground="White" FontSize="9" FontWeight="SemiBold"/>
+        </Border>
+      </Grid>
+    </Grid>
+  </Border>
+</Window>

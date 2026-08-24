@@ -11,6 +11,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\HyperWhisper\HyperWhisper.csproj" />
+    <ProjectReference Include="..\..\shared-dotnet\HyperWhisper.Application\HyperWhisper.Application.csproj" />
   </ItemGroup>
 
 </Project>

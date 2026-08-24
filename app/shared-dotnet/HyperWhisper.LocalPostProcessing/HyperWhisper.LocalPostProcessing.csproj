@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="LLamaSharp" Version="0.27.0" />
+    <!-- Native backend assets are implementation details of this host. Keeping
+         them private prevents every consuming app/test from re-importing the
+         packages' all-RID fallback props and bloating RID-specific publishes. -->
+    <PackageReference Include="LLamaSharp.Backend.Cpu" Version="0.27.0"
+                      PrivateAssets="all" ExcludeAssets="build;buildTransitive" />
+    <PackageReference Include="LLamaSharp.Backend.Cuda12.Linux" Version="0.27.0"
+                      PrivateAssets="all" ExcludeAssets="build;buildTransitive" />
+    <PackageReference Include="LLamaSharp.Backend.Vulkan.Linux" Version="0.27.0"
+                      PrivateAssets="all" ExcludeAssets="build;buildTransitive" />
+  </ItemGroup>
+
+  <!-- LLamaSharp's GPU packages omit the CPU compute backend even though
+       llama.cpp still links it and a zero-layer fallback needs it. Content
+       items flow through ProjectReference to app output and publish. noavx is
+       used on Linux so packaging does not raise the x86-64 baseline. -->
+  <ItemGroup>
+    <Content Include="$(NuGetPackageRoot)llamasharp.backend.cpu/0.27.0/LLamaSharpRuntimes/linux-x64/**/*.*"
+             Link="runtimes/linux-x64/%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="$(NuGetPackageRoot)llamasharp.backend.vulkan.linux/0.27.0/LLamaSharpRuntimes/linux-x64/**/*.*"
+             Link="runtimes/linux-x64/%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="$(NuGetPackageRoot)llamasharp.backend.cuda12.linux/0.27.0/LLamaSharpRuntimes/linux-x64/**/*.*"
+             Link="runtimes/linux-x64/%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="$(NuGetPackageRoot)llamasharp.backend.cpu/0.27.0/LLamaSharpRuntimes/linux-x64/native/noavx/libggml-cpu.so"
+             Link="runtimes/linux-x64/native/vulkan/libggml-cpu.so"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="$(NuGetPackageRoot)llamasharp.backend.cpu/0.27.0/LLamaSharpRuntimes/linux-x64/native/noavx/libggml-cpu.so"
+             Link="runtimes/linux-x64/native/cuda12/libggml-cpu.so"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

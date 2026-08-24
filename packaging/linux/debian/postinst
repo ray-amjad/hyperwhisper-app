@@ -1,0 +1,52 @@
+#!/bin/sh
+set -eu
+
+GROUP_NAME="hyperwhisper-input"
+RULE_NAME="70-hyperwhisper-input.rules"
+STAGING_ROOT="${HYPERWHISPER_MAINTAINER_ROOT:-}"
+RULE_SOURCE="${STAGING_ROOT}/usr/share/hyperwhisper/packaging/${RULE_NAME}"
+RULE_DIRECTORY="${STAGING_ROOT}/etc/udev/rules.d"
+RULE_DESTINATION="${RULE_DIRECTORY}/${RULE_NAME}"
+
+ensure_input_group() {
+    if [ -n "$STAGING_ROOT" ]; then
+        group_file="${STAGING_ROOT}/etc/group"
+        install -d -m 0755 "$(dirname "$group_file")"
+        touch "$group_file"
+        if ! grep -q "^${GROUP_NAME}:" "$group_file"; then
+            printf '%s\n' "${GROUP_NAME}:x:999:" >> "$group_file"
+        fi
+        return
+    fi
+
+    if ! getent group "$GROUP_NAME" >/dev/null 2>&1; then
+        groupadd --system "$GROUP_NAME"
+    fi
+}
+
+reload_udev() {
+    if [ -n "$STAGING_ROOT" ]; then
+        return
+    fi
+    if command -v udevadm >/dev/null 2>&1; then
+        udevadm control --reload-rules || true
+        udevadm trigger --subsystem-match=input || true
+        udevadm trigger --subsystem-match=misc --sysname-match=uinput || true
+    fi
+}
+
+case "${1:-configure}" in
+    configure)
+        ensure_input_group
+        install -d -m 0755 "$RULE_DIRECTORY"
+        install -m 0644 "$RULE_SOURCE" "$RULE_DESTINATION"
+        reload_udev
+        if [ -z "$STAGING_ROOT" ]; then
+            printf '%s\n' \
+                "HyperWhisper input access is disabled until an administrator adds a user" \
+                "to the ${GROUP_NAME} group. Group membership takes effect after re-login."
+        fi
+        ;;
+esac
+
+exit 0

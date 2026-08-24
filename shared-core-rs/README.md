@@ -1,8 +1,8 @@
 # shared-core-rs
 
 The HyperWhisper **shared Rust core**: one Rust codebase that owns the
-platform-agnostic business logic and is consumed by macOS (Swift), Windows (C#),
-iOS (Swift) and — on the roadmap — Android (Kotlin) through **UniFFI**.
+platform-agnostic business logic and is consumed by macOS/iOS (Swift), Windows
+and Linux (C#), and — on the roadmap — Android (Kotlin) through **UniFFI**.
 
 Each app keeps its native edges (audio capture, local model inference, text
 injection, history/stats stores, UI). Rust owns the middle.
@@ -38,6 +38,7 @@ The `hw-core` crate's `[lib] name = "hyperwhisper_core"` drives the binary names
 |----------|----------|------------|
 | macOS / iOS | `libhyperwhisper_core.a` (universal / xcframework) | `staticlib` |
 | Windows | `hyperwhisper_core.dll` | `cdylib` |
+| Linux | `libhyperwhisper_core.so` | `cdylib` |
 | Android | `libhyperwhisper_core.so` | `cdylib` |
 
 The UniFFI namespace is `hyperwhisper_core`, so generators emit
@@ -107,6 +108,21 @@ MSVC targets and copies the DLLs into `Resources/rust-core/{x64,arm64}/` before
 `dotnet`. A `<Target Name="EnsureRustCoreDll">` in the csproj now hard-errors at
 build/publish time if the DLL for the active RID is missing (it used to be
 silently omitted → `DllNotFoundException` at startup).
+
+### Linux shared library (x86_64)
+
+```bash
+cd shared-core-rs
+rustup target add x86_64-unknown-linux-gnu
+cargo build --locked --release --target x86_64-unknown-linux-gnu -p hw-core
+install -Dm0755 \
+  target/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so \
+  ../app/linux/HyperWhisper.Linux/Resources/rust-core/linux-x64/libhyperwhisper_core.so
+```
+
+The Linux CI and release workflows always rebuild this library from source,
+inspect its ELF dependencies, and stage it beside the self-contained Avalonia
+app. The compiled `.so` is intentionally not committed.
 
 ### Generate bindings
 

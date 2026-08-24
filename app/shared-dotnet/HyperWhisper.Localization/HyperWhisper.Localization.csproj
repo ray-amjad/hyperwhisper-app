@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <RootNamespace>HyperWhisper.Localization</RootNamespace>
+  </PropertyGroup>
+
+  <!--
+    Link the authoritative Windows catalogs instead of copying them. This leaves
+    the Windows resource assembly and runtime behavior unchanged while allowing
+    portable clients to share the same translations.
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="../../windows/HyperWhisper/Resources/Strings*.resx"
+                      Link="Resources/%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <Target Name="ValidateSharedLocalizationCatalogs"
+          BeforeTargets="BeforeBuild"
+          Condition="'$(SkipLocalizationCatalogValidation)' != 'true'">
+    <Exec Command="dotnet run --project &quot;$(MSBuildProjectDirectory)/../HyperWhisper.Localization.CatalogValidator/HyperWhisper.Localization.CatalogValidator.csproj&quot; --configuration $(Configuration) -p:SkipLocalizationCatalogValidation=true -- &quot;$(MSBuildProjectDirectory)/../../windows/HyperWhisper/Resources&quot;" />
+  </Target>
+</Project>

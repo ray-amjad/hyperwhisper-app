@@ -1,0 +1,27 @@
+#!/bin/sh
+set -eu
+ASSET_ROOT="${HYPERWHISPER_COMPANION_ROOT:-/usr/share/hyperwhisper/companions}"
+UUID="hyperwhisper-active-window@hyperwhisper.com"
+require_user() { if [ "$(id -u)" -eq 0 ]; then echo "Companion enablement must run as the desktop user, not root." >&2; exit 3; fi; : "${HOME:?HOME is required}"; }
+data_home() { printf '%s\n' "${XDG_DATA_HOME:-${HOME}/.local/share}"; }
+config_home() { printf '%s\n' "${XDG_CONFIG_HOME:-${HOME}/.config}"; }
+install_gnome() {
+    require_user; version="$(gnome-shell --version 2>/dev/null | sed -n 's/.* \([0-9][0-9]*\)\..*/\1/p')"
+    case "$version" in 42|43|44) source="$ASSET_ROOT/gnome/42" ;; 45|46|47|48|49|50) source="$ASSET_ROOT/gnome/45" ;; ''|*[!0-9]*) echo "Unable to determine GNOME Shell version." >&2; exit 4 ;; *) echo "GNOME Shell $version has not been validated by this companion release." >&2; exit 4 ;; esac
+    destination="$(data_home)/gnome-shell/extensions/$UUID"; install -d -m 0755 "$(dirname "$destination")"; temporary="${destination}.install.$$"
+    trap 'rm -rf -- "$temporary"' EXIT HUP INT TERM; install -d -m 0755 "$temporary"; cp -a -- "$source/." "$temporary/"; rm -rf -- "$destination"; mv -- "$temporary" "$destination"; trap - EXIT HUP INT TERM
+    gnome-extensions enable "$UUID"; echo "GNOME companion enabled. Log out and in if its D-Bus endpoint is not immediately available."
+}
+remove_gnome() { require_user; destination="$(data_home)/gnome-shell/extensions/$UUID"; gnome-extensions disable "$UUID" >/dev/null 2>&1 || true; rm -rf -- "$destination"; }
+install_kde() {
+    require_user
+    if command -v kpackagetool6 >/dev/null 2>&1; then package_tool=kpackagetool6; config_tool=kwriteconfig6; dbus_tool=qdbus6
+    elif command -v kpackagetool5 >/dev/null 2>&1; then package_tool=kpackagetool5; config_tool=kwriteconfig5; dbus_tool=qdbus
+    else echo "A KDE KPackage tool is required." >&2; exit 4; fi
+    "$package_tool" --type KWin/Script --upgrade "$ASSET_ROOT/kde/package" >/dev/null 2>&1 || "$package_tool" --type KWin/Script --install "$ASSET_ROOT/kde/package"
+    command -v "$config_tool" >/dev/null 2>&1 || { echo "$config_tool is required." >&2; exit 4; }; "$config_tool" --file kwinrc --group Plugins --key hyperwhisper-active-windowEnabled true
+    autostart="$(config_home)/autostart"; install -d -m 0700 "$autostart"; install -m 0600 "$ASSET_ROOT/kde/hyperwhisper-kde-companion.desktop" "$autostart/hyperwhisper-kde-companion.desktop"
+    "$dbus_tool" org.kde.KWin /KWin reconfigure >/dev/null 2>&1 || true; echo "KDE companion enabled; it starts fully at the next login."
+}
+remove_kde() { require_user; rm -f -- "$(config_home)/autostart/hyperwhisper-kde-companion.desktop"; for tool in kwriteconfig6 kwriteconfig5; do command -v "$tool" >/dev/null 2>&1 && "$tool" --file kwinrc --group Plugins --key hyperwhisper-active-windowEnabled false >/dev/null 2>&1 || true; done; for tool in kpackagetool6 kpackagetool5; do command -v "$tool" >/dev/null 2>&1 && "$tool" --type KWin/Script --remove hyperwhisper-active-window >/dev/null 2>&1 || true; done; }
+case "${1:-}" in install-gnome) install_gnome ;; remove-gnome) remove_gnome ;; install-kde) install_kde ;; remove-kde) remove_kde ;; *) echo "Usage: $0 {install-gnome|remove-gnome|install-kde|remove-kde}" >&2; exit 2 ;; esac

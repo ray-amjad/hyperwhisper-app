@@ -1,0 +1,171 @@
+---
+title: Install HyperWhisper on Linux
+description: Install or remove the amd64 Debian package, configure input permissions, and enable optional GNOME or KDE integration.
+---
+
+## Prerequisites
+
+You need:
+
+- An x86_64 (amd64) computer
+- Ubuntu 22.04 or newer, or Debian 12 or newer
+- A GNOME or KDE Plasma desktop for the verified desktop experience
+- Administrator access to install the package and optionally grant input-device access
+
+The package requires glibc 2.35 or newer. Other Debian-based distributions may
+satisfy the dependencies, but they are not part of the release verification
+matrix.
+
+## Install the Debian package
+
+Download `hyperwhisper_VERSION_amd64.deb` from the
+[Linux releases](https://github.com/ray-amjad/hyperwhisper-app/releases), then
+run this command from the directory containing the file:
+
+```bash
+sudo apt install ./hyperwhisper_VERSION_amd64.deb
+```
+
+Replace `VERSION` with the version in the downloaded filename. Using `apt`
+installs the app and its desktop dependencies together.
+
+Launch HyperWhisper from your application menu or from a terminal:
+
+```bash
+hyperwhisper
+```
+
+## Enable global shortcuts and automatic paste
+
+HyperWhisper can read configured global shortcuts and paste text through
+`/dev/input` and `/dev/uinput`. Package installation creates a dedicated
+`hyperwhisper-input` group, but it does not add you automatically.
+
+To grant this access to your account:
+
+```bash
+sudo usermod -aG hyperwhisper-input "$USER"
+```
+
+Log out completely and log back in. Confirm the new session has the group:
+
+```bash
+id -nG | tr ' ' '\n' | grep -x hyperwhisper-input
+```
+
+<Warning>
+  Input-device access is sensitive. It can expose keyboard events to software
+  running as your user. HyperWhisper filters events inside its input service and
+  emits only configured action identifiers, but you should grant this group only
+  to accounts that need global shortcuts or automatic paste.
+</Warning>
+
+Without the group, transcription still works. HyperWhisper keeps the result on
+the clipboard when automatic paste is unavailable.
+
+## Enable desktop integration
+
+Wayland does not provide a standard active-window portal. HyperWhisper therefore
+ships optional desktop companions. Package installation never enables a
+companion or changes your home directory; run the matching command as your
+signed-in desktop user, without `sudo`.
+
+### GNOME Wayland
+
+```bash
+hyperwhisper-companionctl install-gnome
+```
+
+The companion supports GNOME Shell 42 through 50. Log out and back in if it does
+not become available immediately.
+
+If you do not install the companion, HyperWhisper continues in your default mode
+and active-application mode switching is unavailable. GNOME may also omit tray
+icons unless a StatusNotifier/AppIndicator extension is installed; the main
+window remains usable without a tray.
+
+### KDE Plasma Wayland
+
+```bash
+hyperwhisper-companionctl install-kde
+```
+
+The companion supports Plasma 5 and 6. It installs a KWin script and a user
+session bridge. Log out and back in to complete activation.
+
+On GNOME Xorg, HyperWhisper uses X11 active-window detection and does not need a
+desktop companion.
+
+The companions return only the active process ID, application identifier, and
+window title. They do not accept document text or key events.
+
+## Self-host the APT repository
+
+Linux releases include `hyperwhisper-apt-VERSION.tar.gz`, a static APT
+repository archive for organizations that want to host updates themselves.
+HyperWhisper does not currently operate a public APT endpoint.
+
+Extract the archive at the root of an HTTPS origin. Before configuring clients,
+confirm that the hosted repository contains signed metadata and its public key:
+
+```bash
+curl --fail https://packages.example.com/hyperwhisper/dists/stable/InRelease >/dev/null
+curl --fail https://packages.example.com/hyperwhisper/hyperwhisper-archive-keyring.asc >/dev/null
+```
+
+Do not distribute an unsigned repository. On each client, install the public key
+and source definition:
+
+```bash
+curl --fail --silent --show-error \
+  https://packages.example.com/hyperwhisper/hyperwhisper-archive-keyring.asc \
+  | gpg --dearmor \
+  | sudo tee /usr/share/keyrings/hyperwhisper-archive-keyring.gpg >/dev/null
+
+echo 'deb [arch=amd64 signed-by=/usr/share/keyrings/hyperwhisper-archive-keyring.gpg] https://packages.example.com/hyperwhisper stable main' \
+  | sudo tee /etc/apt/sources.list.d/hyperwhisper.list >/dev/null
+
+sudo apt update
+sudo apt install hyperwhisper
+```
+
+Replace `packages.example.com/hyperwhisper` with your HTTPS origin. The repository
+operator is responsible for preserving and rotating its signing key.
+
+## Remove HyperWhisper
+
+Remove any enabled companion first:
+
+```bash
+hyperwhisper-companionctl remove-gnome
+# Or, on KDE Plasma:
+hyperwhisper-companionctl remove-kde
+```
+
+Then remove the package:
+
+```bash
+sudo apt purge hyperwhisper
+```
+
+If you configured a self-hosted repository, remove its source and key:
+
+```bash
+sudo rm /etc/apt/sources.list.d/hyperwhisper.list
+sudo rm /usr/share/keyrings/hyperwhisper-archive-keyring.gpg
+sudo apt update
+```
+
+The package deliberately retains the `hyperwhisper-input` system group and does
+not delete your settings, history, recordings, or downloaded models. To inspect
+the user-data locations that remain, close HyperWhisper and run:
+
+```bash
+printf '%s\n' \
+  "${XDG_CONFIG_HOME:-$HOME/.config}/hyperwhisper" \
+  "${XDG_DATA_HOME:-$HOME/.local/share}/hyperwhisper" \
+  "${XDG_CACHE_HOME:-$HOME/.cache}/hyperwhisper" \
+  "${XDG_STATE_HOME:-$HOME/.local/state}/hyperwhisper"
+```
+
+Review and back up those locations before deleting any of them manually.

@@ -1,8 +1,7 @@
 using System.IO;
 using Microsoft.EntityFrameworkCore;
 using HyperWhisper.Data.Entities;
-using HyperWhisper.Models;
-using HyperWhisper.Services;
+using HyperWhisper.Platform.Abstractions;
 
 namespace HyperWhisper.Data;
 
@@ -30,18 +29,42 @@ public class HyperWhisperDbContext : DbContext
     // CONFIGURATION
     // =========================================================================
 
-    private readonly string _dbPath;
+    private readonly string? _dbPath;
 
     public HyperWhisperDbContext()
     {
-        var hyperWhisperDir = AppPaths.AppDataRoot;
+        var overrideRoot = Environment.GetEnvironmentVariable("HYPERWHISPER_WINDOWS_APPDATA_ROOT");
+        var hyperWhisperDir = string.IsNullOrWhiteSpace(overrideRoot)
+            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HyperWhisper")
+            : Path.GetFullPath(Environment.ExpandEnvironmentVariables(overrideRoot));
         Directory.CreateDirectory(hyperWhisperDir);
         _dbPath = Path.Combine(hyperWhisperDir, "hyperwhisper.db");
     }
 
+    public HyperWhisperDbContext(IAppPaths paths)
+        : this(Path.Combine(
+            (paths ?? throw new ArgumentNullException(nameof(paths))).StateDirectory,
+            "hyperwhisper.db"))
+    {
+    }
+
+    public HyperWhisperDbContext(string databasePath)
+    {
+        if (string.IsNullOrWhiteSpace(databasePath))
+            throw new ArgumentException("A database path is required.", nameof(databasePath));
+        _dbPath = Path.GetFullPath(databasePath);
+        Directory.CreateDirectory(Path.GetDirectoryName(_dbPath)!);
+    }
+
+    public HyperWhisperDbContext(DbContextOptions<HyperWhisperDbContext> options)
+        : base(options)
+    {
+    }
+
     protected override void OnConfiguring(DbContextOptionsBuilder options)
     {
-        options.UseSqlite($"Data Source={_dbPath}");
+        if (!options.IsConfigured)
+            options.UseSqlite($"Data Source={_dbPath}");
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

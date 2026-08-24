@@ -6,7 +6,7 @@
 //! aside). Comparison is done on `serde_json::Value`, which is order-independent
 //! for objects, so this is a true content round-trip.
 //!
-//! Fixtures are the three shipped examples under `shared-backup/examples/`,
+//! Fixtures are the four shipped examples under `shared-backup/examples/`,
 //! embedded at build time.
 
 use hw_backup::{
@@ -20,6 +20,8 @@ const MACOS_EXPORT: &str =
     include_str!("../../../../shared-backup/examples/macos-export.hwbackup.json");
 const WINDOWS_EXPORT: &str =
     include_str!("../../../../shared-backup/examples/windows-export.hwbackup.json");
+const LINUX_EXPORT: &str =
+    include_str!("../../../../shared-backup/examples/linux-export.hwbackup.json");
 const VOCAB_ONLY: &str =
     include_str!("../../../../shared-backup/examples/vocab-only.hwbackup.json");
 
@@ -79,6 +81,11 @@ fn windows_fixture_round_trips() {
 }
 
 #[test]
+fn linux_fixture_round_trips() {
+    assert_value_round_trip(LINUX_EXPORT, "linux-export");
+}
+
+#[test]
 fn vocab_only_fixture_round_trips() {
     assert_value_round_trip(VOCAB_ONLY, "vocab-only");
 }
@@ -91,6 +98,7 @@ fn struct_level_round_trip_all_fixtures() {
     for (fixture, label) in [
         (MACOS_EXPORT, "macos-export"),
         (WINDOWS_EXPORT, "windows-export"),
+        (LINUX_EXPORT, "linux-export"),
         (VOCAB_ONLY, "vocab-only"),
     ] {
         let b1 = parse_backup(fixture).unwrap();
@@ -109,6 +117,7 @@ fn all_fixtures_pass_validation() {
     for (fixture, label) in [
         (MACOS_EXPORT, "macos-export"),
         (WINDOWS_EXPORT, "windows-export"),
+        (LINUX_EXPORT, "linux-export"),
         (VOCAB_ONLY, "vocab-only"),
     ] {
         let errs = validate_str(fixture);
@@ -170,6 +179,26 @@ fn macos_top_level_extensions_preserved() {
     assert_eq!(macos["settings"]["general"]["launchAtLogin"], Value::Bool(true));
 }
 
+#[test]
+fn linux_extensions_preserved() {
+    let backup = parse_backup(LINUX_EXPORT).unwrap();
+    let records = to_records(&backup);
+
+    let linux = records
+        .platform_extensions
+        .get("linux")
+        .expect("linux top-level extension present");
+    assert_eq!(linux["settings"]["autostartEnabled"], Value::Bool(true));
+
+    let mode_linux = records.modes[0]
+        .platform_extensions
+        .as_ref()
+        .expect("mode platform extensions present")
+        .get("linux")
+        .expect("linux mode extension present");
+    assert_eq!(mode_linux, &serde_json::json!({}));
+}
+
 // ---------------------------------------------------------------------------
 // H3: a mode's FOREIGN platform slice survives the core records mapping
 // ---------------------------------------------------------------------------
@@ -203,6 +232,38 @@ fn mode_foreign_platform_slice_passes_through_core() {
     assert_eq!(ext["macos"]["shortcutBlob"], Value::String("abc".into()));
     assert_eq!(ext["windows"]["localEngine"], Value::String("whisper".into()));
     assert_eq!(ext["windows"]["enableScreenOCR"], Value::Bool(true));
+}
+
+#[test]
+fn linux_authored_mode_preserves_macos_and_windows_slices() {
+    let json = r#"{
+        "schemaVersion": 2,
+        "exportDate": "2026-08-23T00:00:00Z",
+        "appVersion": "1.0.0",
+        "platform": "linux",
+        "modes": [
+            {
+                "id": "1a0e8400-e29b-41d4-a716-446655440030",
+                "name": "Imported on Linux",
+                "platformExtensions": {
+                    "linux": {"hotkeyBackend": "evdev"},
+                    "macos": {"shortcutBlob": "abc"},
+                    "windows": {"localEngine": "whisper", "enableScreenOCR": true}
+                }
+            }
+        ]
+    }"#;
+
+    let backup = parse_backup(json).unwrap();
+    assert!(validate_value(&serde_json::from_str(json).unwrap()).is_empty());
+
+    let rebuilt = from_records(&to_records(&backup));
+    let value = serde_json::to_value(&rebuilt).unwrap();
+    let extensions = &value["modes"][0]["platformExtensions"];
+    assert_eq!(extensions["linux"]["hotkeyBackend"], Value::String("evdev".into()));
+    assert_eq!(extensions["macos"]["shortcutBlob"], Value::String("abc".into()));
+    assert_eq!(extensions["windows"]["localEngine"], Value::String("whisper".into()));
+    assert_eq!(extensions["windows"]["enableScreenOCR"], Value::Bool(true));
 }
 
 // ---------------------------------------------------------------------------

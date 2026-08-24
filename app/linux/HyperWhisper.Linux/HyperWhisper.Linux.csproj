@@ -1,0 +1,82 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <RootNamespace>HyperWhisper.Linux</RootNamespace>
+    <AssemblyName>HyperWhisper</AssemblyName>
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(SENTRY_DSN)' != ''">
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>SentryDsn</_Parameter1>
+      <_Parameter2>$(SENTRY_DSN)</_Parameter2>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.1.1" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.1" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.1" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.1" />
+    <PackageReference Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.3">
+      <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
+      <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
+    </PackageReference>
+    <!-- EF Core 9 remains shared with the Windows app while ASP.NET Core 10 is
+         pulled in by LocalApi. Pin the net10 extensions surface for one runtime. -->
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.5" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.5" />
+    <PackageReference Include="Microsoft.Extensions.Primitives" Version="10.0.5" />
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.29.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="../../windows/HyperWhisper/Resources/parakeet-engine/x64/silero_vad.onnx"
+             Link="parakeet-engine/silero_vad.onnx"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../shared-dotnet/HyperWhisper.Application/HyperWhisper.Application.csproj" />
+    <ProjectReference Include="../../shared-dotnet/HyperWhisper.Platform.Abstractions/HyperWhisper.Platform.Abstractions.csproj" />
+    <ProjectReference Include="../../shared-dotnet/HyperWhisper.LocalInference/HyperWhisper.LocalInference.csproj" />
+    <ProjectReference Include="../../shared-dotnet/HyperWhisper.LocalPostProcessing/HyperWhisper.LocalPostProcessing.csproj" />
+    <ProjectReference Include="../../shared-dotnet/HyperWhisper.ModelManagement/HyperWhisper.ModelManagement.csproj" />
+    <ProjectReference Include="../../shared-dotnet/HyperWhisper.LocalApi/HyperWhisper.LocalApi.csproj" />
+    <ProjectReference Include="../../shared-dotnet/HyperWhisper.LiveStreaming/HyperWhisper.LiveStreaming.csproj" />
+    <ProjectReference Include="../../shared-dotnet/HyperWhisper.SharedCore/HyperWhisper.SharedCore.csproj" />
+    <ProjectReference Include="../../shared-dotnet/HyperWhisper.SpeechOutput/HyperWhisper.SpeechOutput.csproj" />
+    <ProjectReference Include="../../shared-dotnet/HyperWhisper.TranscriptionRouting/HyperWhisper.TranscriptionRouting.csproj" />
+    <ProjectReference Include="../../shared-dotnet/HyperWhisper.CloudPostProcessing/HyperWhisper.CloudPostProcessing.csproj" />
+    <ProjectReference Include="../../shared-dotnet/HyperWhisper.CloudAccount/HyperWhisper.CloudAccount.csproj" />
+    <ProjectReference Include="../../shared-dotnet/HyperWhisper.FileTranscription/HyperWhisper.FileTranscription.csproj" />
+    <ProjectReference Include="../../shared-dotnet/HyperWhisper.Telemetry/HyperWhisper.Telemetry.csproj" />
+    <ProjectReference Include="../../shared-dotnet/HyperWhisper.Storage/HyperWhisper.Storage.csproj" />
+    <ProjectReference Include="../../shared-dotnet/HyperWhisper.Diagnostics/HyperWhisper.Diagnostics.csproj" />
+    <ProjectReference Include="../HyperWhisper.Linux.Localization/HyperWhisper.Linux.Localization.csproj" />
+    <ProjectReference Include="../HyperWhisper.Linux.Platform/HyperWhisper.Linux.Platform.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="('$(RuntimeIdentifier)' == '' Or '$(RuntimeIdentifier)' == 'linux-x64') And Exists('Resources/rust-core/linux-x64/libhyperwhisper_core.so')">
+    <Content Include="Resources/rust-core/linux-x64/libhyperwhisper_core.so">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <Link>libhyperwhisper_core.so</Link>
+    </Content>
+  </ItemGroup>
+
+  <Target Name="EnsureLinuxRustCore" BeforeTargets="Publish"
+          Condition="'$(DesignTimeBuild)' != 'true' And '$(RuntimeIdentifier)' == 'linux-x64'">
+    <Error Condition="!Exists('Resources/rust-core/linux-x64/libhyperwhisper_core.so')"
+           Text="libhyperwhisper_core.so is missing. Build shared-core-rs for x86_64-unknown-linux-gnu and copy the release library to Resources/rust-core/linux-x64 before publishing." />
+  </Target>
+
+</Project>

@@ -21,16 +21,20 @@ using System.Net.Http;
 using System.Net.WebSockets;
 using System.Text.Json;
 using System.Windows;
+using System.Windows.Input;
 using HyperWhisper.Data;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Models;
 using HyperWhisper.Services;
+using HyperWhisper.Services.AppClassification;
+using HyperWhisper.Services.Platform;
 using HyperWhisper.Services.Streaming;
 using HyperWhisper.Services.Transcription;
 using HyperWhisper.Utilities;
 using HyperWhisper.ViewModels;
 using HyperWhisper.Views.Pages.Settings;
 using uniffi.hyperwhisper_core;
+using PlatformContracts = HyperWhisper.Platform.Abstractions;
 
 namespace HyperWhisper.SmokeTests;
 
@@ -59,6 +63,283 @@ internal static class Program
             {
                 var credits = HyperwhisperCoreMethods.CloudSttCreditsPerMinute("balanced");
                 Assert(credits >= 0, $"expected credits/min >= 0, got {credits}");
+            });
+
+            Run("Windows shortcut seam round-trips WPF keys losslessly", () =>
+            {
+                foreach (var key in new[] { Key.A, Key.D9, Key.F24, Key.OemPeriod, Key.Return })
+                {
+                    var windows = new KeyboardShortcut
+                    {
+                        Control = true,
+                        Alt = true,
+                        Shift = true,
+                        Win = true,
+                        Key = key
+                    };
+
+                    var portable = WindowsShortcutMapper.ToPlatform(windows);
+                    var roundTrip = WindowsShortcutMapper.FromPlatform(portable);
+                    Assert(roundTrip.IsSuccess, roundTrip.Error?.Message ?? $"failed to map {key}");
+                    Assert(roundTrip.Value == windows, $"{key} did not round-trip");
+                }
+
+                var unsupported = WindowsShortcutMapper.FromPlatform(
+                    new PlatformContracts.GlobalShortcut(
+                        PlatformContracts.ShortcutModifiers.Control,
+                        new PlatformContracts.ShortcutKeyCode("NotAWindowsKey")));
+                Assert(unsupported.IsFailure, "unknown platform key should fail explicitly");
+                Assert(unsupported.Error?.Code == "shortcut.unsupported_key", "unexpected error code");
+            });
+
+            Run("Windows push-to-talk seam round-trips every modifier", () =>
+            {
+                foreach (var modifier in Enum.GetValues<PlatformContracts.ModifierSide>())
+                {
+                    var portable = new PlatformContracts.PushToTalkConfiguration(
+                        PlatformContracts.PushToTalkMode.Modifier,
+                        modifier,
+                        DoublePressLock: true);
+                    var windows = WindowsShortcutMapper.FromPlatform(portable);
+                    Assert(windows.IsSuccess, windows.Error?.Message ?? $"failed to map {modifier}");
+
+                    var roundTrip = WindowsShortcutMapper.ToPlatform(windows.Value!);
+                    Assert(roundTrip.Modifier == modifier, $"{modifier} did not round-trip");
+                    Assert(roundTrip.DoublePressLock, "double-press lock was lost");
+                }
+
+                Assert(
+                    typeof(PlatformContracts.IGlobalShortcutService)
+                        .IsAssignableFrom(typeof(KeyboardShortcutService)),
+                    "KeyboardShortcutService does not implement the portable contract");
+                Assert(
+                    typeof(PlatformContracts.IPushToTalkMonitor)
+                        .IsAssignableFrom(typeof(PushToTalkMonitor)),
+                    "PushToTalkMonitor does not implement the portable contract");
+            });
+
+            Run("Windows application-context seam preserves portable fields", () =>
+            {
+                var windows = new Services.ApplicationContext
+                {
+                    ProcessName = "sample-app",
+                    WindowTitle = "Sample window",
+                    Category = "Communication",
+                    BrowserTabTitle = "Sample tab",
+                    BrowserHost = "example.invalid",
+                    FocusedElementType = "TextField",
+                    FocusedContent = "selected text",
+                    TextFormat = "text",
+                    AppType = AppType.WorkMessaging,
+                    AppTypeConfidence = "strong",
+                    AppTypeSource = "processName",
+                    ScreenOCRText = "visible text"
+                };
+
+                var portable = WindowsApplicationContextMapper.ToPlatform(windows);
+                Assert(portable.ProcessName == windows.ProcessName, "process name was lost");
+                Assert(portable.BrowserHost == windows.BrowserHost, "browser host was lost");
+                Assert(portable.FocusedContent == windows.FocusedContent, "focused content was lost");
+                Assert(portable.AppType == "work_messaging", "app type was not canonicalized");
+                Assert(portable.ScreenOcrText == windows.ScreenOCRText, "OCR text was lost");
+                Assert(
+                    typeof(PlatformContracts.IApplicationContextProvider)
+                        .IsAssignableFrom(typeof(ApplicationContextService)),
+                    "ApplicationContextService does not implement the portable contract");
+            });
+
+            Run("Windows text-injection seam maps every outcome", () =>
+            {
+                Assert(
+                    WindowsTextInjectionMapper.ToPlatform(SmartPasteResult.Pasted)
+                        == PlatformContracts.TextInjectionOutcome.Pasted,
+                    "pasted outcome was lost");
+                Assert(
+                    WindowsTextInjectionMapper.ToPlatform(SmartPasteResult.CopiedToClipboard)
+                        == PlatformContracts.TextInjectionOutcome.CopiedToClipboard,
+                    "clipboard outcome was lost");
+                Assert(
+                    WindowsTextInjectionMapper.ToPlatform(SmartPasteResult.SecureFieldSkipped)
+                        == PlatformContracts.TextInjectionOutcome.SecureFieldSkipped,
+                    "secure-field outcome was lost");
+                Assert(
+                    WindowsTextInjectionMapper.ToPlatform(SmartPasteResult.Failed)
+                        == PlatformContracts.TextInjectionOutcome.Failed,
+                    "failure outcome was lost");
+                Assert(
+                    typeof(PlatformContracts.ITextInjectionService)
+                        .IsAssignableFrom(typeof(SmartPasteService)),
+                    "SmartPasteService does not implement the portable contract");
+            });
+
+            Run("Windows lifecycle seams implement contracts and isolate activation handlers", () =>
+            {
+                Assert(
+                    typeof(PlatformContracts.IAutostartService)
+                        .IsAssignableFrom(typeof(StartupService)),
+                    "StartupService does not implement the portable contract");
+                Assert(
+                    typeof(PlatformContracts.ISingleInstanceCoordinator)
+                        .IsAssignableFrom(typeof(WindowsSingleInstanceCoordinator)),
+                    "WindowsSingleInstanceCoordinator does not implement the portable contract");
+
+                var coordinator = WindowsSingleInstanceCoordinator.Instance;
+                var goodHandlerCalled = false;
+                EventHandler badHandler = (_, _) => throw new InvalidOperationException("expected test failure");
+                EventHandler goodHandler = (_, _) => goodHandlerCalled = true;
+                try
+                {
+                    coordinator.ActivationRequested += badHandler;
+                    coordinator.ActivationRequested += goodHandler;
+                    coordinator.NotifyActivationRequested();
+                    Assert(goodHandlerCalled, "one bad activation subscriber blocked another");
+                }
+                finally
+                {
+                    coordinator.ActivationRequested -= badHandler;
+                    coordinator.ActivationRequested -= goodHandler;
+                }
+            });
+
+            Run("Windows audio seams implement portable contracts", () =>
+            {
+                Assert(typeof(PlatformContracts.IAudioInputDeviceService)
+                    .IsAssignableFrom(typeof(WindowsAudioInputDeviceService)), "audio device adapter contract missing");
+                Assert(typeof(PlatformContracts.IAudioRecorder)
+                    .IsAssignableFrom(typeof(WindowsAudioRecorder)), "audio recorder adapter contract missing");
+                Assert(typeof(PlatformContracts.IStreamingAudioCapture)
+                    .IsAssignableFrom(typeof(WindowsStreamingAudioCapture)), "streaming capture adapter contract missing");
+                Assert(typeof(PlatformContracts.IMicrophoneKeepWarmService)
+                    .IsAssignableFrom(typeof(WindowsMicrophoneKeepWarmService)), "keep-warm adapter contract missing");
+                Assert(typeof(PlatformContracts.IAudioPlaybackService)
+                    .IsAssignableFrom(typeof(WindowsAudioPlaybackService)), "playback adapter contract missing");
+                Assert(typeof(PlatformContracts.ISoundEffectsService)
+                    .IsAssignableFrom(typeof(WindowsSoundEffectsService)), "sound-effects adapter contract missing");
+                Assert(WindowsAudioRecorder.TryGetDeviceNumber("-1", out var defaultDevice) && defaultDevice == -1,
+                    "default WaveIn device ID did not round-trip");
+                Assert(!WindowsAudioRecorder.TryGetDeviceNumber("not-a-device", out _),
+                    "invalid WaveIn device ID was accepted");
+            });
+
+            Run("Windows system seams preserve portable metadata", () =>
+            {
+                var windowsGpu = new GpuInfoService.GpuInfo
+                {
+                    Name = "Test GPU",
+                    DedicatedVramBytes = 8L * 1024 * 1024 * 1024,
+                    SharedMemoryBytes = 16L * 1024 * 1024 * 1024,
+                    IsDiscrete = true
+                };
+                var portableGpu = WindowsGpuInfoProvider.ToPlatform(windowsGpu);
+                Assert(portableGpu.Name == windowsGpu.Name, "GPU name was lost");
+                Assert(portableGpu.DedicatedMemoryBytes == windowsGpu.DedicatedVramBytes, "dedicated GPU memory was lost");
+                Assert(portableGpu.SharedMemoryBytes == windowsGpu.SharedMemoryBytes, "shared GPU memory was lost");
+                Assert(portableGpu.IsDiscrete, "discrete GPU classification was lost");
+
+                Assert(typeof(PlatformContracts.IGpuInfoProvider)
+                    .IsAssignableFrom(typeof(WindowsGpuInfoProvider)), "GPU adapter contract missing");
+                Assert(typeof(PlatformContracts.IScreenOcrService)
+                    .IsAssignableFrom(typeof(ScreenOCRCaptureService)), "screen OCR contract missing");
+                Assert(typeof(PlatformContracts.IAppPaths)
+                    .IsAssignableFrom(typeof(WindowsAppPaths)), "app paths contract missing");
+                Assert(typeof(PlatformContracts.IDeviceIdentityProvider)
+                    .IsAssignableFrom(typeof(WindowsDeviceIdentityProvider)), "device identity contract missing");
+
+                PlatformContracts.IAppPaths paths = new WindowsAppPaths();
+                Assert(paths.DataDirectory == AppPaths.AppDataRoot, "data directory mapping changed");
+                Assert(paths.LogsDirectory == AppPaths.LogsDirectory, "logs directory mapping changed");
+                Assert(paths.RecordingsDirectory == AppPaths.ProfileRecordingsDirectory, "recordings directory mapping changed");
+            });
+
+            Run("Windows private files are atomic, owner-only, and handle-canonicalized", () =>
+            {
+                var directory = Path.Combine(tempRoot, "private-files");
+                Directory.CreateDirectory(directory);
+                var path = Path.Combine(directory, "state.bin");
+                var service = new WindowsPrivateFileService();
+                Assert(service.WriteAllBytesAtomically(path, new byte[] { 1, 2, 3 }).IsSuccess, "initial private write failed");
+                Assert(service.WriteAllBytesAtomically(path, new byte[] { 4, 5 }).IsSuccess, "atomic replacement failed");
+                Assert(File.ReadAllBytes(path).SequenceEqual(new byte[] { 4, 5 }), "atomic replacement content mismatch");
+                var restricted = service.IsRestrictedToCurrentUser(path);
+                Assert(restricted.IsSuccess && restricted.Value, restricted.Error?.Message ?? "private ACL was not owner-only");
+                Assert(!Directory.EnumerateFiles(directory, "*.tmp").Any(), "private write left a temporary file");
+                using var openFile = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+                var canonical = new WindowsFileCanonicalizer().GetCanonicalPath(openFile);
+                Assert(canonical.IsSuccess, canonical.Error?.Message ?? "handle canonicalization failed");
+                Assert(string.Equals(canonical.Value, Path.GetFullPath(path), StringComparison.OrdinalIgnoreCase),
+                    $"canonical path mismatch: {canonical.Value}");
+            });
+
+            Run("Windows credential adapter round-trips arbitrary bytes without a real vault", () =>
+            {
+                var backend = new InMemoryCredentialBackend();
+                var store = new WindowsCredentialStore(backend);
+                var missing = store.Read("test-resource", "test-account");
+                Assert(missing.IsSuccess && missing.Value == null, "missing credential was not distinguished from failure");
+                var expected = new byte[] { 0, 1, 127, 128, 255 };
+                Assert(store.Write("test-resource", "test-account", expected).IsSuccess, "credential write failed");
+                var read = store.Read("test-resource", "test-account");
+                Assert(read.IsSuccess && read.Value!.SequenceEqual(expected), "credential bytes did not round-trip");
+                Assert(backend.StoredValue?.StartsWith("hyperwhisper-bytes-v1:", StringComparison.Ordinal) == true,
+                    "credential encoding was not explicit/versioned");
+                Assert(store.Delete("test-resource", "test-account").IsSuccess, "credential delete failed");
+                Assert(store.Read("test-resource", "test-account").Value == null, "credential was not deleted");
+                backend.ThrowOnRead = true;
+                Assert(store.Read("test-resource", "test-account").IsFailure, "backend error was mistaken for missing credential");
+            });
+
+            Run("Windows runtime locator and child-process lifecycle are deterministic", () =>
+            {
+                var runtimeRoot = Path.Combine(tempRoot, "runtime-locator");
+                var nativeDirectory = Path.Combine(runtimeRoot, "runtimes", "win-x64", "native");
+                Directory.CreateDirectory(nativeDirectory);
+                var whisperPath = Path.Combine(nativeDirectory, "whisper.dll");
+                File.WriteAllBytes(whisperPath, Array.Empty<byte>());
+                var engineDirectory = Path.Combine(runtimeRoot, "parakeet-engine");
+                Directory.CreateDirectory(engineDirectory);
+                var enginePath = Path.Combine(engineDirectory, "parakeet-engine.exe");
+                File.WriteAllBytes(enginePath, Array.Empty<byte>());
+                var locator = new WindowsNativeRuntimeLocator(runtimeRoot, System.Runtime.InteropServices.Architecture.X64);
+                Assert(locator.FindLibrary("whisper", PlatformContracts.NativeComputeBackend.Cpu).Value == whisperPath,
+                    "Whisper runtime path mismatch");
+                Assert(locator.FindExecutable("parakeet-engine").Value == enginePath, "engine runtime path mismatch");
+                Assert(locator.FindLibrary("whisper", PlatformContracts.NativeComputeBackend.Vulkan).IsFailure,
+                    "Windows locator falsely claimed Vulkan support");
+                Assert(!locator.Capabilities.ComputeBackends.Contains(PlatformContracts.NativeComputeBackend.Cuda),
+                    "Windows locator falsely claimed CUDA support");
+
+                var launcher = new WindowsChildProcessLauncher();
+                var started = launcher.Start(new PlatformContracts.ChildProcessStartRequest
+                {
+                    ExecutablePath = Environment.GetEnvironmentVariable("ComSpec") ?? @"C:\Windows\System32\cmd.exe",
+                    Arguments = new[] { "/d", "/c", "ping -n 30 127.0.0.1 > nul" }
+                });
+                Assert(started.IsSuccess, started.Error?.Message ?? "child process did not start");
+                var child = started.Value!;
+                using var cancelled = new CancellationTokenSource();
+                cancelled.Cancel();
+                try
+                {
+                    child.WaitForExitAsync(cancelled.Token).AsTask().GetAwaiter().GetResult();
+                    Assert(false, "cancelled process wait completed successfully");
+                }
+                catch (OperationCanceledException) { }
+                child.TerminateAsync().AsTask().GetAwaiter().GetResult();
+                Assert(child.HasExited, "terminated process remained alive");
+                child.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            });
+
+            Run("WPF dispatcher seam invokes inline on its owning thread", () =>
+            {
+                PlatformContracts.IUiDispatcher dispatcher = new WpfUiDispatcher();
+                Assert(dispatcher.CheckAccess(), "STA smoke thread does not own its dispatcher");
+                var invoked = false;
+                dispatcher.InvokeAsync(() =>
+                {
+                    invoked = true;
+                    return ValueTask.CompletedTask;
+                }).AsTask().GetAwaiter().GetResult();
+                Assert(invoked, "dispatcher did not invoke the callback");
             });
 
             Run("ApplyHardenedReplacement keeps $-tokens literal", () =>
@@ -2427,7 +2708,7 @@ internal static class Program
             {
                 DatabaseInitializer.InitializeAsync().GetAwaiter().GetResult();
 
-                var application = new Application();
+                var application = new System.Windows.Application();
                 LoadApplicationResources(application);
 
                 // Constructing the page exercises the exact construction-order NRE this
@@ -2838,14 +3119,30 @@ internal static class Program
             CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
-    private static void LoadApplicationResources(Application application)
+    private sealed class InMemoryCredentialBackend : IWindowsCredentialBackend
+    {
+        public string? StoredValue { get; private set; }
+        public bool ThrowOnRead { get; set; }
+
+        public bool TryRead(string resource, string account, out string? value)
+        {
+            if (ThrowOnRead) throw new InvalidOperationException("expected backend failure");
+            value = StoredValue;
+            return value != null;
+        }
+
+        public void Write(string resource, string account, string value) => StoredValue = value;
+        public void Delete(string resource, string account) => StoredValue = null;
+    }
+
+    private static void LoadApplicationResources(System.Windows.Application application)
     {
         AddResourceDictionary(application, "Themes/LightColors.xaml");
         AddResourceDictionary(application, "Themes/Brushes.xaml");
         AddResourceDictionary(application, "Themes/Generic.xaml");
     }
 
-    private static void AddResourceDictionary(Application application, string resourcePath)
+    private static void AddResourceDictionary(System.Windows.Application application, string resourcePath)
     {
         application.Resources.MergedDictionaries.Add(new ResourceDictionary
         {

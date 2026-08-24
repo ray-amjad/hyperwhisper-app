@@ -1,6 +1,6 @@
 # Cross-Platform Backup Schema
 
-This folder defines the universal backup format for HyperWhisper. Both macOS and Windows use this schema as the contract for cross-platform backup compatibility.
+This folder defines the universal backup format for HyperWhisper. macOS and Windows use this schema as the live contract for cross-platform backup compatibility; the Linux port uses the same contract and is represented by a checked-in fixture while its platform importer is implemented.
 
 ## Overview
 
@@ -54,7 +54,7 @@ key automatically round-trips into the correct category instead of drifting. See
 | `textOutput.hideFromClipboardHistory` | `SettingsManager.hideFromClipboardHistory` | `SettingsData.HideFromClipboardHistory` |
 | `textOutput.clipboardRestoreDelaySeconds` | `SettingsManager.clipboardRestoreDelaySeconds` | `SettingsData.ClipboardRestoreDelaySeconds` |
 | `textOutput.autocapitalizeInsert` | `SettingsManager.autocapitalizeInsert` | `SettingsData.AutocapitalizeInsert` |
-| `textOutput.storeWordTimestamps` | `SettingsManager.storeWordTimestamps` | — (local Whisper word/segment timestamps; macOS-only) |
+| `textOutput.storeWordTimestamps` | `SettingsManager.storeWordTimestamps` | —; Linux maps `PortableSettingsService` `textOutput.storeWordTimestamps` (local Whisper word/segment timestamps) |
 | `storage.storeAsM4A` | `StorageSettingsManager.storeAsM4A` | `SettingsData.StoreAsM4A` |
 | `advanced.maxRecordingDuration` | `SettingsManager.maxRecordingDurationSeconds` (seconds, 0 = no limit; macOS treats the value `300` — the old never-exposed default — as unset on import) | `SettingsData.MaxRecordingDuration` |
 | `advanced.typingSpeedWPM` | — (HomeStatsBar `@AppStorage("homeStats.typingSpeedWPM")` — macOS keeps this device-local, not exported) | `SettingsData.TypingSpeedWPM` |
@@ -78,6 +78,38 @@ under `platformExtensions.macos.settings`:
 | `autoIncreaseMicVolume` | `SettingsData.AutoIncreaseMicVolume` | Bool; macOS also round-trips this key |
 | `autocapitalizeInsert` | `SettingsData.AutocapitalizeInsert` | Bool |
 | `customEndpoints` | `SettingsData.CustomEndpoints` | Array of custom OpenAI-compatible endpoints (`id`, `name`, `endpointURL`, `modelName`, …). Required so modes whose `postProcessingProvider` is `custom:<uuid>` resolve after restore. API keys are stored separately in Credential Manager and are NOT round-tripped. |
+
+Linux-only settings go into `platformExtensions.linux.settings` (including `themeMode` with `system`, `light`, or `dark`, and `minimizeToTray`):
+
+| Key | Linux Source | Notes |
+|---|---|---|
+| `localWhisperBackend` | Linux local Whisper backend preference | `auto`, `cpu`, `vulkan`, or `cuda12`; process-wide selection takes effect after restart. |
+| `allowLocalWhisperCpuFallback` | Linux local Whisper fallback preference | Bool; permits CPU when the selected GPU runtime cannot start. |
+| `autostartEnabled` | Linux autostart preference | Bool; controls the per-user XDG autostart entry. |
+| `toggleShortcutModifiers` | Linux transcription shortcut modifiers | `ShortcutModifiers` names, comma separated. |
+| `toggleShortcutKey` | Linux transcription shortcut key | Stable portable key name. |
+| `cancelShortcutModifiers` | Linux active-session cancellation modifiers | `None` for the default session-scoped Escape binding. |
+| `cancelShortcutKey` | Linux active-session cancellation key | Stable portable key name; registered only while recording. |
+| `changeModeShortcutModifiers` | Linux mode-cycle shortcut modifiers | `ShortcutModifiers` names, comma separated. |
+| `changeModeShortcutKey` | Linux mode-cycle shortcut key | Stable portable key name. |
+| `streamingShortcutModifiers` | Linux dedicated live-transcription modifiers | `ShortcutModifiers` names, comma separated. |
+| `streamingShortcutKey` | Linux dedicated live-transcription key | Stable portable key name. |
+| `pushToTalkMode` | Linux push-to-talk mode | `Disabled`, `Modifier`, or `CustomShortcut`. |
+| `pushToTalkModifier` | Linux modifier-only push-to-talk input | Stable `ModifierSide` name. |
+| `pushToTalkShortcutModifiers` | Linux custom push-to-talk modifiers | `ShortcutModifiers` names, comma separated. |
+| `pushToTalkShortcutKey` | Linux custom push-to-talk key | Stable portable key name. |
+| `pushToTalkDoublePressLock` | Linux push-to-talk latch preference | Bool. |
+| `autoIncreaseMicVolume` | Linux temporary microphone boost | Bool; restored after every recording. |
+| `keepMicrophoneWarm` | Linux microphone keep-warm preference | Bool. |
+| `audioEnvironmentPolicy` | Linux other-audio behavior | `unchanged`, `duck`, or `mute`. |
+| `autoDeleteEnabled` | Linux recording-history retention preference | Bool; enables startup/hourly transcript and app-owned audio cleanup. |
+| `autoDeleteDaysOld` | Linux recording-history retention age | Integer clamped to 1–365 days. |
+| `customEndpoints` | Linux custom post-processing endpoints | Windows-compatible array of `id`, `name`, `endpointURL`, and `modelName`; credentials remain in secure storage and are never exported. |
+| `soundEffectsVolume` | Linux recording cue volume | Number clamped to 0–1; Linux also accepts the equivalent macOS audio-extension value when importing a macOS backup. |
+
+The Linux `selectedModeId` setting is intentionally device-local and is not exported: a
+mode selection is transient UI state, and importing it could silently change the active
+recording workflow on another device.
 </important>
 
 <important if="you are adding or modifying a Mode property, or editing the mode field-mapping tables">
@@ -127,13 +159,14 @@ Windows-only mode fields (go into `platformExtensions.windows`):
 
 <important if="you are changing per-mode platformExtensions, foreign-slice retention, or unknown-key round-trip behavior">
 
-**Foreign-slice passthrough (both platforms).** On import, each platform captures every *other*
+**Foreign-slice passthrough (all platforms).** On import, each platform captures every *other*
 platform's per-mode `platformExtensions` slice and persists it, then re-emits it on the next export
 — so a Windows mode's `platformExtensions.windows` survives a macOS round-trip, and a macOS slice
-survives a Windows round-trip. Storage: macOS `Mode.foreignPlatformExtensions` (Core Data, raw JSON);
-Windows `Mode.ForeignPlatformExtensions` (EF Core, raw JSON column). Each platform's own slice always
-wins over a stale preserved copy on re-export. A mac→v2→Windows→v2→mac trip retains the `windows`
-mode slice (and the symmetric trip retains `macos`).
+survives a Windows round-trip. Linux slices obey the same rule. Storage: macOS
+`Mode.foreignPlatformExtensions` (Core Data, raw JSON); Windows and the shared C# Linux core use
+`Mode.ForeignPlatformExtensions` (EF Core, raw JSON column). Each platform's own slice always wins
+over a stale preserved copy on re-export. A mac→v2→Windows→v2→mac trip retains the `windows` mode
+slice, and Linux-authored slices must likewise survive trips through either existing platform.
 
 **Unknown-key fidelity.** The shared core preserves any unknown top-level / settings-category /
 mode / vocabulary key verbatim through a parse → re-serialize round-trip (serde `flatten`), so a
@@ -167,6 +200,7 @@ API keys are a flat object with lowercase provider-name keys. Both platforms map
 |---|---|---|
 | macOS | `app/macos/hyperwhisper/Managers/BackupManager.swift` | `app/macos/hyperwhisper/Models/BackupModels.swift` |
 | Windows | `app/windows/HyperWhisper/Services/BackupService.cs` + `Services/UniversalBackupMapper.cs` | `app/windows/HyperWhisper/Models/UniversalBackupModels.cs` |
+| Linux | Shared C# backup service/mapper (during the Linux port) | Shared C# universal backup models |
 | Shared core | `shared-core-rs/crates/hw-backup` — universal⇄records mapping, the macOS 7→5 settings adapter, lossless `extra` passthrough, and structural validation | `crates/hw-backup/src/records.rs` |
 
 The shared core is sans-I/O: it parses, maps, and validates in memory; each platform owns reading and writing the `.hwbackup.json` bytes and persisting the resulting records.

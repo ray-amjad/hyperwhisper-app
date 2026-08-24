@@ -7,6 +7,8 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Models;
+using HyperWhisper.Services.Platform;
+using PlatformContracts = HyperWhisper.Platform.Abstractions;
 
 namespace HyperWhisper.Services;
 
@@ -15,7 +17,7 @@ namespace HyperWhisper.Services;
 /// - RegisterHotKey is used for non-modifier combos so the system delivers WM_HOTKEY.
 /// - A low-level hook tracks modifier-only shortcuts and key-up events for push-to-talk.
 /// </summary>
-public sealed class KeyboardShortcutService : IDisposable
+public sealed class KeyboardShortcutService : IDisposable, PlatformContracts.IGlobalShortcutService
 {
     private const int WH_KEYBOARD_LL = 13;
     private const int WM_KEYDOWN = 0x0100;
@@ -92,6 +94,23 @@ public sealed class KeyboardShortcutService : IDisposable
     public event EventHandler<ShortcutEventArgs>? ShortcutPressed;
     public event EventHandler<ShortcutEventArgs>? ShortcutReleased;
 
+    private event EventHandler<PlatformContracts.ShortcutTriggeredEventArgs>? PlatformShortcutPressed;
+    private event EventHandler<PlatformContracts.ShortcutTriggeredEventArgs>? PlatformShortcutReleased;
+
+    event EventHandler<PlatformContracts.ShortcutTriggeredEventArgs>?
+        PlatformContracts.IGlobalShortcutService.ShortcutPressed
+    {
+        add => PlatformShortcutPressed += value;
+        remove => PlatformShortcutPressed -= value;
+    }
+
+    event EventHandler<PlatformContracts.ShortcutTriggeredEventArgs>?
+        PlatformContracts.IGlobalShortcutService.ShortcutReleased
+    {
+        add => PlatformShortcutReleased += value;
+        remove => PlatformShortcutReleased -= value;
+    }
+
     private readonly Dictionary<string, KeyboardShortcut> _shortcuts = new();
     private readonly HashSet<string> _activeShortcuts = new();
     private readonly HashSet<int> _pressedKeys = new();
@@ -103,6 +122,7 @@ public sealed class KeyboardShortcutService : IDisposable
     private readonly ConcurrentDictionary<int, string> _hotkeyIdToName = new();
     private readonly ConcurrentDictionary<string, int> _nameToHotkeyId = new();
     private int _hotkeyIdCounter = 1;
+    private bool _disposed;
 
     public KeyboardShortcutService()
     {
@@ -143,6 +163,81 @@ public sealed class KeyboardShortcutService : IDisposable
         {
             LoggingService.Warn("KeyboardShortcutService: Failed to create HwndSource from handle");
         }
+    }
+
+    PlatformContracts.PlatformResult PlatformContracts.IGlobalShortcutService.Start()
+    {
+        if (_disposed)
+        {
+            return PlatformContracts.PlatformResult.Failure(
+                "shortcut.disposed",
+                "The Windows shortcut service has been disposed.");
+        }
+
+        AttachWindowIfNeeded();
+        EnsureHook();
+        return _hookId != IntPtr.Zero
+            ? PlatformContracts.PlatformResult.Success()
+            : PlatformContracts.PlatformResult.Failure(
+                "shortcut.hook_unavailable",
+                "The Windows low-level keyboard hook could not be installed.");
+    }
+
+    IReadOnlyDictionary<string, PlatformContracts.PlatformResult>
+        PlatformContracts.IGlobalShortcutService.RegisterShortcuts(
+            IReadOnlyCollection<PlatformContracts.NamedShortcut> shortcuts)
+    {
+        ArgumentNullException.ThrowIfNull(shortcuts);
+
+        if (_disposed)
+        {
+            return shortcuts.ToDictionary(
+                item => item.Name,
+                _ => PlatformContracts.PlatformResult.Failure(
+                    "shortcut.disposed",
+                    "The Windows shortcut service has been disposed."));
+        }
+
+        var windowsShortcuts = new Dictionary<string, KeyboardShortcut>();
+        var platformResults = new Dictionary<string, PlatformContracts.PlatformResult>();
+        foreach (var item in shortcuts)
+        {
+            if (string.IsNullOrWhiteSpace(item.Name))
+            {
+                throw new ArgumentException(
+                    "Shortcut names cannot be empty.",
+                    nameof(shortcuts));
+            }
+
+            if (windowsShortcuts.ContainsKey(item.Name) || platformResults.ContainsKey(item.Name))
+            {
+                throw new ArgumentException(
+                    $"Shortcut name '{item.Name}' is duplicated.",
+                    nameof(shortcuts));
+            }
+
+            var mapped = WindowsShortcutMapper.FromPlatform(item.Shortcut);
+            if (mapped.IsFailure)
+            {
+                platformResults[item.Name] = PlatformContracts.PlatformResult.Failure(
+                    mapped.Error!.Code,
+                    mapped.Error.Message);
+                continue;
+            }
+
+            windowsShortcuts[item.Name] = mapped.Value!;
+        }
+
+        foreach (var (name, result) in RegisterShortcuts(windowsShortcuts))
+        {
+            platformResults[name] = result.IsSuccess
+                ? PlatformContracts.PlatformResult.Success()
+                : PlatformContracts.PlatformResult.Failure(
+                    "shortcut.registration_failed",
+                    result.Error ?? "Windows shortcut registration failed.");
+        }
+
+        return platformResults;
     }
 
     public Dictionary<string, Result> RegisterShortcuts(Dictionary<string, KeyboardShortcut> shortcuts)
@@ -254,6 +349,9 @@ public sealed class KeyboardShortcutService : IDisposable
 
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
+
         Clear();
         if (_hookId != IntPtr.Zero)
         {
@@ -355,13 +453,21 @@ public sealed class KeyboardShortcutService : IDisposable
             {
                 _activeShortcuts.Add(name);
                 LoggingService.Info($"KeyboardShortcutService: SHORTCUT PRESSED '{name}' ({shortcut})");
-                RaiseShortcutEvent(ShortcutPressed, name, shortcut);
+                RaiseShortcutEvent(
+                    ShortcutPressed,
+                    PlatformShortcutPressed,
+                    name,
+                    shortcut);
             }
             else if (!shouldBeActive && isActive)
             {
                 _activeShortcuts.Remove(name);
                 LoggingService.Debug($"KeyboardShortcutService: Shortcut released '{name}'");
-                RaiseShortcutEvent(ShortcutReleased, name, shortcut);
+                RaiseShortcutEvent(
+                    ShortcutReleased,
+                    PlatformShortcutReleased,
+                    name,
+                    shortcut);
             }
         }
     }
@@ -533,7 +639,11 @@ public sealed class KeyboardShortcutService : IDisposable
                 {
                     _activeShortcuts.Add(name);
                     LoggingService.Info($"KeyboardShortcutService: WM_HOTKEY triggered '{name}' ({shortcut})");
-                    RaiseShortcutEvent(ShortcutPressed, name, shortcut);
+                    RaiseShortcutEvent(
+                        ShortcutPressed,
+                        PlatformShortcutPressed,
+                        name,
+                        shortcut);
                 }
                 handled = true;
             }
@@ -545,16 +655,51 @@ public sealed class KeyboardShortcutService : IDisposable
         return IntPtr.Zero;
     }
 
-    private void RaiseShortcutEvent(EventHandler<ShortcutEventArgs>? evt, string name, KeyboardShortcut shortcut)
+    private void RaiseShortcutEvent(
+        EventHandler<ShortcutEventArgs>? windowsEvent,
+        EventHandler<PlatformContracts.ShortcutTriggeredEventArgs>? platformEvent,
+        string name,
+        KeyboardShortcut shortcut)
     {
-        void Invoke() => evt?.Invoke(this, new ShortcutEventArgs(name, shortcut));
-        if (WpfApplication.Current?.Dispatcher != null)
+        void Invoke()
         {
-            WpfApplication.Current.Dispatcher.BeginInvoke(Invoke);
+            RaiseEach(windowsEvent, new ShortcutEventArgs(name, shortcut));
+            RaiseEach(
+                platformEvent,
+                new PlatformContracts.ShortcutTriggeredEventArgs(
+                    name,
+                    WindowsShortcutMapper.ToPlatform(shortcut)));
+        }
+
+        var dispatcher = WpfApplication.Current?.Dispatcher;
+        if (dispatcher != null && !dispatcher.HasShutdownStarted)
+        {
+            dispatcher.BeginInvoke(Invoke);
         }
         else
         {
             Invoke();
+        }
+    }
+
+    private void RaiseEach<TEventArgs>(
+        EventHandler<TEventArgs>? handlers,
+        TEventArgs args)
+    {
+        if (handlers == null) return;
+
+        foreach (EventHandler<TEventArgs> handler in handlers.GetInvocationList())
+        {
+            try
+            {
+                handler(this, args);
+            }
+            catch (Exception ex)
+            {
+                LoggingService.Error(
+                    $"KeyboardShortcutService: {typeof(TEventArgs).Name} handler failed",
+                    ex);
+            }
         }
     }
 }

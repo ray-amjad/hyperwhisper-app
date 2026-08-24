@@ -1,0 +1,13 @@
+.TH HYPERWHISPER-COMPANIONCTL 1 "August 2026" "HyperWhisper" "User Commands"
+.SH NAME
+hyperwhisper-companionctl \- manage optional desktop companions
+.SH SYNOPSIS
+.B hyperwhisper-companionctl
+{install-gnome|remove-gnome|install-kde|remove-kde}
+.SH DESCRIPTION
+Installs, enables, or removes the HyperWhisper active-window companion for the
+current desktop user. It must not be run as root. Debian package installation
+does not invoke this command or modify user home directories.
+.SH PRIVACY
+Companions expose only process identifier, application identifier, and window
+title through the documented session D-Bus contract.

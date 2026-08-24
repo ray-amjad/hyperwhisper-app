@@ -42,7 +42,7 @@ impl std::fmt::Display for ValidationError {
 pub const UNIVERSAL_SCHEMA_VERSION: i64 = 2;
 
 /// The schema's `platform` enum.
-pub const PLATFORM_ENUM: &[&str] = &["macos", "windows", "ios", "android"];
+pub const PLATFORM_ENUM: &[&str] = &["macos", "windows", "linux", "ios", "android"];
 
 /// Validate a parsed JSON value against the embedded backup schema's structural
 /// invariants. Returns every error found (not just the first) so a caller can
@@ -214,10 +214,19 @@ mod tests {
     }
 
     #[test]
-    fn rejects_bad_platform() {
+    fn accepts_linux_platform() {
         let errs = validate_value(&json!({
             "schemaVersion": 2,
             "exportDate": "x", "appVersion": "x", "platform": "linux"
+        }));
+        assert!(errs.is_empty());
+    }
+
+    #[test]
+    fn rejects_bad_platform() {
+        let errs = validate_value(&json!({
+            "schemaVersion": 2,
+            "exportDate": "x", "appVersion": "x", "platform": "plan9"
         }));
         assert!(errs.iter().any(|e| e.path == "platform"));
     }

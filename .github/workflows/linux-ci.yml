@@ -1,0 +1,372 @@
+# Fork-safe Linux compile and test gate for issue #179.
+#
+# The repository only permits local Actions, so checkout and tool setup use
+# shell commands rather than marketplace actions. This job intentionally uses
+# no environments, credentials, signing material, or provider API keys.
+name: Linux CI
+
+on:
+  workflow_call:
+    outputs:
+      verified_sha:
+        description: "Exact commit that completed every Linux quality gate"
+        value: ${{ jobs.build-and-test.outputs.verified_sha }}
+  pull_request:
+    branches: [main]
+    paths: &linux-paths
+      - "app/shared-dotnet/**"
+      - "app/linux-spike/**"
+      - "app/linux/**"
+      - "shared-core-rs/**"
+      - "shared-backup/**"
+      - "packaging/linux/**"
+      - "tools/parakeet-engine-dotnet/**"
+      - ".github/scripts/test-linux-release-policy.py"
+      - ".github/workflows/linux-ci.yml"
+      - ".github/workflows/linux-release.yml"
+  push:
+    branches: [main]
+    paths: *linux-paths
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: linux-ci-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build-and-test:
+    name: Build & Test (linux-x64)
+    # Build native artifacts on the oldest supported Ubuntu release so the
+    # resulting glibc baseline remains compatible with the documented floor.
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_NOLOGO: "1"
+      NUGET_XMLDOC_MODE: skip
+      # Portable .NET harnesses call the UniFFI bridge directly. The native
+      # core is staged here before those harnesses run.
+      LD_LIBRARY_PATH: ${{ github.workspace }}/artifacts/linux-x64
+    outputs:
+      verified_sha: ${{ steps.verified.outputs.sha }}
+    steps:
+      - name: Checkout repository
+        shell: bash
+        run: |
+          set -euo pipefail
+          git init -q .
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git fetch -q --depth=1 origin "$GITHUB_SHA"
+          git checkout -q FETCH_HEAD
+          git remote set-url origin "https://github.com/${GITHUB_REPOSITORY}.git"
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Install pinned Rust toolchain
+        working-directory: shared-core-rs
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup show
+          rustup target add x86_64-unknown-linux-gnu
+
+      - name: Test and lint shared Rust core
+        working-directory: shared-core-rs
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo test --locked
+          cargo clippy --locked --all-targets -- -D warnings
+
+      - name: Build and inspect Linux Rust core
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build \
+            --manifest-path shared-core-rs/Cargo.toml \
+            --locked \
+            --release \
+            --target x86_64-unknown-linux-gnu \
+            -p hw-core
+
+          source_path="shared-core-rs/target/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so"
+          staging_dir="artifacts/linux-x64"
+          test -s "$source_path"
+          install -Dm755 "$source_path" "$staging_dir/libhyperwhisper_core.so"
+          if [[ -d app/linux/HyperWhisper.Linux ]]; then
+            install -Dm755 \
+              "$source_path" \
+              app/linux/HyperWhisper.Linux/Resources/rust-core/linux-x64/libhyperwhisper_core.so
+          fi
+
+          file "$staging_dir/libhyperwhisper_core.so"
+          readelf -h "$staging_dir/libhyperwhisper_core.so"
+          if ldd "$staging_dir/libhyperwhisper_core.so" | grep -q "not found"; then
+            echo "A required native dependency is missing." >&2
+            exit 1
+          fi
+
+      - name: Validate universal backup fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          for fixture in shared-backup/examples/*.hwbackup.json; do
+            npx --yes ajv-cli@5.0.0 validate \
+              --spec=draft2020 \
+              --strict=false \
+              -s shared-backup/hyperwhisper-backup.schema.json \
+              -d "$fixture"
+          done
+
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          linux = json.loads(
+              Path("shared-backup/examples/linux-export.hwbackup.json").read_text()
+          )
+          assert linux["platform"] == "linux"
+          assert isinstance(
+              linux["platformExtensions"]["linux"]["settings"]["autostartEnabled"],
+              bool,
+          )
+          assert linux["modes"]
+          assert all("linux" in mode["platformExtensions"] for mode in linux["modes"])
+          PY
+
+      - name: Ensure .NET 10 SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          if command -v dotnet >/dev/null 2>&1 && dotnet --list-sdks | grep -q '^10\.'; then
+            dotnet --info
+            exit 0
+          fi
+
+          install_dir="${RUNNER_TEMP}/dotnet"
+          installer="${RUNNER_TEMP}/dotnet-install.sh"
+          curl --fail --silent --show-error --location \
+            https://dot.net/v1/dotnet-install.sh \
+            --output "$installer"
+          chmod 755 "$installer"
+          "$installer" --channel 10.0 --quality ga --install-dir "$install_dir"
+          echo "$install_dir" >> "$GITHUB_PATH"
+          "$install_dir/dotnet" --info
+
+      - name: Install Linux desktop and packaging dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install --yes \
+            dbus-x11 \
+            desktop-file-utils \
+            dpkg-dev \
+            ffmpeg \
+            file \
+            lintian \
+            patchelf \
+            libfontconfig1 \
+            libice6 \
+            libsm6 \
+            libx11-6 \
+            pipewire \
+            pipewire-pulse \
+            pulseaudio-utils \
+            python3-yaml \
+            shellcheck \
+            weston \
+            wireplumber \
+            xwayland \
+            xvfb
+
+      - name: Build and execute portable .NET tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t test_projects < <(
+            find app/shared-dotnet -mindepth 2 -maxdepth 2 \
+              -type f -path '*Tests/*.csproj' -print | sort
+          )
+          if (( ${#test_projects[@]} == 0 )); then
+            echo "No portable .NET test harnesses were found." >&2
+            exit 1
+          fi
+          for project in "${test_projects[@]}"; do
+            dotnet build "$project" \
+              --configuration Release \
+              -p:TreatWarningsAsErrors=true
+            dotnet run \
+              --project "$project" \
+              --configuration Release \
+              --no-build
+          done
+
+      - name: Build and run Linux integration-spike tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet build \
+            app/linux-spike/HyperWhisper.LinuxSpike.Tests/HyperWhisper.LinuxSpike.Tests.csproj \
+            --configuration Release \
+            -p:TreatWarningsAsErrors=true
+          dotnet run \
+            --project app/linux-spike/HyperWhisper.LinuxSpike.Tests/HyperWhisper.LinuxSpike.Tests.csproj \
+            --configuration Release \
+            --no-build
+          dotnet build \
+            app/linux-spike/HyperWhisper.LinuxSpike.Probe/HyperWhisper.LinuxSpike.Probe.csproj \
+            --configuration Release \
+            -p:TreatWarningsAsErrors=true
+          dotnet run \
+            --project app/linux-spike/HyperWhisper.LinuxSpike.Probe/HyperWhisper.LinuxSpike.Probe.csproj \
+            --configuration Release \
+            --no-build
+
+      - name: Build and test Avalonia Linux head when present
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! -d app/linux ]]; then
+            echo "app/linux is not present yet; the integration spike is the current Linux head."
+            exit 0
+          fi
+
+          mapfile -t solutions < <(find app/linux -maxdepth 2 -type f \
+            \( -name '*.sln' -o -name '*.slnx' \) -print | sort)
+          mapfile -t projects < <(find app/linux -type f -name '*.csproj' -print | sort)
+
+          if (( ${#solutions[@]} > 0 )); then
+            for solution in "${solutions[@]}"; do
+              dotnet build "$solution" \
+                --configuration Release \
+                -p:TreatWarningsAsErrors=true
+            done
+          elif (( ${#projects[@]} > 0 )); then
+            for project in "${projects[@]}"; do
+              dotnet build "$project" \
+                --configuration Release \
+                -p:TreatWarningsAsErrors=true
+            done
+          else
+            echo "app/linux exists but contains no solution or project." >&2
+            exit 1
+          fi
+
+          # All Linux test projects are dependency-free executable harnesses,
+          # rather than Microsoft.NET.Test.Sdk projects. `dotnet test` would
+          # silently discover zero tests, so every harness must execute.
+          mapfile -t test_projects < <(
+            printf '%s\n' "${projects[@]}" | grep 'Tests\.csproj$'
+          )
+          if (( ${#test_projects[@]} == 0 )); then
+            echo "No Linux test harnesses were found." >&2
+            exit 1
+          fi
+          for project in "${test_projects[@]}"; do
+            dotnet run \
+              --project "$project" \
+              --configuration Release \
+              --no-build
+          done
+
+      - name: Enforce production .NET line coverage
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/test-dotnet-coverage-policy.py
+          app/linux/scripts/run-dotnet-coverage.sh
+
+      - name: Verify live PipeWire microphone transcription
+        shell: bash
+        run: |
+          set -euo pipefail
+          model_path="${RUNNER_TEMP}/ggml-tiny.en.bin"
+          curl --fail --silent --show-error --location \
+            https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin \
+            --output "$model_path"
+          echo "921e4cf8686fdd993dcd081a5da5b6c365bfde1162e72b08d75ac75289920b1f  $model_path" \
+            | sha256sum --check --strict
+          HW_E2E_WHISPER_MODEL="$model_path" \
+            app/linux/scripts/run-virtual-mic-e2e.sh
+
+      - name: Render and publish Avalonia Linux head
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! -x app/linux/scripts/run-ui-smoke.sh ]]; then
+            echo "The Linux UI smoke script is missing or not executable." >&2
+            exit 1
+          fi
+
+          app/linux/scripts/run-ui-smoke.sh
+          app/linux/scripts/run-ui-smoke-xwayland.sh
+
+          dotnet publish \
+            app/linux/HyperWhisper.Linux/HyperWhisper.Linux.csproj \
+            --configuration Release \
+            --runtime linux-x64 \
+            --self-contained true \
+            --output artifacts/hyperwhisper-linux
+
+          dotnet publish \
+            tools/parakeet-engine-dotnet/parakeet-engine-dotnet.csproj \
+            --configuration Release \
+            --runtime linux-x64 \
+            --self-contained true \
+            --output artifacts/hyperwhisper-linux/parakeet-engine
+
+          test -x artifacts/hyperwhisper-linux/HyperWhisper
+          test -x artifacts/hyperwhisper-linux/parakeet-engine/parakeet-engine
+          test -s artifacts/hyperwhisper-linux/parakeet-engine/libsherpa-onnx-c-api.so
+          test -s artifacts/hyperwhisper-linux/libhyperwhisper_core.so
+          file artifacts/hyperwhisper-linux/HyperWhisper
+          file artifacts/hyperwhisper-linux/parakeet-engine/parakeet-engine
+          file artifacts/hyperwhisper-linux/libhyperwhisper_core.so
+          if ldd artifacts/hyperwhisper-linux/libhyperwhisper_core.so | grep -q "not found"; then
+            echo "The published Rust core has a missing dependency." >&2
+            exit 1
+          fi
+
+      - name: Build, test, and lint Debian package
+        shell: bash
+        run: |
+          set -euo pipefail
+          shellcheck \
+            app/linux/scripts/generate-virtual-mic-fixture.sh \
+            app/linux/scripts/run-virtual-mic-e2e.sh \
+            app/linux/scripts/run-ui-smoke-xwayland.sh \
+            app/linux/scripts/run-ui-smoke.sh \
+            packaging/linux/scripts/build-deb.sh \
+            packaging/linux/scripts/test-package.sh \
+            packaging/linux/scripts/generate-apt-repository.sh \
+            packaging/linux/scripts/test-apt-repository.sh \
+            packaging/linux/debian/postinst \
+            packaging/linux/debian/postrm
+          desktop-file-validate packaging/linux/debian/hyperwhisper.desktop
+
+          package_path="$(
+            packaging/linux/scripts/build-deb.sh \
+              --publish-dir artifacts/hyperwhisper-linux \
+              --output-dir artifacts/debian \
+              --version 1.0.0 \
+              --architecture amd64
+          )"
+
+          test -s "$package_path"
+          packaging/linux/scripts/test-package.sh "$package_path"
+          packaging/linux/scripts/test-apt-repository.sh "$package_path"
+          lintian --fail-on warning "$package_path"
+          dpkg-deb --info "$package_path"
+
+      - name: Verify release policy and exact tested commit
+        id: verified
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/test-linux-release-policy.py
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          echo "sha=$GITHUB_SHA" >> "$GITHUB_OUTPUT"

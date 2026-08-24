@@ -1,0 +1,24 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:overlay="clr-namespace:HyperWhisper.Linux.Overlay"
+        x:Class="HyperWhisper.Linux.Overlay.LinuxLiveTranscriptPreviewWindow"
+        x:DataType="overlay:LinuxLiveTranscriptPreviewViewModel"
+        Width="420" Height="204"
+        WindowDecorations="None"
+        Background="Transparent"
+        TransparencyLevelHint="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ShowActivated="False"
+        CanResize="False"
+        Focusable="False"
+        FlowDirection="{ReflectionBinding FlowDirection, Source={StaticResource Localization}}">
+  <Border CornerRadius="16" Background="#E6000000" BorderBrush="#26FFFFFF"
+          BorderThickness="1" Padding="16,12">
+    <ScrollViewer x:Name="PreviewScroller" VerticalScrollBarVisibility="Hidden"
+                  HorizontalScrollBarVisibility="Disabled">
+      <TextBlock Text="{Binding Text}" Foreground="#F2FFFFFF" FontSize="13"
+                 FontWeight="Medium" TextWrapping="Wrap" LineHeight="18"/>
+    </ScrollViewer>
+  </Border>
+</Window>

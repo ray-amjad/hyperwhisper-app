@@ -1,0 +1,612 @@
+# Linux v1 release builder. Manual dry runs build a retrievable, unsigned
+# package without Production secrets or external side effects. A GitHub Release
+# is created only by an explicitly approved workflow_dispatch run with
+# publish_github=true, sign_apt=true, and checked-in Tier-3/physical-GPU evidence
+# for the exact release commit. The private signing key is never persisted as an
+# artifact.
+name: Linux Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Linux 1.0 package version (for example 1.0.0)"
+        required: true
+        default: "1.0.0"
+        type: string
+      publish_github:
+        description: "Create the linux/vVERSION GitHub Release and upload artifacts"
+        required: true
+        default: false
+        type: boolean
+      sign_apt:
+        description: "Require signing with the Production LINUX_APT_SIGNING_KEY secret"
+        required: true
+        default: false
+        type: boolean
+      deploy_apt:
+        description: "Atomically deploy the signed repository to the configured HTTPS origin"
+        required: true
+        default: false
+        type: boolean
+      release_notes:
+        description: "GitHub Release notes (required when publishing)"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: linux-release
+  cancel-in-progress: false
+
+jobs:
+  quality-gates:
+    name: Required Linux quality gates
+    permissions:
+      contents: read
+    uses: ./.github/workflows/linux-ci.yml
+
+  build-package-release:
+    name: Build Linux release (amd64)
+    # Keep release-native artifacts on the documented Ubuntu 22.04 ABI floor.
+    runs-on: ubuntu-22.04
+    needs: quality-gates
+    timeout-minutes: 60
+    environment: ${{ (inputs.publish_github || inputs.sign_apt || inputs.deploy_apt) && 'Production' || 'Linux Release Dry Run' }}
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_NOLOGO: "1"
+      NUGET_XMLDOC_MODE: skip
+    steps:
+      - name: Checkout release commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git init -q .
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          # Full ancestry is required because reviewed physical evidence may be
+          # added in a later evidence-only commit and is validated with
+          # git merge-base/diff against the exact tested commit.
+          git fetch -q --no-tags origin "$GITHUB_SHA"
+          git checkout -q FETCH_HEAD
+          git remote set-url origin "https://github.com/${GITHUB_REPOSITORY}.git"
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Resolve and validate release metadata
+        id: release
+        shell: bash
+        env:
+          DISPATCH_VERSION: ${{ inputs.version }}
+          DISPATCH_PUBLISH: ${{ inputs.publish_github }}
+          DISPATCH_SIGN_APT: ${{ inputs.sign_apt }}
+          DISPATCH_DEPLOY_APT: ${{ inputs.deploy_apt }}
+          RELEASE_NOTES: ${{ inputs.release_notes }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version="$DISPATCH_VERSION"
+          publish="$DISPATCH_PUBLISH"
+          require_apt_signature="$DISPATCH_SIGN_APT"
+          deploy_apt="$DISPATCH_DEPLOY_APT"
+
+          if [[ "$deploy_apt" == "true" \
+              && ( "$publish" != "true" || "$require_apt_signature" != "true" ) ]]; then
+            echo "APT deployment requires publish_github=true and sign_apt=true." >&2
+            exit 1
+          fi
+
+          if [[ "$publish" == "true" && "$require_apt_signature" != "true" ]]; then
+            echo "GitHub publication requires sign_apt=true so no unsigned APT repository is released." >&2
+            exit 1
+          fi
+
+          if [[ ! "$version" =~ ^1\.0\.[0-9]+$ ]]; then
+            echo "Linux v1 release versions must be numeric 1.0.x versions." >&2
+            exit 1
+          fi
+
+          tag="linux/v${version}"
+          project_version="$(sed -n 's:.*<Version>\([^<]*\)</Version>.*:\1:p' \
+            app/linux/HyperWhisper.Linux/HyperWhisper.Linux.csproj)"
+          changelog_version="$(sed -n \
+            '1s/^hyperwhisper (\([^)]*\)).*/\1/p' \
+            packaging/linux/debian/changelog)"
+          if [[ "$project_version" != "$version" || "$changelog_version" != "$version" ]]; then
+            echo "Requested version $version must match the Linux project ($project_version) and Debian changelog ($changelog_version)." >&2
+            exit 1
+          fi
+
+          if [[ "$publish" == "true" ]]; then
+            if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+              echo "Publishing is allowed only from refs/heads/main." >&2
+              exit 1
+            fi
+            if [[ -z "${RELEASE_NOTES//[[:space:]]/}" ]]; then
+              echo "Non-empty release notes are required when publishing." >&2
+              exit 1
+            fi
+            if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
+              echo "Remote tag already exists: $tag" >&2
+              exit 1
+            fi
+            if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              echo "GitHub Release already exists: $tag" >&2
+              exit 1
+            fi
+          fi
+
+          source_date_epoch="$(git show -s --format=%ct HEAD)"
+          {
+            echo "version=$version"
+            echo "tag=$tag"
+            echo "publish=$publish"
+            echo "require_apt_signature=$require_apt_signature"
+            echo "deploy_apt=$deploy_apt"
+            echo "source_date_epoch=$source_date_epoch"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "Version: $version"
+          echo "GitHub publishing enabled: $publish"
+          echo "APT signature explicitly required: $require_apt_signature"
+          echo "APT deployment enabled: $deploy_apt"
+
+      - name: Confirm required gates tested this exact commit
+        shell: bash
+        env:
+          VERIFIED_SHA: ${{ needs.quality-gates.outputs.verified_sha }}
+        run: |
+          set -euo pipefail
+          test "$VERIFIED_SHA" = "$GITHUB_SHA"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+
+      - name: Enforce reviewed Tier-3 and physical-GPU evidence
+        if: steps.release.outputs.publish == 'true'
+        shell: bash
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          evidence="packaging/linux/release-evidence/${VERSION}.json"
+          packaging/linux/scripts/validate-release-evidence.py \
+            "$evidence" "$VERSION" "$GITHUB_SHA"
+
+      - name: Install release dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install --yes \
+            desktop-file-utils \
+            dpkg-dev \
+            file \
+            gnupg \
+            lintian \
+            openssh-client \
+            patchelf \
+            rsync \
+            shellcheck
+
+      - name: Ensure .NET 10 SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          if command -v dotnet >/dev/null 2>&1 && dotnet --list-sdks | grep -q '^10\.'; then
+            dotnet --info
+            exit 0
+          fi
+
+          install_dir="${RUNNER_TEMP}/dotnet"
+          installer="${RUNNER_TEMP}/dotnet-install.sh"
+          curl --fail --silent --show-error --location \
+            https://dot.net/v1/dotnet-install.sh --output "$installer"
+          chmod 0755 "$installer"
+          "$installer" --channel 10.0 --quality ga --install-dir "$install_dir"
+          echo "$install_dir" >> "$GITHUB_PATH"
+
+      - name: Build release Rust core
+        working-directory: shared-core-rs
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup show
+          rustup target add x86_64-unknown-linux-gnu
+          cargo build \
+            --manifest-path Cargo.toml \
+            --locked \
+            --release \
+            --target x86_64-unknown-linux-gnu \
+            -p hw-core
+
+          core="target/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so"
+          destination="../app/linux/HyperWhisper.Linux/Resources/rust-core/linux-x64/libhyperwhisper_core.so"
+          test -s "$core"
+          install -Dm0755 "$core" "$destination"
+          file "$core"
+          if ldd "$core" | grep -q "not found"; then
+            echo "The release Rust core has a missing dependency." >&2
+            exit 1
+          fi
+
+      - name: Publish self-contained Avalonia application
+        shell: bash
+        env:
+          # The Linux project emits this as assembly metadata only when the
+          # Production secret exists. Fork/source builds leave it blank, and
+          # LinuxSentryService then remains a strict no-op.
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+        run: |
+          set -euo pipefail
+          dotnet publish \
+            app/linux/HyperWhisper.Linux/HyperWhisper.Linux.csproj \
+            --configuration Release \
+            --runtime linux-x64 \
+            --self-contained true \
+            -p:Version="${{ steps.release.outputs.version }}" \
+            --output artifacts/hyperwhisper-linux
+
+          dotnet publish \
+            tools/parakeet-engine-dotnet/parakeet-engine-dotnet.csproj \
+            --configuration Release \
+            --runtime linux-x64 \
+            --self-contained true \
+            -p:Version="${{ steps.release.outputs.version }}" \
+            --output artifacts/hyperwhisper-linux/parakeet-engine
+
+          test -x artifacts/hyperwhisper-linux/HyperWhisper
+          test -x artifacts/hyperwhisper-linux/parakeet-engine/parakeet-engine
+          test -s artifacts/hyperwhisper-linux/parakeet-engine/libsherpa-onnx-c-api.so
+          test -s artifacts/hyperwhisper-linux/libhyperwhisper_core.so
+          file artifacts/hyperwhisper-linux/HyperWhisper
+          file artifacts/hyperwhisper-linux/parakeet-engine/parakeet-engine
+          file artifacts/hyperwhisper-linux/libhyperwhisper_core.so
+
+      - name: Build, test, and lint Debian package
+        id: package
+        shell: bash
+        env:
+          SOURCE_DATE_EPOCH: ${{ steps.release.outputs.source_date_epoch }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          shellcheck \
+            packaging/linux/scripts/build-deb.sh \
+            packaging/linux/scripts/test-package.sh \
+            packaging/linux/scripts/generate-apt-repository.sh \
+            packaging/linux/scripts/test-apt-repository.sh \
+            packaging/linux/debian/postinst \
+            packaging/linux/debian/postrm
+          packaging/linux/scripts/test-release-evidence.py
+          desktop-file-validate packaging/linux/debian/hyperwhisper.desktop
+
+          package_path="$(
+            packaging/linux/scripts/build-deb.sh \
+              --publish-dir artifacts/hyperwhisper-linux \
+              --output-dir artifacts/release \
+              --version "$VERSION" \
+              --architecture amd64
+          )"
+          HYPERWHISPER_PACKAGE_VERSION="$VERSION" \
+            packaging/linux/scripts/test-package.sh "$package_path"
+          packaging/linux/scripts/test-apt-repository.sh "$package_path"
+          lintian --fail-on warning "$package_path"
+          echo "path=$package_path" >> "$GITHUB_OUTPUT"
+
+      - name: Generate static APT repository
+        id: apt
+        shell: bash
+        env:
+          APT_SIGNING_KEY: ${{ secrets.LINUX_APT_SIGNING_KEY }}
+          REQUIRE_APT_SIGNATURE: ${{ steps.release.outputs.require_apt_signature }}
+          SOURCE_DATE_EPOCH: ${{ steps.release.outputs.source_date_epoch }}
+          PACKAGE_PATH: ${{ steps.package.outputs.path }}
+        run: |
+          set -euo pipefail
+          key_file=""
+          cleanup() {
+            if [[ -n "$key_file" ]]; then
+              rm -f -- "$key_file"
+            fi
+          }
+          trap cleanup EXIT
+
+          signing_args=()
+          if [[ "$REQUIRE_APT_SIGNATURE" == "true" ]]; then
+            if [[ -z "$APT_SIGNING_KEY" ]]; then
+              echo "APT signing was required, but LINUX_APT_SIGNING_KEY is unavailable." >&2
+              exit 1
+            fi
+            umask 077
+            key_file="${RUNNER_TEMP}/linux-apt-signing-key.asc"
+            printf '%s' "$APT_SIGNING_KEY" > "$key_file"
+            signing_args=(--signing-key-file "$key_file")
+            echo "APT repository signing enabled."
+          else
+            echo "APT repository signing disabled; generating unsigned Release metadata."
+          fi
+
+          packaging/linux/scripts/generate-apt-repository.sh \
+            --deb "$PACKAGE_PATH" \
+            --output-dir artifacts/apt-repository \
+            --suite stable \
+            --codename stable \
+            "${signing_args[@]}"
+
+          if [[ ${#signing_args[@]} -gt 0 ]]; then
+            test -s artifacts/apt-repository/dists/stable/InRelease
+            test -s artifacts/apt-repository/dists/stable/Release.gpg
+          else
+            test ! -e artifacts/apt-repository/dists/stable/InRelease
+            test ! -e artifacts/apt-repository/dists/stable/Release.gpg
+          fi
+
+      - name: Create checksums and repository archive
+        shell: bash
+        env:
+          SOURCE_DATE_EPOCH: ${{ steps.release.outputs.source_date_epoch }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          archive="artifacts/release/hyperwhisper-apt-${VERSION}.tar.gz"
+          tar --sort=name --mtime="@${SOURCE_DATE_EPOCH}" \
+            --owner=0 --group=0 --numeric-owner \
+            -czf "$archive" -C artifacts/apt-repository .
+
+          (
+            cd artifacts/release
+            checksum_files=(
+              "hyperwhisper_${VERSION}_amd64.deb"
+              "hyperwhisper-apt-${VERSION}.tar.gz"
+            )
+            if [[ -f "../../packaging/linux/release-evidence/${VERSION}.json" ]]; then
+              install -m0644 \
+                "../../packaging/linux/release-evidence/${VERSION}.json" \
+                linux-release-evidence.json
+              checksum_files+=(linux-release-evidence.json)
+            fi
+            sha256sum "${checksum_files[@]}" > SHA256SUMS
+          )
+          (
+            cd artifacts/release
+            sha256sum --check SHA256SUMS
+          )
+
+      - name: Upload dry-run package for physical testing
+        if: steps.release.outputs.publish != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: hyperwhisper-linux-${{ steps.release.outputs.version }}-${{ github.sha }}
+          path: |
+            artifacts/release/hyperwhisper_${{ steps.release.outputs.version }}_amd64.deb
+            artifacts/release/hyperwhisper-apt-${{ steps.release.outputs.version }}.tar.gz
+            artifacts/release/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Publish GitHub Release artifacts
+        if: steps.release.outputs.publish == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_NOTES: ${{ inputs.release_notes }}
+          TAG: ${{ steps.release.outputs.tag }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          gh release create "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "HyperWhisper Linux ${VERSION}" \
+            --notes "$RELEASE_NOTES" \
+            "artifacts/release/hyperwhisper_${VERSION}_amd64.deb" \
+            "artifacts/release/hyperwhisper-apt-${VERSION}.tar.gz" \
+            artifacts/release/linux-release-evidence.json \
+            artifacts/release/SHA256SUMS
+
+          tag_sha="$(gh api \
+            "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG//\//%2F}" \
+            --jq '.object.sha')"
+          test "$tag_sha" = "$GITHUB_SHA"
+          for asset in \
+            "hyperwhisper_${VERSION}_amd64.deb" \
+            "hyperwhisper-apt-${VERSION}.tar.gz" \
+            linux-release-evidence.json \
+            SHA256SUMS; do
+            gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets \
+              --jq ".assets[].name" | grep -Fx -- "$asset" >/dev/null
+          done
+          echo "GitHub Release assets and exact tag target verified."
+
+      - name: Atomically deploy signed APT repository
+        if: steps.release.outputs.deploy_apt == 'true'
+        shell: bash
+        env:
+          APT_ORIGIN: ${{ vars.LINUX_APT_ORIGIN }}
+          APT_DEPLOY_HOST: ${{ vars.LINUX_APT_DEPLOY_HOST }}
+          APT_DEPLOY_USER: ${{ vars.LINUX_APT_DEPLOY_USER }}
+          APT_DEPLOY_PATH: ${{ vars.LINUX_APT_DEPLOY_PATH }}
+          APT_SSH_PRIVATE_KEY: ${{ secrets.LINUX_APT_SSH_PRIVATE_KEY }}
+          APT_SSH_KNOWN_HOSTS: ${{ secrets.LINUX_APT_SSH_KNOWN_HOSTS }}
+          APT_SIGNING_KEY: ${{ secrets.LINUX_APT_SIGNING_KEY }}
+          PACKAGE_PATH: ${{ steps.package.outputs.path }}
+          SOURCE_DATE_EPOCH: ${{ steps.release.outputs.source_date_epoch }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$APT_ORIGIN" =~ ^https://[A-Za-z0-9.-]+(:[0-9]+)?(/[A-Za-z0-9._~!$\&\(\)*+,\;=:@%/-]*)?$ ]]; then
+            echo "LINUX_APT_ORIGIN must be an explicitly configured HTTPS URL." >&2
+            exit 1
+          fi
+          if [[ ! "$APT_DEPLOY_HOST" =~ ^[A-Za-z0-9.-]+$ ]] \
+              || [[ ! "$APT_DEPLOY_USER" =~ ^[A-Za-z_][A-Za-z0-9_-]*$ ]] \
+              || [[ ! "$APT_DEPLOY_PATH" =~ ^/[A-Za-z0-9._/-]+$ ]] \
+              || [[ "$APT_DEPLOY_PATH" == "/" ]]; then
+            echo "APT SSH host, user, or absolute deployment path is missing or unsafe." >&2
+            exit 1
+          fi
+          if [[ -z "$APT_SSH_PRIVATE_KEY" || -z "$APT_SSH_KNOWN_HOSTS" \
+              || -z "$APT_SIGNING_KEY" ]]; then
+            echo "APT deployment requires pinned SSH and signing secrets." >&2
+            exit 1
+          fi
+
+          ssh_dir="${RUNNER_TEMP}/apt-ssh"
+          prior_dir="${RUNNER_TEMP}/apt-prior"
+          deploy_repo="${RUNNER_TEMP}/apt-deploy-repository"
+          key_file="${RUNNER_TEMP}/apt-signing-key.asc"
+          cleanup() {
+            rm -f -- "$key_file" "$ssh_dir/id" "$ssh_dir/known_hosts"
+          }
+          trap cleanup EXIT
+          install -d -m 0700 "$ssh_dir"
+          install -d -m 0755 "$prior_dir"
+          umask 077
+          printf '%s' "$APT_SSH_PRIVATE_KEY" > "$ssh_dir/id"
+          printf '%s\n' "$APT_SSH_KNOWN_HOSTS" > "$ssh_dir/known_hosts"
+          printf '%s' "$APT_SIGNING_KEY" > "$key_file"
+          chmod 0600 "$ssh_dir/id" "$ssh_dir/known_hosts" "$key_file"
+          ssh_args=(
+            -i "$ssh_dir/id"
+            -o BatchMode=yes
+            -o IdentitiesOnly=yes
+            -o StrictHostKeyChecking=yes
+            -o "UserKnownHostsFile=$ssh_dir/known_hosts"
+          )
+          remote="${APT_DEPLOY_USER}@${APT_DEPLOY_HOST}"
+
+          # Distinguish an intentional first deploy from transfer failure so a
+          # partial pool can never silently replace prior package versions.
+          pool_state="$(ssh "${ssh_args[@]}" "$remote" bash -s -- \
+              "$APT_DEPLOY_PATH" <<'REMOTE_HAS_POOL'
+          set -euo pipefail
+          if [[ -d "$1/current/pool/main/h/hyperwhisper" ]]; then
+            printf 'present\n'
+          else
+            printf 'absent\n'
+          fi
+          REMOTE_HAS_POOL
+          )"
+          if [[ "$pool_state" == present ]]; then
+            rsync -a --protect-args -e "ssh ${ssh_args[*]}" \
+              "$remote:$APT_DEPLOY_PATH/current/pool/main/h/hyperwhisper/" \
+              "$prior_dir/"
+          elif [[ "$pool_state" == absent ]]; then
+            echo "No current APT pool exists; preparing the initial deployment."
+          else
+            echo "Remote APT pool probe returned an invalid response." >&2
+            exit 1
+          fi
+
+          package_args=(--deb "$PACKAGE_PATH")
+          while IFS= read -r -d '' prior_package; do
+            test ! -L "$prior_package"
+            test "$(dpkg-deb --field "$prior_package" Package)" = hyperwhisper
+            test "$(dpkg-deb --field "$prior_package" Architecture)" = amd64
+            if [[ "$(basename "$prior_package")" != "$(basename "$PACKAGE_PATH")" ]]; then
+              package_args+=(--deb "$prior_package")
+            fi
+          done < <(find "$prior_dir" -maxdepth 1 -type f -name '*.deb' -print0 | sort -z)
+
+          packaging/linux/scripts/generate-apt-repository.sh \
+            "${package_args[@]}" \
+            --output-dir "$deploy_repo" \
+            --suite stable \
+            --codename stable \
+            --signing-key-file "$key_file"
+          test -s "$deploy_repo/dists/stable/InRelease"
+          test -s "$deploy_repo/dists/stable/Release.gpg"
+
+          release_id="${VERSION}-${GITHUB_SHA}"
+          remote_stage="$APT_DEPLOY_PATH/releases/.${release_id}.tmp"
+          remote_release="$APT_DEPLOY_PATH/releases/${release_id}"
+          ssh "${ssh_args[@]}" "$remote" bash -s -- \
+            "$APT_DEPLOY_PATH" "$remote_stage" "$remote_release" <<'REMOTE_PREPARE'
+          set -euo pipefail
+          deploy_path="$1"
+          stage="$2"
+          release="$3"
+          install -d -m 0755 "$deploy_path/releases"
+          test ! -e "$stage"
+          test ! -e "$release"
+          install -d -m 0755 "$stage"
+          REMOTE_PREPARE
+          rsync -a --delete --protect-args -e "ssh ${ssh_args[*]}" \
+            "$deploy_repo/" "$remote:$remote_stage/"
+          ssh "${ssh_args[@]}" "$remote" bash -s -- \
+            "$APT_DEPLOY_PATH" "$remote_stage" "$remote_release" "$release_id" <<'REMOTE_COMMIT'
+          set -euo pipefail
+          deploy_path="$1"
+          stage="$2"
+          release="$3"
+          release_id="$4"
+          test -s "$stage/dists/stable/InRelease"
+          mv -- "$stage" "$release"
+          ln -s -- "releases/$release_id" "$deploy_path/.current-$release_id"
+          mv -Tf -- "$deploy_path/.current-$release_id" "$deploy_path/current"
+          REMOTE_COMMIT
+
+          origin="${APT_ORIGIN%/}"
+          curl --fail --silent --show-error --location --retry 6 --retry-all-errors \
+            "$origin/hyperwhisper-archive-keyring.asc" --output "${RUNNER_TEMP}/apt-key.asc"
+          curl --fail --silent --show-error --location --retry 6 --retry-all-errors \
+            "$origin/dists/stable/InRelease" --output "${RUNNER_TEMP}/InRelease"
+          curl --fail --silent --show-error --location --retry 6 --retry-all-errors \
+            "$origin/dists/stable/main/binary-amd64/Packages.gz" --output "${RUNNER_TEMP}/Packages.gz"
+          gpg --batch --yes --dearmor \
+            --output "${RUNNER_TEMP}/apt-keyring.gpg" "${RUNNER_TEMP}/apt-key.asc"
+          gpgv --keyring "${RUNNER_TEMP}/apt-keyring.gpg" "${RUNNER_TEMP}/InRelease"
+          gzip -dc "${RUNNER_TEMP}/Packages.gz" > "${RUNNER_TEMP}/Packages"
+          awk -v version="$VERSION" '
+            $1 == "Package:" && $2 == "hyperwhisper" { package = 1; next }
+            package && $1 == "Version:" && $2 == version { found = 1 }
+            /^$/ { package = 0 }
+            END { exit(found ? 0 : 1) }
+          ' "${RUNNER_TEMP}/Packages"
+          echo "Signed APT repository deployed and read back from $origin"
+
+      - name: Report dry-run artifacts
+        if: steps.release.outputs.publish != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Dry run complete: no GitHub Release, tag, or remote repository was changed."
+          find artifacts/release -maxdepth 1 -type f -printf '%f %s bytes\n' | sort
+
+      - name: Write Linux release summary
+        if: always()
+        shell: bash
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+          VERIFIED_SHA: ${{ needs.quality-gates.outputs.verified_sha }}
+          PUBLISH: ${{ steps.release.outputs.publish }}
+          SIGN_APT: ${{ steps.release.outputs.require_apt_signature }}
+          DEPLOY_APT: ${{ steps.release.outputs.deploy_apt }}
+        run: |
+          set +e
+          package="artifacts/release/hyperwhisper_${VERSION}_amd64.deb"
+          package_size="unavailable"
+          package_sha="unavailable"
+          if [[ -f "$package" ]]; then
+            package_size="$(stat -c '%s' "$package") bytes"
+            package_sha="$(sha256sum "$package" | awk '{print $1}')"
+          fi
+          {
+            echo "## Linux release ${VERSION:-unresolved}"
+            echo
+            echo "| Field | Value |"
+            echo "|---|---|"
+            echo "| Commit | \`$GITHUB_SHA\` |"
+            echo "| CI verified commit | \`${VERIFIED_SHA:-unavailable}\` |"
+            echo "| Package | \`hyperwhisper_${VERSION:-unknown}_amd64.deb\` |"
+            echo "| Package size | $package_size |"
+            echo "| Package SHA-256 | \`$package_sha\` |"
+            echo "| APT signed | ${SIGN_APT:-false} |"
+            echo "| GitHub published | ${PUBLISH:-false} |"
+            echo "| APT deployed | ${DEPLOY_APT:-false} |"
+            if [[ "${PUBLISH:-false}" != "true" ]]; then
+              echo "| Test artifact | \`hyperwhisper-linux-${VERSION:-unknown}-$GITHUB_SHA\` (14 days) |"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -243,6 +243,9 @@ namespace HyperWhisper.Migrations
                     b.Property<string>("TrimmedAudioFilePath")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("WordTimestampsJson")
+                        .HasColumnType("TEXT");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Date");

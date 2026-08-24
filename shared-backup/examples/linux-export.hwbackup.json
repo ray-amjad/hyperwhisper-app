@@ -1,0 +1,112 @@
+{
+  "schemaVersion": 2,
+  "exportDate": "2026-08-23T00:00:00Z",
+  "appVersion": "1.0.0",
+  "platform": "linux",
+  "settings": {
+    "general": {
+      "launchMinimized": false,
+      "showRecordingWindow": true,
+      "checkForUpdatesAutomatically": true,
+      "enableErrorLogging": true,
+      "shareAnonymousSpeedData": true,
+      "enableSoundEffects": true
+    },
+    "textOutput": {
+      "pasteResultText": true,
+      "removeFillerWords": false,
+      "restoreClipboardAfterPaste": true,
+      "hideFromClipboardHistory": false,
+      "clipboardRestoreDelaySeconds": 10.0,
+      "autocapitalizeInsert": true,
+      "storeWordTimestamps": true
+    },
+    "storage": {
+      "keepAudioFiles": true,
+      "storeAsM4A": false
+    },
+    "advanced": {
+      "maxRecordingDuration": 3600,
+      "typingSpeedWPM": 40
+    }
+  },
+  "modes": [
+    {
+      "id": "1a0e8400-e29b-41d4-a716-446655440030",
+      "name": "Linux Hyper",
+      "preset": "hyper",
+      "language": "en",
+      "model": "large-v3-turbo",
+      "isDefault": true,
+      "sortOrder": 0,
+      "punctuation": true,
+      "capitalization": true,
+      "profanityFilter": false,
+      "removeTrailingPeriod": false,
+      "englishSpelling": "american",
+      "cloudProvider": null,
+      "cloudTranscriptionModel": null,
+      "cloudTranscriptionDomain": null,
+      "postProcessingMode": 2,
+      "postProcessingProvider": "local",
+      "languageModel": null,
+      "localPostProcessingModel": "gemma-3-4b-it-q4_0",
+      "userSystemPrompt": null,
+      "customInstructions": null,
+      "geminiCustomPrompt": null,
+      "cloudAccuracyTier": null,
+      "cloudPostProcessingModel": null,
+      "platformExtensions": {
+        "linux": {}
+      }
+    }
+  ],
+  "vocabulary": [
+    {
+      "id": "2a0e8400-e29b-41d4-a716-446655440031",
+      "word": "Wayland",
+      "replacement": null,
+      "sortOrder": 0,
+      "source": "manual"
+    }
+  ],
+  "licenseKey": null,
+  "platformExtensions": {
+    "linux": {
+      "settings": {
+        "localWhisperBackend": "vulkan",
+        "allowLocalWhisperCpuFallback": true,
+        "autostartEnabled": true,
+        "toggleShortcutModifiers": "Control, Alt",
+        "toggleShortcutKey": "",
+        "cancelShortcutModifiers": "None",
+        "cancelShortcutKey": "Escape",
+        "changeModeShortcutModifiers": "Control, Shift",
+        "changeModeShortcutKey": "Period",
+        "streamingShortcutModifiers": "Control, Shift",
+        "streamingShortcutKey": "Space",
+        "pushToTalkMode": "Modifier",
+        "pushToTalkModifier": "LeftAlt",
+        "pushToTalkShortcutModifiers": "None",
+        "pushToTalkShortcutKey": "",
+        "pushToTalkDoublePressLock": true,
+        "autoIncreaseMicVolume": false,
+        "keepMicrophoneWarm": true,
+        "audioEnvironmentPolicy": "duck",
+        "autoDeleteEnabled": true,
+        "autoDeleteDaysOld": 30,
+        "themeMode": "system",
+        "minimizeToTray": true,
+        "soundEffectsVolume": 0.75,
+        "customEndpoints": [
+          {
+            "id": "3a0e8400-e29b-41d4-a716-446655440032",
+            "name": "Local compatible endpoint",
+            "endpointURL": "http://127.0.0.1:11434/v1/chat/completions",
+            "modelName": "llama3.2"
+          }
+        ]
+      }
+    }
+  }
+}

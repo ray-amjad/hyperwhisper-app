@@ -1,9 +1,9 @@
 ---
 title: System Requirements
-description: Supported operating systems, processor architectures, and hardware notes for HyperWhisper on macOS and Windows.
+description: Supported operating systems, processor architectures, and hardware notes for HyperWhisper on macOS, Windows, and Linux.
 ---
 
-HyperWhisper runs natively on macOS and Windows. Select your platform below. Each tab gives the minimum version, the supported architectures, and the hardware notes for local models.
+HyperWhisper runs natively on macOS, Windows, and Linux. Select your platform below. Each tab gives the minimum version, the supported architectures, and the hardware notes for local models.
 
 <Tabs>
   <Tab title="macOS">
@@ -60,5 +60,29 @@ HyperWhisper runs natively on macOS and Windows. Select your platform below. Eac
     ## GPU acceleration
 
     Local transcription engines use your GPU automatically. If you have no dedicated GPU, or if the VRAM is not sufficient, the engines **use the CPU instead**. Whisper uses Vulkan, a vendor-agnostic GPU backend for NVIDIA, AMD, and Intel GPUs. Local Gemma post-processing uses CUDA on NVIDIA GPUs only. On AMD and Intel systems, post-processing uses the CPU. For the VRAM of each model, see [Models](/models).
+  </Tab>
+
+  <Tab title="Linux">
+    ## Minimum requirements
+
+    - **Ubuntu 22.04 or later**, or **Debian 12 or later**
+    - x86_64 / amd64 processor (ARM64 is not supported in Linux v1)
+    - glibc 2.35 or later
+    - GNOME or KDE Plasma for the verified desktop experience
+    - A Vulkan-capable GPU is recommended for local Whisper models
+    - ~300 MB free disk for the app, plus space for each local model
+
+    The release package is a self-contained `.deb`; you do not need to install
+    .NET separately. Other Debian-based distributions may satisfy its
+    dependencies, but they are outside the release verification matrix.
+
+    Whisper uses Vulkan on supported NVIDIA, AMD, and Intel GPUs and falls back
+    to the CPU. Local Gemma post-processing uses CUDA 12 on supported NVIDIA
+    GPUs and otherwise falls back to the CPU.
+
+    Global shortcuts and automatic paste require explicit membership in the
+    `hyperwhisper-input` group. Wayland active-application matching uses optional
+    GNOME or KDE companions. See [Install HyperWhisper on Linux](/linux-installation)
+    for installation, privacy, fallback, and removal details.
   </Tab>
 </Tabs>

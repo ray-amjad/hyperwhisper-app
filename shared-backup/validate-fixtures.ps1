@@ -7,6 +7,7 @@ $ErrorActionPreference = "Stop"
 $SchemaPath = Join-Path $PSScriptRoot "hyperwhisper-backup.schema.json"
 $ExamplesPath = Join-Path $PSScriptRoot "examples"
 $WindowsExamplePath = Join-Path $ExamplesPath "windows-export.hwbackup.json"
+$LinuxExamplePath = Join-Path $ExamplesPath "linux-export.hwbackup.json"
 
 function Assert-True {
     param(
@@ -117,5 +118,26 @@ foreach ($mode in $modes) {
 $sources = @($windows.vocabulary | ForEach-Object { $_.source })
 Assert-True ($sources -contains "manual") "Windows fixture must cover manual vocabulary source."
 Assert-True ($sources -contains "auto-learn") "Windows fixture must cover non-manual vocabulary source."
+
+$linux = Get-Content -LiteralPath $LinuxExamplePath -Raw | ConvertFrom-Json
+Assert-True ($linux.platform -eq "linux") "Linux fixture must declare platform=linux."
+Assert-True ($null -ne $linux.platformExtensions.linux.settings) "Linux fixture must include platformExtensions.linux.settings."
+Assert-True (@("auto", "cpu", "vulkan", "cuda12") -contains $linux.platformExtensions.linux.settings.localWhisperBackend) "Linux local Whisper backend must be valid."
+Assert-True ($linux.platformExtensions.linux.settings.allowLocalWhisperCpuFallback -is [bool]) "Linux local Whisper CPU fallback must be boolean."
+Assert-True ($linux.platformExtensions.linux.settings.autostartEnabled -is [bool]) "Linux autostartEnabled must be boolean."
+Assert-True ([string]::IsNullOrWhiteSpace($linux.platformExtensions.linux.settings.toggleShortcutModifiers) -eq $false) "Linux toggle shortcut modifiers must be populated."
+Assert-True ($linux.platformExtensions.linux.settings.cancelShortcutKey -eq "Escape") "Linux cancellation fixture must cover session-scoped Escape."
+Assert-True ([string]::IsNullOrWhiteSpace($linux.platformExtensions.linux.settings.changeModeShortcutKey) -eq $false) "Linux change-mode shortcut key must be populated."
+Assert-True ([string]::IsNullOrWhiteSpace($linux.platformExtensions.linux.settings.streamingShortcutKey) -eq $false) "Linux streaming shortcut key must be populated."
+Assert-True ([string]::IsNullOrWhiteSpace($linux.platformExtensions.linux.settings.pushToTalkMode) -eq $false) "Linux push-to-talk mode must be populated."
+Assert-True ($linux.platformExtensions.linux.settings.pushToTalkDoublePressLock -is [bool]) "Linux push-to-talk double-lock must be boolean."
+Assert-True ($linux.platformExtensions.linux.settings.keepMicrophoneWarm -is [bool]) "Linux keepMicrophoneWarm must be boolean."
+Assert-True (@("unchanged", "duck", "mute") -contains $linux.platformExtensions.linux.settings.audioEnvironmentPolicy) "Linux audio environment policy must be valid."
+
+$linuxModes = @($linux.modes)
+Assert-True ($linuxModes.Count -gt 0) "Linux fixture must include at least one mode."
+foreach ($mode in $linuxModes) {
+    Assert-True ($null -ne $mode.platformExtensions.linux) "Linux mode '$($mode.name)' must include platformExtensions.linux."
+}
 
 Write-Host "Backup fixture validation passed."

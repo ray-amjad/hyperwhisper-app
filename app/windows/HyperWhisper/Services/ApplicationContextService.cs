@@ -20,6 +20,8 @@ using System.Threading;
 using System.Windows.Automation;
 using System.Windows.Threading;
 using HyperWhisper.Services.AppClassification;
+using HyperWhisper.Services.Platform;
+using PlatformContracts = HyperWhisper.Platform.Abstractions;
 
 namespace HyperWhisper.Services;
 
@@ -87,7 +89,7 @@ public class ApplicationContext
 ///   - STA thread starts immediately and persists for the app lifetime
 ///   - Call Dispose() on app shutdown to clean up the STA thread
 /// </summary>
-public class ApplicationContextService : IDisposable
+public class ApplicationContextService : IDisposable, PlatformContracts.IApplicationContextProvider
 {
     // =========================================================================
     // SINGLETON
@@ -476,6 +478,32 @@ public class ApplicationContextService : IDisposable
             LoggingService.Error("ApplicationContextService: GatherContext failed", ex);
             return null;
         }
+    }
+
+    ValueTask<PlatformContracts.PlatformResult<PlatformContracts.ApplicationContextSnapshot?>>
+        PlatformContracts.IApplicationContextProvider.GatherAsync(
+            CancellationToken cancellationToken)
+    {
+        if (_disposed)
+        {
+            return ValueTask.FromResult(
+                PlatformContracts.PlatformResult<PlatformContracts.ApplicationContextSnapshot?>.Failure(
+                    "application_context.disposed",
+                    "The Windows application context provider has been disposed."));
+        }
+
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return ValueTask.FromResult(
+                PlatformContracts.PlatformResult<PlatformContracts.ApplicationContextSnapshot?>.Failure(
+                    "application_context.cancelled",
+                    "Application context capture was cancelled."));
+        }
+
+        var context = GatherContext();
+        return ValueTask.FromResult(
+            PlatformContracts.PlatformResult<PlatformContracts.ApplicationContextSnapshot?>.Success(
+                context == null ? null : WindowsApplicationContextMapper.ToPlatform(context)));
     }
 
     // =========================================================================

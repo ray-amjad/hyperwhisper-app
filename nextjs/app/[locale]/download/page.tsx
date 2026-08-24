@@ -7,7 +7,7 @@ import { Button } from "@heroui/button";
 import { Download, Copy, Check, Terminal, CheckCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-type Platform = "mac" | "windows";
+type Platform = "mac" | "windows" | "linux";
 
 export default function DownloadPage() {
   const t = useTranslations("downloadPage");
@@ -21,6 +21,7 @@ export default function DownloadPage() {
   >({
     mac: { url: null, countdown: 5, started: false },
     windows: { url: null, countdown: 5, started: false },
+    linux: { url: null, countdown: 5, started: false },
   });
   const [copied, setCopied] = useState(false);
 
@@ -42,6 +43,11 @@ export default function DownloadPage() {
 
       return;
     }
+    if (platformParam === "linux") {
+      setSelectedPlatform("linux");
+
+      return;
+    }
 
     // Fall back to OS detection
     const platform = navigator.platform?.toLowerCase() || "";
@@ -49,15 +55,16 @@ export default function DownloadPage() {
 
     if (platform.includes("win") || userAgent.includes("windows")) {
       setSelectedPlatform("windows");
+    } else if (platform.includes("linux") || userAgent.includes("linux")) {
+      setSelectedPlatform("linux");
     }
     // macOS is default, no change needed
   }, [searchParams]);
 
-  // Fetch the download URL on mount (but don't trigger download yet)
-  // Skip pre-fetching for Windows since we have explicit architecture buttons
+  // Fetch the macOS download URL on mount (but don't trigger download yet).
   useEffect(() => {
-    // Windows uses explicit architecture buttons, no need to pre-fetch
-    if (selectedPlatform === "windows") return;
+    // Windows and Linux use explicit download buttons, no need to pre-fetch.
+    if (selectedPlatform !== "mac") return;
 
     const fetchDownloadUrl = async () => {
       try {
@@ -108,10 +115,10 @@ export default function DownloadPage() {
   // DELAY REASON: Browsers block immediate auto-downloads as a security measure
   // to prevent drive-by downloads. A countdown gives visual feedback and signals
   // to the browser this is an intentional user-initiated action.
-  // Skip countdown entirely for Windows - users choose architecture manually.
+  // Skip countdown for platforms with explicit download choices.
   useEffect(() => {
-    // Windows uses explicit architecture buttons, no auto-download
-    if (selectedPlatform === "windows") return;
+    // Windows and Linux use explicit download buttons, no auto-download.
+    if (selectedPlatform !== "mac") return;
 
     const { countdown, started } = currentState;
 
@@ -209,11 +216,27 @@ export default function DownloadPage() {
             >
               Windows
             </Button>
+            <Button
+              className={`text-sm px-4 py-2 rounded-full ${
+                selectedPlatform === "linux"
+                  ? "bg-purple-600 text-white"
+                  : "text-gray-300 bg-transparent"
+              }`}
+              size="sm"
+              variant="light"
+              onPress={() => setSelectedPlatform("linux")}
+            >
+              Linux
+            </Button>
           </div>
 
           {/* Countdown or status message */}
           {selectedPlatform === "windows" ? (
             <p className="text-lg text-gray-400">{t("selectArchitecture")}</p>
+          ) : selectedPlatform === "linux" ? (
+            <p className="text-lg text-gray-400">
+              Debian package for 64-bit Intel/AMD systems
+            </p>
           ) : currentState.started ? (
             <div className="flex items-center justify-center gap-2 text-gray-400">
               <CheckCircle className="w-5 h-5 text-green-500" />
@@ -249,6 +272,18 @@ export default function DownloadPage() {
                 {t("downloadArm64")}
               </Button>
             </div>
+          ) : selectedPlatform === "linux" ? (
+            <Button
+              as="a"
+              className="bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold hover:from-purple-500 hover:to-blue-500 transition-all hover:shadow-lg px-8"
+              href="https://github.com/ray-amjad/hyperwhisper-app/releases"
+              rel="noreferrer"
+              size="lg"
+              startContent={<Download className="w-5 h-5" />}
+              target="_blank"
+            >
+              View Linux releases
+            </Button>
           ) : (
             <Button
               className="bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold hover:from-purple-500 hover:to-blue-500 transition-all hover:shadow-lg px-8"
@@ -315,6 +350,61 @@ export default function DownloadPage() {
               </div>
             </CardBody>
           </Card>
+        )}
+
+        {selectedPlatform === "linux" && (
+          <div className="space-y-4">
+            <Card className="bg-gray-900/50 backdrop-blur-xl border border-gray-800">
+              <CardBody className="p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-gradient-to-br from-purple-500/20 to-blue-500/20 border border-purple-500/30">
+                    <Terminal className="w-5 h-5 text-purple-300" />
+                  </div>
+                  <h2 className="text-lg font-semibold text-white">
+                    Install the Debian package
+                  </h2>
+                </div>
+                <p className="text-sm text-gray-400 mb-4">
+                  Ubuntu 22.04+ and Debian 12+ on amd64 are the verified release
+                  floor. Replace VERSION with the version you downloaded.
+                </p>
+                <div className="rounded-lg border border-gray-700 bg-gray-800/80 p-3 overflow-x-auto">
+                  <code className="text-sm font-mono text-gray-200 whitespace-pre">
+                    {`sudo apt install ./hyperwhisper_VERSION_amd64.deb
+sudo usermod -aG hyperwhisper-input "$USER"`}
+                  </code>
+                </div>
+                <p className="text-sm text-gray-400 mt-4">
+                  Log out and back in after joining the input group. Membership
+                  is optional, but global shortcuts and automatic paste need it.
+                </p>
+              </CardBody>
+            </Card>
+
+            <Card className="bg-gray-900/50 backdrop-blur-xl border border-gray-800">
+              <CardBody className="p-6">
+                <h2 className="text-lg font-semibold text-white mb-2">
+                  Self-host an APT repository
+                </h2>
+                <p className="text-sm text-gray-400">
+                  Linux releases also include a static APT repository archive.
+                  HyperWhisper does not currently operate a public APT endpoint;
+                  see the Linux installation guide for signed, self-hosted
+                  setup, desktop companions, privacy details, and removal.
+                </p>
+                <Button
+                  as="a"
+                  className="mt-4 bg-gray-800 text-gray-200"
+                  href="https://help.hyperwhisper.com/linux-installation"
+                  rel="noreferrer"
+                  target="_blank"
+                  variant="flat"
+                >
+                  Read the Linux installation guide
+                </Button>
+              </CardBody>
+            </Card>
+          </div>
         )}
       </div>
     </div>
