@@ -122,7 +122,11 @@ class AssemblyAIProvider: TranscriptionProvider {
             language: language,
             vocabulary: RustCoreMapping.boostVocabularyTerms(from: vocabulary),
             apiKey: apiKey,
-            model: modelToSend
+            model: modelToSend,
+            // Direct-vendor request: the core cannot attach X-Latency-Opt-Out to
+            // one by construction. Pass the user's real choice anyway so this site
+            // stays correct if it is ever routed.
+            shareAnonymousSpeedData: !LatencyOptOut.isEnabled
         )
 
         // Sync fast path: try AssemblyAI's one-request sync API for clips under

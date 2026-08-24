@@ -62,18 +62,23 @@ public sealed class CloudTranscriptionService : IDisposable
     /// SHARE, which means the request carries no header; <c>false</c> is the
     /// opt-out and makes the core send <c>X-Latency-Opt-Out: 1</c>. Invoked once
     /// per <see cref="TranscribeAsync"/> call, so a settings change applies to
-    /// the next transcription without rebuilding this service. Defaults to
-    /// sharing on, matching the app-wide default.
+    /// the next transcription without rebuilding this service.
+    ///
+    /// Deliberately REQUIRED, with no default, mirroring the core's required
+    /// <c>TranscribeParams.share_anonymous_speed_data</c>: a new host that
+    /// forgets the user's privacy choice must fail to compile rather than
+    /// silently default to sharing.
     /// </param>
     public CloudTranscriptionService(
         HttpMessageHandler handler,
         ICloudCredentialSource credentials,
+        Func<bool> shareAnonymousSpeedData,
         ICloudTranscriptionDelay? delay = null,
-        ICloudTranscriptionObserver? observer = null,
-        Func<bool>? shareAnonymousSpeedData = null)
+        ICloudTranscriptionObserver? observer = null)
     {
         ArgumentNullException.ThrowIfNull(handler);
         ArgumentNullException.ThrowIfNull(credentials);
+        ArgumentNullException.ThrowIfNull(shareAnonymousSpeedData);
         _client = new HttpClient(handler, disposeHandler: true)
         {
             Timeout = Timeout.InfiniteTimeSpan,
@@ -81,7 +86,7 @@ public sealed class CloudTranscriptionService : IDisposable
         _credentials = credentials;
         _delay = delay ?? new SystemCloudTranscriptionDelay();
         _observer = observer;
-        _shareAnonymousSpeedData = shareAnonymousSpeedData ?? (() => true);
+        _shareAnonymousSpeedData = shareAnonymousSpeedData;
     }
 
     public static IReadOnlyList<CloudProviderDescriptor> Providers => ProviderCatalog;

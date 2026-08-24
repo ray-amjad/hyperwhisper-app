@@ -88,6 +88,38 @@ mod tests {
         assert!(!req.headers.contains(&Header::new("X-STT-Provider", "azure-mai")));
     }
 
+    /// Google Chirp is one of the two providers the latency opt-out exists to
+    /// protect, so assert it through THIS module's entry point rather than
+    /// relying on `hyperwhisper_cloud::routed_requests_carry_the_opt_out_too`,
+    /// which calls the shared builder directly. If this module ever grew its
+    /// own builder instead of delegating, that test would stay green and the
+    /// opt-out would silently vanish here.
+    #[test]
+    fn the_latency_opt_out_survives_this_modules_entry_point() {
+        let mut opted_out = params();
+        opted_out.share_anonymous_speed_data = false;
+        let req = build_transcribe_request(&opted_out).unwrap();
+        assert!(
+            req.headers.contains(&Header::new(
+                hyperwhisper_cloud::LATENCY_OPT_OUT_HEADER,
+                "1"
+            )),
+            "an opted-out user must send X-Latency-Opt-Out: 1, got {:?}",
+            req.headers
+        );
+
+        // Sharing is expressed by the header's ABSENCE — there is no "yes" header.
+        let sharing = build_transcribe_request(&params()).unwrap();
+        assert!(
+            !sharing
+                .headers
+                .iter()
+                .any(|h| h.name == hyperwhisper_cloud::LATENCY_OPT_OUT_HEADER),
+            "a sharing user must send no opt-out header, got {:?}",
+            sharing.headers
+        );
+    }
+
     #[test]
     fn parses_success_response() {
         let body = r#"{"text":"bonjour","language":"fr","cost":{"usd":0.0008,"credits":4.0}}"#;

@@ -87,7 +87,11 @@ class DeepgramProvider: TranscriptionProvider {
             language: language,
             vocabulary: RustCoreMapping.boostVocabularyTerms(from: vocabulary),
             apiKey: apiKey,
-            model: model
+            model: model,
+            // Direct-vendor request: the core cannot attach X-Latency-Opt-Out to
+            // one by construction. Pass the user's real choice anyway so this site
+            // stays correct if it is ever routed.
+            shareAnonymousSpeedData: !LatencyOptOut.isEnabled
         )
 
         let request: HttpRequest

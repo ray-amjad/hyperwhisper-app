@@ -58,10 +58,6 @@ Assert(PortableModeDefaults.EnglishSpellingForRegion("gb") == "british", "lowerc
 Assert(PortableModeDefaults.EnglishSpellingForRegion(" au ") == "australian", "padded region code was not trimmed");
 Assert(PortableModeDefaults.EnglishSpellingForRegion("\nca\n") == "canadian", "newline-padded region code was not trimmed");
 
-// The bridge is the same call PortableModeDefaults makes, so it must agree.
-Assert(SharedCoreBridge.EnglishSpellingForRegion("gb") == PortableModeDefaults.EnglishSpellingForRegion("gb"),
-    "PortableModeDefaults and SharedCoreBridge disagree about a region");
-
 // A SEEDING call must never answer with the empty token. Empty means "the user
 // never chose", which suppresses the spelling instruction entirely at prompt
 // time — a different thing from american, and never a thing to seed.

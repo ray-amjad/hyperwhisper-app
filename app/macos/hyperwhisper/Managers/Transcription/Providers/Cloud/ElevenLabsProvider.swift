@@ -97,7 +97,11 @@ final class ElevenLabsProvider: TranscriptionProvider {
             language: language,
             vocabulary: RustCoreMapping.boostVocabularyTerms(from: vocabulary),
             apiKey: apiKey,
-            model: modelId
+            model: modelId,
+            // Direct-vendor request: the core cannot attach X-Latency-Opt-Out to
+            // one by construction. Pass the user's real choice anyway so this site
+            // stays correct if it is ever routed.
+            shareAnonymousSpeedData: !LatencyOptOut.isEnabled
         )
 
         let providerName = name

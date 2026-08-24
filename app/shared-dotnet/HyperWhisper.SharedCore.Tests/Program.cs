@@ -184,6 +184,12 @@ static PortablePostProcessingPrompt Prompt(
         BrowserTabTitle, FocusedElement, FocusedContent, ScreenOcrText,
         AppTypeConfidence, AppTypeSource, HasApplicationContext));
 
+// The privacy flag is a required constructor argument — there is no default to
+// fall back on. These cases assert wire shape, not the opt-out, so they pass the
+// default-install answer: sharing on, which sends no header at all.
+// The Linux composition suite covers `false` end to end.
+static bool Sharing() => true;
+
 static async Task TestSingleShotProvidersAsync()
 {
     var cases = new[]
@@ -205,7 +211,7 @@ static async Task TestSingleShotProvidersAsync()
         foreach (var value in cases)
         {
             var handler = new RecordingHandler((_, _) => Json(value.Response));
-            using var service = new CloudTranscriptionService(handler, new StaticCredentials());
+            using var service = new CloudTranscriptionService(handler, new StaticCredentials(), Sharing);
             var request = new CloudTranscriptionRequest(
                 value.Provider,
                 audio,
@@ -246,6 +252,7 @@ static async Task TestObserverRedactionAsync()
         using var service = new CloudTranscriptionService(
             handler,
             new StaticCredentials(secret),
+            Sharing,
             new ImmediateDelay(),
             observer);
         var result = await service.TranscribeAsync(new CloudTranscriptionRequest(
@@ -313,6 +320,7 @@ static async Task TestMultiStepProvidersAsync()
             using var service = new CloudTranscriptionService(
                 handler,
                 new StaticCredentials(),
+                Sharing,
                 new ImmediateDelay());
             var result = await service.TranscribeAsync(new CloudTranscriptionRequest(
                 value.Provider,
@@ -344,7 +352,7 @@ static async Task TestRetryAsync()
                 : Json("{\"text\":\"after retry\"}");
         });
         var delay = new ImmediateDelay();
-        using var service = new CloudTranscriptionService(handler, new StaticCredentials(), delay);
+        using var service = new CloudTranscriptionService(handler, new StaticCredentials(), Sharing, delay);
         var result = await service.TranscribeAsync(new CloudTranscriptionRequest(
             CloudTranscriptionProvider.Groq,
             audio,
@@ -367,7 +375,7 @@ static async Task TestUnauthorizedAsync()
     try
     {
         var handler = new RecordingHandler((_, _) => Json(hostileBody, HttpStatusCode.Unauthorized));
-        using var service = new CloudTranscriptionService(handler, new StaticCredentials());
+        using var service = new CloudTranscriptionService(handler, new StaticCredentials(), Sharing);
         var result = await service.TranscribeAsync(new CloudTranscriptionRequest(
             CloudTranscriptionProvider.OpenAi,
             audio,
@@ -393,7 +401,7 @@ static async Task TestCancellationAsync()
             await Task.Delay(Timeout.InfiniteTimeSpan, token);
             return Json("{\"text\":\"never\"}");
         });
-        using var service = new CloudTranscriptionService(handler, new StaticCredentials());
+        using var service = new CloudTranscriptionService(handler, new StaticCredentials(), Sharing);
         using var source = new CancellationTokenSource();
         source.CancelAfter(TimeSpan.FromMilliseconds(20));
         var result = await service.TranscribeAsync(
@@ -604,13 +612,31 @@ static async Task TestLiveVocabularyAsync()
     Assert.True(deepgram.Contains($"keyterm={new string('a', 80)}", StringComparison.Ordinal));
     Assert.True(deepgram.Contains($"keyterm={new string('b', 80)}", StringComparison.Ordinal));
 
-    // Grok: chars = 50. An over-long term is still over 50 after the core's
-    // 80-character truncation, so it is still dropped — unchanged behaviour.
+    // Grok: chars = 50. Truncation alone does not rescue an over-long term —
+    // 80 is still over 50 — so both of these stay dropped.
     var grok = await ConnectQuery(new LiveTranscriptionConfig(
         LiveTranscriptionProvider.Grok, ApiKey: "xai", Language: "en", Vocabulary: words));
     Assert.Equal(3, CountOccurrences(grok, "keyterm="));
     Assert.False(grok.Contains("aaaa", StringComparison.Ordinal));
     Assert.False(grok.Contains("bbbb", StringComparison.Ordinal));
+
+    // ...but the OTHER two sanitizer steps do, and that IS a wire change even at
+    // chars = 50. The length filter now measures the sanitized term, so a term
+    // that bracket-stripping or whitespace-collapsing shrinks under the limit is
+    // now sent where the old raw trim-only filter dropped it. Pinned here so the
+    // next reader is not told "nothing changes at 50".
+    var shrunk = await ConnectQuery(new LiveTranscriptionConfig(
+        LiveTranscriptionProvider.Grok, ApiKey: "xai", Language: "en", Vocabulary:
+        [
+            // 51 raw characters, 50 after `<` is dropped.
+            "<" + new string('a', 50),
+            // 68 raw characters, 49 after the 20-space run collapses to one.
+            new string('c', 40) + new string(' ', 20) + new string('d', 8),
+        ]));
+    Assert.Equal(2, CountOccurrences(shrunk, "keyterm="));
+    Assert.True(shrunk.Contains($"keyterm={new string('a', 50)}&", StringComparison.Ordinal));
+    Assert.True(shrunk.Contains(
+        $"keyterm={new string('c', 40)}%20{new string('d', 8)}&", StringComparison.Ordinal));
 
     // HyperWhisper Cloud: chars = 100, joined with ", " into one parameter.
     var cloud = await ConnectQuery(new LiveTranscriptionConfig(

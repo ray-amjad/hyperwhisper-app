@@ -41,6 +41,16 @@ pub use hw_text::sanitize_vocabulary_word;
 /// the same answer LINQ `.Take(0)` and Swift `.prefix(0)` give. The cap is
 /// therefore tested *before* each push, not after; testing it after would let
 /// `Some(0)` return one term.
+///
+/// De-duplication runs on the SANITIZED term, i.e. *after* the 80-character
+/// truncation in [`sanitize_vocabulary_word`], so two inputs longer than 80
+/// characters that share their first 80 characters collapse into one. That is
+/// deliberate, not an ordering accident: these are ASR keyword-boost hints, and
+/// after truncation both inputs ARE the same hint — byte for byte. Emitting
+/// both would send one provider the identical `keyterm` twice and burn two of
+/// its limited term slots on it. De-duplicating on the pre-truncation term
+/// would do exactly that. Pinned by
+/// `dedupe_sees_the_truncated_term_so_an_eighty_char_prefix_collapses`.
 pub fn keyword_boost_terms(words: &[String], limit: Option<usize>) -> Vec<String> {
     let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
     let mut out: Vec<String> = Vec::new();
@@ -195,6 +205,31 @@ mod tests {
         assert_eq!(capped.last().map(String::as_str), Some("term99"));
     }
 
+    /// Truncation happens BEFORE the de-dup key is taken, so two inputs that
+    /// differ only past character 80 collapse into a single term. Sending both
+    /// would put the identical `keyterm` on the wire twice and spend two of the
+    /// provider's term slots on one hint — see the doc comment on
+    /// `keyword_boost_terms`. This test exists so that a later "obvious" fix
+    /// that moves de-dup ahead of truncation fails here and has to argue.
+    #[test]
+    fn dedupe_sees_the_truncated_term_so_an_eighty_char_prefix_collapses() {
+        let prefix = "x".repeat(MAX_VOCABULARY_TERM_CHARS);
+        let words = vec![format!("{prefix}alpha"), format!("{prefix}bravo")];
+
+        let terms = keyword_boost_terms(&words, None);
+
+        assert_eq!(terms, vec![prefix.clone()]);
+        assert_eq!(terms[0].chars().count(), MAX_VOCABULARY_TERM_CHARS);
+
+        // The boundary: differing INSIDE the first 80 characters keeps both.
+        let short = "y".repeat(MAX_VOCABULARY_TERM_CHARS - 1);
+        let both = vec![format!("{short}a"), format!("{short}b")];
+        assert_eq!(
+            keyword_boost_terms(&both, None),
+            vec![format!("{short}a"), format!("{short}b")]
+        );
+    }
+
     #[test]
     fn sanitize_vocab_word_strips_brackets_and_collapses_whitespace() {
         // GOLDEN (F3): drop `<`/`>`, collapse internal whitespace runs, cap.
@@ -217,3 +252,4 @@ mod tests {
         assert_eq!(resolve_mime("/tmp/noext"), DEFAULT_AUDIO_MIME);
     }
 }
+

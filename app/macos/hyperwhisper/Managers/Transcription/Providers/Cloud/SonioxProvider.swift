@@ -94,7 +94,11 @@ class SonioxProvider: TranscriptionProvider {
             language: language,
             vocabulary: RustCoreMapping.boostVocabularyTerms(from: vocabulary),
             apiKey: apiKey,
-            model: modelToSend
+            model: modelToSend,
+            // Direct-vendor request: the core cannot attach X-Latency-Opt-Out to
+            // one by construction. Pass the user's real choice anyway so this site
+            // stays correct if it is ever routed.
+            shareAnonymousSpeedData: !LatencyOptOut.isEnabled
         )
 
         AppLogger.network.info("Soniox transcription started · file=\(audioURL.lastPathComponent, privacy: .public) · language=\(language ?? "auto", privacy: .public)")

@@ -169,16 +169,22 @@ internal static class RustCoreMapping
     /// pre-encode. <paramref name="audioMime"/> is passed explicitly rather than
     /// letting the core re-resolve.
     ///
-    /// <paramref name="shareAnonymousSpeedData"/> defaults to <c>true</c> (sharing
-    /// on, no opt-out header) so callers that do not read the setting keep
-    /// today's behaviour. The core sends <c>X-Latency-Opt-Out</c> only when it is
-    /// <c>false</c>, and only on the HyperWhisper Cloud / routed builders.
+    /// <paramref name="shareAnonymousSpeedData"/> is deliberately REQUIRED, with
+    /// no default, mirroring the core's required
+    /// <c>TranscribeParams.share_anonymous_speed_data</c>: a new call site that
+    /// forgets the user's privacy choice must fail to compile rather than
+    /// silently default to sharing. Pass
+    /// <c>SettingsService.Instance.ShareAnonymousSpeedData</c>. The core sends
+    /// <c>X-Latency-Opt-Out</c> only when it is <c>false</c>, and only on the
+    /// HyperWhisper Cloud / routed builders, so a direct-vendor request cannot
+    /// carry it regardless of this value.
     /// </summary>
     internal static TranscribeParams TranscribeParams(
         string audioPath,
         string audioMime,
         string? language,
         IReadOnlyList<string> vocabulary,
+        bool shareAnonymousSpeedData,
         string apiKey = "",
         string model = "",
         string? prompt = null,
@@ -187,8 +193,7 @@ internal static class RustCoreMapping
         string? deviceId = null,
         string? routedProvider = null,
         string? routedModel = null,
-        string? routedDomain = null,
-        bool shareAnonymousSpeedData = true)
+        string? routedDomain = null)
     {
         return new TranscribeParams(
             @apiKey: apiKey,

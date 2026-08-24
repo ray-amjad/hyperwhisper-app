@@ -298,10 +298,13 @@ enum RustCoreMapping {
     /// pre-encode. `audioMime` is passed explicitly from
     /// `AudioMimeTypeResolver` rather than letting the core re-resolve.
     ///
-    /// `shareAnonymousSpeedData` defaults to `true` (sharing on, no opt-out
-    /// header) so callers that do not read the setting keep today's behaviour.
-    /// The core sends `X-Latency-Opt-Out` only when it is `false`, and only on
-    /// the HyperWhisper Cloud / routed builders.
+    /// `shareAnonymousSpeedData` deliberately has NO default, mirroring the
+    /// core's required `TranscribeParams.share_anonymous_speed_data`: a new call
+    /// site that forgets the user's privacy choice must fail to compile rather
+    /// than silently default to sharing. Pass `!LatencyOptOut.isEnabled`. The
+    /// core sends `X-Latency-Opt-Out` only when it is `false`, and only on the
+    /// HyperWhisper Cloud / routed builders, so a direct-vendor request cannot
+    /// carry it regardless of this value.
     static func transcribeParams(
         audioPath: String,
         audioMime: String,
@@ -316,7 +319,7 @@ enum RustCoreMapping {
         routedProvider: String? = nil,
         routedModel: String? = nil,
         routedDomain: String? = nil,
-        shareAnonymousSpeedData: Bool = true
+        shareAnonymousSpeedData: Bool
     ) -> TranscribeParams {
         TranscribeParams(
             apiKey: apiKey,

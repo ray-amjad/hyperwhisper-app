@@ -66,11 +66,29 @@ internal static class LiveTranscriptionProtocolFactory
     /// would apply <paramref name="count"/> before the <paramref name="chars"/>
     /// filter and silently shorten the result.
     ///
-    /// BEHAVIOUR CHANGE: the core's sanitizer truncates a term at 80 characters,
-    /// so with <paramref name="chars"/> above 80 a long term now arrives
-    /// truncated instead of whole (81-100 chars) or instead of being dropped
-    /// (over 100 chars). With <paramref name="chars"/> at 50 nothing changes:
-    /// an over-long term is still over 50 after truncation and still dropped.
+    /// BEHAVIOUR CHANGE: <paramref name="chars"/> is now measured against the
+    /// SANITIZED term, and sanitizing can shorten a term three different ways,
+    /// so the surviving set differs from the old raw trim-only filter at EVERY
+    /// value of <paramref name="chars"/> — including 50:
+    ///
+    /// <list type="bullet">
+    /// <item>Truncation at 80 characters. With <paramref name="chars"/> above
+    /// 80 (Deepgram and HyperWhisper Cloud, both at 100) a long term now
+    /// arrives truncated instead of whole (81-100 chars) or instead of being
+    /// dropped (over 100 chars).</item>
+    /// <item>Dropping <c>&lt;</c>/<c>&gt;</c> shrinks a term, so one that used
+    /// to be dropped for length can now pass: <c>"&lt;"</c> + 50 <c>'a'</c> is
+    /// 51 raw characters and was dropped at <paramref name="chars"/> = 50
+    /// (Grok); it sanitizes to exactly 50 and is now sent.</item>
+    /// <item>Collapsing whitespace runs shrinks a term the same way: 40
+    /// <c>'a'</c> + 20 spaces + 8 <c>'b'</c> is 68 raw characters and was
+    /// dropped at 50; it collapses to 49 and is now sent.</item>
+    /// </list>
+    ///
+    /// That is the intended direction — sanitizing before egress is the point
+    /// of routing this through the core, and the raw term was never the thing
+    /// worth measuring. Do NOT "restore" the old set by adding a pre-sanitize
+    /// length check.
     /// </summary>
     internal static IReadOnlyList<string> Vocabulary(LiveTranscriptionConfig config, int count, int chars) =>
         [.. SharedCoreBridge.NormalizeVocabularyTerms(config.Vocabulary, null)

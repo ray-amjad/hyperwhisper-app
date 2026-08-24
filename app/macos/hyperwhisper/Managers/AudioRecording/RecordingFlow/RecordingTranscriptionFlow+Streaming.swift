@@ -396,7 +396,7 @@ extension RecordingTranscriptionFlow {
         // Fetched on a background context — this runs on the recording-start
         // hot path and must not block the main thread on Core Data.
         let vocabulary = await PersistenceController.shared.fetchVocabularyEntriesInBackground()
-        let vocabularyString: String? = buildVocabularyString(from: vocabulary)
+        let vocabularyString: String? = Self.buildVocabularyString(from: vocabulary)
         if language == nil && !vocabulary.isEmpty && vocabularyString != nil {
             AppLogger.audio.info("📝 Vocabulary provided but auto-detect language selected - vocabulary boosting may be inactive for Deepgram")
             SentryService.addBreadcrumb(
@@ -1083,9 +1083,15 @@ extension RecordingTranscriptionFlow {
     /// The replacement-pair filter, the 100-term cap (Deepgram's limit) and the
     /// `","` join are this site's own; only the normalize rule is shared.
     ///
+    /// `nonisolated static` and internal, not `private func`, for the same
+    /// reason as `processConfirmedStreamingDelta` above and Windows'
+    /// `StreamingTranscriptionSessionFactory.BuildVocabulary`: it is a pure
+    /// function of its input, and `VocabularyEgressNormalizationTests` drives
+    /// this exact method rather than re-deriving the rule from the FFI.
+    ///
     /// - Parameter vocabulary: Array of vocabulary entry snapshots
     /// - Returns: Comma-separated string of vocabulary terms, or nil if empty
-    private func buildVocabularyString(from vocabulary: [VocabularyEntrySnapshot]) -> String? {
+    nonisolated static func buildVocabularyString(from vocabulary: [VocabularyEntrySnapshot]) -> String? {
         let words = vocabulary
             .filter { $0.replacement?.isEmpty != false }
             .map(\.word)

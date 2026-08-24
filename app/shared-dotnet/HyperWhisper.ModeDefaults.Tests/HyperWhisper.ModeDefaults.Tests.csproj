@@ -11,5 +11,15 @@
     <ProjectReference Include="../HyperWhisper.Application/HyperWhisper.Application.csproj" />
     <None Include="../../../shared-app-classification/cloud-stt-catalog.json" Link="cloud-stt-catalog.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../../shared-app-classification/cloud-pp-catalog.json" Link="cloud-pp-catalog.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../../../shared-core-rs/target/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so"
+             Condition="Exists('../../../shared-core-rs/target/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so')">
+      <Link>libhyperwhisper_core.so</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
+
+  <Target Name="EnsureSharedCoreNativeLibrary" BeforeTargets="Build">
+    <Error Condition="!Exists('../../../shared-core-rs/target/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so')"
+           Text="Build shared-core-rs in release mode before running the portable mode-defaults tests." />
+  </Target>
 </Project>

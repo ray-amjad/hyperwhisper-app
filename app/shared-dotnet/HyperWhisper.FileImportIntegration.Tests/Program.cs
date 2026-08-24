@@ -138,7 +138,10 @@ async Task SharedCoreArtifactCap()
     await using (var stream = new FileStream(path, FileMode.Open, FileAccess.Write, FileShare.None))
         stream.SetLength(25L * 1024 * 1024 + 1);
     var handler = new CountingHandler();
-    using var service = new CloudTranscriptionService(handler, new FakeCredentials());
+    // The privacy flag is a required constructor argument. This case never gets
+    // as far as a request, so the default-install answer (sharing on, which
+    // sends no header) is the honest value to hand it.
+    using var service = new CloudTranscriptionService(handler, new FakeCredentials(), () => true);
     var result = await service.TranscribeAsync(new(
         CloudTranscriptionProvider.OpenAi, path, "whisper-1"));
     Assert(result.Failure?.Code == CloudTranscriptionErrorCode.FileTooLarge && handler.Calls == 0,
