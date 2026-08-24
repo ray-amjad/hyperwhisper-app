@@ -66,7 +66,7 @@ public partial class BackupExportSettingsPage : Page
         };
     }
 
-    private void ExportButton_Click(object sender, RoutedEventArgs e)
+    private async void ExportButton_Click(object sender, RoutedEventArgs e)
     {
         var selection = BuildExportSelection();
         if (!selection.HasAnySection)
@@ -95,21 +95,15 @@ public partial class BackupExportSettingsPage : Page
         ExportButton.Content = Loc.S("settings.backup.export.exporting");
         ShowStatus(ExportStatusText, "", isError: false);
 
-        Task.Run(() =>
-        {
-            var result = BackupService.Instance.Export(filePath, selection);
+        var result = await Task.Run(() => BackupService.Instance.Export(filePath, selection));
 
-            Dispatcher.Invoke(() =>
-            {
-                ExportButton.Content = Loc.S("settings.backup.export.button");
-                UpdateExportButtonState();
+        ExportButton.Content = Loc.S("settings.backup.export.button");
+        UpdateExportButtonState();
 
-                if (result.IsSuccess)
-                    ShowStatus(ExportStatusText, Loc.S("settings.backup.export.success"), isError: false);
-                else
-                    ShowStatus(ExportStatusText, result.Error!, isError: true);
-            });
-        });
+        if (result.IsSuccess)
+            ShowStatus(ExportStatusText, Loc.S("settings.backup.export.success"), isError: false);
+        else
+            ShowStatus(ExportStatusText, result.Error!, isError: true);
     }
 
     // =========================================================================
@@ -175,7 +169,7 @@ public partial class BackupExportSettingsPage : Page
         checkbox.IsChecked = present;
     }
 
-    private void ImportSelectedButton_Click(object sender, RoutedEventArgs e)
+    private async void ImportSelectedButton_Click(object sender, RoutedEventArgs e)
     {
         var filePath = _pendingImportPath;
         if (string.IsNullOrEmpty(filePath))
@@ -224,31 +218,25 @@ public partial class BackupExportSettingsPage : Page
         ImportSelectedButton.Content = Loc.S("settings.backup.import.importing");
         ShowStatus(ImportStatusText, "", isError: false);
 
-        Task.Run(() =>
+        var result = await Task.Run(() => BackupService.Instance.ImportSelective(filePath, selection));
+
+        ImportSelectedButton.IsEnabled = true;
+        ImportSelectedButton.Content = Loc.S("settings.backup.import.applyButton");
+
+        if (result.IsSuccess)
         {
-            var result = BackupService.Instance.ImportSelective(filePath, selection);
-
-            Dispatcher.Invoke(() =>
-            {
-                ImportSelectedButton.IsEnabled = true;
-                ImportSelectedButton.Content = Loc.S("settings.backup.import.applyButton");
-
-                if (result.IsSuccess)
-                {
-                    var s = result.Value!;
-                    var summary = Loc.S("settings.backup.import.summary",
-                        s.ModesImported, s.VocabularyAdded, s.VocabularyConflicts);
-                    ShowStatus(ImportStatusText,
-                        Loc.S("settings.backup.import.success", summary), isError: false);
-                    ImportSelectionPanel.Visibility = Visibility.Collapsed;
-                    _pendingImportPath = null;
-                }
-                else
-                {
-                    ShowStatus(ImportStatusText, result.Error!, isError: true);
-                }
-            });
-        });
+            var s = result.Value!;
+            var summary = Loc.S("settings.backup.import.summary",
+                s.ModesImported, s.VocabularyAdded, s.VocabularyConflicts);
+            ShowStatus(ImportStatusText,
+                Loc.S("settings.backup.import.success", summary), isError: false);
+            ImportSelectionPanel.Visibility = Visibility.Collapsed;
+            _pendingImportPath = null;
+        }
+        else
+        {
+            ShowStatus(ImportStatusText, result.Error!, isError: true);
+        }
     }
 
     private static void ShowStatus(TextBlock textBlock, string message, bool isError)

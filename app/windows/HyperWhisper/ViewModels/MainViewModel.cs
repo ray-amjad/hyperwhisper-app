@@ -2010,23 +2010,7 @@ public partial class MainViewModel : ViewModelBase
         Transcript? transcript = null;
         string? permanentAudioPath = null;
         var transcriptDeleted = false;
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                await Task.Delay(TimeSpan.FromSeconds(20), hangCts.Token);
-                if (!hangCts.IsCancellationRequested && IsTranscribing)
-                {
-                    LoggingService.Warn($"[PERF] Transcribing still pending after 20s (mode={recordingMode.ProviderType}, lang={recordingMode.Language})");
-                }
-                await Task.Delay(TimeSpan.FromSeconds(20), hangCts.Token);
-                if (!hangCts.IsCancellationRequested && IsTranscribing)
-                {
-                    LoggingService.Warn($"[PERF] Transcribing still pending after 40s (mode={recordingMode.ProviderType}, lang={recordingMode.Language})");
-                }
-            }
-            catch (TaskCanceledException) { }
-        }, hangCts.Token);
+        _ = WarnOnSlowTranscriptionAsync(recordingMode, hangCts.Token);
 
         _hotkeyBlocked = true;
         LoggingService.LogPerformanceMarker("TranscriptionFlow", "Hotkey blocked");
@@ -2339,6 +2323,29 @@ public partial class MainViewModel : ViewModelBase
 
             // NOTE: Audio file is no longer deleted - kept for history and retry
         }
+    }
+
+    /// <summary>
+    /// Logs a performance warning when transcription is still pending after 20s
+    /// and again after 40s. Cancelled by <paramref name="token"/> once the
+    /// transcription flow completes.
+    /// </summary>
+    private async Task WarnOnSlowTranscriptionAsync(Mode recordingMode, CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(20), token).ConfigureAwait(false);
+            if (!token.IsCancellationRequested && IsTranscribing)
+            {
+                LoggingService.Warn($"[PERF] Transcribing still pending after 20s (mode={recordingMode.ProviderType}, lang={recordingMode.Language})");
+            }
+            await Task.Delay(TimeSpan.FromSeconds(20), token).ConfigureAwait(false);
+            if (!token.IsCancellationRequested && IsTranscribing)
+            {
+                LoggingService.Warn($"[PERF] Transcribing still pending after 40s (mode={recordingMode.ProviderType}, lang={recordingMode.Language})");
+            }
+        }
+        catch (TaskCanceledException) { }
     }
 
     // =========================================================================

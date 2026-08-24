@@ -995,29 +995,29 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
     /// </summary>
     private void StartStderrReader(Process process)
     {
-        var stderrReader = process.StandardError;
+        _ = ReadStderrAsync(process.StandardError);
+    }
 
-        Task.Run(async () =>
+    private static async Task ReadStderrAsync(StreamReader stderrReader)
+    {
+        try
         {
-            try
+            while (true)
             {
-                while (true)
-                {
-                    var line = await stderrReader.ReadLineAsync();
-                    if (line == null) break; // Stream closed
+                var line = await stderrReader.ReadLineAsync().ConfigureAwait(false);
+                if (line == null) break; // Stream closed
 
-                    LoggingService.Debug($"ParakeetTranscriptionService [stderr]: {line}");
-                }
+                LoggingService.Debug($"ParakeetTranscriptionService [stderr]: {line}");
             }
-            catch (ObjectDisposedException)
-            {
-                // Expected when process is disposed during shutdown
-            }
-            catch (Exception ex)
-            {
-                LoggingService.Debug($"ParakeetTranscriptionService: Stderr reader stopped: {ex.Message}");
-            }
-        });
+        }
+        catch (ObjectDisposedException)
+        {
+            // Expected when process is disposed during shutdown
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Debug($"ParakeetTranscriptionService: Stderr reader stopped: {ex.Message}");
+        }
     }
 
     /// <summary>

@@ -44,7 +44,7 @@ public partial class AboutSettingsPage : Page
         }
     }
 
-    private void ExportDiagnostics_Click(object sender, RoutedEventArgs e)
+    private async void ExportDiagnostics_Click(object sender, RoutedEventArgs e)
     {
         var dialog = new SaveFileDialog
         {
@@ -61,43 +61,31 @@ public partial class AboutSettingsPage : Page
         var originalContent = ExportDiagnosticsButton.Content;
         ExportDiagnosticsButton.Content = Loc.S("settings.about.exportDiagnostics.exporting");
 
-        Task.Run(() =>
+        try
         {
-            try
-            {
-                LoggingService.ExportDiagnostics(dialog.FileName);
+            await Task.Run(() => LoggingService.ExportDiagnostics(dialog.FileName));
 
-                Dispatcher.Invoke(() =>
-                {
-                    WpfMessageBox.Show(
-                        Loc.S("settings.about.exportDiagnostics.success.message"),
-                        Loc.S("settings.about.exportDiagnostics.success.title"),
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Information);
-                });
-            }
-            catch (Exception ex)
-            {
-                LoggingService.Error("AboutSettingsPage: Diagnostics export failed", ex);
+            WpfMessageBox.Show(
+                Loc.S("settings.about.exportDiagnostics.success.message"),
+                Loc.S("settings.about.exportDiagnostics.success.title"),
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Error("AboutSettingsPage: Diagnostics export failed", ex);
 
-                Dispatcher.Invoke(() =>
-                {
-                    WpfMessageBox.Show(
-                        Loc.S("settings.about.exportDiagnostics.failed.message", ex.Message),
-                        Loc.S("settings.about.exportDiagnostics.failed.title"),
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Error);
-                });
-            }
-            finally
-            {
-                Dispatcher.Invoke(() =>
-                {
-                    ExportDiagnosticsButton.IsEnabled = true;
-                    ExportDiagnosticsButton.Content = originalContent;
-                });
-            }
-        });
+            WpfMessageBox.Show(
+                Loc.S("settings.about.exportDiagnostics.failed.message", ex.Message),
+                Loc.S("settings.about.exportDiagnostics.failed.title"),
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+        finally
+        {
+            ExportDiagnosticsButton.IsEnabled = true;
+            ExportDiagnosticsButton.Content = originalContent;
+        }
     }
 
     /// <summary>
