@@ -45,6 +45,25 @@ Each HyperWhisper Cloud provider has a different cost per minute. The backend se
 
 The rates follow the current prices of the backend and can change. Settings always shows the live rate for your active provider.
 
+### What changes your rate
+
+The rate in the table is the rate of the default model of each provider. Three things change the number of credits that a transcription costs.
+
+**A different model.** Each provider offers more than one model, and each model has its own rate. For example, OpenAI GPT-4o Mini Transcribe costs approximately half of OpenAI GPT-4o Transcribe. Select the model in the Model row of the mode editor.
+
+**Custom vocabulary.** Two providers charge more when your mode has [custom vocabulary](/vocabulary):
+
+- **ElevenLabs Scribe v2** adds 20% to the rate.
+- **AssemblyAI Universal-3.5 Pro** adds approximately 0.83 credits per minute. AssemblyAI Universal-2 adds nothing.
+
+Every other provider charges the same rate with vocabulary and without it.
+
+**The Medical control.** The **Medical** control in the mode editor applies to AssemblyAI only. It adds approximately 2.5 credits per minute. The Deepgram medical models are models and not a domain, so they cost the standard Deepgram rate.
+
+<Note>
+  Two providers bill on **tokens** and not on minutes: **Google Gemini** (all models) and **OpenAI GPT-4o Transcribe** and **GPT-4o Mini Transcribe**. For these models, the rate in the table is an estimate for one minute of speech. The true cost follows the length of your transcript, so speech that is fast or dense costs more than the estimate, and a quiet minute costs less. The other providers bill on the length of the audio, and the rate is exact.
+</Note>
+
 ## See your balance
 
 <Tabs>

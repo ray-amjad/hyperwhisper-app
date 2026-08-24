@@ -93,6 +93,14 @@ Each HyperWhisper Cloud tier has a fallback chain. If your chosen provider fails
 
 The other providers have no fallback. These providers include Azure MAI, Google Chirp, OpenAI, Gemini, AssemblyAI, Mistral, and Soniox. If one of these providers fails, you get an error. Try again, or change to a different provider.
 
+### ElevenLabs from Japan and India
+
+ElevenLabs refuses API calls from some countries. HyperWhisper Cloud runs in more than one server region, and three of these regions are in a country that ElevenLabs refuses: Tokyo, Mumbai, and Chennai.
+
+If your mode uses ElevenLabs Scribe v2 and your request arrives at one of these three regions, the backend sends the request to a server in the United States. It does this before it does any other work. The transcription then runs on ElevenLabs as usual. The redirection adds approximately 50 ms to 80 ms.
+
+The redirection works only for a request of approximately 900 KB or less. If your audio is larger, the backend removes ElevenLabs from the failover chain instead. The transcription then runs on Deepgram, or on Groq if Deepgram also fails. The answer shows the engine that ran, and the rate of that engine applies.
+
 **Bring-Your-Own-Key (BYOK) providers** have no automatic failover. This applies to every provider that you select. If your BYOK provider fails, you get an error and must change the provider manually.
 
 ## Troubleshooting
