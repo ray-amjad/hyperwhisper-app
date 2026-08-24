@@ -71,7 +71,7 @@ export async function retryWithBackoff<T>(
     onRetry,
   } = options;
 
-  let lastError: Error;
+  let lastError: Error | undefined;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
@@ -93,5 +93,8 @@ export async function retryWithBackoff<T>(
     }
   }
 
-  throw lastError!;
+  // Unreachable for maxRetries >= 0 (the loop always runs once and either
+  // returns or throws). A negative maxRetries skips the loop entirely, which
+  // used to throw `undefined` through the non-null assertion.
+  throw lastError ?? new Error('withRetry: no attempt was made');
 }

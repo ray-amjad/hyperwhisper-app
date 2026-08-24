@@ -817,7 +817,10 @@ export async function transcribeRoute(c: Context) {
     upstreamRequestId: result.requestId,
   });
 
-  const resultProvider: Provider = result.source === 'no_speech' ? provider : (result.source as Provider);
+  // Read `source` once so TypeScript narrows away the 'no_speech' member
+  // itself, instead of needing a cast to re-assert what the ternary proved.
+  const resultSource = result.source;
+  const resultProvider: Provider = resultSource === 'no_speech' ? provider : resultSource;
   const actualProvider = formatProviderName(resultProvider, usedModel);
   const providerName = fallbackFrom
     ? `${actualProvider} (fallback from ${formatProviderName(fallbackFrom, model)})`
