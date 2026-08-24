@@ -172,6 +172,33 @@ fn filler_words() {
     assert_eq!(remove_filler_words("I think we should go uh", Some("en")), "I think we should go");
 }
 
+/// Parity spot-check for the Windows migration (#278). Windows removed fillers
+/// with a single lookaround regex; this crate has no lookaround, so it applies a
+/// capture-group replacement to a fixpoint instead. Adjacent fillers are where
+/// the two constructions could disagree — a single pass would leave the second
+/// filler once the shared whitespace is consumed. Every case below was run
+/// against the retired C# regex and produces the identical string.
+#[test]
+fn filler_words_adjacent_parity_with_windows() {
+    assert_eq!(remove_filler_words("uh um", Some("en")), "");
+    assert_eq!(remove_filler_words("uh um I think", Some("en")), "I think");
+    assert_eq!(remove_filler_words("I think uh um so", Some("en")), "I think so");
+    assert_eq!(remove_filler_words("uh, um, well", Some("en")), "Well");
+    // The cases the Windows smoke suite asserts on.
+    assert_eq!(
+        remove_filler_words("I uh think this is, um, correct", Some("en")),
+        "I think this is, correct"
+    );
+    assert_eq!(remove_filler_words("uh", Some("en")), "");
+    assert_eq!(remove_filler_words("um, this works", Some("en")), "This works");
+    // The language gate Windows used to implement in userland.
+    assert_eq!(remove_filler_words("I uh think", Some("EN")), "I think");
+    assert_eq!(
+        remove_filler_words("I uh think this is, um, correct", Some("auto")),
+        "I uh think this is, um, correct"
+    );
+}
+
 #[test]
 fn voice_commands() {
     assert_eq!(process_voice_commands("new line"), "\n\n");

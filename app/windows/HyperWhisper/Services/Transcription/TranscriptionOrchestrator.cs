@@ -262,9 +262,13 @@ public class TranscriptionOrchestrator : IDisposable
         else if (applyPostProcessing)
         {
             // No AI post-processing — optionally apply lightweight filler word removal.
+            // The mode's language is required: the shared core strips fillers for
+            // English only, and leaves every other language (and "auto") alone,
+            // because "er" and "um" are real German words. The old local copy took
+            // no language and stripped them from every transcript (issue #278).
             if (SettingsService.Instance.RemoveFillerWords)
             {
-                finalText = SmartSpacing.RemoveFillerWords(finalText);
+                finalText = TranscriptionTextProcessing.RemoveFillerWords(finalText, mode.Language);
             }
             // Honor dictated break commands ("new line" / "new paragraph") in the
             // batch path too — they were streaming-only, so with AI post-processing

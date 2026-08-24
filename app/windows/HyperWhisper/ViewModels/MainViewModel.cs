@@ -1566,7 +1566,7 @@ public partial class MainViewModel : ViewModelBase
             var pendingFallbackText = TranscriptionTextProcessing.FinalizeStreamingText(_streamingPendingFinalFallbackText);
             if (!SettingsService.Instance.AutoPasteEnabled)
             {
-                var spacedText = SmartSpacing.AppendTrailingSpace(textToProcess, _settingsService.StreamingLanguage);
+                var spacedText = TranscriptionTextProcessing.AppendTrailingSpace(textToProcess, _settingsService.StreamingLanguage);
                 _pasteService?.CopyToClipboard(spacedText);
                 pasteResult = SmartPasteResult.CopiedToClipboard;
                 LoggingService.Debug("MainViewModel: Auto-paste disabled, streaming text copied to clipboard only");
@@ -1584,7 +1584,7 @@ public partial class MainViewModel : ViewModelBase
                 }
                 else
                 {
-                    var spacedText = SmartSpacing.AppendTrailingSpace(textToProcess, _settingsService.StreamingLanguage);
+                    var spacedText = TranscriptionTextProcessing.AppendTrailingSpace(textToProcess, _settingsService.StreamingLanguage);
                     _pasteService?.CopyToClipboard(spacedText);
                     if (pasteResult != SmartPasteResult.SecureFieldSkipped)
                     {
@@ -1831,7 +1831,7 @@ public partial class MainViewModel : ViewModelBase
 
     private SmartPasteResult PasteStreamingFinalSegment(string segment)
     {
-        var spacedText = SmartSpacing.AppendTrailingSpace(segment, _settingsService.StreamingLanguage);
+        var spacedText = TranscriptionTextProcessing.AppendTrailingSpace(segment, _settingsService.StreamingLanguage);
         return _pasteService?.SmartPaste(spacedText) ?? SmartPasteResult.Failed;
     }
 
@@ -2138,7 +2138,7 @@ public partial class MainViewModel : ViewModelBase
             string textToProcess = result.FinalText;
             if (recordingMode.RemoveTrailingPeriod)
             {
-                textToProcess = SmartSpacing.RemoveTrailingPeriod(textToProcess);
+                textToProcess = TranscriptionTextProcessing.RemoveTrailingPeriod(textToProcess);
             }
 
             // AUTOCAPITALIZE INSERT — mirrors macOS RecordingTranscriptionFlow+StopRecording.swift.
@@ -2146,10 +2146,10 @@ public partial class MainViewModel : ViewModelBase
             if (SettingsService.Instance.AutocapitalizeInsert)
             {
                 var ctx = TextFieldContextHelper.GetFocusedElementContext();
-                textToProcess = AutocapitalizeInsert.Apply(textToProcess, ctx);
+                textToProcess = TranscriptionTextProcessing.ApplyAutocapitalize(textToProcess, ctx);
             }
 
-            string spacedText = SmartSpacing.AppendTrailingSpace(textToProcess, modeLanguage);
+            string spacedText = TranscriptionTextProcessing.AppendTrailingSpace(textToProcess, modeLanguage);
 
             SmartPasteResult pasteResult = SmartPasteResult.Failed;
             if (SettingsService.Instance.AutoPasteEnabled)

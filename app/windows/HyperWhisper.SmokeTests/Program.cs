@@ -2102,9 +2102,10 @@ internal static class Program
                     RemoveFillerWords: true);
 
                 var enabledClient = new StreamingTranscriptionClient(new NoOpStreamingProviderStrategy(), baseConfig);
-                var expectedEnabled = TranscriptionTextProcessing
-                    .ProcessVoiceCommands(SmartSpacing.RemoveFillerWords(raw))
-                    .Trim();
+                // Literal, not recomputed from the same helper: the point is to pin
+                // what the shared core produces, not that it equals itself. Verified
+                // identical to the retired C# regex (issue #278).
+                const string expectedEnabled = "I think this is, correct";
                 var actualEnabled = enabledClient.AppendFinalTranscript(raw);
                 Assert(actualEnabled == expectedEnabled,
                     $"expected filler words stripped ('{expectedEnabled}'), got '{actualEnabled}'");
@@ -2121,13 +2122,14 @@ internal static class Program
                     $"filler words should be preserved when RemoveFillerWords is disabled, got '{actualDisabled}'");
             });
 
-            Run("StreamingTranscriptionClient.AppendFinalTranscript gates filler removal on the session language (English-only regex, no language parameter)", () =>
+            Run("StreamingTranscriptionClient.AppendFinalTranscript passes the session language, so a German stream keeps its real words", () =>
             {
-                // SmartSpacing.RemoveFillerWords is a hardcoded-English regex - unlike the
-                // shared Rust remove_filler_words used on macOS/batch, it has no language
-                // parameter of its own to no-op on non-English text. AppendFinalTranscript
-                // must gate the call itself so a German stream doesn't have real words
-                // ("er" = he, "um" = at) stripped just because the setting is on.
+                // Filler removal is English-only. AppendFinalTranscript hands the
+                // session's language to the shared core, which no-ops outside en/en-*,
+                // so a German stream keeps its real words ("er" = he, "um" = at) even
+                // with the setting on. This used to need a bespoke IsEnglishLanguage
+                // gate on the Windows side, because the local regex took no language
+                // at all (issue #278).
                 const string german = "ich denke er ist groß";
                 var germanConfig = new StreamingSessionConfig(
                     LicenseKey: null,
@@ -2170,8 +2172,8 @@ internal static class Program
             Run("StreamingTranscriptionClient.AppendFinalTranscript only recapitalizes the leading word for the session's first confirmed delta", () =>
             {
                 // A leading filler on the FIRST confirmed delta of a session is a real
-                // sentence opener, so SmartSpacing.RemoveFillerWords correctly recapitalizes
-                // the word after it. But that same recapitalization is wrong for a LATER
+                // sentence opener, so the shared core's remove_filler_words correctly
+                // recapitalizes the word after it. But that same recapitalization is wrong for a LATER
                 // delta - "um, this works" following an earlier confirmed "I think" is
                 // mid-transcript, not a new sentence, and must not become "I think This works".
                 var config = new StreamingSessionConfig(
@@ -2193,6 +2195,71 @@ internal static class Program
                 var secondDelta = client.AppendFinalTranscript("um, this works");
                 Assert(secondDelta == "this works",
                     $"expected a later delta's leading word to stay lowercase (mid-transcript), got '{secondDelta}'");
+            });
+
+            Run("TranscriptionTextProcessing routes spacing, filler words and autocapitalize through the shared core", () =>
+            {
+                // Issue #278: Windows kept private copies of these four transforms in
+                // Utilities/SmartSpacing.cs and Utilities/AutocapitalizeInsert.cs, and
+                // they had drifted from macOS. Each assertion below is one of the
+                // observed drifts, so this fails if Windows ever reimplements them.
+
+                // Drift 1: fillers were stripped in EVERY language. English only now.
+                Assert(TranscriptionTextProcessing.RemoveFillerWords("I uh think this is, um, correct", "en")
+                        == "I think this is, correct",
+                    "English fillers must still be stripped");
+                Assert(TranscriptionTextProcessing.RemoveFillerWords("ich denke er ist groß", "de")
+                        == "ich denke er ist groß",
+                    "German real words must survive filler removal");
+                Assert(TranscriptionTextProcessing.RemoveFillerWords("I uh think", "auto")
+                        == "I uh think",
+                    "an auto-detect language must leave fillers alone");
+                Assert(TranscriptionTextProcessing.RemoveFillerWords("I uh think", null)
+                        == "I uh think",
+                    "an unset language must leave fillers alone");
+                // Adjacent fillers: the core replaces to a fixpoint, the retired C#
+                // regex used lookaround. Same result.
+                Assert(TranscriptionTextProcessing.RemoveFillerWords("uh um I think", "en") == "I think",
+                    "adjacent fillers must both be removed");
+
+                // Drift 2: the pronoun "I" was lowercased mid-sentence.
+                Assert(TranscriptionTextProcessing.ApplyAutocapitalize("I think", TextFieldContext.MidSentence)
+                        == "I think",
+                    "the pronoun 'I' must not be lowercased mid-sentence");
+                Assert(TranscriptionTextProcessing.ApplyAutocapitalize("Hello", TextFieldContext.MidSentence)
+                        == "hello",
+                    "an ordinary word must still be lowercased mid-sentence");
+                Assert(TranscriptionTextProcessing.ApplyAutocapitalize("API documentation", TextFieldContext.MidSentence)
+                        == "API documentation",
+                    "an acronym must be left alone");
+                Assert(TranscriptionTextProcessing.ApplyAutocapitalize("Hello", TextFieldContext.StartOfSentence)
+                        == "Hello",
+                    "start-of-sentence must be a pass-through");
+
+                // Drift 3: the language table is case-insensitive, and a missing
+                // language means auto-detect. Both are hw-text fixes this change
+                // depends on; assert Windows really gets them.
+                Assert(TranscriptionTextProcessing.AppendTrailingSpace("今日はいい天気ですね。", "JA")
+                        == "今日はいい天気ですね。",
+                    "an upper-case CJK language code must not gain a trailing space");
+                Assert(TranscriptionTextProcessing.AppendTrailingSpace("今日はいい天気ですね。", null)
+                        == "今日はいい天気ですね。",
+                    "a null language must fall back to CJK detection");
+                Assert(TranscriptionTextProcessing.AppendTrailingSpace("Hello world.", "en")
+                        == "Hello world. ",
+                    "a space-delimited language must still gain a trailing space");
+
+                // Drift 4: the CJK range table was half the size and iterated UTF-16
+                // code units, so a supplementary-plane ideograph counted as two
+                // non-CJK chars. U+20000 is CJK Extension B.
+                Assert(TranscriptionTextProcessing.AppendTrailingSpace("\U00020000\U00020001", "auto")
+                        == "\U00020000\U00020001",
+                    "supplementary-plane ideographs must count as CJK");
+
+                Assert(TranscriptionTextProcessing.RemoveTrailingPeriod("Hello world.") == "Hello world",
+                    "a single trailing period must be removed");
+                Assert(TranscriptionTextProcessing.RemoveTrailingPeriod("Wait...") == "Wait...",
+                    "an ellipsis must be preserved");
             });
 
             Run("DeepgramStreamingStrategy parses Results (object channel) into a FinalTranscript", () =>
