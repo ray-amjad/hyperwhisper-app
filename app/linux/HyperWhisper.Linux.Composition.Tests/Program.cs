@@ -183,13 +183,69 @@ static async Task M4aStorageEncodes()
     finally { Directory.Delete(directory, recursive: true); }
 }
 
+// The opt-out header used to be attached by a DelegatingHandler on the shared
+// HttpClient, gated on the hardcoded production hostname. It is now built by the
+// Rust core from TranscribeParams.shareAnonymousSpeedData, so this test asserts
+// both halves of what that gate was reaching for:
+//
+//   1. an opted-out HyperWhisper Cloud request still carries the header — and,
+//      unlike the old handler, it carries it on a NON-production base URL too,
+//      which is the bug this replaced;
+//   2. the same opted-out user's direct-vendor (OpenAI) request does not. That
+//      is no longer a hostname check but a structural property of the core: only
+//      build_routed_request emits the header, and no direct-vendor builder calls
+//      it. Pinned in Rust by hw-net's hyperwhisper_cloud tests; asserted here
+//      because this composition is what the Linux head actually ships.
+//
+// The third assertion pins the direction of the flag, which is the easy thing to
+// get backwards: TRUE means SHARE, and a sharing user sends no header at all.
 static async Task LatencyOptOutIsScoped()
 {
-    var sink = new CapturingHttpHandler();
-    using var client = new HttpClient(new LinuxLatencyOptOutHandler(() => false, sink));
-    _ = await client.GetAsync("https://transcribe-prod-v2.hyperwhisper.com/transcribe");
-    _ = await client.GetAsync("https://api.openai.com/v1/audio/transcriptions");
-    Assert(sink.OptOutValues.SequenceEqual(["1", null]), "latency opt-out leaked to a direct provider or was omitted");
+    var audio = Path.Combine(Path.GetTempPath(), $"hyperwhisper-optout-{Guid.NewGuid():N}.wav");
+    await File.WriteAllTextAsync(audio, "RIFF-test-audio");
+    try
+    {
+        var sink = new CapturingHttpHandler();
+        // false = the user turned "share anonymous speed data" OFF. TRUE would
+        // mean sharing, i.e. no header at all.
+        using var service = new CloudTranscriptionService(
+            sink,
+            new OptOutCredentials(),
+            shareAnonymousSpeedData: () => false);
+
+        var cloud = await service.TranscribeAsync(new CloudTranscriptionRequest(
+            CloudTranscriptionProvider.HyperWhisperCloud,
+            audio,
+            string.Empty,
+            // Deliberately NOT transcribe-prod-v2.hyperwhisper.com: the deleted
+            // handler dropped the user's choice everywhere else.
+            BaseUrl: "https://transcribe-staging.hyperwhisper.test"));
+        var direct = await service.TranscribeAsync(new CloudTranscriptionRequest(
+            CloudTranscriptionProvider.OpenAi,
+            audio,
+            "whisper-1"));
+
+        Assert(cloud.IsSuccess && direct.IsSuccess, "opt-out fixture did not complete both transcriptions");
+        Assert(sink.OptOutValues.SequenceEqual(["1", null]),
+            $"latency opt-out leaked to a direct provider or was omitted: [{string.Join(", ", sink.OptOutValues.Select(value => value ?? "(absent)"))}]");
+
+        var sharing = new CapturingHttpHandler();
+        using var sharingService = new CloudTranscriptionService(
+            sharing,
+            new OptOutCredentials(),
+            shareAnonymousSpeedData: () => true);
+        var shared = await sharingService.TranscribeAsync(new CloudTranscriptionRequest(
+            CloudTranscriptionProvider.HyperWhisperCloud,
+            audio,
+            string.Empty,
+            BaseUrl: "https://transcribe-staging.hyperwhisper.test"));
+        Assert(shared.IsSuccess && sharing.OptOutValues.SequenceEqual([(string?)null]),
+            "a sharing user's request carried the opt-out header — the flag is inverted");
+    }
+    finally
+    {
+        File.Delete(audio);
+    }
 }
 
 static async Task M4aPlaybackDecodes()
@@ -1294,12 +1350,35 @@ sealed class FakeAudioEnvironmentSession : IAudioEnvironmentSession
 
 sealed class CapturingHttpHandler : HttpMessageHandler
 {
+    // Owned by hw-net (`LATENCY_OPT_OUT_HEADER`, providers/hyperwhisper_cloud.rs).
+    // Restated here because the constant is not exported over the FFI; a drift
+    // fails the Rust tests before it reaches this one.
+    internal const string OptOutHeaderName = "X-Latency-Opt-Out";
+
     public List<string?> OptOutValues { get; } = [];
+
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
-        OptOutValues.Add(request.Headers.TryGetValues(LinuxLatencyOptOutHandler.HeaderName, out var values)
+        OptOutValues.Add(request.Headers.TryGetValues(OptOutHeaderName, out var values)
             ? values.Single() : null);
-        return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK));
+        return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+        {
+            Content = new StringContent("{\"text\":\"ok\"}", System.Text.Encoding.UTF8, "application/json"),
+        });
+    }
+}
+
+sealed class OptOutCredentials : ICloudCredentialSource
+{
+    public ValueTask<CloudCredential?> GetCredentialAsync(
+        CloudTranscriptionProvider provider,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        // Both a license key (HyperWhisper Cloud) and an API key (direct vendor),
+        // so one source serves both halves of the test.
+        return ValueTask.FromResult<CloudCredential?>(
+            new CloudCredential("test-api-key", "test-license-key", "test-device"));
     }
 }
 

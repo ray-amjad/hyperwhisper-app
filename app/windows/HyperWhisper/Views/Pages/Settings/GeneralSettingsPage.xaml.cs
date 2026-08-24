@@ -204,8 +204,9 @@ public partial class GeneralSettingsPage : Page
     // ANONYMOUS SPEED DATA
     // =========================================================================
     //
-    // The setting is read per request in LatencyOptOut, so a change applies to
-    // the very next transcription — nothing to start or stop here.
+    // The setting is read once per transcription, where the cloud services build
+    // their core TranscribeParams, so a change applies to the very next
+    // transcription — nothing to start or stop here.
 
     private void ShareSpeedDataCheckbox_Checked(object sender, RoutedEventArgs e)
     {

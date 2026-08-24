@@ -141,17 +141,21 @@ internal static class HyperWhisperRoutedTranscriptionClient
             deviceId: null,
             routedProvider: sttProviderHeader,
             routedModel: string.IsNullOrEmpty(model) ? null : model,
-            routedDomain: string.IsNullOrEmpty(domain) ? null : domain);
+            routedDomain: string.IsNullOrEmpty(domain) ? null : domain,
+            // Opt-out only: the core adds X-Latency-Opt-Out: 1 when this is
+            // false and nothing at all when it is true. The setting reads TRUE
+            // for "share" (default true), so it passes straight through — no
+            // inversion here. Read once per transcription rather than per retry
+            // attempt: rebuilding coreParams per attempt would cost more than
+            // the freshness is worth.
+            shareAnonymousSpeedData: SettingsService.Instance.ShareAnonymousSpeedData);
 
         uniffi.hyperwhisper_core.HttpResponse response;
         try
         {
             response = await RustRetry.PerformAsync(
                 client,
-                // Opt-out only: absent means the user left anonymous speed
-                // sharing on (see LatencyOptOut).
-                buildRequest: () => LatencyOptOut.Apply(
-                    ClientInfoHeaders.Apply(BuildRoutedRequest(sttProviderHeader, coreParams))),
+                buildRequest: () => ClientInfoHeaders.Apply(BuildRoutedRequest(sttProviderHeader, coreParams)),
                 // Not on RustSingleShot: this sequence needs its own give-up
                 // mapper — MapRoutedError below adds the 402 credit / 413 size
                 // context from the body — and its own tail, the single

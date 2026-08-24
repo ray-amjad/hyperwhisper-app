@@ -109,7 +109,11 @@ enum HyperWhisperRoutedTranscription {
                 // the single place that encodes the policy.
                 licenseKey: isLicensed ? identifier : nil,
                 deviceID: isLicensed ? nil : identifier,
-                routedProvider: providerHeader
+                routedProvider: providerHeader,
+                // Opt-out only: the core sends `X-Latency-Opt-Out: 1` when this
+                // is false and nothing at all when it is true. `isEnabled` is
+                // the opt-out, so it inverts.
+                shareAnonymousSpeedData: !LatencyOptOut.isEnabled
             )
 
             let baseRequest: HttpRequest
@@ -130,8 +134,6 @@ enum HyperWhisperRoutedTranscription {
             let userAgent = "HyperWhisper/\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")"
             request.headers.append(Header(name: "User-Agent", value: userAgent))
             HyperWhisperClientInfo.apply(to: &request)
-            // Opt-out only: absent means the user left anonymous speed sharing on.
-            LatencyOptOut.apply(to: &request)
 
             // fileSizeKB describes the ORIGINAL preflighted file — a 415 retry
             // uploads a WAV re-encode whose size differs; read `contentType=` to

@@ -131,9 +131,10 @@
                     <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,10,0,10"/>
 
                     <!-- Anonymous Speed Data Toggle -->
-                    <!-- Sharing is the default. Turning this off makes every cloud
-                         transcription send X-Latency-Opt-Out: 1 (see LatencyOptOut),
-                         and the server drops the measurement instead of storing it. -->
+                    <!-- Sharing is the default. Turning this off makes every
+                         HyperWhisper Cloud transcription send X-Latency-Opt-Out: 1
+                         (the shared core adds it from TranscribeParams), and the
+                         server drops the measurement instead of storing it. -->
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>

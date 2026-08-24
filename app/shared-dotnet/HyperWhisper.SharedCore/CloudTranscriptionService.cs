@@ -54,13 +54,23 @@ public sealed class CloudTranscriptionService : IDisposable
     private readonly ICloudCredentialSource _credentials;
     private readonly ICloudTranscriptionDelay _delay;
     private readonly ICloudTranscriptionObserver? _observer;
+    private readonly Func<bool> _shareAnonymousSpeedData;
     private bool _disposed;
 
+    /// <param name="shareAnonymousSpeedData">
+    /// Reads the user's "share anonymous speed data" setting. <c>true</c> means
+    /// SHARE, which means the request carries no header; <c>false</c> is the
+    /// opt-out and makes the core send <c>X-Latency-Opt-Out: 1</c>. Invoked once
+    /// per <see cref="TranscribeAsync"/> call, so a settings change applies to
+    /// the next transcription without rebuilding this service. Defaults to
+    /// sharing on, matching the app-wide default.
+    /// </param>
     public CloudTranscriptionService(
         HttpMessageHandler handler,
         ICloudCredentialSource credentials,
         ICloudTranscriptionDelay? delay = null,
-        ICloudTranscriptionObserver? observer = null)
+        ICloudTranscriptionObserver? observer = null,
+        Func<bool>? shareAnonymousSpeedData = null)
     {
         ArgumentNullException.ThrowIfNull(handler);
         ArgumentNullException.ThrowIfNull(credentials);
@@ -71,6 +81,7 @@ public sealed class CloudTranscriptionService : IDisposable
         _credentials = credentials;
         _delay = delay ?? new SystemCloudTranscriptionDelay();
         _observer = observer;
+        _shareAnonymousSpeedData = shareAnonymousSpeedData ?? (() => true);
     }
 
     public static IReadOnlyList<CloudProviderDescriptor> Providers => ProviderCatalog;
@@ -183,17 +194,17 @@ public sealed class CloudTranscriptionService : IDisposable
     /// <summary>
     /// Build the core <see cref="TranscribeParams"/> for one request.
     ///
-    /// <paramref name="shareAnonymousSpeedData"/> defaults to <c>true</c> (sharing
-    /// on, no opt-out header), which is what every caller wants until the head
-    /// starts supplying the user's real setting. The core sends
-    /// <c>X-Latency-Opt-Out</c> only when it is <c>false</c>, and only on the
-    /// HyperWhisper Cloud / routed builders — so a direct-vendor request cannot
-    /// carry it regardless of this value.
+    /// The privacy flag is read here, once per request, so a settings change
+    /// reaches the next transcription — the same freshness the transport-level
+    /// handler this replaced used to give. <c>true</c> means SHARE and sends
+    /// nothing; the core sends <c>X-Latency-Opt-Out</c> only when it is
+    /// <c>false</c>, and only from the HyperWhisper Cloud / routed builders — so
+    /// a direct-vendor request cannot carry it regardless of this value, at any
+    /// base URL.
     /// </summary>
-    private static TranscribeParams CreateParams(
+    private TranscribeParams CreateParams(
         CloudTranscriptionRequest request,
-        CloudCredential? credential,
-        bool shareAnonymousSpeedData = true)
+        CloudCredential? credential)
     {
         var usesLicense = request.Provider is CloudTranscriptionProvider.AzureMai
             or CloudTranscriptionProvider.GoogleChirp
@@ -223,7 +234,7 @@ public sealed class CloudTranscriptionService : IDisposable
             @routedProvider: NormalizeOptional(request.RoutedProvider),
             @routedModel: NormalizeOptional(request.RoutedModel),
             @routedDomain: NormalizeOptional(request.RoutedDomain),
-            @shareAnonymousSpeedData: shareAnonymousSpeedData);
+            @shareAnonymousSpeedData: _shareAnonymousSpeedData());
     }
 
     private async Task<HwTranscript> TranscribeSingleShotAsync(
