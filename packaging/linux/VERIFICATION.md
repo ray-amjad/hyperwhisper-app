@@ -10,9 +10,9 @@ Publishing is fail-closed: after completing the matrix, upload each redacted
 evidence bundle, record its HTTPS URL and SHA-256 in
 `release-evidence/VERSION.json`, and have the manifest reviewed against the
 exact tested commit. The release commit may add only evidence manifests after
-that commit. Tag pushes only build a dry run. The manually approved release
-workflow validates this ancestry/diff invariant and includes the manifest in
-the published checksums.
+that commit. A manually approved dry run builds a retrievable package without
+publishing; a separately approved publishing run validates this ancestry/diff
+invariant and includes the manifest in the published checksums.
 
 Use `PASS`, `FAIL`, `BLOCKED`, or `NOT IMPLEMENTED` for every result. A release
 requires `PASS` everywhere marked **gate**; `NOT IMPLEMENTED` is not a pass.

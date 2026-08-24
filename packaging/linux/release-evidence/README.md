@@ -1,8 +1,9 @@
 # Linux release evidence manifests
 
 Publishing a Linux release requires a reviewed manifest named
-`VERSION.json` in this directory. Tag builds are dry runs; only a manually
-approved `workflow_dispatch` run may publish.
+`VERSION.json` in this directory. Releases and retrievable dry-run packages are
+built only by manually approved `workflow_dispatch` runs; dry runs never
+publish or receive Production signing/deployment secrets.
 
 The manifest binds all evidence to the exact release version and 40-character
 `testedCommit`. That commit must be an ancestor of the release commit, and the

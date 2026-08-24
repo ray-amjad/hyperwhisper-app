@@ -28,6 +28,9 @@ def main() -> None:
         raise SystemExit("FAIL: Linux CI must export the exact verified step SHA")
 
     release_jobs = RELEASE_DOCUMENT["jobs"]
+    release_triggers = RELEASE_DOCUMENT.get("on", RELEASE_DOCUMENT.get(True, {}))
+    if set(release_triggers) != {"workflow_dispatch"}:
+        raise SystemExit("FAIL: Linux releases must be manual-only")
     if release_jobs.get("quality-gates", {}).get("uses") != "./.github/workflows/linux-ci.yml":
         raise SystemExit("FAIL: release quality-gates must call Linux CI directly")
     release_job = release_jobs["build-package-release"]
@@ -63,6 +66,39 @@ def main() -> None:
         "validate-release-evidence.py",
         "publishing must require reviewed physical evidence",
     )
+    require(
+        RELEASE,
+        'git fetch -q --no-tags origin "$GITHUB_SHA"',
+        "release checkout must retain evidence ancestry",
+    )
+    if "--depth=1" in RELEASE:
+        raise SystemExit("FAIL: release checkout must not be shallow")
+    require(
+        RELEASE,
+        "'Linux Release Dry Run'",
+        "dry runs must not enter the Production environment",
+    )
+    require(
+        RELEASE,
+        "actions/upload-artifact@v4",
+        "dry-run packages must be retrievable for physical testing",
+    )
+    require(RELEASE, "retention-days: 14", "dry-run artifacts need bounded retention")
+    require(
+        RELEASE,
+        'if [[ "$publish" == "true" && "$require_apt_signature" != "true" ]]',
+        "publication must require signed APT metadata",
+    )
+    require(RELEASE, 'GITHUB_REF" != "refs/heads/main', "publishing must run from main")
+    require(RELEASE, "Remote tag already exists", "publishing must reject tag collisions")
+    require(RELEASE, "Non-empty release notes", "published releases require notes")
+    require(
+        RELEASE,
+        "working-directory: shared-core-rs",
+        "release Rust builds must honor the pinned toolchain",
+    )
+    require(RELEASE, "GitHub Release assets and exact tag target verified", "publication needs readback")
+    require(RELEASE, "if: always()", "release runs must always emit a summary")
     require(RELEASE, "if: steps.release.outputs.publish == 'true'", "publication is explicit")
     require(RELEASE, "if: steps.release.outputs.deploy_apt == 'true'", "APT deployment is explicit")
     require(RELEASE, "https://", "APT deployment requires an HTTPS public origin")
