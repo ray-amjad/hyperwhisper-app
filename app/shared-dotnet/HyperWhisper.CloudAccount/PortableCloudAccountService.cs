@@ -20,8 +20,6 @@ public sealed class PortableCloudAccountService : IDisposable
 
     private static readonly Uri ValidateEndpoint =
         new("https://www.hyperwhisper.com/api/license/validate");
-    private static readonly Uri DeactivateEndpoint =
-        new("https://www.hyperwhisper.com/api/license/deactivate");
     private static readonly Uri UsageEndpoint =
         new("https://transcribe-prod-v2.hyperwhisper.com/usage");
 
@@ -174,43 +172,42 @@ public sealed class PortableCloudAccountService : IDisposable
         }
     }
 
-    public async Task<CloudAccountResult<CloudAccountDeactivation>> DeactivateAsync(
+    /// <summary>
+    /// Removes this device's account key. Local only — no network call.
+    /// <para>
+    /// Deactivation used to POST to /api/license/deactivate first and delete the
+    /// stored key only when the server replied <c>{"success":true}</c>. That
+    /// endpoint is an explicit no-op stub, so the round-trip bought nothing and
+    /// cost an offline user the ability to remove their key at all (issue #290).
+    /// macOS does the same thing this method now does: clear the local store and
+    /// report success (`LicenseNetworkService.deactivateLicense`).
+    /// </para>
+    /// </summary>
+    public Task<CloudAccountResult<CloudAccountDeactivation>> DeactivateAsync(
         CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        // Read first so "no key is stored" stays a distinct verdict rather than a
+        // silent success. The key's value itself is no longer needed.
         var key = ReadAccountKey();
         if (key.IsFailure)
-            return CloudAccountResult<CloudAccountDeactivation>.Failed(key.Failure!.Code, key.Failure.Message);
+            return Task.FromResult(
+                CloudAccountResult<CloudAccountDeactivation>.Failed(key.Failure!.Code, key.Failure.Message));
 
-        var request = new HttpRequestMessage(HttpMethod.Post, DeactivateEndpoint)
-        {
-            Content = JsonContent.Create(new DeactivateRequest(key.Value!)),
-        };
-        var response = await SendAsync(request, cancellationToken).ConfigureAwait(false);
-        if (response.IsFailure)
-            return CloudAccountResult<CloudAccountDeactivation>.Failed(response.Failure!.Code, response.Failure.Message);
-
-        try
-        {
-            var wire = JsonSerializer.Deserialize<DeactivateResponse>(response.Value!);
-            if (wire?.Success != true)
-                return CloudAccountResult<CloudAccountDeactivation>.Failed(
-                    CloudAccountFailureCode.InvalidResponse,
-                    "The account service did not acknowledge deactivation.");
-        }
-        catch (JsonException)
-        {
-            return CloudAccountResult<CloudAccountDeactivation>.Failed(
-                CloudAccountFailureCode.InvalidResponse,
-                "The account service returned an invalid response.");
-        }
-
+        // The delete must stay on ICredentialStore. The Linux key lives in the
+        // platform keyring under (CredentialResource, CredentialAccount), and
+        // Delete reports a locked or failing keyring — the shared core's
+        // KeyValueStore trait has no error channel, so routing this through
+        // license_clear_stored_license would swallow that failure and report a
+        // removal that never happened.
         var deleted = _credentials.Delete(CredentialResource, CredentialAccount);
-        return deleted.IsSuccess
-            ? CloudAccountResult<CloudAccountDeactivation>.Success(new(true, false))
+        return Task.FromResult(deleted.IsSuccess
+            ? CloudAccountResult<CloudAccountDeactivation>.Success(new(false, false))
             : CloudAccountResult<CloudAccountDeactivation>.Failed(
                 CloudAccountFailureCode.CredentialDeleteFailed,
-                "The local account key could not be removed securely.");
+                "The local account key could not be removed securely."));
     }
 
     public void Dispose()
@@ -429,9 +426,6 @@ public sealed class PortableCloudAccountService : IDisposable
         [property: JsonPropertyName("device_id")] string DeviceId,
         [property: JsonPropertyName("device_name")] string DeviceName);
 
-    private sealed record DeactivateRequest(
-        [property: JsonPropertyName("license_key")] string LicenseKey);
-
     private sealed class ValidateResponse
     {
         [JsonPropertyName("valid")] public bool Valid { get; init; }
@@ -452,10 +446,5 @@ public sealed class PortableCloudAccountService : IDisposable
         [JsonPropertyName("resets_at")] public DateTimeOffset? ResetsAt { get; init; }
         [JsonPropertyName("customer_id")] public string? CustomerId { get; init; }
         [JsonPropertyName("message")] public string? Message { get; init; }
-    }
-
-    private sealed class DeactivateResponse
-    {
-        [JsonPropertyName("success")] public bool Success { get; init; }
     }
 }

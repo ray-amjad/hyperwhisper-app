@@ -518,6 +518,7 @@ try
             "account view exposed an identifier-bearing or unexpected external URL");
         await account.DeactivateAsync();
         Assert(!account.HasAccount && !accountStore.HasAccount("LicenseKey")
+            && account.Status.Message.Contains("works offline", StringComparison.Ordinal)
             && account.Status.Message.Contains("does not support remote key revocation", StringComparison.Ordinal),
             "account deactivation did not disclose local-only semantics or remove the local key");
     }
