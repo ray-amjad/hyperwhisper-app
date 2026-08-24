@@ -2,7 +2,7 @@
 
 # HyperWhisper
 
-**Fast, private speech-to-text for macOS, Windows, and iOS.**
+**Fast, private speech-to-text for macOS, Windows, and Linux.**
 
 Press a key, speak, and your words appear as text in any app — transcribed
 on-device by default, with an optional hosted Cloud for the highest-accuracy
@@ -31,7 +31,7 @@ schemas — open-sourced under **Apache-2.0**.
 ## Fully open source — including the backend
 
 Everything in HyperWhisper is open source under **Apache-2.0** — the macOS,
-Windows, and iOS apps, the marketing/license website, the docs, the shared
+Windows, Linux, and iOS apps, the marketing/license website, the docs, the shared
 schemas, **and the Fly.io transcription backend**
 ([`hyperwhisper-cloud/`](https://github.com/ray-amjad/hyperwhisper-app/tree/main/hyperwhisper-cloud)). Nothing is
 closed source. **Local transcription runs entirely on your machine** with no
@@ -56,6 +56,7 @@ in this repo.
 |---|---|
 | `app/macos` | macOS app (Swift / SwiftUI) |
 | `app/windows` | Windows app (C# / WPF / .NET 10) |
+| `app/linux` | Linux app (C# / Avalonia / .NET 10) |
 | `app/ios` | iOS app *(work in progress; not built here)* |
 | `hyperwhisper-cloud` | Fly.io edge transcription service |
 | `nextjs` | Marketing & account website (Next.js) |
@@ -85,6 +86,10 @@ Each app has its own setup; see the per-directory `AGENTS.md` for details.
   Dependencies resolve via Swift Package Manager. Requires macOS 14+.
 - **Windows** — `dotnet run -c Debug` from `app/windows/HyperWhisper/`. Requires
   the .NET 10 SDK on Windows. See `app/windows/AGENTS.md` for installer builds.
+- **Linux** —
+  `dotnet build app/linux/HyperWhisper.Linux/HyperWhisper.Linux.csproj -c Release`.
+  Requires the .NET 10 SDK. Run `app/linux/scripts/run-ui-smoke.sh` for the
+  headless UI smoke test; see `packaging/linux/README.md` for Debian packaging.
 - **Web** — `npm install && npm run dev` in `nextjs/`. Local builds use
   `SKIP_ENV_VALIDATION=1 npm run build`.
 

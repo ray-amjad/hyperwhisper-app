@@ -69,11 +69,6 @@ HyperWhisper always records to WAV and always transcribes the WAV file. The conv
   <Tab title="Windows">
     The toggle is on for a new installation. On an installation that is older than this setting, the toggle is off until you turn it on.
   </Tab>
-  <Tab title="Linux">
-    Turn on **Automatically delete old transcripts and app-owned audio**, then choose 1 to 365 days. Cleanup runs at startup, once per hour, and when you click **Delete now**. The button applies the configured age cutoff; it does not delete recent items.
-
-    Linux deletes only regular files inside its fixed XDG recordings folder. Imported source files and symbolic-link targets are retained.
-  </Tab>
 </Tabs>
 
 ---
@@ -104,6 +99,11 @@ This card deletes the recordings that are older than an age that you set. Automa
     A line below the box shows the time of the last cleanup and the number of transcripts that it deleted.
 
     The **Delete Now** button runs the same cleanup immediately. A confirmation dialog opens first. HyperWhisper then shows the number of deleted transcripts. macOS has no equivalent button.
+  </Tab>
+  <Tab title="Linux">
+    Turn on **Automatically delete old transcripts and app-owned audio**, then choose 1 to 365 days. Cleanup runs at startup, once per hour, and when you click **Delete now**. The button applies the configured age cutoff; it does not delete recent items.
+
+    Linux deletes only regular files inside its fixed XDG recordings folder. Imported source files and symbolic-link targets are retained.
   </Tab>
 </Tabs>
 

@@ -68,13 +68,13 @@ HyperWhisper runs natively on macOS, Windows, and Linux. Select your platform be
     - **Ubuntu 22.04 or later**, or **Debian 12 or later**
     - x86_64 / amd64 processor (ARM64 is not supported in Linux v1)
     - glibc 2.35 or later
-    - GNOME or KDE Plasma for the verified desktop experience
+    - GNOME or KDE Plasma, the targeted Linux v1 desktops
     - A Vulkan-capable GPU is recommended for local Whisper models
     - ~300 MB free disk for the app, plus space for each local model
 
-    The release package is a self-contained `.deb`; you do not need to install
+    Linux v1 is packaged as a self-contained `.deb`; you do not need to install
     .NET separately. Other Debian-based distributions may satisfy its
-    dependencies, but they are outside the release verification matrix.
+    dependencies, but they are outside the supported v1 matrix.
 
     Whisper uses Vulkan on supported NVIDIA, AMD, and Intel GPUs and falls back
     to the CPU. Local Gemma post-processing uses CUDA 12 on supported NVIDIA

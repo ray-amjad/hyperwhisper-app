@@ -1,9 +1,11 @@
 ---
 title: App Updates
-description: How HyperWhisper updates itself on macOS and Windows, and how to check for updates manually.
+description: How HyperWhisper updates on macOS, Windows, and Linux, and how to check for updates manually.
 ---
 
-HyperWhisper checks for updates automatically. You install a new version with one click. You do not need to watch the version numbers yourself.
+HyperWhisper checks for updates automatically on macOS and Windows. Linux uses
+your distribution's package tools so the app never changes system packages by
+itself.
 
 <Tabs>
   <Tab title="macOS">
@@ -35,6 +37,15 @@ HyperWhisper checks for updates automatically. You install a new version with on
     ## Turn off automatic checks
 
     To stop the automatic check in the background, go to **Settings → General**. Then turn off **Auto update**. You can still start a manual check at any time with **Check for Updates**.
+  </Tab>
+  <Tab title="Linux">
+    Open **About**, then click **Refresh package status**. HyperWhisper compares
+    the installed package with your distribution's cached package metadata. It
+    does not refresh repositories or install packages itself.
+
+    Refresh metadata and install an available version with your distribution's
+    normal software updater. For a directly downloaded Debian package, download
+    the newer `.deb` and run `sudo apt install ./hyperwhisper_VERSION_amd64.deb`.
   </Tab>
 </Tabs>
 
