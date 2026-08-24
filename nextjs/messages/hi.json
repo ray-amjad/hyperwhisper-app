@@ -29,7 +29,8 @@
     "demoCta": "डेमो देखें",
     "availableOn": "उपलब्ध है",
     "macos": "macOS 14+",
-    "windows": "Windows 10+"
+    "windows": "Windows 10+",
+    "linux": "Linux (amd64)"
   },
   "features": {
     "title": "प्रोफेशनल्स के लिए बनाया गया",

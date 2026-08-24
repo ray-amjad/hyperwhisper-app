@@ -29,7 +29,8 @@
     "demoCta": "Voir la démo",
     "availableOn": "Disponible sur",
     "macos": "macOS 14+",
-    "windows": "Windows 10+"
+    "windows": "Windows 10+",
+    "linux": "Linux (amd64)"
   },
   "features": {
     "title": "Conçu pour les professionnels",

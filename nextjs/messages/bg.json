@@ -29,7 +29,8 @@
     "demoCta": "Гледайте демо",
     "availableOn": "Налично за",
     "macos": "macOS 14+",
-    "windows": "Windows 10+"
+    "windows": "Windows 10+",
+    "linux": "Linux (amd64)"
   },
   "features": {
     "title": "Създадено за професионалисти",

@@ -29,7 +29,8 @@
     "demoCta": "ดูเดโม",
     "availableOn": "พร้อมใช้งานบน",
     "macos": "macOS 14+",
-    "windows": "Windows 10+"
+    "windows": "Windows 10+",
+    "linux": "Linux (amd64)"
   },
   "features": {
     "title": "สร้างมาเพื่อมืออาชีพ",

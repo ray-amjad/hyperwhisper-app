@@ -29,7 +29,8 @@
     "demoCta": "デモ動画を見る",
     "availableOn": "対応OS",
     "macos": "macOS 14以降",
-    "windows": "Windows 10以降"
+    "windows": "Windows 10以降",
+    "linux": "Linux (amd64)"
   },
   "features": {
     "title": "プロフェッショナルのために",

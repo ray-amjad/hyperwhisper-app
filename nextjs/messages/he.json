@@ -29,7 +29,8 @@
     "demoCta": "לצפות בדמו",
     "availableOn": "זמין עבור",
     "macos": "macOS 14+",
-    "windows": "Windows 10+"
+    "windows": "Windows 10+",
+    "linux": "Linux (amd64)"
   },
   "features": {
     "title": "נבנה לאנשי מקצוע",

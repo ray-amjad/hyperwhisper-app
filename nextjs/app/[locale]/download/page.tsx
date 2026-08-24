@@ -276,13 +276,13 @@ export default function DownloadPage() {
             <Button
               as="a"
               className="bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold hover:from-purple-500 hover:to-blue-500 transition-all hover:shadow-lg px-8"
-              href="https://github.com/ray-amjad/hyperwhisper-app/releases"
+              href="https://github.com/ray-amjad/hyperwhisper-app/tree/main/app/linux"
               rel="noreferrer"
               size="lg"
               startContent={<Download className="w-5 h-5" />}
               target="_blank"
             >
-              View Linux releases
+              View Linux source
             </Button>
           ) : (
             <Button
@@ -365,8 +365,13 @@ export default function DownloadPage() {
                   </h2>
                 </div>
                 <p className="text-sm text-gray-400 mb-4">
-                  Ubuntu 22.04+ and Debian 12+ on amd64 are the verified release
-                  floor. Replace VERSION with the version you downloaded.
+                  Linux v1 targets Ubuntu 22.04+ and Debian 12+ on amd64.
+                  Replace VERSION with the version you downloaded.
+                </p>
+                <p className="text-sm text-amber-300/90 mb-4">
+                  The Linux app is available from source now. The public v1
+                  Debian package will appear on GitHub Releases after the
+                  supported physical hardware matrix is validated.
                 </p>
                 <div className="rounded-lg border border-gray-700 bg-gray-800/80 p-3 overflow-x-auto">
                   <code className="text-sm font-mono text-gray-200 whitespace-pre">

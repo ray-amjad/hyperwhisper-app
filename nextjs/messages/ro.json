@@ -29,7 +29,8 @@
     "demoCta": "Vezi demo",
     "availableOn": "Disponibil pe",
     "macos": "macOS 14+",
-    "windows": "Windows 10+"
+    "windows": "Windows 10+",
+    "linux": "Linux (amd64)"
   },
   "features": {
     "title": "Creat pentru profesioniști",
