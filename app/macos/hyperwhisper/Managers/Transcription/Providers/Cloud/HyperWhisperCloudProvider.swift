@@ -337,7 +337,11 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
                 deviceID: isLicensed ? nil : identifier,
                 routedProvider: accuracyTier.sttProvider,
                 routedModel: trimmedModelId,
-                routedDomain: transcriptionDomain
+                routedDomain: transcriptionDomain,
+                // Opt-out only: the core sends `X-Latency-Opt-Out: 1` when this
+                // is false and nothing at all when it is true. `isEnabled` is
+                // the opt-out, so it inverts.
+                shareAnonymousSpeedData: !LatencyOptOut.isEnabled
             )
 
             let baseRequest: HttpRequest
@@ -356,8 +360,6 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
             }
             request.headers.append(Header(name: "User-Agent", value: userAgent))
             HyperWhisperClientInfo.apply(to: &request)
-            // Opt-out only: absent means the user left anonymous speed sharing on.
-            LatencyOptOut.apply(to: &request)
 
             // fileSizeKB describes the ORIGINAL preflighted file — the 415 retry
             // uploads a WAV re-encode whose size differs; read `contentType=` to

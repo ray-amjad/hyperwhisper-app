@@ -119,6 +119,10 @@ public class DeepgramService : ApiKeyTranscriptionServiceBase
             audioMime: contentType,
             language: language,
             vocabulary: vocabulary ?? Array.Empty<string>(),
+            // Direct-vendor request: the core cannot attach X-Latency-Opt-Out to
+            // one by construction. Pass the user's real choice anyway so this site
+            // stays correct if it is ever routed.
+            shareAnonymousSpeedData: SettingsService.Instance.ShareAnonymousSpeedData,
             apiKey: ApiKey,
             model: ModelId);
 

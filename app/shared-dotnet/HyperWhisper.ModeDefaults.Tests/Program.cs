@@ -1,4 +1,5 @@
 using HyperWhisper.PortableApplication.Persistence;
+using HyperWhisper.SharedCore;
 
 var timestamp = new DateTime(2026, 8, 23, 12, 34, 56, DateTimeKind.Utc);
 await using var stt = File.OpenRead(Path.Combine(AppContext.BaseDirectory, "cloud-stt-catalog.json"));
@@ -33,11 +34,38 @@ Assert(modes.Single(mode => mode.Id == PortableModeDefaults.VoiceToTextModeId).P
 Assert(modes.All(mode => mode.EnglishSpelling == "british" && mode.Language == "auto"), "GB locale seed is incorrect");
 Assert(modes.All(mode => mode.CreatedDate == timestamp && mode.ModifiedDate == timestamp), "seed timestamps are not stable UTC values");
 
+// The ISO 3166-1 region table lives in the shared Rust core (hw-text,
+// EnglishSpelling::for_region), so everything below runs the real FFI through
+// SharedCoreBridge. That makes this the portable-head half of a cross-platform
+// parity check: macOS EnglishSpellingRegionDefaultTests.swift and the Windows
+// SmokeTests assert the same codes against the same table.
 Assert(PortableModeDefaults.EnglishSpellingForRegion("CA") == "canadian", "Canadian spelling mapping failed");
 Assert(PortableModeDefaults.EnglishSpellingForRegion("AU") == "australian", "Australian spelling mapping failed");
+Assert(PortableModeDefaults.EnglishSpellingForRegion("NF") == "australian", "Australian territory spelling mapping failed");
+Assert(PortableModeDefaults.EnglishSpellingForRegion("GB") == "british", "British spelling mapping failed");
+Assert(PortableModeDefaults.EnglishSpellingForRegion("IE") == "british", "Irish spelling mapping failed");
 Assert(PortableModeDefaults.EnglishSpellingForRegion("NZ") == "british", "British-compatible spelling mapping failed");
+Assert(PortableModeDefaults.EnglishSpellingForRegion("IN") == "british", "Indian spelling mapping failed");
 Assert(PortableModeDefaults.EnglishSpellingForRegion("US") == "american", "American spelling mapping failed");
+Assert(PortableModeDefaults.EnglishSpellingForRegion("JP") == "american", "unlisted region fallback failed");
+Assert(PortableModeDefaults.EnglishSpellingForRegion("ZZ") == "american", "invalid region fallback failed");
 Assert(PortableModeDefaults.EnglishSpellingForRegion(null) == "american", "unknown region fallback failed");
+Assert(PortableModeDefaults.EnglishSpellingForRegion("") == "american", "empty region fallback failed");
+Assert(PortableModeDefaults.EnglishSpellingForRegion("   ") == "american", "whitespace region fallback failed");
+
+// Trimming and case folding are the core's, not this head's.
+Assert(PortableModeDefaults.EnglishSpellingForRegion("gb") == "british", "lowercase region code was not folded");
+Assert(PortableModeDefaults.EnglishSpellingForRegion(" au ") == "australian", "padded region code was not trimmed");
+Assert(PortableModeDefaults.EnglishSpellingForRegion("\nca\n") == "canadian", "newline-padded region code was not trimmed");
+
+// A SEEDING call must never answer with the empty token. Empty means "the user
+// never chose", which suppresses the spelling instruction entirely at prompt
+// time — a different thing from american, and never a thing to seed.
+foreach (var code in new string?[] { "GB", "AU", "CA", "US", "JP", "ZZ", "", "   ", " gb ", null })
+{
+    Assert(SharedCoreBridge.EnglishSpellingForRegion(code).Length > 0,
+        $"region '{code ?? "<null>"}' seeded the empty no-spelling token");
+}
 
 await AssertInvalidCatalogAsync("""{"providers": [{"id":"elevenLabsScribeV2","models":[]}]}""", isStt: true);
 await AssertInvalidCatalogAsync("""{"providers": [{"id":"anthropic","enabled":false,"models":[{"id":"claude-haiku-4-5","isDefault":true}]}]}""", isStt: false);

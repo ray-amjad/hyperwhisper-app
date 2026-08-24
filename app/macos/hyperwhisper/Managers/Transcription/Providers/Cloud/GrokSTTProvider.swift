@@ -93,7 +93,11 @@ final class GrokSTTProvider: TranscriptionProvider {
             audioMime: contentType,
             language: language,
             vocabulary: RustCoreMapping.boostVocabularyTerms(from: vocabulary),
-            apiKey: apiKey
+            apiKey: apiKey,
+            // Direct-vendor request: the core cannot attach X-Latency-Opt-Out to
+            // one by construction. Pass the user's real choice anyway so this site
+            // stays correct if it is ever routed.
+            shareAnonymousSpeedData: !LatencyOptOut.isEnabled
         )
 
         let providerName = name

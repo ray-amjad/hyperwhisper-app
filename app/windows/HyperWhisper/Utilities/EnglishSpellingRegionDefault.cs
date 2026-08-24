@@ -1,4 +1,5 @@
 using System.Globalization;
+using uniffi.hyperwhisper_core;
 
 namespace HyperWhisper.Utilities;
 
@@ -15,8 +16,10 @@ namespace HyperWhisper.Utilities;
 /// <c>EnglishSpelling</c> is never re-derived, so a user who already picked a
 /// variant (or a mode restored from a backup) keeps it.
 ///
-/// The macOS app mirrors this table in
-/// <c>Utilities/EnglishSpellingRegionDefault.swift</c> — change both together.
+/// The ISO 3166-1 region table itself lives in the shared Rust core
+/// (<c>hw-text</c>, <c>EnglishSpelling::for_region</c>). macOS, Windows and the
+/// portable .NET head all read that one table, so there is no longer a copy to
+/// keep in sync — only the platform's own way of asking the OS for its region.
 /// </summary>
 public static class EnglishSpellingRegionDefault
 {
@@ -25,63 +28,26 @@ public static class EnglishSpellingRegionDefault
     public const string Australian = "australian";
     public const string Canadian = "canadian";
 
-    /// <summary>Regions whose written English follows Canadian spelling.</summary>
-    private static readonly HashSet<string> CanadianRegions = new(StringComparer.Ordinal)
-    {
-        "CA"
-    };
-
-    /// <summary>Regions whose written English follows Australian spelling.</summary>
-    private static readonly HashSet<string> AustralianRegions = new(StringComparer.Ordinal)
-    {
-        "AU", "CC", "CX", "NF"
-    };
-
-    /// <summary>
-    /// Regions whose written English follows British spelling. New Zealand,
-    /// Ireland and South Africa sit here because the app offers no separate
-    /// variant for them and British is the closest of the four.
-    /// </summary>
-    private static readonly HashSet<string> BritishRegions = new(StringComparer.Ordinal)
-    {
-        // British Isles and Europe
-        "GB", "IE", "IM", "JE", "GG", "GI", "MT", "CY",
-        // Africa
-        "ZA", "NG", "GH", "KE", "UG", "TZ", "RW", "ZM", "ZW", "BW", "NA",
-        "MW", "MU", "SC", "SZ", "LS", "GM", "SL", "SS",
-        // South and South-East Asia
-        "IN", "PK", "BD", "LK", "NP", "BT", "MV", "SG", "MY", "BN", "HK",
-        // Caribbean and South Atlantic
-        "JM", "TT", "BB", "BS", "BZ", "GY", "AG", "DM", "GD", "KN", "LC",
-        "VC", "VG", "KY", "TC", "MS", "AI", "BM", "FK", "SH",
-        // Oceania
-        "NZ", "FJ", "PG", "SB", "VU", "WS", "TO", "KI", "TV", "NR", "CK",
-        "NU", "TK"
-    };
-
     /// <summary>
     /// The spelling variant to seed into a new mode, from the system region.
     /// </summary>
     public static string ForCurrentRegion() => ForRegion(CurrentRegionCode());
 
     /// <summary>
-    /// Maps an ISO 3166-1 alpha-2 region code to a spelling variant.
-    /// An unknown, empty or null code gives <see cref="American"/>, the value
-    /// the app used for every mode before this table existed.
+    /// Maps an ISO 3166-1 alpha-2 region code to a spelling variant. Trimming,
+    /// case folding and the region table are all the core's. An unknown, empty
+    /// or null code gives <see cref="American"/>, the value the app used for
+    /// every mode before this table existed.
+    ///
+    /// Note this is a SEEDING call and is not the inverse of the prompt path's
+    /// <c>EnglishSpellingFromRaw</c>: an empty stored <c>EnglishSpelling</c>
+    /// means "the user never chose" and suppresses the spelling instruction
+    /// entirely, which is never the right value to seed. The core never returns
+    /// <c>HwEnglishSpelling.None</c> here, so no fallback is needed.
     /// </summary>
-    public static string ForRegion(string? regionCode)
-    {
-        var code = (regionCode ?? string.Empty).Trim().ToUpperInvariant();
-        if (code.Length == 0)
-        {
-            return American;
-        }
-
-        if (CanadianRegions.Contains(code)) return Canadian;
-        if (AustralianRegions.Contains(code)) return Australian;
-        if (BritishRegions.Contains(code)) return British;
-        return American;
-    }
+    public static string ForRegion(string? regionCode) =>
+        HyperwhisperCoreMethods.EnglishSpellingRawValue(
+            HyperwhisperCoreMethods.EnglishSpellingForRegion(regionCode));
 
     /// <summary>
     /// Reads the current Windows region. <see cref="RegionInfo"/> throws for the

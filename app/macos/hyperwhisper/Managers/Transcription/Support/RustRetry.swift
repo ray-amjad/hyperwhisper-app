@@ -297,6 +297,14 @@ enum RustCoreMapping {
     /// drop-empty, no lowercase/dedup) — pass the RAW term list, do NOT
     /// pre-encode. `audioMime` is passed explicitly from
     /// `AudioMimeTypeResolver` rather than letting the core re-resolve.
+    ///
+    /// `shareAnonymousSpeedData` deliberately has NO default, mirroring the
+    /// core's required `TranscribeParams.share_anonymous_speed_data`: a new call
+    /// site that forgets the user's privacy choice must fail to compile rather
+    /// than silently default to sharing. Pass `!LatencyOptOut.isEnabled`. The
+    /// core sends `X-Latency-Opt-Out` only when it is `false`, and only on the
+    /// HyperWhisper Cloud / routed builders, so a direct-vendor request cannot
+    /// carry it regardless of this value.
     static func transcribeParams(
         audioPath: String,
         audioMime: String,
@@ -310,7 +318,8 @@ enum RustCoreMapping {
         deviceID: String? = nil,
         routedProvider: String? = nil,
         routedModel: String? = nil,
-        routedDomain: String? = nil
+        routedDomain: String? = nil,
+        shareAnonymousSpeedData: Bool
     ) -> TranscribeParams {
         TranscribeParams(
             apiKey: apiKey,
@@ -326,7 +335,8 @@ enum RustCoreMapping {
             deviceId: deviceID,
             routedProvider: routedProvider,
             routedModel: routedModel,
-            routedDomain: routedDomain
+            routedDomain: routedDomain,
+            shareAnonymousSpeedData: shareAnonymousSpeedData
         )
     }
 
@@ -336,18 +346,17 @@ enum RustCoreMapping {
     /// recognition hints. The Rust core applies the same sanitizer/dedup/caps
     /// again while building provider requests, but pre-sanitizing here keeps the
     /// FFI boundary free of replacement-pair and oversized prompt-injection data.
+    ///
+    /// The replacement-pair filter and the `[Vocabulary]` -> `[String]`
+    /// projection stay here — they are Core Data shape, not the shared rule.
+    /// Sanitize + drop-empty + case-insensitive dedupe is the core's, uncapped:
+    /// each provider applies its own cap afterwards.
     static func boostVocabularyTerms(from vocabulary: [Vocabulary]) -> [String] {
-        var terms: [String] = []
-        var seen = Set<String>()
-        for item in vocabulary {
-            guard item.replacement?.isEmpty != false else { continue }
-            guard let raw = item.word else { continue }
-            let sanitized = PromptBuilder.sanitizeVocabularyWord(raw)
-            guard !sanitized.isEmpty else { continue }
-            guard seen.insert(sanitized.lowercased()).inserted else { continue }
-            terms.append(sanitized)
+        let words = vocabulary.compactMap { item -> String? in
+            guard item.replacement?.isEmpty != false else { return nil }
+            return item.word
         }
-        return terms
+        return normalizeVocabularyTerms(words: words, limit: nil)
     }
 
     /// Parse the HW-Cloud / routed 413 size context (`actual_size_mb` /

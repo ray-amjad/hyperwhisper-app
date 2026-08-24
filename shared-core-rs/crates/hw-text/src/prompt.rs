@@ -183,7 +183,76 @@ impl EnglishSpelling {
             _ => EnglishSpelling::American,
         }
     }
+
+    /// The raw `mode.englishSpelling` token for this variant — the inverse of
+    /// [`EnglishSpelling::from_raw`].
+    ///
+    /// [`EnglishSpelling::None`] is `""`, not `"american"`: an empty token means
+    /// the user never chose a variant, and the prompt then emits **no**
+    /// `<SPELLING>` / `<DATE_FORMAT>` block at all. Collapsing it to
+    /// `"american"` would silently start dictating spelling to those users.
+    pub fn raw_value(&self) -> &'static str {
+        match self {
+            EnglishSpelling::None => "",
+            EnglishSpelling::American => "american",
+            EnglishSpelling::British => "british",
+            EnglishSpelling::Australian => "australian",
+            EnglishSpelling::Canadian => "canadian",
+        }
+    }
+
+    /// The spelling variant to **seed** into a mode the user has not touched
+    /// yet, from an ISO 3166-1 alpha-2 region code.
+    ///
+    /// Seeding is a different job from [`EnglishSpelling::from_raw`]: an
+    /// unknown, empty or missing region gives [`EnglishSpelling::American`] —
+    /// the value the app used for every mode before this table existed — and
+    /// **never** [`EnglishSpelling::None`]. A new mode always gets a concrete
+    /// variant; only a mode the user explicitly left blank has none.
+    ///
+    /// Canonical home of the table that macOS
+    /// `Utilities/EnglishSpellingRegionDefault.swift`, Windows
+    /// `Utilities/EnglishSpellingRegionDefault.cs` and
+    /// `PortableModeDefaults.EnglishSpellingForRegion` each used to keep their
+    /// own copy of.
+    pub fn for_region(region: Option<&str>) -> EnglishSpelling {
+        let code = region.unwrap_or("").trim().to_uppercase();
+        if code.is_empty() {
+            return EnglishSpelling::American;
+        }
+        if CANADIAN_REGIONS.contains(&code.as_str()) {
+            return EnglishSpelling::Canadian;
+        }
+        if AUSTRALIAN_REGIONS.contains(&code.as_str()) {
+            return EnglishSpelling::Australian;
+        }
+        if BRITISH_REGIONS.contains(&code.as_str()) {
+            return EnglishSpelling::British;
+        }
+        EnglishSpelling::American
+    }
 }
+
+/// Regions whose written English follows Canadian spelling.
+const CANADIAN_REGIONS: &[&str] = &["CA"];
+
+/// Regions whose written English follows Australian spelling.
+const AUSTRALIAN_REGIONS: &[&str] = &["AU", "CC", "CX", "NF"];
+
+/// Regions whose written English follows British spelling. New Zealand,
+/// Ireland and South Africa sit here because the app offers no separate
+/// variant for them and British is the closest of the four.
+const BRITISH_REGIONS: &[&str] = &[
+    // British Isles and Europe
+    "GB", "IE", "IM", "JE", "GG", "GI", "MT", "CY", // Africa
+    "ZA", "NG", "GH", "KE", "UG", "TZ", "RW", "ZM", "ZW", "BW", "NA", "MW", "MU", "SC", "SZ", "LS",
+    "GM", "SL", "SS", // South and South-East Asia
+    "IN", "PK", "BD", "LK", "NP", "BT", "MV", "SG", "MY", "BN", "HK",
+    // Caribbean and South Atlantic
+    "JM", "TT", "BB", "BS", "BZ", "GY", "AG", "DM", "GD", "KN", "LC", "VC", "VG", "KY", "TC", "MS",
+    "AI", "BM", "FK", "SH", // Oceania
+    "NZ", "FJ", "PG", "SB", "VU", "WS", "TO", "KI", "TV", "NR", "CK", "NU", "TK",
+];
 
 /// All inputs needed to assemble both the static system prompt and the dynamic
 /// system info. Plain data — the platform fills it in (including runtime values

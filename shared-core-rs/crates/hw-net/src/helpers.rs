@@ -36,19 +36,34 @@ pub use hw_text::sanitize_vocabulary_word;
 /// Canonical vocabulary egress terms: sanitize, drop empties, de-duplicate
 /// case-insensitively while preserving first-seen casing/order, and optionally
 /// stop after `limit` terms.
+///
+/// `limit` is `None` for "no cap". `Some(0)` means what it says — zero terms,
+/// the same answer LINQ `.Take(0)` and Swift `.prefix(0)` give. The cap is
+/// therefore tested *before* each push, not after; testing it after would let
+/// `Some(0)` return one term.
+///
+/// De-duplication runs on the SANITIZED term, i.e. *after* the 80-character
+/// truncation in [`sanitize_vocabulary_word`], so two inputs longer than 80
+/// characters that share their first 80 characters collapse into one. That is
+/// deliberate, not an ordering accident: these are ASR keyword-boost hints, and
+/// after truncation both inputs ARE the same hint — byte for byte. Emitting
+/// both would send one provider the identical `keyterm` twice and burn two of
+/// its limited term slots on it. De-duplicating on the pre-truncation term
+/// would do exactly that. Pinned by
+/// `dedupe_sees_the_truncated_term_so_an_eighty_char_prefix_collapses`.
 pub fn keyword_boost_terms(words: &[String], limit: Option<usize>) -> Vec<String> {
     let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
     let mut out: Vec<String> = Vec::new();
     for word in words {
+        if limit.is_some_and(|cap| out.len() >= cap) {
+            break;
+        }
         let sanitized = sanitize_vocabulary_word(word);
         if sanitized.is_empty() {
             continue;
         }
         if seen.insert(sanitized.to_lowercase()) {
             out.push(sanitized);
-            if limit.is_some_and(|cap| out.len() >= cap) {
-                break;
-            }
         }
     }
     out
@@ -140,6 +155,32 @@ mod tests {
         );
     }
 
+    /// The cap counts terms that SURVIVED dedupe, not input words. `Some(1)`
+    /// over a list whose first two entries collapse still yields one term.
+    #[test]
+    fn limit_counts_surviving_terms_not_input_words() {
+        let words = vec![
+            "  API  ".to_string(),
+            "api".to_string(), // dedupes into the first
+            "Rust".to_string(),
+        ];
+        assert_eq!(keyword_boost_terms(&words, Some(1)), vec!["API"]);
+        assert_eq!(keyword_boost_terms(&words, Some(2)), vec!["API", "Rust"]);
+        // A cap larger than the surviving set is not padded.
+        assert_eq!(keyword_boost_terms(&words, Some(99)), vec!["API", "Rust"]);
+    }
+
+    /// `Some(0)` means zero terms — the answer `.Take(0)` / `.prefix(0)` give
+    /// on the hosts. It must NOT mean "uncapped", and it must not leak the one
+    /// term an after-the-push cap check would have let through.
+    #[test]
+    fn a_zero_limit_yields_no_terms() {
+        let words = vec!["Rust".to_string(), "Swift".to_string()];
+        assert_eq!(keyword_boost_terms(&words, Some(0)), Vec::<String>::new());
+        // Contrast: None is how "no cap" is expressed.
+        assert_eq!(keyword_boost_terms(&words, None), vec!["Rust", "Swift"]);
+    }
+
     #[test]
     fn capped_vocab_dedups_case_insensitively_and_caps() {
         // GOLDEN (C1): trim + drop empties + case-insensitive dedup (first wins,
@@ -164,6 +205,31 @@ mod tests {
         assert_eq!(capped.last().map(String::as_str), Some("term99"));
     }
 
+    /// Truncation happens BEFORE the de-dup key is taken, so two inputs that
+    /// differ only past character 80 collapse into a single term. Sending both
+    /// would put the identical `keyterm` on the wire twice and spend two of the
+    /// provider's term slots on one hint — see the doc comment on
+    /// `keyword_boost_terms`. This test exists so that a later "obvious" fix
+    /// that moves de-dup ahead of truncation fails here and has to argue.
+    #[test]
+    fn dedupe_sees_the_truncated_term_so_an_eighty_char_prefix_collapses() {
+        let prefix = "x".repeat(MAX_VOCABULARY_TERM_CHARS);
+        let words = vec![format!("{prefix}alpha"), format!("{prefix}bravo")];
+
+        let terms = keyword_boost_terms(&words, None);
+
+        assert_eq!(terms, vec![prefix.clone()]);
+        assert_eq!(terms[0].chars().count(), MAX_VOCABULARY_TERM_CHARS);
+
+        // The boundary: differing INSIDE the first 80 characters keeps both.
+        let short = "y".repeat(MAX_VOCABULARY_TERM_CHARS - 1);
+        let both = vec![format!("{short}a"), format!("{short}b")];
+        assert_eq!(
+            keyword_boost_terms(&both, None),
+            vec![format!("{short}a"), format!("{short}b")]
+        );
+    }
+
     #[test]
     fn sanitize_vocab_word_strips_brackets_and_collapses_whitespace() {
         // GOLDEN (F3): drop `<`/`>`, collapse internal whitespace runs, cap.
@@ -186,3 +252,4 @@ mod tests {
         assert_eq!(resolve_mime("/tmp/noext"), DEFAULT_AUDIO_MIME);
     }
 }
+

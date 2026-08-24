@@ -57,14 +57,43 @@ internal static class LiveTranscriptionProtocolFactory
         return separator > 0 ? normalized[..separator] : normalized;
     }
 
+    /// <summary>
+    /// Per-protocol vocabulary terms: the shared core sanitizes, drops empties
+    /// and de-duplicates case-insensitively; the per-protocol length drop and
+    /// term cap stay here, in that order, because each protocol owns them.
+    ///
+    /// The core is asked for an UNCAPPED list on purpose. Capping inside it
+    /// would apply <paramref name="count"/> before the <paramref name="chars"/>
+    /// filter and silently shorten the result.
+    ///
+    /// BEHAVIOUR CHANGE: <paramref name="chars"/> is now measured against the
+    /// SANITIZED term, and sanitizing can shorten a term three different ways,
+    /// so the surviving set differs from the old raw trim-only filter at EVERY
+    /// value of <paramref name="chars"/> — including 50:
+    ///
+    /// <list type="bullet">
+    /// <item>Truncation at 80 characters. With <paramref name="chars"/> above
+    /// 80 (Deepgram and HyperWhisper Cloud, both at 100) a long term now
+    /// arrives truncated instead of whole (81-100 chars) or instead of being
+    /// dropped (over 100 chars).</item>
+    /// <item>Dropping <c>&lt;</c>/<c>&gt;</c> shrinks a term, so one that used
+    /// to be dropped for length can now pass: <c>"&lt;"</c> + 50 <c>'a'</c> is
+    /// 51 raw characters and was dropped at <paramref name="chars"/> = 50
+    /// (Grok); it sanitizes to exactly 50 and is now sent.</item>
+    /// <item>Collapsing whitespace runs shrinks a term the same way: 40
+    /// <c>'a'</c> + 20 spaces + 8 <c>'b'</c> is 68 raw characters and was
+    /// dropped at 50; it collapses to 49 and is now sent.</item>
+    /// </list>
+    ///
+    /// That is the intended direction — sanitizing before egress is the point
+    /// of routing this through the core, and the raw term was never the thing
+    /// worth measuring. Do NOT "restore" the old set by adding a pre-sanitize
+    /// length check.
+    /// </summary>
     internal static IReadOnlyList<string> Vocabulary(LiveTranscriptionConfig config, int count, int chars) =>
-        config.Vocabulary?
-            .Where(value => !string.IsNullOrWhiteSpace(value))
-            .Select(value => value.Trim())
+        [.. SharedCoreBridge.NormalizeVocabularyTerms(config.Vocabulary, null)
             .Where(value => value.Length <= chars)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Take(count)
-            .ToArray() ?? [];
+            .Take(count)];
 
     internal static LiveProtocolFrame Text(string value) =>
         new(Encoding.UTF8.GetBytes(value), WebSocketMessageType.Text);

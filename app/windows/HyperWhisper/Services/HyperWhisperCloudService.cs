@@ -431,7 +431,14 @@ public class HyperWhisperCloudService : ITranscriptionProvider, ITranscriptionDi
             deviceId: null,
             routedProvider: accuracyTier.ToSttProvider(),
             routedModel: string.IsNullOrEmpty(resolvedModel) ? null : resolvedModel,
-            routedDomain: domain);
+            routedDomain: domain,
+            // Opt-out only: the core adds X-Latency-Opt-Out: 1 when this is
+            // false and nothing at all when it is true. The setting reads TRUE
+            // for "share" (default true), so it passes straight through — no
+            // inversion here. Read once per transcription rather than per retry
+            // attempt: rebuilding coreParams per attempt would cost more than
+            // the freshness is worth.
+            shareAnonymousSpeedData: SettingsService.Instance.ShareAnonymousSpeedData);
 
         var rebuiltThisSequence = false;
 
@@ -443,11 +450,8 @@ public class HyperWhisperCloudService : ITranscriptionProvider, ITranscriptionDi
                 // on the fresh pool (a plain HttpClient argument would pin the
                 // stale pre-rebuild client for the whole sequence).
                 () => Volatile.Read(ref _httpClient),
-                // Opt-out only: absent means the user left anonymous speed
-                // sharing on (see LatencyOptOut).
-                buildRequest: () => LatencyOptOut.Apply(
-                    ClientInfoHeaders.Apply(
-                        HyperwhisperCoreMethods.HyperwhisperCloudBuildTranscribeRequest(coreParams))),
+                buildRequest: () => ClientInfoHeaders.Apply(
+                    HyperwhisperCoreMethods.HyperwhisperCloudBuildTranscribeRequest(coreParams)),
                 // Not on RustSingleShot, and not only because of this mapper.
                 // This sequence resolves its client per attempt (above), passes
                 // an onTransportError hook (below), reads credit and diagnostic

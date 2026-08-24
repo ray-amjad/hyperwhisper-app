@@ -302,6 +302,10 @@ pub struct TranscribeParams {
     pub routed_provider: Option<String>,
     pub routed_model: Option<String>,
     pub routed_domain: Option<String>,
+    /// `true` = the user shares anonymous latency data, and no opt-out header
+    /// is sent. Deliberately **required** (no `#[uniffi(default)]`): a host that
+    /// forgets it must fail to compile rather than silently keep sharing on.
+    pub share_anonymous_speed_data: bool,
 }
 
 impl From<TranscribeParams> for c::TranscribeParams {
@@ -321,6 +325,7 @@ impl From<TranscribeParams> for c::TranscribeParams {
             routed_provider: p.routed_provider,
             routed_model: p.routed_model,
             routed_domain: p.routed_domain,
+            share_anonymous_speed_data: p.share_anonymous_speed_data,
         }
     }
 }
@@ -524,6 +529,22 @@ impl From<hw_net::providers::soniox::PollStatus> for SonioxPollStatus {
             hw_net::providers::soniox::PollStatus::Completed => SonioxPollStatus::Completed,
         }
     }
+}
+
+// ===========================================================================
+// vocabulary
+// ===========================================================================
+
+/// Canonical vocabulary normalization for every egress path: sanitize each
+/// term, drop the ones that sanitize to empty, de-duplicate case-insensitively
+/// keeping first-seen casing and order, and stop at `limit`.
+///
+/// `limit` is `None` for "no cap"; `Some(0)` yields no terms, matching
+/// `.Take(0)` / `.prefix(0)` on the hosts. Callers keep their own cap and
+/// their own join separator — only this rule is shared.
+#[uniffi::export]
+pub fn normalize_vocabulary_terms(words: Vec<String>, limit: Option<u32>) -> Vec<String> {
+    hw_net::helpers::keyword_boost_terms(&words, limit.map(|n| n as usize))
 }
 
 // ===========================================================================
@@ -1078,6 +1099,9 @@ mod tests {
             routed_provider: Some("provider-delta".to_string()),
             routed_model: Some("model-echo".to_string()),
             routed_domain: Some("domain-foxtrot".to_string()),
+            // Spelled out, not `..Default::default()`, so the next field added
+            // to this record breaks loudly right here.
+            share_anonymous_speed_data: true,
         }
     }
 
@@ -1351,6 +1375,23 @@ mod tests {
         assert_eq!(path, "/tmp/take-one.wav");
         assert_eq!(mime, "audio/wav");
         assert_eq!(filename, "take-one.wav");
+
+        // `share_anonymous_speed_data` is the one param with NO OpenAI slot, by
+        // design: it is a HyperWhisper-backend concern and must never reach a
+        // third-party vendor. Asserted here so this test's name stays true as
+        // the record grows.
+        let mut opted_out = params();
+        opted_out.share_anonymous_speed_data = false;
+        let private = openai_build_transcribe_request(opted_out).expect("request");
+        assert!(
+            header(&private, "X-Latency-Opt-Out").is_none(),
+            "the latency opt-out must have no OpenAI slot, header or field"
+        );
+        assert_eq!(
+            parts_of(&private.body).len(),
+            parts.len(),
+            "toggling the flag must not add a multipart field to a direct vendor"
+        );
     }
 
     /// The core never reads audio: a request references the file by path and
@@ -1367,6 +1408,56 @@ mod tests {
         assert_eq!(raw_field, "@raw", "the raw-stream sentinel field");
         assert_eq!(cloud_path, "/tmp/take-one.wav");
         assert_eq!(cloud_mime, "audio/wav");
+    }
+
+    /// The privacy flag survives the FFI record conversion, and reaches the
+    /// wire only as an absence-or-presence on the HyperWhisper Cloud builder.
+    #[test]
+    fn the_latency_opt_out_crosses_the_ffi_boundary_in_both_states() {
+        let sharing = hyperwhisper_cloud_build_transcribe_request(params()).expect("request");
+        assert!(
+            header(&sharing, "X-Latency-Opt-Out").is_none(),
+            "share_anonymous_speed_data: true must send no header"
+        );
+
+        let mut p = params();
+        p.share_anonymous_speed_data = false;
+        let opted_out = hyperwhisper_cloud_build_transcribe_request(p).expect("request");
+        assert_eq!(
+            header(&opted_out, "X-Latency-Opt-Out").as_deref(),
+            Some("1"),
+            "share_anonymous_speed_data: false must send the opt-out header"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // normalize_vocabulary_terms
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn normalize_vocabulary_terms_sanitizes_dedupes_and_caps() {
+        let words = vec![
+            "  API  ".to_string(),
+            String::new(),
+            "api".to_string(),
+            "Rust<script>".to_string(),
+            "multi\n word".to_string(),
+        ];
+
+        assert_eq!(
+            normalize_vocabulary_terms(words.clone(), None),
+            vec!["API", "Rustscript", "multi word"],
+            "None means no cap"
+        );
+        assert_eq!(
+            normalize_vocabulary_terms(words.clone(), Some(2)),
+            vec!["API", "Rustscript"]
+        );
+        assert_eq!(
+            normalize_vocabulary_terms(words, Some(0)),
+            Vec::<String>::new(),
+            "Some(0) means zero terms, not uncapped"
+        );
     }
 
     /// The three `routed_*` params land in three different headers. A crossed

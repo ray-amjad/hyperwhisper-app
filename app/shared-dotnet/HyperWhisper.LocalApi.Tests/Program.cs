@@ -494,6 +494,11 @@ static async Task ApplicationBackendModeRouting()
     await modes.UpsertAsync(selectedMode);
     await vocabulary.AddAsync(new HyperWhisper.Data.Entities.VocabularyItem { Word = " Ray ", SortOrder = 1 });
     await vocabulary.AddAsync(new HyperWhisper.Data.Entities.VocabularyItem { Word = "HyperWhisper", SortOrder = 2 });
+    // Sanitized and de-duplicated by the shared core on the way out: angle
+    // brackets stripped, whitespace runs collapsed, "ray" folds into " Ray ".
+    await vocabulary.AddAsync(new HyperWhisper.Data.Entities.VocabularyItem { Word = "Rust<script>", SortOrder = 10 });
+    await vocabulary.AddAsync(new HyperWhisper.Data.Entities.VocabularyItem { Word = "multi\n  word", SortOrder = 11 });
+    await vocabulary.AddAsync(new HyperWhisper.Data.Entities.VocabularyItem { Word = "ray", SortOrder = 12 });
 
     var transcriber = new CapturingTranscriber();
     using var workflow = new TranscriptionWorkflow(new TestRecorder(paths), new TestDevices(), transcriber, history);
@@ -506,7 +511,7 @@ static async Task ApplicationBackendModeRouting()
     Assert(transcriber.Request.SelectedMode?.PostProcessingMode == 0, "/transcribe applied the saved mode's post-processing");
     Assert(defaultResult.Language == "fr", "response did not report the resolved default-mode language");
     Assert(defaultResult.Engine == "groq", "response did not use the Windows cloud engine label");
-    Assert(transcriber.Request.Vocabulary?.SequenceEqual(["Ray", "HyperWhisper"]) == true, "global vocabulary was not propagated to uploaded transcription");
+    Assert(transcriber.Request.Vocabulary?.SequenceEqual(["Ray", "HyperWhisper", "Rustscript", "multi word"]) == true, "global vocabulary was not normalized through the shared core on the way to transcription");
 
     _ = await backend.TranscribeAsync(new AudioUpload("selected.wav", "audio/wav", new byte[] { 2 }, selectedMode.Id.ToString("D"), null, null, "de"), CancellationToken.None);
     Assert(transcriber.Request?.ModeId == selectedMode.Id && transcriber.Request.SelectedMode?.Name == "Selected local", "explicit mode_id did not select the exact persisted mode");
@@ -540,7 +545,7 @@ static async Task ApplicationBackendModeRouting()
     await vocabulary.AddAsync(new HyperWhisper.Data.Entities.VocabularyItem { Word = "late mutation", SortOrder = 3 });
     _ = await backend.ToggleRecordingAsync(CancellationToken.None);
     Assert(transcriber.Request?.ModeId == defaultMode.Id, "recording stop did not retain the mode captured at start");
-    Assert(transcriber.Request!.Vocabulary?.SequenceEqual(["Ray", "HyperWhisper"]) == true, "recording stop did not retain vocabulary captured at start");
+    Assert(transcriber.Request!.Vocabulary?.SequenceEqual(["Ray", "HyperWhisper", "Rustscript", "multi word"]) == true, "recording stop did not retain vocabulary captured at start");
 }
 
 static async Task ApplicationBackendModeValidation()

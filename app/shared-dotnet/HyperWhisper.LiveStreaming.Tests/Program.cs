@@ -68,18 +68,35 @@ static async Task ModeRouterProviders()
     {
         var result = await router.ResolveAsync(new(
             "mode", true, value.Stored, DeviceId: " mic ", Language: " en ",
-            Vocabulary: ["Ray", " codex ", "ray"], Model: " model ", FastFormatting: true),
+            Vocabulary: ["Ray", " codex ", "ray", "Rust<script>", "multi\n  word", "   "],
+            Model: " model ", FastFormatting: true),
             ["HyperWhisper", "Codex"]);
         True(result.IsSuccess);
         Equal(value.Expected, result.Value!.Config.Provider);
         Equal("mic", result.Value.AudioDeviceId);
         Equal("en", result.Value.Config.Language);
         Equal("model", result.Value.Config.Model);
-        Equal(3, result.Value.Config.Vocabulary!.Count);
+        // Global vocabulary first, then the mode's, through the shared core:
+        // trimmed, angle brackets stripped, whitespace runs collapsed, empties
+        // dropped, de-duplicated case-insensitively keeping first-seen casing.
+        Equal(
+            "HyperWhisper|Codex|Ray|Rustscript|multi word",
+            string.Join('|', result.Value.Config.Vocabulary!));
         Equal(value.License ? "license" : null, result.Value.Config.LicenseKey);
         Equal(value.License ? null : credentials.Values[value.Account], result.Value.Config.ApiKey);
         True(result.Value.Config.FastFormatting);
     }
+
+    // The 100-term cap is this router's own and must survive the move into the
+    // shared core: 150 distinct terms in, 100 out, in submission order.
+    var capped = await router.ResolveAsync(
+        new("mode", true, "deepgram", DeviceId: "mic", Language: "en",
+            Vocabulary: [.. Enumerable.Range(0, 150).Select(index => $"term{index}")]),
+        ["first"]);
+    True(capped.IsSuccess);
+    Equal(100, capped.Value!.Config.Vocabulary!.Count);
+    Equal("first", capped.Value.Config.Vocabulary[0]);
+    Equal("term98", capped.Value.Config.Vocabulary[99]);
 }
 
 static async Task AudioLevelsForwardSafely()

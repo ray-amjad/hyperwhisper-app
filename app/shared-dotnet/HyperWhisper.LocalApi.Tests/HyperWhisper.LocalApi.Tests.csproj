@@ -10,5 +10,15 @@
     <ProjectReference Include="..\HyperWhisper.LocalApi\HyperWhisper.LocalApi.csproj" />
     <ProjectReference Include="..\HyperWhisper.SpeechOutput\HyperWhisper.SpeechOutput.csproj" />
     <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="10.0.0" />
+    <Content Include="../../../shared-core-rs/target/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so"
+             Condition="Exists('../../../shared-core-rs/target/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so')">
+      <Link>libhyperwhisper_core.so</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
+
+  <Target Name="EnsureSharedCoreNativeLibrary" BeforeTargets="Build">
+    <Error Condition="!Exists('../../../shared-core-rs/target/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so')"
+           Text="Build shared-core-rs in release mode before running the local API tests." />
+  </Target>
 </Project>

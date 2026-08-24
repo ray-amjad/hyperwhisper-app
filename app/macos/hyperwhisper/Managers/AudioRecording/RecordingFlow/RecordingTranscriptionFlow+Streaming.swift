@@ -396,7 +396,7 @@ extension RecordingTranscriptionFlow {
         // Fetched on a background context — this runs on the recording-start
         // hot path and must not block the main thread on Core Data.
         let vocabulary = await PersistenceController.shared.fetchVocabularyEntriesInBackground()
-        let vocabularyString: String? = buildVocabularyString(from: vocabulary)
+        let vocabularyString: String? = Self.buildVocabularyString(from: vocabulary)
         if language == nil && !vocabulary.isEmpty && vocabularyString != nil {
             AppLogger.audio.info("📝 Vocabulary provided but auto-detect language selected - vocabulary boosting may be inactive for Deepgram")
             SentryService.addBreadcrumb(
@@ -1076,30 +1076,26 @@ extension RecordingTranscriptionFlow {
     ///   hint. Sending its `word` boosts the ASR toward the exact misspelling
     ///   the user configured a fix for, and burns one of the provider's term
     ///   slots doing it.
-    /// - **each term is sanitized** through `PromptBuilder.sanitizeVocabularyWord`,
-    ///   so an imported backup cannot push angle brackets or whitespace runs
-    ///   into a provider request.
+    /// - **each term is sanitized, de-duplicated case-insensitively and capped**
+    ///   by the shared core's `normalizeVocabularyTerms`, so an imported backup
+    ///   cannot push angle brackets or whitespace runs into a provider request.
+    ///
+    /// The replacement-pair filter, the 100-term cap (Deepgram's limit) and the
+    /// `","` join are this site's own; only the normalize rule is shared.
+    ///
+    /// `nonisolated static` and internal, not `private func`, for the same
+    /// reason as `processConfirmedStreamingDelta` above and Windows'
+    /// `StreamingTranscriptionSessionFactory.BuildVocabulary`: it is a pure
+    /// function of its input, and `VocabularyEgressNormalizationTests` drives
+    /// this exact method rather than re-deriving the rule from the FFI.
     ///
     /// - Parameter vocabulary: Array of vocabulary entry snapshots
     /// - Returns: Comma-separated string of vocabulary terms, or nil if empty
-    private func buildVocabularyString(from vocabulary: [VocabularyEntrySnapshot]) -> String? {
-        var terms: [String] = []
-        var seen = Set<String>()
-
-        for item in vocabulary {
-            guard item.replacement?.isEmpty != false else { continue }
-            let word = PromptBuilder.sanitizeVocabularyWord(item.word)
-            guard !word.isEmpty,
-                  !seen.contains(word.lowercased()) else {
-                continue
-            }
-            seen.insert(word.lowercased())
-            terms.append(word)
-
-            // Deepgram limit: 100 terms max
-            if terms.count >= 100 { break }
-        }
-
+    nonisolated static func buildVocabularyString(from vocabulary: [VocabularyEntrySnapshot]) -> String? {
+        let words = vocabulary
+            .filter { $0.replacement?.isEmpty != false }
+            .map(\.word)
+        let terms = normalizeVocabularyTerms(words: words, limit: 100)
         return terms.isEmpty ? nil : terms.joined(separator: ",")
     }
 

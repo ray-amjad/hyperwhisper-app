@@ -3,6 +3,7 @@ using HyperWhisper.LocalPostProcessing;
 using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.PortableApplication.Transcription;
+using HyperWhisper.SharedCore;
 
 namespace HyperWhisper.Linux;
 
@@ -55,13 +56,14 @@ internal sealed class LinuxLocalPostProcessor : ITranscriptionPostProcessor, IDi
                 transcript, "postprocessing.model_invalid", "Choose a local GGUF model filename.");
         }
 
-        var vocabulary = (await _vocabulary.ListAsync(cancellationToken).ConfigureAwait(false))
-            .Select(item => item.Word)
-            .Concat(mode.CustomVocabulary ?? [])
-            .Where(item => !string.IsNullOrWhiteSpace(item))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Take(100)
-            .ToArray();
+        // Shared core rule: sanitize, drop empties, dedupe case-insensitively.
+        // Terms now get trimmed first, so " API" and "API" collapse to one.
+        var vocabulary = SharedCoreBridge.NormalizeVocabularyTerms(
+            [
+                .. (await _vocabulary.ListAsync(cancellationToken).ConfigureAwait(false)).Select(item => item.Word),
+                .. (mode.CustomVocabulary ?? []),
+            ],
+            100);
         var prompt = LinuxPostProcessingPromptFactory.Build(mode, applicationContext, vocabulary);
 
         var backend = ParseBackend(_settings.Get("localLlmBackend", "cpu"));

@@ -49,6 +49,8 @@ mod tests {
             audio_path: "/tmp/rec.flac".to_string(),
             base_url: Some("https://transcribe-prod-v2.hyperwhisper.com".to_string()),
             license_key: Some("LIC-9".to_string()),
+            // Sharing on: no opt-out header, matching a default install.
+            share_anonymous_speed_data: true,
             ..Default::default()
         }
     }
@@ -84,6 +86,38 @@ mod tests {
             .headers
             .contains(&Header::new("X-STT-Provider", "google-chirp")));
         assert!(!req.headers.contains(&Header::new("X-STT-Provider", "azure-mai")));
+    }
+
+    /// Google Chirp is one of the two providers the latency opt-out exists to
+    /// protect, so assert it through THIS module's entry point rather than
+    /// relying on `hyperwhisper_cloud::routed_requests_carry_the_opt_out_too`,
+    /// which calls the shared builder directly. If this module ever grew its
+    /// own builder instead of delegating, that test would stay green and the
+    /// opt-out would silently vanish here.
+    #[test]
+    fn the_latency_opt_out_survives_this_modules_entry_point() {
+        let mut opted_out = params();
+        opted_out.share_anonymous_speed_data = false;
+        let req = build_transcribe_request(&opted_out).unwrap();
+        assert!(
+            req.headers.contains(&Header::new(
+                hyperwhisper_cloud::LATENCY_OPT_OUT_HEADER,
+                "1"
+            )),
+            "an opted-out user must send X-Latency-Opt-Out: 1, got {:?}",
+            req.headers
+        );
+
+        // Sharing is expressed by the header's ABSENCE — there is no "yes" header.
+        let sharing = build_transcribe_request(&params()).unwrap();
+        assert!(
+            !sharing
+                .headers
+                .iter()
+                .any(|h| h.name == hyperwhisper_cloud::LATENCY_OPT_OUT_HEADER),
+            "a sharing user must send no opt-out header, got {:?}",
+            sharing.headers
+        );
     }
 
     #[test]

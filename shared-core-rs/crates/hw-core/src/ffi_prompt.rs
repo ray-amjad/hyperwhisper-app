@@ -246,6 +246,31 @@ pub fn english_spelling_from_raw(raw: String) -> HwEnglishSpelling {
     hw_text::EnglishSpelling::from_raw(&raw).into()
 }
 
+/// The spelling variant to **seed** into a new mode, from an ISO 3166-1
+/// alpha-2 region code. Unknown / empty / `None` → `American`, never `None`.
+///
+/// `Option<String>` so Rust owns the nil case: every host reads a nullable
+/// region (`Locale.current.region?.identifier`,
+/// `RegionInfo.CurrentRegion` behind a try/catch) and all three assert that a
+/// missing region seeds American.
+///
+/// This is a *seeding* function and is not the inverse of
+/// [`english_spelling_from_raw`]: `HwEnglishSpelling::None` means "no spelling
+/// instruction at all", which is never the right thing to seed.
+#[uniffi::export]
+pub fn english_spelling_for_region(region: Option<String>) -> HwEnglishSpelling {
+    hw_text::EnglishSpelling::for_region(region.as_deref()).into()
+}
+
+/// The raw `mode.englishSpelling` token for a variant — the inverse of
+/// [`english_spelling_from_raw`]. `None` → `""` (no spelling block), not
+/// `"american"`.
+#[uniffi::export]
+pub fn english_spelling_raw_value(spelling: HwEnglishSpelling) -> String {
+    let leaf: hw_text::EnglishSpelling = spelling.into();
+    leaf.raw_value().to_string()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -801,6 +826,85 @@ mod tests {
                 spelling_tag(&english_spelling_from_raw(raw.to_string())),
                 want,
                 "english_spelling_from_raw({raw:?})"
+            );
+        }
+    }
+
+    #[test]
+    fn english_spelling_for_region_maps_each_table() {
+        for (region, want) in [
+            ("GB", "British"),
+            ("IE", "British"),
+            ("ZA", "British"),
+            ("IN", "British"),
+            ("NZ", "British"),
+            ("AU", "Australian"),
+            ("CC", "Australian"),
+            ("CA", "Canadian"),
+            ("US", "American"),
+            ("JP", "American"),
+            ("ZZ", "American"),
+            // Case and surrounding whitespace are normalized away.
+            ("gb", "British"),
+            (" au ", "Australian"),
+            ("\nca\n", "Canadian"),
+        ] {
+            assert_eq!(
+                spelling_tag(&english_spelling_for_region(Some(region.to_string()))),
+                want,
+                "english_spelling_for_region({region:?})"
+            );
+        }
+    }
+
+    /// Seeding a mode must always yield a concrete variant. `None` means "emit
+    /// no spelling instruction at all" and is reachable only from an explicit
+    /// empty `mode.englishSpelling` — never from a region lookup.
+    #[test]
+    fn english_spelling_for_region_seeds_american_never_none() {
+        for region in [None, Some(String::new()), Some("   ".to_string())] {
+            assert_eq!(
+                spelling_tag(&english_spelling_for_region(region.clone())),
+                "American",
+                "english_spelling_for_region({region:?}) must seed American"
+            );
+        }
+    }
+
+    #[test]
+    fn english_spelling_raw_value_maps_every_variant() {
+        for (spelling, want) in [
+            (HwEnglishSpelling::None, ""),
+            (HwEnglishSpelling::American, "american"),
+            (HwEnglishSpelling::British, "british"),
+            (HwEnglishSpelling::Australian, "australian"),
+            (HwEnglishSpelling::Canadian, "canadian"),
+        ] {
+            let tag = spelling_tag(&spelling);
+            assert_eq!(
+                english_spelling_raw_value(spelling),
+                want,
+                "english_spelling_raw_value({tag})"
+            );
+        }
+    }
+
+    /// The two-call bridge the hosts use in Phase 2:
+    /// `raw_value(for_region(code))` must produce a token `from_raw` accepts.
+    #[test]
+    fn for_region_then_raw_value_round_trips_through_from_raw() {
+        for region in ["GB", "AU", "CA", "US", "", "nonsense"] {
+            let seeded = english_spelling_for_region(Some(region.to_string()));
+            let seeded_tag = spelling_tag(&seeded);
+            let raw = english_spelling_raw_value(seeded);
+            assert!(
+                !raw.is_empty(),
+                "a seeded region must never produce the empty token: {region:?}"
+            );
+            assert_eq!(
+                spelling_tag(&english_spelling_from_raw(raw.clone())),
+                seeded_tag,
+                "round trip for {region:?} via {raw:?}"
             );
         }
     }

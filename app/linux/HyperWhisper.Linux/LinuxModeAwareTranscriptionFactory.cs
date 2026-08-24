@@ -26,13 +26,22 @@ internal static class LinuxModeAwareTranscriptionFactory
         var credentials = new CredentialStoreCloudCredentialSource(
             credentialStore ?? throw new ArgumentNullException(nameof(credentialStore)),
             deviceIdentity ?? throw new ArgumentNullException(nameof(deviceIdentity)));
+        // TRUE means SHARE (the app-wide default), so an unreadable settings file
+        // keeps sharing on rather than silently opting the user out. The core
+        // turns a FALSE into `X-Latency-Opt-Out: 1`, and only on the HyperWhisper
+        // Cloud / routed builders — the header can no longer reach a direct
+        // vendor, which is what the old hostname-gated DelegatingHandler was for.
+        // That handler also dropped the choice on any non-production base URL;
+        // reading the setting here fixes that.
         bool ShareAnonymousSpeedData()
         {
             var settings = new PortableSettingsService(privateFiles, paths);
             return settings.Load().IsFailure || settings.Get("general.shareAnonymousSpeedData", true);
         }
         var cloud = new SharedCoreBatchCloudClient(new CloudTranscriptionService(
-            new LinuxLatencyOptOutHandler(ShareAnonymousSpeedData, new HttpClientHandler()), credentials));
+            new HttpClientHandler(),
+            credentials,
+            shareAnonymousSpeedData: ShareAnonymousSpeedData));
         parakeet = new ParakeetDaemonTranscriber(
             new LinuxNativeRuntimeLocator(),
             new LinuxChildProcessLauncher(),

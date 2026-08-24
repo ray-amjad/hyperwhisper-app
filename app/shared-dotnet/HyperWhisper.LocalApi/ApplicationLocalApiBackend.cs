@@ -4,6 +4,7 @@ using HyperWhisper.Data.Entities;
 using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.PortableApplication.Transcription;
+using HyperWhisper.SharedCore;
 
 namespace HyperWhisper.LocalApi;
 
@@ -316,13 +317,14 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
         if (mode is not null)
             ApplyTranscriptionOverrides(mode, engineOverride, modelOverride);
 
-        var vocabulary = _vocabulary is null
-            ? Array.Empty<string>()
-            : (await _vocabulary.ListAsync(cancellationToken).ConfigureAwait(false))
-                .Select(item => item.Word.Trim())
-                .Where(item => item.Length != 0)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToArray();
+        // Shared core rule: sanitize, drop empties, dedupe case-insensitively.
+        // Uncapped — the local API hands the whole vocabulary to the workflow,
+        // and each provider applies its own cap downstream.
+        IReadOnlyList<string> vocabulary = _vocabulary is null
+            ? []
+            : SharedCoreBridge.NormalizeVocabularyTerms(
+                [.. (await _vocabulary.ListAsync(cancellationToken).ConfigureAwait(false)).Select(item => item.Word)],
+                null);
         return new(
             languageOverride ?? mode?.Language,
             mode?.Name,
