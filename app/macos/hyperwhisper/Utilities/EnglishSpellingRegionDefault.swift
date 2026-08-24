@@ -12,40 +12,16 @@
 //  `englishSpelling` is never re-derived, so a user who already picked a
 //  variant (or a mode restored from a backup) keeps it.
 //
-//  The Windows app mirrors this table in
-//  `Utilities/EnglishSpellingRegionDefault.cs` — change both together.
+//  The ISO 3166-1 region table itself lives in the shared Rust core
+//  (`hw-text`, `EnglishSpelling::for_region`, reached through
+//  `englishSpellingForRegion(region:)`). macOS, Windows and the portable .NET
+//  head all read that one table, so there is no longer a copy to keep in sync —
+//  only the platform's own way of asking the OS for its region.
 //
 
 import Foundation
 
 extension EnglishSpelling {
-
-    /// Regions whose written English follows Canadian spelling.
-    private static let canadianRegions: Set<String> = ["CA"]
-
-    /// Regions whose written English follows Australian spelling.
-    private static let australianRegions: Set<String> = [
-        "AU", "CC", "CX", "NF"
-    ]
-
-    /// Regions whose written English follows British spelling. New Zealand,
-    /// Ireland and South Africa sit here because the app offers no separate
-    /// variant for them and British is the closest of the four.
-    private static let britishRegions: Set<String> = [
-        // British Isles and Europe
-        "GB", "IE", "IM", "JE", "GG", "GI", "MT", "CY",
-        // Africa
-        "ZA", "NG", "GH", "KE", "UG", "TZ", "RW", "ZM", "ZW", "BW", "NA",
-        "MW", "MU", "SC", "SZ", "LS", "GM", "SL", "SS",
-        // South and South-East Asia
-        "IN", "PK", "BD", "LK", "NP", "BT", "MV", "SG", "MY", "BN", "HK",
-        // Caribbean and South Atlantic
-        "JM", "TT", "BB", "BS", "BZ", "GY", "AG", "DM", "GD", "KN", "LC",
-        "VC", "VG", "KY", "TC", "MS", "AI", "BM", "FK", "SH",
-        // Oceania
-        "NZ", "FJ", "PG", "SB", "VU", "WS", "TO", "KI", "TV", "NR", "CK",
-        "NU", "TK"
-    ]
 
     /// The spelling variant to seed into a new mode, from the system region.
     static var defaultForCurrentRegion: EnglishSpelling {
@@ -55,15 +31,16 @@ extension EnglishSpelling {
     /// Maps an ISO 3166-1 alpha-2 region code to a spelling variant.
     /// An unknown, empty or missing code gives `.american`, the value the app
     /// used for every mode before this table existed.
+    ///
+    /// The core's `HwEnglishSpelling` carries a fifth `.none` case that this
+    /// four-case enum has no room for. `.none` means "emit no spelling
+    /// instruction at all", which is never a thing to seed, so `for_region` is
+    /// documented and tested never to return it — the `?? .american` below is a
+    /// defensive arm for an impossible value, not a fallback with behaviour
+    /// riding on it.
     static func forRegion(_ regionCode: String?) -> EnglishSpelling {
-        let code = (regionCode ?? "")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .uppercased()
-        guard !code.isEmpty else { return .american }
-
-        if canadianRegions.contains(code) { return .canadian }
-        if australianRegions.contains(code) { return .australian }
-        if britishRegions.contains(code) { return .british }
-        return .american
+        let raw = englishSpellingRawValue(
+            spelling: englishSpellingForRegion(region: regionCode))
+        return EnglishSpelling(rawValue: raw) ?? .american
     }
 }

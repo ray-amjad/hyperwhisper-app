@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using HyperWhisper.Data.Entities;
+using HyperWhisper.SharedCore;
 
 namespace HyperWhisper.PortableApplication.Persistence;
 
@@ -75,14 +76,14 @@ public static class PortableModeDefaults
         ];
     }
 
-    public static string EnglishSpellingForRegion(string? regionCode)
-    {
-        var region = (regionCode ?? string.Empty).Trim().ToUpperInvariant();
-        if (region == "CA") return "canadian";
-        if (AustralianRegions.Contains(region)) return "australian";
-        if (BritishRegions.Contains(region)) return "british";
-        return "american";
-    }
+    /// <summary>
+    /// The spelling token to seed into a brand-new mode, for an ISO 3166-1
+    /// alpha-2 region code. The region table lives in the shared core, so macOS,
+    /// Windows and this portable head all read one table. An unknown, empty or
+    /// null code gives "american".
+    /// </summary>
+    public static string EnglishSpellingForRegion(string? regionCode) =>
+        SharedCoreBridge.EnglishSpellingForRegion(regionCode);
 
     private static string FindEnabledDefaultModel(Stream catalogStream, string providerId)
     {
@@ -135,21 +136,4 @@ public static class PortableModeDefaults
             return string.Empty;
         }
     }
-
-    private static readonly HashSet<string> AustralianRegions = new(StringComparer.Ordinal)
-    {
-        "AU", "CC", "CX", "NF"
-    };
-
-    private static readonly HashSet<string> BritishRegions = new(StringComparer.Ordinal)
-    {
-        "GB", "IE", "IM", "JE", "GG", "GI", "MT", "CY",
-        "ZA", "NG", "GH", "KE", "UG", "TZ", "RW", "ZM", "ZW", "BW", "NA",
-        "MW", "MU", "SC", "SZ", "LS", "GM", "SL", "SS",
-        "IN", "PK", "BD", "LK", "NP", "BT", "MV", "SG", "MY", "BN", "HK",
-        "JM", "TT", "BB", "BS", "BZ", "GY", "AG", "DM", "GD", "KN", "LC",
-        "VC", "VG", "KY", "TC", "MS", "AI", "BM", "FK", "SH",
-        "NZ", "FJ", "PG", "SB", "VU", "WS", "TO", "KI", "TV", "NR", "CK",
-        "NU", "TK"
-    };
 }

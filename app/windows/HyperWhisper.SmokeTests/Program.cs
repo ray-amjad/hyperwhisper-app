@@ -2810,6 +2810,12 @@ internal static class Program
                 Assert(result == "hello world", $"expected trimmed text with empty vocabulary, got '{result}'");
             });
 
+            // The ISO 3166-1 region table now lives in the shared Rust core
+            // (hw-text, EnglishSpelling::for_region). These run through the real
+            // FFI, so they are the Windows half of a cross-platform parity check:
+            // macOS EnglishSpellingRegionDefaultTests.swift and the portable
+            // HyperWhisper.ModeDefaults.Tests assert the same codes against the
+            // same table.
             Run("EnglishSpellingRegionDefault maps a region to its spelling variant", () =>
             {
                 Assert(EnglishSpellingRegionDefault.ForRegion("GB") == "british",
@@ -2825,9 +2831,12 @@ internal static class Program
                 Assert(EnglishSpellingRegionDefault.ForRegion("US") == "american",
                     "expected US to map to american");
 
-                // Case and padding come from whatever the OS reports.
+                // Case and padding come from whatever the OS reports; trimming
+                // and case folding are the core's, not this class's.
                 Assert(EnglishSpellingRegionDefault.ForRegion(" gb ") == "british",
                     "expected a lowercase, padded code to still map to british");
+                Assert(EnglishSpellingRegionDefault.ForRegion("\nca\n") == "canadian",
+                    "expected a newline-padded code to still map to canadian");
 
                 // Anything unknown or missing keeps the historical american value.
                 Assert(EnglishSpellingRegionDefault.ForRegion("JP") == "american",
@@ -2836,8 +2845,41 @@ internal static class Program
                     "expected a null region to fall back to american");
                 Assert(EnglishSpellingRegionDefault.ForRegion("") == "american",
                     "expected an empty region to fall back to american");
+                Assert(EnglishSpellingRegionDefault.ForRegion("   ") == "american",
+                    "expected a whitespace-only region to fall back to american");
                 Assert(EnglishSpellingRegionDefault.ForRegion("ZZ") == "american",
                     "expected an invalid region to fall back to american");
+            });
+
+            Run("The core's region table never seeds the no-spelling state", () =>
+            {
+                // HwEnglishSpelling.None is "emit no spelling instruction at
+                // all" — the live meaning of a mode whose EnglishSpelling was
+                // never chosen. It is NOT american. ForRegion is a SEEDING call
+                // and must never produce it, or a brand-new mode would silently
+                // ship without a <SPELLING> block. This is what makes the
+                // ForRegion shim safe without an "american" fallback of its own.
+                Assert(HyperwhisperCoreMethods.EnglishSpellingRawValue(HwEnglishSpelling.None).Length == 0,
+                    "expected HwEnglishSpelling.None to render as the empty token, not 'american'");
+
+                foreach (var code in new string?[] { "GB", "AU", "CA", "US", "JP", "ZZ", "", "   ", " gb ", null })
+                {
+                    Assert(HyperwhisperCoreMethods.EnglishSpellingForRegion(code) != HwEnglishSpelling.None,
+                        $"expected region '{code ?? "<null>"}' to seed a real variant, got None");
+                    Assert(EnglishSpellingRegionDefault.ForRegion(code).Length > 0,
+                        $"expected region '{code ?? "<null>"}' to seed a non-empty spelling token");
+                }
+
+                // The four tokens this app stores are the four the core emits;
+                // nothing but this check stops the two enums drifting apart.
+                Assert(HyperwhisperCoreMethods.EnglishSpellingRawValue(HwEnglishSpelling.American) == EnglishSpellingRegionDefault.American,
+                    "core token for American does not match the stored value");
+                Assert(HyperwhisperCoreMethods.EnglishSpellingRawValue(HwEnglishSpelling.British) == EnglishSpellingRegionDefault.British,
+                    "core token for British does not match the stored value");
+                Assert(HyperwhisperCoreMethods.EnglishSpellingRawValue(HwEnglishSpelling.Australian) == EnglishSpellingRegionDefault.Australian,
+                    "core token for Australian does not match the stored value");
+                Assert(HyperwhisperCoreMethods.EnglishSpellingRawValue(HwEnglishSpelling.Canadian) == EnglishSpellingRegionDefault.Canadian,
+                    "core token for Canadian does not match the stored value");
             });
 
             Run("ForCurrentRegion returns a variant the mode editor can select", () =>

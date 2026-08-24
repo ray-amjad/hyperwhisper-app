@@ -182,6 +182,21 @@ public static class SharedCoreBridge
         return HyperwhisperCoreMethods.ApplyHardenedReplacement(text, word, replacement);
     }
 
+    /// <summary>
+    /// The <c>Mode.EnglishSpelling</c> token to SEED into a brand-new mode, from
+    /// an ISO 3166-1 alpha-2 region code. Trimming, case folding and the region
+    /// table are the core's; an unknown, empty or null code gives "american".
+    ///
+    /// This is a seeding call and is NOT the inverse of the prompt path's
+    /// spelling parse: an empty stored value there means "the user never chose"
+    /// and suppresses the spelling instruction entirely, which is never a thing
+    /// to seed. The core never answers <c>HwEnglishSpelling.None</c> here, so
+    /// this needs no "american" fallback of its own.
+    /// </summary>
+    public static string EnglishSpellingForRegion(string? regionCode) =>
+        HyperwhisperCoreMethods.EnglishSpellingRawValue(
+            HyperwhisperCoreMethods.EnglishSpellingForRegion(regionCode));
+
     public static string CanonicalCloudSttTier(string? value) =>
         HyperwhisperCoreMethods.MigrateCloudAccuracyTier(value);
 
