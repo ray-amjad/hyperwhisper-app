@@ -89,7 +89,8 @@ Each app has its own setup; see the per-directory `AGENTS.md` for details.
 - **Linux** —
   `dotnet build app/linux/HyperWhisper.Linux/HyperWhisper.Linux.csproj -c Release`.
   Requires the .NET 10 SDK. Run `app/linux/scripts/run-ui-smoke.sh` for the
-  headless UI smoke test; see `packaging/linux/README.md` for Debian packaging.
+  headless UI smoke test; see `packaging/linux/README.md` for Debian packaging,
+  or download [Linux v1.0.0](https://github.com/ray-amjad/hyperwhisper-app/releases/tag/linux%2Fv1.0.0).
 - **Web** — `npm install && npm run dev` in `nextjs/`. Local builds use
   `SKIP_ENV_VALIDATION=1 npm run build`.
 
