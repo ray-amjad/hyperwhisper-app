@@ -66,6 +66,12 @@ pub const RAW_BODY_FIELD: &str = "@raw";
 /// Endpoint path appended to `base_url`.
 pub const TRANSCRIBE_PATH: &str = "/transcribe";
 
+/// Header that tells the backend this user opted OUT of anonymous latency
+/// collection. Sent with value `"1"` and only when opted out; an absent header
+/// means opted in. Mirrors macOS `LatencyOptOut.swift` and Windows
+/// `LatencyOptOut.cs`.
+pub const LATENCY_OPT_OUT_HEADER: &str = "X-Latency-Opt-Out";
+
 /// Build the HyperWhisper Cloud transcription request.
 ///
 /// `params.base_url` is required (the platform passes the resolved HW Cloud base,
@@ -171,6 +177,20 @@ pub(crate) fn build_routed_request(
         if !d.is_empty() {
             headers.push(Header::new("X-STT-Domain", d.to_string()));
         }
+    }
+
+    // Anonymous latency data. There is no "yes please" header: the backend
+    // treats an absent header as opted IN, so only the opt-out is sent.
+    //
+    // This lives in the *routed* builder, not in `build_transcribe_request`,
+    // because `azure_mai` and `google_chirp` funnel through here too. Putting
+    // it one level up would silently drop the opt-out on every Azure MAI and
+    // Google Chirp transcription. Equally, no direct-vendor builder calls this
+    // function, so the header cannot reach `api.openai.com` and friends by
+    // construction — that is the invariant the old host-side hostname gate was
+    // reaching for.
+    if !params.share_anonymous_speed_data {
+        headers.push(Header::new(LATENCY_OPT_OUT_HEADER, "1"));
     }
 
     let body = Body::Multipart {
@@ -405,10 +425,14 @@ fn hex_upper(nibble: u8) -> char {
 mod tests {
     use super::*;
 
+    /// Sharing ON by default, so the opt-out header is absent unless a test
+    /// asks for it. The derived `Default` is `false` (opted out), which would
+    /// otherwise add a header to every request built here.
     fn base_params() -> TranscribeParams {
         TranscribeParams {
             audio_path: "/tmp/rec.wav".to_string(),
             base_url: Some("https://transcribe-prod-v2.hyperwhisper.com".to_string()),
+            share_anonymous_speed_data: true,
             ..Default::default()
         }
     }
@@ -464,6 +488,85 @@ mod tests {
         assert_eq!(
             req.url,
             "https://transcribe-prod-v2.hyperwhisper.com/transcribe?device_id=dev%20abc&language=en-us&initial_prompt=Rust,UniFFI"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // X-Latency-Opt-Out
+    // -----------------------------------------------------------------------
+
+    fn has_opt_out(req: &HttpRequest) -> bool {
+        req.headers
+            .iter()
+            .any(|h| h.name == LATENCY_OPT_OUT_HEADER && h.value == "1")
+    }
+
+    #[test]
+    fn opting_out_adds_the_latency_header() {
+        let mut p = base_params();
+        p.device_id = Some("d".to_string());
+        p.share_anonymous_speed_data = false;
+        let req = build_transcribe_request(&p).unwrap();
+        assert!(
+            has_opt_out(&req),
+            "an opted-out user must send X-Latency-Opt-Out: 1, got {:?}",
+            req.headers
+        );
+    }
+
+    /// There is no "yes please" header: sharing is expressed by the header's
+    /// ABSENCE, because the backend reads a missing header as opted in.
+    #[test]
+    fn sharing_sends_no_latency_header_at_all() {
+        let mut p = base_params();
+        p.device_id = Some("d".to_string());
+        p.share_anonymous_speed_data = true;
+        let req = build_transcribe_request(&p).unwrap();
+        assert!(
+            !req.headers
+                .iter()
+                .any(|h| h.name == LATENCY_OPT_OUT_HEADER),
+            "a sharing user must send no opt-out header, got {:?}",
+            req.headers
+        );
+    }
+
+    /// The routed siblings (Azure MAI, Google Chirp) reach the wire through
+    /// this same builder. If the header ever moves up into
+    /// `build_transcribe_request`, this is the test that catches the resulting
+    /// privacy regression on those two providers.
+    #[test]
+    fn routed_requests_carry_the_opt_out_too() {
+        let mut p = base_params();
+        p.license_key = Some("L".to_string());
+        p.routed_provider = Some("azure-mai".to_string());
+        p.share_anonymous_speed_data = false;
+        let req = build_routed_request(&p).unwrap();
+        assert!(
+            req.headers
+                .contains(&Header::new("X-STT-Provider", "azure-mai")),
+            "fixture should be a routed request"
+        );
+        assert!(has_opt_out(&req), "got {:?}", req.headers);
+    }
+
+    /// The structural guarantee that replaced the host-side hostname gate: a
+    /// direct-vendor builder never calls `build_routed_request`, so an opted-out
+    /// user's choice cannot leak their preference to a third-party vendor.
+    #[test]
+    fn direct_vendor_requests_never_carry_the_opt_out() {
+        let mut p = base_params();
+        p.api_key = "sk-test".to_string();
+        p.model = "whisper-1".to_string();
+        p.share_anonymous_speed_data = false;
+
+        let req = crate::providers::openai::build_transcribe_request(&p).unwrap();
+        assert!(
+            !req.headers
+                .iter()
+                .any(|h| h.name == LATENCY_OPT_OUT_HEADER),
+            "the opt-out must not reach a direct vendor, got {:?}",
+            req.headers
         );
     }
 

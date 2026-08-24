@@ -36,19 +36,24 @@ pub use hw_text::sanitize_vocabulary_word;
 /// Canonical vocabulary egress terms: sanitize, drop empties, de-duplicate
 /// case-insensitively while preserving first-seen casing/order, and optionally
 /// stop after `limit` terms.
+///
+/// `limit` is `None` for "no cap". `Some(0)` means what it says — zero terms,
+/// the same answer LINQ `.Take(0)` and Swift `.prefix(0)` give. The cap is
+/// therefore tested *before* each push, not after; testing it after would let
+/// `Some(0)` return one term.
 pub fn keyword_boost_terms(words: &[String], limit: Option<usize>) -> Vec<String> {
     let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
     let mut out: Vec<String> = Vec::new();
     for word in words {
+        if limit.is_some_and(|cap| out.len() >= cap) {
+            break;
+        }
         let sanitized = sanitize_vocabulary_word(word);
         if sanitized.is_empty() {
             continue;
         }
         if seen.insert(sanitized.to_lowercase()) {
             out.push(sanitized);
-            if limit.is_some_and(|cap| out.len() >= cap) {
-                break;
-            }
         }
     }
     out
@@ -138,6 +143,32 @@ mod tests {
             keyword_boost_terms(&words, None),
             vec!["Swift", "Rust", "Rustscript", "multi word"]
         );
+    }
+
+    /// The cap counts terms that SURVIVED dedupe, not input words. `Some(1)`
+    /// over a list whose first two entries collapse still yields one term.
+    #[test]
+    fn limit_counts_surviving_terms_not_input_words() {
+        let words = vec![
+            "  API  ".to_string(),
+            "api".to_string(), // dedupes into the first
+            "Rust".to_string(),
+        ];
+        assert_eq!(keyword_boost_terms(&words, Some(1)), vec!["API"]);
+        assert_eq!(keyword_boost_terms(&words, Some(2)), vec!["API", "Rust"]);
+        // A cap larger than the surviving set is not padded.
+        assert_eq!(keyword_boost_terms(&words, Some(99)), vec!["API", "Rust"]);
+    }
+
+    /// `Some(0)` means zero terms — the answer `.Take(0)` / `.prefix(0)` give
+    /// on the hosts. It must NOT mean "uncapped", and it must not leak the one
+    /// term an after-the-push cap check would have let through.
+    #[test]
+    fn a_zero_limit_yields_no_terms() {
+        let words = vec!["Rust".to_string(), "Swift".to_string()];
+        assert_eq!(keyword_boost_terms(&words, Some(0)), Vec::<String>::new());
+        // Contrast: None is how "no cap" is expressed.
+        assert_eq!(keyword_boost_terms(&words, None), vec!["Rust", "Swift"]);
     }
 
     #[test]

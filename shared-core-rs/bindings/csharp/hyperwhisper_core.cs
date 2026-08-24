@@ -1034,6 +1034,12 @@ static class _UniFFILib {
     
     
     
+    
+    
+    
+    
+    
+    
 
     static _UniFFILib() {
         _UniFFILib.uniffiCheckContractApiVersion();
@@ -1239,7 +1245,15 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_english_spelling_for_region(RustBuffer @region,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_english_spelling_from_raw(RustBuffer @raw,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_english_spelling_raw_value(RustBuffer @spelling,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -1496,6 +1510,10 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_normalize_termination(RustBuffer @wireProtocol,RustBuffer @reason,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_normalize_vocabulary_terms(RustBuffer @words,RustBuffer @limit,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -1995,7 +2013,15 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_english_spelling_for_region(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_english_spelling_from_raw(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_english_spelling_raw_value(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -2252,6 +2278,10 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_normalize_termination(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_normalize_vocabulary_terms(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -2639,9 +2669,21 @@ static class _UniFFILib {
             }
         }
         {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_english_spelling_for_region();
+            if (checksum != 7581) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_english_spelling_for_region` checksum `7581`, library returned `{checksum}`");
+            }
+        }
+        {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_english_spelling_from_raw();
             if (checksum != 13747) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_english_spelling_from_raw` checksum `13747`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_english_spelling_raw_value();
+            if (checksum != 33281) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_english_spelling_raw_value` checksum `33281`, library returned `{checksum}`");
             }
         }
         {
@@ -3026,6 +3068,12 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_normalize_termination();
             if (checksum != 6367) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_normalize_termination` checksum `6367`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_normalize_vocabulary_terms();
+            if (checksum != 61974) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_normalize_vocabulary_terms` checksum `61974`, library returned `{checksum}`");
             }
         }
         {
@@ -4413,6 +4461,11 @@ class FfiConverterTypeSttModel: FfiConverterRustBuffer<SttModel> {
 /// Inputs needed to build a transcription request. Mirrors
 /// `hw_net::TranscribeParams` field-for-field.
 /// </summary>
+/// <param name="share_anonymous_speed_data">
+/// `true` = the user shares anonymous latency data, and no opt-out header
+/// is sent. Deliberately **required** (no `#[uniffi(default)]`): a host that
+/// forgets it must fail to compile rather than silently keep sharing on.
+/// </param>
 internal record TranscribeParams (
     string @apiKey, 
     string @model, 
@@ -4427,7 +4480,13 @@ internal record TranscribeParams (
     string? @deviceId, 
     string? @routedProvider, 
     string? @routedModel, 
-    string? @routedDomain
+    string? @routedDomain, 
+    /// <summary>
+    /// `true` = the user shares anonymous latency data, and no opt-out header
+    /// is sent. Deliberately **required** (no `#[uniffi(default)]`): a host that
+    /// forgets it must fail to compile rather than silently keep sharing on.
+    /// </summary>
+    bool @shareAnonymousSpeedData
 ) {
 }
 
@@ -4449,7 +4508,8 @@ class FfiConverterTypeTranscribeParams: FfiConverterRustBuffer<TranscribeParams>
             @deviceId: FfiConverterOptionalString.INSTANCE.Read(stream),
             @routedProvider: FfiConverterOptionalString.INSTANCE.Read(stream),
             @routedModel: FfiConverterOptionalString.INSTANCE.Read(stream),
-            @routedDomain: FfiConverterOptionalString.INSTANCE.Read(stream)
+            @routedDomain: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @shareAnonymousSpeedData: FfiConverterBoolean.INSTANCE.Read(stream)
         );
     }
 
@@ -4468,7 +4528,8 @@ class FfiConverterTypeTranscribeParams: FfiConverterRustBuffer<TranscribeParams>
             + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@deviceId)
             + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@routedProvider)
             + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@routedModel)
-            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@routedDomain);
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@routedDomain)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@shareAnonymousSpeedData);
     }
 
     public override void Write(TranscribeParams value, BigEndianStream stream) {
@@ -4486,6 +4547,7 @@ class FfiConverterTypeTranscribeParams: FfiConverterRustBuffer<TranscribeParams>
             FfiConverterOptionalString.INSTANCE.Write(value.@routedProvider, stream);
             FfiConverterOptionalString.INSTANCE.Write(value.@routedModel, stream);
             FfiConverterOptionalString.INSTANCE.Write(value.@routedDomain, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@shareAnonymousSpeedData, stream);
     }
 }
 
@@ -5934,6 +5996,37 @@ class FfiConverterOptionalUInt16: FfiConverterRustBuffer<ushort?> {
 
 
 
+class FfiConverterOptionalUInt32: FfiConverterRustBuffer<uint?> {
+    public static FfiConverterOptionalUInt32 INSTANCE = new FfiConverterOptionalUInt32();
+
+    public override uint? Read(BigEndianStream stream) {
+        if (stream.ReadByte() == 0) {
+            return null;
+        }
+        return FfiConverterUInt32.INSTANCE.Read(stream);
+    }
+
+    public override int AllocationSize(uint? value) {
+        if (value == null) {
+            return 1;
+        } else {
+            return 1 + FfiConverterUInt32.INSTANCE.AllocationSize((uint)value);
+        }
+    }
+
+    public override void Write(uint? value, BigEndianStream stream) {
+        if (value == null) {
+            stream.WriteByte(0);
+        } else {
+            stream.WriteByte(1);
+            FfiConverterUInt32.INSTANCE.Write((uint)value, stream);
+        }
+    }
+}
+
+
+
+
 class FfiConverterOptionalUInt64: FfiConverterRustBuffer<ulong?> {
     public static FfiConverterOptionalUInt64 INSTANCE = new FfiConverterOptionalUInt64();
 
@@ -6922,12 +7015,46 @@ internal static class HyperwhisperCoreMethods {
 
 
     /// <summary>
+    /// The spelling variant to **seed** into a new mode, from an ISO 3166-1
+    /// alpha-2 region code. Unknown / empty / `None` → `American`, never `None`.
+    ///
+    /// `Option<String>` so Rust owns the nil case: every host reads a nullable
+    /// region (`Locale.current.region?.identifier`,
+    /// `RegionInfo.CurrentRegion` behind a try/catch) and all three assert that a
+    /// missing region seeds American.
+    ///
+    /// This is a *seeding* function and is not the inverse of
+    /// [`english_spelling_from_raw`]: `HwEnglishSpelling::None` means "no spelling
+    /// instruction at all", which is never the right thing to seed.
+    /// </summary>
+    public static HwEnglishSpelling EnglishSpellingForRegion(string? @region) {
+        return FfiConverterTypeHwEnglishSpelling.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_english_spelling_for_region(FfiConverterOptionalString.INSTANCE.Lower(@region), ref _status)
+));
+    }
+
+
+    /// <summary>
     /// Parse a raw `mode.englishSpelling` string.
     /// </summary>
     public static HwEnglishSpelling EnglishSpellingFromRaw(string @raw) {
         return FfiConverterTypeHwEnglishSpelling.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_english_spelling_from_raw(FfiConverterString.INSTANCE.Lower(@raw), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The raw `mode.englishSpelling` token for a variant — the inverse of
+    /// [`english_spelling_from_raw`]. `None` → `""` (no spelling block), not
+    /// `"american"`.
+    /// </summary>
+    public static string EnglishSpellingRawValue(HwEnglishSpelling @spelling) {
+        return FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_english_spelling_raw_value(FfiConverterTypeHwEnglishSpelling.INSTANCE.Lower(@spelling), ref _status)
 ));
     }
 
@@ -7562,6 +7689,23 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterTypeCompletionState.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_normalize_termination(FfiConverterTypeWireProtocol.INSTANCE.Lower(@wireProtocol), FfiConverterOptionalString.INSTANCE.Lower(@reason), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Canonical vocabulary normalization for every egress path: sanitize each
+    /// term, drop the ones that sanitize to empty, de-duplicate case-insensitively
+    /// keeping first-seen casing and order, and stop at `limit`.
+    ///
+    /// `limit` is `None` for "no cap"; `Some(0)` yields no terms, matching
+    /// `.Take(0)` / `.prefix(0)` on the hosts. Callers keep their own cap and
+    /// their own join separator — only this rule is shared.
+    /// </summary>
+    public static List<string> NormalizeVocabularyTerms(List<string> @words, uint? @limit) {
+        return FfiConverterSequenceString.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_normalize_vocabulary_terms(FfiConverterSequenceString.INSTANCE.Lower(@words), FfiConverterOptionalUInt32.INSTANCE.Lower(@limit), ref _status)
 ));
     }
 

@@ -153,6 +153,17 @@ pub struct TranscribeParams {
     pub routed_model: Option<String>,
     /// `X-STT-Domain` for routed providers.
     pub routed_domain: Option<String>,
+    // ---- privacy ----
+    /// Whether the user lets HyperWhisper collect anonymous latency data.
+    ///
+    /// `true` = sharing is on, and the request carries **no** header — there is
+    /// no "yes please" header, only an opt-out. `false` adds
+    /// `X-Latency-Opt-Out: 1`, and only on the HyperWhisper Cloud / routed
+    /// builders, so a direct-vendor request cannot carry it by construction.
+    ///
+    /// Note the derived `Default` is `false`, i.e. **opted out**: a caller that
+    /// forgets this field gets the private answer, not the sharing one.
+    pub share_anonymous_speed_data: bool,
 }
 
 /// The parsed result of a successful transcription.

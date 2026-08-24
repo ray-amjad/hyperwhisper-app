@@ -2285,10 +2285,21 @@ public struct TranscribeParams {
     public var routedProvider: String?
     public var routedModel: String?
     public var routedDomain: String?
+    /**
+     * `true` = the user shares anonymous latency data, and no opt-out header
+     * is sent. Deliberately **required** (no `#[uniffi(default)]`): a host that
+     * forgets it must fail to compile rather than silently keep sharing on.
+     */
+    public var shareAnonymousSpeedData: Bool
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(apiKey: String, model: String, language: String?, vocabulary: [String], prompt: String?, temperature: Double?, audioPath: String, audioMime: String?, baseUrl: String?, licenseKey: String?, deviceId: String?, routedProvider: String?, routedModel: String?, routedDomain: String?) {
+    public init(apiKey: String, model: String, language: String?, vocabulary: [String], prompt: String?, temperature: Double?, audioPath: String, audioMime: String?, baseUrl: String?, licenseKey: String?, deviceId: String?, routedProvider: String?, routedModel: String?, routedDomain: String?, 
+        /**
+         * `true` = the user shares anonymous latency data, and no opt-out header
+         * is sent. Deliberately **required** (no `#[uniffi(default)]`): a host that
+         * forgets it must fail to compile rather than silently keep sharing on.
+         */shareAnonymousSpeedData: Bool) {
         self.apiKey = apiKey
         self.model = model
         self.language = language
@@ -2303,6 +2314,7 @@ public struct TranscribeParams {
         self.routedProvider = routedProvider
         self.routedModel = routedModel
         self.routedDomain = routedDomain
+        self.shareAnonymousSpeedData = shareAnonymousSpeedData
     }
 }
 
@@ -2352,6 +2364,9 @@ extension TranscribeParams: Equatable, Hashable {
         if lhs.routedDomain != rhs.routedDomain {
             return false
         }
+        if lhs.shareAnonymousSpeedData != rhs.shareAnonymousSpeedData {
+            return false
+        }
         return true
     }
 
@@ -2370,6 +2385,7 @@ extension TranscribeParams: Equatable, Hashable {
         hasher.combine(routedProvider)
         hasher.combine(routedModel)
         hasher.combine(routedDomain)
+        hasher.combine(shareAnonymousSpeedData)
     }
 }
 
@@ -2394,7 +2410,8 @@ public struct FfiConverterTypeTranscribeParams: FfiConverterRustBuffer {
                 deviceId: FfiConverterOptionString.read(from: &buf), 
                 routedProvider: FfiConverterOptionString.read(from: &buf), 
                 routedModel: FfiConverterOptionString.read(from: &buf), 
-                routedDomain: FfiConverterOptionString.read(from: &buf)
+                routedDomain: FfiConverterOptionString.read(from: &buf), 
+                shareAnonymousSpeedData: FfiConverterBool.read(from: &buf)
         )
     }
 
@@ -2413,6 +2430,7 @@ public struct FfiConverterTypeTranscribeParams: FfiConverterRustBuffer {
         FfiConverterOptionString.write(value.routedProvider, into: &buf)
         FfiConverterOptionString.write(value.routedModel, into: &buf)
         FfiConverterOptionString.write(value.routedDomain, into: &buf)
+        FfiConverterBool.write(value.shareAnonymousSpeedData, into: &buf)
     }
 }
 
@@ -4576,6 +4594,30 @@ fileprivate struct FfiConverterOptionUInt16: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionUInt32: FfiConverterRustBuffer {
+    typealias SwiftType = UInt32?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterUInt32.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterUInt32.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionUInt64: FfiConverterRustBuffer {
     typealias SwiftType = UInt64?
 
@@ -5354,12 +5396,44 @@ public func elevenlabsParseTranscribeResponse(resp: HttpResponse)throws  -> HwTr
 })
 }
 /**
+ * The spelling variant to **seed** into a new mode, from an ISO 3166-1
+ * alpha-2 region code. Unknown / empty / `None` → `American`, never `None`.
+ *
+ * `Option<String>` so Rust owns the nil case: every host reads a nullable
+ * region (`Locale.current.region?.identifier`,
+ * `RegionInfo.CurrentRegion` behind a try/catch) and all three assert that a
+ * missing region seeds American.
+ *
+ * This is a *seeding* function and is not the inverse of
+ * [`english_spelling_from_raw`]: `HwEnglishSpelling::None` means "no spelling
+ * instruction at all", which is never the right thing to seed.
+ */
+public func englishSpellingForRegion(region: String?) -> HwEnglishSpelling {
+    return try!  FfiConverterTypeHwEnglishSpelling.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_english_spelling_for_region(
+        FfiConverterOptionString.lower(region),$0
+    )
+})
+}
+/**
  * Parse a raw `mode.englishSpelling` string.
  */
 public func englishSpellingFromRaw(raw: String) -> HwEnglishSpelling {
     return try!  FfiConverterTypeHwEnglishSpelling.lift(try! rustCall() {
     uniffi_hyperwhisper_core_fn_func_english_spelling_from_raw(
         FfiConverterString.lower(raw),$0
+    )
+})
+}
+/**
+ * The raw `mode.englishSpelling` token for a variant — the inverse of
+ * [`english_spelling_from_raw`]. `None` → `""` (no spelling block), not
+ * `"american"`.
+ */
+public func englishSpellingRawValue(spelling: HwEnglishSpelling) -> String {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_english_spelling_raw_value(
+        FfiConverterTypeHwEnglishSpelling.lower(spelling),$0
     )
 })
 }
@@ -5941,6 +6015,23 @@ public func normalizeTermination(wireProtocol: WireProtocol, reason: String?) ->
     )
 })
 }
+/**
+ * Canonical vocabulary normalization for every egress path: sanitize each
+ * term, drop the ones that sanitize to empty, de-duplicate case-insensitively
+ * keeping first-seen casing and order, and stop at `limit`.
+ *
+ * `limit` is `None` for "no cap"; `Some(0)` yields no terms, matching
+ * `.Take(0)` / `.prefix(0)` on the hosts. Callers keep their own cap and
+ * their own join separator — only this rule is shared.
+ */
+public func normalizeVocabularyTerms(words: [String], limit: UInt32?) -> [String] {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_normalize_vocabulary_terms(
+        FfiConverterSequenceString.lower(words),
+        FfiConverterOptionUInt32.lower(limit),$0
+    )
+})
+}
 public func openaiBuildTranscribeRequest(params: TranscribeParams)throws  -> HttpRequest {
     return try  FfiConverterTypeHttpRequest.lift(try rustCallWithError(FfiConverterTypeHwTranscriptionError.lift) {
     uniffi_hyperwhisper_core_fn_func_openai_build_transcribe_request(
@@ -6312,7 +6403,13 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_elevenlabs_parse_transcribe_response() != 46578) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_hyperwhisper_core_checksum_func_english_spelling_for_region() != 7581) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_hyperwhisper_core_checksum_func_english_spelling_from_raw() != 13747) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_english_spelling_raw_value() != 33281) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_evaluate_completion() != 41679) {
@@ -6505,6 +6602,9 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_normalize_termination() != 6367) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_normalize_vocabulary_terms() != 61974) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_openai_build_transcribe_request() != 36424) {

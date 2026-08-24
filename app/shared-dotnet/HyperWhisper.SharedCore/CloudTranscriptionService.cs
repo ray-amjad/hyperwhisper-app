@@ -180,9 +180,20 @@ public sealed class CloudTranscriptionService : IDisposable
         }
     }
 
+    /// <summary>
+    /// Build the core <see cref="TranscribeParams"/> for one request.
+    ///
+    /// <paramref name="shareAnonymousSpeedData"/> defaults to <c>true</c> (sharing
+    /// on, no opt-out header), which is what every caller wants until the head
+    /// starts supplying the user's real setting. The core sends
+    /// <c>X-Latency-Opt-Out</c> only when it is <c>false</c>, and only on the
+    /// HyperWhisper Cloud / routed builders — so a direct-vendor request cannot
+    /// carry it regardless of this value.
+    /// </summary>
     private static TranscribeParams CreateParams(
         CloudTranscriptionRequest request,
-        CloudCredential? credential)
+        CloudCredential? credential,
+        bool shareAnonymousSpeedData = true)
     {
         var usesLicense = request.Provider is CloudTranscriptionProvider.AzureMai
             or CloudTranscriptionProvider.GoogleChirp
@@ -211,7 +222,8 @@ public sealed class CloudTranscriptionService : IDisposable
             @deviceId: NormalizeOptional(credential?.DeviceId),
             @routedProvider: NormalizeOptional(request.RoutedProvider),
             @routedModel: NormalizeOptional(request.RoutedModel),
-            @routedDomain: NormalizeOptional(request.RoutedDomain));
+            @routedDomain: NormalizeOptional(request.RoutedDomain),
+            @shareAnonymousSpeedData: shareAnonymousSpeedData);
     }
 
     private async Task<HwTranscript> TranscribeSingleShotAsync(

@@ -430,6 +430,107 @@ fn english_spelling_from_raw() {
     );
 }
 
+#[test]
+fn english_spelling_raw_value_inverts_from_raw() {
+    for variant in [
+        EnglishSpelling::None,
+        EnglishSpelling::American,
+        EnglishSpelling::British,
+        EnglishSpelling::Australian,
+        EnglishSpelling::Canadian,
+    ] {
+        assert_eq!(
+            EnglishSpelling::from_raw(variant.raw_value()),
+            variant,
+            "raw_value must round-trip back through from_raw for {variant:?}"
+        );
+    }
+}
+
+#[test]
+fn english_spelling_none_raw_value_is_empty_not_american() {
+    // `None` means "the user never chose", which emits NO spelling block.
+    // Rendering it as "american" would start dictating spelling to them.
+    assert_eq!(EnglishSpelling::None.raw_value(), "");
+    assert_eq!(EnglishSpelling::American.raw_value(), "american");
+}
+
+// ---------------------------------------------------------------------------
+// Region seeding
+// ---------------------------------------------------------------------------
+
+#[test]
+fn for_region_maps_the_british_set() {
+    for code in ["GB", "IE", "ZA", "IN", "SG", "NZ"] {
+        assert_eq!(
+            EnglishSpelling::for_region(Some(code)),
+            EnglishSpelling::British,
+            "{code} should seed British"
+        );
+    }
+}
+
+#[test]
+fn for_region_maps_the_australian_set() {
+    for code in ["AU", "CC", "CX", "NF"] {
+        assert_eq!(
+            EnglishSpelling::for_region(Some(code)),
+            EnglishSpelling::Australian,
+            "{code} should seed Australian"
+        );
+    }
+}
+
+#[test]
+fn for_region_maps_canada() {
+    assert_eq!(
+        EnglishSpelling::for_region(Some("CA")),
+        EnglishSpelling::Canadian
+    );
+}
+
+#[test]
+fn for_region_falls_back_to_american_for_anything_unlisted() {
+    for code in ["US", "JP", "PH", "ZZ"] {
+        assert_eq!(
+            EnglishSpelling::for_region(Some(code)),
+            EnglishSpelling::American,
+            "{code} should seed American"
+        );
+    }
+}
+
+/// The load-bearing one. Seeding an unconfigured mode must produce a CONCRETE
+/// variant; `None` would mean "emit no spelling instruction", which is a state
+/// only an explicit user choice may produce. A regression here silently strips
+/// the `<SPELLING>` block from every newly created mode.
+#[test]
+fn for_region_never_returns_none_for_missing_or_blank_regions() {
+    for region in [None, Some(""), Some("   "), Some("\n\t")] {
+        assert_eq!(
+            EnglishSpelling::for_region(region),
+            EnglishSpelling::American,
+            "{region:?} must seed American, never None"
+        );
+    }
+}
+
+#[test]
+fn for_region_tolerates_case_and_surrounding_whitespace() {
+    assert_eq!(
+        EnglishSpelling::for_region(Some("gb")),
+        EnglishSpelling::British
+    );
+    assert_eq!(
+        EnglishSpelling::for_region(Some(" au ")),
+        EnglishSpelling::Australian
+    );
+    assert_eq!(
+        EnglishSpelling::for_region(Some("\nca\n")),
+        EnglishSpelling::Canadian
+    );
+}
+
 // ---------------------------------------------------------------------------
 // Determinism
 // ---------------------------------------------------------------------------

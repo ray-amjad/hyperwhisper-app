@@ -168,6 +168,11 @@ internal static class RustCoreMapping
     /// (trim + drop-empty, no lowercase/dedup) — pass the RAW term list, do NOT
     /// pre-encode. <paramref name="audioMime"/> is passed explicitly rather than
     /// letting the core re-resolve.
+    ///
+    /// <paramref name="shareAnonymousSpeedData"/> defaults to <c>true</c> (sharing
+    /// on, no opt-out header) so callers that do not read the setting keep
+    /// today's behaviour. The core sends <c>X-Latency-Opt-Out</c> only when it is
+    /// <c>false</c>, and only on the HyperWhisper Cloud / routed builders.
     /// </summary>
     internal static TranscribeParams TranscribeParams(
         string audioPath,
@@ -182,7 +187,8 @@ internal static class RustCoreMapping
         string? deviceId = null,
         string? routedProvider = null,
         string? routedModel = null,
-        string? routedDomain = null)
+        string? routedDomain = null,
+        bool shareAnonymousSpeedData = true)
     {
         return new TranscribeParams(
             @apiKey: apiKey,
@@ -198,7 +204,8 @@ internal static class RustCoreMapping
             @deviceId: deviceId,
             @routedProvider: routedProvider,
             @routedModel: routedModel,
-            @routedDomain: routedDomain);
+            @routedDomain: routedDomain,
+            @shareAnonymousSpeedData: shareAnonymousSpeedData);
     }
 
     /// <summary>

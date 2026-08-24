@@ -49,6 +49,8 @@ mod tests {
             audio_path: "/tmp/rec.flac".to_string(),
             base_url: Some("https://transcribe-prod-v2.hyperwhisper.com".to_string()),
             license_key: Some("LIC-9".to_string()),
+            // Sharing on: no opt-out header, matching a default install.
+            share_anonymous_speed_data: true,
             ..Default::default()
         }
     }
