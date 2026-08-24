@@ -6,7 +6,7 @@ if [[ $# -ne 1 ]]; then
   exit 2
 fi
 
-for command_name in curl tar sha256sum ffmpeg; do
+for command_name in curl tar sha256sum ffmpeg ffprobe; do
   if ! command -v "$command_name" >/dev/null 2>&1; then
     echo "ERROR: fixture generator requires: $command_name" >&2
     exit 1
@@ -50,10 +50,17 @@ printf '%s\n' 'Ray is verifying the Hyper. Whisper. Linux speech transcription b
       >/dev/null
 ffmpeg -hide_banner -loglevel error -y \
   -i "$work_dir/generated.wav" -ar 16000 -ac 1 -c:a pcm_s16le "$work_dir/known-16k.wav"
-printf '%s  %s\n' \
-  '974376044d4af6b2dff131c58f5c73827670de1422a184b9e5d240aadb42553d' \
-  "$work_dir/known-16k.wav" \
-  | sha256sum --check >/dev/null
+audio_spec="$(ffprobe -v error -select_streams a:0 \
+  -show_entries stream=codec_name,sample_rate,channels \
+  -of csv=p=0 "$work_dir/known-16k.wav")"
+if [[ "$audio_spec" != 'pcm_s16le,16000,1' ]]; then
+  echo "ERROR: generated fixture has unexpected audio format: $audio_spec" >&2
+  exit 1
+fi
+
+# Piper output can differ at the sample level across CPU implementations even
+# with noise disabled. The dependency hashes above protect fixture provenance;
+# the live E2E validates timing and the exact recognized sentence.
 
 install -m 600 "$work_dir/known-16k.wav" "$output_path"
 printf '%s\n' "$output_path"
