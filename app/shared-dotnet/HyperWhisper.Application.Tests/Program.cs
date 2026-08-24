@@ -488,6 +488,7 @@ try
     var accountHttp = new CloudAccountHttpHandler();
     using (var accountService = new PortableCloudAccountService(
         accountStore,
+        new PortableLicenseStateStore(accountStore, new MemoryPrivateFileService(), "/license-state.json"),
         new HttpClient(accountHttp) { Timeout = Timeout.InfiniteTimeSpan }))
     {
         var opened = new List<Uri>();
@@ -524,8 +525,11 @@ try
     }
 
     var blockingAccountHttp = new BlockingCloudAccountHttpHandler();
+    var blockingAccountStore = new MemoryCredentialStore();
     using (var blockingAccountService = new PortableCloudAccountService(
-        new MemoryCredentialStore(),
+        blockingAccountStore,
+        new PortableLicenseStateStore(
+            blockingAccountStore, new MemoryPrivateFileService(), "/blocking-license-state.json"),
         new HttpClient(blockingAccountHttp) { Timeout = Timeout.InfiniteTimeSpan }))
     {
         var gatedAccount = new CloudAccountViewModel(
