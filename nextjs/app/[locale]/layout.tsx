@@ -71,6 +71,7 @@ export async function generateMetadata({ params }: Props) {
       "AI transcription",
       "macOS app",
       "Windows app",
+      "Linux app",
       "whisper AI",
       "dictation software",
       "voice typing",

@@ -39,9 +39,9 @@ export default function OpenSourcePage() {
         <p>
           An app that listens to your microphone should be something you can
           verify, not just trust. So we opened everything up. You can read every
-          line of HyperWhisper — the macOS and Windows apps, and the Cloud
-          transcription backend — see exactly where your audio goes, and know
-          you&apos;ll never be locked in. The whole project lives on{" "}
+          line of HyperWhisper — the macOS, Windows, and Linux apps, and the
+          Cloud transcription backend — see exactly where your audio goes, and
+          know you&apos;ll never be locked in. The whole project lives on{" "}
           <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">
             GitHub
           </a>{" "}

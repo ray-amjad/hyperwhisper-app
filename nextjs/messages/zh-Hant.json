@@ -29,7 +29,8 @@
     "demoCta": "觀看示範",
     "availableOn": "適用於",
     "macos": "macOS 14+",
-    "windows": "Windows 10+"
+    "windows": "Windows 10+",
+    "linux": "Linux (amd64)"
   },
   "features": {
     "title": "為專業人士打造",

@@ -80,6 +80,9 @@ export default function HeroSection() {
             <div className="px-3 py-1 bg-gray-800 rounded-lg border border-gray-700 flex items-center gap-2">
               <span className="text-sm text-gray-300">{t("windows")}</span>
             </div>
+            <div className="px-3 py-1 bg-gray-800 rounded-lg border border-gray-700 flex items-center gap-2">
+              <span className="text-sm text-gray-300">{t("linux")}</span>
+            </div>
           </div>
         </div>
       </m.div>

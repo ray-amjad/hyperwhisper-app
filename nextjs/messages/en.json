@@ -1,7 +1,7 @@
 {
   "metadata": {
-    "title": "HyperWhisper - AI Voice Transcription for macOS & Windows",
-    "description": "Write 5x faster with AI-powered voice transcription. HyperWhisper transcribes your voice with incredible accuracy on macOS and Windows. Speak naturally and watch your words appear instantly."
+    "title": "HyperWhisper - AI Voice Transcription for macOS, Windows & Linux",
+    "description": "Write 5x faster with AI-powered voice transcription. HyperWhisper transcribes your voice with incredible accuracy on macOS, Windows, and Linux. Speak naturally and watch your words appear instantly."
   },
   "navbar": {
     "features": "Features",
@@ -29,7 +29,8 @@
     "demoCta": "Watch demo",
     "availableOn": "Available on",
     "macos": "macOS 14+",
-    "windows": "Windows 10+"
+    "windows": "Windows 10+",
+    "linux": "Linux (amd64)"
   },
   "features": {
     "title": "Built for professionals",
@@ -164,7 +165,7 @@
       },
       "offline": {
         "question": "Can I use it without internet?",
-        "answer": "Absolutely. HyperWhisper can be used entirely offline on your Mac or Windows PC using local AI models - no internet required. For users who want maximum accuracy and speed, we also offer optional cloud processing via various cloud providers."
+        "answer": "Absolutely. HyperWhisper can be used entirely offline on macOS, Windows, or Linux using local AI models - no internet required. For users who want maximum accuracy and speed, we also offer optional cloud processing via various cloud providers."
       },
       "apiKey": {
         "question": "Do I need to pay for API access?",
@@ -179,12 +180,12 @@
         "answer": "For offline transcription, we offer multiple sizes of the Whisper model (made by OpenAI, supporting 99+ languages). We also offer NVidia's Parakeet models (supporting 25+ languages).\n      \n      For offline post-processing, we offer multiple sizes of the Gemma 3 model (made by Google)."
       },
       "compatibility": {
-        "question": "Does it work with all Mac and Windows apps?",
+        "question": "Does it work with all my apps?",
         "answer": "Yes, it works everywhere you can type. Whether you're composing emails, writing documents, coding, or chatting. Just hit the shortcut, speak, and watch your words appear instantly."
       },
       "privacy": {
         "question": "How is my privacy protected?",
-        "answer": "When using local mode, no data ever leaves your Mac or Windows PC.\n\nWhen using cloud transcription, your data is sent to the cloud provider you choose (e.g., OpenAI, Groq, xAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox, or Google Gemini).\n\nYou can verify this yourself with a network inspector such as [Proxyman](https://proxyman.io) or a network monitor like [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), or by reading the [source code on GitHub](https://github.com/ray-amjad/hyperwhisper-app).\n\nFor a full breakdown of where audio goes and how to opt your own API keys out of model training, see our [Data Privacy guide](https://hyperwhisper.com/docs/data-privacy)."
+        "answer": "When using local mode, no data ever leaves your macOS, Windows, or Linux device.\n\nWhen using cloud transcription, your data is sent to the cloud provider you choose (e.g., OpenAI, Groq, xAI Grok, Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox, or Google Gemini).\n\nYou can verify this yourself with a network inspector such as [Proxyman](https://proxyman.io) or a network monitor like [Little Snitch](https://www.obdev.at/products/littlesnitch/index.html), or by reading the [source code on GitHub](https://github.com/ray-amjad/hyperwhisper-app).\n\nFor a full breakdown of where audio goes and how to opt your own API keys out of model training, see our [Data Privacy guide](https://hyperwhisper.com/docs/data-privacy)."
       },
       "cloud": {
         "question": "What is HyperWhisper Cloud?",
@@ -216,7 +217,7 @@
       },
       "requirements": {
         "question": "What are the system requirements?",
-        "answer": "For Mac: macOS 14 or newer, both Apple Silicon and Intel supported. For Windows: Windows 10/11, x64 or ARM64. 8GB RAM recommended for optimal performance."
+        "answer": "Mac: macOS 14+ on Apple Silicon or Intel. Windows: Windows 10/11 on x64 or ARM64. Linux v1: Ubuntu 22.04+ or Debian 12+ on amd64. 8GB RAM recommended for optimal performance."
       },
       "madeBy": {
         "question": "Who was this made by?",
@@ -291,7 +292,7 @@
     "loading": "Loading..."
   },
   "footer": {
-    "tagline": "Write 5x faster with AI-powered voice transcription for macOS & Windows.",
+    "tagline": "Write 5x faster with AI-powered voice transcription for macOS, Windows & Linux.",
     "product": "Product",
     "resources": "Resources",
     "company": "Company",
