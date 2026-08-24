@@ -395,7 +395,7 @@ sudo usermod -aG hyperwhisper-input "$USER"`}
                 <Button
                   as="a"
                   className="mt-4 bg-gray-800 text-gray-200"
-                  href="https://help.hyperwhisper.com/linux-installation"
+                  href="https://www.hyperwhisper.com/docs/linux-installation"
                   rel="noreferrer"
                   target="_blank"
                   variant="flat"
