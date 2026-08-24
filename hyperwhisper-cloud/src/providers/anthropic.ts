@@ -70,7 +70,7 @@ export async function requestAnthropicChat(
   if (!response.ok) {
     const errorText = await response.text().catch(() => '');
     const error = new Error(`Anthropic API error: ${response.status} ${errorText.slice(0, 500)}`);
-    (error as any).status = response.status;
+    (error as { status?: number }).status = response.status;
     throw error;
   }
 

@@ -3,7 +3,7 @@
 
 import type { AuthContext } from './auth';
 import { BYTES_PER_MINUTE_ESTIMATE, CREDITS_PER_MINUTE, DEFAULT_API_BASE_URL, LICENSE_API_TIMEOUT_MS } from '../lib/constants';
-import { roundToTenth, roundUpToTenth } from '../lib/utils';
+import { isRecord, roundToTenth, roundUpToTenth } from '../lib/utils';
 import { creditsForCost } from '../lib/cost-calculator';
 import { insufficientCreditsResponse } from '../lib/responses';
 import { cacheLicense } from '../lib/redis';
@@ -72,20 +72,21 @@ async function recordLicenseUsage(
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+      const errorData: unknown = await response.json().catch(() => ({}));
       console.warn('POST /api/license/credits failed', {
         status: response.status,
-        error: (errorData as Record<string, unknown>).error || 'Unknown error',
+        error: (isRecord(errorData) ? errorData.error : undefined) || 'Unknown error',
         creditsUsed,
       });
       return;
     }
 
-    const data = await response.json() as { credits_remaining?: number; credits_deducted?: number };
-    if (typeof data.credits_remaining === 'number') {
+    const data: unknown = await response.json();
+    const creditsRemaining = isRecord(data) ? data.credits_remaining : undefined;
+    if (typeof creditsRemaining === 'number') {
       await cacheLicense(licenseKey, {
         isValid: true,
-        credits: data.credits_remaining,
+        credits: creditsRemaining,
         cachedAt: new Date().toISOString(),
       });
     }

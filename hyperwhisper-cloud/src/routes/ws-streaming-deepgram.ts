@@ -9,6 +9,7 @@ import { computeDeepgramTranscriptionCost, creditsForCost } from '../lib/cost-ca
 import { validateAuth, type AuthContext } from '../middleware/auth';
 import { deductCredits, validateCredits } from '../middleware/credits';
 import { isIPBlocked } from '../lib/redis';
+import { isRecord } from '../lib/utils';
 import { isExplicitLanguage, splitVocabularyTerms } from '../providers/utils';
 
 // Deepgram `keyterm` limits — same values the REST adapter applies.
@@ -23,6 +24,11 @@ interface DeepgramLiveResponse {
   channel?: {
     alternatives?: Array<{ transcript?: string }>;
   };
+}
+
+function isDeepgramLiveResponse(value: unknown): value is DeepgramLiveResponse {
+  return typeof value === 'object' && value !== null
+    && typeof (value as { type?: unknown }).type === 'string';
 }
 
 interface ReadyMessage {
@@ -264,7 +270,19 @@ export function createStreamingEvents(c: Context) {
 
       deepgramWs.addEventListener('message', (event) => {
         try {
-          const data = JSON.parse(event.data as string) as DeepgramLiveResponse;
+          // `event.data` is typed `any` by the WebSocket lib and Deepgram can
+          // deliver a frame as a string or as binary. Coerce explicitly rather
+          // than asserting `string`, then validate the parsed shape instead of
+          // asserting it — an unexpected frame is ignored, not trusted.
+          const raw: unknown = event.data;
+          const text = typeof raw === 'string'
+            ? raw
+            : (raw instanceof ArrayBuffer || ArrayBuffer.isView(raw))
+              ? new TextDecoder().decode(raw)
+              : String(raw);
+          const parsed: unknown = JSON.parse(text);
+          if (!isDeepgramLiveResponse(parsed)) return;
+          const data = parsed;
           if (data.type === 'Results') {
             const transcript = data.channel?.alternatives?.[0]?.transcript || '';
             if (transcript || data.is_final) {
@@ -356,12 +374,15 @@ export function createStreamingEvents(c: Context) {
 
       if (typeof data === 'string') {
         try {
-          const msg = JSON.parse(data) as { type?: string };
-          if (msg.type === 'stop') {
+          // Client-controlled frame: read `type` through a guard rather than
+          // asserting a shape onto it.
+          const msg: unknown = JSON.parse(data);
+          const msgType = isRecord(msg) ? msg.type : undefined;
+          if (msgType === 'stop') {
             deepgramWs.close(1000, 'Client requested stop');
             return;
           }
-          if (msg.type === 'pong') {
+          if (msgType === 'pong') {
             // Client pong response — ignore
             return;
           }

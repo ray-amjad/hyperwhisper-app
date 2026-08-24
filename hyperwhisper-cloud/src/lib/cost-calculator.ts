@@ -491,7 +491,7 @@ export function isGroqUsage(value: unknown): value is GroqUsage {
     return false;
   }
 
-  const usage = value as GroqUsage;
+  const usage: Record<string, unknown> = value as Record<string, unknown>;
   return typeof usage.prompt_tokens === 'number'
     && typeof usage.completion_tokens === 'number'
     && typeof usage.total_tokens === 'number';

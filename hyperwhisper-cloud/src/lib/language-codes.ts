@@ -83,7 +83,7 @@ function canonicalBcp47(tag: string): string {
     .split(/[-_]/)
     .map((part, index) => {
       if (index === 0) return part.toLowerCase();
-      if (part.length === 4) return part[0]!.toUpperCase() + part.slice(1).toLowerCase();
+      if (part.length === 4) return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
       return part.toUpperCase();
     })
     .join('-');
@@ -393,6 +393,12 @@ const DEEPGRAM_MODEL_LANGUAGES: Readonly<Record<string, ReadonlySet<string>>> = 
 
 const DEEPGRAM_DEFAULT_MODEL = 'nova-3-general';
 
+// Resolved once so callers never have to assert the lookup is present. The key
+// is a literal above; the empty-set fallback only guards a future rename, and
+// makes an unknown model report "language unsupported" instead of throwing.
+const DEEPGRAM_DEFAULT_LANGUAGES: ReadonlySet<string> =
+  DEEPGRAM_MODEL_LANGUAGES[DEEPGRAM_DEFAULT_MODEL] ?? new Set<string>();
+
 // `multi` is Deepgram's code-switching sentinel, not a language. It is a
 // nova-3 feature and is meaningless on the English-only medical models, so it is
 // scoped rather than short-circuited: the previous `if (code === 'multi')`
@@ -429,7 +435,7 @@ function resolveDeepgramLanguage(model: string, language: string): Resolution {
     return DEEPGRAM_MULTI_MODELS.has(model) ? { code: 'multi' } : MODEL_UNSUPPORTED;
   }
 
-  const supported = DEEPGRAM_MODEL_LANGUAGES[model] ?? DEEPGRAM_MODEL_LANGUAGES[DEEPGRAM_DEFAULT_MODEL]!;
+  const supported = DEEPGRAM_MODEL_LANGUAGES[model] ?? DEEPGRAM_DEFAULT_LANGUAGES;
   const base = primarySubtag(code);
   if (!supported.has(base)) {
     // Distinguish "Deepgram has never had this language" from "this MODEL

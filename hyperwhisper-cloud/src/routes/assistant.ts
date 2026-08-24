@@ -139,7 +139,7 @@ export function convertMessages(
   for (const msg of clientMessages) {
     if (!msg || typeof msg !== 'object') continue;
     const m = msg as Record<string, unknown>;
-    const role = m.role as string;
+    const role = typeof m.role === 'string' ? m.role : '';
 
     if (role === 'system') {
       systemPrompt = typeof m.content === 'string' ? m.content : '';
@@ -179,8 +179,12 @@ export function convertMessages(
 
           if (!base64Data && p.image_url && typeof p.image_url === 'object') {
             const urlObj = p.image_url as Record<string, unknown>;
-            const url = urlObj.url as string;
-            if (url?.startsWith('data:')) {
+            // `url` is client-controlled. Asserting `string` here made a
+            // non-string value (e.g. a number) throw inside `startsWith` and
+            // fail the whole request with a 500; a non-string is simply not a
+            // data URL, so skip the block instead.
+            const url = typeof urlObj.url === 'string' ? urlObj.url : '';
+            if (url.startsWith('data:')) {
               const match = url.match(/^data:(image\/\w+);base64,(.+)$/);
               if (match) {
                 const parsedMediaType = normalizeImageMediaType(match[1]);
@@ -265,13 +269,22 @@ export async function assistantRoute(c: Context) {
     return errorResponse(400, 'Invalid request', 'Request must be multipart/form-data');
   }
 
+  // `formData.get` returns `string | File | null`. A malformed multipart request
+  // can send any of these fields as a file part, so narrow each one instead of
+  // asserting its type — a File that reaches the string paths below throws a
+  // TypeError and surfaces as a 500 rather than the intended 400/401.
+  const stringField = (name: string): string | null => {
+    const value = formData.get(name);
+    return typeof value === 'string' ? value : null;
+  };
+
   // `account_key` is the canonical field; `license_key` is the legacy alias that
   // installed native apps still send, so we accept either.
-  const licenseKey = (formData.get('account_key') ||
-    formData.get('license_key')) as string | null;
+  const licenseKey = stringField('account_key') || stringField('license_key');
   const messagesRaw = formData.get('messages');
-  const promptOverride = formData.get('prompt') as string | null;
-  const imageFile = formData.get('image') as File | null;
+  const promptOverride = stringField('prompt');
+  const imageRaw = formData.get('image');
+  const imageFile = imageRaw instanceof File ? imageRaw : null;
 
   // Validate messages. A malformed multipart request can send `messages` as a
   // file part, in which case formData.get returns a File; reject any non-string
