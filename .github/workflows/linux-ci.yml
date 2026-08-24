@@ -47,6 +47,9 @@ jobs:
       DOTNET_CLI_TELEMETRY_OPTOUT: "1"
       DOTNET_NOLOGO: "1"
       NUGET_XMLDOC_MODE: skip
+      # Portable .NET harnesses call the UniFFI bridge directly. The native
+      # core is staged here before those harnesses run.
+      LD_LIBRARY_PATH: ${{ github.workspace }}/artifacts/linux-x64
     outputs:
       verified_sha: ${{ steps.verified.outputs.sha }}
     steps:

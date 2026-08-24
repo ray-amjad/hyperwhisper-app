@@ -31,7 +31,7 @@ try
     var result = await workflow.TranscribeFileAsync(
         audioPath,
         new TranscriptionWorkflowRequest(SelectedMode: mode, ApplicationContext: expected));
-    Assert.True(result.IsSuccess);
+    Assert.True(result.IsSuccess, DescribeFailure(result));
     Assert.Same(expected, processor.Context);
 
     var legacy = new LegacyProcessor();
@@ -44,7 +44,7 @@ try
     result = await legacyWorkflow.TranscribeFileAsync(
         audioPath,
         new TranscriptionWorkflowRequest(SelectedMode: mode, ApplicationContext: expected));
-    Assert.True(result.IsSuccess);
+    Assert.True(result.IsSuccess, DescribeFailure(result));
     Assert.True(legacy.WasCalled);
 
     Console.WriteLine("PASS workflow carries application context and preserves legacy processors");
@@ -54,6 +54,10 @@ finally
 {
     File.Delete(audioPath);
 }
+
+static string DescribeFailure(PortableTranscriptionResult result) => result.Failure is null
+    ? $"Expected a non-empty successful result, but received text '{result.Text ?? "<null>"}'."
+    : $"Expected success, but received {result.Failure.Code}: {result.Failure.Message}";
 
 sealed class ContextRecordingProcessor : ITranscriptionPostProcessor
 {
@@ -147,9 +151,9 @@ sealed class UnusedRecorder : IAudioRecorder
 
 static class Assert
 {
-    public static void True(bool condition)
+    public static void True(bool condition, string? message = null)
     {
-        if (!condition) throw new InvalidOperationException("Expected true.");
+        if (!condition) throw new InvalidOperationException(message ?? "Expected true.");
     }
 
     public static void Same(object expected, object? actual)
