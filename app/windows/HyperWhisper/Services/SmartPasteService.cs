@@ -516,35 +516,37 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
         _restorationCts = new CancellationTokenSource();
         var token = _restorationCts.Token;
 
-        // Schedule the restoration on a background thread
-        Task.Run(async () =>
+        // Schedule the restoration without blocking the caller
+        _ = RestoreClipboardAfterDelayAsync(delay, token);
+    }
+
+    private async Task RestoreClipboardAfterDelayAsync(TimeSpan delay, CancellationToken token)
+    {
+        try
         {
-            try
-            {
-                await Task.Delay(delay, token);
+            await Task.Delay(delay, token).ConfigureAwait(false);
 
-                if (token.IsCancellationRequested)
-                {
-                    return;
-                }
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
 
-                // Restore must happen on STA thread (UI thread)
-                // Use Application.Current.Dispatcher to marshal to UI thread
-                System.Windows.Application.Current?.Dispatcher.Invoke(() =>
-                {
-                    RestoreClipboard();
-                });
-            }
-            catch (TaskCanceledException)
+            // Restore must happen on STA thread (UI thread)
+            // Use Application.Current.Dispatcher to marshal to UI thread
+            System.Windows.Application.Current?.Dispatcher.Invoke(() =>
             {
-                // Expected when restoration is cancelled
-                LoggingService.Debug("SmartPasteService: Clipboard restoration was cancelled");
-            }
-            catch (Exception ex)
-            {
-                LoggingService.Warn($"SmartPasteService: Clipboard restoration failed: {ex.Message}");
-            }
-        }, token);
+                RestoreClipboard();
+            });
+        }
+        catch (TaskCanceledException)
+        {
+            // Expected when restoration is cancelled
+            LoggingService.Debug("SmartPasteService: Clipboard restoration was cancelled");
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Warn($"SmartPasteService: Clipboard restoration failed: {ex.Message}");
+        }
     }
 
     /// <summary>

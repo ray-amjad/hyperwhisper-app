@@ -161,7 +161,7 @@ public partial class StorageSettingsPage : Page
         e.Handled = !int.TryParse(e.Text, out _);
     }
 
-    private void DeleteNow_Click(object sender, RoutedEventArgs e)
+    private async void DeleteNow_Click(object sender, RoutedEventArgs e)
     {
         var result = WpfMessageBox.Show(
             Loc.S("settings.storage.autoDelete.confirmDelete.message"),
@@ -174,42 +174,34 @@ public partial class StorageSettingsPage : Page
             DeleteNowButton.IsEnabled = false;
             DeleteNowButton.Content = Loc.S("settings.storage.autoDelete.deleting");
 
-            Task.Run(() =>
+            try
             {
-                try
-                {
-                    int deleted = _autoDeleteService.PerformManualCleanup();
+                int deleted = await Task.Run(() => _autoDeleteService.PerformManualCleanup());
 
-                    Dispatcher.Invoke(() =>
-                    {
-                        DeleteNowButton.IsEnabled = true;
-                        DeleteNowButton.Content = Loc.S("settings.storage.autoDelete.deleteNow");
-                        UpdateLastCleanupInfo();
+                DeleteNowButton.IsEnabled = true;
+                DeleteNowButton.Content = Loc.S("settings.storage.autoDelete.deleteNow");
+                UpdateLastCleanupInfo();
 
-                        WpfMessageBox.Show(
-                            Loc.S("settings.storage.autoDelete.deleteComplete.message", deleted),
-                            Loc.S("settings.storage.autoDelete.deleteComplete.title"),
-                            MessageBoxButton.OK,
-                            MessageBoxImage.Information);
-                    });
-                }
-                catch (Exception ex)
-                {
-                    LoggingService.Error("Settings: Manual storage cleanup failed", ex);
-                    Dispatcher.Invoke(() =>
-                    {
-                        DeleteNowButton.IsEnabled = true;
-                        DeleteNowButton.Content = Loc.S("settings.storage.autoDelete.deleteNow");
-                        UpdateLastCleanupInfo();
+                WpfMessageBox.Show(
+                    Loc.S("settings.storage.autoDelete.deleteComplete.message", deleted),
+                    Loc.S("settings.storage.autoDelete.deleteComplete.title"),
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                LoggingService.Error("Settings: Manual storage cleanup failed", ex);
 
-                        WpfMessageBox.Show(
-                            Loc.S("settings.storage.autoDelete.deleteFailed.message", ex.InnerException?.Message ?? ex.Message),
-                            Loc.S("settings.storage.autoDelete.deleteFailed.title"),
-                            MessageBoxButton.OK,
-                            MessageBoxImage.Warning);
-                    });
-                }
-            });
+                DeleteNowButton.IsEnabled = true;
+                DeleteNowButton.Content = Loc.S("settings.storage.autoDelete.deleteNow");
+                UpdateLastCleanupInfo();
+
+                WpfMessageBox.Show(
+                    Loc.S("settings.storage.autoDelete.deleteFailed.message", ex.InnerException?.Message ?? ex.Message),
+                    Loc.S("settings.storage.autoDelete.deleteFailed.title"),
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
         }
     }
 }
