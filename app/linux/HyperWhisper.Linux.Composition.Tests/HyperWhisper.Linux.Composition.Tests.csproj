@@ -12,6 +12,19 @@
     <ProjectReference Include="../../shared-dotnet/HyperWhisper.CloudPostProcessing/HyperWhisper.CloudPostProcessing.csproj" />
     <ProjectReference Include="../../shared-dotnet/HyperWhisper.LocalInference/HyperWhisper.LocalInference.csproj" />
     <ProjectReference Include="../../shared-dotnet/HyperWhisper.SpeechOutput/HyperWhisper.SpeechOutput.csproj" />
+    <!-- This harness crosses the FFI, so it stages the shared core the same way
+         every other native-library-carrying test project does: straight from the
+         cargo release output it is verified against.
+
+         It is also the only one of those projects that references
+         HyperWhisper.Linux.csproj, whose own <Content> stages a file of the same
+         name from the gitignored Resources/rust-core/linux-x64/ publish
+         directory. MSBuild copies a ProjectReference's CopyToOutputDirectory
+         content into the referencing project too, so whenever that staged copy
+         exists (CI installs it; a plain clone has no such file) BOTH items land
+         on $(OutDir)libhyperwhisper_core.so. EnsureSharedCoreNativeLibrary below
+         fails the build if the two ever disagree, so the harness can never
+         quietly run against the stale one. -->
     <Content Include="../../../shared-core-rs/target/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so"
              Condition="Exists('../../../shared-core-rs/target/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so')">
       <Link>libhyperwhisper_core.so</Link>
@@ -22,5 +35,16 @@
   <Target Name="EnsureSharedCoreNativeLibrary" BeforeTargets="Build">
     <Error Condition="!Exists('../../../shared-core-rs/target/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so')"
            Text="Build shared-core-rs in release mode before running the Linux composition tests." />
+    <!-- cmp exits 0 when the files match, 1 when they differ, and 2 when cmp
+         itself failed; only 1 is a real conflict. -->
+    <Exec Condition="Exists('../HyperWhisper.Linux/Resources/rust-core/linux-x64/libhyperwhisper_core.so')"
+          Command="cmp -s '../../../shared-core-rs/target/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so' '../HyperWhisper.Linux/Resources/rust-core/linux-x64/libhyperwhisper_core.so'"
+          IgnoreExitCode="true"
+          StandardOutputImportance="low"
+          StandardErrorImportance="low">
+      <Output TaskParameter="ExitCode" PropertyName="StagedSharedCoreComparison" />
+    </Exec>
+    <Error Condition="'$(StagedSharedCoreComparison)' == '1'"
+           Text="app/linux/HyperWhisper.Linux/Resources/rust-core/linux-x64/libhyperwhisper_core.so differs from the shared-core-rs release build. HyperWhisper.Linux stages that copy under the same file name, and this project references it, so both are copied over $(OutDir)libhyperwhisper_core.so and the composition tests could run against the stale one. Delete the staged copy, or refresh it: install -Dm755 shared-core-rs/target/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so app/linux/HyperWhisper.Linux/Resources/rust-core/linux-x64/libhyperwhisper_core.so" />
   </Target>
 </Project>

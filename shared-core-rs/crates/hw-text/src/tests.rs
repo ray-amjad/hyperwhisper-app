@@ -273,6 +273,28 @@ fn sanitize_vocabulary_word_strips_brackets_and_collapses_whitespace() {
     );
 }
 
+/// The two steps inside `sanitize_vocabulary_word` are order-sensitive, and
+/// this function is now the single source of truth for every platform's
+/// vocabulary handling, so the order is load-bearing. Whitespace runs MUST
+/// collapse BEFORE the 80-character cap: truncating first spends the budget on
+/// padding that is about to be thrown away, and a term padded with a long
+/// whitespace run loses most of its real content.
+///
+/// Swapping `.split_whitespace().join(" ")` and `.chars().take(..)` leaves
+/// every other test in the workspace green, which is why this one exists.
+#[test]
+fn sanitize_vocabulary_word_collapses_whitespace_before_truncating() {
+    // "a" + 50 spaces + 100 "b": 151 chars, of which 101 are meaningful.
+    let padded = format!("a{}{}", " ".repeat(50), "b".repeat(100));
+
+    let sanitized = sanitize_vocabulary_word(&padded);
+
+    // Collapse first -> "a b...b" (102 chars) -> capped to a full 80 chars.
+    // Truncate first -> "a" + 50 spaces + 29 "b" -> collapsed to just 31 chars.
+    assert_eq!(sanitized.chars().count(), MAX_VOCABULARY_TERM_CHARS);
+    assert_eq!(sanitized, format!("a {}", "b".repeat(78)));
+}
+
 #[test]
 fn vocabulary_block_emitted_and_sanitized() {
     let mut ctx = base_ctx();
