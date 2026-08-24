@@ -68,15 +68,26 @@ if [[ ! -S "$run_dir/pipewire-0" ]]; then
   exit 1
 fi
 
-# The policy-only profile links the private graph but disables ALSA, Bluetooth,
-# and video hardware monitors, so no physical device can enter this test graph.
-wireplumber --profile policy >"$run_dir/wireplumber.log" 2>&1 &
+# The policy-only configuration links the private graph but disables ALSA,
+# Bluetooth, and video hardware monitors, so no physical device can enter it.
+# WirePlumber 0.4 (Ubuntu 22.04) uses a dedicated policy.conf; 0.5 replaced
+# configuration-file splitting with named profiles.
+wireplumber_args=(--profile policy)
+if [[ -f /usr/share/wireplumber/policy.conf ]]; then
+  wireplumber_args=(--config-file policy.conf)
+fi
+wireplumber "${wireplumber_args[@]}" >"$run_dir/wireplumber.log" 2>&1 &
 wireplumber_pid=$!
 pipewire-pulse >"$run_dir/pipewire-pulse.log" 2>&1 &
 pipewire_pulse_pid=$!
 
 for _ in $(seq 1 100); do
   [[ -S "$run_dir/pulse/native" ]] && break
+  if ! kill -0 "$wireplumber_pid" 2>/dev/null; then
+    echo "ERROR: isolated WirePlumber policy manager exited during startup." >&2
+    sed -n '1,160p' "$run_dir/wireplumber.log" >&2 || true
+    exit 1
+  fi
   if ! kill -0 "$pipewire_pulse_pid" 2>/dev/null; then
     echo "ERROR: isolated PipeWire Pulse compatibility server exited during startup." >&2
     sed -n '1,160p' "$run_dir/pipewire-pulse.log" >&2 || true
