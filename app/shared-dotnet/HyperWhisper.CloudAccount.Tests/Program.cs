@@ -18,11 +18,24 @@ var tests = new (string Name, Func<Task> Run)[]
     ("deactivation works offline", OfflineDeactivationRemovesKey),
     ("deactivation reports a keyring delete failure", DeactivationReportsAKeyringFailure),
     ("deactivation reports a missing key", DeactivationWithoutAKeyIsReported),
+    ("deactivation clears the cached verdict", DeactivationClearsTheCachedVerdict),
     ("credential failures are stable and redacted", CredentialFailures),
+    ("a failed key write is not cached as an active account", FailedWriteIsNotCached),
     ("HTTP cancellation is distinct from timeout", CancellationAndTimeout),
     ("responses are bounded", BoundedResponse),
     ("redirects are not treated as success", RedirectRejected),
     ("account URLs match repository contracts", AccountLinks),
+    ("status inside the validation cache makes no network call", ValidationCacheAnswersWithoutHttp),
+    ("an explicit refresh ignores the validation cache", ForcedRefreshIgnoresTheCache),
+    ("the validation cache expires after 24 hours", ValidationCacheExpires),
+    ("a transient server failure falls back to the cached verdict", TransientFailuresUseTheCache),
+    ("an offline status with no cached verdict reports the failure", OfflineWithoutACacheReportsTheFailure),
+    ("the offline grace expires after seven days", OfflineGraceExpires),
+    ("a cached verdict is not honoured for a different key", CachedVerdictIsKeyBound),
+    ("a rejected replacement key cannot clobber the stored verdict", RejectedReplacementKeyCannotClobber),
+    ("an unreadable expiry does not fail an active account", UnreadableExpiryIsNotAFailure),
+    ("the server's own rejection message reaches the caller", ServerRejectionMessageIsSurfaced),
+    ("license state routes the key to the keyring and the cache to a file", LicenseStateRouting),
 };
 
 var failures = 0;
@@ -268,11 +281,306 @@ static Task AccountLinks()
     return Task.CompletedTask;
 }
 
+// ---------------------------------------------------------------------------
+// hw-license core: validation cache, offline grace, and the verdict guard.
+//
+// These exercise the real Rust core through the real credential-backed store,
+// not a stand-in. The point of issue #290 is that Linux answered a validate
+// reply differently from macOS and Windows, and only the core can settle that.
+// ---------------------------------------------------------------------------
+
+static async Task ValidationCacheAnswersWithoutHttp()
+{
+    var store = new MemoryCredentialStore("stored-key");
+    var state = LicenseState(store);
+    var clock = new TestClock();
+    var handler = ActiveValidateHandler();
+    using var service = ServiceWith(store, handler, state, clock);
+
+    var first = await service.GetStatusAsync("device", "host");
+    Assert(first.IsSuccess && first.Value?.Status == CloudAccountStatus.Active, "first status was not active");
+    Assert(handler.CallCount == 1, "the first status did not validate against the server");
+
+    // Inside the 24-hour cache the core answers, so no second request is made.
+    clock.Advance(TimeSpan.FromHours(23));
+    var second = await service.GetStatusAsync("device", "host");
+    Assert(second.IsSuccess && second.Value?.Status == CloudAccountStatus.Active, "the cached status was not active");
+    Assert(handler.CallCount == 1, "a cached status still reached the network");
+}
+
+static async Task ForcedRefreshIgnoresTheCache()
+{
+    var store = new MemoryCredentialStore("stored-key");
+    var state = LicenseState(store);
+    var clock = new TestClock();
+    var handler = ActiveValidateHandler();
+    using var service = ServiceWith(store, handler, state, clock);
+
+    await service.GetStatusAsync("device", "host");
+    var forced = await service.GetStatusAsync("device", "host", forceRevalidate: true);
+    Assert(forced.IsSuccess && forced.Value?.CustomerEmail == "ray@example.test",
+        "the forced refresh did not return the server's account detail");
+    Assert(handler.CallCount == 2, "the forced refresh was answered from the cache");
+}
+
+static async Task ValidationCacheExpires()
+{
+    var store = new MemoryCredentialStore("stored-key");
+    var state = LicenseState(store);
+    var clock = new TestClock();
+    var handler = ActiveValidateHandler();
+    using var service = ServiceWith(store, handler, state, clock);
+
+    await service.GetStatusAsync("device", "host");
+    clock.Advance(TimeSpan.FromHours(24) + TimeSpan.FromSeconds(1));
+    await service.GetStatusAsync("device", "host");
+    Assert(handler.CallCount == 2, "the validation cache outlived its 24-hour window");
+}
+
+static async Task TransientFailuresUseTheCache()
+{
+    // 429 and 5xx were terminal on Linux and transient on macOS and Windows.
+    // A congested server must not downgrade an account that validated an hour ago.
+    foreach (var transient in new Func<HttpResponseMessage>[]
+    {
+        () => Json(HttpStatusCode.TooManyRequests, "{\"error\":\"slow down\"}"),
+        () => Json(HttpStatusCode.ServiceUnavailable, "{\"error\":\"maintenance\"}"),
+        () => throw new HttpRequestException("no route to host"),
+    })
+    {
+        var store = new MemoryCredentialStore("stored-key");
+        var state = LicenseState(store);
+        var clock = new TestClock();
+        var active = true;
+        var handler = new StubHandler((_, _) => active
+            ? Task.FromResult(Json(HttpStatusCode.OK, "{\"status\":\"active\"}"))
+            : Task.FromResult(transient()));
+        using var service = ServiceWith(store, handler, state, clock);
+
+        await service.GetStatusAsync("device", "host");
+        active = false;
+        clock.Advance(TimeSpan.FromDays(2));
+
+        var offline = await service.GetStatusAsync("device", "host");
+        Assert(offline.IsSuccess && offline.Value?.Status == CloudAccountStatus.Active,
+            "a transient failure did not fall back to the cached verdict");
+    }
+}
+
+static async Task OfflineWithoutACacheReportsTheFailure()
+{
+    // Nothing was ever validated, so there is no verdict to stand in. Reporting
+    // Invalid here would tell a user their account is bad when it is the network.
+    var store = new MemoryCredentialStore("stored-key");
+    var handler = new StubHandler((_, _) =>
+        Task.FromException<HttpResponseMessage>(new HttpRequestException("no route to host")));
+    using var service = Service(store, handler);
+
+    var result = await service.GetStatusAsync("device", "host");
+    Assert(result.Failure?.Code == CloudAccountFailureCode.NetworkFailure,
+        "an unverifiable account was reported as a verdict");
+}
+
+static async Task OfflineGraceExpires()
+{
+    var store = new MemoryCredentialStore("stored-key");
+    var state = LicenseState(store);
+    var clock = new TestClock();
+    var reachable = true;
+    var handler = new StubHandler((_, _) => reachable
+        ? Task.FromResult(Json(HttpStatusCode.OK, "{\"status\":\"active\"}"))
+        : Task.FromException<HttpResponseMessage>(new HttpRequestException("no route to host")));
+    using var service = ServiceWith(store, handler, state, clock);
+
+    await service.GetStatusAsync("device", "host");
+    reachable = false;
+
+    clock.Advance(TimeSpan.FromDays(7));
+    var inGrace = await service.GetStatusAsync("device", "host");
+    Assert(inGrace.IsSuccess && inGrace.Value?.Status == CloudAccountStatus.Active,
+        "the seven-day offline grace ended early");
+
+    clock.Advance(TimeSpan.FromSeconds(1));
+    var pastGrace = await service.GetStatusAsync("device", "host");
+    Assert(pastGrace.Failure?.Code == CloudAccountFailureCode.NetworkFailure,
+        "the offline grace outlived its seven-day window");
+}
+
+static async Task CachedVerdictIsKeyBound()
+{
+    // The cache is one global entry tied to the key on file. An offline
+    // activation of the SAME key may use it; a different key may not, or an
+    // unverified key reads as active. macOS and Windows carry the same rule.
+    var store = new MemoryCredentialStore();
+    var state = LicenseState(store);
+    var clock = new TestClock();
+    var reachable = true;
+    var handler = new StubHandler((_, _) => reachable
+        ? Task.FromResult(Json(HttpStatusCode.OK, "{\"status\":\"active\"}"))
+        : Task.FromException<HttpResponseMessage>(new HttpRequestException("no route to host")));
+    using var service = ServiceWith(store, handler, state, clock);
+
+    await service.ActivateAsync(new("first-key", "device", "host"));
+    reachable = false;
+
+    var other = await service.ActivateAsync(new("second-key", "device", "host"));
+    Assert(other.Failure?.Code == CloudAccountFailureCode.NetworkFailure,
+        "a different key inherited the stored key's cached verdict");
+    Assert(store.StoredText == "first-key", "an unverified key replaced the stored key");
+
+    var same = await service.ActivateAsync(new("first-key", "device", "host"));
+    Assert(same.IsSuccess && same.Value?.Status == CloudAccountStatus.Active,
+        "the stored key could not be re-entered offline");
+}
+
+static async Task RejectedReplacementKeyCannotClobber()
+{
+    // A valid user who mistypes a second key must not be locked out for the
+    // 24-hour cache window. The core owns this guard; this pins it end to end.
+    var store = new MemoryCredentialStore();
+    var state = LicenseState(store);
+    var clock = new TestClock();
+    var good = true;
+    var handler = new StubHandler((_, _) => Task.FromResult(good
+        ? Json(HttpStatusCode.OK, "{\"status\":\"active\"}")
+        : Json(HttpStatusCode.OK, "{\"valid\":false,\"status\":\"invalid\"}")));
+    using var service = ServiceWith(store, handler, state, clock);
+
+    var activated = await service.ActivateAsync(new("good-key", "device", "host"));
+    Assert(activated.IsSuccess, "the first activation failed");
+
+    good = false;
+    var typo = await service.ActivateAsync(new("typo-key", "device", "host"));
+    Assert(typo.Failure?.Code == CloudAccountFailureCode.Rejected, "the mistyped key was accepted");
+    Assert(store.StoredText == "good-key", "the mistyped key replaced the stored key");
+
+    var status = await service.GetStatusAsync("device", "host");
+    Assert(status.IsSuccess && status.Value?.Status == CloudAccountStatus.Active,
+        "the mistyped key's verdict clobbered the stored key's cached status");
+}
+
+static async Task UnreadableExpiryIsNotAFailure()
+{
+    // An expiry this client cannot read used to turn a 200-OK active account
+    // into an InvalidResponse on Linux alone.
+    var handler = new StubHandler((_, _) => Task.FromResult(Json(HttpStatusCode.OK,
+        "{\"status\":\"active\",\"expires_at\":\"whenever\"}")));
+    using var service = Service(new MemoryCredentialStore("stored-key"), handler);
+    var result = await service.GetStatusAsync("device", "host");
+    Assert(result.IsSuccess && result.Value?.Status == CloudAccountStatus.Active,
+        "an unreadable expiry failed an active account");
+    Assert(result.Value?.ExpiresAt is null, "an unreadable expiry was reported as a date");
+}
+
+static async Task ServerRejectionMessageIsSurfaced()
+{
+    // The old ValidateResponse never declared `error`, so the server's own
+    // explanation was thrown away and every rejection read the same.
+    var handler = new StubHandler((_, _) => Task.FromResult(Json(HttpStatusCode.OK,
+        "{\"valid\":false,\"status\":\"expired\",\"error\":\"Subscription lapsed\"}")));
+    using var service = Service(new MemoryCredentialStore(), handler);
+    var result = await service.ActivateAsync(new("lapsed-key", "device", "host"));
+    Assert(result.Failure?.Code == CloudAccountFailureCode.Rejected, "the lapsed key was accepted");
+    Assert(result.Failure!.Message == "Subscription lapsed", "the server's explanation was discarded");
+}
+
+static async Task DeactivationClearsTheCachedVerdict()
+{
+    var store = new MemoryCredentialStore();
+    var state = LicenseState(store);
+    var clock = new TestClock();
+    var reachable = true;
+    var handler = new StubHandler((_, _) => reachable
+        ? Task.FromResult(Json(HttpStatusCode.OK, "{\"status\":\"active\"}"))
+        : Task.FromException<HttpResponseMessage>(new HttpRequestException("no route to host")));
+    using var service = ServiceWith(store, handler, state, clock);
+
+    await service.ActivateAsync(new("stored-key", "device", "host"));
+    var removed = await service.DeactivateAsync();
+    Assert(removed.IsSuccess, "removal failed");
+
+    // The key is put back by hand: without the cache clear, the seven-day grace
+    // would still report the removed account as active.
+    reachable = false;
+    store.Write("HyperWhisper", "LicenseKey", Encoding.UTF8.GetBytes("stored-key"));
+    var status = await service.GetStatusAsync("device", "host");
+    Assert(status.Failure?.Code == CloudAccountFailureCode.NetworkFailure,
+        "removal left a cached verdict behind");
+}
+
+static async Task FailedWriteIsNotCached()
+{
+    // A locked keyring must not leave an active verdict cached against a key
+    // that was never stored — the grace would report an unusable account.
+    var store = new MemoryCredentialStore { FailWrite = true };
+    var state = LicenseState(store);
+    var clock = new TestClock();
+    var reachable = true;
+    var handler = new StubHandler((_, _) => reachable
+        ? Task.FromResult(Json(HttpStatusCode.OK, "{\"status\":\"active\"}"))
+        : Task.FromException<HttpResponseMessage>(new HttpRequestException("no route to host")));
+    using var service = ServiceWith(store, handler, state, clock);
+
+    var write = await service.ActivateAsync(new("secret", "device", "host"));
+    Assert(write.Failure?.Code == CloudAccountFailureCode.CredentialWriteFailed, "write failure mismatch");
+
+    // Put the key in place by hand, then go offline. With nothing cached the
+    // grace has nothing to report, which is why the write comes first.
+    store.FailWrite = false;
+    store.Write("HyperWhisper", "LicenseKey", Encoding.UTF8.GetBytes("secret"));
+    reachable = false;
+    var status = await service.GetStatusAsync("device", "host");
+    Assert(status.Failure?.Code == CloudAccountFailureCode.NetworkFailure,
+        "a failed key write still cached an active verdict");
+}
+
+static Task LicenseStateRouting()
+{
+    // The key belongs in the keyring, 1:1 with what was stored before this
+    // store existed. Everything else belongs in one flat file, so the cached
+    // verdict survives a restart.
+    var credentials = new MemoryCredentialStore();
+    var files = new MemoryPrivateFileService();
+    var state = new PortableLicenseStateStore(credentials, files, "/license-state.json");
+
+    state.Set("com.hyperwhisper.license.key", "routed-key");
+    state.Set("com.hyperwhisper.license.cachedStatus", "Active");
+    Assert(credentials.StoredText == "routed-key", "the license key did not reach the credential store");
+    Assert(files.ReadAllText("/license-state.json").Value?.Contains("cachedStatus", StringComparison.Ordinal) == true,
+        "the cached verdict did not reach the state file");
+    Assert(files.ReadAllText("/license-state.json").Value?.Contains("routed-key", StringComparison.Ordinal) == false,
+        "the license key was written to the state file");
+
+    var reloaded = new PortableLicenseStateStore(credentials, files, "/license-state.json");
+    Assert(reloaded.Get("com.hyperwhisper.license.cachedStatus") == "Active",
+        "the state file did not survive a restart");
+    Assert(reloaded.Get("com.hyperwhisper.license.key") == "routed-key",
+        "the license key was not read back from the credential store");
+
+    state.Delete("com.hyperwhisper.license.key");
+    Assert(credentials.StoredText is null, "the license key was not removed from the credential store");
+    return Task.CompletedTask;
+}
+
+static StubHandler ActiveValidateHandler() => new((_, _) => Task.FromResult(Json(HttpStatusCode.OK,
+    "{\"status\":\"active\",\"customer_id\":\"c1\",\"customer_email\":\"ray@example.test\"}")));
+
+static PortableLicenseStateStore LicenseState(MemoryCredentialStore store) =>
+    new(store, new MemoryPrivateFileService(), "/license-state.json");
+
 static PortableCloudAccountService Service(
     MemoryCredentialStore store,
     HttpMessageHandler handler,
     TimeSpan? timeout = null) =>
-    new(store, new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan }, timeout);
+    ServiceWith(store, handler, LicenseState(store), new TestClock(), timeout);
+
+static PortableCloudAccountService ServiceWith(
+    MemoryCredentialStore store,
+    HttpMessageHandler handler,
+    PortableLicenseStateStore licenseState,
+    TestClock clock,
+    TimeSpan? timeout = null) =>
+    new(store, licenseState, new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan }, timeout, clock);
 
 static HttpResponseMessage Json(HttpStatusCode status, string json) => new(status)
 {
@@ -294,7 +602,7 @@ sealed class MemoryCredentialStore : ICredentialStore
     }
 
     public bool FailRead { get; init; }
-    public bool FailWrite { get; init; }
+    public bool FailWrite { get; set; }
     public bool FailDelete { get; init; }
     public int DeleteCount { get; private set; }
     public string? StoredText => _stored is null ? null : Encoding.UTF8.GetString(_stored);
@@ -317,6 +625,50 @@ sealed class MemoryCredentialStore : ICredentialStore
         _stored = null;
         return PlatformResult.Success();
     }
+}
+
+/// <summary>An owner-only private file service, in memory.</summary>
+sealed class MemoryPrivateFileService : IPrivateFileService
+{
+    private readonly Dictionary<string, byte[]> _files = new(StringComparer.Ordinal);
+
+    public PlatformResult WriteAllBytesAtomically(string path, ReadOnlySpan<byte> contents)
+    {
+        _files[path] = contents.ToArray();
+        return PlatformResult.Success();
+    }
+
+    public PlatformResult WriteAllTextAtomically(string path, string contents) =>
+        WriteAllBytesAtomically(path, Encoding.UTF8.GetBytes(contents));
+
+    public PlatformResult<byte[]?> ReadAllBytes(string path) =>
+        PlatformResult<byte[]?>.Success(_files.TryGetValue(path, out var value) ? value.ToArray() : null);
+
+    public PlatformResult<string?> ReadAllText(string path) =>
+        PlatformResult<string?>.Success(
+            _files.TryGetValue(path, out var value) ? Encoding.UTF8.GetString(value) : null);
+
+    public PlatformResult Delete(string path)
+    {
+        _files.Remove(path);
+        return PlatformResult.Success();
+    }
+
+    public PlatformResult<bool> IsRestrictedToCurrentUser(string path) =>
+        PlatformResult<bool>.Success(_files.ContainsKey(path));
+}
+
+/// <summary>
+/// A clock the test moves by hand. The core takes `now` at every time-dependent
+/// call, so the 24-hour cache and the 7-day grace are testable without waiting.
+/// </summary>
+sealed class TestClock : TimeProvider
+{
+    private DateTimeOffset _now = DateTimeOffset.FromUnixTimeSeconds(1_700_000_000);
+
+    public override DateTimeOffset GetUtcNow() => _now;
+
+    public void Advance(TimeSpan delta) => _now += delta;
 }
 
 sealed class StubHandler(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> responder)

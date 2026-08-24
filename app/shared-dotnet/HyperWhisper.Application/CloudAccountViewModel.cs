@@ -37,7 +37,7 @@ public sealed class CloudAccountViewModel : ViewModelBase
         _openUri = openUri ?? throw new ArgumentNullException(nameof(openUri));
         _deviceName = NormalizeDeviceName(deviceName);
         ActivateCommand = new AsyncCommand(_ => ActivateAsync(), _ => CanRunOperation);
-        RefreshStatusCommand = new AsyncCommand(_ => LoadAsync(), _ => CanRunOperation);
+        RefreshStatusCommand = new AsyncCommand(_ => RefreshStatusAsync(), _ => CanRunOperation);
         RefreshCreditsCommand = new AsyncCommand(_ => RefreshCreditsAsync(), _ => CanRunOperation);
         DeactivateCommand = new AsyncCommand(_ => DeactivateAsync(), _ => CanRunOperation);
         PurchaseCommand = new AsyncCommand(_ => OpenPurchaseAsync(), _ => CanRunOperation);
@@ -118,7 +118,23 @@ public sealed class CloudAccountViewModel : ViewModelBase
         }
     }
 
-    public async Task LoadAsync(CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Loads the account status at startup. Inside the 24-hour validation cache
+    /// this answers from the cached verdict and makes no network call, which is
+    /// what macOS and Windows do at launch.
+    /// </summary>
+    public Task LoadAsync(CancellationToken cancellationToken = default) =>
+        LoadAsync(forceRevalidate: false, cancellationToken);
+
+    /// <summary>
+    /// Asks the server again, whatever the validation cache says. This is the
+    /// explicit refresh the user pressed, so it also brings back the customer
+    /// email and the expiry, which the cached verdict does not hold.
+    /// </summary>
+    public Task RefreshStatusAsync(CancellationToken cancellationToken = default) =>
+        LoadAsync(forceRevalidate: true, cancellationToken);
+
+    private async Task LoadAsync(bool forceRevalidate, CancellationToken cancellationToken)
     {
         if (!TryBeginOperation()) return;
         Status.Busy("Loading account status…");
@@ -132,7 +148,7 @@ public sealed class CloudAccountViewModel : ViewModelBase
             }
 
             var result = await _service.GetStatusAsync(
-                identity.Value!.Id, _deviceName, cancellationToken);
+                identity.Value!.Id, _deviceName, forceRevalidate, cancellationToken);
             if (result.Failure?.Code == CloudAccountFailureCode.MissingAccountKey)
             {
                 ClearDetails();

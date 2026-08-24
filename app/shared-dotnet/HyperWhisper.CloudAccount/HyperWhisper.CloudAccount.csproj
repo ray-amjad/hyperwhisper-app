@@ -8,5 +8,9 @@
 
   <ItemGroup>
     <ProjectReference Include="../HyperWhisper.Platform.Abstractions/HyperWhisper.Platform.Abstractions.csproj" />
+    <!-- The account verdict, its cache and the offline grace live in the
+         hw-license Rust core, reached through the one compiling copy of the
+         generated binding (issue #290). -->
+    <ProjectReference Include="../HyperWhisper.SharedCore/HyperWhisper.SharedCore.csproj" />
   </ItemGroup>
 </Project>

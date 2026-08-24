@@ -89,7 +89,15 @@ public partial class MainWindow : Window
         _onboardingReadiness = new LinuxOnboardingModeReadiness(
             new SecureStoreProviderCredentialSource(_platformServices.CredentialStore),
             new PortableLocalModelReadinessSource(_modelManager));
-        _cloudAccount = new PortableCloudAccountService(_platformServices.CredentialStore);
+        // The account key stays in the keyring; the cached verdict, its
+        // timestamp and the remote trial-limit override go beside the other
+        // state, where the hw-license core reads and writes them (issue #290).
+        _cloudAccount = new PortableCloudAccountService(
+            _platformServices.CredentialStore,
+            PortableLicenseStateStore.For(
+                _platformServices.CredentialStore,
+                _platformServices.PrivateFiles,
+                _platformServices.Paths));
         _storageLifecycle = new PortableStorageLifecycleService(
             _platformServices.Paths, _platformServices.PrivateFiles);
         _storageCoordinator = new TranscriptStorageCoordinator(_database, _storageLifecycle);
