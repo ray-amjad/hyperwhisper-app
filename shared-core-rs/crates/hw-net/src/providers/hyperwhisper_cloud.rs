@@ -68,8 +68,10 @@ pub const TRANSCRIBE_PATH: &str = "/transcribe";
 
 /// Header that tells the backend this user opted OUT of anonymous latency
 /// collection. Sent with value `"1"` and only when opted out; an absent header
-/// means opted in. Mirrors macOS `LatencyOptOut.swift` and Windows
-/// `LatencyOptOut.cs`.
+/// means opted in. This is the ONLY place any platform emits it: the native
+/// copies (Windows `LatencyOptOut.cs`, Linux `LinuxLatencyOptOutHandler.cs`)
+/// were deleted, and macOS `LatencyOptOut.swift` now only reads the user's
+/// setting and passes it in as `TranscribeParams::share_anonymous_speed_data`.
 pub const LATENCY_OPT_OUT_HEADER: &str = "X-Latency-Opt-Out";
 
 /// Build the HyperWhisper Cloud transcription request.

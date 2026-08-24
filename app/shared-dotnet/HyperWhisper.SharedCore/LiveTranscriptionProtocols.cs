@@ -57,14 +57,25 @@ internal static class LiveTranscriptionProtocolFactory
         return separator > 0 ? normalized[..separator] : normalized;
     }
 
+    /// <summary>
+    /// Per-protocol vocabulary terms: the shared core sanitizes, drops empties
+    /// and de-duplicates case-insensitively; the per-protocol length drop and
+    /// term cap stay here, in that order, because each protocol owns them.
+    ///
+    /// The core is asked for an UNCAPPED list on purpose. Capping inside it
+    /// would apply <paramref name="count"/> before the <paramref name="chars"/>
+    /// filter and silently shorten the result.
+    ///
+    /// BEHAVIOUR CHANGE: the core's sanitizer truncates a term at 80 characters,
+    /// so with <paramref name="chars"/> above 80 a long term now arrives
+    /// truncated instead of whole (81-100 chars) or instead of being dropped
+    /// (over 100 chars). With <paramref name="chars"/> at 50 nothing changes:
+    /// an over-long term is still over 50 after truncation and still dropped.
+    /// </summary>
     internal static IReadOnlyList<string> Vocabulary(LiveTranscriptionConfig config, int count, int chars) =>
-        config.Vocabulary?
-            .Where(value => !string.IsNullOrWhiteSpace(value))
-            .Select(value => value.Trim())
+        [.. SharedCoreBridge.NormalizeVocabularyTerms(config.Vocabulary, null)
             .Where(value => value.Length <= chars)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Take(count)
-            .ToArray() ?? [];
+            .Take(count)];
 
     internal static LiveProtocolFrame Text(string value) =>
         new(Encoding.UTF8.GetBytes(value), WebSocketMessageType.Text);

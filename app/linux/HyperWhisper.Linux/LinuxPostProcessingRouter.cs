@@ -42,13 +42,14 @@ internal sealed class LinuxPostProcessingRouter : ITranscriptionPostProcessor, I
         if (mode.PostProcessingMode != 1 || !TryResolveProvider(mode.PostProcessingProvider, out var provider, out var endpointId))
             return PortablePostProcessingResult.Skipped(transcript);
 
-        var vocabulary = (await _vocabulary.ListAsync(cancellationToken).ConfigureAwait(false))
-            .Select(item => item.Word)
-            .Concat(mode.CustomVocabulary ?? [])
-            .Where(item => !string.IsNullOrWhiteSpace(item))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Take(100)
-            .ToArray();
+        // Shared core rule: sanitize, drop empties, dedupe case-insensitively.
+        // Terms now get trimmed first, so " API" and "API" collapse to one.
+        var vocabulary = SharedCoreBridge.NormalizeVocabularyTerms(
+            [
+                .. (await _vocabulary.ListAsync(cancellationToken).ConfigureAwait(false)).Select(item => item.Word),
+                .. (mode.CustomVocabulary ?? []),
+            ],
+            100);
         var prompt = LinuxPostProcessingPromptFactory.Build(mode, applicationContext, vocabulary);
         CustomPostProcessingEndpoint? custom = null;
         if (provider == CloudPostProcessingProvider.Custom)

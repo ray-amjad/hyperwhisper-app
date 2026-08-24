@@ -109,7 +109,7 @@ static async Task TestRouterAsync(string root)
             CloudAccuracyTier = "googleChirp3",
             CloudTranscriptionDomain = "medical",
             GeminiCustomPrompt = "verbatim prompt",
-            CustomVocabulary = ["Ray", "Ray", " Codex "],
+            CustomVocabulary = ["Ray", "Ray", " Codex ", "Rust<script>", "multi\n  word", "   "],
         };
         var result = await router.TranscribeAsync(
             audio, new TranscriptionWorkflowRequest("auto", SelectedMode: mode, Vocabulary: ["Global", "Ray"]));
@@ -118,7 +118,11 @@ static async Task TestRouterAsync(string root)
             $"{providerId} did not preserve provider attribution");
         Assert(mapped.Model == (providerId == "hyperwhisper" ? "" : "selected-model"),
             $"{providerId} model mapping changed");
-        Assert(mapped.Language is null && mapped.Vocabulary!.SequenceEqual(["Global", "Ray", "Codex"]),
+        // Request vocabulary first, then the mode's, through the shared core:
+        // trimmed, angle brackets stripped, whitespace runs collapsed, empties
+        // dropped, de-duplicated case-insensitively keeping first-seen casing.
+        Assert(mapped.Language is null
+            && mapped.Vocabulary!.SequenceEqual(["Global", "Ray", "Codex", "Rustscript", "multi word"]),
             $"{providerId} language/vocabulary mapping changed");
         if (providerId == "gemini") Assert(mapped.Prompt == "verbatim prompt", "Gemini prompt was dropped");
         if (providerId == "hyperwhisper")
@@ -127,6 +131,19 @@ static async Task TestRouterAsync(string root)
                 && mapped.RoutedDomain == "medical",
                 "HyperWhisper routed tier/model/domain mapping changed");
     }
+
+    // This route's own 1000-term cap, kept out of the shared core deliberately:
+    // the live-streaming router caps at 100 and neither may drift onto the other.
+    var cappedMode = new Mode
+    {
+        ProviderType = "cloud",
+        CloudProvider = "openai",
+        CustomVocabulary = [.. Enumerable.Range(0, 1200).Select(index => $"term{index}")],
+    };
+    await router.TranscribeAsync(audio, new TranscriptionWorkflowRequest(SelectedMode: cappedMode));
+    Assert(cloud.LastRequest!.Vocabulary!.Count == 1000
+        && cloud.LastRequest.Vocabulary[999] == "term999",
+        "the 1000-term cloud vocabulary cap changed");
 
     var assemblyMode = new Mode { ProviderType = "cloud", CloudProvider = "assemblyai", CloudTranscriptionModel = null };
     await router.TranscribeAsync(audio, new TranscriptionWorkflowRequest(SelectedMode: assemblyMode));

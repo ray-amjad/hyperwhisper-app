@@ -123,6 +123,26 @@ var tests = new (string Name, Func<Task> Run)[]
     ("live diagnostics redact credentials audio and transcript text", TestLiveDiagnosticsRedactionAsync),
     ("live provider failures and buffer limits are structured", TestLiveFailureAndBoundsAsync),
     ("live cancellation stops transport deterministically", TestLiveCancellationAsync),
+    ("vocabulary egress normalizes through the shared core", () =>
+    {
+        // The canonical rule: sanitize (strip <>, collapse whitespace runs, cap
+        // the term at the core's 80 chars), drop empties, dedupe
+        // case-insensitively keeping first-seen order and casing, then cap.
+        string[] words = ["  API  ", "", "api", "Rust<script>", "multi\n  word", "   "];
+        Assert.Equal(
+            "API|Rustscript|multi word",
+            string.Join('|', SharedCoreBridge.NormalizeVocabularyTerms(words, null)));
+        Assert.Equal(
+            "API|Rustscript",
+            string.Join('|', SharedCoreBridge.NormalizeVocabularyTerms(words, 2)));
+        // limit 0 is .Take(0), NOT "uncapped".
+        Assert.Equal(0, SharedCoreBridge.NormalizeVocabularyTerms(words, 0).Count);
+        Assert.Equal(0, SharedCoreBridge.NormalizeVocabularyTerms(null, null).Count);
+        // Sanitization truncates at 80 characters.
+        Assert.Equal(80, SharedCoreBridge.NormalizeVocabularyTerms(new[] { new string('x', 150) }, null)[0].Length);
+        return Task.CompletedTask;
+    }),
+    ("live protocol vocabulary keeps its own length drop and cap", TestLiveVocabularyAsync),
 };
 
 var failures = 0;
@@ -557,6 +577,76 @@ static async Task TestLiveCancellationAsync()
         BlockingAudio(source.Token),
         source.Token);
     Assert.Equal(LiveTranscriptionFailureCode.Cancelled, result.Failure!.Code);
+}
+
+/// <summary>
+/// Pins <c>LiveTranscriptionProtocolFactory.Vocabulary</c> after it was routed
+/// through the shared core: the core sanitizes/de-duplicates, each protocol
+/// keeps its own length drop and term cap, and the length drop still runs
+/// BEFORE the cap.
+/// </summary>
+static async Task TestLiveVocabularyAsync()
+{
+    var eightyFive = new string('a', 85);
+    var oneFifty = new string('b', 150);
+    string[] words = ["  API  ", "api", "Rust<script>", "multi\n  word", "", eightyFive, oneFifty];
+
+    // Deepgram: chars = 100. Both over-long terms arrive truncated to the core's
+    // 80-character term limit, so both now fit under 100 — the 150-char term used
+    // to be dropped outright. Each term is its own `keyterm=` parameter.
+    var deepgram = await ConnectQuery(new LiveTranscriptionConfig(
+        LiveTranscriptionProvider.Deepgram, ApiKey: "dg", Language: "en", Vocabulary: words));
+    Assert.True(deepgram.Contains("keyterm=API&", StringComparison.Ordinal));
+    Assert.True(deepgram.Contains("keyterm=Rustscript&", StringComparison.Ordinal));
+    Assert.True(deepgram.Contains("keyterm=multi%20word&", StringComparison.Ordinal));
+    Assert.Equal(1, CountOccurrences(deepgram, "keyterm=API"));
+    Assert.Equal(5, CountOccurrences(deepgram, "keyterm="));
+    Assert.True(deepgram.Contains($"keyterm={new string('a', 80)}", StringComparison.Ordinal));
+    Assert.True(deepgram.Contains($"keyterm={new string('b', 80)}", StringComparison.Ordinal));
+
+    // Grok: chars = 50. An over-long term is still over 50 after the core's
+    // 80-character truncation, so it is still dropped — unchanged behaviour.
+    var grok = await ConnectQuery(new LiveTranscriptionConfig(
+        LiveTranscriptionProvider.Grok, ApiKey: "xai", Language: "en", Vocabulary: words));
+    Assert.Equal(3, CountOccurrences(grok, "keyterm="));
+    Assert.False(grok.Contains("aaaa", StringComparison.Ordinal));
+    Assert.False(grok.Contains("bbbb", StringComparison.Ordinal));
+
+    // HyperWhisper Cloud: chars = 100, joined with ", " into one parameter.
+    var cloud = await ConnectQuery(new LiveTranscriptionConfig(
+        LiveTranscriptionProvider.HyperWhisperCloud, LicenseKey: "hw", Language: "en",
+        Vocabulary: ["  API  ", "api", "Rust<script>"]));
+    Assert.True(cloud.Contains("vocabulary=API%2C%20Rustscript", StringComparison.Ordinal));
+
+    // The per-protocol cap runs after the length drop, so the shorter terms
+    // still fill the budget rather than being spent on dropped ones.
+    var capped = await ConnectQuery(new LiveTranscriptionConfig(
+        LiveTranscriptionProvider.Grok, ApiKey: "xai", Language: "en",
+        Vocabulary: [.. Enumerable.Range(0, 260).Select(index =>
+            index % 2 == 0 ? new string('z', 60) + index : $"term{index}")]));
+    Assert.Equal(100, CountOccurrences(capped, "keyterm="));
+    Assert.False(capped.Contains("zzzz", StringComparison.Ordinal));
+}
+
+static async Task<string> ConnectQuery(LiveTranscriptionConfig config)
+{
+    var socket = new FakeStreamingWebSocket([CloseFrame()]);
+    var service = new LiveCloudTranscriptionService(new FakeWebSocketFactory(socket));
+    await service.TranscribeAsync(config, Audio(320));
+    Assert.NotNull(socket.Options);
+    return socket.Options!.Uri.Query + "&";
+}
+
+static int CountOccurrences(string haystack, string needle)
+{
+    var count = 0;
+    for (var index = haystack.IndexOf(needle, StringComparison.Ordinal);
+         index >= 0;
+         index = haystack.IndexOf(needle, index + needle.Length, StringComparison.Ordinal))
+    {
+        count++;
+    }
+    return count;
 }
 
 static async IAsyncEnumerable<ReadOnlyMemory<byte>> Audio(int byteCount)

@@ -10,5 +10,8 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="..\HyperWhisper.Platform.Abstractions\HyperWhisper.Platform.Abstractions.csproj" />
     <ProjectReference Include="..\HyperWhisper.Application\HyperWhisper.Application.csproj" />
+    <!-- SharedCoreBridge.NormalizeVocabularyTerms; a transitive reference would
+         resolve, but this project now depends on the bridge directly. -->
+    <ProjectReference Include="..\HyperWhisper.SharedCore\HyperWhisper.SharedCore.csproj" />
   </ItemGroup>
 </Project>

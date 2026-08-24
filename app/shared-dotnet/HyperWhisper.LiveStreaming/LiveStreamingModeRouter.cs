@@ -132,18 +132,15 @@ public sealed class LiveStreamingModeRouter(ILiveStreamingCredentialSource crede
         }
     }
 
+    /// <summary>
+    /// Global vocabulary first, then the mode's, through the shared core's
+    /// vocabulary-egress rule. The 100-term cap is this site's own — it is the
+    /// live-streaming providers' term budget, not a shared constant.
+    /// </summary>
     private static IReadOnlyList<string> MergeVocabulary(
         IReadOnlyList<string>? global,
         IReadOnlyList<string>? mode)
-    {
-        return (global ?? [])
-            .Concat(mode ?? [])
-            .Select(value => value.Trim())
-            .Where(value => value.Length > 0)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Take(100)
-            .ToArray();
-    }
+        => SharedCoreBridge.NormalizeVocabularyTerms([.. (global ?? []), .. (mode ?? [])], 100);
 
     private static string? Normalize(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();

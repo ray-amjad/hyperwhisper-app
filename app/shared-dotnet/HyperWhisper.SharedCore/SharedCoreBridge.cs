@@ -168,6 +168,26 @@ public static class SharedCoreBridge
         return HyperwhisperCoreMethods.RemoveFillerWords(text, language);
     }
 
+    /// <summary>
+    /// The canonical vocabulary-egress normalization: sanitize each term (strip
+    /// <c>&lt;</c>/<c>&gt;</c>, collapse whitespace runs, cap at the core's
+    /// 80-character term limit), drop the ones that sanitize to nothing,
+    /// de-duplicate case-insensitively keeping first-seen order and casing, and
+    /// optionally stop after <paramref name="limit"/> terms.
+    ///
+    /// <paramref name="limit"/> is <c>null</c> for "no cap"; <c>0</c> means zero
+    /// terms, exactly like <c>.Take(0)</c>. Each call site owns its own cap and
+    /// its own join separator — only this rule is shared.
+    /// </summary>
+    public static IReadOnlyList<string> NormalizeVocabularyTerms(
+        IReadOnlyList<string>? words,
+        uint? limit)
+        => HyperwhisperCoreMethods.NormalizeVocabularyTerms(
+            // Guarding empties here keeps a null/blank row out of the FFI call;
+            // the core drops them anyway once they sanitize to nothing.
+            words?.Where(word => !string.IsNullOrEmpty(word)).ToList() ?? [],
+            limit);
+
     public static string ProcessVoiceCommands(string text)
     {
         ArgumentNullException.ThrowIfNull(text);

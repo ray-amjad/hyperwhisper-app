@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using HyperWhisper.Models;
+using uniffi.hyperwhisper_core;
 
 namespace HyperWhisper.Services.Streaming;
 
@@ -101,7 +101,8 @@ public static class StreamingTranscriptionSessionFactory
     // The strategy is the single owner of "does this provider take vocabulary".
     // A second provider list here is what made the xAI keyterm support dead on
     // arrival: the strategy said yes and this method still said no.
-    private static string? BuildVocabulary(
+    // internal for HyperWhisper.SmokeTests, which drives it through the real FFI.
+    internal static string? BuildVocabulary(
         IStreamingProviderStrategy strategy,
         IReadOnlyCollection<string> vocabularyWords
     )
@@ -111,14 +112,11 @@ public static class StreamingTranscriptionSessionFactory
             return null;
         }
 
-        // Sanitize through the shared core, exactly like the batch path and macOS:
-        // an imported backup can carry angle brackets or whitespace runs, and every
-        // strategy downstream applies its own length cap AFTER this.
-        var terms = vocabularyWords
-            .Where(term => !string.IsNullOrWhiteSpace(term))
-            .Select(term => Utilities.PromptBuilder.SanitizeVocabularyWord(term))
-            .Where(term => !string.IsNullOrWhiteSpace(term))
-            .Distinct(StringComparer.OrdinalIgnoreCase);
+        // Sanitize/dedupe through the shared core, exactly like the batch path and
+        // macOS: an imported backup can carry angle brackets or whitespace runs,
+        // and every strategy downstream applies its own length cap AFTER this.
+        // No cap here on purpose — the strategies own the caps.
+        var terms = HyperwhisperCoreMethods.NormalizeVocabularyTerms([.. vocabularyWords], null);
 
         var vocabulary = string.Join(", ", terms);
         return string.IsNullOrWhiteSpace(vocabulary) ? null : vocabulary;

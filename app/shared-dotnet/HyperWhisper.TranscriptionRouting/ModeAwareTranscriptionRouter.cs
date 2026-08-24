@@ -102,13 +102,11 @@ public sealed class ModeAwareTranscriptionRouter : IRecordedAudioTranscriber, ID
         var model = string.IsNullOrWhiteSpace(mode.CloudTranscriptionModel)
             ? DefaultModel(provider)
             : mode.CloudTranscriptionModel.Trim();
-        var vocabulary = (request.Vocabulary ?? [])
-            .Concat(mode.CustomVocabulary ?? [])
-            .Where(value => !string.IsNullOrWhiteSpace(value))
-            .Select(value => value.Trim())
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Take(1000)
-            .ToArray();
+        // The shared core owns sanitize -> drop-empty -> case-insensitive dedupe.
+        // The 1000-term cap is this route's own budget and stays here.
+        var vocabulary = SharedCoreBridge.NormalizeVocabularyTerms(
+            [.. (request.Vocabulary ?? []), .. (mode.CustomVocabulary ?? [])],
+            1000);
 
         if (provider != CloudTranscriptionProvider.HyperWhisperCloud)
             return new(provider, audioPath, model, language, vocabulary,

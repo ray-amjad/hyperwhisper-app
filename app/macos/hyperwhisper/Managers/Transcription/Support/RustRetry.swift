@@ -343,18 +343,17 @@ enum RustCoreMapping {
     /// recognition hints. The Rust core applies the same sanitizer/dedup/caps
     /// again while building provider requests, but pre-sanitizing here keeps the
     /// FFI boundary free of replacement-pair and oversized prompt-injection data.
+    ///
+    /// The replacement-pair filter and the `[Vocabulary]` -> `[String]`
+    /// projection stay here — they are Core Data shape, not the shared rule.
+    /// Sanitize + drop-empty + case-insensitive dedupe is the core's, uncapped:
+    /// each provider applies its own cap afterwards.
     static func boostVocabularyTerms(from vocabulary: [Vocabulary]) -> [String] {
-        var terms: [String] = []
-        var seen = Set<String>()
-        for item in vocabulary {
-            guard item.replacement?.isEmpty != false else { continue }
-            guard let raw = item.word else { continue }
-            let sanitized = PromptBuilder.sanitizeVocabularyWord(raw)
-            guard !sanitized.isEmpty else { continue }
-            guard seen.insert(sanitized.lowercased()).inserted else { continue }
-            terms.append(sanitized)
+        let words = vocabulary.compactMap { item -> String? in
+            guard item.replacement?.isEmpty != false else { return nil }
+            return item.word
         }
-        return terms
+        return normalizeVocabularyTerms(words: words, limit: nil)
     }
 
     /// Parse the HW-Cloud / routed 413 size context (`actual_size_mb` /

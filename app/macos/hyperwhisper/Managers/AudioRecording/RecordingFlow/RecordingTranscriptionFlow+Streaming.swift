@@ -1076,30 +1076,20 @@ extension RecordingTranscriptionFlow {
     ///   hint. Sending its `word` boosts the ASR toward the exact misspelling
     ///   the user configured a fix for, and burns one of the provider's term
     ///   slots doing it.
-    /// - **each term is sanitized** through `PromptBuilder.sanitizeVocabularyWord`,
-    ///   so an imported backup cannot push angle brackets or whitespace runs
-    ///   into a provider request.
+    /// - **each term is sanitized, de-duplicated case-insensitively and capped**
+    ///   by the shared core's `normalizeVocabularyTerms`, so an imported backup
+    ///   cannot push angle brackets or whitespace runs into a provider request.
+    ///
+    /// The replacement-pair filter, the 100-term cap (Deepgram's limit) and the
+    /// `","` join are this site's own; only the normalize rule is shared.
     ///
     /// - Parameter vocabulary: Array of vocabulary entry snapshots
     /// - Returns: Comma-separated string of vocabulary terms, or nil if empty
     private func buildVocabularyString(from vocabulary: [VocabularyEntrySnapshot]) -> String? {
-        var terms: [String] = []
-        var seen = Set<String>()
-
-        for item in vocabulary {
-            guard item.replacement?.isEmpty != false else { continue }
-            let word = PromptBuilder.sanitizeVocabularyWord(item.word)
-            guard !word.isEmpty,
-                  !seen.contains(word.lowercased()) else {
-                continue
-            }
-            seen.insert(word.lowercased())
-            terms.append(word)
-
-            // Deepgram limit: 100 terms max
-            if terms.count >= 100 { break }
-        }
-
+        let words = vocabulary
+            .filter { $0.replacement?.isEmpty != false }
+            .map(\.word)
+        let terms = normalizeVocabularyTerms(words: words, limit: 100)
         return terms.isEmpty ? nil : terms.joined(separator: ",")
     }
 

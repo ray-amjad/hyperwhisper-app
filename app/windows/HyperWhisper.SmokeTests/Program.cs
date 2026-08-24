@@ -2810,6 +2810,39 @@ internal static class Program
                 Assert(result == "hello world", $"expected trimmed text with empty vocabulary, got '{result}'");
             });
 
+            // Vocabulary egress normalization now lives in the shared Rust core
+            // (hw-net, keyword_boost_terms). This runs through the real FFI and
+            // is the Windows half of a cross-platform parity check: macOS
+            // RustCoreMapping.boostVocabularyTerms and the portable
+            // HyperWhisper.SharedCore.Tests assert the same rule.
+            Run("StreamingTranscriptionSessionFactory.BuildVocabulary normalizes through the shared core", () =>
+            {
+                var strategy = new DeepgramStreamingStrategy();
+                Assert(strategy.SupportsVocabulary, "Deepgram must still declare vocabulary support");
+
+                var vocabulary = StreamingTranscriptionSessionFactory.BuildVocabulary(
+                    strategy,
+                    ["  API  ", "api", "Rust<script>", "multi\n  word", "   ", ""]);
+                // ", " join, first-seen casing/order, no cap: the strategies cap.
+                Assert(vocabulary == "API, Rustscript, multi word",
+                    $"expected the sanitized deduped ', '-joined vocabulary, got '{vocabulary}'");
+
+                // The strategy owns "does this provider take vocabulary".
+                Assert(StreamingTranscriptionSessionFactory.BuildVocabulary(
+                    new NoOpStreamingProviderStrategy(), ["API"]) is null,
+                    "a strategy without vocabulary support must still get null");
+                Assert(StreamingTranscriptionSessionFactory.BuildVocabulary(strategy, []) is null,
+                    "an empty vocabulary must still get null");
+                Assert(StreamingTranscriptionSessionFactory.BuildVocabulary(strategy, ["<>", "   "]) is null,
+                    "a vocabulary that sanitizes away entirely must get null");
+
+                // Sanitization truncates a term at the core's 80-character limit.
+                var truncated = StreamingTranscriptionSessionFactory.BuildVocabulary(
+                    strategy, new[] { new string('x', 150) });
+                Assert(truncated is { Length: 80 },
+                    $"expected an 80-character truncated term, got '{truncated}'");
+            });
+
             // The ISO 3166-1 region table now lives in the shared Rust core
             // (hw-text, EnglishSpelling::for_region). These run through the real
             // FFI, so they are the Windows half of a cross-platform parity check:
