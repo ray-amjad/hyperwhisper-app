@@ -349,21 +349,23 @@ public class GeminiTranscriptionService : ApiKeyTranscriptionServiceBase
 
     /// <summary>
     /// Fire-and-forget delete of the uploaded Gemini file. The build fn throws on
-    /// validation (RustCallWithError), so it is guarded inside the detached task.
+    /// validation (RustCallWithError), so it is guarded inside the awaited method.
     /// </summary>
     private void FireDeleteFile(TranscribeParams coreParams, string fileName)
     {
-        _ = Task.Run(async () =>
+        _ = DeleteFileAsync(coreParams, fileName);
+    }
+
+    private async Task DeleteFileAsync(TranscribeParams coreParams, string fileName)
+    {
+        try
         {
-            try
-            {
-                var req = HyperwhisperCoreMethods.GeminiBuildDeleteRequest(coreParams, fileName);
-                await RustHttpExecutor.ExecuteAsync(req, Http, CancellationToken.None);
-            }
-            catch (Exception ex)
-            {
-                LoggingService.Warn($"Gemini cleanup failed for {fileName}: {ex.Message}");
-            }
-        });
+            var req = HyperwhisperCoreMethods.GeminiBuildDeleteRequest(coreParams, fileName);
+            await RustHttpExecutor.ExecuteAsync(req, Http, CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Warn($"Gemini cleanup failed for {fileName}: {ex.Message}");
+        }
     }
 }

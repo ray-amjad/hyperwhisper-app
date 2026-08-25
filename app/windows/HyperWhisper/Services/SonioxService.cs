@@ -281,18 +281,20 @@ public class SonioxService : ApiKeyTranscriptionServiceBase
     /// </summary>
     private void FireDeleteTranscription(TranscribeParams coreParams, string transcriptionId)
     {
-        _ = Task.Run(async () =>
+        _ = DeleteTranscriptionAsync(coreParams, transcriptionId);
+    }
+
+    private async Task DeleteTranscriptionAsync(TranscribeParams coreParams, string transcriptionId)
+    {
+        try
         {
-            try
-            {
-                var req = HyperwhisperCoreMethods.SonioxBuildDeleteTranscriptionRequest(coreParams, transcriptionId);
-                await RustHttpExecutor.ExecuteAsync(req, Http, CancellationToken.None);
-            }
-            catch (Exception ex)
-            {
-                LoggingService.Warn($"Soniox cleanup (transcription) failed: {ex.Message}");
-            }
-        });
+            var req = HyperwhisperCoreMethods.SonioxBuildDeleteTranscriptionRequest(coreParams, transcriptionId);
+            await RustHttpExecutor.ExecuteAsync(req, Http, CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Warn($"Soniox cleanup (transcription) failed: {ex.Message}");
+        }
     }
 
     /// <summary>
@@ -301,17 +303,19 @@ public class SonioxService : ApiKeyTranscriptionServiceBase
     /// </summary>
     private void FireDeleteFile(TranscribeParams coreParams, string fileId)
     {
-        _ = Task.Run(async () =>
+        _ = DeleteFileAsync(coreParams, fileId);
+    }
+
+    private async Task DeleteFileAsync(TranscribeParams coreParams, string fileId)
+    {
+        try
         {
-            try
-            {
-                var req = HyperwhisperCoreMethods.SonioxBuildDeleteFileRequest(coreParams, fileId);
-                await RustHttpExecutor.ExecuteAsync(req, Http, CancellationToken.None);
-            }
-            catch (Exception ex)
-            {
-                LoggingService.Warn($"Soniox file cleanup failed: {ex.Message}");
-            }
-        });
+            var req = HyperwhisperCoreMethods.SonioxBuildDeleteFileRequest(coreParams, fileId);
+            await RustHttpExecutor.ExecuteAsync(req, Http, CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Warn($"Soniox file cleanup failed: {ex.Message}");
+        }
     }
 }
