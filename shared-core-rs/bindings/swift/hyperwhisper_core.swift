@@ -926,6 +926,166 @@ public func FfiConverterTypeAppClassification_lower(_ value: AppClassification) 
 
 
 /**
+ * Everything a platform can observe about the foreground app. Mirrors
+ * `hw_catalog::ClassifyRequest`.
+ *
+ * A record rather than a parameter list on purpose: issue #279 routes macOS,
+ * Windows and Linux through this one call, and each head can see a different
+ * subset of the signals. A new signal then costs a field, not a break in every
+ * binding. Pass an empty string / `None` / an empty list for a signal the
+ * platform cannot observe.
+ */
+public struct AppClassifyRequest {
+    /**
+     * macOS bundle identifier, e.g. `com.apple.mail`.
+     */
+    public var bundleId: String
+    /**
+     * Process name without an extension, e.g. `OUTLOOK` or `konsole`.
+     */
+    public var processName: String
+    /**
+     * The app's display name, e.g. `Visual Studio Code`.
+     */
+    public var appName: String
+    /**
+     * Browser host for a web app. A full URL is accepted and normalized.
+     */
+    public var host: String?
+    /**
+     * The confidence to report for a host hit; empty means `strong`. It
+     * reaches the LLM prompt, so the caller owns it.
+     */
+    public var hostConfidence: String
+    /**
+     * Window and/or browser-tab title, composed by the caller.
+     */
+    public var title: String
+    /**
+     * Text read off the focused accessibility element.
+     */
+    public var focusedPieces: [String]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * macOS bundle identifier, e.g. `com.apple.mail`.
+         */bundleId: String, 
+        /**
+         * Process name without an extension, e.g. `OUTLOOK` or `konsole`.
+         */processName: String, 
+        /**
+         * The app's display name, e.g. `Visual Studio Code`.
+         */appName: String, 
+        /**
+         * Browser host for a web app. A full URL is accepted and normalized.
+         */host: String?, 
+        /**
+         * The confidence to report for a host hit; empty means `strong`. It
+         * reaches the LLM prompt, so the caller owns it.
+         */hostConfidence: String, 
+        /**
+         * Window and/or browser-tab title, composed by the caller.
+         */title: String, 
+        /**
+         * Text read off the focused accessibility element.
+         */focusedPieces: [String]) {
+        self.bundleId = bundleId
+        self.processName = processName
+        self.appName = appName
+        self.host = host
+        self.hostConfidence = hostConfidence
+        self.title = title
+        self.focusedPieces = focusedPieces
+    }
+}
+
+
+
+extension AppClassifyRequest: Equatable, Hashable {
+    public static func ==(lhs: AppClassifyRequest, rhs: AppClassifyRequest) -> Bool {
+        if lhs.bundleId != rhs.bundleId {
+            return false
+        }
+        if lhs.processName != rhs.processName {
+            return false
+        }
+        if lhs.appName != rhs.appName {
+            return false
+        }
+        if lhs.host != rhs.host {
+            return false
+        }
+        if lhs.hostConfidence != rhs.hostConfidence {
+            return false
+        }
+        if lhs.title != rhs.title {
+            return false
+        }
+        if lhs.focusedPieces != rhs.focusedPieces {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(bundleId)
+        hasher.combine(processName)
+        hasher.combine(appName)
+        hasher.combine(host)
+        hasher.combine(hostConfidence)
+        hasher.combine(title)
+        hasher.combine(focusedPieces)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeAppClassifyRequest: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AppClassifyRequest {
+        return
+            try AppClassifyRequest(
+                bundleId: FfiConverterString.read(from: &buf), 
+                processName: FfiConverterString.read(from: &buf), 
+                appName: FfiConverterString.read(from: &buf), 
+                host: FfiConverterOptionString.read(from: &buf), 
+                hostConfidence: FfiConverterString.read(from: &buf), 
+                title: FfiConverterString.read(from: &buf), 
+                focusedPieces: FfiConverterSequenceString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: AppClassifyRequest, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.bundleId, into: &buf)
+        FfiConverterString.write(value.processName, into: &buf)
+        FfiConverterString.write(value.appName, into: &buf)
+        FfiConverterOptionString.write(value.host, into: &buf)
+        FfiConverterString.write(value.hostConfidence, into: &buf)
+        FfiConverterString.write(value.title, into: &buf)
+        FfiConverterSequenceString.write(value.focusedPieces, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAppClassifyRequest_lift(_ buf: RustBuffer) throws -> AppClassifyRequest {
+    return try FfiConverterTypeAppClassifyRequest.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAppClassifyRequest_lower(_ value: AppClassifyRequest) -> RustBuffer {
+    return FfiConverterTypeAppClassifyRequest.lower(value)
+}
+
+
+/**
  * Policy verdict: `text` is the cleaned content when `accepted`, the untouched
  * original transcript otherwise. Mirrors
  * `hw_text::completion::CompletionEvaluation`.
@@ -6299,15 +6459,25 @@ fileprivate struct FfiConverterSequenceTypeHwPart: FfiConverterRustBuffer {
     }
 }
 /**
- * Classify the focused app from its identifiers. `host` is the browser host when
- * the app is a browser.
+ * Classify the focused app from everything the platform observed about it.
  */
-public func appClassify(bundleId: String, processName: String, host: String?, title: String) -> AppClassification {
+public func appClassify(request: AppClassifyRequest) -> AppClassification {
     return try!  FfiConverterTypeAppClassification.lift(try! rustCall() {
     uniffi_hyperwhisper_core_fn_func_app_classify(
-        FfiConverterString.lower(bundleId),
-        FfiConverterString.lower(processName),
-        FfiConverterOptionString.lower(host),
+        FfiConverterTypeAppClassifyRequest.lower(request),$0
+    )
+})
+}
+/**
+ * Whether a browser-tab title looks like webmail.
+ *
+ * The safety net both heads apply when the host was unreadable and nothing
+ * else classified the window. Call it ONLY once you know the foreground app is
+ * a browser — a title is not evidence of webmail on its own.
+ */
+public func appIsWebmail(title: String) -> Bool {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_app_is_webmail(
         FfiConverterString.lower(title),$0
     )
 })
@@ -7714,7 +7884,10 @@ private var initializationResult: InitializationResult = {
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
     }
-    if (uniffi_hyperwhisper_core_checksum_func_app_classify() != 43463) {
+    if (uniffi_hyperwhisper_core_checksum_func_app_classify() != 17474) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_app_is_webmail() != 11174) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_app_type_from_raw() != 37551) {

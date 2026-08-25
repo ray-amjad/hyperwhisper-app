@@ -19,12 +19,20 @@ on:
     paths:
       - "shared-core-rs/**"
       - "shared-conformance/**"
+      # hw-catalog include_str!s these, so a catalog-only edit changes what the
+      # crate answers and must re-run its vectors (issue #279).
+      - "shared-app-classification/**"
+      - "shared-models/**"
       - ".github/workflows/shared-core-tests.yml"
   push:
     branches: [main]
     paths:
       - "shared-core-rs/**"
       - "shared-conformance/**"
+      # hw-catalog include_str!s these, so a catalog-only edit changes what the
+      # crate answers and must re-run its vectors (issue #279).
+      - "shared-app-classification/**"
+      - "shared-models/**"
       - ".github/workflows/shared-core-tests.yml"
 
 jobs:

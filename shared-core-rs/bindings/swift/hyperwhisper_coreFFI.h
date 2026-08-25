@@ -314,7 +314,12 @@ void uniffi_hyperwhisper_core_fn_method_keyvaluestore_delete(void*_Nonnull ptr, 
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_FN_FUNC_APP_CLASSIFY
 #define UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_FN_FUNC_APP_CLASSIFY
-RustBuffer uniffi_hyperwhisper_core_fn_func_app_classify(RustBuffer bundle_id, RustBuffer process_name, RustBuffer host, RustBuffer title, RustCallStatus *_Nonnull out_status
+RustBuffer uniffi_hyperwhisper_core_fn_func_app_classify(RustBuffer request, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_FN_FUNC_APP_IS_WEBMAIL
+#define UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_FN_FUNC_APP_IS_WEBMAIL
+int8_t uniffi_hyperwhisper_core_fn_func_app_is_webmail(RustBuffer title, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_FN_FUNC_APP_TYPE_FROM_RAW
@@ -1348,6 +1353,12 @@ void ffi_hyperwhisper_core_rust_future_complete_void(uint64_t handle, RustCallSt
 #ifndef UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_CHECKSUM_FUNC_APP_CLASSIFY
 #define UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_CHECKSUM_FUNC_APP_CLASSIFY
 uint16_t uniffi_hyperwhisper_core_checksum_func_app_classify(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_CHECKSUM_FUNC_APP_IS_WEBMAIL
+#define UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_CHECKSUM_FUNC_APP_IS_WEBMAIL
+uint16_t uniffi_hyperwhisper_core_checksum_func_app_is_webmail(void
     
 );
 #endif

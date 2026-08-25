@@ -9,6 +9,10 @@
 
   <ItemGroup>
     <ProjectReference Include="../../shared-dotnet/HyperWhisper.Platform.Abstractions/HyperWhisper.Platform.Abstractions.csproj" />
+    <!-- The shared app-type classifier (issue #279). Linux had none, so every
+         snapshot carried `AppType = "other"` and the Sensitive screen-OCR gate
+         in the shared prompt builder could never fire. -->
+    <ProjectReference Include="../../shared-dotnet/HyperWhisper.AppClassification/HyperWhisper.AppClassification.csproj" />
     <InternalsVisibleTo Include="HyperWhisper.Linux.Platform.Tests" />
   </ItemGroup>
 

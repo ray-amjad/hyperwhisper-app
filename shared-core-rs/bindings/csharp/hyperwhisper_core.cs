@@ -1062,6 +1062,8 @@ static class _UniFFILib {
     
     
     
+    
+    
 
     static _UniFFILib() {
         _UniFFILib.uniffiCheckContractApiVersion();
@@ -1095,7 +1097,11 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_app_classify(RustBuffer @bundleId,RustBuffer @processName,RustBuffer @host,RustBuffer @title,ref UniffiRustCallStatus _uniffi_out_err
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_app_classify(RustBuffer @request,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern sbyte uniffi_hyperwhisper_core_fn_func_app_is_webmail(RustBuffer @title,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -1911,6 +1917,10 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_app_is_webmail(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_app_type_from_raw(
     );
 
@@ -2522,8 +2532,14 @@ static class _UniFFILib {
     static void uniffiCheckApiChecksums() {
         {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_app_classify();
-            if (checksum != 43463) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_app_classify` checksum `43463`, library returned `{checksum}`");
+            if (checksum != 17474) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_app_classify` checksum `17474`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_app_is_webmail();
+            if (checksum != 11174) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_app_is_webmail` checksum `11174`, library returned `{checksum}`");
             }
         }
         {
@@ -3975,6 +3991,110 @@ class FfiConverterTypeAppClassification: FfiConverterRustBuffer<AppClassificatio
             FfiConverterString.INSTANCE.Write(value.@confidence, stream);
             FfiConverterString.INSTANCE.Write(value.@source, stream);
             FfiConverterOptionalString.INSTANCE.Write(value.@matched, stream);
+    }
+}
+
+
+
+/// <summary>
+/// Everything a platform can observe about the foreground app. Mirrors
+/// `hw_catalog::ClassifyRequest`.
+///
+/// A record rather than a parameter list on purpose: issue #279 routes macOS,
+/// Windows and Linux through this one call, and each head can see a different
+/// subset of the signals. A new signal then costs a field, not a break in every
+/// binding. Pass an empty string / `None` / an empty list for a signal the
+/// platform cannot observe.
+/// </summary>
+/// <param name="bundle_id">
+/// macOS bundle identifier, e.g. `com.apple.mail`.
+/// </param>
+/// <param name="process_name">
+/// Process name without an extension, e.g. `OUTLOOK` or `konsole`.
+/// </param>
+/// <param name="app_name">
+/// The app's display name, e.g. `Visual Studio Code`.
+/// </param>
+/// <param name="host">
+/// Browser host for a web app. A full URL is accepted and normalized.
+/// </param>
+/// <param name="host_confidence">
+/// The confidence to report for a host hit; empty means `strong`. It
+/// reaches the LLM prompt, so the caller owns it.
+/// </param>
+/// <param name="title">
+/// Window and/or browser-tab title, composed by the caller.
+/// </param>
+/// <param name="focused_pieces">
+/// Text read off the focused accessibility element.
+/// </param>
+internal record AppClassifyRequest (
+    /// <summary>
+    /// macOS bundle identifier, e.g. `com.apple.mail`.
+    /// </summary>
+    string @bundleId, 
+    /// <summary>
+    /// Process name without an extension, e.g. `OUTLOOK` or `konsole`.
+    /// </summary>
+    string @processName, 
+    /// <summary>
+    /// The app's display name, e.g. `Visual Studio Code`.
+    /// </summary>
+    string @appName, 
+    /// <summary>
+    /// Browser host for a web app. A full URL is accepted and normalized.
+    /// </summary>
+    string? @host, 
+    /// <summary>
+    /// The confidence to report for a host hit; empty means `strong`. It
+    /// reaches the LLM prompt, so the caller owns it.
+    /// </summary>
+    string @hostConfidence, 
+    /// <summary>
+    /// Window and/or browser-tab title, composed by the caller.
+    /// </summary>
+    string @title, 
+    /// <summary>
+    /// Text read off the focused accessibility element.
+    /// </summary>
+    List<string> @focusedPieces
+) {
+}
+
+class FfiConverterTypeAppClassifyRequest: FfiConverterRustBuffer<AppClassifyRequest> {
+    public static FfiConverterTypeAppClassifyRequest INSTANCE = new FfiConverterTypeAppClassifyRequest();
+
+    public override AppClassifyRequest Read(BigEndianStream stream) {
+        return new AppClassifyRequest(
+            @bundleId: FfiConverterString.INSTANCE.Read(stream),
+            @processName: FfiConverterString.INSTANCE.Read(stream),
+            @appName: FfiConverterString.INSTANCE.Read(stream),
+            @host: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @hostConfidence: FfiConverterString.INSTANCE.Read(stream),
+            @title: FfiConverterString.INSTANCE.Read(stream),
+            @focusedPieces: FfiConverterSequenceString.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(AppClassifyRequest value) {
+        return 0
+            + FfiConverterString.INSTANCE.AllocationSize(value.@bundleId)
+            + FfiConverterString.INSTANCE.AllocationSize(value.@processName)
+            + FfiConverterString.INSTANCE.AllocationSize(value.@appName)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@host)
+            + FfiConverterString.INSTANCE.AllocationSize(value.@hostConfidence)
+            + FfiConverterString.INSTANCE.AllocationSize(value.@title)
+            + FfiConverterSequenceString.INSTANCE.AllocationSize(value.@focusedPieces);
+    }
+
+    public override void Write(AppClassifyRequest value, BigEndianStream stream) {
+            FfiConverterString.INSTANCE.Write(value.@bundleId, stream);
+            FfiConverterString.INSTANCE.Write(value.@processName, stream);
+            FfiConverterString.INSTANCE.Write(value.@appName, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@host, stream);
+            FfiConverterString.INSTANCE.Write(value.@hostConfidence, stream);
+            FfiConverterString.INSTANCE.Write(value.@title, stream);
+            FfiConverterSequenceString.INSTANCE.Write(value.@focusedPieces, stream);
     }
 }
 
@@ -7652,13 +7772,27 @@ class FfiConverterSequenceTypeHwPart: FfiConverterRustBuffer<List<HwPart>> {
 #pragma warning restore 8625
 internal static class HyperwhisperCoreMethods {
     /// <summary>
-    /// Classify the focused app from its identifiers. `host` is the browser host when
-    /// the app is a browser.
+    /// Classify the focused app from everything the platform observed about it.
     /// </summary>
-    public static AppClassification AppClassify(string @bundleId, string @processName, string? @host, string @title) {
+    public static AppClassification AppClassify(AppClassifyRequest @request) {
         return FfiConverterTypeAppClassification.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_hyperwhisper_core_fn_func_app_classify(FfiConverterString.INSTANCE.Lower(@bundleId), FfiConverterString.INSTANCE.Lower(@processName), FfiConverterOptionalString.INSTANCE.Lower(@host), FfiConverterString.INSTANCE.Lower(@title), ref _status)
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_app_classify(FfiConverterTypeAppClassifyRequest.INSTANCE.Lower(@request), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Whether a browser-tab title looks like webmail.
+    ///
+    /// The safety net both heads apply when the host was unreadable and nothing
+    /// else classified the window. Call it ONLY once you know the foreground app is
+    /// a browser — a title is not evidence of webmail on its own.
+    /// </summary>
+    public static bool AppIsWebmail(string @title) {
+        return FfiConverterBoolean.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_app_is_webmail(FfiConverterString.INSTANCE.Lower(@title), ref _status)
 ));
     }
 

@@ -151,3 +151,14 @@ jobs:
       # between the platforms before the decoders were unified.
       - name: Run catalog conformance vectors
         run: dotnet run --project app/shared-dotnet/HyperWhisper.CatalogConformance.Tests -c Release
+
+      # ----------------------------------------------------------------
+      # 7. App-type conformance vectors
+      # ----------------------------------------------------------------
+      # shared-conformance/app-type-vectors.json, the same three-platform
+      # shape. Issue #279 left exactly one app-type classifier, so these
+      # vectors prove the Windows binding still reads the same priority order,
+      # word-boundary rule, host-suffix rule and email regex the Swift and Rust
+      # heads do.
+      - name: Run app-type conformance vectors
+        run: dotnet run --project app/shared-dotnet/HyperWhisper.AppTypeConformance.Tests -c Release

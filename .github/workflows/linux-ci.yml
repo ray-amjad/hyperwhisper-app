@@ -22,6 +22,9 @@ on:
       # HyperWhisper.CatalogConformance.Tests runs these vectors as part of the
       # shared-dotnet sweep below.
       - "shared-conformance/**"
+      # The Linux head classifies the foreground app through the shared
+      # classifier since issue #279, so a catalog edit changes its behaviour.
+      - "shared-app-classification/**"
       - "packaging/linux/**"
       - "tools/parakeet-engine-dotnet/**"
       - ".github/scripts/test-linux-release-policy.py"

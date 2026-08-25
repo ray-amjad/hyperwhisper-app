@@ -1,4 +1,4 @@
-using HyperWhisper.Services.AppClassification;
+using HyperWhisper.AppClassification;
 using PlatformContracts = HyperWhisper.Platform.Abstractions;
 
 namespace HyperWhisper.Services.Platform;

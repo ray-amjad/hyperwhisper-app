@@ -35,5 +35,11 @@
     <InternalsVisibleTo Include="HyperWhisper.ModelReadiness" />
     <!-- Runs shared-conformance/catalog-vectors.json against the binding. -->
     <InternalsVisibleTo Include="HyperWhisper.CatalogConformance.Tests" />
+    <!-- The app-type classifier for every .NET head (issue #279). It maps the
+         binding's `AppClassifyRequest` / `AppClassification` records onto the
+         platform's own `AppType`, and those records are `internal`. -->
+    <InternalsVisibleTo Include="HyperWhisper.AppClassification" />
+    <!-- Runs shared-conformance/app-type-vectors.json against the binding. -->
+    <InternalsVisibleTo Include="HyperWhisper.AppTypeConformance.Tests" />
   </ItemGroup>
 </Project>
