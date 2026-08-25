@@ -405,9 +405,12 @@ final class AppLogger {
         }
 
         // REDACT POTENTIAL TRANSCRIPT CONTENT
-        // Look for patterns like: "text: ...", "transcript: ...", "content: ..."
+        // Look for patterns like: "text: ...", "transcript=...", "content: ..."
+        // Both separators are covered: os.log lines in this app use `key=value`,
+        // while free-text messages use `key: value`. The word boundary keeps
+        // `context=...` and similar keys out of the match.
         let contentPatterns = [
-            #"(?i)(text|transcript|content|prompt|message):\s*[^\n\r]{20,}"#,  // Long content after these keys
+            #"(?i)\b(text|transcript|content|prompt|message)\b\s*[:=]\s*[^\n\r]{20,}"#,  // Long content after these keys
             #"(?i)Full text:\s*.*"#,     // Old logging format (now removed, but catch any remnants)
             #"(?i)Text preview:\s*.*"#   // Old logging format (now removed, but catch any remnants)
         ]

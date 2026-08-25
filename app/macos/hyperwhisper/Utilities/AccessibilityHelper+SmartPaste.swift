@@ -208,8 +208,14 @@ extension AccessibilityHelper {
 
         // Create a new task for this paste operation
         let task = Task<SmartPasteResult, Never> { @MainActor in
+            // DIAGNOSTICS: metadata for this attempt, reported at every exit so
+            // the last step of the record → transcribe → paste flow is visible
+            // in production. Holds counts and identifiers only, never the text.
+            var attempt = PasteAttempt(targetBundleID: nil, characterCount: text.count)
+
             // Check accessibility permission
             guard hasAccessibilityPermission() else {
+                self.reportPasteOutcome(.noAccessibilityPermission, attempt: attempt)
                 return .noPermission
             }
 
@@ -236,6 +242,8 @@ extension AccessibilityHelper {
             let capturedTargetLost = previousAppPID != nil && capturedApp == nil
             if let app = capturedApp {
                 targetBundleID = app.bundleIdentifier
+                attempt.targetBundleID = targetBundleID
+                attempt.hadCapturedTarget = true
                 logger.info("🔄 Reactivating previous app: \(targetBundleID ?? "unknown", privacy: .public)")
                 app.activate(options: [.activateIgnoringOtherApps])
                 targetHandled = true
@@ -246,12 +254,18 @@ extension AccessibilityHelper {
                 let delayMs: UInt64 = isBrowser ? 250 : (isElectron ? 180 : 100)
 
                 // Check for cancellation before delay
-                if Task.isCancelled { return .failed(CancellationError()) }
+                if Task.isCancelled {
+                    self.reportPasteOutcome(.cancelled, attempt: attempt)
+                    return .failed(CancellationError())
+                }
 
                 try? await Task.sleep(nanoseconds: delayMs * 1_000_000)
 
                 // Check for cancellation after delay
-                if Task.isCancelled { return .failed(CancellationError()) }
+                if Task.isCancelled {
+                    self.reportPasteOutcome(.cancelled, attempt: attempt)
+                    return .failed(CancellationError())
+                }
             } else if previousAppPID == nil,
                       let front = NSWorkspace.shared.frontmostApplication,
                       front.bundleIdentifier == Bundle.main.bundleIdentifier {
@@ -261,9 +275,15 @@ extension AccessibilityHelper {
                 NSApp.hide(nil)
                 targetHandled = true
 
-                if Task.isCancelled { return .failed(CancellationError()) }
+                if Task.isCancelled {
+                    self.reportPasteOutcome(.cancelled, attempt: attempt)
+                    return .failed(CancellationError())
+                }
                 try? await Task.sleep(nanoseconds: 120 * 1_000_000) // 120ms
-                if Task.isCancelled { return .failed(CancellationError()) }
+                if Task.isCancelled {
+                    self.reportPasteOutcome(.cancelled, attempt: attempt)
+                    return .failed(CancellationError())
+                }
             }
             // NOTE: when previousAppPID is non-nil but NSRunningApplication lookup
             // failed above, the captured target quit mid-recording. We intentionally
@@ -285,11 +305,18 @@ extension AccessibilityHelper {
                 logger.warning("⚠️ Captured paste target is gone or a different app is frontmost — refusing auto-paste. Text left on clipboard.")
                 copyToClipboard(text)
                 scheduleClipboardRestoration(settings: settings)
+                // Both branches return `.noFocusedField` to the caller, which
+                // cannot tell them apart. Report them separately: a lost target
+                // means the app quit or its PID was reused mid-recording, an
+                // unknown target means we never captured one.
+                self.reportPasteOutcome(capturedTargetLost ? .targetLost : .targetUnknown,
+                                        attempt: attempt)
                 return .noFocusedField
             }
 
             // Detect remote desktop target
             let isRemoteDesktop = targetBundleID.map { self.isRemoteDesktopBundleId($0) } ?? false
+            attempt.isRemoteDesktop = isRemoteDesktop
 
             // Skip ConcealedType for remote desktop apps — their clipboard forwarding may ignore concealed items
             copyToClipboard(text, skipConcealedType: isRemoteDesktop)
@@ -298,17 +325,26 @@ extension AccessibilityHelper {
             if isSecureFieldFocused() {
                 logger.info("🔒 Secure field focused. Skipping auto-paste for safety.")
                 scheduleClipboardRestoration(settings: settings)
+                self.reportPasteOutcome(.secureField, attempt: attempt)
                 return .secureField
             }
 
             // Check if we can paste, with a short retry for Electron/Slack
             if !canPasteIntoFocusedElement() {
                 if let bid = targetBundleID, (isElectronCodeEditor(bid) || bid == "com.tinyspeck.slackmacgap") {
-                    if Task.isCancelled { return .failed(CancellationError()) }
+                    attempt.usedFocusRetry = true
+                    if Task.isCancelled {
+                        self.reportPasteOutcome(.cancelled, attempt: attempt)
+                        return .failed(CancellationError())
+                    }
                     try? await Task.sleep(nanoseconds: 120 * 1_000_000)
-                    if Task.isCancelled { return .failed(CancellationError()) }
+                    if Task.isCancelled {
+                        self.reportPasteOutcome(.cancelled, attempt: attempt)
+                        return .failed(CancellationError())
+                    }
 
                     if canPasteIntoFocusedElement() {
+                        attempt.focusRetrySucceeded = true
                         logger.info("✅ Focus became ready after short retry")
                     } else {
                         logger.info("ℹ️ Focus not ready after retry")
@@ -319,12 +355,14 @@ extension AccessibilityHelper {
             if !canPasteIntoFocusedElement() {
                 logger.info("ℹ️ No paste target focused. Text on clipboard, scheduling restoration if enabled.")
                 scheduleClipboardRestoration(settings: settings)
+                self.reportPasteOutcome(.noFocusedField, attempt: attempt)
                 return .noFocusedField
             }
 
             // Check cancellation before paste
             if Task.isCancelled {
                 scheduleClipboardRestoration(settings: settings)
+                self.reportPasteOutcome(.cancelled, attempt: attempt)
                 return .failed(CancellationError())
             }
 
@@ -338,6 +376,12 @@ extension AccessibilityHelper {
             if !pasteSucceeded {
                 // Always schedule restoration even on failure
                 scheduleClipboardRestoration(settings: settings)
+                // `sendPasteCommand` returns false for a deliberate refusal by
+                // `TextDeliveryGate` (the onboarding sheet owns the transcript)
+                // and for a genuine keystroke failure. Separate them so the
+                // onboarding path never files a Sentry issue.
+                self.reportPasteOutcome(TextDeliveryGate.isSuppressed ? .suppressed : .commandFailed,
+                                        attempt: attempt)
                 return .failed(NSError(domain: "AccessibilityHelper",
                                        code: -1,
                                        userInfo: [NSLocalizedDescriptionKey: "accessibility.error.paste.commandFailed".localized]))
@@ -348,6 +392,7 @@ extension AccessibilityHelper {
             scheduleClipboardRestoration(settings: isRemoteDesktop ? nil : settings)
 
             logger.info("✅ Successfully auto-pasted into focused input (async)")
+            self.reportPasteOutcome(.success, attempt: attempt)
             return .success
         }
 

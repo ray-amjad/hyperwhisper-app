@@ -39,6 +39,12 @@ public class AccessibilityHelper {
     /// Avoid spamming the console with repeated permission guidance
     var hasLoggedPermissionGuidance = false
 
+    /// True once this app run reported a missing accessibility permission to
+    /// Sentry from the auto-paste path. The permission is missing for every
+    /// dictation until the user grants it, so one unhappy setup would otherwise
+    /// send one event per recording. See `reportPasteOutcome(_:attempt:)`.
+    var hasReportedMissingPastePermission = false
+
     // MARK: - Clipboard Restoration Management
     /// The currently active clipboard restoration work item (if any)
     /// This allows us to cancel pending restorations when a new recording starts
