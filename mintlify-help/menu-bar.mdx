@@ -70,13 +70,41 @@ HyperWhisper stays in your menu bar (macOS) or system tray (Windows). You can st
     - **Minimize to Tray** — If you enable this setting (Settings → General), the app goes to the tray when you close the main window. The app does not exit. A balloon notification shows your recording shortcut.
     - **Launch Minimized** — If you enable this setting (Settings → General), HyperWhisper starts hidden in the tray. A balloon notification shows your shortcut. This notification tells you that the app runs.
   </Tab>
+  <Tab title="Linux">
+    Linux registers a StatusNotifierItem on the session D-Bus. Your desktop must run a StatusNotifier or AppIndicator watcher to show the icon. Stock GNOME does not, so install a StatusNotifier extension if you want a tray icon on GNOME.
+
+    The tray menu gives these actions:
+
+    | Action | What it does |
+    |---|---|
+    | **Start recording** / **Stop recording** | Starts or stops a batch recording. |
+    | **Microphone** | Selects the default input device, or steps to the previous or the next device in the list. |
+    | **Change mode** | Selects the next of your modes. |
+    | **Transcribe file** | Opens a file picker, then transcribes the file that you select. |
+    | **History** | Opens the main window to the transcript history. |
+    | **Settings** | Opens the main window to Settings. |
+    | **Help Center / Support / Send Feedback** | Opens the matching page in your browser. |
+    | **Show** / **Hide** | Shows or hides the main window. |
+    | **Quit** | Exits HyperWhisper. |
+
+    ## Behavior
+
+    - The tray menu has no microphone submenu with device names. It steps through the list instead, because the helper accepts a closed set of commands and never carries a device name.
+    - **Hide minimized or closed windows in the tray** — On by default (Settings → Application settings). The main window goes to the tray when you close it.
+    - **Launch with the window hidden when the tray is available** — Off by default. HyperWhisper starts hidden only when a tray watcher is present.
+    - An action that is unsafe during an active transcription is refused, and the status line reports **That tray action is unavailable during the current transcription operation**.
+
+    <Note>
+      If your desktop has no tray watcher, HyperWhisper always keeps the main window reachable. The status line then reads **Tray unavailable; window fallback active**. You never lose access to the app because the tray is missing.
+    </Note>
+  </Tab>
 </Tabs>
 
 ## Common Features
 
-Both platforms give the same tray functions:
+All three desktop platforms give the same tray functions:
 
-- **Switch microphone** without the main window. The change takes effect immediately.
+- **Switch microphone** without the main window. The change takes effect immediately. On Linux you step through the device list instead of picking a name.
 - **Switch mode** without the main window. The app uses the new mode for the next recording.
 - **Transcribe a file** — select the mode in the submenu, then select a file. See [Transcribe a File](/file-transcription) for the supported formats and the size limits.
 - **Open History or Settings** from the menu.
@@ -89,7 +117,7 @@ Both platforms give the same tray functions:
 </Tip>
 
 <Tip>
-  To start HyperWhisper at login without the main window on the screen, enable **Launch Minimized** (Settings → General). This setting works on both platforms. You can use the menu bar icon (macOS) or the tray icon (Windows) immediately.
+  To start HyperWhisper at login without the main window on the screen, enable **Launch Minimized** (Settings → General). This setting works on all three desktop platforms. You can use the menu bar icon (macOS) or the tray icon (Windows and Linux) immediately. On Linux, also enable **Start HyperWhisper when this desktop session starts** so the app runs at login.
 </Tip>
 
 <Tip>

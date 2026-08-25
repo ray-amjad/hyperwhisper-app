@@ -3,7 +3,7 @@ title: Select a Microphone or Audio Input Device
 description: Select the microphone or audio input device that HyperWhisper records from, and see how HyperWhisper handles device changes.
 ---
 
-You can select any audio input device on your system from the menu bar (macOS) or the system tray (Windows). This includes the built-in microphone, a USB microphone, AirPods, a Bluetooth headset, and a virtual audio cable. On macOS, HyperWhisper keeps your selection after a restart. On Windows, the selection does not persist. For more information, see [Persistence](#persistence). On both platforms, the device list refreshes when you connect or disconnect hardware.
+You can select any audio input device on your system from the menu bar (macOS), the system tray (Windows), or the **Audio input** picker in the main window (Linux). This includes the built-in microphone, a USB microphone, AirPods, a Bluetooth headset, and a virtual audio cable. On macOS, HyperWhisper keeps your selection after a restart. On Windows and Linux, the selection does not persist. For more information, see [Persistence](#persistence). On macOS and Windows, the device list refreshes when you connect or disconnect hardware. On Linux you refresh the list yourself.
 
 ## Change the active input device
 
@@ -22,6 +22,14 @@ You can select any audio input device on your system from the menu bar (macOS) o
 
     At each launch, HyperWhisper selects the first device that Windows reports. Your selection from the last session does not carry over. If that device is removed while the app runs, HyperWhisper selects the first available device. For more information, see [When a device disconnects](#when-a-device-disconnects).
   </Tab>
+  <Tab title="Linux">
+    1. Open the main window. Find the **Audio input** picker on the **Record and transcribe** page.
+    2. Select the device that you want to use.
+
+    The list comes from the active PipeWire or PulseAudio service, which HyperWhisper reads with `pactl`. If `pactl` is not on your `PATH`, the picker stays empty and HyperWhisper reports `pulse_devices_unavailable`.
+
+    At each launch, HyperWhisper selects the default source of your audio service. If you do not have a default source, it selects the first device in the list.
+  </Tab>
 </Tabs>
 
 ## Real-time device discovery
@@ -34,6 +42,11 @@ You do not need to restart HyperWhisper after you connect new hardware.
   </Tab>
   <Tab title="Windows">
     HyperWhisper subscribes to the Windows Core Audio API (`MMDeviceEnumerator`). It receives device-added, device-removed, device-state-changed, and default-device-changed events. HyperWhisper debounces these notifications by 250 ms. As a result, a USB hub with many devices causes one refresh, not one refresh for each device. The Microphone submenu updates automatically after the debounce window.
+  </Tab>
+  <Tab title="Linux">
+    Linux does not watch for device changes. Click **Refresh devices** next to the **Audio input** picker after you connect or disconnect hardware.
+
+    A refresh keeps your current selection if the device is still in the new list. If the device is gone, HyperWhisper changes to your default source, or to the first device in the list.
   </Tab>
 </Tabs>
 
@@ -61,11 +74,16 @@ You do not need to restart HyperWhisper after you connect new hardware.
   <Tab title="Windows">
     On Windows, the device selection does not persist after a restart. At each launch, HyperWhisper selects the first device that Windows reports. Your selection from the previous session does not apply.
   </Tab>
+  <Tab title="Linux">
+    On Linux, the device selection does not persist after a restart. HyperWhisper holds the selection in memory only, and it does not write a device ID into your settings file. At each launch it selects the default source of your audio service.
+
+    To make the selection permanent, set the default source in your desktop's sound settings, or with `pactl set-default-source <name>`.
+  </Tab>
 </Tabs>
 
 ## Keep Microphone Warm
 
-Both platforms have a **Keep Microphone Warm** option. This option holds an idle capture stream open between recordings. As a result, the audio start delay is shorter when you press your shortcut. The delay is longest with Bluetooth devices, because these devices power down the microphone when they are idle.
+All three desktop platforms have a **Keep Microphone Warm** option. This option holds an idle capture stream open between recordings. As a result, the audio start delay is shorter when you press your shortcut. The delay is longest with Bluetooth devices, because these devices power down the microphone when they are idle.
 
 <Tabs>
   <Tab title="macOS">
@@ -73,6 +91,11 @@ Both platforms have a **Keep Microphone Warm** option. This option holds an idle
   </Tab>
   <Tab title="Windows">
     Enable it in **Settings → Sound → Keep Microphone Warm**. It is off by default.
+  </Tab>
+  <Tab title="Linux">
+    Enable **Keep the selected microphone warm between recordings** in **Settings → Audio and desktop**. It is off by default. Click **Save settings** to apply it.
+
+    Linux holds the stream open on the device that is selected when you save. If you change the device afterward, save the settings again.
   </Tab>
 </Tabs>
 

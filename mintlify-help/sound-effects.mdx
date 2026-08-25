@@ -34,6 +34,19 @@ HyperWhisper plays a short chime when you start a recording. It plays a differen
       </Step>
     </Steps>
   </Tab>
+  <Tab title="Linux">
+    <Steps>
+      <Step title="Open Settings">
+        Open the main window, then click **Settings**.
+      </Step>
+      <Step title="Go to Audio and desktop">
+        Scroll to the **Audio and desktop** section.
+      </Step>
+      <Step title="Toggle the sounds">
+        Check or uncheck **Play recording start and stop sounds**. The box is checked by default. Then click **Save settings**.
+      </Step>
+    </Steps>
+  </Tab>
 </Tabs>
 
 ## The two chimes
@@ -58,10 +71,18 @@ The app has two sound themes:
   The app stores a theme selection internally, but playback does not read it yet — every chime uses the same fixed sound file regardless of the stored theme. The Settings window also does not show a theme control. A future release will wire the theme setting up and add this control.
 </Note>
 
-## Sound effects volume (macOS only)
+## Sound effects volume
 
-The volume of the sound effects is separate from the system volume. The scale is 0.0 to 1.0. The Settings window does not show a volume slider yet, and the volume stays at the default value of 0.5 (half volume). A future release will add the slider.
+The volume of the sound effects is separate from the system volume. The scale is 0.0 to 1.0.
+
+| Platform | Control | Default |
+|---|---|---|
+| macOS | No slider in Settings yet. The stored value is fixed at the default | 0.5 (half volume) |
+| Windows | No control. The volume is fixed | 0.5 (half volume) |
+| Linux | A **Sound effect volume** slider in **Settings → Audio and desktop** | 1.0 (full volume) |
+
+On Linux, drag the slider between 0.0 and 1.0, then click **Save settings**. The slider is disabled while **Play recording start and stop sounds** is unchecked, because a volume has no effect when the sounds are off.
 
 <Note>
-  Windows plays the sounds at a fixed volume of 0.5 (half volume). Windows has no separate volume control for the sound effects.
+  A future macOS release will add the slider to the Settings window. Until then, the macOS volume stays at 0.5.
 </Note>

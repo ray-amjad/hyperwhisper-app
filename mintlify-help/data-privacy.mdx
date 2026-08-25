@@ -89,7 +89,25 @@ Two other things are never measured, whatever you send:
 
 ## Error reports
 
-Error reports go to the crash reporter (Sentry). They are off unless you turn on **Error logging** (macOS) or **Send error reports** (Windows) in **Settings → General**. Read [General Settings](/general-settings) for that setting.
+Error reports go to the crash reporter (Sentry). They are off unless you turn on **Error logging** (macOS), **Send error reports** (Windows), or **Send privacy-filtered crash and performance diagnostics** (Linux) in **Settings → General**. Read [General Settings](/general-settings) for that setting.
+
+<Note>
+  On Linux, the setting sends no transcript, no audio, no prompt, and no credential content. A build that you compile yourself has no release crash-reporter address, so it stays fully offline even when the setting is on.
+</Note>
+
+### Export a diagnostics archive (Linux)
+
+Linux can also write a diagnostics archive to a file that you choose, for a support request. Open **Settings → Privacy-safe diagnostics**, then click **Choose destination and export diagnostics…**. Nothing leaves your computer until you send the file yourself.
+
+The archive holds three entries and nothing else:
+
+| Entry | What it holds |
+|---|---|
+| `system.json` | Your app version, operating system, distribution, kernel, architecture, desktop, and session type |
+| `capabilities.json` | Whether audio capture, the clipboard, `uinput` paste, focus tracking, global shortcuts, screen capture, the desktop portal, local inference, and CUDA are available |
+| `logs/events.jsonl` | Recent app events, with the sensitive fields removed |
+
+HyperWhisper writes the file so that only your user account can read it. Review the archive before you send it.
 
 ### The no-speech diagnostic
 
@@ -173,7 +191,7 @@ You can do these three things:
 - **Local**: the audio stays on your device.
 - **HyperWhisper Cloud**: HyperWhisper does not store your audio, and applies the strongest no-train / no-store control of each provider. Most providers store nothing. Some providers store data for a short time for abuse monitoring, and do not train on it. ElevenLabs stores data by default, until HyperWhisper completes an enterprise zero-retention upgrade. HyperWhisper stores anonymous timing rows for the public latency page, and deletes them after 1 year. To stop them, turn off **Share anonymous speed data** in **Settings → General**.
 - **Your own API key**: the opt-out is mostly your responsibility. Deepgram is the exception, because HyperWhisper adds `mip_opt_out=true` to every request from the app.
-- **Error reports**: these hold no audio and no text. To stop them, turn off **Error logging** (macOS) or **Send error reports** (Windows) in **Settings → General**.
+- **Error reports**: these hold no audio and no text. To stop them, turn off **Error logging** (macOS), **Send error reports** (Windows), or **Send privacy-filtered crash and performance diagnostics** (Linux) in **Settings → General**.
 
 ---
 

@@ -14,6 +14,11 @@ HyperWhisper shows a compact overlay on screen when you start a recording. The o
   <Tab title="Windows">
     A pill-shaped overlay window appears and stays above your other windows. The design matches macOS. The window does not take focus when it appears. You can drag it to any position on screen. HyperWhisper saves the position and restores it for the next recording.
   </Tab>
+  <Tab title="Linux">
+    A compact overlay window appears above your other windows and does not take focus. You can drag it. HyperWhisper saves the position and restores it for the next recording.
+
+    Turn the overlay off with **Show the recording status overlay** in **Settings → Application settings**. It is on by default.
+  </Tab>
   <Tab title="iOS">
     On iOS 16.1 and later, a Live Activity appears. On a device with a Dynamic Island, the Dynamic Island shows the recording status. On a device without a Dynamic Island, and on the lock screen, a banner at the top of the screen shows the recording status and the elapsed time.
   </Tab>
@@ -110,6 +115,19 @@ The mode badge also changes when a streaming session starts. On macOS, the badge
     | Close the cancellation prompt | Press **Escape** or click **No** |
     | Move the window | Click and drag anywhere on the body of the window |
   </Tab>
+  <Tab title="Linux">
+    | Action | How |
+    |---|---|
+    | Stop the recording | Click the stop button |
+    | Ask to cancel | Press **Escape** |
+    | Confirm the cancellation, if the prompt appears | Click **Yes** |
+    | Close the cancellation prompt | Press **Escape** again, or click **No** |
+    | Move the window | Click and drag anywhere on the body of the window |
+
+    <Note>
+      Linux grabs bare **Escape** only while a recording session runs, and it releases the key as soon as the session ends. A permanent grab would take Escape away from every other application on your desktop. Escape therefore cancels a HyperWhisper recording, and it does nothing in HyperWhisper at any other time.
+    </Note>
+  </Tab>
   <Tab title="iOS">
     | Action | How |
     |---|---|
@@ -126,6 +144,7 @@ If you press **Escape** during a long recording, a "Cancel?" prompt replaces the
 
 - **macOS** — the prompt appears when the recording is **longer than 15 seconds**. A recording of exactly 15 seconds cancels immediately, with no prompt
 - **Windows** — the prompt appears when the recording is **15 seconds or longer**. A recording of exactly 15 seconds shows the prompt
+- **Linux** — the prompt appears when the recording is **15 seconds or longer**, the same as Windows
 
 - **No**, or **Escape** again — closes the prompt and continues the recording
 - **Yes**, or **Return** / **Enter** — cancels the recording and deletes the audio
@@ -133,7 +152,7 @@ If you press **Escape** during a long recording, a "Cancel?" prompt replaces the
 If your recording is shorter than this minimum length, **Escape** cancels it immediately, with no prompt.
 
 <Note>
-  During a streaming session, **Escape** always cancels immediately on both platforms. The prompt never appears, and the length of the session makes no difference.
+  During a streaming session, **Escape** always cancels immediately on all three desktop platforms. The prompt never appears, and the length of the session makes no difference.
 </Note>
 
 ## Audio level visualization
@@ -161,6 +180,14 @@ If the waveform is flat or almost still while you speak, make sure that you sele
     - You can drag the window. HyperWhisper saves the last position and restores it for the next recording
     - If there is no saved position, or the saved position is off screen, the window appears at the bottom center of the screen
     - The window closes after the success state or the error state ends. It also closes when you dismiss the result
+  </Tab>
+  <Tab title="Linux">
+    - The window stays above your other windows and does not take focus
+    - You can drag the window. HyperWhisper stores the position as a ratio of your work area, so the overlay returns to the same relative place after you change your resolution, your scaling, or your monitor
+    - HyperWhisper writes the position to a private file in your config directory, and it groups quick drags into one write
+    - If there is no stored position, or the stored position is not valid, the overlay appears at the bottom center, 20 device-independent pixels above the bottom of the work area
+    - A position that would fall outside the work area is moved back inside it
+    - The window closes automatically after the success state or the error state ends
   </Tab>
   <Tab title="iOS">
     - The Live Activity appears automatically when a recording starts

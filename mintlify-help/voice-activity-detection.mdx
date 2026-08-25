@@ -9,7 +9,7 @@ Voice Activity Detection (VAD) examines your recording and removes the silence. 
 
 When you stop a recording, HyperWhisper finds the parts of the audio that contain speech. HyperWhisper removes the silence and makes a trimmed copy of your audio. The transcription provider receives this trimmed copy, not the full original.
 
-VAD is **enabled by default** on macOS. You can turn it off in Settings.
+VAD is **enabled by default** on macOS and on Linux. You can turn it off in Settings. The thresholds and the file behavior are different on each platform — see [Platform Support](#platform-support).
 
 ## How It Works
 
@@ -61,6 +61,28 @@ HyperWhisper always keeps the original audio on disk. It stores the trimmed copy
   <Tab title="Windows">
     Windows has no user-facing VAD toggle. The trimmed-file workflow on this page (a separate trimmed audio file and an Original/Trimmed toggle) does not apply to Windows. When you use a local model such as Parakeet or Qwen3 ASR, the Windows transcription daemon runs Silero VAD internally. The daemon includes this model and uses it to divide the speech into chunks during transcription. This is not a pre-processing step that you can turn on or off, and it makes no separate audio file. The Nemotron streaming model is the exception — it deliberately skips VAD, since its own streaming decoder handles segmentation.
   </Tab>
+  <Tab title="Linux">
+    1. Open the main window, then click **Settings**.
+    2. Scroll to the **Audio and desktop** section.
+    3. Check **Trim silence before batch transcription**.
+    4. Click **Save settings**.
+
+    The box is **checked by default**. Linux makes a separate trimmed file, as macOS does. It runs the packaged Silero VAD model on the finished recording, before it sends the audio to the provider.
+
+    Linux applies three gates before it trims:
+
+    | Gate | Value | Reason code when it stops the trim |
+    |---|---|---|
+    | Format | 16 kHz mono 16-bit WAV | `vad.unsupported_format` |
+    | Minimum duration | 30 seconds | `vad.short_audio` |
+    | Maximum duration | 2 hours | `vad.audio_too_long` |
+
+    If the packaged Silero runtime is not available, Linux uses a simpler detector that measures loudness instead. Batch transcription still works.
+
+    <Note>
+      Linux trims a **batch** recording only. A streaming session sends audio to the provider as you speak, so there is no finished file to trim.
+    </Note>
+  </Tab>
   <Tab title="iOS">
     iOS has no VAD toggle. A small silence trimmer that uses amplitude runs automatically on every recording. If the trimmer finds 0.5 seconds of silence or more, it removes the silence at the start and at the end before upload.
   </Tab>
@@ -78,6 +100,11 @@ HyperWhisper always keeps the original audio on disk. It stores the trimmed copy
   </Tab>
   <Tab title="Windows">
     Windows makes no separate trimmed audio file. Therefore, it has no Original / Trimmed toggle. The internal VAD divides the audio into chunks during local transcription, but it does not store these chunks as a file.
+  </Tab>
+  <Tab title="Linux">
+    Linux keeps both files, but it has no Original / Trimmed toggle. The History player always plays the **original** recording. HyperWhisper stores the trimmed file next to it, named `vad-<id>.wav`, and it uses that file only for the transcription.
+
+    Automatic cleanup deletes the trimmed file together with the original, so a trimmed copy never stays behind after you delete the History entry.
   </Tab>
 </Tabs>
 
@@ -101,4 +128,5 @@ After the trim, HyperWhisper examines the result before it uses the result. If t
 |---|---|
 | macOS | Supported. Turn it on in **Settings → Sound → Remove silence before transcription** |
 | Windows | No separate trimmed file and no toggle. The internal VAD runs automatically on each chunk during local model transcription |
+| Linux | Supported, and on by default. Turn it off in **Settings → Audio and desktop → Trim silence before batch transcription** |
 | iOS | A trimmer removes the silence at the start and at the end automatically on every recording |

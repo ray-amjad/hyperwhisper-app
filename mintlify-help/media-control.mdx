@@ -9,10 +9,12 @@ If music, a video, or a call plays while you dictate, the background audio can l
 
 When you set media control to **Mute Audio**, HyperWhisper mutes the output volume of your computer during a recording. At the end of the recording, HyperWhisper restores the volume to its previous level. Media control changes the system output **volume** only. It does not pause, skip, or control individual media apps.
 
-The setting has two options:
+On macOS and Windows the setting has two options:
 
 - **Off** — HyperWhisper does not change your audio (default).
 - **Mute Audio** — HyperWhisper mutes the system output during a recording, then restores it.
+
+Linux has a third option. See [Lower other audio (Linux)](#lower-other-audio-linux) below.
 
 ## Turn it on
 
@@ -43,8 +45,39 @@ The setting has two options:
       </Step>
     </Steps>
   </Tab>
+  <Tab title="Linux">
+    <Steps>
+      <Step title="Open Settings">
+        Open the main window. Click **Settings**, then scroll to **Audio and desktop**.
+      </Step>
+      <Step title="Find “Other-audio policy”">
+        Find the **Other-audio policy** picker.
+      </Step>
+      <Step title="Choose a policy">
+        Select `mute` to mute the output, or `duck` to lower it. Select `unchanged` to leave your audio alone. Then click **Save settings**.
+      </Step>
+    </Steps>
+  </Tab>
 </Tabs>
 
 <Note>
   Media control mutes the **output volume** of your computer, not your microphone. HyperWhisper records your dictation as usual. It mutes only the audio from your speakers or headphones.
 </Note>
+
+## Lower other audio (Linux)
+
+Linux gives three policies instead of two:
+
+| Policy | What HyperWhisper does |
+|---|---|
+| `unchanged` | Nothing. This is the default |
+| `duck` | Lowers the volume of the default output to a maximum of 35% for the recording, then restores each channel to its previous percentage |
+| `mute` | Mutes the default output for the recording, then restores the previous mute state |
+
+Linux reads and writes the state of the default output with `pactl`, so PipeWire or PulseAudio must be running. If `pactl` is not on your `PATH`, HyperWhisper reports `audio_environment.unsupported` and leaves your audio unchanged.
+
+<Note>
+  `duck` lowers each channel to 35% only when the channel is already above 35%. A quieter channel keeps its own level, so the policy never raises your volume.
+</Note>
+
+HyperWhisper waits 500 ms after the recording stops, then restores your output. This short delay keeps the restore out of the tail of the recording. The delay is fixed and you cannot change it.
