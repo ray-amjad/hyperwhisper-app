@@ -61,9 +61,12 @@ import Foundation
 ///   owns the matching `markIdle(_:)` for THAT token. It must run on every exit
 ///   path.
 /// - `.unavailable`, or any error thrown out of `reload` — the caller holds NO
-///   claim and has no token to release with. Releasing a token it does not own
-///   would either be refused as unmatched or, worse, repay a claim that belongs
-///   to somebody else and expose their runtime to eviction mid-use.
+///   claim and has no token to release with. A token kept from an earlier
+///   attempt names a claim this helper already repaid — every token names one
+///   individual claim, by serial — so releasing it repays nothing and is
+///   refused as unmatched. The one genuinely harmful release is with a token
+///   belonging to another in-flight operation, which repays THAT operation's
+///   claim and exposes its runtime to eviction mid-use.
 ///
 /// The release BEFORE the reload is not tidiness, it is required — though no
 /// longer for the reason it originally was. A claim now survives the

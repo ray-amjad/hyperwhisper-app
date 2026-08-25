@@ -62,18 +62,31 @@ actor ModelResidencyRegistry {
         var isHonored: Bool { self == .claimed }
     }
 
-    /// The identity of ONE honored claim: which slot it was taken on, and which
-    /// registration of that slot it was taken against.
+    /// The identity of ONE honored claim: which slot it was taken on, which
+    /// registration of that slot it was taken against, and — the part that makes
+    /// this an identity rather than a description — which individual claim it is.
     ///
     /// Claims used to be anonymous — a `+1` on a per-entry refcount — and that
-    /// is the second arm of HYPERWHISPER-SQ. Two things follow from anonymity
-    /// and both free a runtime out from under a live transcription:
+    /// is the second arm of HYPERWHISPER-SQ. Three things follow from anonymity,
+    /// and every one of them frees a runtime out from under a live
+    /// transcription:
     ///
     /// - A `register` on a slot that already has claims built a fresh entry with
     ///   `useCount: 0`, so every outstanding claim on that slot silently ceased
     ///   to exist and the next pressure sweep saw an idle model.
     /// - A `markIdle(id:)` keyed only on the id, so pass A finishing late repaid
     ///   itself out of pass B's claim.
+    /// - A release that ran TWICE — a duplicated cleanup path, a `defer` that
+    ///   also fired on an early return — repaid a claim that was already repaid,
+    ///   and the one it actually consumed was somebody else's.
+    ///
+    /// The third is why `serial` exists, and why the ledger holds a set of
+    /// serials rather than a count. `id` + `generation` names a GROUP of claims,
+    /// not one: two concurrent passes against a single registration would get
+    /// byte-identical tokens, and a doubled release of one of them would consume
+    /// the other's protection. A serial is minted per `markBusy`, so no two
+    /// honored claims ever share a token and a release either finds its own
+    /// serial live or finds nothing and is ignored.
     ///
     /// A token makes the two ends of a claim recognise each other, the same way
     /// `LibWhisperProvider.tearDownContext(registeredGeneration:)` makes a
@@ -86,11 +99,16 @@ actor ModelResidencyRegistry {
     struct ClaimToken: Sendable, Equatable, Hashable {
         /// The registry slot — the same `id` that was handed to `markBusy`.
         let id: String
-        /// Which registration of that slot the claim was taken against.
-        /// Monotonic per registry and 1-based, so `generation: 0` is a token no
-        /// `markBusy` can ever have issued — which is what lets a test fabricate
-        /// a provably-never-live token without reaching into private state.
+        /// Which registration of that slot the claim was taken against. No
+        /// longer part of the ledger key — `serial` is — but carried because it
+        /// is what makes a release legible in the log, and what says whether a
+        /// late release belongs to the runtime that is resident right now.
         let generation: UInt64
+        /// THIS claim, and no other. Monotonic per registry and 1-based, so
+        /// `serial: 0` is a token no `markBusy` can ever have issued — which is
+        /// what lets a test fabricate a provably-never-live token without
+        /// reaching into private state.
+        let serial: UInt64
     }
 
     /// What `markBusy(id:)` hands back: the unchanged verdict, plus the token
@@ -142,24 +160,38 @@ actor ModelResidencyRegistry {
 
     private var entries: [String: Entry] = [:]
 
-    /// The claim ledger: slot id → generation → outstanding claims on that
-    /// generation. Still a refcount per generation, for the original reason —
-    /// overlapping consumers of one shared runtime (e.g. concurrent Local API
-    /// `/post-process` calls against the single local llama-server) must not let
-    /// the first finisher mark the model idle while another is still using it.
+    /// The claim ledger: slot id → the serials of every claim still outstanding
+    /// on that slot, across every generation of it.
+    ///
+    /// A SET of individual claims rather than a count, because a count cannot be
+    /// audited. Overlapping consumers of one shared runtime (e.g. concurrent
+    /// Local API `/post-process` calls against the single local llama-server)
+    /// are still why more than one claim can be outstanding at once — but under
+    /// a count, the first finisher releasing twice is indistinguishable from
+    /// both finishers releasing once, and the slot goes evictable while the
+    /// second consumer is still using the runtime. Under a set, a release
+    /// removes its OWN serial or nothing at all, which makes duplicate, stale
+    /// and fabricated releases the same harmless no-op.
     ///
     /// It lives HERE and not on `Entry` because that is the whole fix. A model
     /// switch on both STT providers is `deregister` then `register`, so the
-    /// entry is destroyed in between; a refcount carried on the entry cannot
-    /// survive that no matter how carefully `register` copies it forward. The
-    /// ledger is keyed on the id alone, so a claim outlives the entry it was
-    /// taken against and keeps protecting the slot until it is repaid.
-    private var liveClaims: [String: [UInt64: Int]] = [:]
+    /// entry is destroyed in between; a ledger carried on the entry cannot
+    /// survive that no matter how carefully `register` copies it forward. This
+    /// one is keyed on the id alone, so a claim outlives the entry it was taken
+    /// against and keeps protecting the slot until it is repaid.
+    private var liveClaims: [String: Set<UInt64>] = [:]
 
     /// The generation stamped on the next `register`. 1-based, and monotonic
     /// across the whole registry rather than per slot, so no two registrations
     /// ever share an identity and `generation: 0` stays permanently unissued.
     private var nextGeneration: UInt64 = 1
+
+    /// The serial minted for the next honored claim. Same discipline as
+    /// `nextGeneration` and for a stricter reason: this is the ledger key, so a
+    /// value issued twice would let one claim's release repay another's — the
+    /// defect a per-generation key still had. 1-based, which is what leaves
+    /// `serial: 0` permanently unissued and therefore safe to fabricate.
+    private var nextClaimSerial: UInt64 = 1
 
     private let log = Logger(subsystem: "com.hyperwhisper.app", category: "memory")
 
@@ -174,10 +206,10 @@ actor ModelResidencyRegistry {
     /// to reset the slot's refcount to 0, which meant a model switch landing
     /// while a transcription was in flight erased that transcription's claim and
     /// handed the next pressure sweep an apparently-idle runtime to free —
-    /// HYPERWHISPER-SQ. Claims on the outgoing generation stay outstanding and
-    /// keep the slot protected until their owners repay them, and claims taken
-    /// from here on are issued under the new generation, so the two cannot be
-    /// mistaken for each other.
+    /// HYPERWHISPER-SQ. Claims taken before this call stay outstanding and keep
+    /// the slot protected until their owners repay them; each one names itself
+    /// by serial, so no release — early, late or duplicated — can be mistaken
+    /// for another's.
     func register(id: String, tier: Tier, evict: @escaping @Sendable () async -> Void) {
         let now = Date()
         let generation = nextGeneration
@@ -213,9 +245,10 @@ actor ModelResidencyRegistry {
     // MARK: - Busy tracking (prevents mid-use eviction)
 
     /// Claim a model for an in-flight operation (a transcription or an LLM
-    /// request). Refcounted, so it is safe to nest and to call from overlapping
-    /// concurrent uses of one shared runtime. Also emits the idle gap since its
-    /// last use — the distribution that should set Stage 2's idle-unload timeout.
+    /// request). Every honored call takes ONE separately identified claim, so it
+    /// is safe to nest and to call from overlapping concurrent uses of one
+    /// shared runtime. Also emits the idle gap since its last use — the
+    /// distribution that should set Stage 2's idle-unload timeout.
     ///
     /// See `ClaimResult` for the caller's obligations on each outcome. They are
     /// binding, not advisory: proceeding on a refusal is the HYPERWHISPER-SQ bug.
@@ -243,47 +276,53 @@ actor ModelResidencyRegistry {
         let gap = Date().timeIntervalSince(e.lastUsedAt)
         e.lastUsedAt = Date()
         entries[id] = e
-        // The claim is recorded against the generation of the entry we just
-        // read, not against the id alone. That is what a later release has to
-        // match, and what a re-registration of this slot can no longer erase.
-        liveClaims[id, default: [:]][e.generation, default: 0] += 1
+        // Mint an identity for THIS claim and record it. What goes in the ledger
+        // is the serial, not the generation: two passes against one registration
+        // are two claims, and only a per-claim key lets one of them be released
+        // without disturbing the other. The generation rides along on the token
+        // for the log and for the reader, and a re-registration of this slot can
+        // erase neither.
+        let serial = nextClaimSerial
+        nextClaimSerial &+= 1
+        liveClaims[id, default: []].insert(serial)
         // `uses=` is now the whole slot's outstanding total across every
         // generation, which is the number that decides evictability. During a
-        // model switch it can briefly exceed the count for any one generation —
+        // model switch it can briefly count claims on two generations at once —
         // that is the ledger working, not a leak.
         let outstanding = outstandingClaims(id: id)
-        log.info("model.use id=\(id, privacy: .public) idle_gap_s=\(String(format: "%.1f", gap), privacy: .public) generation=\(e.generation, privacy: .public) uses=\(outstanding, privacy: .public)")
-        return ClaimReceipt(result: .claimed, token: ClaimToken(id: id, generation: e.generation))
+        log.info("model.use id=\(id, privacy: .public) idle_gap_s=\(String(format: "%.1f", gap), privacy: .public) generation=\(e.generation, privacy: .public) serial=\(serial, privacy: .public) uses=\(outstanding, privacy: .public)")
+        return ClaimReceipt(result: .claimed, token: ClaimToken(id: id, generation: e.generation, serial: serial))
     }
 
     /// Release one claim, naming it by the token `markBusy` issued for it. The
     /// slot becomes evictable only when the LAST outstanding claim on it — any
     /// generation — is repaid.
     ///
-    /// A token that names no live claim is IGNORED and logged, never applied to
-    /// whatever count happens to be there. The old `markIdle(id:)` had no way to
-    /// tell a duplicate or stale release from a real one and just decremented,
-    /// so a pass finishing late against a slot that had since been re-registered
+    /// A token whose serial names no live claim is IGNORED and logged, never
+    /// applied to whatever claim happens to be there. That single rule covers
+    /// all three ways the old anonymous release went wrong: a stale one from
+    /// before a re-register removes only its own serial and leaves a live claim
+    /// on the new runtime alone; a duplicated one finds its serial already gone;
+    /// a fabricated one was never issued. `markIdle(id:)` could tell none of
+    /// them from a real release and just decremented, so a pass finishing late
     /// repaid itself out of the CURRENT pass's claim and exposed a runtime that
-    /// was actively decoding. Refusing the unmatched release is the fix, and
-    /// `model.use.release.unmatched` is how a lost release becomes visible
-    /// instead of becoming somebody else's crash.
+    /// was actively decoding. `model.use.release.unmatched` is how a lost
+    /// release becomes visible instead of becoming somebody else's crash.
     func markIdle(_ token: ClaimToken) {
-        guard let outstanding = liveClaims[token.id]?[token.generation], outstanding > 0 else {
-            log.notice("model.use.release.unmatched id=\(token.id, privacy: .public) generation=\(token.generation, privacy: .public)")
+        guard var live = liveClaims[token.id], live.contains(token.serial) else {
+            log.notice("model.use.release.unmatched id=\(token.id, privacy: .public) generation=\(token.generation, privacy: .public) serial=\(token.serial, privacy: .public)")
             return
         }
-        if outstanding == 1 {
-            // Prune BOTH levels so a fully repaid slot leaves the ledger empty
-            // rather than an id mapped to a dictionary of zeroes — `snapshot`
-            // and `hasLiveClaims` stay honest, and the ledger cannot grow one
-            // dead generation per model switch for the life of the process.
-            liveClaims[token.id]?.removeValue(forKey: token.generation)
-            if liveClaims[token.id]?.isEmpty == true {
-                liveClaims.removeValue(forKey: token.id)
-            }
+        live.remove(token.serial)
+        if live.isEmpty {
+            // Prune the id once its last claim is repaid, so a fully repaid slot
+            // leaves the ledger empty rather than an id mapped to an empty set —
+            // `hasLiveClaims` and `outstandingClaims` stay honest, and the
+            // ledger cannot grow one dead entry per slot for the life of the
+            // process.
+            liveClaims.removeValue(forKey: token.id)
         } else {
-            liveClaims[token.id]?[token.generation] = outstanding - 1
+            liveClaims[token.id] = live
         }
         // Only a MATCHED release refreshes the idle clock, and only on whatever
         // entry currently holds the slot. An unmatched one must not push out the
@@ -302,10 +341,10 @@ actor ModelResidencyRegistry {
     /// accessor that makes such a leak assertable in a test and inspectable in a
     /// diagnostic, next to `model.use.release.unmatched` in the log.
     func outstandingClaims(id: String) -> Int {
-        (liveClaims[id] ?? [:]).values.reduce(0, +)
+        liveClaims[id]?.count ?? 0
     }
 
-    /// Whether ANY generation of this slot still has an outstanding claim.
+    /// Whether the slot still owes ANY claim, taken against any generation of it.
     ///
     /// The idle test, and deliberately the coarser of the two available ones: it
     /// asks about the slot, not about the resident entry's generation. During a
@@ -314,8 +353,7 @@ actor ModelResidencyRegistry {
     /// release. That over-protects for a few seconds; the alternative reading
     /// under-protects, and under-protecting is the bug.
     private func hasLiveClaims(_ id: String) -> Bool {
-        guard let byGeneration = liveClaims[id] else { return false }
-        return byGeneration.values.contains { $0 > 0 }
+        !(liveClaims[id]?.isEmpty ?? true)
     }
 
     // MARK: - Eviction

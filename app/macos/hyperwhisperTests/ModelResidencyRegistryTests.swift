@@ -192,10 +192,10 @@ struct ModelResidencyRegistryTests {
             await probe.recordEviction(of: "stt")
         }
 
-        // Generation 0 is never issued (the registry's counter is 1-based), so
-        // this is a token no `markBusy` can have handed out — the same "release
+        // Serial 0 is never issued (the registry's counter is 1-based), so this
+        // is a token no `markBusy` can have handed out — the same "release
         // nobody took" these two lines always stood for.
-        let neverIssued = ModelResidencyRegistry.ClaimToken(id: "stt", generation: 0)
+        let neverIssued = ModelResidencyRegistry.ClaimToken(id: "stt", generation: 0, serial: 0)
         await registry.markIdle(neverIssued)
         await registry.markIdle(neverIssued)
 
@@ -377,9 +377,9 @@ struct ModelResidencyRegistryTests {
         let claim = await registry.markBusy(id: "stt")
         let token = try #require(claim.token)
 
-        // Generation 0 is never issued (the registry's counter is 1-based), so
-        // this token provably names no claim that ever existed.
-        let neverIssued = ModelResidencyRegistry.ClaimToken(id: "stt", generation: 0)
+        // Serial 0 is never issued (the registry's counter is 1-based), so this
+        // token provably names no claim that ever existed.
+        let neverIssued = ModelResidencyRegistry.ClaimToken(id: "stt", generation: 0, serial: 0)
         await registry.markIdle(neverIssued)
         await registry.markIdle(neverIssued)
 
@@ -412,10 +412,11 @@ struct ModelResidencyRegistryTests {
     /// already-repaid token cannot drive it below zero either.
     ///
     /// (Both claims here are taken against the SAME registration, so they share
-    /// a generation and their tokens are equal by value. That is the
-    /// concurrent-consumer shape the per-generation refcount exists for, and it
-    /// is why the ledger counts claims per generation instead of holding a set
-    /// of distinct tokens.)
+    /// a generation — and are still two distinct tokens, because the ledger
+    /// holds a set of per-claim serials rather than a count per generation.
+    /// `aDuplicatedReleaseCannotRepayAConcurrentClaimOnTheSameGeneration` is
+    /// what that distinction buys; this test only needs the two to be repayable
+    /// one at a time.)
     @Test func everyClaimIsRepaidExactlyOnceAcrossAReRegister() async throws {
         let registry = ModelResidencyRegistry()
         let probe = EvictionProbe()
@@ -468,5 +469,62 @@ struct ModelResidencyRegistryTests {
         await registry.markIdle(tokenA)
         let outstandingAfterDoubleRelease = await registry.outstandingClaims(id: "stt")
         #expect(outstandingAfterDoubleRelease == 0)
+    }
+
+    /// Two concurrent claims on ONE registration are two claims, and a release
+    /// that runs twice repays only the first of them.
+    ///
+    /// The narrowest surviving form of the anonymous-claim bug, and the reason
+    /// the ledger holds a serial per claim rather than a count per generation.
+    /// Both passes below claim the same registration, so a count could not tell
+    /// their tokens apart: A's release took the slot 2 → 1, and a duplicated
+    /// cleanup path releasing A's token again took it 1 → 0 and pruned the
+    /// entry, while B was still decoding. The next memory-pressure sweep then
+    /// freed the runtime out from under B — the same mid-use eviction this arm
+    /// exists to close, reached by a shorter route. With per-claim serials, A's
+    /// second release finds its serial already gone and is ignored.
+    @Test func aDuplicatedReleaseCannotRepayAConcurrentClaimOnTheSameGeneration() async throws {
+        let registry = ModelResidencyRegistry()
+        let probe = EvictionProbe()
+        await registry.register(id: "stt", tier: .stt) {
+            await probe.recordEviction(of: "stt")
+        }
+
+        // Two overlapping passes against the SAME registration — the shape a
+        // per-generation key cannot distinguish.
+        let claimA = await registry.markBusy(id: "stt")
+        let tokenA = try #require(claimA.token)
+        let claimB = await registry.markBusy(id: "stt")
+        let tokenB = try #require(claimB.token)
+        #expect(tokenA.generation == tokenB.generation)
+        #expect(tokenA != tokenB)
+        let bothOutstanding = await registry.outstandingClaims(id: "stt")
+        #expect(bothOutstanding == 2)
+
+        // A finishes, and a duplicated cleanup path releases A's token a second
+        // time. That second release must fall on the floor, not onto B's claim.
+        await registry.markIdle(tokenA)
+        await registry.markIdle(tokenA)
+        let outstandingAfterDoubleRelease = await registry.outstandingClaims(id: "stt")
+        #expect(outstandingAfterDoubleRelease == 1)
+
+        // B is still decoding, so the sweep must find the slot claimed and skip
+        // it — this is the assertion that fails if the ledger is a count.
+        await registry.evict(aggressive: false, reason: "test", minIdle: 0)
+        let evictionsWhileBIsLive = await probe.evictionCount(for: "stt")
+        #expect(evictionsWhileBIsLive == 0)
+        let whileBIsLive = await registry.snapshot()
+        #expect(whileBIsLive.ids == ["stt"])
+
+        // And B's own release still frees the slot: the ignored duplicate
+        // pinned nothing either.
+        await registry.markIdle(tokenB)
+        let outstandingAfterB = await registry.outstandingClaims(id: "stt")
+        #expect(outstandingAfterB == 0)
+        await registry.evict(aggressive: false, reason: "test", minIdle: 0)
+        let evictionsAfterB = await probe.evictionCount(for: "stt")
+        #expect(evictionsAfterB == 1)
+        let resident = await registry.snapshot()
+        #expect(resident.ids.isEmpty)
     }
 }

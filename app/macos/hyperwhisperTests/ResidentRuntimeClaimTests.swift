@@ -75,9 +75,15 @@ private actor ClaimProbe {
         events.append("claim.\(result)")
         return ModelResidencyRegistry.ClaimReceipt(
             result: result,
-            // 1-based, matching the registry: attempt 1 gets generation 1.
+            // 1-based, matching the registry: attempt 1 gets serial 1. Each
+            // attempt stands for a claim on a freshly reloaded runtime, so the
+            // generation advances with it.
             token: result.isHonored
-                ? ModelResidencyRegistry.ClaimToken(id: "probe", generation: UInt64(claimAttempts))
+                ? ModelResidencyRegistry.ClaimToken(
+                    id: "probe",
+                    generation: UInt64(claimAttempts),
+                    serial: UInt64(claimAttempts)
+                )
                 : nil
         )
     }
@@ -394,11 +400,11 @@ struct ResidentRuntimeClaimTests {
         // Exactly one release, and it named the FIRST attempt's claim — the one
         // taken on a runtime that had already gone.
         let released = await probe.releasedTokens
-        #expect(released == [ModelResidencyRegistry.ClaimToken(id: "probe", generation: 1)])
+        #expect(released == [ModelResidencyRegistry.ClaimToken(id: "probe", generation: 1, serial: 1)])
         // The caller is handed the SECOND attempt's, which is the one still
         // outstanding and the only one its own `markIdle` can repay.
         let handedBack = try #require(acquisition.claimedToken)
-        #expect(handedBack == ModelResidencyRegistry.ClaimToken(id: "probe", generation: 2))
+        #expect(handedBack == ModelResidencyRegistry.ClaimToken(id: "probe", generation: 2, serial: 2))
         #expect(!released.contains(handedBack))
         let outstanding = await probe.outstandingClaims
         #expect(outstanding == 1)
