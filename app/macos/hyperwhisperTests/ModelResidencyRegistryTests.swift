@@ -215,4 +215,258 @@ struct ModelResidencyRegistryTests {
         let resident = await registry.snapshot()
         #expect(resident.ids.isEmpty)
     }
+
+    // MARK: - Claim identity across a re-registration (HYPERWHISPER-SQ, second arm)
+
+    /// A live claim survives an IN-PLACE re-registration of its slot.
+    ///
+    /// Buys back the first half of the residency arm: `register` used to install
+    /// a fresh `Entry(useCount: 0)`, so a model switch landing while a
+    /// transcription was in flight erased that transcription's claim, and the
+    /// very next pressure sweep saw an idle model and freed the runtime it was
+    /// decoding on — `provider_not_available`, or a use-after-free inside
+    /// whisper.cpp.
+    @Test func aClaimSurvivesAnInPlaceReRegisterOfItsSlot() async throws {
+        let registry = ModelResidencyRegistry()
+        let probe = EvictionProbe()
+        await registry.register(id: "stt", tier: .stt) {
+            await probe.recordEviction(of: "stt")
+        }
+
+        let claim = await registry.markBusy(id: "stt")
+        #expect(claim.result == .claimed)
+        let token = try #require(claim.token)
+
+        // The switch: same slot, new runtime, entry overwritten in place.
+        await registry.register(id: "stt", tier: .stt) {
+            await probe.recordEviction(of: "stt")
+        }
+        let outstandingAfterReRegister = await registry.outstandingClaims(id: "stt")
+        #expect(outstandingAfterReRegister == 1)
+
+        // Still owed, therefore still not a victim.
+        await registry.evict(aggressive: false, reason: "test", minIdle: 0)
+        let evictionsWhileClaimed = await probe.evictionCount(for: "stt")
+        #expect(evictionsWhileClaimed == 0)
+        let whileClaimed = await registry.snapshot()
+        #expect(whileClaimed.ids == ["stt"])
+
+        // And the survivor is still repayable by its own token — protecting the
+        // claim must not mean pinning the slot for the session.
+        await registry.markIdle(token)
+        let outstandingAfterRelease = await registry.outstandingClaims(id: "stt")
+        #expect(outstandingAfterRelease == 0)
+        await registry.evict(aggressive: false, reason: "test", minIdle: 0)
+        let evictionsAfterRelease = await probe.evictionCount(for: "stt")
+        #expect(evictionsAfterRelease == 1)
+        let resident = await registry.snapshot()
+        #expect(resident.ids.isEmpty)
+    }
+
+    /// The same survival, across the `deregister` → `register` pair — which is
+    /// the shape a model switch ACTUALLY takes on both STT providers
+    /// (`LibWhisperProvider.performLoad`, `ParakeetProvider` via
+    /// `ParakeetRuntime.reset()`). There is a window in which no entry exists at
+    /// all, so this is the case a fix that only carried a refcount forward
+    /// inside `register` would miss entirely: there is nothing to carry it from.
+    @Test func aClaimSurvivesADeregisterThenReRegisterOfItsSlot() async throws {
+        let registry = ModelResidencyRegistry()
+        let probe = EvictionProbe()
+        await registry.register(id: "stt", tier: .stt) {
+            await probe.recordEviction(of: "stt")
+        }
+
+        let claim = await registry.markBusy(id: "stt")
+        let token = try #require(claim.token)
+
+        // The provider's switch: the old runtime is torn down and deregistered,
+        // then the new one is registered. The claim spans the gap.
+        await registry.deregister(id: "stt")
+        let outstandingWhileUnregistered = await registry.outstandingClaims(id: "stt")
+        #expect(outstandingWhileUnregistered == 1)
+        await registry.register(id: "stt", tier: .stt) {
+            await probe.recordEviction(of: "stt")
+        }
+
+        await registry.evict(aggressive: false, reason: "test", minIdle: 0)
+        let evictionsWhileClaimed = await probe.evictionCount(for: "stt")
+        #expect(evictionsWhileClaimed == 0)
+        let whileClaimed = await registry.snapshot()
+        #expect(whileClaimed.ids == ["stt"])
+
+        await registry.markIdle(token)
+        let outstandingAfterRelease = await registry.outstandingClaims(id: "stt")
+        #expect(outstandingAfterRelease == 0)
+        await registry.evict(aggressive: false, reason: "test", minIdle: 0)
+        let evictionsAfterRelease = await probe.evictionCount(for: "stt")
+        #expect(evictionsAfterRelease == 1)
+    }
+
+    /// THE headline defect: a release arriving late from the PREVIOUS
+    /// registration must repay its own claim and nobody else's.
+    ///
+    /// `markIdle(id:)` keyed on the slot alone, so pass A finishing a few
+    /// seconds after a model switch decremented the count that pass B — actively
+    /// decoding on the new runtime — was being protected by. The model was then
+    /// freed mid-use by the next sweep. Here A's release must consume A's claim
+    /// and leave B's standing.
+    @Test func aStaleReleaseDoesNotFreeALiveClaimOnANewGeneration() async throws {
+        let registry = ModelResidencyRegistry()
+        let probe = EvictionProbe()
+        await registry.register(id: "stt", tier: .stt) {
+            await probe.recordEviction(of: "stt")
+        }
+
+        // Pass A claims the outgoing runtime.
+        let claimA = await registry.markBusy(id: "stt")
+        let tokenA = try #require(claimA.token)
+
+        // The model switch.
+        await registry.deregister(id: "stt")
+        await registry.register(id: "stt", tier: .stt) {
+            await probe.recordEviction(of: "stt")
+        }
+
+        // Pass B claims the incoming one. Two live claims, two identities.
+        let claimB = await registry.markBusy(id: "stt")
+        #expect(claimB.result == .claimed)
+        let tokenB = try #require(claimB.token)
+        #expect(tokenA != tokenB)
+        let bothOutstanding = await registry.outstandingClaims(id: "stt")
+        #expect(bothOutstanding == 2)
+
+        // Pass A finishes LATE and repays itself — out of its OWN claim.
+        await registry.markIdle(tokenA)
+        let afterStaleRelease = await registry.outstandingClaims(id: "stt")
+        #expect(afterStaleRelease == 1)
+
+        // B is still decoding, so the sweep must leave the runtime alone.
+        await registry.evict(aggressive: false, reason: "test", minIdle: 0)
+        let evictionsWhileBIsLive = await probe.evictionCount(for: "stt")
+        #expect(evictionsWhileBIsLive == 0)
+        let whileBIsLive = await registry.snapshot()
+        #expect(whileBIsLive.ids == ["stt"])
+
+        // Only B's own release can free the slot.
+        await registry.markIdle(tokenB)
+        let afterBReleases = await registry.outstandingClaims(id: "stt")
+        #expect(afterBReleases == 0)
+        await registry.evict(aggressive: false, reason: "test", minIdle: 0)
+        let evictionsAfterB = await probe.evictionCount(for: "stt")
+        #expect(evictionsAfterB == 1)
+    }
+
+    /// A release naming a claim that was never issued is IGNORED — even while a
+    /// real claim on the same slot is live.
+    ///
+    /// This is the anonymous-release bug at its smallest. The old
+    /// `markIdle(id:)` could not tell a bogus or duplicate release from a real
+    /// one; it decremented whatever count it found, so a release nobody was
+    /// issued consumed the live claim and handed the next sweep a model that was
+    /// in use. Complements — does not replace —
+    /// `markIdleOnAnUnclaimedEntryDoesNotUnderflowTheRefcount`, which covers
+    /// stray releases arriving BEFORE any claim exists.
+    @Test func aReleaseOfANeverIssuedTokenIsIgnored() async throws {
+        let registry = ModelResidencyRegistry()
+        let probe = EvictionProbe()
+        await registry.register(id: "stt", tier: .stt) {
+            await probe.recordEviction(of: "stt")
+        }
+
+        // A real, live claim on the slot — a transcription in flight.
+        let claim = await registry.markBusy(id: "stt")
+        let token = try #require(claim.token)
+
+        // Generation 0 is never issued (the registry's counter is 1-based), so
+        // this token provably names no claim that ever existed.
+        let neverIssued = ModelResidencyRegistry.ClaimToken(id: "stt", generation: 0)
+        await registry.markIdle(neverIssued)
+        await registry.markIdle(neverIssued)
+
+        // The live claim is untouched, and the model is still protected.
+        let outstandingAfterBogusReleases = await registry.outstandingClaims(id: "stt")
+        #expect(outstandingAfterBogusReleases == 1)
+        await registry.evict(aggressive: false, reason: "test", minIdle: 0)
+        let evictionsWhileClaimed = await probe.evictionCount(for: "stt")
+        #expect(evictionsWhileClaimed == 0)
+        let whileClaimed = await registry.snapshot()
+        #expect(whileClaimed.ids == ["stt"])
+
+        // Nor did the ignored releases bank credit against the real one: the
+        // real token still repays exactly its own claim, and only then.
+        await registry.markIdle(token)
+        let outstandingAfterRealRelease = await registry.outstandingClaims(id: "stt")
+        #expect(outstandingAfterRealRelease == 0)
+        await registry.evict(aggressive: false, reason: "test", minIdle: 0)
+        let evictionsAfterRelease = await probe.evictionCount(for: "stt")
+        #expect(evictionsAfterRelease == 1)
+    }
+
+    /// The anti-pin test, and the price of the fix stated as an assertion.
+    ///
+    /// Making claims survive a re-registration means a lost release is no longer
+    /// silently healed by the next `register` — it would pin the slot resident
+    /// for the rest of the session. So overlapping claims spanning a switch must
+    /// each be repayable exactly once: the ledger goes 2 → 1 → 0, the slot stays
+    /// protected until the LAST one is repaid, and a repeat release of an
+    /// already-repaid token cannot drive it below zero either.
+    ///
+    /// (Both claims here are taken against the SAME registration, so they share
+    /// a generation and their tokens are equal by value. That is the
+    /// concurrent-consumer shape the per-generation refcount exists for, and it
+    /// is why the ledger counts claims per generation instead of holding a set
+    /// of distinct tokens.)
+    @Test func everyClaimIsRepaidExactlyOnceAcrossAReRegister() async throws {
+        let registry = ModelResidencyRegistry()
+        let probe = EvictionProbe()
+        await registry.register(id: "stt", tier: .stt) {
+            await probe.recordEviction(of: "stt")
+        }
+
+        let claimA = await registry.markBusy(id: "stt")
+        let tokenA = try #require(claimA.token)
+        let claimB = await registry.markBusy(id: "stt")
+        let tokenB = try #require(claimB.token)
+        let bothOutstanding = await registry.outstandingClaims(id: "stt")
+        #expect(bothOutstanding == 2)
+
+        // The switch lands with BOTH claims still in flight.
+        await registry.deregister(id: "stt")
+        await registry.register(id: "stt", tier: .stt) {
+            await probe.recordEviction(of: "stt")
+        }
+        let outstandingAcrossTheSwitch = await registry.outstandingClaims(id: "stt")
+        #expect(outstandingAcrossTheSwitch == 2)
+        await registry.evict(aggressive: false, reason: "test", minIdle: 0)
+        let evictionsWhileBothClaimed = await probe.evictionCount(for: "stt")
+        #expect(evictionsWhileBothClaimed == 0)
+
+        // One of the two finishes. Partial repayment is not repayment: the other
+        // consumer is still using the runtime.
+        await registry.markIdle(tokenB)
+        let outstandingAfterFirstRelease = await registry.outstandingClaims(id: "stt")
+        #expect(outstandingAfterFirstRelease == 1)
+        await registry.evict(aggressive: false, reason: "test", minIdle: 0)
+        let evictionsAfterFirstRelease = await probe.evictionCount(for: "stt")
+        #expect(evictionsAfterFirstRelease == 0)
+        let stillResident = await registry.snapshot()
+        #expect(stillResident.ids == ["stt"])
+
+        // The last one finishes: the ledger is empty and the slot is a victim
+        // again. Nothing is pinned by having survived the switch.
+        await registry.markIdle(tokenA)
+        let outstandingAfterLastRelease = await registry.outstandingClaims(id: "stt")
+        #expect(outstandingAfterLastRelease == 0)
+        await registry.evict(aggressive: false, reason: "test", minIdle: 0)
+        let evictionsAfterLastRelease = await probe.evictionCount(for: "stt")
+        #expect(evictionsAfterLastRelease == 1)
+        let resident = await registry.snapshot()
+        #expect(resident.ids.isEmpty)
+
+        // Exactly once, the other way round: a repeat release of a spent token
+        // is unmatched and changes nothing.
+        await registry.markIdle(tokenA)
+        let outstandingAfterDoubleRelease = await registry.outstandingClaims(id: "stt")
+        #expect(outstandingAfterDoubleRelease == 0)
+    }
 }
