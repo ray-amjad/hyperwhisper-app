@@ -19,6 +19,9 @@ on:
       - "app/linux/**"
       - "shared-core-rs/**"
       - "shared-backup/**"
+      # HyperWhisper.CatalogConformance.Tests runs these vectors as part of the
+      # shared-dotnet sweep below.
+      - "shared-conformance/**"
       - "packaging/linux/**"
       - "tools/parakeet-engine-dotnet/**"
       - ".github/scripts/test-linux-release-policy.py"

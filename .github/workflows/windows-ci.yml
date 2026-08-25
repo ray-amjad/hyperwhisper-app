@@ -35,6 +35,9 @@ on:
       - "shared-app-classification/**"
       - "shared-models/**"
       - "shared-prompts/**"
+      # The golden catalog vectors (issue #277), run by the conformance step
+      # below.
+      - "shared-conformance/**"
       - ".github/workflows/windows-ci.yml"
   push:
     branches: [main]
@@ -136,3 +139,15 @@ jobs:
       # smoke. No secrets, no network, no signing — safe on fork PRs.
       - name: Run smoke tests (build + FFI + unit checks)
         run: dotnet run --project app/windows/HyperWhisper.SmokeTests -c Release
+
+      # ----------------------------------------------------------------
+      # 6. Catalog conformance vectors
+      # ----------------------------------------------------------------
+      # shared-conformance/catalog-vectors.json is one file run by all three
+      # platforms (Rust in shared-core-tests.yml, Swift in macos-ci.yml, this
+      # step for .NET). Issue #280 left exactly one catalog decoder, so these
+      # vectors are what proves the Windows binding still reads the same
+      # answers — the deepgramNova3 picker language list had already drifted
+      # between the platforms before the decoders were unified.
+      - name: Run catalog conformance vectors
+        run: dotnet run --project app/shared-dotnet/HyperWhisper.CatalogConformance.Tests -c Release
