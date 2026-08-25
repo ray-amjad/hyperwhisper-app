@@ -153,6 +153,11 @@ extension AccessibilityHelper {
             "paste_elapsed_ms": elapsedMs,
             "paste_has_accessibility_permission": AXIsProcessTrusted(),
             "paste_delivery_suppressed": TextDeliveryGate.isSuppressed,
+            // The scope extras below are global and are never cleared, so an
+            // unrelated error captured hours later still carries them. Stamp the
+            // attempt so a triager can see the age and discard a stale one,
+            // rather than read an old paste failure as part of a fresh issue.
+            "paste_reported_at": ISO8601DateFormatter().string(from: Date()),
         ]
 
         // Scope extras survive `beforeSend`, which strips breadcrumbs. Any error

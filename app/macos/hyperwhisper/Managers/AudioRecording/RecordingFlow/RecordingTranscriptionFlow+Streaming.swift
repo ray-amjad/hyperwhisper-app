@@ -472,7 +472,7 @@ extension RecordingTranscriptionFlow {
 
             if isFinal {
                 AppLogger.audio.info(
-                    "🧩 Streaming final delta received: chars=\(text.count, privacy: .public) spaces=\(Self.whitespaceCount(text), privacy: .public) text=\(Self.diagnosticExcerpt(text), privacy: .public)"
+                    "🧩 Streaming final delta received: chars=\(text.count, privacy: .public) spaces=\(Self.whitespaceCount(text), privacy: .public)"
                 )
 
                 // FILLER WORDS → VOICE COMMANDS → VOCABULARY:
@@ -519,7 +519,7 @@ extension RecordingTranscriptionFlow {
                         modeLanguage: streamingLanguage ?? LanguageData.automaticCode
                     )
                     AppLogger.audio.info(
-                        "⌨️ Streaming final delta after processing: chars=\(textToType.count, privacy: .public) spaces=\(Self.whitespaceCount(textToType), privacy: .public) text=\(Self.diagnosticExcerpt(textToType), privacy: .public)"
+                        "⌨️ Streaming final delta after processing: chars=\(textToType.count, privacy: .public) spaces=\(Self.whitespaceCount(textToType), privacy: .public)"
                     )
                     let suppressTextDelivery = RecordingTextDeliveryPolicy.shouldSuppress(
                         sessionStartedSuppressed: suppressTextDeliveryForSession,
@@ -566,7 +566,7 @@ extension RecordingTranscriptionFlow {
                         self.appState?.streamingText = joined
                     }
                 }
-                AppLogger.audio.debug("📝 Interim transcript: \(text.prefix(50), privacy: .public)...")
+                AppLogger.audio.debug("📝 Interim transcript received: chars=\(text.count, privacy: .public)")
             }
         }
 
@@ -1054,14 +1054,6 @@ extension RecordingTranscriptionFlow {
                 count += 1
             }
         }
-    }
-
-    fileprivate static func diagnosticExcerpt(_ text: String, limit: Int = 120) -> String {
-        let escaped = text
-            .replacingOccurrences(of: "\n", with: "\\n")
-            .replacingOccurrences(of: "\t", with: "\\t")
-        let excerpt = String(escaped.prefix(limit))
-        return "\"\(excerpt)\""
     }
 
     /// Build a comma-separated vocabulary string from vocabulary entries.

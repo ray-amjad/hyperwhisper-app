@@ -7,6 +7,7 @@
 
 import Foundation
 import AppKit
+import ApplicationServices
 import os
 
 extension AccessibilityHelper {
@@ -211,7 +212,14 @@ extension AccessibilityHelper {
             // DIAGNOSTICS: metadata for this attempt, reported at every exit so
             // the last step of the record → transcribe → paste flow is visible
             // in production. Holds counts and identifiers only, never the text.
-            var attempt = PasteAttempt(targetBundleID: nil, characterCount: text.count)
+            //
+            // Seed the target from what record-start captured, NOT from the
+            // resolved app. On the `target_lost` path the app has already quit,
+            // so resolution fails and only this captured value still names the
+            // app the transcript was meant for.
+            var attempt = PasteAttempt(targetBundleID: previousAppBundleID,
+                                       hadCapturedTarget: previousAppPID != nil,
+                                       characterCount: text.count)
 
             // Check accessibility permission
             guard hasAccessibilityPermission() else {
@@ -242,8 +250,7 @@ extension AccessibilityHelper {
             let capturedTargetLost = previousAppPID != nil && capturedApp == nil
             if let app = capturedApp {
                 targetBundleID = app.bundleIdentifier
-                attempt.targetBundleID = targetBundleID
-                attempt.hadCapturedTarget = true
+                attempt.targetBundleID = targetBundleID ?? previousAppBundleID
                 logger.info("🔄 Reactivating previous app: \(targetBundleID ?? "unknown", privacy: .public)")
                 app.activate(options: [.activateIgnoringOtherApps])
                 targetHandled = true
@@ -280,6 +287,10 @@ extension AccessibilityHelper {
                     return .failed(CancellationError())
                 }
                 try? await Task.sleep(nanoseconds: 120 * 1_000_000) // 120ms
+                // Hiding our own app brought the app behind it forward. Name it
+                // now that the 120ms settle is over, so this branch's reports
+                // are not filed under an "unknown" target.
+                attempt.targetBundleID = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
                 if Task.isCancelled {
                     self.reportPasteOutcome(.cancelled, attempt: attempt)
                     return .failed(CancellationError())
@@ -376,12 +387,24 @@ extension AccessibilityHelper {
             if !pasteSucceeded {
                 // Always schedule restoration even on failure
                 scheduleClipboardRestoration(settings: settings)
-                // `sendPasteCommand` returns false for a deliberate refusal by
-                // `TextDeliveryGate` (the onboarding sheet owns the transcript)
-                // and for a genuine keystroke failure. Separate them so the
-                // onboarding path never files a Sentry issue.
-                self.reportPasteOutcome(TextDeliveryGate.isSuppressed ? .suppressed : .commandFailed,
-                                        attempt: attempt)
+                // `sendPasteCommand` returns false for five different reasons and
+                // reports none of them back. Re-test the three cheap ones so a
+                // healthy app is not filed as a defect: the user can revoke the
+                // accessibility permission or move focus during the awaits
+                // above, and the onboarding gate is a deliberate refusal. Only
+                // what is left — a CGEvent that could not be built or posted —
+                // is `command_failed`.
+                let failureOutcome: PasteOutcome
+                if TextDeliveryGate.isSuppressed {
+                    failureOutcome = .suppressed
+                } else if !AXIsProcessTrusted() {
+                    failureOutcome = .noAccessibilityPermission
+                } else if !canPasteIntoFocusedElement() {
+                    failureOutcome = .noFocusedField
+                } else {
+                    failureOutcome = .commandFailed
+                }
+                self.reportPasteOutcome(failureOutcome, attempt: attempt)
                 return .failed(NSError(domain: "AccessibilityHelper",
                                        code: -1,
                                        userInfo: [NSLocalizedDescriptionKey: "accessibility.error.paste.commandFailed".localized]))
