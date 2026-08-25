@@ -235,7 +235,7 @@ final class TextInputService {
         }
 
         logger.debug(
-            "⌨️ Typing \(text.count, privacy: .public) characters (async), spaces=\(self.whitespaceCount(text), privacy: .public), text=\(self.diagnosticExcerpt(text), privacy: .public)"
+            "⌨️ Typing \(text.count, privacy: .public) characters (async), spaces=\(self.whitespaceCount(text), privacy: .public)"
         )
 
         for char in text {
@@ -342,7 +342,7 @@ final class TextInputService {
         pasteboard.writeObjects([item])
 
         logger.info(
-            "📋 Streaming paste prepared for bundle=\(frontmostBundleId ?? "unknown", privacy: .public) targetPID=\(targetPID ?? -1, privacy: .public) terminal=\(isTerminalTarget, privacy: .public) spaces=\(self.whitespaceCount(text), privacy: .public) text=\(self.diagnosticExcerpt(text), privacy: .public)"
+            "📋 Streaming paste prepared for bundle=\(frontmostBundleId ?? "unknown", privacy: .public) targetPID=\(targetPID ?? -1, privacy: .public) terminal=\(isTerminalTarget, privacy: .public) chars=\(text.count, privacy: .public) spaces=\(self.whitespaceCount(text), privacy: .public)"
         )
 
         // Give the clipboard a brief moment to settle before posting Cmd+V.
@@ -374,7 +374,7 @@ final class TextInputService {
         }
 
         logger.info(
-            "✅ Pasted \(text.count, privacy: .public) characters via clipboard, bundle=\(frontmostBundleId ?? "unknown", privacy: .public), restoreDelayMs=\(restoreDelayNanoseconds / 1_000_000, privacy: .public), spaces=\(self.whitespaceCount(text), privacy: .public), text=\(self.diagnosticExcerpt(text), privacy: .public)"
+            "✅ Pasted \(text.count, privacy: .public) characters via clipboard, bundle=\(frontmostBundleId ?? "unknown", privacy: .public), restoreDelayMs=\(restoreDelayNanoseconds / 1_000_000, privacy: .public), spaces=\(self.whitespaceCount(text), privacy: .public)"
         )
         return true
     }
@@ -408,7 +408,7 @@ final class TextInputService {
     private func typeSegmentUnlocked(_ text: String, language: String?) async -> Bool {
         let lang = language?.prefix(2).lowercased() ?? ""
         logger.debug(
-            "⌨️ Queueing streaming segment: chars=\(text.count, privacy: .public) spaces=\(self.whitespaceCount(text), privacy: .public) language=\(lang, privacy: .public) text=\(self.diagnosticExcerpt(text), privacy: .public)"
+            "⌨️ Queueing streaming segment: chars=\(text.count, privacy: .public) spaces=\(self.whitespaceCount(text), privacy: .public) language=\(lang, privacy: .public)"
         )
 
         // Use paste for CJK languages
@@ -437,11 +437,4 @@ final class TextInputService {
         }
     }
 
-    private func diagnosticExcerpt(_ text: String, limit: Int = 120) -> String {
-        let escaped = text
-            .replacingOccurrences(of: "\n", with: "\\n")
-            .replacingOccurrences(of: "\t", with: "\\t")
-        let excerpt = String(escaped.prefix(limit))
-        return "\"\(excerpt)\""
-    }
 }

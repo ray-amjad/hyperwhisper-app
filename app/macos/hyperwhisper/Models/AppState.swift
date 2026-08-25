@@ -984,7 +984,7 @@ class AppState: ObservableObject {
         case .recording:
             logger.debug("Started recording")
         case .complete(let text):
-            logger.debug("Completed with text: \(text, privacy: .public)")
+            logger.debug("Completed with transcript: chars=\(text.count, privacy: .public)")
         case .error(let error):
             logger.debug("Error occurred: \(error, privacy: .public)")
         default:

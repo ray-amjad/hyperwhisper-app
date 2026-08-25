@@ -196,7 +196,7 @@ actor ParakeetStreamingSession {
         let tailText = await runFinalPass() ?? ""
         if !tailText.isEmpty {
             logger.info(
-                "emit final delta: chars=\(tailText.count, privacy: .public) spaces=\(Self.whitespaceCount(tailText), privacy: .public) words=\(Self.wordCount(tailText), privacy: .public) text=\(Self.diagnosticExcerpt(tailText), privacy: .public)"
+                "emit final delta: chars=\(tailText.count, privacy: .public) spaces=\(Self.whitespaceCount(tailText), privacy: .public) words=\(Self.wordCount(tailText), privacy: .public)"
             )
             accumulatedConfirmed.append(tailText)
             onConfirmedDelta?(tailText)
@@ -336,7 +336,7 @@ actor ParakeetStreamingSession {
             let normalized = Self.normalizeSentence(ar.newlyConfirmedText)
             if !normalized.isEmpty {
                 logger.info(
-                    "emit confirmed delta: chars=\(normalized.count, privacy: .public) spaces=\(Self.whitespaceCount(normalized), privacy: .public) words=\(Self.wordCount(normalized), privacy: .public) text=\(Self.diagnosticExcerpt(normalized), privacy: .public)"
+                    "emit confirmed delta: chars=\(normalized.count, privacy: .public) spaces=\(Self.whitespaceCount(normalized), privacy: .public) words=\(Self.wordCount(normalized), privacy: .public)"
                 )
                 accumulatedConfirmed.append(normalized)
                 onConfirmedDelta?(normalized)
@@ -423,7 +423,7 @@ actor ParakeetStreamingSession {
 
         let text = Self.normalizeSentence(result.text)
         logger.notice(
-            "final pass: seek=\(seekTime, privacy: .public)s slice=\(slice.count, privacy: .public) inf=\(infMs, privacy: .public)ms conf=\(result.confidence, privacy: .public) chars=\(text.count, privacy: .public) spaces=\(Self.whitespaceCount(text), privacy: .public) words=\(Self.wordCount(text), privacy: .public) text=\(Self.diagnosticExcerpt(text), privacy: .public)"
+            "final pass: seek=\(seekTime, privacy: .public)s slice=\(slice.count, privacy: .public) inf=\(infMs, privacy: .public)ms conf=\(result.confidence, privacy: .public) chars=\(text.count, privacy: .public) spaces=\(Self.whitespaceCount(text), privacy: .public) words=\(Self.wordCount(text), privacy: .public)"
         )
         return text.isEmpty ? nil : text
     }
@@ -448,13 +448,6 @@ actor ParakeetStreamingSession {
         text.split(whereSeparator: \.isWhitespace).count
     }
 
-    private static func diagnosticExcerpt(_ text: String, limit: Int = 120) -> String {
-        let escaped = text
-            .replacingOccurrences(of: "\n", with: "\\n")
-            .replacingOccurrences(of: "\t", with: "\\t")
-        let excerpt = String(escaped.prefix(limit))
-        return "\"\(excerpt)\""
-    }
 }
 
 // MARK: - Errors
