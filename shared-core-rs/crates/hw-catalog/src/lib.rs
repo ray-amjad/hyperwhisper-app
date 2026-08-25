@@ -13,8 +13,8 @@ mod cloud_stt;
 pub use models::{CatalogError, Entry, Kind, LanguageSupport, ModelsCatalog};
 
 pub use cloud_stt::{
-    Access, CloudSttCatalog, CloudSttError, CloudTier, CustomVocabulary, NormalizedCloudProvider,
-    SttEntry, SttModel, VocabSupport,
+    Access, CloudSttCatalog, CloudSttError, CloudTier, CustomVocabulary, Features, Languages,
+    NormalizedCloudProvider, SttEntry, SttModel, VendorGroup, VocabSupport,
 };
 
 pub use cloud_pp::{CloudPpCatalog, CloudPpError, PpModel, PpProvider};

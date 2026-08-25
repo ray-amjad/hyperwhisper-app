@@ -1,6 +1,3 @@
-using System.Reflection;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 // Rust shared-core binding. `NormalizedCloudProvider` lives here; no native
 // type of that name, so no qualification needed.
 using uniffi.hyperwhisper_core;
@@ -8,20 +5,27 @@ using uniffi.hyperwhisper_core;
 namespace HyperWhisper.Services.AppClassification;
 
 /// <summary>
-/// Loads and exposes <c>shared-app-classification/cloud-stt-catalog.json</c> — the
-/// cross-platform source of truth for cloud STT provider capabilities driving UI
-/// affordances (credits/min caption, custom-vocab field visibility,
-/// cloud-tier-vs-BYOK list filtering).
+/// Windows facade over the shared cloud-STT catalog.
 ///
-/// Mirrors the loader pattern in <see cref="AppTypeClassifier"/>.
+/// This class used to decode <c>shared-app-classification/cloud-stt-catalog.json</c>
+/// itself — 4 hand-written <c>JsonConverter</c>s for the polymorphic fields, a
+/// vendor-group fold, and a 90-entry ISO-639 table for the language picker. All
+/// of that now lives once in <c>shared-core-rs/crates/hw-catalog</c> (issue #280);
+/// the copies had already drifted from macOS (<c>deepgramNova3</c> offered
+/// <c>gu</c>/<c>th</c>/<c>zh</c> here and not there). What is left is a mapping
+/// layer: the generated UniFFI types are <c>internal</c>, so the public methods
+/// below hand back the small DTOs at the bottom of this file rather than binding
+/// types. <c>shared-conformance/catalog-vectors.json</c> pins the answers.
+///
+/// Nothing here reads a file or an embedded resource — the catalog JSON is
+/// <c>include_str!</c>'d into the Rust core at compile time.
 /// </summary>
 public sealed class CloudSttCatalog
 {
-    public static CloudSttCatalog Shared { get; } = LoadCatalog();
+    public static CloudSttCatalog Shared { get; } = Load();
 
-    public int Version { get; init; }
-    public string Updated { get; init; } = "missing";
-    public CloudSttCatalogEntry[] Providers { get; init; } = [];
+    /// <summary>All provider entries, in catalog order.</summary>
+    public CloudSttCatalogEntry[] Providers { get; private init; } = [];
 
     /// <summary>Lookup by id (matches <see cref="Models.CloudAccuracyTierExtensions.ToStorageValue"/>).</summary>
     public CloudSttCatalogEntry? GetById(string? id)
@@ -35,9 +39,9 @@ public sealed class CloudSttCatalog
 
     /// <summary>
     /// Look up an entry whose <c>MigrateFrom</c> list contains the given alias
-    /// (case-insensitive). Drives legacy <c>cloudAccuracyTier</c> resolution —
-    /// NOT <c>cloudProvider</c> rewriting (that lives in the core, surfaced via
-    /// <see cref="NormalizeCloudProvider"/>).
+    /// (case-insensitive, trimmed). Drives legacy <c>cloudAccuracyTier</c>
+    /// resolution — NOT <c>cloudProvider</c> rewriting, which is
+    /// <see cref="NormalizeCloudProvider"/>.
     /// </summary>
     public CloudSttCatalogEntry? GetByMigrateFromAlias(string? alias)
     {
@@ -45,7 +49,6 @@ public sealed class CloudSttCatalog
         var needle = alias.Trim();
         foreach (var entry in Providers)
         {
-            if (entry.MigrateFrom is null) continue;
             foreach (var candidate in entry.MigrateFrom)
             {
                 if (string.Equals(candidate, needle, StringComparison.OrdinalIgnoreCase))
@@ -56,7 +59,6 @@ public sealed class CloudSttCatalog
     }
 
     /// <summary>Display-only cost in credits per minute for the given tier; 0 if unknown.</summary>
-    // TODO-verify (Windows/CI): Rust shared-core swap.
     public double CreditsPerMinute(string? id)
         => string.IsNullOrEmpty(id) ? 0 : HyperwhisperCoreMethods.CloudSttCreditsPerMinute(id);
 
@@ -85,53 +87,20 @@ public sealed class CloudSttCatalog
     /// company appears exactly once. Google owns two entries (Chirp + Gemini)
     /// and so contributes one row whose model list spans both.
     /// </summary>
-    public IReadOnlyList<CloudSttVendorGroup> CloudTierVendorGroups()
-    {
-        var order = new List<string>();
-        var byVendor = new Dictionary<string, List<CloudSttCatalogEntry>>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var entry in CloudTierEligibleProviders())
-        {
-            if (!byVendor.TryGetValue(entry.Vendor, out var entries))
-            {
-                entries = [];
-                byVendor[entry.Vendor] = entries;
-                order.Add(entry.Vendor);
-            }
-            entries.Add(entry);
-        }
-
-        var groups = new List<CloudSttVendorGroup>();
-        foreach (var vendor in order)
-        {
-            var entries = byVendor[vendor];
-            groups.Add(new CloudSttVendorGroup
-            {
-                VendorKey = vendor,
-                DisplayName = string.IsNullOrEmpty(entries[0].VendorDisplayName)
-                    ? entries[0].DisplayName
-                    : entries[0].VendorDisplayName!,
-                Entries = entries
-            });
-        }
-
-        groups.Sort((a, b) => string.Compare(a.DisplayName, b.DisplayName, StringComparison.OrdinalIgnoreCase));
-        return groups;
-    }
+    public IReadOnlyList<CloudSttVendorGroup> CloudTierVendorGroups() => _vendorGroups;
 
     /// <summary>The vendor group a cloud-tier id belongs to, or null if unknown.</summary>
     public CloudSttVendorGroup? VendorGroupForId(string? tierId)
     {
         var vendor = GetById(tierId)?.Vendor;
-        if (string.IsNullOrEmpty(vendor)) return null;
-        return VendorGroupForVendorKey(vendor);
+        return string.IsNullOrEmpty(vendor) ? null : VendorGroupForVendorKey(vendor);
     }
 
     /// <summary>The vendor group with the given <c>vendor</c> key, or null if unknown.</summary>
     public CloudSttVendorGroup? VendorGroupForVendorKey(string? vendorKey)
     {
         if (string.IsNullOrEmpty(vendorKey)) return null;
-        foreach (var group in CloudTierVendorGroups())
+        foreach (var group in _vendorGroups)
             if (string.Equals(group.VendorKey, vendorKey, StringComparison.OrdinalIgnoreCase))
                 return group;
         return null;
@@ -155,7 +124,6 @@ public sealed class CloudSttCatalog
     }
 
     /// <summary>The X-STT-Provider header value for the given tier id, or null if unknown.</summary>
-    // TODO-verify (Windows/CI): Rust shared-core swap.
     public string? SttProviderForId(string? id)
         => string.IsNullOrEmpty(id) ? null : HyperwhisperCoreMethods.CloudSttProvider(id);
 
@@ -167,117 +135,24 @@ public sealed class CloudSttCatalog
     /// like <c>eng</c>) — do NOT intersect them directly against the two-letter
     /// picker. Use <see cref="PickerLanguageCodesForId"/> for the language picker.
     /// </summary>
-    // TODO-verify (Windows/CI): Rust shared-core swap. Core returns List<string>?;
-    // adapt to the string[]? the picker consumes (null preserved for "unverified").
     public string[]? LanguageCodesForId(string? id)
         => string.IsNullOrEmpty(id) ? null : HyperwhisperCoreMethods.CloudSttLanguageCodes(id)?.ToArray();
 
     /// <summary>
-    /// The tier's supported languages normalized to the ISO-639-1 two-letter base
-    /// codes the language picker (<c>LanguageInfo.AllLanguages</c>) uses, or null
-    /// when the catalog leaves the set unspecified (<c>"unverified"</c>) so the
-    /// caller falls back to the full list. The catalog stores upstream-native
-    /// codes in mixed formats — BCP-47 (<c>en-AU</c>, <c>cmn-Hans-CN</c>),
-    /// ISO-639-2/3 (<c>eng</c>, <c>nld</c>), region variants (<c>ar-AE</c>) and
-    /// sentinels (<c>multi</c>). We take the primary subtag, map three-letter codes
-    /// to 639-1 via <see cref="Iso6392ToIso6391"/>, drop anything with no two-letter
-    /// equivalent, and dedup (so the dozens of <c>ar-XX</c>/<c>en-XX</c> Deepgram
-    /// variants collapse to <c>ar</c>/<c>en</c>). <c>"auto"</c> is always included.
+    /// The tier's supported languages normalized to the two-letter base codes the
+    /// language picker (<c>LanguageInfo.AllLanguages</c>) uses, or null when the
+    /// catalog leaves the set unspecified (<c>"unverified"</c>) so the caller falls
+    /// back to the full list. The fold itself — primary subtag, the ISO-639-2/3
+    /// map, the <c>nb</c>/<c>iw</c>/<c>jv</c> picker aliases, dedup, and the
+    /// always-present <c>"auto"</c> — lives in the Rust core, so macOS and Windows
+    /// cannot answer differently.
     /// </summary>
     public HashSet<string>? PickerLanguageCodesForId(string? id)
     {
-        var raw = LanguageCodesForId(id);
-        if (raw is null) return null;
-
-        var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "auto" };
-        foreach (var code in raw)
-        {
-            var normalized = NormalizeToIso6391(code);
-            if (normalized != null) result.Add(normalized);
-        }
-        return result;
+        if (string.IsNullOrEmpty(id)) return null;
+        var folded = HyperwhisperCoreMethods.CloudSttPickerLanguageCodes(id);
+        return folded is null ? null : new HashSet<string>(folded, StringComparer.OrdinalIgnoreCase);
     }
-
-    /// <summary>
-    /// Reduce a single upstream language code to its ISO-639-1 two-letter base, or
-    /// null when there's no clean two-letter equivalent (so it's dropped rather
-    /// than poisoning the picker). Splits on <c>-</c>/<c>_</c> to take the primary
-    /// subtag, then: two-letter subtags pass through; three-letter subtags are
-    /// looked up in <see cref="Iso6392ToIso6391"/>; everything else (sentinels like
-    /// <c>multi</c>, and three-letter codes that map to no picker row like
-    /// <c>ceb</c>) → null.
-    /// </summary>
-    private static string? NormalizeToIso6391(string? code)
-    {
-        if (string.IsNullOrWhiteSpace(code)) return null;
-        var primary = code.Replace('_', '-').Split('-')[0].ToLowerInvariant();
-        string? two = primary.Length switch
-        {
-            2 => primary,
-            3 when Iso6392ToIso6391.TryGetValue(primary, out var mapped) => mapped,
-            _ => null,
-        };
-        if (two is null) return null;
-        // Fold picker-only aliases: the shared catalog carries provider-native codes
-        // (Azure `nb`, Google Chirp `iw-IL`/`jv-ID`) whose two-letter base differs from
-        // the code LanguageInfo.AllLanguages exposes for the same language (`no`/`he`/`jw`).
-        // Without this fold those languages never match a picker row and silently vanish
-        // from the dropdown for the Azure / Google Chirp tiers.
-        return PickerLanguageAliases.TryGetValue(two, out var folded) ? folded : two;
-    }
-
-    /// <summary>
-    /// Two-letter base codes that differ between an upstream's catalog declaration
-    /// and the code <c>LanguageInfo.AllLanguages</c> exposes for the same language.
-    /// Applied after <see cref="NormalizeToIso6391"/> reduces to a 639-1 base so the
-    /// picker can match the row. Note the three-letter forms (<c>nor</c>/<c>heb</c>/
-    /// <c>jav</c>) already map straight to <c>no</c>/<c>he</c>/<c>jw</c> via
-    /// <see cref="Iso6392ToIso6391"/>; this only catches the two-letter/BCP-47 aliases.
-    /// </summary>
-    private static readonly Dictionary<string, string> PickerLanguageAliases = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["nb"] = "no", // Norwegian Bokmål → picker's macrolanguage "no"
-        ["iw"] = "he", // deprecated Hebrew code (Azure/Google) → "he"
-        ["jv"] = "jw", // ISO-639-1 Javanese → picker's legacy "jw"
-    };
-
-    /// <summary>
-    /// ISO-639-2/3 → ISO-639-1 map, scoped to the three-letter codes that actually
-    /// appear in the catalog AND name a language the picker can show.
-    ///
-    /// Most entries reduce to a two-letter code. Three do not, and map to
-    /// themselves because <c>LanguageInfo.AllLanguages</c> lists them under the
-    /// three-letter form: <c>yue</c> (Cantonese) and <c>haw</c> (Hawaiian). The
-    /// odd one out is <c>fil</c> → <c>tl</c>: Filipino has no 639-1 code of its
-    /// own, but the picker shows it as Tagalog, so it has to fold. The backend
-    /// unfolds it — <c>resolveElevenLabsLanguage</c> in hyperwhisper-cloud sends
-    /// ElevenLabs <c>fil</c> back, since Scribe does not list <c>tl</c>.
-    ///
-    /// Codes with neither a 639-1 form nor a picker row (<c>ceb</c>, <c>kea</c>,
-    /// <c>nso</c>, <c>nya</c>, <c>ful</c>, <c>luo</c>, <c>lug</c>, <c>xho</c>,
-    /// <c>zul</c>, <c>ibo</c>, <c>kur</c>, <c>wol</c>, <c>ast</c>…) are
-    /// intentionally omitted → they normalize to null and are dropped.
-    /// </summary>
-    private static readonly Dictionary<string, string> Iso6392ToIso6391 = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["afr"] = "af", ["amh"] = "am", ["ara"] = "ar", ["asm"] = "as", ["aze"] = "az",
-        ["bel"] = "be", ["ben"] = "bn", ["bos"] = "bs", ["bul"] = "bg", ["cat"] = "ca",
-        ["ces"] = "cs", ["cmn"] = "zh", ["cym"] = "cy", ["dan"] = "da", ["deu"] = "de",
-        ["ell"] = "el", ["eng"] = "en", ["est"] = "et", ["fas"] = "fa", ["fil"] = "tl", ["fin"] = "fi",
-        ["fra"] = "fr", ["glg"] = "gl", ["guj"] = "gu", ["hau"] = "ha", ["haw"] = "haw", ["heb"] = "he",
-        ["hin"] = "hi", ["hrv"] = "hr", ["hun"] = "hu", ["hye"] = "hy", ["ind"] = "id",
-        ["isl"] = "is", ["ita"] = "it", ["jav"] = "jw", ["jpn"] = "ja", ["kan"] = "kn",
-        ["kat"] = "ka", ["kaz"] = "kk", ["khm"] = "km", ["kor"] = "ko", ["lao"] = "lo",
-        ["lav"] = "lv", ["lin"] = "ln", ["lit"] = "lt", ["ltz"] = "lb", ["mal"] = "ml",
-        ["mar"] = "mr", ["mkd"] = "mk", ["mlt"] = "mt", ["mon"] = "mn", ["mri"] = "mi",
-        ["msa"] = "ms", ["mya"] = "my", ["nep"] = "ne", ["nld"] = "nl", ["nor"] = "no",
-        ["oci"] = "oc", ["pan"] = "pa", ["pol"] = "pl", ["por"] = "pt", ["pus"] = "ps",
-        ["ron"] = "ro", ["rus"] = "ru", ["slk"] = "sk", ["slv"] = "sl", ["sna"] = "sn",
-        ["snd"] = "sd", ["som"] = "so", ["spa"] = "es", ["srp"] = "sr", ["swa"] = "sw",
-        ["swe"] = "sv", ["tam"] = "ta", ["tel"] = "te", ["tgk"] = "tg", ["tha"] = "th",
-        ["tur"] = "tr", ["ukr"] = "uk", ["urd"] = "ur", ["uzb"] = "uz", ["vie"] = "vi",
-        ["yor"] = "yo", ["yue"] = "yue",
-    };
 
     /// <summary>Models offered by the given tier id, in catalog order; empty when unknown.</summary>
     public IReadOnlyList<CloudSttModel> ModelsForId(string? id) => GetById(id)?.Models ?? [];
@@ -288,7 +163,6 @@ public sealed class CloudSttCatalog
     /// id may legitimately be the empty string (e.g. Grok's single implicit
     /// model), which the backend treats as "provider default".
     /// </summary>
-    // TODO-verify (Windows/CI): Rust shared-core swap.
     public string? DefaultModelIdForId(string? id)
         => string.IsNullOrEmpty(id) ? null : HyperwhisperCoreMethods.CloudSttDefaultModelId(id);
 
@@ -303,8 +177,6 @@ public sealed class CloudSttCatalog
     }
 
     /// <summary>Credits/min for a specific model within a tier; falls back to the tier cost, then 0.</summary>
-    // TODO-verify (Windows/CI): Rust shared-core swap. Core owns the model→tier→0
-    // fallback. Null id/modelId routes to the tier-level CreditsPerMinute shim.
     public double CreditsPerMinuteForModel(string? id, string? modelId)
     {
         if (string.IsNullOrEmpty(id) || modelId is null) return CreditsPerMinute(id);
@@ -312,18 +184,8 @@ public sealed class CloudSttCatalog
     }
 
     /// <summary>True when the specific model within the tier supports custom vocabulary biasing.</summary>
-    // TODO-verify (Windows/CI): Rust shared-core swap. No core fn returns the
-    // per-model vocab flag directly, so derive it from the core's model list.
     public bool ModelSupportsCustomVocabulary(string? id, string? modelId)
-    {
-        if (string.IsNullOrEmpty(id) || modelId is null) return false;
-        foreach (var m in HyperwhisperCoreMethods.CloudSttModels(id))
-        {
-            if (string.Equals(m.@id, modelId, StringComparison.OrdinalIgnoreCase))
-                return m.@supportsCustomVocabulary == true;
-        }
-        return false;
-    }
+        => GetModel(id, modelId)?.SupportsCustomVocabulary == true;
 
     /// <summary>
     /// Normalize a persisted <c>cloudProvider</c> storage value. If the value
@@ -335,9 +197,6 @@ public sealed class CloudSttCatalog
     /// pass through untouched even though they appear in <c>migrateFrom</c>
     /// for tier-alias resolution.
     /// </summary>
-    // TODO-verify (Windows/CI): Rust shared-core swap. Core owns the alias→tier
-    // resolution + BYOK pass-through; we adapt its NormalizedCloudProvider record
-    // to the (Provider, AccuracyTier) tuple callers expect.
     public (string? Provider, string? AccuracyTier) NormalizeCloudProvider(string? value)
     {
         NormalizedCloudProvider normalized = HyperwhisperCoreMethods.CloudSttNormalizeCloudProvider(value);
@@ -345,7 +204,6 @@ public sealed class CloudSttCatalog
     }
 
     /// <summary>True when the catalog explicitly flags this tier as supporting vocabulary biasing through our backend.</summary>
-    // TODO-verify (Windows/CI): Rust shared-core swap.
     public bool SupportsCustomVocabulary(string? id)
         => !string.IsNullOrEmpty(id) && HyperwhisperCoreMethods.CloudSttSupportsCustomVocabulary(id);
 
@@ -358,33 +216,118 @@ public sealed class CloudSttCatalog
         return string.Format(template, formatted);
     }
 
-    private static CloudSttCatalog LoadCatalog()
-    {
-        const string resourceName = "HyperWhisper.SharedAppClassification.cloud-stt-catalog.json";
-        var assembly = Assembly.GetExecutingAssembly();
+    // =========================================================================
+    // LOADING
+    // =========================================================================
 
+    private IReadOnlyList<CloudSttVendorGroup> _vendorGroups = [];
+
+    /// <summary>
+    /// Snapshot the catalog once from the Rust core. The vendor grouping is
+    /// materialised here rather than per call: it is read inside the Provider
+    /// dropdown's build loop, and the fold allocates.
+    /// </summary>
+    private static CloudSttCatalog Load()
+    {
         try
         {
-            using var stream = assembly.GetManifestResourceStream(resourceName);
-            if (stream == null)
+            var catalog = new CloudSttCatalog
             {
-                LoggingService.Error($"CloudSttCatalog resource {resourceName} not found — falling back to empty catalog");
-                return new CloudSttCatalog();
-            }
-
-            return JsonSerializer.Deserialize<CloudSttCatalog>(
-                stream,
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new CloudSttCatalog();
+                Providers = [.. HyperwhisperCoreMethods.CloudSttEntries().Select(MapEntry)],
+            };
+            // Re-resolve each group member out of `Providers` by id, so a group
+            // entry and the same entry fetched through GetById are one object
+            // rather than two equal copies.
+            catalog._vendorGroups =
+            [
+                .. HyperwhisperCoreMethods.CloudSttCloudTierVendorGroups().Select(g =>
+                    new CloudSttVendorGroup
+                    {
+                        VendorKey = g.@vendorKey,
+                        DisplayName = g.@displayName,
+                        Entries = [.. g.@entries
+                            .Select(e => catalog.GetById(e.@id))
+                            .Where(e => e is not null)
+                            .Select(e => e!)],
+                    }),
+            ];
+            return catalog;
         }
         catch (Exception ex)
         {
             // Must never propagate out of this static initializer — that would
             // poison the CLR's cached TypeInitializationException and brick the
-            // mode editor for every user.
-            LoggingService.Error("CloudSttCatalog deserialization failed — falling back to empty catalog", ex);
+            // mode editor for every user. The only realistic cause now is the
+            // native core failing to load; the empty catalog keeps the Provider
+            // dropdown on its enum fallback rows.
+            LoggingService.Error("CloudSttCatalog failed to load from the shared core — falling back to empty catalog", ex);
             return new CloudSttCatalog();
         }
     }
+
+    private static CloudSttCatalogEntry MapEntry(SttEntry e) => new()
+    {
+        Id = e.@id,
+        DisplayName = e.@displayName,
+        DisplayModel = e.@displayModel,
+        Vendor = e.@vendor,
+        VendorDisplayName = e.@vendorDisplayName,
+        VendorLabel = e.@vendorLabel,
+        SttProvider = e.@sttProvider,
+        Access = e.@access is null ? null : new CloudSttAccess
+        {
+            CloudTierEligible = e.@access.@cloudTierEligible,
+            ByokEligible = e.@access.@byokEligible,
+        },
+        Models = [.. e.@models.Select(m => new CloudSttModel
+        {
+            Id = m.@id,
+            DisplayName = m.@displayName,
+            // The core models each of these as optional because the catalog may
+            // omit them; absent means the same thing the JSON decoder's default
+            // meant — no price, not the default, not preview, no vocabulary.
+            CreditsPerMinute = m.@creditsPerMinute ?? 0,
+            IsDefault = m.@isDefault ?? false,
+            PreviewStatus = m.@previewStatus ?? false,
+            SupportsCustomVocabulary = m.@supportsCustomVocabulary ?? false,
+        })],
+        CloudTier = e.@cloudTier is null ? null : new CloudSttCloudTier
+        {
+            Accuracy = e.@cloudTier.@accuracy,
+            CreditsPerMinute = e.@cloudTier.@creditsPerMinute,
+        },
+        Features = new CloudSttFeatures
+        {
+            WordTimestamps = e.@features.@wordTimestamps,
+            Diarization = e.@features.@diarization,
+            Streaming = e.@features.@streaming,
+        },
+        CustomVocabulary = e.@customVocabulary is null ? null : new CloudSttCustomVocabulary
+        {
+            Supported = e.@customVocabulary.@supported switch
+            {
+                VocabSupport.Yes => "true",
+                VocabSupport.Unverified => "unverified",
+                _ => "false",
+            },
+            FieldName = e.@customVocabulary.@fieldName,
+            Caveats = e.@customVocabulary.@caveats,
+        },
+        Languages = new CloudSttLanguages
+        {
+            Count = e.@languages.@count is { } count ? (int)count : null,
+            AutoDetect = e.@languages.@autoDetect,
+            CodeFormat = e.@languages.@codeFormat,
+            Notes = e.@languages.@notes,
+            HasCodes = e.@languages.@hasCodes,
+        },
+        MaxFileSizeMb = e.@maxFileSizeMb,
+        MaxDurationMinutes = e.@maxDurationMinutes is { } minutes ? (int)minutes : null,
+        AcceptedFormats = [.. e.@acceptedFormats],
+        PreviewStatus = e.@previewStatus,
+        MigrateFrom = [.. e.@migrateFrom],
+        LegacyCloudProviderAliases = [.. e.@legacyCloudProviderAliases],
+    };
 }
 
 /// <summary>
@@ -423,10 +366,13 @@ public sealed class CloudSttCatalogEntry
     /// Plain company name shown in the Provider dropdown ("Deepgram", "xAI").
     /// Catalog v7+ — carries no model family or version, unlike
     /// <see cref="DisplayName"/> ("Deepgram Nova 3"), which stays for tooltips
-    /// and diagnostics. Null on an older catalog; callers fall back to
-    /// <see cref="DisplayName"/>.
+    /// and diagnostics. Null on an older catalog; use <see cref="VendorLabel"/>,
+    /// which has the fallback applied.
     /// </summary>
     public string? VendorDisplayName { get; init; }
+
+    /// <summary><see cref="VendorDisplayName"/> falling back to <see cref="DisplayName"/>.</summary>
+    public string VendorLabel { get; init; } = string.Empty;
 
     /// <summary>The <c>X-STT-Provider</c> header value the backend routes on (e.g. "openai", "azure-mai").</summary>
     public string? SttProvider { get; init; }
@@ -434,14 +380,27 @@ public sealed class CloudSttCatalogEntry
     public CloudSttAccess? Access { get; init; }
 
     /// <summary>Per-provider model variants surfaced as the second-level picker axis.</summary>
-    public CloudSttModel[] Models { get; init; } = [];
+    public IReadOnlyList<CloudSttModel> Models { get; init; } = [];
 
     public CloudSttCloudTier? CloudTier { get; init; }
+    public CloudSttFeatures Features { get; init; } = new();
     public CloudSttCustomVocabulary? CustomVocabulary { get; init; }
-    public CloudSttLanguages? Languages { get; init; }
+    public CloudSttLanguages Languages { get; init; } = new();
+
+    /// <summary>Upload size ceiling in MB; null when the catalog says "unverified".</summary>
+    public double? MaxFileSizeMb { get; init; }
+
+    /// <summary>Per-request duration ceiling in minutes; null when absent or "unverified".</summary>
+    public int? MaxDurationMinutes { get; init; }
+
+    public IReadOnlyList<string> AcceptedFormats { get; init; } = [];
     public bool? PreviewStatus { get; init; }
-    public string[]? MigrateFrom { get; init; }
-    public string[]? LegacyCloudProviderAliases { get; init; }
+
+    /// <summary>Legacy tier aliases. Empty rather than null when the catalog lists none.</summary>
+    public IReadOnlyList<string> MigrateFrom { get; init; } = [];
+
+    /// <summary>Legacy standalone-provider aliases. Empty rather than null when the catalog lists none.</summary>
+    public IReadOnlyList<string> LegacyCloudProviderAliases { get; init; } = [];
 }
 
 /// <summary>
@@ -471,140 +430,41 @@ public sealed class CloudSttCloudTier
     public double CreditsPerMinute { get; init; }
 }
 
+/// <summary>Per-provider capability flags (catalog v7). All false when absent.</summary>
+public sealed class CloudSttFeatures
+{
+    public bool WordTimestamps { get; init; }
+    public bool Diarization { get; init; }
+    public bool Streaming { get; init; }
+}
+
 public sealed class CloudSttCustomVocabulary
 {
-    /// <summary>Stringified for tri-state handling: "true" / "false" / "unverified".</summary>
-    [JsonConverter(typeof(BoolOrStringConverter))]
+    /// <summary>Stringified tri-state: "true" / "false" / "unverified".</summary>
     public string Supported { get; init; } = "false";
 
     public string? FieldName { get; init; }
     public string? Caveats { get; init; }
 }
 
+/// <summary>
+/// The provider's <c>languages</c> metadata, WITHOUT the code list — that is a
+/// per-provider lookup (<see cref="CloudSttCatalog.LanguageCodesForId"/> /
+/// <see cref="CloudSttCatalog.PickerLanguageCodesForId"/>) so the ~736 codes in
+/// the catalog never travel with every entry.
+/// </summary>
 public sealed class CloudSttLanguages
 {
     public string? Notes { get; init; }
 
-    [JsonConverter(typeof(IntOrStringConverter))]
+    /// <summary>Upstream's declared count; null when "unverified". May differ from the code count.</summary>
     public int? Count { get; init; }
 
-    [JsonConverter(typeof(BoolOrNullableBoolConverter))]
     public bool? AutoDetect { get; init; }
 
-    [JsonConverter(typeof(StringArrayOrStringConverter))]
-    public string[]? Codes { get; init; }
-}
+    /// <summary>Description of the code space <c>codes</c> is written in.</summary>
+    public string? CodeFormat { get; init; }
 
-/// <summary>Accepts <c>true</c>, <c>false</c>, or <c>"unverified"</c> and normalises to a lowercase string.</summary>
-internal sealed class BoolOrStringConverter : JsonConverter<string>
-{
-    public override string Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-    {
-        return reader.TokenType switch
-        {
-            JsonTokenType.True => "true",
-            JsonTokenType.False => "false",
-            JsonTokenType.String => reader.GetString() ?? "false",
-            _ => "false"
-        };
-    }
-
-    public override void Write(Utf8JsonWriter writer, string value, JsonSerializerOptions options)
-        => writer.WriteStringValue(value);
-}
-
-/// <summary>Accepts <c>true</c>, <c>false</c>, or <c>"unverified"</c> and yields null for the unverified case.</summary>
-internal sealed class BoolOrNullableBoolConverter : JsonConverter<bool?>
-{
-    public override bool? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-    {
-        if (reader.TokenType == JsonTokenType.True) return true;
-        if (reader.TokenType == JsonTokenType.False) return false;
-        if (reader.TokenType == JsonTokenType.String)
-        {
-            var s = reader.GetString();
-            if (s != null && s != "unverified")
-            {
-                LoggingService.Error($"CloudSttCatalog: BoolOrNullableBoolConverter invalid value=\"{s}\" — defaulting to null");
-            }
-            return null;
-        }
-        return null;
-    }
-
-    public override void Write(Utf8JsonWriter writer, bool? value, JsonSerializerOptions options)
-    {
-        if (value.HasValue) writer.WriteBooleanValue(value.Value);
-        else writer.WriteNullValue();
-    }
-}
-
-/// <summary>Accepts an integer or <c>"unverified"</c> and yields null for the unverified case.</summary>
-internal sealed class IntOrStringConverter : JsonConverter<int?>
-{
-    public override int? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-    {
-        if (reader.TokenType == JsonTokenType.Number && reader.TryGetInt32(out var n)) return n;
-        if (reader.TokenType == JsonTokenType.String)
-        {
-            var s = reader.GetString();
-            if (s != null && s != "unverified")
-            {
-                LoggingService.Error($"CloudSttCatalog: IntOrStringConverter invalid value=\"{s}\" — defaulting to null");
-            }
-        }
-        return null;
-    }
-
-    public override void Write(Utf8JsonWriter writer, int? value, JsonSerializerOptions options)
-    {
-        if (value.HasValue) writer.WriteNumberValue(value.Value);
-        else writer.WriteNullValue();
-    }
-}
-
-/// <summary>
-/// Accepts either a JSON array of strings or the literal <c>"unverified"</c> string
-/// (which yields null). Used for the documented <c>"unverified"</c> escape hatch on
-/// <c>languages.codes</c> — without this converter, a single malformed entry poisons
-/// the entire catalog deserialization.
-/// </summary>
-internal sealed class StringArrayOrStringConverter : JsonConverter<string[]?>
-{
-    public override string[]? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-    {
-        if (reader.TokenType == JsonTokenType.StartArray)
-        {
-            var list = new List<string>();
-            while (reader.Read())
-            {
-                if (reader.TokenType == JsonTokenType.EndArray) return list.ToArray();
-                if (reader.TokenType == JsonTokenType.String)
-                {
-                    var s = reader.GetString();
-                    if (s != null) list.Add(s);
-                }
-            }
-            return list.ToArray();
-        }
-        if (reader.TokenType == JsonTokenType.String)
-        {
-            // Accept the documented "unverified" sentinel; anything else also
-            // yields null rather than throwing — matches Swift's behaviour.
-            return null;
-        }
-        return null;
-    }
-
-    public override void Write(Utf8JsonWriter writer, string[]? value, JsonSerializerOptions options)
-    {
-        if (value is null)
-        {
-            writer.WriteNullValue();
-            return;
-        }
-        writer.WriteStartArray();
-        foreach (var s in value) writer.WriteStringValue(s);
-        writer.WriteEndArray();
-    }
+    /// <summary>False when the catalog leaves the code set "unverified".</summary>
+    public bool HasCodes { get; init; }
 }

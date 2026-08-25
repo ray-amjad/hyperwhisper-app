@@ -20,22 +20,16 @@ import Testing
 
 struct CloudSttTierParityTests {
 
-    /// Decode the repo's catalog file directly (rather than `CloudSTTCatalog.shared`,
-    /// which reads the app bundle) so this asserts against the source of truth a
-    /// catalog edit actually touches.
-    private func repoCatalog() throws -> CloudSTTCatalog {
-        let url = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .appendingPathComponent("shared-app-classification/cloud-stt-catalog.json")
-        return try JSONDecoder().decode(CloudSTTCatalog.self, from: Data(contentsOf: url))
-    }
+    /// The catalog as the shared Rust core reads it. This used to decode the
+    /// repo's JSON file directly through a second, macOS-only decoder — that
+    /// decoder is gone (issue #280), and the core `include_str!`s the same file
+    /// a catalog edit touches, so this still asserts against the source of
+    /// truth and not against a stale bundled copy.
+    private func repoCatalog() -> CloudSTTCatalog { CloudSTTCatalog.shared }
 
     @Test("Every cloudTierEligible catalog id has a CloudAccuracyTier case")
     func everyCloudTierIdHasAnEnumCase() throws {
-        let entries = try repoCatalog().cloudTierEntries
+        let entries = repoCatalog().cloudTierEntries
         #expect(!entries.isEmpty, "catalog exposed no cloudTierEligible providers")
 
         for entry in entries {
@@ -53,7 +47,7 @@ struct CloudSttTierParityTests {
 
     @Test("Every CloudAccuracyTier case resolves to a cloud-tier catalog entry")
     func everyEnumCaseHasACatalogEntry() throws {
-        let catalog = try repoCatalog()
+        let catalog = repoCatalog()
         let ids = Set(catalog.cloudTierEntries.map(\.id))
 
         for tier in CloudAccuracyTier.allCases {

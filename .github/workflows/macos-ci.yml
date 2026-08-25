@@ -19,6 +19,10 @@ on:
       - "shared-app-classification/**"
       - "shared-models/**"
       - "shared-prompts/**"
+      # The golden catalog vectors (issue #277). CatalogConformanceVectorTests
+      # reads them straight from the source tree, so a vectors-only edit must
+      # still prove the Swift binding agrees with Rust and C#.
+      - "shared-conformance/**"
       - ".github/workflows/macos-ci.yml"
   push:
     branches: [main]

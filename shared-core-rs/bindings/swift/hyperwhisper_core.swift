@@ -1693,6 +1693,165 @@ public func FfiConverterTypeLimits_lower(_ value: Limits) -> RustBuffer {
 
 
 /**
+ * One row of `models-catalog.json`. Owned mirror of `hw_catalog::Entry`.
+ */
+public struct ModelsEntry {
+    public var provider: String
+    public var id: String
+    /**
+     * The raw `kind` string (`"voice"` / `"text"`). Anything unrecognized is
+     * keyed as voice, matching both platforms' loaders.
+     */
+    public var kind: String
+    public var supportsCustomVocabulary: Bool
+    public var availableViaHyperWhisperCloud: Bool
+    public var platforms: [String]
+    public var displayName: String?
+    public var notes: String?
+    /**
+     * Base ISO codes, empty on rows that carry none. Prefer
+     * `models_language_support`, which resolves the wildcard fallback and the
+     * "uncatalogued ⇒ every language" rule.
+     */
+    public var supportedLanguages: [String]
+    public var isEnglishOnly: Bool?
+    public var supportsAllLanguages: Bool?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(provider: String, id: String, 
+        /**
+         * The raw `kind` string (`"voice"` / `"text"`). Anything unrecognized is
+         * keyed as voice, matching both platforms' loaders.
+         */kind: String, supportsCustomVocabulary: Bool, availableViaHyperWhisperCloud: Bool, platforms: [String], displayName: String?, notes: String?, 
+        /**
+         * Base ISO codes, empty on rows that carry none. Prefer
+         * `models_language_support`, which resolves the wildcard fallback and the
+         * "uncatalogued ⇒ every language" rule.
+         */supportedLanguages: [String], isEnglishOnly: Bool?, supportsAllLanguages: Bool?) {
+        self.provider = provider
+        self.id = id
+        self.kind = kind
+        self.supportsCustomVocabulary = supportsCustomVocabulary
+        self.availableViaHyperWhisperCloud = availableViaHyperWhisperCloud
+        self.platforms = platforms
+        self.displayName = displayName
+        self.notes = notes
+        self.supportedLanguages = supportedLanguages
+        self.isEnglishOnly = isEnglishOnly
+        self.supportsAllLanguages = supportsAllLanguages
+    }
+}
+
+
+
+extension ModelsEntry: Equatable, Hashable {
+    public static func ==(lhs: ModelsEntry, rhs: ModelsEntry) -> Bool {
+        if lhs.provider != rhs.provider {
+            return false
+        }
+        if lhs.id != rhs.id {
+            return false
+        }
+        if lhs.kind != rhs.kind {
+            return false
+        }
+        if lhs.supportsCustomVocabulary != rhs.supportsCustomVocabulary {
+            return false
+        }
+        if lhs.availableViaHyperWhisperCloud != rhs.availableViaHyperWhisperCloud {
+            return false
+        }
+        if lhs.platforms != rhs.platforms {
+            return false
+        }
+        if lhs.displayName != rhs.displayName {
+            return false
+        }
+        if lhs.notes != rhs.notes {
+            return false
+        }
+        if lhs.supportedLanguages != rhs.supportedLanguages {
+            return false
+        }
+        if lhs.isEnglishOnly != rhs.isEnglishOnly {
+            return false
+        }
+        if lhs.supportsAllLanguages != rhs.supportsAllLanguages {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(provider)
+        hasher.combine(id)
+        hasher.combine(kind)
+        hasher.combine(supportsCustomVocabulary)
+        hasher.combine(availableViaHyperWhisperCloud)
+        hasher.combine(platforms)
+        hasher.combine(displayName)
+        hasher.combine(notes)
+        hasher.combine(supportedLanguages)
+        hasher.combine(isEnglishOnly)
+        hasher.combine(supportsAllLanguages)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeModelsEntry: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ModelsEntry {
+        return
+            try ModelsEntry(
+                provider: FfiConverterString.read(from: &buf), 
+                id: FfiConverterString.read(from: &buf), 
+                kind: FfiConverterString.read(from: &buf), 
+                supportsCustomVocabulary: FfiConverterBool.read(from: &buf), 
+                availableViaHyperWhisperCloud: FfiConverterBool.read(from: &buf), 
+                platforms: FfiConverterSequenceString.read(from: &buf), 
+                displayName: FfiConverterOptionString.read(from: &buf), 
+                notes: FfiConverterOptionString.read(from: &buf), 
+                supportedLanguages: FfiConverterSequenceString.read(from: &buf), 
+                isEnglishOnly: FfiConverterOptionBool.read(from: &buf), 
+                supportsAllLanguages: FfiConverterOptionBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ModelsEntry, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.provider, into: &buf)
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.kind, into: &buf)
+        FfiConverterBool.write(value.supportsCustomVocabulary, into: &buf)
+        FfiConverterBool.write(value.availableViaHyperWhisperCloud, into: &buf)
+        FfiConverterSequenceString.write(value.platforms, into: &buf)
+        FfiConverterOptionString.write(value.displayName, into: &buf)
+        FfiConverterOptionString.write(value.notes, into: &buf)
+        FfiConverterSequenceString.write(value.supportedLanguages, into: &buf)
+        FfiConverterOptionBool.write(value.isEnglishOnly, into: &buf)
+        FfiConverterOptionBool.write(value.supportsAllLanguages, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeModelsEntry_lift(_ buf: RustBuffer) throws -> ModelsEntry {
+    return try FfiConverterTypeModelsEntry.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeModelsEntry_lower(_ value: ModelsEntry) -> RustBuffer {
+    return FfiConverterTypeModelsEntry.lower(value)
+}
+
+
+/**
  * A normalized (provider, accuracy-tier) pair from a legacy cloud-provider value.
  * Mirrors `hw_catalog::NormalizedCloudProvider`.
  */
@@ -1900,6 +2059,134 @@ public func FfiConverterTypePpModel_lift(_ buf: RustBuffer) throws -> PpModel {
 #endif
 public func FfiConverterTypePpModel_lower(_ value: PpModel) -> RustBuffer {
     return FfiConverterTypePpModel.lower(value)
+}
+
+
+/**
+ * A post-processing engine and its models. Owned mirror of
+ * `hw_catalog::PpProvider`, with `models` already filtered to the visible ones.
+ */
+public struct PpProvider {
+    public var id: String
+    public var displayName: String
+    /**
+     * The `X-LLM-Provider` header value the backend routes on.
+     */
+    public var llmProvider: String
+    public var apiStyle: String?
+    /**
+     * The rollout gate, already resolved: `enabled != Some(false)`.
+     */
+    public var enabled: Bool
+    public var isRecommended: Bool?
+    /**
+     * Visible (enabled) models only, in catalog order.
+     */
+    public var models: [PpModel]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: String, displayName: String, 
+        /**
+         * The `X-LLM-Provider` header value the backend routes on.
+         */llmProvider: String, apiStyle: String?, 
+        /**
+         * The rollout gate, already resolved: `enabled != Some(false)`.
+         */enabled: Bool, isRecommended: Bool?, 
+        /**
+         * Visible (enabled) models only, in catalog order.
+         */models: [PpModel]) {
+        self.id = id
+        self.displayName = displayName
+        self.llmProvider = llmProvider
+        self.apiStyle = apiStyle
+        self.enabled = enabled
+        self.isRecommended = isRecommended
+        self.models = models
+    }
+}
+
+
+
+extension PpProvider: Equatable, Hashable {
+    public static func ==(lhs: PpProvider, rhs: PpProvider) -> Bool {
+        if lhs.id != rhs.id {
+            return false
+        }
+        if lhs.displayName != rhs.displayName {
+            return false
+        }
+        if lhs.llmProvider != rhs.llmProvider {
+            return false
+        }
+        if lhs.apiStyle != rhs.apiStyle {
+            return false
+        }
+        if lhs.enabled != rhs.enabled {
+            return false
+        }
+        if lhs.isRecommended != rhs.isRecommended {
+            return false
+        }
+        if lhs.models != rhs.models {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+        hasher.combine(displayName)
+        hasher.combine(llmProvider)
+        hasher.combine(apiStyle)
+        hasher.combine(enabled)
+        hasher.combine(isRecommended)
+        hasher.combine(models)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePpProvider: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PpProvider {
+        return
+            try PpProvider(
+                id: FfiConverterString.read(from: &buf), 
+                displayName: FfiConverterString.read(from: &buf), 
+                llmProvider: FfiConverterString.read(from: &buf), 
+                apiStyle: FfiConverterOptionString.read(from: &buf), 
+                enabled: FfiConverterBool.read(from: &buf), 
+                isRecommended: FfiConverterOptionBool.read(from: &buf), 
+                models: FfiConverterSequenceTypePpModel.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: PpProvider, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.displayName, into: &buf)
+        FfiConverterString.write(value.llmProvider, into: &buf)
+        FfiConverterOptionString.write(value.apiStyle, into: &buf)
+        FfiConverterBool.write(value.enabled, into: &buf)
+        FfiConverterOptionBool.write(value.isRecommended, into: &buf)
+        FfiConverterSequenceTypePpModel.write(value.models, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePpProvider_lift(_ buf: RustBuffer) throws -> PpProvider {
+    return try FfiConverterTypePpProvider.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePpProvider_lower(_ value: PpProvider) -> RustBuffer {
+    return FfiConverterTypePpProvider.lower(value)
 }
 
 
@@ -2166,6 +2453,628 @@ public func FfiConverterTypePromptContext_lower(_ value: PromptContext) -> RustB
 
 
 /**
+ * Cloud-tier / BYOK eligibility. Owned mirror of `hw_catalog::Access`.
+ */
+public struct SttAccess {
+    public var cloudTierEligible: Bool
+    public var byokEligible: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(cloudTierEligible: Bool, byokEligible: Bool) {
+        self.cloudTierEligible = cloudTierEligible
+        self.byokEligible = byokEligible
+    }
+}
+
+
+
+extension SttAccess: Equatable, Hashable {
+    public static func ==(lhs: SttAccess, rhs: SttAccess) -> Bool {
+        if lhs.cloudTierEligible != rhs.cloudTierEligible {
+            return false
+        }
+        if lhs.byokEligible != rhs.byokEligible {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(cloudTierEligible)
+        hasher.combine(byokEligible)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSttAccess: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SttAccess {
+        return
+            try SttAccess(
+                cloudTierEligible: FfiConverterBool.read(from: &buf), 
+                byokEligible: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SttAccess, into buf: inout [UInt8]) {
+        FfiConverterBool.write(value.cloudTierEligible, into: &buf)
+        FfiConverterBool.write(value.byokEligible, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSttAccess_lift(_ buf: RustBuffer) throws -> SttAccess {
+    return try FfiConverterTypeSttAccess.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSttAccess_lower(_ value: SttAccess) -> RustBuffer {
+    return FfiConverterTypeSttAccess.lower(value)
+}
+
+
+/**
+ * Cloud-tier display metadata. Owned mirror of `hw_catalog::CloudTier`.
+ */
+public struct SttCloudTier {
+    public var accuracy: String
+    public var creditsPerMinute: Double
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(accuracy: String, creditsPerMinute: Double) {
+        self.accuracy = accuracy
+        self.creditsPerMinute = creditsPerMinute
+    }
+}
+
+
+
+extension SttCloudTier: Equatable, Hashable {
+    public static func ==(lhs: SttCloudTier, rhs: SttCloudTier) -> Bool {
+        if lhs.accuracy != rhs.accuracy {
+            return false
+        }
+        if lhs.creditsPerMinute != rhs.creditsPerMinute {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(accuracy)
+        hasher.combine(creditsPerMinute)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSttCloudTier: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SttCloudTier {
+        return
+            try SttCloudTier(
+                accuracy: FfiConverterString.read(from: &buf), 
+                creditsPerMinute: FfiConverterDouble.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SttCloudTier, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.accuracy, into: &buf)
+        FfiConverterDouble.write(value.creditsPerMinute, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSttCloudTier_lift(_ buf: RustBuffer) throws -> SttCloudTier {
+    return try FfiConverterTypeSttCloudTier.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSttCloudTier_lower(_ value: SttCloudTier) -> RustBuffer {
+    return FfiConverterTypeSttCloudTier.lower(value)
+}
+
+
+/**
+ * Custom-vocabulary affordance for a provider. Owned mirror of
+ * `hw_catalog::CustomVocabulary`.
+ */
+public struct SttCustomVocabulary {
+    public var supported: VocabSupport
+    public var fieldName: String?
+    public var caveats: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(supported: VocabSupport, fieldName: String?, caveats: String?) {
+        self.supported = supported
+        self.fieldName = fieldName
+        self.caveats = caveats
+    }
+}
+
+
+
+extension SttCustomVocabulary: Equatable, Hashable {
+    public static func ==(lhs: SttCustomVocabulary, rhs: SttCustomVocabulary) -> Bool {
+        if lhs.supported != rhs.supported {
+            return false
+        }
+        if lhs.fieldName != rhs.fieldName {
+            return false
+        }
+        if lhs.caveats != rhs.caveats {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(supported)
+        hasher.combine(fieldName)
+        hasher.combine(caveats)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSttCustomVocabulary: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SttCustomVocabulary {
+        return
+            try SttCustomVocabulary(
+                supported: FfiConverterTypeVocabSupport.read(from: &buf), 
+                fieldName: FfiConverterOptionString.read(from: &buf), 
+                caveats: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SttCustomVocabulary, into buf: inout [UInt8]) {
+        FfiConverterTypeVocabSupport.write(value.supported, into: &buf)
+        FfiConverterOptionString.write(value.fieldName, into: &buf)
+        FfiConverterOptionString.write(value.caveats, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSttCustomVocabulary_lift(_ buf: RustBuffer) throws -> SttCustomVocabulary {
+    return try FfiConverterTypeSttCustomVocabulary.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSttCustomVocabulary_lower(_ value: SttCustomVocabulary) -> RustBuffer {
+    return FfiConverterTypeSttCustomVocabulary.lower(value)
+}
+
+
+/**
+ * A cloud STT provider row. Owned mirror of `hw_catalog::SttEntry`.
+ */
+public struct SttEntry {
+    public var id: String
+    public var displayName: String
+    public var displayModel: String?
+    public var vendor: String
+    public var vendorDisplayName: String?
+    /**
+     * `vendor_display_name` falling back to `display_name` — the string a
+     * Provider dropdown shows.
+     */
+    public var vendorLabel: String
+    public var sttProvider: String?
+    public var access: SttAccess?
+    public var models: [SttModel]
+    public var cloudTier: SttCloudTier?
+    public var features: SttFeatures
+    public var customVocabulary: SttCustomVocabulary?
+    public var languages: SttLanguages
+    public var maxFileSizeMb: Double?
+    public var maxDurationMinutes: Int64?
+    public var acceptedFormats: [String]
+    public var previewStatus: Bool?
+    public var migrateFrom: [String]
+    public var legacyCloudProviderAliases: [String]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: String, displayName: String, displayModel: String?, vendor: String, vendorDisplayName: String?, 
+        /**
+         * `vendor_display_name` falling back to `display_name` — the string a
+         * Provider dropdown shows.
+         */vendorLabel: String, sttProvider: String?, access: SttAccess?, models: [SttModel], cloudTier: SttCloudTier?, features: SttFeatures, customVocabulary: SttCustomVocabulary?, languages: SttLanguages, maxFileSizeMb: Double?, maxDurationMinutes: Int64?, acceptedFormats: [String], previewStatus: Bool?, migrateFrom: [String], legacyCloudProviderAliases: [String]) {
+        self.id = id
+        self.displayName = displayName
+        self.displayModel = displayModel
+        self.vendor = vendor
+        self.vendorDisplayName = vendorDisplayName
+        self.vendorLabel = vendorLabel
+        self.sttProvider = sttProvider
+        self.access = access
+        self.models = models
+        self.cloudTier = cloudTier
+        self.features = features
+        self.customVocabulary = customVocabulary
+        self.languages = languages
+        self.maxFileSizeMb = maxFileSizeMb
+        self.maxDurationMinutes = maxDurationMinutes
+        self.acceptedFormats = acceptedFormats
+        self.previewStatus = previewStatus
+        self.migrateFrom = migrateFrom
+        self.legacyCloudProviderAliases = legacyCloudProviderAliases
+    }
+}
+
+
+
+extension SttEntry: Equatable, Hashable {
+    public static func ==(lhs: SttEntry, rhs: SttEntry) -> Bool {
+        if lhs.id != rhs.id {
+            return false
+        }
+        if lhs.displayName != rhs.displayName {
+            return false
+        }
+        if lhs.displayModel != rhs.displayModel {
+            return false
+        }
+        if lhs.vendor != rhs.vendor {
+            return false
+        }
+        if lhs.vendorDisplayName != rhs.vendorDisplayName {
+            return false
+        }
+        if lhs.vendorLabel != rhs.vendorLabel {
+            return false
+        }
+        if lhs.sttProvider != rhs.sttProvider {
+            return false
+        }
+        if lhs.access != rhs.access {
+            return false
+        }
+        if lhs.models != rhs.models {
+            return false
+        }
+        if lhs.cloudTier != rhs.cloudTier {
+            return false
+        }
+        if lhs.features != rhs.features {
+            return false
+        }
+        if lhs.customVocabulary != rhs.customVocabulary {
+            return false
+        }
+        if lhs.languages != rhs.languages {
+            return false
+        }
+        if lhs.maxFileSizeMb != rhs.maxFileSizeMb {
+            return false
+        }
+        if lhs.maxDurationMinutes != rhs.maxDurationMinutes {
+            return false
+        }
+        if lhs.acceptedFormats != rhs.acceptedFormats {
+            return false
+        }
+        if lhs.previewStatus != rhs.previewStatus {
+            return false
+        }
+        if lhs.migrateFrom != rhs.migrateFrom {
+            return false
+        }
+        if lhs.legacyCloudProviderAliases != rhs.legacyCloudProviderAliases {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+        hasher.combine(displayName)
+        hasher.combine(displayModel)
+        hasher.combine(vendor)
+        hasher.combine(vendorDisplayName)
+        hasher.combine(vendorLabel)
+        hasher.combine(sttProvider)
+        hasher.combine(access)
+        hasher.combine(models)
+        hasher.combine(cloudTier)
+        hasher.combine(features)
+        hasher.combine(customVocabulary)
+        hasher.combine(languages)
+        hasher.combine(maxFileSizeMb)
+        hasher.combine(maxDurationMinutes)
+        hasher.combine(acceptedFormats)
+        hasher.combine(previewStatus)
+        hasher.combine(migrateFrom)
+        hasher.combine(legacyCloudProviderAliases)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSttEntry: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SttEntry {
+        return
+            try SttEntry(
+                id: FfiConverterString.read(from: &buf), 
+                displayName: FfiConverterString.read(from: &buf), 
+                displayModel: FfiConverterOptionString.read(from: &buf), 
+                vendor: FfiConverterString.read(from: &buf), 
+                vendorDisplayName: FfiConverterOptionString.read(from: &buf), 
+                vendorLabel: FfiConverterString.read(from: &buf), 
+                sttProvider: FfiConverterOptionString.read(from: &buf), 
+                access: FfiConverterOptionTypeSttAccess.read(from: &buf), 
+                models: FfiConverterSequenceTypeSttModel.read(from: &buf), 
+                cloudTier: FfiConverterOptionTypeSttCloudTier.read(from: &buf), 
+                features: FfiConverterTypeSttFeatures.read(from: &buf), 
+                customVocabulary: FfiConverterOptionTypeSttCustomVocabulary.read(from: &buf), 
+                languages: FfiConverterTypeSttLanguages.read(from: &buf), 
+                maxFileSizeMb: FfiConverterOptionDouble.read(from: &buf), 
+                maxDurationMinutes: FfiConverterOptionInt64.read(from: &buf), 
+                acceptedFormats: FfiConverterSequenceString.read(from: &buf), 
+                previewStatus: FfiConverterOptionBool.read(from: &buf), 
+                migrateFrom: FfiConverterSequenceString.read(from: &buf), 
+                legacyCloudProviderAliases: FfiConverterSequenceString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SttEntry, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.displayName, into: &buf)
+        FfiConverterOptionString.write(value.displayModel, into: &buf)
+        FfiConverterString.write(value.vendor, into: &buf)
+        FfiConverterOptionString.write(value.vendorDisplayName, into: &buf)
+        FfiConverterString.write(value.vendorLabel, into: &buf)
+        FfiConverterOptionString.write(value.sttProvider, into: &buf)
+        FfiConverterOptionTypeSttAccess.write(value.access, into: &buf)
+        FfiConverterSequenceTypeSttModel.write(value.models, into: &buf)
+        FfiConverterOptionTypeSttCloudTier.write(value.cloudTier, into: &buf)
+        FfiConverterTypeSttFeatures.write(value.features, into: &buf)
+        FfiConverterOptionTypeSttCustomVocabulary.write(value.customVocabulary, into: &buf)
+        FfiConverterTypeSttLanguages.write(value.languages, into: &buf)
+        FfiConverterOptionDouble.write(value.maxFileSizeMb, into: &buf)
+        FfiConverterOptionInt64.write(value.maxDurationMinutes, into: &buf)
+        FfiConverterSequenceString.write(value.acceptedFormats, into: &buf)
+        FfiConverterOptionBool.write(value.previewStatus, into: &buf)
+        FfiConverterSequenceString.write(value.migrateFrom, into: &buf)
+        FfiConverterSequenceString.write(value.legacyCloudProviderAliases, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSttEntry_lift(_ buf: RustBuffer) throws -> SttEntry {
+    return try FfiConverterTypeSttEntry.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSttEntry_lower(_ value: SttEntry) -> RustBuffer {
+    return FfiConverterTypeSttEntry.lower(value)
+}
+
+
+/**
+ * Per-provider capability flags. Owned mirror of `hw_catalog::Features`.
+ */
+public struct SttFeatures {
+    public var wordTimestamps: Bool
+    public var diarization: Bool
+    public var streaming: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(wordTimestamps: Bool, diarization: Bool, streaming: Bool) {
+        self.wordTimestamps = wordTimestamps
+        self.diarization = diarization
+        self.streaming = streaming
+    }
+}
+
+
+
+extension SttFeatures: Equatable, Hashable {
+    public static func ==(lhs: SttFeatures, rhs: SttFeatures) -> Bool {
+        if lhs.wordTimestamps != rhs.wordTimestamps {
+            return false
+        }
+        if lhs.diarization != rhs.diarization {
+            return false
+        }
+        if lhs.streaming != rhs.streaming {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(wordTimestamps)
+        hasher.combine(diarization)
+        hasher.combine(streaming)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSttFeatures: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SttFeatures {
+        return
+            try SttFeatures(
+                wordTimestamps: FfiConverterBool.read(from: &buf), 
+                diarization: FfiConverterBool.read(from: &buf), 
+                streaming: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SttFeatures, into buf: inout [UInt8]) {
+        FfiConverterBool.write(value.wordTimestamps, into: &buf)
+        FfiConverterBool.write(value.diarization, into: &buf)
+        FfiConverterBool.write(value.streaming, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSttFeatures_lift(_ buf: RustBuffer) throws -> SttFeatures {
+    return try FfiConverterTypeSttFeatures.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSttFeatures_lower(_ value: SttFeatures) -> RustBuffer {
+    return FfiConverterTypeSttFeatures.lower(value)
+}
+
+
+/**
+ * The provider's `languages` metadata — WITHOUT the code list.
+ *
+ * The codes are deliberately absent: `SttEntry` is read inside a SwiftUI
+ * `ForEach` in a view `body`, and the full catalog carries ~736 codes across
+ * the 11 providers, so shipping them per entry would copy that whole set on
+ * every body re-evaluation. Fetch them per provider instead, with
+ * `cloud_stt_language_codes` (raw) or `cloud_stt_picker_language_codes`
+ * (folded).
+ */
+public struct SttLanguages {
+    /**
+     * Upstream's own declared count. `None` when the catalog says
+     * `"unverified"`; may disagree with the length of the code list.
+     */
+    public var count: Int64?
+    public var autoDetect: Bool?
+    public var codeFormat: String?
+    public var notes: String?
+    /**
+     * Whether the catalog enumerates codes at all. `false` means
+     * `"unverified"`, i.e. both code accessors return `None`.
+     */
+    public var hasCodes: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Upstream's own declared count. `None` when the catalog says
+         * `"unverified"`; may disagree with the length of the code list.
+         */count: Int64?, autoDetect: Bool?, codeFormat: String?, notes: String?, 
+        /**
+         * Whether the catalog enumerates codes at all. `false` means
+         * `"unverified"`, i.e. both code accessors return `None`.
+         */hasCodes: Bool) {
+        self.count = count
+        self.autoDetect = autoDetect
+        self.codeFormat = codeFormat
+        self.notes = notes
+        self.hasCodes = hasCodes
+    }
+}
+
+
+
+extension SttLanguages: Equatable, Hashable {
+    public static func ==(lhs: SttLanguages, rhs: SttLanguages) -> Bool {
+        if lhs.count != rhs.count {
+            return false
+        }
+        if lhs.autoDetect != rhs.autoDetect {
+            return false
+        }
+        if lhs.codeFormat != rhs.codeFormat {
+            return false
+        }
+        if lhs.notes != rhs.notes {
+            return false
+        }
+        if lhs.hasCodes != rhs.hasCodes {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(count)
+        hasher.combine(autoDetect)
+        hasher.combine(codeFormat)
+        hasher.combine(notes)
+        hasher.combine(hasCodes)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSttLanguages: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SttLanguages {
+        return
+            try SttLanguages(
+                count: FfiConverterOptionInt64.read(from: &buf), 
+                autoDetect: FfiConverterOptionBool.read(from: &buf), 
+                codeFormat: FfiConverterOptionString.read(from: &buf), 
+                notes: FfiConverterOptionString.read(from: &buf), 
+                hasCodes: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SttLanguages, into buf: inout [UInt8]) {
+        FfiConverterOptionInt64.write(value.count, into: &buf)
+        FfiConverterOptionBool.write(value.autoDetect, into: &buf)
+        FfiConverterOptionString.write(value.codeFormat, into: &buf)
+        FfiConverterOptionString.write(value.notes, into: &buf)
+        FfiConverterBool.write(value.hasCodes, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSttLanguages_lift(_ buf: RustBuffer) throws -> SttLanguages {
+    return try FfiConverterTypeSttLanguages.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSttLanguages_lower(_ value: SttLanguages) -> RustBuffer {
+    return FfiConverterTypeSttLanguages.lower(value)
+}
+
+
+/**
  * A cloud STT model. Owned mirror of `hw_catalog::SttModel`.
  */
 public struct SttModel {
@@ -2263,6 +3172,95 @@ public func FfiConverterTypeSttModel_lift(_ buf: RustBuffer) throws -> SttModel 
 #endif
 public func FfiConverterTypeSttModel_lower(_ value: SttModel) -> RustBuffer {
     return FfiConverterTypeSttModel.lower(value)
+}
+
+
+/**
+ * One row of the Provider dropdown. Owned mirror of `hw_catalog::VendorGroup`.
+ */
+public struct SttVendorGroup {
+    /**
+     * The catalog `vendor` key — the dropdown's selection tag.
+     */
+    public var vendorKey: String
+    public var displayName: String
+    /**
+     * The group's entries, in catalog order; never empty.
+     */
+    public var entries: [SttEntry]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The catalog `vendor` key — the dropdown's selection tag.
+         */vendorKey: String, displayName: String, 
+        /**
+         * The group's entries, in catalog order; never empty.
+         */entries: [SttEntry]) {
+        self.vendorKey = vendorKey
+        self.displayName = displayName
+        self.entries = entries
+    }
+}
+
+
+
+extension SttVendorGroup: Equatable, Hashable {
+    public static func ==(lhs: SttVendorGroup, rhs: SttVendorGroup) -> Bool {
+        if lhs.vendorKey != rhs.vendorKey {
+            return false
+        }
+        if lhs.displayName != rhs.displayName {
+            return false
+        }
+        if lhs.entries != rhs.entries {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(vendorKey)
+        hasher.combine(displayName)
+        hasher.combine(entries)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSttVendorGroup: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SttVendorGroup {
+        return
+            try SttVendorGroup(
+                vendorKey: FfiConverterString.read(from: &buf), 
+                displayName: FfiConverterString.read(from: &buf), 
+                entries: FfiConverterSequenceTypeSttEntry.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SttVendorGroup, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.vendorKey, into: &buf)
+        FfiConverterString.write(value.displayName, into: &buf)
+        FfiConverterSequenceTypeSttEntry.write(value.entries, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSttVendorGroup_lift(_ buf: RustBuffer) throws -> SttVendorGroup {
+    return try FfiConverterTypeSttVendorGroup.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSttVendorGroup_lower(_ value: SttVendorGroup) -> RustBuffer {
+    return FfiConverterTypeSttVendorGroup.lower(value)
 }
 
 
@@ -4495,6 +5493,82 @@ extension SonioxPollStatus: Equatable, Hashable {}
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
+ * Tri-state custom-vocabulary support. Mirrors `hw_catalog::VocabSupport`. The
+ * catalog stores a bool or the literal `"unverified"`; only `Yes` means the
+ * affordance is shown.
+ */
+
+public enum VocabSupport {
+    
+    case yes
+    case no
+    case unverified
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVocabSupport: FfiConverterRustBuffer {
+    typealias SwiftType = VocabSupport
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VocabSupport {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .yes
+        
+        case 2: return .no
+        
+        case 3: return .unverified
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: VocabSupport, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .yes:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .no:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .unverified:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVocabSupport_lift(_ buf: RustBuffer) throws -> VocabSupport {
+    return try FfiConverterTypeVocabSupport.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVocabSupport_lower(_ value: VocabSupport) -> RustBuffer {
+    return FfiConverterTypeVocabSupport.lower(value)
+}
+
+
+
+extension VocabSupport: Equatable, Hashable {}
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
  * Wire protocol a response's termination metadata is expressed in. Mirrors
  * `hw_text::completion::WireProtocol`.
  */
@@ -4738,6 +5812,30 @@ fileprivate struct FfiConverterOptionString: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeModelsEntry: FfiConverterRustBuffer {
+    typealias SwiftType = ModelsEntry?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeModelsEntry.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeModelsEntry.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypePpModel: FfiConverterRustBuffer {
     typealias SwiftType = PpModel?
 
@@ -4754,6 +5852,126 @@ fileprivate struct FfiConverterOptionTypePpModel: FfiConverterRustBuffer {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypePpModel.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeSttAccess: FfiConverterRustBuffer {
+    typealias SwiftType = SttAccess?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeSttAccess.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeSttAccess.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeSttCloudTier: FfiConverterRustBuffer {
+    typealias SwiftType = SttCloudTier?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeSttCloudTier.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeSttCloudTier.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeSttCustomVocabulary: FfiConverterRustBuffer {
+    typealias SwiftType = SttCustomVocabulary?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeSttCustomVocabulary.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeSttCustomVocabulary.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeSttEntry: FfiConverterRustBuffer {
+    typealias SwiftType = SttEntry?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeSttEntry.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeSttEntry.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeSttVendorGroup: FfiConverterRustBuffer {
+    typealias SwiftType = SttVendorGroup?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeSttVendorGroup.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeSttVendorGroup.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -4909,6 +6127,31 @@ fileprivate struct FfiConverterSequenceTypeHwValidationError: FfiConverterRustBu
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeModelsEntry: FfiConverterRustBuffer {
+    typealias SwiftType = [ModelsEntry]
+
+    public static func write(_ value: [ModelsEntry], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeModelsEntry.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ModelsEntry] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ModelsEntry]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeModelsEntry.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypePpModel: FfiConverterRustBuffer {
     typealias SwiftType = [PpModel]
 
@@ -4934,6 +6177,56 @@ fileprivate struct FfiConverterSequenceTypePpModel: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypePpProvider: FfiConverterRustBuffer {
+    typealias SwiftType = [PpProvider]
+
+    public static func write(_ value: [PpProvider], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypePpProvider.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [PpProvider] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [PpProvider]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypePpProvider.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeSttEntry: FfiConverterRustBuffer {
+    typealias SwiftType = [SttEntry]
+
+    public static func write(_ value: [SttEntry], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeSttEntry.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [SttEntry] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [SttEntry]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeSttEntry.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeSttModel: FfiConverterRustBuffer {
     typealias SwiftType = [SttModel]
 
@@ -4951,6 +6244,31 @@ fileprivate struct FfiConverterSequenceTypeSttModel: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeSttModel.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeSttVendorGroup: FfiConverterRustBuffer {
+    typealias SwiftType = [SttVendorGroup]
+
+    public static func write(_ value: [SttVendorGroup], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeSttVendorGroup.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [SttVendorGroup] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [SttVendorGroup]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeSttVendorGroup.read(from: &buf))
         }
         return seq
     }
@@ -5267,6 +6585,37 @@ public func cloudPpModels(id: String) -> [PpModel] {
 })
 }
 /**
+ * The Engine dropdown's rows: post-processing engines with `enabled != false`,
+ * in catalog order, each carrying only its visible models.
+ */
+public func cloudPpPickerProviders() -> [PpProvider] {
+    return try!  FfiConverterSequenceTypePpProvider.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_cloud_pp_picker_providers($0
+    )
+})
+}
+/**
+ * Every post-processing engine, in catalog order — INCLUDING the ones the
+ * rollout gate hides. Read `enabled` before surfacing a row; use
+ * `cloud_pp_picker_providers` for the dropdown.
+ */
+public func cloudPpProviders() -> [PpProvider] {
+    return try!  FfiConverterSequenceTypePpProvider.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_cloud_pp_providers($0
+    )
+})
+}
+/**
+ * The Provider dropdown's rows: cloud-tier entries folded by company and
+ * sorted by display name.
+ */
+public func cloudSttCloudTierVendorGroups() -> [SttVendorGroup] {
+    return try!  FfiConverterSequenceTypeSttVendorGroup.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_cloud_stt_cloud_tier_vendor_groups($0
+    )
+})
+}
+/**
  * Credits per minute for the provider's default model.
  */
 public func cloudSttCreditsPerMinute(id: String) -> Double {
@@ -5308,6 +6657,37 @@ public func cloudSttDefaultModelId(id: String) -> String? {
 })
 }
 /**
+ * Every cloud STT provider row, in catalog order.
+ */
+public func cloudSttEntries() -> [SttEntry] {
+    return try!  FfiConverterSequenceTypeSttEntry.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_cloud_stt_entries($0
+    )
+})
+}
+/**
+ * A single cloud STT provider row by id (case-insensitive), or `None`.
+ */
+public func cloudSttEntry(id: String) -> SttEntry? {
+    return try!  FfiConverterOptionTypeSttEntry.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_cloud_stt_entry(
+        FfiConverterString.lower(id),$0
+    )
+})
+}
+/**
+ * The provider row whose `migrateFrom` list contains `alias` (case-insensitive,
+ * trimmed). Drives legacy accuracy-tier resolution — NOT `cloudProvider`
+ * rewriting, which is `cloud_stt_normalize_cloud_provider`.
+ */
+public func cloudSttEntryByMigrateFrom(alias: String) -> SttEntry? {
+    return try!  FfiConverterOptionTypeSttEntry.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_cloud_stt_entry_by_migrate_from(
+        FfiConverterString.lower(alias),$0
+    )
+})
+}
+/**
  * The provider's supported language codes, if enumerated.
  */
 public func cloudSttLanguageCodes(id: String) -> [String]? {
@@ -5338,6 +6718,21 @@ public func cloudSttNormalizeCloudProvider(value: String?) -> NormalizedCloudPro
 })
 }
 /**
+ * The provider's languages folded to the two-letter picker code space, sorted
+ * and always including `"auto"`; `None` when the catalog leaves the set
+ * `"unverified"` or the id is unknown, so the caller keeps its full list.
+ *
+ * A picker that lists BCP-47 region rows (macOS `STTCapabilities`) must match a
+ * row by its PRIMARY SUBTAG against this set, not by exact code.
+ */
+public func cloudSttPickerLanguageCodes(id: String) -> [String]? {
+    return try!  FfiConverterOptionSequenceString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_cloud_stt_picker_language_codes(
+        FfiConverterString.lower(id),$0
+    )
+})
+}
+/**
  * The underlying STT provider key (the `X-STT-Provider` value), if any.
  */
 public func cloudSttProvider(id: String) -> String? {
@@ -5354,6 +6749,27 @@ public func cloudSttSupportsCustomVocabulary(id: String) -> Bool {
     return try!  FfiConverterBool.lift(try! rustCall() {
     uniffi_hyperwhisper_core_fn_func_cloud_stt_supports_custom_vocabulary(
         FfiConverterString.lower(id),$0
+    )
+})
+}
+/**
+ * The vendor group a cloud-tier provider id belongs to, or `None` when the id
+ * is unknown or is not cloud-tier eligible.
+ */
+public func cloudSttVendorGroup(id: String) -> SttVendorGroup? {
+    return try!  FfiConverterOptionTypeSttVendorGroup.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_cloud_stt_vendor_group(
+        FfiConverterString.lower(id),$0
+    )
+})
+}
+/**
+ * The vendor group with the given `vendor` key (case-insensitive), or `None`.
+ */
+public func cloudSttVendorGroupForVendorKey(vendorKey: String) -> SttVendorGroup? {
+    return try!  FfiConverterOptionTypeSttVendorGroup.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_cloud_stt_vendor_group_for_vendor_key(
+        FfiConverterString.lower(vendorKey),$0
     )
 })
 }
@@ -5943,11 +7359,35 @@ public func mistralParseTranscribeResponse(resp: HttpResponse)throws  -> HwTrans
 })
 }
 /**
+ * Every catalogued model row, ordered by `(provider, kind, id)`. Replaces the
+ * per-platform catalog decoders that scanned the file for parity checks and for
+ * the unified capability list.
+ */
+public func modelsAllEntries() -> [ModelsEntry] {
+    return try!  FfiConverterSequenceTypeModelsEntry.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_models_all_entries($0
+    )
+})
+}
+/**
  * Whether a model is available via HyperWhisper Cloud.
  */
 public func modelsAvailableViaHwCloud(provider: String, kind: HwKind, id: String) -> Bool {
     return try!  FfiConverterBool.lift(try! rustCall() {
     uniffi_hyperwhisper_core_fn_func_models_available_via_hw_cloud(
+        FfiConverterString.lower(provider),
+        FfiConverterTypeHwKind.lower(kind),
+        FfiConverterString.lower(id),$0
+    )
+})
+}
+/**
+ * A single catalogued model row, resolving the `(provider, kind, "*")` wildcard
+ * when the exact id is not catalogued. `None` on a miss.
+ */
+public func modelsEntry(provider: String, kind: HwKind, id: String) -> ModelsEntry? {
+    return try!  FfiConverterOptionTypeModelsEntry.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_models_entry(
         FfiConverterString.lower(provider),
         FfiConverterTypeHwKind.lower(kind),
         FfiConverterString.lower(id),$0
@@ -6361,6 +7801,15 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_cloud_pp_models() != 43724) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_hyperwhisper_core_checksum_func_cloud_pp_picker_providers() != 53262) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_cloud_pp_providers() != 17064) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_cloud_stt_cloud_tier_vendor_groups() != 36207) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_hyperwhisper_core_checksum_func_cloud_stt_credits_per_minute() != 64585) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -6373,6 +7822,15 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_cloud_stt_default_model_id() != 30462) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_hyperwhisper_core_checksum_func_cloud_stt_entries() != 14647) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_cloud_stt_entry() != 3510) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_cloud_stt_entry_by_migrate_from() != 47910) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_hyperwhisper_core_checksum_func_cloud_stt_language_codes() != 10318) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -6382,10 +7840,19 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_cloud_stt_normalize_cloud_provider() != 41492) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_hyperwhisper_core_checksum_func_cloud_stt_picker_language_codes() != 4283) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_hyperwhisper_core_checksum_func_cloud_stt_provider() != 52282) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_cloud_stt_supports_custom_vocabulary() != 64386) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_cloud_stt_vendor_group() != 56811) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_cloud_stt_vendor_group_for_vendor_key() != 20026) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_contains_cjk() != 43836) {
@@ -6586,7 +8053,13 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_mistral_parse_transcribe_response() != 51263) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_hyperwhisper_core_checksum_func_models_all_entries() != 48414) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_hyperwhisper_core_checksum_func_models_available_via_hw_cloud() != 1308) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_models_entry() != 23980) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_models_language_support() != 63006) {

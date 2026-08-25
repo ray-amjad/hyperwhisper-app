@@ -1040,6 +1040,28 @@ static class _UniFFILib {
     
     
     
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
 
     static _UniFFILib() {
         _UniFFILib.uniffiCheckContractApiVersion();
@@ -1189,6 +1211,18 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_cloud_pp_picker_providers(ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_cloud_pp_providers(ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_cloud_stt_cloud_tier_vendor_groups(ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern double uniffi_hyperwhisper_core_fn_func_cloud_stt_credits_per_minute(RustBuffer @id,ref UniffiRustCallStatus _uniffi_out_err
     );
 
@@ -1205,6 +1239,18 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_cloud_stt_entries(ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_cloud_stt_entry(RustBuffer @id,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_cloud_stt_entry_by_migrate_from(RustBuffer @alias,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_cloud_stt_language_codes(RustBuffer @id,ref UniffiRustCallStatus _uniffi_out_err
     );
 
@@ -1217,11 +1263,23 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_cloud_stt_picker_language_codes(RustBuffer @id,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_cloud_stt_provider(RustBuffer @id,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern sbyte uniffi_hyperwhisper_core_fn_func_cloud_stt_supports_custom_vocabulary(RustBuffer @id,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_cloud_stt_vendor_group(RustBuffer @id,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_cloud_stt_vendor_group_for_vendor_key(RustBuffer @vendorKey,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -1489,7 +1547,15 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_models_all_entries(ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern sbyte uniffi_hyperwhisper_core_fn_func_models_available_via_hw_cloud(RustBuffer @provider,RustBuffer @kind,RustBuffer @id,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_models_entry(RustBuffer @provider,RustBuffer @kind,RustBuffer @id,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -1957,6 +2023,18 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_cloud_pp_picker_providers(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_cloud_pp_providers(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_cloud_stt_cloud_tier_vendor_groups(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_cloud_stt_credits_per_minute(
     );
 
@@ -1973,6 +2051,18 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_cloud_stt_entries(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_cloud_stt_entry(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_cloud_stt_entry_by_migrate_from(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_cloud_stt_language_codes(
     );
 
@@ -1985,11 +2075,23 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_cloud_stt_picker_language_codes(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_cloud_stt_provider(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_cloud_stt_supports_custom_vocabulary(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_cloud_stt_vendor_group(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_cloud_stt_vendor_group_for_vendor_key(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -2257,7 +2359,15 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_models_all_entries(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_models_available_via_hw_cloud(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_models_entry(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -2585,6 +2695,24 @@ static class _UniFFILib {
             }
         }
         {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_cloud_pp_picker_providers();
+            if (checksum != 53262) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_cloud_pp_picker_providers` checksum `53262`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_cloud_pp_providers();
+            if (checksum != 17064) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_cloud_pp_providers` checksum `17064`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_cloud_stt_cloud_tier_vendor_groups();
+            if (checksum != 36207) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_cloud_stt_cloud_tier_vendor_groups` checksum `36207`, library returned `{checksum}`");
+            }
+        }
+        {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_cloud_stt_credits_per_minute();
             if (checksum != 64585) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_cloud_stt_credits_per_minute` checksum `64585`, library returned `{checksum}`");
@@ -2609,6 +2737,24 @@ static class _UniFFILib {
             }
         }
         {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_cloud_stt_entries();
+            if (checksum != 14647) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_cloud_stt_entries` checksum `14647`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_cloud_stt_entry();
+            if (checksum != 3510) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_cloud_stt_entry` checksum `3510`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_cloud_stt_entry_by_migrate_from();
+            if (checksum != 47910) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_cloud_stt_entry_by_migrate_from` checksum `47910`, library returned `{checksum}`");
+            }
+        }
+        {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_cloud_stt_language_codes();
             if (checksum != 10318) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_cloud_stt_language_codes` checksum `10318`, library returned `{checksum}`");
@@ -2627,6 +2773,12 @@ static class _UniFFILib {
             }
         }
         {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_cloud_stt_picker_language_codes();
+            if (checksum != 4283) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_cloud_stt_picker_language_codes` checksum `4283`, library returned `{checksum}`");
+            }
+        }
+        {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_cloud_stt_provider();
             if (checksum != 52282) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_cloud_stt_provider` checksum `52282`, library returned `{checksum}`");
@@ -2636,6 +2788,18 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_cloud_stt_supports_custom_vocabulary();
             if (checksum != 64386) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_cloud_stt_supports_custom_vocabulary` checksum `64386`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_cloud_stt_vendor_group();
+            if (checksum != 56811) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_cloud_stt_vendor_group` checksum `56811`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_cloud_stt_vendor_group_for_vendor_key();
+            if (checksum != 20026) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_cloud_stt_vendor_group_for_vendor_key` checksum `20026`, library returned `{checksum}`");
             }
         }
         {
@@ -3035,9 +3199,21 @@ static class _UniFFILib {
             }
         }
         {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_models_all_entries();
+            if (checksum != 48414) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_models_all_entries` checksum `48414`, library returned `{checksum}`");
+            }
+        }
+        {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_models_available_via_hw_cloud();
             if (checksum != 1308) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_models_available_via_hw_cloud` checksum `1308`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_models_entry();
+            if (checksum != 23980) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_models_entry` checksum `23980`, library returned `{checksum}`");
             }
         }
         {
@@ -4176,6 +4352,93 @@ class FfiConverterTypeLimits: FfiConverterRustBuffer<Limits> {
 
 
 /// <summary>
+/// One row of `models-catalog.json`. Owned mirror of `hw_catalog::Entry`.
+/// </summary>
+/// <param name="kind">
+/// The raw `kind` string (`"voice"` / `"text"`). Anything unrecognized is
+/// keyed as voice, matching both platforms' loaders.
+/// </param>
+/// <param name="supported_languages">
+/// Base ISO codes, empty on rows that carry none. Prefer
+/// `models_language_support`, which resolves the wildcard fallback and the
+/// "uncatalogued ⇒ every language" rule.
+/// </param>
+internal record ModelsEntry (
+    string @provider, 
+    string @id, 
+    /// <summary>
+    /// The raw `kind` string (`"voice"` / `"text"`). Anything unrecognized is
+    /// keyed as voice, matching both platforms' loaders.
+    /// </summary>
+    string @kind, 
+    bool @supportsCustomVocabulary, 
+    bool @availableViaHyperWhisperCloud, 
+    List<string> @platforms, 
+    string? @displayName, 
+    string? @notes, 
+    /// <summary>
+    /// Base ISO codes, empty on rows that carry none. Prefer
+    /// `models_language_support`, which resolves the wildcard fallback and the
+    /// "uncatalogued ⇒ every language" rule.
+    /// </summary>
+    List<string> @supportedLanguages, 
+    bool? @isEnglishOnly, 
+    bool? @supportsAllLanguages
+) {
+}
+
+class FfiConverterTypeModelsEntry: FfiConverterRustBuffer<ModelsEntry> {
+    public static FfiConverterTypeModelsEntry INSTANCE = new FfiConverterTypeModelsEntry();
+
+    public override ModelsEntry Read(BigEndianStream stream) {
+        return new ModelsEntry(
+            @provider: FfiConverterString.INSTANCE.Read(stream),
+            @id: FfiConverterString.INSTANCE.Read(stream),
+            @kind: FfiConverterString.INSTANCE.Read(stream),
+            @supportsCustomVocabulary: FfiConverterBoolean.INSTANCE.Read(stream),
+            @availableViaHyperWhisperCloud: FfiConverterBoolean.INSTANCE.Read(stream),
+            @platforms: FfiConverterSequenceString.INSTANCE.Read(stream),
+            @displayName: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @notes: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @supportedLanguages: FfiConverterSequenceString.INSTANCE.Read(stream),
+            @isEnglishOnly: FfiConverterOptionalBoolean.INSTANCE.Read(stream),
+            @supportsAllLanguages: FfiConverterOptionalBoolean.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(ModelsEntry value) {
+        return 0
+            + FfiConverterString.INSTANCE.AllocationSize(value.@provider)
+            + FfiConverterString.INSTANCE.AllocationSize(value.@id)
+            + FfiConverterString.INSTANCE.AllocationSize(value.@kind)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@supportsCustomVocabulary)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@availableViaHyperWhisperCloud)
+            + FfiConverterSequenceString.INSTANCE.AllocationSize(value.@platforms)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@displayName)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@notes)
+            + FfiConverterSequenceString.INSTANCE.AllocationSize(value.@supportedLanguages)
+            + FfiConverterOptionalBoolean.INSTANCE.AllocationSize(value.@isEnglishOnly)
+            + FfiConverterOptionalBoolean.INSTANCE.AllocationSize(value.@supportsAllLanguages);
+    }
+
+    public override void Write(ModelsEntry value, BigEndianStream stream) {
+            FfiConverterString.INSTANCE.Write(value.@provider, stream);
+            FfiConverterString.INSTANCE.Write(value.@id, stream);
+            FfiConverterString.INSTANCE.Write(value.@kind, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@supportsCustomVocabulary, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@availableViaHyperWhisperCloud, stream);
+            FfiConverterSequenceString.INSTANCE.Write(value.@platforms, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@displayName, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@notes, stream);
+            FfiConverterSequenceString.INSTANCE.Write(value.@supportedLanguages, stream);
+            FfiConverterOptionalBoolean.INSTANCE.Write(value.@isEnglishOnly, stream);
+            FfiConverterOptionalBoolean.INSTANCE.Write(value.@supportsAllLanguages, stream);
+    }
+}
+
+
+
+/// <summary>
 /// A normalized (provider, accuracy-tier) pair from a legacy cloud-provider value.
 /// Mirrors `hw_catalog::NormalizedCloudProvider`.
 /// </summary>
@@ -4273,6 +4536,78 @@ class FfiConverterTypePpModel: FfiConverterRustBuffer<PpModel> {
             FfiConverterOptionalInt64.INSTANCE.Write(value.@speed, stream);
             FfiConverterOptionalBoolean.INSTANCE.Write(value.@previewStatus, stream);
             FfiConverterOptionalBoolean.INSTANCE.Write(value.@enabled, stream);
+    }
+}
+
+
+
+/// <summary>
+/// A post-processing engine and its models. Owned mirror of
+/// `hw_catalog::PpProvider`, with `models` already filtered to the visible ones.
+/// </summary>
+/// <param name="llm_provider">
+/// The `X-LLM-Provider` header value the backend routes on.
+/// </param>
+/// <param name="enabled">
+/// The rollout gate, already resolved: `enabled != Some(false)`.
+/// </param>
+/// <param name="models">
+/// Visible (enabled) models only, in catalog order.
+/// </param>
+internal record PpProvider (
+    string @id, 
+    string @displayName, 
+    /// <summary>
+    /// The `X-LLM-Provider` header value the backend routes on.
+    /// </summary>
+    string @llmProvider, 
+    string? @apiStyle, 
+    /// <summary>
+    /// The rollout gate, already resolved: `enabled != Some(false)`.
+    /// </summary>
+    bool @enabled, 
+    bool? @isRecommended, 
+    /// <summary>
+    /// Visible (enabled) models only, in catalog order.
+    /// </summary>
+    List<PpModel> @models
+) {
+}
+
+class FfiConverterTypePpProvider: FfiConverterRustBuffer<PpProvider> {
+    public static FfiConverterTypePpProvider INSTANCE = new FfiConverterTypePpProvider();
+
+    public override PpProvider Read(BigEndianStream stream) {
+        return new PpProvider(
+            @id: FfiConverterString.INSTANCE.Read(stream),
+            @displayName: FfiConverterString.INSTANCE.Read(stream),
+            @llmProvider: FfiConverterString.INSTANCE.Read(stream),
+            @apiStyle: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @enabled: FfiConverterBoolean.INSTANCE.Read(stream),
+            @isRecommended: FfiConverterOptionalBoolean.INSTANCE.Read(stream),
+            @models: FfiConverterSequenceTypePpModel.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(PpProvider value) {
+        return 0
+            + FfiConverterString.INSTANCE.AllocationSize(value.@id)
+            + FfiConverterString.INSTANCE.AllocationSize(value.@displayName)
+            + FfiConverterString.INSTANCE.AllocationSize(value.@llmProvider)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@apiStyle)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@enabled)
+            + FfiConverterOptionalBoolean.INSTANCE.AllocationSize(value.@isRecommended)
+            + FfiConverterSequenceTypePpModel.INSTANCE.AllocationSize(value.@models);
+    }
+
+    public override void Write(PpProvider value, BigEndianStream stream) {
+            FfiConverterString.INSTANCE.Write(value.@id, stream);
+            FfiConverterString.INSTANCE.Write(value.@displayName, stream);
+            FfiConverterString.INSTANCE.Write(value.@llmProvider, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@apiStyle, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@enabled, stream);
+            FfiConverterOptionalBoolean.INSTANCE.Write(value.@isRecommended, stream);
+            FfiConverterSequenceTypePpModel.INSTANCE.Write(value.@models, stream);
     }
 }
 
@@ -4409,6 +4744,324 @@ class FfiConverterTypePromptContext: FfiConverterRustBuffer<PromptContext> {
 
 
 /// <summary>
+/// Cloud-tier / BYOK eligibility. Owned mirror of `hw_catalog::Access`.
+/// </summary>
+internal record SttAccess (
+    bool @cloudTierEligible, 
+    bool @byokEligible
+) {
+}
+
+class FfiConverterTypeSttAccess: FfiConverterRustBuffer<SttAccess> {
+    public static FfiConverterTypeSttAccess INSTANCE = new FfiConverterTypeSttAccess();
+
+    public override SttAccess Read(BigEndianStream stream) {
+        return new SttAccess(
+            @cloudTierEligible: FfiConverterBoolean.INSTANCE.Read(stream),
+            @byokEligible: FfiConverterBoolean.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(SttAccess value) {
+        return 0
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@cloudTierEligible)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@byokEligible);
+    }
+
+    public override void Write(SttAccess value, BigEndianStream stream) {
+            FfiConverterBoolean.INSTANCE.Write(value.@cloudTierEligible, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@byokEligible, stream);
+    }
+}
+
+
+
+/// <summary>
+/// Cloud-tier display metadata. Owned mirror of `hw_catalog::CloudTier`.
+/// </summary>
+internal record SttCloudTier (
+    string @accuracy, 
+    double @creditsPerMinute
+) {
+}
+
+class FfiConverterTypeSttCloudTier: FfiConverterRustBuffer<SttCloudTier> {
+    public static FfiConverterTypeSttCloudTier INSTANCE = new FfiConverterTypeSttCloudTier();
+
+    public override SttCloudTier Read(BigEndianStream stream) {
+        return new SttCloudTier(
+            @accuracy: FfiConverterString.INSTANCE.Read(stream),
+            @creditsPerMinute: FfiConverterDouble.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(SttCloudTier value) {
+        return 0
+            + FfiConverterString.INSTANCE.AllocationSize(value.@accuracy)
+            + FfiConverterDouble.INSTANCE.AllocationSize(value.@creditsPerMinute);
+    }
+
+    public override void Write(SttCloudTier value, BigEndianStream stream) {
+            FfiConverterString.INSTANCE.Write(value.@accuracy, stream);
+            FfiConverterDouble.INSTANCE.Write(value.@creditsPerMinute, stream);
+    }
+}
+
+
+
+/// <summary>
+/// Custom-vocabulary affordance for a provider. Owned mirror of
+/// `hw_catalog::CustomVocabulary`.
+/// </summary>
+internal record SttCustomVocabulary (
+    VocabSupport @supported, 
+    string? @fieldName, 
+    string? @caveats
+) {
+}
+
+class FfiConverterTypeSttCustomVocabulary: FfiConverterRustBuffer<SttCustomVocabulary> {
+    public static FfiConverterTypeSttCustomVocabulary INSTANCE = new FfiConverterTypeSttCustomVocabulary();
+
+    public override SttCustomVocabulary Read(BigEndianStream stream) {
+        return new SttCustomVocabulary(
+            @supported: FfiConverterTypeVocabSupport.INSTANCE.Read(stream),
+            @fieldName: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @caveats: FfiConverterOptionalString.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(SttCustomVocabulary value) {
+        return 0
+            + FfiConverterTypeVocabSupport.INSTANCE.AllocationSize(value.@supported)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@fieldName)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@caveats);
+    }
+
+    public override void Write(SttCustomVocabulary value, BigEndianStream stream) {
+            FfiConverterTypeVocabSupport.INSTANCE.Write(value.@supported, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@fieldName, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@caveats, stream);
+    }
+}
+
+
+
+/// <summary>
+/// A cloud STT provider row. Owned mirror of `hw_catalog::SttEntry`.
+/// </summary>
+/// <param name="vendor_label">
+/// `vendor_display_name` falling back to `display_name` — the string a
+/// Provider dropdown shows.
+/// </param>
+internal record SttEntry (
+    string @id, 
+    string @displayName, 
+    string? @displayModel, 
+    string @vendor, 
+    string? @vendorDisplayName, 
+    /// <summary>
+    /// `vendor_display_name` falling back to `display_name` — the string a
+    /// Provider dropdown shows.
+    /// </summary>
+    string @vendorLabel, 
+    string? @sttProvider, 
+    SttAccess? @access, 
+    List<SttModel> @models, 
+    SttCloudTier? @cloudTier, 
+    SttFeatures @features, 
+    SttCustomVocabulary? @customVocabulary, 
+    SttLanguages @languages, 
+    double? @maxFileSizeMb, 
+    long? @maxDurationMinutes, 
+    List<string> @acceptedFormats, 
+    bool? @previewStatus, 
+    List<string> @migrateFrom, 
+    List<string> @legacyCloudProviderAliases
+) {
+}
+
+class FfiConverterTypeSttEntry: FfiConverterRustBuffer<SttEntry> {
+    public static FfiConverterTypeSttEntry INSTANCE = new FfiConverterTypeSttEntry();
+
+    public override SttEntry Read(BigEndianStream stream) {
+        return new SttEntry(
+            @id: FfiConverterString.INSTANCE.Read(stream),
+            @displayName: FfiConverterString.INSTANCE.Read(stream),
+            @displayModel: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @vendor: FfiConverterString.INSTANCE.Read(stream),
+            @vendorDisplayName: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @vendorLabel: FfiConverterString.INSTANCE.Read(stream),
+            @sttProvider: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @access: FfiConverterOptionalTypeSttAccess.INSTANCE.Read(stream),
+            @models: FfiConverterSequenceTypeSttModel.INSTANCE.Read(stream),
+            @cloudTier: FfiConverterOptionalTypeSttCloudTier.INSTANCE.Read(stream),
+            @features: FfiConverterTypeSttFeatures.INSTANCE.Read(stream),
+            @customVocabulary: FfiConverterOptionalTypeSttCustomVocabulary.INSTANCE.Read(stream),
+            @languages: FfiConverterTypeSttLanguages.INSTANCE.Read(stream),
+            @maxFileSizeMb: FfiConverterOptionalDouble.INSTANCE.Read(stream),
+            @maxDurationMinutes: FfiConverterOptionalInt64.INSTANCE.Read(stream),
+            @acceptedFormats: FfiConverterSequenceString.INSTANCE.Read(stream),
+            @previewStatus: FfiConverterOptionalBoolean.INSTANCE.Read(stream),
+            @migrateFrom: FfiConverterSequenceString.INSTANCE.Read(stream),
+            @legacyCloudProviderAliases: FfiConverterSequenceString.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(SttEntry value) {
+        return 0
+            + FfiConverterString.INSTANCE.AllocationSize(value.@id)
+            + FfiConverterString.INSTANCE.AllocationSize(value.@displayName)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@displayModel)
+            + FfiConverterString.INSTANCE.AllocationSize(value.@vendor)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@vendorDisplayName)
+            + FfiConverterString.INSTANCE.AllocationSize(value.@vendorLabel)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@sttProvider)
+            + FfiConverterOptionalTypeSttAccess.INSTANCE.AllocationSize(value.@access)
+            + FfiConverterSequenceTypeSttModel.INSTANCE.AllocationSize(value.@models)
+            + FfiConverterOptionalTypeSttCloudTier.INSTANCE.AllocationSize(value.@cloudTier)
+            + FfiConverterTypeSttFeatures.INSTANCE.AllocationSize(value.@features)
+            + FfiConverterOptionalTypeSttCustomVocabulary.INSTANCE.AllocationSize(value.@customVocabulary)
+            + FfiConverterTypeSttLanguages.INSTANCE.AllocationSize(value.@languages)
+            + FfiConverterOptionalDouble.INSTANCE.AllocationSize(value.@maxFileSizeMb)
+            + FfiConverterOptionalInt64.INSTANCE.AllocationSize(value.@maxDurationMinutes)
+            + FfiConverterSequenceString.INSTANCE.AllocationSize(value.@acceptedFormats)
+            + FfiConverterOptionalBoolean.INSTANCE.AllocationSize(value.@previewStatus)
+            + FfiConverterSequenceString.INSTANCE.AllocationSize(value.@migrateFrom)
+            + FfiConverterSequenceString.INSTANCE.AllocationSize(value.@legacyCloudProviderAliases);
+    }
+
+    public override void Write(SttEntry value, BigEndianStream stream) {
+            FfiConverterString.INSTANCE.Write(value.@id, stream);
+            FfiConverterString.INSTANCE.Write(value.@displayName, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@displayModel, stream);
+            FfiConverterString.INSTANCE.Write(value.@vendor, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@vendorDisplayName, stream);
+            FfiConverterString.INSTANCE.Write(value.@vendorLabel, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@sttProvider, stream);
+            FfiConverterOptionalTypeSttAccess.INSTANCE.Write(value.@access, stream);
+            FfiConverterSequenceTypeSttModel.INSTANCE.Write(value.@models, stream);
+            FfiConverterOptionalTypeSttCloudTier.INSTANCE.Write(value.@cloudTier, stream);
+            FfiConverterTypeSttFeatures.INSTANCE.Write(value.@features, stream);
+            FfiConverterOptionalTypeSttCustomVocabulary.INSTANCE.Write(value.@customVocabulary, stream);
+            FfiConverterTypeSttLanguages.INSTANCE.Write(value.@languages, stream);
+            FfiConverterOptionalDouble.INSTANCE.Write(value.@maxFileSizeMb, stream);
+            FfiConverterOptionalInt64.INSTANCE.Write(value.@maxDurationMinutes, stream);
+            FfiConverterSequenceString.INSTANCE.Write(value.@acceptedFormats, stream);
+            FfiConverterOptionalBoolean.INSTANCE.Write(value.@previewStatus, stream);
+            FfiConverterSequenceString.INSTANCE.Write(value.@migrateFrom, stream);
+            FfiConverterSequenceString.INSTANCE.Write(value.@legacyCloudProviderAliases, stream);
+    }
+}
+
+
+
+/// <summary>
+/// Per-provider capability flags. Owned mirror of `hw_catalog::Features`.
+/// </summary>
+internal record SttFeatures (
+    bool @wordTimestamps, 
+    bool @diarization, 
+    bool @streaming
+) {
+}
+
+class FfiConverterTypeSttFeatures: FfiConverterRustBuffer<SttFeatures> {
+    public static FfiConverterTypeSttFeatures INSTANCE = new FfiConverterTypeSttFeatures();
+
+    public override SttFeatures Read(BigEndianStream stream) {
+        return new SttFeatures(
+            @wordTimestamps: FfiConverterBoolean.INSTANCE.Read(stream),
+            @diarization: FfiConverterBoolean.INSTANCE.Read(stream),
+            @streaming: FfiConverterBoolean.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(SttFeatures value) {
+        return 0
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@wordTimestamps)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@diarization)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@streaming);
+    }
+
+    public override void Write(SttFeatures value, BigEndianStream stream) {
+            FfiConverterBoolean.INSTANCE.Write(value.@wordTimestamps, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@diarization, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@streaming, stream);
+    }
+}
+
+
+
+/// <summary>
+/// The provider's `languages` metadata — WITHOUT the code list.
+///
+/// The codes are deliberately absent: `SttEntry` is read inside a SwiftUI
+/// `ForEach` in a view `body`, and the full catalog carries ~736 codes across
+/// the 11 providers, so shipping them per entry would copy that whole set on
+/// every body re-evaluation. Fetch them per provider instead, with
+/// `cloud_stt_language_codes` (raw) or `cloud_stt_picker_language_codes`
+/// (folded).
+/// </summary>
+/// <param name="count">
+/// Upstream's own declared count. `None` when the catalog says
+/// `"unverified"`; may disagree with the length of the code list.
+/// </param>
+/// <param name="has_codes">
+/// Whether the catalog enumerates codes at all. `false` means
+/// `"unverified"`, i.e. both code accessors return `None`.
+/// </param>
+internal record SttLanguages (
+    /// <summary>
+    /// Upstream's own declared count. `None` when the catalog says
+    /// `"unverified"`; may disagree with the length of the code list.
+    /// </summary>
+    long? @count, 
+    bool? @autoDetect, 
+    string? @codeFormat, 
+    string? @notes, 
+    /// <summary>
+    /// Whether the catalog enumerates codes at all. `false` means
+    /// `"unverified"`, i.e. both code accessors return `None`.
+    /// </summary>
+    bool @hasCodes
+) {
+}
+
+class FfiConverterTypeSttLanguages: FfiConverterRustBuffer<SttLanguages> {
+    public static FfiConverterTypeSttLanguages INSTANCE = new FfiConverterTypeSttLanguages();
+
+    public override SttLanguages Read(BigEndianStream stream) {
+        return new SttLanguages(
+            @count: FfiConverterOptionalInt64.INSTANCE.Read(stream),
+            @autoDetect: FfiConverterOptionalBoolean.INSTANCE.Read(stream),
+            @codeFormat: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @notes: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @hasCodes: FfiConverterBoolean.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(SttLanguages value) {
+        return 0
+            + FfiConverterOptionalInt64.INSTANCE.AllocationSize(value.@count)
+            + FfiConverterOptionalBoolean.INSTANCE.AllocationSize(value.@autoDetect)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@codeFormat)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@notes)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@hasCodes);
+    }
+
+    public override void Write(SttLanguages value, BigEndianStream stream) {
+            FfiConverterOptionalInt64.INSTANCE.Write(value.@count, stream);
+            FfiConverterOptionalBoolean.INSTANCE.Write(value.@autoDetect, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@codeFormat, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@notes, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@hasCodes, stream);
+    }
+}
+
+
+
+/// <summary>
 /// A cloud STT model. Owned mirror of `hw_catalog::SttModel`.
 /// </summary>
 internal record SttModel (
@@ -4452,6 +5105,55 @@ class FfiConverterTypeSttModel: FfiConverterRustBuffer<SttModel> {
             FfiConverterOptionalBoolean.INSTANCE.Write(value.@isDefault, stream);
             FfiConverterOptionalBoolean.INSTANCE.Write(value.@previewStatus, stream);
             FfiConverterOptionalBoolean.INSTANCE.Write(value.@supportsCustomVocabulary, stream);
+    }
+}
+
+
+
+/// <summary>
+/// One row of the Provider dropdown. Owned mirror of `hw_catalog::VendorGroup`.
+/// </summary>
+/// <param name="vendor_key">
+/// The catalog `vendor` key — the dropdown's selection tag.
+/// </param>
+/// <param name="entries">
+/// The group's entries, in catalog order; never empty.
+/// </param>
+internal record SttVendorGroup (
+    /// <summary>
+    /// The catalog `vendor` key — the dropdown's selection tag.
+    /// </summary>
+    string @vendorKey, 
+    string @displayName, 
+    /// <summary>
+    /// The group's entries, in catalog order; never empty.
+    /// </summary>
+    List<SttEntry> @entries
+) {
+}
+
+class FfiConverterTypeSttVendorGroup: FfiConverterRustBuffer<SttVendorGroup> {
+    public static FfiConverterTypeSttVendorGroup INSTANCE = new FfiConverterTypeSttVendorGroup();
+
+    public override SttVendorGroup Read(BigEndianStream stream) {
+        return new SttVendorGroup(
+            @vendorKey: FfiConverterString.INSTANCE.Read(stream),
+            @displayName: FfiConverterString.INSTANCE.Read(stream),
+            @entries: FfiConverterSequenceTypeSttEntry.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(SttVendorGroup value) {
+        return 0
+            + FfiConverterString.INSTANCE.AllocationSize(value.@vendorKey)
+            + FfiConverterString.INSTANCE.AllocationSize(value.@displayName)
+            + FfiConverterSequenceTypeSttEntry.INSTANCE.AllocationSize(value.@entries);
+    }
+
+    public override void Write(SttVendorGroup value, BigEndianStream stream) {
+            FfiConverterString.INSTANCE.Write(value.@vendorKey, stream);
+            FfiConverterString.INSTANCE.Write(value.@displayName, stream);
+            FfiConverterSequenceTypeSttEntry.INSTANCE.Write(value.@entries, stream);
     }
 }
 
@@ -5929,6 +6631,45 @@ class FfiConverterTypeSonioxPollStatus: FfiConverterRustBuffer<SonioxPollStatus>
 
 
 /// <summary>
+/// Tri-state custom-vocabulary support. Mirrors `hw_catalog::VocabSupport`. The
+/// catalog stores a bool or the literal `"unverified"`; only `Yes` means the
+/// affordance is shown.
+/// </summary>
+internal enum VocabSupport: int {
+    
+    Yes,
+    No,
+    Unverified
+}
+
+class FfiConverterTypeVocabSupport: FfiConverterRustBuffer<VocabSupport> {
+    public static FfiConverterTypeVocabSupport INSTANCE = new FfiConverterTypeVocabSupport();
+
+    public override VocabSupport Read(BigEndianStream stream) {
+        var value = stream.ReadInt() - 1;
+        if (Enum.IsDefined(typeof(VocabSupport), value)) {
+            return (VocabSupport)value;
+        } else {
+            throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeVocabSupport.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(VocabSupport value) {
+        return 4;
+    }
+
+    public override void Write(VocabSupport value, BigEndianStream stream) {
+        stream.WriteInt((int)value + 1);
+    }
+}
+
+
+
+
+
+
+
+/// <summary>
 /// Wire protocol a response's termination metadata is expressed in. Mirrors
 /// `hw_text::completion::WireProtocol`.
 /// </summary>
@@ -6182,6 +6923,37 @@ class FfiConverterOptionalString: FfiConverterRustBuffer<string?> {
 
 
 
+class FfiConverterOptionalTypeModelsEntry: FfiConverterRustBuffer<ModelsEntry?> {
+    public static FfiConverterOptionalTypeModelsEntry INSTANCE = new FfiConverterOptionalTypeModelsEntry();
+
+    public override ModelsEntry? Read(BigEndianStream stream) {
+        if (stream.ReadByte() == 0) {
+            return null;
+        }
+        return FfiConverterTypeModelsEntry.INSTANCE.Read(stream);
+    }
+
+    public override int AllocationSize(ModelsEntry? value) {
+        if (value == null) {
+            return 1;
+        } else {
+            return 1 + FfiConverterTypeModelsEntry.INSTANCE.AllocationSize((ModelsEntry)value);
+        }
+    }
+
+    public override void Write(ModelsEntry? value, BigEndianStream stream) {
+        if (value == null) {
+            stream.WriteByte(0);
+        } else {
+            stream.WriteByte(1);
+            FfiConverterTypeModelsEntry.INSTANCE.Write((ModelsEntry)value, stream);
+        }
+    }
+}
+
+
+
+
 class FfiConverterOptionalTypePpModel: FfiConverterRustBuffer<PpModel?> {
     public static FfiConverterOptionalTypePpModel INSTANCE = new FfiConverterOptionalTypePpModel();
 
@@ -6206,6 +6978,161 @@ class FfiConverterOptionalTypePpModel: FfiConverterRustBuffer<PpModel?> {
         } else {
             stream.WriteByte(1);
             FfiConverterTypePpModel.INSTANCE.Write((PpModel)value, stream);
+        }
+    }
+}
+
+
+
+
+class FfiConverterOptionalTypeSttAccess: FfiConverterRustBuffer<SttAccess?> {
+    public static FfiConverterOptionalTypeSttAccess INSTANCE = new FfiConverterOptionalTypeSttAccess();
+
+    public override SttAccess? Read(BigEndianStream stream) {
+        if (stream.ReadByte() == 0) {
+            return null;
+        }
+        return FfiConverterTypeSttAccess.INSTANCE.Read(stream);
+    }
+
+    public override int AllocationSize(SttAccess? value) {
+        if (value == null) {
+            return 1;
+        } else {
+            return 1 + FfiConverterTypeSttAccess.INSTANCE.AllocationSize((SttAccess)value);
+        }
+    }
+
+    public override void Write(SttAccess? value, BigEndianStream stream) {
+        if (value == null) {
+            stream.WriteByte(0);
+        } else {
+            stream.WriteByte(1);
+            FfiConverterTypeSttAccess.INSTANCE.Write((SttAccess)value, stream);
+        }
+    }
+}
+
+
+
+
+class FfiConverterOptionalTypeSttCloudTier: FfiConverterRustBuffer<SttCloudTier?> {
+    public static FfiConverterOptionalTypeSttCloudTier INSTANCE = new FfiConverterOptionalTypeSttCloudTier();
+
+    public override SttCloudTier? Read(BigEndianStream stream) {
+        if (stream.ReadByte() == 0) {
+            return null;
+        }
+        return FfiConverterTypeSttCloudTier.INSTANCE.Read(stream);
+    }
+
+    public override int AllocationSize(SttCloudTier? value) {
+        if (value == null) {
+            return 1;
+        } else {
+            return 1 + FfiConverterTypeSttCloudTier.INSTANCE.AllocationSize((SttCloudTier)value);
+        }
+    }
+
+    public override void Write(SttCloudTier? value, BigEndianStream stream) {
+        if (value == null) {
+            stream.WriteByte(0);
+        } else {
+            stream.WriteByte(1);
+            FfiConverterTypeSttCloudTier.INSTANCE.Write((SttCloudTier)value, stream);
+        }
+    }
+}
+
+
+
+
+class FfiConverterOptionalTypeSttCustomVocabulary: FfiConverterRustBuffer<SttCustomVocabulary?> {
+    public static FfiConverterOptionalTypeSttCustomVocabulary INSTANCE = new FfiConverterOptionalTypeSttCustomVocabulary();
+
+    public override SttCustomVocabulary? Read(BigEndianStream stream) {
+        if (stream.ReadByte() == 0) {
+            return null;
+        }
+        return FfiConverterTypeSttCustomVocabulary.INSTANCE.Read(stream);
+    }
+
+    public override int AllocationSize(SttCustomVocabulary? value) {
+        if (value == null) {
+            return 1;
+        } else {
+            return 1 + FfiConverterTypeSttCustomVocabulary.INSTANCE.AllocationSize((SttCustomVocabulary)value);
+        }
+    }
+
+    public override void Write(SttCustomVocabulary? value, BigEndianStream stream) {
+        if (value == null) {
+            stream.WriteByte(0);
+        } else {
+            stream.WriteByte(1);
+            FfiConverterTypeSttCustomVocabulary.INSTANCE.Write((SttCustomVocabulary)value, stream);
+        }
+    }
+}
+
+
+
+
+class FfiConverterOptionalTypeSttEntry: FfiConverterRustBuffer<SttEntry?> {
+    public static FfiConverterOptionalTypeSttEntry INSTANCE = new FfiConverterOptionalTypeSttEntry();
+
+    public override SttEntry? Read(BigEndianStream stream) {
+        if (stream.ReadByte() == 0) {
+            return null;
+        }
+        return FfiConverterTypeSttEntry.INSTANCE.Read(stream);
+    }
+
+    public override int AllocationSize(SttEntry? value) {
+        if (value == null) {
+            return 1;
+        } else {
+            return 1 + FfiConverterTypeSttEntry.INSTANCE.AllocationSize((SttEntry)value);
+        }
+    }
+
+    public override void Write(SttEntry? value, BigEndianStream stream) {
+        if (value == null) {
+            stream.WriteByte(0);
+        } else {
+            stream.WriteByte(1);
+            FfiConverterTypeSttEntry.INSTANCE.Write((SttEntry)value, stream);
+        }
+    }
+}
+
+
+
+
+class FfiConverterOptionalTypeSttVendorGroup: FfiConverterRustBuffer<SttVendorGroup?> {
+    public static FfiConverterOptionalTypeSttVendorGroup INSTANCE = new FfiConverterOptionalTypeSttVendorGroup();
+
+    public override SttVendorGroup? Read(BigEndianStream stream) {
+        if (stream.ReadByte() == 0) {
+            return null;
+        }
+        return FfiConverterTypeSttVendorGroup.INSTANCE.Read(stream);
+    }
+
+    public override int AllocationSize(SttVendorGroup? value) {
+        if (value == null) {
+            return 1;
+        } else {
+            return 1 + FfiConverterTypeSttVendorGroup.INSTANCE.AllocationSize((SttVendorGroup)value);
+        }
+    }
+
+    public override void Write(SttVendorGroup? value, BigEndianStream stream) {
+        if (value == null) {
+            stream.WriteByte(0);
+        } else {
+            stream.WriteByte(1);
+            FfiConverterTypeSttVendorGroup.INSTANCE.Write((SttVendorGroup)value, stream);
         }
     }
 }
@@ -6432,6 +7359,48 @@ class FfiConverterSequenceTypeHwValidationError: FfiConverterRustBuffer<List<HwV
 
 
 
+class FfiConverterSequenceTypeModelsEntry: FfiConverterRustBuffer<List<ModelsEntry>> {
+    public static FfiConverterSequenceTypeModelsEntry INSTANCE = new FfiConverterSequenceTypeModelsEntry();
+
+    public override List<ModelsEntry> Read(BigEndianStream stream) {
+        var length = stream.ReadInt();
+        var result = new List<ModelsEntry>(length);
+        var readFn = FfiConverterTypeModelsEntry.INSTANCE.Read;
+        for (int i = 0; i < length; i++) {
+            result.Add(readFn(stream));
+        }
+        return result;
+    }
+
+    public override int AllocationSize(List<ModelsEntry> value) {
+        var sizeForLength = 4;
+
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            return sizeForLength;
+        }
+
+        var allocationSizeFn = FfiConverterTypeModelsEntry.INSTANCE.AllocationSize;
+        var sizeForItems = value.Sum(item => allocationSizeFn(item));
+        return sizeForLength + sizeForItems;
+    }
+
+    public override void Write(List<ModelsEntry> value, BigEndianStream stream) {
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            stream.WriteInt(0);
+            return;
+        }
+
+        stream.WriteInt(value.Count);
+        var writerFn = FfiConverterTypeModelsEntry.INSTANCE.Write;
+        value.ForEach(item => writerFn(item, stream));
+    }
+}
+
+
+
+
 class FfiConverterSequenceTypePpModel: FfiConverterRustBuffer<List<PpModel>> {
     public static FfiConverterSequenceTypePpModel INSTANCE = new FfiConverterSequenceTypePpModel();
 
@@ -6474,6 +7443,90 @@ class FfiConverterSequenceTypePpModel: FfiConverterRustBuffer<List<PpModel>> {
 
 
 
+class FfiConverterSequenceTypePpProvider: FfiConverterRustBuffer<List<PpProvider>> {
+    public static FfiConverterSequenceTypePpProvider INSTANCE = new FfiConverterSequenceTypePpProvider();
+
+    public override List<PpProvider> Read(BigEndianStream stream) {
+        var length = stream.ReadInt();
+        var result = new List<PpProvider>(length);
+        var readFn = FfiConverterTypePpProvider.INSTANCE.Read;
+        for (int i = 0; i < length; i++) {
+            result.Add(readFn(stream));
+        }
+        return result;
+    }
+
+    public override int AllocationSize(List<PpProvider> value) {
+        var sizeForLength = 4;
+
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            return sizeForLength;
+        }
+
+        var allocationSizeFn = FfiConverterTypePpProvider.INSTANCE.AllocationSize;
+        var sizeForItems = value.Sum(item => allocationSizeFn(item));
+        return sizeForLength + sizeForItems;
+    }
+
+    public override void Write(List<PpProvider> value, BigEndianStream stream) {
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            stream.WriteInt(0);
+            return;
+        }
+
+        stream.WriteInt(value.Count);
+        var writerFn = FfiConverterTypePpProvider.INSTANCE.Write;
+        value.ForEach(item => writerFn(item, stream));
+    }
+}
+
+
+
+
+class FfiConverterSequenceTypeSttEntry: FfiConverterRustBuffer<List<SttEntry>> {
+    public static FfiConverterSequenceTypeSttEntry INSTANCE = new FfiConverterSequenceTypeSttEntry();
+
+    public override List<SttEntry> Read(BigEndianStream stream) {
+        var length = stream.ReadInt();
+        var result = new List<SttEntry>(length);
+        var readFn = FfiConverterTypeSttEntry.INSTANCE.Read;
+        for (int i = 0; i < length; i++) {
+            result.Add(readFn(stream));
+        }
+        return result;
+    }
+
+    public override int AllocationSize(List<SttEntry> value) {
+        var sizeForLength = 4;
+
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            return sizeForLength;
+        }
+
+        var allocationSizeFn = FfiConverterTypeSttEntry.INSTANCE.AllocationSize;
+        var sizeForItems = value.Sum(item => allocationSizeFn(item));
+        return sizeForLength + sizeForItems;
+    }
+
+    public override void Write(List<SttEntry> value, BigEndianStream stream) {
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            stream.WriteInt(0);
+            return;
+        }
+
+        stream.WriteInt(value.Count);
+        var writerFn = FfiConverterTypeSttEntry.INSTANCE.Write;
+        value.ForEach(item => writerFn(item, stream));
+    }
+}
+
+
+
+
 class FfiConverterSequenceTypeSttModel: FfiConverterRustBuffer<List<SttModel>> {
     public static FfiConverterSequenceTypeSttModel INSTANCE = new FfiConverterSequenceTypeSttModel();
 
@@ -6509,6 +7562,48 @@ class FfiConverterSequenceTypeSttModel: FfiConverterRustBuffer<List<SttModel>> {
 
         stream.WriteInt(value.Count);
         var writerFn = FfiConverterTypeSttModel.INSTANCE.Write;
+        value.ForEach(item => writerFn(item, stream));
+    }
+}
+
+
+
+
+class FfiConverterSequenceTypeSttVendorGroup: FfiConverterRustBuffer<List<SttVendorGroup>> {
+    public static FfiConverterSequenceTypeSttVendorGroup INSTANCE = new FfiConverterSequenceTypeSttVendorGroup();
+
+    public override List<SttVendorGroup> Read(BigEndianStream stream) {
+        var length = stream.ReadInt();
+        var result = new List<SttVendorGroup>(length);
+        var readFn = FfiConverterTypeSttVendorGroup.INSTANCE.Read;
+        for (int i = 0; i < length; i++) {
+            result.Add(readFn(stream));
+        }
+        return result;
+    }
+
+    public override int AllocationSize(List<SttVendorGroup> value) {
+        var sizeForLength = 4;
+
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            return sizeForLength;
+        }
+
+        var allocationSizeFn = FfiConverterTypeSttVendorGroup.INSTANCE.AllocationSize;
+        var sizeForItems = value.Sum(item => allocationSizeFn(item));
+        return sizeForLength + sizeForItems;
+    }
+
+    public override void Write(List<SttVendorGroup> value, BigEndianStream stream) {
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            stream.WriteInt(0);
+            return;
+        }
+
+        stream.WriteInt(value.Count);
+        var writerFn = FfiConverterTypeSttVendorGroup.INSTANCE.Write;
         value.ForEach(item => writerFn(item, stream));
     }
 }
@@ -6869,6 +7964,43 @@ internal static class HyperwhisperCoreMethods {
 
 
     /// <summary>
+    /// The Engine dropdown's rows: post-processing engines with `enabled != false`,
+    /// in catalog order, each carrying only its visible models.
+    /// </summary>
+    public static List<PpProvider> CloudPpPickerProviders() {
+        return FfiConverterSequenceTypePpProvider.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_cloud_pp_picker_providers( ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Every post-processing engine, in catalog order — INCLUDING the ones the
+    /// rollout gate hides. Read `enabled` before surfacing a row; use
+    /// `cloud_pp_picker_providers` for the dropdown.
+    /// </summary>
+    public static List<PpProvider> CloudPpProviders() {
+        return FfiConverterSequenceTypePpProvider.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_cloud_pp_providers( ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The Provider dropdown's rows: cloud-tier entries folded by company and
+    /// sorted by display name.
+    /// </summary>
+    public static List<SttVendorGroup> CloudSttCloudTierVendorGroups() {
+        return FfiConverterSequenceTypeSttVendorGroup.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_cloud_stt_cloud_tier_vendor_groups( ref _status)
+));
+    }
+
+
+    /// <summary>
     /// Credits per minute for the provider's default model.
     /// </summary>
     public static double CloudSttCreditsPerMinute(string @id) {
@@ -6913,6 +8045,41 @@ internal static class HyperwhisperCoreMethods {
 
 
     /// <summary>
+    /// Every cloud STT provider row, in catalog order.
+    /// </summary>
+    public static List<SttEntry> CloudSttEntries() {
+        return FfiConverterSequenceTypeSttEntry.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_cloud_stt_entries( ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// A single cloud STT provider row by id (case-insensitive), or `None`.
+    /// </summary>
+    public static SttEntry? CloudSttEntry(string @id) {
+        return FfiConverterOptionalTypeSttEntry.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_cloud_stt_entry(FfiConverterString.INSTANCE.Lower(@id), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The provider row whose `migrateFrom` list contains `alias` (case-insensitive,
+    /// trimmed). Drives legacy accuracy-tier resolution — NOT `cloudProvider`
+    /// rewriting, which is `cloud_stt_normalize_cloud_provider`.
+    /// </summary>
+    public static SttEntry? CloudSttEntryByMigrateFrom(string @alias) {
+        return FfiConverterOptionalTypeSttEntry.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_cloud_stt_entry_by_migrate_from(FfiConverterString.INSTANCE.Lower(@alias), ref _status)
+));
+    }
+
+
+    /// <summary>
     /// The provider's supported language codes, if enumerated.
     /// </summary>
     public static List<string>? CloudSttLanguageCodes(string @id) {
@@ -6946,6 +8113,22 @@ internal static class HyperwhisperCoreMethods {
 
 
     /// <summary>
+    /// The provider's languages folded to the two-letter picker code space, sorted
+    /// and always including `"auto"`; `None` when the catalog leaves the set
+    /// `"unverified"` or the id is unknown, so the caller keeps its full list.
+    ///
+    /// A picker that lists BCP-47 region rows (macOS `STTCapabilities`) must match a
+    /// row by its PRIMARY SUBTAG against this set, not by exact code.
+    /// </summary>
+    public static List<string>? CloudSttPickerLanguageCodes(string @id) {
+        return FfiConverterOptionalSequenceString.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_cloud_stt_picker_language_codes(FfiConverterString.INSTANCE.Lower(@id), ref _status)
+));
+    }
+
+
+    /// <summary>
     /// The underlying STT provider key (the `X-STT-Provider` value), if any.
     /// </summary>
     public static string? CloudSttProvider(string @id) {
@@ -6963,6 +8146,29 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterBoolean.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_cloud_stt_supports_custom_vocabulary(FfiConverterString.INSTANCE.Lower(@id), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The vendor group a cloud-tier provider id belongs to, or `None` when the id
+    /// is unknown or is not cloud-tier eligible.
+    /// </summary>
+    public static SttVendorGroup? CloudSttVendorGroup(string @id) {
+        return FfiConverterOptionalTypeSttVendorGroup.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_cloud_stt_vendor_group(FfiConverterString.INSTANCE.Lower(@id), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The vendor group with the given `vendor` key (case-insensitive), or `None`.
+    /// </summary>
+    public static SttVendorGroup? CloudSttVendorGroupForVendorKey(string @vendorKey) {
+        return FfiConverterOptionalTypeSttVendorGroup.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_cloud_stt_vendor_group_for_vendor_key(FfiConverterString.INSTANCE.Lower(@vendorKey), ref _status)
 ));
     }
 
@@ -7624,12 +8830,37 @@ internal static class HyperwhisperCoreMethods {
 
 
     /// <summary>
+    /// Every catalogued model row, ordered by `(provider, kind, id)`. Replaces the
+    /// per-platform catalog decoders that scanned the file for parity checks and for
+    /// the unified capability list.
+    /// </summary>
+    public static List<ModelsEntry> ModelsAllEntries() {
+        return FfiConverterSequenceTypeModelsEntry.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_models_all_entries( ref _status)
+));
+    }
+
+
+    /// <summary>
     /// Whether a model is available via HyperWhisper Cloud.
     /// </summary>
     public static bool ModelsAvailableViaHwCloud(string @provider, HwKind @kind, string @id) {
         return FfiConverterBoolean.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_models_available_via_hw_cloud(FfiConverterString.INSTANCE.Lower(@provider), FfiConverterTypeHwKind.INSTANCE.Lower(@kind), FfiConverterString.INSTANCE.Lower(@id), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// A single catalogued model row, resolving the `(provider, kind, "*")` wildcard
+    /// when the exact id is not catalogued. `None` on a miss.
+    /// </summary>
+    public static ModelsEntry? ModelsEntry(string @provider, HwKind @kind, string @id) {
+        return FfiConverterOptionalTypeModelsEntry.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_models_entry(FfiConverterString.INSTANCE.Lower(@provider), FfiConverterTypeHwKind.INSTANCE.Lower(@kind), FfiConverterString.INSTANCE.Lower(@id), ref _status)
 ));
     }
 
