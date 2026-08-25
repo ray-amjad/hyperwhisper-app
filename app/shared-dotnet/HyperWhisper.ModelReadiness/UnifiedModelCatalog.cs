@@ -1,47 +1,40 @@
-using System.Text.Json;
 using HyperWhisper.ModelManagement;
+// Rust shared-core binding. The catalog rows below all come from here.
+using uniffi.hyperwhisper_core;
 
 namespace HyperWhisper.ModelReadiness;
 
+/// <summary>
+/// Builds the unified model-capability list every .NET head reads.
+///
+/// This used to be a raw <c>JsonDocument</c> reader over the three shared
+/// catalog files — a fourth decoder for <c>cloud-stt-catalog.json</c> alongside
+/// macOS, Windows and Rust (issue #280), and one that would have crashed on the
+/// documented <c>"unverified"</c> form of <c>customVocabulary.supported</c>,
+/// because <c>GetBoolean()</c> throws on a string. Every catalog read now goes
+/// through the shared Rust core, which owns the polymorphic decoding; the local
+/// model rows and the credential-account mapping stay here because they are
+/// .NET-side facts, not catalog data.
+///
+/// The catalogs are <c>include_str!</c>'d into the core at compile time, so
+/// there is no file to open and no load ordering to get wrong.
+/// </summary>
 public static class UnifiedModelCatalog
 {
-    private static readonly JsonDocumentOptions JsonOptions = new()
-    {
-        AllowTrailingCommas = false,
-        CommentHandling = JsonCommentHandling.Disallow,
-        MaxDepth = 32,
-    };
-
     public static IReadOnlyList<ModelCapability> LoadBundled(
         IEnumerable<CustomEndpointDefinition>? customEndpoints = null)
-    {
-        var root = Path.Combine(AppContext.BaseDirectory, "Catalogs");
-        using var models = File.OpenRead(Path.Combine(root, "models-catalog.json"));
-        using var stt = File.OpenRead(Path.Combine(root, "cloud-stt-catalog.json"));
-        using var postProcessing = File.OpenRead(Path.Combine(root, "cloud-pp-catalog.json"));
-        return Load(models, stt, postProcessing, customEndpoints);
-    }
+        => Load(customEndpoints);
 
     public static IReadOnlyList<ModelCapability> Load(
-        Stream modelsCatalog,
-        Stream cloudSttCatalog,
-        Stream cloudPostProcessingCatalog,
         IEnumerable<CustomEndpointDefinition>? customEndpoints = null)
     {
-        ArgumentNullException.ThrowIfNull(modelsCatalog);
-        ArgumentNullException.ThrowIfNull(cloudSttCatalog);
-        ArgumentNullException.ThrowIfNull(cloudPostProcessingCatalog);
-
         var result = new List<ModelCapability>();
         AddLocalModels(result);
 
-        using var models = JsonDocument.Parse(modelsCatalog, JsonOptions);
-        using var stt = JsonDocument.Parse(cloudSttCatalog, JsonOptions);
-        using var postProcessing = JsonDocument.Parse(cloudPostProcessingCatalog, JsonOptions);
-
-        AddCloudStt(result, stt.RootElement);
-        AddStreaming(result, stt.RootElement);
-        AddPostProcessing(result, models.RootElement, postProcessing.RootElement);
+        var sttEntries = HyperwhisperCoreMethods.CloudSttEntries();
+        AddCloudStt(result, sttEntries);
+        AddStreaming(result, sttEntries);
+        AddPostProcessing(result);
         AddCustomEndpoints(result, customEndpoints ?? []);
 
         var duplicate = result.GroupBy(item => item.Key, StringComparer.Ordinal)
@@ -96,46 +89,47 @@ public static class UnifiedModelCatalog
         }
     }
 
-    private static void AddCloudStt(List<ModelCapability> result, JsonElement root)
+    private static void AddCloudStt(List<ModelCapability> result, IEnumerable<SttEntry> entries)
     {
-        foreach (var provider in RequiredArray(root, "providers"))
+        foreach (var provider in entries)
         {
-            var providerId = RequiredString(provider, "id");
-            var sttProvider = RequiredString(provider, "sttProvider");
-            var display = RequiredString(provider, "displayName");
-            var access = provider.GetProperty("access");
-            var vocabDefault = provider.GetProperty("customVocabulary").GetProperty("supported").GetBoolean();
-            var languages = ReadLanguages(provider);
+            var providerId = Required(provider.@id, "id");
+            var sttProvider = Required(provider.@sttProvider, "sttProvider");
+            var display = Required(provider.@displayName, "displayName");
+            var access = provider.@access
+                ?? throw new InvalidDataException("Catalog property 'access' is required.");
+            var vocabDefault = ProviderSupportsVocabulary(provider);
+            var languages = LanguageCodes(providerId);
             var allLanguages = false;
-            var streaming = provider.GetProperty("features").GetProperty("streaming").GetBoolean();
-            foreach (var model in RequiredArray(provider, "models"))
+            var streaming = provider.@features.@streaming;
+            foreach (var model in provider.@models)
             {
-                var modelId = RequiredStringAllowEmpty(model, "id");
-                var modelName = RequiredString(model, "displayName");
-                var vocab = model.TryGetProperty("supportsCustomVocabulary", out var supports)
-                    ? supports.GetBoolean() : vocabDefault;
+                var modelId = model.@id;
+                var modelName = Required(model.@displayName, "displayName");
+                var vocab = model.@supportsCustomVocabulary ?? vocabDefault;
                 result.Add(new ModelCapability(
                     $"cloud/stt/{providerId}/{NormalizeEmpty(modelId)}", $"{display} — {modelName}",
                     sttProvider, modelId, ModelDeployment.Cloud, ModelWorkload.Voice,
                     ModelSurface.BatchTranscription, vocab, allLanguages, languages, streaming,
-                    CloudTierEligible: access.GetProperty("cloudTierEligible").GetBoolean(),
-                    ByokEligible: access.GetProperty("byokEligible").GetBoolean(),
+                    CloudTierEligible: access.@cloudTierEligible,
+                    ByokEligible: access.@byokEligible,
                     CredentialAccount: CredentialAccountFor(sttProvider)));
             }
         }
     }
 
-    private static void AddStreaming(List<ModelCapability> result, JsonElement root)
+    private static void AddStreaming(List<ModelCapability> result, IEnumerable<SttEntry> entries)
     {
         var emitted = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var provider in RequiredArray(root, "providers"))
+        foreach (var provider in entries)
         {
-            if (!provider.GetProperty("features").GetProperty("streaming").GetBoolean()) continue;
-            var sttProvider = RequiredString(provider, "sttProvider");
-            var model = RequiredArray(provider, "models").First();
-            AddStreamingRow(result, emitted, sttProvider, RequiredStringAllowEmpty(model, "id"),
-                RequiredString(provider, "displayName"), ReadLanguages(provider),
-                provider.GetProperty("customVocabulary").GetProperty("supported").GetBoolean());
+            if (!provider.@features.@streaming) continue;
+            var sttProvider = Required(provider.@sttProvider, "sttProvider");
+            if (provider.@models.Count == 0)
+                throw new InvalidDataException($"Streaming provider '{sttProvider}' lists no models.");
+            AddStreamingRow(result, emitted, sttProvider, provider.@models[0].@id,
+                Required(provider.@displayName, "displayName"), LanguageCodes(provider.@id),
+                ProviderSupportsVocabulary(provider));
         }
 
         // Live clients expose these dedicated transports even where the batch catalog deliberately
@@ -156,37 +150,42 @@ public static class UnifiedModelCatalog
             CredentialAccount: CredentialAccountFor(provider)));
     }
 
-    private static void AddPostProcessing(List<ModelCapability> result, JsonElement modelsRoot, JsonElement ppRoot)
+    private static void AddPostProcessing(List<ModelCapability> result)
     {
         var cloudTier = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var provider in RequiredArray(ppRoot, "providers"))
-        foreach (var model in RequiredArray(provider, "models"))
+        foreach (var provider in HyperwhisperCoreMethods.CloudPpProviders())
         {
-            if (provider.TryGetProperty("enabled", out var providerEnabled) && !providerEnabled.GetBoolean()) continue;
-            if (model.TryGetProperty("enabled", out var modelEnabled) && !modelEnabled.GetBoolean()) continue;
-            var providerId = RequiredString(provider, "llmProvider");
-            var modelId = RequiredString(model, "id");
-            cloudTier.Add($"{providerId}\n{modelId}");
-            result.Add(new ModelCapability(
-                $"cloud/pp-tier/{providerId}/{modelId}",
-                $"{RequiredString(provider, "displayName")} — {RequiredString(model, "displayName")}",
-                providerId, modelId, ModelDeployment.Cloud, ModelWorkload.Text,
-                ModelSurface.PostProcessing, false, true, [], false,
-                CloudTierEligible: true, CredentialAccount: "LicenseKey"));
+            // The core resolves the rollout gate for both levels: `enabled` is
+            // already `enabled != false`, and `models` already excludes the
+            // models the gate hides.
+            if (!provider.@enabled) continue;
+            foreach (var model in provider.@models)
+            {
+                var providerId = Required(provider.@llmProvider, "llmProvider");
+                var modelId = Required(model.@id, "id");
+                cloudTier.Add($"{providerId}\n{modelId}");
+                result.Add(new ModelCapability(
+                    $"cloud/pp-tier/{providerId}/{modelId}",
+                    $"{Required(provider.@displayName, "displayName")} — {Required(model.@displayName, "displayName")}",
+                    providerId, modelId, ModelDeployment.Cloud, ModelWorkload.Text,
+                    ModelSurface.PostProcessing, false, true, [], false,
+                    CloudTierEligible: true, CredentialAccount: "LicenseKey"));
+            }
         }
 
-        foreach (var model in RequiredArray(modelsRoot, "models"))
+        foreach (var model in HyperwhisperCoreMethods.ModelsAllEntries())
         {
-            if (!string.Equals(RequiredString(model, "kind"), "text", StringComparison.Ordinal)) continue;
-            var provider = RequiredString(model, "provider");
+            if (!string.Equals(model.@kind, "text", StringComparison.Ordinal)) continue;
+            var provider = Required(model.@provider, "provider");
             if (provider is "localLLM") continue;
-            var modelId = RequiredStringAllowEmpty(model, "id");
+            var modelId = model.@id;
             result.Add(new ModelCapability(
                 $"cloud/pp-byok/{provider}/{NormalizeEmpty(modelId)}", modelId,
                 provider, modelId, ModelDeployment.Cloud, ModelWorkload.Text,
                 ModelSurface.PostProcessing, false,
-                model.TryGetProperty("supportsAllLanguages", out var all) && all.GetBoolean(),
-                ReadSupportedLanguages(model), false,
+                model.@supportsAllLanguages == true,
+                model.@supportedLanguages,
+                false,
                 CloudTierEligible: cloudTier.Contains($"{provider}\n{modelId}"), ByokEligible: true,
                 CredentialAccount: CredentialAccountFor(provider)));
         }
@@ -210,32 +209,29 @@ public static class UnifiedModelCatalog
         }
     }
 
-    private static IReadOnlyList<string> ReadLanguages(JsonElement provider) =>
-        provider.TryGetProperty("languages", out var languages)
-            && languages.TryGetProperty("codes", out var codes)
-            && codes.ValueKind == JsonValueKind.Array
-            ? codes.EnumerateArray().Select(item => item.GetString() ?? "").Where(item => item.Length > 0).ToArray()
-            : [];
+    /// <summary>
+    /// Whether the provider as a whole declares vocabulary support. The catalog
+    /// field is bool-or-<c>"unverified"</c>; the old raw reader called
+    /// <c>GetBoolean()</c> on it and would have thrown on the next entry that
+    /// used the documented string form. Only an explicit yes counts — the same
+    /// conservative rule the pickers use.
+    /// </summary>
+    private static bool ProviderSupportsVocabulary(SttEntry provider)
+        => provider.@customVocabulary?.@supported == VocabSupport.Yes;
 
-    private static IReadOnlyList<string> ReadSupportedLanguages(JsonElement model) =>
-        model.TryGetProperty("supportedLanguages", out var languages)
-            && languages.ValueKind == JsonValueKind.Array
-            ? languages.EnumerateArray().Select(item => item.GetString() ?? "").Where(item => item.Length > 0).ToArray()
-            : [];
+    /// <summary>
+    /// Raw upstream language codes for a provider; empty when the catalog leaves
+    /// the set <c>"unverified"</c>. Blank entries are dropped, matching the old
+    /// reader's <c>Where(item =&gt; item.Length &gt; 0)</c>.
+    /// </summary>
+    private static IReadOnlyList<string> LanguageCodes(string providerId)
+        => HyperwhisperCoreMethods.CloudSttLanguageCodes(providerId)
+               ?.Where(code => code.Length > 0).ToArray()
+           ?? [];
 
-    private static JsonElement.ArrayEnumerator RequiredArray(JsonElement element, string property) =>
-        element.GetProperty(property).EnumerateArray();
-
-    private static string RequiredString(JsonElement element, string property)
-    {
-        var value = element.GetProperty(property).GetString();
-        return string.IsNullOrWhiteSpace(value)
+    private static string Required(string? value, string property)
+        => string.IsNullOrWhiteSpace(value)
             ? throw new InvalidDataException($"Catalog property '{property}' is required.") : value;
-    }
-
-    private static string RequiredStringAllowEmpty(JsonElement element, string property) =>
-        element.GetProperty(property).GetString()
-        ?? throw new InvalidDataException($"Catalog property '{property}' must be a string.");
 
     private static string NormalizeEmpty(string value) => value.Length == 0 ? "default" : value;
 

@@ -8,5 +8,19 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../HyperWhisper.Application/HyperWhisper.Application.csproj" />
+    <!-- ModelLibraryViewModel builds its capability list from
+         UnifiedModelCatalog, which reads the shared catalogs through the Rust
+         core since issue #280 — so this harness now needs the native library
+         the same way the other application-level harnesses do. -->
+    <Content Include="../../../shared-core-rs/target/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so"
+             Condition="Exists('../../../shared-core-rs/target/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so')">
+      <Link>libhyperwhisper_core.so</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
+
+  <Target Name="EnsureSharedCoreNativeLibrary" BeforeTargets="Build">
+    <Error Condition="!Exists('../../../shared-core-rs/target/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so')"
+           Text="Build shared-core-rs in release mode before running the model-library application tests." />
+  </Target>
 </Project>

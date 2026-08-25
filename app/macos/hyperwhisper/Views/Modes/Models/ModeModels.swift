@@ -430,17 +430,16 @@ enum CloudAccuracyTier: String, CaseIterable, Identifiable {
     }
 
     /// Rows of the Provider dropdown. Normally the catalog's vendor groups;
-    /// falls back to one row per tier if the catalog failed to load (its loader
-    /// returns an EMPTY catalog rather than throwing), so the UI never goes
-    /// empty — the guarantee the old `pickerOrder` fallback carried. The
-    /// fallback rows are keyed by the tier's own raw value, which is exactly
-    /// what `vendorKey` degrades to without a catalog, so the binding still
-    /// round-trips.
+    /// falls back to one row per tier if the shared catalog exposes none, so the
+    /// UI never goes empty — the guarantee the old `pickerOrder` fallback
+    /// carried. The fallback rows are keyed by the tier's own raw value, which
+    /// is exactly what `vendorKey` degrades to without a catalog, so the binding
+    /// still round-trips.
     static var pickerVendorGroups: [CloudSTTCatalog.VendorGroup] {
         let groups = CloudSTTCatalog.shared.cloudTierVendorGroups
         if !groups.isEmpty { return groups }
         return allCases.map {
-            CloudSTTCatalog.VendorGroup(id: $0.rawValue, displayName: $0.displayName, entries: [])
+            CloudSTTCatalog.VendorGroup(vendorKey: $0.rawValue, displayName: $0.displayName, entries: [])
         }
     }
 

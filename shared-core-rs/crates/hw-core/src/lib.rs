@@ -17,7 +17,10 @@ uniffi::setup_scaffolding!("hyperwhisper_core");
 // hw-core is split into per-leaf FFI submodules for organization; this stays
 // the single integration crate (`setup_scaffolding!` lives here in lib.rs).
 mod ffi_backup;
-mod ffi_catalog;
+// Public so `tests/catalog_vectors.rs` can build the golden conformance vectors
+// from the same functions the bindings export. The FFI items are `pub` either
+// way (UniFFI requires it); this only makes the module path reachable in-crate.
+pub mod ffi_catalog;
 mod ffi_completion;
 mod ffi_license;
 mod ffi_net;

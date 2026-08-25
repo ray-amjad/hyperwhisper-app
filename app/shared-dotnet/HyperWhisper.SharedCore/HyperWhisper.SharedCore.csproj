@@ -28,5 +28,12 @@
   <ItemGroup>
     <InternalsVisibleTo Include="HyperWhisper" />
     <InternalsVisibleTo Include="HyperWhisper.SmokeTests" />
+    <!-- Reads the catalog records straight off the binding (issue #280): the
+         unified capability list needs whole rows, not the scalar Portable*
+         helpers, and copying them into a parallel DTO would be the fifth
+         catalog decoder this change exists to delete. -->
+    <InternalsVisibleTo Include="HyperWhisper.ModelReadiness" />
+    <!-- Runs shared-conformance/catalog-vectors.json against the binding. -->
+    <InternalsVisibleTo Include="HyperWhisper.CatalogConformance.Tests" />
   </ItemGroup>
 </Project>

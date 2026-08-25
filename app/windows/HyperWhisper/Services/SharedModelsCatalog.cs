@@ -1,14 +1,16 @@
 // SHARED MODELS CATALOG
-// Loader for shared-models/models-catalog.json — cross-platform source of
-// truth for per-model metadata (custom-vocabulary support, HyperWhisper
-// Cloud routability). See shared-models/CLAUDE.md.
+// Windows facade over shared-models/models-catalog.json — the cross-platform
+// source of truth for per-model metadata (custom-vocabulary support,
+// HyperWhisper Cloud routability, cloud language sets). See shared-models/CLAUDE.md.
+//
+// The native decoder that used to live here (CatalogFile / RawEntry /
+// LoadCatalog / GetEntries, plus the embedded-resource load and its
+// Debug.Assert + Sentry failure reporting) is gone: every lookup already
+// delegated to the Rust core, so nothing outside this file ever called it
+// (issue #280). The catalog JSON is include_str!'d into the core at compile
+// time, so there is no resource to load and no load failure to report.
 
-using System.Diagnostics;
-using System.Reflection;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using HyperWhisper.Models;
-using Sentry;
 // Rust shared-core binding. `HwKind`/`HwLanguageSupport` live here. No collision
 // with the native `CatalogKind`/`LanguageSupport` (different names).
 using uniffi.hyperwhisper_core;
@@ -25,19 +27,6 @@ public enum CatalogKind
     Voice,
     Text
 }
-
-public sealed record CatalogEntry(
-    string Provider,
-    string Id,
-    string Kind,
-    bool SupportsCustomVocabulary,
-    bool AvailableViaHyperWhisperCloud,
-    IReadOnlyList<string> Platforms,
-    string? DisplayName,
-    string? Notes,
-    IReadOnlyList<string>? SupportedLanguages = null,
-    bool? IsEnglishOnly = null,
-    bool? SupportsAllLanguages = null);
 
 /// <summary>
 /// Resolved language-filter capability for a single (cloud) voice model.
@@ -67,139 +56,16 @@ public sealed class LanguageSupport
 }
 
 /// <summary>
-/// Loads <c>shared-models/models-catalog.json</c> once on first access and
-/// exposes per-model metadata that's defined cross-platform.
+/// Per-model metadata from the shared catalog, resolved by the Rust core.
 ///
-/// Lookup precedence (mirrors macOS <c>SharedModelsCatalog.swift</c>):
+/// Lookup precedence (owned by <c>hw-catalog</c>, identical on every platform):
 ///   1. Exact <c>(provider, kind, id)</c>
 ///   2. Wildcard <c>(provider, kind, "*")</c>
-///   3. Defaults <c>(false, false)</c>
-///
-/// Missing or malformed catalog ⇒ DEBUG asserts to surface the regression
-/// immediately, RELEASE captures a single Sentry event so the failure isn't
-/// silent. The catalog is small (≤ 50 entries) so the lookup is on the hot
-/// path of <see cref="ModelLibraryManager.Rebuild"/>.
+///   3. Miss ⇒ <c>false</c> for both flags, and "every language" for the
+///      language filter, so an uncatalogued model is never wrongly hidden.
 /// </summary>
 public static class SharedModelsCatalog
 {
-    private const string ResourceName = "HyperWhisper.SharedModels.models-catalog.json";
-
-    private enum LoadStatus { Loaded, Absent, Malformed }
-
-    private static readonly Lazy<LoadResult> Catalog = new(LoadCatalog, isThreadSafe: true);
-    private static readonly object ReportLock = new();
-    private static bool _reportedLoadFailure;
-
-    private sealed record LoadResult(
-        LoadStatus Status,
-        Dictionary<(string Provider, CatalogKind Kind, string Id), CatalogEntry> Entries,
-        string? Detail);
-
-    private static LoadResult LoadCatalog()
-    {
-        var map = new Dictionary<(string, CatalogKind, string), CatalogEntry>();
-
-        try
-        {
-            var assembly = Assembly.GetExecutingAssembly();
-            using var stream = assembly.GetManifestResourceStream(ResourceName);
-            if (stream == null)
-            {
-                return new LoadResult(LoadStatus.Absent, map, $"embedded resource '{ResourceName}' not found");
-            }
-
-            var options = new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true,
-                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-            };
-
-            var file = JsonSerializer.Deserialize<CatalogFile>(stream, options);
-            if (file?.Models == null)
-            {
-                return new LoadResult(LoadStatus.Malformed, map, "parsed file has no models array");
-            }
-
-            foreach (var raw in file.Models)
-            {
-                if (raw == null) continue;
-                if (string.IsNullOrEmpty(raw.Provider) || raw.Id == null) continue;
-
-                var kindString = raw.Kind ?? "voice";
-                var kind = ParseKind(kindString);
-
-                var entry = new CatalogEntry(
-                    Provider: raw.Provider,
-                    Id: raw.Id,
-                    Kind: kindString,
-                    SupportsCustomVocabulary: raw.SupportsCustomVocabulary,
-                    AvailableViaHyperWhisperCloud: raw.AvailableViaHyperWhisperCloud,
-                    Platforms: (IReadOnlyList<string>?)raw.Platforms ?? Array.Empty<string>(),
-                    DisplayName: raw.DisplayName,
-                    Notes: raw.Notes,
-                    SupportedLanguages: (IReadOnlyList<string>?)raw.SupportedLanguages,
-                    IsEnglishOnly: raw.IsEnglishOnly,
-                    SupportsAllLanguages: raw.SupportsAllLanguages);
-                map[(raw.Provider, kind, raw.Id)] = entry;
-            }
-
-            return new LoadResult(LoadStatus.Loaded, map, null);
-        }
-        catch (Exception ex)
-        {
-            return new LoadResult(LoadStatus.Malformed, map, ex.Message);
-        }
-    }
-
-    private static CatalogKind ParseKind(string raw) => raw switch
-    {
-        "text" => CatalogKind.Text,
-        _ => CatalogKind.Voice
-    };
-
-    private static Dictionary<(string Provider, CatalogKind Kind, string Id), CatalogEntry>? GetEntries()
-    {
-        var result = Catalog.Value;
-        if (result.Status == LoadStatus.Loaded)
-        {
-            return result.Entries;
-        }
-
-        ReportLoadFailureOnce(result.Status, result.Detail);
-        return null;
-    }
-
-    private static void ReportLoadFailureOnce(LoadStatus status, string? detail)
-    {
-        lock (ReportLock)
-        {
-            if (_reportedLoadFailure) return;
-            _reportedLoadFailure = true;
-        }
-
-        var label = status == LoadStatus.Absent ? "absent" : "malformed";
-        var message = $"SharedModelsCatalog load failed ({label}): {detail ?? "unknown"}";
-
-        LoggingService.Warn(message);
-
-        // DEBUG: trip an assertion so a developer notices immediately during
-        // a clean build. The embedded resource being dropped from the csproj
-        // is the usual culprit.
-        Debug.Assert(false, message + ". Check the EmbeddedResource for models-catalog.json in HyperWhisper.csproj.");
-
-        // RELEASE: surface a single Sentry event so a regression in the
-        // bundle layout isn't silent. Logger alone goes unnoticed in prod.
-        try
-        {
-            SentrySdk.CaptureMessage(message, SentryLevel.Error);
-        }
-        catch
-        {
-            // Sentry might not be initialized yet — never let telemetry
-            // crash the row builder.
-        }
-    }
-
     /// <summary>Map the native <see cref="CatalogKind"/> to the shared-core <c>HwKind</c>.</summary>
     private static HwKind ToHwKind(CatalogKind kind) => kind switch
     {
@@ -208,24 +74,19 @@ public static class SharedModelsCatalog
         _ => HwKind.Voice
     };
 
-    // TODO-verify (Windows/CI): Rust shared-core swap.
     public static bool SupportsCustomVocabulary(string provider, CatalogKind kind, string id)
         => HyperwhisperCoreMethods.ModelsSupportsCustomVocabulary(provider, ToHwKind(kind), id ?? "");
 
-    // TODO-verify (Windows/CI): Rust shared-core swap.
     public static bool AvailableViaHyperWhisperCloud(string provider, CatalogKind kind, string id)
         => HyperwhisperCoreMethods.ModelsAvailableViaHwCloud(provider, ToHwKind(kind), id ?? "");
 
     /// <summary>
     /// Language-filter capability for a CLOUD voice model. Local providers carry
     /// no language data in the catalog (their rows are wildcards), so callers
-    /// resolve those in-code. A cloud row with neither <c>SupportedLanguages</c>
-    /// nor <c>SupportsAllLanguages</c> returns <see cref="LanguageSupport.SupportsAll"/>
+    /// resolve those in-code. A cloud row with neither <c>supportedLanguages</c>
+    /// nor <c>supportsAllLanguages</c> returns <see cref="LanguageSupport.SupportsAll"/>
     /// = true so an uncatalogued model is never wrongly hidden.
     /// </summary>
-    // TODO-verify (Windows/CI): Rust shared-core swap. Core resolves the wildcard
-    // fallback + "uncatalogued ⇒ supportsAll" rule; we adapt its HwLanguageSupport
-    // to the app-facing LanguageSupport.
     public static LanguageSupport GetLanguageSupport(string provider, CatalogKind kind, string id)
     {
         HwLanguageSupport support = HyperwhisperCoreMethods.ModelsLanguageSupport(provider, ToHwKind(kind), id ?? "");
@@ -279,30 +140,4 @@ public static class SharedModelsCatalog
     public const string LocalWhisperKey = "localWhisper";
     public const string ParakeetKey = "parakeet";
     public const string LocalLlmKey = "localLLM";
-
-    // -------------------------------------------------------------------------
-    // Internal JSON shape — kept private; callers consume CatalogEntry instead.
-    // -------------------------------------------------------------------------
-
-    private sealed class CatalogFile
-    {
-        [JsonPropertyName("schemaVersion")] public int SchemaVersion { get; set; }
-        [JsonPropertyName("lastUpdated")] public string? LastUpdated { get; set; }
-        [JsonPropertyName("models")] public List<RawEntry>? Models { get; set; }
-    }
-
-    private sealed class RawEntry
-    {
-        [JsonPropertyName("provider")] public string Provider { get; set; } = "";
-        [JsonPropertyName("id")] public string Id { get; set; } = "";
-        [JsonPropertyName("kind")] public string? Kind { get; set; }
-        [JsonPropertyName("supportsCustomVocabulary")] public bool SupportsCustomVocabulary { get; set; }
-        [JsonPropertyName("availableViaHyperWhisperCloud")] public bool AvailableViaHyperWhisperCloud { get; set; }
-        [JsonPropertyName("platforms")] public List<string>? Platforms { get; set; }
-        [JsonPropertyName("displayName")] public string? DisplayName { get; set; }
-        [JsonPropertyName("notes")] public string? Notes { get; set; }
-        [JsonPropertyName("supportedLanguages")] public List<string>? SupportedLanguages { get; set; }
-        [JsonPropertyName("isEnglishOnly")] public bool? IsEnglishOnly { get; set; }
-        [JsonPropertyName("supportsAllLanguages")] public bool? SupportsAllLanguages { get; set; }
-    }
 }

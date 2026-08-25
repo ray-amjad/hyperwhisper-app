@@ -4,11 +4,15 @@
 //
 //  Guards the Model Library language filter's single source of truth:
 //  shared-models/models-catalog.json carries per-model CLOUD language sets that
-//  Windows reads directly and macOS reads for cloud rows. Those values are a
-//  mirror of macOS `STTCapabilities.swift` (the authoritative per-model cloud
+//  every platform reads through the shared Rust core. Those values are a mirror
+//  of macOS `STTCapabilities.swift` (the authoritative per-model cloud
 //  registry). This test asserts they never drift — if someone edits one without
 //  the other, it fails. Local-model language sets are NOT in the catalog (the
 //  catalog's local rows are wildcards), so they're out of scope here.
+//
+//  `SharedModelsCatalog.allEntries()` now returns the shared core's rows
+//  (issue #280 deleted the macOS-only decoder that used to back it), so this
+//  guard and the app read exactly the same data.
 //
 
 import Foundation
