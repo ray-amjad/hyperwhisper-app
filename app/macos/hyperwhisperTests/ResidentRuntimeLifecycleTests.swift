@@ -257,7 +257,7 @@ struct ResidentRuntimeLifecycleTests {
         // proves it must. That reload frees runtime-1 itself and installs
         // runtime-2.
         let claimDuringEviction = await registry.markBusy(id: "stt")
-        #expect(claimDuringEviction == .evicting)
+        #expect(claimDuringEviction.result == .evicting)
         await owner.load(forceReload: true)
 
         // Now let the parked teardown run. It was sent for the generation that
@@ -275,7 +275,7 @@ struct ResidentRuntimeLifecycleTests {
         // And the fresh entry is intact, so the next pass gets a real claim
         // rather than being told the model could not be reclaimed.
         let claimAfterEviction = await registry.markBusy(id: "stt")
-        #expect(claimAfterEviction == .claimed)
+        #expect(claimAfterEviction.result == .claimed)
         let resident = await registry.snapshot()
         #expect(resident.ids == ["stt"])
 
@@ -308,7 +308,7 @@ struct ResidentRuntimeLifecycleTests {
         let stoodDown = await owner.teardownsThatStoodDown
         #expect(stoodDown == 0)
         let claimAfterEviction = await registry.markBusy(id: "stt")
-        #expect(claimAfterEviction == .notResident)
+        #expect(claimAfterEviction.result == .notResident)
 
         teardownParked.open()
     }
@@ -352,7 +352,7 @@ struct ResidentRuntimeLifecycleTests {
         let acquisition: ResidentRuntimeClaim.Acquisition<String> =
             await ResidentRuntimeClaim.acquire(
                 claim: { await registry.markBusy(id: "stt") },
-                release: { await registry.markIdle(id: "stt") },
+                release: { await registry.markIdle($0) },
                 runtime: { await owner.currentRuntime() },
                 reload: { await owner.reload(after: $0) }
             )
@@ -414,7 +414,7 @@ private extension ResidentRuntimeClaim.Acquisition {
     /// The claimed runtime, or `nil` for `.unavailable`. (`ResidentRuntimeClaimTests`
     /// has its own copy; these are separate files and neither is production API.)
     var claimedRuntimeForTest: Runtime? {
-        if case .claimed(let runtime) = self { return runtime }
+        if case .claimed(let runtime, _) = self { return runtime }
         return nil
     }
 }

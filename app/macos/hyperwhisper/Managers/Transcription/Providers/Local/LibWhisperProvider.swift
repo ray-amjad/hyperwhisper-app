@@ -284,7 +284,7 @@ class LibWhisperProvider: TranscriptionProvider {
         let acquisition: ResidentRuntimeClaim.Acquisition<WhisperContext> =
             try await ResidentRuntimeClaim.acquire(
                 claim: { await ModelResidencyRegistry.shared.markBusy(id: libWhisperResidencyId) },
-                release: { await ModelResidencyRegistry.shared.markIdle(id: libWhisperResidencyId) },
+                release: { await ModelResidencyRegistry.shared.markIdle($0) },
                 runtime: { self.whisperContext },
                 reload: { refusal in
                     guard let modelName = self.currentModel?.name else {
@@ -311,9 +311,16 @@ class LibWhisperProvider: TranscriptionProvider {
             )
 
         let context: WhisperContext
+        // The token travels with the context for the rest of this pass: it is
+        // the only thing that can repay the claim taken above, and every exit
+        // below releases with THIS one rather than with the id. A pass that
+        // finishes after a model switch would otherwise repay itself out of the
+        // switched-to runtime's claim.
+        let claimToken: ModelResidencyRegistry.ClaimToken
         switch acquisition {
-        case .claimed(let live):
+        case .claimed(let live, let token):
             context = live
+            claimToken = token
         case .unavailable(let stillEvicting):
             // Reloaded fine and lost it again: pressure is sustained, and
             // retrying here would livelock. Fail honestly, in the dedicated
@@ -326,7 +333,7 @@ class LibWhisperProvider: TranscriptionProvider {
         // The reload above may have taken seconds. If the user cancelled during
         // it, stop here — we hold a claim, so release it on the way out.
         if cancellationEpoch != epoch {
-            await ModelResidencyRegistry.shared.markIdle(id: libWhisperResidencyId)
+            await ModelResidencyRegistry.shared.markIdle(claimToken)
             logger.info("Transcription cancelled before decoding started")
             throw TranscriptionError.streamingInterrupted
         }
@@ -464,10 +471,10 @@ class LibWhisperProvider: TranscriptionProvider {
         // it once the pass finishes, on every exit path.
         do {
             let output = try await task.value
-            await ModelResidencyRegistry.shared.markIdle(id: libWhisperResidencyId)
+            await ModelResidencyRegistry.shared.markIdle(claimToken)
             return output
         } catch {
-            await ModelResidencyRegistry.shared.markIdle(id: libWhisperResidencyId)
+            await ModelResidencyRegistry.shared.markIdle(claimToken)
             if error is CancellationError {
                 logger.info("Transcription cancelled")
                 throw TranscriptionError.streamingInterrupted

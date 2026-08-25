@@ -56,23 +56,34 @@ import Foundation
 ///
 /// ## The contract, which the caller must honor exactly
 ///
-/// - `.claimed` — the caller holds EXACTLY ONE claim and owns the matching
-///   release (`ModelResidencyRegistry.markIdle`). It must run on every exit path.
+/// - `.claimed` — the caller holds EXACTLY ONE claim, named by the
+///   `ModelResidencyRegistry.ClaimToken` handed back alongside the runtime, and
+///   owns the matching `markIdle(_:)` for THAT token. It must run on every exit
+///   path.
 /// - `.unavailable`, or any error thrown out of `reload` — the caller holds NO
-///   claim and must NOT release. Releasing anyway would decrement somebody
-///   else's claim and expose their runtime to eviction mid-use.
+///   claim and has no token to release with. A token kept from an earlier
+///   attempt names a claim this helper already repaid — every token names one
+///   individual claim, by serial — so releasing it repays nothing and is
+///   refused as unmatched. The one genuinely harmful release is with a token
+///   belonging to another in-flight operation, which repays THAT operation's
+///   claim and exposes its runtime to eviction mid-use.
 ///
-/// The release BEFORE the reload is not tidiness, it is required: `register(...)`
-/// overwrites the entry with `useCount: 0`, so a claim held across a reload is
-/// silently erased and can never be repaid (`markIdle` floors at 0), pinning the
-/// model resident for the rest of the session.
+/// The release BEFORE the reload is not tidiness, it is required — though no
+/// longer for the reason it originally was. A claim now survives the
+/// `deregister`/`register` a reload performs, so carrying one across is no
+/// longer silently erased. What makes it wrong is arithmetic: after the reload
+/// this helper takes a SECOND claim and returns exactly ONE token, so a first
+/// claim carried across would be unrepayable by the caller and would pin the
+/// model resident for the rest of the session. One token out, one claim
+/// outstanding — the release below is what keeps those two numbers equal.
 enum ResidentRuntimeClaim {
 
     /// The outcome of `acquire(claim:release:runtime:reload:)`.
     enum Acquisition<Runtime> {
         /// The runtime is claimed and safe to use for this operation. The caller
-        /// holds exactly one claim and owns the release.
-        case claimed(Runtime)
+        /// holds exactly one claim, and the token beside the runtime is the only
+        /// thing that can give it back — see `ModelResidencyRegistry.markIdle`.
+        case claimed(Runtime, ModelResidencyRegistry.ClaimToken)
         /// No runtime could be claimed, even after one reload attempt. The
         /// caller holds nothing and must not release.
         ///
@@ -92,8 +103,8 @@ enum ResidentRuntimeClaim {
     /// reload while holding a claim:
     ///
     /// 1. Claim. If the claim is honored AND the runtime is still there, it
-    ///    cannot now be evicted mid-use (`evict` skips any entry with
-    ///    `useCount > 0`), so hand it straight back.
+    ///    cannot now be evicted mid-use (`evict` skips any slot with a live
+    ///    claim on it), so hand it straight back with its token.
     /// 2. Otherwise the runtime is gone or going. Give back a claim we may have
     ///    taken on it, THEN reload.
     /// 3. Claim the freshly registered entry and re-read. Anything else is
@@ -107,8 +118,9 @@ enum ResidentRuntimeClaim {
     /// - Parameters:
     ///   - claim: Takes a residency claim. Typically
     ///     `ModelResidencyRegistry.markBusy(id:)`.
-    ///   - release: Gives back one honored claim. Typically `markIdle(id:)`.
-    ///     Only ever called here for a claim this call itself took.
+    ///   - release: Gives back one honored claim, by its token. Typically
+    ///     `markIdle(_:)`. Only ever called here for a claim this call itself
+    ///     took, and only ever with that claim's own token.
     ///   - runtime: Reads the caller's current runtime, `nil` when it has been
     ///     freed. Must be re-read (not captured beforehand) — reading it early
     ///     is the bug. `async` so a test can hold the runtime behind an actor;
@@ -135,29 +147,35 @@ enum ResidentRuntimeClaim {
     ///       teardown recognise itself as superseded.
     /// - Returns: `.claimed` holding the live runtime, or `.unavailable`.
     static func acquire<Runtime>(
-        claim: () async -> ModelResidencyRegistry.ClaimResult,
-        release: () async -> Void,
+        claim: () async -> ModelResidencyRegistry.ClaimReceipt,
+        release: (ModelResidencyRegistry.ClaimToken) async -> Void,
         runtime: () async -> Runtime?,
         reload: (ModelResidencyRegistry.ClaimResult) async throws -> Void
     ) async rethrows -> Acquisition<Runtime> {
-        // One claim/read/release triple. Returns the live runtime with exactly
-        // one claim outstanding, or `nil` with NOTHING outstanding — including
-        // the awkward middle case, an honored claim on a runtime that has
-        // already gone, where the claim protects nothing and is given back here
-        // rather than carried into the reload that would erase it.
-        func attempt() async -> (runtime: Runtime?, refusal: ModelResidencyRegistry.ClaimResult) {
-            let result = await claim()
-            guard result.isHonored else { return (nil, result) }
+        // One claim/read/release triple. Returns the live runtime AND the token
+        // for the one claim outstanding on it, or `nil` for both with NOTHING
+        // outstanding — including the awkward middle case, an honored claim on a
+        // runtime that has already gone, where the claim protects nothing and is
+        // given back here rather than carried into a reload that hands back a
+        // different token.
+        //
+        // `runtime` and `token` are non-nil together or nil together, by
+        // construction. They are returned as separate optionals rather than one
+        // tuple because the caller binds them with `if let`, and there is no
+        // shape that lets the compiler prove the pairing for us.
+        func attempt() async -> (runtime: Runtime?, token: ModelResidencyRegistry.ClaimToken?, refusal: ModelResidencyRegistry.ClaimResult) {
+            let receipt = await claim()
+            guard let token = receipt.token else { return (nil, nil, receipt.result) }
             if let live = await runtime() {
-                return (live, result)
+                return (live, token, receipt.result)
             }
-            await release()
-            return (nil, result)
+            await release(token)
+            return (nil, nil, receipt.result)
         }
 
         let first = await attempt()
-        if let live = first.runtime {
-            return .claimed(live)
+        if let live = first.runtime, let token = first.token {
+            return .claimed(live, token)
         }
         // `first.refusal` is `.claimed` in the awkward middle case (honored
         // claim, runtime already gone) — the claim was given back inside
@@ -165,8 +183,8 @@ enum ResidentRuntimeClaim {
         // an ordinary reload rebuilds. Only `.evicting` needs forcing.
         try await reload(first.refusal)
         let second = await attempt()
-        if let live = second.runtime {
-            return .claimed(live)
+        if let live = second.runtime, let token = second.token {
+            return .claimed(live, token)
         }
         return .unavailable(stillEvicting: second.refusal == .evicting)
     }

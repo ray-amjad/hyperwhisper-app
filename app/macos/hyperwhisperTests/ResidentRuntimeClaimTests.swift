@@ -43,6 +43,10 @@ private actor ClaimProbe {
     /// because an owner that cannot tell `.evicting` from `.notResident` picks
     /// the wrong reload for one of them — see `acquire`'s `reload` parameter.
     private(set) var reloadReasons: [ModelResidencyRegistry.ClaimResult] = []
+    /// Every token handed to `release()`, in order. The counts already say a
+    /// claim was repaid; this says WHICH one, so a test can tell the first
+    /// attempt's claim from the second's rather than trusting they cannot cross.
+    private(set) var releasedTokens: [ModelResidencyRegistry.ClaimToken] = []
 
     init(
         claimAnswers: [ModelResidencyRegistry.ClaimResult],
@@ -57,19 +61,37 @@ private actor ClaimProbe {
     }
 
     /// Stands in for `ModelResidencyRegistry.markBusy(id:)`.
-    func claim() -> ModelResidencyRegistry.ClaimResult {
+    ///
+    /// The script is still written in `ClaimResult`, because that is the
+    /// vocabulary `reload` and the `events` log speak in. The token is minted
+    /// here the way the real registry mints one — a distinct identity per
+    /// honored claim — so the two attempts in one `acquire` are distinguishable.
+    func claim() -> ModelResidencyRegistry.ClaimReceipt {
         let result = claimAttempts < claimAnswers.count ? claimAnswers[claimAttempts] : .notResident
         claimAttempts += 1
         if result.isHonored {
             honoredClaims += 1
         }
         events.append("claim.\(result)")
-        return result
+        return ModelResidencyRegistry.ClaimReceipt(
+            result: result,
+            // 1-based, matching the registry: attempt 1 gets serial 1. Each
+            // attempt stands for a claim on a freshly reloaded runtime, so the
+            // generation advances with it.
+            token: result.isHonored
+                ? ModelResidencyRegistry.ClaimToken(
+                    id: "probe",
+                    generation: UInt64(claimAttempts),
+                    serial: UInt64(claimAttempts)
+                )
+                : nil
+        )
     }
 
-    /// Stands in for `ModelResidencyRegistry.markIdle(id:)`.
-    func release() {
+    /// Stands in for `ModelResidencyRegistry.markIdle(_:)`.
+    func release(_ token: ModelResidencyRegistry.ClaimToken) {
         releases += 1
+        releasedTokens.append(token)
         events.append("release")
     }
 
@@ -102,7 +124,15 @@ private actor ClaimProbe {
 private extension ResidentRuntimeClaim.Acquisition {
     /// The claimed runtime, or `nil` for `.unavailable`.
     var claimedRuntime: Runtime? {
-        if case .claimed(let runtime) = self { return runtime }
+        if case .claimed(let runtime, _) = self { return runtime }
+        return nil
+    }
+
+    /// The token handed back beside a claimed runtime, or `nil` for
+    /// `.unavailable`. This is the only thing that can repay the claim the
+    /// caller now holds, so WHICH token it is matters.
+    var claimedToken: ModelResidencyRegistry.ClaimToken? {
+        if case .claimed(_, let token) = self { return token }
         return nil
     }
 
@@ -126,7 +156,7 @@ struct ResidentRuntimeClaimTests {
         let acquisition: ResidentRuntimeClaim.Acquisition<String> =
             try await ResidentRuntimeClaim.acquire(
                 claim: { await probe.claim() },
-                release: { await probe.release() },
+                release: { await probe.release($0) },
                 runtime: { await probe.currentRuntime() },
                 reload: { try await probe.reload(after: $0) }
             )
@@ -155,7 +185,7 @@ struct ResidentRuntimeClaimTests {
         let acquisition: ResidentRuntimeClaim.Acquisition<String> =
             try await ResidentRuntimeClaim.acquire(
                 claim: { await probe.claim() },
-                release: { await probe.release() },
+                release: { await probe.release($0) },
                 runtime: { await probe.currentRuntime() },
                 reload: { try await probe.reload(after: $0) }
             )
@@ -192,7 +222,7 @@ struct ResidentRuntimeClaimTests {
         let acquisition: ResidentRuntimeClaim.Acquisition<String> =
             try await ResidentRuntimeClaim.acquire(
                 claim: { await probe.claim() },
-                release: { await probe.release() },
+                release: { await probe.release($0) },
                 runtime: { await probe.currentRuntime() },
                 reload: { try await probe.reload(after: $0) }
             )
@@ -222,7 +252,7 @@ struct ResidentRuntimeClaimTests {
         let acquisition: ResidentRuntimeClaim.Acquisition<String> =
             try await ResidentRuntimeClaim.acquire(
                 claim: { await probe.claim() },
-                release: { await probe.release() },
+                release: { await probe.release($0) },
                 runtime: { await probe.currentRuntime() },
                 reload: { try await probe.reload(after: $0) }
             )
@@ -256,7 +286,7 @@ struct ResidentRuntimeClaimTests {
         let acquisition: ResidentRuntimeClaim.Acquisition<String> =
             try await ResidentRuntimeClaim.acquire(
                 claim: { await probe.claim() },
-                release: { await probe.release() },
+                release: { await probe.release($0) },
                 runtime: { await probe.currentRuntime() },
                 reload: { try await probe.reload(after: $0) }
             )
@@ -287,7 +317,7 @@ struct ResidentRuntimeClaimTests {
             let acquisition: ResidentRuntimeClaim.Acquisition<String> =
                 try await ResidentRuntimeClaim.acquire(
                     claim: { await probe.claim() },
-                    release: { await probe.release() },
+                    release: { await probe.release($0) },
                     runtime: { await probe.currentRuntime() },
                     reload: { try await probe.reload(after: $0) }
                 )
@@ -320,7 +350,7 @@ struct ResidentRuntimeClaimTests {
         let acquisition: ResidentRuntimeClaim.Acquisition<String> =
             try await ResidentRuntimeClaim.acquire(
                 claim: { await probe.claim() },
-                release: { await probe.release() },
+                release: { await probe.release($0) },
                 runtime: { await probe.currentRuntime() },
                 reload: { try await probe.reload(after: $0) }
             )
@@ -335,5 +365,48 @@ struct ResidentRuntimeClaimTests {
         #expect(outstanding == 0)
         let events = await probe.events
         #expect(events == ["claim.evicting", "reload", "claim.evicting"])
+    }
+
+    /// The one place in this helper where two claims exist in the same call, and
+    /// therefore the one place their tokens can be crossed.
+    ///
+    /// In the stale-runtime path `acquire` takes a claim, finds the runtime
+    /// gone, gives THAT claim back, reloads, and takes a SECOND one. Two
+    /// identities pass through, and exactly one of each must go each way: the
+    /// first attempt's token is the one released, the second attempt's is the
+    /// one the caller is handed. Getting them the wrong way round would still
+    /// balance the counts — one claim taken per release — while leaving the
+    /// caller holding a token that names a claim already repaid, so its
+    /// `markIdle` would be refused as unmatched and the live claim it actually
+    /// owns would pin the model resident for the session.
+    /// `aStaleClaimOnAMissingRuntimeIsReleasedBeforeTheReload` pins the ORDER of
+    /// these events; this pins their identities.
+    @Test func acquireReleasesTheFirstTokenAndReturnsTheSecond() async throws {
+        let probe = ClaimProbe(
+            claimAnswers: [.claimed, .claimed],
+            runtime: nil,
+            runtimeAfterReload: "reloaded-context"
+        )
+
+        let acquisition: ResidentRuntimeClaim.Acquisition<String> =
+            try await ResidentRuntimeClaim.acquire(
+                claim: { await probe.claim() },
+                release: { await probe.release($0) },
+                runtime: { await probe.currentRuntime() },
+                reload: { try await probe.reload(after: $0) }
+            )
+
+        #expect(acquisition.claimedRuntime == "reloaded-context")
+        // Exactly one release, and it named the FIRST attempt's claim — the one
+        // taken on a runtime that had already gone.
+        let released = await probe.releasedTokens
+        #expect(released == [ModelResidencyRegistry.ClaimToken(id: "probe", generation: 1, serial: 1)])
+        // The caller is handed the SECOND attempt's, which is the one still
+        // outstanding and the only one its own `markIdle` can repay.
+        let handedBack = try #require(acquisition.claimedToken)
+        #expect(handedBack == ModelResidencyRegistry.ClaimToken(id: "probe", generation: 2, serial: 2))
+        #expect(!released.contains(handedBack))
+        let outstanding = await probe.outstandingClaims
+        #expect(outstanding == 1)
     }
 }
