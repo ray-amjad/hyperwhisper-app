@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <!-- The app-type classifier for EVERY .NET head. It lived in
+       app/windows/HyperWhisper/Services/AppClassification/ until issue #279;
+       Linux had no classifier at all, so `AppType` kept its `other` default and
+       the Sensitive screen-OCR gate in the shared prompt builder never fired. -->
+  <ItemGroup>
+    <ProjectReference Include="../HyperWhisper.SharedCore/HyperWhisper.SharedCore.csproj" />
+  </ItemGroup>
+</Project>

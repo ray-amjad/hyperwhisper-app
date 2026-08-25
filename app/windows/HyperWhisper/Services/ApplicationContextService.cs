@@ -19,7 +19,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Windows.Automation;
 using System.Windows.Threading;
-using HyperWhisper.Services.AppClassification;
+using HyperWhisper.AppClassification;
 using HyperWhisper.Services.Platform;
 using PlatformContracts = HyperWhisper.Platform.Abstractions;
 
@@ -422,14 +422,19 @@ public class ApplicationContextService : IDisposable, PlatformContracts.IApplica
                 textFormat = "email";
             }
 
-            var appClassification = AppTypeClassifier.Shared.Classify(
-                processName,
-                browserHost,
-                browserHost == null ? "unknown" : "medium",
-                windowTitle,
-                browserTabTitle,
-                focusedElementType,
-                focusedContent);
+            // The title the classifier sees is the browser tab first, then the
+            // window title. Windows has always composed it this way; the shared
+            // core takes an already-composed string so each head keeps that
+            // choice (issue #279).
+            var classifierTitle = string.Join(" ", new[] { browserTabTitle, windowTitle }
+                .Where(value => !string.IsNullOrWhiteSpace(value)));
+
+            var appClassification = AppTypeClassifier.Classify(new AppClassificationRequest(
+                ProcessName: processName,
+                Host: browserHost,
+                HostConfidence: browserHost == null ? "unknown" : "medium",
+                Title: classifierTitle,
+                FocusedPieces: [focusedElementType ?? string.Empty, focusedContent ?? string.Empty]));
 
             if (appClassification.AppType == AppType.Other
                 && string.Equals(category, "Web Browser", StringComparison.OrdinalIgnoreCase)
@@ -939,24 +944,11 @@ public class ApplicationContextService : IDisposable, PlatformContracts.IApplica
     // TEXT FORMAT INFERENCE
     // =========================================================================
 
-    private static readonly string[] WebmailKeywords =
-    [
-        "gmail", "inbox", "mail.google",
-        "outlook.live", "outlook.office",
-        "mail.yahoo", "yahoo mail",
-        "protonmail", "proton mail",
-        "hey.com",
-        "fastmail",
-        "icloud.com/mail", "icloud mail",
-        "zoho mail",
-        "aol mail"
-    ];
-
-    private static bool IsWebmail(string tabTitle)
-    {
-        var lower = tabTitle.ToLowerInvariant();
-        return WebmailKeywords.Any(keyword => lower.Contains(keyword));
-    }
+    // The keyword list and the email-address fallback both live in hw-catalog
+    // (issue #279). Windows carried the keywords but not the fallback, so a
+    // Google Workspace tab reading "<address> Mail" was webmail on macOS and
+    // not here. The shared answer is macOS's.
+    private static bool IsWebmail(string tabTitle) => AppTypeClassifier.IsWebmail(tabTitle);
 
     /// <summary>
     /// Infers the text format hint from the application category.

@@ -1,0 +1,1223 @@
+{
+  "description": "Golden app-type classification vectors (issue #279). Generated from hw-catalog by `cargo test -p hw-core --test app_type_vectors -- --ignored regenerate`, and run unchanged by Rust, Swift and C#. Covers the 8-element priority order, the title word-boundary rule, the host-suffix rule and the email regex.",
+  "classifications": [
+    {
+      "name": "sensitive: 1Password by bundle id",
+      "rule": "priorityOrder",
+      "request": {
+        "bundleId": "com.1password.1password",
+        "processName": "",
+        "appName": "",
+        "host": null,
+        "hostConfidence": "",
+        "title": "",
+        "focusedPieces": []
+      },
+      "expected": {
+        "appType": "Sensitive",
+        "promptValue": "sensitive",
+        "category": "Sensitive",
+        "textInputFormat": "text",
+        "confidence": "strong",
+        "source": "bundleId",
+        "matched": "com.1password.1password"
+      }
+    },
+    {
+      "name": "email: Outlook by process name",
+      "rule": "priorityOrder",
+      "request": {
+        "bundleId": "",
+        "processName": "OUTLOOK",
+        "appName": "",
+        "host": null,
+        "hostConfidence": "",
+        "title": "",
+        "focusedPieces": []
+      },
+      "expected": {
+        "appType": "Email",
+        "promptValue": "email",
+        "category": "Email Client",
+        "textInputFormat": "email",
+        "confidence": "strong",
+        "source": "processName",
+        "matched": "OUTLOOK"
+      }
+    },
+    {
+      "name": "terminal: konsole by Linux process name",
+      "rule": "priorityOrder",
+      "request": {
+        "bundleId": "",
+        "processName": "konsole",
+        "appName": "",
+        "host": null,
+        "hostConfidence": "",
+        "title": "",
+        "focusedPieces": []
+      },
+      "expected": {
+        "appType": "Terminal",
+        "promptValue": "terminal",
+        "category": "Terminal",
+        "textInputFormat": "command",
+        "confidence": "strong",
+        "source": "processName",
+        "matched": "konsole"
+      }
+    },
+    {
+      "name": "code: VS Code by bundle id",
+      "rule": "priorityOrder",
+      "request": {
+        "bundleId": "com.microsoft.VSCode",
+        "processName": "",
+        "appName": "",
+        "host": null,
+        "hostConfidence": "",
+        "title": "",
+        "focusedPieces": []
+      },
+      "expected": {
+        "appType": "Code",
+        "promptValue": "code",
+        "category": "Code Editor",
+        "textInputFormat": "code",
+        "confidence": "strong",
+        "source": "bundleId",
+        "matched": "com.microsoft.vscode"
+      }
+    },
+    {
+      "name": "ai: claude.ai by host",
+      "rule": "priorityOrder",
+      "request": {
+        "bundleId": "",
+        "processName": "",
+        "appName": "",
+        "host": "claude.ai",
+        "hostConfidence": "",
+        "title": "",
+        "focusedPieces": []
+      },
+      "expected": {
+        "appType": "Ai",
+        "promptValue": "ai",
+        "category": "AI",
+        "textInputFormat": "text",
+        "confidence": "strong",
+        "source": "browserHost",
+        "matched": "claude.ai"
+      }
+    },
+    {
+      "name": "workMessaging: Slack by title",
+      "rule": "priorityOrder",
+      "request": {
+        "bundleId": "",
+        "processName": "",
+        "appName": "",
+        "host": null,
+        "hostConfidence": "",
+        "title": "Acme Team - Slack",
+        "focusedPieces": []
+      },
+      "expected": {
+        "appType": "WorkMessaging",
+        "promptValue": "work_messaging",
+        "category": "Communication",
+        "textInputFormat": "text",
+        "confidence": "medium",
+        "source": "title",
+        "matched": "slack"
+      }
+    },
+    {
+      "name": "personalMessaging: WhatsApp by process name",
+      "rule": "priorityOrder",
+      "request": {
+        "bundleId": "",
+        "processName": "WhatsApp",
+        "appName": "",
+        "host": null,
+        "hostConfidence": "",
+        "title": "",
+        "focusedPieces": []
+      },
+      "expected": {
+        "appType": "PersonalMessaging",
+        "promptValue": "personal_messaging",
+        "category": "Communication",
+        "textInputFormat": "text",
+        "confidence": "strong",
+        "source": "processName",
+        "matched": "WhatsApp"
+      }
+    },
+    {
+      "name": "document: Notion by host",
+      "rule": "priorityOrder",
+      "request": {
+        "bundleId": "",
+        "processName": "",
+        "appName": "",
+        "host": "notion.so",
+        "hostConfidence": "",
+        "title": "",
+        "focusedPieces": []
+      },
+      "expected": {
+        "appType": "Document",
+        "promptValue": "document",
+        "category": "Document",
+        "textInputFormat": "markdown",
+        "confidence": "strong",
+        "source": "browserHost",
+        "matched": "notion.so"
+      }
+    },
+    {
+      "name": "other: nothing matches any signal",
+      "rule": "priorityOrder",
+      "request": {
+        "bundleId": "com.example.nothing",
+        "processName": "nothing",
+        "appName": "Nothing At All",
+        "host": "nothing.example",
+        "hostConfidence": "",
+        "title": "nothing at all",
+        "focusedPieces": []
+      },
+      "expected": {
+        "appType": "Other",
+        "promptValue": "other",
+        "category": "Application",
+        "textInputFormat": "text",
+        "confidence": "unknown",
+        "source": "default",
+        "matched": null
+      }
+    },
+    {
+      "name": "host outranks bundle, process, title and app name",
+      "rule": "priorityOrder",
+      "request": {
+        "bundleId": "com.apple.mail",
+        "processName": "WindowsTerminal",
+        "appName": "Ghostty",
+        "host": "claude.ai",
+        "hostConfidence": "",
+        "title": "1Password",
+        "focusedPieces": []
+      },
+      "expected": {
+        "appType": "Ai",
+        "promptValue": "ai",
+        "category": "AI",
+        "textInputFormat": "text",
+        "confidence": "strong",
+        "source": "browserHost",
+        "matched": "claude.ai"
+      }
+    },
+    {
+      "name": "bundle id outranks process name and title",
+      "rule": "priorityOrder",
+      "request": {
+        "bundleId": "com.apple.mail",
+        "processName": "WindowsTerminal",
+        "appName": "",
+        "host": null,
+        "hostConfidence": "",
+        "title": "Acme Team - Slack",
+        "focusedPieces": []
+      },
+      "expected": {
+        "appType": "Email",
+        "promptValue": "email",
+        "category": "Email Client",
+        "textInputFormat": "email",
+        "confidence": "strong",
+        "source": "bundleId",
+        "matched": "com.apple.mail"
+      }
+    },
+    {
+      "name": "process name outranks title and app name",
+      "rule": "priorityOrder",
+      "request": {
+        "bundleId": "",
+        "processName": "WindowsTerminal",
+        "appName": "1Password",
+        "host": null,
+        "hostConfidence": "",
+        "title": "Acme Team - Slack",
+        "focusedPieces": []
+      },
+      "expected": {
+        "appType": "Terminal",
+        "promptValue": "terminal",
+        "category": "Terminal",
+        "textInputFormat": "command",
+        "confidence": "strong",
+        "source": "processName",
+        "matched": "WindowsTerminal"
+      }
+    },
+    {
+      "name": "title outranks the app name",
+      "rule": "priorityOrder",
+      "request": {
+        "bundleId": "",
+        "processName": "",
+        "appName": "Ghostty",
+        "host": null,
+        "hostConfidence": "",
+        "title": "Acme Team - Slack",
+        "focusedPieces": []
+      },
+      "expected": {
+        "appType": "WorkMessaging",
+        "promptValue": "work_messaging",
+        "category": "Communication",
+        "textInputFormat": "text",
+        "confidence": "medium",
+        "source": "title",
+        "matched": "slack"
+      }
+    },
+    {
+      "name": "app name outranks the focused element",
+      "rule": "priorityOrder",
+      "request": {
+        "bundleId": "",
+        "processName": "",
+        "appName": "Ghostty",
+        "host": null,
+        "hostConfidence": "",
+        "title": "",
+        "focusedPieces": [
+          "Subject"
+        ]
+      },
+      "expected": {
+        "appType": "Terminal",
+        "promptValue": "terminal",
+        "category": "Terminal",
+        "textInputFormat": "command",
+        "confidence": "medium",
+        "source": "appName",
+        "matched": "ghostty"
+      }
+    },
+    {
+      "name": "a bundle id matches case-insensitively",
+      "rule": "priorityOrder",
+      "request": {
+        "bundleId": "COM.APPLE.MAIL",
+        "processName": "",
+        "appName": "",
+        "host": null,
+        "hostConfidence": "",
+        "title": "",
+        "focusedPieces": []
+      },
+      "expected": {
+        "appType": "Email",
+        "promptValue": "email",
+        "category": "Email Client",
+        "textInputFormat": "email",
+        "confidence": "strong",
+        "source": "bundleId",
+        "matched": "com.apple.mail"
+      }
+    },
+    {
+      "name": "a process name matches case-insensitively and reports catalog casing",
+      "rule": "priorityOrder",
+      "request": {
+        "bundleId": "",
+        "processName": "outlook",
+        "appName": "",
+        "host": null,
+        "hostConfidence": "",
+        "title": "",
+        "focusedPieces": []
+      },
+      "expected": {
+        "appType": "Email",
+        "promptValue": "email",
+        "category": "Email Client",
+        "textInputFormat": "email",
+        "confidence": "strong",
+        "source": "processName",
+        "matched": "OUTLOOK"
+      }
+    },
+    {
+      "name": "the app name uses the title keyword rule, at appName/medium",
+      "rule": "priorityOrder",
+      "request": {
+        "bundleId": "",
+        "processName": "",
+        "appName": "Ghostty",
+        "host": null,
+        "hostConfidence": "",
+        "title": "",
+        "focusedPieces": []
+      },
+      "expected": {
+        "appType": "Terminal",
+        "promptValue": "terminal",
+        "category": "Terminal",
+        "textInputFormat": "command",
+        "confidence": "medium",
+        "source": "appName",
+        "matched": "ghostty"
+      }
+    },
+    {
+      "name": "host confidence is passed through from the caller",
+      "rule": "priorityOrder",
+      "request": {
+        "bundleId": "",
+        "processName": "",
+        "appName": "",
+        "host": "claude.ai",
+        "hostConfidence": "manual",
+        "title": "",
+        "focusedPieces": []
+      },
+      "expected": {
+        "appType": "Ai",
+        "promptValue": "ai",
+        "category": "AI",
+        "textInputFormat": "text",
+        "confidence": "manual",
+        "source": "browserHost",
+        "matched": "claude.ai"
+      }
+    },
+    {
+      "name": "an empty host confidence falls back to strong",
+      "rule": "priorityOrder",
+      "request": {
+        "bundleId": "",
+        "processName": "",
+        "appName": "",
+        "host": "claude.ai",
+        "hostConfidence": "",
+        "title": "",
+        "focusedPieces": []
+      },
+      "expected": {
+        "appType": "Ai",
+        "promptValue": "ai",
+        "category": "AI",
+        "textInputFormat": "text",
+        "confidence": "strong",
+        "source": "browserHost",
+        "matched": "claude.ai"
+      }
+    },
+    {
+      "name": "word keyword matches on a word boundary",
+      "rule": "wordBoundary",
+      "request": {
+        "bundleId": "",
+        "processName": "",
+        "appName": "",
+        "host": null,
+        "hostConfidence": "",
+        "title": "Acme Team - Slack",
+        "focusedPieces": []
+      },
+      "expected": {
+        "appType": "WorkMessaging",
+        "promptValue": "work_messaging",
+        "category": "Communication",
+        "textInputFormat": "text",
+        "confidence": "medium",
+        "source": "title",
+        "matched": "slack"
+      }
+    },
+    {
+      "name": "word keyword does NOT match inside a larger word",
+      "rule": "wordBoundary",
+      "request": {
+        "bundleId": "",
+        "processName": "",
+        "appName": "",
+        "host": null,
+        "hostConfidence": "",
+        "title": "decode the message",
+        "focusedPieces": []
+      },
+      "expected": {
+        "appType": "Other",
+        "promptValue": "other",
+        "category": "Application",
+        "textInputFormat": "text",
+        "confidence": "unknown",
+        "source": "default",
+        "matched": null
+      }
+    },
+    {
+      "name": "word keyword does NOT match with a trailing word char",
+      "rule": "wordBoundary",
+      "request": {
+        "bundleId": "",
+        "processName": "",
+        "appName": "",
+        "host": null,
+        "hostConfidence": "",
+        "title": "slackware release notes",
+        "focusedPieces": []
+      },
+      "expected": {
+        "appType": "Other",
+        "promptValue": "other",
+        "category": "Application",
+        "textInputFormat": "text",
+        "confidence": "unknown",
+        "source": "default",
+        "matched": null
+      }
+    },
+    {
+      "name": "word keyword does NOT match across an underscore",
+      "rule": "wordBoundary",
+      "request": {
+        "bundleId": "",
+        "processName": "",
+        "appName": "",
+        "host": null,
+        "hostConfidence": "",
+        "title": "my_slack_export",
+        "focusedPieces": []
+      },
+      "expected": {
+        "appType": "Other",
+        "promptValue": "other",
+        "category": "Application",
+        "textInputFormat": "text",
+        "confidence": "unknown",
+        "source": "default",
+        "matched": null
+      }
+    },
+    {
+      "name": "word keyword matches when punctuation is the boundary",
+      "rule": "wordBoundary",
+      "request": {
+        "bundleId": "",
+        "processName": "",
+        "appName": "",
+        "host": null,
+        "hostConfidence": "",
+        "title": "(slack)",
+        "focusedPieces": []
+      },
+      "expected": {
+        "appType": "WorkMessaging",
+        "promptValue": "work_messaging",
+        "category": "Communication",
+        "textInputFormat": "text",
+        "confidence": "medium",
+        "source": "title",
+        "matched": "slack"
+      }
+    },
+    {
+      "name": "word keyword matches at the very start and end of the title",
+      "rule": "wordBoundary",
+      "request": {
+        "bundleId": "",
+        "processName": "",
+        "appName": "",
+        "host": null,
+        "hostConfidence": "",
+        "title": "slack",
+        "focusedPieces": []
+      },
+      "expected": {
+        "appType": "WorkMessaging",
+        "promptValue": "work_messaging",
+        "category": "Communication",
+        "textInputFormat": "text",
+        "confidence": "medium",
+        "source": "title",
+        "matched": "slack"
+      }
+    },
+    {
+      "name": "a keyword with a space is a plain substring",
+      "rule": "wordBoundary",
+      "request": {
+        "bundleId": "",
+        "processName": "",
+        "appName": "",
+        "host": null,
+        "hostConfidence": "",
+        "title": "My Plan - Google Docs",
+        "focusedPieces": []
+      },
+      "expected": {
+        "appType": "Document",
+        "promptValue": "document",
+        "category": "Document",
+        "textInputFormat": "markdown",
+        "confidence": "medium",
+        "source": "title",
+        "matched": "google docs"
+      }
+    },
+    {
+      "name": "a keyword with a dot is a plain substring, so it matches inside a word",
+      "rule": "wordBoundary",
+      "request": {
+        "bundleId": "",
+        "processName": "",
+        "appName": "",
+        "host": null,
+        "hostConfidence": "",
+        "title": "xrocket.chatx",
+        "focusedPieces": []
+      },
+      "expected": {
+        "appType": "WorkMessaging",
+        "promptValue": "work_messaging",
+        "category": "Communication",
+        "textInputFormat": "text",
+        "confidence": "medium",
+        "source": "title",
+        "matched": "rocket.chat"
+      }
+    },
+    {
+      "name": "keyword matching is case-insensitive",
+      "rule": "wordBoundary",
+      "request": {
+        "bundleId": "",
+        "processName": "",
+        "appName": "",
+        "host": null,
+        "hostConfidence": "",
+        "title": "ACME TEAM - SLACK",
+        "focusedPieces": []
+      },
+      "expected": {
+        "appType": "WorkMessaging",
+        "promptValue": "work_messaging",
+        "category": "Communication",
+        "textInputFormat": "text",
+        "confidence": "medium",
+        "source": "title",
+        "matched": "slack"
+      }
+    },
+    {
+      "name": "a later occurrence still matches after a boundary miss",
+      "rule": "wordBoundary",
+      "request": {
+        "bundleId": "",
+        "processName": "",
+        "appName": "",
+        "host": null,
+        "hostConfidence": "",
+        "title": "slackware and slack",
+        "focusedPieces": []
+      },
+      "expected": {
+        "appType": "WorkMessaging",
+        "promptValue": "work_messaging",
+        "category": "Communication",
+        "textInputFormat": "text",
+        "confidence": "medium",
+        "source": "title",
+        "matched": "slack"
+      }
+    },
+    {
+      "name": "an exact host matches",
+      "rule": "hostSuffix",
+      "request": {
+        "bundleId": "",
+        "processName": "",
+        "appName": "",
+        "host": "notion.so",
+        "hostConfidence": "",
+        "title": "",
+        "focusedPieces": []
+      },
+      "expected": {
+        "appType": "Document",
+        "promptValue": "document",
+        "category": "Document",
+        "textInputFormat": "markdown",
+        "confidence": "strong",
+        "source": "browserHost",
+        "matched": "notion.so"
+      }
+    },
+    {
+      "name": "a dot-delimited subdomain matches",
+      "rule": "hostSuffix",
+      "request": {
+        "bundleId": "",
+        "processName": "",
+        "appName": "",
+        "host": "a.b.notion.so",
+        "hostConfidence": "",
+        "title": "",
+        "focusedPieces": []
+      },
+      "expected": {
+        "appType": "Document",
+        "promptValue": "document",
+        "category": "Document",
+        "textInputFormat": "markdown",
+        "confidence": "strong",
+        "source": "browserHost",
+        "matched": "notion.so"
+      }
+    },
+    {
+      "name": "a host that merely ends with the same letters does NOT match",
+      "rule": "hostSuffix",
+      "request": {
+        "bundleId": "",
+        "processName": "",
+        "appName": "",
+        "host": "evilnotion.so",
+        "hostConfidence": "",
+        "title": "",
+        "focusedPieces": []
+      },
+      "expected": {
+        "appType": "Other",
+        "promptValue": "other",
+        "category": "Application",
+        "textInputFormat": "text",
+        "confidence": "unknown",
+        "source": "default",
+        "matched": null
+      }
+    },
+    {
+      "name": "a catalog host used as a PREFIX does NOT match",
+      "rule": "hostSuffix",
+      "request": {
+        "bundleId": "",
+        "processName": "",
+        "appName": "",
+        "host": "notion.so.evil.example",
+        "hostConfidence": "",
+        "title": "",
+        "focusedPieces": []
+      },
+      "expected": {
+        "appType": "Other",
+        "promptValue": "other",
+        "category": "Application",
+        "textInputFormat": "text",
+        "confidence": "unknown",
+        "source": "default",
+        "matched": null
+      }
+    },
+    {
+      "name": "a scheme is stripped before matching",
+      "rule": "hostSuffix",
+      "request": {
+        "bundleId": "",
+        "processName": "",
+        "appName": "",
+        "host": "https://notion.so/page",
+        "hostConfidence": "",
+        "title": "",
+        "focusedPieces": []
+      },
+      "expected": {
+        "appType": "Document",
+        "promptValue": "document",
+        "category": "Document",
+        "textInputFormat": "markdown",
+        "confidence": "strong",
+        "source": "browserHost",
+        "matched": "notion.so"
+      }
+    },
+    {
+      "name": "a leading www. is stripped before matching",
+      "rule": "hostSuffix",
+      "request": {
+        "bundleId": "",
+        "processName": "",
+        "appName": "",
+        "host": "www.mail.google.com",
+        "hostConfidence": "",
+        "title": "",
+        "focusedPieces": []
+      },
+      "expected": {
+        "appType": "Email",
+        "promptValue": "email",
+        "category": "Email Client",
+        "textInputFormat": "email",
+        "confidence": "strong",
+        "source": "browserHost",
+        "matched": "mail.google.com"
+      }
+    },
+    {
+      "name": "userinfo and a port are stripped before matching",
+      "rule": "hostSuffix",
+      "request": {
+        "bundleId": "",
+        "processName": "",
+        "appName": "",
+        "host": "http://user:pw@mail.google.com:8443/path",
+        "hostConfidence": "",
+        "title": "",
+        "focusedPieces": []
+      },
+      "expected": {
+        "appType": "Email",
+        "promptValue": "email",
+        "category": "Email Client",
+        "textInputFormat": "email",
+        "confidence": "strong",
+        "source": "browserHost",
+        "matched": "mail.google.com"
+      }
+    },
+    {
+      "name": "surrounding whitespace and casing are normalized",
+      "rule": "hostSuffix",
+      "request": {
+        "bundleId": "",
+        "processName": "",
+        "appName": "",
+        "host": "  MAIL.GOOGLE.COM  ",
+        "hostConfidence": "",
+        "title": "",
+        "focusedPieces": []
+      },
+      "expected": {
+        "appType": "Email",
+        "promptValue": "email",
+        "category": "Email Client",
+        "textInputFormat": "email",
+        "confidence": "strong",
+        "source": "browserHost",
+        "matched": "mail.google.com"
+      }
+    },
+    {
+      "name": "a host with an embedded space matches nothing",
+      "rule": "hostSuffix",
+      "request": {
+        "bundleId": "",
+        "processName": "",
+        "appName": "",
+        "host": "https://mail.google.com bogus",
+        "hostConfidence": "",
+        "title": "",
+        "focusedPieces": []
+      },
+      "expected": {
+        "appType": "Other",
+        "promptValue": "other",
+        "category": "Application",
+        "textInputFormat": "text",
+        "confidence": "unknown",
+        "source": "default",
+        "matched": null
+      }
+    },
+    {
+      "name": "an empty host is skipped rather than matched",
+      "rule": "hostSuffix",
+      "request": {
+        "bundleId": "",
+        "processName": "",
+        "appName": "",
+        "host": "   ",
+        "hostConfidence": "",
+        "title": "Acme Team - Slack",
+        "focusedPieces": []
+      },
+      "expected": {
+        "appType": "WorkMessaging",
+        "promptValue": "work_messaging",
+        "category": "Communication",
+        "textInputFormat": "text",
+        "confidence": "medium",
+        "source": "title",
+        "matched": "slack"
+      }
+    },
+    {
+      "name": "focused-element keyword beats the address scan",
+      "rule": "emailRegex",
+      "request": {
+        "bundleId": "",
+        "processName": "",
+        "appName": "",
+        "host": null,
+        "hostConfidence": "",
+        "title": "",
+        "focusedPieces": [
+          "AXTextField",
+          "Subject"
+        ]
+      },
+      "expected": {
+        "appType": "Email",
+        "promptValue": "email",
+        "category": "Email Client",
+        "textInputFormat": "email",
+        "confidence": "medium",
+        "source": "focusedElement",
+        "matched": null
+      }
+    },
+    {
+      "name": "a compose field is email at medium",
+      "rule": "emailRegex",
+      "request": {
+        "bundleId": "",
+        "processName": "",
+        "appName": "",
+        "host": null,
+        "hostConfidence": "",
+        "title": "",
+        "focusedPieces": [
+          "Compose"
+        ]
+      },
+      "expected": {
+        "appType": "Email",
+        "promptValue": "email",
+        "category": "Email Client",
+        "textInputFormat": "email",
+        "confidence": "medium",
+        "source": "focusedElement",
+        "matched": null
+      }
+    },
+    {
+      "name": "a to: prefix is email at medium",
+      "rule": "emailRegex",
+      "request": {
+        "bundleId": "",
+        "processName": "",
+        "appName": "",
+        "host": null,
+        "hostConfidence": "",
+        "title": "",
+        "focusedPieces": [
+          "AXTextField",
+          "To: "
+        ]
+      },
+      "expected": {
+        "appType": "Email",
+        "promptValue": "email",
+        "category": "Email Client",
+        "textInputFormat": "email",
+        "confidence": "medium",
+        "source": "focusedElement",
+        "matched": null
+      }
+    },
+    {
+      "name": "a cc: prefix is email at medium",
+      "rule": "emailRegex",
+      "request": {
+        "bundleId": "",
+        "processName": "",
+        "appName": "",
+        "host": null,
+        "hostConfidence": "",
+        "title": "",
+        "focusedPieces": [
+          "cc:"
+        ]
+      },
+      "expected": {
+        "appType": "Email",
+        "promptValue": "email",
+        "category": "Email Client",
+        "textInputFormat": "email",
+        "confidence": "medium",
+        "source": "focusedElement",
+        "matched": null
+      }
+    },
+    {
+      "name": "a bare address is email at weak",
+      "rule": "emailRegex",
+      "request": {
+        "bundleId": "",
+        "processName": "",
+        "appName": "",
+        "host": null,
+        "hostConfidence": "",
+        "title": "",
+        "focusedPieces": [
+          "AXTextArea",
+          "ray@example.com"
+        ]
+      },
+      "expected": {
+        "appType": "Email",
+        "promptValue": "email",
+        "category": "Email Client",
+        "textInputFormat": "email",
+        "confidence": "weak",
+        "source": "focusedElementText",
+        "matched": null
+      }
+    },
+    {
+      "name": "an address with dots, plus and a multi-label domain matches",
+      "rule": "emailRegex",
+      "request": {
+        "bundleId": "",
+        "processName": "",
+        "appName": "",
+        "host": null,
+        "hostConfidence": "",
+        "title": "",
+        "focusedPieces": [
+          "first.last+tag@sub.example.co.uk"
+        ]
+      },
+      "expected": {
+        "appType": "Email",
+        "promptValue": "email",
+        "category": "Email Client",
+        "textInputFormat": "email",
+        "confidence": "weak",
+        "source": "focusedElementText",
+        "matched": null
+      }
+    },
+    {
+      "name": "an address in parentheses matches",
+      "rule": "emailRegex",
+      "request": {
+        "bundleId": "",
+        "processName": "",
+        "appName": "",
+        "host": null,
+        "hostConfidence": "",
+        "title": "",
+        "focusedPieces": [
+          "(ray@example.com)"
+        ]
+      },
+      "expected": {
+        "appType": "Email",
+        "promptValue": "email",
+        "category": "Email Client",
+        "textInputFormat": "email",
+        "confidence": "weak",
+        "source": "focusedElementText",
+        "matched": null
+      }
+    },
+    {
+      "name": "a one-letter TLD does NOT match",
+      "rule": "emailRegex",
+      "request": {
+        "bundleId": "",
+        "processName": "",
+        "appName": "",
+        "host": null,
+        "hostConfidence": "",
+        "title": "",
+        "focusedPieces": [
+          "ray@example.c"
+        ]
+      },
+      "expected": {
+        "appType": "Other",
+        "promptValue": "other",
+        "category": "Application",
+        "textInputFormat": "text",
+        "confidence": "unknown",
+        "source": "default",
+        "matched": null
+      }
+    },
+    {
+      "name": "a domain with no dot does NOT match",
+      "rule": "emailRegex",
+      "request": {
+        "bundleId": "",
+        "processName": "",
+        "appName": "",
+        "host": null,
+        "hostConfidence": "",
+        "title": "",
+        "focusedPieces": [
+          "ray@example"
+        ]
+      },
+      "expected": {
+        "appType": "Other",
+        "promptValue": "other",
+        "category": "Application",
+        "textInputFormat": "text",
+        "confidence": "unknown",
+        "source": "default",
+        "matched": null
+      }
+    },
+    {
+      "name": "an empty local part does NOT match",
+      "rule": "emailRegex",
+      "request": {
+        "bundleId": "",
+        "processName": "",
+        "appName": "",
+        "host": null,
+        "hostConfidence": "",
+        "title": "",
+        "focusedPieces": [
+          "@example.com"
+        ]
+      },
+      "expected": {
+        "appType": "Other",
+        "promptValue": "other",
+        "category": "Application",
+        "textInputFormat": "text",
+        "confidence": "unknown",
+        "source": "default",
+        "matched": null
+      }
+    },
+    {
+      "name": "a trailing word character after the TLD does NOT match",
+      "rule": "emailRegex",
+      "request": {
+        "bundleId": "",
+        "processName": "",
+        "appName": "",
+        "host": null,
+        "hostConfidence": "",
+        "title": "",
+        "focusedPieces": [
+          "ray@example.com1"
+        ]
+      },
+      "expected": {
+        "appType": "Other",
+        "promptValue": "other",
+        "category": "Application",
+        "textInputFormat": "text",
+        "confidence": "unknown",
+        "source": "default",
+        "matched": null
+      }
+    },
+    {
+      "name": "blank focused pieces are dropped",
+      "rule": "emailRegex",
+      "request": {
+        "bundleId": "",
+        "processName": "",
+        "appName": "",
+        "host": null,
+        "hostConfidence": "",
+        "title": "",
+        "focusedPieces": [
+          "",
+          "   "
+        ]
+      },
+      "expected": {
+        "appType": "Other",
+        "promptValue": "other",
+        "category": "Application",
+        "textInputFormat": "text",
+        "confidence": "unknown",
+        "source": "default",
+        "matched": null
+      }
+    },
+    {
+      "name": "the focused element is tried after every catalog signal",
+      "rule": "emailRegex",
+      "request": {
+        "bundleId": "",
+        "processName": "",
+        "appName": "",
+        "host": null,
+        "hostConfidence": "",
+        "title": "zsh - Terminal",
+        "focusedPieces": [
+          "ray@example.com"
+        ]
+      },
+      "expected": {
+        "appType": "Terminal",
+        "promptValue": "terminal",
+        "category": "Terminal",
+        "textInputFormat": "command",
+        "confidence": "medium",
+        "source": "title",
+        "matched": "terminal"
+      }
+    }
+  ],
+  "webmailTitles": [
+    {
+      "title": "Inbox (12) - Gmail",
+      "expected": true,
+      "branch": "keyword"
+    },
+    {
+      "title": "Mail - outlook.office.com",
+      "expected": true,
+      "branch": "keyword"
+    },
+    {
+      "title": "iCloud Mail",
+      "expected": true,
+      "branch": "keyword"
+    },
+    {
+      "title": "Proton Mail",
+      "expected": true,
+      "branch": "keyword"
+    },
+    {
+      "title": "ray@acme.co Mail",
+      "expected": true,
+      "branch": "address"
+    },
+    {
+      "title": "Acme Team - Slack",
+      "expected": false,
+      "branch": "none"
+    },
+    {
+      "title": "Untitled document",
+      "expected": false,
+      "branch": "none"
+    },
+    {
+      "title": "",
+      "expected": false,
+      "branch": "none"
+    }
+  ]
+}

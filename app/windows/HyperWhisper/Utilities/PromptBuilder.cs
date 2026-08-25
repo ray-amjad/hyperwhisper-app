@@ -28,7 +28,7 @@ using System.Text;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Models;
 using HyperWhisper.Services;
-using HyperWhisper.Services.AppClassification;
+using HyperWhisper.AppClassification;
 using ApplicationContext = HyperWhisper.Services.ApplicationContext;
 // Rust shared-core binding. `Preset`/`HwAppType`/`HwEnglishSpelling`/`PromptContext`
 // live here; collisions with HyperWhisper.* types (PresetType, AppType) are avoided

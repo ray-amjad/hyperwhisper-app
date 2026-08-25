@@ -4,6 +4,13 @@
 //
 //  Shared catalog-backed application classification for app-aware formatting.
 //
+//  The ALGORITHM is not here. Issue #279 moved it into `hw-catalog` and this is
+//  now a facade over `appClassify` / `appIsWebmail`: the 8-element priority
+//  array, the keyword-prep rule, the word-boundary rule, the host-suffix rule
+//  and the email regex existed in Swift, C# and Rust, and had already drifted.
+//  `shared-conformance/app-type-vectors.json`, run by
+//  `AppTypeConformanceVectorTests`, pins the answer this file returns.
+//
 
 import Foundation
 
@@ -65,14 +72,17 @@ public enum AppType: String, Codable {
         }
     }
 
-    var catalogKey: String {
-        switch self {
-        case .workMessaging:
-            return "workMessaging"
-        case .personalMessaging:
-            return "personalMessaging"
-        default:
-            return rawValue
+    fileprivate init(_ classified: ClassifiedAppType) {
+        switch classified {
+        case .email: self = .email
+        case .ai: self = .ai
+        case .workMessaging: self = .workMessaging
+        case .personalMessaging: self = .personalMessaging
+        case .document: self = .document
+        case .code: self = .code
+        case .terminal: self = .terminal
+        case .sensitive: self = .sensitive
+        case .other: self = .other
         }
     }
 }
@@ -84,51 +94,17 @@ public struct AppClassificationResult {
     let matched: String?
 }
 
-private struct AppTypeCatalog: Decodable {
-    let types: [String: AppTypeCatalogEntry]
-}
-
-private struct AppTypeCatalogEntry: Decodable {
-    let macBundleIds: [String]
-    let windowsProcesses: [String]
-    let hosts: [String]
-    let titleKeywords: [String]
-}
-
-private struct PreparedKeyword {
-    let value: String
-    let isSubstring: Bool
-}
-
-private struct PreparedEntry {
-    let type: AppType
-    let bundleIds: [String]
-    let hosts: [String]
-    let titleKeywords: [PreparedKeyword]
-}
-
 public final class AppTypeClassifier {
     public static let shared = AppTypeClassifier()
-    private static let titleBoundaryCharacterSet = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "_"))
-    private static let emailPattern = try? NSRegularExpression(
-        pattern: #"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"#
-    )
 
-    private let catalog: AppTypeCatalog
-    private let preparedEntries: [PreparedEntry]
+    private init() {}
 
-    private init() {
-        let loaded = Self.loadCatalog()
-        self.catalog = loaded
-        self.preparedEntries = Self.prepareEntries(from: loaded)
-    }
-
-    init(catalogData: Data) throws {
-        let decoded = try JSONDecoder().decode(AppTypeCatalog.self, from: catalogData)
-        self.catalog = decoded
-        self.preparedEntries = Self.prepareEntries(from: decoded)
-    }
-
+    /// Classify the frontmost app. Signals are tried in order — host, bundle
+    /// id, title, app name, focused element — and the first hit wins.
+    ///
+    /// `browserTitle` is the browser TAB title, not the window title. Windows
+    /// joins both; the shared core takes an already-composed string, so
+    /// widening this is a change here and nowhere else.
     public func classify(
         bundleId: String,
         appName: String,
@@ -136,165 +112,50 @@ public final class AppTypeClassifier {
         browserTitle: String?,
         focusedElement: FocusedElementInfo?
     ) -> AppClassificationResult {
-        let bundle = bundleId.trimmingCharacters(in: .whitespacesAndNewlines)
-        let host = normalizeHost(browserHost)
-        let title = browserTitle?.lowercased() ?? ""
-        let name = appName.lowercased()
+        let result = appClassify(request: AppClassifyRequest(
+            bundleId: bundleId.trimmingCharacters(in: .whitespacesAndNewlines),
+            processName: "",
+            appName: appName,
+            host: browserHost,
+            // macOS has always reported a host hit as `strong`. Windows reports
+            // `medium` and the Local API `manual`, and that string reaches the
+            // LLM prompt, so the caller owns it rather than the core.
+            hostConfidence: "strong",
+            title: browserTitle ?? "",
+            focusedPieces: Self.focusedPieces(focusedElement)
+        ))
 
-        if let hostMatch = matchHost(host) {
-            return hostMatch
-        }
-
-        if let bundleMatch = matchMacBundle(bundle) {
-            return bundleMatch
-        }
-
-        if let titleMatch = matchTitle(title) {
-            return titleMatch
-        }
-
-        if let nameMatch = matchTitle(name) {
-            return AppClassificationResult(
-                appType: nameMatch.appType,
-                confidence: "medium",
-                source: "appName",
-                matched: nameMatch.matched
-            )
-        }
-
-        if let focusedMatch = matchFocusedElement(focusedElement) {
-            return focusedMatch
-        }
-
-        return AppClassificationResult(appType: .other, confidence: "unknown", source: "default", matched: nil)
+        return AppClassificationResult(
+            appType: AppType(result.appType),
+            confidence: result.confidence,
+            source: result.source,
+            matched: result.matched
+        )
     }
 
-    private func matchHost(_ host: String?) -> AppClassificationResult? {
-        guard let host, !host.isEmpty else { return nil }
-        for entry in preparedEntries {
-            if let matched = entry.hosts.first(where: { host == $0 || host.hasSuffix("." + $0) }) {
-                return AppClassificationResult(appType: entry.type, confidence: "strong", source: "browserHost", matched: matched)
-            }
-        }
-        return nil
+    /// Whether a browser-tab title looks like webmail. Call this ONLY when the
+    /// frontmost app is already known to be a browser and nothing else
+    /// classified the window — a title is not evidence of webmail on its own.
+    public static func isWebmail(_ tabTitle: String) -> Bool {
+        appIsWebmail(title: tabTitle)
     }
 
-    private func matchMacBundle(_ bundleId: String) -> AppClassificationResult? {
-        guard !bundleId.isEmpty else { return nil }
-        let lowered = bundleId.lowercased()
-        for entry in preparedEntries {
-            if entry.bundleIds.contains(lowered) {
-                return AppClassificationResult(appType: entry.type, confidence: "strong", source: "bundleId", matched: lowered)
-            }
-        }
-        return nil
-    }
-
-    private func matchTitle(_ title: String) -> AppClassificationResult? {
-        guard !title.isEmpty else { return nil }
-        for entry in preparedEntries {
-            if let matched = entry.titleKeywords.first(where: { titleKeywordMatches($0, in: title) }) {
-                return AppClassificationResult(appType: entry.type, confidence: "medium", source: "title", matched: matched.value)
-            }
-        }
-        return nil
-    }
-
-    private func titleKeywordMatches(_ keyword: PreparedKeyword, in title: String) -> Bool {
-        if keyword.isSubstring {
-            return title.contains(keyword.value)
-        }
-
-        var searchStart = title.startIndex
-        while let range = title.range(of: keyword.value, options: [], range: searchStart..<title.endIndex) {
-            let beforeIsBoundary = range.lowerBound == title.startIndex || isTitleBoundary(before: range.lowerBound, in: title)
-            let afterIsBoundary = range.upperBound == title.endIndex || isTitleBoundary(at: range.upperBound, in: title)
-            if beforeIsBoundary && afterIsBoundary {
-                return true
-            }
-            searchStart = range.upperBound
-        }
-        return false
-    }
-
-    private func isTitleBoundary(before index: String.Index, in string: String) -> Bool {
-        isTitleBoundary(at: string.index(before: index), in: string)
-    }
-
-    private func isTitleBoundary(at index: String.Index, in string: String) -> Bool {
-        guard let scalar = string[index].unicodeScalars.first else { return true }
-        return !Self.titleBoundaryCharacterSet.contains(scalar)
-    }
-
-    private func matchFocusedElement(_ focusedElement: FocusedElementInfo?) -> AppClassificationResult? {
-        guard let focusedElement else { return nil }
-        let pieces = [
+    /// The five accessibility fields macOS reads. Windows supplies two; the
+    /// core takes whatever the platform has, joins the non-blank pieces and
+    /// scans the result.
+    ///
+    /// These values are NOT truncated on the way in. `PromptBuilder` bounds
+    /// `focusedContent` to 100 characters before it reaches the prompt, but the
+    /// email scan has always run against the full value, and truncating first
+    /// would drop an address that sits past the cut.
+    private static func focusedPieces(_ focusedElement: FocusedElementInfo?) -> [String] {
+        guard let focusedElement else { return [] }
+        return [
             focusedElement.role,
             focusedElement.title,
             focusedElement.description,
             focusedElement.placeholder,
             focusedElement.value
-        ]
-        .compactMap { $0?.lowercased() }
-        .joined(separator: " ")
-
-        if pieces.contains("subject") || pieces.contains("compose") || pieces.contains("to:") || pieces.contains("cc:") {
-            return AppClassificationResult(appType: .email, confidence: "medium", source: "focusedElement", matched: nil)
-        }
-
-        let range = NSRange(pieces.startIndex..., in: pieces)
-        if Self.emailPattern?.firstMatch(in: pieces, range: range) != nil {
-            return AppClassificationResult(appType: .email, confidence: "weak", source: "focusedElementText", matched: nil)
-        }
-
-        return nil
-    }
-
-    private static func prepareEntries(from catalog: AppTypeCatalog) -> [PreparedEntry] {
-        let order: [AppType] = [.sensitive, .email, .terminal, .code, .ai, .workMessaging, .personalMessaging, .document]
-        return order.compactMap { type in
-            guard let entry = catalog.types[type.catalogKey] else { return nil }
-            let preparedKeywords = entry.titleKeywords.compactMap { raw -> PreparedKeyword? in
-                let normalized = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-                guard !normalized.isEmpty else { return nil }
-                let isSubstring = normalized.contains(".") || normalized.contains("/") || normalized.contains(" ")
-                return PreparedKeyword(value: normalized, isSubstring: isSubstring)
-            }
-            return PreparedEntry(
-                type: type,
-                bundleIds: entry.macBundleIds.map { $0.lowercased() },
-                hosts: entry.hosts,
-                titleKeywords: preparedKeywords
-            )
-        }
-    }
-
-    private func normalizeHost(_ value: String?) -> String? {
-        guard var value = value?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(), !value.isEmpty else {
-            return nil
-        }
-        if !value.contains("://") {
-            value = "https://" + value
-        }
-        if let host = URL(string: value)?.host {
-            return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
-        }
-        return value.hasPrefix("www.") ? String(value.dropFirst(4)) : value
-    }
-
-    private static func loadCatalog() -> AppTypeCatalog {
-        let urls = [
-            Bundle.main.url(forResource: "app-type-catalog", withExtension: "json", subdirectory: "shared-app-classification"),
-            Bundle.main.url(forResource: "app-type-catalog", withExtension: "json")
         ].compactMap { $0 }
-
-        for url in urls {
-            if let data = try? Data(contentsOf: url),
-               let catalog = try? JSONDecoder().decode(AppTypeCatalog.self, from: data) {
-                return catalog
-            }
-        }
-
-        return AppTypeCatalog(types: [:])
     }
 }

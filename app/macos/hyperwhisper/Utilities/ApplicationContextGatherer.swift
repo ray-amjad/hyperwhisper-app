@@ -700,31 +700,11 @@ public class ApplicationContextGatherer {
     
     // MARK: - Webmail Detection
 
-    private static let webmailKeywords = [
-        "gmail", "inbox", "mail.google",
-        "outlook.live", "outlook.office",
-        "mail.yahoo", "yahoo mail",
-        "protonmail", "proton mail",
-        "hey.com",
-        "fastmail",
-        "icloud.com/mail", "icloud mail",
-        "zoho mail",
-        "aol mail"
-    ]
-
-    /// Matches an email address pattern in the tab title (e.g. "user@domain.com")
-    private static let emailAddressPattern = try! NSRegularExpression(
-        pattern: #"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"#
-    )
-
+    /// The keyword list and the "[Name] Mail" address fallback both live in
+    /// `hw-catalog` since issue #279 — this was the THIRD copy of the email
+    /// regex in the tree.
     private static func isWebmail(_ tabTitle: String) -> Bool {
-        let lower = tabTitle.lowercased()
-        if webmailKeywords.contains(where: { lower.contains($0) }) {
-            return true
-        }
-        // Google Workspace tabs show "[Name] Mail" instead of "Gmail"
-        let range = NSRange(tabTitle.startIndex..., in: tabTitle)
-        return emailAddressPattern.firstMatch(in: tabTitle, range: range) != nil
+        AppTypeClassifier.isWebmail(tabTitle)
     }
 
     /// Determine text input format hint based on context

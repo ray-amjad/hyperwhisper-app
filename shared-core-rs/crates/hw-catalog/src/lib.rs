@@ -19,11 +19,12 @@ pub use cloud_stt::{
 
 pub use cloud_pp::{CloudPpCatalog, CloudPpError, PpModel, PpProvider};
 
-pub use app_type::{AppClassification, AppType, AppTypeClassifier, AppTypeError};
+pub use app_type::{
+    is_webmail, AppClassification, AppType, AppTypeClassifier, AppTypeError, ClassifyRequest,
+};
 
 /// Per-model metadata catalog, from `shared-models/models-catalog.json`.
-pub const MODELS_CATALOG: &str =
-    include_str!("../../../../shared-models/models-catalog.json");
+pub const MODELS_CATALOG: &str = include_str!("../../../../shared-models/models-catalog.json");
 
 /// Cloud STT provider/model catalog, from
 /// `shared-app-classification/cloud-stt-catalog.json`.

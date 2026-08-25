@@ -37,6 +37,12 @@
         "Mailbird",
         "eM Client"
       ],
+      "linuxProcesses": [
+        "evolution",
+        "geary",
+        "kmail",
+        "betterbird"
+      ],
       "hosts": [
         "mail.google.com",
         "mail.superhuman.com",
@@ -87,6 +93,7 @@
         "lmstudio",
         "ollama"
       ],
+      "linuxProcesses": [],
       "hosts": [
         "chatgpt.com",
         "chat.openai.com",
@@ -152,6 +159,10 @@
         "Mattermost",
         "Element"
       ],
+      "linuxProcesses": [
+        "teams-for-linux",
+        "element-desktop"
+      ],
       "hosts": [
         "app.slack.com",
         "teams.microsoft.com",
@@ -208,6 +219,9 @@
         "Viber",
         "Zalo"
       ],
+      "linuxProcesses": [
+        "signal-desktop"
+      ],
       "hosts": [
         "web.whatsapp.com",
         "messages.google.com",
@@ -263,6 +277,10 @@
         "Trello",
         "Airtable",
         "notepad"
+      ],
+      "linuxProcesses": [
+        "libreoffice",
+        "soffice"
       ],
       "hosts": [
         "notion.so",
@@ -329,6 +347,12 @@
         "sublime_text",
         "notepad++"
       ],
+      "linuxProcesses": [
+        "code-oss",
+        "codium",
+        "code-insiders",
+        "kate"
+      ],
       "hosts": [
         "github.dev",
         "vscode.dev",
@@ -373,6 +397,17 @@
         "wezterm",
         "ghostty"
       ],
+      "linuxProcesses": [
+        "konsole",
+        "gnome-terminal-",
+        "xfce4-terminal",
+        "terminator",
+        "tilix",
+        "foot",
+        "xterm",
+        "urxvt",
+        "qterminal"
+      ],
       "hosts": [],
       "titleKeywords": [
         "terminal",
@@ -398,6 +433,10 @@
         "Dashlane",
         "KeePass",
         "KeePassXC"
+      ],
+      "linuxProcesses": [
+        "keepassx",
+        "seahorse"
       ],
       "hosts": [
         "my.1password.com",

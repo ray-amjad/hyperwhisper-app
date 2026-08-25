@@ -26,6 +26,7 @@ using HyperWhisper.Data;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Models;
 using HyperWhisper.Services;
+using HyperWhisper.AppClassification;
 using HyperWhisper.Services.AppClassification;
 using HyperWhisper.Services.Platform;
 using HyperWhisper.Services.Streaming;

@@ -1,4 +1,5 @@
 using System.Text;
+using HyperWhisper.AppClassification;
 using HyperWhisper.Linux.Platform.Injection;
 using HyperWhisper.Platform.Abstractions;
 
@@ -85,14 +86,45 @@ print('UNAVAILABLE')
     {
         try
         {
-            return _wayland
+            var gathered = _wayland
                 ? await GatherWaylandAsync(cancellationToken).ConfigureAwait(false)
                 : await GatherX11Async(cancellationToken).ConfigureAwait(false);
+            return gathered.IsSuccess && gathered.Value is not null
+                ? PlatformResult<ApplicationContextSnapshot?>.Success(Classify(gathered.Value))
+                : gathered;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (TimeoutException) { return PlatformResult<ApplicationContextSnapshot?>.Failure("active_app_timeout", "Active application discovery timed out."); }
         catch (Exception exception) when (exception is IOException or InvalidOperationException or UnauthorizedAccessException)
         { return PlatformResult<ApplicationContextSnapshot?>.Failure("active_app_unavailable", "Active application discovery is unavailable."); }
+    }
+
+    // Linux shipped no classifier at all until issue #279, so `AppType` kept the
+    // `other` default from DesktopIntegrationContracts and the two AppType gates
+    // in the shared prompt builder never fired. The live one is the screen-OCR
+    // gate: with OCR enabled for a mode, recognized pixels from a password
+    // manager reached the post-processing prompt. Only the process name and the
+    // window title are observable here — Linux has no browser host and no
+    // focused-element snapshot — so those are the two signals sent.
+    private static ApplicationContextSnapshot Classify(ApplicationContextSnapshot snapshot)
+    {
+        var classification = AppTypeClassifier.Classify(new AppClassificationRequest(
+            ProcessName: snapshot.ProcessName,
+            Title: snapshot.WindowTitle));
+        if (classification.AppType == AppType.Other) return snapshot;
+
+        return snapshot with
+        {
+            Category = string.IsNullOrWhiteSpace(snapshot.Category)
+                ? classification.AppType.ToCategory()
+                : snapshot.Category,
+            TextFormat = string.IsNullOrWhiteSpace(snapshot.TextFormat)
+                ? classification.AppType.ToTextFormat()
+                : snapshot.TextFormat,
+            AppType = classification.AppType.ToPromptValue(),
+            AppTypeConfidence = classification.Confidence,
+            AppTypeSource = classification.Source,
+        };
     }
 
     private async ValueTask<PlatformResult<ApplicationContextSnapshot?>> GatherX11Async(CancellationToken token)

@@ -79,6 +79,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Wayland application context uses AT-SPI", WaylandApplicationContext),
     ("GNOME Wayland prefers companion D-Bus", GnomeWaylandApplicationContext),
     ("KDE Wayland prefers KWin companion D-Bus", KdeWaylandApplicationContext),
+    ("Application context carries a shared app-type classification", ApplicationContextIsClassified),
+    ("An unclassifiable application context keeps the other default", ApplicationContextClassificationDefaults),
     ("Wayland companion falls back explicitly to AT-SPI", WaylandCompanionFallback),
     ("Wayland context reports unsupported without AT-SPI", WaylandContextUnsupported),
     ("active application timeout is explicit", ApplicationContextTimeout),
@@ -1190,6 +1192,41 @@ static async Task KdeWaylandApplicationContext()
     Assert.Equal("Konsole", result.Value!.ProcessName);
     Assert.Equal("kde-kwin-dbus+atspi", provider.GetCapabilities().Backend);
     Assert.True(runner.Calls[0].Arguments.Contains(LinuxApplicationContextProvider.KdeBusName));
+}
+
+// Linux shipped no classifier until issue #279, so every snapshot carried the
+// `other` default and the Sensitive screen-OCR gate in the shared prompt builder
+// could never fire. The rules live in hw-catalog and are proved by
+// shared-conformance/app-type-vectors.json; what is asserted here is that this
+// provider actually asks.
+static async Task ApplicationContextIsClassified()
+{
+    var app = Convert.ToBase64String("KeePassXC"u8);
+    var title = Convert.ToBase64String("Passwords - KeePassXC"u8);
+    var runner = new FakeDesktopCommandRunner(new ExternalProcessResult(0,
+        System.Text.Encoding.UTF8.GetBytes($"CONTEXT|999999|{app}|{title}\n")));
+    using var provider = new LinuxApplicationContextProvider(runner, null, "/usr/bin/python3", true);
+    var result = await provider.GatherAsync();
+    Assert.True(result.IsSuccess && result.Value is not null);
+    Assert.Equal("sensitive", result.Value!.AppType);
+    Assert.Equal("strong", result.Value.AppTypeConfidence);
+    Assert.Equal("processName", result.Value.AppTypeSource);
+    Assert.Equal("Sensitive", result.Value.Category);
+    Assert.Equal("text", result.Value.TextFormat);
+}
+
+static async Task ApplicationContextClassificationDefaults()
+{
+    var app = Convert.ToBase64String("some-unknown-binary"u8);
+    var title = Convert.ToBase64String("Untitled"u8);
+    var runner = new FakeDesktopCommandRunner(new ExternalProcessResult(0,
+        System.Text.Encoding.UTF8.GetBytes($"CONTEXT|999999|{app}|{title}\n")));
+    using var provider = new LinuxApplicationContextProvider(runner, null, "/usr/bin/python3", true);
+    var result = await provider.GatherAsync();
+    Assert.True(result.IsSuccess && result.Value is not null);
+    Assert.Equal("other", result.Value!.AppType);
+    Assert.Equal("unknown", result.Value.AppTypeConfidence);
+    Assert.Equal("default", result.Value.AppTypeSource);
 }
 
 static async Task WaylandCompanionFallback()

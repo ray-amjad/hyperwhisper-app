@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using HyperWhisper.AppClassification;
 using HyperWhisper.Services.AppClassification;
 
 namespace HyperWhisper.Services.LocalApi;
@@ -315,26 +316,29 @@ internal sealed class LocalApiApplicationContext
                 null);
         }
 
-        return AppTypeClassifier.Shared.Classify(
-            TrimOrEmpty(ProcessName),
-            TrimOrNull(BrowserHost),
-            string.IsNullOrWhiteSpace(BrowserHost) ? "unknown" : "manual",
-            TrimOrNull(WindowTitle),
-            TrimOrNull(BrowserTabTitle),
-            TrimOrNull(FocusedElementType),
-            TrimOrNull(FocusedContent));
+        return AppTypeClassifier.Classify(new AppClassificationRequest(
+            ProcessName: TrimOrEmpty(ProcessName),
+            Host: TrimOrNull(BrowserHost),
+            HostConfidence: string.IsNullOrWhiteSpace(BrowserHost) ? "unknown" : "manual",
+            Title: string.Join(" ", new[] { TrimOrNull(BrowserTabTitle), TrimOrNull(WindowTitle) }
+                .Where(value => !string.IsNullOrWhiteSpace(value))),
+            FocusedPieces:
+            [
+                TrimOrNull(FocusedElementType) ?? string.Empty,
+                TrimOrNull(FocusedContent) ?? string.Empty
+            ]));
     }
 
-    private static bool TryParseAppType(string? value, out HyperWhisper.Services.AppClassification.AppType appType)
+    private static bool TryParseAppType(string? value, out HyperWhisper.AppClassification.AppType appType)
     {
-        appType = HyperWhisper.Services.AppClassification.AppType.Other;
+        appType = HyperWhisper.AppClassification.AppType.Other;
         var normalized = value?.Trim()
             .Replace("-", "", StringComparison.Ordinal)
             .Replace("_", "", StringComparison.Ordinal)
             .ToLowerInvariant();
         if (string.IsNullOrEmpty(normalized)) return false;
 
-        foreach (var candidate in Enum.GetValues<HyperWhisper.Services.AppClassification.AppType>())
+        foreach (var candidate in Enum.GetValues<HyperWhisper.AppClassification.AppType>())
         {
             var candidateName = candidate.ToString().ToLowerInvariant();
             var promptName = candidate.ToPromptValue()

@@ -38,7 +38,8 @@ fn cloud_pp() -> &'static hw_catalog::CloudPpCatalog {
 fn app_classifier() -> &'static hw_catalog::AppTypeClassifier {
     static C: OnceLock<hw_catalog::AppTypeClassifier> = OnceLock::new();
     C.get_or_init(|| {
-        hw_catalog::AppTypeClassifier::embedded().expect("embedded app-type-catalog.json must parse")
+        hw_catalog::AppTypeClassifier::embedded()
+            .expect("embedded app-type-catalog.json must parse")
     })
 }
 
@@ -462,18 +463,61 @@ impl From<hw_catalog::NormalizedCloudProvider> for NormalizedCloudProvider {
 // app-type classification
 // ---------------------------------------------------------------------------
 
-/// Classify the focused app from its identifiers. `host` is the browser host when
-/// the app is a browser.
+/// Everything a platform can observe about the foreground app. Mirrors
+/// `hw_catalog::ClassifyRequest`.
+///
+/// A record rather than a parameter list on purpose: issue #279 routes macOS,
+/// Windows and Linux through this one call, and each head can see a different
+/// subset of the signals. A new signal then costs a field, not a break in every
+/// binding. Pass an empty string / `None` / an empty list for a signal the
+/// platform cannot observe.
+#[derive(uniffi::Record)]
+pub struct AppClassifyRequest {
+    /// macOS bundle identifier, e.g. `com.apple.mail`.
+    pub bundle_id: String,
+    /// Process name without an extension, e.g. `OUTLOOK` or `konsole`.
+    pub process_name: String,
+    /// The app's display name, e.g. `Visual Studio Code`.
+    pub app_name: String,
+    /// Browser host for a web app. A full URL is accepted and normalized.
+    pub host: Option<String>,
+    /// The confidence to report for a host hit; empty means `strong`. It
+    /// reaches the LLM prompt, so the caller owns it.
+    pub host_confidence: String,
+    /// Window and/or browser-tab title, composed by the caller.
+    pub title: String,
+    /// Text read off the focused accessibility element.
+    pub focused_pieces: Vec<String>,
+}
+
+impl From<AppClassifyRequest> for hw_catalog::ClassifyRequest {
+    fn from(r: AppClassifyRequest) -> Self {
+        hw_catalog::ClassifyRequest {
+            bundle_id: r.bundle_id,
+            process_name: r.process_name,
+            app_name: r.app_name,
+            host: r.host,
+            host_confidence: r.host_confidence,
+            title: r.title,
+            focused_pieces: r.focused_pieces,
+        }
+    }
+}
+
+/// Classify the focused app from everything the platform observed about it.
 #[uniffi::export]
-pub fn app_classify(
-    bundle_id: String,
-    process_name: String,
-    host: Option<String>,
-    title: String,
-) -> AppClassification {
-    app_classifier()
-        .classify(&bundle_id, &process_name, host.as_deref(), &title)
-        .into()
+pub fn app_classify(request: AppClassifyRequest) -> AppClassification {
+    app_classifier().classify(&request.into()).into()
+}
+
+/// Whether a browser-tab title looks like webmail.
+///
+/// The safety net both heads apply when the host was unreadable and nothing
+/// else classified the window. Call it ONLY once you know the foreground app is
+/// a browser — a title is not evidence of webmail on its own.
+#[uniffi::export]
+pub fn app_is_webmail(title: String) -> bool {
+    hw_catalog::is_webmail(&title)
 }
 
 // ---------------------------------------------------------------------------
@@ -495,7 +539,9 @@ pub fn models_available_via_hw_cloud(provider: String, kind: HwKind, id: String)
 /// The language support of a model (codes sorted; `supports_all` for any-language).
 #[uniffi::export]
 pub fn models_language_support(provider: String, kind: HwKind, id: String) -> HwLanguageSupport {
-    models().language_support(&provider, kind.into(), &id).into()
+    models()
+        .language_support(&provider, kind.into(), &id)
+        .into()
 }
 
 /// A single catalogued model row, resolving the `(provider, kind, "*")` wildcard
@@ -597,7 +643,9 @@ pub fn cloud_stt_entry(id: String) -> Option<SttEntry> {
 /// rewriting, which is `cloud_stt_normalize_cloud_provider`.
 #[uniffi::export]
 pub fn cloud_stt_entry_by_migrate_from(alias: String) -> Option<SttEntry> {
-    cloud_stt().entry_by_migrate_from(&alias).map(SttEntry::from)
+    cloud_stt()
+        .entry_by_migrate_from(&alias)
+        .map(SttEntry::from)
 }
 
 /// The Provider dropdown's rows: cloud-tier entries folded by company and
@@ -615,7 +663,10 @@ pub fn cloud_stt_cloud_tier_vendor_groups() -> Vec<SttVendorGroup> {
 /// is unknown or is not cloud-tier eligible.
 #[uniffi::export]
 pub fn cloud_stt_vendor_group(id: String) -> Option<SttVendorGroup> {
-    cloud_stt().vendor_group(&id).as_ref().map(SttVendorGroup::from)
+    cloud_stt()
+        .vendor_group(&id)
+        .as_ref()
+        .map(SttVendorGroup::from)
 }
 
 /// The vendor group with the given `vendor` key (case-insensitive), or `None`.
@@ -674,7 +725,11 @@ pub fn cloud_pp_model(id: String, model_id: String) -> Option<PpModel> {
 /// All (visible) models for the post-processing provider.
 #[uniffi::export]
 pub fn cloud_pp_models(id: String) -> Vec<PpModel> {
-    cloud_pp().models(&id).into_iter().map(PpModel::from).collect()
+    cloud_pp()
+        .models(&id)
+        .into_iter()
+        .map(PpModel::from)
+        .collect()
 }
 
 /// Every post-processing engine, in catalog order — INCLUDING the ones the
@@ -682,14 +737,21 @@ pub fn cloud_pp_models(id: String) -> Vec<PpModel> {
 /// `cloud_pp_picker_providers` for the dropdown.
 #[uniffi::export]
 pub fn cloud_pp_providers() -> Vec<PpProvider> {
-    cloud_pp().providers().iter().map(PpProvider::from).collect()
+    cloud_pp()
+        .providers()
+        .iter()
+        .map(PpProvider::from)
+        .collect()
 }
 
 /// The Engine dropdown's rows: post-processing engines with `enabled != false`,
 /// in catalog order, each carrying only its visible models.
 #[uniffi::export]
 pub fn cloud_pp_picker_providers() -> Vec<PpProvider> {
-    cloud_pp().picker_providers().map(PpProvider::from).collect()
+    cloud_pp()
+        .picker_providers()
+        .map(PpProvider::from)
+        .collect()
 }
 
 #[cfg(test)]
@@ -714,18 +776,31 @@ mod tests {
         }
     }
 
+    fn request() -> AppClassifyRequest {
+        AppClassifyRequest {
+            bundle_id: String::new(),
+            process_name: String::new(),
+            app_name: String::new(),
+            host: None,
+            host_confidence: String::new(),
+            title: String::new(),
+            focused_pieces: Vec::new(),
+        }
+    }
+
     fn classify(
         bundle_id: &str,
         process_name: &str,
         host: Option<&str>,
         title: &str,
     ) -> AppClassification {
-        app_classify(
-            bundle_id.to_string(),
-            process_name.to_string(),
-            host.map(str::to_string),
-            title.to_string(),
-        )
+        app_classify(AppClassifyRequest {
+            bundle_id: bundle_id.to_string(),
+            process_name: process_name.to_string(),
+            host: host.map(str::to_string),
+            title: title.to_string(),
+            ..request()
+        })
     }
 
     // =======================================================================
@@ -736,7 +811,12 @@ mod tests {
     /// mail client is classified as an AI app, not as email.
     #[test]
     fn app_classify_prefers_the_host_over_the_bundle_process_and_title() {
-        let c = classify("com.apple.mail", "WindowsTerminal", Some("claude.ai"), "1Password");
+        let c = classify(
+            "com.apple.mail",
+            "WindowsTerminal",
+            Some("claude.ai"),
+            "1Password",
+        );
         assert_eq!(app_type_name(&c.app_type), "Ai");
         assert_eq!(c.confidence, "strong");
         assert_eq!(c.source, "browserHost");
@@ -782,6 +862,56 @@ mod tests {
         assert_eq!(c.matched.as_deref(), Some("ghostty"));
     }
 
+    /// The three signals issue #279 added to the record cross the boundary in
+    /// their own fields. Each is checked on its own, because a bridge that
+    /// dropped one would still classify every other case correctly.
+    #[test]
+    fn app_classify_carries_the_app_name_focused_pieces_and_host_confidence() {
+        let by_name = app_classify(AppClassifyRequest {
+            app_name: "Ghostty".to_string(),
+            ..request()
+        });
+        assert_eq!(app_type_name(&by_name.app_type), "Terminal");
+        assert_eq!(by_name.source, "appName");
+        assert_eq!(by_name.confidence, "medium");
+
+        let by_focus = app_classify(AppClassifyRequest {
+            focused_pieces: vec!["AXTextField".to_string(), "Subject".to_string()],
+            ..request()
+        });
+        assert_eq!(app_type_name(&by_focus.app_type), "Email");
+        assert_eq!(by_focus.source, "focusedElement");
+
+        let by_address = app_classify(AppClassifyRequest {
+            focused_pieces: vec!["ray@example.com".to_string()],
+            ..request()
+        });
+        assert_eq!(app_type_name(&by_address.app_type), "Email");
+        assert_eq!(by_address.source, "focusedElementText");
+        assert_eq!(by_address.confidence, "weak");
+
+        let caller_confidence = app_classify(AppClassifyRequest {
+            host: Some("claude.ai".to_string()),
+            host_confidence: "manual".to_string(),
+            ..request()
+        });
+        assert_eq!(caller_confidence.confidence, "manual");
+        assert_eq!(caller_confidence.source, "browserHost");
+    }
+
+    /// `app_is_webmail` is the browser-tab safety net, and it is deliberately
+    /// NOT a `classify` signal — the same title must not classify on its own.
+    #[test]
+    fn app_is_webmail_is_separate_from_classification() {
+        assert!(app_is_webmail("Inbox (12) - Gmail".to_string()));
+        assert!(app_is_webmail("ray@acme.co Mail".to_string()));
+        assert!(!app_is_webmail("Acme Team - Slack".to_string()));
+
+        let c = classify("", "", None, "ray@acme.co Mail");
+        assert_eq!(app_type_name(&c.app_type), "Other");
+        assert_eq!(c.source, "default");
+    }
+
     /// Nothing in the catalog matches, so the bridge returns the default row.
     #[test]
     fn app_classify_falls_back_to_other_when_no_signal_matches() {
@@ -805,7 +935,13 @@ mod tests {
     fn every_app_type_arm_maps_to_its_own_variant_and_derived_strings() {
         // (leaf type, variant name, prompt_value, category, text_input_format)
         let cases: &[(hw_catalog::AppType, &str, &str, &str, &str)] = &[
-            (hw_catalog::AppType::Email, "Email", "email", "Email Client", "email"),
+            (
+                hw_catalog::AppType::Email,
+                "Email",
+                "email",
+                "Email Client",
+                "email",
+            ),
             (hw_catalog::AppType::Ai, "Ai", "ai", "AI", "text"),
             (
                 hw_catalog::AppType::WorkMessaging,
@@ -828,7 +964,13 @@ mod tests {
                 "Document",
                 "markdown",
             ),
-            (hw_catalog::AppType::Code, "Code", "code", "Code Editor", "code"),
+            (
+                hw_catalog::AppType::Code,
+                "Code",
+                "code",
+                "Code Editor",
+                "code",
+            ),
             (
                 hw_catalog::AppType::Terminal,
                 "Terminal",
@@ -843,7 +985,13 @@ mod tests {
                 "Sensitive",
                 "text",
             ),
-            (hw_catalog::AppType::Other, "Other", "other", "Application", "text"),
+            (
+                hw_catalog::AppType::Other,
+                "Other",
+                "other",
+                "Application",
+                "text",
+            ),
         ];
         for (leaf, name, prompt_value, category, text_input_format) in cases {
             let ffi: AppClassification = hw_catalog::AppClassification {
@@ -892,7 +1040,11 @@ mod tests {
             HwKind::Voice,
             id.clone()
         ));
-        assert!(!models_available_via_hw_cloud("gemini".to_string(), HwKind::Text, id));
+        assert!(!models_available_via_hw_cloud(
+            "gemini".to_string(),
+            HwKind::Text,
+            id
+        ));
     }
 
     /// Custom vocabulary and HyperWhisper Cloud availability are two separate
@@ -905,7 +1057,11 @@ mod tests {
             HwKind::Voice,
             id.clone()
         ));
-        assert!(!models_available_via_hw_cloud("gemini".to_string(), HwKind::Voice, id));
+        assert!(!models_available_via_hw_cloud(
+            "gemini".to_string(),
+            HwKind::Voice,
+            id
+        ));
     }
 
     /// An unknown model is never wrongly hidden: language support falls back to
@@ -935,9 +1091,7 @@ mod tests {
         assert!(!s.supports_all);
         assert_eq!(
             s.codes,
-            vec![
-                "ar", "de", "en", "es", "fr", "hi", "it", "ja", "ko", "nl", "pt", "ru", "zh"
-            ]
+            vec!["ar", "de", "en", "es", "fr", "hi", "it", "ja", "ko", "nl", "pt", "ru", "zh"]
         );
     }
 
@@ -950,7 +1104,10 @@ mod tests {
     /// while its models still carry their own prices.
     #[test]
     fn cloud_stt_tier_price_and_model_price_are_separate_lookups() {
-        assert_eq!(cloud_stt_credits_per_minute("openaiWhisper".to_string()), 0.0);
+        assert_eq!(
+            cloud_stt_credits_per_minute("openaiWhisper".to_string()),
+            0.0
+        );
         assert_eq!(
             cloud_stt_credits_per_minute_for_model(
                 "openaiWhisper".to_string(),
@@ -965,7 +1122,10 @@ mod tests {
             ),
             3.0
         );
-        assert_eq!(cloud_stt_credits_per_minute("deepgramNova3".to_string()), 5.5);
+        assert_eq!(
+            cloud_stt_credits_per_minute("deepgramNova3".to_string()),
+            5.5
+        );
     }
 
     /// An unknown model falls back to the provider's tier price; an unknown
@@ -986,7 +1146,10 @@ mod tests {
             ),
             0.0
         );
-        assert_eq!(cloud_stt_credits_per_minute("noSuchProvider".to_string()), 0.0);
+        assert_eq!(
+            cloud_stt_credits_per_minute("noSuchProvider".to_string()),
+            0.0
+        );
     }
 
     /// AssemblyAI's retired Pro model must not survive in the shared cloud catalog,
@@ -994,7 +1157,10 @@ mod tests {
     #[test]
     fn cloud_stt_assemblyai_catalog_uses_the_current_default() {
         let models = cloud_stt_models("assemblyAI".to_string());
-        assert_eq!(models.first().map(|m| m.id.as_str()), Some("universal-3-5-pro"));
+        assert_eq!(
+            models.first().map(|m| m.id.as_str()),
+            Some("universal-3-5-pro")
+        );
         assert!(!models.iter().any(|m| m.id == "universal-3-pro"));
         assert_eq!(
             cloud_stt_default_model_id("assemblyAI".to_string()).as_deref(),
@@ -1011,7 +1177,10 @@ mod tests {
             cloud_stt_default_model_id("grokStt".to_string()).as_deref(),
             Some("")
         );
-        assert_eq!(cloud_stt_default_model_id("noSuchProvider".to_string()), None);
+        assert_eq!(
+            cloud_stt_default_model_id("noSuchProvider".to_string()),
+            None
+        );
     }
 
     /// The routing header value and the custom-vocabulary field name come from
@@ -1039,8 +1208,12 @@ mod tests {
             cloud_stt_custom_vocabulary_field_name("noSuchProvider".to_string()),
             None
         );
-        assert!(cloud_stt_supports_custom_vocabulary("deepgramNova3".to_string()));
-        assert!(!cloud_stt_supports_custom_vocabulary("noSuchProvider".to_string()));
+        assert!(cloud_stt_supports_custom_vocabulary(
+            "deepgramNova3".to_string()
+        ));
+        assert!(!cloud_stt_supports_custom_vocabulary(
+            "noSuchProvider".to_string()
+        ));
     }
 
     /// Gemini leaves its language set `"unverified"` in the catalog, which the
@@ -1052,7 +1225,11 @@ mod tests {
         let groq = cloud_stt_language_codes("groqWhisper".to_string())
             .expect("groqWhisper enumerates its languages");
         assert!(groq.contains(&"en".to_string()));
-        assert!(groq.len() > 50, "expected the full upstream list, got {}", groq.len());
+        assert!(
+            groq.len() > 50,
+            "expected the full upstream list, got {}",
+            groq.len()
+        );
     }
 
     /// Pins every field of the owned `SttModel` mirror against two rows whose
@@ -1191,7 +1368,10 @@ mod tests {
             .into_iter()
             .map(|m| m.id)
             .collect();
-        assert_eq!(ids, vec!["gpt-5-mini".to_string(), "gpt-5-nano".to_string()]);
+        assert_eq!(
+            ids,
+            vec!["gpt-5-mini".to_string(), "gpt-5-nano".to_string()]
+        );
         assert!(cloud_pp_models("noSuchEngine".to_string()).is_empty());
     }
 }
