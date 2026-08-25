@@ -53,14 +53,14 @@ struct ModelResidencyRegistryTests {
 
         let claim = await registry.markBusy(id: "not-resident")
 
-        #expect(claim == .notResident)
+        #expect(claim.result == .notResident)
         #expect(claim.isHonored == false)
     }
 
     /// The ordinary lifecycle: a claim on a resident model is honored, it
     /// protects the model from a pressure sweep, and one `markIdle` releases it
     /// again — the balance the `true` return is a promise about.
-    @Test func aClaimOnAResidentModelIsHonoredAndMarkIdleBalancesIt() async {
+    @Test func aClaimOnAResidentModelIsHonoredAndMarkIdleBalancesIt() async throws {
         let registry = ModelResidencyRegistry()
         let probe = EvictionProbe()
         await registry.register(id: "stt", tier: .stt) {
@@ -68,8 +68,11 @@ struct ModelResidencyRegistryTests {
         }
 
         let claim = await registry.markBusy(id: "stt")
-        #expect(claim == .claimed)
+        #expect(claim.result == .claimed)
         #expect(claim.isHonored)
+        // An honored claim carries the token that repays it, and only that token
+        // can — which is what the release below is spelled with.
+        let token = try #require(claim.token)
 
         // Claimed: a sweep must leave it strictly alone.
         await registry.evict(aggressive: false, reason: "test", minIdle: 0)
@@ -79,7 +82,7 @@ struct ModelResidencyRegistryTests {
         #expect(whileClaimed.ids == ["stt"])
 
         // Balanced: the same entry is evictable again.
-        await registry.markIdle(id: "stt")
+        await registry.markIdle(token)
         await registry.evict(aggressive: false, reason: "test", minIdle: 0)
         let evictionsAfterRelease = await probe.evictionCount(for: "stt")
         #expect(evictionsAfterRelease == 1)
@@ -114,7 +117,7 @@ struct ModelResidencyRegistryTests {
         // `.evicting`, NOT `.notResident`: the entry is still in the map, it is
         // the runtime behind it that is going away. Conflating the two is what
         // sent a caller into a destructive cold reload.
-        #expect(claim == .evicting)
+        #expect(claim.result == .evicting)
         #expect(claim.isHonored == false)
 
         releaseEviction.open()
@@ -131,7 +134,8 @@ struct ModelResidencyRegistryTests {
     /// The other half of the contract, and the one a "reject everything during
     /// eviction" simplification would quietly break: a model that has merely
     /// been SELECTED this round is still claimable, and that fresh claim saves
-    /// it — `evict`'s phase 2 re-reads `useCount` and abandons the eviction.
+    /// it — `evict`'s phase 2 re-reads the claim ledger and abandons the
+    /// eviction.
     @Test func aClaimOnAModelOnlySelectedForEvictionIsStillHonored() async {
         let registry = ModelResidencyRegistry()
         let probe = EvictionProbe()
@@ -160,7 +164,7 @@ struct ModelResidencyRegistryTests {
 
         // The survivor is `.selected`, not `.freeing` — this claim must land.
         let claim = await registry.markBusy(id: survivor)
-        #expect(claim == .claimed)
+        #expect(claim.result == .claimed)
 
         releaseEviction.open()
         freeingStarted.open()
@@ -174,31 +178,37 @@ struct ModelResidencyRegistryTests {
         #expect(resident.ids == [survivor])
     }
 
-    /// `markIdle` on an entry nobody claimed must not drive `useCount` negative.
+    /// `markIdle` on an entry nobody claimed must not drive the claim ledger
+    /// negative.
     ///
     /// If it underflowed, the two stray releases below would bank credit and the
     /// following honored claim would land on a still-negative count, leaving the
     /// model evictable while a transcription was live — the exact mid-use
     /// eviction the refcount exists to prevent.
-    @Test func markIdleOnAnUnclaimedEntryDoesNotUnderflowTheRefcount() async {
+    @Test func markIdleOnAnUnclaimedEntryDoesNotUnderflowTheRefcount() async throws {
         let registry = ModelResidencyRegistry()
         let probe = EvictionProbe()
         await registry.register(id: "stt", tier: .stt) {
             await probe.recordEviction(of: "stt")
         }
 
-        await registry.markIdle(id: "stt")
-        await registry.markIdle(id: "stt")
+        // Generation 0 is never issued (the registry's counter is 1-based), so
+        // this is a token no `markBusy` can have handed out — the same "release
+        // nobody took" these two lines always stood for.
+        let neverIssued = ModelResidencyRegistry.ClaimToken(id: "stt", generation: 0)
+        await registry.markIdle(neverIssued)
+        await registry.markIdle(neverIssued)
 
         // One honored claim is still exactly one claim: the model is protected.
         let claim = await registry.markBusy(id: "stt")
-        #expect(claim == .claimed)
+        #expect(claim.result == .claimed)
+        let token = try #require(claim.token)
         await registry.evict(aggressive: false, reason: "test", minIdle: 0)
         let evictionsWhileClaimed = await probe.evictionCount(for: "stt")
         #expect(evictionsWhileClaimed == 0)
 
         // And one `markIdle` still releases it: the model is not pinned either.
-        await registry.markIdle(id: "stt")
+        await registry.markIdle(token)
         await registry.evict(aggressive: false, reason: "test", minIdle: 0)
         let evictionsAfterRelease = await probe.evictionCount(for: "stt")
         #expect(evictionsAfterRelease == 1)

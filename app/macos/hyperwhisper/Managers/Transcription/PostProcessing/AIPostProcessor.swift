@@ -281,12 +281,12 @@ class AIPostProcessor: ObservableObject {
         // we can see is very likely live, so proceed — WITHOUT a claim, and so
         // without the `markIdle` that would decrement a concurrent pass's claim
         // (`PostProcessEndpoint` documents that these interleave).
-        var claimedLocalLLM = false
+        var llmClaim: ModelResidencyRegistry.ClaimToken?
         if provider == .localLLM {
-            let claim = await ModelResidencyRegistry.shared.markBusy(id: LlamaServerController.residencyId)
-            switch claim {
+            let receipt = await ModelResidencyRegistry.shared.markBusy(id: LlamaServerController.residencyId)
+            switch receipt.result {
             case .claimed:
-                claimedLocalLLM = true
+                llmClaim = receipt.token
             case .evicting:
                 AppLogger.transcription.error("Local LLM residency claim refused (runtime is being freed under memory pressure); returning original text.")
                 onPostProcessingError?(TranscriptionError.localRuntimeUnavailable(reason: "local model unloaded to free memory"))
@@ -296,9 +296,13 @@ class AIPostProcessor: ObservableObject {
             }
         }
         defer {
-            if claimedLocalLLM {
+            if let llmClaim {
                 // markIdle is actor-isolated; defer is synchronous — fire-and-forget.
-                Task { await ModelResidencyRegistry.shared.markIdle(id: LlamaServerController.residencyId) }
+                // The token is a Sendable value, which is exactly why the release
+                // can cross this hop and still name the one claim it repays: a
+                // concurrent pass on this shared llama-server holds a different
+                // token, and this release cannot touch it.
+                Task { await ModelResidencyRegistry.shared.markIdle(llmClaim) }
             }
         }
 
@@ -815,11 +819,11 @@ class AIPostProcessor: ObservableObject {
         // the full rationale, including why `.evicting` returns while
         // `.notResident` proceeds unclaimed. Released on exit via defer, but
         // only when a claim was actually taken.
-        var claimedLocalLLM = false
-        let streamingClaim = await ModelResidencyRegistry.shared.markBusy(id: LlamaServerController.residencyId)
-        switch streamingClaim {
+        var llmClaim: ModelResidencyRegistry.ClaimToken?
+        let streamingReceipt = await ModelResidencyRegistry.shared.markBusy(id: LlamaServerController.residencyId)
+        switch streamingReceipt.result {
         case .claimed:
-            claimedLocalLLM = true
+            llmClaim = streamingReceipt.token
         case .evicting:
             AppLogger.transcription.error("Local LLM residency claim refused (runtime is being freed under memory pressure); returning original text.")
             onPostProcessingError?(TranscriptionError.localRuntimeUnavailable(reason: "local model unloaded to free memory"))
@@ -828,8 +832,8 @@ class AIPostProcessor: ObservableObject {
             AppLogger.transcription.notice("Local LLM is not registered for residency (owner has not registered it yet); proceeding unclaimed.")
         }
         defer {
-            if claimedLocalLLM {
-                Task { await ModelResidencyRegistry.shared.markIdle(id: LlamaServerController.residencyId) }
+            if let llmClaim {
+                Task { await ModelResidencyRegistry.shared.markIdle(llmClaim) }
             }
         }
 

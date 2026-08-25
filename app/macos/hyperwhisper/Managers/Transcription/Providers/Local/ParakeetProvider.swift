@@ -315,9 +315,9 @@ final class ParakeetProvider: TranscriptionProvider {
         //
         // - `.claimed` — the ordinary path, and the only one that owes a
         //   `markIdle`. A second concurrent claimer reaches this same shared
-        //   provider (`TranscribeEndpoint`), so an unconditional release after a
-        //   REFUSED claim would drop THAT pass's useCount and expose its runtime
-        //   to eviction mid-use. Hence the flag on both exits below.
+        //   provider (`TranscribeEndpoint`), so a release after a REFUSED claim
+        //   would be a release this pass has no token for. Hence the optional
+        //   token on both exits below: no token, no release.
         // - `.evicting` — HANDLED, by failing instead of transcribing. `manager`
         //   was fetched above, before the claim, and `ParakeetRuntime.reset()`
         //   suspends inside `await manager?.cleanup()` while still holding the
@@ -335,13 +335,16 @@ final class ParakeetProvider: TranscriptionProvider {
         //   load: a missing entry here more often means a completed eviction
         //   than an unfinished registration. Closing it needs the claim-first
         //   read this site does not have.
-        let parakeetClaim = await ModelResidencyRegistry.shared.markBusy(id: parakeetResidencyId)
-        if parakeetClaim == .evicting {
+        let parakeetReceipt = await ModelResidencyRegistry.shared.markBusy(id: parakeetResidencyId)
+        if parakeetReceipt.result == .evicting {
             logger.error("Parakeet residency claim refused: the runtime is being freed under memory pressure, so the manager fetched above is mid-teardown")
             throw TranscriptionError.localSpeechModelEvicted(model: modelId)
         }
-        let residencyClaimed = parakeetClaim.isHonored
-        if !residencyClaimed {
+        // The token IS the "did we claim?" flag, and it is also what repays the
+        // claim: a `nil` here is the `.notResident` branch below, and there is
+        // no way to spell a release without one.
+        let parakeetToken = parakeetReceipt.token
+        if parakeetToken == nil {
             logger.notice("Parakeet is not registered for residency; proceeding unclaimed (see the note above)")
         }
 
@@ -365,13 +368,13 @@ final class ParakeetProvider: TranscriptionProvider {
             if !vocabulary.isEmpty {
                 text = VocabularyProcessor.applySubstringVocabulary(to: text, vocabulary: vocabulary)
             }
-            if residencyClaimed {
-                await ModelResidencyRegistry.shared.markIdle(id: parakeetResidencyId)
+            if let parakeetToken {
+                await ModelResidencyRegistry.shared.markIdle(parakeetToken)
             }
             return text.trimmingCharacters(in: .whitespacesAndNewlines)
         } catch {
-            if residencyClaimed {
-                await ModelResidencyRegistry.shared.markIdle(id: parakeetResidencyId)
+            if let parakeetToken {
+                await ModelResidencyRegistry.shared.markIdle(parakeetToken)
             }
 
             // `Task.isCancelled` is task-local: read it once here, at the catch
