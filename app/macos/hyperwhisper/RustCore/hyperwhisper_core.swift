@@ -1483,6 +1483,111 @@ public func FfiConverterTypeHttpResponse_lower(_ value: HttpResponse) -> RustBuf
 
 
 /**
+ * The verdict on one custom endpoint. Mirrors `l::EndpointVerdict`.
+ *
+ * `url` is the single check a runtime caller needs: **empty means do not call
+ * it**, in either mode. `message` is the human-readable form of `issue`, so a
+ * platform never has to duplicate the wording in a switch.
+ */
+public struct HwEndpointVerdict {
+    public var status: HwEndpointStatus
+    public var url: String
+    public var model: String
+    public var issue: HwEndpointIssue?
+    public var message: String?
+    public var suggestion: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(status: HwEndpointStatus, url: String, model: String, issue: HwEndpointIssue?, message: String?, suggestion: String?) {
+        self.status = status
+        self.url = url
+        self.model = model
+        self.issue = issue
+        self.message = message
+        self.suggestion = suggestion
+    }
+}
+
+
+
+extension HwEndpointVerdict: Equatable, Hashable {
+    public static func ==(lhs: HwEndpointVerdict, rhs: HwEndpointVerdict) -> Bool {
+        if lhs.status != rhs.status {
+            return false
+        }
+        if lhs.url != rhs.url {
+            return false
+        }
+        if lhs.model != rhs.model {
+            return false
+        }
+        if lhs.issue != rhs.issue {
+            return false
+        }
+        if lhs.message != rhs.message {
+            return false
+        }
+        if lhs.suggestion != rhs.suggestion {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(status)
+        hasher.combine(url)
+        hasher.combine(model)
+        hasher.combine(issue)
+        hasher.combine(message)
+        hasher.combine(suggestion)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwEndpointVerdict: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwEndpointVerdict {
+        return
+            try HwEndpointVerdict(
+                status: FfiConverterTypeHwEndpointStatus.read(from: &buf), 
+                url: FfiConverterString.read(from: &buf), 
+                model: FfiConverterString.read(from: &buf), 
+                issue: FfiConverterOptionTypeHwEndpointIssue.read(from: &buf), 
+                message: FfiConverterOptionString.read(from: &buf), 
+                suggestion: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwEndpointVerdict, into buf: inout [UInt8]) {
+        FfiConverterTypeHwEndpointStatus.write(value.status, into: &buf)
+        FfiConverterString.write(value.url, into: &buf)
+        FfiConverterString.write(value.model, into: &buf)
+        FfiConverterOptionTypeHwEndpointIssue.write(value.issue, into: &buf)
+        FfiConverterOptionString.write(value.message, into: &buf)
+        FfiConverterOptionString.write(value.suggestion, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwEndpointVerdict_lift(_ buf: RustBuffer) throws -> HwEndpointVerdict {
+    return try FfiConverterTypeHwEndpointVerdict.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwEndpointVerdict_lower(_ value: HwEndpointVerdict) -> RustBuffer {
+    return FfiConverterTypeHwEndpointVerdict.lower(value)
+}
+
+
+/**
  * Language support for a model. Mirrors `hw_catalog::LanguageSupport` with the
  * `BTreeSet` flattened to a sorted `Vec`.
  */
@@ -1549,6 +1654,175 @@ public func FfiConverterTypeHwLanguageSupport_lift(_ buf: RustBuffer) throws -> 
 #endif
 public func FfiConverterTypeHwLanguageSupport_lower(_ value: HwLanguageSupport) -> RustBuffer {
     return FfiConverterTypeHwLanguageSupport.lower(value)
+}
+
+
+/**
+ * Inputs for [`llm_build_request`]. Mirrors `l::LlmParams`.
+ *
+ * `system_prompt` and `system_info` both come from `hw-text` (see
+ * [`crate::build_system_prompt`] / [`crate::build_system_info`]), so the caller
+ * never assembles a prompt by hand.
+ */
+public struct HwLlmParams {
+    public var provider: HwLlmProvider
+    public var model: String
+    public var apiKey: String
+    public var systemPrompt: String
+    public var systemInfo: String
+    public var transcript: String
+    public var customEndpoint: String?
+    public var baseUrl: String?
+    public var localLlamaPort: UInt16?
+    public var licenseKey: String?
+    public var deviceId: String?
+    public var llmProviderHeader: String?
+    public var llmModelHeader: String?
+    public var stream: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(provider: HwLlmProvider, model: String, apiKey: String, systemPrompt: String, systemInfo: String, transcript: String, customEndpoint: String? = nil, baseUrl: String? = nil, localLlamaPort: UInt16? = nil, licenseKey: String? = nil, deviceId: String? = nil, llmProviderHeader: String? = nil, llmModelHeader: String? = nil, stream: Bool = false) {
+        self.provider = provider
+        self.model = model
+        self.apiKey = apiKey
+        self.systemPrompt = systemPrompt
+        self.systemInfo = systemInfo
+        self.transcript = transcript
+        self.customEndpoint = customEndpoint
+        self.baseUrl = baseUrl
+        self.localLlamaPort = localLlamaPort
+        self.licenseKey = licenseKey
+        self.deviceId = deviceId
+        self.llmProviderHeader = llmProviderHeader
+        self.llmModelHeader = llmModelHeader
+        self.stream = stream
+    }
+}
+
+
+
+extension HwLlmParams: Equatable, Hashable {
+    public static func ==(lhs: HwLlmParams, rhs: HwLlmParams) -> Bool {
+        if lhs.provider != rhs.provider {
+            return false
+        }
+        if lhs.model != rhs.model {
+            return false
+        }
+        if lhs.apiKey != rhs.apiKey {
+            return false
+        }
+        if lhs.systemPrompt != rhs.systemPrompt {
+            return false
+        }
+        if lhs.systemInfo != rhs.systemInfo {
+            return false
+        }
+        if lhs.transcript != rhs.transcript {
+            return false
+        }
+        if lhs.customEndpoint != rhs.customEndpoint {
+            return false
+        }
+        if lhs.baseUrl != rhs.baseUrl {
+            return false
+        }
+        if lhs.localLlamaPort != rhs.localLlamaPort {
+            return false
+        }
+        if lhs.licenseKey != rhs.licenseKey {
+            return false
+        }
+        if lhs.deviceId != rhs.deviceId {
+            return false
+        }
+        if lhs.llmProviderHeader != rhs.llmProviderHeader {
+            return false
+        }
+        if lhs.llmModelHeader != rhs.llmModelHeader {
+            return false
+        }
+        if lhs.stream != rhs.stream {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(provider)
+        hasher.combine(model)
+        hasher.combine(apiKey)
+        hasher.combine(systemPrompt)
+        hasher.combine(systemInfo)
+        hasher.combine(transcript)
+        hasher.combine(customEndpoint)
+        hasher.combine(baseUrl)
+        hasher.combine(localLlamaPort)
+        hasher.combine(licenseKey)
+        hasher.combine(deviceId)
+        hasher.combine(llmProviderHeader)
+        hasher.combine(llmModelHeader)
+        hasher.combine(stream)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwLlmParams: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwLlmParams {
+        return
+            try HwLlmParams(
+                provider: FfiConverterTypeHwLlmProvider.read(from: &buf), 
+                model: FfiConverterString.read(from: &buf), 
+                apiKey: FfiConverterString.read(from: &buf), 
+                systemPrompt: FfiConverterString.read(from: &buf), 
+                systemInfo: FfiConverterString.read(from: &buf), 
+                transcript: FfiConverterString.read(from: &buf), 
+                customEndpoint: FfiConverterOptionString.read(from: &buf), 
+                baseUrl: FfiConverterOptionString.read(from: &buf), 
+                localLlamaPort: FfiConverterOptionUInt16.read(from: &buf), 
+                licenseKey: FfiConverterOptionString.read(from: &buf), 
+                deviceId: FfiConverterOptionString.read(from: &buf), 
+                llmProviderHeader: FfiConverterOptionString.read(from: &buf), 
+                llmModelHeader: FfiConverterOptionString.read(from: &buf), 
+                stream: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwLlmParams, into buf: inout [UInt8]) {
+        FfiConverterTypeHwLlmProvider.write(value.provider, into: &buf)
+        FfiConverterString.write(value.model, into: &buf)
+        FfiConverterString.write(value.apiKey, into: &buf)
+        FfiConverterString.write(value.systemPrompt, into: &buf)
+        FfiConverterString.write(value.systemInfo, into: &buf)
+        FfiConverterString.write(value.transcript, into: &buf)
+        FfiConverterOptionString.write(value.customEndpoint, into: &buf)
+        FfiConverterOptionString.write(value.baseUrl, into: &buf)
+        FfiConverterOptionUInt16.write(value.localLlamaPort, into: &buf)
+        FfiConverterOptionString.write(value.licenseKey, into: &buf)
+        FfiConverterOptionString.write(value.deviceId, into: &buf)
+        FfiConverterOptionString.write(value.llmProviderHeader, into: &buf)
+        FfiConverterOptionString.write(value.llmModelHeader, into: &buf)
+        FfiConverterBool.write(value.stream, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLlmParams_lift(_ buf: RustBuffer) throws -> HwLlmParams {
+    return try FfiConverterTypeHwLlmParams.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLlmParams_lower(_ value: HwLlmParams) -> RustBuffer {
+    return FfiConverterTypeHwLlmParams.lower(value)
 }
 
 
@@ -4847,6 +5121,263 @@ extension HwAppType: Equatable, Hashable {}
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
+ * The rule that failed. Mirrors `l::EndpointIssue`.
+ */
+
+public enum HwEndpointIssue {
+    
+    case emptyUrl
+    case notAbsolute
+    case unsupportedScheme
+    case userInfoNotAllowed
+    case fragmentNotAllowed
+    case urlTooLong
+    case emptyModel
+    case modelTooLong
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwEndpointIssue: FfiConverterRustBuffer {
+    typealias SwiftType = HwEndpointIssue
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwEndpointIssue {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .emptyUrl
+        
+        case 2: return .notAbsolute
+        
+        case 3: return .unsupportedScheme
+        
+        case 4: return .userInfoNotAllowed
+        
+        case 5: return .fragmentNotAllowed
+        
+        case 6: return .urlTooLong
+        
+        case 7: return .emptyModel
+        
+        case 8: return .modelTooLong
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: HwEndpointIssue, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .emptyUrl:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .notAbsolute:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .unsupportedScheme:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .userInfoNotAllowed:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .fragmentNotAllowed:
+            writeInt(&buf, Int32(5))
+        
+        
+        case .urlTooLong:
+            writeInt(&buf, Int32(6))
+        
+        
+        case .emptyModel:
+            writeInt(&buf, Int32(7))
+        
+        
+        case .modelTooLong:
+            writeInt(&buf, Int32(8))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwEndpointIssue_lift(_ buf: RustBuffer) throws -> HwEndpointIssue {
+    return try FfiConverterTypeHwEndpointIssue.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwEndpointIssue_lower(_ value: HwEndpointIssue) -> RustBuffer {
+    return FfiConverterTypeHwEndpointIssue.lower(value)
+}
+
+
+
+extension HwEndpointIssue: Equatable, Hashable {}
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * The verdict's headline. Mirrors `l::EndpointStatus`.
+ */
+
+public enum HwEndpointStatus {
+    
+    case valid
+    case needsRepair
+    case invalid
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwEndpointStatus: FfiConverterRustBuffer {
+    typealias SwiftType = HwEndpointStatus
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwEndpointStatus {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .valid
+        
+        case 2: return .needsRepair
+        
+        case 3: return .invalid
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: HwEndpointStatus, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .valid:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .needsRepair:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .invalid:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwEndpointStatus_lift(_ buf: RustBuffer) throws -> HwEndpointStatus {
+    return try FfiConverterTypeHwEndpointStatus.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwEndpointStatus_lower(_ value: HwEndpointStatus) -> RustBuffer {
+    return FfiConverterTypeHwEndpointStatus.lower(value)
+}
+
+
+
+extension HwEndpointStatus: Equatable, Hashable {}
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * How strictly to judge a custom endpoint. Mirrors `l::EndpointValidationMode`.
+ */
+
+public enum HwEndpointValidationMode {
+    
+    /**
+     * A new or edited endpoint — every rule break is fatal.
+     */
+    case strict
+    /**
+     * An endpoint already saved (or arriving in a backup) — a rule break
+     * becomes a repair prompt, not a deletion.
+     */
+    case lenient
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwEndpointValidationMode: FfiConverterRustBuffer {
+    typealias SwiftType = HwEndpointValidationMode
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwEndpointValidationMode {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .strict
+        
+        case 2: return .lenient
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: HwEndpointValidationMode, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .strict:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .lenient:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwEndpointValidationMode_lift(_ buf: RustBuffer) throws -> HwEndpointValidationMode {
+    return try FfiConverterTypeHwEndpointValidationMode.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwEndpointValidationMode_lower(_ value: HwEndpointValidationMode) -> RustBuffer {
+    return FfiConverterTypeHwEndpointValidationMode.lower(value)
+}
+
+
+
+extension HwEndpointValidationMode: Equatable, Hashable {}
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
  * English-spelling variant for the `<SPELLING>` / `<DATE_FORMAT>` block.
  * Mirrors `hw_text::EnglishSpelling`.
  */
@@ -5078,6 +5609,293 @@ public func FfiConverterTypeHwLicenseStatus_lower(_ value: HwLicenseStatus) -> R
 
 
 extension HwLicenseStatus: Equatable, Hashable {}
+
+
+
+
+/**
+ * Why a post-processing request could not be built. Mirrors `l::LlmError`.
+ * `Display` is hand-written to match the leaf crate's `thiserror` messages, so
+ * `hw-core` needs no extra dependency.
+ */
+public enum HwLlmError {
+
+    
+    
+    case MissingField(field: String
+    )
+    case InvalidEndpoint(message: String
+    )
+    case MissingIdentity
+    case Parse(message: String
+    )
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwLlmError: FfiConverterRustBuffer {
+    typealias SwiftType = HwLlmError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwLlmError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .MissingField(
+            field: try FfiConverterString.read(from: &buf)
+            )
+        case 2: return .InvalidEndpoint(
+            message: try FfiConverterString.read(from: &buf)
+            )
+        case 3: return .MissingIdentity
+        case 4: return .Parse(
+            message: try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: HwLlmError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .MissingField(field):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(field, into: &buf)
+            
+        
+        case let .InvalidEndpoint(message):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(message, into: &buf)
+            
+        
+        case .MissingIdentity:
+            writeInt(&buf, Int32(3))
+        
+        
+        case let .Parse(message):
+            writeInt(&buf, Int32(4))
+            FfiConverterString.write(message, into: &buf)
+            
+        }
+    }
+}
+
+
+extension HwLlmError: Equatable, Hashable {}
+
+extension HwLlmError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * Every post-processing provider. Mirrors `l::LlmProvider`.
+ */
+
+public enum HwLlmProvider {
+    
+    case hyperWhisperCloud
+    case openAi
+    case anthropic
+    case gemini
+    case groq
+    case grok
+    case cerebras
+    case mistral
+    case localLlama
+    case custom
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwLlmProvider: FfiConverterRustBuffer {
+    typealias SwiftType = HwLlmProvider
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwLlmProvider {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .hyperWhisperCloud
+        
+        case 2: return .openAi
+        
+        case 3: return .anthropic
+        
+        case 4: return .gemini
+        
+        case 5: return .groq
+        
+        case 6: return .grok
+        
+        case 7: return .cerebras
+        
+        case 8: return .mistral
+        
+        case 9: return .localLlama
+        
+        case 10: return .custom
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: HwLlmProvider, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .hyperWhisperCloud:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .openAi:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .anthropic:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .gemini:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .groq:
+            writeInt(&buf, Int32(5))
+        
+        
+        case .grok:
+            writeInt(&buf, Int32(6))
+        
+        
+        case .cerebras:
+            writeInt(&buf, Int32(7))
+        
+        
+        case .mistral:
+            writeInt(&buf, Int32(8))
+        
+        
+        case .localLlama:
+            writeInt(&buf, Int32(9))
+        
+        
+        case .custom:
+            writeInt(&buf, Int32(10))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLlmProvider_lift(_ buf: RustBuffer) throws -> HwLlmProvider {
+    return try FfiConverterTypeHwLlmProvider.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLlmProvider_lower(_ value: HwLlmProvider) -> RustBuffer {
+    return FfiConverterTypeHwLlmProvider.lower(value)
+}
+
+
+
+extension HwLlmProvider: Equatable, Hashable {}
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * Which parser reads a provider's 200 body. Mirrors `l::LlmWireProtocol`.
+ *
+ * Deliberately distinct from [`crate::ffi_completion::WireProtocol`], which has
+ * no HyperWhisper Cloud arm: the hosted route answers `{ "corrected": … }` and
+ * must NOT go through the provider-native wrapper contract a second time.
+ */
+
+public enum HwLlmWireProtocol {
+    
+    case openAiChat
+    case anthropicMessages
+    case hyperWhisperCloud
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwLlmWireProtocol: FfiConverterRustBuffer {
+    typealias SwiftType = HwLlmWireProtocol
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwLlmWireProtocol {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .openAiChat
+        
+        case 2: return .anthropicMessages
+        
+        case 3: return .hyperWhisperCloud
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: HwLlmWireProtocol, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .openAiChat:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .anthropicMessages:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .hyperWhisperCloud:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLlmWireProtocol_lift(_ buf: RustBuffer) throws -> HwLlmWireProtocol {
+    return try FfiConverterTypeHwLlmWireProtocol.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLlmWireProtocol_lower(_ value: HwLlmWireProtocol) -> RustBuffer {
+    return FfiConverterTypeHwLlmWireProtocol.lower(value)
+}
+
+
+
+extension HwLlmWireProtocol: Equatable, Hashable {}
 
 
 
@@ -6156,6 +6974,30 @@ fileprivate struct FfiConverterOptionTypeTrialLimits: FfiConverterRustBuffer {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeTrialLimits.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeHwEndpointIssue: FfiConverterRustBuffer {
+    typealias SwiftType = HwEndpointIssue?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeHwEndpointIssue.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeHwEndpointIssue.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -7479,6 +8321,206 @@ public func licenseValidationCacheSecs() -> Int64 {
 })
 }
 /**
+ * The "Hello world" probe the Add/Edit endpoint sheet sends.
+ */
+public func llmBuildCustomEndpointTestRequest(rawUrl: String, model: String, apiKey: String?)throws  -> HttpRequest {
+    return try  FfiConverterTypeHttpRequest.lift(try rustCallWithError(FfiConverterTypeHwLlmError.lift) {
+    uniffi_hyperwhisper_core_fn_func_llm_build_custom_endpoint_test_request(
+        FfiConverterString.lower(rawUrl),
+        FfiConverterString.lower(model),
+        FfiConverterOptionString.lower(apiKey),$0
+    )
+})
+}
+/**
+ * Build the post-processing request for any provider.
+ *
+ * The platform executes it with its own timeout and retry policy, then parses
+ * the 200 body with the protocol [`llm_wire_protocol_for`] names.
+ */
+public func llmBuildRequest(params: HwLlmParams)throws  -> HttpRequest {
+    return try  FfiConverterTypeHttpRequest.lift(try rustCallWithError(FfiConverterTypeHwLlmError.lift) {
+    uniffi_hyperwhisper_core_fn_func_llm_build_request(
+        FfiConverterTypeHwLlmParams.lower(params),$0
+    )
+})
+}
+/**
+ * Port the embedded llama-server listens on.
+ */
+public func llmDefaultLocalLlamaPort() -> UInt16 {
+    return try!  FfiConverterUInt16.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_llm_default_local_llama_port($0
+    )
+})
+}
+/**
+ * The URL a request would go to, without building the body. For logging and
+ * for the health checker.
+ */
+public func llmEndpointFor(params: HwLlmParams)throws  -> String {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeHwLlmError.lift) {
+    uniffi_hyperwhisper_core_fn_func_llm_endpoint_for(
+        FfiConverterTypeHwLlmParams.lower(params),$0
+    )
+})
+}
+/**
+ * Output-token cap sent to Groq (lower than [`llm_max_output_tokens`] — see the
+ * leaf crate for why).
+ */
+public func llmGroqMaxCompletionTokens() -> UInt32 {
+    return try!  FfiConverterUInt32.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_llm_groq_max_completion_tokens($0
+    )
+})
+}
+/**
+ * HyperWhisper Cloud production base URL.
+ */
+public func llmHwCloudProdBase() -> String {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_llm_hw_cloud_prod_base($0
+    )
+})
+}
+/**
+ * HyperWhisper Cloud staging base URL, for DEBUG builds.
+ *
+ * The Linux head hardcoded the production host with no DEBUG switch, so every
+ * dev run billed production credits. Both constants live here now.
+ */
+public func llmHwCloudStagingBase() -> String {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_llm_hw_cloud_staging_base($0
+    )
+})
+}
+/**
+ * Whether a Mode's stored provider string names a custom endpoint.
+ */
+public func llmIsCustomProviderString(providerString: String) -> Bool {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_llm_is_custom_provider_string(
+        FfiConverterString.lower(providerString),$0
+    )
+})
+}
+/**
+ * Max custom endpoint model-name length, for a UI character counter.
+ */
+public func llmMaxCustomEndpointModelChars() -> UInt32 {
+    return try!  FfiConverterUInt32.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_llm_max_custom_endpoint_model_chars($0
+    )
+})
+}
+/**
+ * Max custom endpoint URL length, for a UI character counter.
+ */
+public func llmMaxCustomEndpointUrlChars() -> UInt32 {
+    return try!  FfiConverterUInt32.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_llm_max_custom_endpoint_url_chars($0
+    )
+})
+}
+/**
+ * Max output tokens requested from any post-processing LLM.
+ */
+public func llmMaxOutputTokens() -> UInt32 {
+    return try!  FfiConverterUInt32.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_llm_max_output_tokens($0
+    )
+})
+}
+/**
+ * The next name when the user duplicates an endpoint:
+ * `"Name"` → `"Name (copy)"` → `"Name (copy 2)"`.
+ */
+public func llmNextCopyName(originalName: String) -> String {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_llm_next_copy_name(
+        FfiConverterString.lower(originalName),$0
+    )
+})
+}
+/**
+ * The one custom-endpoint validation rule, replacing the four the platforms
+ * each had.
+ */
+public func llmNormalizeCustomEndpoint(raw: String, model: String, mode: HwEndpointValidationMode) -> HwEndpointVerdict {
+    return try!  FfiConverterTypeHwEndpointVerdict.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_llm_normalize_custom_endpoint(
+        FfiConverterString.lower(raw),
+        FfiConverterString.lower(model),
+        FfiConverterTypeHwEndpointValidationMode.lower(mode),$0
+    )
+})
+}
+/**
+ * The UUID inside a Mode's `"custom:<uuid>"` provider string, canonical
+ * lowercase. `None` when the string is not a custom-endpoint reference.
+ */
+public func llmParseCustomProviderString(providerString: String) -> String? {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_llm_parse_custom_provider_string(
+        FfiConverterString.lower(providerString),$0
+    )
+})
+}
+/**
+ * Parse the hosted `/post-process` 200 body (`{ "corrected": "..." }`).
+ *
+ * The hosted contract already validates provider termination and strips the
+ * wrapper markers, so the caller must NOT run the provider-native wrapper
+ * contract over this a second time.
+ */
+public func llmParseHwCloudPostProcess(resp: HttpResponse)throws  -> String {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeHwLlmError.lift) {
+    uniffi_hyperwhisper_core_fn_func_llm_parse_hw_cloud_post_process(
+        FfiConverterTypeHttpResponse.lower(resp),$0
+    )
+})
+}
+/**
+ * Validate an endpoint that is already saved, or arriving in a backup.
+ *
+ * Lenient: an endpoint that fails the tightened rules comes back as
+ * [`HwEndpointStatus::NeedsRepair`] with a `suggestion`, and keeps a callable
+ * `url` wherever calling it is still safe — so tightening validation cannot
+ * silently delete a user's endpoint or stop their post-processing.
+ */
+public func llmValidateExistingCustomEndpoint(raw: String, model: String) -> HwEndpointVerdict {
+    return try!  FfiConverterTypeHwEndpointVerdict.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_llm_validate_existing_custom_endpoint(
+        FfiConverterString.lower(raw),
+        FfiConverterString.lower(model),$0
+    )
+})
+}
+/**
+ * Which parser handles this provider's 200 response.
+ */
+public func llmWireProtocolFor(provider: HwLlmProvider) -> HwLlmWireProtocol {
+    return try!  FfiConverterTypeHwLlmWireProtocol.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_llm_wire_protocol_for(
+        FfiConverterTypeHwLlmProvider.lower(provider),$0
+    )
+})
+}
+/**
+ * The `systemInfo` + `--TRANSCRIPT--` user message, for callers that need the
+ * string itself (e.g. a native streaming body).
+ */
+public func llmWrapTranscript(systemInfo: String, transcript: String) -> String {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_llm_wrap_transcript(
+        FfiConverterString.lower(systemInfo),
+        FfiConverterString.lower(transcript),$0
+    )
+})
+}
+/**
  * Map a macOS 7-category native settings JSON into a universal-v2 5-category
  * `SettingsRecord` JSON (macOS-only keys parked under `platformExtensions.macos`).
  * `existing_macos_ext_json`, when present, is the existing
@@ -8209,6 +9251,60 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_license_validation_cache_secs() != 34885) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_llm_build_custom_endpoint_test_request() != 5659) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_llm_build_request() != 57763) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_llm_default_local_llama_port() != 14194) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_llm_endpoint_for() != 36443) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_llm_groq_max_completion_tokens() != 51471) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_llm_hw_cloud_prod_base() != 14171) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_llm_hw_cloud_staging_base() != 30428) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_llm_is_custom_provider_string() != 5642) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_llm_max_custom_endpoint_model_chars() != 49114) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_llm_max_custom_endpoint_url_chars() != 61579) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_llm_max_output_tokens() != 41429) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_llm_next_copy_name() != 32799) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_llm_normalize_custom_endpoint() != 22750) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_llm_parse_custom_provider_string() != 41613) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_llm_parse_hw_cloud_post_process() != 31813) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_llm_validate_existing_custom_endpoint() != 49909) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_llm_wire_protocol_for() != 30751) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_llm_wrap_transcript() != 44003) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_macos_settings_to_universal_settings_json() != 44899) {
