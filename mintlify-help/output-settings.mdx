@@ -31,6 +31,17 @@ When **Paste result automatically** is on, HyperWhisper copies the transcript to
   <Tab title="Windows">
     Auto Paste sends a **Ctrl+V** keystroke to the focused application. It does not use UI Automation for the paste. HyperWhisper uses UI Automation only before the paste, to find password fields. If the field is a password field, HyperWhisper skips the paste. Auto Paste needs no extra permission.
   </Tab>
+  <Tab title="Linux">
+    Auto Paste sends the paste keystroke through `/dev/uinput`, which needs the `hyperwhisper-input` group. Add the group, then log out completely and log back in. See [Install HyperWhisper on Linux](/linux-installation#enable-global-shortcuts-and-automatic-paste).
+
+    Without the group, transcription still works. HyperWhisper leaves the transcript on your clipboard and you paste it yourself.
+
+    Before it pastes, HyperWhisper asks AT-SPI for the role of the focused field. If the field is a password field, HyperWhisper copies the text and does not paste. The recording overlay then shows **Copied — secure field protected**.
+
+    <Note>
+      AT-SPI cannot read the focused field in every toolkit. If HyperWhisper cannot get an answer, it treats the state as unknown and pastes as usual. Do not rely on this guard as a security control.
+    </Note>
+  </Tab>
 </Tabs>
 
 ## Remove Filler Words
@@ -65,6 +76,13 @@ Turn on **Remove filler words** to remove the speech fillers "uh", "um", and "er
 
     If UIA is not available, the toggle on Windows stays on and HyperWhisper shows an information message. The toggle does not go back to off, as it does on macOS.
   </Tab>
+  <Tab title="Linux">
+    The setting is **Best-effort capitalization matching at the insertion point**, in **Settings → Text output**. It is on by default.
+
+    Linux reads the caret position with AT-SPI. A helper process reads at most 64 characters before the caret, decides start-of-sentence or mid-sentence in that process, and returns only the verdict. No text from your application crosses the process boundary, and HyperWhisper keeps none of it.
+
+    A field that AT-SPI cannot read, and a password field, both return an unknown verdict. HyperWhisper then leaves your transcript unchanged.
+  </Tab>
 </Tabs>
 
 ## Clipboard Settings
@@ -86,6 +104,9 @@ When the clipboard restore setting is on, a delay control shows. You can set the
   <Tab title="Windows">
     Use the **−** and **+** buttons to change the delay in steps of one second.
   </Tab>
+  <Tab title="Linux">
+    Use the **Clipboard restore delay (seconds)** box. Linux permits **0 to 60 seconds**, in steps of 0.5 seconds. The default is 10 seconds. A value of 0 restores the clipboard immediately.
+  </Tab>
 </Tabs>
 
 ### Hide from clipboard history
@@ -100,6 +121,15 @@ Use this setting when you dictate sensitive content, such as passwords, private 
   </Tab>
   <Tab title="Windows">
     HyperWhisper puts the transcript on the clipboard with the Windows clipboard exclusion API. The transcript does not show in Windows Clipboard History (`Win + V`) or in compatible third-party clipboard managers.
+  </Tab>
+  <Tab title="Linux">
+    Linux has no standard exclusion mechanism. HyperWhisper attaches a hint that a compatible native clipboard owner can read, but your desktop can ignore the hint.
+
+    The status line below the checkbox tells you what your desktop supports. It reads **Clipboard-history exclusion hints are enabled for compatible clipboard managers** when the hint can be attached, or **This clipboard backend cannot attach a history-exclusion hint** when it cannot. In the second case, the restore behavior still applies.
+
+    <Warning>
+      Treat this setting as best effort on Linux. Do not dictate a password into a field and rely on the hint to keep it out of your clipboard manager.
+    </Warning>
   </Tab>
 </Tabs>
 

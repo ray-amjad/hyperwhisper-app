@@ -28,6 +28,20 @@ HyperWhisper uses global shortcuts, so you can control recording from any app. T
     | Change mode | `Ctrl+Shift+.` | Selects the next of your modes, from any app. |
     | Streaming recording | `Ctrl+Shift+Space` | Starts a streaming transcription session. |
   </Tab>
+  <Tab title="Linux">
+    | Action | Default | Description |
+    | --- | --- | --- |
+    | Toggle recording | `Ctrl+Alt` | Starts or stops a transcription session. |
+    | Cancel recording | `Esc` | Stops the active session and saves nothing. |
+    | Change mode | `Ctrl+Shift+.` | Selects the next of your modes, from any app. |
+    | Streaming recording | `Ctrl+Shift+Space` | Starts a streaming transcription session. |
+
+    Push-to-talk is **Disabled** by default on Linux.
+
+    <Warning>
+      Grant the `hyperwhisper-input` group before you rely on a global shortcut. Without the group, HyperWhisper cannot read `/dev/input`, so no global shortcut responds. Transcription from the main window still works, and the result stays on your clipboard. For the steps, see [Install HyperWhisper on Linux](/linux-installation#enable-global-shortcuts-and-automatic-paste).
+    </Warning>
+  </Tab>
 </Tabs>
 
 ## Recording Activation Modes
@@ -72,6 +86,36 @@ You can start recording in three ways:
         To return all shortcuts to their default values, click **Reset to Defaults**.
       </Step>
     </Steps>
+  </Tab>
+  <Tab title="Linux">
+    Linux has no shortcut recorder. You type each shortcut as text, in **Settings → Shortcuts and push-to-talk**.
+
+    <Steps>
+      <Step title="Type the modifiers">
+        Each action has a **modifiers** field and a **key** field. In the modifiers field, type `Control`, `Alt`, `Shift`, or `Meta`, separated by commas — for example `Control, Shift`. Type `None` for no modifier.
+      </Step>
+      <Step title="Type the key">
+        In the key field, type one key name, for example `Space`, `Escape`, or `Period`. Leave **both** fields empty to unassign the action.
+      </Step>
+      <Step title="Save the settings">
+        Click **Save settings**. HyperWhisper validates every shortcut before it saves any of them. If a shortcut is not valid, nothing is saved and the reason appears below the card.
+      </Step>
+      <Step title="Reset the shortcuts">
+        Click **Reset shortcut defaults**. This fills the fields with the default values. Click **Save settings** to apply them.
+      </Step>
+    </Steps>
+
+    Linux rejects three cases:
+
+    | Case | Message |
+    | --- | --- |
+    | A modifier that is not `Control`, `Alt`, `Shift`, or `Meta` | Use only Control, Alt, Shift, or Meta modifiers |
+    | A modifier-only shortcut with one modifier | A modifier-only shortcut needs at least two modifiers |
+    | Two actions with the same combination | The two action names, and a request to use different shortcuts |
+
+    <Note>
+      A modifier-only shortcut needs two modifiers because one bare modifier would trigger on a normal keystroke such as `Ctrl+C`. This is why the default toggle shortcut is `Control, Alt` with an empty key field.
+    </Note>
   </Tab>
 </Tabs>
 
@@ -118,6 +162,22 @@ With push-to-talk, you hold a key to record. When you release the key, recording
 
     When the mode is **Disabled**, push-to-talk is off. HyperWhisper uses the toggle shortcut.
   </Tab>
+  <Tab title="Linux">
+    Go to **Settings → Shortcuts and push-to-talk**. Then set the push-to-talk mode to **Modifier** or **CustomShortcut**. The default is **Disabled**.
+
+    **Modifier mode** — hold one modifier key to record. Select the key from the modifier picker. The picker gives an either-side option and a left or right option for each modifier:
+
+    | Either side | Left | Right |
+    | --- | --- | --- |
+    | `Control` | `LeftControl` | `RightControl` |
+    | `Alt` | `LeftAlt` | `RightAlt` |
+    | `Shift` | `LeftShift` | `RightShift` |
+    | `Meta` | `LeftMeta` | `RightMeta` |
+
+    The default is `LeftAlt`.
+
+    **CustomShortcut mode** — type the modifiers and the key in the **Custom push-to-talk modifiers and key** fields. In this mode the shortcut must be assigned. HyperWhisper refuses to save an empty custom shortcut.
+  </Tab>
 </Tabs>
 
 ### Double-press to lock
@@ -132,6 +192,9 @@ When double-press is on, two quick taps on the push-to-talk key lock recording o
   </Tab>
   <Tab title="Windows">
     The **Double-Press Lock** checkbox is in **Settings → Shortcuts**. It appears when push-to-talk is in Modifier mode.
+  </Tab>
+  <Tab title="Linux">
+    The **Double press to lock push-to-talk** checkbox is in **Settings → Shortcuts and push-to-talk**. It is off by default.
   </Tab>
 </Tabs>
 
@@ -213,3 +276,5 @@ When you close the main window, HyperWhisper goes to the system tray and stays a
 - **Push-to-talk does not start** — on macOS, the bare modifier modes (FN, Control, Option) need Accessibility permission. Open **System Settings → Privacy & Security → Accessibility**. Then make sure that HyperWhisper is in the list and is turned on. You do not need to start the app again: HyperWhisper watches for the new permission for 10 minutes and arms push-to-talk as soon as it finds it. If you take more than 10 minutes, select the push-to-talk mode again in **Settings → Shortcuts**, or start the app again.
 - **No shortcut works after a hidden start (macOS)** — HyperWhisper registers the shortcuts at launch, and it does not need the main window. A login-item start with **Launch minimized** on gives you working shortcuts immediately. Older versions registered the shortcuts only when the main window appeared, so the record shortcut stayed dead until you opened the window. If you see that behavior, update to the current version.
 - **Windows shortcut conflict** — when two actions have the same key combination, a warning banner appears in Settings → Shortcuts. Correct the conflict before you save.
+- **No shortcut works on Linux** — HyperWhisper reads global shortcuts from `/dev/input`, which needs the `hyperwhisper-input` group. Run `id -nG | tr ' ' '\n' | grep -x hyperwhisper-input` in a terminal. If the command prints nothing, add the group, then log out completely and log back in. See [Install HyperWhisper on Linux](/linux-installation#enable-global-shortcuts-and-automatic-paste).
+- **A Linux shortcut is not saved** — Linux validates every shortcut together. One invalid field stops the whole save, so check each modifiers field for a word other than `Control`, `Alt`, `Shift`, `Meta`, or `None`.

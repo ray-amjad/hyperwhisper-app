@@ -39,14 +39,16 @@ To select a different folder, click **Choose...** and select the folder. HyperWh
 
 ### Show the folder
 
-The **Show recordings folder** row opens the current folder in your file manager. The button is **Show in Finder** on macOS and **Show in Explorer** on Windows. HyperWhisper creates the folder first if it is not there.
+The **Show recordings folder** row opens the current folder in your file manager. The button is **Show in Finder** on macOS, **Show in Explorer** on Windows, and **Open recordings folder** on Linux. HyperWhisper creates the folder first if it is not there.
 
 <Note>
   On Windows, HyperWhisper tests that the folder is writable at each start. If your folder is not writable — for example, an external disk that is not connected — the app moves to the first folder in this list that works: your Documents folder, the folder of an earlier build, your Downloads folder, then a temporary folder. The app writes the reason in the log.
 </Note>
 
 <Note>
-  Linux uses its fixed XDG recordings folder and canonical WAV files. The Linux app does not currently offer a custom-folder picker or M4A conversion because cleanup and local API access enforce ownership within this fixed app directory. Use **Open recordings folder** to open it in your file manager.
+  On Linux, a folder change applies after you save the settings **and restart** HyperWhisper. Existing History entries keep their original absolute audio paths.
+
+  Linux also tests the folder before it accepts it. The folder must be an absolute path, must not be the filesystem root, and must not be a symbolic link. HyperWhisper then writes and deletes a probe file to prove that only your user account can write there. If a test fails, HyperWhisper keeps the previous folder and shows the reason.
 </Note>
 
 ---
@@ -69,6 +71,11 @@ HyperWhisper always records to WAV and always transcribes the WAV file. The conv
   <Tab title="Windows">
     The toggle is on for a new installation. On an installation that is older than this setting, the toggle is off until you turn it on.
   </Tab>
+  <Tab title="Linux">
+    The toggle is **off** by default, so Linux keeps the WAV file until you turn the toggle on.
+
+    Linux runs the conversion with `ffmpeg`, at 96 kbit/s AAC. If `ffmpeg` is not on your `PATH`, or if the conversion fails, HyperWhisper keeps the WAV file and the History entry continues to point at it.
+  </Tab>
 </Tabs>
 
 ---
@@ -77,7 +84,11 @@ HyperWhisper always records to WAV and always transcribes the WAV file. The conv
 
 This picker sets the longest recording that HyperWhisper permits. At the limit, the recording stops and HyperWhisper transcribes the audio that it captured.
 
-The options are 20 minutes, 1 hour, 2 hours, and Off. The default is 1 hour. This picker is on macOS only. Windows has a fixed limit of 20 minutes that you cannot change.
+The options are 20 minutes, 1 hour, 2 hours, and Off. The default is 1 hour. This picker is on macOS only. Windows and Linux have a fixed limit of 20 minutes that you cannot change.
+
+<Note>
+  On Linux, the 20-minute limit applies to a batch recording and to a streaming session. At the limit, HyperWhisper stops the session and reports the reason as `interaction.recording_duration_limit_reached`, or `interaction.streaming_duration_limit_reached` for a streaming session.
+</Note>
 
 For the stored value and the backup key, see [Advanced Settings](/advanced-settings#max-recording-duration).
 

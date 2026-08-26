@@ -18,9 +18,16 @@ The server is **off by default**. You turn it on one time in Settings. It stays 
     1. Open **Settings → Local API**.
     2. Set the toggle to **on**. The status line then shows the bound address and the last four characters of your bearer token.
   </Tab>
+  <Tab title="Linux">
+    1. Open the main window, then click **Settings**. Scroll to the **Local API** section.
+    2. Check **Enable the loopback-only local API**.
+    3. Click **Save settings**. The status line then shows the result of the start.
+
+    Linux shows the same fields as the other platforms in one list, not in tabs.
+  </Tab>
 </Tabs>
 
-When the server runs, the panel shows three tabs: **Connection**, **MCP setup**, and **cURL**.
+When the server runs, the panel shows three tabs on macOS and Windows: **Connection**, **MCP setup**, and **cURL**. Linux shows the same content as one list.
 
 ## Connection tab
 
@@ -30,7 +37,7 @@ The Connection tab shows the current values that you need to make requests to th
 |---|---|
 | **Port** | The port that the server listens on. The **Copy** button copies the port to the clipboard. |
 | **Bearer token** | Hidden by default. Click **Reveal** to show the full value. Click **Copy** to copy the token. Click the regenerate button to make a new token (see the next section). |
-| **Port file** | The full path of the discovery file. The **Show** button opens the file in Finder (macOS) or Explorer (Windows). |
+| **Port file** | The full path of the discovery file. The **Show** button opens the file in Finder (macOS) or Explorer (Windows). Linux shows the path in a read-only field that you can copy. |
 
 If an error occurs after the server starts (for example, the port is already in use), an orange warning appears below these fields.
 
@@ -42,9 +49,9 @@ Every request except `GET /health` must include the bearer token:
 Authorization: Bearer <token>
 ```
 
-HyperWhisper makes the token the first time the server starts. macOS keeps the token in the Keychain. Windows keeps the token in a DPAPI-protected file at `%LOCALAPPDATA%\HyperWhisper\local-api-token.bin`. The token stays the same across restarts. You do not update your scripts each time.
+HyperWhisper makes the token the first time the server starts. macOS keeps the token in the Keychain. Windows keeps the token in a DPAPI-protected file at `%LOCALAPPDATA%\HyperWhisper\local-api-token.bin`. Linux keeps the token in an owner-only file at `$XDG_DATA_HOME/hyperwhisper/local-api-token`. The token stays the same across restarts. You do not update your scripts each time.
 
-To make a new token, click the regenerate button. This button is a circular arrows icon on macOS and a rotate button on Windows. The previous token stops immediately. Update each MCP client and each script that cached the old token. These clients and scripts can read the new value from the discovery file.
+To make a new token, click the regenerate button. This button is a circular arrows icon on macOS, a rotate button on Windows, and a **Regenerate** button on Linux. The previous token stops immediately. Update each MCP client and each script that cached the old token. These clients and scripts can read the new value from the discovery file.
 
 ## MCP setup tab
 
@@ -62,6 +69,10 @@ The MCP setup tab shows the configuration to paste into your MCP client. The bri
 ```
 
 The **Copy** button copies the full block. For step-by-step instructions for Cursor, Claude Desktop, and Claude Code, read the [MCP setup guide](/api-reference/local-api/mcp-setup).
+
+<Warning>
+  The Linux app shows this same block, but the `@hyperwhisper/mcp` bridge does not read the Linux discovery file yet. The bridge looks for the macOS path on every platform that is not Windows, so on Linux it reports `HYPERWHISPER_NOT_RUNNING`. Until the bridge adds the Linux path, call the endpoints directly with the cURL snippet below.
+</Warning>
 
 ## cURL tab
 
@@ -107,6 +118,19 @@ The cURL tab shows shell commands that contain your current port and token.
     curl -H "Authorization: Bearer $TOKEN" http://127.0.0.1:$PORT/models
     ```
   </Tab>
+  <Tab title="Linux">
+    Linux always reads the values from the discovery file:
+
+    ```bash
+    DISCOVERY="${XDG_DATA_HOME:-$HOME/.local/share}/hyperwhisper/local-api.json"
+    PORT="$(jq -r .port "$DISCOVERY")"
+    TOKEN="$(jq -r .token "$DISCOVERY")"
+    curl "http://127.0.0.1:$PORT/health"
+    curl -H "Authorization: Bearer $TOKEN" "http://127.0.0.1:$PORT/models"
+    ```
+
+    The snippet needs `jq`. Install it with `sudo apt install jq` if the command is not available.
+  </Tab>
 </Tabs>
 
 ## Discovery file
@@ -127,6 +151,15 @@ When the server starts, it writes a JSON file. MCP wrappers and scripts read the
     ```
 
     The NTFS ACL permits access from your Windows user account only. This is equivalent to `chmod 600`.
+  </Tab>
+  <Tab title="Linux">
+    ```
+    $XDG_DATA_HOME/hyperwhisper/local-api.json
+    ```
+
+    This is normally `~/.local/share/hyperwhisper/local-api.json`.
+
+    HyperWhisper writes the file atomically, then checks that only your user account can read it. If the check fails, the server stops itself instead of leaving a readable token on disk. The status line then reports `local_api.discovery`.
   </Tab>
 </Tabs>
 
@@ -154,6 +187,12 @@ The server deletes the file when it stops correctly. If you force-quit HyperWhis
 The server has no fixed port. At the first start, it asks the operating system for a free port. It then keeps that port and uses the same port at each later start. Thus a script that holds the port in its code continues to operate across restarts.
 
 If the kept port is not free at a later start, for example because a different program took it, the server does not fail. It asks the operating system for a new free port and writes the new port into the discovery file. To make a script that always finds the server, read the port from the discovery file.
+
+<Note>
+  Linux is different. It gives you a **Preferred port** box, and the default is `51671`. HyperWhisper tries that port first. If the port is taken, it asks the operating system for any free loopback port instead, and it writes the port that it really got into the discovery file. Set the box to `0` to always ask for a free port.
+
+  The **Port** row below the box shows the port that the server actually bound, which can be different from your preferred port. Read the discovery file, not the box.
+</Note>
 
 ## Request timeout
 

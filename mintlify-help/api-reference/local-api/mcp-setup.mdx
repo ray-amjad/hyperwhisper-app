@@ -13,6 +13,12 @@ The [`@hyperwhisper/mcp`](https://www.npmjs.com/package/@hyperwhisper/mcp) packa
 
 You do not need a global installation of the bridge. The `npx -y @hyperwhisper/mcp` command downloads the bridge and runs it on demand. Each MCP client in this page uses that command directly.
 
+<Warning>
+  **Linux is not supported yet.** The bridge selects the discovery path from the platform. It uses the Windows path on Windows and the macOS path everywhere else, so on Linux it looks for `~/Library/Application Support/HyperWhisper/local-api.json`. That file never exists on Linux, and the bridge reports `HYPERWHISPER_NOT_RUNNING`.
+
+  The Linux app itself writes a valid discovery file, and its Local API settings show this same MCP block. Until the bridge adds the Linux path, call the endpoints directly. See the cURL snippet in [Local API Server](/local-api#curl-tab).
+</Warning>
+
 ## Tools the bridge supplies
 
 | Tool | What the agent gets |
