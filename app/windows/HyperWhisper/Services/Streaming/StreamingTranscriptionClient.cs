@@ -1019,6 +1019,14 @@ public sealed class StreamingTranscriptionClient : IAsyncDisposable, IDisposable
         {
             _disposed = true;
             _sendLock.Dispose();
+            // The live strategy owns a handle onto a Rust `Arc` (issue #281) and
+            // MUST be released with the client that holds it - a client is built
+            // per recording, so leaking one leaks a session per dictation for the
+            // life of the process. Not a `using` on the field: the strategy is
+            // handed in by the caller and only this class knows when the session
+            // is over. A strategy that is not disposable (the smoke suite's
+            // no-op) is left alone.
+            (_strategy as IDisposable)?.Dispose();
         }
     }
 

@@ -107,6 +107,25 @@ internal interface ILiveTranscriptionProtocol : IDisposable
     int SampleRate { get; }
     StreamingWebSocketConnectOptions ConnectOptions { get; }
     IReadOnlyList<LiveProtocolFrame> StartFrames { get; }
+
+    /// <summary>
+    /// Whether the session is live the moment the handshake completes, or only
+    /// once the provider sends its own session-started message.
+    ///
+    /// Only Deepgram is <c>true</c>: its one session-shaped frame
+    /// (<c>Metadata</c>) does not arrive until after audio has been sent, so a
+    /// client that waited for it before sending would deadlock the first chunk —
+    /// which is exactly what issue #100 was.
+    ///
+    /// This head never reads it: <see cref="LiveCloudTranscriptionService"/>
+    /// sends audio as soon as the socket opens for every provider. The Windows
+    /// client gates its <c>Connecting → Streaming</c> transition on it, and it is
+    /// surfaced from the core's <c>HwLiveConnect</c> here rather than re-derived
+    /// from the provider there, because a second "is this Deepgram" list is the
+    /// duplication issue #281 exists to delete.
+    /// </summary>
+    bool SessionStartsOnOpen { get; }
+
     LiveProtocolFrame EncodeAudio(ReadOnlySpan<byte> pcm);
 
     /// <param name="nowMs">
@@ -204,6 +223,7 @@ internal sealed class RustLiveProtocol : ILiveTranscriptionProtocol
         }
 
         SampleRate = (int)connect.sampleRate;
+        SessionStartsOnOpen = connect.sessionStartsOnOpen;
         StartFrames = [.. connect.startFrames.Select(Frame)];
         ConnectOptions = new StreamingWebSocketConnectOptions(
             new Uri(connect.url),
@@ -222,6 +242,7 @@ internal sealed class RustLiveProtocol : ILiveTranscriptionProtocol
 
     public LiveTranscriptionProvider Provider { get; }
     public int SampleRate { get; }
+    public bool SessionStartsOnOpen { get; }
     public StreamingWebSocketConnectOptions ConnectOptions { get; }
     public IReadOnlyList<LiveProtocolFrame> StartFrames { get; }
 

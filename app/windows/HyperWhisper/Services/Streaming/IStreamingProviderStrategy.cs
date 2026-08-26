@@ -11,7 +11,17 @@ using SharedCoreBridge = HyperWhisper.SharedCore.SharedCoreBridge;
 namespace HyperWhisper.Services.Streaming;
 
 /// <summary>
-/// Provider-specific WebSocket protocol adapter for streaming transcription.
+/// The seam between <see cref="StreamingTranscriptionClient"/> — which owns
+/// transport, reconnect and state — and whatever decides what goes on the wire.
+///
+/// <para>
+/// There used to be five implementations of this, one per provider. Since issue
+/// #281 there is one, <see cref="LiveProtocolStreamingStrategy"/>, and it
+/// answers from the shared Rust core. The interface is kept unchanged rather
+/// than folded away: it is what let the five deletions land without touching the
+/// thousand-line client, and it is the seam the smoke suite drives the client
+/// through with no socket.
+/// </para>
 /// </summary>
 public interface IStreamingProviderStrategy
 {

@@ -1,9 +1,14 @@
 namespace HyperWhisper.Services;
 
 /// <summary>
-/// Language codes xAI's Grok API (batch STT and streaming) supports language-driven
-/// formatting for. Shared by <see cref="GrokSttService"/> (batch) and
-/// <see cref="Streaming.XaiStreamingStrategy"/> (streaming) so the two providers can't drift.
+/// Language codes xAI's Grok API supports language-driven formatting for, used by
+/// <see cref="GrokSttService"/> (batch).
+///
+/// The live path no longer reads this table: since issue #281 it asks the shared
+/// Rust core, whose <c>hw_net::providers::grok::supported_formatting_language</c>
+/// is the same filter this list was copied from. Keep the two in step - a code
+/// added here and not there (or the reverse) silently drops formatting on one of
+/// the two paths.
 /// </summary>
 internal static class XaiFormattingLanguages
 {
