@@ -1,14 +1,19 @@
 using System.Net.WebSockets;
 using System.Text;
-using System.Text.Json;
 using uniffi.hyperwhisper_core;
 
 namespace HyperWhisper.SharedCore;
 
 /// <summary>
-/// Portable realtime STT runner. Strategies own provider wire protocols while
-/// the injected WebSocket owns transport. Diagnostics intentionally contain no
-/// URI, headers, audio bytes, provider payloads or transcript text.
+/// Portable realtime STT runner. The shared Rust core owns the five provider
+/// wire protocols (issue #281) while the injected WebSocket owns transport:
+/// every frame this class puts on the wire, and every event it reads off one,
+/// comes from <see cref="ILiveTranscriptionProtocol"/>. What is left here is
+/// I/O — connect, send, receive, the bounded close — plus the bounds this head
+/// enforces on both directions.
+///
+/// Diagnostics intentionally contain no URI, headers, audio bytes, provider
+/// payloads or transcript text.
 /// </summary>
 public sealed class LiveCloudTranscriptionService
 {
@@ -60,7 +65,14 @@ public sealed class LiveCloudTranscriptionService
         var state = new SessionState(config.Provider);
         try
         {
-            var protocol = LiveTranscriptionProtocolFactory.Create(config);
+            // The protocol owns a Rust handle (issue #281) and MUST be disposed:
+            // it is an `Arc` this process holds a raw pointer to, and letting it
+            // fall out of scope leaks the session until the finalizer runs.
+            using var protocol = LiveTranscriptionProtocolFactory.Create(config);
+            // A monotonic reading, restarted per session, for everything in the
+            // protocol that is time-shaped: Deepgram's keepalive and OpenAI's
+            // commit interval. The core reads no clock of its own.
+            var clock = System.Diagnostics.Stopwatch.StartNew();
             await using var socket = _webSockets.Create();
             using var sessionCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             using (var connectCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
@@ -112,7 +124,15 @@ public sealed class LiveCloudTranscriptionService
                 var frame = protocol.EncodeAudio(chunk.Span);
                 await socket.SendAsync(frame.Data, frame.Type, cancellationToken).ConfigureAwait(false);
                 state.AudioChunksSent++;
-                foreach (var control in protocol.AudioOpportunityFrames())
+                // The send opportunity comes AFTER this chunk, which is the order
+                // this head has always used and the opposite of Windows'. It
+                // matters for one provider: OpenAI's periodic commit then covers
+                // the chunk just appended instead of leaving it for the next one,
+                // so no audio is held back a round. Either order is correct on
+                // the wire — a commit always follows the appends it claims — and
+                // the core cannot tell them apart, because it is told a byte
+                // count and a clock reading and nothing else.
+                foreach (var control in protocol.AudioOpportunityFrames(clock.ElapsedMilliseconds))
                 {
                     await socket.SendAsync(control.Data, control.Type, cancellationToken).ConfigureAwait(false);
                 }
@@ -120,13 +140,13 @@ public sealed class LiveCloudTranscriptionService
 
             if (state.Failure is null && !state.Completed.Task.IsCompleted)
             {
-                foreach (var frame in protocol.StopFrames())
-                {
-                    await socket.SendAsync(frame.Data, frame.Type, cancellationToken).ConfigureAwait(false);
-                }
                 Observe(state, "draining");
-                var drain = Task.Delay(protocol.DrainTimeout, cancellationToken);
-                await Task.WhenAny(receiveTask, state.Completed.Task, drain).ConfigureAwait(false);
+                await RunStopSequenceAsync(
+                    socket,
+                    protocol.StopSequence(clock.ElapsedMilliseconds),
+                    receiveTask,
+                    state,
+                    cancellationToken).ConfigureAwait(false);
             }
 
             using (var closeCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
@@ -170,10 +190,6 @@ public sealed class LiveCloudTranscriptionService
         {
             return Failed(state, LiveTranscriptionFailureCode.Cancelled, "Streaming transcription was cancelled.");
         }
-        catch (JsonException)
-        {
-            return Failed(state, LiveTranscriptionFailureCode.Protocol, "The streaming provider returned an invalid message.");
-        }
         catch (InvalidDataException)
         {
             return Failed(state, LiveTranscriptionFailureCode.BufferLimit, "A streaming provider message exceeded the 1 MiB limit.");
@@ -193,6 +209,60 @@ public sealed class LiveCloudTranscriptionService
         catch (InvalidOperationException)
         {
             return Failed(state, LiveTranscriptionFailureCode.Unknown, "The streaming session could not be completed.");
+        }
+    }
+
+    /// <summary>
+    /// Runs the protocol's ordered stop path (issue #281).
+    ///
+    /// This replaced a flat frame list plus one drain timeout, which could not
+    /// express what these protocols do. Deepgram sends <c>Finalize</c>, waits
+    /// 500 ms for the flush, then sends <c>CloseStream</c> — sending both back to
+    /// back, as this head used to, lets the close be processed before the flush
+    /// and loses the finalized tail. HyperWhisper Cloud and xAI wait on the
+    /// session-complete EVENT, which is what carries <c>credits_used</c>: a flat
+    /// timeout either throws that away or adds ten seconds to every stop.
+    ///
+    /// <see cref="LiveStopAction.Wait"/> is unconditional, matching the Windows
+    /// client this ordering comes from. It is a gap the protocol asked for, not a
+    /// deadline to race the session against.
+    ///
+    /// <see cref="LiveStopAction.Close"/> ends the loop WITHOUT closing here. The
+    /// bounded <c>CloseAsync</c> block in <see cref="TranscribeAsync"/> performs
+    /// the one close, because it also has to run on the paths that skip the stop
+    /// sequence entirely (a failure, or a session the provider already finished),
+    /// and it is the only thing that bounds the close with <c>CloseTimeout</c>.
+    /// Closing here as well would close twice.
+    /// </summary>
+    private static async Task RunStopSequenceAsync(
+        IStreamingWebSocket socket,
+        IReadOnlyList<LiveStopStep> steps,
+        Task receiveTask,
+        SessionState state,
+        CancellationToken cancellationToken)
+    {
+        foreach (var step in steps)
+        {
+            switch (step.Action)
+            {
+                case LiveStopAction.SendMessage when step.Payload is not null:
+                    await socket.SendAsync(step.Payload, step.MessageType, cancellationToken).ConfigureAwait(false);
+                    break;
+                case LiveStopAction.Wait:
+                    await Task.Delay(step.WaitAfter ?? TimeSpan.Zero, cancellationToken).ConfigureAwait(false);
+                    break;
+                case LiveStopAction.WaitForSessionComplete:
+                    if (!state.Completed.Task.IsCompleted)
+                    {
+                        var timeout = Task.Delay(step.WaitAfter ?? TimeSpan.Zero, cancellationToken);
+                        await Task.WhenAny(receiveTask, state.Completed.Task, timeout).ConfigureAwait(false);
+                    }
+                    break;
+                case LiveStopAction.Close:
+                    return;
+                default:
+                    break;
+            }
         }
     }
 
@@ -246,14 +316,6 @@ public sealed class LiveCloudTranscriptionService
         {
             throw;
         }
-        catch (JsonException)
-        {
-            state.Failure = new LiveTranscriptionFailure(
-                LiveTranscriptionFailureCode.Protocol,
-                "The streaming provider returned an invalid message.",
-                protocol.Provider);
-            state.Completed.TrySetResult();
-        }
         catch (InvalidDataException)
         {
             state.Failure = new LiveTranscriptionFailure(
@@ -299,6 +361,17 @@ public sealed class LiveCloudTranscriptionService
                 break;
             case LiveProtocolEventKind.Started:
                 Observe(state, "started");
+                break;
+            case LiveProtocolEventKind.Warning:
+                // Only HyperWhisper Cloud warns, and a warning is not a failure —
+                // it must never end the session. The wording stays inside this
+                // assembly for the same reason an error's does: the diagnostic
+                // carries a fixed state name and no provider payload.
+                Observe(state, "warning");
+                break;
+            case LiveProtocolEventKind.Metadata:
+                // Deepgram's voice-activity frames. They carry the raw provider
+                // JSON, so they are counted and dropped, never logged.
                 break;
             case LiveProtocolEventKind.Ignore:
             default:

@@ -358,8 +358,12 @@ public static class SharedCoreBridge
     /// have no arm on purpose: Parakeet and Nemotron are not WebSocket
     /// protocols and share none of this, which is the same line
     /// <c>LiveTranscriptionProtocolFactory.Create</c> draws.
+    ///
+    /// Internal rather than private because <see cref="RustLiveProtocol"/> builds
+    /// an <c>HwLiveConfig</c> from the same enum and a second copy of this switch
+    /// is exactly the drift this issue exists to delete.
     /// </summary>
-    private static HwLiveProvider CoreLiveProvider(LiveTranscriptionProvider provider) => provider switch
+    internal static HwLiveProvider CoreLiveProvider(LiveTranscriptionProvider provider) => provider switch
     {
         LiveTranscriptionProvider.Deepgram => HwLiveProvider.Deepgram,
         LiveTranscriptionProvider.ElevenLabs => HwLiveProvider.ElevenLabs,

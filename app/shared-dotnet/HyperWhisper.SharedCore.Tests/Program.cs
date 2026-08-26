@@ -227,6 +227,13 @@ var tests = new (string Name, Func<Task> Run)[]
         return Task.CompletedTask;
     }),
     ("a terminal provider error frame is marked terminal, a transient one is not", TestLiveTerminalErrorFrameAsync),
+    ("the Rust live protocol answers the connect descriptor for all five providers", TestRustLiveConnectAsync),
+    ("the Rust live protocol frames audio without the samples crossing the FFI", TestRustLiveFramingAsync),
+    ("the Rust live protocol parses every provider's literal frames", TestRustLiveParseAsync),
+    ("the Rust live protocol answers an ordered stop sequence per provider", TestRustLiveStopSequenceAsync),
+    ("OpenAI's commit gate is the server's 100 ms rule, driven by the caller's clock", TestRustLiveCommitGateAsync),
+    ("the ordered stop sequence reaches the socket in order, with its gap", TestLiveStopSequenceOnTheWireAsync),
+    ("the live protocol owns a Rust handle and is disposed", TestRustLiveDisposalAsync),
 };
 
 var failures = 0;
@@ -564,7 +571,7 @@ static async Task TestLiveProvidersAsync()
         var socket = new FakeStreamingWebSocket(value.Frames);
         var sink = new LiveSink();
         var service = new LiveCloudTranscriptionService(new FakeWebSocketFactory(socket), sink);
-        var result = await service.TranscribeAsync(value.Config, Audio(value.AudioBytes));
+        var result = await service.TranscribeAsync(value.Config, Audio(value.AudioBytes, socket));
         Assert.True(result.IsSuccess);
         Assert.Equal(value.Expected, result.Transcript);
         Assert.Equal(1, result.AudioChunksSent);
@@ -588,7 +595,7 @@ static async Task TestLiveDiagnosticsRedactionAsync()
     var service = new LiveCloudTranscriptionService(new FakeWebSocketFactory(socket), diagnostics: diagnostics);
     var result = await service.TranscribeAsync(
         new LiveTranscriptionConfig(LiveTranscriptionProvider.ElevenLabs, ApiKey: secret),
-        Audio(320));
+        Audio(320, socket));
     Assert.True(result.IsSuccess);
     var rendered = string.Join("\n", diagnostics.Values.Select(value => value.ToString()));
     Assert.DoesNotContain(secret, rendered);
@@ -605,6 +612,13 @@ static async Task TestLiveFailureAndBoundsAsync()
     Assert.Equal(24000, LiveCloudTranscriptionService.GetRequiredSampleRate(LiveTranscriptionProvider.OpenAi));
     Assert.Equal(16000, LiveCloudTranscriptionService.GetRequiredSampleRate(LiveTranscriptionProvider.Deepgram));
 
+    // BEHAVIOUR CHANGE (issue #281). ElevenLabs was the one provider whose error
+    // frames carried a machine-readable kind and no wording, so this head turned
+    // its three kinds into three distinct failure codes. The core answers those
+    // kinds with the sentences all three heads ship, so every provider's error
+    // frame now arrives as ProviderUnavailable and the reconnect decision is
+    // carried by IsTerminal — which is the whole point of the issue, and which
+    // this frame gets right where the bare code never could.
     var providerError = new FakeStreamingWebSocket(
     [
         TextFrame("{\"message_type\":\"auth_error\"}"),
@@ -613,8 +627,17 @@ static async Task TestLiveFailureAndBoundsAsync()
     var errorService = new LiveCloudTranscriptionService(new FakeWebSocketFactory(providerError));
     var error = await errorService.TranscribeAsync(
         new LiveTranscriptionConfig(LiveTranscriptionProvider.ElevenLabs, ApiKey: "bad"),
-        Audio(320));
-    Assert.Equal(LiveTranscriptionFailureCode.Unauthorized, error.Failure!.Code);
+        Audio(320, providerError));
+    Assert.Equal(LiveTranscriptionFailureCode.ProviderUnavailable, error.Failure!.Code);
+    Assert.True(error.Failure.IsTerminal, "a bad ElevenLabs key must not earn a reconnect");
+
+    // A missing credential still fails before a socket is opened, and still with
+    // Unauthorized: that one comes from the core's MissingCredential error, not
+    // from a frame.
+    var missing = await new LiveCloudTranscriptionService(new FakeWebSocketFactory(new FakeStreamingWebSocket([])))
+        .TranscribeAsync(new LiveTranscriptionConfig(LiveTranscriptionProvider.ElevenLabs), Audio(320));
+    Assert.Equal(LiveTranscriptionFailureCode.Unauthorized, missing.Failure!.Code);
+    Assert.Equal(0, missing.AudioChunksSent);
 
     var oversized = new FakeStreamingWebSocket([]);
     var boundService = new LiveCloudTranscriptionService(new FakeWebSocketFactory(oversized));
@@ -641,7 +664,7 @@ static async Task TestLiveFailureAndBoundsAsync()
     var inboundService = new LiveCloudTranscriptionService(new FakeWebSocketFactory(inboundOversized));
     var inbound = await inboundService.TranscribeAsync(
         new LiveTranscriptionConfig(LiveTranscriptionProvider.Deepgram, ApiKey: "key"),
-        Audio(320));
+        Audio(320, inboundOversized));
     Assert.Equal(LiveTranscriptionFailureCode.BufferLimit, inbound.Failure!.Code);
 
     var terminalClose = new FakeStreamingWebSocket(
@@ -654,7 +677,7 @@ static async Task TestLiveFailureAndBoundsAsync()
     var terminalService = new LiveCloudTranscriptionService(new FakeWebSocketFactory(terminalClose));
     var terminal = await terminalService.TranscribeAsync(
         new LiveTranscriptionConfig(LiveTranscriptionProvider.Deepgram, ApiKey: "key"),
-        Audio(320));
+        Audio(320, terminalClose));
     Assert.Equal(LiveTranscriptionFailureCode.Protocol, terminal.Failure!.Code);
     Assert.Equal(1008, terminal.Failure.CloseStatus);
 }
@@ -742,7 +765,7 @@ static async Task<string> ConnectQuery(LiveTranscriptionConfig config)
 {
     var socket = new FakeStreamingWebSocket([CloseFrame()]);
     var service = new LiveCloudTranscriptionService(new FakeWebSocketFactory(socket));
-    await service.TranscribeAsync(config, Audio(320));
+    await service.TranscribeAsync(config, Audio(320, socket));
     Assert.NotNull(socket.Options);
     return socket.Options!.Uri.Query + "&";
 }
@@ -759,10 +782,30 @@ static int CountOccurrences(string haystack, string needle)
     return count;
 }
 
-static async IAsyncEnumerable<ReadOnlyMemory<byte>> Audio(int byteCount)
+/// <summary>
+/// One chunk of PCM, then the microphone stays open until <paramref name="socket"/>
+/// has handed every scripted frame to the receive loop.
+///
+/// That second half is not padding. The service ends the session when the AUDIO
+/// ends, and since issue #281 the stop path is the protocol's own ordered step
+/// list — ElevenLabs' is a bare <c>Close</c>, with no wait at all, because
+/// <c>commit_strategy=vad</c> means the server has already committed everything
+/// it intends to. A fake socket answers in microseconds, so a test that stopped
+/// the instant the first chunk was sent would be racing the receive loop's very
+/// first scheduling rather than testing anything. A real recording runs for
+/// seconds with the loop already draining; this reproduces that.
+///
+/// <c>Pending == 0</c> is a race-free "everything before the last frame has been
+/// handled": the loop dequeues frame N+1 only after it has processed frame N.
+/// </summary>
+static async IAsyncEnumerable<ReadOnlyMemory<byte>> Audio(int byteCount, FakeStreamingWebSocket? socket = null)
 {
     await Task.CompletedTask;
     yield return new byte[byteCount];
+    for (var attempt = 0; socket is { Pending: > 0 } && attempt < 1000; attempt++)
+    {
+        await Task.Delay(2);
+    }
 }
 
 static async IAsyncEnumerable<ReadOnlyMemory<byte>> BlockingAudio(
@@ -814,10 +857,462 @@ static async Task<LiveTranscriptionFailure> RunLiveErrorFrameAsync(
         ? new LiveTranscriptionConfig(provider, LicenseKey: "hw-secret")
         : new LiveTranscriptionConfig(provider, ApiKey: "provider-secret");
     var result = await new LiveCloudTranscriptionService(new FakeWebSocketFactory(socket))
-        .TranscribeAsync(config, Audio(320));
+        .TranscribeAsync(config, Audio(320, socket));
     Assert.NotNull(result.Failure);
     return result.Failure!;
 }
+
+// ---------------------------------------------------------------------------
+// The re-homed protocol suite (issue #281).
+//
+// These are the assertions the five deleted C# protocol classes used to earn
+// through a socket transcript, made directly against the Rust-backed
+// `RustLiveProtocol`. They are this head's proof that the shared `HwLiveSession`
+// object is right, and they are the reason phase 4 can re-point Windows at it:
+// the connect descriptor, the framing rule, the parsers and the ordered stop
+// sequences are all pinned here, on Linux, where they actually run.
+// ---------------------------------------------------------------------------
+
+static ILiveTranscriptionProtocol Protocol(LiveTranscriptionProvider provider, string? language = null) =>
+    LiveTranscriptionProtocolFactory.Create(provider switch
+    {
+        LiveTranscriptionProvider.HyperWhisperCloud =>
+            new LiveTranscriptionConfig(provider, LicenseKey: "hw-secret", Language: language),
+        _ => new LiveTranscriptionConfig(provider, ApiKey: $"{provider}-secret", Language: language),
+    });
+
+static Task TestRustLiveConnectAsync()
+{
+    // Deepgram: the API key travels as the SECOND subprotocol, never a header,
+    // and the thirteen .NET query parameters won over macOS's ten.
+    using (var deepgram = Protocol(LiveTranscriptionProvider.Deepgram, "en-GB"))
+    {
+        Assert.Equal(16000, deepgram.SampleRate);
+        Assert.Equal("api.deepgram.com", deepgram.ConnectOptions.Uri.Host);
+        Assert.Equal("/v1/listen", deepgram.ConnectOptions.Uri.AbsolutePath);
+        Assert.Equal(0, deepgram.ConnectOptions.Headers.Count);
+        Assert.Equal("token|Deepgram-secret", string.Join('|', deepgram.ConnectOptions.SubProtocols));
+        Assert.Equal(0, deepgram.StartFrames.Count);
+        var query = deepgram.ConnectOptions.Uri.Query;
+        // The model alias resolves; a bare `model=` can no longer be emitted.
+        Assert.True(query.Contains("model=nova-3-general&", StringComparison.Ordinal), query);
+        foreach (var expected in new[]
+                 {
+                     "encoding=linear16", "sample_rate=16000", "channels=1", "smart_format=true",
+                     "punctuate=true", "filler_words=true", "no_delay=false", "endpointing=300",
+                     "utterance_end_ms=1500", "interim_results=true", "vad_events=true",
+                     "mip_opt_out=true", "language=en",
+                 })
+        {
+            Assert.True(query.Contains(expected, StringComparison.Ordinal), $"missing {expected}");
+        }
+    }
+
+    // Auto-detect is spelled with a parameter, not by omitting one.
+    using (var auto = Protocol(LiveTranscriptionProvider.Deepgram))
+    {
+        Assert.True(auto.ConnectOptions.Uri.Query.Contains("detect_language=true", StringComparison.Ordinal));
+        Assert.False(auto.ConnectOptions.Uri.Query.Contains("&language=", StringComparison.Ordinal));
+        Assert.False(auto.ConnectOptions.Uri.Query.Contains("keyterm=", StringComparison.Ordinal));
+    }
+
+    using (var elevenLabs = Protocol(LiveTranscriptionProvider.ElevenLabs, "EN-US"))
+    {
+        Assert.Equal(16000, elevenLabs.SampleRate);
+        Assert.Equal("api.elevenlabs.io", elevenLabs.ConnectOptions.Uri.Host);
+        Assert.Equal("ElevenLabs-secret", elevenLabs.ConnectOptions.Headers["xi-api-key"]);
+        Assert.True(elevenLabs.ConnectOptions.Uri.Query.Contains("language_code=en", StringComparison.Ordinal));
+        Assert.True(elevenLabs.ConnectOptions.Uri.Query.Contains("commit_strategy=vad", StringComparison.Ordinal));
+    }
+
+    using (var openAi = Protocol(LiveTranscriptionProvider.OpenAi, "en"))
+    {
+        Assert.Equal(24000, openAi.SampleRate);
+        Assert.Equal("wss://api.openai.com/v1/realtime?intent=transcription", openAi.ConnectOptions.Uri.ToString());
+        Assert.Equal("Bearer OpenAi-secret", openAi.ConnectOptions.Headers["Authorization"]);
+        Assert.Equal(1, openAi.StartFrames.Count);
+        // The session update byte for byte, `turn_detection: null` included —
+        // that null is what disables server-side VAD and makes the commit gate
+        // this client's to get right.
+        Assert.Equal(
+            "{\"type\":\"session.update\",\"session\":{\"type\":\"transcription\",\"audio\":{\"input\":"
+            + "{\"format\":{\"type\":\"audio/pcm\",\"rate\":24000},\"transcription\":"
+            + "{\"model\":\"gpt-realtime-whisper\",\"language\":\"en\"},\"turn_detection\":null}}}}",
+            Encoding.UTF8.GetString(openAi.StartFrames[0].Data));
+        Assert.Equal(System.Net.WebSockets.WebSocketMessageType.Text, openAi.StartFrames[0].Type);
+    }
+
+    using (var grok = Protocol(LiveTranscriptionProvider.Grok, "en"))
+    {
+        Assert.Equal(16000, grok.SampleRate);
+        Assert.Equal("api.x.ai", grok.ConnectOptions.Uri.Host);
+        Assert.Equal("Bearer Grok-secret", grok.ConnectOptions.Headers["Authorization"]);
+    }
+
+    using (var cloud = Protocol(LiveTranscriptionProvider.HyperWhisperCloud, "en"))
+    {
+        Assert.Equal(16000, cloud.SampleRate);
+        Assert.Equal(
+            "wss://transcribe-prod-v2.hyperwhisper.com/ws/streaming-deepgram?license_key=hw-secret&language=en",
+            cloud.ConnectOptions.Uri.ToString());
+        // The client-identity headers stay the platform's to add.
+        Assert.Equal(0, cloud.ConnectOptions.Headers.Count);
+    }
+
+    // A credential the core cannot use fails before a socket exists, for every
+    // provider — including HyperWhisper Cloud, which accepts either of two.
+    foreach (var provider in new[]
+             {
+                 LiveTranscriptionProvider.Deepgram, LiveTranscriptionProvider.ElevenLabs,
+                 LiveTranscriptionProvider.OpenAi, LiveTranscriptionProvider.Grok,
+                 LiveTranscriptionProvider.HyperWhisperCloud,
+             })
+    {
+        Assert.Throws<LiveProtocolException>(
+            () => LiveTranscriptionProtocolFactory.Create(new LiveTranscriptionConfig(provider, ApiKey: "  ")));
+    }
+    using (var trial = LiveTranscriptionProtocolFactory.Create(
+        new LiveTranscriptionConfig(LiveTranscriptionProvider.HyperWhisperCloud, DeviceId: "device-1")))
+    {
+        Assert.True(trial.ConnectOptions.Uri.Query.Contains("device_id=device-1", StringComparison.Ordinal));
+    }
+    return Task.CompletedTask;
+}
+
+static Task TestRustLiveFramingAsync()
+{
+    // AUDIO NEVER CROSSES THE FFI. The core answers a framing rule once; the
+    // base64 and the concatenation happen here. `+` is in the base64 alphabet
+    // and is emitted literally, where System.Text.Json used to escape it.
+    var pcm = new byte[] { 0xFB, 0xEF, 0xBE, 0x01, 0x02, 0x03 };
+    var base64 = Convert.ToBase64String(pcm);
+    Assert.True(base64.Contains('+'), "the fixture must exercise the plus sign");
+
+    foreach (var provider in new[]
+             {
+                 LiveTranscriptionProvider.Deepgram, LiveTranscriptionProvider.Grok,
+                 LiveTranscriptionProvider.HyperWhisperCloud,
+             })
+    {
+        using var binary = Protocol(provider);
+        var frame = binary.EncodeAudio(pcm);
+        Assert.Equal(System.Net.WebSockets.WebSocketMessageType.Binary, frame.Type);
+        Assert.True(frame.Data.SequenceEqual(pcm), $"{provider} must send PCM untouched");
+    }
+
+    using (var elevenLabs = Protocol(LiveTranscriptionProvider.ElevenLabs))
+    {
+        var frame = elevenLabs.EncodeAudio(pcm);
+        Assert.Equal(System.Net.WebSockets.WebSocketMessageType.Text, frame.Type);
+        Assert.Equal(
+            "{\"message_type\":\"input_audio_chunk\",\"audio_base_64\":\"" + base64
+            + "\",\"commit\":false,\"sample_rate\":16000}",
+            Encoding.UTF8.GetString(frame.Data));
+    }
+
+    using (var openAi = Protocol(LiveTranscriptionProvider.OpenAi))
+    {
+        Assert.Equal(
+            "{\"type\":\"input_audio_buffer.append\",\"audio\":\"" + base64 + "\"}",
+            Encoding.UTF8.GetString(openAi.EncodeAudio(pcm).Data));
+    }
+    return Task.CompletedTask;
+}
+
+static Task TestRustLiveParseAsync()
+{
+    using (var deepgram = Protocol(LiveTranscriptionProvider.Deepgram))
+    {
+        // `Metadata` is the session acknowledgement and `request_id` is what
+        // Deepgram support asks for; it is now carried instead of discarded.
+        var started = deepgram.Parse(Utf8("{\"type\":\"Metadata\",\"request_id\":\"r1\"}"));
+        Assert.Equal(LiveProtocolEventKind.Started, started.Kind);
+        Assert.Equal("r1", started.SessionId);
+        Assert.Equal(
+            LiveProtocolEventKind.Partial,
+            deepgram.Parse(Utf8("{\"type\":\"Results\",\"is_final\":false,\"channel\":{\"alternatives\":[{\"transcript\":\"p\"}]}}")).Kind);
+        Assert.Equal(
+            LiveProtocolEventKind.Final,
+            deepgram.Parse(Utf8("{\"type\":\"Results\",\"is_final\":true,\"channel\":{\"alternatives\":[{\"transcript\":\"f\"}]}}")).Kind);
+        // `channel` is an ARRAY on the voice-activity frames. A strict decode of
+        // the object shape throws on these and takes the session with it.
+        Assert.Equal(
+            LiveProtocolEventKind.Metadata,
+            deepgram.Parse(Utf8("{\"type\":\"UtteranceEnd\",\"channel\":[0,1]}")).Kind);
+        Assert.Equal(
+            LiveProtocolEventKind.Metadata,
+            deepgram.Parse(Utf8("{\"type\":\"SpeechStarted\",\"channel\":[0,1]}")).Kind);
+        // Not JSON at all. This head used to end the session on a Protocol
+        // failure; a provider adding a frame shape must not stop a recording.
+        Assert.Equal(LiveProtocolEventKind.Ignore, deepgram.Parse(Utf8("<html>502</html>")).Kind);
+        Assert.Equal(LiveProtocolEventKind.Ignore, deepgram.Parse(Utf8("[1,2,3]")).Kind);
+    }
+
+    using (var elevenLabs = Protocol(LiveTranscriptionProvider.ElevenLabs))
+    {
+        Assert.Equal(LiveProtocolEventKind.Started, elevenLabs.Parse(Utf8("{\"message_type\":\"session_started\"}")).Kind);
+        // The one provider whose error frames carry no wording of their own: the
+        // core supplies the sentence, and the classifier reads it.
+        var auth = elevenLabs.Parse(Utf8("{\"message_type\":\"auth_error\"}"));
+        Assert.Equal(LiveProtocolEventKind.Error, auth.Kind);
+        Assert.Equal(
+            PortableLiveErrorOutcome.Terminal,
+            SharedCoreBridge.ClassifyLiveErrorMessage(auth.Text!));
+        Assert.Equal(
+            PortableLiveErrorOutcome.Terminal,
+            SharedCoreBridge.ClassifyLiveErrorMessage(
+                elevenLabs.Parse(Utf8("{\"message_type\":\"quota_exceeded\"}")).Text!));
+        // The rate-limit asymmetry is deliberate: it clears on its own.
+        Assert.Equal(
+            PortableLiveErrorOutcome.Transient,
+            SharedCoreBridge.ClassifyLiveErrorMessage(
+                elevenLabs.Parse(Utf8("{\"message_type\":\"rate_limited\"}")).Text!));
+    }
+
+    using (var openAi = Protocol(LiveTranscriptionProvider.OpenAi))
+    {
+        // Deltas accumulate per item_id — a partial is the whole interim
+        // utterance, not the fragment that just arrived.
+        Assert.Equal(
+            "one",
+            openAi.Parse(Utf8("{\"type\":\"conversation.item.input_audio_transcription.delta\",\"item_id\":\"i1\",\"delta\":\"one\"}")).Text);
+        Assert.Equal(
+            "one two",
+            openAi.Parse(Utf8("{\"type\":\"conversation.item.input_audio_transcription.delta\",\"item_id\":\"i1\",\"delta\":\" two\"}")).Text);
+        // A completion for the same item emits only what is new.
+        Assert.Equal(
+            "one two",
+            openAi.Parse(Utf8("{\"type\":\"conversation.item.input_audio_transcription.completed\",\"item_id\":\"i1\",\"transcript\":\"one two\"}")).Text);
+        Assert.Equal(
+            "three",
+            openAi.Parse(Utf8("{\"type\":\"conversation.item.input_audio_transcription.completed\",\"item_id\":\"i1\",\"transcript\":\"one two three\"}")).Text);
+        Assert.Equal("s1", openAi.Parse(Utf8("{\"type\":\"session.updated\",\"session\":{\"id\":\"s1\"}}")).SessionId);
+        // OpenAI Realtime nests the wording under error.message.
+        Assert.Equal(
+            "You exceeded your current quota.",
+            openAi.Parse(Utf8("{\"type\":\"error\",\"error\":{\"message\":\"You exceeded your current quota.\"}}")).Text);
+    }
+
+    using (var grok = Protocol(LiveTranscriptionProvider.Grok))
+    {
+        Assert.Equal(LiveProtocolEventKind.Started, grok.Parse(Utf8("{\"type\":\"transcript.created\"}")).Kind);
+        Assert.Equal(
+            "hello",
+            grok.Parse(Utf8("{\"type\":\"transcript.partial\",\"text\":\"hello\",\"is_final\":true}")).Text);
+        // xAI re-sends the whole transcript, so a final is the delta.
+        Assert.Equal(
+            "world",
+            grok.Parse(Utf8("{\"type\":\"transcript.partial\",\"text\":\"hello world\",\"is_final\":true}")).Text);
+        // `transcript.done` is BOTH the last words and the end of the session.
+        // Splitting it would drop the tail.
+        var done = grok.Parse(Utf8("{\"type\":\"transcript.done\",\"text\":\"hello world again\",\"duration\":4.5}"));
+        Assert.Equal(LiveProtocolEventKind.Complete, done.Kind);
+        Assert.Equal("again", done.Text);
+        Assert.Equal(4.5, done.DurationSeconds);
+        Assert.Equal(0d, done.CreditsUsed);
+    }
+
+    using (var cloud = Protocol(LiveTranscriptionProvider.HyperWhisperCloud))
+    {
+        Assert.Equal("s1", cloud.Parse(Utf8("{\"type\":\"ready\",\"sessionId\":\"s1\"}")).SessionId);
+        // BILLING DATA. It arrives once, after the stop frame, which is the
+        // whole reason the stop path waits on this event.
+        var complete = cloud.Parse(Utf8("{\"type\":\"session_complete\",\"duration_seconds\":12.5,\"credits_used\":3.25}"));
+        Assert.Equal(LiveProtocolEventKind.Complete, complete.Kind);
+        Assert.Equal(12.5, complete.DurationSeconds);
+        Assert.Equal(3.25, complete.CreditsUsed);
+        // The only provider that warns, and a warning is not a failure.
+        var warning = cloud.Parse(Utf8("{\"type\":\"warning\",\"message\":\"Low balance\"}"));
+        Assert.Equal(LiveProtocolEventKind.Warning, warning.Kind);
+        Assert.Equal("Low balance", warning.Text);
+        Assert.Equal(
+            "Credit balance exhausted",
+            cloud.Parse(Utf8("{\"type\":\"error\",\"message\":\"Credit balance exhausted\"}")).Text);
+    }
+    return Task.CompletedTask;
+}
+
+static Task TestRustLiveStopSequenceAsync()
+{
+    // Deepgram: Finalize -> WAIT 500 ms -> CloseStream -> Close. This head used
+    // to send both frames back to back and then drain 2 s, which lets the close
+    // be processed before the flush and loses the finalized tail.
+    using (var deepgram = Protocol(LiveTranscriptionProvider.Deepgram))
+    {
+        Assert.Equal(
+            "SendMessage:{\"type\":\"Finalize\"}|Wait:500|SendMessage:{\"type\":\"CloseStream\"}|Close",
+            Rendered(deepgram.StopSequence(0)));
+    }
+
+    // ElevenLabs: close, and nothing else. `commit_strategy=vad` means the
+    // server has already committed everything; the old 1 s drain waited for a
+    // frame that was never coming.
+    using (var elevenLabs = Protocol(LiveTranscriptionProvider.ElevenLabs))
+    {
+        Assert.Equal("Close", Rendered(elevenLabs.StopSequence(0)));
+    }
+
+    // xAI and HyperWhisper Cloud wait on the session-complete EVENT — the one
+    // that carries credits_used — not on a duration.
+    using (var grok = Protocol(LiveTranscriptionProvider.Grok))
+    {
+        Assert.Equal(
+            "SendMessage:{\"type\":\"audio.done\"}|WaitForSessionComplete:10000|Close",
+            Rendered(grok.StopSequence(0)));
+    }
+    using (var cloud = Protocol(LiveTranscriptionProvider.HyperWhisperCloud))
+    {
+        Assert.Equal(
+            "SendMessage:{\"type\":\"stop\"}|WaitForSessionComplete:10000|Close",
+            Rendered(cloud.StopSequence(0)));
+    }
+
+    // Every sequence ends with exactly one Close, and nothing follows it.
+    foreach (var provider in new[]
+             {
+                 LiveTranscriptionProvider.Deepgram, LiveTranscriptionProvider.ElevenLabs,
+                 LiveTranscriptionProvider.OpenAi, LiveTranscriptionProvider.Grok,
+                 LiveTranscriptionProvider.HyperWhisperCloud,
+             })
+    {
+        using var protocol = Protocol(provider);
+        var steps = protocol.StopSequence(0);
+        Assert.Equal(1, steps.Count(step => step.Action == LiveStopAction.Close));
+        Assert.Equal(LiveStopAction.Close, steps[^1].Action);
+    }
+    return Task.CompletedTask;
+}
+
+static Task TestRustLiveCommitGateAsync()
+{
+    // The server's rule EXACTLY: 100 ms x 24 kHz x 2 bytes = 4800, no margin.
+    // Windows captures in 100 ms buffers, so every chunk lands on the line.
+    using (var short_ = Protocol(LiveTranscriptionProvider.OpenAi))
+    {
+        short_.EncodeAudio(new byte[4799]);
+        Assert.Equal("Wait:1000|Close", Rendered(short_.StopSequence(5_000)));
+    }
+    using (var exact = Protocol(LiveTranscriptionProvider.OpenAi))
+    {
+        exact.EncodeAudio(new byte[4800]);
+        Assert.Equal(
+            "SendMessage:{\"type\":\"input_audio_buffer.commit\"}|Wait:1000|Close",
+            Rendered(exact.StopSequence(5_000)));
+    }
+
+    // The periodic commit needs BOTH gates, and now_ms is a parameter — the
+    // 1.2 s interval is exercised without sleeping.
+    using (var periodic = Protocol(LiveTranscriptionProvider.OpenAi))
+    {
+        // The first opportunity only seeds the clock mark.
+        Assert.Equal(0, periodic.AudioOpportunityFrames(0).Count);
+        periodic.EncodeAudio(new byte[4800]);
+        Assert.Equal(0, periodic.AudioOpportunityFrames(1_199).Count);
+        var commit = periodic.AudioOpportunityFrames(1_200);
+        Assert.Equal(1, commit.Count);
+        Assert.Equal("{\"type\":\"input_audio_buffer.commit\"}", Encoding.UTF8.GetString(commit[0].Data));
+        // The bytes were claimed, so the stop path cannot commit them twice.
+        Assert.Equal("Wait:1000|Close", Rendered(periodic.StopSequence(2_000)));
+    }
+
+    // Deepgram's keepalive is the same shape: silence measured off the caller's
+    // clock, no keepalive until 3 s have actually passed.
+    using (var deepgram = Protocol(LiveTranscriptionProvider.Deepgram))
+    {
+        Assert.Equal(0, deepgram.AudioOpportunityFrames(0).Count);
+        Assert.Equal(0, deepgram.AudioOpportunityFrames(3_000).Count);
+        var keepAlive = deepgram.AudioOpportunityFrames(6_001);
+        Assert.Equal(1, keepAlive.Count);
+        Assert.Equal("{\"type\":\"KeepAlive\"}", Encoding.UTF8.GetString(keepAlive[0].Data));
+    }
+
+    // The four providers with no control frames answer an empty list, always.
+    foreach (var provider in new[]
+             {
+                 LiveTranscriptionProvider.ElevenLabs, LiveTranscriptionProvider.Grok,
+                 LiveTranscriptionProvider.HyperWhisperCloud,
+             })
+    {
+        using var protocol = Protocol(provider);
+        protocol.EncodeAudio(new byte[9600]);
+        Assert.Equal(0, protocol.AudioOpportunityFrames(60_000).Count);
+    }
+    return Task.CompletedTask;
+}
+
+/// <summary>
+/// The step list is only worth having if the service runs it in order. Deepgram
+/// is the case that proves it: the 500 ms gap has to be BETWEEN the two frames,
+/// not before them or after them.
+/// </summary>
+static async Task TestLiveStopSequenceOnTheWireAsync()
+{
+    var socket = new FakeStreamingWebSocket(
+    [
+        TextFrame("{\"type\":\"Results\",\"is_final\":true,\"channel\":{\"alternatives\":[{\"transcript\":\"deep final\"}]}}"),
+    ]);
+    var result = await new LiveCloudTranscriptionService(new FakeWebSocketFactory(socket)).TranscribeAsync(
+        new LiveTranscriptionConfig(LiveTranscriptionProvider.Deepgram, ApiKey: "dg"),
+        Audio(320, socket));
+    Assert.Equal("deep final", result.Transcript);
+
+    var text = socket.Sent
+        .Where(value => value.Type == System.Net.WebSockets.WebSocketMessageType.Text)
+        .ToList();
+    Assert.Equal(2, text.Count);
+    Assert.Equal("{\"type\":\"Finalize\"}", Encoding.UTF8.GetString(text[0].Data));
+    Assert.Equal("{\"type\":\"CloseStream\"}", Encoding.UTF8.GetString(text[1].Data));
+    Assert.True(
+        text[1].AtMs - text[0].AtMs >= 400,
+        $"CloseStream followed Finalize after only {text[1].AtMs - text[0].AtMs} ms");
+    Assert.Equal(1, socket.Closes);
+
+    // HyperWhisper Cloud — the DEFAULT provider — waits on the session-complete
+    // EVENT for up to ten seconds, because that frame carries credits_used and
+    // does not arrive until after `stop`. This socket reproduces that ordering:
+    // it withholds the completion until the stop frame is actually on the wire.
+    // A flat drain would either close before it (losing billing data) or add ten
+    // seconds to every stop; the event wait does neither.
+    var cloudSocket = new FakeStreamingWebSocket(
+        [TextFrame("{\"type\":\"session_complete\",\"duration_seconds\":1.5,\"credits_used\":0.25}")],
+        release: value => value.Sent.Any(sent =>
+            sent.Type == System.Net.WebSockets.WebSocketMessageType.Text
+            && Encoding.UTF8.GetString(sent.Data) == "{\"type\":\"stop\"}"));
+    var started = System.Diagnostics.Stopwatch.StartNew();
+    var cloud = await new LiveCloudTranscriptionService(new FakeWebSocketFactory(cloudSocket)).TranscribeAsync(
+        new LiveTranscriptionConfig(LiveTranscriptionProvider.HyperWhisperCloud, LicenseKey: "hw"),
+        Audio(320));
+    started.Stop();
+    // No transcript frame was scripted, so the session ends with no speech —
+    // what is under test is the stop ordering, not the text.
+    Assert.Equal(LiveTranscriptionFailureCode.NoSpeech, cloud.Failure!.Code);
+    Assert.True(started.Elapsed < TimeSpan.FromSeconds(5), $"the stop path took {started.Elapsed}");
+    Assert.Equal("{\"type\":\"stop\"}", Encoding.UTF8.GetString(cloudSocket.Sent[^1].Data));
+    Assert.Equal(1, cloudSocket.Closes);
+}
+
+static Task TestRustLiveDisposalAsync()
+{
+    // The generated HwLiveSession is a handle onto a Rust Arc. Disposal is not
+    // optional, and it has to be idempotent — the service disposes through a
+    // `using`, and the test suite above disposes the same objects by hand.
+    var protocol = Protocol(LiveTranscriptionProvider.Deepgram);
+    protocol.Dispose();
+    protocol.Dispose();
+    return Task.CompletedTask;
+}
+
+static string Rendered(IReadOnlyList<LiveStopStep> steps) =>
+    string.Join('|', steps.Select(step => step.Action switch
+    {
+        LiveStopAction.SendMessage => $"SendMessage:{Encoding.UTF8.GetString(step.Payload!)}",
+        LiveStopAction.Wait => $"Wait:{(int)(step.WaitAfter ?? TimeSpan.Zero).TotalMilliseconds}",
+        LiveStopAction.WaitForSessionComplete =>
+            $"WaitForSessionComplete:{(int)(step.WaitAfter ?? TimeSpan.Zero).TotalMilliseconds}",
+        _ => "Close",
+    }));
+
+static ReadOnlyMemory<byte> Utf8(string value) => Encoding.UTF8.GetBytes(value);
 
 static StreamingWebSocketFrame TextFrame(string value) =>
     new(Encoding.UTF8.GetBytes(value), System.Net.WebSockets.WebSocketMessageType.Text);
@@ -950,11 +1445,25 @@ sealed class FakeWebSocketFactory(FakeStreamingWebSocket socket) : IStreamingWeb
     public IStreamingWebSocket Create() => socket;
 }
 
-sealed class FakeStreamingWebSocket(IEnumerable<StreamingWebSocketFrame> frames) : IStreamingWebSocket
+sealed class FakeStreamingWebSocket(
+    IEnumerable<StreamingWebSocketFrame> frames,
+    Func<FakeStreamingWebSocket, bool>? release = null) : IStreamingWebSocket
 {
     private readonly Queue<StreamingWebSocketFrame> _frames = new(frames);
+
+    /// <summary>Scripted frames not yet handed to the receive loop.</summary>
+    public int Pending => _frames.Count;
+
+    /// <summary>
+    /// Started at construction so a send carries WHEN it happened. The ordered
+    /// stop sequence is the reason: Deepgram's 500 ms gap has to sit between two
+    /// frames, and a transcript with no clock on it cannot show that.
+    /// </summary>
+    private readonly System.Diagnostics.Stopwatch _clock = System.Diagnostics.Stopwatch.StartNew();
+
     public StreamingWebSocketConnectOptions? Options { get; private set; }
-    public List<(byte[] Data, System.Net.WebSockets.WebSocketMessageType Type)> Sent { get; } = [];
+    public List<(byte[] Data, System.Net.WebSockets.WebSocketMessageType Type, long AtMs)> Sent { get; } = [];
+    public int Closes { get; private set; }
 
     public Task ConnectAsync(StreamingWebSocketConnectOptions options, CancellationToken cancellationToken)
     {
@@ -969,7 +1478,7 @@ sealed class FakeStreamingWebSocket(IEnumerable<StreamingWebSocketFrame> frames)
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        Sent.Add((data.ToArray(), messageType));
+        Sent.Add((data.ToArray(), messageType, _clock.ElapsedMilliseconds));
         return Task.CompletedTask;
     }
 
@@ -977,6 +1486,15 @@ sealed class FakeStreamingWebSocket(IEnumerable<StreamingWebSocketFrame> frames)
     {
         if (_frames.Count > 0)
         {
+            // A provider does not answer before it is asked. `release` withholds
+            // the scripted frames until the client has put something specific on
+            // the wire, which is how a stop-then-complete exchange is reproduced
+            // without a sleep.
+            while (release is not null && !release(this))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                await Task.Delay(2, cancellationToken);
+            }
             await Task.Yield();
             return _frames.Dequeue();
         }
@@ -989,6 +1507,7 @@ sealed class FakeStreamingWebSocket(IEnumerable<StreamingWebSocketFrame> frames)
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        Closes++;
         return Task.CompletedTask;
     }
 
