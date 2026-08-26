@@ -312,8 +312,11 @@ public class CustomEndpointManager : IDisposable
         // The URL rule and the probe body are the shared ones (#282), so a test
         // that passes here means the real post-processing call will work — the
         // two used to be built separately and could disagree.
-        var verdict = LlmPostProcessing.NormalizeCustomEndpoint(endpointURL ?? "", modelName ?? "");
-        if (verdict.Status != PortableEndpointStatus.Valid)
+        //
+        // Judged leniently, like the runtime: the button must test the request
+        // the app would really send. Saving is where the strict rule applies.
+        var verdict = LlmPostProcessing.ValidateExistingCustomEndpoint(endpointURL ?? "", modelName ?? "");
+        if (!verdict.IsUsable)
         {
             return (false, verdict.Suggestion is { } suggestion
                 ? $"{verdict.Message} — did you mean {suggestion}?"

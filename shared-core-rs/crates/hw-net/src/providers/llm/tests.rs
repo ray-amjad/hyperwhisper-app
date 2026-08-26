@@ -564,6 +564,42 @@ fn the_length_caps_are_enforced() {
 }
 
 #[test]
+fn a_schemeless_url_with_a_port_is_still_repaired() {
+    // The Ollama / LM Studio shape. The colon is a port, so `https://` is the
+    // right repair — unlike `mailto:`, where the colon is a scheme.
+    let verdict = validate_existing("localhost:11434/v1/chat/completions", "llama3.2");
+    assert_eq!(verdict.status, EndpointStatus::NeedsRepair);
+    assert_eq!(verdict.url, "https://localhost:11434/v1/chat/completions");
+    assert!(
+        verdict.is_usable(),
+        "a saved Ollama endpoint must not vanish"
+    );
+
+    let verdict = strict("localhost:11434/v1/chat/completions", "llama3.2");
+    assert_eq!(verdict.status, EndpointStatus::Invalid);
+    assert_eq!(
+        verdict.suggestion.as_deref(),
+        Some("https://localhost:11434/v1/chat/completions")
+    );
+}
+
+#[test]
+fn a_scheme_we_cannot_call_is_never_repaired() {
+    for raw in [
+        "mailto:someone@example.com",
+        "file:/etc/passwd",
+        "custom:not-a-url",
+    ] {
+        let verdict = validate_existing(raw, "llama3");
+        assert!(
+            !verdict.is_usable(),
+            "{raw} must not be repaired into an HTTP call"
+        );
+        assert_eq!(verdict.suggestion, None, "{raw} needs no suggestion");
+    }
+}
+
+#[test]
 fn a_url_with_no_host_is_not_an_endpoint() {
     let verdict = strict("https:///v1/chat/completions", "llama3");
     assert_eq!(verdict.issue, Some(EndpointIssue::NotAbsolute));

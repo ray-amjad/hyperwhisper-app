@@ -294,56 +294,50 @@ class CustomPostProcessingManager: ObservableObject {
         testingEndpoints.insert(id)
         defer { testingEndpoints.remove(id) }
 
-        // STEP 3: Build the test request
-        guard let url = URL(string: endpoint.endpointURL) else {
+        // STEP 3: Validate the URL and the model, then build the test request.
+        // The rule, the Bearer header and the minimal "Say hello" body all come
+        // from the shared core (issue #282), so the Windows test button sends
+        // exactly the same request.
+        //
+        // Judged LENIENTLY, like the runtime: the button must test the request
+        // the app would really send. Saving is where the strict rule applies.
+        let verdict = llmValidateExistingCustomEndpoint(
+            raw: endpoint.endpointURL, model: endpoint.modelName)
+        guard !verdict.url.isEmpty else {
             updateTestStatus(for: id, success: false)
-            return .failure(error: "Invalid URL")
+            let message = verdict.message ?? "Invalid URL"
+            if let suggestion = verdict.suggestion {
+                return .failure(error: "\(message) — did you mean \(suggestion)?")
+            }
+            return .failure(error: message)
         }
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.timeoutInterval = 30
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-        // STEP 4: Add authentication if API key is set
         let apiKey = getAPIKey(for: id)
-        if !apiKey.isEmpty {
-            request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        }
-
-        // STEP 5: Build minimal OpenAI-compatible request body
-        // TEST REQUEST STRUCTURE:
-        // This sends a simple "Say hello" prompt to verify the endpoint works
-        // We use minimal tokens to reduce cost/time for testing
-        let requestBody: [String: Any] = [
-            "model": endpoint.modelName,
-            "messages": [
-                ["role": "user", "content": "Say hello in one word."]
-            ],
-            "max_tokens": 10,
-            "temperature": 0.0
-        ]
-
+        var request: URLRequest
         do {
-            request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+            let built = try llmBuildCustomEndpointTestRequest(
+                rawUrl: verdict.url, model: verdict.model,
+                apiKey: apiKey.isEmpty ? nil : apiKey)
+            request = try RustHTTPExecutor.buildInlineURLRequest(from: built)
         } catch {
             updateTestStatus(for: id, success: false)
             return .failure(error: "Failed to encode request: \(error.localizedDescription)")
         }
+        request.timeoutInterval = 30
 
-        // STEP 6: Send the request
+        // STEP 4: Send the request
         logger.info("Testing endpoint: \(endpoint.name, privacy: .public) at \(endpoint.displayURL, privacy: .public)")
 
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
 
-            // STEP 7: Check HTTP response
+            // STEP 5: Check HTTP response
             guard let httpResponse = response as? HTTPURLResponse else {
                 updateTestStatus(for: id, success: false)
                 return .failure(error: "Invalid response type")
             }
 
-            // STEP 8: Handle error status codes
+            // STEP 6: Handle error status codes
             if httpResponse.statusCode != 200 {
                 let errorBody = String(data: data, encoding: .utf8) ?? "No error details"
                 logger.warning("Endpoint test failed with status \(httpResponse.statusCode, privacy: .public): \(errorBody, privacy: .public)")
@@ -351,7 +345,7 @@ class CustomPostProcessingManager: ObservableObject {
                 return .failure(error: "HTTP \(httpResponse.statusCode): \(parseErrorMessage(from: data) ?? "Unknown error")")
             }
 
-            // STEP 9: Parse successful response
+            // STEP 7: Parse successful response
             // RESPONSE PARSING:
             // OpenAI-compatible endpoints return: { "choices": [{ "message": { "content": "..." } }] }
             guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -363,7 +357,7 @@ class CustomPostProcessingManager: ObservableObject {
                 return .failure(error: "Invalid response format - expected OpenAI-compatible response")
             }
 
-            // STEP 10: Success!
+            // STEP 8: Success!
             let preview = String(content.prefix(50))
             logger.info("Endpoint test succeeded: \(endpoint.name, privacy: .public) - response: \(preview, privacy: .public)")
             updateTestStatus(for: id, success: true)
@@ -446,46 +440,20 @@ class CustomPostProcessingManager: ObservableObject {
 
     /// Generate smart numbered copy name for duplicating an endpoint
     ///
-    /// SMART NUMBERING ALGORITHM:
-    /// This uses regex pattern matching to detect existing copy suffixes and increment them intelligently.
-    ///
-    /// Pattern: `\s\(copy(?:\s(\d+))?\)$`
-    /// - Matches " (copy)" or " (copy N)" at the END of the string
-    /// - Case sensitive (won't match "(COPY)" or "(Copy)")
-    /// - Only matches at end of string (won't match "Name (copy) Extra")
-    ///
     /// Examples:
     /// - "Name" → "Name (copy)"
     /// - "Name (copy)" → "Name (copy 2)"
     /// - "Name (copy 2)" → "Name (copy 3)"
     /// - "Name (copy 99)" → "Name (copy 100)"
     ///
-    /// Why this works:
-    /// - Each iteration produces a unique suffix increment
-    /// - No collision checking needed (names are non-unique by design)
-    /// - Simple, predictable, and user-friendly
+    /// The rule lives in the shared core (issue #282). macOS matched it with a
+    /// Swift regex and Windows with a .NET `Regex`; the two could drift, and a
+    /// backup carries the names between the platforms.
     ///
     /// - Parameter originalName: The name to create a copy of
     /// - Returns: A new name with incremented copy suffix
     private func generateCopyName(from originalName: String) -> String {
-        // GENERATE COPY NAME - Regex pattern: matches " (copy)" or " (copy N)" at end of string
-        let copyPattern = #/\s\(copy(?:\s(\d+))?\)$/#
-
-        if let match = originalName.firstMatch(of: copyPattern) {
-            // Extract base name without copy suffix
-            let baseName = String(originalName.prefix(upTo: match.range.lowerBound))
-
-            if let numberCapture = match.1, let number = Int(numberCapture) {
-                // "Name (copy 2)" → "Name (copy 3)"
-                return "\(baseName) (copy \(number + 1))"
-            } else {
-                // "Name (copy)" → "Name (copy 2)"
-                return "\(baseName) (copy 2)"
-            }
-        } else {
-            // First copy: "Name" → "Name (copy)"
-            return "\(originalName) (copy)"
-        }
+        llmNextCopyName(originalName: originalName)
     }
 }
 

@@ -115,7 +115,24 @@ enum RustHTTPExecutor {
     /// `Content-Type` for body shapes that carry it inline (`.bytes`,
     /// `.fileStream`, and the `@raw` multipart). For real multipart the
     /// `Content-Type` (with boundary) is set at upload time.
-    private static func buildURLRequest(from request: HttpRequest) throws -> URLRequest {
+    /// Materialise a core request into a `URLRequest` with its body attached.
+    ///
+    /// Use this instead of `execute` when the caller owns the I/O: the LLM
+    /// post-processing paths each set their own timeout, run their own retry
+    /// policy, and one of them reads an SSE stream line by line. They still get
+    /// the URL, the headers and the body from the core (issue #282).
+    ///
+    /// Only inline bodies are attached. A file-backed body must go through
+    /// `execute`, which streams it from disk.
+    static func buildInlineURLRequest(from request: HttpRequest) throws -> URLRequest {
+        var urlRequest = try buildURLRequest(from: request)
+        if case let .bytes(_, payload) = request.body {
+            urlRequest.httpBody = payload
+        }
+        return urlRequest
+    }
+
+    static func buildURLRequest(from request: HttpRequest) throws -> URLRequest {
         guard let url = URL(string: request.url) else {
             throw TranscriptionError.serverError(statusCode: 0, message: "Invalid request URL: \(request.url)")
         }

@@ -154,7 +154,7 @@ pub fn normalize_custom_endpoint(
     let Some((scheme, after_scheme)) = url.split_once("://") else {
         // No scheme at all. This is the macOS bug: `URL(string:)` accepts it,
         // then `URLSession` fails every recording with `unsupportedURL`.
-        let suggestion = (!url.starts_with('/') && !url.contains(' ') && !url.contains(':'))
+        let suggestion = (!url.starts_with('/') && !url.contains(' ') && looks_like_a_host(url))
             .then(|| format!("https://{url}"));
         let usable = suggestion
             .as_ref()
@@ -276,6 +276,24 @@ fn decide(
         issue: Some(issue),
         suggestion,
     }
+}
+
+/// Whether a schemeless string is worth prefixing with `https://`.
+///
+/// A colon is the hard case. `localhost:11434/v1/chat/completions` is the most
+/// common self-hosted endpoint there is (Ollama, LM Studio) and its colon is a
+/// PORT, so the repair is right. `mailto:someone@example.com` also has no
+/// `://`, and its colon separates a scheme, so the repair would be nonsense.
+/// Tell them apart by what follows the first colon: a port is all digits.
+fn looks_like_a_host(url: &str) -> bool {
+    let Some((_, after_colon)) = url.split_once(':') else {
+        return true;
+    };
+    let port = after_colon
+        .split(['/', '?', '#'])
+        .next()
+        .unwrap_or(after_colon);
+    !port.is_empty() && port.chars().all(|c| c.is_ascii_digit())
 }
 
 fn strip_fragment(url: &str) -> String {

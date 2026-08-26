@@ -72,34 +72,33 @@ enum PostProcessingProvider: String, CaseIterable, Identifiable {
         }
     }
 
-    /// API endpoint for chat completions
-    /// All providers use OpenAI-compatible endpoints for consistency
-    var chatEndpoint: String {
+    /// The same provider as the shared Rust core names it.
+    ///
+    /// The endpoint table, the auth headers and the request bodies all live in
+    /// the core (issue #282). This app used to carry its own copy of each, and
+    /// the Windows app carried a third — one provider added on one platform did
+    /// not exist on the other. Build a request with `llmBuildRequest`; do not
+    /// re-add a `chatEndpoint` here.
+    var coreProvider: HwLlmProvider {
         switch self {
         case .hyperwhisper:
-            return NetworkConfig.hyperwhisperCloudURL
+            return .hyperWhisperCloud
         case .openai:
-            return "https://api.openai.com/v1/chat/completions"
+            return .openAi
         case .anthropic:
-            // Anthropic native Messages API (supports cache_control for prompt caching)
-            return "https://api.anthropic.com/v1/messages"
+            return .anthropic
         case .gemini:
-            // Gemini provides OpenAI-compatible endpoint
-            return "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+            return .gemini
         case .groq:
-            // Groq provides OpenAI-compatible endpoint
-            return "https://api.groq.com/openai/v1/chat/completions"
+            return .groq
         case .grok:
-            // xAI provides an OpenAI-compatible endpoint
-            return "https://api.x.ai/v1/chat/completions"
+            return .grok
         case .cerebras:
-            // Cerebras provides OpenAI-compatible endpoint
-            return "https://api.cerebras.ai/v1/chat/completions"
+            return .cerebras
         case .mistral:
-            // Mistral provides an OpenAI-compatible endpoint
-            return "https://api.mistral.ai/v1/chat/completions"
+            return .mistral
         case .localLLM:
-            return "http://127.0.0.1:\(LlamaServerController.Configuration.default.port)/v1/chat/completions"
+            return .localLlama
         }
     }
 
@@ -124,23 +123,6 @@ enum PostProcessingProvider: String, CaseIterable, Identifiable {
             return "https://console.mistral.ai/api-keys"
         case .localLLM:
             return ""
-        }
-    }
-
-    /// Whether this provider uses standard OpenAI authentication
-    /// OpenAI and Gemini use "Authorization: Bearer {key}"
-    /// Anthropic uses "x-api-key: {key}" (native Messages API)
-    var usesStandardAuth: Bool {
-        switch self {
-        case .hyperwhisper:
-            return false  // Uses device_id/license_key instead
-        case .openai, .gemini, .groq, .grok, .cerebras, .mistral:
-            return true
-        case .anthropic:
-            // Anthropic native Messages API uses x-api-key header
-            return false
-        case .localLLM:
-            return false
         }
     }
 
