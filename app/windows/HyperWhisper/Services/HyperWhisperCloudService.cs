@@ -378,7 +378,7 @@ public class HyperWhisperCloudService : ITranscriptionProvider, ITranscriptionDi
         {
             throw new TranscriptionException(
                 TranscriptionErrorCode.AudioFileNotFound,
-                $"Audio file not found: {audioPath}",
+                $"Audio file not found: {LoggingService.DescribePath(audioPath)}",
                 "HyperWhisper Cloud");
         }
 

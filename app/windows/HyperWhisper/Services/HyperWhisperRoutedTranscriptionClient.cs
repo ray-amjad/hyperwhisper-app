@@ -95,7 +95,7 @@ internal static class HyperWhisperRoutedTranscriptionClient
         {
             throw new TranscriptionException(
                 TranscriptionErrorCode.AudioFileNotFound,
-                $"Audio file not found: {audioPath}",
+                $"Audio file not found: {LoggingService.DescribePath(audioPath)}",
                 providerDisplayName);
         }
 

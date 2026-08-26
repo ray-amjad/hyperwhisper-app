@@ -71,17 +71,10 @@ public static class LoggingService
     {
         if (string.IsNullOrWhiteSpace(path)) return "(none)";
 
-        string extension;
-        try
-        {
-            extension = Path.GetExtension(path);
-        }
-        catch (ArgumentException)
-        {
-            // Path.GetExtension throws on invalid path characters. A path we
-            // cannot parse is still a path we must not print.
-            return "(unreadable)";
-        }
+        // Path.GetExtension does not throw on .NET Core and later: the
+        // invalid-path-character check was removed in 2.1. It only ever reads
+        // back from the last separator, so it cannot fault on a hostile string.
+        var extension = Path.GetExtension(path);
 
         return string.IsNullOrEmpty(extension) ? "(no extension)" : $"*{extension}";
     }

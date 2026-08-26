@@ -685,7 +685,7 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
     {
         // DIAGNOSTICS: metadata for this attempt, reported at every exit. Holds
         // counts, flags and durations only — never the transcript.
-        var attempt = NewPasteAttempt(text);
+        var attempt = NewPasteAttempt(text, autoPasteAttempted: false);
 
         if (string.IsNullOrEmpty(text))
         {
@@ -717,10 +717,11 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
     /// paths the target is exactly what a triager needs, and reading it later
     /// would describe the desktop after the attempt instead of before it.
     /// </summary>
-    private PasteAttempt NewPasteAttempt(string text)
+    private PasteAttempt NewPasteAttempt(string text, bool autoPasteAttempted)
     {
         var attempt = new PasteAttempt
         {
+            AutoPasteAttempted = autoPasteAttempted,
             CharacterCount = text?.Length ?? 0,
             HadCapturedTarget = _previousForegroundWindow != IntPtr.Zero,
             HideFromClipboardHistory = SettingsService.Instance.HideFromClipboardHistory
@@ -742,6 +743,9 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
     /// </summary>
     private static string ClassifyPasteTarget(string processName, bool isBrowser, bool isElectron)
     {
+        // "unknown" means the lookup ran and failed, which is a real finding.
+        // It is NOT the same as SmartPasteDiagnostics.NotEvaluated, which means
+        // the flow exited before this step.
         if (string.IsNullOrEmpty(processName)) return "unknown";
         if (isBrowser) return "browser";
         if (isElectron) return "electron";
@@ -759,7 +763,7 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
         // DIAGNOSTICS: metadata for this attempt, reported at every exit so the
         // last step of the record → transcribe → paste flow is visible in
         // production. Holds counts, flags and durations only — never the text.
-        var attempt = NewPasteAttempt(text);
+        var attempt = NewPasteAttempt(text, autoPasteAttempted: true);
 
         if (string.IsNullOrEmpty(text))
         {

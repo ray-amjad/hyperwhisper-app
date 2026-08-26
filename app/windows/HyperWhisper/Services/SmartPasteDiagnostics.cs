@@ -35,7 +35,7 @@ public enum PasteOutcome
     /// <summary>A password field is focused. A deliberate refusal, not a fault.</summary>
     SecureFieldSkipped,
 
-    /// <summary>Permission and focus were fine and the keystroke still threw. Always a defect.</summary>
+    /// <summary>Posting Ctrl+V threw. Usually UIPI refusing input to an elevated window.</summary>
     KeystrokeFailed
 }
 
@@ -49,11 +49,24 @@ internal sealed class PasteAttempt
 {
     private readonly Stopwatch _stopwatch = Stopwatch.StartNew();
 
+    /// <summary>
+    /// True when this attempt tried to paste. False on the copy-only path, which
+    /// runs when the user has auto-paste turned off. The two must not report as
+    /// one fault: a clipboard failure with auto-paste off says nothing about paste.
+    /// </summary>
+    public bool AutoPasteAttempted { get; set; }
+
     /// <summary>Process name of the window the paste targets, when it is known.</summary>
     public string? TargetProcessName { get; set; }
 
-    /// <summary>Chromium/native classification, which selects the paste fast path.</summary>
-    public string TargetAppKind { get; set; } = "unknown";
+    /// <summary>
+    /// Chromium/native classification, which selects the paste fast path.
+    ///
+    /// Stays <c>NotEvaluated</c> until the flow actually reaches the step that
+    /// reads it. An early exit must not report an unmeasured field as a measured
+    /// "unknown" — a triager would read that as "we looked and could not tell".
+    /// </summary>
+    public string TargetAppKind { get; set; } = SmartPasteDiagnostics.NotEvaluated;
 
     /// <summary>True when recording start captured a foreground window.</summary>
     public bool HadCapturedTarget { get; set; }
@@ -64,11 +77,14 @@ internal sealed class PasteAttempt
     /// <summary>True when the target window is minimized at paste time.</summary>
     public bool TargetWindowMinimized { get; set; }
 
-    /// <summary>True when the focus poll confirmed focus before the paste.</summary>
-    public bool FocusReady { get; set; }
+    /// <summary>
+    /// True when the focus poll confirmed focus before the paste, false when it
+    /// timed out, null when the flow exited before the poll ran.
+    /// </summary>
+    public bool? FocusReady { get; set; }
 
-    /// <summary>How long the focus poll ran, in ms.</summary>
-    public int FocusWaitMs { get; set; }
+    /// <summary>How long the focus poll ran, in ms, or null when it never ran.</summary>
+    public int? FocusWaitMs { get; set; }
 
     /// <summary>Length of the text to deliver. A count only — never the text.</summary>
     public int CharacterCount { get; set; }
@@ -93,21 +109,34 @@ internal sealed class PasteAttempt
 /// </summary>
 internal static class SmartPasteDiagnostics
 {
-    private static readonly HashSet<string> _reportedSlugs = new(StringComparer.Ordinal);
+    /// <summary>
+    /// The value every field carries until the flow reaches the step that measures
+    /// it. Distinct from "unknown", which means the step ran and could not tell.
+    /// </summary>
+    internal const string NotEvaluated = "not_evaluated";
+
+    private static readonly HashSet<string> _reportedFingerprints = new(StringComparer.Ordinal);
     private static readonly object _reportedLock = new();
 
+    /// <summary>Renders an unmeasured flag honestly instead of as a false.</summary>
+    private static string Describe(bool? value) =>
+        value.HasValue ? (value.Value ? "true" : "false") : NotEvaluated;
+
+    /// <summary>Renders an unmeasured duration honestly instead of as a zero.</summary>
+    private static object Describe(int? value) => value.HasValue ? value.Value : NotEvaluated;
+
     /// <summary>
-    /// Claims the one report this app run allows for a slug.
+    /// Claims the one report this app run allows for a Sentry fingerprint.
     /// </summary>
-    /// <returns>True the first time a slug is seen, false afterwards.</returns>
+    /// <returns>True the first time a key is seen, false afterwards.</returns>
     // internal (not private): test seam for HyperWhisper.SmokeTests via
     // InternalsVisibleTo (see HyperWhisper.csproj) - no other accessibility
     // change is intended.
-    internal static bool MarkReportedThisRun(string slug)
+    internal static bool MarkReportedThisRun(string fingerprintKey)
     {
         lock (_reportedLock)
         {
-            return _reportedSlugs.Add(slug);
+            return _reportedFingerprints.Add(fingerprintKey);
         }
     }
 
@@ -149,12 +178,19 @@ internal static class SmartPasteDiagnostics
     };
 
     /// <summary>
-    /// True when the outcome describes a defect in the app rather than the state
-    /// of the user's desktop. Drives the Sentry level: a failed clipboard write
-    /// or keystroke is an error, a missing target window is a warning.
+    /// True when the outcome can only be a defect in this app. Drives the Sentry
+    /// level.
+    ///
+    /// Only <see cref="PasteOutcome.EmptyText"/> qualifies: the flow asked to
+    /// deliver a transcript it did not have, which nothing on the user's desktop
+    /// can cause. The other three reportable outcomes are usually environmental
+    /// and are graded as warnings — a failed keystroke is most often UIPI
+    /// refusing input to a window running at a higher integrity level, and a
+    /// failed clipboard write is most often another app holding the clipboard.
+    /// Neither is fixable here, so neither earns error level on every app run.
     /// </summary>
     internal static bool IsDefect(PasteOutcome outcome) =>
-        outcome is PasteOutcome.ClipboardSetFailed or PasteOutcome.KeystrokeFailed;
+        outcome is PasteOutcome.EmptyText;
 
     /// <summary>
     /// Records the end of one auto-paste attempt.
@@ -168,15 +204,23 @@ internal static class SmartPasteDiagnostics
     internal static void Report(PasteOutcome outcome, PasteAttempt attempt, Exception? exception = null)
     {
         var slug = Slug(outcome);
+
+        // The copy-only path runs when the user has auto-paste turned off. Its
+        // failures are NOT paste failures, and reporting them under the paste
+        // component would merge two different faults into one Sentry issue.
+        var component = attempt.AutoPasteAttempted ? "auto_paste" : "clipboard_copy";
+        var headline = attempt.AutoPasteAttempted ? "Auto-paste" : "Clipboard copy";
+
         var summary =
             $"outcome={slug} " +
-            $"targetProcess={attempt.TargetProcessName ?? "unknown"} " +
+            $"component={component} " +
+            $"targetProcess={attempt.TargetProcessName ?? NotEvaluated} " +
             $"targetKind={attempt.TargetAppKind} " +
             $"capturedTarget={attempt.HadCapturedTarget} " +
             $"targetAlive={attempt.TargetWindowAlive} " +
             $"targetMinimized={attempt.TargetWindowMinimized} " +
-            $"focusReady={attempt.FocusReady} " +
-            $"focusWaitMs={attempt.FocusWaitMs} " +
+            $"focusReady={Describe(attempt.FocusReady)} " +
+            $"focusWaitMs={Describe(attempt.FocusWaitMs)} " +
             $"chars={attempt.CharacterCount} " +
             $"hiddenFromHistory={attempt.HideFromClipboardHistory} " +
             $"elapsedMs={attempt.ElapsedMs}";
@@ -186,18 +230,16 @@ internal static class SmartPasteDiagnostics
             // Debug, not Info: the streaming path pastes once per final segment,
             // and the caller already writes its own Info line per delivery. A
             // second Info line per segment would bury the rest of the log.
-            LoggingService.Debug($"SmartPasteService: Auto-paste finished · {summary}");
+            LoggingService.Debug($"SmartPasteService: {headline} finished · {summary}");
             return;
         }
 
-        if (exception != null)
-        {
-            LoggingService.Error($"SmartPasteService: Auto-paste failed · {summary}", exception);
-        }
-        else
-        {
-            LoggingService.Error($"SmartPasteService: Auto-paste failed · {summary}");
-        }
+        // The exception is deliberately NOT passed here. Every call site that has
+        // one has already logged it with its full stack trace on the line above,
+        // and LoggingService.Error(string, Exception) writes the whole inner
+        // chain. Passing it again would write a second stack per failure — and on
+        // the streaming path that is one extra stack per spoken sentence.
+        LoggingService.Error($"SmartPasteService: {headline} failed · {summary}");
 
         // Respect the user's opt-in before anything leaves the machine.
         if (!SettingsService.Instance.EnableErrorLogging)
@@ -207,10 +249,12 @@ internal static class SmartPasteDiagnostics
 
         // The streaming path pastes once per final transcript segment, so a
         // broken target would send one event per sentence for the whole session.
-        // Report each outcome once per app run instead. Sentry's event count is
-        // therefore a count of affected app runs, not of attempts — the extra
-        // below states that, so nobody reads the number as an attempt count.
-        if (!MarkReportedThisRun(slug))
+        // Report once per app run instead. The key must match the fingerprint
+        // below, or a run's first failure would silence every OTHER Sentry group
+        // for that outcome and those groups would under-count affected runs.
+        var fingerprint = new[] { "auto-paste", component, slug, attempt.TargetAppKind };
+
+        if (!MarkReportedThisRun(string.Join(":", fingerprint)))
         {
             return;
         }
@@ -218,16 +262,19 @@ internal static class SmartPasteDiagnostics
         var extras = new Dictionary<string, object>
         {
             ["paste_outcome"] = slug,
-            ["paste_target_process"] = attempt.TargetProcessName ?? "unknown",
+            ["paste_component"] = component,
+            ["paste_target_process"] = attempt.TargetProcessName ?? NotEvaluated,
             ["paste_target_app_kind"] = attempt.TargetAppKind,
             ["paste_had_captured_target"] = attempt.HadCapturedTarget,
             ["paste_target_window_alive"] = attempt.TargetWindowAlive,
             ["paste_target_window_minimized"] = attempt.TargetWindowMinimized,
-            ["paste_focus_ready"] = attempt.FocusReady,
-            ["paste_focus_wait_ms"] = attempt.FocusWaitMs,
+            ["paste_focus_ready"] = Describe(attempt.FocusReady),
+            ["paste_focus_wait_ms"] = Describe(attempt.FocusWaitMs),
             ["paste_character_count"] = attempt.CharacterCount,
             ["paste_hide_from_clipboard_history"] = attempt.HideFromClipboardHistory,
             ["paste_elapsed_ms"] = attempt.ElapsedMs,
+            // Read the issue's event count as "app runs affected", not "attempts".
+            // One run reports each fingerprint at most once, by design.
             ["paste_reported_once_per_run"] = true
         };
 
@@ -236,18 +283,18 @@ internal static class SmartPasteDiagnostics
         // faceting instead, and it is the axis the paste path actually branches on.
         var tags = new Dictionary<string, string>
         {
-            ["component"] = "auto_paste",
+            ["component"] = component,
             ["paste_outcome"] = slug,
             ["paste_target_app_kind"] = attempt.TargetAppKind
         };
 
-        var fingerprint = new[] { "auto-paste", slug, attempt.TargetAppKind };
+        var message = $"{headline} failed: {slug}";
 
         if (exception != null)
         {
             SentryService.Capture(
                 exception,
-                message: $"Auto-paste failed: {slug}",
+                message: message,
                 extras: extras,
                 tags: tags,
                 fingerprint: fingerprint,
@@ -258,7 +305,7 @@ internal static class SmartPasteDiagnostics
         // No exception to attach — report it through the diagnostic-event path,
         // which is the same shape the no-speech diagnostic already uses.
         SentryService.CaptureDiagnosticEvent(
-            message: $"Auto-paste failed: {slug}",
+            message: message,
             extras: extras,
             tags: tags,
             fingerprint: fingerprint);

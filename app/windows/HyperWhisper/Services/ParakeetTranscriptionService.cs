@@ -557,7 +557,7 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
             LoggingService.Error($"ParakeetTranscriptionService: Audio file not found: {LoggingService.DescribePath(audioPath)}");
             throw new TranscriptionException(
                 TranscriptionErrorCode.AudioFileNotFound,
-                $"Audio file not found: {audioPath}",
+                $"Audio file not found: {LoggingService.DescribePath(audioPath)}",
                 "Parakeet");
         }
 

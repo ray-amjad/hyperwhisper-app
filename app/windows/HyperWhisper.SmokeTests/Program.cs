@@ -204,8 +204,12 @@ internal static class Program
                 Assert(SmartPasteDiagnostics.IsReportable(PasteOutcome.NoTargetWindow), "missing target window is not reported");
                 Assert(SmartPasteDiagnostics.IsReportable(PasteOutcome.KeystrokeFailed), "keystroke failure is not reported");
 
-                // Only an app defect is an error; a broken desktop is a warning.
-                Assert(SmartPasteDiagnostics.IsDefect(PasteOutcome.KeystrokeFailed), "keystroke failure is not a defect");
+                // Only a fault this app can cause is an error. Everything the
+                // user's desktop can cause is a warning, or an elevated window
+                // would raise an error-level issue on every app run for ever.
+                Assert(SmartPasteDiagnostics.IsDefect(PasteOutcome.EmptyText), "delivering no transcript is not a defect");
+                Assert(!SmartPasteDiagnostics.IsDefect(PasteOutcome.KeystrokeFailed), "UIPI refusal is graded as a defect");
+                Assert(!SmartPasteDiagnostics.IsDefect(PasteOutcome.ClipboardSetFailed), "clipboard conflict is graded as a defect");
                 Assert(!SmartPasteDiagnostics.IsDefect(PasteOutcome.NoTargetWindow), "missing target window is graded as a defect");
 
                 // The flood guard: streaming pastes once per final segment, so a
