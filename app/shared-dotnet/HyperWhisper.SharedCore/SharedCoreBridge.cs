@@ -264,10 +264,37 @@ public static class SharedCoreBridge
     // Live streaming (issue #281)
     //
     // Seven session-free functions the core owns for all three heads. The
-    // terminal-error policy behind the first two shipped on macOS only, so
-    // Windows and Linux gain it here: a mid-session "Credit balance exhausted"
-    // from the default provider stops driving a reconnect that can only fail
-    // the same way.
+    // terminal-error policy behind the first two shipped on macOS only, and the
+    // two halves of it do NOT reach the same heads:
+    //
+    //   * Mid-session, via ClassifyLiveErrorMessage. Windows and Linux both gain
+    //     it here. A "Credit balance exhausted" frame from the default provider
+    //     now stops driving a reconnect that can only fail the same way —
+    //     LiveCloudTranscriptionService reads it on Linux, and
+    //     StreamingTranscriptionClient reads it on Windows.
+    //
+    //   * Pre-session, via LiveUpgradeRefusal below — the relay refusing the
+    //     WebSocket upgrade outright. Windows gains it: its
+    //     TerminalUpgradeMessage sets ClientWebSocket.Options
+    //     .CollectHttpResponseDetails and reads HttpStatusCode off the socket.
+    //
+    //     NOT COVERED on Linux. LiveUpgradeRefusal has no Linux caller and
+    //     cannot have one today: ClientStreamingWebSocket.ConnectAsync never
+    //     sets CollectHttpResponseDetails, and IStreamingWebSocket carries no
+    //     HTTP status at all, so the status the refusal arrives on is
+    //     unreachable from LiveCloudTranscriptionService. This is the real case
+    //     it costs: HyperWhisper Cloud requires 30 seconds of balance and
+    //     refuses in middleware (hyperwhisper-cloud/src/middleware/credits.ts →
+    //     insufficientCreditsResponse, src/lib/responses.ts:48) with a 402
+    //     before any socket exists, so a Linux user out of credits gets a bare
+    //     transport failure and the ordinary reconnect, where Windows and macOS
+    //     get "add more credits in Settings" and stop.
+    //
+    //     Closing it needs two changes, neither of them here: set
+    //     CollectHttpResponseDetails in ClientStreamingWebSocket.ConnectAsync,
+    //     and widen IStreamingWebSocket to surface the failed upgrade's status
+    //     (a fake socket has no ClientWebSocket to read it from, so it has to be
+    //     on the interface).
     // -----------------------------------------------------------------------
 
     /// <summary>

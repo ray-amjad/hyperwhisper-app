@@ -233,6 +233,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("the Rust live protocol answers an ordered stop sequence per provider", TestRustLiveStopSequenceAsync),
     ("OpenAI's commit gate is the server's 100 ms rule, driven by the caller's clock", TestRustLiveCommitGateAsync),
     ("the ordered stop sequence reaches the socket in order, with its gap", TestLiveStopSequenceOnTheWireAsync),
+    ("a final transcript that lands after the stop sequence is still counted", TestLiveLateFinalTranscriptAsync),
+    ("a failure the receive loop recorded survives a throwing close", TestLiveRecordedFailureSurvivesCloseAsync),
     ("the live protocol owns a Rust handle and is disposed", TestRustLiveDisposalAsync),
 };
 
@@ -612,13 +614,17 @@ static async Task TestLiveFailureAndBoundsAsync()
     Assert.Equal(24000, LiveCloudTranscriptionService.GetRequiredSampleRate(LiveTranscriptionProvider.OpenAi));
     Assert.Equal(16000, LiveCloudTranscriptionService.GetRequiredSampleRate(LiveTranscriptionProvider.Deepgram));
 
-    // BEHAVIOUR CHANGE (issue #281). ElevenLabs was the one provider whose error
-    // frames carried a machine-readable kind and no wording, so this head turned
-    // its three kinds into three distinct failure codes. The core answers those
-    // kinds with the sentences all three heads ship, so every provider's error
-    // frame now arrives as ProviderUnavailable and the reconnect decision is
-    // carried by IsTerminal — which is the whole point of the issue, and which
-    // this frame gets right where the bare code never could.
+    // ElevenLabs is the one provider whose error frames carry a machine-readable
+    // KIND and no wording of their own, and it keeps its three distinct failure
+    // codes. The four providers that do send wording arrive as
+    // ProviderUnavailable with the reconnect decision carried by IsTerminal, but
+    // ElevenLabs cannot join them: the three sentences the core answers with are
+    // the core's own prose, so classifying them would be the core grading itself,
+    // and "rate limit reached" matches no terminal marker at all. So the kind
+    // rides across the FFI (HwLiveEvent.Error.kind) and is mapped back — see
+    // LiveTranscriptionProtocols.Event. Unauthorized is not in
+    // LiveStreamingSessionController.CanReconnect's allowed set, which is what
+    // actually refuses the reconnect here.
     var providerError = new FakeStreamingWebSocket(
     [
         TextFrame("{\"message_type\":\"auth_error\"}"),
@@ -628,8 +634,69 @@ static async Task TestLiveFailureAndBoundsAsync()
     var error = await errorService.TranscribeAsync(
         new LiveTranscriptionConfig(LiveTranscriptionProvider.ElevenLabs, ApiKey: "bad"),
         Audio(320, providerError));
-    Assert.Equal(LiveTranscriptionFailureCode.ProviderUnavailable, error.Failure!.Code);
+    Assert.Equal(LiveTranscriptionFailureCode.Unauthorized, error.Failure!.Code);
     Assert.True(error.Failure.IsTerminal, "a bad ElevenLabs key must not earn a reconnect");
+
+    // THE CODE WHOSE VERDICT ACTUALLY FLIPS. `auth_error` is rescued by
+    // IsTerminal either way — its sentence carries "authentication failed",
+    // which is a terminal marker — so testing only that frame cannot tell a
+    // per-kind mapping apart from a collapsed one. `rate_limited` can: the
+    // sentence the core answers with, "ElevenLabs rate limit reached. Please try
+    // again in a moment.", matches NONE of the twenty markers, so IsTerminal is
+    // false and the CODE is the whole verdict. Collapsed to ProviderUnavailable
+    // it earned two reconnects at 250 ms and 500 ms straight back into the same
+    // concurrent-session limit; as RateLimited it earns none, which is what this
+    // head shipped before issue #281.
+    var rateLimited = new FakeStreamingWebSocket(
+    [
+        TextFrame("{\"message_type\":\"rate_limited\"}"),
+        CloseFrame(),
+    ]);
+    var limited = await new LiveCloudTranscriptionService(new FakeWebSocketFactory(rateLimited))
+        .TranscribeAsync(
+            new LiveTranscriptionConfig(LiveTranscriptionProvider.ElevenLabs, ApiKey: "busy"),
+            Audio(320, rateLimited));
+    Assert.Equal(LiveTranscriptionFailureCode.RateLimited, limited.Failure!.Code);
+    Assert.True(
+        !limited.Failure.IsTerminal,
+        "a rate limit clears on its own - the wording is deliberately not terminal");
+    // LiveStreamingSessionController.CanReconnect, restated: it lives in
+    // HyperWhisper.LiveStreaming, which this suite does not reference, and it is
+    // the consumer that reads Code. Only these three earn a fresh socket.
+    Assert.True(
+        limited.Failure.Code is not (LiveTranscriptionFailureCode.Network
+            or LiveTranscriptionFailureCode.Timeout
+            or LiveTranscriptionFailureCode.ProviderUnavailable),
+        "a rate-limited ElevenLabs key must not earn a reconnect into the same limit");
+
+    // The third kind. Its sentence carries "billing" and "quota exceeded", so
+    // IsTerminal would have refused the reconnect too - but the code is the one
+    // this head shipped and the one the mapping must still produce.
+    var quota = new FakeStreamingWebSocket(
+    [
+        TextFrame("{\"message_type\":\"quota_exceeded\"}"),
+        CloseFrame(),
+    ]);
+    var exhausted = await new LiveCloudTranscriptionService(new FakeWebSocketFactory(quota))
+        .TranscribeAsync(
+            new LiveTranscriptionConfig(LiveTranscriptionProvider.ElevenLabs, ApiKey: "spent"),
+            Audio(320, quota));
+    Assert.Equal(LiveTranscriptionFailureCode.QuotaExceeded, exhausted.Failure!.Code);
+    Assert.True(exhausted.Failure.IsTerminal, "an exhausted ElevenLabs quota is terminal");
+
+    // The four providers that send real wording keep the collapsed code, and
+    // their reconnect decision stays with IsTerminal.
+    var cloudError = new FakeStreamingWebSocket(
+    [
+        TextFrame("{\"type\":\"error\",\"message\":\"Credit balance exhausted\"}"),
+        CloseFrame(),
+    ]);
+    var cloud = await new LiveCloudTranscriptionService(new FakeWebSocketFactory(cloudError))
+        .TranscribeAsync(
+            new LiveTranscriptionConfig(LiveTranscriptionProvider.HyperWhisperCloud, LicenseKey: "hw"),
+            Audio(320, cloudError));
+    Assert.Equal(LiveTranscriptionFailureCode.ProviderUnavailable, cloud.Failure!.Code);
+    Assert.True(cloud.Failure.IsTerminal, "the flagship terminal wording");
 
     // A missing credential still fails before a socket is opened, and still with
     // Unauthorized: that one comes from the core's MissingCredential error, not
@@ -1291,6 +1358,92 @@ static async Task TestLiveStopSequenceOnTheWireAsync()
     Assert.Equal(1, cloudSocket.Closes);
 }
 
+/// <summary>
+/// The phase seam against Windows (see
+/// <c>LiveCloudTranscriptionService.DrainAfterCloseAsync</c>). ElevenLabs' stop
+/// sequence is a bare <c>Close</c>, so once the ordered stop path arrived this
+/// head had a zero-millisecond budget for anything still in flight, while
+/// Windows kept draining through its blocking close handshake.
+///
+/// One sentence with <c>commit_strategy=vad</c> is exactly that case: the
+/// <c>committed_transcript</c> lands shortly AFTER the last audio chunk, and
+/// without the post-close drain it came back as <c>NoSpeech</c>.
+///
+/// 300 ms is deliberately far from both ends — well outside zero, so the
+/// pre-fix behaviour cannot pass by luck, and well inside the 2 s
+/// <c>CloseTimeout</c> budget, so a loaded CI box cannot fail it.
+/// </summary>
+static async Task TestLiveLateFinalTranscriptAsync()
+{
+    var socket = new LateFrameStreamingWebSocket(
+        [TextFrame("{\"message_type\":\"committed_transcript\",\"text\":\"hello\"}"), CloseFrame()],
+        TimeSpan.FromMilliseconds(300));
+    var result = await new LiveCloudTranscriptionService(new DirectWebSocketFactory(socket))
+        .TranscribeAsync(
+            new LiveTranscriptionConfig(LiveTranscriptionProvider.ElevenLabs, ApiKey: "eleven"),
+            LateAudio(320, socket));
+    Assert.True(result.Failure is null, $"expected a transcript, got {result.Failure?.Code}");
+    Assert.Equal("hello", result.Transcript);
+    Assert.Equal(1, socket.Closes);
+}
+
+/// <summary>
+/// The verdict the receive loop recorded must outlive the unwind.
+///
+/// HyperWhisper Cloud — the default provider — sends
+/// <c>{"type":"error","message":"Credit balance exhausted"}</c>. The loop marks
+/// it <c>ProviderUnavailable, IsTerminal: true</c> and returns, the audio loop
+/// breaks, the stop sequence is skipped, and the bounded close then throws on
+/// the dead socket. That catch arm used to build a fresh
+/// <c>Network</c> / <c>IsTerminal: false</c> failure over the top, which
+/// <c>LiveStreamingSessionController.CanReconnect</c> reads as permission for two
+/// more doomed reconnects into the same exhausted balance.
+///
+/// The throwing close is why this needs its own fake: the shared
+/// <c>FakeStreamingWebSocket</c> closes cleanly, and teaching it to throw would
+/// change every test that already uses it.
+/// </summary>
+static async Task TestLiveRecordedFailureSurvivesCloseAsync()
+{
+    var socket = new LateFrameStreamingWebSocket(
+        [TextFrame("{\"type\":\"error\",\"message\":\"Credit balance exhausted\"}")],
+        TimeSpan.Zero,
+        throwOnClose: true);
+    var result = await new LiveCloudTranscriptionService(new DirectWebSocketFactory(socket))
+        .TranscribeAsync(
+            new LiveTranscriptionConfig(LiveTranscriptionProvider.HyperWhisperCloud, LicenseKey: "hw"),
+            LateAudio(320, socket, awaitFirstFrame: true));
+    Assert.NotNull(result.Failure);
+    Assert.Equal(LiveTranscriptionFailureCode.ProviderUnavailable, result.Failure!.Code);
+    Assert.True(result.Failure.IsTerminal, "the recorded terminal verdict was overwritten by the close failure");
+}
+
+/// <summary>
+/// One chunk, then a resume that means "the last audio byte is on the wire" —
+/// the socket withholds its script until that point, so the delay under test is
+/// measured from the stop and not from a scheduling accident.
+///
+/// <paramref name="awaitFirstFrame"/> must stay FALSE for the late-transcript
+/// test. Waiting here would let the frame land while the audio loop is still
+/// running, which is a path that never needed the drain at all — the test would
+/// then pass without the fix and prove nothing. The failure test sets it, because
+/// its point is the opposite: the error frame has to be handled BEFORE the audio
+/// loop ends, so the session takes the skip-the-stop-sequence path.
+/// </summary>
+static async IAsyncEnumerable<ReadOnlyMemory<byte>> LateAudio(
+    int byteCount,
+    LateFrameStreamingWebSocket socket,
+    bool awaitFirstFrame = false)
+{
+    await Task.CompletedTask;
+    yield return new byte[byteCount];
+    socket.MarkAudioDone();
+    for (var attempt = 0; awaitFirstFrame && socket.Served == 0 && attempt < 1000; attempt++)
+    {
+        await Task.Delay(2);
+    }
+}
+
 static Task TestRustLiveDisposalAsync()
 {
     // The generated HwLiveSession is a handle onto a Rust Arc. Disposal is not
@@ -1509,6 +1662,86 @@ sealed class FakeStreamingWebSocket(
         cancellationToken.ThrowIfCancellationRequested();
         Closes++;
         return Task.CompletedTask;
+    }
+
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+}
+
+sealed class DirectWebSocketFactory(IStreamingWebSocket socket) : IStreamingWebSocketFactory
+{
+    public IStreamingWebSocket Create() => socket;
+}
+
+/// <summary>
+/// A socket for the two stop-path regressions, kept separate from
+/// <see cref="FakeStreamingWebSocket"/> because both of its powers would change
+/// the behaviour every existing test depends on: it withholds its whole script
+/// until the caller says the last audio chunk is on the wire and then holds it
+/// back a further <paramref name="lateBy"/>, and it can fail the close.
+/// </summary>
+sealed class LateFrameStreamingWebSocket(
+    IEnumerable<StreamingWebSocketFrame> frames,
+    TimeSpan lateBy,
+    bool throwOnClose = false) : IStreamingWebSocket
+{
+    private readonly Queue<StreamingWebSocketFrame> _frames = new(frames);
+    private readonly TaskCompletionSource _audioDone = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private int _served;
+
+    /// <summary>Scripted frames already handed to the receive loop.</summary>
+    public int Served => Volatile.Read(ref _served);
+
+    public int Closes { get; private set; }
+
+    /// <summary>The last audio chunk is on the wire; the clock for <c>lateBy</c> starts now.</summary>
+    public void MarkAudioDone() => _audioDone.TrySetResult();
+
+    public Task ConnectAsync(StreamingWebSocketConnectOptions options, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.CompletedTask;
+    }
+
+    public Task SendAsync(
+        ReadOnlyMemory<byte> data,
+        System.Net.WebSockets.WebSocketMessageType messageType,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.CompletedTask;
+    }
+
+    public async Task<StreamingWebSocketFrame> ReceiveAsync(CancellationToken cancellationToken)
+    {
+        if (_frames.Count > 0)
+        {
+            if (Volatile.Read(ref _served) == 0)
+            {
+                await _audioDone.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                if (lateBy > TimeSpan.Zero)
+                {
+                    await Task.Delay(lateBy, cancellationToken).ConfigureAwait(false);
+                }
+            }
+            Interlocked.Increment(ref _served);
+            return _frames.Dequeue();
+        }
+        await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken).ConfigureAwait(false);
+        throw new InvalidOperationException("Unreachable.");
+    }
+
+    public Task CloseAsync(
+        System.Net.WebSockets.WebSocketCloseStatus status,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        Closes++;
+        // What a real socket does when the provider has already torn the session
+        // down: the close write lands on a dead connection.
+        return throwOnClose
+            ? Task.FromException(new System.Net.WebSockets.WebSocketException(
+                System.Net.WebSockets.WebSocketError.ConnectionClosedPrematurely))
+            : Task.CompletedTask;
     }
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;

@@ -338,19 +338,35 @@ internal sealed class RustLiveProtocol : ILiveTranscriptionProtocol
     /// <summary>
     /// The core's event superset onto this assembly's.
     ///
-    /// Every provider error frame arrives as
-    /// <see cref="LiveTranscriptionFailureCode.ProviderUnavailable"/>, and
-    /// whether a reconnect could ever help is answered by
-    /// <see cref="SharedCoreBridge.ClassifyLiveErrorMessage"/> reading the
-    /// wording — see <c>LiveCloudTranscriptionService.HandleEvent</c>. The old
-    /// per-frame codes (<c>Unauthorized</c>, <c>QuotaExceeded</c>,
-    /// <c>RateLimited</c>) existed for ElevenLabs alone, which is the one
-    /// provider whose error frames carry a machine-readable kind and no wording;
-    /// the core answers its three kinds with the sentences the heads ship, and
-    /// the classifier reads those. Nothing outside this assembly ever read the
-    /// three codes: <c>LiveStreamingSessionController.CanReconnect</c> is the
-    /// only consumer of a live failure code and it now leads with
-    /// <c>IsTerminal</c>.
+    /// A provider error frame carries wording, and whether a reconnect could ever
+    /// help is answered by <see cref="SharedCoreBridge.ClassifyLiveErrorMessage"/>
+    /// reading it — see <c>LiveCloudTranscriptionService.HandleEvent</c>. That
+    /// covers four of the five providers and it is what issue #281 adds here.
+    ///
+    /// ElevenLabs is the fifth, and it is the exception the
+    /// <c>HwLiveEvent.Error.kind</c> field exists for. Its error frames carry a
+    /// machine-readable kind and NO wording, so the three sentences the core
+    /// answers with are the core's own — classifying them is the core grading
+    /// its own prose, and it grades one of the three the way macOS needs and
+    /// this head does not: "ElevenLabs rate limit reached. Please try again in a
+    /// moment." matches none of the twenty terminal markers, so it reads as
+    /// transient. This head shipped <c>Unauthorized</c> / <c>QuotaExceeded</c> /
+    /// <c>RateLimited</c> for those three kinds and refused a reconnect for all
+    /// of them, and none of the three codes is in
+    /// <c>LiveStreamingSessionController.CanReconnect</c>'s allowed set. So the
+    /// kind is carried across the FFI and mapped back, and a key at its
+    /// concurrent-session limit does not earn two more connects into the same
+    /// limit at 250 ms and 500 ms.
+    ///
+    /// An earlier revision of this comment claimed "nothing outside this
+    /// assembly ever read the three codes". That was false:
+    /// <c>LiveStreamingSessionController</c> is in <c>HyperWhisper.LiveStreaming</c>
+    /// and reads <c>Failure.Code</c>.
+    ///
+    /// The Windows head reads the message and ignores the kind — see
+    /// <c>StreamingTranscriptionClient</c>, which deliberately declines to
+    /// classify because its receive loop already ends the session on every
+    /// provider error frame. Carrying the kind leaves that decision where it is.
     /// </summary>
     private static LiveProtocolEvent Event(HwLiveEvent value) => value switch
     {
@@ -375,7 +391,15 @@ internal sealed class RustLiveProtocol : ILiveTranscriptionProtocol
             new LiveProtocolEvent(
                 LiveProtocolEventKind.Error,
                 error.@message,
-                LiveTranscriptionFailureCode.ProviderUnavailable),
+                error.@kind switch
+                {
+                    HwLiveErrorKind.Unauthorized => LiveTranscriptionFailureCode.Unauthorized,
+                    HwLiveErrorKind.QuotaExceeded => LiveTranscriptionFailureCode.QuotaExceeded,
+                    HwLiveErrorKind.RateLimited => LiveTranscriptionFailureCode.RateLimited,
+                    // The four providers that send wording. The reconnect
+                    // decision for these is IsTerminal, from the message.
+                    _ => LiveTranscriptionFailureCode.ProviderUnavailable,
+                }),
         HwLiveEvent.Warning warning =>
             new LiveProtocolEvent(LiveProtocolEventKind.Warning, warning.@message),
         HwLiveEvent.Metadata metadata =>

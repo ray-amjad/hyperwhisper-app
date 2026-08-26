@@ -26,10 +26,11 @@
 //!   timeouts stay in each head. Sans-I/O means Rust builds frames and reads
 //!   messages, full stop.
 //! - **Provider-specific close codes.** [`is_terminal_close_code`] is the
-//!   RFC-6455 set and nothing else. macOS's `StreamingTranscriptionClient`
-//!   additionally special-cases HyperWhisper Cloud's own 4001/4002 inline; that
-//!   is a provider extension layered on top, not a replacement, and it stays
-//!   where it is.
+//!   RFC-6455 set and nothing else. A provider's own codes are a layer on top,
+//!   and they stay in each head. macOS is the head that has such codes today —
+//!   HyperWhisper Cloud's 4001/4002, special-cased inline in
+//!   `StreamingTranscriptionClient` — and it does **not** also consult this
+//!   function; nothing in Swift calls it. Only the two .NET heads do.
 //! - **What a terminal outcome *does*.** The classifiers say what a message or
 //!   status means. Suppressing a reconnect, marking a close expected and
 //!   choosing whether to raise a Sentry issue are client decisions with three
@@ -77,20 +78,36 @@
 //! ## Resolved divergences
 //!
 //! Fifteen implementations of five protocols had drifted. Collapsing them forces
-//! a winner for each; these are the seven that changed observable behaviour on
+//! a winner for each; these are the eight that changed observable behaviour on
 //! at least one head.
 //!
 //! | Decision | Winner | Loser |
 //! |---|---|---|
 //! | Deepgram query parameters | the thirteen the .NET heads send | macOS's ten — no `filler_words`, `utterance_end_ms`, `vad_events` |
-//! | Deepgram auto-detect | `detect_language=true` | macOS omits it, leaving the account default |
+//! | Deepgram auto-detect | `detect_language=true`, which BOTH .NET heads ship — and which Deepgram does not support on streaming (see below) | macOS omits it, leaving the account default |
 //! | HyperWhisper Cloud stop | `WaitForSessionComplete(10 s)` | macOS's hard close 500 ms after `stop`, which loses `credits_used` |
 //! | OpenAI commit floor | re-derived from `100 ms × 24 kHz × 2 bytes` | `shared-dotnet`'s hardcoded `4800` with the derivation lost |
 //! | Vocabulary caps | one shared normalizer + xAI's vendor limit | four different caps for one concept |
 //! | Deepgram model alias | resolved, and never emits a bare `model=` | Linux sends `config.Model` verbatim |
-//! | ElevenLabs `auth_error` wording | macOS's, the verified platform | Windows names a Windows-only settings page |
+//! | ElevenLabs `auth_error` wording | a third sentence that names no screen | both shipped ones name a settings surface the other heads do not have |
+//! | ElevenLabs `auth_error`/`quota_exceeded`/`rate_limited` codes | carried across the FFI as a `kind` | collapsing them to one code cost `rate_limited` its "no reconnect" verdict on Linux |
 //!
-//! Three of them need more than a row.
+//! Five of them need more than a row.
+//!
+//! **Deepgram auto-detect is not a win — it is a shipped bug, preserved.** The
+//! table row records which behaviour this module reproduces, not which one is
+//! correct. `shared-app-classification/cloud-stt-catalog.json` states the
+//! vendor's rule under Deepgram's `languages.autoDetectCaveat`:
+//! *"Pre-recorded only — `detect_language=true` is NOT supported on streaming.
+//! For streaming multilingual use `language=multi`."* So on the auto-detect path
+//! neither the .NET spelling nor macOS's omission detects anything; both leave
+//! the account default. `detect_language=true` is kept here only because both
+//! .NET heads shipped it and issue #281 is a move, not a behaviour change — a
+//! port that silently changed the wire would make any regression unattributable.
+//! **NOT COVERED, and needs a follow-up issue:** sending `language=multi`
+//! instead. That is a real behaviour change on all three heads, it interacts
+//! with the `keyterm` gate below (Deepgram ignores keyterms in multilingual
+//! mode, so the gate would have to stay), and it needs a live call to verify.
 //!
 //! **The vocabulary cap.** One concept had four policies. It is now one:
 //! [`crate::helpers::keyword_boost_terms`] sanitizes (strips `<`/`>`, collapses
@@ -108,11 +125,25 @@
 //! **The ElevenLabs wording.** Only `auth_error` diverged; `quota_exceeded` and
 //! `rate_limited` were character-identical and move unchanged. The two
 //! `auth_error` sentences differ in where they send the user, and a shared core
-//! cannot name a platform's own UI — Windows' "the Model Library API keys
-//! manager" is a Windows surface. macOS's wording wins under this crate's
-//! standing parity rule (macOS is the verified platform; see
-//! [`crate::providers::deepgram`] for the same call), and it is also the one
-//! sentence that is true on all three heads.
+//! cannot name a platform's own UI: Windows' "the Model Library API keys
+//! manager" is a Windows surface, and macOS's "check your API key in Settings"
+//! dead-ends on the other two — Windows' streaming settings page only *reports*
+//! whether a key is configured (the field is on the API-keys page) and the
+//! `shared-dotnet` head has no settings screen at all. So neither shipped
+//! spelling survives: the sentence in [`elevenlabs`] names the action and no
+//! screen. This is the one place the module does not pick a shipped winner, and
+//! it is a user-visible string change on all three heads.
+//!
+//! **The ElevenLabs error kinds.** ElevenLabs is the only provider whose error
+//! frames carry a machine-readable kind and no wording, which means the three
+//! sentences above are ours and [`classify_error_message`] reading them back is
+//! the core classifying its own prose. It gets one of the three wrong for a head
+//! that decides on a failure code: "rate limit reached" matches no terminal
+//! marker, so `rate_limited` reads transient — right for macOS, whose client
+//! backs off and retries, wrong for `shared-dotnet`, which shipped a
+//! `RateLimited` code and refused a reconnect. So [`LiveErrorKind`] rides along
+//! with the message and each head keeps its own verdict. The four providers that
+//! send real wording carry `None` and change nothing.
 //!
 //! **The stop shape.** There is no `drain_timeout_ms` anywhere in this module,
 //! and that is deliberate. The ordered [`StopStep`] list carries every wait —
@@ -137,9 +168,9 @@ mod tests;
 
 pub use capabilities::{provider_label, required_sample_rate, supports_vocabulary};
 pub use config::{
-    AudioFraming, LiveConfig, LiveConnect, LiveError, LiveEvent, LiveFrame, StopStep,
+    AudioFraming, LiveConfig, LiveConnect, LiveError, LiveErrorKind, LiveEvent, LiveFrame, StopStep,
 };
-pub use language::normalize_language;
+pub use language::{language_tag, normalize_language};
 pub use policy::{
     classify_error_message, is_terminal_close_code, upgrade_refusal, LiveErrorOutcome,
     LiveUpgradeRefusal, TERMINAL_ERROR_MARKERS,

@@ -176,8 +176,15 @@ pub fn upgrade_refusal(status: u16) -> Option<LiveUpgradeRefusal> {
 /// (Service Restart) and 1013 (Try Again Later).
 ///
 /// A provider that uses close codes of its own to signal an unrecoverable
-/// session combines them *with* this set rather than replacing it — macOS does
-/// exactly that for HyperWhisper Cloud's 4001/4002 in its client.
+/// session is expected to combine them *with* this set rather than replace it.
+///
+/// NOT COVERED: macOS does not do that, and does not call this function at all.
+/// Its `StreamingTranscriptionClient` special-cases HyperWhisper Cloud's 4001
+/// and 4002 inline and consults no standard set, so a 1008 or a 1011 there still
+/// goes through the reconnect path. The callers today are the two .NET heads —
+/// Windows' `IStreamingProviderStrategy.IsTerminalCloseCode` and Linux's
+/// `LiveCloudTranscriptionService.IsTerminalClose`. Bringing macOS onto this
+/// belongs with the Swift client, which issue #281 leaves in place.
 pub fn is_terminal_close_code(code: u16) -> bool {
     matches!(code, 1002 | 1003 | 1007 | 1008 | 1009 | 1011)
 }

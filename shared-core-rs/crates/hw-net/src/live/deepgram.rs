@@ -71,7 +71,11 @@ pub(super) fn connect(config: &LiveConfig) -> Result<LiveConnect, LiveError> {
     query.push_literal("vad_events=true");
     query.push_literal("mip_opt_out=true");
 
-    match super::normalize_language(config.language.as_deref()) {
+    // The caller's tag verbatim, NOT the primary subtag: `zh` and `zh-TW` are
+    // different Deepgram codes (as are `en`/`en-GB`, `pt`/`pt-BR`, `zh-Hans`/
+    // `zh-Hant`), and both shipped strategies sent what the picker stored. See
+    // [`super::language`] for the per-provider split.
+    match super::language_tag(config.language.as_deref()) {
         Some(language) => {
             query.push("language", &language);
             // Deepgram ignores `keyterm` under auto-detect, so the terms are

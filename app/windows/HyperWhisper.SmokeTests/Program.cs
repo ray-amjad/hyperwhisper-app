@@ -2182,12 +2182,15 @@ internal static class Program
                 using (var elevenLabs = LiveStrategy(StreamingTranscriptionProvider.ElevenLabs))
                 {
                     // ELEVENLABS' auth_error WORDING CHANGED ON WINDOWS (issue #281).
-                    // This head used to name its own "Model Library API keys manager";
-                    // the shared sentence is macOS's, which is true on all three heads.
-                    // A shared core cannot name one platform's settings screen.
+                    // A shared core cannot name one platform's settings screen, so the
+                    // shared sentence names neither. This head used to name its own
+                    // "Model Library API keys manager" and macOS said "in Settings";
+                    // on THIS head "Settings" dead-ends, because the streaming settings
+                    // page only reports whether a key is configured and the field lives
+                    // on the API-keys page. The sentence now names the action instead.
                     Assert(elevenLabs.ParseMessage("{\"message_type\":\"auth_error\"}")
                             is StreamingProviderEvent.Error
-                            { Message: "ElevenLabs authentication failed. Please check your API key in Settings." },
+                            { Message: "ElevenLabs authentication failed. Check that your ElevenLabs API key is correct and still active." },
                         "expected the shared auth_error wording");
                     Assert(elevenLabs.ParseMessage("{\"message_type\":\"quota_exceeded\"}")
                             is StreamingProviderEvent.Error

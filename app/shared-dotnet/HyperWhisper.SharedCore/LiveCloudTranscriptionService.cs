@@ -138,7 +138,12 @@ public sealed class LiveCloudTranscriptionService
                 }
             }
 
-            if (state.Failure is null && !state.Completed.Task.IsCompleted)
+            // Whether this session is stopping normally, decided BEFORE the stop
+            // sequence runs and reused by the post-close drain below. A session
+            // that already failed, or that the provider already finished, has
+            // nothing left to drain and must not be charged for waiting.
+            var stoppingNormally = state.Failure is null && !state.Completed.Task.IsCompleted;
+            if (stoppingNormally)
             {
                 Observe(state, "draining");
                 await RunStopSequenceAsync(
@@ -155,6 +160,7 @@ public sealed class LiveCloudTranscriptionService
                 try
                 {
                     await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, closeCancellation.Token).ConfigureAwait(false);
+                    await DrainAfterCloseAsync(stoppingNormally, receiveTask, closeCancellation.Token).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
                 {
@@ -213,6 +219,69 @@ public sealed class LiveCloudTranscriptionService
     }
 
     /// <summary>
+    /// Holds the session open, bounded by <c>CloseTimeout</c>, until the receive
+    /// loop ends — the last chance a late final transcript has to be counted.
+    ///
+    /// This exists to close a PHASE SEAM against Windows, not to add a drain the
+    /// protocols did not ask for. The per-provider stop steps this head now runs
+    /// are the Windows client's shipped values, but the two heads spend the close
+    /// itself very differently:
+    ///
+    /// On Windows, <c>StreamingStopAction.Close</c> is handled inside the stop
+    /// sequence by <c>CloseWebSocketAsync</c> → <c>ClientWebSocket.CloseAsync</c>,
+    /// the full RFC 6455 handshake: it writes the close frame and then blocks
+    /// until the server's close frame comes back. Its receive loop is still live
+    /// throughout, because <c>_sessionCts.Cancel()</c> only runs in the
+    /// <c>finally</c> after every step. Windows therefore keeps draining right
+    /// through the close, and gets that window for free.
+    ///
+    /// Here the close is write-only. <see cref="LiveStopAction.Close"/> ends the
+    /// step loop without closing, and the bounded <c>CloseAsync</c> in
+    /// <see cref="TranscribeAsync"/> reaches <c>ClientStreamingWebSocket</c>,
+    /// which calls <c>CloseOutputAsync</c> — it returns the moment the close frame
+    /// is written and never waits for the peer. Microseconds later
+    /// <c>sessionCancellation.Cancel()</c> kills the receive loop. So on this head
+    /// the equivalent window has to be taken explicitly, and this is it.
+    ///
+    /// Without it, a provider whose final frame lands after the last stop step
+    /// loses it: ElevenLabs' sequence is a bare <c>Close</c>, so its budget was
+    /// zero, and a <c>commit_strategy=vad</c> <c>committed_transcript</c> arriving
+    /// 100 ms after the last audio chunk came back as <c>NoSpeech</c>.
+    ///
+    /// <paramref name="stoppingNormally"/> is the stop-sequence condition, read
+    /// before that sequence ran: a session that already failed, or that the
+    /// provider already completed, skips the wait entirely rather than paying up
+    /// to two seconds while unwinding.
+    ///
+    /// <c>CloseTimeout</c> (2 s) is left as the budget rather than raised. It is
+    /// already more generous than the largest per-provider drain this head used
+    /// before the ordered stop sequence existed (ElevenLabs 1 s; Deepgram and
+    /// OpenAI 2 s), and those two now spend their in-sequence waits — 500 ms and
+    /// 1 s — before ever reaching here, so both end up strictly ahead. The two
+    /// providers that wait on the session-complete EVENT keep their own 10 s step
+    /// and normally arrive with <paramref name="receiveTask"/> already finished.
+    ///
+    /// <see cref="Task.WhenAny(Task[])"/> deliberately does not observe
+    /// <paramref name="receiveTask"/>'s exceptions: a faulted receive loop must
+    /// surface at the <c>await receiveTask</c> in <see cref="TranscribeAsync"/>,
+    /// which classifies it, and not be thrown from inside the close block, whose
+    /// only <c>catch</c> is for the timeout.
+    /// </summary>
+    private static async Task DrainAfterCloseAsync(
+        bool stoppingNormally,
+        Task receiveTask,
+        CancellationToken closeToken)
+    {
+        if (!stoppingNormally || receiveTask.IsCompleted)
+        {
+            return;
+        }
+        // receiveTask completing means the provider closed or the session
+        // finished; the token firing means CloseTimeout elapsed.
+        await Task.WhenAny(receiveTask, Task.Delay(Timeout.Infinite, closeToken)).ConfigureAwait(false);
+    }
+
+    /// <summary>
     /// Runs the protocol's ordered stop path (issue #281).
     ///
     /// This replaced a flat frame list plus one drain timeout, which could not
@@ -232,7 +301,9 @@ public sealed class LiveCloudTranscriptionService
     /// the one close, because it also has to run on the paths that skip the stop
     /// sequence entirely (a failure, or a session the provider already finished),
     /// and it is the only thing that bounds the close with <c>CloseTimeout</c>.
-    /// Closing here as well would close twice.
+    /// Closing here as well would close twice. That close is write-only, unlike
+    /// Windows' blocking handshake, so <see cref="DrainAfterCloseAsync"/> follows
+    /// it — see there for why the drain cannot live in this loop.
     /// </summary>
     private static async Task RunStopSequenceAsync(
         IStreamingWebSocket socket,
@@ -435,11 +506,49 @@ public sealed class LiveCloudTranscriptionService
         }
     }
 
+    /// <summary>
+    /// The single exit for a failed session. A failure the session ALREADY
+    /// RECORDED outranks the one named here: <see cref="SessionState.Failure"/>
+    /// is what the receive loop concluded while the frames were in front of it,
+    /// and every caller of this method is either a guess made while unwinding or
+    /// a case where no verdict was ever recorded.
+    ///
+    /// The path that forced this, no race required: HyperWhisper Cloud answers
+    /// <c>{"type":"error","message":"Credit balance exhausted"}</c>. The receive
+    /// loop classifies the wording and records
+    /// <c>ProviderUnavailable, IsTerminal: true</c>; the audio loop breaks; the
+    /// stop sequence is skipped; the bounded <c>CloseAsync</c> then throws
+    /// <see cref="WebSocketException"/> on the already-dead socket. The catch arm
+    /// used to overwrite that verdict with a fresh <c>Network</c> /
+    /// <c>IsTerminal: false</c>, and <c>LiveStreamingSessionController</c> read
+    /// the non-terminal flag as permission for two more reconnects into the same
+    /// exhausted balance — the exact behaviour the shared terminal-error policy
+    /// (issue #281) exists to end.
+    ///
+    /// Every call site was checked against this rule:
+    /// <list type="bullet">
+    /// <item>The connect timeout, and the <c>NoSpeech</c> exit, both run where
+    /// <c>state.Failure</c> is provably <c>null</c> — before the receive loop is
+    /// started, and on the success path that has just tested it — so nothing
+    /// moves for them.</item>
+    /// <item>The <c>Cancelled</c> arm and the four transport/state catch arms in
+    /// <see cref="TranscribeAsync"/> all unwind AFTER the receive loop may have
+    /// concluded, and are exactly the arms that were discarding it.</item>
+    /// </list>
+    ///
+    /// The recorded failure keeps its own message, which is fixed wording chosen
+    /// in this assembly and carries no provider payload, so preferring it leaks
+    /// nothing the discarded message would not have.
+    /// </summary>
     private static LiveTranscriptionResult Failed(
         SessionState state,
         LiveTranscriptionFailureCode code,
         string message) =>
-        new(null, new LiveTranscriptionFailure(code, message, state.Provider), state.AudioChunksSent, state.MessagesReceived);
+        new(
+            null,
+            state.Failure ?? new LiveTranscriptionFailure(code, message, state.Provider),
+            state.AudioChunksSent,
+            state.MessagesReceived);
 
     /// <summary>
     /// The RFC 6455 §7.4.1 non-recoverable close codes, from the shared core

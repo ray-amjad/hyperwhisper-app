@@ -54,7 +54,10 @@ pub(super) fn connect(config: &LiveConfig) -> Result<LiveConnect, LiveError> {
     // Vocabulary is gated on an explicit language for the same reason it is on
     // Deepgram: this endpoint relays to Deepgram, which ignores keyterms under
     // auto-detect.
-    if let Some(language) = super::normalize_language(config.language.as_deref()) {
+    // Verbatim, like Deepgram: this endpoint relays the tag straight through, so
+    // truncating `zh-TW` here would ask Deepgram for Simplified Chinese. The
+    // relay lowercases what it receives before forwarding, so this does not.
+    if let Some(language) = super::language_tag(config.language.as_deref()) {
         query.push("language", &language);
         let terms = keyword_boost_terms(&config.vocabulary, Some(MAX_TERMS));
         if !terms.is_empty() {
@@ -129,9 +132,19 @@ pub(super) fn parse(root: &serde_json::Value) -> LiveEvent {
         },
         Some("error") => LiveEvent::Error {
             message: super::config::error_message(root, "Unknown server error"),
+            kind: None,
         },
-        // The only provider that warns. `remaining_seconds` rides along on the
-        // wire and no head has ever read it, so it is not carried here.
+        // The only provider that warns.
+        //
+        // NOT COVERED: `remaining_seconds`. Windows DID read it — its client
+        // appended "(N seconds remaining)" to the warning text (see
+        // `git show main:…/StreamingTranscriptionClient.cs:649`) — and this
+        // module drops it, so that suffix is gone on Windows. The field is
+        // unreachable today: no route in `hyperwhisper-cloud/src` emits
+        // `remaining_seconds` on any frame, and the wording the relay puts in
+        // `message` carries the same information. Carrying it again means
+        // widening `LiveEvent::Warning`, which is a follow-up, not a silent
+        // omission.
         Some("warning") => LiveEvent::Warning {
             message: text_field(root, "message")
                 .unwrap_or("Server warning")

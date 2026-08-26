@@ -188,14 +188,47 @@ pub enum LiveEvent {
         credits_used: f64,
     },
     /// The provider reported a failure. Feed `message` to
-    /// [`super::classify_error_message`] to learn whether reconnecting can help.
-    Error { message: String },
+    /// [`super::classify_error_message`] to learn whether reconnecting can help,
+    /// and read `kind` when the head keeps a failure taxonomy of its own.
+    Error {
+        message: String,
+        kind: Option<LiveErrorKind>,
+    },
     /// A non-fatal notice — only HyperWhisper Cloud sends these.
     Warning { message: String },
     /// A frame worth logging and nothing else. Carries the raw JSON.
     Metadata { raw: String },
     /// A frame with no meaning for the transcript. The great majority.
     Ignore,
+}
+
+/// The machine-readable kind an error frame carried, when the provider sends one
+/// **instead of** wording.
+///
+/// ElevenLabs is the only one of the five. Its error frames are a bare
+/// `{"message_type":"auth_error"}` with no message, so the three sentences in
+/// [`super::elevenlabs`] are ours — which means
+/// [`super::classify_error_message`] reading them is the core grading its own
+/// homework, and it grades one of the three wrong: "ElevenLabs rate limit
+/// reached. Please try again in a moment." matches none of the twenty terminal
+/// markers, so a `rate_limited` frame reads as transient. That is right for
+/// macOS, whose client backs off and retries. It is wrong for a head that maps
+/// the frame to a failure code and decides on the code: `shared-dotnet` shipped
+/// `Unauthorized` / `QuotaExceeded` / `RateLimited` for these three and refused
+/// a reconnect for all of them, and collapsing them to one code turned a key at
+/// its concurrent-session limit into two more connects into the same limit at
+/// 250 ms and 500 ms.
+///
+/// So the kind is carried rather than reconstructed. The four providers that
+/// send wording answer `None` and their heads keep reading the message.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LiveErrorKind {
+    /// The credential was rejected.
+    Unauthorized,
+    /// The account's allowance for the period is spent.
+    QuotaExceeded,
+    /// Too many requests, or too many concurrent sessions, right now.
+    RateLimited,
 }
 
 /// Why a session could not produce a connection descriptor.

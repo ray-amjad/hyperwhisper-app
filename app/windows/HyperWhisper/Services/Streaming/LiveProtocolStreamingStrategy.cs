@@ -64,10 +64,23 @@ internal sealed class LiveProtocolStreamingStrategy : IStreamingProviderStrategy
     private LiveTranscriptionConfig _liveConfig;
 
     /// <summary>
-    /// Guards <see cref="_protocol"/>. The protocol itself is safe to call from
-    /// several threads (the Rust object holds its own mutex), but the reference
-    /// is swapped on the connect/reconnect path while the NAudio capture thread
-    /// may still be reading it.
+    /// Serializes the <see cref="_protocol"/> REFERENCE — the lazy build in
+    /// <see cref="Require"/>, the swap on the connect/reconnect path, and the
+    /// disposal — together with the <see cref="_disposed"/> check that decides
+    /// whether a build is still allowed. That is the whole of what it covers: the
+    /// connect/reconnect path replaces the reference while the NAudio capture
+    /// thread may be reading it, and reading a torn or already-disposed reference
+    /// is the race this prevents.
+    ///
+    /// It is NOT held across the FFI call. <see cref="Require"/> returns the
+    /// reference out of the lock, and every caller then invokes the protocol
+    /// unlocked, so two threads can be inside the Rust object at once. That is
+    /// deliberate and safe — the Rust object holds its own mutex — but it means
+    /// this lock orders nothing about the calls themselves: a
+    /// <c>Require().EncodeAudio(...)</c> can be in flight against a protocol that
+    /// has since been swapped out or disposed, and it is the protocol's own
+    /// lifetime (the handle stays alive for the duration of the call) rather than
+    /// this gate that makes that survivable.
     /// </summary>
     private readonly object _gate = new();
 

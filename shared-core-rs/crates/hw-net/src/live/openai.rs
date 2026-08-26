@@ -172,6 +172,7 @@ pub(super) fn parse(state: &mut SessionState, root: &serde_json::Value) -> LiveE
         },
         Some("error") => LiveEvent::Error {
             message: super::config::error_message(root, "OpenAI Realtime transcription failed"),
+            kind: None,
         },
         Some("conversation.item.input_audio_transcription.delta") => parse_delta(state, root),
         Some("conversation.item.input_audio_transcription.completed") => {
@@ -187,8 +188,20 @@ pub(super) fn parse(state: &mut SessionState, root: &serde_json::Value) -> LiveE
 /// A frame with no `item_id` is emitted on its own rather than dropped: it is
 /// still the newest text the user has spoken, and the alternative is a partial
 /// that never appears.
+///
+/// A delta is the only field in this module read with [`str_field`] and an
+/// emptiness test instead of [`text_field`], and the difference is the word
+/// break. `text_field` rejects a string that is empty AFTER TRIMMING, so a delta
+/// of `" "` — which is how the model emits the space between two words — would
+/// be dropped and `"Hello"`, `" "`, `"world"` would accumulate to
+/// `"Helloworld"`. macOS (`OpenAIStreamingStrategy.swift:174`) and Windows
+/// before this port (`git show main:…/OpenAIStreamingStrategy.cs:180`) both
+/// tested `!isEmpty` and kept the space; only `shared-dotnet` used
+/// `IsNullOrWhiteSpace`, and the port took that one silently. It is not
+/// display-only: `StreamingTranscriptionClient` inserts the current partial as
+/// the session's final text on a terminal close.
 fn parse_delta(state: &mut SessionState, root: &serde_json::Value) -> LiveEvent {
-    let Some(delta) = text_field(root, "delta") else {
+    let Some(delta) = str_field(root, "delta").filter(|delta| !delta.is_empty()) else {
         return LiveEvent::Ignore;
     };
     let Some(item) = str_field(root, "item_id").filter(|id| !id.is_empty()) else {

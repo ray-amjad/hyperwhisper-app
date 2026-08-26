@@ -6390,6 +6390,96 @@ extension HwLiveError: Foundation.LocalizedError {
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
+ * The machine-readable kind an error frame carried, when the provider sends one
+ * instead of wording. Mirrors `lv::LiveErrorKind`.
+ *
+ * ElevenLabs alone: its error frames are a bare `message_type` with no message,
+ * so the wording a head would classify is the core's own. A head that keeps a
+ * failure taxonomy reads this; a head that classifies the wording ignores it and
+ * nothing changes. See `hw_net::live::LiveErrorKind` for why collapsing the
+ * three kinds cost `rate_limited` its "no reconnect" verdict.
+ */
+
+public enum HwLiveErrorKind {
+    
+    /**
+     * The credential was rejected.
+     */
+    case unauthorized
+    /**
+     * The account's allowance for the period is spent.
+     */
+    case quotaExceeded
+    /**
+     * Too many requests, or too many concurrent sessions, right now.
+     */
+    case rateLimited
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwLiveErrorKind: FfiConverterRustBuffer {
+    typealias SwiftType = HwLiveErrorKind
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwLiveErrorKind {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .unauthorized
+        
+        case 2: return .quotaExceeded
+        
+        case 3: return .rateLimited
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: HwLiveErrorKind, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .unauthorized:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .quotaExceeded:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .rateLimited:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLiveErrorKind_lift(_ buf: RustBuffer) throws -> HwLiveErrorKind {
+    return try FfiConverterTypeHwLiveErrorKind.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLiveErrorKind_lower(_ value: HwLiveErrorKind) -> RustBuffer {
+    return FfiConverterTypeHwLiveErrorKind.lower(value)
+}
+
+
+
+extension HwLiveErrorKind: Equatable, Hashable {}
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
  * What a provider error frame means for the reconnect path. Mirrors
  * `lv::LiveErrorOutcome`.
  */
@@ -6485,7 +6575,11 @@ public enum HwLiveEvent {
     )
     case sessionComplete(durationSeconds: Double, creditsUsed: Double
     )
-    case error(message: String
+    case error(message: String, 
+        /**
+         * The machine-readable kind, when the provider sent one instead of
+         * wording. `None` for four of the five — see [`HwLiveErrorKind`].
+         */kind: HwLiveErrorKind?
     )
     case warning(message: String
     )
@@ -6520,7 +6614,7 @@ public struct FfiConverterTypeHwLiveEvent: FfiConverterRustBuffer {
         case 5: return .sessionComplete(durationSeconds: try FfiConverterDouble.read(from: &buf), creditsUsed: try FfiConverterDouble.read(from: &buf)
         )
         
-        case 6: return .error(message: try FfiConverterString.read(from: &buf)
+        case 6: return .error(message: try FfiConverterString.read(from: &buf), kind: try FfiConverterOptionTypeHwLiveErrorKind.read(from: &buf)
         )
         
         case 7: return .warning(message: try FfiConverterString.read(from: &buf)
@@ -6567,9 +6661,10 @@ public struct FfiConverterTypeHwLiveEvent: FfiConverterRustBuffer {
             FfiConverterDouble.write(creditsUsed, into: &buf)
             
         
-        case let .error(message):
+        case let .error(message,kind):
             writeInt(&buf, Int32(6))
             FfiConverterString.write(message, into: &buf)
+            FfiConverterOptionTypeHwLiveErrorKind.write(kind, into: &buf)
             
         
         case let .warning(message):
@@ -8282,6 +8377,30 @@ fileprivate struct FfiConverterOptionTypeHwLicenseStatus: FfiConverterRustBuffer
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeHwLicenseStatus.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeHwLiveErrorKind: FfiConverterRustBuffer {
+    typealias SwiftType = HwLiveErrorKind?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeHwLiveErrorKind.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeHwLiveErrorKind.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }

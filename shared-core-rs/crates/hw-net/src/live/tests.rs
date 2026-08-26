@@ -57,8 +57,13 @@ fn incorrect_api_key_is_terminal() {
 fn unauthorized_is_terminal_regardless_of_case() {
     // Pins the lowercasing: providers capitalise these words inconsistently
     // between the status line and the message body.
+    //
+    // The wording carries `unauthorized` and NOTHING else from the marker list.
+    // It used to read "Unauthorized: authentication failed for this session.",
+    // which also matched `authentication failed` — so the test named for one
+    // marker passed even with that marker misspelled.
     assert_eq!(
-        classify_error_message("Unauthorized: authentication failed for this session."),
+        classify_error_message("Unauthorized: this key cannot open a realtime session."),
         LiveErrorOutcome::Terminal
     );
 }
@@ -79,27 +84,160 @@ fn inactive_account_is_terminal() {
     );
 }
 
-/// Every marker has to be reachable. A typo in one of the twenty is otherwise
-/// invisible: the list still compiles and the suite above only covers seven.
+/// One realistic provider sentence per marker, and each one matches ITS OWN
+/// marker and no other.
+///
+/// This replaced a loop that built the haystack out of the needle
+/// (`format!("Provider said: {marker}.")`) against a `contains()` matcher. That
+/// loop could not fail: it asserted that a string containing a marker contains
+/// that marker. Misspelling each of the twenty entries in turn and running the
+/// whole suite caught 8 and let 12 through green — including `unauthorized`,
+/// `quota exceeded`, `invalid api key`, `permission denied`, `billing` and
+/// `payment required`. Phase 1 deleted the Swift list, so there is no second
+/// source left to catch a typo either.
+///
+/// The uniqueness half is what makes it bite. If a fixture matched two markers,
+/// breaking one of them would leave the other to rescue the assertion and the
+/// typo would stay invisible — which is exactly how
+/// `unauthorized_is_terminal_regardless_of_case` used to pass with
+/// `unauthorized` misspelled.
+///
+/// Keys are spelled out here rather than indexed out of
+/// [`TERMINAL_ERROR_MARKERS`], so a typo in the policy shows up as a missing
+/// key as well as a fixture that stopped classifying.
+const MARKER_FIXTURES: [(&str, &str); 20] = [
+    (
+        "credit balance exhausted",
+        "Credit balance exhausted. Top up to keep streaming.",
+    ),
+    (
+        "no credits remaining",
+        "You have no credits remaining on this workspace.",
+    ),
+    (
+        "insufficient credits",
+        "Session refused: insufficient credits for a realtime stream.",
+    ),
+    (
+        "insufficient_quota",
+        r#"{"code":"insufficient_quota","type":"invalid_request_error"}"#,
+    ),
+    (
+        "insufficient quota",
+        "The organization has insufficient quota for this model.",
+    ),
+    (
+        "exceeded your current quota",
+        "You exceeded your current quota, please check your plan.",
+    ),
+    (
+        "quota exceeded",
+        "Quota exceeded for realtime transcription minutes.",
+    ),
+    (
+        "invalid api key",
+        "Invalid API key. Generate a new one and try again.",
+    ),
+    (
+        "incorrect api key",
+        "Incorrect API key provided for this endpoint.",
+    ),
+    ("invalid_api_key", r#"{"error":{"code":"invalid_api_key"}}"#),
+    (
+        "api key not valid",
+        "API key not valid for realtime transcription.",
+    ),
+    (
+        "unauthorized",
+        "Unauthorized: this key cannot open a realtime session.",
+    ),
+    (
+        "authentication_error",
+        r#"{"type":"authentication_error","message":"key rejected"}"#,
+    ),
+    (
+        "authentication failed",
+        "Authentication failed for the realtime endpoint.",
+    ),
+    (
+        "forbidden",
+        "Forbidden: realtime transcription is not enabled for this workspace.",
+    ),
+    (
+        "permission_denied",
+        r#"{"status":"PERMISSION_DENIED","reason":"model access"}"#,
+    ),
+    (
+        "permission denied",
+        "Permission denied for the streaming scope on this token.",
+    ),
+    (
+        "billing",
+        "Add a billing method to continue using realtime transcription.",
+    ),
+    (
+        "payment required",
+        "Payment required before another streaming session can start.",
+    ),
+    (
+        "account is not active",
+        "This account is not active. Reactivate it to keep transcribing.",
+    ),
+];
+
 #[test]
-fn every_terminal_marker_classifies_its_own_wording() {
-    for marker in TERMINAL_ERROR_MARKERS {
+fn every_terminal_marker_classifies_a_realistic_sentence_of_its_own() {
+    for (marker, fixture) in MARKER_FIXTURES {
         assert_eq!(
-            classify_error_message(&format!("Provider said: {marker}. Please act.")),
+            classify_error_message(fixture),
             LiveErrorOutcome::Terminal,
-            "marker {marker:?} did not match its own wording"
+            "marker {marker:?} did not classify its own wording: {fixture:?}"
         );
     }
 }
 
 #[test]
-fn the_marker_list_is_twenty_lowercase_entries() {
+fn each_marker_fixture_matches_exactly_one_marker() {
+    for (marker, fixture) in MARKER_FIXTURES {
+        let haystack = fixture.to_lowercase();
+        let matched: Vec<&str> = TERMINAL_ERROR_MARKERS
+            .iter()
+            .copied()
+            .filter(|candidate| haystack.contains(candidate))
+            .collect();
+        assert_eq!(
+            matched,
+            [marker],
+            "fixture {fixture:?} must match {marker:?} and nothing else"
+        );
+    }
+}
+
+#[test]
+fn the_fixture_table_covers_the_marker_list_exactly() {
     // 20, not 19 — the count is called out in the issue because an earlier
-    // audit miscounted it. Uppercase in a marker can never match, because the
-    // haystack is lowercased and the needle is not.
+    // audit miscounted it.
     assert_eq!(TERMINAL_ERROR_MARKERS.len(), 20);
+    assert_eq!(MARKER_FIXTURES.len(), TERMINAL_ERROR_MARKERS.len());
+
     for marker in TERMINAL_ERROR_MARKERS {
-        assert_eq!(marker, marker.to_lowercase(), "marker {marker:?} is not lowercase");
+        // Uppercase in a marker can never match: the haystack is lowercased and
+        // the needle is not.
+        assert_eq!(
+            marker,
+            marker.to_lowercase(),
+            "marker {marker:?} is not lowercase"
+        );
+        assert!(
+            MARKER_FIXTURES.iter().any(|(key, _)| *key == marker),
+            "marker {marker:?} has no fixture - add one to MARKER_FIXTURES"
+        );
+    }
+    for (key, _) in MARKER_FIXTURES {
+        assert!(
+            TERMINAL_ERROR_MARKERS.contains(&key),
+            "fixture key {key:?} is not a marker - the policy list moved under this table"
+        );
     }
 }
 
@@ -189,7 +327,7 @@ fn elevenlabs_auth_error_wording_is_terminal() {
     // than wait out the connection timeout.
     assert_eq!(
         classify_error_message(
-            "ElevenLabs authentication failed. Please check your API key in Settings."
+            "ElevenLabs authentication failed. Check that your ElevenLabs API key is correct and still active."
         ),
         LiveErrorOutcome::Terminal
     );
@@ -384,6 +522,37 @@ fn a_leading_hyphen_cannot_emit_an_empty_language() {
     // primary subtag must never reach a query string as `language=`.
     assert_eq!(normalize_language(Some("-en")), None);
     assert_eq!(normalize_language(Some("-")), None);
+}
+
+#[test]
+fn the_two_readings_agree_on_when_to_omit_the_parameter() {
+    // The half the five providers share. Whatever else the split does, a blank
+    // selection and the `auto` sentinel must reach neither wire.
+    for omitted in [None, Some(""), Some("   "), Some("\t\n"), Some("auto"), Some("AUTO"), Some("  Auto  ")] {
+        assert_eq!(normalize_language(omitted), None, "{omitted:?}");
+        assert_eq!(language_tag(omitted), None, "{omitted:?}");
+    }
+}
+
+#[test]
+fn the_language_tag_reading_keeps_the_region_and_the_case() {
+    // Deepgram and the HyperWhisper Cloud relay: the subtags are content, and
+    // the published codes are mixed case.
+    assert_eq!(language_tag(Some("zh-TW")), Some("zh-TW".to_string()));
+    assert_eq!(language_tag(Some("zh-Hans")), Some("zh-Hans".to_string()));
+    assert_eq!(language_tag(Some("en-GB")), Some("en-GB".to_string()));
+    assert_eq!(language_tag(Some("  pt-BR  ")), Some("pt-BR".to_string()));
+    assert_eq!(language_tag(Some("es-419")), Some("es-419".to_string()));
+    assert_eq!(language_tag(Some("en")), Some("en".to_string()));
+}
+
+#[test]
+fn the_two_readings_diverge_exactly_where_the_providers_do() {
+    // The one assertion that would have caught the truncation: `zh-TW` must
+    // survive on the two tag providers and must NOT on the three ISO-639-1 ones,
+    // whose parameters would reject or ignore a region.
+    assert_eq!(normalize_language(Some("zh-TW")), Some("zh".to_string()));
+    assert_eq!(language_tag(Some("zh-TW")), Some("zh-TW".to_string()));
 }
 
 // ===========================================================================
@@ -604,15 +773,52 @@ fn deepgram_sends_keyterms_only_with_an_explicit_language() {
         auto.url
     );
 
+    // The tag is sent verbatim, region included: `en-US` and `en-GB` are
+    // different Deepgram codes. See `deepgram_sends_the_language_tag_verbatim`.
     config.language = Some("en-US".to_string());
     let explicit = LiveSession::new(config).connect().expect("connect");
     assert!(
         explicit
             .url
-            .ends_with("&language=en&keyterm=UniFFI&keyterm=Rust%20core"),
+            .ends_with("&language=en-US&keyterm=UniFFI&keyterm=Rust%20core"),
         "{}",
         explicit.url
     );
+}
+
+/// The regression this pins is silent and wrong in the worst direction: a user
+/// who picked Traditional Chinese would have been transcribed in Simplified.
+///
+/// `zh-TW` is the one region-tagged entry in the Windows picker's language list
+/// and it is stored verbatim, so it is what arrives here. Deepgram's code list
+/// treats it as a different language from `zh`, and both shipped .NET strategies
+/// sent it unchanged. Truncating to the primary subtag — which the three
+/// ISO-639-1 providers need — must not reach this one.
+#[test]
+fn deepgram_sends_the_language_tag_verbatim() {
+    let cases = [
+        ("zh-TW", "language=zh-TW"),
+        ("zh-Hans", "language=zh-Hans"),
+        ("pt-BR", "language=pt-BR"),
+        ("es-419", "language=es-419"),
+        // Case is preserved too: Deepgram publishes mixed-case codes.
+        ("  en-GB  ", "language=en-GB"),
+        ("en", "language=en"),
+    ];
+    for (selection, expected) in cases {
+        let mut config = LiveConfig::new(LiveProvider::Deepgram);
+        config.api_key = Some("k".to_string());
+        config.language = Some(selection.to_string());
+        let url = LiveSession::new(config).connect().expect("connect").url;
+        assert!(
+            url.contains(&format!("&{expected}")),
+            "{selection:?} must reach Deepgram as {expected:?}: {url}"
+        );
+        assert!(
+            !url.contains("detect_language=true"),
+            "an explicit language must not also ask for auto-detect: {url}"
+        );
+    }
 }
 
 #[test]
@@ -752,20 +958,23 @@ fn elevenlabs_parses_transcripts_and_its_three_error_types() {
     assert_eq!(
         session.parse(r#"{"message_type":"auth_error"}"#),
         LiveEvent::Error {
-            message: "ElevenLabs authentication failed. Please check your API key in Settings."
-                .to_string()
+            message: "ElevenLabs authentication failed. Check that your ElevenLabs API key is correct and still active."
+                .to_string(),
+            kind: Some(LiveErrorKind::Unauthorized),
         }
     );
     assert_eq!(
         session.parse(r#"{"message_type":"quota_exceeded"}"#),
         LiveEvent::Error {
-            message: "ElevenLabs quota exceeded. Please check your account billing.".to_string()
+            message: "ElevenLabs quota exceeded. Please check your account billing.".to_string(),
+            kind: Some(LiveErrorKind::QuotaExceeded),
         }
     );
     assert_eq!(
         session.parse(r#"{"message_type":"rate_limited"}"#),
         LiveEvent::Error {
-            message: "ElevenLabs rate limit reached. Please try again in a moment.".to_string()
+            message: "ElevenLabs rate limit reached. Please try again in a moment.".to_string(),
+            kind: Some(LiveErrorKind::RateLimited),
         }
     );
 }
@@ -888,6 +1097,76 @@ fn openai_periodic_and_stop_paths_cannot_both_claim_the_same_bytes() {
     );
 }
 
+/// Ported from macOS `OpenAIStreamingCommitGateTests`
+/// `stopAfterAPeriodicCommitStillCommitsATailOverTheMinimum`.
+///
+/// The test above pins one direction — the stop path must not RE-commit what the
+/// periodic path already took — and on its own it is satisfied by a stop path
+/// that never commits again at all once a periodic commit has fired. This is the
+/// case that says the gate is a CLAIM ON THE BUFFER, not a latch on the session:
+/// audio that arrived after the last periodic commit is still owed a commit, and
+/// dropping it truncates the last words of every recording longer than 1.2 s.
+#[test]
+fn openai_stop_still_commits_a_tail_that_arrived_after_a_periodic_commit() {
+    let mut session = keyed(LiveProvider::OpenAi);
+    connect_of(&mut session);
+    assert!(
+        session.control_frames(0).is_empty(),
+        "the first opportunity only seeds the clock"
+    );
+
+    session.note_audio(4_800);
+    assert_eq!(
+        session.control_frames(2_000).len(),
+        1,
+        "the periodic path claims the first buffer"
+    );
+
+    // A fresh tail over the floor, accumulated after that commit.
+    session.note_audio(4_800);
+    assert_eq!(
+        session.stop_sequence(2_001),
+        [
+            StopStep::SendText { text: r#"{"type":"input_audio_buffer.commit"}"#.to_string() },
+            StopStep::Wait { ms: 1_000 },
+            StopStep::Close,
+        ],
+        "the tail after the last periodic commit must still be committed"
+    );
+}
+
+/// Ported from macOS `OpenAIStreamingCommitGateTests`
+/// `stopSequenceCommitsTheSameAudioOnlyOnce`.
+///
+/// `claim_committable` checks and resets in one operation, which is what stops
+/// the periodic path and the stop path both claiming one buffer. This asserts
+/// the same property within the stop path itself: a second `stop_sequence` — a
+/// double stop, or a reconnect that stops the old session — must not commit the
+/// buffer the first one already sent, which the server answers with a rejected
+/// empty commit and the client surfaces as a spurious error toast.
+#[test]
+fn openai_stop_commits_the_same_audio_only_once() {
+    let mut session = keyed(LiveProvider::OpenAi);
+    connect_of(&mut session);
+    session.note_audio(4_800);
+
+    let first = session.stop_sequence(1_000);
+    assert_eq!(
+        first,
+        [
+            StopStep::SendText { text: r#"{"type":"input_audio_buffer.commit"}"#.to_string() },
+            StopStep::Wait { ms: 1_000 },
+            StopStep::Close,
+        ],
+        "the first stop claims the pending buffer"
+    );
+    assert_eq!(
+        session.stop_sequence(1_001),
+        [StopStep::Wait { ms: 1_000 }, StopStep::Close],
+        "the second stop must not commit the buffer the first one already claimed"
+    );
+}
+
 #[test]
 fn openai_accumulates_deltas_per_item_and_finals_the_new_suffix() {
     let mut session = keyed(LiveProvider::OpenAi);
@@ -937,12 +1216,48 @@ fn openai_accumulates_deltas_per_item_and_finals_the_new_suffix() {
     );
 }
 
+/// A delta that is only a space is the word break, and dropping it runs two
+/// words together.
+///
+/// The port took `shared-dotnet`'s `IsNullOrWhiteSpace` test, which was 1 of the
+/// 3 shipped behaviours: macOS and Windows both accumulated a whitespace-only
+/// delta. And it is not display-only — the Windows client inserts the current
+/// partial as the session's final text on a terminal close, so `Helloworld` can
+/// reach the document.
+#[test]
+fn openai_accumulates_a_whitespace_only_delta_instead_of_dropping_it() {
+    let mut session = keyed(LiveProvider::OpenAi);
+    let delta = |text: &str| {
+        format!(
+            r#"{{"type":"conversation.item.input_audio_transcription.delta","item_id":"a","delta":"{text}"}}"#
+        )
+    };
+
+    assert_eq!(
+        session.parse(&delta("Hello")),
+        LiveEvent::PartialTranscript { text: "Hello".to_string() }
+    );
+    assert_eq!(
+        session.parse(&delta(" ")),
+        LiveEvent::PartialTranscript { text: "Hello ".to_string() },
+        "the space between two words is content"
+    );
+    assert_eq!(
+        session.parse(&delta("world")),
+        LiveEvent::PartialTranscript { text: "Hello world".to_string() },
+        "dropping the space would accumulate to Helloworld"
+    );
+
+    // A genuinely empty delta still carries nothing and is still ignored.
+    assert_eq!(session.parse(&delta("")), LiveEvent::Ignore);
+}
+
 #[test]
 fn openai_error_frames_carry_the_nested_wording_to_the_classifier() {
     let mut session = keyed(LiveProvider::OpenAi);
     assert_eq!(
         session.parse(r#"{"type":"error","error":{"message":"You exceeded your current quota"}}"#),
-        LiveEvent::Error { message: "You exceeded your current quota".to_string() }
+        LiveEvent::Error { message: "You exceeded your current quota".to_string(), kind: None }
     );
     assert_eq!(
         classify_error_message("You exceeded your current quota"),
@@ -951,7 +1266,7 @@ fn openai_error_frames_carry_the_nested_wording_to_the_classifier() {
     );
     assert_eq!(
         session.parse(r#"{"type":"error","error":{}}"#),
-        LiveEvent::Error { message: "OpenAI Realtime transcription failed".to_string() },
+        LiveEvent::Error { message: "OpenAI Realtime transcription failed".to_string(), kind: None },
         "a wordless error frame must not reach a user as a blank alert"
     );
 }
@@ -1056,7 +1371,7 @@ fn xai_emits_prefix_deltas_and_folds_the_last_final_into_the_completion() {
     );
     assert_eq!(
         session.parse(r#"{"type":"error","message":"Credit balance exhausted"}"#),
-        LiveEvent::Error { message: "Credit balance exhausted".to_string() }
+        LiveEvent::Error { message: "Credit balance exhausted".to_string(), kind: None }
     );
 }
 
@@ -1079,13 +1394,25 @@ fn hyperwhisper_cloud_connect_gates_vocabulary_on_an_explicit_language() {
     assert!(auto.headers.is_empty(), "client identity is the platform's to add, not the core's");
     assert_eq!(auto.framing, AudioFraming::Binary);
 
+    // Verbatim, for the reason Deepgram's is: this endpoint relays the tag on to
+    // Deepgram, whose code list distinguishes the regions.
     config.language = Some("en-GB".to_string());
     let explicit = LiveSession::new(config).connect().expect("connect");
     assert_eq!(
         explicit.url,
         "wss://transcribe-prod-v2.hyperwhisper.com/ws/streaming-deepgram\
-         ?license_key=HW-KEY-1&language=en&vocabulary=UniFFI%2C%20Rust%20core"
+         ?license_key=HW-KEY-1&language=en-GB&vocabulary=UniFFI%2C%20Rust%20core"
     );
+}
+
+/// The relay's half of `deepgram_sends_the_language_tag_verbatim`.
+#[test]
+fn hyperwhisper_cloud_sends_the_language_tag_verbatim() {
+    let mut config = LiveConfig::new(LiveProvider::HyperWhisperCloud);
+    config.license_key = Some("HW-KEY-1".to_string());
+    config.language = Some("zh-TW".to_string());
+    let url = LiveSession::new(config).connect().expect("connect").url;
+    assert!(url.contains("&language=zh-TW"), "{url}");
 }
 
 #[test]
@@ -1151,11 +1478,11 @@ fn hyperwhisper_cloud_parses_the_full_superset_including_warnings() {
     );
     assert_eq!(
         session.parse(r#"{"type":"error","message":"Credit balance exhausted"}"#),
-        LiveEvent::Error { message: "Credit balance exhausted".to_string() }
+        LiveEvent::Error { message: "Credit balance exhausted".to_string(), kind: None }
     );
     assert_eq!(
         session.parse(r#"{"type":"error"}"#),
-        LiveEvent::Error { message: "Unknown server error".to_string() }
+        LiveEvent::Error { message: "Unknown server error".to_string(), kind: None }
     );
     // The only provider that warns. remaining_seconds rides along and no head
     // has ever read it, so it is not carried.
@@ -1213,6 +1540,54 @@ fn the_audio_framing_descriptor_reproduces_the_shipped_json_frame_byte_for_byte(
             "{provider:?} frame is not valid JSON"
         );
     }
+}
+
+/// The end-to-end shape of the two-reading split, on the wire each provider
+/// actually sees.
+///
+/// The unit tests above pin the two functions; this pins the wiring, which is
+/// where the truncation bug lived — one normalizer was called from all five
+/// arms. A future arm that picks the wrong reading changes a line here.
+#[test]
+fn a_region_tagged_selection_reaches_each_provider_the_way_its_api_spells_it() {
+    // Everything a provider is told at connect time: four carry the language in
+    // the query string, OpenAI carries it in its `session.update` start frame.
+    let wire = |provider: LiveProvider, selection: &str| -> String {
+        let mut config = LiveConfig::new(provider);
+        config.api_key = Some("k".to_string());
+        config.license_key = Some("k".to_string());
+        config.language = Some(selection.to_string());
+        let connect = LiveSession::new(config).connect().expect("connect");
+        let frames = connect
+            .start_frames
+            .iter()
+            .map(|frame| frame.data.as_str())
+            .collect::<Vec<_>>()
+            .join(" ");
+        format!("{} {frames}", connect.url)
+    };
+
+    // Verbatim: their code lists distinguish the regions.
+    assert!(wire(LiveProvider::Deepgram, "zh-TW").contains("&language=zh-TW"));
+    assert!(wire(LiveProvider::HyperWhisperCloud, "zh-TW").contains("&language=zh-TW"));
+
+    // Primary subtag: their parameters are documented ISO-639-1.
+    let elevenlabs = wire(LiveProvider::ElevenLabs, "zh-TW");
+    assert!(elevenlabs.contains("&language_code=zh"), "{elevenlabs}");
+    assert!(!elevenlabs.contains("zh-TW"), "{elevenlabs}");
+
+    let openai = wire(LiveProvider::OpenAi, "zh-TW");
+    assert!(openai.contains(r#""language":"zh""#), "{openai}");
+    assert!(!openai.contains("zh-TW"), "{openai}");
+
+    // xAI's list is 25 primary subtags and `zh` is not one of them, so `zh-TW`
+    // omits the parameter entirely. `pt-BR` is the arm that shows the
+    // truncation rather than the support filter.
+    let xai_zh = wire(LiveProvider::Grok, "zh-TW");
+    assert!(!xai_zh.contains("language="), "{xai_zh}");
+    let xai_pt = wire(LiveProvider::Grok, "pt-BR");
+    assert!(xai_pt.contains("&language=pt"), "{xai_pt}");
+    assert!(!xai_pt.contains("pt-BR"), "{xai_pt}");
 }
 
 #[test]

@@ -7697,6 +7697,59 @@ class FfiConverterTypeHwLiveError : FfiConverterRustBuffer<HwLiveException>, Cal
 
 
 /// <summary>
+/// The machine-readable kind an error frame carried, when the provider sends one
+/// instead of wording. Mirrors `lv::LiveErrorKind`.
+///
+/// ElevenLabs alone: its error frames are a bare `message_type` with no message,
+/// so the wording a head would classify is the core's own. A head that keeps a
+/// failure taxonomy reads this; a head that classifies the wording ignores it and
+/// nothing changes. See `hw_net::live::LiveErrorKind` for why collapsing the
+/// three kinds cost `rate_limited` its "no reconnect" verdict.
+/// </summary>
+internal enum HwLiveErrorKind: int {
+    
+    /// <summary>
+    /// The credential was rejected.
+    /// </summary>
+    Unauthorized,
+    /// <summary>
+    /// The account's allowance for the period is spent.
+    /// </summary>
+    QuotaExceeded,
+    /// <summary>
+    /// Too many requests, or too many concurrent sessions, right now.
+    /// </summary>
+    RateLimited
+}
+
+class FfiConverterTypeHwLiveErrorKind: FfiConverterRustBuffer<HwLiveErrorKind> {
+    public static FfiConverterTypeHwLiveErrorKind INSTANCE = new FfiConverterTypeHwLiveErrorKind();
+
+    public override HwLiveErrorKind Read(BigEndianStream stream) {
+        var value = stream.ReadInt() - 1;
+        if (Enum.IsDefined(typeof(HwLiveErrorKind), value)) {
+            return (HwLiveErrorKind)value;
+        } else {
+            throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwLiveErrorKind.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(HwLiveErrorKind value) {
+        return 4;
+    }
+
+    public override void Write(HwLiveErrorKind value, BigEndianStream stream) {
+        stream.WriteInt((int)value + 1);
+    }
+}
+
+
+
+
+
+
+
+/// <summary>
 /// What a provider error frame means for the reconnect path. Mirrors
 /// `lv::LiveErrorOutcome`.
 /// </summary>
@@ -7774,7 +7827,8 @@ internal record HwLiveEvent {
     ) : HwLiveEvent {}
     
     public record Error (
-        string @message
+        string @message,
+        HwLiveErrorKind? @kind
     ) : HwLiveEvent {}
     
     public record Warning (
@@ -7823,7 +7877,8 @@ class FfiConverterTypeHwLiveEvent : FfiConverterRustBuffer<HwLiveEvent>{
                 );
             case 6:
                 return new HwLiveEvent.Error(
-                    FfiConverterString.INSTANCE.Read(stream)
+                    FfiConverterString.INSTANCE.Read(stream),
+                    FfiConverterOptionalTypeHwLiveErrorKind.INSTANCE.Read(stream)
                 );
             case 7:
                 return new HwLiveEvent.Warning(
@@ -7863,7 +7918,8 @@ class FfiConverterTypeHwLiveEvent : FfiConverterRustBuffer<HwLiveEvent>{
                     + FfiConverterDouble.INSTANCE.AllocationSize(variant_value.@creditsUsed);
             case HwLiveEvent.Error variant_value:
                 return 4
-                    + FfiConverterString.INSTANCE.AllocationSize(variant_value.@message);
+                    + FfiConverterString.INSTANCE.AllocationSize(variant_value.@message)
+                    + FfiConverterOptionalTypeHwLiveErrorKind.INSTANCE.AllocationSize(variant_value.@kind);
             case HwLiveEvent.Warning variant_value:
                 return 4
                     + FfiConverterString.INSTANCE.AllocationSize(variant_value.@message);
@@ -7905,6 +7961,7 @@ class FfiConverterTypeHwLiveEvent : FfiConverterRustBuffer<HwLiveEvent>{
             case HwLiveEvent.Error variant_value:
                 stream.WriteInt(6);
                 FfiConverterString.INSTANCE.Write(variant_value.@message, stream);
+                FfiConverterOptionalTypeHwLiveErrorKind.INSTANCE.Write(variant_value.@kind, stream);
                 break;
             case HwLiveEvent.Warning variant_value:
                 stream.WriteInt(7);
@@ -9414,6 +9471,37 @@ class FfiConverterOptionalTypeHwLicenseStatus: FfiConverterRustBuffer<HwLicenseS
         } else {
             stream.WriteByte(1);
             FfiConverterTypeHwLicenseStatus.INSTANCE.Write((HwLicenseStatus)value, stream);
+        }
+    }
+}
+
+
+
+
+class FfiConverterOptionalTypeHwLiveErrorKind: FfiConverterRustBuffer<HwLiveErrorKind?> {
+    public static FfiConverterOptionalTypeHwLiveErrorKind INSTANCE = new FfiConverterOptionalTypeHwLiveErrorKind();
+
+    public override HwLiveErrorKind? Read(BigEndianStream stream) {
+        if (stream.ReadByte() == 0) {
+            return null;
+        }
+        return FfiConverterTypeHwLiveErrorKind.INSTANCE.Read(stream);
+    }
+
+    public override int AllocationSize(HwLiveErrorKind? value) {
+        if (value == null) {
+            return 1;
+        } else {
+            return 1 + FfiConverterTypeHwLiveErrorKind.INSTANCE.AllocationSize((HwLiveErrorKind)value);
+        }
+    }
+
+    public override void Write(HwLiveErrorKind? value, BigEndianStream stream) {
+        if (value == null) {
+            stream.WriteByte(0);
+        } else {
+            stream.WriteByte(1);
+            FfiConverterTypeHwLiveErrorKind.INSTANCE.Write((HwLiveErrorKind)value, stream);
         }
     }
 }

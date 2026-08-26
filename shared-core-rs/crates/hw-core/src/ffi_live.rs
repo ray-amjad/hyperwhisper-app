@@ -83,6 +83,44 @@ impl From<HwLiveErrorOutcome> for lv::LiveErrorOutcome {
     }
 }
 
+/// The machine-readable kind an error frame carried, when the provider sends one
+/// instead of wording. Mirrors `lv::LiveErrorKind`.
+///
+/// ElevenLabs alone: its error frames are a bare `message_type` with no message,
+/// so the wording a head would classify is the core's own. A head that keeps a
+/// failure taxonomy reads this; a head that classifies the wording ignores it and
+/// nothing changes. See `hw_net::live::LiveErrorKind` for why collapsing the
+/// three kinds cost `rate_limited` its "no reconnect" verdict.
+#[derive(uniffi::Enum)]
+pub enum HwLiveErrorKind {
+    /// The credential was rejected.
+    Unauthorized,
+    /// The account's allowance for the period is spent.
+    QuotaExceeded,
+    /// Too many requests, or too many concurrent sessions, right now.
+    RateLimited,
+}
+
+impl From<lv::LiveErrorKind> for HwLiveErrorKind {
+    fn from(k: lv::LiveErrorKind) -> Self {
+        match k {
+            lv::LiveErrorKind::Unauthorized => HwLiveErrorKind::Unauthorized,
+            lv::LiveErrorKind::QuotaExceeded => HwLiveErrorKind::QuotaExceeded,
+            lv::LiveErrorKind::RateLimited => HwLiveErrorKind::RateLimited,
+        }
+    }
+}
+
+impl From<HwLiveErrorKind> for lv::LiveErrorKind {
+    fn from(k: HwLiveErrorKind) -> Self {
+        match k {
+            HwLiveErrorKind::Unauthorized => lv::LiveErrorKind::Unauthorized,
+            HwLiveErrorKind::QuotaExceeded => lv::LiveErrorKind::QuotaExceeded,
+            HwLiveErrorKind::RateLimited => lv::LiveErrorKind::RateLimited,
+        }
+    }
+}
+
 /// Why a server refused the websocket upgrade. Mirrors
 /// `lv::LiveUpgradeRefusal`.
 #[derive(uniffi::Enum)]
@@ -378,6 +416,9 @@ pub enum HwLiveEvent {
     },
     Error {
         message: String,
+        /// The machine-readable kind, when the provider sent one instead of
+        /// wording. `None` for four of the five — see [`HwLiveErrorKind`].
+        kind: Option<HwLiveErrorKind>,
     },
     Warning {
         message: String,
@@ -412,7 +453,10 @@ impl From<lv::LiveEvent> for HwLiveEvent {
                 duration_seconds,
                 credits_used,
             },
-            lv::LiveEvent::Error { message } => HwLiveEvent::Error { message },
+            lv::LiveEvent::Error { message, kind } => HwLiveEvent::Error {
+                message,
+                kind: kind.map(Into::into),
+            },
             lv::LiveEvent::Warning { message } => HwLiveEvent::Warning { message },
             lv::LiveEvent::Metadata { raw } => HwLiveEvent::Metadata { raw },
             lv::LiveEvent::Ignore => HwLiveEvent::Ignore,
@@ -684,6 +728,19 @@ mod tests {
     }
 
     #[test]
+    fn error_kind_maps_in_both_directions() {
+        for leaf in [
+            lv::LiveErrorKind::Unauthorized,
+            lv::LiveErrorKind::QuotaExceeded,
+            lv::LiveErrorKind::RateLimited,
+        ] {
+            let mirrored: HwLiveErrorKind = leaf.into();
+            let back: lv::LiveErrorKind = mirrored.into();
+            assert_eq!(back, leaf, "a swapped arm would relabel a failure");
+        }
+    }
+
+    #[test]
     fn upgrade_refusal_maps_in_both_directions() {
         for (hw, leaf) in [
             (
@@ -762,15 +819,116 @@ mod tests {
         })
     }
 
-    /// AUDIO MUST NEVER CROSS THIS BOUNDARY. The batch path is guarded by
-    /// `ffi_net`'s `audio_is_referenced_by_path_and_never_carried_as_bytes`;
-    /// this is the live path's version of the same rule.
+    /// Every `#[uniffi::…]` item declared in this file, as source text.
     ///
-    /// Two things make it hold, and both are asserted here. `note_audio` takes
-    /// a COUNT — if it ever grew a `Vec<u8>` parameter, the call below would
-    /// stop compiling. And [`HwAudioFraming`] *describes* the wrapping rather
-    /// than performing it, so the base64 and the concatenation happen natively
-    /// on bytes the platform already holds.
+    /// A region runs from the attribute line to the item's closing brace, which
+    /// in a rustfmt-shaped file is the next line that is exactly `}` in column
+    /// zero. Over-reading would only make the guard stricter; under-reading is
+    /// the failure that matters, which is why the caller asserts on what was
+    /// found before it asserts on what is in it.
+    fn uniffi_regions(source: &str) -> Vec<String> {
+        let lines: Vec<&str> = source.lines().collect();
+        let mut regions = Vec::new();
+        for (index, line) in lines.iter().enumerate() {
+            let trimmed = line.trim_start();
+            if !(trimmed.starts_with("#[") && trimmed.contains("uniffi::")) {
+                continue;
+            }
+            let end = lines[index..]
+                .iter()
+                .position(|candidate| *candidate == "}")
+                .map_or(lines.len(), |offset| index + offset + 1);
+            regions.push(lines[index..end].join("\n"));
+        }
+        regions
+    }
+
+    /// Whether `code` names a byte type — `u8`/`i8` as a whole token, so `u16`,
+    /// `u32` and `u64` are untouched.
+    fn mentions_a_byte_type(code: &str) -> bool {
+        ["u8", "i8"].iter().any(|token| {
+            code.match_indices(token).any(|(at, _)| {
+                let before = code[..at].chars().next_back();
+                let after = code[at + token.len()..].chars().next();
+                let word = |c: Option<char>| {
+                    c.is_some_and(|c| c.is_ascii_alphanumeric() || c == '_')
+                };
+                !word(before) && !word(after)
+            })
+        })
+    }
+
+    /// AUDIO MUST NEVER CROSS THIS BOUNDARY — asserted against the exported
+    /// surface itself, so breaking the rule fails this test.
+    ///
+    /// The previous version of this test only called the existing signature and
+    /// claimed in a comment that a `Vec<u8>` parameter "would stop compiling".
+    /// It would not: a reviewer added
+    /// `pub fn send_audio_bytes(&self, pcm: Vec<u8>)` to the `#[uniffi::export]
+    /// impl HwLiveSession` block below and `cargo test --workspace` reported 21
+    /// suites, 0 failed. `ffi_net`'s named counterpart
+    /// (`audio_is_referenced_by_path_and_never_carried_as_bytes`) asserts on the
+    /// batch multipart builders and never looks at the live surface, so nothing
+    /// enforced the rule `hw-net/src/contract.rs` opens by stating.
+    ///
+    /// So the rule is checked where it lives: no `#[uniffi::…]` item in this
+    /// file — exported function, exported method, constructor, record field or
+    /// enum payload — may name a byte type. A count (`u64`), a descriptor
+    /// ([`HwAudioFraming`]) and a `String` frame are the only shapes allowed
+    /// through, and the platform does the base64 on bytes it already holds.
+    ///
+    /// Line comments are stripped before matching, so prose may still say
+    /// `Vec<u8>`; only code is scanned.
+    #[test]
+    fn no_exported_live_item_can_carry_audio_bytes() {
+        let regions = uniffi_regions(include_str!("ffi_live.rs"));
+
+        // The guard has teeth only if it actually found the surface. A scanner
+        // that silently matched nothing, or that stopped at the attribute line,
+        // would pass forever - so the floor and the landmarks are asserted
+        // before anything is asserted about their contents.
+        assert!(
+            regions.len() >= 20,
+            "the region scanner found only {} `#[uniffi::…]` items; this file declares the whole live FFI surface",
+            regions.len()
+        );
+        assert!(
+            regions.iter().all(|region| region.lines().count() >= 2),
+            "a region that is only its attribute line scans nothing"
+        );
+        assert!(
+            regions.iter().any(|region| region.contains("impl HwLiveSession")
+                && region.contains("fn note_audio")),
+            "the session object's exported impl - the block an audio method would land in, \
+             and the one call that is told about audio - was not scanned whole"
+        );
+        assert!(
+            regions
+                .iter()
+                .any(|region| region.contains("pub struct HwLiveConfig")),
+            "the config record - the other shape audio could be smuggled in - was not scanned"
+        );
+
+        for region in regions {
+            let head = region.lines().next().unwrap_or_default().trim().to_string();
+            for line in region.lines() {
+                let code = match line.find("//") {
+                    Some(at) => &line[..at],
+                    None => line,
+                };
+                assert!(
+                    !mentions_a_byte_type(code),
+                    "audio must never cross the FFI: `{}` names a byte type inside `{head}`",
+                    code.trim()
+                );
+            }
+        }
+    }
+
+    /// The other half of the same rule: [`HwAudioFraming`] *describes* the
+    /// wrapping rather than performing it, so the base64 and the concatenation
+    /// happen natively on bytes the platform already holds, and `note_audio`
+    /// takes a count.
     #[test]
     fn audio_is_described_by_a_framing_rule_and_never_carried_as_bytes() {
         for provider in ALL {
@@ -929,6 +1087,9 @@ mod tests {
             (
                 lv::LiveEvent::Error {
                     message: "e".to_string(),
+                    // Carried, not reconstructed: this is the field a head's own
+                    // failure taxonomy reads. See [`HwLiveErrorKind`].
+                    kind: Some(lv::LiveErrorKind::RateLimited),
                 },
                 "error",
             ),
@@ -981,8 +1142,13 @@ mod tests {
                     assert_eq!((duration_seconds, credits_used), (1.5, 2.5));
                     "complete"
                 }
-                HwLiveEvent::Error { message } => {
+                HwLiveEvent::Error { message, kind } => {
                     assert_eq!(message, "e");
+                    assert!(
+                        matches!(kind, Some(HwLiveErrorKind::RateLimited)),
+                        "the error kind must survive the mirror - it is what stops \
+                         a rate-limited ElevenLabs key earning two more connects"
+                    );
                     "error"
                 }
                 HwLiveEvent::Warning { message } => {
