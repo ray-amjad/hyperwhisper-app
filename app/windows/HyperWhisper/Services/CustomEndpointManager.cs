@@ -10,12 +10,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
-using System.Net.Http.Headers;
-using System.Text;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using HyperWhisper.Models;
+using HyperWhisper.SharedCore;
 
 namespace HyperWhisper.Services;
 
@@ -23,7 +21,7 @@ namespace HyperWhisper.Services;
 /// Manages custom OpenAI-compatible endpoints for post-processing.
 /// Singleton pattern matching other services (ApiKeyService, SettingsService).
 /// </summary>
-public partial class CustomEndpointManager : IDisposable
+public class CustomEndpointManager : IDisposable
 {
     // =========================================================================
     // SINGLETON
@@ -311,22 +309,24 @@ public partial class CustomEndpointManager : IDisposable
         string modelName,
         string? apiKey)
     {
-        if (!Uri.TryCreate(endpointURL, UriKind.Absolute, out var uri))
-            return (false, "Invalid URL");
+        // The URL rule and the probe body are the shared ones (#282), so a test
+        // that passes here means the real post-processing call will work — the
+        // two used to be built separately and could disagree.
+        //
+        // Judged leniently, like the runtime: the button must test the request
+        // the app would really send. Saving is where the strict rule applies.
+        var verdict = LlmPostProcessing.ValidateExistingCustomEndpoint(endpointURL ?? "", modelName ?? "");
+        if (!verdict.IsUsable)
+        {
+            return (false, verdict.Suggestion is { } suggestion
+                ? $"{verdict.Message} — did you mean {suggestion}?"
+                : verdict.Message ?? "Invalid URL");
+        }
 
         try
         {
-            using var request = new HttpRequestMessage(HttpMethod.Post, uri);
-            request.Content = new StringContent(
-                PostProcessingService.BuildOpenAIRequestJson(modelName, "You are a helpful assistant.", "Say hello in one word."),
-                Encoding.UTF8,
-                "application/json"
-            );
-
-            if (!string.IsNullOrEmpty(apiKey))
-            {
-                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
-            }
+            using var request = LlmPostProcessing.BuildCustomEndpointTestRequest(
+                verdict.Url, verdict.Model, apiKey);
 
             var response = await _httpClient.SendAsync(request);
 
@@ -359,6 +359,10 @@ public partial class CustomEndpointManager : IDisposable
         catch (JsonException)
         {
             return (false, "Invalid response format - expected OpenAI-compatible response");
+        }
+        catch (PortableLlmRequestException ex)
+        {
+            return (false, ex.Message);
         }
         catch (Exception ex)
         {
@@ -409,23 +413,14 @@ public partial class CustomEndpointManager : IDisposable
     /// Generate smart numbered copy name for duplicating an endpoint.
     /// "Name" → "Name (copy)", "Name (copy)" → "Name (copy 2)", etc.
     /// </summary>
-    public static string GenerateCopyName(string originalName)
-    {
-        var match = CopyPatternRegex().Match(originalName);
-        if (match.Success)
-        {
-            var baseName = originalName[..match.Index];
-            if (match.Groups[1].Success && int.TryParse(match.Groups[1].Value, out var number))
-            {
-                return $"{baseName} (copy {number + 1})";
-            }
-            return $"{baseName} (copy 2)";
-        }
-        return $"{originalName} (copy)";
-    }
-
-    [GeneratedRegex(@"\s\(copy(?:\s(\d+))?\)$")]
-    private static partial Regex CopyPatternRegex();
+    /// <remarks>
+    /// The rule lives in the shared core (#282). It was written twice before —
+    /// here as <c>\s\(copy(?:\s(\d+))?\)$</c> and again in the macOS manager as
+    /// the same regex — and two copies of one naming convention is exactly the
+    /// kind of thing that drifts without anyone noticing.
+    /// </remarks>
+    public static string GenerateCopyName(string originalName) =>
+        LlmPostProcessing.NextCopyName(originalName);
 
     // =========================================================================
     // IDISPOSABLE

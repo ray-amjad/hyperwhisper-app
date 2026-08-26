@@ -81,22 +81,10 @@ class AIPostProcessor: ObservableObject {
     /// Required for standalone HyperWhisper Cloud post-processing
     weak var licenseManager: LicenseManager?
 
-    /// Gemma 4 sampling parameters from Google's official documentation.
-    /// Source: https://ai.google.dev/gemma/docs/core
-    private let localLLMSamplingParameters: [String: Any] = [
-        "temperature": 1.0,
-        "top_p": 0.95,
-        "top_k": 40,
-        "min_p": 0.0
-    ]
-
-    /// Max output tokens requested from any LLM (local or cloud) during post-processing.
-    private let maxOutputTokens = 8_192
-
-    /// Output-token cap for Groq requests — see the comment at the Groq branch
-    /// in performAIPostProcessing's request assembly for why this is lower
-    /// than maxOutputTokens.
-    private let groqMaxCompletionTokens = 4_096
+    // The Gemma 4 sampling parameters, the 8,192 output cap and Groq's lower
+    // 4,096 completion cap moved into the shared Rust core with the request
+    // builders (issue #282) — `llmMaxOutputTokens()` and
+    // `llmGroqMaxCompletionTokens()` read them if a call site ever needs them.
 
     /// Resolver for on-device local models
     weak var localModelManager: LocalModelManager?
@@ -349,79 +337,28 @@ class AIPostProcessor: ObservableObject {
         let systemInfo = PromptBuilder.systemInfo(for: mode, vocabulary: vocabularyItems, applicationContext: appContext)
 
         // PREPARE API REQUEST:
-        let endpoint = provider.chatEndpoint
-        guard let url = URL(string: endpoint) else {
-            AppLogger.transcription.warning("Invalid post-processing endpoint for provider: \(provider.displayName, privacy: .public)")
+        // The URL, the auth headers, the `--TRANSCRIPT--` wrapper, the Anthropic
+        // cache_control block, the local sampling parameters and the Groq
+        // completion cap all come from the shared core (issue #282). The timeout
+        // and the retry policy stay here, because they are platform decisions.
+        var request: URLRequest
+        do {
+            let built = try llmBuildRequest(params: HwLlmParams(
+                provider: provider.coreProvider,
+                model: languageModel,
+                apiKey: apiKey,
+                systemPrompt: systemPrompt,
+                systemInfo: systemInfo,
+                transcript: trimmed,
+                localLlamaPort: UInt16(LlamaServerController.Configuration.default.port)
+            ))
+            request = try RustHTTPExecutor.buildInlineURLRequest(from: built)
+        } catch {
+            AppLogger.transcription.warning("Could not build the post-processing request for \(provider.displayName, privacy: .public): \(error.localizedDescription, privacy: .public)")
             return text
         }
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        if provider.requiresAPIKey {
-            if provider.usesStandardAuth {
-                request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-            } else {
-                request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
-            }
-        }
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.timeoutInterval = 30
-
-        // Build user message: dynamic system info + transcript
-        // System info is separated from the system prompt for prompt caching —
-        // the static system prompt stays identical across requests.
-        let userContent = """
-        \(systemInfo)
-
-        --TRANSCRIPT--
-        \(trimmed)
-        --ENDTRANSCRIPT--
-        """
-
-        // Build request body — Anthropic uses native Messages API with cache_control
-        var requestBody: [String: Any]
-        if provider == .anthropic {
-            request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
-            requestBody = [
-                "model": languageModel,
-                "max_tokens": maxOutputTokens,
-                "system": [
-                    [
-                        "type": "text",
-                        "text": systemPrompt,
-                        "cache_control": ["type": "ephemeral"]
-                    ] as [String: Any]
-                ],
-                "messages": [
-                    ["role": "user", "content": userContent]
-                ]
-            ]
-        } else {
-            let messages: [[String: Any]] = [
-                ["role": "system", "content": systemPrompt],
-                ["role": "user", "content": userContent]
-            ]
-            requestBody = [
-                "model": languageModel,
-                "messages": messages,
-            ]
-        }
-
-        if provider == .localLLM {
-            localLLMSamplingParameters.forEach { requestBody[$0.key] = $0.value }
-            requestBody["max_tokens"] = maxOutputTokens
-        }
-
-        // Groq applies a low default completion cap when the request omits one
-        // (its reasoning docs cite 1,024), and gpt-oss reasoning tokens spend
-        // from that same budget, so long dictations truncate
-        // (finish_reason=length). Kept at 4,096 — not maxOutputTokens (8,192) —
-        // because Groq's free-tier TPM ceiling for openai/gpt-oss-120b is 8,000
-        // and the admission check counts prompt + requested cap, not actual usage.
-        if provider == .groq {
-            requestBody["max_completion_tokens"] = groqMaxCompletionTokens
-        }
-
-        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+        let endpoint = request.url?.absoluteString ?? ""
 
         // MAKE API CALL:
         // Use centralized retry logic with post-processing configuration
@@ -749,27 +686,9 @@ class AIPostProcessor: ObservableObject {
         let systemPrompt = PromptBuilder.systemPrompt(for: mode, applicationContext: appContext)
         let systemInfo = PromptBuilder.systemInfo(for: mode, vocabulary: vocabularyItems, applicationContext: appContext)
 
-        let endpoint = provider.chatEndpoint
-        guard let url = URL(string: endpoint) else { return text }
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
-        // Belt-and-suspenders with the drain-through-EOF loop below: tells
-        // cpp-httplib not to expect keep-alive so it doesn't write to a
-        // half-closed socket and crash with EPIPE/SIGPIPE.
-        request.setValue("close", forHTTPHeaderField: "Connection")
-        request.timeoutInterval = 60
+        // The request is built after the model is resolved, because the shared
+        // core builds the URL, the headers and the body together.
 
-        // Build user message: dynamic system info + transcript
-        let userContent = """
-        \(systemInfo)
-
-        --TRANSCRIPT--
-        \(trimmed)
-        --ENDTRANSCRIPT--
-        """
-        
         // Use the language model from the mode, with provider-aware fallback
         var languageModel = mode.languageModel ?? ""
 
@@ -837,24 +756,33 @@ class AIPostProcessor: ObservableObject {
             }
         }
 
-        // Build request body — the local LLM (llama-server) speaks the
-        // OpenAI-compatible chat API. Cloud providers (incl. Anthropic's native
-        // Messages API) never reach here; they were routed to the non-streaming
-        // path above, so this is the only request shape the streaming path needs.
-        let messages: [[String: Any]] = [
-            ["role": "system", "content": systemPrompt],
-            ["role": "user", "content": userContent]
-        ]
-        var requestBody: [String: Any] = [
-            "model": languageModel,
-            "messages": messages,
-            "stream": true
-        ]
-
-        localLLMSamplingParameters.forEach { requestBody[$0.key] = $0.value }
-        requestBody["max_tokens"] = maxOutputTokens
-
-        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+        // Build the request through the shared core with `stream: true` — the
+        // local LLM (llama-server) speaks the OpenAI-compatible chat API. Cloud
+        // providers (incl. Anthropic's native Messages API) never reach here;
+        // they were routed to the non-streaming path above.
+        var request: URLRequest
+        do {
+            let built = try llmBuildRequest(params: HwLlmParams(
+                provider: provider.coreProvider,
+                model: languageModel,
+                apiKey: "",
+                systemPrompt: systemPrompt,
+                systemInfo: systemInfo,
+                transcript: trimmed,
+                localLlamaPort: UInt16(LlamaServerController.Configuration.default.port),
+                stream: true
+            ))
+            request = try RustHTTPExecutor.buildInlineURLRequest(from: built)
+        } catch {
+            AppLogger.transcription.warning("Could not build the streaming post-processing request: \(error.localizedDescription, privacy: .public)")
+            return text
+        }
+        request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+        // Belt-and-suspenders with the drain-through-EOF loop below: tells
+        // cpp-httplib not to expect keep-alive so it doesn't write to a
+        // half-closed socket and crash with EPIPE/SIGPIPE.
+        request.setValue("close", forHTTPHeaderField: "Connection")
+        request.timeoutInterval = 60
 
         // Prepare streaming UI state via callbacks
         onStreamingStateChange?(true)
@@ -872,7 +800,7 @@ class AIPostProcessor: ObservableObject {
         var sawTerminator = false
         do {
             AppLogger.network.debug("Starting streaming post-processing via SSE")
-            AppLogger.network.info("POST (streaming) \(endpoint, privacy: .public)")
+            AppLogger.network.info("POST (streaming) \(request.url?.absoluteString ?? "", privacy: .public)")
             AppLogger.network.debug("Request model: \(languageModel, privacy: .public)")
             AppLogger.network.debug("Request provider: \(provider.displayName, privacy: .public)")
             let (bytes, response) = try await URLSession.shared.bytes(for: request)
@@ -1089,51 +1017,39 @@ class AIPostProcessor: ObservableObject {
             applicationContext: appContext
         )
 
-        // STEP 5: Build request URL
-        guard let url = URL(string: NetworkConfig.hyperwhisperCloudURL + NetworkConfig.hyperwhisperCloudPostProcessEndpoint) else {
-            AppLogger.transcription.error("HyperWhisper Cloud post-processing failed: Invalid URL")
+        // STEP 5: Build the request through the shared core (issue #282). The
+        // URL, the X-LLM-* headers, the identity field and the body shape all
+        // come from there. `baseUrl` keeps the DEBUG staging host — the core
+        // default is production.
+        let cloudPPModel = CloudPostProcessingModel.fromStorageValue(mode.cloudPostProcessingModel)
+        var request: URLRequest
+        do {
+            let built = try llmBuildRequest(params: HwLlmParams(
+                provider: .hyperWhisperCloud,
+                model: cloudPPModel.llmModelHeader ?? "",
+                apiKey: "",
+                systemPrompt: systemPrompt,
+                systemInfo: systemInfo,
+                transcript: text,
+                baseUrl: NetworkConfig.hyperwhisperCloudURL,
+                licenseKey: isLicensed ? identifier : nil,
+                deviceId: isLicensed ? nil : identifier,
+                llmProviderHeader: cloudPPModel.llmProviderHeader,
+                llmModelHeader: cloudPPModel.llmModelHeader
+            ))
+            request = try RustHTTPExecutor.buildInlineURLRequest(from: built)
+        } catch {
+            AppLogger.transcription.error("Failed to build the HyperWhisper Cloud post-processing request: \(error.localizedDescription, privacy: .public)")
             return text
         }
 
-        // STEP 6: Build request
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        // STEP 6: Add the client headers the core does not own.
         request.setValue("HyperWhisper/\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")",
                         forHTTPHeaderField: "User-Agent")
         HyperWhisperClientInfo.apply(to: &request)
         request.timeoutInterval = 60
 
-        let cloudPPModel = CloudPostProcessingModel.fromStorageValue(mode.cloudPostProcessingModel)
-        if let llmHeader = cloudPPModel.llmProviderHeader {
-            request.setValue(llmHeader, forHTTPHeaderField: "X-LLM-Provider")
-        }
-        if let llmModelHeader = cloudPPModel.llmModelHeader {
-            request.setValue(llmModelHeader, forHTTPHeaderField: "X-LLM-Model")
-        }
-
-        // STEP 7: Build JSON body with text, prompt, and identifier
-        // Concatenate static system prompt + dynamic system info for HyperWhisper Cloud
-        // (the backend constructs its own API call from the combined prompt)
-        var body: [String: Any] = [
-            "text": text,
-            "prompt": systemPrompt + "\n\n" + systemInfo
-        ]
-
-        if isLicensed {
-            body["license_key"] = identifier
-        } else {
-            body["device_id"] = identifier
-        }
-
-        do {
-            request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        } catch {
-            AppLogger.transcription.error("Failed to serialize HyperWhisper Cloud post-processing request: \(error.localizedDescription, privacy: .public)")
-            return text
-        }
-
-        // STEP 8: Perform request with retry logic
+        // STEP 7: Perform request with retry logic
         let config = RetryConfiguration.postProcessing
 
         do {
@@ -1149,14 +1065,20 @@ class AIPostProcessor: ObservableObject {
 
                 // Handle successful response
                 if httpResponse.statusCode == 200 {
-                    guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                          let corrected = json["corrected"] as? String else {
+                    // The `corrected` field is read by the shared core (issue #282),
+                    // so macOS, Windows and Linux cannot disagree about the shape.
+                    let corrected: String
+                    do {
+                        corrected = try llmParseHwCloudPostProcess(resp: HttpResponse(
+                            status: UInt16(httpResponse.statusCode), headers: [], body: data))
+                    } catch {
                         AppLogger.network.warning("HyperWhisper Cloud post-processing: Unexpected response format")
                         throw TranscriptionError.invalidResponse(details: nil)
                     }
 
                     // Log cost information if available
-                    if let cost = json["cost"] as? [String: Any],
+                    if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                       let cost = json["cost"] as? [String: Any],
                        let credits = cost["credits"] as? Double {
                         AppLogger.network.info("HyperWhisper Cloud post-processing · credits=\(credits, privacy: .public)")
                     }
@@ -1281,10 +1203,16 @@ class AIPostProcessor: ObservableObject {
             return text
         }
 
-        // STEP 3: Validate endpoint URL
-        guard let url = URL(string: endpoint.endpointURL) else {
-            AppLogger.transcription.error("Custom endpoint post-processing failed: Invalid URL \(endpoint.displayURL, privacy: .public)")
+        // STEP 3: Validate the saved endpoint LENIENTLY (issue #282). A stored
+        // endpoint that a later rule tightened is repaired, not dropped — the
+        // strict rule applies when the user saves, not when we call.
+        let verdict = llmValidateExistingCustomEndpoint(raw: endpoint.endpointURL, model: endpoint.modelName)
+        guard !verdict.url.isEmpty else {
+            AppLogger.transcription.error("Custom endpoint post-processing failed: \(verdict.message ?? "invalid URL", privacy: .public)")
             return text
+        }
+        if verdict.status == .needsRepair {
+            AppLogger.transcription.warning("Custom endpoint needs repair: \(verdict.message ?? "unknown", privacy: .public)")
         }
 
         // STEP 4: Check network connectivity
@@ -1311,56 +1239,35 @@ class AIPostProcessor: ObservableObject {
             applicationContext: appContext
         )
 
-        // STEP 6: Build request
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 60
-
-        // STEP 7: Add API key if configured (Bearer auth)
+        // STEP 6: Build the request through the shared core. The Bearer header,
+        // the `--TRANSCRIPT--` wrapper and the Groq host sniff (a custom endpoint
+        // pointed at Groq's own API hits the same undocumented completion-token
+        // default) all live there.
         let apiKey = KeychainManager.shared.getCustomEndpointAPIKey(for: endpointId)
-        if !apiKey.isEmpty {
-            request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        }
-
-        // STEP 8: Build OpenAI-compatible request body
-        let userContent = """
-        \(systemInfo)
-
-        --TRANSCRIPT--
-        \(text)
-        --ENDTRANSCRIPT--
-        """
-
-        let messages: [[String: Any]] = [
-            ["role": "system", "content": systemPrompt],
-            ["role": "user", "content": userContent]
-        ]
-
-        var requestBody: [String: Any] = [
-            "model": endpoint.modelName,
-            "messages": messages
-        ]
-
-        // A custom endpoint pointed at Groq's own API hits the same undocumented
-        // completion-token default as the dedicated Groq path above.
-        if url.host?.caseInsensitiveCompare("api.groq.com") == .orderedSame {
-            requestBody["max_completion_tokens"] = groqMaxCompletionTokens
-        }
-
+        var request: URLRequest
         do {
-            request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+            let built = try llmBuildRequest(params: HwLlmParams(
+                provider: .custom,
+                model: verdict.model,
+                apiKey: apiKey,
+                systemPrompt: systemPrompt,
+                systemInfo: systemInfo,
+                transcript: text,
+                customEndpoint: verdict.url
+            ))
+            request = try RustHTTPExecutor.buildInlineURLRequest(from: built)
         } catch {
-            AppLogger.transcription.error("Custom endpoint post-processing failed: JSON serialization error \(error.localizedDescription, privacy: .public)")
+            AppLogger.transcription.error("Custom endpoint post-processing failed: \(error.localizedDescription, privacy: .public)")
             return text
         }
+        request.timeoutInterval = 60
 
-        // STEP 9: Log request details
+        // STEP 7: Log request details
         AppLogger.transcription.info("Starting custom endpoint post-processing")
         AppLogger.network.info("POST \(endpoint.displayURL, privacy: .public)")
         AppLogger.network.debug("Model: \(endpoint.modelName, privacy: .public)")
 
-        // STEP 10: Perform request with retry logic
+        // STEP 8: Perform request with retry logic
         let config = RetryConfiguration.postProcessing
 
         do {

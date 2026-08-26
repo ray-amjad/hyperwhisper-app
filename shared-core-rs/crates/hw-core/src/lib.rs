@@ -23,6 +23,10 @@ mod ffi_backup;
 pub mod ffi_catalog;
 mod ffi_completion;
 mod ffi_license;
+// LLM post-processing request building (#282). Reuses `ffi_net`'s HTTP contract
+// records rather than declaring its own, so a post-processing request rides the
+// same platform transport a transcription request does.
+mod ffi_llm;
 mod ffi_net;
 mod ffi_prompt;
 

@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using HyperWhisper.CloudPostProcessing;
 using HyperWhisper.Platform.Abstractions;
+using HyperWhisper.SharedCore;
 
 var tests = new (string Name, Func<Task> Run)[]
 {
@@ -15,6 +16,10 @@ var tests = new (string Name, Func<Task> Run)[]
     ("custom Groq request policy", TestCustomGroq),
     ("HyperWhisper Cloud catalog route", TestHyperWhisperCloud),
     ("HyperWhisper Cloud device identity", TestHyperWhisperCloudDevice),
+    ("HyperWhisper Cloud base URL is switchable", TestHyperWhisperCloudBaseUrl),
+    ("HyperWhisper Cloud sends the transcript once", TestHyperWhisperCloudTranscriptOnce),
+    ("saved endpoints are repaired, not dropped", TestExistingEndpointRepair),
+    ("endpoint copy names increment", TestCopyName),
     ("truncated completion is rejected", TestTruncatedCompletion),
     ("HTTP failure is redacted", TestHttpFailureRedaction),
     ("cancellation is graceful", TestCancellation),
@@ -202,6 +207,75 @@ static async Task TestHyperWhisperCloudDevice()
     Assert(result.WasApplied, "device-auth cloud request failed");
     Assert(seen?.Body.Contains("\"device_id\":\"device-safe\"", StringComparison.Ordinal) == true, "device auth missing");
     Assert(seen?.Headers["X-LLM-Provider"] == "grok", "legacy empty-model fallback changed");
+}
+
+static async Task TestHyperWhisperCloudBaseUrl()
+{
+    // Before #282 the host was hardcoded to production with no switch, so every
+    // dev run on this head billed production credits.
+    RequestSnapshot? seen = null;
+    var handler = new StubHandler(async request =>
+    {
+        seen = await RequestSnapshot.FromAsync(request);
+        return Json(HttpStatusCode.OK, "{\"corrected\":\"staged\"}");
+    });
+    var credentials = new MemoryCredentialSource();
+    credentials.SetLicense("license-secret", null);
+    using var service = new CloudPostProcessingService(
+        credentials,
+        new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(5) },
+        "https://transcribe-staging-v2.hyperwhisper.com");
+    var result = await service.ProcessAsync(Request(CloudPostProcessingProvider.HyperWhisperCloud));
+    Assert(result.WasApplied, "staging cloud request failed");
+    Assert(seen?.Uri == "https://transcribe-staging-v2.hyperwhisper.com/post-process",
+        $"cloud base URL was not honoured: {seen?.Uri}");
+}
+
+static async Task TestHyperWhisperCloudTranscriptOnce()
+{
+    // macOS sent the transcript once, this head sent it twice — different input
+    // tokens, different credit cost, different prompt for one recording.
+    RequestSnapshot? seen = null;
+    var handler = new StubHandler(async request =>
+    {
+        seen = await RequestSnapshot.FromAsync(request);
+        return Json(HttpStatusCode.OK, "{\"corrected\":\"once\"}");
+    });
+    var credentials = new MemoryCredentialSource();
+    credentials.SetLicense("license-secret", null);
+    using var service = Service(handler, credentials);
+    await service.ProcessAsync(Request(CloudPostProcessingProvider.HyperWhisperCloud));
+    var body = seen?.Body ?? throw new InvalidOperationException("cloud request was not captured");
+    var occurrences = body.Split("raw words").Length - 1;
+    Assert(occurrences == 1, $"transcript appears {occurrences} times, expected 1");
+    Assert(!body.Contains("--TRANSCRIPT--", StringComparison.Ordinal),
+        "hosted route must not receive the wrapper markers");
+}
+
+static Task TestExistingEndpointRepair()
+{
+    // Tightening validation must never delete a saved endpoint or silently stop
+    // a user's post-processing — it surfaces a repair prompt instead.
+    var verdict = LlmPostProcessing.ValidateExistingCustomEndpoint(
+        "llm.example.test/v1/chat/completions", "llama3");
+    Assert(verdict.Status == PortableEndpointStatus.NeedsRepair, "schemeless endpoint was not flagged");
+    Assert(verdict.IsUsable, "saved endpoint stopped working");
+    Assert(verdict.Suggestion == "https://llm.example.test/v1/chat/completions", "no repair suggested");
+
+    // Strict mode, used when saving, still refuses it.
+    var strict = LlmPostProcessing.NormalizeCustomEndpoint(
+        "llm.example.test/v1/chat/completions", "llama3");
+    Assert(strict.Status == PortableEndpointStatus.Invalid, "strict mode accepted a schemeless URL");
+    Assert(!strict.IsUsable, "strict mode handed back a callable URL");
+    return Task.CompletedTask;
+}
+
+static Task TestCopyName()
+{
+    Assert(LlmPostProcessing.NextCopyName("Ollama") == "Ollama (copy)", "first copy name wrong");
+    Assert(LlmPostProcessing.NextCopyName("Ollama (copy)") == "Ollama (copy 2)", "second copy name wrong");
+    Assert(LlmPostProcessing.NextCopyName("Ollama (copy 2)") == "Ollama (copy 3)", "third copy name wrong");
+    return Task.CompletedTask;
 }
 
 static async Task TestTruncatedCompletion()

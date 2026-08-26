@@ -120,8 +120,7 @@ extension CustomPostProcessingEndpoint {
     /// - Parameter providerString: The provider string (e.g., "custom:uuid-here")
     /// - Returns: The UUID if this is a custom provider string, nil otherwise
     static func parseCustomProviderString(_ providerString: String) -> UUID? {
-        guard providerString.hasPrefix("custom:") else { return nil }
-        let uuidString = String(providerString.dropFirst(7)) // "custom:" is 7 chars
+        guard let uuidString = llmParseCustomProviderString(providerString: providerString) else { return nil }
         return UUID(uuidString: uuidString)
     }
 
@@ -129,7 +128,7 @@ extension CustomPostProcessingEndpoint {
     /// - Parameter providerString: The provider string to check
     /// - Returns: true if this is a custom provider string
     static func isCustomProviderString(_ providerString: String) -> Bool {
-        providerString.hasPrefix("custom:")
+        llmIsCustomProviderString(providerString: providerString)
     }
 }
 
@@ -139,25 +138,32 @@ extension CustomPostProcessingEndpoint {
     /// Validation errors for endpoint configuration
     enum ValidationError: LocalizedError {
         case emptyName
-        case emptyURL
-        case invalidURL
-        case emptyModelName
+        /// A rule break reported by the shared core, already worded for the user.
+        case rejected(String)
 
         var errorDescription: String? {
             switch self {
             case .emptyName:
                 return "Name is required"
-            case .emptyURL:
-                return "Endpoint URL is required"
-            case .invalidURL:
-                return "Invalid URL format"
-            case .emptyModelName:
-                return "Model name is required"
+            case let .rejected(message):
+                return message
             }
         }
     }
 
     /// Validate the endpoint configuration
+    ///
+    /// The URL and model rules come from the shared core (issue #282). This used
+    /// to accept any string `URL(string:)` accepted — which includes a bare
+    /// `"localhost:11434"` with no scheme — while the Windows app demanded an
+    /// absolute URI and the .NET runtime added scheme, userinfo, fragment and
+    /// length rules on top. Four answers to one question, and a backup carried
+    /// endpoints between them.
+    ///
+    /// Saving is STRICT. An endpoint already on disk is judged leniently by
+    /// `llmValidateExistingCustomEndpoint`, so a tightened rule repairs it
+    /// instead of deleting it.
+    ///
     /// - Throws: ValidationError if configuration is invalid
     func validate() throws {
         // VALIDATION STEP 1: Check name
@@ -165,20 +171,10 @@ extension CustomPostProcessingEndpoint {
             throw ValidationError.emptyName
         }
 
-        // VALIDATION STEP 2: Check URL is not empty
-        let trimmedURL = endpointURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedURL.isEmpty else {
-            throw ValidationError.emptyURL
-        }
-
-        // VALIDATION STEP 3: Check URL is valid
-        guard URL(string: trimmedURL) != nil else {
-            throw ValidationError.invalidURL
-        }
-
-        // VALIDATION STEP 4: Check model name
-        guard !modelName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            throw ValidationError.emptyModelName
+        // VALIDATION STEP 2: One rule for the URL and the model.
+        let verdict = llmNormalizeCustomEndpoint(raw: endpointURL, model: modelName, mode: .strict)
+        guard verdict.status == .valid else {
+            throw ValidationError.rejected(verdict.message ?? "Invalid URL format")
         }
     }
 

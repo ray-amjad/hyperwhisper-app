@@ -3,10 +3,10 @@
 // Takes raw transcription text and returns enhanced/formatted text based on mode settings.
 //
 // API INTEGRATION:
-// - OpenAI: POST https://api.openai.com/v1/chat/completions
-// - Anthropic: POST https://api.anthropic.com/v1/messages
-// - Groq: POST https://api.groq.com/openai/v1/chat/completions (OpenAI-compatible)
-// - Grok: POST https://api.x.ai/v1/chat/completions (OpenAI-compatible)
+// Endpoints, JSON bodies, auth headers, the api.groq.com completion cap and the
+// --TRANSCRIPT-- wrapper are NOT written here. They live in the shared Rust core
+// (hw-net/src/providers/llm) and arrive through LlmPostProcessing.BuildRequest,
+// so Windows, macOS and the Linux head all send the same bytes (issue #282).
 //
 // ERROR HANDLING:
 // - Returns original text on failure (graceful degradation)
@@ -15,12 +15,10 @@
 
 using System.IO;
 using System.Net.Http;
-using System.Net.Http.Headers;
-using System.Text;
-using System.Text.Json;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Localization;
 using HyperWhisper.Models;
+using HyperWhisper.SharedCore;
 using HyperWhisper.Utilities;
 // LLM completion termination/wrapper policy lives in the shared Rust core so all
 // platforms share one implementation. See EvaluateLlmResponseJson / EvaluateCompletion.
@@ -175,8 +173,13 @@ public class PostProcessingService : IDisposable
                 }
                 var cloudSystemInfo = PromptBuilder.SystemInfo(mode, cloudVocabulary, applicationContext);
 
-                var cloudUserMessage = PromptBuilder.WrapTranscript(text);
-                var fullPrompt = $"{cloudSystemPrompt}\n\n{cloudSystemInfo}\n\n{cloudUserMessage}";
+                // The transcript travels in `text`, ONCE. It used to be sent twice
+                // here — again inside `prompt`, wrapped in --TRANSCRIPT-- markers —
+                // which macOS never did. That is a different input-token count, a
+                // different credit cost and a different prompt for the same
+                // recording (#282). The hosted route builds its own provider call
+                // from `prompt`, so `prompt` carries only the two prompt halves.
+                var fullPrompt = $"{cloudSystemPrompt}\n\n{cloudSystemInfo}";
 
                 LoggingService.Info("PostProcessingService: Processing with HyperWhisper Cloud");
 
@@ -271,9 +274,13 @@ public class PostProcessingService : IDisposable
         }
         var systemInfo = PromptBuilder.SystemInfo(mode, vocabulary, applicationContext);
 
-        // Wrap the transcript with markers, prepending dynamic system info
-        // System info is in the user message so the static system prompt benefits from caching
-        var userMessage = systemInfo + "\n\n" + PromptBuilder.WrapTranscript(text);
+        // Wrap the transcript with markers, prepending dynamic system info.
+        // System info rides in the user message so the static system prompt stays
+        // byte-identical between requests and keeps its cache hit. The wrapper is
+        // the shared one (#282): every HTTP provider gets it from the Rust request
+        // builder, and the in-process local LLM below asks for the same string so
+        // the two cannot drift.
+        var userMessage = LlmPostProcessing.WrapTranscript(systemInfo, text);
 
         try
         {
@@ -281,7 +288,7 @@ public class PostProcessingService : IDisposable
 
             if (isCustomEndpoint)
             {
-                var responseJson = await CallCustomEndpointAsync(mode, systemPrompt, userMessage, cancellationToken);
+                var responseJson = await CallCustomEndpointAsync(mode, systemPrompt, systemInfo, text, cancellationToken);
                 evaluation = HyperwhisperCoreMethods.EvaluateLlmResponseJson(WireProtocol.OpenAiChat, responseJson, text);
             }
             else
@@ -290,10 +297,20 @@ public class PostProcessingService : IDisposable
 
                 evaluation = provider switch
                 {
+                    // One arm for every HTTP provider: the endpoint, the body shape
+                    // and the auth header all come from the shared builder, so
+                    // Anthropic no longer needs a branch of its own here.
                     PostProcessingProvider.OpenAI or PostProcessingProvider.Groq or PostProcessingProvider.Grok
-                        or PostProcessingProvider.Gemini or PostProcessingProvider.Cerebras or PostProcessingProvider.Mistral =>
-                        HyperwhisperCoreMethods.EvaluateLlmResponseJson(WireProtocol.OpenAiChat, await CallOpenAICompatibleAsync(MapToOpenAICompatibleProvider(provider), apiKey!, resolvedModelId!, systemPrompt, userMessage, cancellationToken), text),
-                    PostProcessingProvider.Anthropic => HyperwhisperCoreMethods.EvaluateLlmResponseJson(WireProtocol.AnthropicMessages, await CallAnthropicAsync(apiKey!, resolvedModelId!, systemPrompt, userMessage, cancellationToken), text),
+                        or PostProcessingProvider.Gemini or PostProcessingProvider.Cerebras
+                        or PostProcessingProvider.Mistral or PostProcessingProvider.Anthropic =>
+                        HyperwhisperCoreMethods.EvaluateLlmResponseJson(
+                            provider == PostProcessingProvider.Anthropic
+                                ? WireProtocol.AnthropicMessages
+                                : WireProtocol.OpenAiChat,
+                            await CallLlmAsync(
+                                MapToPortableProvider(provider), apiKey!, resolvedModelId!,
+                                systemPrompt, systemInfo, text, cancellationToken),
+                            text),
                     PostProcessingProvider.LocalLlm => HyperwhisperCoreMethods.EvaluateCompletion(text, await CallLocalLlmAsync(resolvedModelId!, systemPrompt, userMessage, cancellationToken), CompletionState.Unspecified),
                     _ => HyperwhisperCoreMethods.EvaluateCompletion(text, "", CompletionState.Malformed)
                 };
@@ -353,24 +370,25 @@ public class PostProcessingService : IDisposable
     // =========================================================================
 
     /// <summary>
-    /// Calls any provider that implements the OpenAI Chat Completions protocol.
-    /// Provider-specific behavior belongs in <see cref="OpenAICompatibleProviderExtensions"/>.
+    /// Calls any HTTP post-processing provider.
     /// </summary>
-    private async Task<string> CallOpenAICompatibleAsync(
-        OpenAICompatibleProvider provider,
+    /// <remarks>
+    /// One method for all of them. The endpoint, the JSON body, the auth header
+    /// and the Groq completion cap come from the shared Rust builder (#282), so
+    /// there is nothing provider-specific left to branch on here. What stays
+    /// native is the transport: this HttpClient and its 30-second timeout.
+    /// </remarks>
+    private async Task<string> CallLlmAsync(
+        PortableLlmProvider provider,
         string apiKey,
         string model,
         string systemPrompt,
-        string userMessage,
+        string systemInfo,
+        string transcript,
         CancellationToken cancellationToken)
     {
-        using var request = new HttpRequestMessage(System.Net.Http.HttpMethod.Post, provider.Endpoint());
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
-        request.Content = new StringContent(
-            BuildOpenAIRequestJson(provider, model, systemPrompt, userMessage),
-            Encoding.UTF8,
-            "application/json"
-        );
+        using var request = LlmPostProcessing.BuildRequest(new PortableLlmRequest(
+            provider, model, apiKey, systemPrompt, systemInfo, transcript));
 
         var response = await _httpClient.SendAsync(request, cancellationToken);
         response.EnsureSuccessStatusCode();
@@ -379,131 +397,21 @@ public class PostProcessingService : IDisposable
     }
 
     /// <summary>
-    /// Output-token cap sent to Groq. Groq applies a low default completion cap
-    /// when the request omits one (its reasoning docs cite 1,024), and gpt-oss
-    /// reasoning tokens spend from that same budget, so long dictations truncate
-    /// (finish_reason=length). Kept at 4,096 — not 8,192 like Anthropic — because
-    /// Groq's free-tier TPM ceiling for openai/gpt-oss-120b is 8,000 and the
-    /// admission check counts prompt + requested cap, not actual usage.
+    /// Maps a Windows <see cref="PostProcessingProvider"/> onto the shared
+    /// provider enum the Rust builder takes.
     /// </summary>
-    internal const int GroqMaxCompletionTokens = 4096;
-
-    internal static string BuildOpenAIRequestJson(
-        OpenAICompatibleProvider provider,
-        string model,
-        string systemPrompt,
-        string userMessage)
+    internal static PortableLlmProvider MapToPortableProvider(PostProcessingProvider provider) => provider switch
     {
-        var requestBody = BaseOpenAIRequestBody(model, systemPrompt, userMessage);
-
-        if (provider == OpenAICompatibleProvider.Groq)
-        {
-            requestBody["max_completion_tokens"] = GroqMaxCompletionTokens;
-        }
-
-        return JsonSerializer.Serialize(requestBody);
-    }
-
-    /// <summary>
-    /// Request JSON for custom OpenAI-compatible endpoints: no provider-specific
-    /// fields, because the server behind a user-supplied URL is unknown.
-    /// </summary>
-    internal static string BuildOpenAIRequestJson(
-        string model,
-        string systemPrompt,
-        string userMessage)
-        => JsonSerializer.Serialize(BaseOpenAIRequestBody(model, systemPrompt, userMessage));
-
-    /// <summary>
-    /// True when a custom endpoint's URL is Groq's own API — the same undocumented
-    /// completion-token default applies even when reached via the custom-endpoint path.
-    /// </summary>
-    internal static bool IsGroqEndpoint(string endpointUrl) =>
-        Uri.TryCreate(endpointUrl, UriKind.Absolute, out var uri)
-        && uri.Host.Equals("api.groq.com", StringComparison.OrdinalIgnoreCase);
-
-    private static Dictionary<string, object> BaseOpenAIRequestBody(
-        string model,
-        string systemPrompt,
-        string userMessage) => new()
-    {
-        ["model"] = model,
-        ["messages"] = new object[]
-        {
-            new { role = "system", content = systemPrompt },
-            new { role = "user", content = userMessage }
-        }
+        PostProcessingProvider.OpenAI => PortableLlmProvider.OpenAi,
+        PostProcessingProvider.Anthropic => PortableLlmProvider.Anthropic,
+        PostProcessingProvider.Groq => PortableLlmProvider.Groq,
+        PostProcessingProvider.Grok => PortableLlmProvider.Grok,
+        PostProcessingProvider.Gemini => PortableLlmProvider.Gemini,
+        PostProcessingProvider.Cerebras => PortableLlmProvider.Cerebras,
+        PostProcessingProvider.Mistral => PortableLlmProvider.Mistral,
+        _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, "Provider has no shared LLM builder arm")
     };
 
-    /// <summary>
-    /// Maps the OpenAI-compatible subset of <see cref="PostProcessingProvider"/> to the
-    /// dedicated <see cref="OpenAICompatibleProvider"/> enum used by <see cref="CallOpenAICompatibleAsync"/>.
-    /// </summary>
-    private static OpenAICompatibleProvider MapToOpenAICompatibleProvider(PostProcessingProvider provider) => provider switch
-    {
-        PostProcessingProvider.OpenAI => OpenAICompatibleProvider.OpenAI,
-        PostProcessingProvider.Groq => OpenAICompatibleProvider.Groq,
-        PostProcessingProvider.Grok => OpenAICompatibleProvider.Grok,
-        PostProcessingProvider.Gemini => OpenAICompatibleProvider.Gemini,
-        PostProcessingProvider.Cerebras => OpenAICompatibleProvider.Cerebras,
-        PostProcessingProvider.Mistral => OpenAICompatibleProvider.Mistral,
-        _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, "Provider is not OpenAI-compatible")
-    };
-
-    /// <summary>
-    /// Calls the Anthropic Messages API.
-    /// </summary>
-    private async Task<string> CallAnthropicAsync(
-        string apiKey,
-        string model,
-        string systemPrompt,
-        string userMessage,
-        CancellationToken cancellationToken)
-    {
-        using var request = new HttpRequestMessage(System.Net.Http.HttpMethod.Post, "https://api.anthropic.com/v1/messages");
-        request.Headers.Add("x-api-key", apiKey);
-        request.Headers.Add("anthropic-version", "2023-06-01");
-        request.Content = new StringContent(
-            BuildAnthropicRequestJson(model, systemPrompt, userMessage),
-            Encoding.UTF8,
-            "application/json"
-        );
-
-        var response = await _httpClient.SendAsync(request, cancellationToken);
-        response.EnsureSuccessStatusCode();
-
-        return await response.Content.ReadAsStringAsync(cancellationToken);
-    }
-
-    internal static string BuildAnthropicRequestJson(
-        string model,
-        string systemPrompt,
-        string userMessage)
-    {
-        // The static system prompt is cacheable; dynamic context stays in the user message.
-        var systemContent = new[]
-        {
-            new Dictionary<string, object>
-            {
-                ["type"] = "text",
-                ["text"] = systemPrompt,
-                ["cache_control"] = new Dictionary<string, string> { ["type"] = "ephemeral" }
-            }
-        };
-
-        var requestBody = new
-        {
-            model,
-            max_tokens = 8192,
-            system = systemContent,
-            messages = new[]
-            {
-                new { role = "user", content = userMessage }
-            }
-        };
-
-        return JsonSerializer.Serialize(requestBody);
-    }
 
     /// <summary>
     /// Calls the local LLamaSharp runtime for offline post-processing.
@@ -541,10 +449,17 @@ public class PostProcessingService : IDisposable
     /// Calls a custom OpenAI-compatible endpoint for post-processing.
     /// Prompts are built by the caller (ProcessAsync) to avoid duplication.
     /// </summary>
+    /// <remarks>
+    /// The URL is validated leniently, not strictly. A user's saved endpoint may
+    /// predate the tightened rule (#282), and silently skipping post-processing
+    /// forever is the failure this change exists to stop — so an endpoint that is
+    /// still safe to call keeps working, with a warning naming the repair.
+    /// </remarks>
     private async Task<string> CallCustomEndpointAsync(
         Mode mode,
         string systemPrompt,
-        string userMessage,
+        string systemInfo,
+        string transcript,
         CancellationToken cancellationToken)
     {
         // Look up the custom endpoint
@@ -557,22 +472,29 @@ public class PostProcessingService : IDisposable
 
         LoggingService.Info($"PostProcessingService: Processing with custom endpoint '{endpoint.Name}' / {endpoint.ModelName}");
 
-        using var request = new HttpRequestMessage(System.Net.Http.HttpMethod.Post, endpoint.EndpointURL);
-        var requestJson = IsGroqEndpoint(endpoint.EndpointURL)
-            ? BuildOpenAIRequestJson(OpenAICompatibleProvider.Groq, endpoint.ModelName, systemPrompt, userMessage)
-            : BuildOpenAIRequestJson(endpoint.ModelName, systemPrompt, userMessage);
-        request.Content = new StringContent(
-            requestJson,
-            Encoding.UTF8,
-            "application/json"
-        );
-
-        // Add auth if API key is set (optional for local endpoints)
-        var apiKey = CustomEndpointManager.Instance.GetApiKey(endpoint.Id);
-        if (!string.IsNullOrEmpty(apiKey))
+        var verdict = LlmPostProcessing.ValidateExistingCustomEndpoint(
+            endpoint.EndpointURL, endpoint.ModelName);
+        if (verdict.Status == PortableEndpointStatus.NeedsRepair)
         {
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+            LoggingService.Warn(
+                $"PostProcessingService: Custom endpoint '{endpoint.Name}' needs repair ({verdict.Message}); "
+                + $"suggested URL: {verdict.Suggestion ?? "none"}");
         }
+        if (!verdict.IsUsable)
+        {
+            throw new InvalidOperationException(
+                $"Custom endpoint '{endpoint.Name}' cannot be called: {verdict.Message}");
+        }
+
+        var apiKey = CustomEndpointManager.Instance.GetApiKey(endpoint.Id);
+        using var request = LlmPostProcessing.BuildRequest(new PortableLlmRequest(
+            PortableLlmProvider.Custom,
+            verdict.Model,
+            apiKey ?? string.Empty,
+            systemPrompt,
+            systemInfo,
+            transcript,
+            CustomEndpoint: verdict.Url));
 
         var response = await _httpClient.SendAsync(request, cancellationToken);
         response.EnsureSuccessStatusCode();
@@ -619,26 +541,7 @@ public readonly record struct PostProcessingResult(string Text, bool WasApplied,
     public static PostProcessingResult Skipped(string text) => new(text, false);
 }
 
-internal enum OpenAICompatibleProvider
-{
-    OpenAI,
-    Groq,
-    Grok,
-    Gemini,
-    Cerebras,
-    Mistral
-}
-
-internal static class OpenAICompatibleProviderExtensions
-{
-    public static string Endpoint(this OpenAICompatibleProvider provider) => provider switch
-    {
-        OpenAICompatibleProvider.OpenAI => "https://api.openai.com/v1/chat/completions",
-        OpenAICompatibleProvider.Groq => "https://api.groq.com/openai/v1/chat/completions",
-        OpenAICompatibleProvider.Grok => "https://api.x.ai/v1/chat/completions",
-        OpenAICompatibleProvider.Gemini => "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-        OpenAICompatibleProvider.Cerebras => "https://api.cerebras.ai/v1/chat/completions",
-        OpenAICompatibleProvider.Mistral => "https://api.mistral.ai/v1/chat/completions",
-        _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, null)
-    };
-}
+// `OpenAICompatibleProvider` and its endpoint table used to live here. It was the
+// Windows copy of a URL list that also existed in PostProcessingProvider.swift and
+// CloudPostProcessingService.cs; the three were byte-identical and only the arm
+// count drifted. The one copy now lives in hw-net (issue #282).

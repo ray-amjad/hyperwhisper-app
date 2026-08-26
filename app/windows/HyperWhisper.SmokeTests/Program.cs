@@ -36,6 +36,12 @@ using HyperWhisper.ViewModels;
 using HyperWhisper.Views.Pages.Settings;
 using uniffi.hyperwhisper_core;
 using PlatformContracts = HyperWhisper.Platform.Abstractions;
+// Aliased, not imported: HyperWhisper.SharedCore also declares
+// CloudTranscriptionProvider, which would clash with HyperWhisper.Models.
+using LlmPostProcessing = HyperWhisper.SharedCore.LlmPostProcessing;
+using PortableEndpointStatus = HyperWhisper.SharedCore.PortableEndpointStatus;
+using PortableLlmProvider = HyperWhisper.SharedCore.PortableLlmProvider;
+using PortableLlmRequest = HyperWhisper.SharedCore.PortableLlmRequest;
 
 namespace HyperWhisper.SmokeTests;
 
@@ -467,13 +473,11 @@ internal static class Program
 
             Run("OpenAI post-processing omits an output-token cap", () =>
             {
-                var requestJson = PostProcessingService.BuildOpenAIRequestJson(
-                    OpenAICompatibleProvider.OpenAI, "gpt-5.6-luna", "system", "user");
-                using var request = JsonDocument.Parse(requestJson);
+                using var body = ReadLlmBody(PortableLlmProvider.OpenAi, "gpt-5.6-luna");
 
-                Assert(!request.RootElement.TryGetProperty("max_tokens", out _),
+                Assert(!body.RootElement.TryGetProperty("max_tokens", out _),
                     "OpenAI request should not contain max_tokens");
-                Assert(!request.RootElement.TryGetProperty("max_completion_tokens", out _),
+                Assert(!body.RootElement.TryGetProperty("max_completion_tokens", out _),
                     "OpenAI request should not contain max_completion_tokens");
             });
 
@@ -529,27 +533,41 @@ internal static class Program
 
             Run("Groq post-processing sends an explicit output-token cap", () =>
             {
-                var requestJson = PostProcessingService.BuildOpenAIRequestJson(
-                    OpenAICompatibleProvider.Groq, "openai/gpt-oss-20b", "system", "user");
-                using var request = JsonDocument.Parse(requestJson);
+                using var body = ReadLlmBody(PortableLlmProvider.Groq, "openai/gpt-oss-20b");
 
-                Assert(request.RootElement.GetProperty("max_completion_tokens").GetInt32()
-                        == PostProcessingService.GroqMaxCompletionTokens,
+                Assert(body.RootElement.GetProperty("max_completion_tokens").GetUInt32()
+                        == LlmPostProcessing.GroqMaxCompletionTokens,
                     "Groq request should cap completions at GroqMaxCompletionTokens");
-                Assert(!request.RootElement.TryGetProperty("max_tokens", out _),
+                Assert(!body.RootElement.TryGetProperty("max_tokens", out _),
                     "Groq request should use max_completion_tokens, not max_tokens");
             });
 
             Run("Custom endpoint pointed at Groq's API is recognized", () =>
             {
-                Assert(PostProcessingService.IsGroqEndpoint("https://api.groq.com/openai/v1/chat/completions"),
+                // The shared builder sniffs the host, so a custom endpoint aimed at
+                // Groq gets the same cap a first-class Groq mode gets.
+                using var groq = ReadLlmBody(
+                    PortableLlmProvider.Custom, "openai/gpt-oss-20b",
+                    "https://api.groq.com/openai/v1/chat/completions");
+                Assert(groq.RootElement.GetProperty("max_completion_tokens").GetUInt32()
+                        == LlmPostProcessing.GroqMaxCompletionTokens,
                     "api.groq.com should be recognized as a Groq endpoint");
-                Assert(PostProcessingService.IsGroqEndpoint("https://API.GROQ.COM/openai/v1/chat/completions"),
+
+                using var upper = ReadLlmBody(
+                    PortableLlmProvider.Custom, "openai/gpt-oss-20b",
+                    "https://API.GROQ.COM/openai/v1/chat/completions");
+                Assert(upper.RootElement.TryGetProperty("max_completion_tokens", out _),
                     "host match should be case-insensitive");
-                Assert(!PostProcessingService.IsGroqEndpoint("http://localhost:1234/v1/chat/completions"),
+
+                using var local = ReadLlmBody(
+                    PortableLlmProvider.Custom, "llama3.2",
+                    "http://localhost:1234/v1/chat/completions");
+                Assert(!local.RootElement.TryGetProperty("max_completion_tokens", out _),
                     "a local/self-hosted endpoint should not be recognized as Groq");
-                Assert(!PostProcessingService.IsGroqEndpoint("not a url"),
-                    "an unparsable URL should not be recognized as Groq");
+
+                Assert(LlmPostProcessing.NormalizeCustomEndpoint("not a url", "m").Status
+                        != PortableEndpointStatus.Valid,
+                    "an unparsable URL should not be accepted at all");
             });
 
             Run("Deepgram parses every message shape of its \"channel\" field", () =>
@@ -656,19 +674,34 @@ internal static class Program
 
             Run("OpenAI-compatible providers retain their endpoints", () =>
             {
-                Assert(OpenAICompatibleProvider.OpenAI.Endpoint() == "https://api.openai.com/v1/chat/completions", "OpenAI endpoint");
-                Assert(OpenAICompatibleProvider.Groq.Endpoint() == "https://api.groq.com/openai/v1/chat/completions", "Groq endpoint");
-                Assert(OpenAICompatibleProvider.Grok.Endpoint() == "https://api.x.ai/v1/chat/completions", "Grok endpoint");
-                Assert(OpenAICompatibleProvider.Gemini.Endpoint() == "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", "Gemini endpoint");
-                Assert(OpenAICompatibleProvider.Cerebras.Endpoint() == "https://api.cerebras.ai/v1/chat/completions", "Cerebras endpoint");
-                Assert(OpenAICompatibleProvider.Mistral.Endpoint() == "https://api.mistral.ai/v1/chat/completions", "Mistral endpoint");
+                // The endpoint table now lives in the Rust core (#282). These
+                // assertions pin the URLs the Windows app used before the move.
+                var expected = new (PortableLlmProvider Provider, string Url)[]
+                {
+                    (PortableLlmProvider.OpenAi, "https://api.openai.com/v1/chat/completions"),
+                    (PortableLlmProvider.Groq, "https://api.groq.com/openai/v1/chat/completions"),
+                    (PortableLlmProvider.Grok, "https://api.x.ai/v1/chat/completions"),
+                    (PortableLlmProvider.Gemini, "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"),
+                    (PortableLlmProvider.Cerebras, "https://api.cerebras.ai/v1/chat/completions"),
+                    (PortableLlmProvider.Mistral, "https://api.mistral.ai/v1/chat/completions"),
+                    (PortableLlmProvider.Anthropic, "https://api.anthropic.com/v1/messages"),
+                };
+
+                foreach (var (provider, url) in expected)
+                {
+                    using var request = BuildLlmRequest(provider, "model");
+                    Assert(request.RequestUri?.ToString() == url, $"{provider} endpoint");
+                }
             });
 
             Run("Anthropic keeps its required 8192 output limit", () =>
             {
-                var requestJson = PostProcessingService.BuildAnthropicRequestJson("model", "system", "user");
-                using var request = JsonDocument.Parse(requestJson);
-                Assert(request.RootElement.GetProperty("max_tokens").GetInt32() == 8192, "Anthropic max_tokens should be 8192");
+                using var body = ReadLlmBody(PortableLlmProvider.Anthropic, "model");
+                Assert(body.RootElement.GetProperty("max_tokens").GetUInt32() == 8192,
+                    "Anthropic max_tokens should be 8192");
+                Assert(body.RootElement.GetProperty("max_tokens").GetUInt32()
+                        == LlmPostProcessing.MaxOutputTokens,
+                    "Anthropic max_tokens should be the shared output cap");
             });
 
             Run("Anthropic wire: max_tokens stop is rejected", () =>
@@ -3162,6 +3195,35 @@ internal static class Program
             return expected;
         }
         throw new InvalidOperationException($"expected {typeof(T).Name} was not thrown");
+    }
+
+    /// <summary>
+    /// Build a post-processing request through the shared core (#282). The URL,
+    /// the auth headers and the body shape all come from Rust, so a smoke test
+    /// that reads them back is checking the real builder, not a local copy.
+    /// </summary>
+    private static HttpRequestMessage BuildLlmRequest(
+        PortableLlmProvider provider,
+        string model,
+        string? customEndpoint = null)
+        => LlmPostProcessing.BuildRequest(new PortableLlmRequest(
+            provider,
+            model,
+            ApiKey: "smoke-key",
+            SystemPrompt: "system",
+            SystemInfo: "",
+            Transcript: "user",
+            CustomEndpoint: customEndpoint));
+
+    /// <summary>Parse the JSON body of a shared-core post-processing request.</summary>
+    private static JsonDocument ReadLlmBody(
+        PortableLlmProvider provider,
+        string model,
+        string? customEndpoint = null)
+    {
+        using var request = BuildLlmRequest(provider, model, customEndpoint);
+        var json = request.Content!.ReadAsStringAsync().GetAwaiter().GetResult();
+        return JsonDocument.Parse(json);
     }
 
     /// <summary>Minimal core-shaped request; the stub handler never reads it.</summary>

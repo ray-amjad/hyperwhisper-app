@@ -23,7 +23,13 @@ internal static class RustHttpTransport
         return new HttpResponse((ushort)(int)response.StatusCode, CaptureHeaders(response), body);
     }
 
-    private static HttpRequestMessage BuildRequestMessage(HttpRequest request)
+    /// <summary>
+    /// Materialize a Rust-built request. Internal rather than private because
+    /// <see cref="LlmPostProcessing"/> hands the message back to a caller that
+    /// owns its own send loop (timeout, retry, response-size cap) instead of
+    /// using <see cref="ExecuteAsync"/>.
+    /// </summary>
+    internal static HttpRequestMessage BuildRequestMessage(HttpRequest request)
     {
         var message = new HttpRequestMessage(MapMethod(request.@method), request.@url);
         switch (request.@body)

@@ -1,4 +1,5 @@
 using HyperWhisper.ModelManagement;
+using HyperWhisper.SharedCore;
 // Rust shared-core binding. The catalog rows below all come from here.
 using uniffi.hyperwhisper_core;
 
@@ -195,9 +196,14 @@ public static class UnifiedModelCatalog
     {
         foreach (var endpoint in endpoints)
         {
-            if (!endpoint.Endpoint.IsAbsoluteUri || endpoint.Endpoint.Scheme is not ("https" or "http")
-                || !string.IsNullOrEmpty(endpoint.Endpoint.UserInfo) || !string.IsNullOrEmpty(endpoint.Endpoint.Fragment))
-                throw new InvalidDataException("Custom endpoint must be an absolute HTTP(S) URI.");
+            // One rule, in the Rust core (#282). This block used to be the fourth
+            // copy of "is this custom endpoint valid", and the four copies did
+            // not agree.
+            var verdict = LlmPostProcessing.NormalizeCustomEndpoint(
+                endpoint.Endpoint.OriginalString, endpoint.ModelId);
+            if (verdict.Status != PortableEndpointStatus.Valid)
+                throw new InvalidDataException(
+                    verdict.Message ?? "Custom endpoint must be an absolute HTTP(S) URI.");
             if (endpoint.RequiresCredential && string.IsNullOrWhiteSpace(endpoint.CredentialAccount))
                 throw new InvalidDataException("Custom endpoint credential account is required.");
             result.Add(new ModelCapability(

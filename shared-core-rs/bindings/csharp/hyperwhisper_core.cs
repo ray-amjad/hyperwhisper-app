@@ -1064,6 +1064,42 @@ static class _UniFFILib {
     
     
     
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
 
     static _UniFFILib() {
         _UniFFILib.uniffiCheckContractApiVersion();
@@ -1530,6 +1566,78 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern long uniffi_hyperwhisper_core_fn_func_license_validation_cache_secs(ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_llm_build_custom_endpoint_test_request(RustBuffer @rawUrl,RustBuffer @model,RustBuffer @apiKey,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_llm_build_request(RustBuffer @params,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_fn_func_llm_default_local_llama_port(ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_llm_endpoint_for(RustBuffer @params,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern uint uniffi_hyperwhisper_core_fn_func_llm_groq_max_completion_tokens(ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_llm_hw_cloud_prod_base(ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_llm_hw_cloud_staging_base(ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern sbyte uniffi_hyperwhisper_core_fn_func_llm_is_custom_provider_string(RustBuffer @providerString,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern uint uniffi_hyperwhisper_core_fn_func_llm_max_custom_endpoint_model_chars(ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern uint uniffi_hyperwhisper_core_fn_func_llm_max_custom_endpoint_url_chars(ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern uint uniffi_hyperwhisper_core_fn_func_llm_max_output_tokens(ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_llm_next_copy_name(RustBuffer @originalName,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_llm_normalize_custom_endpoint(RustBuffer @raw,RustBuffer @model,RustBuffer @mode,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_llm_parse_custom_provider_string(RustBuffer @providerString,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_llm_parse_hw_cloud_post_process(RustBuffer @resp,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_llm_validate_existing_custom_endpoint(RustBuffer @raw,RustBuffer @model,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_llm_wire_protocol_for(RustBuffer @provider,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_llm_wrap_transcript(RustBuffer @systemInfo,RustBuffer @transcript,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -2346,6 +2454,78 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_license_validation_cache_secs(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_llm_build_custom_endpoint_test_request(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_llm_build_request(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_llm_default_local_llama_port(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_llm_endpoint_for(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_llm_groq_max_completion_tokens(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_llm_hw_cloud_prod_base(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_llm_hw_cloud_staging_base(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_llm_is_custom_provider_string(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_llm_max_custom_endpoint_model_chars(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_llm_max_custom_endpoint_url_chars(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_llm_max_output_tokens(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_llm_next_copy_name(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_llm_normalize_custom_endpoint(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_llm_parse_custom_provider_string(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_llm_parse_hw_cloud_post_process(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_llm_validate_existing_custom_endpoint(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_llm_wire_protocol_for(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_llm_wrap_transcript(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -3182,6 +3362,114 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_license_validation_cache_secs();
             if (checksum != 34885) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_license_validation_cache_secs` checksum `34885`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_llm_build_custom_endpoint_test_request();
+            if (checksum != 5659) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_llm_build_custom_endpoint_test_request` checksum `5659`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_llm_build_request();
+            if (checksum != 57763) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_llm_build_request` checksum `57763`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_llm_default_local_llama_port();
+            if (checksum != 14194) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_llm_default_local_llama_port` checksum `14194`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_llm_endpoint_for();
+            if (checksum != 36443) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_llm_endpoint_for` checksum `36443`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_llm_groq_max_completion_tokens();
+            if (checksum != 51471) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_llm_groq_max_completion_tokens` checksum `51471`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_llm_hw_cloud_prod_base();
+            if (checksum != 14171) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_llm_hw_cloud_prod_base` checksum `14171`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_llm_hw_cloud_staging_base();
+            if (checksum != 30428) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_llm_hw_cloud_staging_base` checksum `30428`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_llm_is_custom_provider_string();
+            if (checksum != 5642) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_llm_is_custom_provider_string` checksum `5642`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_llm_max_custom_endpoint_model_chars();
+            if (checksum != 49114) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_llm_max_custom_endpoint_model_chars` checksum `49114`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_llm_max_custom_endpoint_url_chars();
+            if (checksum != 61579) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_llm_max_custom_endpoint_url_chars` checksum `61579`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_llm_max_output_tokens();
+            if (checksum != 41429) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_llm_max_output_tokens` checksum `41429`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_llm_next_copy_name();
+            if (checksum != 32799) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_llm_next_copy_name` checksum `32799`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_llm_normalize_custom_endpoint();
+            if (checksum != 22750) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_llm_normalize_custom_endpoint` checksum `22750`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_llm_parse_custom_provider_string();
+            if (checksum != 41613) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_llm_parse_custom_provider_string` checksum `41613`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_llm_parse_hw_cloud_post_process();
+            if (checksum != 31813) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_llm_parse_hw_cloud_post_process` checksum `31813`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_llm_validate_existing_custom_endpoint();
+            if (checksum != 49909) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_llm_validate_existing_custom_endpoint` checksum `49909`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_llm_wire_protocol_for();
+            if (checksum != 30751) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_llm_wire_protocol_for` checksum `30751`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_llm_wrap_transcript();
+            if (checksum != 44003) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_llm_wrap_transcript` checksum `44003`, library returned `{checksum}`");
             }
         }
         {
@@ -4294,6 +4582,59 @@ class FfiConverterTypeHttpResponse: FfiConverterRustBuffer<HttpResponse> {
 
 
 /// <summary>
+/// The verdict on one custom endpoint. Mirrors `l::EndpointVerdict`.
+///
+/// `url` is the single check a runtime caller needs: **empty means do not call
+/// it**, in either mode. `message` is the human-readable form of `issue`, so a
+/// platform never has to duplicate the wording in a switch.
+/// </summary>
+internal record HwEndpointVerdict (
+    HwEndpointStatus @status, 
+    string @url, 
+    string @model, 
+    HwEndpointIssue? @issue, 
+    string? @message, 
+    string? @suggestion
+) {
+}
+
+class FfiConverterTypeHwEndpointVerdict: FfiConverterRustBuffer<HwEndpointVerdict> {
+    public static FfiConverterTypeHwEndpointVerdict INSTANCE = new FfiConverterTypeHwEndpointVerdict();
+
+    public override HwEndpointVerdict Read(BigEndianStream stream) {
+        return new HwEndpointVerdict(
+            @status: FfiConverterTypeHwEndpointStatus.INSTANCE.Read(stream),
+            @url: FfiConverterString.INSTANCE.Read(stream),
+            @model: FfiConverterString.INSTANCE.Read(stream),
+            @issue: FfiConverterOptionalTypeHwEndpointIssue.INSTANCE.Read(stream),
+            @message: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @suggestion: FfiConverterOptionalString.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwEndpointVerdict value) {
+        return 0
+            + FfiConverterTypeHwEndpointStatus.INSTANCE.AllocationSize(value.@status)
+            + FfiConverterString.INSTANCE.AllocationSize(value.@url)
+            + FfiConverterString.INSTANCE.AllocationSize(value.@model)
+            + FfiConverterOptionalTypeHwEndpointIssue.INSTANCE.AllocationSize(value.@issue)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@message)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@suggestion);
+    }
+
+    public override void Write(HwEndpointVerdict value, BigEndianStream stream) {
+            FfiConverterTypeHwEndpointStatus.INSTANCE.Write(value.@status, stream);
+            FfiConverterString.INSTANCE.Write(value.@url, stream);
+            FfiConverterString.INSTANCE.Write(value.@model, stream);
+            FfiConverterOptionalTypeHwEndpointIssue.INSTANCE.Write(value.@issue, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@message, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@suggestion, stream);
+    }
+}
+
+
+
+/// <summary>
 /// Language support for a model. Mirrors `hw_catalog::LanguageSupport` with the
 /// `BTreeSet` flattened to a sorted `Vec`.
 /// </summary>
@@ -4322,6 +4663,91 @@ class FfiConverterTypeHwLanguageSupport: FfiConverterRustBuffer<HwLanguageSuppor
     public override void Write(HwLanguageSupport value, BigEndianStream stream) {
             FfiConverterSequenceString.INSTANCE.Write(value.@codes, stream);
             FfiConverterBoolean.INSTANCE.Write(value.@supportsAll, stream);
+    }
+}
+
+
+
+/// <summary>
+/// Inputs for [`llm_build_request`]. Mirrors `l::LlmParams`.
+///
+/// `system_prompt` and `system_info` both come from `hw-text` (see
+/// [`crate::build_system_prompt`] / [`crate::build_system_info`]), so the caller
+/// never assembles a prompt by hand.
+/// </summary>
+internal record HwLlmParams (
+    HwLlmProvider @provider, 
+    string @model, 
+    string @apiKey, 
+    string @systemPrompt, 
+    string @systemInfo, 
+    string @transcript, 
+    string? @customEndpoint = null, 
+    string? @baseUrl = null, 
+    ushort? @localLlamaPort = null, 
+    string? @licenseKey = null, 
+    string? @deviceId = null, 
+    string? @llmProviderHeader = null, 
+    string? @llmModelHeader = null, 
+    bool @stream = false
+) {
+}
+
+class FfiConverterTypeHwLlmParams: FfiConverterRustBuffer<HwLlmParams> {
+    public static FfiConverterTypeHwLlmParams INSTANCE = new FfiConverterTypeHwLlmParams();
+
+    public override HwLlmParams Read(BigEndianStream stream) {
+        return new HwLlmParams(
+            @provider: FfiConverterTypeHwLlmProvider.INSTANCE.Read(stream),
+            @model: FfiConverterString.INSTANCE.Read(stream),
+            @apiKey: FfiConverterString.INSTANCE.Read(stream),
+            @systemPrompt: FfiConverterString.INSTANCE.Read(stream),
+            @systemInfo: FfiConverterString.INSTANCE.Read(stream),
+            @transcript: FfiConverterString.INSTANCE.Read(stream),
+            @customEndpoint: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @baseUrl: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @localLlamaPort: FfiConverterOptionalUInt16.INSTANCE.Read(stream),
+            @licenseKey: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @deviceId: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @llmProviderHeader: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @llmModelHeader: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @stream: FfiConverterBoolean.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwLlmParams value) {
+        return 0
+            + FfiConverterTypeHwLlmProvider.INSTANCE.AllocationSize(value.@provider)
+            + FfiConverterString.INSTANCE.AllocationSize(value.@model)
+            + FfiConverterString.INSTANCE.AllocationSize(value.@apiKey)
+            + FfiConverterString.INSTANCE.AllocationSize(value.@systemPrompt)
+            + FfiConverterString.INSTANCE.AllocationSize(value.@systemInfo)
+            + FfiConverterString.INSTANCE.AllocationSize(value.@transcript)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@customEndpoint)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@baseUrl)
+            + FfiConverterOptionalUInt16.INSTANCE.AllocationSize(value.@localLlamaPort)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@licenseKey)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@deviceId)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@llmProviderHeader)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@llmModelHeader)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@stream);
+    }
+
+    public override void Write(HwLlmParams value, BigEndianStream stream) {
+            FfiConverterTypeHwLlmProvider.INSTANCE.Write(value.@provider, stream);
+            FfiConverterString.INSTANCE.Write(value.@model, stream);
+            FfiConverterString.INSTANCE.Write(value.@apiKey, stream);
+            FfiConverterString.INSTANCE.Write(value.@systemPrompt, stream);
+            FfiConverterString.INSTANCE.Write(value.@systemInfo, stream);
+            FfiConverterString.INSTANCE.Write(value.@transcript, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@customEndpoint, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@baseUrl, stream);
+            FfiConverterOptionalUInt16.INSTANCE.Write(value.@localLlamaPort, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@licenseKey, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@deviceId, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@llmProviderHeader, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@llmModelHeader, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@stream, stream);
     }
 }
 
@@ -6155,6 +6581,128 @@ class FfiConverterTypeHwAppType: FfiConverterRustBuffer<HwAppType> {
 
 
 /// <summary>
+/// The rule that failed. Mirrors `l::EndpointIssue`.
+/// </summary>
+internal enum HwEndpointIssue: int {
+    
+    EmptyUrl,
+    NotAbsolute,
+    UnsupportedScheme,
+    UserInfoNotAllowed,
+    FragmentNotAllowed,
+    UrlTooLong,
+    EmptyModel,
+    ModelTooLong
+}
+
+class FfiConverterTypeHwEndpointIssue: FfiConverterRustBuffer<HwEndpointIssue> {
+    public static FfiConverterTypeHwEndpointIssue INSTANCE = new FfiConverterTypeHwEndpointIssue();
+
+    public override HwEndpointIssue Read(BigEndianStream stream) {
+        var value = stream.ReadInt() - 1;
+        if (Enum.IsDefined(typeof(HwEndpointIssue), value)) {
+            return (HwEndpointIssue)value;
+        } else {
+            throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwEndpointIssue.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(HwEndpointIssue value) {
+        return 4;
+    }
+
+    public override void Write(HwEndpointIssue value, BigEndianStream stream) {
+        stream.WriteInt((int)value + 1);
+    }
+}
+
+
+
+
+
+
+
+/// <summary>
+/// The verdict's headline. Mirrors `l::EndpointStatus`.
+/// </summary>
+internal enum HwEndpointStatus: int {
+    
+    Valid,
+    NeedsRepair,
+    Invalid
+}
+
+class FfiConverterTypeHwEndpointStatus: FfiConverterRustBuffer<HwEndpointStatus> {
+    public static FfiConverterTypeHwEndpointStatus INSTANCE = new FfiConverterTypeHwEndpointStatus();
+
+    public override HwEndpointStatus Read(BigEndianStream stream) {
+        var value = stream.ReadInt() - 1;
+        if (Enum.IsDefined(typeof(HwEndpointStatus), value)) {
+            return (HwEndpointStatus)value;
+        } else {
+            throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwEndpointStatus.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(HwEndpointStatus value) {
+        return 4;
+    }
+
+    public override void Write(HwEndpointStatus value, BigEndianStream stream) {
+        stream.WriteInt((int)value + 1);
+    }
+}
+
+
+
+
+
+
+
+/// <summary>
+/// How strictly to judge a custom endpoint. Mirrors `l::EndpointValidationMode`.
+/// </summary>
+internal enum HwEndpointValidationMode: int {
+    
+    /// <summary>
+    /// A new or edited endpoint — every rule break is fatal.
+    /// </summary>
+    Strict,
+    /// <summary>
+    /// An endpoint already saved (or arriving in a backup) — a rule break
+    /// becomes a repair prompt, not a deletion.
+    /// </summary>
+    Lenient
+}
+
+class FfiConverterTypeHwEndpointValidationMode: FfiConverterRustBuffer<HwEndpointValidationMode> {
+    public static FfiConverterTypeHwEndpointValidationMode INSTANCE = new FfiConverterTypeHwEndpointValidationMode();
+
+    public override HwEndpointValidationMode Read(BigEndianStream stream) {
+        var value = stream.ReadInt() - 1;
+        if (Enum.IsDefined(typeof(HwEndpointValidationMode), value)) {
+            return (HwEndpointValidationMode)value;
+        } else {
+            throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwEndpointValidationMode.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(HwEndpointValidationMode value) {
+        return 4;
+    }
+
+    public override void Write(HwEndpointValidationMode value, BigEndianStream stream) {
+        stream.WriteInt((int)value + 1);
+    }
+}
+
+
+
+
+
+
+
+/// <summary>
 /// English-spelling variant for the `<SPELLING>` / `<DATE_FORMAT>` block.
 /// Mirrors `hw_text::EnglishSpelling`.
 /// </summary>
@@ -6258,6 +6806,224 @@ class FfiConverterTypeHwLicenseStatus: FfiConverterRustBuffer<HwLicenseStatus> {
     }
 
     public override void Write(HwLicenseStatus value, BigEndianStream stream) {
+        stream.WriteInt((int)value + 1);
+    }
+}
+
+
+
+
+
+
+
+/// <summary>
+/// Why a post-processing request could not be built. Mirrors `l::LlmError`.
+/// `Display` is hand-written to match the leaf crate's `thiserror` messages, so
+/// `hw-core` needs no extra dependency.
+/// </summary>
+internal class HwLlmException: UniffiException {
+    HwLlmException() : base() {}
+    HwLlmException(String @Message) : base(@Message) {}
+
+    // Each variant is a nested class
+    
+    
+    public class MissingField : HwLlmException {
+        // Members
+        public string @field;
+
+        // Constructor
+        public MissingField(
+                string @field) : base(
+                "@field" + "=" + @field) {
+
+            this.@field = @field;
+        }
+    }
+    
+    
+    public class InvalidEndpoint : HwLlmException {
+        // Members
+        public string @message;
+
+        // Constructor
+        public InvalidEndpoint(
+                string @message) : base(
+                "@message" + "=" + @message) {
+
+            this.@message = @message;
+        }
+    }
+    
+    public class MissingIdentity : HwLlmException {
+        public MissingIdentity() : base() {}
+    }
+    
+    
+    
+    public class Parse : HwLlmException {
+        // Members
+        public string @message;
+
+        // Constructor
+        public Parse(
+                string @message) : base(
+                "@message" + "=" + @message) {
+
+            this.@message = @message;
+        }
+    }
+    
+
+    
+}
+
+class FfiConverterTypeHwLlmError : FfiConverterRustBuffer<HwLlmException>, CallStatusErrorHandler<HwLlmException> {
+    public static FfiConverterTypeHwLlmError INSTANCE = new FfiConverterTypeHwLlmError();
+
+    public override HwLlmException Read(BigEndianStream stream) {
+        var value = stream.ReadInt();
+        switch (value) {
+            case 1:
+                return new HwLlmException.MissingField(
+                    FfiConverterString.INSTANCE.Read(stream));
+            case 2:
+                return new HwLlmException.InvalidEndpoint(
+                    FfiConverterString.INSTANCE.Read(stream));
+            case 3:
+                return new HwLlmException.MissingIdentity();
+            case 4:
+                return new HwLlmException.Parse(
+                    FfiConverterString.INSTANCE.Read(stream));
+            default:
+                throw new InternalException(String.Format("invalid error value '{0}' in FfiConverterTypeHwLlmError.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(HwLlmException value) {
+        switch (value) {
+
+            case HwLlmException.MissingField variant_value:
+                return 4
+                    + FfiConverterString.INSTANCE.AllocationSize(variant_value.@field);
+
+            case HwLlmException.InvalidEndpoint variant_value:
+                return 4
+                    + FfiConverterString.INSTANCE.AllocationSize(variant_value.@message);
+
+            case HwLlmException.MissingIdentity variant_value:
+                return 4;
+
+            case HwLlmException.Parse variant_value:
+                return 4
+                    + FfiConverterString.INSTANCE.AllocationSize(variant_value.@message);
+            default:
+                throw new InternalException(String.Format("invalid error value '{0}' in FfiConverterTypeHwLlmError.AllocationSize()", value));
+        }
+    }
+
+    public override void Write(HwLlmException value, BigEndianStream stream) {
+        switch (value) {
+            case HwLlmException.MissingField variant_value:
+                stream.WriteInt(1);
+                FfiConverterString.INSTANCE.Write(variant_value.@field, stream);
+                break;
+            case HwLlmException.InvalidEndpoint variant_value:
+                stream.WriteInt(2);
+                FfiConverterString.INSTANCE.Write(variant_value.@message, stream);
+                break;
+            case HwLlmException.MissingIdentity variant_value:
+                stream.WriteInt(3);
+                break;
+            case HwLlmException.Parse variant_value:
+                stream.WriteInt(4);
+                FfiConverterString.INSTANCE.Write(variant_value.@message, stream);
+                break;
+            default:
+                throw new InternalException(String.Format("invalid error value '{0}' in FfiConverterTypeHwLlmError.Write()", value));
+        }
+    }
+}
+
+
+
+
+
+/// <summary>
+/// Every post-processing provider. Mirrors `l::LlmProvider`.
+/// </summary>
+internal enum HwLlmProvider: int {
+    
+    HyperWhisperCloud,
+    OpenAi,
+    Anthropic,
+    Gemini,
+    Groq,
+    Grok,
+    Cerebras,
+    Mistral,
+    LocalLlama,
+    Custom
+}
+
+class FfiConverterTypeHwLlmProvider: FfiConverterRustBuffer<HwLlmProvider> {
+    public static FfiConverterTypeHwLlmProvider INSTANCE = new FfiConverterTypeHwLlmProvider();
+
+    public override HwLlmProvider Read(BigEndianStream stream) {
+        var value = stream.ReadInt() - 1;
+        if (Enum.IsDefined(typeof(HwLlmProvider), value)) {
+            return (HwLlmProvider)value;
+        } else {
+            throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwLlmProvider.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(HwLlmProvider value) {
+        return 4;
+    }
+
+    public override void Write(HwLlmProvider value, BigEndianStream stream) {
+        stream.WriteInt((int)value + 1);
+    }
+}
+
+
+
+
+
+
+
+/// <summary>
+/// Which parser reads a provider's 200 body. Mirrors `l::LlmWireProtocol`.
+///
+/// Deliberately distinct from [`crate::ffi_completion::WireProtocol`], which has
+/// no HyperWhisper Cloud arm: the hosted route answers `{ "corrected": … }` and
+/// must NOT go through the provider-native wrapper contract a second time.
+/// </summary>
+internal enum HwLlmWireProtocol: int {
+    
+    OpenAiChat,
+    AnthropicMessages,
+    HyperWhisperCloud
+}
+
+class FfiConverterTypeHwLlmWireProtocol: FfiConverterRustBuffer<HwLlmWireProtocol> {
+    public static FfiConverterTypeHwLlmWireProtocol INSTANCE = new FfiConverterTypeHwLlmWireProtocol();
+
+    public override HwLlmWireProtocol Read(BigEndianStream stream) {
+        var value = stream.ReadInt() - 1;
+        if (Enum.IsDefined(typeof(HwLlmWireProtocol), value)) {
+            return (HwLlmWireProtocol)value;
+        } else {
+            throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwLlmWireProtocol.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(HwLlmWireProtocol value) {
+        return 4;
+    }
+
+    public override void Write(HwLlmWireProtocol value, BigEndianStream stream) {
         stream.WriteInt((int)value + 1);
     }
 }
@@ -7284,6 +8050,37 @@ class FfiConverterOptionalTypeTrialLimits: FfiConverterRustBuffer<TrialLimits?> 
         } else {
             stream.WriteByte(1);
             FfiConverterTypeTrialLimits.INSTANCE.Write((TrialLimits)value, stream);
+        }
+    }
+}
+
+
+
+
+class FfiConverterOptionalTypeHwEndpointIssue: FfiConverterRustBuffer<HwEndpointIssue?> {
+    public static FfiConverterOptionalTypeHwEndpointIssue INSTANCE = new FfiConverterOptionalTypeHwEndpointIssue();
+
+    public override HwEndpointIssue? Read(BigEndianStream stream) {
+        if (stream.ReadByte() == 0) {
+            return null;
+        }
+        return FfiConverterTypeHwEndpointIssue.INSTANCE.Read(stream);
+    }
+
+    public override int AllocationSize(HwEndpointIssue? value) {
+        if (value == null) {
+            return 1;
+        } else {
+            return 1 + FfiConverterTypeHwEndpointIssue.INSTANCE.AllocationSize((HwEndpointIssue)value);
+        }
+    }
+
+    public override void Write(HwEndpointIssue? value, BigEndianStream stream) {
+        if (value == null) {
+            stream.WriteByte(0);
+        } else {
+            stream.WriteByte(1);
+            FfiConverterTypeHwEndpointIssue.INSTANCE.Write((HwEndpointIssue)value, stream);
         }
     }
 }
@@ -8902,6 +9699,229 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterInt64.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_license_validation_cache_secs( ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The "Hello world" probe the Add/Edit endpoint sheet sends.
+    /// </summary>
+    /// <exception cref="HwLlmException"></exception>
+    public static HttpRequest LlmBuildCustomEndpointTestRequest(string @rawUrl, string @model, string? @apiKey) {
+        return FfiConverterTypeHttpRequest.INSTANCE.Lift(
+    _UniffiHelpers.RustCallWithError(FfiConverterTypeHwLlmError.INSTANCE, (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_llm_build_custom_endpoint_test_request(FfiConverterString.INSTANCE.Lower(@rawUrl), FfiConverterString.INSTANCE.Lower(@model), FfiConverterOptionalString.INSTANCE.Lower(@apiKey), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Build the post-processing request for any provider.
+    ///
+    /// The platform executes it with its own timeout and retry policy, then parses
+    /// the 200 body with the protocol [`llm_wire_protocol_for`] names.
+    /// </summary>
+    /// <exception cref="HwLlmException"></exception>
+    public static HttpRequest LlmBuildRequest(HwLlmParams @params) {
+        return FfiConverterTypeHttpRequest.INSTANCE.Lift(
+    _UniffiHelpers.RustCallWithError(FfiConverterTypeHwLlmError.INSTANCE, (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_llm_build_request(FfiConverterTypeHwLlmParams.INSTANCE.Lower(@params), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Port the embedded llama-server listens on.
+    /// </summary>
+    public static ushort LlmDefaultLocalLlamaPort() {
+        return FfiConverterUInt16.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_llm_default_local_llama_port( ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The URL a request would go to, without building the body. For logging and
+    /// for the health checker.
+    /// </summary>
+    /// <exception cref="HwLlmException"></exception>
+    public static string LlmEndpointFor(HwLlmParams @params) {
+        return FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCallWithError(FfiConverterTypeHwLlmError.INSTANCE, (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_llm_endpoint_for(FfiConverterTypeHwLlmParams.INSTANCE.Lower(@params), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Output-token cap sent to Groq (lower than [`llm_max_output_tokens`] — see the
+    /// leaf crate for why).
+    /// </summary>
+    public static uint LlmGroqMaxCompletionTokens() {
+        return FfiConverterUInt32.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_llm_groq_max_completion_tokens( ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// HyperWhisper Cloud production base URL.
+    /// </summary>
+    public static string LlmHwCloudProdBase() {
+        return FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_llm_hw_cloud_prod_base( ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// HyperWhisper Cloud staging base URL, for DEBUG builds.
+    ///
+    /// The Linux head hardcoded the production host with no DEBUG switch, so every
+    /// dev run billed production credits. Both constants live here now.
+    /// </summary>
+    public static string LlmHwCloudStagingBase() {
+        return FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_llm_hw_cloud_staging_base( ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Whether a Mode's stored provider string names a custom endpoint.
+    /// </summary>
+    public static bool LlmIsCustomProviderString(string @providerString) {
+        return FfiConverterBoolean.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_llm_is_custom_provider_string(FfiConverterString.INSTANCE.Lower(@providerString), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Max custom endpoint model-name length, for a UI character counter.
+    /// </summary>
+    public static uint LlmMaxCustomEndpointModelChars() {
+        return FfiConverterUInt32.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_llm_max_custom_endpoint_model_chars( ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Max custom endpoint URL length, for a UI character counter.
+    /// </summary>
+    public static uint LlmMaxCustomEndpointUrlChars() {
+        return FfiConverterUInt32.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_llm_max_custom_endpoint_url_chars( ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Max output tokens requested from any post-processing LLM.
+    /// </summary>
+    public static uint LlmMaxOutputTokens() {
+        return FfiConverterUInt32.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_llm_max_output_tokens( ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The next name when the user duplicates an endpoint:
+    /// `"Name"` → `"Name (copy)"` → `"Name (copy 2)"`.
+    /// </summary>
+    public static string LlmNextCopyName(string @originalName) {
+        return FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_llm_next_copy_name(FfiConverterString.INSTANCE.Lower(@originalName), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The one custom-endpoint validation rule, replacing the four the platforms
+    /// each had.
+    /// </summary>
+    public static HwEndpointVerdict LlmNormalizeCustomEndpoint(string @raw, string @model, HwEndpointValidationMode @mode) {
+        return FfiConverterTypeHwEndpointVerdict.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_llm_normalize_custom_endpoint(FfiConverterString.INSTANCE.Lower(@raw), FfiConverterString.INSTANCE.Lower(@model), FfiConverterTypeHwEndpointValidationMode.INSTANCE.Lower(@mode), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The UUID inside a Mode's `"custom:<uuid>"` provider string, canonical
+    /// lowercase. `None` when the string is not a custom-endpoint reference.
+    /// </summary>
+    public static string? LlmParseCustomProviderString(string @providerString) {
+        return FfiConverterOptionalString.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_llm_parse_custom_provider_string(FfiConverterString.INSTANCE.Lower(@providerString), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Parse the hosted `/post-process` 200 body (`{ "corrected": "..." }`).
+    ///
+    /// The hosted contract already validates provider termination and strips the
+    /// wrapper markers, so the caller must NOT run the provider-native wrapper
+    /// contract over this a second time.
+    /// </summary>
+    /// <exception cref="HwLlmException"></exception>
+    public static string LlmParseHwCloudPostProcess(HttpResponse @resp) {
+        return FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCallWithError(FfiConverterTypeHwLlmError.INSTANCE, (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_llm_parse_hw_cloud_post_process(FfiConverterTypeHttpResponse.INSTANCE.Lower(@resp), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Validate an endpoint that is already saved, or arriving in a backup.
+    ///
+    /// Lenient: an endpoint that fails the tightened rules comes back as
+    /// [`HwEndpointStatus::NeedsRepair`] with a `suggestion`, and keeps a callable
+    /// `url` wherever calling it is still safe — so tightening validation cannot
+    /// silently delete a user's endpoint or stop their post-processing.
+    /// </summary>
+    public static HwEndpointVerdict LlmValidateExistingCustomEndpoint(string @raw, string @model) {
+        return FfiConverterTypeHwEndpointVerdict.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_llm_validate_existing_custom_endpoint(FfiConverterString.INSTANCE.Lower(@raw), FfiConverterString.INSTANCE.Lower(@model), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Which parser handles this provider's 200 response.
+    /// </summary>
+    public static HwLlmWireProtocol LlmWireProtocolFor(HwLlmProvider @provider) {
+        return FfiConverterTypeHwLlmWireProtocol.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_llm_wire_protocol_for(FfiConverterTypeHwLlmProvider.INSTANCE.Lower(@provider), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The `systemInfo` + `--TRANSCRIPT--` user message, for callers that need the
+    /// string itself (e.g. a native streaming body).
+    /// </summary>
+    public static string LlmWrapTranscript(string @systemInfo, string @transcript) {
+        return FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_llm_wrap_transcript(FfiConverterString.INSTANCE.Lower(@systemInfo), FfiConverterString.INSTANCE.Lower(@transcript), ref _status)
 ));
     }
 
