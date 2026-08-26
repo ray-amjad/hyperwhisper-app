@@ -198,17 +198,7 @@ public class AssemblyAIService : ApiKeyTranscriptionServiceBase
         // future staging/test override is added to this call site, it must NOT
         // reuse this same coreParams value for both builders; build separate
         // params for sync vs async instead.
-        var coreParams = RustCoreMapping.TranscribeParams(
-            audioPath: audioPath,
-            audioMime: contentType,
-            language: language,
-            vocabulary: vocabulary ?? Array.Empty<string>(),
-            // Direct-vendor request: the core cannot attach X-Latency-Opt-Out to
-            // one by construction. Pass the user's real choice anyway so this site
-            // stays correct if it is ever routed.
-            shareAnonymousSpeedData: SettingsService.Instance.ShareAnonymousSpeedData,
-            apiKey: ApiKey,
-            model: ModelId);
+        var coreParams = BuildDirectVendorParams(audioPath, contentType, language, vocabulary);
 
         // STEP 3.5: Try the sync fast path for short clips. Uses the EXACT NAudio
         // duration (not a byte-size estimate) since we have the file on disk.
