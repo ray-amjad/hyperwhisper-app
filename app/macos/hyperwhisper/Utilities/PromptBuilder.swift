@@ -103,7 +103,10 @@ enum PromptBuilder {
             time: Date().formatted(date: .omitted, time: .shortened),
             timezone: TimeZone.current.abbreviation() ?? "Unknown",
             locale: Locale.current.identifier,
-            computerName: Host.current().name ?? "Unknown",
+            // Cached, non-blocking (issue #313). `Host.current().name` used to
+            // live here and cost ~35 s of MainActor time per call inside the
+            // signed app — twice per request. See DeviceName.
+            computerName: DeviceName.current,
             punctuation: mode.punctuation,
             capitalization: mode.capitalization,
             profanityFilter: mode.profanityFilter
