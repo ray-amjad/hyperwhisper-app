@@ -96,7 +96,7 @@ public class MistralService : ApiKeyTranscriptionServiceBase
         LoggingService.Info("========== MISTRAL CLOUD TRANSCRIPTION ==========");
         LoggingService.Info($"  Model: {ModelId}");
         LoggingService.Info($"  Language: {language ?? "auto-detect"}");
-        LoggingService.Info($"  Audio path: {audioPath}");
+        LoggingService.Info($"  Audio file: {LoggingService.DescribePath(audioPath)}");
 
         if (vocabulary?.Count > 0)
         {

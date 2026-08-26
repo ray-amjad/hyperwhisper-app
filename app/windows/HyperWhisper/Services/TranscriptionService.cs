@@ -212,7 +212,7 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
         }
 
         LoggingService.Info("========== INITIALIZING TRANSCRIPTION SERVICE ==========");
-        LoggingService.Info($"  Model Path: {modelPath}");
+        LoggingService.Info($"  Model file: {Path.GetFileName(modelPath)}");
 
         // Serialize against UnloadModel and concurrent InitializeAsync calls.
         // The API server may already be holding the lock via UnloadModel; wait
@@ -236,7 +236,7 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
         // Validate model file exists
         if (!File.Exists(modelPath))
         {
-            LoggingService.Error($"Model file not found: {modelPath}");
+            LoggingService.Error($"Model file not found: {Path.GetFileName(modelPath)}");
             throw new FileNotFoundException("Model file not found", modelPath);
         }
 
@@ -438,7 +438,7 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
 
         LoggingService.Info("========== STARTING FILE TRANSCRIPTION ==========");
         LoggingService.Info($"  Transcription #: {_transcriptionCount}");
-        LoggingService.Info($"  Audio Path: {audioPath}");
+        LoggingService.Info($"  Audio file: {LoggingService.DescribePath(audioPath)}");
         LoggingService.Info($"  Language: {language ?? "auto-detect"}");
         LoggingService.Info($"  Backend: {(IsUsingGpu ? $"GPU ({ActiveGpuName})" : "CPU")}");
         LoggingService.Info($"  Model: {Path.GetFileName(LoadedModelPath)}");
@@ -453,7 +453,7 @@ public class TranscriptionService : ITranscriptionProvider, IDisposable
 
         if (!File.Exists(audioPath))
         {
-            LoggingService.Error($"Audio file not found: {audioPath}");
+            LoggingService.Error($"Audio file not found: {LoggingService.DescribePath(audioPath)}");
             throw new FileNotFoundException("Audio file not found", audioPath);
         }
 

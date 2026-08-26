@@ -371,14 +371,14 @@ public class HyperWhisperCloudService : ITranscriptionProvider, ITranscriptionDi
         LoggingService.Info($"  Model: {(string.IsNullOrEmpty(resolvedModel) ? "(provider default)" : resolvedModel)}");
         LoggingService.Info($"  Domain: {domain ?? "(none)"}");
         LoggingService.Info($"  Vocabulary terms: {vocabulary?.Count ?? 0}");
-        LoggingService.Info($"  Audio path: {audioPath}");
+        LoggingService.Info($"  Audio file: {LoggingService.DescribePath(audioPath)}");
 
         // STEP 1: Validate audio file
         if (!File.Exists(audioPath))
         {
             throw new TranscriptionException(
                 TranscriptionErrorCode.AudioFileNotFound,
-                $"Audio file not found: {audioPath}",
+                $"Audio file not found: {LoggingService.DescribePath(audioPath)}",
                 "HyperWhisper Cloud");
         }
 

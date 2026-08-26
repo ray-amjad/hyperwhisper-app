@@ -57,6 +57,28 @@ public static class LoggingService
     // Thread synchronization lock for file writes
     private static readonly object _writeLock = new();
 
+    /// <summary>
+    /// Describes a file for a log line without naming it.
+    ///
+    /// Recordings, models and user-picked media all live under the user's
+    /// profile, so a full path carries their Windows account name, and a
+    /// user-picked file names their document as well. Neither belongs in a log
+    /// that ships with a support bundle. The extension is what a diagnosis
+    /// actually needs, so that is what this returns.
+    /// </summary>
+    /// <returns><c>"(none)"</c>, <c>"(no extension)"</c>, or e.g. <c>"*.wav"</c>.</returns>
+    public static string DescribePath(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return "(none)";
+
+        // Path.GetExtension does not throw on .NET Core and later: the
+        // invalid-path-character check was removed in 2.1. It only ever reads
+        // back from the last separator, so it cannot fault on a hostile string.
+        var extension = Path.GetExtension(path);
+
+        return string.IsNullOrEmpty(extension) ? "(no extension)" : $"*{extension}";
+    }
+
     // =========================================================================
     // INITIALIZATION
     // =========================================================================

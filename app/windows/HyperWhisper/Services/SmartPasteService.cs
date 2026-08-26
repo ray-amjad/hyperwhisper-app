@@ -683,9 +683,14 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
     /// <returns>True if clipboard copy succeeded.</returns>
     public bool CopyToClipboard(string text)
     {
+        // DIAGNOSTICS: metadata for this attempt, reported at every exit. Holds
+        // counts, flags and durations only — never the transcript.
+        var attempt = NewPasteAttempt(text, autoPasteAttempted: false);
+
         if (string.IsNullOrEmpty(text))
         {
             LoggingService.Warn("SmartPasteService: Empty text, nothing to copy");
+            SmartPasteDiagnostics.Report(PasteOutcome.EmptyText, attempt);
             return false;
         }
 
@@ -693,13 +698,58 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
         {
             SetClipboardText(text);
             LoggingService.Info("SmartPasteService: Text copied to clipboard (auto-paste disabled)");
+            SmartPasteDiagnostics.Report(PasteOutcome.ClipboardOnly, attempt);
             return true;
         }
         catch (Exception ex)
         {
             LoggingService.Error("SmartPasteService: Failed to set clipboard", ex);
+            SmartPasteDiagnostics.Report(PasteOutcome.ClipboardSetFailed, attempt, ex);
             return false;
         }
+    }
+
+    /// <summary>
+    /// Seeds the diagnostics record for one delivery attempt from the target
+    /// captured at recording start.
+    ///
+    /// The window state is read here rather than after the paste: on the failure
+    /// paths the target is exactly what a triager needs, and reading it later
+    /// would describe the desktop after the attempt instead of before it.
+    /// </summary>
+    private PasteAttempt NewPasteAttempt(string text, bool autoPasteAttempted)
+    {
+        var attempt = new PasteAttempt
+        {
+            AutoPasteAttempted = autoPasteAttempted,
+            CharacterCount = text?.Length ?? 0,
+            HadCapturedTarget = _previousForegroundWindow != IntPtr.Zero,
+            HideFromClipboardHistory = SettingsService.Instance.HideFromClipboardHistory
+        };
+
+        if (attempt.HadCapturedTarget)
+        {
+            attempt.TargetWindowAlive = IsWindow(_previousForegroundWindow);
+            attempt.TargetWindowMinimized = attempt.TargetWindowAlive && IsIconic(_previousForegroundWindow);
+        }
+
+        return attempt;
+    }
+
+    /// <summary>
+    /// Classifies the paste target for diagnostics. This is the axis the paste
+    /// path already branches on (Chromium skips text-field detection), so it is
+    /// the axis a failure has to be faceted by.
+    /// </summary>
+    private static string ClassifyPasteTarget(string processName, bool isBrowser, bool isElectron)
+    {
+        // "unknown" means the lookup ran and failed, which is a real finding.
+        // It is NOT the same as SmartPasteDiagnostics.NotEvaluated, which means
+        // the flow exited before this step.
+        if (string.IsNullOrEmpty(processName)) return "unknown";
+        if (isBrowser) return "browser";
+        if (isElectron) return "electron";
+        return "native";
     }
 
     /// <summary>
@@ -710,9 +760,15 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
     /// <returns>SmartPasteResult indicating what happened</returns>
     public SmartPasteResult SmartPaste(string text)
     {
+        // DIAGNOSTICS: metadata for this attempt, reported at every exit so the
+        // last step of the record → transcribe → paste flow is visible in
+        // production. Holds counts, flags and durations only — never the text.
+        var attempt = NewPasteAttempt(text, autoPasteAttempted: true);
+
         if (string.IsNullOrEmpty(text))
         {
             LoggingService.Warn("SmartPasteService: Empty text, nothing to paste");
+            SmartPasteDiagnostics.Report(PasteOutcome.EmptyText, attempt);
             return SmartPasteResult.Failed;
         }
 
@@ -727,6 +783,7 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
         catch (Exception ex)
         {
             LoggingService.Error("SmartPasteService: Failed to set clipboard", ex);
+            SmartPasteDiagnostics.Report(PasteOutcome.ClipboardSetFailed, attempt, ex);
             return SmartPasteResult.Failed;
         }
 
@@ -734,6 +791,7 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
         if (_previousForegroundWindow == IntPtr.Zero)
         {
             LoggingService.Warn("SmartPasteService: No previous window captured, text is in clipboard only");
+            SmartPasteDiagnostics.Report(PasteOutcome.NoTargetWindow, attempt);
             return SmartPasteResult.CopiedToClipboard;
         }
 
@@ -742,15 +800,21 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
         bool isElectron = !string.IsNullOrEmpty(processName) && ElectronProcessNames.Contains(processName);
         bool isChromium = isBrowser || isElectron;
 
+        attempt.TargetProcessName = string.IsNullOrEmpty(processName) ? null : processName;
+        attempt.TargetAppKind = ClassifyPasteTarget(processName, isBrowser, isElectron);
+
         LoggingService.Debug($"SmartPasteService: Process='{processName}', isChromium={isChromium}");
 
         // Step 3: Restore focus to the target window + child control
-        RestoreFocus(isChromium);
+        var focus = RestoreFocus(isChromium);
+        attempt.FocusReady = focus.Ready;
+        attempt.FocusWaitMs = focus.WaitedMs;
 
         var (_, isFocusedPassword) = DetectFocusedField();
         if (isFocusedPassword)
         {
             LoggingService.Info("SmartPasteService: Password field detected - skipping paste, text in clipboard");
+            SmartPasteDiagnostics.Report(PasteOutcome.SecureFieldSkipped, attempt);
             return SmartPasteResult.SecureFieldSkipped;
         }
 
@@ -764,6 +828,7 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
             if (isPassword)
             {
                 LoggingService.Info("SmartPasteService: Password field detected — skipping paste, text in clipboard");
+                SmartPasteDiagnostics.Report(PasteOutcome.SecureFieldSkipped, attempt);
                 return SmartPasteResult.SecureFieldSkipped;
             }
 
@@ -781,11 +846,13 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
                 VirtualKeyCode.VK_V);
 
             LoggingService.Info("SmartPasteService: Sent Ctrl+V to paste text");
+            SmartPasteDiagnostics.Report(PasteOutcome.Pasted, attempt);
             return SmartPasteResult.Pasted;
         }
         catch (Exception ex)
         {
             LoggingService.Error("SmartPasteService: Failed to simulate Ctrl+V", ex);
+            SmartPasteDiagnostics.Report(PasteOutcome.KeystrokeFailed, attempt, ex);
             return SmartPasteResult.Failed;
         }
     }
@@ -802,7 +869,11 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
     /// This method uses AttachThreadInput + SetFocus to restore the focused child control,
     /// then polls for readiness instead of using a fixed sleep.
     /// </summary>
-    private void RestoreFocus(bool isChromium)
+    /// <returns>
+    /// How the focus poll ended, for diagnostics only. A timed-out poll is the
+    /// signal that a paste landed in an app that was not ready for it.
+    /// </returns>
+    private FocusWaitResult RestoreFocus(bool isChromium)
     {
         var currentForeground = GetForegroundWindow();
         bool alreadyForeground = currentForeground == _previousForegroundWindow;
@@ -869,14 +940,17 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
         }
 
         // Wait for focus to be ready instead of a fixed sleep
-        WaitForFocusReady(isChromium);
+        return WaitForFocusReady(isChromium);
     }
+
+    /// <summary>Outcome of one focus poll. Diagnostics only — nothing branches on it.</summary>
+    private readonly record struct FocusWaitResult(bool Ready, int WaitedMs);
 
     /// <summary>
     /// Polls until the target window is foreground and has keyboard focus,
     /// or until the timeout is reached. Replaces fixed Thread.Sleep delays.
     /// </summary>
-    private void WaitForFocusReady(bool isChromium)
+    private FocusWaitResult WaitForFocusReady(bool isChromium)
     {
         // Max wait: 300ms for Chromium, 150ms for native apps
         int maxWaitMs = isChromium ? 300 : 150;
@@ -895,14 +969,14 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
                     if (GetGUIThreadInfo(_previousThreadId, ref info) && info.hwndFocus != IntPtr.Zero)
                     {
                         LoggingService.Debug($"SmartPasteService: Focus ready after {waited}ms (focus={info.hwndFocus})");
-                        return;
+                        return new FocusWaitResult(Ready: true, WaitedMs: waited);
                     }
                 }
                 else
                 {
                     // No thread ID captured — foreground match is good enough
                     LoggingService.Debug($"SmartPasteService: Foreground match after {waited}ms (no thread info)");
-                    return;
+                    return new FocusWaitResult(Ready: true, WaitedMs: waited);
                 }
             }
 
@@ -911,6 +985,7 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
         }
 
         LoggingService.Debug($"SmartPasteService: Focus wait timed out after {maxWaitMs}ms, proceeding with paste");
+        return new FocusWaitResult(Ready: false, WaitedMs: waited);
     }
 
     // =========================================================================

@@ -63,7 +63,7 @@ public class SonioxService : ApiKeyTranscriptionServiceBase
         LoggingService.Info($"  Model: {ModelId}");
         LoggingService.Info($"  Language: {language ?? "auto-detect"}");
         LoggingService.Info($"  Vocabulary terms: {vocabulary?.Count ?? 0}");
-        LoggingService.Info($"  Audio path: {audioPath}");
+        LoggingService.Info($"  Audio file: {LoggingService.DescribePath(audioPath)}");
 
         // Validate configuration and audio file (shared gate).
         var maxFileSize = CloudTranscriptionProvider.Soniox.GetMaxFileSizeBytes();

@@ -168,9 +168,16 @@ public static class SentryService
                         foreach (var kvp in sentryEvent.Extra)
                         {
                             var keyLower = kvp.Key.ToLowerInvariant();
+                            // "path" is here as a backstop, not as the fix. Recordings,
+                            // models and user-picked media all live under the user's
+                            // profile, so any full path carries their Windows account
+                            // name. A call site must still send a description of the
+                            // file rather than the file (LoggingService.DescribePath);
+                            // this only stops the next one that forgets.
                             if (keyLower.Contains("transcript") ||
                                 keyLower.Contains("text") ||
-                                keyLower.Contains("prompt"))
+                                keyLower.Contains("prompt") ||
+                                keyLower.Contains("path"))
                             {
                                 sanitizedExtras[kvp.Key] = "[redacted]";
                             }

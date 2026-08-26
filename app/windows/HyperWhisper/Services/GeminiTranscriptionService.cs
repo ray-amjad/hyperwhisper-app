@@ -121,7 +121,7 @@ public class GeminiTranscriptionService : ApiKeyTranscriptionServiceBase
         LoggingService.Info("========== GEMINI CLOUD TRANSCRIPTION ==========");
         LoggingService.Info($"  Model: {ModelId}");
         LoggingService.Info($"  Language: {language ?? "auto-detect"}");
-        LoggingService.Info($"  Audio path: {audioPath}");
+        LoggingService.Info($"  Audio file: {LoggingService.DescribePath(audioPath)}");
         LoggingService.Info($"  Custom prompt: {(_customPrompt != null ? "yes" : "no")}");
 
         // Validate configuration and audio file (shared gate). Gemini does not

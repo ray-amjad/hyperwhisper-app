@@ -95,7 +95,11 @@ public static class TranscriptionDiagnosticsService
         var extras = new Dictionary<string, object>
         {
             ["transcript_id"] = transcriptId.ToString(),
-            ["audio_path"] = audioPath,
+            // audio_path is NOT reported. The recordings directory sits under the
+            // user's profile, so the full path carries their Windows account name
+            // (and, on the file-transcription path, the document name too). Every
+            // question the path was there to answer is answered by the extension,
+            // the existence flag and the size below.
             ["audio_file_exists"] = File.Exists(audioPath),
             ["audio_file_extension"] = Path.GetExtension(audioPath),
             ["audio_file_size_bytes"] = audioDiagnostics.FileSizeBytes,
@@ -217,9 +221,19 @@ public static class TranscriptionDiagnosticsService
                 AnalysisSucceeded: false,
                 DurationSeconds: fallbackDurationSeconds ?? 0,
                 FileSizeBytes: fileSizeBytes,
-                AnalysisError: ex.Message);
+                AnalysisError: DescribeAnalysisError(ex));
         }
     }
+
+    /// <summary>
+    /// The error identity, without the error text. This value is reported to
+    /// Sentry as <c>audio_analysis_error</c>, and an IO or NAudio message
+    /// routinely embeds the full path it failed on — which carries the user's
+    /// Windows account name. The type and the HRESULT say which fault it was
+    /// without saying whose file it was.
+    /// </summary>
+    private static string DescribeAnalysisError(Exception ex)
+        => $"{ex.GetType().Name} (0x{ex.HResult:X8})";
 
     private static double ToDbfs(double linear)
     {
