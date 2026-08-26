@@ -135,7 +135,7 @@ public class AudioRecorderService : IDisposable
 
         _stopwatch.Stop();
         IsRecording = false;
-        LoggingService.Info($"AudioRecorderService: StopRecording (duration={_stopwatch.Elapsed.TotalSeconds:F2}s, path={_tempFilePath})");
+        LoggingService.Info($"AudioRecorderService: StopRecording (duration={_stopwatch.Elapsed.TotalSeconds:F2}s, file={LoggingService.DescribePath(_tempFilePath)})");
 
         try
         {

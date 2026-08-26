@@ -100,7 +100,7 @@ public class DeepgramService : ApiKeyTranscriptionServiceBase
         LoggingService.Info($"  Model: {ModelId}");
         LoggingService.Info($"  Language: {language ?? "auto-detect"}");
         LoggingService.Info($"  Vocabulary terms: {vocabulary?.Count ?? 0}");
-        LoggingService.Info($"  Audio path: {audioPath}");
+        LoggingService.Info($"  Audio file: {LoggingService.DescribePath(audioPath)}");
 
         // STEP 1+2: Validate configuration and audio file (shared gate). Deepgram
         // has no explicit file size limit, so no cap is passed.

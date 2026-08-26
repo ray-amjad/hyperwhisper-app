@@ -554,7 +554,7 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
         // Guard: validate audio file exists
         if (!File.Exists(audioPath))
         {
-            LoggingService.Error($"ParakeetTranscriptionService: Audio file not found: {audioPath}");
+            LoggingService.Error($"ParakeetTranscriptionService: Audio file not found: {LoggingService.DescribePath(audioPath)}");
             throw new TranscriptionException(
                 TranscriptionErrorCode.AudioFileNotFound,
                 $"Audio file not found: {audioPath}",
@@ -675,7 +675,7 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
 
             var stopwatch = Stopwatch.StartNew();
             LoggingService.Info("========== STARTING PARAKEET TRANSCRIPTION ==========");
-            LoggingService.Info($"  Audio Path: {audioPath}");
+            LoggingService.Info($"  Audio file: {LoggingService.DescribePath(audioPath)}");
             LoggingService.Info($"  Provider: {_activeProvider ?? "unknown"}");
             LoggingService.Info($"  Model: {_loadedModelId ?? "unknown"}");
 

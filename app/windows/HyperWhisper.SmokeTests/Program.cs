@@ -173,6 +173,67 @@ internal static class Program
                     "SmartPasteService does not implement the portable contract");
             });
 
+            Run("Every paste outcome has a slug, and the reportable set is the failure set", () =>
+            {
+                var slugs = new HashSet<string>(StringComparer.Ordinal);
+
+                foreach (PasteOutcome outcome in Enum.GetValues<PasteOutcome>())
+                {
+                    // Throws if an outcome was added without a slug arm, which is
+                    // the failure this test exists to catch: an unslugged outcome
+                    // would otherwise report under another outcome's identity.
+                    var slug = SmartPasteDiagnostics.Slug(outcome);
+
+                    Assert(!string.IsNullOrWhiteSpace(slug), $"{outcome} has an empty slug");
+                    Assert(slugs.Add(slug), $"slug '{slug}' is used by more than one outcome");
+                    Assert(
+                        slug == slug.ToLowerInvariant(),
+                        $"slug '{slug}' is not a stable lower-case slug");
+                }
+
+                // A delivered transcript and a deliberate refusal must never open a
+                // Sentry issue: the first is not a fault, and the second is normal
+                // and frequent enough to flood the issue stream.
+                Assert(!SmartPasteDiagnostics.IsReportable(PasteOutcome.Pasted), "success is reported as a failure");
+                Assert(!SmartPasteDiagnostics.IsReportable(PasteOutcome.ClipboardOnly), "clipboard-only is reported as a failure");
+                Assert(!SmartPasteDiagnostics.IsReportable(PasteOutcome.SecureFieldSkipped), "secure-field refusal is reported as a failure");
+
+                // Every way the transcript fails to arrive must be reportable.
+                Assert(SmartPasteDiagnostics.IsReportable(PasteOutcome.EmptyText), "empty text is not reported");
+                Assert(SmartPasteDiagnostics.IsReportable(PasteOutcome.ClipboardSetFailed), "clipboard failure is not reported");
+                Assert(SmartPasteDiagnostics.IsReportable(PasteOutcome.NoTargetWindow), "missing target window is not reported");
+                Assert(SmartPasteDiagnostics.IsReportable(PasteOutcome.KeystrokeFailed), "keystroke failure is not reported");
+
+                // Only an app defect is an error; a broken desktop is a warning.
+                Assert(SmartPasteDiagnostics.IsDefect(PasteOutcome.KeystrokeFailed), "keystroke failure is not a defect");
+                Assert(!SmartPasteDiagnostics.IsDefect(PasteOutcome.NoTargetWindow), "missing target window is graded as a defect");
+
+                // The flood guard: streaming pastes once per final segment, so a
+                // broken target must not send one Sentry event per sentence.
+                // A slug no outcome uses, so claiming it cannot mask a real report.
+                const string probe = "smoke_test_probe_outcome";
+                Assert(SmartPasteDiagnostics.MarkReportedThisRun(probe), "first report of a slug was suppressed");
+                Assert(!SmartPasteDiagnostics.MarkReportedThisRun(probe), "second report of a slug was not suppressed");
+            });
+
+            Run("Log path description names the extension and never the file", () =>
+            {
+                Assert(LoggingService.DescribePath(null) == "(none)", "null path was not described");
+                Assert(LoggingService.DescribePath("   ") == "(none)", "blank path was not described");
+                Assert(
+                    LoggingService.DescribePath(@"C:\Users\someone\Documents\HyperWhisper\a.wav") == "*.wav",
+                    "recording path did not reduce to its extension");
+                Assert(
+                    LoggingService.DescribePath(@"C:\Users\someone\Documents\quarterly-review") == "(no extension)",
+                    "extensionless path was not described");
+
+                // The point of the helper: nothing that can name the user or their
+                // document survives into the log line.
+                var described = LoggingService.DescribePath(@"C:\Users\someone\Documents\quarterly-review.m4a");
+                Assert(!described.Contains("someone", StringComparison.OrdinalIgnoreCase), "path description leaked the user name");
+                Assert(!described.Contains("quarterly", StringComparison.OrdinalIgnoreCase), "path description leaked the file name");
+            });
+
             Run("Windows lifecycle seams implement contracts and isolate activation handlers", () =>
             {
                 Assert(

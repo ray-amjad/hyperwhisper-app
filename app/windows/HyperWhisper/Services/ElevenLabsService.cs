@@ -110,7 +110,7 @@ public class ElevenLabsService : ApiKeyTranscriptionServiceBase
         LoggingService.Info("========== ELEVENLABS CLOUD TRANSCRIPTION ==========");
         LoggingService.Info($"  Model: {ModelId}");
         LoggingService.Info($"  Language: {language ?? "auto-detect"}");
-        LoggingService.Info($"  Audio path: {audioPath}");
+        LoggingService.Info($"  Audio file: {LoggingService.DescribePath(audioPath)}");
 
         // Handle vocabulary based on model
         if (vocabulary?.Count > 0)

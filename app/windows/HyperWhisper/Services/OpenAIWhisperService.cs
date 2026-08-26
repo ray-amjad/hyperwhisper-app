@@ -96,7 +96,7 @@ public class OpenAIWhisperService : ApiKeyTranscriptionServiceBase
         LoggingService.Info($"  Model: {ModelId}");
         LoggingService.Info($"  Language: {language ?? "auto-detect"}");
         LoggingService.Info($"  Vocabulary terms: {vocabulary?.Count ?? 0}");
-        LoggingService.Info($"  Audio path: {audioPath}");
+        LoggingService.Info($"  Audio file: {LoggingService.DescribePath(audioPath)}");
 
         // STEP 1+2: Validate configuration and audio file (shared gate).
         TranscriptionPreflight.Validate("OpenAI", ApiKey, audioPath, MaxFileSizeBytes, "25 MB");
