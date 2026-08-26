@@ -183,19 +183,23 @@ export default function ModelPicker({ measured, regions }: Props) {
     if (regionPickedByUser.current) return;
     const controller = new AbortController();
 
-    fetch(`/api/geo/nearest-region?regions=${encodeURIComponent(regionsKey)}`, {
-      signal: controller.signal,
-    })
-      .then((response) => (response.ok ? response.json() : null))
-      .then((result) => {
+    async function detectRegion() {
+      try {
+        const response = await fetch(
+          `/api/geo/nearest-region?regions=${encodeURIComponent(regionsKey)}`,
+          { signal: controller.signal },
+        );
+        const result = response.ok ? await response.json() : null;
         // A hand-picked region always wins, even if the answer lands later.
         if (regionPickedByUser.current || !result?.region) return;
         setRegion(result.region);
         setDetectedCity(result.city ?? regionCity(result.region));
-      })
-      .catch(() => {
+      } catch {
         // A missing default is not worth an error message.
-      });
+      }
+    }
+
+    void detectRegion();
 
     return () => controller.abort();
   }, [regionsKey]);

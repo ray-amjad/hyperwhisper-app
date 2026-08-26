@@ -107,19 +107,23 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
     if (regionPickedByUser.current) return;
     const controller = new AbortController();
 
-    fetch(`/api/geo/nearest-region?regions=${encodeURIComponent(regionsKey)}`, {
-      signal: controller.signal,
-    })
-      .then((response) => (response.ok ? response.json() : null))
-      .then((result) => {
+    async function detectHomeRegion() {
+      try {
+        const response = await fetch(
+          `/api/geo/nearest-region?regions=${encodeURIComponent(regionsKey)}`,
+          { signal: controller.signal },
+        );
+        const result = response.ok ? await response.json() : null;
         // The answer can land after a hand-pick; the visitor still wins.
         if (regionPickedByUser.current || !result?.region) return;
         setHomeRegion(result.region);
         setHomeCity(result.city ?? regionCity(result.region));
-      })
-      .catch(() => {
+      } catch {
         // A missing highlight is not worth an error message.
-      });
+      }
+    }
+
+    void detectHomeRegion();
 
     return () => controller.abort();
   }, [regionsKey]);
