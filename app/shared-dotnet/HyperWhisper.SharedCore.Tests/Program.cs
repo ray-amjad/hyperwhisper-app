@@ -143,6 +143,90 @@ var tests = new (string Name, Func<Task> Run)[]
         return Task.CompletedTask;
     }),
     ("live protocol vocabulary keeps its own length drop and cap", TestLiveVocabularyAsync),
+    ("live terminal-error policy comes from the shared core", () =>
+    {
+        // The policy this head never had (issue #281). The macOS suite
+        // `StreamingProviderErrorPolicyTests` is the full conformance proof;
+        // these are the cases that decide whether THIS head retries.
+        Assert.Equal(
+            PortableLiveErrorOutcome.Terminal,
+            SharedCoreBridge.ClassifyLiveErrorMessage("Credit balance exhausted"));
+        Assert.Equal(
+            PortableLiveErrorOutcome.Terminal,
+            SharedCoreBridge.ClassifyLiveErrorMessage("You exceeded your current quota, check billing."));
+        // A rate limit clears on its own; a request id that merely contains
+        // "401" is not an auth failure. Both must keep their reconnect.
+        Assert.Equal(
+            PortableLiveErrorOutcome.Transient,
+            SharedCoreBridge.ClassifyLiveErrorMessage("Rate limit reached for requests. Try again in 20s."));
+        Assert.Equal(
+            PortableLiveErrorOutcome.Transient,
+            SharedCoreBridge.ClassifyLiveErrorMessage("Stream interrupted (request_id: req_4013f2c8)."));
+        Assert.Equal(
+            PortableLiveErrorOutcome.Transient,
+            SharedCoreBridge.ClassifyLiveErrorMessage(string.Empty));
+
+        Assert.Equal(PortableLiveUpgradeRefusal.InsufficientCredits, SharedCoreBridge.LiveUpgradeRefusal(402));
+        Assert.Equal(PortableLiveUpgradeRefusal.Unauthorized, SharedCoreBridge.LiveUpgradeRefusal(401));
+        Assert.Equal(PortableLiveUpgradeRefusal.Unauthorized, SharedCoreBridge.LiveUpgradeRefusal(403));
+        foreach (var status in new[] { 101, 0, 200, 400, 429, 500, 503, -1, 70000 })
+        {
+            Assert.True(SharedCoreBridge.LiveUpgradeRefusal(status) is null, $"HTTP {status} must keep its retry");
+        }
+
+        foreach (var code in new[] { 1002, 1003, 1007, 1008, 1009, 1011 })
+        {
+            Assert.True(SharedCoreBridge.IsTerminalLiveCloseCode(code), $"close {code} must be terminal");
+        }
+        foreach (var code in new[] { 1000, 1001, 1006, 1012, 1013, 4001, -1, 70000 })
+        {
+            Assert.True(!SharedCoreBridge.IsTerminalLiveCloseCode(code), $"close {code} must keep its retry");
+        }
+        return Task.CompletedTask;
+    }),
+    ("live capabilities and language normalization come from the shared core", () =>
+    {
+        Assert.Equal(24000, SharedCoreBridge.LiveRequiredSampleRate(LiveTranscriptionProvider.OpenAi));
+        Assert.Equal(24000, LiveCloudTranscriptionService.GetRequiredSampleRate(LiveTranscriptionProvider.OpenAi));
+        foreach (var provider in new[]
+                 {
+                     LiveTranscriptionProvider.Deepgram,
+                     LiveTranscriptionProvider.ElevenLabs,
+                     LiveTranscriptionProvider.Grok,
+                     LiveTranscriptionProvider.HyperWhisperCloud,
+                 })
+        {
+            Assert.Equal(16000, SharedCoreBridge.LiveRequiredSampleRate(provider));
+            Assert.Equal(16000, LiveCloudTranscriptionService.GetRequiredSampleRate(provider));
+        }
+        // The two local engines are not WebSocket protocols; the service keeps
+        // its own literal for them and the core has no arm at all.
+        Assert.Equal(16000, LiveCloudTranscriptionService.GetRequiredSampleRate(LiveTranscriptionProvider.ParakeetLocal));
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => SharedCoreBridge.LiveRequiredSampleRate(LiveTranscriptionProvider.ParakeetLocal));
+
+        Assert.True(SharedCoreBridge.LiveSupportsVocabulary(LiveTranscriptionProvider.Deepgram));
+        Assert.True(SharedCoreBridge.LiveSupportsVocabulary(LiveTranscriptionProvider.Grok));
+        Assert.True(SharedCoreBridge.LiveSupportsVocabulary(LiveTranscriptionProvider.HyperWhisperCloud));
+        Assert.True(!SharedCoreBridge.LiveSupportsVocabulary(LiveTranscriptionProvider.ElevenLabs));
+        Assert.True(!SharedCoreBridge.LiveSupportsVocabulary(LiveTranscriptionProvider.OpenAi));
+
+        Assert.Equal("Deepgram (Streaming)", SharedCoreBridge.LiveProviderLabel(LiveTranscriptionProvider.Deepgram));
+        Assert.Equal("ElevenLabs (Streaming)", SharedCoreBridge.LiveProviderLabel(LiveTranscriptionProvider.ElevenLabs));
+        Assert.Equal("OpenAI (Streaming)", SharedCoreBridge.LiveProviderLabel(LiveTranscriptionProvider.OpenAi));
+        Assert.Equal("xAI (Streaming)", SharedCoreBridge.LiveProviderLabel(LiveTranscriptionProvider.Grok));
+        Assert.Equal(
+            "HyperWhisper Cloud (Streaming)",
+            SharedCoreBridge.LiveProviderLabel(LiveTranscriptionProvider.HyperWhisperCloud));
+
+        Assert.True(SharedCoreBridge.NormalizeLiveLanguage(null) is null);
+        Assert.True(SharedCoreBridge.NormalizeLiveLanguage("  ") is null);
+        Assert.True(SharedCoreBridge.NormalizeLiveLanguage("AUTO") is null);
+        Assert.Equal("en", SharedCoreBridge.NormalizeLiveLanguage(" EN-US "));
+        Assert.Equal("zh", SharedCoreBridge.NormalizeLiveLanguage("zh-Hans"));
+        return Task.CompletedTask;
+    }),
+    ("a terminal provider error frame is marked terminal, a transient one is not", TestLiveTerminalErrorFrameAsync),
 };
 
 var failures = 0;
@@ -688,6 +772,53 @@ static async IAsyncEnumerable<ReadOnlyMemory<byte>> BlockingAudio(
     yield break;
 }
 
+static async Task TestLiveTerminalErrorFrameAsync()
+{
+    // THE flagship case: the DEFAULT provider's credit-exhaustion frame. Before
+    // issue #281 the wording was thrown away at parse time, so this reached the
+    // caller as a bare ProviderUnavailable and LiveStreamingSessionController
+    // retried it twice more into the same exhausted balance.
+    var exhausted = await RunLiveErrorFrameAsync(
+        LiveTranscriptionProvider.HyperWhisperCloud,
+        "{\"type\":\"error\",\"message\":\"Credit balance exhausted\"}");
+    Assert.Equal(LiveTranscriptionFailureCode.ProviderUnavailable, exhausted.Code);
+    Assert.True(exhausted.IsTerminal);
+
+    // The expensive direction: a service-side blip must keep its reconnect.
+    var busy = await RunLiveErrorFrameAsync(
+        LiveTranscriptionProvider.HyperWhisperCloud,
+        "{\"type\":\"error\",\"message\":\"Transcription service busy, audio dropped\"}");
+    Assert.Equal(LiveTranscriptionFailureCode.ProviderUnavailable, busy.Code);
+    Assert.False(busy.IsTerminal);
+
+    // OpenAI Realtime nests the wording under `error.message` instead.
+    var quota = await RunLiveErrorFrameAsync(
+        LiveTranscriptionProvider.OpenAi,
+        "{\"type\":\"error\",\"error\":{\"message\":\"You exceeded your current quota.\"}}");
+    Assert.True(quota.IsTerminal);
+
+    // An error frame with no wording at all stays transient — unknown must
+    // never mean "stop retrying".
+    var wordless = await RunLiveErrorFrameAsync(
+        LiveTranscriptionProvider.OpenAi,
+        "{\"type\":\"error\"}");
+    Assert.False(wordless.IsTerminal);
+}
+
+static async Task<LiveTranscriptionFailure> RunLiveErrorFrameAsync(
+    LiveTranscriptionProvider provider,
+    string errorFrame)
+{
+    var socket = new FakeStreamingWebSocket([TextFrame(errorFrame), CloseFrame()]);
+    var config = provider == LiveTranscriptionProvider.HyperWhisperCloud
+        ? new LiveTranscriptionConfig(provider, LicenseKey: "hw-secret")
+        : new LiveTranscriptionConfig(provider, ApiKey: "provider-secret");
+    var result = await new LiveCloudTranscriptionService(new FakeWebSocketFactory(socket))
+        .TranscribeAsync(config, Audio(320));
+    Assert.NotNull(result.Failure);
+    return result.Failure!;
+}
+
 static StreamingWebSocketFrame TextFrame(string value) =>
     new(Encoding.UTF8.GetBytes(value), System.Net.WebSockets.WebSocketMessageType.Text);
 
@@ -883,6 +1014,11 @@ static class Assert
         if (!value) throw new InvalidOperationException("Expected true.");
     }
 
+    public static void True(bool value, string message)
+    {
+        if (!value) throw new InvalidOperationException(message);
+    }
+
     public static void False(bool value) => True(!value);
 
     public static void Equal<T>(T expected, T actual)
@@ -894,6 +1030,20 @@ static class Assert
     public static void NotNull(object? value)
     {
         if (value is null) throw new InvalidOperationException("Expected non-null value.");
+    }
+
+    public static void Throws<TException>(Action action)
+        where TException : Exception
+    {
+        try
+        {
+            action();
+        }
+        catch (TException)
+        {
+            return;
+        }
+        throw new InvalidOperationException($"Expected {typeof(TException).Name}.");
     }
 
     public static void DoesNotContain(string value, string actual)

@@ -6,6 +6,7 @@
 pub mod contract;
 pub mod helpers;
 pub mod health;
+pub mod live;
 pub mod providers;
 pub mod retry;
 

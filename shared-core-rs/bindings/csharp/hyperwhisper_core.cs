@@ -1100,6 +1100,20 @@ static class _UniFFILib {
     
     
     
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
 
     static _UniFFILib() {
         _UniFFILib.uniffiCheckContractApiVersion();
@@ -1566,6 +1580,34 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern long uniffi_hyperwhisper_core_fn_func_license_validation_cache_secs(ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_live_classify_error_message(RustBuffer @message,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern sbyte uniffi_hyperwhisper_core_fn_func_live_is_terminal_close_code(ushort @code,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_live_normalize_language(RustBuffer @code,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_live_provider_label(RustBuffer @provider,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern uint uniffi_hyperwhisper_core_fn_func_live_required_sample_rate(RustBuffer @provider,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern sbyte uniffi_hyperwhisper_core_fn_func_live_supports_vocabulary(RustBuffer @provider,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_live_upgrade_refusal(ushort @status,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -2454,6 +2496,34 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_license_validation_cache_secs(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_live_classify_error_message(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_live_is_terminal_close_code(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_live_normalize_language(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_live_provider_label(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_live_required_sample_rate(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_live_supports_vocabulary(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_live_upgrade_refusal(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -3362,6 +3432,48 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_license_validation_cache_secs();
             if (checksum != 34885) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_license_validation_cache_secs` checksum `34885`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_live_classify_error_message();
+            if (checksum != 33535) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_live_classify_error_message` checksum `33535`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_live_is_terminal_close_code();
+            if (checksum != 62063) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_live_is_terminal_close_code` checksum `62063`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_live_normalize_language();
+            if (checksum != 59840) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_live_normalize_language` checksum `59840`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_live_provider_label();
+            if (checksum != 55784) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_live_provider_label` checksum `55784`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_live_required_sample_rate();
+            if (checksum != 26616) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_live_required_sample_rate` checksum `26616`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_live_supports_vocabulary();
+            if (checksum != 20813) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_live_supports_vocabulary` checksum `20813`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_live_upgrade_refusal();
+            if (checksum != 28164) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_live_upgrade_refusal` checksum `28164`, library returned `{checksum}`");
             }
         }
         {
@@ -6817,6 +6929,136 @@ class FfiConverterTypeHwLicenseStatus: FfiConverterRustBuffer<HwLicenseStatus> {
 
 
 /// <summary>
+/// What a provider error frame means for the reconnect path. Mirrors
+/// `lv::LiveErrorOutcome`.
+/// </summary>
+internal enum HwLiveErrorOutcome: int {
+    
+    /// <summary>
+    /// Reconnecting cannot help. Mark the provider's follow-up close as
+    /// expected and surface the message as it stands.
+    /// </summary>
+    Terminal,
+    /// <summary>
+    /// May clear on its own; leave the reconnect path alone.
+    /// </summary>
+    Transient
+}
+
+class FfiConverterTypeHwLiveErrorOutcome: FfiConverterRustBuffer<HwLiveErrorOutcome> {
+    public static FfiConverterTypeHwLiveErrorOutcome INSTANCE = new FfiConverterTypeHwLiveErrorOutcome();
+
+    public override HwLiveErrorOutcome Read(BigEndianStream stream) {
+        var value = stream.ReadInt() - 1;
+        if (Enum.IsDefined(typeof(HwLiveErrorOutcome), value)) {
+            return (HwLiveErrorOutcome)value;
+        } else {
+            throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwLiveErrorOutcome.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(HwLiveErrorOutcome value) {
+        return 4;
+    }
+
+    public override void Write(HwLiveErrorOutcome value, BigEndianStream stream) {
+        stream.WriteInt((int)value + 1);
+    }
+}
+
+
+
+
+
+
+
+/// <summary>
+/// The five websocket transcription providers. Mirrors `lv::LiveProvider`.
+///
+/// Local engines (Parakeet, Nemotron) are deliberately absent — they are not
+/// websocket protocols. Windows spells this vendor set with `Xai` where this
+/// enum says `Grok`; the head maps across at its boundary.
+/// </summary>
+internal enum HwLiveProvider: int {
+    
+    Deepgram,
+    ElevenLabs,
+    OpenAi,
+    Grok,
+    HyperWhisperCloud
+}
+
+class FfiConverterTypeHwLiveProvider: FfiConverterRustBuffer<HwLiveProvider> {
+    public static FfiConverterTypeHwLiveProvider INSTANCE = new FfiConverterTypeHwLiveProvider();
+
+    public override HwLiveProvider Read(BigEndianStream stream) {
+        var value = stream.ReadInt() - 1;
+        if (Enum.IsDefined(typeof(HwLiveProvider), value)) {
+            return (HwLiveProvider)value;
+        } else {
+            throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwLiveProvider.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(HwLiveProvider value) {
+        return 4;
+    }
+
+    public override void Write(HwLiveProvider value, BigEndianStream stream) {
+        stream.WriteInt((int)value + 1);
+    }
+}
+
+
+
+
+
+
+
+/// <summary>
+/// Why a server refused the websocket upgrade. Mirrors
+/// `lv::LiveUpgradeRefusal`.
+/// </summary>
+internal enum HwLiveUpgradeRefusal: int {
+    
+    /// <summary>
+    /// HTTP 402 — no balance to open a session with.
+    /// </summary>
+    InsufficientCredits,
+    /// <summary>
+    /// HTTP 401 / 403 — the key is missing, wrong, revoked or not permitted.
+    /// </summary>
+    Unauthorized
+}
+
+class FfiConverterTypeHwLiveUpgradeRefusal: FfiConverterRustBuffer<HwLiveUpgradeRefusal> {
+    public static FfiConverterTypeHwLiveUpgradeRefusal INSTANCE = new FfiConverterTypeHwLiveUpgradeRefusal();
+
+    public override HwLiveUpgradeRefusal Read(BigEndianStream stream) {
+        var value = stream.ReadInt() - 1;
+        if (Enum.IsDefined(typeof(HwLiveUpgradeRefusal), value)) {
+            return (HwLiveUpgradeRefusal)value;
+        } else {
+            throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwLiveUpgradeRefusal.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(HwLiveUpgradeRefusal value) {
+        return 4;
+    }
+
+    public override void Write(HwLiveUpgradeRefusal value, BigEndianStream stream) {
+        stream.WriteInt((int)value + 1);
+    }
+}
+
+
+
+
+
+
+
+/// <summary>
 /// Why a post-processing request could not be built. Mirrors `l::LlmError`.
 /// `Display` is hand-written to match the leaf crate's `thiserror` messages, so
 /// `hw-core` needs no extra dependency.
@@ -8112,6 +8354,37 @@ class FfiConverterOptionalTypeHwLicenseStatus: FfiConverterRustBuffer<HwLicenseS
         } else {
             stream.WriteByte(1);
             FfiConverterTypeHwLicenseStatus.INSTANCE.Write((HwLicenseStatus)value, stream);
+        }
+    }
+}
+
+
+
+
+class FfiConverterOptionalTypeHwLiveUpgradeRefusal: FfiConverterRustBuffer<HwLiveUpgradeRefusal?> {
+    public static FfiConverterOptionalTypeHwLiveUpgradeRefusal INSTANCE = new FfiConverterOptionalTypeHwLiveUpgradeRefusal();
+
+    public override HwLiveUpgradeRefusal? Read(BigEndianStream stream) {
+        if (stream.ReadByte() == 0) {
+            return null;
+        }
+        return FfiConverterTypeHwLiveUpgradeRefusal.INSTANCE.Read(stream);
+    }
+
+    public override int AllocationSize(HwLiveUpgradeRefusal? value) {
+        if (value == null) {
+            return 1;
+        } else {
+            return 1 + FfiConverterTypeHwLiveUpgradeRefusal.INSTANCE.AllocationSize((HwLiveUpgradeRefusal)value);
+        }
+    }
+
+    public override void Write(HwLiveUpgradeRefusal? value, BigEndianStream stream) {
+        if (value == null) {
+            stream.WriteByte(0);
+        } else {
+            stream.WriteByte(1);
+            FfiConverterTypeHwLiveUpgradeRefusal.INSTANCE.Write((HwLiveUpgradeRefusal)value, stream);
         }
     }
 }
@@ -9699,6 +9972,103 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterInt64.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_license_validation_cache_secs( ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Classify a provider error frame's `message` payload.
+    ///
+    /// See `hw_net::live::classify_error_message` for the twenty markers, the
+    /// deliberate rate-limit/quota asymmetry and why no bare `"401"` is matched.
+    /// Unrecognised wording — including an empty message — is
+    /// [`HwLiveErrorOutcome::Transient`], so a payload nobody has seen yet keeps its
+    /// reconnect.
+    /// </summary>
+    public static HwLiveErrorOutcome LiveClassifyErrorMessage(string @message) {
+        return FfiConverterTypeHwLiveErrorOutcome.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_live_classify_error_message(FfiConverterString.INSTANCE.Lower(@message), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Whether a websocket close code is one of the RFC-6455 non-recoverable set
+    /// (1002, 1003, 1007, 1008, 1009, 1011).
+    ///
+    /// A provider that signals an unrecoverable session with a private close code
+    /// combines it *with* this answer rather than replacing it.
+    /// </summary>
+    public static bool LiveIsTerminalCloseCode(ushort @code) {
+        return FfiConverterBoolean.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_live_is_terminal_close_code(FfiConverterUInt16.INSTANCE.Lower(@code), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Normalize a language selection to the primary subtag a provider wants.
+    ///
+    /// `None` means "omit the language parameter entirely" and covers no selection,
+    /// a blank string and the app's `"auto"` sentinel alike.
+    /// </summary>
+    public static string? LiveNormalizeLanguage(string? @code) {
+        return FfiConverterOptionalString.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_live_normalize_language(FfiConverterOptionalString.INSTANCE.Lower(@code), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The human-readable provider label stored on a history entry. The
+    /// " (Streaming)" suffix is what distinguishes a live session from the same
+    /// vendor's batch transcription.
+    /// </summary>
+    public static string LiveProviderLabel(HwLiveProvider @provider) {
+        return FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_live_provider_label(FfiConverterTypeHwLiveProvider.INSTANCE.Lower(@provider), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The PCM sample rate, in hertz, the provider's socket expects. The capture
+    /// graph is configured from this before a session opens.
+    /// </summary>
+    public static uint LiveRequiredSampleRate(HwLiveProvider @provider) {
+        return FfiConverterUInt32.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_live_required_sample_rate(FfiConverterTypeHwLiveProvider.INSTANCE.Lower(@provider), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Whether the provider's live API takes a custom-vocabulary parameter at all.
+    /// `false` means the terms are dropped before the socket opens.
+    /// </summary>
+    public static bool LiveSupportsVocabulary(HwLiveProvider @provider) {
+        return FfiConverterBoolean.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_live_supports_vocabulary(FfiConverterTypeHwLiveProvider.INSTANCE.Lower(@provider), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Classify the HTTP status of a websocket upgrade that never reached 101.
+    ///
+    /// `None` means the ordinary reconnect path still applies — 429, 5xx and a
+    /// proxy mangling the upgrade all keep it.
+    /// </summary>
+    public static HwLiveUpgradeRefusal? LiveUpgradeRefusal(ushort @status) {
+        return FfiConverterOptionalTypeHwLiveUpgradeRefusal.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_live_upgrade_refusal(FfiConverterUInt16.INSTANCE.Lower(@status), ref _status)
 ));
     }
 

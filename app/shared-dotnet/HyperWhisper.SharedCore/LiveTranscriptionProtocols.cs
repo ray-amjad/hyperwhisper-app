@@ -107,6 +107,41 @@ internal static class LiveTranscriptionProtocolFactory
         element.TryGetProperty(name, out var value) && value.ValueKind is JsonValueKind.True or JsonValueKind.False
             ? value.GetBoolean()
             : null;
+
+    /// <summary>
+    /// The human wording out of a provider's error frame, whichever of the three
+    /// shapes it uses: <c>{"message":…}</c> (HyperWhisper Cloud, xAI),
+    /// <c>{"error":{"message":…}}</c> (OpenAI Realtime) or a bare
+    /// <c>{"error":"…"}</c> string.
+    ///
+    /// Until issue #281 every one of these frames was reduced to a bare failure
+    /// code and the message was thrown away, which left
+    /// <see cref="SharedCoreBridge.ClassifyLiveErrorMessage"/> nothing to read:
+    /// a terminal "Credit balance exhausted" from the DEFAULT provider looked
+    /// identical to a transient outage and drove a reconnect that could only
+    /// fail the same way. The message stays inside this assembly — it reaches
+    /// the classifier and nothing else; diagnostics still carry no provider
+    /// payload.
+    /// </summary>
+    internal static string ErrorMessage(JsonElement root)
+    {
+        if (String(root, "message") is { Length: > 0 } direct)
+        {
+            return direct;
+        }
+        if (root.TryGetProperty("error", out var error))
+        {
+            if (error.ValueKind == JsonValueKind.String)
+            {
+                return error.GetString() ?? string.Empty;
+            }
+            if (error.ValueKind == JsonValueKind.Object && String(error, "message") is { Length: > 0 } nested)
+            {
+                return nested;
+            }
+        }
+        return string.Empty;
+    }
 }
 
 internal sealed class DeepgramLiveProtocol : ILiveTranscriptionProtocol
@@ -345,7 +380,10 @@ internal sealed class OpenAiLiveProtocol : ILiveTranscriptionProtocol
         }
         if (type == "error")
         {
-            return new(LiveProtocolEventKind.Error, ErrorCode: LiveTranscriptionFailureCode.ProviderUnavailable);
+            return new(
+                LiveProtocolEventKind.Error,
+                LiveTranscriptionProtocolFactory.ErrorMessage(root),
+                LiveTranscriptionFailureCode.ProviderUnavailable);
         }
         var item = LiveTranscriptionProtocolFactory.String(root, "item_id") ?? string.Empty;
         if (type == "conversation.item.input_audio_transcription.delta")
@@ -425,7 +463,13 @@ internal sealed class GrokLiveProtocol : ILiveTranscriptionProtocol
         var type = LiveTranscriptionProtocolFactory.String(root, "type");
         var text = LiveTranscriptionProtocolFactory.String(root, "text");
         if (type == "transcript.created") return new(LiveProtocolEventKind.Started);
-        if (type == "error") return new(LiveProtocolEventKind.Error, ErrorCode: LiveTranscriptionFailureCode.ProviderUnavailable);
+        if (type == "error")
+        {
+            return new(
+                LiveProtocolEventKind.Error,
+                LiveTranscriptionProtocolFactory.ErrorMessage(root),
+                LiveTranscriptionFailureCode.ProviderUnavailable);
+        }
         if (type == "transcript.done")
         {
             var delta = Delta(text);
@@ -520,7 +564,10 @@ internal sealed class HyperWhisperCloudLiveProtocol : ILiveTranscriptionProtocol
             "transcript" when !string.IsNullOrWhiteSpace(text) && LiveTranscriptionProtocolFactory.Boolean(root, "is_final") == true => new(LiveProtocolEventKind.Final, text),
             "transcript" when !string.IsNullOrWhiteSpace(text) => new(LiveProtocolEventKind.Partial, text),
             "session_complete" => new(LiveProtocolEventKind.Complete),
-            "error" => new(LiveProtocolEventKind.Error, ErrorCode: LiveTranscriptionFailureCode.ProviderUnavailable),
+            "error" => new(
+                LiveProtocolEventKind.Error,
+                LiveTranscriptionProtocolFactory.ErrorMessage(root),
+                LiveTranscriptionFailureCode.ProviderUnavailable),
             _ => new(LiveProtocolEventKind.Ignore),
         };
     }

@@ -5612,6 +5612,247 @@ extension HwLicenseStatus: Equatable, Hashable {}
 
 
 
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * What a provider error frame means for the reconnect path. Mirrors
+ * `lv::LiveErrorOutcome`.
+ */
+
+public enum HwLiveErrorOutcome {
+    
+    /**
+     * Reconnecting cannot help. Mark the provider's follow-up close as
+     * expected and surface the message as it stands.
+     */
+    case terminal
+    /**
+     * May clear on its own; leave the reconnect path alone.
+     */
+    case transient
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwLiveErrorOutcome: FfiConverterRustBuffer {
+    typealias SwiftType = HwLiveErrorOutcome
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwLiveErrorOutcome {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .terminal
+        
+        case 2: return .transient
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: HwLiveErrorOutcome, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .terminal:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .transient:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLiveErrorOutcome_lift(_ buf: RustBuffer) throws -> HwLiveErrorOutcome {
+    return try FfiConverterTypeHwLiveErrorOutcome.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLiveErrorOutcome_lower(_ value: HwLiveErrorOutcome) -> RustBuffer {
+    return FfiConverterTypeHwLiveErrorOutcome.lower(value)
+}
+
+
+
+extension HwLiveErrorOutcome: Equatable, Hashable {}
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * The five websocket transcription providers. Mirrors `lv::LiveProvider`.
+ *
+ * Local engines (Parakeet, Nemotron) are deliberately absent — they are not
+ * websocket protocols. Windows spells this vendor set with `Xai` where this
+ * enum says `Grok`; the head maps across at its boundary.
+ */
+
+public enum HwLiveProvider {
+    
+    case deepgram
+    case elevenLabs
+    case openAi
+    case grok
+    case hyperWhisperCloud
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwLiveProvider: FfiConverterRustBuffer {
+    typealias SwiftType = HwLiveProvider
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwLiveProvider {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .deepgram
+        
+        case 2: return .elevenLabs
+        
+        case 3: return .openAi
+        
+        case 4: return .grok
+        
+        case 5: return .hyperWhisperCloud
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: HwLiveProvider, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .deepgram:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .elevenLabs:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .openAi:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .grok:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .hyperWhisperCloud:
+            writeInt(&buf, Int32(5))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLiveProvider_lift(_ buf: RustBuffer) throws -> HwLiveProvider {
+    return try FfiConverterTypeHwLiveProvider.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLiveProvider_lower(_ value: HwLiveProvider) -> RustBuffer {
+    return FfiConverterTypeHwLiveProvider.lower(value)
+}
+
+
+
+extension HwLiveProvider: Equatable, Hashable {}
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * Why a server refused the websocket upgrade. Mirrors
+ * `lv::LiveUpgradeRefusal`.
+ */
+
+public enum HwLiveUpgradeRefusal {
+    
+    /**
+     * HTTP 402 — no balance to open a session with.
+     */
+    case insufficientCredits
+    /**
+     * HTTP 401 / 403 — the key is missing, wrong, revoked or not permitted.
+     */
+    case unauthorized
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwLiveUpgradeRefusal: FfiConverterRustBuffer {
+    typealias SwiftType = HwLiveUpgradeRefusal
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwLiveUpgradeRefusal {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .insufficientCredits
+        
+        case 2: return .unauthorized
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: HwLiveUpgradeRefusal, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .insufficientCredits:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .unauthorized:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLiveUpgradeRefusal_lift(_ buf: RustBuffer) throws -> HwLiveUpgradeRefusal {
+    return try FfiConverterTypeHwLiveUpgradeRefusal.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLiveUpgradeRefusal_lower(_ value: HwLiveUpgradeRefusal) -> RustBuffer {
+    return FfiConverterTypeHwLiveUpgradeRefusal.lower(value)
+}
+
+
+
+extension HwLiveUpgradeRefusal: Equatable, Hashable {}
+
+
+
 
 /**
  * Why a post-processing request could not be built. Mirrors `l::LlmError`.
@@ -7030,6 +7271,30 @@ fileprivate struct FfiConverterOptionTypeHwLicenseStatus: FfiConverterRustBuffer
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeHwLiveUpgradeRefusal: FfiConverterRustBuffer {
+    typealias SwiftType = HwLiveUpgradeRefusal?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeHwLiveUpgradeRefusal.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeHwLiveUpgradeRefusal.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionSequenceString: FfiConverterRustBuffer {
     typealias SwiftType = [String]?
 
@@ -8321,6 +8586,96 @@ public func licenseValidationCacheSecs() -> Int64 {
 })
 }
 /**
+ * Classify a provider error frame's `message` payload.
+ *
+ * See `hw_net::live::classify_error_message` for the twenty markers, the
+ * deliberate rate-limit/quota asymmetry and why no bare `"401"` is matched.
+ * Unrecognised wording — including an empty message — is
+ * [`HwLiveErrorOutcome::Transient`], so a payload nobody has seen yet keeps its
+ * reconnect.
+ */
+public func liveClassifyErrorMessage(message: String) -> HwLiveErrorOutcome {
+    return try!  FfiConverterTypeHwLiveErrorOutcome.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_live_classify_error_message(
+        FfiConverterString.lower(message),$0
+    )
+})
+}
+/**
+ * Whether a websocket close code is one of the RFC-6455 non-recoverable set
+ * (1002, 1003, 1007, 1008, 1009, 1011).
+ *
+ * A provider that signals an unrecoverable session with a private close code
+ * combines it *with* this answer rather than replacing it.
+ */
+public func liveIsTerminalCloseCode(code: UInt16) -> Bool {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_live_is_terminal_close_code(
+        FfiConverterUInt16.lower(code),$0
+    )
+})
+}
+/**
+ * Normalize a language selection to the primary subtag a provider wants.
+ *
+ * `None` means "omit the language parameter entirely" and covers no selection,
+ * a blank string and the app's `"auto"` sentinel alike.
+ */
+public func liveNormalizeLanguage(code: String?) -> String? {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_live_normalize_language(
+        FfiConverterOptionString.lower(code),$0
+    )
+})
+}
+/**
+ * The human-readable provider label stored on a history entry. The
+ * " (Streaming)" suffix is what distinguishes a live session from the same
+ * vendor's batch transcription.
+ */
+public func liveProviderLabel(provider: HwLiveProvider) -> String {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_live_provider_label(
+        FfiConverterTypeHwLiveProvider.lower(provider),$0
+    )
+})
+}
+/**
+ * The PCM sample rate, in hertz, the provider's socket expects. The capture
+ * graph is configured from this before a session opens.
+ */
+public func liveRequiredSampleRate(provider: HwLiveProvider) -> UInt32 {
+    return try!  FfiConverterUInt32.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_live_required_sample_rate(
+        FfiConverterTypeHwLiveProvider.lower(provider),$0
+    )
+})
+}
+/**
+ * Whether the provider's live API takes a custom-vocabulary parameter at all.
+ * `false` means the terms are dropped before the socket opens.
+ */
+public func liveSupportsVocabulary(provider: HwLiveProvider) -> Bool {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_live_supports_vocabulary(
+        FfiConverterTypeHwLiveProvider.lower(provider),$0
+    )
+})
+}
+/**
+ * Classify the HTTP status of a websocket upgrade that never reached 101.
+ *
+ * `None` means the ordinary reconnect path still applies — 429, 5xx and a
+ * proxy mangling the upgrade all keep it.
+ */
+public func liveUpgradeRefusal(status: UInt16) -> HwLiveUpgradeRefusal? {
+    return try!  FfiConverterOptionTypeHwLiveUpgradeRefusal.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_live_upgrade_refusal(
+        FfiConverterUInt16.lower(status),$0
+    )
+})
+}
+/**
  * The "Hello world" probe the Add/Edit endpoint sheet sends.
  */
 public func llmBuildCustomEndpointTestRequest(rawUrl: String, model: String, apiKey: String?)throws  -> HttpRequest {
@@ -9251,6 +9606,27 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_license_validation_cache_secs() != 34885) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_live_classify_error_message() != 33535) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_live_is_terminal_close_code() != 62063) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_live_normalize_language() != 59840) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_live_provider_label() != 55784) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_live_required_sample_rate() != 26616) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_live_supports_vocabulary() != 20813) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_live_upgrade_refusal() != 28164) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_llm_build_custom_endpoint_test_request() != 5659) {

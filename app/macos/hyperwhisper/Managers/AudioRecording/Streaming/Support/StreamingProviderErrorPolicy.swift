@@ -61,6 +61,15 @@ import Foundation
 ///   brand unrelated blips terminal and silently stop retrying them. Only word
 ///   forms are matched; `requestIdThatContainsFourZeroOneStaysTransient` pins
 ///   that down.
+///
+/// - Note: Since #281 this type is a thin facade. The twenty markers, the
+///   matching rule and the status table live in `hw_net::live::policy` and are
+///   reached through `liveClassifyErrorMessage` / `liveUpgradeRefusal`, so
+///   Windows and Linux — which never had this policy — get the same answers
+///   from the same source. The rationale above is duplicated in the Rust doc
+///   comments; change both together. `StreamingProviderErrorPolicyTests` is
+///   unchanged on purpose: it is now the conformance proof that the port is
+///   behaviour-identical.
 enum StreamingProviderErrorPolicy {
 
     /// The outcome of classifying a provider error message.
@@ -73,44 +82,10 @@ enum StreamingProviderErrorPolicy {
         case transient
     }
 
-    /// Lowercased substrings that mean the session cannot be rescued by
-    /// reconnecting with the same credentials.
-    ///
-    /// Word forms only, and each one names a state the *user* has to change
-    /// (top up, fix the key, enable the account). Nothing here matches on
-    /// digits — see the note on the type. Both the underscore and the spaced
-    /// spelling are listed where providers are known to use both.
-    private static let terminalMarkers: [String] = [
-        // The flagship case: HyperWhisper Cloud — the default provider — sends
-        // exactly `{"type":"error","message":"Credit balance exhausted"}` when a
-        // session outruns the account's balance. Without this marker the default
-        // path still produced the whole MH → MG → RW fan-out this policy exists
-        // to stop. `StreamingProviderErrorPolicyTests` feeds the literal strings
-        // this codebase's own providers emit, so a reworded frame fails there
-        // rather than in production.
-        "credit balance exhausted",
-        "no credits remaining",
-        "insufficient credits",
-        "insufficient_quota",
-        "insufficient quota",
-        "exceeded your current quota",
-        "quota exceeded",
-        "invalid api key",
-        "incorrect api key",
-        "invalid_api_key",
-        "api key not valid",
-        "unauthorized",
-        "authentication_error",
-        "authentication failed",
-        "forbidden",
-        "permission_denied",
-        "permission denied",
-        "billing",
-        "payment required",
-        "account is not active"
-    ]
-
     /// Classifies a provider error message.
+    ///
+    /// The twenty markers and the lowercased-substring rule live in
+    /// `hw_net::live::policy::classify_error_message`.
     ///
     /// - Parameter message: The `message` payload of a
     ///   `StreamingProviderEvent.error`, exactly as the strategy produced it.
@@ -120,9 +95,12 @@ enum StreamingProviderErrorPolicy {
     ///   on purpose, so a payload nobody has seen yet keeps today's behaviour
     ///   instead of quietly losing its reconnect.
     static func outcome(forProviderMessage message: String) -> Outcome {
-        let normalized = message.lowercased()
-        let isTerminal = terminalMarkers.contains { normalized.contains($0) }
-        return isTerminal ? .terminal : .transient
+        switch liveClassifyErrorMessage(message: message) {
+        case .terminal:
+            return .terminal
+        case .transient:
+            return .transient
+        }
     }
 
     // MARK: - Refused upgrades
@@ -169,17 +147,21 @@ enum StreamingProviderErrorPolicy {
     /// therefore the safe default, not a gap.
     ///
     /// - Parameter status: The HTTP status of the response that came back
-    ///   instead of a `101 Switching Protocols`.
+    ///   instead of a `101 Switching Protocols`. Stays `Int` because that is
+    ///   what `URLSessionWebSocketTask.response` hands over; the core takes a
+    ///   `UInt16`, so anything outside its range cannot be an HTTP status and
+    ///   takes the same "no refusal" answer every other unrecognised status
+    ///   gets.
     /// - Returns: The refusal when the user has to act, `nil` when the ordinary
     ///   reconnect path still applies.
     static func upgradeRefusal(forStatus status: Int) -> UpgradeRefusal? {
-        switch status {
-        case 402:
+        guard let code = UInt16(exactly: status),
+              let refusal = liveUpgradeRefusal(status: code) else { return nil }
+        switch refusal {
+        case .insufficientCredits:
             return .insufficientCredits
-        case 401, 403:
+        case .unauthorized:
             return .unauthorized
-        default:
-            return nil
         }
     }
 }

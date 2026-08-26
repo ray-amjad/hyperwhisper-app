@@ -53,6 +53,36 @@ public enum PortableCursorContext
 }
 
 /// <summary>
+/// What a live streaming provider's error frame means for the reconnect path.
+/// Mirrors the core's <c>HwLiveErrorOutcome</c> (issue #281).
+/// </summary>
+public enum PortableLiveErrorOutcome
+{
+    /// <summary>
+    /// Reconnecting cannot help — the account, key, quota or permission is the
+    /// problem. Mark the provider's follow-up close as expected and surface the
+    /// message as it stands.
+    /// </summary>
+    Terminal,
+
+    /// <summary>The failure may clear on its own; keep the reconnect path.</summary>
+    Transient,
+}
+
+/// <summary>
+/// Why a server refused a WebSocket upgrade outright, when the refusal is one
+/// the user has to act on. Mirrors the core's <c>HwLiveUpgradeRefusal</c>.
+/// </summary>
+public enum PortableLiveUpgradeRefusal
+{
+    /// <summary>HTTP 402 — no balance to open a session with.</summary>
+    InsufficientCredits,
+
+    /// <summary>HTTP 401 / 403 — the key is missing, wrong, revoked or not permitted.</summary>
+    Unauthorized,
+}
+
+/// <summary>
 /// Stable public surface over the generated UniFFI binding. Platform projects
 /// consume this assembly instead of compiling private copies of the binding.
 /// </summary>
@@ -229,6 +259,115 @@ public static class SharedCoreBridge
     public static bool CloudSttContainsModel(string tierId, string modelId) =>
         HyperwhisperCoreMethods.CloudSttModels(tierId)
             .Any(model => string.Equals(model.id, modelId, StringComparison.Ordinal));
+
+    // -----------------------------------------------------------------------
+    // Live streaming (issue #281)
+    //
+    // Seven session-free functions the core owns for all three heads. The
+    // terminal-error policy behind the first two shipped on macOS only, so
+    // Windows and Linux gain it here: a mid-session "Credit balance exhausted"
+    // from the default provider stops driving a reconnect that can only fail
+    // the same way.
+    // -----------------------------------------------------------------------
+
+    /// <summary>
+    /// Classifies the message payload of a streaming provider's error frame.
+    /// Unrecognised wording — including an empty message — is
+    /// <see cref="PortableLiveErrorOutcome.Transient"/>, so a payload nobody has
+    /// seen yet keeps today's reconnect behaviour.
+    /// </summary>
+    public static PortableLiveErrorOutcome ClassifyLiveErrorMessage(string message)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+        return HyperwhisperCoreMethods.LiveClassifyErrorMessage(message) switch
+        {
+            HwLiveErrorOutcome.Terminal => PortableLiveErrorOutcome.Terminal,
+            _ => PortableLiveErrorOutcome.Transient,
+        };
+    }
+
+    /// <summary>
+    /// Classifies the HTTP status of a WebSocket upgrade that never reached
+    /// 101. <c>null</c> means the ordinary reconnect path still applies — 429,
+    /// 5xx and a proxy mangling the upgrade all keep it.
+    /// </summary>
+    /// <param name="status">
+    /// The status carried by the response that came back instead of a
+    /// <c>101 Switching Protocols</c>. Takes an <see cref="int"/> because that
+    /// is what the .NET WebSocket stacks hand over; a value outside
+    /// <see cref="ushort"/> cannot be an HTTP status and takes the same "no
+    /// refusal" answer every other unrecognised status gets.
+    /// </param>
+    public static PortableLiveUpgradeRefusal? LiveUpgradeRefusal(int status)
+    {
+        if (status is < ushort.MinValue or > ushort.MaxValue)
+        {
+            return null;
+        }
+
+        return HyperwhisperCoreMethods.LiveUpgradeRefusal((ushort)status) switch
+        {
+            HwLiveUpgradeRefusal.InsufficientCredits => PortableLiveUpgradeRefusal.InsufficientCredits,
+            HwLiveUpgradeRefusal.Unauthorized => PortableLiveUpgradeRefusal.Unauthorized,
+            _ => null,
+        };
+    }
+
+    /// <summary>
+    /// Whether a WebSocket close code is one of the RFC 6455 §7.4.1
+    /// non-recoverable codes (1002, 1003, 1007, 1008, 1009, 1011). A provider
+    /// that signals an unrecoverable session with a private close code combines
+    /// it with this answer rather than replacing it.
+    /// </summary>
+    public static bool IsTerminalLiveCloseCode(int closeCode) =>
+        closeCode is >= ushort.MinValue and <= ushort.MaxValue
+        && HyperwhisperCoreMethods.LiveIsTerminalCloseCode((ushort)closeCode);
+
+    /// <summary>
+    /// Normalizes a language selection to the primary subtag a provider wants.
+    /// <c>null</c> means "omit the language parameter entirely" and covers no
+    /// selection, a blank string and the app's <c>"auto"</c> sentinel alike.
+    /// </summary>
+    public static string? NormalizeLiveLanguage(string? code) =>
+        HyperwhisperCoreMethods.LiveNormalizeLanguage(code);
+
+    /// <summary>
+    /// The PCM sample rate, in hertz, the provider's socket expects. The
+    /// capture graph is configured from this before a session opens.
+    /// </summary>
+    public static int LiveRequiredSampleRate(LiveTranscriptionProvider provider) =>
+        (int)HyperwhisperCoreMethods.LiveRequiredSampleRate(CoreLiveProvider(provider));
+
+    /// <summary>
+    /// Whether the provider's live API takes a custom-vocabulary parameter at
+    /// all. <c>false</c> means the terms are dropped before the socket opens.
+    /// </summary>
+    public static bool LiveSupportsVocabulary(LiveTranscriptionProvider provider) =>
+        HyperwhisperCoreMethods.LiveSupportsVocabulary(CoreLiveProvider(provider));
+
+    /// <summary>
+    /// The human-readable provider label stored on a history entry. The
+    /// " (Streaming)" suffix is what distinguishes a live session from the same
+    /// vendor's batch transcription.
+    /// </summary>
+    public static string LiveProviderLabel(LiveTranscriptionProvider provider) =>
+        HyperwhisperCoreMethods.LiveProviderLabel(CoreLiveProvider(provider));
+
+    /// <summary>
+    /// Maps the .NET live-provider enum onto the core's. The two local engines
+    /// have no arm on purpose: Parakeet and Nemotron are not WebSocket
+    /// protocols and share none of this, which is the same line
+    /// <c>LiveTranscriptionProtocolFactory.Create</c> draws.
+    /// </summary>
+    private static HwLiveProvider CoreLiveProvider(LiveTranscriptionProvider provider) => provider switch
+    {
+        LiveTranscriptionProvider.Deepgram => HwLiveProvider.Deepgram,
+        LiveTranscriptionProvider.ElevenLabs => HwLiveProvider.ElevenLabs,
+        LiveTranscriptionProvider.OpenAi => HwLiveProvider.OpenAi,
+        LiveTranscriptionProvider.Grok => HwLiveProvider.Grok,
+        LiveTranscriptionProvider.HyperWhisperCloud => HwLiveProvider.HyperWhisperCloud,
+        _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, "not a WebSocket streaming provider"),
+    };
 
     private static Preset PresetFromRaw(string? value) => value?.Trim().ToLowerInvariant() switch
     {

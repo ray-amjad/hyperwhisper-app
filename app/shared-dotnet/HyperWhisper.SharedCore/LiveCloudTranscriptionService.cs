@@ -32,15 +32,21 @@ public sealed class LiveCloudTranscriptionService
         _diagnostics = diagnostics;
     }
 
+    /// <summary>
+    /// The PCM sample rate the capture graph must produce for this provider.
+    /// The five WebSocket providers answer from the shared core (issue #281);
+    /// the two local engines keep their literal here, because they are not
+    /// WebSocket protocols and the core deliberately has no arm for them.
+    /// </summary>
     public static int GetRequiredSampleRate(LiveTranscriptionProvider provider) => provider switch
     {
-        LiveTranscriptionProvider.OpenAi => 24000,
-        LiveTranscriptionProvider.Deepgram
+        LiveTranscriptionProvider.ParakeetLocal
+            or LiveTranscriptionProvider.NemotronLocal => 16000,
+        LiveTranscriptionProvider.OpenAi
+            or LiveTranscriptionProvider.Deepgram
             or LiveTranscriptionProvider.ElevenLabs
             or LiveTranscriptionProvider.Grok
-            or LiveTranscriptionProvider.HyperWhisperCloud
-            or LiveTranscriptionProvider.ParakeetLocal
-            or LiveTranscriptionProvider.NemotronLocal => 16000,
+            or LiveTranscriptionProvider.HyperWhisperCloud => SharedCoreBridge.LiveRequiredSampleRate(provider),
         _ => throw new ArgumentOutOfRangeException(nameof(provider)),
     };
 
@@ -280,10 +286,16 @@ public sealed class LiveCloudTranscriptionService
                 AppendFinal(value.Text, state);
                 break;
             case LiveProtocolEventKind.Error:
+                // The provider's own wording never reaches the caller — the
+                // message below stays fixed and diagnostics stay payload-free.
+                // It is read once, here, only to decide whether a reconnect
+                // could ever succeed (issue #281).
                 state.Failure = new LiveTranscriptionFailure(
                     value.ErrorCode,
                     "The streaming provider rejected the session.",
-                    state.Provider);
+                    state.Provider,
+                    IsTerminal: SharedCoreBridge.ClassifyLiveErrorMessage(value.Text ?? string.Empty)
+                        == PortableLiveErrorOutcome.Terminal);
                 break;
             case LiveProtocolEventKind.Started:
                 Observe(state, "started");
@@ -356,7 +368,11 @@ public sealed class LiveCloudTranscriptionService
         string message) =>
         new(null, new LiveTranscriptionFailure(code, message, state.Provider), state.AudioChunksSent, state.MessagesReceived);
 
-    private static bool IsTerminalClose(int value) => value is 1002 or 1003 or 1007 or 1008 or 1009 or 1011;
+    /// <summary>
+    /// The RFC 6455 §7.4.1 non-recoverable close codes, from the shared core
+    /// (issue #281) so this head, Windows and macOS cannot drift on the set.
+    /// </summary>
+    private static bool IsTerminalClose(int value) => SharedCoreBridge.IsTerminalLiveCloseCode(value);
 
     private sealed class SessionState(LiveTranscriptionProvider provider)
     {
