@@ -10,6 +10,7 @@
 // - Tracks test status to show users if the endpoint is working
 
 using System;
+using HyperWhisper.SharedCore;
 
 namespace HyperWhisper.Models;
 
@@ -118,25 +119,28 @@ public class CustomPostProcessingEndpoint
     // =========================================================================
 
     /// <summary>
-    /// Validate the endpoint configuration.
+    /// Validate the endpoint configuration before saving it.
     /// </summary>
+    /// <remarks>
+    /// The URL and model rules come from the shared core (#282). This used to
+    /// accept any absolute URI, while the macOS model accepted a schemeless
+    /// string and the shared-dotnet runtime added scheme, userinfo, fragment and
+    /// length rules on top — four incompatible answers to one question, and a
+    /// backup carried endpoints between them. Saving is deliberately STRICT;
+    /// endpoints already on disk are judged leniently by
+    /// <see cref="LlmPostProcessing.ValidateExistingCustomEndpoint"/>
+    /// so a tightened rule cannot delete them.
+    /// </remarks>
     /// <returns>Null if valid, or an error message string if invalid.</returns>
     public string? Validate()
     {
         if (string.IsNullOrWhiteSpace(Name))
             return "Name is required";
 
-        var trimmedURL = EndpointURL?.Trim() ?? "";
-        if (string.IsNullOrWhiteSpace(trimmedURL))
-            return "Endpoint URL is required";
-
-        if (!Uri.TryCreate(trimmedURL, UriKind.Absolute, out _))
-            return "Invalid URL format";
-
-        if (string.IsNullOrWhiteSpace(ModelName))
-            return "Model name is required";
-
-        return null;
+        var verdict = LlmPostProcessing.NormalizeCustomEndpoint(EndpointURL ?? "", ModelName ?? "");
+        return verdict.Status == PortableEndpointStatus.Valid
+            ? null
+            : verdict.Message ?? "Invalid URL format";
     }
 
     /// <summary>Check if the endpoint configuration is valid.</summary>

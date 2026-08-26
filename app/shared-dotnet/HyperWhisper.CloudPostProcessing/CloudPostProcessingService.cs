@@ -1,39 +1,45 @@
 using System.Net;
-using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using HyperWhisper.SharedCore;
 
 namespace HyperWhisper.CloudPostProcessing;
 
+/// <summary>
+/// Portable I/O shell over the Rust-owned LLM post-processing contract.
+/// </summary>
+/// <remarks>
+/// Since issue #282 the endpoint table, both JSON bodies, the auth headers, the
+/// <c>api.groq.com</c> host sniff, the <c>--TRANSCRIPT--</c> wrapper and
+/// custom-endpoint validation all live in <c>hw-net</c> and reach this class
+/// through <see cref="LlmPostProcessing"/>. What is left here is HTTP: the send
+/// loop, the response-size cap, cancellation and failure classification.
+/// </remarks>
 public sealed class CloudPostProcessingService : IDisposable
 {
     private const int MaxRequestCharacters = 1_000_000;
     private const int MaxResponseBytes = 2 * 1024 * 1024;
-    private const int GroqMaxCompletionTokens = 4096;
-    private static readonly Uri HyperWhisperCloudEndpoint =
-        new("https://transcribe-prod-v2.hyperwhisper.com/post-process");
-    private static readonly IReadOnlyDictionary<CloudPostProcessingProvider, Uri> Endpoints =
-        new Dictionary<CloudPostProcessingProvider, Uri>
-        {
-            [CloudPostProcessingProvider.OpenAi] = new("https://api.openai.com/v1/chat/completions"),
-            [CloudPostProcessingProvider.Anthropic] = new("https://api.anthropic.com/v1/messages"),
-            [CloudPostProcessingProvider.Groq] = new("https://api.groq.com/openai/v1/chat/completions"),
-            [CloudPostProcessingProvider.Grok] = new("https://api.x.ai/v1/chat/completions"),
-            [CloudPostProcessingProvider.Gemini] = new("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"),
-            [CloudPostProcessingProvider.Cerebras] = new("https://api.cerebras.ai/v1/chat/completions"),
-            [CloudPostProcessingProvider.Mistral] = new("https://api.mistral.ai/v1/chat/completions"),
-        };
 
     private readonly IPostProcessingCredentialSource _credentials;
     private readonly HttpClient _httpClient;
     private readonly bool _ownsHttpClient;
     private readonly HyperWhisperCloudCatalog _cloudCatalog;
+    private readonly string _hyperWhisperCloudBaseUrl;
     private bool _disposed;
 
+    /// <param name="credentials">Where API keys, license keys and the device id come from.</param>
+    /// <param name="httpClient">Injected for tests; the service owns one otherwise.</param>
+    /// <param name="hyperWhisperCloudBaseUrl">
+    /// Cloud host override. Null uses <see cref="LlmPostProcessing.DefaultHyperWhisperCloudBaseUrl"/>,
+    /// which is DEBUG-aware. Before #282 this class hardcoded the production host
+    /// with no switch at all, so every dev run on the Linux head billed
+    /// production credits. A head with its own environment switch (Windows
+    /// <c>NetworkConfig</c>) should pass it here.
+    /// </param>
     public CloudPostProcessingService(
         IPostProcessingCredentialSource credentials,
-        HttpClient? httpClient = null)
+        HttpClient? httpClient = null,
+        string? hyperWhisperCloudBaseUrl = null)
     {
         _credentials = credentials ?? throw new ArgumentNullException(nameof(credentials));
         if (httpClient is null)
@@ -49,6 +55,9 @@ public sealed class CloudPostProcessingService : IDisposable
             _httpClient = httpClient;
         }
         _cloudCatalog = HyperWhisperCloudCatalog.Load();
+        _hyperWhisperCloudBaseUrl = string.IsNullOrWhiteSpace(hyperWhisperCloudBaseUrl)
+            ? LlmPostProcessing.DefaultHyperWhisperCloudBaseUrl
+            : hyperWhisperCloudBaseUrl;
     }
 
     public async Task<CloudPostProcessingResult> ProcessAsync(
@@ -67,22 +76,25 @@ public sealed class CloudPostProcessingService : IDisposable
         }
 
         var transcript = request.Transcript;
-        var userMessage = string.Concat(
-            request.SystemInfo,
-            "\n\n--TRANSCRIPT--\n",
-            transcript,
-            "\n--ENDTRANSCRIPT--");
 
         try
         {
             return request.Provider switch
             {
                 CloudPostProcessingProvider.HyperWhisperCloud =>
-                    await ProcessHyperWhisperCloudAsync(request, transcript, userMessage, cancellationToken),
+                    await ProcessHyperWhisperCloudAsync(request, transcript, cancellationToken),
                 CloudPostProcessingProvider.Custom =>
-                    await ProcessCustomAsync(request, transcript, userMessage, cancellationToken),
-                _ => await ProcessByokAsync(request, transcript, userMessage, cancellationToken),
+                    await ProcessCustomAsync(request, transcript, cancellationToken),
+                _ => await ProcessByokAsync(request, transcript, cancellationToken),
             };
+        }
+        catch (PortableLlmRequestException exception)
+        {
+            // The inputs could not produce a request at all. This is the same
+            // class of problem `Validate` catches, so report it the same way —
+            // and never as a transport failure.
+            return CloudPostProcessingResult.Failed(
+                transcript, CloudPostProcessingFailureCode.InvalidRequest, exception.Message);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -124,10 +136,10 @@ public sealed class CloudPostProcessingService : IDisposable
     private async Task<CloudPostProcessingResult> ProcessByokAsync(
         CloudPostProcessingRequest request,
         string transcript,
-        string userMessage,
         CancellationToken cancellationToken)
     {
-        if (!Endpoints.TryGetValue(request.Provider, out var endpoint))
+        var provider = MapProvider(request.Provider);
+        if (provider is null)
         {
             return CloudPostProcessingResult.Failed(
                 transcript, CloudPostProcessingFailureCode.ProviderUnavailable, "The post-processing provider is not supported.");
@@ -145,46 +157,40 @@ public sealed class CloudPostProcessingService : IDisposable
                 transcript, CloudPostProcessingFailureCode.MissingCredential, "An API key is required for this post-processing provider.");
         }
 
-        using var message = new HttpRequestMessage(HttpMethod.Post, endpoint);
-        if (request.Provider == CloudPostProcessingProvider.Anthropic)
-        {
-            message.Headers.TryAddWithoutValidation("x-api-key", credential.ApiKey);
-            message.Headers.TryAddWithoutValidation("anthropic-version", "2023-06-01");
-            message.Content = JsonContent(BuildAnthropicBody(model, request.SystemPrompt, userMessage));
-        }
-        else
-        {
-            message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", credential.ApiKey);
-            message.Content = JsonContent(BuildOpenAiBody(
-                model, request.SystemPrompt, userMessage,
-                request.Provider == CloudPostProcessingProvider.Groq));
-        }
+        using var message = LlmPostProcessing.BuildRequest(new PortableLlmRequest(
+            provider.Value,
+            model,
+            credential.ApiKey,
+            request.SystemPrompt,
+            request.SystemInfo,
+            transcript));
 
         var responseJson = await SendAsync(message, cancellationToken);
-        var wire = request.Provider == CloudPostProcessingProvider.Anthropic
-            ? PortableLlmWireProtocol.AnthropicMessages
-            : PortableLlmWireProtocol.OpenAiChat;
-        return Evaluate(responseJson, wire, transcript, $"{DisplayName(request.Provider)} · {model}");
+        return Evaluate(
+            responseJson,
+            LlmPostProcessing.WireProtocolFor(provider.Value),
+            transcript,
+            $"{DisplayName(request.Provider)} · {model}");
     }
 
     private async Task<CloudPostProcessingResult> ProcessCustomAsync(
         CloudPostProcessingRequest request,
         string transcript,
-        string userMessage,
         CancellationToken cancellationToken)
     {
         var custom = request.CustomEndpoint!;
-        var endpoint = new Uri(custom.EndpointUrl.Trim(), UriKind.Absolute);
         var credential = await _credentials.GetCredentialAsync(
             CloudPostProcessingProvider.Custom, custom.Id, cancellationToken);
-        using var message = new HttpRequestMessage(HttpMethod.Post, endpoint);
-        if (!string.IsNullOrWhiteSpace(credential?.ApiKey))
-        {
-            message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", credential.ApiKey);
-        }
-        message.Content = JsonContent(BuildOpenAiBody(
-            custom.Model.Trim(), request.SystemPrompt, userMessage,
-            endpoint.Host.Equals("api.groq.com", StringComparison.OrdinalIgnoreCase)));
+
+        using var message = LlmPostProcessing.BuildRequest(new PortableLlmRequest(
+            PortableLlmProvider.Custom,
+            custom.Model.Trim(),
+            credential?.ApiKey ?? string.Empty,
+            request.SystemPrompt,
+            request.SystemInfo,
+            transcript,
+            CustomEndpoint: custom.EndpointUrl));
+
         var responseJson = await SendAsync(message, cancellationToken);
         return Evaluate(responseJson, PortableLlmWireProtocol.OpenAiChat, transcript,
             $"Custom endpoint · {custom.Model.Trim()}");
@@ -193,7 +199,6 @@ public sealed class CloudPostProcessingService : IDisposable
     private async Task<CloudPostProcessingResult> ProcessHyperWhisperCloudAsync(
         CloudPostProcessingRequest request,
         string transcript,
-        string userMessage,
         CancellationToken cancellationToken)
     {
         var route = _cloudCatalog.Resolve(request.HyperWhisperCloudModel);
@@ -213,29 +218,35 @@ public sealed class CloudPostProcessingService : IDisposable
                 "A HyperWhisper account or device identity is required.");
         }
 
-        var body = new Dictionary<string, string>
-        {
-            ["text"] = transcript,
-            ["prompt"] = string.Concat(request.SystemPrompt, "\n\n", userMessage),
-        };
-        if (!string.IsNullOrWhiteSpace(credential!.LicenseKey)) body["license_key"] = credential.LicenseKey;
-        else body["device_id"] = credential.DeviceId!;
+        using var message = LlmPostProcessing.BuildRequest(new PortableLlmRequest(
+            PortableLlmProvider.HyperWhisperCloud,
+            Model: string.Empty,
+            ApiKey: string.Empty,
+            request.SystemPrompt,
+            request.SystemInfo,
+            transcript,
+            BaseUrl: _hyperWhisperCloudBaseUrl,
+            LicenseKey: credential!.LicenseKey,
+            DeviceId: credential.DeviceId,
+            LlmProviderHeader: route.Value.ProviderHeader,
+            LlmModelHeader: route.Value.ModelHeader));
 
-        using var message = new HttpRequestMessage(HttpMethod.Post, HyperWhisperCloudEndpoint);
-        message.Headers.TryAddWithoutValidation("X-LLM-Provider", route.Value.ProviderHeader);
-        message.Headers.TryAddWithoutValidation("X-LLM-Model", route.Value.ModelHeader);
-        message.Content = JsonContent(body);
         var responseJson = await SendAsync(message, cancellationToken);
-        using var document = JsonDocument.Parse(responseJson);
-        if (!document.RootElement.TryGetProperty("corrected", out var correctedElement)
-            || correctedElement.ValueKind != JsonValueKind.String
-            || string.IsNullOrWhiteSpace(correctedElement.GetString()))
+        string corrected;
+        try
+        {
+            // The hosted contract already validates provider termination and
+            // strips the wrapper markers. Do NOT apply the provider-native
+            // wrapper contract a second time on this normalized response.
+            corrected = LlmPostProcessing.ParseHyperWhisperCloudResponse(responseJson);
+        }
+        catch (PortableLlmRequestException)
         {
             return CloudPostProcessingResult.Failed(
                 transcript, CloudPostProcessingFailureCode.RejectedResponse,
                 "HyperWhisper Cloud returned an invalid response.");
         }
-        return CloudPostProcessingResult.Applied(correctedElement.GetString()!.Trim(), route.Value.Label);
+        return CloudPostProcessingResult.Applied(corrected, route.Value.Label);
     }
 
     private static CloudPostProcessingResult Evaluate(
@@ -284,44 +295,24 @@ public sealed class CloudPostProcessingService : IDisposable
         return new UTF8Encoding(false, true).GetString(target.GetBuffer(), 0, checked((int)target.Length));
     }
 
-    private static StringContent JsonContent(object value) =>
-        new(JsonSerializer.Serialize(value), Encoding.UTF8, "application/json");
-
-    private static object BuildOpenAiBody(
-        string model,
-        string systemPrompt,
-        string userMessage,
-        bool isGroq)
+    private static PortableLlmProvider? MapProvider(CloudPostProcessingProvider provider) => provider switch
     {
-        var body = new Dictionary<string, object>
-        {
-            ["model"] = model,
-            ["messages"] = new object[]
-            {
-                new { role = "system", content = systemPrompt },
-                new { role = "user", content = userMessage },
-            },
-        };
-        if (isGroq) body["max_completion_tokens"] = GroqMaxCompletionTokens;
-        return body;
-    }
-
-    private static object BuildAnthropicBody(string model, string systemPrompt, string userMessage) => new
-    {
-        model,
-        max_tokens = 8192,
-        system = new object[]
-        {
-            new
-            {
-                type = "text",
-                text = systemPrompt,
-                cache_control = new { type = "ephemeral" },
-            },
-        },
-        messages = new object[] { new { role = "user", content = userMessage } },
+        CloudPostProcessingProvider.OpenAi => PortableLlmProvider.OpenAi,
+        CloudPostProcessingProvider.Anthropic => PortableLlmProvider.Anthropic,
+        CloudPostProcessingProvider.Groq => PortableLlmProvider.Groq,
+        CloudPostProcessingProvider.Grok => PortableLlmProvider.Grok,
+        CloudPostProcessingProvider.Gemini => PortableLlmProvider.Gemini,
+        CloudPostProcessingProvider.Cerebras => PortableLlmProvider.Cerebras,
+        CloudPostProcessingProvider.Mistral => PortableLlmProvider.Mistral,
+        _ => null,
     };
 
+    /// <summary>
+    /// Reject a request the builder could not sensibly serve. The URL and model
+    /// rules are no longer written here — <see cref="LlmPostProcessing"/> owns
+    /// the one rule that all platforms share, and this method just surfaces its
+    /// verdict.
+    /// </summary>
     private static string? Validate(CloudPostProcessingRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Transcript)) return "A transcript is required.";
@@ -333,14 +324,13 @@ public sealed class CloudPostProcessingService : IDisposable
         if (request.Provider != CloudPostProcessingProvider.Custom) return null;
         if (request.CustomEndpoint is not { } custom) return "A custom endpoint configuration is required.";
         if (custom.Id == Guid.Empty) return "A custom endpoint identifier is required.";
-        if (string.IsNullOrWhiteSpace(custom.Model) || custom.Model.Trim().Length > 256)
-            return "A valid custom endpoint model is required.";
-        if (!Uri.TryCreate(custom.EndpointUrl?.Trim(), UriKind.Absolute, out var endpoint)
-            || (endpoint.Scheme != Uri.UriSchemeHttps && endpoint.Scheme != Uri.UriSchemeHttp)
-            || !string.IsNullOrEmpty(endpoint.UserInfo)
-            || !string.IsNullOrEmpty(endpoint.Fragment)
-            || custom.EndpointUrl.Length > 2048)
-            return "A valid HTTP or HTTPS custom endpoint URL is required.";
+
+        var verdict = LlmPostProcessing.NormalizeCustomEndpoint(
+            custom.EndpointUrl ?? string.Empty, custom.Model ?? string.Empty);
+        if (verdict.Status != PortableEndpointStatus.Valid)
+        {
+            return verdict.Message ?? "A valid HTTP or HTTPS custom endpoint URL is required.";
+        }
         return null;
     }
 

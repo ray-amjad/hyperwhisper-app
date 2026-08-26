@@ -337,11 +337,13 @@ public sealed class ModesViewModel : ViewModelBase
 
     private bool ValidateCustomEndpoint()
     {
+        // The URL and model rules come from the shared core (#282), the same
+        // strict verdict the runtime and the Windows editor use. This method used
+        // to spell out its own third variant of them.
         if (string.IsNullOrWhiteSpace(CustomEndpointName)
-            || string.IsNullOrWhiteSpace(CustomEndpointModel)
-            || !Uri.TryCreate(CustomEndpointUrl.Trim(), UriKind.Absolute, out var endpoint)
-            || (endpoint.Scheme != Uri.UriSchemeHttp && endpoint.Scheme != Uri.UriSchemeHttps)
-            || !string.IsNullOrEmpty(endpoint.UserInfo) || !string.IsNullOrEmpty(endpoint.Fragment))
+            || HyperWhisper.SharedCore.LlmPostProcessing.NormalizeCustomEndpoint(
+                   CustomEndpointUrl ?? string.Empty, CustomEndpointModel ?? string.Empty).Status
+               != HyperWhisper.SharedCore.PortableEndpointStatus.Valid)
         {
             Status.Failure("modes.custom_endpoint_invalid", "Enter a name, HTTP(S) endpoint URL without embedded credentials, and model.");
             return false;
