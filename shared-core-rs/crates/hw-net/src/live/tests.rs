@@ -449,3 +449,866 @@ fn openai_is_the_only_provider_off_16_khz() {
         }
     }
 }
+
+// ===========================================================================
+// LiveSession — the five protocols
+//
+// The connect assertions pin the URL, headers and subprotocols against what
+// the shipped strategies send today, parameter for parameter and in order: a
+// query pair moved or dropped is a wire change, and this is the only place it
+// can be caught before a provider sees it.
+// ===========================================================================
+
+/// A session for `provider` with an API key, nothing else set.
+fn keyed(provider: LiveProvider) -> LiveSession {
+    let mut config = LiveConfig::new(provider);
+    config.api_key = Some("test-key".to_string());
+    LiveSession::new(config)
+}
+
+/// A connectable session for any provider: four want an API key, HyperWhisper
+/// Cloud wants a license key. Setting both keeps the every-provider loops from
+/// having to special-case one arm.
+fn credentialed(provider: LiveProvider) -> LiveSession {
+    let mut config = LiveConfig::new(provider);
+    config.api_key = Some("k".to_string());
+    config.license_key = Some("k".to_string());
+    LiveSession::new(config)
+}
+
+fn connect_of(session: &mut LiveSession) -> LiveConnect {
+    session.connect().expect("connect")
+}
+
+fn header_of(connect: &LiveConnect, name: &str) -> Option<String> {
+    connect
+        .headers
+        .iter()
+        .find(|h| h.name == name)
+        .map(|h| h.value.clone())
+}
+
+// ---------------------------------------------------------------------------
+// Credentials
+// ---------------------------------------------------------------------------
+
+#[test]
+fn every_provider_refuses_to_connect_without_a_credential() {
+    // Whitespace counts as missing: a key of spaces is a misconfiguration, and
+    // every shipped strategy guards with IsNullOrWhiteSpace / isEmpty.
+    for provider in LiveProvider::ALL {
+        for blank in [None, Some(String::new()), Some("   ".to_string())] {
+            let mut config = LiveConfig::new(provider);
+            config.api_key = blank.clone();
+            config.license_key = blank.clone();
+            config.device_id = blank;
+            assert_eq!(
+                LiveSession::new(config).connect(),
+                Err(LiveError::MissingCredential),
+                "{provider:?} built a URL with no credential"
+            );
+        }
+    }
+}
+
+#[test]
+fn hyperwhisper_cloud_falls_back_from_the_license_key_to_the_device_id() {
+    let mut trial = LiveConfig::new(LiveProvider::HyperWhisperCloud);
+    trial.device_id = Some("device-1".to_string());
+    let url = LiveSession::new(trial).connect().expect("connect").url;
+    assert!(url.ends_with("?device_id=device-1"), "{url}");
+
+    let mut licensed = LiveConfig::new(LiveProvider::HyperWhisperCloud);
+    licensed.device_id = Some("device-1".to_string());
+    licensed.license_key = Some("HW-1".to_string());
+    let url = LiveSession::new(licensed).connect().expect("connect").url;
+    assert!(
+        url.ends_with("?license_key=HW-1"),
+        "a license key must win outright, not append: {url}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Deepgram
+// ---------------------------------------------------------------------------
+
+#[test]
+fn deepgram_connect_sends_the_thirteen_parameters_and_detects_the_language() {
+    let connect = connect_of(&mut keyed(LiveProvider::Deepgram));
+    assert_eq!(
+        connect.url,
+        "wss://api.deepgram.com/v1/listen\
+         ?model=nova-3-general&encoding=linear16&sample_rate=16000&channels=1\
+         &smart_format=true&punctuate=true&filler_words=true&no_delay=false\
+         &endpointing=300&utterance_end_ms=1500&interim_results=true&vad_events=true\
+         &mip_opt_out=true&detect_language=true"
+    );
+    // The key rides as a subprotocol, not a header - Deepgram's own rule.
+    assert!(connect.headers.is_empty());
+    assert_eq!(connect.subprotocols, ["token", "test-key"]);
+    assert_eq!(connect.framing, AudioFraming::Binary);
+    assert!(connect.start_frames.is_empty());
+    assert!(
+        connect.session_starts_on_open,
+        "Deepgram's Metadata frame only arrives after audio; waiting for it deadlocks"
+    );
+}
+
+#[test]
+fn deepgram_fast_formatting_flips_no_delay() {
+    let mut config = LiveConfig::new(LiveProvider::Deepgram);
+    config.api_key = Some("k".to_string());
+    config.fast_formatting = true;
+    let url = LiveSession::new(config).connect().expect("connect").url;
+    assert!(url.contains("&no_delay=true&"), "{url}");
+}
+
+#[test]
+fn deepgram_resolves_a_removed_model_and_never_emits_a_bare_model_parameter() {
+    // The leak the audit found: an empty-but-present model returned Some("")
+    // on macOS and reached the wire as `model=`.
+    for model in [None, Some(String::new()), Some("  ".to_string())] {
+        let mut config = LiveConfig::new(LiveProvider::Deepgram);
+        config.api_key = Some("k".to_string());
+        config.model = model.clone();
+        let url = LiveSession::new(config).connect().expect("connect").url;
+        assert!(
+            url.starts_with("wss://api.deepgram.com/v1/listen?model=nova-3-general&"),
+            "{model:?} produced {url}"
+        );
+    }
+
+    let mut removed = LiveConfig::new(LiveProvider::Deepgram);
+    removed.api_key = Some("k".to_string());
+    removed.model = Some("nova-2-meeting".to_string());
+    let url = LiveSession::new(removed).connect().expect("connect").url;
+    assert!(url.contains("model=nova-3-general&"), "{url}");
+
+    let mut live = LiveConfig::new(LiveProvider::Deepgram);
+    live.api_key = Some("k".to_string());
+    live.model = Some("nova-3-medical".to_string());
+    let url = LiveSession::new(live).connect().expect("connect").url;
+    assert!(url.contains("model=nova-3-medical&"), "{url}");
+}
+
+#[test]
+fn deepgram_sends_keyterms_only_with_an_explicit_language() {
+    let mut config = LiveConfig::new(LiveProvider::Deepgram);
+    config.api_key = Some("k".to_string());
+    config.vocabulary = vec!["UniFFI".to_string(), "Rust core".to_string()];
+
+    let auto = LiveSession::new(config.clone()).connect().expect("connect");
+    assert!(
+        auto.url.ends_with("&detect_language=true"),
+        "Deepgram ignores keyterms under auto-detect, so they must not be sent: {}",
+        auto.url
+    );
+
+    config.language = Some("en-US".to_string());
+    let explicit = LiveSession::new(config).connect().expect("connect");
+    assert!(
+        explicit
+            .url
+            .ends_with("&language=en&keyterm=UniFFI&keyterm=Rust%20core"),
+        "{}",
+        explicit.url
+    );
+}
+
+#[test]
+fn deepgram_keepalives_only_after_three_seconds_of_silence() {
+    let mut session = keyed(LiveProvider::Deepgram);
+    connect_of(&mut session);
+
+    // The first opportunity seeds the clock and never keepalives: no time has
+    // passed at the first chunk.
+    assert!(session.control_frames(10_000).is_empty());
+    assert!(session.control_frames(12_000).is_empty(), "2 s is not idle");
+    assert!(
+        session.control_frames(15_000).is_empty(),
+        "exactly 3 s is not yet idle - the shipped rule is a strict >"
+    );
+    assert_eq!(
+        session.control_frames(18_001),
+        [LiveFrame::text(r#"{"type":"KeepAlive"}"#)]
+    );
+    assert!(
+        session.control_frames(18_002).is_empty(),
+        "the keepalive must reset the idle clock"
+    );
+}
+
+#[test]
+fn deepgram_stop_waits_between_finalize_and_close_stream() {
+    let mut session = keyed(LiveProvider::Deepgram);
+    assert_eq!(
+        session.stop_sequence(0),
+        [
+            StopStep::SendText { text: r#"{"type":"Finalize"}"#.to_string() },
+            StopStep::Wait { ms: 500 },
+            StopStep::SendText { text: r#"{"type":"CloseStream"}"#.to_string() },
+            StopStep::Close,
+        ],
+        "sending both frames back to back lets the close beat the flush"
+    );
+}
+
+#[test]
+fn deepgram_parses_results_metadata_and_the_polymorphic_channel() {
+    let mut session = keyed(LiveProvider::Deepgram);
+
+    assert_eq!(
+        session.parse(r#"{"type":"Metadata","request_id":"req-1"}"#),
+        LiveEvent::SessionStarted { session_id: Some("req-1".to_string()) }
+    );
+    assert_eq!(
+        session.parse(
+            r#"{"type":"Results","is_final":true,"channel":{"alternatives":[{"transcript":"hello"}]}}"#
+        ),
+        LiveEvent::FinalTranscript { text: "hello".to_string() }
+    );
+    assert_eq!(
+        session.parse(
+            r#"{"type":"Results","is_final":false,"channel":{"alternatives":[{"transcript":"hel"}]}}"#
+        ),
+        LiveEvent::PartialTranscript { text: "hel".to_string() }
+    );
+    assert_eq!(
+        session.parse(r#"{"type":"Results","channel":{"alternatives":[{"transcript":"   "}]}}"#),
+        LiveEvent::Ignore,
+        "a whitespace-only alternative is not a transcript"
+    );
+
+    // Issue #106: `channel` is an object on Results and an array of channel
+    // indices on the voice-activity frames. A decoder that insists on the
+    // object shape throws here and makes this arm unreachable.
+    let raw = r#"{"type":"UtteranceEnd","channel":[0,1],"last_word_end":1.2}"#;
+    assert_eq!(session.parse(raw), LiveEvent::Metadata { raw: raw.to_string() });
+    let raw = r#"{"type":"SpeechStarted","channel":[0,1]}"#;
+    assert_eq!(session.parse(raw), LiveEvent::Metadata { raw: raw.to_string() });
+}
+
+// ---------------------------------------------------------------------------
+// ElevenLabs
+// ---------------------------------------------------------------------------
+
+#[test]
+fn elevenlabs_connect_carries_the_key_in_a_header() {
+    let connect = connect_of(&mut keyed(LiveProvider::ElevenLabs));
+    assert_eq!(
+        connect.url,
+        "wss://api.elevenlabs.io/v1/speech-to-text/realtime\
+         ?model_id=scribe_v2_realtime&audio_format=pcm_16000&commit_strategy=vad\
+         &vad_silence_threshold_secs=1.5&vad_threshold=0.4"
+    );
+    assert_eq!(header_of(&connect, "xi-api-key").as_deref(), Some("test-key"));
+    assert!(connect.subprotocols.is_empty());
+    assert!(!connect.session_starts_on_open);
+}
+
+#[test]
+fn elevenlabs_language_code_is_the_normalized_primary_subtag() {
+    let mut config = LiveConfig::new(LiveProvider::ElevenLabs);
+    config.api_key = Some("k".to_string());
+    config.language = Some("EN-US".to_string());
+    let url = LiveSession::new(config.clone()).connect().expect("connect").url;
+    assert!(url.ends_with("&language_code=en"), "{url}");
+
+    config.language = Some("auto".to_string());
+    let url = LiveSession::new(config).connect().expect("connect").url;
+    assert!(
+        url.ends_with("&vad_threshold=0.4"),
+        "auto means omit the parameter, not send the word: {url}"
+    );
+}
+
+#[test]
+fn elevenlabs_stop_is_a_bare_close() {
+    let mut session = keyed(LiveProvider::ElevenLabs);
+    assert_eq!(
+        session.stop_sequence(0),
+        [StopStep::Close],
+        "commit_strategy=vad leaves nothing to flush and nothing to drain for"
+    );
+}
+
+#[test]
+fn elevenlabs_parses_transcripts_and_its_three_error_types() {
+    let mut session = keyed(LiveProvider::ElevenLabs);
+    assert_eq!(
+        session.parse(r#"{"message_type":"session_started"}"#),
+        LiveEvent::SessionStarted { session_id: None }
+    );
+    assert_eq!(
+        session.parse(r#"{"message_type":"partial_transcript","text":"hel"}"#),
+        LiveEvent::PartialTranscript { text: "hel".to_string() }
+    );
+    assert_eq!(
+        session.parse(r#"{"message_type":"committed_transcript","text":"hello"}"#),
+        LiveEvent::FinalTranscript { text: "hello".to_string() }
+    );
+    // The wording is ours - these frames carry no message. Only auth_error
+    // ever diverged between the heads.
+    assert_eq!(
+        session.parse(r#"{"message_type":"auth_error"}"#),
+        LiveEvent::Error {
+            message: "ElevenLabs authentication failed. Please check your API key in Settings."
+                .to_string()
+        }
+    );
+    assert_eq!(
+        session.parse(r#"{"message_type":"quota_exceeded"}"#),
+        LiveEvent::Error {
+            message: "ElevenLabs quota exceeded. Please check your account billing.".to_string()
+        }
+    );
+    assert_eq!(
+        session.parse(r#"{"message_type":"rate_limited"}"#),
+        LiveEvent::Error {
+            message: "ElevenLabs rate limit reached. Please try again in a moment.".to_string()
+        }
+    );
+}
+
+// ---------------------------------------------------------------------------
+// OpenAI - connect and the commit gate
+// ---------------------------------------------------------------------------
+
+#[test]
+fn openai_connect_sends_the_session_update_byte_for_byte() {
+    let connect = connect_of(&mut keyed(LiveProvider::OpenAi));
+    assert_eq!(connect.url, "wss://api.openai.com/v1/realtime?intent=transcription");
+    assert_eq!(header_of(&connect, "Authorization").as_deref(), Some("Bearer test-key"));
+    assert_eq!(connect.sample_rate, 24_000);
+    // Byte-identical to the frame both .NET heads serialize today, so a head
+    // that swaps its own for this one changes nothing on the wire.
+    assert_eq!(
+        connect.start_frames,
+        [LiveFrame::text(
+            r#"{"type":"session.update","session":{"type":"transcription","audio":{"input":{"format":{"type":"audio/pcm","rate":24000},"transcription":{"model":"gpt-realtime-whisper"},"turn_detection":null}}}}"#
+        )],
+        "turn_detection:null is load-bearing - it disables server-side VAD"
+    );
+}
+
+#[test]
+fn openai_session_update_carries_a_normalized_language_when_one_is_chosen() {
+    let mut config = LiveConfig::new(LiveProvider::OpenAi);
+    config.api_key = Some("k".to_string());
+    config.language = Some("PT-BR".to_string());
+    let connect = LiveSession::new(config).connect().expect("connect");
+    assert_eq!(
+        connect.start_frames[0].data,
+        r#"{"type":"session.update","session":{"type":"transcription","audio":{"input":{"format":{"type":"audio/pcm","rate":24000},"transcription":{"model":"gpt-realtime-whisper","language":"pt"},"turn_detection":null}}}}"#
+    );
+    assert!(
+        serde_json::from_str::<serde_json::Value>(&connect.start_frames[0].data).is_ok(),
+        "the hand-built frame must still be valid JSON"
+    );
+}
+
+#[test]
+fn openai_commits_only_once_both_the_interval_and_the_byte_floor_are_clear() {
+    let commit = LiveFrame::text(r#"{"type":"input_audio_buffer.commit"}"#);
+    let mut session = keyed(LiveProvider::OpenAi);
+    connect_of(&mut session);
+
+    // First opportunity seeds the commit clock.
+    assert!(session.control_frames(0).is_empty());
+
+    // Interval clear, byte floor not: no commit, and the clock stays stale so
+    // the next chunk over the floor commits immediately rather than waiting
+    // out another 1.2 s.
+    session.note_audio(4_799);
+    assert!(session.control_frames(5_000).is_empty(), "4799 bytes is under 100 ms");
+    session.note_audio(1);
+    assert_eq!(session.control_frames(5_001), [commit.clone()], "4800 bytes is exactly 100 ms");
+
+    // Byte floor clear, interval not.
+    session.note_audio(9_600);
+    assert!(
+        session.control_frames(6_000).is_empty(),
+        "999 ms after the last commit is inside the 1.2 s interval"
+    );
+    assert_eq!(session.control_frames(6_201), [commit], "1200 ms is the boundary and it fires");
+    assert!(
+        session.control_frames(9_000).is_empty(),
+        "the commit consumed the bytes; there is nothing left to commit"
+    );
+}
+
+#[test]
+fn openai_stop_commits_the_tail_only_when_the_server_would_accept_it() {
+    // The HYPERWHISPER-S8 / -S9 boundary. Below the floor the tail is dropped
+    // on purpose: committing it is rejected outright and surfaces as a
+    // spurious error toast, and it was lost to the rejection anyway.
+    let mut short = keyed(LiveProvider::OpenAi);
+    connect_of(&mut short);
+    short.note_audio(4_799);
+    assert_eq!(
+        short.stop_sequence(1_000),
+        [StopStep::Wait { ms: 1_000 }, StopStep::Close],
+        "under 100 ms of tail must send no commit"
+    );
+
+    let mut exact = keyed(LiveProvider::OpenAi);
+    connect_of(&mut exact);
+    exact.note_audio(4_800);
+    assert_eq!(
+        exact.stop_sequence(1_000),
+        [
+            StopStep::SendText { text: r#"{"type":"input_audio_buffer.commit"}"#.to_string() },
+            StopStep::Wait { ms: 1_000 },
+            StopStep::Close,
+        ],
+        "exactly 100 ms qualifies - the server's rule is 'at least'"
+    );
+}
+
+#[test]
+fn openai_keeps_the_stop_wait_even_when_nothing_was_committed() {
+    // The completed event for the LAST PERIODIC commit can still be in flight.
+    // Closing immediately trades the toast for a truncated transcript.
+    let mut session = keyed(LiveProvider::OpenAi);
+    connect_of(&mut session);
+    assert_eq!(session.stop_sequence(0), [StopStep::Wait { ms: 1_000 }, StopStep::Close]);
+}
+
+#[test]
+fn openai_periodic_and_stop_paths_cannot_both_claim_the_same_bytes() {
+    let mut session = keyed(LiveProvider::OpenAi);
+    connect_of(&mut session);
+    assert!(session.control_frames(0).is_empty());
+    session.note_audio(4_800);
+    assert_eq!(session.control_frames(2_000).len(), 1, "the periodic path claims them");
+    assert_eq!(
+        session.stop_sequence(2_001),
+        [StopStep::Wait { ms: 1_000 }, StopStep::Close],
+        "the stop path must not commit the same buffer a second time"
+    );
+}
+
+#[test]
+fn openai_accumulates_deltas_per_item_and_finals_the_new_suffix() {
+    let mut session = keyed(LiveProvider::OpenAi);
+    let delta = |item: &str, text: &str| {
+        format!(
+            r#"{{"type":"conversation.item.input_audio_transcription.delta","item_id":"{item}","delta":"{text}"}}"#
+        )
+    };
+    assert_eq!(
+        session.parse(&delta("a", "Hello")),
+        LiveEvent::PartialTranscript { text: "Hello".to_string() }
+    );
+    assert_eq!(
+        session.parse(&delta("a", " there")),
+        LiveEvent::PartialTranscript { text: "Hello there".to_string() },
+        "a partial is the whole interim utterance, not the fragment"
+    );
+    // Two items in one session are unrelated strings, not a continuation.
+    assert_eq!(
+        session.parse(&delta("b", "Second")),
+        LiveEvent::PartialTranscript { text: "Second".to_string() }
+    );
+
+    let completed = |item: &str, text: &str| {
+        format!(
+            r#"{{"type":"conversation.item.input_audio_transcription.completed","item_id":"{item}","transcript":"{text}"}}"#
+        )
+    };
+    assert_eq!(
+        session.parse(&completed("a", "Hello there")),
+        LiveEvent::FinalTranscript { text: "Hello there".to_string() }
+    );
+    assert_eq!(
+        session.parse(&completed("a", "Hello there world")),
+        LiveEvent::FinalTranscript { text: "world".to_string() },
+        "a re-completion of the same item emits only what is new"
+    );
+    assert_eq!(
+        session.parse(&completed("a", "Hello there world")),
+        LiveEvent::Ignore,
+        "nothing new means no event"
+    );
+    assert_eq!(
+        session.parse(&completed("a", "Entirely different")),
+        LiveEvent::FinalTranscript { text: "Entirely different".to_string() },
+        "a revision that is not an extension is emitted whole"
+    );
+}
+
+#[test]
+fn openai_error_frames_carry_the_nested_wording_to_the_classifier() {
+    let mut session = keyed(LiveProvider::OpenAi);
+    assert_eq!(
+        session.parse(r#"{"type":"error","error":{"message":"You exceeded your current quota"}}"#),
+        LiveEvent::Error { message: "You exceeded your current quota".to_string() }
+    );
+    assert_eq!(
+        classify_error_message("You exceeded your current quota"),
+        LiveErrorOutcome::Terminal,
+        "the whole point of carrying the wording"
+    );
+    assert_eq!(
+        session.parse(r#"{"type":"error","error":{}}"#),
+        LiveEvent::Error { message: "OpenAI Realtime transcription failed".to_string() },
+        "a wordless error frame must not reach a user as a blank alert"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// xAI
+// ---------------------------------------------------------------------------
+
+#[test]
+fn xai_connect_filters_the_language_through_the_batch_support_set() {
+    let mut config = LiveConfig::new(LiveProvider::Grok);
+    config.api_key = Some("test-key".to_string());
+    let connect = LiveSession::new(config.clone()).connect().expect("connect");
+    assert_eq!(
+        connect.url,
+        "wss://api.x.ai/v1/stt?sample_rate=16000&encoding=pcm&interim_results=true&endpointing=300"
+    );
+    assert_eq!(header_of(&connect, "Authorization").as_deref(), Some("Bearer test-key"));
+
+    config.language = Some("tl".to_string());
+    let url = LiveSession::new(config.clone()).connect().expect("connect").url;
+    assert!(url.ends_with("&language=fil"), "tl aliases to fil: {url}");
+
+    config.language = Some("cy".to_string());
+    let url = LiveSession::new(config).connect().expect("connect").url;
+    assert!(
+        url.ends_with("&endpointing=300"),
+        "an unsupported code means omit the parameter: {url}"
+    );
+}
+
+#[test]
+fn xai_keyterms_use_the_batch_paths_vendor_caps_with_no_language_gate() {
+    let mut config = LiveConfig::new(LiveProvider::Grok);
+    config.api_key = Some("k".to_string());
+    config.vocabulary = vec![
+        "UniFFI".to_string(),
+        "a".repeat(51),
+        "uniffi".to_string(),
+        "Rust core".to_string(),
+    ];
+    let url = LiveSession::new(config).connect().expect("connect").url;
+    assert!(
+        url.ends_with("&keyterm=UniFFI&keyterm=Rust%20core"),
+        "over 50 characters is an xAI vendor limit; the duplicate is case-insensitive; \
+         and unlike Deepgram there is no language gate: {url}"
+    );
+}
+
+#[test]
+fn xai_stop_waits_on_the_completion_event_not_a_duration() {
+    let mut session = keyed(LiveProvider::Grok);
+    assert_eq!(
+        session.stop_sequence(0),
+        [
+            StopStep::SendText { text: r#"{"type":"audio.done"}"#.to_string() },
+            StopStep::WaitForSessionComplete { timeout_ms: 10_000 },
+            StopStep::Close,
+        ]
+    );
+}
+
+#[test]
+fn xai_emits_prefix_deltas_and_folds_the_last_final_into_the_completion() {
+    let mut session = keyed(LiveProvider::Grok);
+    assert_eq!(
+        session.parse(r#"{"type":"transcript.created"}"#),
+        LiveEvent::SessionStarted { session_id: None }
+    );
+    assert_eq!(
+        session.parse(r#"{"type":"transcript.partial","text":"Hel"}"#),
+        LiveEvent::PartialTranscript { text: "Hel".to_string() }
+    );
+    assert_eq!(
+        session.parse(r#"{"type":"transcript.partial","text":"Hello","is_final":true}"#),
+        LiveEvent::FinalTranscript { text: "Hello".to_string() }
+    );
+    assert_eq!(
+        session.parse(r#"{"type":"transcript.partial","text":"Hello there","is_final":true}"#),
+        LiveEvent::FinalTranscript { text: "there".to_string() },
+        "xAI resends the whole transcript; only the delta is new"
+    );
+    assert_eq!(
+        session.parse(r#"{"type":"transcript.partial","text":"Hello","is_final":true}"#),
+        LiveEvent::Ignore,
+        "a retraction must not re-emit, and must not rewind the committed text"
+    );
+    // transcript.done is BOTH the last final and the end of the session. A
+    // client that saw only SessionComplete here would drop the trailing words.
+    assert_eq!(
+        session.parse(r#"{"type":"transcript.done","text":"Hello there world","duration":4.5}"#),
+        LiveEvent::FinalTranscriptAndSessionComplete {
+            text: "world".to_string(),
+            duration_seconds: 4.5,
+            credits_used: 0.0,
+        }
+    );
+    assert_eq!(
+        session.parse(r#"{"type":"transcript.done","text":"Hello there world","duration":4.5}"#),
+        LiveEvent::SessionComplete { duration_seconds: 4.5, credits_used: 0.0 },
+        "nothing new left means a plain completion"
+    );
+    assert_eq!(
+        session.parse(r#"{"type":"error","message":"Credit balance exhausted"}"#),
+        LiveEvent::Error { message: "Credit balance exhausted".to_string() }
+    );
+}
+
+// ---------------------------------------------------------------------------
+// HyperWhisper Cloud
+// ---------------------------------------------------------------------------
+
+#[test]
+fn hyperwhisper_cloud_connect_gates_vocabulary_on_an_explicit_language() {
+    let mut config = LiveConfig::new(LiveProvider::HyperWhisperCloud);
+    config.license_key = Some("HW-KEY-1".to_string());
+    config.vocabulary = vec!["UniFFI".to_string(), "Rust core".to_string()];
+
+    let auto = LiveSession::new(config.clone()).connect().expect("connect");
+    assert_eq!(
+        auto.url,
+        "wss://transcribe-prod-v2.hyperwhisper.com/ws/streaming-deepgram?license_key=HW-KEY-1",
+        "this endpoint relays to Deepgram, which ignores keyterms under auto-detect"
+    );
+    assert!(auto.headers.is_empty(), "client identity is the platform's to add, not the core's");
+    assert_eq!(auto.framing, AudioFraming::Binary);
+
+    config.language = Some("en-GB".to_string());
+    let explicit = LiveSession::new(config).connect().expect("connect");
+    assert_eq!(
+        explicit.url,
+        "wss://transcribe-prod-v2.hyperwhisper.com/ws/streaming-deepgram\
+         ?license_key=HW-KEY-1&language=en&vocabulary=UniFFI%2C%20Rust%20core"
+    );
+}
+
+#[test]
+fn hyperwhisper_cloud_honours_a_configured_backend_and_maps_the_scheme() {
+    // Without this a DEBUG build silently bills a developer's key against
+    // production. The heads store one https base URL for REST and websockets.
+    let cases = [
+        ("https://transcribe-staging-v2.hyperwhisper.com", "wss://transcribe-staging-v2.hyperwhisper.com"),
+        ("http://localhost:8080/", "ws://localhost:8080"),
+        ("wss://already.example.com", "wss://already.example.com"),
+    ];
+    for (base, expected) in cases {
+        let mut config = LiveConfig::new(LiveProvider::HyperWhisperCloud);
+        config.device_id = Some("d".to_string());
+        config.base_url = Some(base.to_string());
+        let url = LiveSession::new(config).connect().expect("connect").url;
+        assert_eq!(url, format!("{expected}/ws/streaming-deepgram?device_id=d"));
+    }
+}
+
+#[test]
+fn hyperwhisper_cloud_stop_waits_ten_seconds_for_the_credits_figure() {
+    let mut config = LiveConfig::new(LiveProvider::HyperWhisperCloud);
+    config.device_id = Some("d".to_string());
+    let mut session = LiveSession::new(config);
+    assert_eq!(
+        session.stop_sequence(0),
+        [
+            StopStep::SendText { text: r#"{"type":"stop"}"#.to_string() },
+            StopStep::WaitForSessionComplete { timeout_ms: 10_000 },
+            StopStep::Close,
+        ],
+        "macOS hard-closes 500 ms after stop and loses the credits_used it carries"
+    );
+}
+
+#[test]
+fn hyperwhisper_cloud_parses_the_full_superset_including_warnings() {
+    let mut config = LiveConfig::new(LiveProvider::HyperWhisperCloud);
+    config.device_id = Some("d".to_string());
+    let mut session = LiveSession::new(config);
+
+    assert_eq!(
+        session.parse(r#"{"type":"ready","sessionId":"s-1"}"#),
+        LiveEvent::SessionStarted { session_id: Some("s-1".to_string()) }
+    );
+    assert_eq!(
+        session.parse(r#"{"type":"transcript","text":"hel"}"#),
+        LiveEvent::PartialTranscript { text: "hel".to_string() }
+    );
+    assert_eq!(
+        session.parse(r#"{"type":"transcript","text":"hello","is_final":true}"#),
+        LiveEvent::FinalTranscript { text: "hello".to_string() }
+    );
+    // credits_used is billing data. It arrives once, here, and nowhere else.
+    assert_eq!(
+        session.parse(r#"{"type":"session_complete","duration_seconds":12.5,"credits_used":3.25}"#),
+        LiveEvent::SessionComplete { duration_seconds: 12.5, credits_used: 3.25 }
+    );
+    assert_eq!(
+        session.parse(r#"{"type":"session_complete"}"#),
+        LiveEvent::SessionComplete { duration_seconds: 0.0, credits_used: 0.0 }
+    );
+    assert_eq!(
+        session.parse(r#"{"type":"error","message":"Credit balance exhausted"}"#),
+        LiveEvent::Error { message: "Credit balance exhausted".to_string() }
+    );
+    assert_eq!(
+        session.parse(r#"{"type":"error"}"#),
+        LiveEvent::Error { message: "Unknown server error".to_string() }
+    );
+    // The only provider that warns. remaining_seconds rides along and no head
+    // has ever read it, so it is not carried.
+    assert_eq!(
+        session.parse(r#"{"type":"warning","message":"90 seconds remaining","remaining_seconds":90}"#),
+        LiveEvent::Warning { message: "90 seconds remaining".to_string() }
+    );
+    assert_eq!(
+        session.parse(r#"{"type":"warning"}"#),
+        LiveEvent::Warning { message: "Server warning".to_string() }
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Cross-cutting
+// ---------------------------------------------------------------------------
+
+#[test]
+fn the_audio_framing_descriptor_reproduces_the_shipped_json_frame_byte_for_byte() {
+    // The controlling constraint: audio never crosses the FFI boundary, so the
+    // core answers a prefix and a suffix once and the platform does the base64
+    // and the concatenation. This proves the two literals are enough - that
+    // there is no per-chunk variation the descriptor cannot express.
+    //
+    // The base64 here is real: `"HyperWhisper"` encoded. It has no `+`, so the
+    // .NET heads' System.Text.Json output is byte-identical too (their default
+    // encoder escapes a plus sign; see the module docs).
+    let base64 = "SHlwZXJXaGlzcGVy";
+
+    let cases = [
+        (
+            LiveProvider::ElevenLabs,
+            format!(
+                r#"{{"message_type":"input_audio_chunk","audio_base_64":"{base64}","commit":false,"sample_rate":16000}}"#
+            ),
+        ),
+        (
+            LiveProvider::OpenAi,
+            format!(r#"{{"type":"input_audio_buffer.append","audio":"{base64}"}}"#),
+        ),
+    ];
+
+    for (provider, expected) in cases {
+        let connect = connect_of(&mut keyed(provider));
+        let AudioFraming::Base64Json { prefix, suffix } = connect.framing else {
+            panic!("{provider:?} must frame its audio as base64 JSON");
+        };
+        assert_eq!(
+            format!("{prefix}{base64}{suffix}"),
+            expected,
+            "{provider:?} frame is not what the shipped strategy sends"
+        );
+        assert!(
+            serde_json::from_str::<serde_json::Value>(&expected).is_ok(),
+            "{provider:?} frame is not valid JSON"
+        );
+    }
+}
+
+#[test]
+fn note_audio_is_a_count_and_the_framing_is_the_only_route_audio_takes() {
+    // The guard for the rule `hw-net/src/contract.rs` states. Every provider
+    // either sends the PCM as-is or wraps it in a fixed envelope; there is no
+    // third shape, and in neither case does the core see a sample.
+    for provider in LiveProvider::ALL {
+        let mut session = credentialed(provider);
+        let connect = connect_of(&mut session);
+        match &connect.framing {
+            AudioFraming::Binary => {}
+            AudioFraming::Base64Json { prefix, suffix } => {
+                assert!(prefix.ends_with('"'), "{provider:?} prefix must end mid-string");
+                assert!(suffix.starts_with('"'), "{provider:?} suffix must resume mid-string");
+            }
+        }
+        // A count, not bytes. Accepting a `Vec<u8>` here is the shape this
+        // whole module is built to avoid.
+        session.note_audio(u64::from(connect.sample_rate) * 2);
+    }
+}
+
+#[test]
+fn reset_clears_every_protocol_s_accumulated_state() {
+    // What makes a reconnect reuse one session object instead of rebuilding it.
+    let mut xai = keyed(LiveProvider::Grok);
+    assert_eq!(
+        xai.parse(r#"{"type":"transcript.partial","text":"Hello","is_final":true}"#),
+        LiveEvent::FinalTranscript { text: "Hello".to_string() }
+    );
+    xai.reset();
+    assert_eq!(
+        xai.parse(r#"{"type":"transcript.partial","text":"Hello","is_final":true}"#),
+        LiveEvent::FinalTranscript { text: "Hello".to_string() },
+        "the previous socket's transcript must not suppress the new one's first final"
+    );
+
+    let mut openai = keyed(LiveProvider::OpenAi);
+    connect_of(&mut openai);
+    openai.note_audio(9_600);
+    openai.reset();
+    assert_eq!(
+        openai.stop_sequence(0),
+        [StopStep::Wait { ms: 1_000 }, StopStep::Close],
+        "bytes appended to the dropped socket must not be committed to the new one"
+    );
+
+    // connect() resets too - that is the whole reconnect preparation.
+    let mut deepgram = keyed(LiveProvider::Deepgram);
+    connect_of(&mut deepgram);
+    assert!(deepgram.control_frames(0).is_empty());
+    connect_of(&mut deepgram);
+    assert!(
+        deepgram.control_frames(60_000).is_empty(),
+        "a reconnect must not open with a keepalive for the old socket's silence"
+    );
+}
+
+#[test]
+fn a_frame_that_is_not_a_json_object_is_ignored_by_every_provider() {
+    // Every shipped parser wraps its decode in a try/catch and returns "no
+    // event": a provider adding a frame shape must never end a recording.
+    for provider in LiveProvider::ALL {
+        let mut session = credentialed(provider);
+        for frame in ["", "not json", "[1,2,3]", "null", "\"a string\"", "{}", "{\"type\":42}"] {
+            assert_eq!(
+                session.parse(frame),
+                LiveEvent::Ignore,
+                "{provider:?} must ignore {frame:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn the_connect_descriptor_agrees_with_the_free_capability_functions() {
+    // Two sources for one number is how the fifteen implementations drifted.
+    for provider in LiveProvider::ALL {
+        let connect = credentialed(provider).connect().expect("connect");
+        assert_eq!(
+            connect.sample_rate,
+            required_sample_rate(provider),
+            "{provider:?} connect rate disagrees with the capability table"
+        );
+    }
+}
+
+#[test]
+fn only_deepgram_starts_its_session_on_the_handshake() {
+    for provider in LiveProvider::ALL {
+        let connect = credentialed(provider).connect().expect("connect");
+        assert_eq!(
+            connect.session_starts_on_open,
+            provider == LiveProvider::Deepgram,
+            "{provider:?} start-on-open changed"
+        );
+    }
+}
