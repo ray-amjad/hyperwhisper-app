@@ -235,6 +235,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("the ordered stop sequence reaches the socket in order, with its gap", TestLiveStopSequenceOnTheWireAsync),
     ("a final transcript that lands after the stop sequence is still counted", TestLiveLateFinalTranscriptAsync),
     ("a failure the receive loop recorded survives a throwing close", TestLiveRecordedFailureSurvivesCloseAsync),
+    ("a failure that lands after our own close cannot destroy the transcript", TestLivePostCloseFailureCannotDestroyTranscriptAsync),
+    ("a cancel inside the post-close drain abandons the session", TestLiveCancelDuringDrainAsync),
     ("the live protocol owns a Rust handle and is disposed", TestRustLiveDisposalAsync),
 };
 
@@ -1419,6 +1421,88 @@ static async Task TestLiveRecordedFailureSurvivesCloseAsync()
 }
 
 /// <summary>
+/// The other half of the post-close drain: it may ADD a transcript and may never
+/// ADD a failure.
+///
+/// The drain holds the receive loop open through this head's own
+/// <c>CloseOutputAsync</c>, so for the first time frames the peer sends in ANSWER
+/// to that half-close are read and classified. Every one of them lands on
+/// <c>state.Failure</c>, and the session's exit preferred a failure over a
+/// transcript unconditionally — so a session that already had "hello" came back
+/// as a bare failure with the text destroyed. Measured against a real
+/// <c>ClientWebSocket</c> and a real RFC 6455 server: a peer that drops the TCP
+/// connection instead of echoing the close returned
+/// <c>Transcript=null, Failure=Network</c>, and a 1011 close echo returned
+/// <c>Protocol</c>, where the same server against a service with no drain
+/// returned <c>"hello"</c>.
+///
+/// The close echo is the case pinned here, because it is deterministic: 1008
+/// (<c>PolicyViolation</c>) is a terminal close code, so the receive loop records
+/// <c>Protocol</c> — the exact shape that used to win.
+/// </summary>
+static async Task TestLivePostCloseFailureCannotDestroyTranscriptAsync()
+{
+    var socket = new LateFrameStreamingWebSocket(
+        [
+            TextFrame("{\"message_type\":\"committed_transcript\",\"text\":\"hello\"}"),
+            new StreamingWebSocketFrame(
+                [],
+                System.Net.WebSockets.WebSocketMessageType.Close,
+                CloseStatus: System.Net.WebSockets.WebSocketCloseStatus.PolicyViolation),
+        ],
+        TimeSpan.FromMilliseconds(300));
+    var result = await new LiveCloudTranscriptionService(new DirectWebSocketFactory(socket))
+        .TranscribeAsync(
+            new LiveTranscriptionConfig(LiveTranscriptionProvider.ElevenLabs, ApiKey: "eleven"),
+            LateAudio(320, socket));
+    Assert.True(
+        result.Failure is null,
+        $"a verdict reached after our own close destroyed a finished transcript: {result.Failure?.Code}");
+    Assert.Equal("hello", result.Transcript);
+
+    // The rule is one-directional. A verdict recorded BEFORE the close still
+    // outranks everything, which is what TestLiveRecordedFailureSurvivesCloseAsync
+    // pins from the other side.
+}
+
+/// <summary>
+/// A cancel that lands inside the post-close drain must abandon the session, not
+/// finalize it.
+///
+/// The drain waits on a token linked over the CALLER's token as well as
+/// <c>CloseTimeout</c>, and <see cref="Task.WhenAny(Task[])"/> returns normally
+/// when a linked token fires rather than throwing. Nothing downstream tested the
+/// token again, so a user who hit cancel 250 ms into the drain got
+/// <c>Transcript="hello", IsSuccess=true</c> — measured against a real
+/// <c>ClientWebSocket</c> — and the in-flight stop then injected that text while
+/// the cancel path was deleting the history row and reporting "Recording
+/// cancelled".
+///
+/// The cancel is armed BY the close rather than by a wall clock, so the drain is
+/// provably the thing running when it fires.
+/// </summary>
+static async Task TestLiveCancelDuringDrainAsync()
+{
+    using var cancellation = new CancellationTokenSource();
+    var socket = new LateFrameStreamingWebSocket(
+        [TextFrame("{\"message_type\":\"committed_transcript\",\"text\":\"hello\"}")],
+        TimeSpan.Zero,
+        onClose: () => cancellation.CancelAfter(TimeSpan.FromMilliseconds(100)));
+    var result = await new LiveCloudTranscriptionService(new DirectWebSocketFactory(socket))
+        .TranscribeAsync(
+            new LiveTranscriptionConfig(LiveTranscriptionProvider.ElevenLabs, ApiKey: "eleven"),
+            LateAudio(320, socket, awaitFirstFrame: true),
+            cancellation.Token);
+    Assert.True(
+        result.Failure is not null,
+        $"the cancel was swallowed by the drain and the session finalized \"{result.Transcript}\"");
+    Assert.Equal(LiveTranscriptionFailureCode.Cancelled, result.Failure!.Code);
+    Assert.True(
+        result.Transcript is null,
+        "a cancelled session must not hand back text the caller's cancel path is deleting");
+}
+
+/// <summary>
 /// One chunk, then a resume that means "the last audio byte is on the wire" —
 /// the socket withholds its script until that point, so the delay under test is
 /// measured from the stop and not from a scheduling accident.
@@ -1678,11 +1762,16 @@ sealed class DirectWebSocketFactory(IStreamingWebSocket socket) : IStreamingWebS
 /// the behaviour every existing test depends on: it withholds its whole script
 /// until the caller says the last audio chunk is on the wire and then holds it
 /// back a further <paramref name="lateBy"/>, and it can fail the close.
+///
+/// <paramref name="onClose"/> runs when the close frame is written, which is the
+/// instant the post-close drain begins. A test that has to act DURING the drain
+/// hangs its trigger there rather than on a wall clock started somewhere earlier.
 /// </summary>
 sealed class LateFrameStreamingWebSocket(
     IEnumerable<StreamingWebSocketFrame> frames,
     TimeSpan lateBy,
-    bool throwOnClose = false) : IStreamingWebSocket
+    bool throwOnClose = false,
+    Action? onClose = null) : IStreamingWebSocket
 {
     private readonly Queue<StreamingWebSocketFrame> _frames = new(frames);
     private readonly TaskCompletionSource _audioDone = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -1736,6 +1825,7 @@ sealed class LateFrameStreamingWebSocket(
     {
         cancellationToken.ThrowIfCancellationRequested();
         Closes++;
+        onClose?.Invoke();
         // What a real socket does when the provider has already torn the session
         // down: the close write lands on a dead connection.
         return throwOnClose

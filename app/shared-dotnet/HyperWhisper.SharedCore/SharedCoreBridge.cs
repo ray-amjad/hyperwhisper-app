@@ -267,11 +267,21 @@ public static class SharedCoreBridge
     // terminal-error policy behind the first two shipped on macOS only, and the
     // two halves of it do NOT reach the same heads:
     //
-    //   * Mid-session, via ClassifyLiveErrorMessage. Windows and Linux both gain
-    //     it here. A "Credit balance exhausted" frame from the default provider
-    //     now stops driving a reconnect that can only fail the same way —
-    //     LiveCloudTranscriptionService reads it on Linux, and
-    //     StreamingTranscriptionClient reads it on Windows.
+    //   * Mid-session, via ClassifyLiveErrorMessage. THIS head gains it, and it
+    //     is the only one that does: LiveCloudTranscriptionService is the single
+    //     non-test caller in the repo. A "Credit balance exhausted" frame from
+    //     the default provider now stops driving a reconnect that can only fail
+    //     the same way.
+    //
+    //     Windows deliberately does NOT call it. StreamingTranscriptionClient
+    //     moves to Error on EVERY provider error frame and its receive loop ends
+    //     the session there, terminal or not, so it has no doomed-reconnect
+    //     fan-out to suppress — wiring the classifier in would LOOSEN
+    //     termination, not tighten it, because a transient frame would start
+    //     keeping its reconnect. That is a behaviour change on a shipped path
+    //     and it belongs to the client rework, not to issue #281's
+    //     single-sourcing. The reasoning is recorded at the client's
+    //     `case StreamingProviderEvent.Error` arm.
     //
     //   * Pre-session, via LiveUpgradeRefusal below — the relay refusing the
     //     WebSocket upgrade outright. Windows gains it: its

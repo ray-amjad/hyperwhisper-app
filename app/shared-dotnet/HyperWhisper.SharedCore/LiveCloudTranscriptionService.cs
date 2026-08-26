@@ -154,6 +154,10 @@ public sealed class LiveCloudTranscriptionService
                     cancellationToken).ConfigureAwait(false);
             }
 
+            // Everything from here on is the peer answering a half-close this
+            // head chose to send. What the receive loop records in that window is
+            // no longer allowed to change the verdict — see BeginPostClose.
+            state.BeginPostClose();
             using (var closeCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
             {
                 closeCancellation.CancelAfter(CloseTimeout);
@@ -176,9 +180,25 @@ public sealed class LiveCloudTranscriptionService
             {
             }
 
-            if (state.Failure is not null)
+            // A cancel that landed anywhere inside the bounded close — which is
+            // now a window with a drain in it, not the microsecond it used to be
+            // — abandons the session. Without this the drain swallows it:
+            // `closeToken` is linked over the CALLER's token as well as
+            // CloseTimeout, so Task.WhenAny returns normally on a cancel and
+            // nothing downstream tests the token again.
+            // The measured cost was a session that finalized "hello" and let the
+            // caller inject it while its own cancel path was deleting the history
+            // row and reporting "Recording cancelled".
+            //
+            // The throw is taken here rather than inside the drain so the unwind
+            // above still runs: the receive loop is stopped and awaited, and the
+            // Rust protocol handle and the socket are disposed with nothing left
+            // reading them.
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (state.SettledFailure is not null)
             {
-                return new LiveTranscriptionResult(null, state.Failure, state.AudioChunksSent, state.MessagesReceived);
+                return new LiveTranscriptionResult(null, state.SettledFailure, state.AudioChunksSent, state.MessagesReceived);
             }
             var finalized = HyperwhisperCoreMethods.FinalizeStreamingText(state.Transcript.ToString());
             if (string.IsNullOrWhiteSpace(finalized))
@@ -248,6 +268,12 @@ public sealed class LiveCloudTranscriptionService
     /// zero, and a <c>commit_strategy=vad</c> <c>committed_transcript</c> arriving
     /// 100 ms after the last audio chunk came back as <c>NoSpeech</c>.
     ///
+    /// The window this opens is TRANSCRIPT-ONLY: a verdict the receive loop
+    /// reaches inside it is discarded, because the frames it is reading are the
+    /// peer's answer to a half-close this head chose to send. See
+    /// <see cref="SessionState.BeginPostClose"/> for the transcript that rule
+    /// exists to save.
+    ///
     /// <paramref name="stoppingNormally"/> is the stop-sequence condition, read
     /// before that sequence ran: a session that already failed, or that the
     /// provider already completed, skips the wait entirely rather than paying up
@@ -276,8 +302,12 @@ public sealed class LiveCloudTranscriptionService
         {
             return;
         }
-        // receiveTask completing means the provider closed or the session
-        // finished; the token firing means CloseTimeout elapsed.
+        // Three things end this wait, and only the first is a finished session:
+        // `receiveTask` completing (the provider closed, or the session
+        // finished), `CloseTimeout` elapsing, or the CALLER cancelling —
+        // `closeToken` is linked over both. `WhenAny` cannot tell them apart and
+        // does not throw for either of the last two, so the caller's token is
+        // tested once more in TranscribeAsync after the unwind.
         await Task.WhenAny(receiveTask, Task.Delay(Timeout.Infinite, closeToken)).ConfigureAwait(false);
     }
 
@@ -508,10 +538,12 @@ public sealed class LiveCloudTranscriptionService
 
     /// <summary>
     /// The single exit for a failed session. A failure the session ALREADY
-    /// RECORDED outranks the one named here: <see cref="SessionState.Failure"/>
-    /// is what the receive loop concluded while the frames were in front of it,
-    /// and every caller of this method is either a guess made while unwinding or
-    /// a case where no verdict was ever recorded.
+    /// RECORDED outranks the one named here:
+    /// <see cref="SessionState.SettledFailure"/> is what the receive loop
+    /// concluded while the frames were in front of it — up to the close, never
+    /// after it (see <see cref="SessionState.BeginPostClose"/>) — and every
+    /// caller of this method is either a guess made while unwinding or a case
+    /// where no verdict was ever recorded.
     ///
     /// The path that forced this, no race required: HyperWhisper Cloud answers
     /// <c>{"type":"error","message":"Credit balance exhausted"}</c>. The receive
@@ -528,9 +560,9 @@ public sealed class LiveCloudTranscriptionService
     /// Every call site was checked against this rule:
     /// <list type="bullet">
     /// <item>The connect timeout, and the <c>NoSpeech</c> exit, both run where
-    /// <c>state.Failure</c> is provably <c>null</c> — before the receive loop is
-    /// started, and on the success path that has just tested it — so nothing
-    /// moves for them.</item>
+    /// <c>state.SettledFailure</c> is provably <c>null</c> — before the receive
+    /// loop is started, and on the success path that has just tested it — so
+    /// nothing moves for them.</item>
     /// <item>The <c>Cancelled</c> arm and the four transport/state catch arms in
     /// <see cref="TranscribeAsync"/> all unwind AFTER the receive loop may have
     /// concluded, and are exactly the arms that were discarding it.</item>
@@ -546,7 +578,7 @@ public sealed class LiveCloudTranscriptionService
         string message) =>
         new(
             null,
-            state.Failure ?? new LiveTranscriptionFailure(code, message, state.Provider),
+            state.SettledFailure ?? new LiveTranscriptionFailure(code, message, state.Provider),
             state.AudioChunksSent,
             state.MessagesReceived);
 
@@ -558,11 +590,59 @@ public sealed class LiveCloudTranscriptionService
 
     private sealed class SessionState(LiveTranscriptionProvider provider)
     {
+        private LiveTranscriptionFailure? _verdictAtClose;
+        private bool _closed;
+
         public LiveTranscriptionProvider Provider { get; } = provider;
         public StringBuilder Transcript { get; } = new();
         public TaskCompletionSource Completed { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        /// <summary>
+        /// What the receive loop has concluded, at any moment. The loop writes
+        /// it; the session's exit reads <see cref="SettledFailure"/> instead.
+        /// </summary>
         public LiveTranscriptionFailure? Failure { get; set; }
+
         public int AudioChunksSent { get; set; }
         public int MessagesReceived { get; set; }
+
+        /// <summary>
+        /// Freeze the verdict: this head is about to send its own close frame,
+        /// and nothing the receive loop concludes afterwards may change what the
+        /// session returns.
+        ///
+        /// The post-close window only exists because
+        /// <see cref="DrainAfterCloseAsync"/> holds the loop open through it, to
+        /// catch a final transcript that lands late. Before that drain, this head
+        /// cancelled the loop microseconds after <c>CloseOutputAsync</c> and read
+        /// nothing the peer sent in reply. Reading those frames must not cost
+        /// anything: measured against a real <c>ClientWebSocket</c> and a real
+        /// RFC 6455 server, ElevenLabs with <c>"hello"</c> already accumulated and
+        /// a peer that answers the half-close by dropping the TCP connection
+        /// returned <c>Transcript=null, Failure=Network</c> — a finished
+        /// transcript destroyed by the loop's own <c>catch</c> arm. A 1011 close
+        /// echo (<c>Protocol</c>) and a trailing <c>rate_limited</c> frame did the
+        /// same. The peer chooses all three, and this head cannot.
+        ///
+        /// So the drain may ADD a transcript and may never ADD a failure. That is
+        /// also exactly the pre-drain answer for every input, which is what makes
+        /// it safe: the frames being discarded are the ones this head never used
+        /// to read.
+        ///
+        /// A verdict recorded BEFORE the close still outranks everything —
+        /// including the guesses made while unwinding — which is what
+        /// <see cref="Failed"/> depends on.
+        /// </summary>
+        public void BeginPostClose()
+        {
+            _verdictAtClose = Failure;
+            _closed = true;
+        }
+
+        /// <summary>
+        /// The verdict that counts: what the receive loop had concluded when this
+        /// head closed, and before that, whatever it has concluded so far.
+        /// </summary>
+        public LiveTranscriptionFailure? SettledFailure => _closed ? _verdictAtClose : Failure;
     }
 }

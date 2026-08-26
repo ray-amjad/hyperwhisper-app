@@ -8,7 +8,10 @@
 //!
 //! It is also the only provider whose error frames carry no wording, just a
 //! `message_type`. The three user-facing sentences below are therefore ours,
-//! not the vendor's, and are the strings the heads have shipped.
+//! not the vendor's. Two of them — `QUOTA_EXCEEDED` and `RATE_LIMITED` — are the
+//! strings all the heads shipped, character for character. `AUTH_ERROR` is the
+//! one deliberate change: neither shipped spelling was true on all three heads,
+//! so the sentence here is new and the heads move to it. See its own doc below.
 
 use super::config::{
     text_field, LiveConfig, LiveConnect, LiveError, LiveErrorKind, LiveEvent, Query, StopStep,

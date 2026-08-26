@@ -13,12 +13,19 @@
 //!
 //! ## Why this slice first
 //!
-//! The terminal-error policy shipped on macOS only. Windows and Linux had no
-//! equivalent, so a mid-session "Credit balance exhausted" from HyperWhisper
-//! Cloud — the default provider — still drove the doomed reconnect fan-out that
-//! macOS specifically fixed (HYPERWHISPER-MH → -MG → -RW). Moving the policy
-//! here gives the other two heads the fix as a side effect of not writing it
+//! The terminal-error policy shipped on macOS only. The `shared-dotnet` head
+//! had no equivalent, so a mid-session "Credit balance exhausted" from
+//! HyperWhisper Cloud — the default provider — still drove the doomed reconnect
+//! fan-out that macOS specifically fixed (HYPERWHISPER-MH → -MG → -RW). Moving
+//! the policy here gives that head the fix as a side effect of not writing it
 //! again.
+//!
+//! Windows is the head that does NOT take it, on purpose:
+//! `StreamingTranscriptionClient` ends the session on every provider error
+//! frame, terminal or not, so it has no fan-out to suppress and classifying
+//! would only loosen what it already does. It is a caller of
+//! [`is_terminal_close_code`] and [`upgrade_refusal`], and deliberately not of
+//! [`classify_error_message`].
 //!
 //! ## What stays native, deliberately
 //!

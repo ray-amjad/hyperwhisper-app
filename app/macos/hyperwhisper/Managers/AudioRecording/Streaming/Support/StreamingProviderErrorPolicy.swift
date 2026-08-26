@@ -64,12 +64,21 @@ import Foundation
 ///
 /// - Note: Since #281 this type is a thin facade. The twenty markers, the
 ///   matching rule and the status table live in `hw_net::live::policy` and are
-///   reached through `liveClassifyErrorMessage` / `liveUpgradeRefusal`, so
-///   Windows and Linux — which never had this policy — get the same answers
-///   from the same source. The rationale above is duplicated in the Rust doc
-///   comments; change both together. `StreamingProviderErrorPolicyTests` is
-///   unchanged on purpose: it is now the conformance proof that the port is
-///   behaviour-identical.
+///   reached through `liveClassifyErrorMessage` / `liveUpgradeRefusal`, so a
+///   head that wants either answer gets this one. `shared-dotnet` — which never
+///   had this policy — takes both. Windows takes the upgrade half and
+///   deliberately declines to classify error wording, because its client already
+///   ends the session on every provider error frame; see `SharedCoreBridge`'s
+///   live-streaming note. The rationale above is duplicated in the Rust doc
+///   comments; change both together. `StreamingProviderErrorPolicyTests` runs
+///   against the ported classifier unchanged in every case but one, so it is the
+///   conformance proof for the twenty markers and the status table. The
+///   exception is `elevenLabsAuthErrorWordingIsTerminal`: the port deliberately
+///   respells that one sentence (`hw_net::live::elevenlabs::AUTH_ERROR`, because
+///   neither shipped spelling was true on all three heads), and the test tracks
+///   the new wording. The one behaviour change is therefore the one case the
+///   suite does not prove identical — it pins that the NEW sentence still
+///   matches a terminal marker, which is what has to stay true.
 enum StreamingProviderErrorPolicy {
 
     /// The outcome of classifying a provider error message.

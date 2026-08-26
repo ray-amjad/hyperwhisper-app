@@ -819,40 +819,237 @@ mod tests {
         })
     }
 
-    /// Every `#[uniffi::…]` item declared in this file, as source text.
+    /// `source` with everything that is not code blanked out: line comments,
+    /// block comments (nested, as Rust allows), and the CONTENTS of string, raw
+    /// string and char literals. One output line per input line, so a region
+    /// built from these still reads like the file.
     ///
-    /// A region runs from the attribute line to the item's closing brace, which
-    /// in a rustfmt-shaped file is the next line that is exactly `}` in column
-    /// zero. Over-reading would only make the guard stricter; under-reading is
-    /// the failure that matters, which is why the caller asserts on what was
-    /// found before it asserts on what is in it.
+    /// This is what makes [`uniffi_regions`] trustworthy. Its first version
+    /// ended a region at the next line that was exactly `}`, and a reviewer
+    /// defeated it with a multi-line raw-string JSON literal holding a
+    /// column-zero `}`: the exported impl was truncated there, every item below
+    /// went unscanned, and `send_audio_bytes(&self, pcm: Vec<u8>)` added after it
+    /// passed. A brace inside a literal or a comment can no longer end anything.
+    fn code_lines(source: &str) -> Vec<String> {
+        enum Mode {
+            Code,
+            Block(u32),
+            Text,
+            Raw(usize),
+            Char,
+        }
+        let mut mode = Mode::Code;
+        let mut out = Vec::new();
+        for line in source.lines() {
+            let chars: Vec<char> = line.chars().collect();
+            let mut code = String::new();
+            let mut index = 0;
+            while index < chars.len() {
+                let rest = &chars[index..];
+                match mode {
+                    Mode::Code => match rest {
+                        ['/', '/', ..] => break,
+                        ['/', '*', ..] => {
+                            mode = Mode::Block(1);
+                            index += 2;
+                        }
+                        // A raw string: `r"…"`, `r#"…"#`, `br##"…"##`. The hashes
+                        // decide where it ends, so they are counted.
+                        ['b' | 'r', ..] if raw_opener(rest).is_some() => {
+                            let (skip, hashes) = raw_opener(rest).unwrap_or_default();
+                            mode = Mode::Raw(hashes);
+                            index += skip;
+                        }
+                        ['"', ..] => {
+                            mode = Mode::Text;
+                            index += 1;
+                        }
+                        // `'a'` is a char literal; `'_` and `'static` are
+                        // lifetimes and stay code — mistaking one for the other
+                        // would swallow the rest of the line, braces included.
+                        ['\'', ..] if is_char_literal(rest) => {
+                            mode = Mode::Char;
+                            index += 1;
+                        }
+                        [character, ..] => {
+                            code.push(*character);
+                            index += 1;
+                        }
+                        [] => break,
+                    },
+                    Mode::Block(depth) => match rest {
+                        ['/', '*', ..] => {
+                            mode = Mode::Block(depth + 1);
+                            index += 2;
+                        }
+                        ['*', '/', ..] => {
+                            mode = if depth == 1 {
+                                Mode::Code
+                            } else {
+                                Mode::Block(depth - 1)
+                            };
+                            index += 2;
+                        }
+                        _ => index += 1,
+                    },
+                    Mode::Text => match rest {
+                        ['\\', _, ..] => index += 2,
+                        ['"', ..] => {
+                            mode = Mode::Code;
+                            index += 1;
+                        }
+                        _ => index += 1,
+                    },
+                    Mode::Raw(hashes) => {
+                        if rest[0] == '"'
+                            && rest[1..].iter().take(hashes).all(|c| *c == '#')
+                            && rest.len() > hashes
+                        {
+                            mode = Mode::Code;
+                            index += 1 + hashes;
+                        } else {
+                            index += 1;
+                        }
+                    }
+                    Mode::Char => match rest {
+                        ['\\', _, ..] => index += 2,
+                        ['\'', ..] => {
+                            mode = Mode::Code;
+                            index += 1;
+                        }
+                        _ => index += 1,
+                    },
+                }
+            }
+            out.push(code);
+        }
+        out
+    }
+
+    /// The length of a raw-string opener at `rest`, and its hash count.
+    fn raw_opener(rest: &[char]) -> Option<(usize, usize)> {
+        let start = usize::from(rest[0] == 'b');
+        if rest.get(start) != Some(&'r') {
+            return None;
+        }
+        let hashes = rest[start + 1..].iter().take_while(|c| **c == '#').count();
+        (rest.get(start + 1 + hashes) == Some(&'"')).then_some((start + 2 + hashes, hashes))
+    }
+
+    /// Whether `rest` opens a char literal rather than a lifetime.
+    fn is_char_literal(rest: &[char]) -> bool {
+        matches!(rest, ['\'', '\\', ..]) || rest.get(2) == Some(&'\'')
+    }
+
+    /// Every `#[uniffi::…]` item declared in `source`, as code text.
+    ///
+    /// A region runs from the attribute line to the line where the item's brace
+    /// depth returns to zero — or, for an item with no body, to its `;`. Braces
+    /// are counted over [`code_lines`], so only real braces count. Over-reading
+    /// (an item that never closes) runs to the end of the file and would only
+    /// make the guard stricter.
     fn uniffi_regions(source: &str) -> Vec<String> {
-        let lines: Vec<&str> = source.lines().collect();
+        let lines = code_lines(source);
         let mut regions = Vec::new();
         for (index, line) in lines.iter().enumerate() {
             let trimmed = line.trim_start();
             if !(trimmed.starts_with("#[") && trimmed.contains("uniffi::")) {
                 continue;
             }
-            let end = lines[index..]
-                .iter()
-                .position(|candidate| *candidate == "}")
-                .map_or(lines.len(), |offset| index + offset + 1);
+            let mut depth: i64 = 0;
+            let mut opened = false;
+            let mut end = lines.len();
+            for (offset, candidate) in lines[index..].iter().enumerate() {
+                for character in candidate.chars() {
+                    match character {
+                        '{' => {
+                            depth += 1;
+                            opened = true;
+                        }
+                        '}' => depth -= 1,
+                        _ => {}
+                    }
+                }
+                if (opened && depth <= 0) || (!opened && candidate.trim_end().ends_with(';')) {
+                    end = index + offset + 1;
+                    break;
+                }
+            }
             regions.push(lines[index..end].join("\n"));
         }
         regions
     }
 
-    /// Whether `code` names a byte type — `u8`/`i8` as a whole token, so `u16`,
-    /// `u32` and `u64` are untouched.
-    fn mentions_a_byte_type(code: &str) -> bool {
-        ["u8", "i8"].iter().any(|token| {
-            code.match_indices(token).any(|(at, _)| {
+    /// The tokens that name a byte type: `u8` and `i8`, plus every alias
+    /// declared in `source` that resolves to one, chains included.
+    ///
+    /// `type Pcm = Vec<u8>;` with `pub fn send(&self, pcm: Pcm)` is a real defeat
+    /// of a plain token match, and Codex found it. An alias declared in a file
+    /// this guard reads is resolvable — it is right there — so it is resolved.
+    /// An alias declared anywhere else is not; the test's doc says what happens
+    /// then.
+    fn byte_type_tokens(source: &str) -> Vec<String> {
+        let mut tokens = vec!["u8".to_string(), "i8".to_string()];
+        let lines = code_lines(source);
+        // One pass per link in the longest chain. The bound is the file itself.
+        for _ in 0..lines.len().min(16) {
+            let mut added = false;
+            for line in &lines {
+                let trimmed = line.trim_start();
+                let Some(rest) = trimmed
+                    .strip_prefix("pub type ")
+                    .or_else(|| trimmed.strip_prefix("type "))
+                    .or_else(|| {
+                        trimmed
+                            .split_once("type ")
+                            .filter(|(before, _)| before.starts_with("pub("))
+                            .map(|(_, after)| after)
+                    })
+                else {
+                    continue;
+                };
+                let Some((name, value)) = rest.split_once('=') else {
+                    continue;
+                };
+                let name = name.split(['<', ' ']).next().unwrap_or_default().trim();
+                if name.is_empty() || tokens.iter().any(|token| token == name) {
+                    continue;
+                }
+                if mentions_a_byte_type(value, &tokens) {
+                    tokens.push(name.to_string());
+                    added = true;
+                }
+            }
+            if !added {
+                break;
+            }
+        }
+        tokens
+    }
+
+    /// The types this file imports from elsewhere in the crate, as written.
+    fn crate_imports(source: &str) -> Vec<String> {
+        code_lines(source)
+            .iter()
+            .filter_map(|line| {
+                let trimmed = line.trim();
+                trimmed
+                    .strip_prefix("use ")
+                    .filter(|rest| rest.starts_with("crate::"))
+                    .map(|rest| rest.trim_end_matches(';').to_string())
+            })
+            .collect()
+    }
+
+    /// Whether `code` names one of `tokens` as a whole token, so `u16`, `u32`
+    /// and `u64` are untouched.
+    fn mentions_a_byte_type(code: &str, tokens: &[String]) -> bool {
+        tokens.iter().any(|token| {
+            code.match_indices(token.as_str()).any(|(at, _)| {
                 let before = code[..at].chars().next_back();
                 let after = code[at + token.len()..].chars().next();
-                let word = |c: Option<char>| {
-                    c.is_some_and(|c| c.is_ascii_alphanumeric() || c == '_')
-                };
+                let word =
+                    |c: Option<char>| c.is_some_and(|c| c.is_ascii_alphanumeric() || c == '_');
                 !word(before) && !word(after)
             })
         })
@@ -871,17 +1068,47 @@ mod tests {
     /// batch multipart builders and never looks at the live surface, so nothing
     /// enforced the rule `hw-net/src/contract.rs` opens by stating.
     ///
-    /// So the rule is checked where it lives: no `#[uniffi::…]` item in this
-    /// file — exported function, exported method, constructor, record field or
-    /// enum payload — may name a byte type. A count (`u64`), a descriptor
+    /// So the rule is checked where it lives: no `#[uniffi::…]` item on the live
+    /// surface — exported function, exported method, constructor, record field
+    /// or enum payload, in this file or in the one record it imports — may name
+    /// a byte type. A count (`u64`), a descriptor
     /// ([`HwAudioFraming`]) and a `String` frame are the only shapes allowed
     /// through, and the platform does the base64 on bytes it already holds.
     ///
-    /// Line comments are stripped before matching, so prose may still say
-    /// `Vec<u8>`; only code is scanned.
+    /// # What this guard covers, exactly
+    ///
+    /// It is a source-text scan, so its reach is worth stating rather than
+    /// implying. Comments and string contents are removed before matching
+    /// ([`code_lines`]), so prose may still say `Vec<u8>`; only code is scanned.
+    ///
+    /// * **A byte type named outright** — caught.
+    /// * **An item hidden by truncating the scan** (the raw-string `}` defeat) —
+    ///   caught: regions end on brace depth over code, not on a literal line.
+    /// * **An alias declared in a scanned file** (`type Pcm = Vec<u8>;`) —
+    ///   caught, chains included ([`byte_type_tokens`]).
+    /// * **A type declared in another file** — the live surface has exactly one,
+    ///   `ffi_net::Header` on [`HwLiveConnect`], and it is scanned where it is
+    ///   declared. A byte field added to `Header` fails this test. `ffi_net`
+    ///   carries bytes legitimately elsewhere, so only that one record is read,
+    ///   not the file.
+    /// * **A SECOND cross-file type** — not scanned, and cannot arrive quietly:
+    ///   the import list and the absence of in-crate paths are both asserted, so
+    ///   adding one fails this test until the guard is taught about it. That is
+    ///   fail-closed, not covered.
+    /// * **A byte type nested one level deeper** — a cross-file record whose own
+    ///   field names a type in a THIRD file — is OUT OF REACH. The scan does not
+    ///   recurse, and resolving a name to a declaration is the compiler's job,
+    ///   not a text scan's. `Header` is two `String`s, so nothing reachable today
+    ///   is in that shape.
+    /// * A `hw_net` type cannot appear on this surface at all: UniFFI exports
+    ///   only types this crate declares, or ones it explicitly adopts with a
+    ///   remote/custom-type declaration — of which the workspace has none — and
+    ///   `hw-net` has no uniffi dependency to declare them with.
     #[test]
     fn no_exported_live_item_can_carry_audio_bytes() {
-        let regions = uniffi_regions(include_str!("ffi_live.rs"));
+        let live = include_str!("ffi_live.rs");
+        let net = include_str!("ffi_net.rs");
+        let regions = uniffi_regions(live);
 
         // The guard has teeth only if it actually found the surface. A scanner
         // that silently matched nothing, or that stopped at the attribute line,
@@ -896,11 +1123,17 @@ mod tests {
             regions.iter().all(|region| region.lines().count() >= 2),
             "a region that is only its attribute line scans nothing"
         );
+        // `note_audio` is the one call told about audio; `reset` is the LAST
+        // method in that impl. Requiring both means the block was scanned from
+        // end to end, which is what the truncation defeat broke.
         assert!(
-            regions.iter().any(|region| region.contains("impl HwLiveSession")
-                && region.contains("fn note_audio")),
-            "the session object's exported impl - the block an audio method would land in, \
-             and the one call that is told about audio - was not scanned whole"
+            regions
+                .iter()
+                .any(|region| region.contains("impl HwLiveSession")
+                    && region.contains("fn note_audio")
+                    && region.contains("fn reset")),
+            "the session object's exported impl - the block an audio method would land in - \
+             was not scanned whole"
         );
         assert!(
             regions
@@ -909,17 +1142,40 @@ mod tests {
             "the config record - the other shape audio could be smuggled in - was not scanned"
         );
 
-        for region in regions {
-            let head = region.lines().next().unwrap_or_default().trim().to_string();
+        // The cross-file boundary, held in place. One import, no in-crate paths:
+        // every other name on this surface is declared in this file or is a
+        // primitive, and both facts are checked rather than assumed.
+        assert_eq!(
+            crate_imports(live),
+            vec!["crate::ffi_net::Header".to_string()],
+            "the live surface imports a type this guard does not scan; scan its declaration \
+             the way ffi_net::Header is scanned below, then update this list"
+        );
+        assert!(
+            regions.iter().all(|region| !region.contains("crate::")),
+            "an exported item names an in-crate type by path; the cross-file scan follows \
+             imports, so a path would go unscanned"
+        );
+        let header = uniffi_regions(net)
+            .into_iter()
+            .find(|region| region.contains("pub struct Header"))
+            .expect("ffi_net declares the Header record the live connect descriptor carries");
+
+        // Aliases from both scanned files, so an alias declared beside `Header`
+        // counts the same as one declared here.
+        let tokens = byte_type_tokens(&format!("{live}\n{net}"));
+        for region in regions.into_iter().chain([header]) {
+            let head = region
+                .lines()
+                .find(|line| !line.trim().is_empty())
+                .unwrap_or_default()
+                .trim()
+                .to_string();
             for line in region.lines() {
-                let code = match line.find("//") {
-                    Some(at) => &line[..at],
-                    None => line,
-                };
                 assert!(
-                    !mentions_a_byte_type(code),
+                    !mentions_a_byte_type(line, &tokens),
                     "audio must never cross the FFI: `{}` names a byte type inside `{head}`",
-                    code.trim()
+                    line.trim()
                 );
             }
         }
