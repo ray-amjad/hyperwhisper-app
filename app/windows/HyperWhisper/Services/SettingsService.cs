@@ -405,14 +405,16 @@ public partial class SettingsService
     /// </summary>
     public string StreamingCloudTier
     {
-        get => string.IsNullOrWhiteSpace(_settings.StreamingCloudTier)
-            ? Services.Streaming.HyperWhisperCloudStreamingStrategy.DefaultCloudTier
-            : _settings.StreamingCloudTier!;
+        // Validated on READ as well as on write. The setter clamps everything the
+        // app itself stores, but settings.json is a plain file a user can edit and
+        // a catalog edit can retire a tier that was legitimately persisted months
+        // ago. An unclamped read would bind the settings ComboBox to a value with
+        // no matching item — WPF renders that as an EMPTY row — while the session
+        // silently ran on the fallback tier.
+        get => NormalizeStreamingCloudTier(_settings.StreamingCloudTier);
         set
         {
-            var normalized = IsValidStreamingCloudTier(value)
-                ? value.Trim()
-                : Services.Streaming.HyperWhisperCloudStreamingStrategy.DefaultCloudTier;
+            var normalized = NormalizeStreamingCloudTier(value);
 
             if (_settings.StreamingCloudTier != normalized)
             {
@@ -424,14 +426,27 @@ public partial class SettingsService
         }
     }
 
-    private static bool IsValidStreamingCloudTier(string? value)
+    /// <summary>
+    /// Clamps a stored tier id to the live-eligible set, returning the CATALOG's
+    /// own casing rather than the caller's.
+    /// </summary>
+    /// <remarks>
+    /// The casing matters: the settings ComboBox uses <c>SelectedValuePath="Id"</c>,
+    /// and WPF matches <c>SelectedValue</c> with <c>Equals</c> — case-sensitively.
+    /// Returning a case-insensitive match verbatim would satisfy the validity
+    /// check and still leave the row blank. The macOS counterpart is
+    /// <c>HyperWhisperCloudStrategy.normalizedCloudTier</c>.
+    /// </remarks>
+    internal static string NormalizeStreamingCloudTier(string? value)
     {
-        if (string.IsNullOrWhiteSpace(value)) return false;
+        var fallback = Services.Streaming.HyperWhisperCloudStreamingStrategy.DefaultCloudTier;
+        if (string.IsNullOrWhiteSpace(value)) return fallback;
+
         var candidate = value.Trim();
         foreach (var entry in AppClassification.CloudSttCatalog.Shared.StreamingCloudTierEntries())
             if (string.Equals(entry.Id, candidate, StringComparison.OrdinalIgnoreCase))
-                return true;
-        return false;
+                return entry.Id;
+        return fallback;
     }
 
     /// <summary>

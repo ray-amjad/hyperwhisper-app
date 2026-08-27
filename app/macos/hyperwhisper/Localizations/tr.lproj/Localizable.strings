@@ -42,6 +42,8 @@
 "streaming.enable.title" = "Akışı Etkinleştir";
 "streaming.provider.picker.title" = "Sağlayıcı";
 "streaming.model.title" = "Model";
+"streaming.cloudTier.title" = "Canlı Motor";
+"streaming.cloudTier.description" = "HyperWhisper Cloud'un canlı transkripsiyon için kullandığı konuşma motoru";
 "streaming.model.nova3general" = "Nova 3 Genel";
 "streaming.model.nova3medical" = "Nova 3 Tıbbi";
 "streaming.fastFormatting.title" = "Hızlı Biçimlendirme";

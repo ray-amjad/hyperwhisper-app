@@ -74,6 +74,8 @@ struct StreamingView: View {
             return settingsManager.openAIAPIKey
         case .xai:
             return settingsManager.grokAPIKey
+        case .gemini:
+            return settingsManager.geminiTranscribeAPIKey
         case .hyperwhisperCloud, .parakeetLocal, .nemotronLocal:
             return ""
         }
@@ -96,6 +98,8 @@ struct StreamingView: View {
             return .openai
         case .xai:
             return .grok
+        case .gemini:
+            return .geminiTranscribe
         case .hyperwhisperCloud, .parakeetLocal, .nemotronLocal:
             return nil
         }
@@ -128,6 +132,8 @@ struct StreamingView: View {
             && selectedProvider != .elevenLabs
             && selectedProvider != .openAI
             && selectedProvider != .xai
+            && selectedProvider != .gemini
+            && !(selectedProvider == .hyperwhisperCloud && !cloudTierRequiresLanguageForVocabulary)
     }
 
     private func normalizeStreamingLanguageForCurrentProvider() {
@@ -219,6 +225,11 @@ struct StreamingView: View {
                 refreshSelectedProviderHealth(force: true)
             }
         }
+        .onChange(of: settingsManager.geminiTranscribeAPIKey) { _, _ in
+            if selectedProvider == .gemini {
+                refreshSelectedProviderHealth(force: true)
+            }
+        }
     }
 
     // MARK: - Header Section
@@ -262,6 +273,11 @@ struct StreamingView: View {
                     groupTitle("Engine")
                     streamingCard {
                         providerSection
+
+                        if selectedProvider == .hyperwhisperCloud {
+                            Divider()
+                            cloudTierSection
+                        }
 
                         if selectedProvider == .deepgram {
                             Divider()
@@ -438,6 +454,71 @@ struct StreamingView: View {
             .frame(width: 200, alignment: .trailing)
             .frame(maxWidth: .infinity, alignment: .trailing)
         }
+    }
+
+    // MARK: - Cloud Tier Section (HyperWhisper Cloud Only)
+
+    /// Which vendor HyperWhisper Cloud's live route uses.
+    ///
+    /// The eligible set is catalog-driven and single-sourced in Rust
+    /// (`cloudTierEligible` AND some model with `streaming: true`), so a future
+    /// third live vendor is a catalog change and no edit here. Deliberately NOT
+    /// the entry-level `features.streaming` hint, which is true for six vendors
+    /// we serve no WebSocket route for — offering one of those would ship a 404
+    /// at dictation time, and the STT catalog has no `enabled` gate to hide it.
+    ///
+    /// Row labels are the EXISTING per-tier strings the Mode editor already
+    /// ships (`modes.cloudAccuracy.<id>.label`). Reusing `CloudAccuracyTier`'s
+    /// value space is exactly what buys that, so this picker adds one new
+    /// localized string — its own heading — and not 40 files of vendor names.
+    private var cloudTierSection: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "cpu")
+                .font(.title2)
+                .foregroundColor(.secondary)
+                .frame(width: 30)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("streaming.cloudTier.title".localized)
+                    .font(.headline)
+
+                Text("streaming.cloudTier.description".localized)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer()
+
+            Picker("", selection: normalizedCloudTierBinding) {
+                ForEach(CloudAccuracyTier.streamingEligibleTiers) { tier in
+                    Text("modes.cloudAccuracy.\(tier.rawValue).label".localized).tag(tier.rawValue)
+                }
+            }
+            .labelsHidden()
+            .frame(width: 200, alignment: .trailing)
+            .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+    }
+
+    /// Reads the stored tier through the same clamp the route derivation uses, so
+    /// a value the picker never wrote — a backup restore or a Local API call can
+    /// both set it — shows the row the session will actually use instead of an
+    /// empty selection. Writes pass straight through: every value the picker can
+    /// produce is already in the eligible set.
+    private var normalizedCloudTierBinding: Binding<String> {
+        Binding(
+            get: { HyperWhisperCloudStrategy.normalizedCloudTier(settingsManager.streamingCloudTier) },
+            set: { settingsManager.streamingCloudTier = $0 }
+        )
+    }
+
+    /// Whether the selected cloud live tier needs an explicit language before it
+    /// honours vocabulary terms. True for Deepgram Nova-3, which silently drops
+    /// `keyterm` in auto-detect; false for Gemini, which accepts
+    /// `custom_vocabulary` there. Applying Deepgram's rule to every tier would
+    /// warn wrongly — and, worse, the strategy would withhold the terms.
+    private var cloudTierRequiresLanguageForVocabulary: Bool {
+        HyperWhisperCloudStrategy.tierRequiresLanguageForVocabulary(settingsManager.streamingCloudTier)
     }
 
     // MARK: - Fast Formatting Section (Deepgram Only)

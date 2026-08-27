@@ -42,6 +42,8 @@
 "streaming.enable.title" = "啟用串流";
 "streaming.provider.picker.title" = "提供商";
 "streaming.model.title" = "模型";
+"streaming.cloudTier.title" = "即時引擎";
+"streaming.cloudTier.description" = "HyperWhisper Cloud 用於即時轉錄的語音引擎";
 "streaming.model.nova3general" = "Nova 3 General";
 "streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "快速格式化";

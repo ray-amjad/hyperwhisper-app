@@ -1917,6 +1917,23 @@ internal static class Program
                 var ids = CloudSttCatalog.Shared.StreamingCloudTierEntries().Select(e => e.Id).ToArray();
                 Assert(ids.SequenceEqual(new[] { "deepgramNova3", "geminiTranscribe" }),
                     $"unexpected live tier set: {string.Join(", ", ids)}");
+
+                // The settings ComboBox binds SelectedValue to the stored id with
+                // SelectedValuePath="Id", and WPF matches that case-SENSITIVELY. A
+                // hand-edited settings.json or a retired tier therefore has to come
+                // back in the catalog's own casing, or the row renders blank while
+                // the session quietly runs on the fallback.
+                Assert(SettingsService.NormalizeStreamingCloudTier(" geminiTranscribe ") == "geminiTranscribe",
+                    "a padded id must normalize");
+                Assert(SettingsService.NormalizeStreamingCloudTier("GEMINITRANSCRIBE") == "geminiTranscribe",
+                    "a case variant must come back in the catalog's casing, not the caller's");
+                foreach (var bogus in new string?[] { null, "", "   ", "notATier", "googleChirp3" })
+                {
+                    Assert(SettingsService.NormalizeStreamingCloudTier(bogus) == "deepgramNova3",
+                        $"tier '{bogus}' must clamp to the default");
+                }
+                Assert(ids.Contains(HyperWhisperCloudStreamingStrategy.DefaultCloudTier),
+                    "the fallback tier must itself be offered, or the picker is blank by default");
             });
 
             Run("IStreamingProviderStrategy.IsTerminalCloseCode default covers the standard fatal WebSocket protocol codes", () =>

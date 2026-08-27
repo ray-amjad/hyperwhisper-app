@@ -42,6 +42,8 @@
 "streaming.enable.title" = "เปิดใช้สตรีมมิง";
 "streaming.provider.picker.title" = "ผู้ให้บริการ";
 "streaming.model.title" = "โมเดล";
+"streaming.cloudTier.title" = "เอนจินสด";
+"streaming.cloudTier.description" = "เอนจินเสียงพูดที่ HyperWhisper Cloud ใช้สำหรับการถอดเสียงแบบสด";
 "streaming.model.nova3general" = "Nova 3 ทั่วไป";
 "streaming.model.nova3medical" = "Nova 3 ทางการแพทย์";
 "streaming.fastFormatting.title" = "การจัดรูปแบบแบบรวดเร็ว";

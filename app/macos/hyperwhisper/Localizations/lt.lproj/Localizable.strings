@@ -42,6 +42,8 @@
 "streaming.enable.title" = "Įjungti srautą";
 "streaming.provider.picker.title" = "Teikėjas";
 "streaming.model.title" = "Modelis";
+"streaming.cloudTier.title" = "Tiesioginis variklis";
+"streaming.cloudTier.description" = "Kurį kalbos variklį „HyperWhisper Cloud“ naudoja tiesioginei transkripcijai";
 "streaming.model.nova3general" = "Nova 3 General";
 "streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Greitas formatavimas";

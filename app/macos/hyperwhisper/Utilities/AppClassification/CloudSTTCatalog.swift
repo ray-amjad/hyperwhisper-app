@@ -56,6 +56,18 @@ struct CloudSTTCatalog {
         providers.filter { $0.access?.cloudTierEligible == true }
     }
 
+    /// The cloud-tier entries HyperWhisper Cloud can also serve LIVE, in catalog
+    /// order — the eligible set for the streaming cloud-tier picker.
+    ///
+    /// Catalog-derived in Rust (`cloudTierEligible` AND some model with
+    /// `streaming: true`), never a hand-kept list here. Deliberately NOT the
+    /// entry-level `features.streaming` hint, which is true for six vendors we
+    /// serve no WebSocket route for; offering one of those would ship a 404 at
+    /// dictation time, and the STT catalog has no `enabled` gate to hide it.
+    var streamingCloudTierEntries: [Entry] {
+        cloudSttStreamingCloudTierEntries()
+    }
+
     // MARK: - Vendor groups (catalog v7+)
 
     /// The Provider dropdown's rows: cloud-tier entries grouped by `vendor` and

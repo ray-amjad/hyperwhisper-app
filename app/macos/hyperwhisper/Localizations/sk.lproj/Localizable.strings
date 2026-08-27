@@ -42,6 +42,8 @@
 "streaming.enable.title" = "Povoliť streamovanie";
 "streaming.provider.picker.title" = "Poskytovateľ";
 "streaming.model.title" = "Model";
+"streaming.cloudTier.title" = "Živý engine";
+"streaming.cloudTier.description" = "Ktorý hlasový engine používa HyperWhisper Cloud na živý prepis";
 "streaming.model.nova3general" = "Nova 3 Všeobecný";
 "streaming.model.nova3medical" = "Nova 3 Medicína";
 "streaming.fastFormatting.title" = "Rýchle formátovanie";

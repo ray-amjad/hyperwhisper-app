@@ -42,6 +42,8 @@
 "streaming.enable.title" = "Käytä suoratoistoa";
 "streaming.provider.picker.title" = "Palveluntarjoaja";
 "streaming.model.title" = "Malli";
+"streaming.cloudTier.title" = "Reaaliaikainen moottori";
+"streaming.cloudTier.description" = "Mitä puhemoottoria HyperWhisper Cloud käyttää reaaliaikaiseen litterointiin";
 "streaming.model.nova3general" = "Nova 3 General";
 "streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Nopea muotoilu";

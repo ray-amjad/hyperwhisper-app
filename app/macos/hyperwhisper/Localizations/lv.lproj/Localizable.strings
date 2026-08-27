@@ -42,6 +42,8 @@
 "streaming.enable.title" = "Iespējot straumēšanu";
 "streaming.provider.picker.title" = "Sniedzējs";
 "streaming.model.title" = "Modelis";
+"streaming.cloudTier.title" = "Tiešraides dzinējs";
+"streaming.cloudTier.description" = "Kuru runas dzinēju HyperWhisper Cloud izmanto tiešraides transkripcijai";
 "streaming.model.nova3general" = "Nova 3 General";
 "streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Ātra formatēšana";

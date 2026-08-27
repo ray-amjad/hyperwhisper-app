@@ -82,6 +82,62 @@ class HyperWhisperCloudStrategy: StreamingProviderStrategy {
     /// Logger for HyperWhisper Cloud strategy operations
     private let logger = Logger(subsystem: "com.hyperwhisper.app", category: "HWCloudStrategy")
 
+    /// The `sttProvider` this session's route is derived from. Resolved once at
+    /// init from the tier the user picked, so the strategy never reads settings.
+    private let sttProvider: String
+
+    /// The tier whose route reproduces the path this class hard-coded before the
+    /// live tier picker existed. Anything unrecognised lands back here.
+    static let defaultCloudTier = "deepgramNova3"
+
+    /// - Parameter cloudTier: a `cloud-stt-catalog.json` entry id — the global
+    ///   `streamingCloudTier` setting. A path selector only: this is deliberately
+    ///   NOT a new `StreamingTranscriptionProvider` case, because the credit and
+    ///   entitlement wiring in `RecordingTranscriptionFlow+Streaming` keys off
+    ///   `provider == "hyperwhisperCloud"` and must keep matching.
+    init(cloudTier: String = HyperWhisperCloudStrategy.defaultCloudTier) {
+        self.sttProvider = Self.resolveSttProvider(cloudTier)
+    }
+
+    /// The route is DERIVED, never a table: `/ws/streaming-{sttProvider}`, where
+    /// `sttProvider` comes from the catalog entry the tier names.
+    /// `deepgramNova3` gives `/ws/streaming-deepgram`, byte-identical to the
+    /// literal this replaced, so every installed client keeps working;
+    /// `geminiTranscribe` gives `/ws/streaming-gemini-transcribe`.
+    ///
+    /// A tier outside the live-eligible set falls back to Deepgram rather than
+    /// deriving a path the backend will 404 — the catalog has no `enabled` gate,
+    /// so this is the client half of that guard.
+    static func resolveSttProvider(_ cloudTier: String?) -> String {
+        CloudSTTCatalog.shared.sttProvider(forEntryId: normalizedCloudTier(cloudTier)) ?? "deepgram"
+    }
+
+    /// The stored tier id clamped to the live-eligible set, in the catalog's own
+    /// casing. Shared by the route derivation above and by the settings picker,
+    /// which binds through it: `Picker` renders BLANK when the selection matches
+    /// no tag, so a stale or imported value — the Local API and a backup restore
+    /// both write this setting, and neither is the picker — would otherwise show
+    /// an empty row while the session quietly ran on Deepgram.
+    static func normalizedCloudTier(_ cloudTier: String?) -> String {
+        let trimmed = cloudTier?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let eligible = CloudSTTCatalog.shared.streamingCloudTierEntries.map(\.id)
+        return eligible.first { $0.caseInsensitiveCompare(trimmed) == .orderedSame }
+            ?? Self.defaultCloudTier
+    }
+
+    /// Whether the tier's live vendor needs an explicit language before it
+    /// honours vocabulary terms.
+    ///
+    /// True for Deepgram Nova-3, which silently ignores `keyterm` in
+    /// multilingual mode — that is the ONLY reason this class ever withheld
+    /// vocabulary in auto-detect. Gemini accepts `custom_vocabulary` in
+    /// auto-detect (verified live), and vocabulary is the whole reason to pick
+    /// that tier, so applying Deepgram's rule there would silently delete the
+    /// headline feature for every auto-detect user.
+    static func tierRequiresLanguageForVocabulary(_ cloudTier: String?) -> Bool {
+        resolveSttProvider(cloudTier) == "deepgram"
+    }
+
     // MARK: - StreamingProviderStrategy Conformance
 
     /// Build the WebSocket URL for HyperWhisper Cloud's streaming endpoint.
@@ -103,7 +159,7 @@ class HyperWhisperCloudStrategy: StreamingProviderStrategy {
             .replacingOccurrences(of: "https://", with: "wss://")
             .replacingOccurrences(of: "http://", with: "ws://")
 
-        var components = URLComponents(string: "\(baseURL)/ws/streaming-deepgram")
+        var components = URLComponents(string: "\(baseURL)/ws/streaming-\(sttProvider)")
 
         var queryItems: [URLQueryItem] = []
 
@@ -128,12 +184,17 @@ class HyperWhisperCloudStrategy: StreamingProviderStrategy {
             queryItems.append(URLQueryItem(name: "language", value: lang))
         }
 
-        // VOCABULARY (optional, only with explicit language)
-        // Backend converts comma-separated terms to Deepgram `keyterm` params with boost.
-        // Not sent with auto-detect because Nova-3 `keyterm` is silently ignored in
-        // multilingual mode (see CLAUDE.md "Custom Vocabulary Boosting" section).
+        // VOCABULARY (optional; gated on an explicit language for Deepgram ONLY)
+        // The backend converts comma-separated terms to the upstream vendor's
+        // vocabulary parameter. Withholding them in auto-detect is a DEEPGRAM
+        // constraint — Nova-3 silently ignores `keyterm` in multilingual mode
+        // (see CLAUDE.md "Custom Vocabulary Boosting") — not a HyperWhisper Cloud
+        // one. Gemini accepts `custom_vocabulary` with no language at all, and
+        // vocabulary is the whole reason to pick that tier, so gating it there
+        // would silently remove the headline feature for auto-detect users.
+        let hasExplicitLanguage = config.language != nil && config.language != "auto"
         if let vocab = config.vocabulary, !vocab.isEmpty,
-           config.language != nil && config.language != "auto" {
+           hasExplicitLanguage || sttProvider != "deepgram" {
             queryItems.append(URLQueryItem(name: "vocabulary", value: vocab))
         }
 

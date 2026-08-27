@@ -42,6 +42,8 @@
 "streaming.enable.title" = "Bật Luồng phát";
 "streaming.provider.picker.title" = "Nhà cung cấp";
 "streaming.model.title" = "Mô hình";
+"streaming.cloudTier.title" = "Công cụ trực tiếp";
+"streaming.cloudTier.description" = "Công cụ giọng nói mà HyperWhisper Cloud dùng cho phiên âm trực tiếp";
 "streaming.model.nova3general" = "Nova 3 General";
 "streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Định dạng nhanh";

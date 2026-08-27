@@ -42,6 +42,8 @@
 "streaming.enable.title" = "Dayakan Streaming";
 "streaming.provider.picker.title" = "Pembekal";
 "streaming.model.title" = "Model";
+"streaming.cloudTier.title" = "Enjin Langsung";
+"streaming.cloudTier.description" = "Enjin pertuturan yang digunakan HyperWhisper Cloud untuk transkripsi langsung";
 "streaming.model.nova3general" = "Nova 3 General";
 "streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Pemformatan Pantas";

@@ -42,6 +42,8 @@
 "streaming.enable.title" = "Ativar Streaming";
 "streaming.provider.picker.title" = "Provedor";
 "streaming.model.title" = "Modelo";
+"streaming.cloudTier.title" = "Motor ao vivo";
+"streaming.cloudTier.description" = "Que motor de voz o HyperWhisper Cloud usa para transcrição ao vivo";
 "streaming.model.nova3general" = "Nova 3 Geral";
 "streaming.model.nova3medical" = "Nova 3 Médico";
 "streaming.fastFormatting.title" = "Formatação Rápida";

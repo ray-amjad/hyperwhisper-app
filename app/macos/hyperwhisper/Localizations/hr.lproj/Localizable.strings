@@ -42,6 +42,8 @@
 "streaming.enable.title" = "Omogući strujanje";
 "streaming.provider.picker.title" = "Pružatelj usluga";
 "streaming.model.title" = "Model";
+"streaming.cloudTier.title" = "Pogon uživo";
+"streaming.cloudTier.description" = "Koji govorni pogon HyperWhisper Cloud koristi za transkripciju uživo";
 "streaming.model.nova3general" = "Nova 3 General";
 "streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Brzo formatiranje";

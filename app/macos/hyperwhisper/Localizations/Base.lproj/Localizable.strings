@@ -51,6 +51,8 @@
 "streaming.enable.title" = "Enable Streaming";
 "streaming.provider.picker.title" = "Provider";
 "streaming.model.title" = "Model";
+"streaming.cloudTier.title" = "Live Engine";
+"streaming.cloudTier.description" = "Which speech engine HyperWhisper Cloud uses for live transcription";
 "streaming.model.nova3general" = "Nova 3 General";
 "streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Fast Formatting";

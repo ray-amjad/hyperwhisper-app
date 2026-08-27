@@ -42,6 +42,8 @@
 "streaming.enable.title" = "स्ट्रीमिंग सक्षम करें";
 "streaming.provider.picker.title" = "प्रदाता";
 "streaming.model.title" = "मॉडल";
+"streaming.cloudTier.title" = "लाइव इंजन";
+"streaming.cloudTier.description" = "लाइव ट्रांसक्रिप्शन के लिए HyperWhisper Cloud कौन सा स्पीच इंजन उपयोग करता है";
 "streaming.model.nova3general" = "Nova 3 सामान्य";
 "streaming.model.nova3medical" = "Nova 3 चिकित्सा";
 "streaming.fastFormatting.title" = "तेज़ फॉर्मेटिंग";

@@ -42,6 +42,8 @@
 "streaming.enable.title" = "스트리밍 활성화";
 "streaming.provider.picker.title" = "제공자";
 "streaming.model.title" = "모델";
+"streaming.cloudTier.title" = "실시간 엔진";
+"streaming.cloudTier.description" = "HyperWhisper Cloud가 실시간 받아쓰기에 사용하는 음성 엔진";
 "streaming.model.nova3general" = "Nova 3 General";
 "streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "빠른 서식";

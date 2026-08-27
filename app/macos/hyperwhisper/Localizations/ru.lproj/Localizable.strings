@@ -42,6 +42,8 @@
 "streaming.enable.title" = "Включить потоковую передачу";
 "streaming.provider.picker.title" = "Провайдер";
 "streaming.model.title" = "Модель";
+"streaming.cloudTier.title" = "Движок в реальном времени";
+"streaming.cloudTier.description" = "Какой речевой движок HyperWhisper Cloud использует для транскрипции в реальном времени";
 "streaming.model.nova3general" = "Nova 3 General";
 "streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Быстрое форматирование";

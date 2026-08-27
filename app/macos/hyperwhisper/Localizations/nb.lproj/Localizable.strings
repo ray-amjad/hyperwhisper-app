@@ -42,6 +42,8 @@
 "streaming.enable.title" = "Aktiver strømming";
 "streaming.provider.picker.title" = "Leverandør";
 "streaming.model.title" = "Modell";
+"streaming.cloudTier.title" = "Sanntidsmotor";
+"streaming.cloudTier.description" = "Hvilken talemotor HyperWhisper Cloud bruker til sanntidstranskripsjon";
 "streaming.model.nova3general" = "Nova 3 General";
 "streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Rask formatering";

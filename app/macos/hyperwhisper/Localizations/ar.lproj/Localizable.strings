@@ -42,6 +42,8 @@
 "streaming.enable.title" = "تفعيل البث المباشر";
 "streaming.provider.picker.title" = "المزود";
 "streaming.model.title" = "النموذج";
+"streaming.cloudTier.title" = "محرك البث المباشر";
+"streaming.cloudTier.description" = "محرك الكلام الذي يستخدمه HyperWhisper Cloud للنسخ المباشر";
 "streaming.model.nova3general" = "Nova 3 العام";
 "streaming.model.nova3medical" = "Nova 3 طبي";
 "streaming.fastFormatting.title" = "التنسيق السريع";

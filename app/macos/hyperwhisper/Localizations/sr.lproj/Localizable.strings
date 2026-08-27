@@ -42,6 +42,8 @@
 "streaming.enable.title" = "Омогући Стриминг";
 "streaming.provider.picker.title" = "Добављач";
 "streaming.model.title" = "Модел";
+"streaming.cloudTier.title" = "Механизам уживо";
+"streaming.cloudTier.description" = "Који говорни механизам HyperWhisper Cloud користи за транскрипцију уживо";
 "streaming.model.nova3general" = "Nova 3 General";
 "streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Брзо Форматирање";

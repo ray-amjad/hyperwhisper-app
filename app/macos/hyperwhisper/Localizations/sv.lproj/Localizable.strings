@@ -42,6 +42,8 @@
 "streaming.enable.title" = "Aktivera streaming";
 "streaming.provider.picker.title" = "Leverantör";
 "streaming.model.title" = "Modell";
+"streaming.cloudTier.title" = "Realtidsmotor";
+"streaming.cloudTier.description" = "Vilken talmotor HyperWhisper Cloud använder för realtidstranskribering";
 "streaming.model.nova3general" = "Nova 3 Allmän";
 "streaming.model.nova3medical" = "Nova 3 Medicinsk";
 "streaming.fastFormatting.title" = "Snabb formatering";

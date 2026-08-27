@@ -42,6 +42,8 @@
 "streaming.enable.title" = "Streamelés engedélyezése";
 "streaming.provider.picker.title" = "Szolgáltató";
 "streaming.model.title" = "Modell";
+"streaming.cloudTier.title" = "Élő motor";
+"streaming.cloudTier.description" = "Melyik beszédmotort használja a HyperWhisper Cloud az élő átirathoz";
 "streaming.model.nova3general" = "Nova 3 General";
 "streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Gyors formázás";

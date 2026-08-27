@@ -42,6 +42,8 @@
 "streaming.enable.title" = "ストリーミングを有効化";
 "streaming.provider.picker.title" = "プロバイダー";
 "streaming.model.title" = "モデル";
+"streaming.cloudTier.title" = "ライブエンジン";
+"streaming.cloudTier.description" = "HyperWhisper Cloud がライブ文字起こしに使用する音声エンジン";
 "streaming.model.nova3general" = "Nova 3 General";
 "streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "高速フォーマット";

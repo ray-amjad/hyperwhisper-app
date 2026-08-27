@@ -42,6 +42,8 @@
 "streaming.enable.title" = "הפעל סטרימינג";
 "streaming.provider.picker.title" = "ספק";
 "streaming.model.title" = "מודל";
+"streaming.cloudTier.title" = "מנוע בזמן אמת";
+"streaming.cloudTier.description" = "באיזה מנוע דיבור HyperWhisper Cloud משתמש לתמלול בזמן אמת";
 "streaming.model.nova3general" = "Nova 3 General";
 "streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "עיצוב מהיר";

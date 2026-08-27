@@ -317,6 +317,7 @@ enum StreamingTranscriptionProvider: String, CaseIterable, Identifiable {
     case elevenLabs = "elevenLabs"
     case openAI = "openAI"
     case xai = "xai"
+    case gemini = "gemini"
     case parakeetLocal = "parakeetLocal"
     case nemotronLocal = "nemotronLocal"
 
@@ -331,6 +332,7 @@ enum StreamingTranscriptionProvider: String, CaseIterable, Identifiable {
         case .elevenLabs: return "ElevenLabs"
         case .openAI: return "OpenAI"
         case .xai: return "xAI"
+        case .gemini: return "Gemini 3.5 Transcribe"
         case .parakeetLocal: return "Parakeet (On-Device)"
         case .nemotronLocal: return "Nemotron 3.5 (On-Device)"
         }
@@ -344,7 +346,7 @@ enum StreamingTranscriptionProvider: String, CaseIterable, Identifiable {
     var requiresAPIKey: Bool {
         switch self {
         case .hyperwhisperCloud, .parakeetLocal, .nemotronLocal: return false
-        case .deepgram, .elevenLabs, .openAI, .xai: return true
+        case .deepgram, .elevenLabs, .openAI, .xai, .gemini: return true
         }
     }
 
@@ -352,7 +354,7 @@ enum StreamingTranscriptionProvider: String, CaseIterable, Identifiable {
     var isLocal: Bool {
         switch self {
         case .parakeetLocal, .nemotronLocal: return true
-        case .hyperwhisperCloud, .deepgram, .elevenLabs, .openAI, .xai: return false
+        case .hyperwhisperCloud, .deepgram, .elevenLabs, .openAI, .xai, .gemini: return false
         }
     }
 
@@ -366,6 +368,7 @@ enum StreamingTranscriptionProvider: String, CaseIterable, Identifiable {
         case .elevenLabs: return .elevenLabs
         case .openAI: return .openAI
         case .xai: return .grok
+        case .gemini: return .geminiTranscribe
         }
     }
 }

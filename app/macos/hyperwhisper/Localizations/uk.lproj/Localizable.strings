@@ -42,6 +42,8 @@
 "streaming.enable.title" = "Увімкнути потокову передачу";
 "streaming.provider.picker.title" = "Постачальник";
 "streaming.model.title" = "Модель";
+"streaming.cloudTier.title" = "Рушій у реальному часі";
+"streaming.cloudTier.description" = "Який мовленнєвий рушій HyperWhisper Cloud використовує для транскрипції в реальному часі";
 "streaming.model.nova3general" = "Nova 3 General";
 "streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Швидке форматування";

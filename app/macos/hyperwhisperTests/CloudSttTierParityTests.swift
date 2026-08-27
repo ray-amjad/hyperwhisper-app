@@ -186,6 +186,53 @@ struct CloudSttTierParityTests {
         )
     }
 
+    @Test("The streaming cloud-tier picker offers exactly the routed vendors")
+    func streamingEligibleTiersAreExactlyTheRoutedVendors() {
+        // The guard that stops someone flipping a `models[].streaming` flag on a
+        // vendor HyperWhisper Cloud serves no WebSocket route for and shipping a
+        // 404 at dictation time. The STT catalog has no `enabled` gate to hide a
+        // half-finished vendor behind, and the client derives its route as
+        // `/ws/streaming-{sttProvider}` with no allow-list of its own — so this
+        // list IS the allow-list. Widen it only alongside the backend route.
+        #expect(
+            CloudAccuracyTier.streamingEligibleTiers.map(\.rawValue) == ["deepgramNova3", "geminiTranscribe"]
+        )
+
+        // Every offered tier must render a label and derive a route.
+        for tier in CloudAccuracyTier.streamingEligibleTiers {
+            #expect(!tier.sttProvider.isEmpty)
+            #expect(CloudSTTCatalog.shared.entry(byId: tier.rawValue)?.access?.cloudTierEligible == true)
+        }
+
+        // Route derivation, including the fallback. deepgramNova3 must reproduce
+        // the literal the strategy hard-coded before the picker existed, because
+        // every already-installed client persists no tier at all.
+        #expect(HyperWhisperCloudStrategy.resolveSttProvider("deepgramNova3") == "deepgram")
+        #expect(HyperWhisperCloudStrategy.resolveSttProvider("geminiTranscribe") == "gemini-transcribe")
+        for bogus in [nil, "", "   ", "notATier", "groqWhisper"] as [String?] {
+            #expect(HyperWhisperCloudStrategy.resolveSttProvider(bogus) == "deepgram")
+        }
+
+        // The same clamp the settings Picker binds through. A value it cannot
+        // render as a tag shows a BLANK row, and a backup restore or a Local API
+        // write can both put one there, so the clamp has to hold on the id too
+        // and not only on the derived route.
+        #expect(HyperWhisperCloudStrategy.normalizedCloudTier(" geminiTranscribe ") == "geminiTranscribe")
+        #expect(HyperWhisperCloudStrategy.normalizedCloudTier("GEMINITRANSCRIBE") == "geminiTranscribe")
+        for bogus in [nil, "", "   ", "notATier", "groqWhisper"] as [String?] {
+            #expect(HyperWhisperCloudStrategy.normalizedCloudTier(bogus) == "deepgramNova3")
+        }
+        #expect(
+            CloudAccuracyTier.streamingEligibleTiers.map(\.rawValue)
+                .contains(HyperWhisperCloudStrategy.defaultCloudTier),
+            "the fallback must itself be offered, or the picker renders blank by default"
+        )
+
+        // The auto-detect vocabulary gate is Deepgram's constraint alone.
+        #expect(HyperWhisperCloudStrategy.tierRequiresLanguageForVocabulary("deepgramNova3"))
+        #expect(!HyperWhisperCloudStrategy.tierRequiresLanguageForVocabulary("geminiTranscribe"))
+    }
+
     @Test("Retired cloud models are not selectable")
     func retiredCloudModelsAreNotSelectable() {
         let retired = Set([

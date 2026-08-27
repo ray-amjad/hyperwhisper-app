@@ -243,6 +243,18 @@ extension RecordingTranscriptionFlow {
             apiKey = xaiKey
             service = StreamingTranscriptionClient(strategy: XAIStreamingStrategy())
 
+        case .gemini:
+            // Gemini 3.5 Transcribe Live direct streaming - requires the user's
+            // own Google Gemini API key.
+            let geminiKey = KeychainManager.shared.getAPIKey(for: .geminiTranscribe)
+            guard !geminiKey.isEmpty else {
+                AppLogger.audio.error("❌ Streaming failed: Gemini API key not configured")
+                await cancelRecordingWithError("Gemini API key not configured")
+                return
+            }
+            apiKey = geminiKey
+            service = StreamingTranscriptionClient(strategy: GeminiStreamingStrategy())
+
         case .parakeetLocal:
             // On-device Parakeet streaming. The model id in `model` is the
             // Parakeet version identifier from settings (v2/v3).
@@ -329,8 +341,21 @@ extension RecordingTranscriptionFlow {
             }
 
         default:
-            // HyperWhisper Cloud (default) - uses license key or device ID
-            service = StreamingTranscriptionClient(strategy: HyperWhisperCloudStrategy())
+            // HyperWhisper Cloud (default) - uses license key or device ID.
+            //
+            // NOTE this arm is a `default:`, not `case .hyperwhisperCloud:`, so a
+            // provider added to the enum and forgotten here does NOT fail the
+            // build - it silently starts a billed Cloud session. Adding a case
+            // above is the whole checklist; the compiler will not remind you.
+            //
+            // The cloud tier is a path selector passed into the ONE cloud
+            // strategy, deliberately not its own StreamingTranscriptionProvider
+            // case: the credit and entitlement gate below keys off
+            // `provider == "hyperwhisperCloud"` and must keep matching.
+            service = StreamingTranscriptionClient(
+                strategy: HyperWhisperCloudStrategy(
+                    cloudTier: settingsManager?.streamingCloudTier
+                        ?? HyperWhisperCloudStrategy.defaultCloudTier))
         }
 
         // Log provider selection for analytics

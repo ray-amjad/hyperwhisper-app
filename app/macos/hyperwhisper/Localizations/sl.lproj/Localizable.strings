@@ -42,6 +42,8 @@
 "streaming.enable.title" = "Omogoči pretakanje";
 "streaming.provider.picker.title" = "Ponudnik";
 "streaming.model.title" = "Model";
+"streaming.cloudTier.title" = "Pogon v živo";
+"streaming.cloudTier.description" = "Kateri govorni pogon HyperWhisper Cloud uporablja za prepis v živo";
 "streaming.model.nova3general" = "Nova 3 General";
 "streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Hitro oblikovanje";

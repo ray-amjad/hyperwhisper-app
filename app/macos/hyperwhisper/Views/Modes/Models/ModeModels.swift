@@ -451,6 +451,24 @@ enum CloudAccuracyTier: String, CaseIterable, Identifiable {
         }
     }
 
+    /// The tiers offered by the STREAMING cloud-tier picker — the vendors
+    /// HyperWhisper Cloud serves a live WebSocket route for, in catalog order.
+    ///
+    /// A strict subset of `allCases`: the accuracy picker's tiers are about the
+    /// batch route, and most of them have no live route at all. The set is
+    /// single-sourced in Rust (`streaming_cloud_tier_entries`), so widening it is
+    /// a catalog change made in the same commit as the backend route. Anything
+    /// this list offers that the backend cannot serve is a 404 at dictation time,
+    /// and the catalog has no `enabled` gate to hide a half-finished vendor.
+    ///
+    /// Empty only if the shared core failed to load; the picker's own default
+    /// (`deepgramNova3`) still resolves, so the route never becomes underivable.
+    static var streamingEligibleTiers: [CloudAccuracyTier] {
+        CloudSTTCatalog.shared.streamingCloudTierEntries.compactMap {
+            CloudAccuracyTier(rawValue: $0.id)
+        }
+    }
+
     /// The tier a fresh Provider selection lands on: the vendor group's first
     /// entry in catalog order. With no catalog the row's key IS a tier raw
     /// value (see `pickerVendorGroups`), so fall back to parsing it — otherwise

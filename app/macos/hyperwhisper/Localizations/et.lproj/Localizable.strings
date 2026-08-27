@@ -42,6 +42,8 @@
 "streaming.enable.title" = "Luba voogedastus";
 "streaming.provider.picker.title" = "Teenusepakkuja";
 "streaming.model.title" = "Mudel";
+"streaming.cloudTier.title" = "Reaalajamootor";
+"streaming.cloudTier.description" = "Millist kõnemootorit kasutab HyperWhisper Cloud reaalajas transkribeerimiseks";
 "streaming.model.nova3general" = "Nova 3 General";
 "streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Kiire vormindus";

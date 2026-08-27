@@ -42,6 +42,8 @@
 "streaming.enable.title" = "Активиране на поточно предаване";
 "streaming.provider.picker.title" = "Доставчик";
 "streaming.model.title" = "Модел";
+"streaming.cloudTier.title" = "Механизъм на живо";
+"streaming.cloudTier.description" = "Кой гласов механизъм използва HyperWhisper Cloud за транскрипция на живо";
 "streaming.model.nova3general" = "Nova 3 General";
 "streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Бързо форматиране";

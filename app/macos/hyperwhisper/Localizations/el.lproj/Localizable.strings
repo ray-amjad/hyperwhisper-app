@@ -42,6 +42,8 @@
 "streaming.enable.title" = "Ενεργοποίηση Ροής";
 "streaming.provider.picker.title" = "Πάροχος";
 "streaming.model.title" = "Μοντέλο";
+"streaming.cloudTier.title" = "Μηχανή ζωντανής ροής";
+"streaming.cloudTier.description" = "Ποια μηχανή ομιλίας χρησιμοποιεί το HyperWhisper Cloud για ζωντανή μεταγραφή";
 "streaming.model.nova3general" = "Nova 3 Γενικό";
 "streaming.model.nova3medical" = "Nova 3 Ιατρικό";
 "streaming.fastFormatting.title" = "Γρήγορη Μορφοποίηση";
