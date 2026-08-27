@@ -68,6 +68,11 @@ const STT_CHECKS: SttCheck[] = [
   { provider: 'assemblyai',   file: 'de-brian.mp3',     language: 'de' },
   { provider: 'mistral',      file: 'it-alice.mp3',     language: 'it' },
   { provider: 'soniox',       file: 'pt-eric.mp3',      language: 'pt' },
+  // gemini-transcribe is a DIFFERENT upstream endpoint from `gemini` above
+  // (/v1beta/interactions, not :generateContent) sharing one API key — so this
+  // row is what catches the endpoint being wrong even when the gemini row is
+  // green. It accepts a bare subtag (unlike google-chirp).
+  { provider: 'gemini-transcribe', file: 'en-us-sarah.mp3', language: 'en' },
 ];
 
 // Every post-process LLM provider gets exercised once — like the STT set, this

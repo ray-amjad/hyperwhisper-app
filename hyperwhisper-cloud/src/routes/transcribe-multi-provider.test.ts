@@ -678,6 +678,85 @@ describe('Gemini pre-buffer size gate (413 before any upstream call)', () => {
   });
 });
 
+describe('Gemini 3.5 Transcribe routing (X-STT-Provider: gemini-transcribe)', () => {
+  afterEach(() => { globalThis.fetch = originalFetch; });
+
+  test('routes to /v1beta/interactions and never to :generateContent (TRAP 1)', async () => {
+    const urls: string[] = [];
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      urls.push(url);
+      if (url.includes('/v1beta/interactions')) {
+        return Response.json({
+          id: 'interaction-1',
+          steps: [{ content: [{ text: 'routed ok' }] }],
+          usage: {
+            input_tokens_by_modality: [{ modality: 'audio', tokens: 236 }, { modality: 'text', tokens: 1 }],
+            total_output_tokens: 0,
+          },
+        });
+      }
+      if (url.includes('/api/license/credits')) return Response.json({ credits_remaining: 999 });
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    process.env.GEMINI_API_KEY = 'test';
+    const response = await buildApp().fetch(request({ 'X-STT-Provider': 'gemini-transcribe' }, '&language=en'));
+    const body = await response.json() as { text: string; metadata: { stt_provider: string } };
+
+    expect(response.status).toBe(200);
+    expect(body.text).toBe('routed ok');
+    expect(body.metadata.stt_provider).toContain('gemini-transcribe/gemini-3.5-transcribe');
+    expect(urls.some((u) => u.includes('/v1beta/interactions'))).toBe(true);
+    expect(urls.some((u) => u.includes('generateContent'))).toBe(false);
+  });
+
+  test('the WebSocket-only live model is rejected without reaching the upstream', async () => {
+    let interactionsCalled = false;
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('generativelanguage.googleapis.com')) {
+        interactionsCalled = true;
+        return Response.json({});
+      }
+      if (url.includes('/api/license/credits')) return Response.json({ credits_remaining: 999 });
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    process.env.GEMINI_API_KEY = 'test';
+    const response = await buildApp().fetch(request({
+      'X-STT-Provider': 'gemini-transcribe',
+      'X-STT-Model': 'gemini-3.5-transcribe-live',
+    }));
+
+    // Registered in the model registry (so the price is right) but served by the
+    // WebSocket route — /transcribe must say so rather than silently substituting
+    // the pre-recorded model.
+    expect(response.status).toBe(400);
+    expect(interactionsCalled).toBe(false);
+  });
+
+  test('rejects an oversized Content-Length with 413 before buffering or calling fetch', async () => {
+    let fetchCalled = false;
+    globalThis.fetch = mock(async () => { fetchCalled = true; return Response.json({}); }) as unknown as typeof fetch;
+
+    const body = new Uint8Array(8);
+    const req = new Request('http://localhost/transcribe?license_key=test-license', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'audio/wav',
+        'Content-Length': String(15 * 1024 * 1024),
+        'X-STT-Provider': 'gemini-transcribe',
+      },
+      body,
+    });
+
+    const response = await buildApp().fetch(req);
+    expect(response.status).toBe(413);
+    expect(fetchCalled).toBe(false);
+  });
+});
+
 describe('OpenAI pre-buffer size gate (413 before any upstream call)', () => {
   afterEach(() => { globalThis.fetch = originalFetch; });
 

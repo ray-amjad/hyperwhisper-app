@@ -11,6 +11,7 @@ import { transcribeWithAzureMai } from '../providers/azure-mai';
 import { transcribeWithGoogleChirp } from '../providers/google-chirp';
 import { transcribeWithOpenAI } from '../providers/openai';
 import { transcribeWithGemini } from '../providers/gemini';
+import { transcribeWithGeminiTranscribe } from '../providers/gemini-transcribe';
 import {
   transcribeWithAssemblyAI,
   hasExplicitLanguage as hasExplicitAssemblyAILanguage,
@@ -86,6 +87,7 @@ const PROVIDER_NAMES: Record<Provider, string> = {
   'google-chirp': 'google-chirp',
   openai: 'openai',
   gemini: 'gemini',
+  'gemini-transcribe': 'gemini-transcribe',
   assemblyai: 'assemblyai',
   mistral: 'mistral',
   soniox: 'soniox',
@@ -111,6 +113,7 @@ const PROVIDER_FN: Record<Provider, (
   'google-chirp': transcribeWithGoogleChirp,
   openai: transcribeWithOpenAI,
   gemini: transcribeWithGemini,
+  'gemini-transcribe': transcribeWithGeminiTranscribe,
   assemblyai: transcribeWithAssemblyAI,
   mistral: transcribeWithMistral,
   soniox: transcribeWithSoniox,

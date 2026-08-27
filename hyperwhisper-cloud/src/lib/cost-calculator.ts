@@ -84,6 +84,53 @@ const GEMINI_RATES: Record<string, GeminiRate> = {
 };
 const GEMINI_FALLBACK_RATE = GEMINI_RATES['gemini-2.5-flash'];
 
+// ── Gemini 3.5 Transcribe (the dedicated speech models) ─────────────────────
+// A DIFFERENT product from the Gemini LLM rates above, on a different endpoint
+// (`/v1beta/interactions`, not `:generateContent`), with a different audio
+// tokenisation. Nothing here may be expressed in terms of GEMINI_RATES or
+// GEMINI_AUDIO_TOKENS_PER_MINUTE:
+//
+//   * Audio bills at 25 tokens/sec, NOT the 32 tok/s of the multimodal models.
+//     Measured against the live API: a 9.456 s clip reports exactly 236 audio
+//     tokens (24.96 tok/s) in `usage.input_tokens_by_modality`.
+//   * `usage.total_output_tokens` comes back as **0 on every response**, verified
+//     live across auto-detect / language-pinned / vocabulary requests. The
+//     endpoint simply does not report output tokens, so the transcript's output
+//     cost CANNOT be read from the usage object — and billing only the audio
+//     input would systematically under-charge by ~45%.
+//
+//     DECISION (not an oversight): estimate the output tokens from the returned
+//     transcript's length at the same ~4 chars/token heuristic this file already
+//     uses twice (RESERVATION_CHARS_PER_TOKEN / FALLBACK_CHARS_PER_TOKEN). The
+//     transcript is the only output the model produced, we hold it in full when
+//     we bill, and the estimate lands within a few percent of a real tokeniser
+//     for the dictation-length text this path sees. If Google ever starts
+//     populating `total_output_tokens`, prefer it and delete the estimate —
+//     `estimateGeminiTranscribeOutputTokens` is the single place to change.
+//
+// Rates: $2.00/1M input tokens (audio and text alike — one input price), $12.00/1M
+// output tokens for the pre-recorded model; $3.50 / $21.00 for the live model.
+// At ~150 wpm that is $0.0030 audio + ~$0.0023 output ≈ $0.0053/min pre-recorded
+// and ≈ $0.0092/min live, which is what `cloudTier.creditsPerMinute` 5.5 / 9.6 in
+// shared-app-classification/cloud-stt-catalog.json is derived from (both inside
+// that file's AGENTS.md ≤10% drift rule).
+export const GEMINI_TRANSCRIBE_AUDIO_TOKENS_PER_SECOND = 25;
+interface GeminiTranscribeRate {
+  /** One rate for every input modality — audio and text bill the same here. */
+  inputPerToken: number;
+  outputPerToken: number;
+}
+const GEMINI_TRANSCRIBE_RATES: Record<string, GeminiTranscribeRate> = {
+  'gemini-3.5-transcribe': { inputPerToken: 2.00 / M, outputPerToken: 12.00 / M },
+  'gemini-3.5-transcribe-live': { inputPerToken: 3.50 / M, outputPerToken: 21.00 / M },
+};
+const GEMINI_TRANSCRIBE_FALLBACK_RATE = GEMINI_TRANSCRIBE_RATES['gemini-3.5-transcribe'];
+// Output tokens per second of audio, used ONLY where no transcript is in hand
+// (the live path bills per second as the session runs). 12.5 chars/sec ÷
+// RESERVATION_CHARS_PER_TOKEN — i.e. the same char estimate applied to ~150 wpm
+// speech, so the two paths cannot disagree about what a minute of speech costs.
+const GEMINI_TRANSCRIBE_OUTPUT_TOKENS_PER_AUDIO_SECOND = 3.125;
+
 // AssemblyAI — duration-billed; medical is a +$0.15/hr add-on, not a model.
 const ASSEMBLYAI_UNIVERSAL2_COST_PER_AUDIO_MINUTE = 0.15 / 60;       // $0.0025/min
 // Universal-3.5 Pro (GA 2026-07-01, now the default) publishes the same
@@ -364,6 +411,14 @@ export function estimatePromptInputReservationUsd(
     if (model === 'gpt-4o-mini-transcribe') return tokens * OPENAI_GPT4O_MINI_TRANSCRIBE_INPUT_COST_PER_TOKEN;
     return tokens * OPENAI_GPT4O_TRANSCRIBE_INPUT_COST_PER_TOKEN;
   }
+  if (provider === 'gemini-transcribe') {
+    // The vocabulary goes upstream as `custom_vocabulary`, a structured field
+    // rather than prose, and bills as TEXT input tokens at the same per-token
+    // rate as the audio. (Live traffic reports only ~1 text token even with
+    // terms attached, so this over-reserves — which is the safe direction.)
+    const rate = GEMINI_TRANSCRIBE_RATES[model ?? ''] ?? GEMINI_TRANSCRIBE_FALLBACK_RATE;
+    return tokens * rate.inputPerToken;
+  }
   if (provider === 'soniox') {
     // Soniox charges the custom-context terms as async input-text tokens on top
     // of the audio/output blend. Its tokenizer (~0.3 tok/char) differs from the
@@ -371,6 +426,77 @@ export function estimatePromptInputReservationUsd(
     return estimateSonioxContextTokens(initialPrompt) * SONIOX_INPUT_TEXT_COST_PER_TOKEN;
   }
   return 0;
+}
+
+/**
+ * Output-token estimate for a Gemini 3.5 Transcribe response.
+ *
+ * Exists because `usage.total_output_tokens` is always 0 on `/v1beta/interactions`
+ * (see the block above) — this is the deliberate substitute, not a fallback for
+ * a malformed response.
+ */
+export function estimateGeminiTranscribeOutputTokens(transcript: string): number {
+  return Math.ceil(transcript.length / RESERVATION_CHARS_PER_TOKEN);
+}
+
+export interface GeminiTranscribeUsage {
+  /** `usage.input_tokens_by_modality[modality == "audio"].tokens`. */
+  audioInputTokens: number;
+  /** `usage.input_tokens_by_modality[modality == "text"].tokens`. Same rate. */
+  textInputTokens?: number;
+  /** Estimated from the transcript — the API reports 0. */
+  outputTokens: number;
+  /** Duration estimate (from payload size) used only if `usage` is absent. */
+  fallbackDurationSeconds?: number;
+}
+
+/**
+ * Gemini 3.5 Transcribe (pre-recorded). Bills the reported input tokens plus the
+ * ESTIMATED output tokens; an absent/changed `usage` object falls back to a
+ * duration-based estimate so a transcription never bills $0 (fail-closed,
+ * matching the other token-billed adapters here).
+ */
+export function computeGeminiTranscribeCost(model: string, usage: GeminiTranscribeUsage): number {
+  const rate = GEMINI_TRANSCRIBE_RATES[model] ?? GEMINI_TRANSCRIBE_FALLBACK_RATE;
+  const inputTokens = Math.max(0, usage.audioInputTokens) + Math.max(0, usage.textInputTokens ?? 0);
+  const outputTokens = Math.max(0, usage.outputTokens);
+
+  const tokenCost = inputTokens * rate.inputPerToken + outputTokens * rate.outputPerToken;
+  if (tokenCost > 0) {
+    return roundUsd(tokenCost);
+  }
+
+  const seconds = Math.max(0, usage.fallbackDurationSeconds ?? 0);
+  return roundUsd(geminiTranscribeSecondsCost(seconds, rate));
+}
+
+/** Per-second cost at `rate`, with output estimated from the audio duration. */
+function geminiTranscribeSecondsCost(seconds: number, rate: GeminiTranscribeRate): number {
+  return seconds * GEMINI_TRANSCRIBE_AUDIO_TOKENS_PER_SECOND * rate.inputPerToken
+    + seconds * GEMINI_TRANSCRIBE_OUTPUT_TOKENS_PER_AUDIO_SECOND * rate.outputPerToken;
+}
+
+/**
+ * Gemini 3.5 Transcribe Live (WebSocket). Billed from audio SECONDS rather than
+ * a usage object: the live socket reports no token counts at all, and the
+ * streaming route meters as the session runs. Audio tokens are the same 25/sec
+ * as the pre-recorded model at the live model's higher rate.
+ *
+ * `transcriptChars` is optional so a mid-session cutoff can bill on duration
+ * alone; pass it at end-of-session, where the full transcript is known, for the
+ * closer figure. Consumed by `routes/ws-streaming-gemini-transcribe.ts`.
+ */
+export function computeGeminiTranscribeLiveCost(durationSeconds: number, transcriptChars?: number): number {
+  const rate = GEMINI_TRANSCRIBE_RATES['gemini-3.5-transcribe-live'];
+  const seconds = Math.max(0, durationSeconds);
+  if (transcriptChars === undefined) {
+    return roundUsd(geminiTranscribeSecondsCost(seconds, rate));
+  }
+  const outputTokens = Math.ceil(Math.max(0, transcriptChars) / RESERVATION_CHARS_PER_TOKEN);
+  return roundUsd(
+    seconds * GEMINI_TRANSCRIBE_AUDIO_TOKENS_PER_SECOND * rate.inputPerToken
+      + outputTokens * rate.outputPerToken,
+  );
 }
 
 /**

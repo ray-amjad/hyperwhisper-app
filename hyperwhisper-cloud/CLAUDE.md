@@ -6,7 +6,7 @@ HyperWhisper Cloud — Bun + Hono transcription service on Fly.io. Routes audio 
 
 - `src/routes/transcribe.ts` — main `/transcribe` route, header gates, walks the chain the registry gives it
 - `src/lib/stt-models.ts` — STT registry: routable (provider, model) pairs, preflight rates, and each provider's `fallbackChain` (`selfOnly` is derived from it)
-- `src/providers/` — per-upstream clients (`deepgram.ts`, `groq.ts`, `elevenlabs.ts`, `xai-stt.ts`, `azure-mai.ts`, `google-chirp.ts`) plus shared `types.ts`, `utils.ts`
+- `src/providers/` — per-upstream clients (`deepgram.ts`, `groq.ts`, `elevenlabs.ts`, `xai-stt.ts`, `azure-mai.ts`, `google-chirp.ts`, `gemini.ts`, `gemini-transcribe.ts`) plus shared `types.ts`, `utils.ts`, and `audio-limits.ts` (the pre-buffer size gate)
 - `src/lib/` — `constants.ts` (size caps + replay limit), `gcs-storage.ts`, `google-auth.ts`, `cost-calculator.ts`, `redis.ts`, `responses.ts`, `logging.ts`
 - `src/middleware/` — `auth.ts`, `credits.ts`, `rate-limit.ts`
 - `references/custom-vocab.md` — Deepgram vocabulary boosting rules
@@ -89,6 +89,50 @@ GCS upload timeout: `max(30 s, 1 s per 100 KB)`. Transient GCS failures (timeout
 Pre-buffer size gate: `/transcribe` 413s before allocating an ArrayBuffer when `X-STT-Provider: google-chirp` + no bucket + Content-Length > 9.5 MB. The cap and the bucket condition live in `src/providers/audio-limits.ts` (`preBufferMaxBytes`), not in the route — add a row there for a new provider with a payload cap.
 </important>
 
+<important if="you are touching gemini-transcribe.ts, gemini.ts, or anything that routes audio to a Gemini model">
+
+There are **two** Gemini STT paths here and they are not interchangeable:
+
+| Provider id | Adapter | Endpoint | Models |
+|---|---|---|---|
+| `gemini` | `providers/gemini.ts` | `models/{model}:generateContent` | the multimodal LLMs (`gemini-2.5-flash`, …) |
+| `gemini-transcribe` | `providers/gemini-transcribe.ts` | `/v1beta/interactions` | `gemini-3.5-transcribe`, `gemini-3.5-transcribe-live` |
+
+Both read the same `GEMINI_API_KEY` (no new secret), and both inherit Google's
+paid-tier no-training posture — there is no per-request opt-out flag on either.
+
+**TRAP 1 — never route a `gemini-3.5-transcribe*` model through `:generateContent`.**
+That endpoint *accepts* the id, *bills the audio*, and returns a content part with
+empty text and no error: a silent, paid no-op. Verified against the live API. Only
+`/v1beta/interactions` serves these models. Same rule on the native side, in
+`shared-core-rs/crates/hw-net/src/providers/gemini_transcribe.rs`.
+
+**TRAP 2 — `custom_vocabulary` is mutually exclusive with `diarization_mode` AND
+with `timestamp_granularities`**, each an HTTP 400 (`custom_vocabulary is
+incompatible with diarization.` / `... with timestamps.`). Vocabulary wins for a
+dictation app. `buildTranscriptionConfig()` is the single place that resolves it;
+today nothing asks for the extras, because `/transcribe` returns text only. A
+future word-timings change must go through that function, not add the field next
+to the vocabulary.
+
+Billing quirks, both load-bearing:
+- Audio bills at **25 tokens/sec**, not the 32 tok/s of the `:generateContent`
+  models. `GEMINI_AUDIO_TOKENS_PER_MINUTE` / `GEMINI_RATES` /
+  `computeGeminiTranscriptionCost` are for the LLM path — never reuse them here.
+- `usage.total_output_tokens` is **always 0** on this endpoint, so the output half
+  of the bill is *estimated* from the transcript length (~4 chars/token) in
+  `estimateGeminiTranscribeOutputTokens`. That is a decision, not an oversight; if
+  Google ever populates the field, prefer it and delete the estimate.
+
+Other verified behaviour: an invalid API key comes back as **400**
+`API key not valid` (never 401) — the adapter folds that into an auth failure.
+`language_codes` accepts a bare subtag (`en`) as well as `en-US`, unlike Chirp.
+The 45 s timeout is deliberate: warm calls are 2.5–4.5 s regardless of clip
+length, but a cold path took 35 s and this provider is self-only.
+The inline base64 cap (14 MB raw) has **no** overflow path — the endpoint has no
+file-reference form at all — so oversize is a hard 413.
+</important>
+
 <important if="you are spinning up a new Fly app or env that needs the GCS scratch bucket">
 
 1. Create a private GCS bucket in the same region as `GOOGLE_SPEECH_REGION` (default `global`). Suggested name: `hyperwhisper-stt-scratch`.
@@ -134,7 +178,7 @@ Fly only honours replay for bodies ≤ 1 MB (we gate at 900 KB / `FLY_REPLAY_MAX
 
 The **public source of truth** for our retention/training posture is the docs site page `mintlify-help/data-privacy.mdx` (in the app repo, ships at hyperwhisper.com/docs/data-privacy) — keep it accurate when this behaviour shifts.
 
-Controls applied in this backend: Deepgram `mip_opt_out=true` per request (also in `ws-streaming-deepgram.ts`); AssemblyAI `DELETE /v2/transcript/{id}` after fetch (`bestEffortDeleteTranscript`); Soniox async-artifact delete; Groq account-level ZDR; Gemini paid-tier (no training); OpenAI clean by default.
+Controls applied in this backend: Deepgram `mip_opt_out=true` per request (also in `ws-streaming-deepgram.ts`); AssemblyAI `DELETE /v2/transcript/{id}` after fetch (`bestEffortDeleteTranscript`); Soniox async-artifact delete; Groq account-level ZDR; Gemini paid-tier (no training), which covers both `gemini` and `gemini-transcribe` — same key, same project, and neither endpoint offers a per-request opt-out flag; OpenAI clean by default.
 
 ElevenLabs zero-retention (`enable_logging=false`) is **enterprise-only** and gated behind `ELEVENLABS_ZERO_RETENTION` (default off) — we're on a standard plan, so it retains by default. Don't send the flag unconditionally; a standard account can have the request rejected. Grok and Mistral retain ~30 days with no self-serve opt-out (enterprise contract only).
 </important>
