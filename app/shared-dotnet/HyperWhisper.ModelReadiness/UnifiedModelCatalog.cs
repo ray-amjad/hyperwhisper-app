@@ -251,6 +251,7 @@ public static class UnifiedModelCatalog
         "mistral" => "MistralApiKey",
         "soniox" => "SonioxApiKey",
         "gemini" => "GeminiApiKey",
+        "geminitranscribe" or "gemini-transcribe" => "GeminiTranscribeApiKey",
         "grok" or "xai" => "GrokApiKey",
         "azure-mai" or "microsoftazurespeech" => "LicenseKey",
         "google-chirp" or "googlespeech" => "LicenseKey",

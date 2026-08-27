@@ -1211,6 +1211,9 @@ You can re-download it later.</value>
   <data name="provider.gemini" xml:space="preserve">
     <value>Google Gemini</value>
   </data>
+  <data name="provider.geminiTranscribe" xml:space="preserve">
+    <value>Gemini 3.5 Transcribe</value>
+  </data>
   <data name="provider.cerebras" xml:space="preserve">
     <value>Cerebras</value>
   </data>
@@ -1436,14 +1439,23 @@ You can re-download it later.</value>
   <data name="mode.editor.provider.soniox.tooltip" xml:space="preserve">
     <value>Asynchroniczna transkrypcja z najnowszym modelem STT Soniox</value>
   </data>
+  <data name="mode.editor.provider.geminiTranscribe.tooltip" xml:space="preserve">
+    <value>Dedykowany model Google do zamiany mowy na tekst, z niestandardowym słownictwem</value>
+  </data>
   <data name="provider.soniox" xml:space="preserve">
     <value>Soniox</value>
   </data>
   <data name="settings.api.invalidKey.soniox" xml:space="preserve">
     <value>Nieprawidłowy format klucza API. Klucze Soniox muszą mieć co najmniej 10 znaków.</value>
   </data>
+  <data name="settings.api.invalidKey.geminiTranscribe" xml:space="preserve">
+    <value>Nieprawidłowy format klucza API. Klucze Gemini 3.5 Transcribe muszą zaczynać się od „AIza" i mieć co najmniej 30 znaków.</value>
+  </data>
   <data name="settings.api.provider.soniox.description" xml:space="preserve">
     <value>Asynchroniczna wielojęzyczna transkrypcja przez Soniox</value>
+  </data>
+  <data name="settings.api.provider.geminiTranscribe.description" xml:space="preserve">
+    <value>Dedykowany model Google do zamiany mowy na tekst z obsługą niestandardowego słownictwa</value>
   </data>
   <data name="settings.backup.export.apiKeysWarning" xml:space="preserve">
     <value>Klucze API będą przechowywane w postaci zwykłego tekstu w pliku kopii zapasowej.</value>

@@ -35,6 +35,7 @@ public partial class ApiKeysSettingsPage : Page
     private bool _mistralKeyVisible;
     private bool _sonioxKeyVisible;
     private bool _grokKeyVisible;
+    private bool _geminiTranscribeKeyVisible;
 
     public ApiKeysSettingsPage()
     {
@@ -66,6 +67,9 @@ public partial class ApiKeysSettingsPage : Page
         UpdateKeyStatus(TranscriptionApiKeyType.ElevenLabs, ElevenLabsStatusText);
         UpdateKeyStatus(TranscriptionApiKeyType.Mistral, MistralStatusText);
         UpdateKeyStatus(TranscriptionApiKeyType.Soniox, SonioxStatusText);
+        // Gemini 3.5 Transcribe has its own key slot, so it is a transcription-only
+        // entry here even though the vendor is the same as the Gemini card below.
+        UpdateKeyStatus(TranscriptionApiKeyType.GeminiTranscribe, GeminiTranscribeStatusText);
         UpdateGrokStatus();
 
         LoggingService.Info("ApiKeysSettingsPage: Initialized");
@@ -845,6 +849,61 @@ public partial class ApiKeysSettingsPage : Page
         _sonioxKeyVisible = false;
         SonioxShowButton.Content = Loc.S("settings.api.show");
         UpdateKeyStatus(TranscriptionApiKeyType.Soniox, SonioxStatusText);
+    }
+
+    // =========================================================================
+    // GEMINI 3.5 TRANSCRIBE
+    // =========================================================================
+
+    private void GeminiTranscribeKeyBox_PasswordChanged(object sender, RoutedEventArgs e)
+    {
+        // Reserved for future dirty-state tracking
+    }
+
+    private void GeminiTranscribeShowButton_Click(object sender, RoutedEventArgs e)
+    {
+        _geminiTranscribeKeyVisible = !_geminiTranscribeKeyVisible;
+        GeminiTranscribeShowButton.Content = _geminiTranscribeKeyVisible ? Loc.S("settings.api.hide") : Loc.S("settings.api.show");
+
+        if (_geminiTranscribeKeyVisible && ApiKeyService.Instance.HasApiKey(TranscriptionApiKeyType.GeminiTranscribe))
+        {
+            var key = ApiKeyService.Instance.GetApiKey(TranscriptionApiKeyType.GeminiTranscribe);
+            GeminiTranscribeStatusText.Text = key ?? "";
+        }
+        else
+        {
+            UpdateKeyStatus(TranscriptionApiKeyType.GeminiTranscribe, GeminiTranscribeStatusText);
+        }
+    }
+
+    private void GeminiTranscribeSaveButton_Click(object sender, RoutedEventArgs e)
+    {
+        var key = GeminiTranscribeKeyBox.Password;
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            ApiKeyService.Instance.SetApiKey(TranscriptionApiKeyType.GeminiTranscribe, null);
+            LoggingService.Info("ApiKeys: Cleared Gemini 3.5 Transcribe API key");
+        }
+        else
+        {
+            if (!ApiKeyService.IsValidKeyFormat(TranscriptionApiKeyType.GeminiTranscribe, key))
+            {
+                WpfMessageBox.Show(
+                    Loc.S("settings.api.invalidKey.geminiTranscribe"),
+                    Loc.S("settings.api.invalidKey.title"),
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+
+            ApiKeyService.Instance.SetApiKey(TranscriptionApiKeyType.GeminiTranscribe, key);
+            LoggingService.Info("ApiKeys: Saved Gemini 3.5 Transcribe API key");
+        }
+
+        GeminiTranscribeKeyBox.Password = "";
+        _geminiTranscribeKeyVisible = false;
+        GeminiTranscribeShowButton.Content = Loc.S("settings.api.show");
+        UpdateKeyStatus(TranscriptionApiKeyType.GeminiTranscribe, GeminiTranscribeStatusText);
     }
 
     // =========================================================================

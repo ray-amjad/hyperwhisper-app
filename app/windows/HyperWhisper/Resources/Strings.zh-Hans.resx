@@ -1290,6 +1290,9 @@
   <data name="provider.gemini" xml:space="preserve">
     <value>Google Gemini</value>
   </data>
+  <data name="provider.geminiTranscribe" xml:space="preserve">
+    <value>Gemini 3.5 Transcribe</value>
+  </data>
   <data name="provider.cerebras" xml:space="preserve">
     <value>Cerebras</value>
   </data>
@@ -1511,14 +1514,23 @@
   <data name="mode.editor.provider.soniox.tooltip" xml:space="preserve">
     <value>使用 Soniox 最新 STT 模型的异步转录</value>
   </data>
+  <data name="mode.editor.provider.geminiTranscribe.tooltip" xml:space="preserve">
+    <value>Google 专用语音转文字模型，具备自定义词汇</value>
+  </data>
   <data name="provider.soniox" xml:space="preserve">
     <value>Soniox</value>
   </data>
   <data name="settings.api.invalidKey.soniox" xml:space="preserve">
     <value>API 密钥格式无效。Soniox 密钥至少需要 10 个字符。</value>
   </data>
+  <data name="settings.api.invalidKey.geminiTranscribe" xml:space="preserve">
+    <value>API 密钥格式无效。Gemini 3.5 Transcribe 密钥必须以 "AIza" 开头，且至少包含 30 个字符。</value>
+  </data>
   <data name="settings.api.provider.soniox.description" xml:space="preserve">
     <value>通过 Soniox 进行异步多语言转录</value>
+  </data>
+  <data name="settings.api.provider.geminiTranscribe.description" xml:space="preserve">
+    <value>Google 专用语音转文字模型，支持自定义词汇</value>
   </data>
   <data name="settings.backup.export.apiKeysWarning" xml:space="preserve">
     <value>API 密钥将以明文形式存储在备份文件中。</value>

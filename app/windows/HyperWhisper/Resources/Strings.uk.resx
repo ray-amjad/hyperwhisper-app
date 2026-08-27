@@ -1211,6 +1211,9 @@ You can re-download it later.</value>
   <data name="provider.gemini" xml:space="preserve">
     <value>Google Gemini</value>
   </data>
+  <data name="provider.geminiTranscribe" xml:space="preserve">
+    <value>Gemini 3.5 Transcribe</value>
+  </data>
   <data name="provider.cerebras" xml:space="preserve">
     <value>Cerebras</value>
   </data>
@@ -1435,14 +1438,23 @@ You can re-download it later.</value>
   <data name="mode.editor.provider.soniox.tooltip" xml:space="preserve">
     <value>Асинхронна транскрипція з останньою моделлю STT Soniox</value>
   </data>
+  <data name="mode.editor.provider.geminiTranscribe.tooltip" xml:space="preserve">
+    <value>Спеціалізована модель Google для перетворення мовлення на текст, із користувацьким словником</value>
+  </data>
   <data name="provider.soniox" xml:space="preserve">
     <value>Soniox</value>
   </data>
   <data name="settings.api.invalidKey.soniox" xml:space="preserve">
     <value>Невірний формат ключа API. Ключі Soniox мають містити щонайменше 10 символів.</value>
   </data>
+  <data name="settings.api.invalidKey.geminiTranscribe" xml:space="preserve">
+    <value>Невірний формат ключа API. Ключі Gemini 3.5 Transcribe мають починатися з «AIza» та містити не менше 30 символів.</value>
+  </data>
   <data name="settings.api.provider.soniox.description" xml:space="preserve">
     <value>Асинхронна багатомовна транскрипція через Soniox</value>
+  </data>
+  <data name="settings.api.provider.geminiTranscribe.description" xml:space="preserve">
+    <value>Спеціалізована модель Google для перетворення мовлення на текст із підтримкою користувацького словника</value>
   </data>
   <data name="settings.backup.export.apiKeysWarning" xml:space="preserve">
     <value>Ключі API будуть збережені як звичайний текст у файлі резервної копії.</value>

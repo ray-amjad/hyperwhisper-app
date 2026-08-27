@@ -51,6 +51,9 @@ enum LibraryProviderKey: Hashable {
             case .grok:         return "providerGrok"
             case .microsoftAzureSpeech: return "providerMicrosoft"
             case .googleSpeech:        return "providerGoogle"
+            // Same vendor and same brand mark as `.gemini` — reuse the asset
+            // rather than shipping a second identical PNG.
+            case .geminiTranscribe:    return "providerGemini"
             }
         case .postProcessing(let provider):
             switch provider {
@@ -74,7 +77,9 @@ enum LibraryProviderKey: Hashable {
 
     var brandAssetIsMulticolor: Bool {
         switch self {
-        case .cloud(.gemini), .postProcessing(.gemini): return true
+        // `.geminiTranscribe` renders the same multicolor Gemini mark, so it has
+        // to opt out of template rendering alongside `.gemini`.
+        case .cloud(.gemini), .cloud(.geminiTranscribe), .postProcessing(.gemini): return true
         default: return false
         }
     }
@@ -95,6 +100,7 @@ enum LibraryProviderKey: Hashable {
             case .grok: return "x.circle.fill"
             case .microsoftAzureSpeech: return "m.square.fill"
             case .googleSpeech: return "globe"
+            case .geminiTranscribe: return "sparkle"
             }
         case .postProcessing(let provider):
             switch provider {
@@ -256,6 +262,10 @@ extension CloudProvider {
         case .groq: return .groq
         case .grok: return .grok
         case .mistral: return .mistral
+        // `.geminiTranscribe` deliberately stays unpaired: same vendor as
+        // `.gemini`, but a separate BYOK key slot for a separate API. Pairing it
+        // would overwrite the post-processing Gemini key from the transcription
+        // sheet (and vice versa).
         default: return nil
         }
     }
@@ -265,7 +275,8 @@ extension CloudProvider {
         case .openai:     return "sk-..."
         case .groq:       return "gsk_..."
         case .deepgram:   return "Token ..."
-        case .gemini:     return "AIza..."
+        // Both Google slots take an AI Studio key; only the slot differs.
+        case .gemini, .geminiTranscribe: return "AIza..."
         case .grok:       return "xai-..."
         case .assemblyAI, .elevenLabs, .mistral, .soniox, .hyperwhisper, .microsoftAzureSpeech, .googleSpeech:
             return "Paste API key"

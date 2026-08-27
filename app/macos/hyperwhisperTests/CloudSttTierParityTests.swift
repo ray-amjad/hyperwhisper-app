@@ -97,6 +97,40 @@ struct CloudSttTierParityTests {
         }
     }
 
+    /// Gemini 3.5 Transcribe (`geminiTranscribe`) is a separate provider from
+    /// `gemini`: different API, different key slot, different default model. It
+    /// has no legacy aliases, so what needs pinning is that its default model id
+    /// survives the alias dispatcher untouched (it relies on the `default:` arm,
+    /// scoped AND unscoped) and that the WebSocket-only live model never leaks
+    /// into the pre-recorded registry.
+    ///
+    /// NOTE: no row was added to `retiredCloudModelIdsResolve` above, and none
+    /// belongs there — that table pins *retired* ids resolving to their
+    /// replacements, and this provider is new, so it has no retired ids.
+    @Test("Gemini 3.5 Transcribe's model id passes through the alias dispatcher")
+    func geminiTranscribeModelIdPassesThrough() {
+        let defaultId = CloudTranscriptionModels.defaultModel(for: .geminiTranscribe)
+        #expect(defaultId == "gemini-3.5-transcribe")
+
+        // The default must actually be selectable, or the Mode editor's model
+        // dropdown is empty and the provider cannot be used.
+        #expect(
+            CloudTranscriptionModels.model(withId: defaultId, provider: .geminiTranscribe) != nil,
+            "the default model must exist in availableModels"
+        )
+        #expect(
+            CloudTranscriptionModels.resolveModelAlias(defaultId, provider: .geminiTranscribe) == defaultId)
+        #expect(CloudTranscriptionModels.resolveModelAlias(defaultId, provider: nil) == defaultId)
+
+        // `gemini-3.5-transcribe-live` speaks BidiGenerateContent over a
+        // WebSocket; the core's REST builder rejects it with a 400. Offering it
+        // as a pre-recorded model would ship a routable-but-unserved id.
+        #expect(
+            CloudTranscriptionModels.availableModels.allSatisfy { $0.id != "gemini-3.5-transcribe-live" },
+            "the live model is WebSocket-only and must not be selectable for pre-recorded transcription"
+        )
+    }
+
     @Test("Retired cloud models are not selectable")
     func retiredCloudModelsAreNotSelectable() {
         let retired = Set([

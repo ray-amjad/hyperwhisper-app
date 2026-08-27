@@ -65,6 +65,9 @@ class TranscriptionProviderRouter {
     private let sonioxProvider = SonioxProvider()
     private let geminiTranscriptionProvider = GeminiTranscriptionProvider()
     private let grokSTTProvider = GrokSTTProvider()
+    /// Gemini 3.5 Transcribe. A separate instance from
+    /// `geminiTranscriptionProvider`: different endpoint, different key slot.
+    private let geminiTranscribeProvider = GeminiTranscribeProvider()
 
     /// HyperWhisper-Cloud-routed providers (no BYOK). Constructed lazily when
     /// the HW Cloud managers are available, mirroring `hyperwhisperCloudProvider`.
@@ -234,6 +237,8 @@ class TranscriptionProviderRouter {
                 geminiTranscriptionProvider.configure(apiKey: apiKey)
             case .grok:
                 grokSTTProvider.configure(apiKey: apiKey)
+            case .geminiTranscribe:
+                geminiTranscribeProvider.configure(apiKey: apiKey)
             }
         }
 
@@ -294,6 +299,8 @@ class TranscriptionProviderRouter {
                 throw TranscriptionError.providerNotAvailable(provider: "Google Chirp 3", reason: "Failed to initialize provider")
             }
             provider = google
+        case .geminiTranscribe:
+            provider = geminiTranscribeProvider
         }
 
         // Check provider health before use
@@ -413,7 +420,8 @@ class TranscriptionProviderRouter {
     /// - Local: `whisperLocal`, `whisper`, `parakeet`, `qwen3Asr`, `appleSpeech`.
     /// - Cloud: the CloudProvider rawValue (`openai`, `groq`, `deepgram`,
     ///   `assemblyai`, `elevenlabs`, `mistral`, `soniox`, `gemini`, `grok`,
-    ///   `hyperwhisper`, `microsoftazurespeech`, `googlespeech`).
+    ///   `hyperwhisper`, `microsoftazurespeech`, `googlespeech`,
+    ///   `geminitranscribe`).
     ///   `cloud` is an alias for `hyperwhisper`. All identifiers are matched
     ///   case-insensitively via `engine.lowercased()`.
     ///
@@ -501,6 +509,8 @@ class TranscriptionProviderRouter {
                 geminiTranscriptionProvider.configure(apiKey: apiKey)
             case .grok:
                 grokSTTProvider.configure(apiKey: apiKey)
+            case .geminiTranscribe:
+                geminiTranscribeProvider.configure(apiKey: apiKey)
             }
         }
 
@@ -540,6 +550,8 @@ class TranscriptionProviderRouter {
                 throw TranscriptionError.providerNotAvailable(provider: "Google Chirp 3", reason: "Failed to initialize provider")
             }
             provider = google
+        case .geminiTranscribe:
+            provider = geminiTranscribeProvider
         }
 
         if let healthManager = providerHealthManager {

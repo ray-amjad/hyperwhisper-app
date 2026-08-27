@@ -146,6 +146,18 @@ pub struct SttModel {
     pub preview_status: Option<bool>,
     #[serde(default)]
     pub supports_custom_vocabulary: Option<bool>,
+    /// Whether HyperWhisper Cloud serves a **live WebSocket route** for this
+    /// specific model.
+    ///
+    /// Deliberately narrower than the entry-level `features.streaming` hint,
+    /// which merely records that the *vendor* offers streaming — it is `true`
+    /// for six vendors we have no backend WS route for, so using it to build a
+    /// picker would ship a 404 at dictation time. This flag means "we route it".
+    ///
+    /// `#[serde(default)]`, so today's catalog file (which has no `streaming`
+    /// key on any model) still decodes unchanged and every model reads `false`.
+    #[serde(default)]
+    pub streaming: Option<bool>,
 }
 
 impl SttModel {
@@ -153,6 +165,12 @@ impl SttModel {
     /// false on a missing flag — matches Windows `ModelSupportsCustomVocabulary`.
     pub fn supports_custom_vocabulary(&self) -> bool {
         self.supports_custom_vocabulary.unwrap_or(false)
+    }
+
+    /// Whether HyperWhisper Cloud serves a live WebSocket route for this model.
+    /// Missing flag ⇒ false.
+    pub fn streaming(&self) -> bool {
+        self.streaming.unwrap_or(false)
     }
 }
 
@@ -524,6 +542,19 @@ impl CloudSttCatalog {
         self.providers
             .iter()
             .filter(|e| e.access.map(|a| a.cloud_tier_eligible).unwrap_or(false))
+    }
+
+    /// Cloud-tier providers that HyperWhisper Cloud can also serve **live**, in
+    /// catalog order: `access.cloudTierEligible` *and* at least one model with
+    /// `streaming: true`.
+    ///
+    /// This is the eligible set for the HyperWhisper-Cloud live vendor picker.
+    /// It keys off the per-model [`SttModel::streaming`] flag, never the
+    /// entry-level `features.streaming` vendor hint — see that field's docs for
+    /// why the two are not interchangeable.
+    pub fn streaming_cloud_tier_entries(&self) -> impl Iterator<Item = &SttEntry> {
+        self.cloud_tier_entries()
+            .filter(|e| e.models.iter().any(|m| m.streaming()))
     }
 
     /// The `X-STT-Provider` header value for a provider id, or `None`.

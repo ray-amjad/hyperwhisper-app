@@ -1211,6 +1211,9 @@ You can re-download it later.</value>
   <data name="provider.gemini" xml:space="preserve">
     <value>Google Gemini</value>
   </data>
+  <data name="provider.geminiTranscribe" xml:space="preserve">
+    <value>Gemini 3.5 Transcribe</value>
+  </data>
   <data name="provider.cerebras" xml:space="preserve">
     <value>Cerebras</value>
   </data>
@@ -1436,14 +1439,23 @@ You can re-download it later.</value>
   <data name="mode.editor.provider.soniox.tooltip" xml:space="preserve">
     <value>Transcrição assíncrona com o mais recente modelo STT da Soniox</value>
   </data>
+  <data name="mode.editor.provider.geminiTranscribe.tooltip" xml:space="preserve">
+    <value>Modelo dedicado do Google de voz para texto, com vocabulário personalizado</value>
+  </data>
   <data name="provider.soniox" xml:space="preserve">
     <value>Soniox</value>
   </data>
   <data name="settings.api.invalidKey.soniox" xml:space="preserve">
     <value>Formato de chave API inválido. As chaves Soniox devem ter pelo menos 10 caracteres.</value>
   </data>
+  <data name="settings.api.invalidKey.geminiTranscribe" xml:space="preserve">
+    <value>Formato de chave de API inválido. As chaves do Gemini 3.5 Transcribe devem começar com "AIza" e ter pelo menos 30 caracteres.</value>
+  </data>
   <data name="settings.api.provider.soniox.description" xml:space="preserve">
     <value>Transcrição assíncrona multilingue via Soniox</value>
+  </data>
+  <data name="settings.api.provider.geminiTranscribe.description" xml:space="preserve">
+    <value>Modelo dedicado do Google de voz para texto com suporte a vocabulário personalizado</value>
   </data>
   <data name="settings.backup.export.apiKeysWarning" xml:space="preserve">
     <value>As chaves API serão armazenadas como texto simples no ficheiro de cópia de segurança.</value>

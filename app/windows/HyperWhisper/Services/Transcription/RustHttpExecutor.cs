@@ -8,9 +8,14 @@
 //
 // This executor takes a binding `HttpRequest`, performs the I/O with `HttpClient`
 // (+ `StreamContent`/`FileStream`), and returns a binding `HttpResponse`. It is
-// reused by EVERY cloud STT provider, so the four `Body` cases below must be
+// reused by EVERY cloud STT provider, so the five `Body` cases below must be
 // exactly right — every later provider inherits any bug here. It mirrors the
 // already-shipped macOS `RustHTTPExecutor.swift` 1:1.
+//
+// The one exception to "audio never crosses the boundary" is
+// `Body.JsonWithBase64File` (Gemini 3.5 Transcribe): that vendor demands the
+// audio inline in the JSON, so the PLATFORM reads and base64-encodes it here.
+// Rust still only ever sees the path.
 //
 // TODO-verify (Windows/CI): Rust shared-core swap — compile-only on macOS; not
 // built against the C# binding here. Verify under `dotnet build` in CI.
@@ -130,6 +135,31 @@ internal static class RustHttpExecutor
                 break;
             }
 
+            case Body.JsonWithBase64File json:
+            {
+                // === INLINE BASE64 JSON PATH (Gemini 3.5 Transcribe) ===
+                // The vendor's /v1beta/interactions endpoint has no file-reference
+                // form, so the audio must sit inside the JSON. The core hands us
+                // two literal JSON fragments and a path; we write
+                // prefix ++ base64(file) ++ suffix.
+                //
+                // This is the ONE body shape where the audio bytes are buffered:
+                // the base64 of a 14 MB file is ~19 MB, which is why
+                // CloudTranscriptionProvider.GeminiTranscribe caps the raw file at
+                // 14 MB. Standard (padded, non-URL-safe) alphabet, no line breaks
+                // — Convert.ToBase64String's default, which is what the core's
+                // fragments assume.
+                //
+                // C# `switch` over the binding's Body records is NOT exhaustive:
+                // omitting this case would send a body-less POST and the vendor
+                // would 400. There is no compiler check here.
+                var audioBase64 = Convert.ToBase64String(File.ReadAllBytes(json.@path));
+                var content = new ByteArrayContent(ConcatJsonBody(json.@prefix, audioBase64, json.@suffix));
+                TrySetContentType(content, "application/json");
+                message.Content = content;
+                break;
+            }
+
             case Body.Multipart multipart:
             {
                 var rawFile = RawStreamFileRef(multipart.@parts);
@@ -217,6 +247,22 @@ internal static class RustHttpExecutor
             }
         }
         return content;
+    }
+
+    /// <summary>
+    /// Splice <c>prefix ++ ASCII(base64) ++ suffix</c> into one byte array for a
+    /// <see cref="Body.JsonWithBase64File"/> body. The prefix/suffix are already
+    /// valid JSON fragments emitted by the core; base64 is ASCII by construction,
+    /// so a byte-level concat cannot corrupt either side's escaping.
+    /// </summary>
+    private static byte[] ConcatJsonBody(byte[] prefix, string base64, byte[] suffix)
+    {
+        var middle = System.Text.Encoding.ASCII.GetBytes(base64);
+        var result = new byte[prefix.Length + middle.Length + suffix.Length];
+        Buffer.BlockCopy(prefix, 0, result, 0, prefix.Length);
+        Buffer.BlockCopy(middle, 0, result, prefix.Length, middle.Length);
+        Buffer.BlockCopy(suffix, 0, result, prefix.Length + middle.Length, suffix.Length);
+        return result;
     }
 
     /// <summary>

@@ -1211,6 +1211,9 @@ You can re-download it later.</value>
   <data name="provider.gemini" xml:space="preserve">
     <value>Google Gemini</value>
   </data>
+  <data name="provider.geminiTranscribe" xml:space="preserve">
+    <value>Gemini 3.5 Transcribe</value>
+  </data>
   <data name="provider.cerebras" xml:space="preserve">
     <value>Cerebras</value>
   </data>
@@ -1436,14 +1439,23 @@ You can re-download it later.</value>
   <data name="mode.editor.provider.soniox.tooltip" xml:space="preserve">
     <value>Asinkrona transkripcija s najnovijim STT modelom Soniox</value>
   </data>
+  <data name="mode.editor.provider.geminiTranscribe.tooltip" xml:space="preserve">
+    <value>Googleov namjenski model za pretvorbu govora u tekst, s prilagođenim rječnikom</value>
+  </data>
   <data name="provider.soniox" xml:space="preserve">
     <value>Soniox</value>
   </data>
   <data name="settings.api.invalidKey.soniox" xml:space="preserve">
     <value>Nevažeći format API ključa. Soniox ključevi moraju imati najmanje 10 znakova.</value>
   </data>
+  <data name="settings.api.invalidKey.geminiTranscribe" xml:space="preserve">
+    <value>Nevažeći format API ključa. Gemini 3.5 Transcribe ključevi moraju počinjati s "AIza" i imati najmanje 30 znakova.</value>
+  </data>
   <data name="settings.api.provider.soniox.description" xml:space="preserve">
     <value>Asinkrona višejezična transkripcija putem Soniox</value>
+  </data>
+  <data name="settings.api.provider.geminiTranscribe.description" xml:space="preserve">
+    <value>Googleov namjenski model za pretvorbu govora u tekst s podrškom za prilagođeni rječnik</value>
   </data>
   <data name="settings.backup.export.apiKeysWarning" xml:space="preserve">
     <value>API ključevi bit će pohranjeni kao obični tekst u datoteci sigurnosne kopije.</value>

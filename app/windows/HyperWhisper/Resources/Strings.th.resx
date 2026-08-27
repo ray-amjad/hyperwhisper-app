@@ -1211,6 +1211,9 @@ You can re-download it later.</value>
   <data name="provider.gemini" xml:space="preserve">
     <value>Google Gemini</value>
   </data>
+  <data name="provider.geminiTranscribe" xml:space="preserve">
+    <value>Gemini 3.5 Transcribe</value>
+  </data>
   <data name="provider.cerebras" xml:space="preserve">
     <value>Cerebras</value>
   </data>
@@ -1436,14 +1439,23 @@ You can re-download it later.</value>
   <data name="mode.editor.provider.soniox.tooltip" xml:space="preserve">
     <value>การถอดความแบบอะซิงโครนัสด้วยโมเดล STT ล่าสุดของ Soniox</value>
   </data>
+  <data name="mode.editor.provider.geminiTranscribe.tooltip" xml:space="preserve">
+    <value>โมเดลแปลงเสียงเป็นข้อความเฉพาะของ Google พร้อมคำศัพท์เฉพาะที่กำหนดเอง</value>
+  </data>
   <data name="provider.soniox" xml:space="preserve">
     <value>Soniox</value>
   </data>
   <data name="settings.api.invalidKey.soniox" xml:space="preserve">
     <value>รูปแบบ API key ไม่ถูกต้อง Soniox key ต้องมีอย่างน้อย 10 ตัวอักษร</value>
   </data>
+  <data name="settings.api.invalidKey.geminiTranscribe" xml:space="preserve">
+    <value>รูปแบบคีย์ API ไม่ถูกต้อง คีย์ Gemini 3.5 Transcribe ต้องเริ่มต้นด้วย "AIza" และมีอย่างน้อย 30 ตัวอักษร</value>
+  </data>
   <data name="settings.api.provider.soniox.description" xml:space="preserve">
     <value>การถอดความหลายภาษาแบบอะซิงโครนัสผ่าน Soniox</value>
+  </data>
+  <data name="settings.api.provider.geminiTranscribe.description" xml:space="preserve">
+    <value>โมเดลแปลงเสียงเป็นข้อความเฉพาะของ Google พร้อมรองรับคำศัพท์เฉพาะที่กำหนดเอง</value>
   </data>
   <data name="settings.backup.export.apiKeysWarning" xml:space="preserve">
     <value>API key จะถูกเก็บเป็นข้อความธรรมดาในไฟล์สำรอง</value>

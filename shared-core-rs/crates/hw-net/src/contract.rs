@@ -10,11 +10,18 @@
 //! `CursorContext` uses — so the leaf crate stays dependency-light and all
 //! `#[uniffi::export]` items land in one place (`hw-core/src/lib.rs`).
 
-/// The 12 cloud speech-to-text providers HyperWhisper integrates.
+/// The 14 cloud speech-to-text providers HyperWhisper integrates.
 ///
 /// `AzureMai` and `GoogleChirp` are *routed* through HyperWhisper Cloud (their
 /// requests go to the HW Cloud endpoint with `X-STT-Provider`/`-Model`/`-Domain`
 /// headers); the rest talk to their vendor endpoints directly.
+///
+/// `Gemini` and `GeminiTranscribe` are the *same vendor* but two different APIs
+/// and two different BYOK key slots: `Gemini` is the multimodal
+/// `:generateContent` path (`providers/gemini.rs`), `GeminiTranscribe` is the
+/// dedicated `/v1beta/interactions` speech API
+/// (`providers/gemini_transcribe.rs`). They are not interchangeable — see the
+/// module docs on `gemini_transcribe`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Provider {
     HyperWhisperCloud,
@@ -29,6 +36,10 @@ pub enum Provider {
     Gemini,
     AzureMai,
     GoogleChirp,
+    /// Gemini 3.5 Transcribe, pre-recorded (`/v1beta/interactions`).
+    GeminiTranscribe,
+    /// Gemini 3.5 Transcribe Live (`BidiGenerateContent` WebSocket).
+    GeminiTranscribeLive,
 }
 
 /// HTTP verb for a built request.
@@ -79,6 +90,25 @@ pub enum Body {
     /// **not** `multipart/form-data`). Audio bytes never cross FFI — only the
     /// path is marshalled, exactly like [`Part::FileRef`].
     FileStream { path: String, content_type: String },
+    /// A JSON body whose only large field is the **base64 of the file at
+    /// `path`**, spliced between two literal byte runs the platform writes
+    /// verbatim: `prefix` ++ base64(file bytes) ++ `suffix`.
+    ///
+    /// This is the one shape that cannot honour "audio never crosses FFI"
+    /// end-to-end, because the vendor demands the audio *inline* in the JSON
+    /// (Gemini 3.5 Transcribe's `/v1beta/interactions`). The compromise keeps
+    /// the audio out of the *Rust* side of the boundary anyway: Rust never sees
+    /// the bytes, only the path, exactly like [`Part::FileRef`] — the platform
+    /// reads the file and base64-encodes it while writing the body.
+    ///
+    /// `prefix` and `suffix` are already valid JSON fragments; the platform
+    /// must append the standard (padded, non-URL-safe) base64 alphabet with no
+    /// line breaks, and set `Content-Type: application/json`.
+    JsonWithBase64File {
+        prefix: Vec<u8>,
+        path: String,
+        suffix: Vec<u8>,
+    },
 }
 
 /// One part of a multipart body.

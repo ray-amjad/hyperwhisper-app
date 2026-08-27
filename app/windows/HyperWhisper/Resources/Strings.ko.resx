@@ -1211,6 +1211,9 @@ You can re-download it later.</value>
   <data name="provider.gemini" xml:space="preserve">
     <value>Google Gemini</value>
   </data>
+  <data name="provider.geminiTranscribe" xml:space="preserve">
+    <value>Gemini 3.5 Transcribe</value>
+  </data>
   <data name="provider.cerebras" xml:space="preserve">
     <value>Cerebras</value>
   </data>
@@ -1436,14 +1439,23 @@ You can re-download it later.</value>
   <data name="mode.editor.provider.soniox.tooltip" xml:space="preserve">
     <value>Soniox의 최신 STT 모델로 비동기 전사</value>
   </data>
+  <data name="mode.editor.provider.geminiTranscribe.tooltip" xml:space="preserve">
+    <value>Google 전용 음성-텍스트 변환 모델, 맞춤 어휘 지원</value>
+  </data>
   <data name="provider.soniox" xml:space="preserve">
     <value>Soniox</value>
   </data>
   <data name="settings.api.invalidKey.soniox" xml:space="preserve">
     <value>유효하지 않은 API 키 형식입니다. Soniox 키는 10자 이상이어야 합니다.</value>
   </data>
+  <data name="settings.api.invalidKey.geminiTranscribe" xml:space="preserve">
+    <value>API 키 형식이 올바르지 않습니다. Gemini 3.5 Transcribe 키는 "AIza"로 시작하고 30자 이상이어야 합니다.</value>
+  </data>
   <data name="settings.api.provider.soniox.description" xml:space="preserve">
     <value>Soniox를 통한 비동기 다국어 전사</value>
+  </data>
+  <data name="settings.api.provider.geminiTranscribe.description" xml:space="preserve">
+    <value>맞춤 어휘를 지원하는 Google 전용 음성-텍스트 변환 모델</value>
   </data>
   <data name="settings.backup.export.apiKeysWarning" xml:space="preserve">
     <value>API 키는 백업 파일에 일반 텍스트로 저장됩니다.</value>

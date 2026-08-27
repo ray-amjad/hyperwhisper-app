@@ -1211,6 +1211,9 @@ You can re-download it later.</value>
   <data name="provider.gemini" xml:space="preserve">
     <value>Google Gemini</value>
   </data>
+  <data name="provider.geminiTranscribe" xml:space="preserve">
+    <value>Gemini 3.5 Transcribe</value>
+  </data>
   <data name="provider.cerebras" xml:space="preserve">
     <value>Cerebras</value>
   </data>
@@ -1436,14 +1439,23 @@ You can re-download it later.</value>
   <data name="mode.editor.provider.soniox.tooltip" xml:space="preserve">
     <value>Aszinkron átírás a Soniox legújabb STT modelljével</value>
   </data>
+  <data name="mode.editor.provider.geminiTranscribe.tooltip" xml:space="preserve">
+    <value>A Google dedikált beszédfelismerő modellje, egyéni szókinccsel</value>
+  </data>
   <data name="provider.soniox" xml:space="preserve">
     <value>Soniox</value>
   </data>
   <data name="settings.api.invalidKey.soniox" xml:space="preserve">
     <value>Érvénytelen API-kulcs formátum. A Soniox kulcsoknak legalább 10 karakternek kell lenniük.</value>
   </data>
+  <data name="settings.api.invalidKey.geminiTranscribe" xml:space="preserve">
+    <value>Érvénytelen API-kulcs formátum. A Gemini 3.5 Transcribe kulcsoknak „AIza" előtaggal kell kezdődniük, és legalább 30 karakter hosszúnak kell lenniük.</value>
+  </data>
   <data name="settings.api.provider.soniox.description" xml:space="preserve">
     <value>Aszinkron többnyelvű átírás a Soniox-on keresztül</value>
+  </data>
+  <data name="settings.api.provider.geminiTranscribe.description" xml:space="preserve">
+    <value>A Google dedikált beszédfelismerő modellje egyéni szókincs támogatással</value>
   </data>
   <data name="settings.backup.export.apiKeysWarning" xml:space="preserve">
     <value>Az API-kulcsok egyszerű szövegként kerülnek tárolásra a biztonsági mentési fájlban.</value>

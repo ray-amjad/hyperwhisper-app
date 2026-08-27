@@ -480,6 +480,11 @@ class SettingsManager: ObservableObject {
         set { apiKeys.grokAPIKey = newValue }
     }
 
+    var geminiTranscribeAPIKey: String {
+        get { apiKeys.geminiTranscribeAPIKey }
+        set { apiKeys.geminiTranscribeAPIKey = newValue }
+    }
+
     var useOpenAITranscription: Bool {
         get { apiKeys.useOpenAITranscription }
         set { apiKeys.useOpenAITranscription = newValue }

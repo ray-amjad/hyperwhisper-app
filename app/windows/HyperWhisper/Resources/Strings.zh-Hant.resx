@@ -1211,6 +1211,9 @@ You can re-download it later.</value>
   <data name="provider.gemini" xml:space="preserve">
     <value>Google Gemini</value>
   </data>
+  <data name="provider.geminiTranscribe" xml:space="preserve">
+    <value>Gemini 3.5 Transcribe</value>
+  </data>
   <data name="provider.cerebras" xml:space="preserve">
     <value>Cerebras</value>
   </data>
@@ -1435,14 +1438,23 @@ You can re-download it later.</value>
   <data name="mode.editor.provider.soniox.tooltip" xml:space="preserve">
     <value>使用 Soniox 最新 STT 模型的非同步轉錄</value>
   </data>
+  <data name="mode.editor.provider.geminiTranscribe.tooltip" xml:space="preserve">
+    <value>Google 專用語音轉文字模型，具備自訂詞彙</value>
+  </data>
   <data name="provider.soniox" xml:space="preserve">
     <value>Soniox</value>
   </data>
   <data name="settings.api.invalidKey.soniox" xml:space="preserve">
     <value>API 金鑰格式無效。Soniox 金鑰至少需要 10 個字元。</value>
   </data>
+  <data name="settings.api.invalidKey.geminiTranscribe" xml:space="preserve">
+    <value>API 金鑰格式無效。Gemini 3.5 Transcribe 金鑰必須以 「AIza」 開頭，且至少包含 30 個字元。</value>
+  </data>
   <data name="settings.api.provider.soniox.description" xml:space="preserve">
     <value>透過 Soniox 進行非同步多語言轉錄</value>
+  </data>
+  <data name="settings.api.provider.geminiTranscribe.description" xml:space="preserve">
+    <value>Google 專用語音轉文字模型，支援自訂詞彙</value>
   </data>
   <data name="settings.backup.export.apiKeysWarning" xml:space="preserve">
     <value>API 金鑰將以明文形式儲存於備份檔案中。</value>

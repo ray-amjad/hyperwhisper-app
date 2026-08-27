@@ -1,7 +1,7 @@
 // API-KEY TRANSCRIPTION SERVICE BASE
 // Shared plumbing for every cloud transcription provider the user configures
 // with their own API key: OpenAI, Groq, Deepgram, AssemblyAI, ElevenLabs,
-// Mistral, Soniox, Gemini and Grok.
+// Mistral, Soniox, Gemini, Gemini 3.5 Transcribe and Grok.
 //
 // Each of those services carried its own copy of the same four fields, the same
 // IsAvailable check, the same HttpClient construction and the same idempotent

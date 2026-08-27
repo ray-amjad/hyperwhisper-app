@@ -80,7 +80,10 @@ public class CloudProviderHealthService : IDisposable
         { CloudTranscriptionProvider.Mistral, ("https://api.mistral.ai/v1/models", "Bearer") },
         { CloudTranscriptionProvider.Soniox, ("https://api.soniox.com/v1/models", "Bearer") },
         { CloudTranscriptionProvider.Gemini, ("https://generativelanguage.googleapis.com/v1beta/models", "Query") },
-        { CloudTranscriptionProvider.Grok, ("https://api.x.ai/v1/models", "Bearer") }
+        { CloudTranscriptionProvider.Grok, ("https://api.x.ai/v1/models", "Bearer") },
+        // Same model-list endpoint as Gemini, but authenticated with the header
+        // form the transcribe API uses.
+        { CloudTranscriptionProvider.GeminiTranscribe, ("https://generativelanguage.googleapis.com/v1beta/models", "x-goog-api-key") }
     };
 
     private static readonly Dictionary<PostProcessingProvider, (string Url, string AuthScheme)> PostProcessingEndpoints = new()
@@ -503,6 +506,8 @@ public class CloudProviderHealthService : IDisposable
             CloudTranscriptionProvider.ElevenLabs => ApiKeyService.Instance.GetApiKey(TranscriptionApiKeyType.ElevenLabs),
             CloudTranscriptionProvider.Mistral => ApiKeyService.Instance.GetApiKey(TranscriptionApiKeyType.Mistral),
             CloudTranscriptionProvider.Soniox => ApiKeyService.Instance.GetApiKey(TranscriptionApiKeyType.Soniox),
+            // Own key slot — Google, but NOT the Gemini post-processing key.
+            CloudTranscriptionProvider.GeminiTranscribe => ApiKeyService.Instance.GetApiKey(TranscriptionApiKeyType.GeminiTranscribe),
 
             // HyperWhisper Cloud doesn't need API key
             CloudTranscriptionProvider.HyperWhisperCloud => null,

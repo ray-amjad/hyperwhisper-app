@@ -7,12 +7,14 @@
 //  The Rust core builds a fully-described `HttpRequest` value (URL, method,
 //  headers, body) and parses an `HttpResponse` value; the PLATFORM owns all
 //  actual network I/O. Audio bytes NEVER cross the FFI boundary — a file is
-//  referenced by path (`Body.fileStream` / `HwPart.fileRef`) and the platform
-//  streams it from disk.
+//  referenced by path (`Body.fileStream` / `HwPart.fileRef` /
+//  `Body.jsonWithBase64File`) and the platform streams it from disk. That holds
+//  even for the inline-base64 body: the core names the path and the surrounding
+//  JSON, and the platform does the encoding.
 //
 //  This executor takes a binding `HttpRequest`, performs the I/O with
 //  `URLSession`, and returns a binding `HttpResponse`. It is reused by EVERY
-//  cloud STT provider, so the four `Body` cases below must be exactly right —
+//  cloud STT provider, so the five `Body` cases below must be exactly right —
 //  every later provider inherits any bug here.
 //
 //  `HttpRequest`, `HttpResponse`, `Header`, `HttpMethod`, `Body`, `HwPart` are
@@ -96,6 +98,20 @@ enum RustHTTPExecutor {
                 )
                 (data, response) = try await session.upload(for: urlRequest, fromFile: bodyFileURL)
             }
+
+        case let .jsonWithBase64File(prefix, path, suffix):
+            // === INLINE-BASE64 JSON PATH (Gemini 3.5 Transcribe) ===
+            // `/v1beta/interactions` has no file-reference form, so the core
+            // hands us the two JSON fragments that surround the audio and we
+            // splice the base64 in between. Same temp-file discipline as the
+            // multipart path: reserve the URL and register cleanup BEFORE
+            // writing, and encode in chunks so a 14 MB file is never held twice
+            // in memory. Content-Type is applied in `buildURLRequest`.
+            let bodyFileURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent("hw-jsonb64-\(UUID().uuidString).tmp")
+            defer { try? FileManager.default.removeItem(at: bodyFileURL) }
+            try writeJSONWithBase64Body(to: bodyFileURL, prefix: prefix, path: path, suffix: suffix)
+            (data, response) = try await session.upload(for: urlRequest, fromFile: bodyFileURL)
         }
 
         guard let http = response as? HTTPURLResponse else {
@@ -160,6 +176,11 @@ enum RustHTTPExecutor {
                 urlRequest.setValue(rawFile.mime, forHTTPHeaderField: "Content-Type")
             }
             // real multipart: Content-Type set at upload time (needs boundary).
+        case .jsonWithBase64File:
+            // The spliced body is a JSON document by construction. The core also
+            // emits an explicit `Content-Type` header, so this is belt-and-braces
+            // for the same reason the bytes/fileStream arms are.
+            urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         case .empty:
             break
         }
@@ -245,5 +266,62 @@ enum RustHTTPExecutor {
         }
 
         try write("--\(boundary)--\(crlf)")
+    }
+
+    // MARK: - Inline-base64 JSON assembly (Gemini 3.5 Transcribe)
+
+    /// Write `prefix` ++ base64(file at `path`) ++ `suffix` into `tempURL`.
+    ///
+    /// The encoding is the STANDARD alphabet, padded, with no line breaks —
+    /// `Data.base64EncodedData()`'s default — which is what the core's
+    /// `Body.JsonWithBase64File` contract specifies. Anything else (URL-safe
+    /// alphabet, wrapped lines, missing padding) makes Google reject the audio.
+    ///
+    /// The file is encoded in chunks so a 14 MB recording is never resident
+    /// twice. Padding may only appear at the very END of a base64 stream, so
+    /// each chunk written out must be a multiple of 3 raw bytes; the remainder
+    /// is carried over to the next read and the final tail (which may be 1 or 2
+    /// bytes) is encoded last, where its padding is correct. A short read from
+    /// `FileHandle` therefore cannot corrupt the encoding.
+    ///
+    /// The caller owns `tempURL`'s lifecycle (creates the cleanup `defer` before
+    /// calling), matching `writeMultipartBody`.
+    private static func writeJSONWithBase64Body(
+        to tempURL: URL,
+        prefix: Data,
+        path: String,
+        suffix: Data
+    ) throws {
+        FileManager.default.createFile(atPath: tempURL.path, contents: nil)
+
+        let handle = try FileHandle(forWritingTo: tempURL)
+        defer { try? handle.close() }
+
+        try handle.write(contentsOf: prefix)
+
+        let fileHandle = try FileHandle(forReadingFrom: URL(fileURLWithPath: path))
+        defer { try? fileHandle.close() }
+
+        // 3-byte-aligned so a full chunk encodes without padding; 1.5 MB in →
+        // 2 MB of base64 out.
+        let chunkSize = 3 * 512 * 1024
+        var pending = Data()
+        while true {
+            let chunk = try fileHandle.read(upToCount: chunkSize) ?? Data()
+            if chunk.isEmpty { break }
+            pending.append(chunk)
+
+            let encodable = pending.count - (pending.count % 3)
+            if encodable > 0 {
+                try handle.write(contentsOf: Data(pending.prefix(encodable)).base64EncodedData())
+                pending.removeFirst(encodable)
+            }
+        }
+        // Final 1–2 byte tail: the only place padding is allowed.
+        if !pending.isEmpty {
+            try handle.write(contentsOf: pending.base64EncodedData())
+        }
+
+        try handle.write(contentsOf: suffix)
     }
 }

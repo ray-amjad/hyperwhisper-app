@@ -1211,6 +1211,9 @@ You can re-download it later.</value>
   <data name="provider.gemini" xml:space="preserve">
     <value>Google Gemini</value>
   </data>
+  <data name="provider.geminiTranscribe" xml:space="preserve">
+    <value>Gemini 3.5 Transcribe</value>
+  </data>
   <data name="provider.cerebras" xml:space="preserve">
     <value>Cerebras</value>
   </data>
@@ -1436,14 +1439,23 @@ You can re-download it later.</value>
   <data name="mode.editor.provider.soniox.tooltip" xml:space="preserve">
     <value>Ασύγχρονη μεταγραφή με το τελευταίο STT μοντέλο της Soniox</value>
   </data>
+  <data name="mode.editor.provider.geminiTranscribe.tooltip" xml:space="preserve">
+    <value>Το εξειδικευμένο μοντέλο μετατροπής ομιλίας σε κείμενο της Google, με προσαρμοσμένο λεξιλόγιο</value>
+  </data>
   <data name="provider.soniox" xml:space="preserve">
     <value>Soniox</value>
   </data>
   <data name="settings.api.invalidKey.soniox" xml:space="preserve">
     <value>Μη έγκυρη μορφή κλειδιού API. Τα κλειδιά Soniox πρέπει να έχουν τουλάχιστον 10 χαρακτήρες.</value>
   </data>
+  <data name="settings.api.invalidKey.geminiTranscribe" xml:space="preserve">
+    <value>Μη έγκυρη μορφή κλειδιού API. Τα κλειδιά Gemini 3.5 Transcribe πρέπει να αρχίζουν με "AIza" και να έχουν τουλάχιστον 30 χαρακτήρες.</value>
+  </data>
   <data name="settings.api.provider.soniox.description" xml:space="preserve">
     <value>Ασύγχρονη πολύγλωσση μεταγραφή μέσω Soniox</value>
+  </data>
+  <data name="settings.api.provider.geminiTranscribe.description" xml:space="preserve">
+    <value>Το εξειδικευμένο μοντέλο μετατροπής ομιλίας σε κείμενο της Google με υποστήριξη προσαρμοσμένου λεξιλογίου</value>
   </data>
   <data name="settings.backup.export.apiKeysWarning" xml:space="preserve">
     <value>Τα κλειδιά API θα αποθηκευτούν ως απλό κείμενο στο αρχείο αντιγράφου ασφαλείας.</value>

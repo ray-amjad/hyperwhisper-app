@@ -1211,6 +1211,9 @@ You can re-download it later.</value>
   <data name="provider.gemini" xml:space="preserve">
     <value>Google Gemini</value>
   </data>
+  <data name="provider.geminiTranscribe" xml:space="preserve">
+    <value>Gemini 3.5 Transcribe</value>
+  </data>
   <data name="provider.cerebras" xml:space="preserve">
     <value>Cerebras</value>
   </data>
@@ -1436,14 +1439,23 @@ You can re-download it later.</value>
   <data name="mode.editor.provider.soniox.tooltip" xml:space="preserve">
     <value>Asünkroonne transkriptsioon Sonioxi uusima STT-mudeliga</value>
   </data>
+  <data name="mode.editor.provider.geminiTranscribe.tooltip" xml:space="preserve">
+    <value>Google'i spetsiaalne kõne-tekstiks mudel koos kohandatud sõnavaraga</value>
+  </data>
   <data name="provider.soniox" xml:space="preserve">
     <value>Soniox</value>
   </data>
   <data name="settings.api.invalidKey.soniox" xml:space="preserve">
     <value>Vigane API-võtme vorming. Soniox-võtmed peavad olema vähemalt 10 tähemärki.</value>
   </data>
+  <data name="settings.api.invalidKey.geminiTranscribe" xml:space="preserve">
+    <value>Vigane API-võtme vorming. Gemini 3.5 Transcribe võtmed peavad algama tähisega "AIza" ja olema vähemalt 30 tähemärki.</value>
+  </data>
   <data name="settings.api.provider.soniox.description" xml:space="preserve">
     <value>Asünkroonne mitmekeelne transkriptsioon Soniox kaudu</value>
+  </data>
+  <data name="settings.api.provider.geminiTranscribe.description" xml:space="preserve">
+    <value>Google'i spetsiaalne kõne-tekstiks mudel koos kohandatud sõnavara toega</value>
   </data>
   <data name="settings.backup.export.apiKeysWarning" xml:space="preserve">
     <value>API-võtmed salvestatakse varufailis lihttekstina.</value>

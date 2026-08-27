@@ -41,6 +41,10 @@ public sealed class CredentialStoreCloudCredentialSource(
         CloudTranscriptionProvider.Mistral => "MistralApiKey",
         CloudTranscriptionProvider.Soniox => "SonioxApiKey",
         CloudTranscriptionProvider.Gemini => "GeminiApiKey",
+        // Its own slot, not shared with Gemini: same vendor, different
+        // eligibility, and sharing would mean deleting one key silently
+        // disables the other.
+        CloudTranscriptionProvider.GeminiTranscribe => "GeminiTranscribeApiKey",
         CloudTranscriptionProvider.Grok => "GrokApiKey",
         CloudTranscriptionProvider.AzureMai or CloudTranscriptionProvider.GoogleChirp
             or CloudTranscriptionProvider.HyperWhisperCloud => "LicenseKey",

@@ -2094,6 +2094,15 @@
       "languageCodes": []
     },
     {
+      "provider": "geminiTranscribe",
+      "id": "gemini-3.5-transcribe",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": false,
+      "supportsAllLanguages": true,
+      "languageCodes": []
+    },
+    {
       "provider": "googleSpeech",
       "id": "chirp_3",
       "kind": "voice",

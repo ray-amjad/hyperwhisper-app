@@ -1211,6 +1211,9 @@ You can re-download it later.</value>
   <data name="provider.gemini" xml:space="preserve">
     <value>Google Gemini</value>
   </data>
+  <data name="provider.geminiTranscribe" xml:space="preserve">
+    <value>Gemini 3.5 Transcribe</value>
+  </data>
   <data name="provider.cerebras" xml:space="preserve">
     <value>Cerebras</value>
   </data>
@@ -1436,14 +1439,23 @@ You can re-download it later.</value>
   <data name="mode.editor.provider.soniox.tooltip" xml:space="preserve">
     <value>Soniox के नवीनतम STT मॉडल के साथ async ट्रांसक्रिप्शन</value>
   </data>
+  <data name="mode.editor.provider.geminiTranscribe.tooltip" xml:space="preserve">
+    <value>Google का समर्पित स्पीच-टू-टेक्स्ट मॉडल, कस्टम शब्दावली के साथ</value>
+  </data>
   <data name="provider.soniox" xml:space="preserve">
     <value>Soniox</value>
   </data>
   <data name="settings.api.invalidKey.soniox" xml:space="preserve">
     <value>अमान्य API कुंजी प्रारूप। Soniox कुंजियाँ कम से कम 10 वर्णों की होनी चाहिए।</value>
   </data>
+  <data name="settings.api.invalidKey.geminiTranscribe" xml:space="preserve">
+    <value>अमान्य API कुंजी प्रारूप। Gemini 3.5 Transcribe कुंजियाँ "AIza" से शुरू होनी चाहिए और कम से कम 30 वर्णों की होनी चाहिए।</value>
+  </data>
   <data name="settings.api.provider.soniox.description" xml:space="preserve">
     <value>Soniox के माध्यम से async बहुभाषी ट्रांसक्रिप्शन</value>
+  </data>
+  <data name="settings.api.provider.geminiTranscribe.description" xml:space="preserve">
+    <value>कस्टम शब्दावली समर्थन के साथ Google का समर्पित स्पीच-टू-टेक्स्ट मॉडल</value>
   </data>
   <data name="settings.backup.export.apiKeysWarning" xml:space="preserve">
     <value>API कुंजियाँ बैकअप फ़ाइल में सादे पाठ में संग्रहीत होंगी।</value>

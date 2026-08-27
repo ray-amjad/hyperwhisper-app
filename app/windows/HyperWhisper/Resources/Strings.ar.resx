@@ -1211,6 +1211,9 @@ You can re-download it later.</value>
   <data name="provider.gemini" xml:space="preserve">
     <value>Google Gemini</value>
   </data>
+  <data name="provider.geminiTranscribe" xml:space="preserve">
+    <value>Gemini 3.5 Transcribe</value>
+  </data>
   <data name="provider.cerebras" xml:space="preserve">
     <value>Cerebras</value>
   </data>
@@ -1436,14 +1439,23 @@ You can re-download it later.</value>
   <data name="mode.editor.provider.soniox.tooltip" xml:space="preserve">
     <value>نسخ ملفات غير متزامن بأحدث نموذج STT من Soniox</value>
   </data>
+  <data name="mode.editor.provider.geminiTranscribe.tooltip" xml:space="preserve">
+    <value>نموذج Google المخصص لتحويل الكلام إلى نص، مع مفردات مخصصة</value>
+  </data>
   <data name="provider.soniox" xml:space="preserve">
     <value>Soniox</value>
   </data>
   <data name="settings.api.invalidKey.soniox" xml:space="preserve">
     <value>تنسيق مفتاح API غير صالح. يجب أن تكون مفاتيح Soniox 10 أحرف على الأقل.</value>
   </data>
+  <data name="settings.api.invalidKey.geminiTranscribe" xml:space="preserve">
+    <value>تنسيق مفتاح API غير صالح. يجب أن تبدأ مفاتيح Gemini 3.5 Transcribe بـ "AIza" وأن تكون 30 حرفًا على الأقل.</value>
+  </data>
   <data name="settings.api.provider.soniox.description" xml:space="preserve">
     <value>نسخ صوتي غير متزامن متعدد اللغات عبر Soniox</value>
+  </data>
+  <data name="settings.api.provider.geminiTranscribe.description" xml:space="preserve">
+    <value>نموذج Google المخصص لتحويل الكلام إلى نص مع دعم المفردات المخصصة</value>
   </data>
   <data name="settings.backup.export.apiKeysWarning" xml:space="preserve">
     <value>سيتم تخزين مفاتيح API بنص عادي في ملف النسخة الاحتياطية.</value>

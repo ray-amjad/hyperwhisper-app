@@ -107,8 +107,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("cloud catalog enumerates every batch provider", () =>
     {
         var providers = CloudTranscriptionService.Providers;
-        Assert.Equal(12, providers.Count);
-        Assert.Equal(12, providers.Select(value => value.Provider).Distinct().Count());
+        Assert.Equal(13, providers.Count);
+        Assert.Equal(13, providers.Select(value => value.Provider).Distinct().Count());
         Assert.True(providers.All(value => value.SupportsBatch));
         Assert.Equal(3, providers.Count(value => value.IsMultiStep));
         return Task.CompletedTask;
@@ -143,6 +143,7 @@ var tests = new (string Name, Func<Task> Run)[]
         return Task.CompletedTask;
     }),
     ("live protocol vocabulary keeps its own length drop and cap", TestLiveVocabularyAsync),
+    ("inline base64 audio bodies assemble prefix + base64(file) + suffix", TestInlineBase64BodyAsync),
 };
 
 var failures = 0;
@@ -203,6 +204,7 @@ static async Task TestSingleShotProvidersAsync()
         new ProviderCase(CloudTranscriptionProvider.AzureMai, "mai-1.5", "{\"text\":\"azure text\",\"cost\":{\"credits\":1.0}}", "azure text", true),
         new ProviderCase(CloudTranscriptionProvider.GoogleChirp, "chirp_3", "{\"text\":\"chirp text\",\"cost\":{\"credits\":1.0}}", "chirp text", true),
         new ProviderCase(CloudTranscriptionProvider.HyperWhisperCloud, "", "{\"text\":\"cloud text\",\"credits_remaining\":99}", "cloud text", true),
+        new ProviderCase(CloudTranscriptionProvider.GeminiTranscribe, "gemini-3.5-transcribe", "{\"steps\":[{\"content\":[{\"text\":\"gemini transcribe text\"}]}]}", "gemini transcribe text"),
     };
 
     var audio = TempAudio();
@@ -233,6 +235,66 @@ static async Task TestSingleShotProvidersAsync()
             Assert.Equal(HttpMethod.Post, handler.LastRequest!.Method);
             Assert.True(handler.LastBodyLength > 0);
         }
+    }
+    finally
+    {
+        File.Delete(audio);
+    }
+}
+
+/// <summary>
+/// The <c>Body.JsonWithBase64File</c> transport: the platform, not Rust, splices
+/// the base64 of the audio between the two JSON fragments Rust produced. It is
+/// the only body variant where the audio bytes are assembled on this side, and
+/// <c>RustHttpTransport.BuildRequestMessage</c>'s switch is not exhaustive — a
+/// missing arm would send a body-less request rather than fail to compile. This
+/// test is the guard for that.
+/// </summary>
+static async Task TestInlineBase64BodyAsync()
+{
+    // Deliberately 7 bytes: not a multiple of 3, so a wrong encoder that drops
+    // the final partial group or forgets padding fails here.
+    const string audioBytes = "abcdefg";
+    var audio = TempAudio(audioBytes);
+    try
+    {
+        var handler = new RecordingHandler((_, _) =>
+            Json("{\"steps\":[{\"content\":[{\"text\":\"inline text\"}]}]}"));
+        using var service = new CloudTranscriptionService(handler, new StaticCredentials(), Sharing);
+        var result = await service.TranscribeAsync(new CloudTranscriptionRequest(
+            CloudTranscriptionProvider.GeminiTranscribe,
+            audio,
+            "gemini-3.5-transcribe",
+            Language: "en-US",
+            Vocabulary: ["HyperWhisper"]));
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("inline text", result.Transcript!.Text);
+        Assert.NotNull(handler.LastBody);
+
+        var body = Encoding.UTF8.GetString(handler.LastBody!);
+        // Valid JSON, with the audio inline where Rust left the placeholder.
+        using var document = System.Text.Json.JsonDocument.Parse(body);
+        var input = document.RootElement.GetProperty("input")[0];
+        Assert.Equal("audio", input.GetProperty("type").GetString());
+        Assert.Equal(
+            Convert.ToBase64String(Encoding.UTF8.GetBytes(audioBytes)),
+            input.GetProperty("data").GetString());
+        Assert.Equal(
+            "gemini-3.5-transcribe",
+            document.RootElement.GetProperty("model").GetString());
+
+        // Content-Length must match what was actually written, or HttpClient
+        // would have thrown before we got here — assert it explicitly anyway.
+        Assert.Equal(body.Length, handler.LastBodyLength);
+
+        // The vendor rejects custom_vocabulary sent with either of these.
+        var config = document.RootElement
+            .GetProperty("generation_config")
+            .GetProperty("transcription_config");
+        Assert.True(config.TryGetProperty("custom_vocabulary", out _));
+        Assert.False(config.TryGetProperty("diarization_mode", out _));
+        Assert.False(config.TryGetProperty("timestamp_granularities", out _));
     }
     finally
     {
@@ -779,6 +841,7 @@ sealed class RecordingHandler : HttpMessageHandler
 
     public HttpRequestMessage? LastRequest { get; private set; }
     public int LastBodyLength { get; private set; }
+    public byte[]? LastBody { get; private set; }
 
     protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
@@ -789,9 +852,10 @@ sealed class RecordingHandler : HttpMessageHandler
         {
             LastRequest.Headers.TryAddWithoutValidation(header.Key, header.Value);
         }
-        LastBodyLength = request.Content is null
-            ? 0
-            : (await request.Content.ReadAsByteArrayAsync(cancellationToken)).Length;
+        LastBody = request.Content is null
+            ? null
+            : await request.Content.ReadAsByteArrayAsync(cancellationToken);
+        LastBodyLength = LastBody?.Length ?? 0;
         return await _response(request, cancellationToken);
     }
 }

@@ -3518,16 +3518,26 @@ public struct SttModel {
     public var isDefault: Bool?
     public var previewStatus: Bool?
     public var supportsCustomVocabulary: Bool?
+    /**
+     * Whether HyperWhisper Cloud serves a live WebSocket route for this model
+     * (catalog v8). NOT the entry-level `features.streaming` vendor hint.
+     */
+    public var streaming: Bool?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(id: String, displayName: String, creditsPerMinute: Double?, isDefault: Bool?, previewStatus: Bool?, supportsCustomVocabulary: Bool?) {
+    public init(id: String, displayName: String, creditsPerMinute: Double?, isDefault: Bool?, previewStatus: Bool?, supportsCustomVocabulary: Bool?, 
+        /**
+         * Whether HyperWhisper Cloud serves a live WebSocket route for this model
+         * (catalog v8). NOT the entry-level `features.streaming` vendor hint.
+         */streaming: Bool?) {
         self.id = id
         self.displayName = displayName
         self.creditsPerMinute = creditsPerMinute
         self.isDefault = isDefault
         self.previewStatus = previewStatus
         self.supportsCustomVocabulary = supportsCustomVocabulary
+        self.streaming = streaming
     }
 }
 
@@ -3553,6 +3563,9 @@ extension SttModel: Equatable, Hashable {
         if lhs.supportsCustomVocabulary != rhs.supportsCustomVocabulary {
             return false
         }
+        if lhs.streaming != rhs.streaming {
+            return false
+        }
         return true
     }
 
@@ -3563,6 +3576,7 @@ extension SttModel: Equatable, Hashable {
         hasher.combine(isDefault)
         hasher.combine(previewStatus)
         hasher.combine(supportsCustomVocabulary)
+        hasher.combine(streaming)
     }
 }
 
@@ -3579,7 +3593,8 @@ public struct FfiConverterTypeSttModel: FfiConverterRustBuffer {
                 creditsPerMinute: FfiConverterOptionDouble.read(from: &buf), 
                 isDefault: FfiConverterOptionBool.read(from: &buf), 
                 previewStatus: FfiConverterOptionBool.read(from: &buf), 
-                supportsCustomVocabulary: FfiConverterOptionBool.read(from: &buf)
+                supportsCustomVocabulary: FfiConverterOptionBool.read(from: &buf), 
+                streaming: FfiConverterOptionBool.read(from: &buf)
         )
     }
 
@@ -3590,6 +3605,7 @@ public struct FfiConverterTypeSttModel: FfiConverterRustBuffer {
         FfiConverterOptionBool.write(value.isDefault, into: &buf)
         FfiConverterOptionBool.write(value.previewStatus, into: &buf)
         FfiConverterOptionBool.write(value.supportsCustomVocabulary, into: &buf)
+        FfiConverterOptionBool.write(value.streaming, into: &buf)
     }
 }
 
@@ -4396,6 +4412,17 @@ public enum Body {
     )
     case fileStream(path: String, contentType: String
     )
+    /**
+     * `prefix` ++ base64(bytes of the file at `path`) ++ `suffix`, written by
+     * the platform with `Content-Type: application/json`. Rust never sees the
+     * audio — only the path — but unlike `FileStream` the platform must
+     * base64-encode as it writes (standard alphabet, padded, no line breaks).
+     *
+     * Used only by Gemini 3.5 Transcribe's `/v1beta/interactions`, which has no
+     * file-reference form.
+     */
+    case jsonWithBase64File(prefix: Data, path: String, suffix: Data
+    )
 }
 
 
@@ -4418,6 +4445,9 @@ public struct FfiConverterTypeBody: FfiConverterRustBuffer {
         )
         
         case 4: return .fileStream(path: try FfiConverterString.read(from: &buf), contentType: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 5: return .jsonWithBase64File(prefix: try FfiConverterData.read(from: &buf), path: try FfiConverterString.read(from: &buf), suffix: try FfiConverterData.read(from: &buf)
         )
         
         default: throw UniffiInternalError.unexpectedEnumCase
@@ -4448,6 +4478,13 @@ public struct FfiConverterTypeBody: FfiConverterRustBuffer {
             writeInt(&buf, Int32(4))
             FfiConverterString.write(path, into: &buf)
             FfiConverterString.write(contentType, into: &buf)
+            
+        
+        case let .jsonWithBase64File(prefix,path,suffix):
+            writeInt(&buf, Int32(5))
+            FfiConverterData.write(prefix, into: &buf)
+            FfiConverterString.write(path, into: &buf)
+            FfiConverterData.write(suffix, into: &buf)
             
         }
     }
@@ -5979,7 +6016,7 @@ extension HwPart: Equatable, Hashable {}
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
- * The 12 cloud speech-to-text providers. Mirrors `hw_net::Provider`.
+ * The 14 cloud speech-to-text providers. Mirrors `hw_net::Provider`.
  */
 
 public enum HwProvider {
@@ -5996,6 +6033,8 @@ public enum HwProvider {
     case gemini
     case azureMai
     case googleChirp
+    case geminiTranscribe
+    case geminiTranscribeLive
 }
 
 
@@ -6032,6 +6071,10 @@ public struct FfiConverterTypeHwProvider: FfiConverterRustBuffer {
         case 11: return .azureMai
         
         case 12: return .googleChirp
+        
+        case 13: return .geminiTranscribe
+        
+        case 14: return .geminiTranscribeLive
         
         default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -6087,6 +6130,14 @@ public struct FfiConverterTypeHwProvider: FfiConverterRustBuffer {
         
         case .googleChirp:
             writeInt(&buf, Int32(12))
+        
+        
+        case .geminiTranscribe:
+            writeInt(&buf, Int32(13))
+        
+        
+        case .geminiTranscribeLive:
+            writeInt(&buf, Int32(14))
         
         }
     }
@@ -7755,6 +7806,26 @@ public func cloudSttProvider(id: String) -> String? {
 })
 }
 /**
+ * Same set as `cloud_stt_streaming_cloud_tier_entry_ids`, as full entries.
+ */
+public func cloudSttStreamingCloudTierEntries() -> [SttEntry] {
+    return try!  FfiConverterSequenceTypeSttEntry.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_cloud_stt_streaming_cloud_tier_entries($0
+    )
+})
+}
+/**
+ * Cloud-tier provider ids HyperWhisper Cloud can also serve live, in catalog
+ * order — `cloudTierEligible` AND at least one model with `streaming: true`.
+ * The eligible set for the HW-Cloud live vendor picker.
+ */
+public func cloudSttStreamingCloudTierEntryIds() -> [String] {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_cloud_stt_streaming_cloud_tier_entry_ids($0
+    )
+})
+}
+/**
  * Whether the STT provider supports custom vocabulary.
  */
 public func cloudSttSupportsCustomVocabulary(id: String) -> Bool {
@@ -7983,6 +8054,20 @@ public func geminiParseUploadBytesResponse(resp: HttpResponse)throws  -> GeminiF
 public func geminiParseUploadStartResponse(resp: HttpResponse)throws  -> String {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeHwTranscriptionError.lift) {
     uniffi_hyperwhisper_core_fn_func_gemini_parse_upload_start_response(
+        FfiConverterTypeHttpResponse.lower(resp),$0
+    )
+})
+}
+public func geminiTranscribeBuildTranscribeRequest(params: TranscribeParams)throws  -> HttpRequest {
+    return try  FfiConverterTypeHttpRequest.lift(try rustCallWithError(FfiConverterTypeHwTranscriptionError.lift) {
+    uniffi_hyperwhisper_core_fn_func_gemini_transcribe_build_transcribe_request(
+        FfiConverterTypeTranscribeParams.lower(params),$0
+    )
+})
+}
+public func geminiTranscribeParseTranscribeResponse(resp: HttpResponse)throws  -> HwTranscript {
+    return try  FfiConverterTypeHwTranscript.lift(try rustCallWithError(FfiConverterTypeHwTranscriptionError.lift) {
+    uniffi_hyperwhisper_core_fn_func_gemini_transcribe_parse_transcribe_response(
         FfiConverterTypeHttpResponse.lower(resp),$0
     )
 })
@@ -9061,6 +9146,12 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_cloud_stt_provider() != 52282) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_hyperwhisper_core_checksum_func_cloud_stt_streaming_cloud_tier_entries() != 54317) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_cloud_stt_streaming_cloud_tier_entry_ids() != 41165) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_hyperwhisper_core_checksum_func_cloud_stt_supports_custom_vocabulary() != 64386) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -9134,6 +9225,12 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_gemini_parse_upload_start_response() != 42591) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_gemini_transcribe_build_transcribe_request() != 41571) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_gemini_transcribe_parse_transcribe_response() != 16333) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_google_chirp_build_transcribe_request() != 44911) {

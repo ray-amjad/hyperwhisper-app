@@ -1211,6 +1211,9 @@ You can re-download it later.</value>
   <data name="provider.gemini" xml:space="preserve">
     <value>Google Gemini</value>
   </data>
+  <data name="provider.geminiTranscribe" xml:space="preserve">
+    <value>Gemini 3.5 Transcribe</value>
+  </data>
   <data name="provider.cerebras" xml:space="preserve">
     <value>Cerebras</value>
   </data>
@@ -1435,14 +1438,23 @@ You can re-download it later.</value>
   <data name="mode.editor.provider.soniox.tooltip" xml:space="preserve">
     <value>Phiên âm bất đồng bộ với mô hình STT mới nhất của Soniox</value>
   </data>
+  <data name="mode.editor.provider.geminiTranscribe.tooltip" xml:space="preserve">
+    <value>Mô hình chuyển giọng nói thành văn bản chuyên dụng của Google, với từ vựng tùy chỉnh</value>
+  </data>
   <data name="provider.soniox" xml:space="preserve">
     <value>Soniox</value>
   </data>
   <data name="settings.api.invalidKey.soniox" xml:space="preserve">
     <value>Định dạng khóa API không hợp lệ. Khóa Soniox phải có ít nhất 10 ký tự.</value>
   </data>
+  <data name="settings.api.invalidKey.geminiTranscribe" xml:space="preserve">
+    <value>Định dạng khóa API không hợp lệ. Khóa Gemini 3.5 Transcribe phải bắt đầu bằng "AIza" và có ít nhất 30 ký tự.</value>
+  </data>
   <data name="settings.api.provider.soniox.description" xml:space="preserve">
     <value>Phiên âm đa ngôn ngữ bất đồng bộ qua Soniox</value>
+  </data>
+  <data name="settings.api.provider.geminiTranscribe.description" xml:space="preserve">
+    <value>Mô hình chuyển giọng nói thành văn bản chuyên dụng của Google với hỗ trợ từ vựng tùy chỉnh</value>
   </data>
   <data name="settings.backup.export.apiKeysWarning" xml:space="preserve">
     <value>Khóa API sẽ được lưu dưới dạng văn bản thuần trong tệp sao lưu.</value>

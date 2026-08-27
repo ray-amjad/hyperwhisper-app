@@ -672,6 +672,9 @@ Do you want to restart now?</value>
   <data name="settings.api.invalidKey.soniox" xml:space="preserve">
     <value>Invalid API key format. Soniox keys should be at least 10 characters.</value>
   </data>
+  <data name="settings.api.invalidKey.geminiTranscribe" xml:space="preserve">
+    <value>Invalid API key format. Gemini 3.5 Transcribe keys should start with "AIza" and be at least 30 characters.</value>
+  </data>
   <data name="settings.api.invalidKey.grok" xml:space="preserve">
     <value>Invalid API key format. Grok keys should start with "xai-" and be at least 20 characters.</value>
   </data>
@@ -702,6 +705,9 @@ Do you want to restart now?</value>
   </data>
   <data name="settings.api.provider.soniox.description" xml:space="preserve">
     <value>Soniox async speech-to-text for multilingual batch transcription</value>
+  </data>
+  <data name="settings.api.provider.geminiTranscribe.description" xml:space="preserve">
+    <value>Google's dedicated speech-to-text model with custom vocabulary support</value>
   </data>
   <data name="settings.api.provider.grok.description" xml:space="preserve">
     <value>xAI Grok speech-to-text API</value>
@@ -1368,6 +1374,9 @@ Do you want to restart now?</value>
   <data name="mode.editor.provider.soniox.tooltip" xml:space="preserve">
     <value>Async file transcription with Soniox's latest STT model</value>
   </data>
+  <data name="mode.editor.provider.geminiTranscribe.tooltip" xml:space="preserve">
+    <value>Google's dedicated speech-to-text model, with custom vocabulary</value>
+  </data>
   <data name="mode.editor.provider.gemini.tooltip" xml:space="preserve">
     <value>Google's Gemini models with native audio understanding</value>
   </data>
@@ -1650,6 +1659,9 @@ You can re-download it later.</value>
   </data>
   <data name="provider.gemini" xml:space="preserve">
     <value>Google Gemini</value>
+  </data>
+  <data name="provider.geminiTranscribe" xml:space="preserve">
+    <value>Gemini 3.5 Transcribe</value>
   </data>
   <data name="provider.cerebras" xml:space="preserve">
     <value>Cerebras</value>

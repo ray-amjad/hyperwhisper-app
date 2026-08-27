@@ -1290,6 +1290,9 @@
   <data name="provider.gemini" xml:space="preserve">
     <value>Google Gemini</value>
   </data>
+  <data name="provider.geminiTranscribe" xml:space="preserve">
+    <value>Gemini 3.5 Transcribe</value>
+  </data>
   <data name="provider.cerebras" xml:space="preserve">
     <value>Cerebras</value>
   </data>
@@ -1511,14 +1514,23 @@
   <data name="mode.editor.provider.soniox.tooltip" xml:space="preserve">
     <value>SonioxのSTTモデルによる非同期文字起こし</value>
   </data>
+  <data name="mode.editor.provider.geminiTranscribe.tooltip" xml:space="preserve">
+    <value>Googleの専用音声テキスト変換モデル、カスタム語彙対応</value>
+  </data>
   <data name="provider.soniox" xml:space="preserve">
     <value>Soniox</value>
   </data>
   <data name="settings.api.invalidKey.soniox" xml:space="preserve">
     <value>APIキーの形式が無効です。SonioxのキーはRobot 10文字以上必要です。</value>
   </data>
+  <data name="settings.api.invalidKey.geminiTranscribe" xml:space="preserve">
+    <value>APIキーの形式が無効です。Gemini 3.5 Transcribeキーは「AIza」で始まり、30文字以上である必要があります。</value>
+  </data>
   <data name="settings.api.provider.soniox.description" xml:space="preserve">
     <value>Sonioxによる非同期多言語文字起こし</value>
+  </data>
+  <data name="settings.api.provider.geminiTranscribe.description" xml:space="preserve">
+    <value>カスタム語彙サポート付きのGoogle専用音声テキスト変換モデル</value>
   </data>
   <data name="settings.backup.export.apiKeysWarning" xml:space="preserve">
     <value>APIキーはバックアップファイルにプレーンテキストで保存されます。</value>

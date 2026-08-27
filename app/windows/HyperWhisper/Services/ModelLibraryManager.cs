@@ -416,6 +416,7 @@ public sealed class ModelLibraryManager
             CloudTranscriptionProvider.ElevenLabs => _apiKeys.HasApiKey(TranscriptionApiKeyType.ElevenLabs),
             CloudTranscriptionProvider.Mistral => _apiKeys.HasApiKey(TranscriptionApiKeyType.Mistral),
             CloudTranscriptionProvider.Soniox => _apiKeys.HasApiKey(TranscriptionApiKeyType.Soniox),
+            CloudTranscriptionProvider.GeminiTranscribe => _apiKeys.HasApiKey(TranscriptionApiKeyType.GeminiTranscribe),
             _ => false
         };
     }
@@ -430,6 +431,10 @@ public sealed class ModelLibraryManager
         CloudTranscriptionProvider.Mistral => "providerMistral",
         CloudTranscriptionProvider.Soniox => "providerSoniox",
         CloudTranscriptionProvider.Gemini => "providerGemini",
+        // Same vendor as Gemini, so it reuses the Gemini logo rather than
+        // shipping a duplicate PNG. ApiKeysSettingsPage.xaml points at the same
+        // asset — keep the two in step.
+        CloudTranscriptionProvider.GeminiTranscribe => "providerGemini",
         CloudTranscriptionProvider.Grok => "providerGrok",
         CloudTranscriptionProvider.MicrosoftAzureSpeech => "providerMicrosoft",
         CloudTranscriptionProvider.GoogleSpeech => "providerGoogle",

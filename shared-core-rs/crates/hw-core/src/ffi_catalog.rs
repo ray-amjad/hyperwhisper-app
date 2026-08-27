@@ -148,6 +148,9 @@ pub struct SttModel {
     pub is_default: Option<bool>,
     pub preview_status: Option<bool>,
     pub supports_custom_vocabulary: Option<bool>,
+    /// Whether HyperWhisper Cloud serves a live WebSocket route for this model
+    /// (catalog v8). NOT the entry-level `features.streaming` vendor hint.
+    pub streaming: Option<bool>,
 }
 
 impl From<&hw_catalog::SttModel> for SttModel {
@@ -159,6 +162,7 @@ impl From<&hw_catalog::SttModel> for SttModel {
             is_default: m.is_default,
             preview_status: m.preview_status,
             supports_custom_vocabulary: m.supports_custom_vocabulary,
+            streaming: m.streaming,
         }
     }
 }
@@ -656,6 +660,26 @@ pub fn cloud_stt_cloud_tier_vendor_groups() -> Vec<SttVendorGroup> {
         .cloud_tier_vendor_groups()
         .iter()
         .map(SttVendorGroup::from)
+        .collect()
+}
+
+/// Cloud-tier provider ids HyperWhisper Cloud can also serve live, in catalog
+/// order — `cloudTierEligible` AND at least one model with `streaming: true`.
+/// The eligible set for the HW-Cloud live vendor picker.
+#[uniffi::export]
+pub fn cloud_stt_streaming_cloud_tier_entry_ids() -> Vec<String> {
+    cloud_stt()
+        .streaming_cloud_tier_entries()
+        .map(|e| e.id.clone())
+        .collect()
+}
+
+/// Same set as `cloud_stt_streaming_cloud_tier_entry_ids`, as full entries.
+#[uniffi::export]
+pub fn cloud_stt_streaming_cloud_tier_entries() -> Vec<SttEntry> {
+    cloud_stt()
+        .streaming_cloud_tier_entries()
+        .map(SttEntry::from)
         .collect()
 }
 
