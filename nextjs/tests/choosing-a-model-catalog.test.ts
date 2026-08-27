@@ -379,6 +379,35 @@ function shownSize(
  */
 const PENDING_CATALOG_IDS = new Set(["gemini:gemini-3.5-transcribe"]);
 
+/**
+ * How many rows of the page's mirror carry `pendingId`, checked against the one
+ * count that is correct. Returns null when the mirror is sound, or the failure
+ * message otherwise.
+ *
+ * A pure function over a row list rather than an inline assertion, because the
+ * real mirror can only ever demonstrate the passing side — "the pending-row
+ * count check rejects a duplicated mirror row" below feeds it the two failing
+ * shapes directly, so the guard itself is tested and not merely exercised.
+ */
+function pendingRowCountProblem(
+  models: readonly { id: string }[],
+  pendingId: string,
+): string | null {
+  const count = models.filter((model) => model.id === pendingId).length;
+  if (count === 1) return null;
+
+  const head =
+    `PENDING_CATALOG_IDS holds ${pendingId}, but CLOUD_MODELS has ${count} rows with that id, ` +
+    `not the one row the waiver is for. `;
+  return count === 0
+    ? head +
+        `The row was renamed or removed and the waiver now covers nothing — delete the id from the set.`
+    : head +
+        `The waiver hides every row with this id from both drift tests above, so these ${count} rows are ` +
+        `compared against nothing and may contradict each other, while the page renders and ranks the ` +
+        `model ${count} times. Delete the duplicates and leave one row.`;
+}
+
 test("the page's cloud mirror matches the catalog the apps read", async () => {
   const { CLOUD_MODELS } = await loadCatalog();
   const catalog = readCatalog();
@@ -476,14 +505,41 @@ test("the pending catalog rows have not landed in the catalog yet", async () => 
         `compares ordered arrays.`,
     );
 
-    // And the other direction: an id left behind after its row was renamed or
-    // deleted would sit in the set waiving nothing, silently, for good.
-    assert.ok(
-      CLOUD_MODELS.some((model: { id: string }) => model.id === pendingId),
-      `PENDING_CATALOG_IDS holds ${pendingId}, but no row in CLOUD_MODELS has that id. The row was ` +
-        `renamed or removed and the waiver now covers nothing — delete the id from the set.`,
-    );
+    // And the other direction, counted rather than merely found. Zero rows is
+    // an id left behind after its row was renamed or deleted, waiving nothing.
+    // Two or more is worse and is why `.some()` is not enough: the waiver hides
+    // EVERY row carrying the id from both drift tests, so a second, conflicting
+    // pending row would be checked by nothing while the page ranked the model
+    // twice.
+    const problem = pendingRowCountProblem(CLOUD_MODELS, pendingId);
+    assert.equal(problem, null, problem ?? "");
   }
+});
+
+test("the pending-row count check rejects a duplicated mirror row", () => {
+  const pendingId = "gemini:gemini-3.5-transcribe";
+  const other = { id: "openaiWhisper:whisper-1" };
+
+  assert.equal(
+    pendingRowCountProblem([other, { id: pendingId }], pendingId),
+    null,
+    "exactly one pending row is the only shape this check accepts",
+  );
+
+  const duplicated = pendingRowCountProblem(
+    [{ id: pendingId }, other, { id: pendingId }],
+    pendingId,
+  );
+  assert.ok(
+    duplicated?.includes("2 rows") && duplicated.includes(pendingId),
+    `a duplicated pending row must be reported by id and count, got: ${duplicated}`,
+  );
+
+  const missing = pendingRowCountProblem([other], pendingId);
+  assert.ok(
+    missing?.includes("0 rows") && missing.includes(pendingId),
+    `a missing pending row must be reported by id and count, got: ${missing}`,
+  );
 });
 
 test("every on-device model both apps ship is on the page, and no others", async () => {

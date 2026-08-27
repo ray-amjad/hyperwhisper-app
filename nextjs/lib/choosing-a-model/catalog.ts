@@ -252,16 +252,31 @@ const CLOUD_MODELS_RAW = [
    * says. It stays last in the array because the catalog appends to the gemini
    * provider, and the drift test compares ORDERED arrays.
    *
+   * **Until that PR lands, this row describes a model no app can select.** The
+   * mirror has no availability field, and `preview: false` cannot stand in for
+   * one — every field here is compared against whatever the catalog PR writes,
+   * so inventing a value would only move the failure to rebase time. In that
+   * window the page's own copy is false for this row: the models "HyperWhisper
+   * ships", "the price here is the price the app charges you", and "every model
+   * listed is switchable in Settings → Transcription". The "No preview models"
+   * chip is the sharpest form — it keeps this row and drops the two shipping
+   * Gemini previews. This is exactly why this PR must not merge first.
+   *
    * **Where 5.1 credits comes from.** This model bills audio at 25 tokens per
-   * second, NOT the 32 tok/s the cloud service hard-codes for every other Gemini
-   * model (`GEMINI_AUDIO_TOKENS_PER_MINUTE = 1_920` in
-   * `hyperwhisper-cloud/src/lib/cost-calculator.ts`). So 1,500 audio tok/min at
-   * $2.00/1M is $0.0030, plus 175 text-output tok/min at $12.00/1M is $0.0021 —
-   * $0.0051 a minute, which is 5.1 credits. Artificial Analysis quotes the same
-   * figure rounded, as "approximately $5 per 1,000 minutes". Priced off the
-   * existing 1,920 constant instead it would come out near 5.94, so `credits`
-   * is the likeliest field to disagree once the catalog lands, and that is the
-   * disagreement to settle first.
+   * second: 1,500 audio tok/min at $2.00/1M is $0.0030, plus 175 text-output
+   * tok/min at $12.00/1M is $0.0021 — $0.0051 a minute, which is 5.1 credits.
+   * Artificial Analysis quotes the same figure rounded, as "approximately $5
+   * per 1,000 minutes". Those per-1M rates are the vendor's, and are the same
+   * numbers `gemini-3.1-pro-preview` already carries in `GEMINI_RATES`
+   * (`hyperwhisper-cloud/src/lib/cost-calculator.ts`), so the figure is a rate
+   * card applied to this model and not a typo. Note that 25 tok/s is not the 32
+   * tok/s that file assumes for Gemini audio, but that constant
+   * (`GEMINI_AUDIO_TOKENS_PER_MINUTE`) only feeds the fail-closed fallback for a
+   * response that carried no `usageMetadata`, never the priced path. The real
+   * gap is the rate card: `GEMINI_RATES` has no `gemini-3.5-transcribe` key, so
+   * until the catalog PR adds one the service prices this model at
+   * `gemini-2.5-flash`'s rates — roughly 1.94 credits a minute of recorded cost
+   * against the 5.1 this page prints.
    *
    * **`customVocabulary: true` claims something stronger here** than on the
    * rows above it. The 2.5 and 3.x rows carry the same boolean for the
