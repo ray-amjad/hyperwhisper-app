@@ -24,6 +24,8 @@
          project: Rust and Swift run the same file. -->
     <Content Include="../../../shared-conformance/catalog-vectors.json"
              Link="catalog-vectors.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../../../shared-conformance/live-only-models.json"
+             Link="live-only-models.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="$(SharedCoreNativeLibrary)" Condition="Exists('$(SharedCoreNativeLibrary)')">
       <Link>%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

@@ -154,7 +154,9 @@ public sealed class CloudSttCatalog
     /// a catalog field would let all of them derive it — raised as a follow-up.
     /// </summary>
     public static readonly IReadOnlySet<string> LiveOnlyModelIds =
-        new HashSet<string>(["gemini-3.5-transcribe-live"], StringComparer.OrdinalIgnoreCase);
+        new HashSet<string>(
+            ["gemini-3.5-transcribe-live", "gpt-live-transcribe"],
+            StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Whether <paramref name="modelId"/> is one of <see cref="LiveOnlyModelIds"/>

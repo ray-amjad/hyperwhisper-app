@@ -12,6 +12,7 @@
 //   cd shared-core-rs && cargo test -p hw-core --test catalog_vectors -- --ignored regenerate
 
 using System.Text.Json;
+using HyperWhisper.SharedCore;
 using uniffi.hyperwhisper_core;
 
 var path = Path.Combine(AppContext.BaseDirectory, "catalog-vectors.json");
@@ -29,6 +30,7 @@ var checks = new (string Name, Action Run)[]
     ("models-catalog lookups match the vectors", CheckModelsEntries),
     ("the vectors cover every polymorphic branch", CheckCoverage),
     ("streaming cloud tiers are exactly the vendors we serve a WS route for", CheckStreamingCloudTiers),
+    ("every head's live-only model set matches shared-conformance", CheckLiveOnlyModelIds),
 };
 
 foreach (var check in checks)
@@ -295,6 +297,75 @@ static List<string> Strings(JsonElement e, string name)
     return value.ValueKind == JsonValueKind.Null
         ? []
         : [.. value.EnumerateArray().Select(item => item.GetString() ?? "")];
+}
+
+// The catalog has no live-only field, so each head keeps its own literal copy of
+// the WEBSOCKET-ONLY model ids. That is drift waiting to happen, and it already
+// happened once: Windows shipped with only `gemini-3.5-transcribe-live` while
+// macOS and shared-.NET carried `gpt-live-transcribe` too, leaving an OpenAI
+// model selectable in the Windows dictation picker on which every request 400s
+// upstream at 17 credits/min. This check reads the OTHER heads' source as text,
+// which is the only way a Linux-runnable test can catch a Swift or WPF literal.
+void CheckLiveOnlyModelIds()
+{
+    var vectorPath = Path.Combine(AppContext.BaseDirectory, "live-only-models.json");
+    if (!File.Exists(vectorPath))
+        throw new FileNotFoundException($"live-only-models.json not found at {vectorPath}", vectorPath);
+
+    using var vectors = JsonDocument.Parse(File.ReadAllText(vectorPath));
+    var liveOnly = Strings(vectors.RootElement, "liveOnlyModelIds");
+    var notLiveOnly = Strings(vectors.RootElement, "notLiveOnly");
+    True(liveOnly.Count > 0, "the live-only vector lists at least one id");
+
+    // 1. The shared-.NET copy — the one Windows and Linux both route through.
+    SequenceEqual(
+        [.. liveOnly.OrderBy(id => id, StringComparer.Ordinal)],
+        [.. SharedCoreBridge.LiveOnlyCloudSttModelIds.OrderBy(id => id, StringComparer.Ordinal)],
+        "SharedCoreBridge.LiveOnlyCloudSttModelIds");
+
+    foreach (var id in liveOnly)
+    {
+        True(SharedCoreBridge.IsLiveOnlyCloudSttModel(id), $"`{id}` reads as live-only");
+        True(SharedCoreBridge.IsLiveOnlyCloudSttModel($"  {id.ToUpperInvariant()}  "),
+            $"`{id}` reads as live-only when padded and upper-cased");
+    }
+    foreach (var id in notLiveOnly)
+        True(!SharedCoreBridge.IsLiveOnlyCloudSttModel(id), $"`{id}` does NOT read as live-only");
+
+    // 2. The Windows and macOS literals, checked as source text.
+    var repoRoot = new DirectoryInfo(AppContext.BaseDirectory);
+    while (repoRoot is not null && !Directory.Exists(Path.Combine(repoRoot.FullName, "shared-conformance")))
+        repoRoot = repoRoot.Parent;
+    True(repoRoot is not null, "the repo root is locatable from the test output directory");
+
+    (string Path, string Symbol)[] mirrors =
+    [
+        ("app/windows/HyperWhisper/Services/AppClassification/CloudSttCatalog.cs", "LiveOnlyModelIds"),
+        ("app/macos/hyperwhisper/Utilities/AppClassification/CloudSTTCatalog.swift", "liveOnlyModelIds"),
+    ];
+
+    foreach (var (relative, symbol) in mirrors)
+    {
+        var full = Path.Combine(repoRoot!.FullName, relative);
+        True(File.Exists(full), $"the {symbol} mirror exists at {relative}");
+        var source = File.ReadAllText(full);
+        var declaration = source.IndexOf(symbol, StringComparison.Ordinal);
+        True(declaration >= 0, $"{relative} declares {symbol}");
+
+        // Read to the end of the literal's bracket, so an id merely mentioned in
+        // a nearby comment cannot satisfy the check.
+        var open = source.IndexOf('[', declaration);
+        var close = open >= 0 ? source.IndexOf(']', open) : -1;
+        True(open >= 0 && close > open, $"{relative}'s {symbol} has a bracketed literal");
+        var literal = source[open..close];
+
+        foreach (var id in liveOnly)
+            True(literal.Contains($"\"{id}\"", StringComparison.Ordinal),
+                $"{relative}'s {symbol} is missing `{id}` — the heads have drifted apart");
+        foreach (var id in notLiveOnly)
+            True(!literal.Contains($"\"{id}\"", StringComparison.Ordinal),
+                $"{relative}'s {symbol} wrongly lists `{id}`, which is a pre-recorded model");
+    }
 }
 
 // --- assertions -------------------------------------------------------------

@@ -157,6 +157,24 @@ try
         && !geminiRestore.Contains("GeminiApiKey"),
         "the Gemini 3.5 Transcribe key did not survive a backup round trip");
 
+    // A Windows or macOS backup spells this id in camelCase. Before the id
+    // charset accepted capitals, one such member failed the WHOLE restore —
+    // modes, vocabulary and settings with it, not just the keys — while the
+    // sibling platforms read the same file fine.
+    var camelCaseExport = geminiExport.DeepClone().AsObject();
+    camelCaseExport["apiKeys"] = new JsonObject { ["geminiTranscribe"] = "aiza-camel-case-secret" };
+    Assert(camelCaseExport.ToJsonString().Contains("geminiTranscribe", StringComparison.Ordinal),
+        "the camelCase fixture lost its capital letter before the assertion ran");
+    Assert(new ApplicationBackupService(database, settings, new MemoryCredentialStore())
+        .Inspect(camelCaseExport.ToJsonString()).Error is null,
+        "a camelCase API-key provider id failed the whole restore");
+    var camelCaseRestore = new MemoryCredentialStore();
+    var camelCaseImport = await new ApplicationBackupService(database, settings, camelCaseRestore)
+        .ImportAsync(camelCaseExport.ToJsonString(), credentialSelection);
+    Assert(camelCaseImport.IsSuccess && camelCaseImport.Value!.CredentialsImported == 1
+        && camelCaseRestore.Text("GeminiTranscribeApiKey") == "aiza-camel-case-secret",
+        "a camelCase provider id did not fold onto its canonical account");
+
     var invalidProvider = full.DeepClone().AsObject();
     invalidProvider["apiKeys"] = new JsonObject { [new string('p', 65)] = "value" };
     Assert(service.Inspect(invalidProvider.ToJsonString()).Error?.Code == "backup.invalid_credentials",

@@ -3411,10 +3411,28 @@ internal static class Program
                 // The SEND path has to reject it too: the picker no longer offers
                 // one, but a backup restore or a Local API write can still store it,
                 // and it IS a member of the tier so plain membership accepts it.
-                Assert(!catalog.DictationModelsForId("geminiTranscribe").Any(model => model.Id == "gemini-3.5-transcribe-live"),
-                    "the send path's model set still accepts the live-only id - every dictation would 400");
-                Assert(catalog.DictationModelsForId("deepgramNova3").Count == catalog.ModelsForId("deepgramNova3").Count,
-                    "the send path's model set dropped a Deepgram dictation model");
+                //
+                // Assert on HyperWhisperCloudService.ResolveDictationModelId - the
+                // method that actually produces the X-STT-Model header. The earlier
+                // version of this check called CloudSttCatalog.DictationModelsForId,
+                // which has NO production caller, so it passed whether or not the
+                // send path guarded anything.
+                var geminiDefault = catalog.DefaultModelIdForId("geminiTranscribe");
+                Assert(geminiDefault == "gemini-3.5-transcribe",
+                    $"the geminiTranscribe tier default moved, this check needs updating - got '{geminiDefault}'");
+                Assert(HyperWhisperCloudService.ResolveDictationModelId("geminiTranscribe", "gemini-3.5-transcribe-live") == geminiDefault,
+                    "the send path still sends the live-only id as X-STT-Model - every dictation would 400");
+                Assert(HyperWhisperCloudService.ResolveDictationModelId("geminiTranscribe", "  GEMINI-3.5-TRANSCRIBE-LIVE  ") == geminiDefault,
+                    "the send path let a padded/upper-cased live-only id through");
+
+                // ...and it must NOT punt a legitimate model back to the default.
+                Assert(HyperWhisperCloudService.ResolveDictationModelId("geminiTranscribe", "gemini-3.5-transcribe") == "gemini-3.5-transcribe",
+                    "the send path replaced a valid Gemini dictation model with the tier default");
+                foreach (var deepgramModel in catalog.ModelsForId("deepgramNova3"))
+                {
+                    Assert(HyperWhisperCloudService.ResolveDictationModelId("deepgramNova3", deepgramModel.Id) == deepgramModel.Id,
+                        $"the send path dropped Deepgram's '{deepgramModel.Id}' - only live-only ids may be filtered");
+                }
             });
 
             Run("the Gemini 3.5 Transcribe API key survives a backup export/restore round trip", () =>
