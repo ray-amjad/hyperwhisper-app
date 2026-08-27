@@ -243,24 +243,29 @@ const CLOUD_MODELS_RAW = [
   { id: "gemini:gemini-3.1-pro-preview", name: "Gemini 3.1 Pro", vendorLabel: "Google Gemini", vendor: "Google", sttProvider: "gemini", modelId: "gemini-3.1-pro-preview", credits: 10.0, wer: 2.8, speedFactor: 7.0, languages: null, streaming: false, customVocabulary: true, preview: true, isDefault: false, byok: true },
   /**
    * **Ahead of the catalog, on purpose.** `cloud-stt-catalog.json` v7 does not
-   * have this model. Every field below is a prediction of what the catalog PR
-   * adding it will write, not a mirror of something already there, so this row
-   * is waived out of the cloud drift tests by `PENDING_CATALOG_IDS` in
-   * `tests/choosing-a-model-catalog.test.ts`. The waiver removes itself: the
-   * moment the catalog gains the model, a test there fails and says to delete
-   * the waiver and reconcile these fields against what the catalog actually
-   * says. It stays last in the array because the catalog appends to the gemini
-   * provider, and the drift test compares ORDERED arrays.
+   * have this model, so every field below is a prediction, not a mirror, and
+   * this row is waived out of the cloud drift tests by `PENDING_CATALOG_IDS` in
+   * `tests/choosing-a-model-catalog.test.ts`. Those tests compare `name`,
+   * `credits`, `preview`, `customVocabulary` and `isDefault` against the
+   * catalog's model object, and `vendorLabel`, `sttProvider`, `modelId`,
+   * `streaming`, `byok` and `languages` against its provider. `vendor`, `wer`
+   * and `speedFactor` are in neither compared shape — no test guards them, so
+   * re-check those by hand against the Artificial Analysis leaderboard, which
+   * the reconciliation below will not do for you. The waiver removes itself:
+   * the moment the catalog gains the model, a test there fails and says to
+   * delete the waiver and reconcile the compared fields against what it says. It
+   * stays last in the array because the catalog appends to the gemini provider,
+   * and the drift test compares ORDERED arrays.
    *
    * **Until that PR lands, this row describes a model no app can select.** The
    * mirror has no availability field, and `preview: false` cannot stand in for
-   * one — every field here is compared against whatever the catalog PR writes,
-   * so inventing a value would only move the failure to rebase time. In that
-   * window the page's own copy is false for this row: the models "HyperWhisper
-   * ships", "the price here is the price the app charges you", and "every model
-   * listed is switchable in Settings → Transcription". The "No preview models"
-   * chip is the sharpest form — it keeps this row and drops the two shipping
-   * Gemini previews. This is exactly why this PR must not merge first.
+   * one — `preview` IS one of the compared fields, so inventing a value would
+   * only move the failure to rebase time. In that window the page's own copy is
+   * false for this row: the models "HyperWhisper ships", "the price here is the
+   * price the app charges you", and "every model listed is switchable in
+   * Settings → Transcription". The "No preview models" chip is the sharpest
+   * form — it keeps this row and drops the two shipping Gemini previews. This is
+   * exactly why this PR must not merge first.
    *
    * **Where 5.1 credits comes from.** This model bills audio at 25 tokens per
    * second: 1,500 audio tok/min at $2.00/1M is $0.0030, plus 175 text-output
