@@ -1,5 +1,5 @@
 {
-  "description": "Cross-platform golden vectors for the universal-v2 backup adapters (issue #277). The modeNormalization rows were hand-authored in commit 1a against the SHIPPING native code — Windows UniversalBackupMapper.MapToMode (+ CloudTranscriptionModels.ResolveModelAlias and CloudSttCatalog.NormalizeCloudProvider) and Linux ApplicationBackupService.ParseMode — so the Rust port in commit 1b can be diffed against them on the same inputs. A row with a single \"expected\" is one where the two heads AGREE today. A row carrying \"expectedWindows\" and \"expectedLinux\" records a drift that ships right now: Linux runs no cloud-routing migration, no catalog provider normalization, no model-alias resolution and no domain gate at all. Those rows collapse to a single \"expected\" in 1b; rows with one \"expected\" must not move.",
+  "description": "Cross-platform golden vectors for the universal-v2 backup adapters (issue #277). The modeNormalization rows were hand-authored in commit 1a against the SHIPPING native code — Windows UniversalBackupMapper.MapToMode (+ CloudTranscriptionModels.ResolveModelAlias and CloudSttCatalog.NormalizeCloudProvider) and Linux ApplicationBackupService.ParseMode — so the Rust port in commit 1b can be diffed against them on the same inputs. A row with a single \"expected\" is one where the two heads AGREE today. A row carrying \"expectedWindows\" and \"expectedLinux\" records a drift that ships right now: Linux runs no cloud-routing migration, no catalog provider normalization, no model-alias resolution and no domain gate at all. Those rows collapse to a single \"expected\" in 1b; rows with one \"expected\" must not move. The windowsSettings / linuxSettings / macosSettings rows were added in commit 2a against the SHIPPING settings adapters: Windows UniversalBackupMapper.MapSettings / BuildPlatformExtensions / ApplySettings driven over a temp-rooted SettingsService, Linux ApplicationBackupService export/import over PortableSettingsService, and the macOS pair already in hw-backup mapping.rs. Native key names are written exactly as each head stores them — PascalCase for the Windows settings.json, the dotted universal keys for Linux, and the seven macOS categories. absentUniversalKeys / ignoredUniversalKeys record, per head, the universal keys that head does NOT carry today; those are the gaps phase 3 closes.",
   "modeNormalization": [
     {
       "name": "absent: a mode carrying no cloud-routing keys at all",
@@ -2095,8 +2095,1491 @@
       }
     }
   ],
-  "windowsSettings": [],
-  "linuxSettings": [],
-  "macosSettings": [],
+  "windowsSettings": [
+    {
+      "name": "export: every promoted key, PascalCase native -> camelCase universal",
+      "note": "Pins the (native, universal) renames: textOutput.pasteResultText <- AutoPasteEnabled, and the SIX streaming keys (enabled/provider/language/deepgramModel/fastFormatting/shortcut) whose native names are all StreamingX. StreamingShortcut is not a scalar — export calls KeyboardShortcut.ToPersistedString().",
+      "direction": "export",
+      "native": {
+        "LaunchMinimized": true,
+        "ShowRecordingWindow": false,
+        "CheckForUpdatesAutomatically": false,
+        "EnableErrorLogging": false,
+        "ShareAnonymousSpeedData": false,
+        "EnableSoundEffects": false,
+        "AutoPasteEnabled": false,
+        "RemoveFillerWords": false,
+        "RestoreClipboardAfterPaste": false,
+        "HideFromClipboardHistory": false,
+        "ClipboardRestoreDelaySeconds": 2.5,
+        "AutocapitalizeInsert": false,
+        "StoreAsM4A": true,
+        "StreamingEnabled": true,
+        "StreamingProvider": "deepgram",
+        "StreamingLanguage": "de",
+        "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingFastFormatting": false,
+        "StreamingShortcut": "Ctrl+Alt+Shift+F9",
+        "TypingSpeedWPM": 95,
+        "MinimizeToTray": false,
+        "ThemeMode": 2,
+        "AutoDeleteEnabled": true,
+        "AutoDeleteDaysOld": 7,
+        "ParakeetEnabled": false,
+        "KeepMicrophoneWarm": true,
+        "MediaControlMode": "muteAudio",
+        "ToggleShortcut": "Ctrl+Alt+D",
+        "CancelShortcut": "Esc",
+        "ChangeModeShortcut": "Ctrl+Shift+.",
+        "AutoIncreaseMicVolume": false
+      },
+      "expectedUniversal": {
+        "general": {
+          "launchMinimized": true,
+          "showRecordingWindow": false,
+          "checkForUpdatesAutomatically": false,
+          "enableErrorLogging": false,
+          "shareAnonymousSpeedData": false,
+          "enableSoundEffects": false
+        },
+        "textOutput": {
+          "pasteResultText": false,
+          "removeFillerWords": false,
+          "restoreClipboardAfterPaste": false,
+          "hideFromClipboardHistory": false,
+          "clipboardRestoreDelaySeconds": 2.5,
+          "autocapitalizeInsert": false
+        },
+        "storage": {
+          "storeAsM4A": true
+        },
+        "streaming": {
+          "enabled": true,
+          "provider": "deepgram",
+          "language": "de",
+          "deepgramModel": "nova-3-medical",
+          "fastFormatting": false,
+          "shortcut": "Ctrl+Alt+Shift+F9"
+        },
+        "advanced": {
+          "typingSpeedWPM": 95
+        }
+      },
+      "expectedPlatformExtensions": {
+        "minimizeToTray": false,
+        "hideFromClipboardHistory": false,
+        "themeMode": 2,
+        "autoDeleteEnabled": true,
+        "autoDeleteDaysOld": 7,
+        "parakeetEnabled": false,
+        "keepMicrophoneWarm": true,
+        "mediaControlMode": "muteAudio",
+        "toggleShortcut": "Ctrl+Alt+D",
+        "cancelShortcut": "Esc",
+        "changeModeShortcut": "Ctrl+Shift+.",
+        "streamingShortcut": "Ctrl+Alt+Shift+F9",
+        "streamingEnabled": true,
+        "streamingProvider": "deepgram",
+        "streamingLanguage": "de",
+        "streamingDeepgramModel": "nova-3-medical",
+        "streamingFastFormatting": false,
+        "autoIncreaseMicVolume": false,
+        "autocapitalizeInsert": false,
+        "customEndpoints": []
+      },
+      "absentUniversalKeys": [
+        "storage.keepAudioFiles",
+        "advanced.maxRecordingDuration",
+        "textOutput.storeWordTimestamps"
+      ],
+      "forbiddenPlatformExtensionKeys": [
+        "recordingsFolder",
+        "lastSelectedMicrophone",
+        "lastSelectedModel",
+        "gettingStartedCompletedSteps",
+        "localApiServerPersistedPort",
+        "localApiServerEnabled",
+        "selectedModeId",
+        "recordingOverlayXRatio",
+        "recordingOverlayYRatio"
+      ]
+    },
+    {
+      "name": "export: the mirrored native state, so no expectation can be right by coincidence",
+      "direction": "export",
+      "native": {
+        "LaunchMinimized": false,
+        "ShowRecordingWindow": true,
+        "CheckForUpdatesAutomatically": true,
+        "EnableErrorLogging": true,
+        "ShareAnonymousSpeedData": true,
+        "EnableSoundEffects": true,
+        "AutoPasteEnabled": true,
+        "RemoveFillerWords": true,
+        "RestoreClipboardAfterPaste": true,
+        "HideFromClipboardHistory": true,
+        "ClipboardRestoreDelaySeconds": 10,
+        "AutocapitalizeInsert": true,
+        "StoreAsM4A": false,
+        "StreamingEnabled": false,
+        "StreamingProvider": "hyperwhisperCloud",
+        "StreamingLanguage": "en",
+        "StreamingDeepgramModel": "nova-3-general",
+        "StreamingFastFormatting": true,
+        "StreamingShortcut": "Ctrl+Shift+Space",
+        "TypingSpeedWPM": 40,
+        "MinimizeToTray": true,
+        "ThemeMode": 0,
+        "AutoDeleteEnabled": false,
+        "AutoDeleteDaysOld": 30,
+        "ParakeetEnabled": true,
+        "KeepMicrophoneWarm": false,
+        "MediaControlMode": "off",
+        "ToggleShortcut": "Ctrl+Alt",
+        "CancelShortcut": "Esc",
+        "ChangeModeShortcut": "Ctrl+Shift+.",
+        "AutoIncreaseMicVolume": true
+      },
+      "expectedUniversal": {
+        "general": {
+          "launchMinimized": false,
+          "showRecordingWindow": true,
+          "checkForUpdatesAutomatically": true,
+          "enableErrorLogging": true,
+          "shareAnonymousSpeedData": true,
+          "enableSoundEffects": true
+        },
+        "textOutput": {
+          "pasteResultText": true,
+          "removeFillerWords": true,
+          "restoreClipboardAfterPaste": true,
+          "hideFromClipboardHistory": true,
+          "clipboardRestoreDelaySeconds": 10,
+          "autocapitalizeInsert": true
+        },
+        "storage": {
+          "storeAsM4A": false
+        },
+        "streaming": {
+          "enabled": false,
+          "provider": "hyperwhisperCloud",
+          "language": "en",
+          "deepgramModel": "nova-3-general",
+          "fastFormatting": true,
+          "shortcut": "Ctrl+Shift+Space"
+        },
+        "advanced": {
+          "typingSpeedWPM": 40
+        }
+      },
+      "expectedPlatformExtensions": {
+        "minimizeToTray": true,
+        "hideFromClipboardHistory": true,
+        "themeMode": 0,
+        "autoDeleteEnabled": false,
+        "autoDeleteDaysOld": 30,
+        "parakeetEnabled": true,
+        "keepMicrophoneWarm": false,
+        "mediaControlMode": "off",
+        "toggleShortcut": "Ctrl+Alt",
+        "cancelShortcut": "Esc",
+        "changeModeShortcut": "Ctrl+Shift+.",
+        "streamingShortcut": "Ctrl+Shift+Space",
+        "streamingEnabled": false,
+        "streamingProvider": "hyperwhisperCloud",
+        "streamingLanguage": "en",
+        "streamingDeepgramModel": "nova-3-general",
+        "streamingFastFormatting": true,
+        "autoIncreaseMicVolume": true,
+        "autocapitalizeInsert": true,
+        "customEndpoints": []
+      },
+      "absentUniversalKeys": [
+        "storage.keepAudioFiles",
+        "advanced.maxRecordingDuration",
+        "textOutput.storeWordTimestamps"
+      ],
+      "forbiddenPlatformExtensionKeys": [
+        "recordingsFolder",
+        "lastSelectedMicrophone",
+        "lastSelectedModel",
+        "gettingStartedCompletedSteps",
+        "localApiServerPersistedPort",
+        "localApiServerEnabled",
+        "selectedModeId",
+        "recordingOverlayXRatio",
+        "recordingOverlayYRatio"
+      ]
+    },
+    {
+      "name": "import: every promoted key applies, renames included",
+      "direction": "import",
+      "baselineNative": {
+        "LaunchMinimized": false,
+        "ShowRecordingWindow": true,
+        "CheckForUpdatesAutomatically": true,
+        "EnableErrorLogging": true,
+        "ShareAnonymousSpeedData": true,
+        "EnableSoundEffects": true,
+        "AutoPasteEnabled": true,
+        "RemoveFillerWords": true,
+        "RestoreClipboardAfterPaste": true,
+        "HideFromClipboardHistory": true,
+        "ClipboardRestoreDelaySeconds": 10,
+        "AutocapitalizeInsert": true,
+        "StoreAsM4A": false,
+        "StreamingEnabled": false,
+        "StreamingProvider": "hyperwhisperCloud",
+        "StreamingLanguage": "en",
+        "StreamingDeepgramModel": "nova-3-general",
+        "StreamingFastFormatting": true,
+        "StreamingShortcut": "Ctrl+Shift+Space",
+        "TypingSpeedWPM": 40,
+        "MinimizeToTray": true,
+        "ThemeMode": 0,
+        "AutoDeleteEnabled": false,
+        "AutoDeleteDaysOld": 30,
+        "ParakeetEnabled": true,
+        "KeepMicrophoneWarm": false,
+        "MediaControlMode": "off",
+        "ToggleShortcut": "Ctrl+Alt",
+        "CancelShortcut": "Esc",
+        "ChangeModeShortcut": "Ctrl+Shift+.",
+        "AutoIncreaseMicVolume": true
+      },
+      "universal": {
+        "general": {
+          "launchMinimized": true,
+          "showRecordingWindow": false,
+          "checkForUpdatesAutomatically": false,
+          "enableErrorLogging": false,
+          "shareAnonymousSpeedData": false,
+          "enableSoundEffects": false
+        },
+        "textOutput": {
+          "pasteResultText": false,
+          "removeFillerWords": false,
+          "restoreClipboardAfterPaste": false,
+          "hideFromClipboardHistory": false,
+          "clipboardRestoreDelaySeconds": 2.5,
+          "autocapitalizeInsert": false
+        },
+        "storage": {
+          "storeAsM4A": true
+        },
+        "streaming": {
+          "enabled": true,
+          "provider": "deepgram",
+          "language": "de",
+          "deepgramModel": "nova-3-medical",
+          "fastFormatting": false,
+          "shortcut": "Ctrl+Alt+Shift+F9"
+        },
+        "advanced": {
+          "typingSpeedWPM": 95
+        }
+      },
+      "expectedNative": {
+        "LaunchMinimized": true,
+        "ShowRecordingWindow": false,
+        "CheckForUpdatesAutomatically": false,
+        "EnableErrorLogging": false,
+        "ShareAnonymousSpeedData": false,
+        "EnableSoundEffects": false,
+        "AutoPasteEnabled": false,
+        "RemoveFillerWords": false,
+        "RestoreClipboardAfterPaste": false,
+        "HideFromClipboardHistory": false,
+        "ClipboardRestoreDelaySeconds": 2.5,
+        "AutocapitalizeInsert": false,
+        "StoreAsM4A": true,
+        "StreamingEnabled": true,
+        "StreamingProvider": "deepgram",
+        "StreamingLanguage": "de",
+        "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingFastFormatting": false,
+        "StreamingShortcut": "Ctrl+Alt+Shift+F9",
+        "TypingSpeedWPM": 95,
+        "MinimizeToTray": true,
+        "ThemeMode": 0,
+        "AutoDeleteEnabled": false,
+        "AutoDeleteDaysOld": 30,
+        "ParakeetEnabled": true,
+        "KeepMicrophoneWarm": false,
+        "MediaControlMode": "off",
+        "ToggleShortcut": "Ctrl+Alt",
+        "CancelShortcut": "Esc",
+        "ChangeModeShortcut": "Ctrl+Shift+.",
+        "AutoIncreaseMicVolume": true
+      }
+    },
+    {
+      "name": "import: an absent settings block leaves every live value alone",
+      "note": "ApplySettings is present-only at the SECTION level too — a null section is skipped whole.",
+      "direction": "import",
+      "baselineNative": {
+        "LaunchMinimized": true,
+        "ShowRecordingWindow": false,
+        "CheckForUpdatesAutomatically": false,
+        "EnableErrorLogging": false,
+        "ShareAnonymousSpeedData": false,
+        "EnableSoundEffects": false,
+        "AutoPasteEnabled": false,
+        "RemoveFillerWords": false,
+        "RestoreClipboardAfterPaste": false,
+        "HideFromClipboardHistory": false,
+        "ClipboardRestoreDelaySeconds": 2.5,
+        "AutocapitalizeInsert": false,
+        "StoreAsM4A": true,
+        "StreamingEnabled": true,
+        "StreamingProvider": "deepgram",
+        "StreamingLanguage": "de",
+        "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingFastFormatting": false,
+        "StreamingShortcut": "Ctrl+Alt+Shift+F9",
+        "TypingSpeedWPM": 95,
+        "MinimizeToTray": false,
+        "ThemeMode": 2,
+        "AutoDeleteEnabled": true,
+        "AutoDeleteDaysOld": 7,
+        "ParakeetEnabled": false,
+        "KeepMicrophoneWarm": true,
+        "MediaControlMode": "muteAudio",
+        "ToggleShortcut": "Ctrl+Alt+D",
+        "CancelShortcut": "Esc",
+        "ChangeModeShortcut": "Ctrl+Shift+.",
+        "AutoIncreaseMicVolume": false
+      },
+      "universal": {},
+      "expectedNative": {
+        "LaunchMinimized": true,
+        "ShowRecordingWindow": false,
+        "CheckForUpdatesAutomatically": false,
+        "EnableErrorLogging": false,
+        "ShareAnonymousSpeedData": false,
+        "EnableSoundEffects": false,
+        "AutoPasteEnabled": false,
+        "RemoveFillerWords": false,
+        "RestoreClipboardAfterPaste": false,
+        "HideFromClipboardHistory": false,
+        "ClipboardRestoreDelaySeconds": 2.5,
+        "AutocapitalizeInsert": false,
+        "StoreAsM4A": true,
+        "StreamingEnabled": true,
+        "StreamingProvider": "deepgram",
+        "StreamingLanguage": "de",
+        "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingFastFormatting": false,
+        "StreamingShortcut": "Ctrl+Alt+Shift+F9",
+        "TypingSpeedWPM": 95,
+        "MinimizeToTray": false,
+        "ThemeMode": 2,
+        "AutoDeleteEnabled": true,
+        "AutoDeleteDaysOld": 7,
+        "ParakeetEnabled": false,
+        "KeepMicrophoneWarm": true,
+        "MediaControlMode": "muteAudio",
+        "ToggleShortcut": "Ctrl+Alt+D",
+        "CancelShortcut": "Esc",
+        "ChangeModeShortcut": "Ctrl+Shift+.",
+        "AutoIncreaseMicVolume": false
+      }
+    },
+    {
+      "name": "import: explicit JSON null behaves exactly like an absent key",
+      "note": "Every UniversalSettings scalar is a Nullable<T> or string?, and every arm is HasValue- or IsNullOrWhiteSpace-gated, so a null never reaches a setter.",
+      "direction": "import",
+      "baselineNative": {
+        "LaunchMinimized": true,
+        "ShowRecordingWindow": false,
+        "CheckForUpdatesAutomatically": false,
+        "EnableErrorLogging": false,
+        "ShareAnonymousSpeedData": false,
+        "EnableSoundEffects": false,
+        "AutoPasteEnabled": false,
+        "RemoveFillerWords": false,
+        "RestoreClipboardAfterPaste": false,
+        "HideFromClipboardHistory": false,
+        "ClipboardRestoreDelaySeconds": 2.5,
+        "AutocapitalizeInsert": false,
+        "StoreAsM4A": true,
+        "StreamingEnabled": true,
+        "StreamingProvider": "deepgram",
+        "StreamingLanguage": "de",
+        "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingFastFormatting": false,
+        "StreamingShortcut": "Ctrl+Alt+Shift+F9",
+        "TypingSpeedWPM": 95,
+        "MinimizeToTray": false,
+        "ThemeMode": 2,
+        "AutoDeleteEnabled": true,
+        "AutoDeleteDaysOld": 7,
+        "ParakeetEnabled": false,
+        "KeepMicrophoneWarm": true,
+        "MediaControlMode": "muteAudio",
+        "ToggleShortcut": "Ctrl+Alt+D",
+        "CancelShortcut": "Esc",
+        "ChangeModeShortcut": "Ctrl+Shift+.",
+        "AutoIncreaseMicVolume": false
+      },
+      "universal": {
+        "general": {
+          "launchMinimized": null,
+          "showRecordingWindow": null,
+          "checkForUpdatesAutomatically": null,
+          "enableErrorLogging": null,
+          "shareAnonymousSpeedData": null,
+          "enableSoundEffects": null
+        },
+        "textOutput": {
+          "pasteResultText": null,
+          "removeFillerWords": null,
+          "restoreClipboardAfterPaste": null,
+          "hideFromClipboardHistory": null,
+          "clipboardRestoreDelaySeconds": null,
+          "autocapitalizeInsert": null
+        },
+        "storage": {
+          "keepAudioFiles": null,
+          "storeAsM4A": null
+        },
+        "streaming": {
+          "enabled": null,
+          "provider": null,
+          "language": null,
+          "deepgramModel": null,
+          "fastFormatting": null,
+          "shortcut": null
+        },
+        "advanced": {
+          "maxRecordingDuration": null,
+          "typingSpeedWPM": null
+        }
+      },
+      "expectedNative": {
+        "LaunchMinimized": true,
+        "ShowRecordingWindow": false,
+        "CheckForUpdatesAutomatically": false,
+        "EnableErrorLogging": false,
+        "ShareAnonymousSpeedData": false,
+        "EnableSoundEffects": false,
+        "AutoPasteEnabled": false,
+        "RemoveFillerWords": false,
+        "RestoreClipboardAfterPaste": false,
+        "HideFromClipboardHistory": false,
+        "ClipboardRestoreDelaySeconds": 2.5,
+        "AutocapitalizeInsert": false,
+        "StoreAsM4A": true,
+        "StreamingEnabled": true,
+        "StreamingProvider": "deepgram",
+        "StreamingLanguage": "de",
+        "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingFastFormatting": false,
+        "StreamingShortcut": "Ctrl+Alt+Shift+F9",
+        "TypingSpeedWPM": 95,
+        "MinimizeToTray": false,
+        "ThemeMode": 2,
+        "AutoDeleteEnabled": true,
+        "AutoDeleteDaysOld": 7,
+        "ParakeetEnabled": false,
+        "KeepMicrophoneWarm": true,
+        "MediaControlMode": "muteAudio",
+        "ToggleShortcut": "Ctrl+Alt+D",
+        "CancelShortcut": "Esc",
+        "ChangeModeShortcut": "Ctrl+Shift+.",
+        "AutoIncreaseMicVolume": false
+      }
+    },
+    {
+      "name": "import: a blank streaming string is ignored, not applied as blank",
+      "note": "The four string arms are IsNullOrWhiteSpace-gated; the two bool arms are not, so enabled and fastFormatting still apply.",
+      "direction": "import",
+      "baselineNative": {
+        "LaunchMinimized": true,
+        "ShowRecordingWindow": false,
+        "CheckForUpdatesAutomatically": false,
+        "EnableErrorLogging": false,
+        "ShareAnonymousSpeedData": false,
+        "EnableSoundEffects": false,
+        "AutoPasteEnabled": false,
+        "RemoveFillerWords": false,
+        "RestoreClipboardAfterPaste": false,
+        "HideFromClipboardHistory": false,
+        "ClipboardRestoreDelaySeconds": 2.5,
+        "AutocapitalizeInsert": false,
+        "StoreAsM4A": true,
+        "StreamingEnabled": true,
+        "StreamingProvider": "deepgram",
+        "StreamingLanguage": "de",
+        "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingFastFormatting": false,
+        "StreamingShortcut": "Ctrl+Alt+Shift+F9",
+        "TypingSpeedWPM": 95,
+        "MinimizeToTray": false,
+        "ThemeMode": 2,
+        "AutoDeleteEnabled": true,
+        "AutoDeleteDaysOld": 7,
+        "ParakeetEnabled": false,
+        "KeepMicrophoneWarm": true,
+        "MediaControlMode": "muteAudio",
+        "ToggleShortcut": "Ctrl+Alt+D",
+        "CancelShortcut": "Esc",
+        "ChangeModeShortcut": "Ctrl+Shift+.",
+        "AutoIncreaseMicVolume": false
+      },
+      "universal": {
+        "streaming": {
+          "enabled": true,
+          "provider": "",
+          "language": "   ",
+          "deepgramModel": "",
+          "fastFormatting": false,
+          "shortcut": "   "
+        }
+      },
+      "expectedNative": {
+        "LaunchMinimized": true,
+        "ShowRecordingWindow": false,
+        "CheckForUpdatesAutomatically": false,
+        "EnableErrorLogging": false,
+        "ShareAnonymousSpeedData": false,
+        "EnableSoundEffects": false,
+        "AutoPasteEnabled": false,
+        "RemoveFillerWords": false,
+        "RestoreClipboardAfterPaste": false,
+        "HideFromClipboardHistory": false,
+        "ClipboardRestoreDelaySeconds": 2.5,
+        "AutocapitalizeInsert": false,
+        "StoreAsM4A": true,
+        "StreamingEnabled": true,
+        "StreamingProvider": "deepgram",
+        "StreamingLanguage": "de",
+        "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingFastFormatting": false,
+        "StreamingShortcut": "Ctrl+Alt+Shift+F9",
+        "TypingSpeedWPM": 95,
+        "MinimizeToTray": false,
+        "ThemeMode": 2,
+        "AutoDeleteEnabled": true,
+        "AutoDeleteDaysOld": 7,
+        "ParakeetEnabled": false,
+        "KeepMicrophoneWarm": true,
+        "MediaControlMode": "muteAudio",
+        "ToggleShortcut": "Ctrl+Alt+D",
+        "CancelShortcut": "Esc",
+        "ChangeModeShortcut": "Ctrl+Shift+.",
+        "AutoIncreaseMicVolume": false
+      }
+    },
+    {
+      "name": "import: three streaming values are silently rewritten by the SettingsService setters",
+      "note": "DRIFT, recorded deliberately. StreamingProvider falls back to hyperwhisperCloud unless the value is one of the five valid storage values; StreamingDeepgramModel collapses to nova-3-general unless it is exactly nova-3-medical; StreamingShortcut is re-canonicalised through FromPersistedString/ToPersistedString. Linux stores all three verbatim, so these are per-head answers today.",
+      "direction": "import",
+      "baselineNative": {
+        "LaunchMinimized": true,
+        "ShowRecordingWindow": false,
+        "CheckForUpdatesAutomatically": false,
+        "EnableErrorLogging": false,
+        "ShareAnonymousSpeedData": false,
+        "EnableSoundEffects": false,
+        "AutoPasteEnabled": false,
+        "RemoveFillerWords": false,
+        "RestoreClipboardAfterPaste": false,
+        "HideFromClipboardHistory": false,
+        "ClipboardRestoreDelaySeconds": 2.5,
+        "AutocapitalizeInsert": false,
+        "StoreAsM4A": true,
+        "StreamingEnabled": true,
+        "StreamingProvider": "deepgram",
+        "StreamingLanguage": "de",
+        "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingFastFormatting": false,
+        "StreamingShortcut": "Ctrl+Alt+Shift+F9",
+        "TypingSpeedWPM": 95,
+        "MinimizeToTray": false,
+        "ThemeMode": 2,
+        "AutoDeleteEnabled": true,
+        "AutoDeleteDaysOld": 7,
+        "ParakeetEnabled": false,
+        "KeepMicrophoneWarm": true,
+        "MediaControlMode": "muteAudio",
+        "ToggleShortcut": "Ctrl+Alt+D",
+        "CancelShortcut": "Esc",
+        "ChangeModeShortcut": "Ctrl+Shift+.",
+        "AutoIncreaseMicVolume": false
+      },
+      "universal": {
+        "streaming": {
+          "provider": "assemblyai",
+          "language": "ja",
+          "deepgramModel": "nova-2-general",
+          "shortcut": "shift+CONTROL+f9"
+        }
+      },
+      "expectedNative": {
+        "LaunchMinimized": true,
+        "ShowRecordingWindow": false,
+        "CheckForUpdatesAutomatically": false,
+        "EnableErrorLogging": false,
+        "ShareAnonymousSpeedData": false,
+        "EnableSoundEffects": false,
+        "AutoPasteEnabled": false,
+        "RemoveFillerWords": false,
+        "RestoreClipboardAfterPaste": false,
+        "HideFromClipboardHistory": false,
+        "ClipboardRestoreDelaySeconds": 2.5,
+        "AutocapitalizeInsert": false,
+        "StoreAsM4A": true,
+        "StreamingEnabled": true,
+        "StreamingProvider": "hyperwhisperCloud",
+        "StreamingLanguage": "ja",
+        "StreamingDeepgramModel": "nova-3-general",
+        "StreamingFastFormatting": false,
+        "StreamingShortcut": "Ctrl+Shift+F9",
+        "TypingSpeedWPM": 95,
+        "MinimizeToTray": false,
+        "ThemeMode": 2,
+        "AutoDeleteEnabled": true,
+        "AutoDeleteDaysOld": 7,
+        "ParakeetEnabled": false,
+        "KeepMicrophoneWarm": true,
+        "MediaControlMode": "muteAudio",
+        "ToggleShortcut": "Ctrl+Alt+D",
+        "CancelShortcut": "Esc",
+        "ChangeModeShortcut": "Ctrl+Shift+.",
+        "AutoIncreaseMicVolume": false
+      }
+    },
+    {
+      "name": "import: the three keys Windows does not carry are dropped on the floor",
+      "note": "THE #288 GAP, pinned. storage.keepAudioFiles and advanced.maxRecordingDuration exist on the UniversalStorageSettings / UniversalAdvancedSettings DTOs but MapSettings never writes them and ApplySettings never reads them; textOutput.storeWordTimestamps has no DTO property at all and no [JsonExtensionData], so it does not even survive deserialization. A macOS-or-Linux -> Windows -> macOS trip loses all three. Phase 3a adds the first two as real settings; 3b round-trips the third.",
+      "direction": "import",
+      "baselineNative": {
+        "LaunchMinimized": true,
+        "ShowRecordingWindow": false,
+        "CheckForUpdatesAutomatically": false,
+        "EnableErrorLogging": false,
+        "ShareAnonymousSpeedData": false,
+        "EnableSoundEffects": false,
+        "AutoPasteEnabled": false,
+        "RemoveFillerWords": false,
+        "RestoreClipboardAfterPaste": false,
+        "HideFromClipboardHistory": false,
+        "ClipboardRestoreDelaySeconds": 2.5,
+        "AutocapitalizeInsert": false,
+        "StoreAsM4A": true,
+        "StreamingEnabled": true,
+        "StreamingProvider": "deepgram",
+        "StreamingLanguage": "de",
+        "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingFastFormatting": false,
+        "StreamingShortcut": "Ctrl+Alt+Shift+F9",
+        "TypingSpeedWPM": 95,
+        "MinimizeToTray": false,
+        "ThemeMode": 2,
+        "AutoDeleteEnabled": true,
+        "AutoDeleteDaysOld": 7,
+        "ParakeetEnabled": false,
+        "KeepMicrophoneWarm": true,
+        "MediaControlMode": "muteAudio",
+        "ToggleShortcut": "Ctrl+Alt+D",
+        "CancelShortcut": "Esc",
+        "ChangeModeShortcut": "Ctrl+Shift+.",
+        "AutoIncreaseMicVolume": false
+      },
+      "universal": {
+        "textOutput": {
+          "pasteResultText": true,
+          "storeWordTimestamps": true
+        },
+        "storage": {
+          "storeAsM4A": false,
+          "keepAudioFiles": false
+        },
+        "advanced": {
+          "typingSpeedWPM": 55,
+          "maxRecordingDuration": 300
+        }
+      },
+      "expectedNative": {
+        "LaunchMinimized": true,
+        "ShowRecordingWindow": false,
+        "CheckForUpdatesAutomatically": false,
+        "EnableErrorLogging": false,
+        "ShareAnonymousSpeedData": false,
+        "EnableSoundEffects": false,
+        "AutoPasteEnabled": true,
+        "RemoveFillerWords": false,
+        "RestoreClipboardAfterPaste": false,
+        "HideFromClipboardHistory": false,
+        "ClipboardRestoreDelaySeconds": 2.5,
+        "AutocapitalizeInsert": false,
+        "StoreAsM4A": false,
+        "StreamingEnabled": true,
+        "StreamingProvider": "deepgram",
+        "StreamingLanguage": "de",
+        "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingFastFormatting": false,
+        "StreamingShortcut": "Ctrl+Alt+Shift+F9",
+        "TypingSpeedWPM": 55,
+        "MinimizeToTray": false,
+        "ThemeMode": 2,
+        "AutoDeleteEnabled": true,
+        "AutoDeleteDaysOld": 7,
+        "ParakeetEnabled": false,
+        "KeepMicrophoneWarm": true,
+        "MediaControlMode": "muteAudio",
+        "ToggleShortcut": "Ctrl+Alt+D",
+        "CancelShortcut": "Esc",
+        "ChangeModeShortcut": "Ctrl+Shift+.",
+        "AutoIncreaseMicVolume": false
+      },
+      "ignoredUniversalKeys": [
+        "storage.keepAudioFiles",
+        "advanced.maxRecordingDuration",
+        "textOutput.storeWordTimestamps"
+      ],
+      "expectedUniversalAfterImport": {
+        "general": {
+          "launchMinimized": true,
+          "showRecordingWindow": false,
+          "checkForUpdatesAutomatically": false,
+          "enableErrorLogging": false,
+          "shareAnonymousSpeedData": false,
+          "enableSoundEffects": false
+        },
+        "textOutput": {
+          "pasteResultText": true,
+          "removeFillerWords": false,
+          "restoreClipboardAfterPaste": false,
+          "hideFromClipboardHistory": false,
+          "clipboardRestoreDelaySeconds": 2.5,
+          "autocapitalizeInsert": false
+        },
+        "storage": {
+          "storeAsM4A": false
+        },
+        "streaming": {
+          "enabled": true,
+          "provider": "deepgram",
+          "language": "de",
+          "deepgramModel": "nova-3-medical",
+          "fastFormatting": false,
+          "shortcut": "Ctrl+Alt+Shift+F9"
+        },
+        "advanced": {
+          "typingSpeedWPM": 55
+        }
+      }
+    }
+  ],
+  "linuxSettings": [
+    {
+      "name": "export: an untouched profile exports the Linux defaults, all 23 keys present",
+      "note": "BuildSharedSettings has no present-only rule — every key is emitted with its default, so a Linux settings block is always complete. Windows emits only 20 of these 23: keepAudioFiles, maxRecordingDuration and storeWordTimestamps have no Windows property.",
+      "direction": "export",
+      "native": {},
+      "expectedUniversal": {
+        "general": {
+          "launchMinimized": false,
+          "showRecordingWindow": true,
+          "checkForUpdatesAutomatically": true,
+          "enableErrorLogging": true,
+          "shareAnonymousSpeedData": true,
+          "enableSoundEffects": true
+        },
+        "textOutput": {
+          "pasteResultText": true,
+          "removeFillerWords": true,
+          "restoreClipboardAfterPaste": true,
+          "hideFromClipboardHistory": true,
+          "clipboardRestoreDelaySeconds": 10,
+          "autocapitalizeInsert": true,
+          "storeWordTimestamps": true
+        },
+        "storage": {
+          "keepAudioFiles": true,
+          "storeAsM4A": false
+        },
+        "streaming": {
+          "enabled": false,
+          "provider": null,
+          "language": null,
+          "deepgramModel": null,
+          "fastFormatting": false,
+          "shortcut": null
+        },
+        "advanced": {
+          "maxRecordingDuration": 3600,
+          "typingSpeedWPM": 40
+        }
+      }
+    },
+    {
+      "name": "export: seeded storage keys pass through verbatim — the map is near-identity",
+      "note": "The PortableSettingsService keys ARE the universal dotted keys. Nothing is renamed and nothing is validated: streaming.provider \"assemblyai\", streaming.deepgramModel \"nova-2-general\" and the un-canonicalised shortcut all survive, where the three Windows setters rewrite all three.",
+      "direction": "export",
+      "native": {
+        "general.launchMinimized": true,
+        "general.showRecordingWindow": false,
+        "general.checkForUpdatesAutomatically": false,
+        "general.enableErrorLogging": false,
+        "general.shareAnonymousSpeedData": false,
+        "general.enableSoundEffects": false,
+        "textOutput.pasteResultText": false,
+        "textOutput.removeFillerWords": false,
+        "textOutput.restoreClipboardAfterPaste": false,
+        "textOutput.hideFromClipboardHistory": false,
+        "textOutput.clipboardRestoreDelaySeconds": 2.5,
+        "textOutput.autocapitalizeInsert": false,
+        "textOutput.storeWordTimestamps": false,
+        "storage.keepAudioFiles": false,
+        "storage.storeAsM4A": true,
+        "streaming.enabled": true,
+        "streaming.provider": "assemblyai",
+        "streaming.language": "de",
+        "streaming.deepgramModel": "nova-2-general",
+        "streaming.fastFormatting": true,
+        "streaming.shortcut": "shift+CONTROL+f9",
+        "advanced.maxRecordingDuration": 300,
+        "advanced.typingSpeedWPM": 95
+      },
+      "expectedUniversal": {
+        "general": {
+          "launchMinimized": true,
+          "showRecordingWindow": false,
+          "checkForUpdatesAutomatically": false,
+          "enableErrorLogging": false,
+          "shareAnonymousSpeedData": false,
+          "enableSoundEffects": false
+        },
+        "textOutput": {
+          "pasteResultText": false,
+          "removeFillerWords": false,
+          "restoreClipboardAfterPaste": false,
+          "hideFromClipboardHistory": false,
+          "clipboardRestoreDelaySeconds": 2.5,
+          "autocapitalizeInsert": false,
+          "storeWordTimestamps": false
+        },
+        "storage": {
+          "keepAudioFiles": false,
+          "storeAsM4A": true
+        },
+        "streaming": {
+          "enabled": true,
+          "provider": "assemblyai",
+          "language": "de",
+          "deepgramModel": "nova-2-general",
+          "fastFormatting": true,
+          "shortcut": "shift+CONTROL+f9"
+        },
+        "advanced": {
+          "maxRecordingDuration": 300,
+          "typingSpeedWPM": 95
+        }
+      }
+    },
+    {
+      "name": "import: every shared key applies verbatim",
+      "direction": "import",
+      "baselineNative": {},
+      "universal": {
+        "general": {
+          "launchMinimized": true,
+          "showRecordingWindow": false,
+          "checkForUpdatesAutomatically": false,
+          "enableErrorLogging": false,
+          "shareAnonymousSpeedData": false,
+          "enableSoundEffects": false
+        },
+        "textOutput": {
+          "pasteResultText": false,
+          "removeFillerWords": false,
+          "restoreClipboardAfterPaste": false,
+          "hideFromClipboardHistory": false,
+          "clipboardRestoreDelaySeconds": 2.5,
+          "autocapitalizeInsert": false,
+          "storeWordTimestamps": false
+        },
+        "storage": {
+          "keepAudioFiles": false,
+          "storeAsM4A": true
+        },
+        "streaming": {
+          "enabled": true,
+          "provider": "assemblyai",
+          "language": "de",
+          "deepgramModel": "nova-2-general",
+          "fastFormatting": true,
+          "shortcut": "shift+CONTROL+f9"
+        },
+        "advanced": {
+          "maxRecordingDuration": 300,
+          "typingSpeedWPM": 95
+        }
+      },
+      "expectedNative": {
+        "general.launchMinimized": true,
+        "general.showRecordingWindow": false,
+        "general.checkForUpdatesAutomatically": false,
+        "general.enableErrorLogging": false,
+        "general.shareAnonymousSpeedData": false,
+        "general.enableSoundEffects": false,
+        "textOutput.pasteResultText": false,
+        "textOutput.removeFillerWords": false,
+        "textOutput.restoreClipboardAfterPaste": false,
+        "textOutput.hideFromClipboardHistory": false,
+        "textOutput.clipboardRestoreDelaySeconds": 2.5,
+        "textOutput.autocapitalizeInsert": false,
+        "textOutput.storeWordTimestamps": false,
+        "storage.keepAudioFiles": false,
+        "storage.storeAsM4A": true,
+        "streaming.enabled": true,
+        "streaming.provider": "assemblyai",
+        "streaming.language": "de",
+        "streaming.deepgramModel": "nova-2-general",
+        "streaming.fastFormatting": true,
+        "streaming.shortcut": "shift+CONTROL+f9",
+        "advanced.maxRecordingDuration": 300,
+        "advanced.typingSpeedWPM": 95
+      }
+    },
+    {
+      "name": "import: an absent settings category leaves its keys untouched",
+      "direction": "import",
+      "baselineNative": {
+        "general.launchMinimized": true,
+        "general.showRecordingWindow": false,
+        "general.checkForUpdatesAutomatically": false,
+        "general.enableErrorLogging": false,
+        "general.shareAnonymousSpeedData": false,
+        "general.enableSoundEffects": false,
+        "textOutput.pasteResultText": false,
+        "textOutput.removeFillerWords": false,
+        "textOutput.restoreClipboardAfterPaste": false,
+        "textOutput.hideFromClipboardHistory": false,
+        "textOutput.clipboardRestoreDelaySeconds": 2.5,
+        "textOutput.autocapitalizeInsert": false,
+        "textOutput.storeWordTimestamps": false,
+        "storage.keepAudioFiles": false,
+        "storage.storeAsM4A": true,
+        "streaming.enabled": true,
+        "streaming.provider": "assemblyai",
+        "streaming.language": "de",
+        "streaming.deepgramModel": "nova-2-general",
+        "streaming.fastFormatting": true,
+        "streaming.shortcut": "shift+CONTROL+f9",
+        "advanced.maxRecordingDuration": 300,
+        "advanced.typingSpeedWPM": 95
+      },
+      "universal": {
+        "general": {
+          "launchMinimized": false
+        }
+      },
+      "expectedNative": {
+        "general.launchMinimized": false,
+        "general.showRecordingWindow": false,
+        "general.checkForUpdatesAutomatically": false,
+        "general.enableErrorLogging": false,
+        "general.shareAnonymousSpeedData": false,
+        "general.enableSoundEffects": false,
+        "textOutput.pasteResultText": false,
+        "textOutput.removeFillerWords": false,
+        "textOutput.restoreClipboardAfterPaste": false,
+        "textOutput.hideFromClipboardHistory": false,
+        "textOutput.clipboardRestoreDelaySeconds": 2.5,
+        "textOutput.autocapitalizeInsert": false,
+        "textOutput.storeWordTimestamps": false,
+        "storage.keepAudioFiles": false,
+        "storage.storeAsM4A": true,
+        "streaming.enabled": true,
+        "streaming.provider": "assemblyai",
+        "streaming.language": "de",
+        "streaming.deepgramModel": "nova-2-general",
+        "streaming.fastFormatting": true,
+        "streaming.shortcut": "shift+CONTROL+f9",
+        "advanced.maxRecordingDuration": 300,
+        "advanced.typingSpeedWPM": 95
+      }
+    },
+    {
+      "name": "import: CopyCategory is a per-category ALLOWLIST, so unknown keys are dropped",
+      "note": "The Linux half of the unknown-key gap #288 names. An unrecognised key inside a known category, and a whole unrecognised category, both vanish. Recorded here, not fixed — phase 3 documents it as a known asymmetry.",
+      "direction": "import",
+      "baselineNative": {
+        "general.launchMinimized": true,
+        "general.showRecordingWindow": false,
+        "general.checkForUpdatesAutomatically": false,
+        "general.enableErrorLogging": false,
+        "general.shareAnonymousSpeedData": false,
+        "general.enableSoundEffects": false,
+        "textOutput.pasteResultText": false,
+        "textOutput.removeFillerWords": false,
+        "textOutput.restoreClipboardAfterPaste": false,
+        "textOutput.hideFromClipboardHistory": false,
+        "textOutput.clipboardRestoreDelaySeconds": 2.5,
+        "textOutput.autocapitalizeInsert": false,
+        "textOutput.storeWordTimestamps": false,
+        "storage.keepAudioFiles": false,
+        "storage.storeAsM4A": true,
+        "streaming.enabled": true,
+        "streaming.provider": "assemblyai",
+        "streaming.language": "de",
+        "streaming.deepgramModel": "nova-2-general",
+        "streaming.fastFormatting": true,
+        "streaming.shortcut": "shift+CONTROL+f9",
+        "advanced.maxRecordingDuration": 300,
+        "advanced.typingSpeedWPM": 95
+      },
+      "universal": {
+        "general": {
+          "launchMinimized": true,
+          "futureGeneralKey": 41
+        },
+        "textOutput": {
+          "storeWordTimestamps": false,
+          "futureTextKey": "x"
+        },
+        "futureSection": {
+          "a": 1
+        }
+      },
+      "expectedNative": {
+        "general.launchMinimized": true,
+        "general.showRecordingWindow": false,
+        "general.checkForUpdatesAutomatically": false,
+        "general.enableErrorLogging": false,
+        "general.shareAnonymousSpeedData": false,
+        "general.enableSoundEffects": false,
+        "textOutput.pasteResultText": false,
+        "textOutput.removeFillerWords": false,
+        "textOutput.restoreClipboardAfterPaste": false,
+        "textOutput.hideFromClipboardHistory": false,
+        "textOutput.clipboardRestoreDelaySeconds": 2.5,
+        "textOutput.autocapitalizeInsert": false,
+        "textOutput.storeWordTimestamps": false,
+        "storage.keepAudioFiles": false,
+        "storage.storeAsM4A": true,
+        "streaming.enabled": true,
+        "streaming.provider": "assemblyai",
+        "streaming.language": "de",
+        "streaming.deepgramModel": "nova-2-general",
+        "streaming.fastFormatting": true,
+        "streaming.shortcut": "shift+CONTROL+f9",
+        "advanced.maxRecordingDuration": 300,
+        "advanced.typingSpeedWPM": 95
+      },
+      "ignoredUniversalKeys": [
+        "general.futureGeneralKey",
+        "textOutput.futureTextKey",
+        "futureSection.a"
+      ]
+    },
+    {
+      "name": "import: an explicit JSON null keeps the live value",
+      "note": "Linux own export writes null for the four unset streaming strings, so a Linux -> Linux round trip depends on this.",
+      "direction": "import",
+      "baselineNative": {
+        "general.launchMinimized": true,
+        "general.showRecordingWindow": false,
+        "general.checkForUpdatesAutomatically": false,
+        "general.enableErrorLogging": false,
+        "general.shareAnonymousSpeedData": false,
+        "general.enableSoundEffects": false,
+        "textOutput.pasteResultText": false,
+        "textOutput.removeFillerWords": false,
+        "textOutput.restoreClipboardAfterPaste": false,
+        "textOutput.hideFromClipboardHistory": false,
+        "textOutput.clipboardRestoreDelaySeconds": 2.5,
+        "textOutput.autocapitalizeInsert": false,
+        "textOutput.storeWordTimestamps": false,
+        "storage.keepAudioFiles": false,
+        "storage.storeAsM4A": true,
+        "streaming.enabled": true,
+        "streaming.provider": "assemblyai",
+        "streaming.language": "de",
+        "streaming.deepgramModel": "nova-2-general",
+        "streaming.fastFormatting": true,
+        "streaming.shortcut": "shift+CONTROL+f9",
+        "advanced.maxRecordingDuration": 300,
+        "advanced.typingSpeedWPM": 95
+      },
+      "universal": {
+        "streaming": {
+          "enabled": false,
+          "provider": null,
+          "language": null,
+          "deepgramModel": null,
+          "fastFormatting": null,
+          "shortcut": null
+        }
+      },
+      "expectedNative": {
+        "general.launchMinimized": true,
+        "general.showRecordingWindow": false,
+        "general.checkForUpdatesAutomatically": false,
+        "general.enableErrorLogging": false,
+        "general.shareAnonymousSpeedData": false,
+        "general.enableSoundEffects": false,
+        "textOutput.pasteResultText": false,
+        "textOutput.removeFillerWords": false,
+        "textOutput.restoreClipboardAfterPaste": false,
+        "textOutput.hideFromClipboardHistory": false,
+        "textOutput.clipboardRestoreDelaySeconds": 2.5,
+        "textOutput.autocapitalizeInsert": false,
+        "textOutput.storeWordTimestamps": false,
+        "storage.keepAudioFiles": false,
+        "storage.storeAsM4A": true,
+        "streaming.enabled": false,
+        "streaming.provider": "assemblyai",
+        "streaming.language": "de",
+        "streaming.deepgramModel": "nova-2-general",
+        "streaming.fastFormatting": true,
+        "streaming.shortcut": "shift+CONTROL+f9",
+        "advanced.maxRecordingDuration": 300,
+        "advanced.typingSpeedWPM": 95
+      }
+    }
+  ],
+  "macosSettings": [
+    {
+      "name": "toUniversal: the promotions, and every macOS-only key parked under its own category",
+      "note": "macOS native key names already EQUAL the universal ones, which is why MACOS_*_KEYS is a bare key list while the Windows table has to be (native, universal) pairs. Note the two cross-category promotions — general.enableSoundEffects <- audio, storage.keepAudioFiles <- advanced — and that streaming is absent: macOS does not export the universal streaming block today.",
+      "direction": "toUniversal",
+      "macos": {
+        "general": {
+          "launchMinimized": true,
+          "showRecordingWindow": false,
+          "checkForUpdatesAutomatically": true,
+          "enableErrorLogging": false,
+          "shareAnonymousSpeedData": true,
+          "launchAtLogin": true,
+          "showInDock": false
+        },
+        "audio": {
+          "enableSoundEffects": false,
+          "autoIncreaseMicVolume": true,
+          "soundEffectsVolume": 0.5
+        },
+        "storage": {
+          "storeAsM4A": true,
+          "filesyncEnabled": false
+        },
+        "textOutput": {
+          "pasteResultText": true,
+          "removeFillerWords": false,
+          "restoreClipboardAfterPaste": true,
+          "hideFromClipboardHistory": false,
+          "clipboardRestoreDelaySeconds": 7.5,
+          "autocapitalizeInsert": true,
+          "storeWordTimestamps": true
+        },
+        "shortcuts": {
+          "pushToTalkMode": "hold",
+          "pushToTalkDoublePressEnabled": true,
+          "quickCaptureEnabled": false,
+          "quickCaptureModeId": ""
+        },
+        "aiModel": {
+          "localPostProcessingModel": "gemma-3-4b"
+        },
+        "advanced": {
+          "keepAudioFiles": false,
+          "maxRecordingDuration": 300,
+          "audioSampleRate": 16000,
+          "historyRetentionDays": 30
+        }
+      },
+      "expectedUniversal": {
+        "general": {
+          "launchMinimized": true,
+          "showRecordingWindow": false,
+          "checkForUpdatesAutomatically": true,
+          "enableErrorLogging": false,
+          "shareAnonymousSpeedData": true,
+          "enableSoundEffects": false
+        },
+        "textOutput": {
+          "pasteResultText": true,
+          "removeFillerWords": false,
+          "restoreClipboardAfterPaste": true,
+          "hideFromClipboardHistory": false,
+          "clipboardRestoreDelaySeconds": 7.5,
+          "autocapitalizeInsert": true,
+          "storeWordTimestamps": true
+        },
+        "storage": {
+          "storeAsM4A": true,
+          "keepAudioFiles": false
+        },
+        "advanced": {
+          "maxRecordingDuration": 300
+        },
+        "platformExtensions": {
+          "macos": {
+            "settings": {
+              "audio": {
+                "autoIncreaseMicVolume": true,
+                "soundEffectsVolume": 0.5
+              },
+              "general": {
+                "launchAtLogin": true,
+                "showInDock": false
+              },
+              "storage": {
+                "filesyncEnabled": false
+              },
+              "advanced": {
+                "audioSampleRate": 16000,
+                "historyRetentionDays": 30
+              },
+              "shortcuts": {
+                "pushToTalkMode": "hold",
+                "pushToTalkDoublePressEnabled": true,
+                "quickCaptureEnabled": false,
+                "quickCaptureModeId": ""
+              },
+              "aiModel": {
+                "localPostProcessingModel": "gemma-3-4b"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "toUniversal: empty categories produce an empty extension blob and no universal sections",
+      "note": "non_empty() drops a category that promoted nothing and insert_category omits an empty macOS-only sub-object, but platformExtensions.macos.settings itself is always written.",
+      "direction": "toUniversal",
+      "macos": {
+        "general": {},
+        "audio": {},
+        "storage": {},
+        "textOutput": {},
+        "shortcuts": {},
+        "aiModel": {},
+        "advanced": {}
+      },
+      "expectedUniversal": {
+        "platformExtensions": {
+          "macos": {
+            "settings": {}
+          }
+        }
+      }
+    },
+    {
+      "name": "toUniversal: an existing platformExtensions.macos blob is folded, not replaced",
+      "direction": "toUniversal",
+      "macos": {
+        "general": {
+          "launchMinimized": true
+        },
+        "audio": {},
+        "storage": {},
+        "textOutput": {},
+        "shortcuts": {},
+        "aiModel": {},
+        "advanced": {}
+      },
+      "existingMacosExtension": {
+        "modes": [
+          {
+            "id": "keep-me"
+          }
+        ]
+      },
+      "expectedUniversal": {
+        "general": {
+          "launchMinimized": true
+        },
+        "platformExtensions": {
+          "macos": {
+            "modes": [
+              {
+                "id": "keep-me"
+              }
+            ],
+            "settings": {}
+          }
+        }
+      }
+    },
+    {
+      "name": "toMacos: the inverse is exact — every promoted key routes home by category",
+      "direction": "toMacos",
+      "universal": {
+        "general": {
+          "launchMinimized": true,
+          "showRecordingWindow": false,
+          "checkForUpdatesAutomatically": true,
+          "enableErrorLogging": false,
+          "shareAnonymousSpeedData": true,
+          "enableSoundEffects": false
+        },
+        "textOutput": {
+          "pasteResultText": true,
+          "removeFillerWords": false,
+          "restoreClipboardAfterPaste": true,
+          "hideFromClipboardHistory": false,
+          "clipboardRestoreDelaySeconds": 7.5,
+          "autocapitalizeInsert": true,
+          "storeWordTimestamps": true
+        },
+        "storage": {
+          "storeAsM4A": true,
+          "keepAudioFiles": false
+        },
+        "advanced": {
+          "maxRecordingDuration": 300
+        },
+        "platformExtensions": {
+          "macos": {
+            "settings": {
+              "audio": {
+                "autoIncreaseMicVolume": true,
+                "soundEffectsVolume": 0.5
+              },
+              "general": {
+                "launchAtLogin": true,
+                "showInDock": false
+              },
+              "storage": {
+                "filesyncEnabled": false
+              },
+              "advanced": {
+                "audioSampleRate": 16000,
+                "historyRetentionDays": 30
+              },
+              "shortcuts": {
+                "pushToTalkMode": "hold",
+                "pushToTalkDoublePressEnabled": true,
+                "quickCaptureEnabled": false,
+                "quickCaptureModeId": ""
+              },
+              "aiModel": {
+                "localPostProcessingModel": "gemma-3-4b"
+              }
+            }
+          }
+        }
+      },
+      "expectedMacos": {
+        "general": {
+          "launchMinimized": true,
+          "showRecordingWindow": false,
+          "checkForUpdatesAutomatically": true,
+          "enableErrorLogging": false,
+          "shareAnonymousSpeedData": true,
+          "launchAtLogin": true,
+          "showInDock": false
+        },
+        "audio": {
+          "enableSoundEffects": false,
+          "autoIncreaseMicVolume": true,
+          "soundEffectsVolume": 0.5
+        },
+        "storage": {
+          "storeAsM4A": true,
+          "filesyncEnabled": false
+        },
+        "textOutput": {
+          "pasteResultText": true,
+          "removeFillerWords": false,
+          "restoreClipboardAfterPaste": true,
+          "hideFromClipboardHistory": false,
+          "clipboardRestoreDelaySeconds": 7.5,
+          "autocapitalizeInsert": true,
+          "storeWordTimestamps": true
+        },
+        "shortcuts": {
+          "pushToTalkMode": "hold",
+          "pushToTalkDoublePressEnabled": true,
+          "quickCaptureEnabled": false,
+          "quickCaptureModeId": ""
+        },
+        "aiModel": {
+          "localPostProcessingModel": "gemma-3-4b"
+        },
+        "advanced": {
+          "keepAudioFiles": false,
+          "maxRecordingDuration": 300,
+          "audioSampleRate": 16000,
+          "historyRetentionDays": 30
+        }
+      }
+    },
+    {
+      "name": "toMacos: a LEGACY FLAT extension blob is routed home by the per-key owning-category map",
+      "note": "The Wave-2 export wrote macOS-only keys flat. Unknown flat keys fall into aiModel, matching the legacy catch-all so an old round trip stays exact.",
+      "direction": "toMacos",
+      "universal": {
+        "platformExtensions": {
+          "macos": {
+            "settings": {
+              "autoIncreaseMicVolume": true,
+              "launchAtLogin": false,
+              "filesyncEnabled": true,
+              "audioSampleRate": 48000,
+              "historyRetentionDays": 7,
+              "pushToTalkMode": "toggle",
+              "someFutureKey": "catch-all"
+            }
+          }
+        }
+      },
+      "expectedMacos": {
+        "general": {
+          "launchAtLogin": false
+        },
+        "audio": {
+          "autoIncreaseMicVolume": true
+        },
+        "storage": {
+          "filesyncEnabled": true
+        },
+        "textOutput": {},
+        "shortcuts": {
+          "pushToTalkMode": "toggle"
+        },
+        "aiModel": {
+          "someFutureKey": "catch-all"
+        },
+        "advanced": {
+          "audioSampleRate": 48000,
+          "historyRetentionDays": 7
+        }
+      }
+    },
+    {
+      "name": "toMacos: a nested category entry wins over a flat sibling of the same name",
+      "direction": "toMacos",
+      "universal": {
+        "platformExtensions": {
+          "macos": {
+            "settings": {
+              "audio": {
+                "autoIncreaseMicVolume": true
+              },
+              "autoIncreaseMicVolume": false
+            }
+          }
+        }
+      },
+      "expectedMacos": {
+        "general": {},
+        "audio": {
+          "autoIncreaseMicVolume": true
+        },
+        "storage": {},
+        "textOutput": {},
+        "shortcuts": {},
+        "aiModel": {},
+        "advanced": {}
+      }
+    }
+  ],
   "unknownKeyRoundTrip": []
 }

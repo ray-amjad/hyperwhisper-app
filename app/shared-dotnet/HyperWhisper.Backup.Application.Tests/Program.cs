@@ -1,10 +1,12 @@
 using System.Collections.Immutable;
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.PortableApplication.ViewModels;
+using uniffi.hyperwhisper_core;
 
 var root = Path.Combine(Path.GetTempPath(), "HyperWhisper.Backup.Application.Tests", Guid.NewGuid().ToString("N"));
 Directory.CreateDirectory(root);
@@ -334,6 +336,108 @@ try
     }
 
     Console.WriteLine($"Backup mode-normalization vectors: {vectorRows.Count}/{vectorRows.Count} rows matched the Linux import.");
+
+    // NATIVE CAPTURE (issue #277, phase 2a) — the SETTINGS halves.
+    //
+    // linuxSettings rows run through the SHIPPING Linux settings adapters:
+    // ApplicationBackupService.ExportAsync -> BuildSharedSettings for the export
+    // direction, and ImportAsync -> ApplySharedSettings/CopyCategory for the
+    // import direction. Both are PRIVATE, so the public service is the only way
+    // in — which is also the honest capture, since it is what a user's backup
+    // actually traverses. Native keys in the vectors are the dotted
+    // PortableSettingsService storage keys, which on Linux ARE the universal
+    // keys: this half of the map is near-identity and renames nothing.
+    //
+    // macosSettings rows run through the core adapter the macOS app already
+    // uses (hw-backup mapping.rs macos_settings_to_universal /
+    // universal_to_macos_settings, reached over the same UniFFI binding macOS
+    // uses). Capturing it here means a 2b regression in the shared mapping is
+    // visible on linux-ci, and phase 4's vectors already cover all three heads.
+    //
+    // Nothing in this block changes behavior; it records it.
+    var settingsDocument = JsonNode.Parse(await File.ReadAllTextAsync(vectorsPath))!.AsObject();
+
+    var linuxRows = settingsDocument["linuxSettings"]!.AsArray();
+    Assert(linuxRows.Count > 0, "backup-vectors.json has no linuxSettings rows");
+    var linuxCase = 0;
+    foreach (var linuxRowNode in linuxRows)
+    {
+        var row = linuxRowNode!.AsObject();
+        var label = row["name"]!.GetValue<string>();
+        var direction = row["direction"]!.GetValue<string>();
+        linuxCase++;
+
+        // One profile per row so a row can never observe the previous row's state.
+        var caseRoot = Path.Combine(root, $"linux-settings-{linuxCase:D2}");
+        Directory.CreateDirectory(caseRoot);
+        var casePaths = new TestPaths(caseRoot);
+        var caseSettings = new PortableSettingsService(new MemoryPrivateFileService(), casePaths);
+        Assert(caseSettings.Load().IsSuccess, $"linuxSettings '{label}': settings did not initialize");
+        var caseDatabase = new ApplicationDb(casePaths);
+        await caseDatabase.MigrateAsync();
+        var caseService = new ApplicationBackupService(caseDatabase, caseSettings);
+
+        var seed = row[direction == "export" ? "native" : "baselineNative"]!.AsObject();
+        foreach (var entry in seed)
+            caseSettings.Set(entry.Key, entry.Value!.DeepClone());
+        Assert(caseSettings.Save().IsSuccess, $"linuxSettings '{label}': seed did not save");
+
+        if (direction == "export")
+        {
+            var exported = JsonNode.Parse(await caseService.ExportAsync(new BackupExportSelection(
+                IncludeSettings: true, IncludeModes: false, IncludeVocabulary: false)))!.AsObject();
+            AssertVectorJson(label, "settings", row["expectedUniversal"], exported["settings"]);
+            continue;
+        }
+
+        Assert(direction == "import", $"linuxSettings '{label}': unknown direction '{direction}'");
+        var importJsonForRow = new JsonObject
+        {
+            ["schemaVersion"] = 2,
+            ["exportDate"] = DateTimeOffset.UtcNow.ToString("O"),
+            ["appVersion"] = "1.0.0",
+            ["platform"] = "linux",
+            ["settings"] = row["universal"]!.DeepClone(),
+        }.ToJsonString();
+        var imported = await caseService.ImportAsync(importJsonForRow, new BackupImportSelection(
+            ImportSettings: true, ImportModes: false, ImportVocabulary: false));
+        Assert(imported.IsSuccess, $"linuxSettings '{label}': import failed: {imported.Error?.Message}");
+
+        foreach (var expected in row["expectedNative"]!.AsObject())
+        {
+            var stored = caseSettings.Get<JsonElement?>(expected.Key);
+            Assert(stored.HasValue, $"linuxSettings '{label}': storage key '{expected.Key}' is missing");
+            AssertVectorJson(label, expected.Key, expected.Value,
+                JsonNode.Parse(stored!.Value.GetRawText()));
+        }
+        foreach (var ignored in row["ignoredUniversalKeys"]?.AsArray() ?? [])
+            Assert(caseSettings.Get<JsonElement?>(ignored!.GetValue<string>()) is null,
+                $"linuxSettings '{label}': '{ignored}' reached storage — CopyCategory is supposed to drop it");
+    }
+    Console.WriteLine($"Backup linux-settings vectors: {linuxRows.Count}/{linuxRows.Count} rows matched the Linux adapters.");
+
+    var macosRows = settingsDocument["macosSettings"]!.AsArray();
+    Assert(macosRows.Count > 0, "backup-vectors.json has no macosSettings rows");
+    foreach (var macosRowNode in macosRows)
+    {
+        var row = macosRowNode!.AsObject();
+        var label = row["name"]!.GetValue<string>();
+        var direction = row["direction"]!.GetValue<string>();
+        if (direction == "toUniversal")
+        {
+            AssertVectorJson(label, "universal settings record", row["expectedUniversal"],
+                JsonNode.Parse(HyperwhisperCoreMethods.MacosSettingsToUniversalSettingsJson(
+                    row["macos"]!.ToJsonString(),
+                    row["existingMacosExtension"]?.ToJsonString())));
+            continue;
+        }
+        Assert(direction == "toMacos", $"macosSettings '{label}': unknown direction '{direction}'");
+        AssertVectorJson(label, "macOS 7-category settings", row["expectedMacos"],
+            JsonNode.Parse(HyperwhisperCoreMethods.UniversalSettingsToMacosSettingsJson(
+                row["universal"]!.ToJsonString())));
+    }
+    Console.WriteLine($"Backup macos-settings vectors: {macosRows.Count}/{macosRows.Count} rows matched the shared core.");
+
     Console.WriteLine("Backup application tests passed (38/38).");
 }
 finally
@@ -357,6 +461,17 @@ static void AssertModeVectorField(string label, string field, JsonObject expecte
         $"vector '{label}': {field} expected {Quote(want)}, got {Quote(actual)}");
 
     static string Quote(string? value) => value is null ? "null" : $"'{value}'";
+}
+
+// Compares a backup-vectors.json settings expectation against what the native
+// adapter produced. JsonNode.DeepEquals is order-insensitive over object keys and
+// number-representation-insensitive, so a row pins VALUES, never formatting.
+static void AssertVectorJson(string label, string what, JsonNode? expected, JsonNode? actual)
+{
+    Assert(JsonNode.DeepEquals(expected, actual),
+        $"vector '{label}': {what} mismatch{Environment.NewLine}  expected {Render(expected)}{Environment.NewLine}  actual   {Render(actual)}");
+
+    static string Render(JsonNode? node) => node?.ToJsonString() ?? "null";
 }
 
 static async Task AssertThrowsAsync<TException>(Func<Task> action, string message) where TException : Exception

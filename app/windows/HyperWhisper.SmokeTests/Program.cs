@@ -20,6 +20,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.WebSockets;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Windows;
 using System.Windows.Input;
 using HyperWhisper.Data;
@@ -597,6 +598,107 @@ internal static class Program
                     AssertModeVectorField(label, "cloudTranscriptionDomain", expected, mode.CloudTranscriptionDomain);
                     AssertModeVectorField(label, "cloudAccuracyTier", expected, mode.CloudAccuracyTier);
                     AssertModeVectorField(label, "cloudPostProcessingModel", expected, mode.CloudPostProcessingModel);
+                }
+            });
+
+            // NATIVE CAPTURE (issue #277, phase 2a). Drives every
+            // shared-conformance/backup-vectors.json windowsSettings row through the
+            // SHIPPING Windows settings adapters — UniversalBackupMapper.MapSettings and
+            // BuildPlatformExtensions on the way out, ApplySettings on the way in — over
+            // the real SettingsService, which Program.Main has already re-rooted at a
+            // temp AppData directory. It changes no behavior; it records it, so the Rust
+            // pairs table written in 2b can be diffed on the same inputs while the native
+            // mapper still exists. This is the ONLY observation of the Windows answer:
+            // net10.0-windows/WPF cannot run in the authoring sandbox, so windows-ci is
+            // the instrument.
+            //
+            // What the rows pin:
+            //   * the (native, universal) RENAMES. Windows' settings.json is PascalCase
+            //     (SettingsService.Save uses a plain JsonSerializerOptions
+            //     { WriteIndented = true } — no camelCase policy), and the native names
+            //     diverge from the universal ones where macOS's do not:
+            //     textOutput.pasteResultText <- AutoPasteEnabled, plus all six streaming
+            //     keys, whose native properties are StreamingEnabled / StreamingProvider /
+            //     StreamingLanguage / StreamingDeepgramModel / StreamingFastFormatting /
+            //     StreamingShortcut.
+            //   * StreamingShortcut is NOT a scalar: export calls ToPersistedString() and
+            //     import calls KeyboardShortcut.FromPersistedString(), so the persisted
+            //     string form is what crosses the wire — and the setter re-canonicalises it.
+            //   * platformExtensions.windows.settings is a CURATED list
+            //     (WindowsSettingsExtensions), not everything-else. The forbidden-key
+            //     assertion is the guard against a 2b port that copies the macOS adapter's
+            //     "park every unpromoted key" rule into a PUBLIC backup file.
+            //   * the three universal keys this build does NOT carry at all
+            //     (storage.keepAudioFiles, advanced.maxRecordingDuration,
+            //     textOutput.storeWordTimestamps) are asserted ABSENT, so phase 3 has a
+            //     failing-to-passing record of the gap it closes.
+            Run("backup windows-settings vectors — native capture", () =>
+            {
+                var vectorsPath = Path.Combine(AppContext.BaseDirectory, "backup-vectors.json");
+                Assert(File.Exists(vectorsPath), $"backup-vectors.json not found at {vectorsPath}");
+
+                var document = JsonNode.Parse(File.ReadAllText(vectorsPath))!.AsObject();
+                var rows = document["windowsSettings"]!.AsArray();
+                Assert(rows.Count > 0, "backup-vectors.json has no windowsSettings rows");
+
+                var settings = SettingsService.Instance;
+
+                foreach (var rowNode in rows)
+                {
+                    var row = rowNode!.AsObject();
+                    var label = row["name"]!.GetValue<string>();
+                    var direction = row["direction"]!.GetValue<string>();
+
+                    if (direction == "export")
+                    {
+                        SeedWindowsSettings(settings, row["native"]!.AsObject(), label);
+
+                        var exported = JsonSerializer.SerializeToNode(
+                            UniversalBackupMapper.MapSettings(settings), UniversalCaptureOptions);
+                        AssertVectorJson(label, "settings", row["expectedUniversal"], exported);
+
+                        foreach (var absent in row["absentUniversalKeys"]!.AsArray())
+                        {
+                            var path = absent!.GetValue<string>().Split('.');
+                            Assert(exported![path[0]]?[path[1]] is null,
+                                $"vector '{label}': this build is not supposed to export '{absent}' — "
+                                + "if that changed, the vectors are stale, not the code");
+                        }
+
+                        var extensions = UniversalBackupMapper.BuildPlatformExtensions(settings);
+                        Assert(extensions.Count == 1 && extensions.ContainsKey("windows"),
+                            $"vector '{label}': BuildPlatformExtensions emitted "
+                            + $"{extensions.Count} top-level slices; today it emits only \"windows\"");
+
+                        var windowsSlice = JsonNode.Parse(extensions["windows"].GetRawText())!.AsObject();
+                        var extensionSettings = windowsSlice["settings"];
+                        AssertVectorJson(label, "platformExtensions.windows.settings",
+                            row["expectedPlatformExtensions"], extensionSettings);
+
+                        foreach (var forbidden in row["forbiddenPlatformExtensionKeys"]!.AsArray())
+                            Assert(extensionSettings![forbidden!.GetValue<string>()] is null,
+                                $"vector '{label}': platformExtensions.windows.settings leaked "
+                                + $"'{forbidden}'. That slice is a CURATED list; parking every "
+                                + "unpromoted setting there would publish user paths and device names.");
+
+                        continue;
+                    }
+
+                    Assert(direction == "import", $"vector '{label}': unknown direction '{direction}'");
+                    SeedWindowsSettings(settings, row["baselineNative"]!.AsObject(), label);
+
+                    var universal = JsonSerializer.Deserialize<UniversalSettings>(
+                        row["universal"]!.ToJsonString(), UniversalCaptureOptions)
+                        ?? throw new InvalidOperationException($"vector '{label}' did not deserialize");
+                    UniversalBackupMapper.ApplySettings(universal, settings);
+
+                    AssertVectorJson(label, "native settings",
+                        row["expectedNative"], ReadWindowsSettings(settings));
+
+                    if (row["expectedUniversalAfterImport"] is { } reExported)
+                        AssertVectorJson(label, "re-export after import", reExported,
+                            JsonSerializer.SerializeToNode(
+                                UniversalBackupMapper.MapSettings(settings), UniversalCaptureOptions));
                 }
             });
 
@@ -4022,6 +4124,133 @@ internal static class Program
 
         static string Quote(string? value) => value is null ? "null" : $"'{value}'";
     }
+
+    /// <summary>
+    /// The serializer BackupService writes the universal document with
+    /// (<c>BackupService.UniversalJsonOptions</c>, minus <c>WriteIndented</c>) and the
+    /// one <c>UniversalBackupMapper</c> uses internally. Only
+    /// <see cref="JsonIgnoreCondition.WhenWritingNull"/> is load-bearing here — every
+    /// Universal* property carries an explicit <c>[JsonPropertyName]</c>, so the naming
+    /// policy never decides a key — but it is kept identical so the captured shape is
+    /// the shape that reaches a user's .hwbackup.json.
+    /// </summary>
+    private static readonly JsonSerializerOptions UniversalCaptureOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    };
+
+    /// <summary>
+    /// Compares a backup-vectors.json settings expectation against what the native
+    /// adapter produced. <see cref="JsonNode.DeepEquals"/> is insensitive to key order
+    /// and to number representation, so a row pins VALUES, never formatting — and it
+    /// compares whole objects, so an unexpected EXTRA key fails just as loudly as a
+    /// missing one.
+    /// </summary>
+    private static void AssertVectorJson(string label, string what, JsonNode? expected, JsonNode? actual)
+    {
+        Assert(JsonNode.DeepEquals(expected, actual),
+            $"vector '{label}': {what} mismatch{Environment.NewLine}"
+            + $"  expected {Render(expected)}{Environment.NewLine}"
+            + $"  actual   {Render(actual)}");
+
+        static string Render(JsonNode? node) => node?.ToJsonString() ?? "null";
+    }
+
+    /// <summary>
+    /// Writes a backup-vectors.json <c>native</c> block onto the live SettingsService.
+    /// Keys are the NATIVE names — settings.json is PascalCase — and every one of them
+    /// goes through the real public setter, so the row is seeded through exactly the
+    /// path a restore uses, dirty-check, Save() and all. An unrecognized key throws:
+    /// a typo in the vectors must fail, not silently seed nothing.
+    /// </summary>
+    private static void SeedWindowsSettings(SettingsService settings, JsonObject native, string label)
+    {
+        foreach (var entry in native)
+        {
+            var value = entry.Value
+                ?? throw new InvalidOperationException(
+                    $"vector '{label}': native settings key '{entry.Key}' is null; "
+                    + "a seed must be an explicit value");
+
+            switch (entry.Key)
+            {
+                case "LaunchMinimized": settings.LaunchMinimized = value.GetValue<bool>(); break;
+                case "ShowRecordingWindow": settings.ShowRecordingWindow = value.GetValue<bool>(); break;
+                case "CheckForUpdatesAutomatically": settings.CheckForUpdatesAutomatically = value.GetValue<bool>(); break;
+                case "EnableErrorLogging": settings.EnableErrorLogging = value.GetValue<bool>(); break;
+                case "ShareAnonymousSpeedData": settings.ShareAnonymousSpeedData = value.GetValue<bool>(); break;
+                case "EnableSoundEffects": settings.EnableSoundEffects = value.GetValue<bool>(); break;
+                case "AutoPasteEnabled": settings.AutoPasteEnabled = value.GetValue<bool>(); break;
+                case "RemoveFillerWords": settings.RemoveFillerWords = value.GetValue<bool>(); break;
+                case "RestoreClipboardAfterPaste": settings.RestoreClipboardAfterPaste = value.GetValue<bool>(); break;
+                case "HideFromClipboardHistory": settings.HideFromClipboardHistory = value.GetValue<bool>(); break;
+                case "ClipboardRestoreDelaySeconds": settings.ClipboardRestoreDelaySeconds = value.GetValue<double>(); break;
+                case "AutocapitalizeInsert": settings.AutocapitalizeInsert = value.GetValue<bool>(); break;
+                case "StoreAsM4A": settings.StoreAsM4A = value.GetValue<bool>(); break;
+                case "StreamingEnabled": settings.StreamingEnabled = value.GetValue<bool>(); break;
+                case "StreamingProvider": settings.StreamingProvider = value.GetValue<string>(); break;
+                case "StreamingLanguage": settings.StreamingLanguage = value.GetValue<string>(); break;
+                case "StreamingDeepgramModel": settings.StreamingDeepgramModel = value.GetValue<string>(); break;
+                case "StreamingFastFormatting": settings.StreamingFastFormatting = value.GetValue<bool>(); break;
+                case "StreamingShortcut": settings.StreamingShortcut = KeyboardShortcut.FromPersistedString(value.GetValue<string>()); break;
+                case "TypingSpeedWPM": settings.TypingSpeedWPM = value.GetValue<int>(); break;
+                case "MinimizeToTray": settings.MinimizeToTray = value.GetValue<bool>(); break;
+                case "ThemeMode": settings.ThemeMode = (HyperWhisper.Models.ThemeMode)value.GetValue<int>(); break;
+                case "AutoDeleteEnabled": settings.AutoDeleteEnabled = value.GetValue<bool>(); break;
+                case "AutoDeleteDaysOld": settings.AutoDeleteDaysOld = value.GetValue<int>(); break;
+                case "ParakeetEnabled": settings.ParakeetEnabled = value.GetValue<bool>(); break;
+                case "KeepMicrophoneWarm": settings.KeepMicrophoneWarm = value.GetValue<bool>(); break;
+                case "MediaControlMode": settings.MediaControlMode = value.GetValue<string>(); break;
+                case "ToggleShortcut": settings.ToggleShortcut = KeyboardShortcut.FromPersistedString(value.GetValue<string>()); break;
+                case "CancelShortcut": settings.CancelShortcut = KeyboardShortcut.FromPersistedString(value.GetValue<string>()); break;
+                case "ChangeModeShortcut": settings.ChangeModeShortcut = KeyboardShortcut.FromPersistedString(value.GetValue<string>()); break;
+                case "AutoIncreaseMicVolume": settings.AutoIncreaseMicVolume = value.GetValue<bool>(); break;
+                default:
+                    throw new InvalidOperationException(
+                        $"vector '{label}': unknown Windows native settings key '{entry.Key}'");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Reads back the same native key set <see cref="SeedWindowsSettings"/> writes, as
+    /// JSON, so an import row can be compared whole rather than field by field.
+    /// </summary>
+    private static JsonObject ReadWindowsSettings(SettingsService settings) => new()
+    {
+        ["LaunchMinimized"] = settings.LaunchMinimized,
+        ["ShowRecordingWindow"] = settings.ShowRecordingWindow,
+        ["CheckForUpdatesAutomatically"] = settings.CheckForUpdatesAutomatically,
+        ["EnableErrorLogging"] = settings.EnableErrorLogging,
+        ["ShareAnonymousSpeedData"] = settings.ShareAnonymousSpeedData,
+        ["EnableSoundEffects"] = settings.EnableSoundEffects,
+        ["AutoPasteEnabled"] = settings.AutoPasteEnabled,
+        ["RemoveFillerWords"] = settings.RemoveFillerWords,
+        ["RestoreClipboardAfterPaste"] = settings.RestoreClipboardAfterPaste,
+        ["HideFromClipboardHistory"] = settings.HideFromClipboardHistory,
+        ["ClipboardRestoreDelaySeconds"] = settings.ClipboardRestoreDelaySeconds,
+        ["AutocapitalizeInsert"] = settings.AutocapitalizeInsert,
+        ["StoreAsM4A"] = settings.StoreAsM4A,
+        ["StreamingEnabled"] = settings.StreamingEnabled,
+        ["StreamingProvider"] = settings.StreamingProvider,
+        ["StreamingLanguage"] = settings.StreamingLanguage,
+        ["StreamingDeepgramModel"] = settings.StreamingDeepgramModel,
+        ["StreamingFastFormatting"] = settings.StreamingFastFormatting,
+        ["StreamingShortcut"] = settings.StreamingShortcut.ToPersistedString(),
+        ["TypingSpeedWPM"] = settings.TypingSpeedWPM,
+        ["MinimizeToTray"] = settings.MinimizeToTray,
+        ["ThemeMode"] = (int)settings.ThemeMode,
+        ["AutoDeleteEnabled"] = settings.AutoDeleteEnabled,
+        ["AutoDeleteDaysOld"] = settings.AutoDeleteDaysOld,
+        ["ParakeetEnabled"] = settings.ParakeetEnabled,
+        ["KeepMicrophoneWarm"] = settings.KeepMicrophoneWarm,
+        ["MediaControlMode"] = settings.MediaControlMode,
+        ["ToggleShortcut"] = settings.ToggleShortcut.ToPersistedString(),
+        ["CancelShortcut"] = settings.CancelShortcut.ToPersistedString(),
+        ["ChangeModeShortcut"] = settings.ChangeModeShortcut.ToPersistedString(),
+        ["AutoIncreaseMicVolume"] = settings.AutoIncreaseMicVolume,
+    };
 
     private static async Task<T> ExpectAsync<T>(Func<Task> action) where T : Exception
     {
