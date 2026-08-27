@@ -702,6 +702,97 @@ internal static class Program
                 }
             });
 
+            // PHASE 2b — the new SettingsService.BuildBackupSettingsSnapshot() accessor
+            // is the ONLY thing that decides which native settings reach the shared
+            // core, on export AND as the import baseline. SettingsData is private and
+            // holds RecordingsFolder (a real user filesystem path),
+            // LastSelectedMicrophone (a device name), GettingStartedCompletedSteps and
+            // LocalApiServerPersistedPort. A .hwbackup.json is a file users share, and
+            // this repo is public. Pin the key set exactly: growing it is a decision,
+            // never an accident.
+            Run("backup settings snapshot carries exactly the promoted keys", () =>
+            {
+                var settings = SettingsService.Instance;
+                var snapshot = JsonNode.Parse(settings.BuildBackupSettingsSnapshot())!.AsObject();
+
+                string[] expected =
+                [
+                    "LaunchMinimized", "ShowRecordingWindow", "CheckForUpdatesAutomatically",
+                    "EnableErrorLogging", "ShareAnonymousSpeedData", "EnableSoundEffects",
+                    "AutoPasteEnabled", "RemoveFillerWords", "RestoreClipboardAfterPaste",
+                    "HideFromClipboardHistory", "ClipboardRestoreDelaySeconds", "AutocapitalizeInsert",
+                    "StoreAsM4A",
+                    "StreamingEnabled", "StreamingProvider", "StreamingLanguage",
+                    "StreamingDeepgramModel", "StreamingFastFormatting", "StreamingShortcut",
+                    "TypingSpeedWPM",
+                ];
+
+                var actual = snapshot.Select(entry => entry.Key).OrderBy(key => key, StringComparer.Ordinal).ToArray();
+                var want = expected.OrderBy(key => key, StringComparer.Ordinal).ToArray();
+                Assert(actual.SequenceEqual(want, StringComparer.Ordinal),
+                    "the backup settings snapshot key set changed. Expected "
+                    + $"[{string.Join(", ", want)}], got [{string.Join(", ", actual)}]");
+
+                foreach (var forbidden in new[]
+                {
+                    "RecordingsFolder", "LastSelectedMicrophone", "LastSelectedModel",
+                    "GettingStartedCompletedSteps", "LocalApiServerPersistedPort",
+                    "LocalApiServerEnabled", "SelectedModeId", "RecordingOverlayXRatio",
+                    "RecordingOverlayYRatio", "PushToTalk",
+                })
+                    Assert(snapshot[forbidden] is null,
+                        $"the backup settings snapshot leaked '{forbidden}'. That value is "
+                        + "device-local or a user path and must never reach a shared backup file.");
+
+                // StreamingShortcut is a KeyboardShortcut, not a scalar: it must cross
+                // as the persisted string, never as an object.
+                Assert(snapshot["StreamingShortcut"] is JsonValue
+                    && snapshot["StreamingShortcut"]!.GetValue<string>() == settings.StreamingShortcut.ToPersistedString(),
+                    "StreamingShortcut must be serialised via ToPersistedString()");
+            });
+
+            // PHASE 2b — the deep-merge on the Windows import half.
+            //
+            // ApplySettings now converts in the shared core and deep-merges the core's
+            // native-shaped answer over a baseline snapshot before running the setter
+            // chain. The merge is INERT today: the core is present-only, so a key it
+            // omits is filled from the baseline and its setter's dirty-check does
+            // nothing. Asserting the no-op is the point — the day the core returns a
+            // COMPLETE native blob, this is what stops an absent backup key arriving as
+            // a core default and clobbering a live setting.
+            Run("backup settings import deep-merges over the live baseline", () =>
+            {
+                var settings = SettingsService.Instance;
+                var seed = new JsonObject
+                {
+                    ["LaunchMinimized"] = false,
+                    ["TypingSpeedWPM"] = 95,
+                    ["StreamingProvider"] = "deepgram",
+                    ["StreamingLanguage"] = "de",
+                    ["StreamingDeepgramModel"] = "nova-3-medical",
+                    ["ClipboardRestoreDelaySeconds"] = 2.5,
+                    ["StoreAsM4A"] = true,
+                };
+                SeedWindowsSettings(settings, seed, "deep-merge");
+                var before = ReadWindowsSettings(settings);
+
+                // (1) An empty universal block must change NOTHING at all.
+                UniversalBackupMapper.ApplySettings(new UniversalSettings(), settings);
+                AssertVectorJson("deep-merge", "native settings after an empty import",
+                    before, ReadWindowsSettings(settings));
+
+                // (2) A block carrying ONE key must change exactly that key. Every
+                // other native value has to come from the baseline, not from a default.
+                UniversalBackupMapper.ApplySettings(
+                    new UniversalSettings { General = new UniversalGeneralSettings { LaunchMinimized = true } },
+                    settings);
+
+                var expected = before.DeepClone().AsObject();
+                expected["LaunchMinimized"] = true;
+                AssertVectorJson("deep-merge", "native settings after a one-key import",
+                    expected, ReadWindowsSettings(settings));
+            });
+
             Run("Groq post-processing sends an explicit output-token cap", () =>
             {
                 using var body = ReadLlmBody(PortableLlmProvider.Groq, "openai/gpt-oss-20b");

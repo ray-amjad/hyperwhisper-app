@@ -416,6 +416,76 @@ try
     }
     Console.WriteLine($"Backup linux-settings vectors: {linuxRows.Count}/{linuxRows.Count} rows matched the Linux adapters.");
 
+    // PHASE 2b — the deep-merge on the Linux import half, asserted to be a NO-OP.
+    //
+    // ApplySharedSettings now converts in the shared core and then deep-merges the
+    // core's answer over a baseline snapshot before _settings.Replace(). Two things
+    // have to hold, and neither is covered by the vector rows above:
+    //
+    //   1. Replace() must not WIPE the store. The old code Set() one key at a time,
+    //      so Linux-only keys, backup.platformExtensions and anything else outside
+    //      the 23 shared keys were never at risk. They are now only safe because the
+    //      baseline is the merge's floor.
+    //   2. A universal block that carries ONE key must change exactly that key. The
+    //      core is present-only today, so the merge is inert — but the day it returns
+    //      a COMPLETE native blob, this is the assertion that stops an absent backup
+    //      key arriving as a core default and clobbering a live setting.
+    {
+        var mergeRoot = Path.Combine(root, "linux-settings-deep-merge");
+        Directory.CreateDirectory(mergeRoot);
+        var mergePaths = new TestPaths(mergeRoot);
+        var mergeSettings = new PortableSettingsService(new MemoryPrivateFileService(), mergePaths);
+        Assert(mergeSettings.Load().IsSuccess, "deep-merge: settings did not initialize");
+
+        // A shared key the import will touch, a shared key it will not, and three
+        // keys with no pairs row at all — one of them device-local.
+        mergeSettings.Set("general.launchMinimized", false);
+        mergeSettings.Set("advanced.typingSpeedWPM", 95);
+        mergeSettings.Set("localWhisperBackend", "cuda12");
+        mergeSettings.Set("selectedModeId", "device-local-value");
+        mergeSettings.Set("backup.platformExtensions",
+            JsonSerializer.SerializeToElement(new JsonObject { ["macos"] = new JsonObject() }));
+        Assert(mergeSettings.Save().IsSuccess, "deep-merge: seed did not save");
+
+        var mergeDatabase = new ApplicationDb(mergePaths);
+        await mergeDatabase.MigrateAsync();
+        var mergeService = new ApplicationBackupService(mergeDatabase, mergeSettings);
+
+        var oneKey = new JsonObject
+        {
+            ["schemaVersion"] = 2,
+            ["exportDate"] = DateTimeOffset.UtcNow.ToString("O"),
+            ["appVersion"] = "1.0.0",
+            ["platform"] = "linux",
+            ["settings"] = new JsonObject { ["general"] = new JsonObject { ["launchMinimized"] = true } },
+        }.ToJsonString();
+        var mergeImport = await mergeService.ImportAsync(oneKey, new BackupImportSelection(
+            ImportSettings: true, ImportModes: false, ImportVocabulary: false));
+        Assert(mergeImport.IsSuccess, $"deep-merge: import failed: {mergeImport.Error?.Message}");
+
+        Assert(mergeSettings.Get<bool>("general.launchMinimized"),
+            "deep-merge: the one key the backup carried should have been applied");
+        Assert(mergeSettings.Get<int>("advanced.typingSpeedWPM") == 95,
+            "deep-merge: a shared key the backup did NOT carry was clobbered — the "
+            + "baseline is supposed to be the merge's floor, not a core default");
+        Assert(mergeSettings.Get<string>("localWhisperBackend") == "cuda12",
+            "deep-merge: Replace() wiped a Linux-only key that has no pairs row");
+        Assert(mergeSettings.Get<string>("selectedModeId") == "device-local-value",
+            "deep-merge: Replace() wiped a device-local key");
+        Assert(mergeSettings.Get<JsonElement?>("backup.platformExtensions") is not null,
+            "deep-merge: Replace() wiped the preserved foreign platformExtensions");
+
+        // And the export half must never promote a key without a pairs row.
+        var mergeExport = JsonNode.Parse(await mergeService.ExportAsync(new BackupExportSelection(
+            IncludeSettings: true, IncludeModes: false, IncludeVocabulary: false)))!.AsObject();
+        var sharedBlock = mergeExport["settings"]!.ToJsonString();
+        foreach (var leaked in new[] { "localWhisperBackend", "cuda12", "selectedModeId", "device-local-value" })
+            Assert(!sharedBlock.Contains(leaked, StringComparison.Ordinal),
+                $"deep-merge: '{leaked}' reached the shared settings block; the whole store "
+                + "is handed to the core, so only keys with a pairs row may come back out");
+    }
+    Console.WriteLine("Backup linux-settings deep-merge: baseline preserved, no key leaked.");
+
     var macosRows = settingsDocument["macosSettings"]!.AsArray();
     Assert(macosRows.Count > 0, "backup-vectors.json has no macosSettings rows");
     foreach (var macosRowNode in macosRows)

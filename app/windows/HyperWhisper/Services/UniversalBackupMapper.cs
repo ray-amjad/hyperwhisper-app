@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Models;
 using uniffi.hyperwhisper_core;
@@ -90,48 +91,24 @@ public static class UniversalBackupMapper
     // =========================================================================
 
     /// <summary>
-    /// Maps current Windows settings to universal settings format.
+    /// Maps current Windows settings to universal settings format, through the
+    /// shared core's Windows settings adapter
+    /// (<c>hw-backup mapping.rs: windows_settings_to_universal</c>).
     /// </summary>
+    /// <remarks>
+    /// The (native, universal) renames — <c>textOutput.pasteResultText</c> ←
+    /// <c>AutoPasteEnabled</c>, and all six <c>Streaming*</c> keys — live in the
+    /// core's <c>WINDOWS_*_PAIRS</c> tables, so Windows, Linux and macOS answer
+    /// from one map. The core emits the five universal categories and nothing
+    /// else; <see cref="BuildPlatformExtensions"/> is still the only thing that
+    /// writes <c>platformExtensions.windows</c>, and it stays a CURATED list.
+    /// </remarks>
     public static UniversalSettings MapSettings(SettingsService settings)
     {
-        return new UniversalSettings
-        {
-            General = new UniversalGeneralSettings
-            {
-                LaunchMinimized = settings.LaunchMinimized,
-                ShowRecordingWindow = settings.ShowRecordingWindow,
-                CheckForUpdatesAutomatically = settings.CheckForUpdatesAutomatically,
-                EnableErrorLogging = settings.EnableErrorLogging,
-                ShareAnonymousSpeedData = settings.ShareAnonymousSpeedData,
-                EnableSoundEffects = settings.EnableSoundEffects
-            },
-            TextOutput = new UniversalTextOutputSettings
-            {
-                PasteResultText = settings.AutoPasteEnabled,
-                RemoveFillerWords = settings.RemoveFillerWords,
-                RestoreClipboardAfterPaste = settings.RestoreClipboardAfterPaste,
-                HideFromClipboardHistory = settings.HideFromClipboardHistory,
-                ClipboardRestoreDelaySeconds = settings.ClipboardRestoreDelaySeconds,
-                AutocapitalizeInsert = settings.AutocapitalizeInsert
-            },
-            Storage = new UniversalStorageSettings
-            {
-                StoreAsM4A = settings.StoreAsM4A
-            },
-            Streaming = new UniversalStreamingSettings
-            {
-                Enabled = settings.StreamingEnabled,
-                Provider = settings.StreamingProvider,
-                Language = settings.StreamingLanguage,
-                DeepgramModel = settings.StreamingDeepgramModel,
-                FastFormatting = settings.StreamingFastFormatting,
-                Shortcut = settings.StreamingShortcut.ToPersistedString()
-            },
-            Advanced = new UniversalAdvancedSettings
-            {
-                TypingSpeedWPM = settings.TypingSpeedWPM
-            },
-        };
+        var universalJson = HyperwhisperCoreMethods.WindowsSettingsToUniversalSettingsJson(
+            settings.BuildBackupSettingsSnapshot());
+        return JsonSerializer.Deserialize<UniversalSettings>(universalJson, CamelCaseOptions)
+            ?? new UniversalSettings();
     }
 
     /// <summary>
@@ -308,55 +285,168 @@ public static class UniversalBackupMapper
     /// <summary>
     /// Applies universal settings to SettingsService (cross-platform settings only).
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The universal→native RENAME is the shared core's job
+    /// (<c>hw-backup mapping.rs: universal_to_windows_settings</c>), so this
+    /// method reads a NATIVE-shaped, PascalCase blob. The setter chain itself
+    /// cannot shrink and does not: <see cref="SettingsService"/> is a typed facade
+    /// whose setters dirty-check, <c>Save()</c> under a lock and raise
+    /// <c>SettingsChanged</c> (which re-registers global shortcuts). There is no
+    /// Windows analogue of Linux's <c>PortableSettingsService.Replace</c>.
+    /// </para>
+    /// <para>
+    /// The VALUE rewrites stay native too, and stay in the setters where they
+    /// already were: <c>StreamingProvider</c> falls back to
+    /// <c>hyperwhisperCloud</c> for an unknown value, <c>StreamingDeepgramModel</c>
+    /// collapses to <c>nova-3-general</c>, <c>StreamingShortcut</c> is
+    /// re-canonicalised through <c>FromPersistedString</c>/<c>ToPersistedString</c>
+    /// and <c>ClipboardRestoreDelaySeconds</c> is clamped to [1, 60]. The core
+    /// renames and regroups; it never interprets.
+    /// </para>
+    /// </remarks>
     public static void ApplySettings(UniversalSettings universalSettings, SettingsService settings)
     {
-        if (universalSettings.General != null)
-        {
-            var g = universalSettings.General;
-            if (g.LaunchMinimized.HasValue) settings.LaunchMinimized = g.LaunchMinimized.Value;
-            if (g.ShowRecordingWindow.HasValue) settings.ShowRecordingWindow = g.ShowRecordingWindow.Value;
-            if (g.CheckForUpdatesAutomatically.HasValue) settings.CheckForUpdatesAutomatically = g.CheckForUpdatesAutomatically.Value;
-            if (g.EnableErrorLogging.HasValue) settings.EnableErrorLogging = g.EnableErrorLogging.Value;
-            // Absent means the backup predates the setting — keep what the user has.
-            if (g.ShareAnonymousSpeedData.HasValue) settings.ShareAnonymousSpeedData = g.ShareAnonymousSpeedData.Value;
-            if (g.EnableSoundEffects.HasValue) settings.EnableSoundEffects = g.EnableSoundEffects.Value;
-        }
+        var native = BuildNativeSettings(universalSettings, settings);
+        if (native is null) return;
 
-        if (universalSettings.TextOutput != null)
-        {
-            var t = universalSettings.TextOutput;
-            if (t.PasteResultText.HasValue) settings.AutoPasteEnabled = t.PasteResultText.Value;
-            if (t.RemoveFillerWords.HasValue) settings.RemoveFillerWords = t.RemoveFillerWords.Value;
-            if (t.RestoreClipboardAfterPaste.HasValue) settings.RestoreClipboardAfterPaste = t.RestoreClipboardAfterPaste.Value;
-            if (t.HideFromClipboardHistory.HasValue) settings.HideFromClipboardHistory = t.HideFromClipboardHistory.Value;
-            if (t.ClipboardRestoreDelaySeconds.HasValue) settings.ClipboardRestoreDelaySeconds = t.ClipboardRestoreDelaySeconds.Value;
-            if (t.AutocapitalizeInsert.HasValue) settings.AutocapitalizeInsert = t.AutocapitalizeInsert.Value;
-            if (t.RemoveFillerWords.HasValue) settings.RemoveFillerWords = t.RemoveFillerWords.Value;
-        }
+        using var document = JsonDocument.Parse(native.ToJsonString());
+        var n = document.RootElement;
 
-        if (universalSettings.Storage != null)
-        {
-            var s = universalSettings.Storage;
-            if (s.StoreAsM4A.HasValue) settings.StoreAsM4A = s.StoreAsM4A.Value;
-        }
+        // general
+        if (TryBool(n, "LaunchMinimized", out var launchMinimized)) settings.LaunchMinimized = launchMinimized;
+        if (TryBool(n, "ShowRecordingWindow", out var showRecordingWindow)) settings.ShowRecordingWindow = showRecordingWindow;
+        if (TryBool(n, "CheckForUpdatesAutomatically", out var checkForUpdates)) settings.CheckForUpdatesAutomatically = checkForUpdates;
+        if (TryBool(n, "EnableErrorLogging", out var enableErrorLogging)) settings.EnableErrorLogging = enableErrorLogging;
+        // Absent means the backup predates the setting — keep what the user has.
+        if (TryBool(n, "ShareAnonymousSpeedData", out var shareSpeedData)) settings.ShareAnonymousSpeedData = shareSpeedData;
+        if (TryBool(n, "EnableSoundEffects", out var enableSoundEffects)) settings.EnableSoundEffects = enableSoundEffects;
 
-        if (universalSettings.Streaming != null)
-        {
-            var s = universalSettings.Streaming;
-            if (s.Enabled.HasValue) settings.StreamingEnabled = s.Enabled.Value;
-            if (!string.IsNullOrWhiteSpace(s.Provider)) settings.StreamingProvider = s.Provider;
-            if (!string.IsNullOrWhiteSpace(s.Language)) settings.StreamingLanguage = s.Language;
-            if (!string.IsNullOrWhiteSpace(s.DeepgramModel)) settings.StreamingDeepgramModel = s.DeepgramModel;
-            if (s.FastFormatting.HasValue) settings.StreamingFastFormatting = s.FastFormatting.Value;
-            if (!string.IsNullOrWhiteSpace(s.Shortcut))
-                settings.StreamingShortcut = KeyboardShortcut.FromPersistedString(s.Shortcut);
-        }
+        // textOutput
+        if (TryBool(n, "AutoPasteEnabled", out var autoPaste)) settings.AutoPasteEnabled = autoPaste;
+        if (TryBool(n, "RemoveFillerWords", out var removeFillerWords)) settings.RemoveFillerWords = removeFillerWords;
+        if (TryBool(n, "RestoreClipboardAfterPaste", out var restoreClipboard)) settings.RestoreClipboardAfterPaste = restoreClipboard;
+        if (TryBool(n, "HideFromClipboardHistory", out var hideFromHistory)) settings.HideFromClipboardHistory = hideFromHistory;
+        if (TryDouble(n, "ClipboardRestoreDelaySeconds", out var clipboardDelay)) settings.ClipboardRestoreDelaySeconds = clipboardDelay;
+        if (TryBool(n, "AutocapitalizeInsert", out var autocapitalize)) settings.AutocapitalizeInsert = autocapitalize;
 
-        if (universalSettings.Advanced != null)
+        // storage
+        if (TryBool(n, "StoreAsM4A", out var storeAsM4A)) settings.StoreAsM4A = storeAsM4A;
+
+        // streaming — the four string arms are whitespace-gated, the two bool arms are not
+        if (TryBool(n, "StreamingEnabled", out var streamingEnabled)) settings.StreamingEnabled = streamingEnabled;
+        if (TryNonBlankString(n, "StreamingProvider", out var streamingProvider)) settings.StreamingProvider = streamingProvider;
+        if (TryNonBlankString(n, "StreamingLanguage", out var streamingLanguage)) settings.StreamingLanguage = streamingLanguage;
+        if (TryNonBlankString(n, "StreamingDeepgramModel", out var deepgramModel)) settings.StreamingDeepgramModel = deepgramModel;
+        if (TryBool(n, "StreamingFastFormatting", out var fastFormatting)) settings.StreamingFastFormatting = fastFormatting;
+        if (TryNonBlankString(n, "StreamingShortcut", out var streamingShortcut))
+            settings.StreamingShortcut = KeyboardShortcut.FromPersistedString(streamingShortcut);
+
+        // advanced
+        if (TryInt(n, "TypingSpeedWPM", out var typingSpeedWPM)) settings.TypingSpeedWPM = typingSpeedWPM;
+    }
+
+    /// <summary>
+    /// Converts <paramref name="universalSettings"/> to the native Windows shape in
+    /// the shared core, then DEEP-MERGES the result over a baseline snapshot of the
+    /// live settings, mirroring <c>BackupManager.swift</c>'s
+    /// <c>currentSettingsBaseline()</c> → <c>deepMerged(over:)</c> → apply.
+    /// Returns <c>null</c> when the core could not answer, which leaves every live
+    /// setting untouched.
+    /// </summary>
+    /// <remarks>
+    /// The merge is currently INERT by construction: the core is present-only, so
+    /// every key it omits is filled from the baseline, and a baseline value written
+    /// back through its own setter fails that setter's dirty-check and does nothing
+    /// (<c>SettingsService.ApplyDefaults</c> materialises the four streaming fields
+    /// whose setters compare the raw stored value, so even those are inert). It is
+    /// wired anyway because it is the defence the day the core returns a COMPLETE
+    /// native blob — at that point an absent backup key would otherwise arrive as a
+    /// core default and clobber a live setting. <c>SmokeTests</c> asserts the
+    /// no-op, so the wiring cannot rot unnoticed.
+    /// </remarks>
+    private static JsonObject? BuildNativeSettings(
+        UniversalSettings universalSettings, SettingsService settings)
+    {
+        try
         {
-            var a = universalSettings.Advanced;
-            if (a.TypingSpeedWPM.HasValue) settings.TypingSpeedWPM = a.TypingSpeedWPM.Value;
+            var baseline = JsonNode.Parse(settings.BuildBackupSettingsSnapshot())?.AsObject();
+            if (baseline is null) return null;
+
+            // WhenWritingNull means an explicit JSON null never reaches the core,
+            // which is what makes null behave exactly like an absent key.
+            var universalJson = JsonSerializer.Serialize(universalSettings, CamelCaseOptions);
+            var fromCore = JsonNode.Parse(
+                HyperwhisperCoreMethods.UniversalSettingsToWindowsSettingsJson(universalJson))?.AsObject();
+            if (fromCore is null) return baseline;
+
+            return DeepMerge(baseline, fromCore);
         }
+        catch (Exception ex)
+        {
+            // A malformed settings block must not abort the whole restore.
+            LoggingService.Warn($"UniversalBackupMapper: settings conversion failed: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// <paramref name="overlay"/> deep-merged over <paramref name="baseline"/>:
+    /// overlay wins per key, nested objects merge recursively, and a key only in
+    /// the baseline survives. Mirrors <c>BackupManager.swift</c>'s
+    /// <c>deepMerged(over:)</c>. The blobs are flat today; the recursion is kept so
+    /// the semantics stay right if a nested shape ever crosses.
+    /// </summary>
+    private static JsonObject DeepMerge(JsonObject baseline, JsonObject overlay)
+    {
+        var merged = baseline.DeepClone().AsObject();
+        foreach (var entry in overlay)
+        {
+            if (entry.Value is JsonObject nestedOverlay
+                && merged[entry.Key] is JsonObject nestedBaseline)
+            {
+                merged[entry.Key] = DeepMerge(nestedBaseline, nestedOverlay);
+                continue;
+            }
+            merged[entry.Key] = entry.Value?.DeepClone();
+        }
+        return merged;
+    }
+
+    private static bool TryBool(JsonElement element, string name, out bool value)
+    {
+        value = false;
+        if (!element.TryGetProperty(name, out var property)) return false;
+        if (property.ValueKind is not (JsonValueKind.True or JsonValueKind.False)) return false;
+        value = property.GetBoolean();
+        return true;
+    }
+
+    private static bool TryDouble(JsonElement element, string name, out double value)
+    {
+        value = 0;
+        return element.TryGetProperty(name, out var property)
+            && property.ValueKind == JsonValueKind.Number
+            && property.TryGetDouble(out value);
+    }
+
+    private static bool TryInt(JsonElement element, string name, out int value)
+    {
+        value = 0;
+        return element.TryGetProperty(name, out var property)
+            && property.ValueKind == JsonValueKind.Number
+            && property.TryGetInt32(out value);
+    }
+
+    private static bool TryNonBlankString(JsonElement element, string name, out string value)
+    {
+        value = "";
+        if (!element.TryGetProperty(name, out var property)) return false;
+        if (property.ValueKind != JsonValueKind.String) return false;
+        var raw = property.GetString();
+        if (string.IsNullOrWhiteSpace(raw)) return false;
+        value = raw;
+        return true;
     }
 
     /// <summary>

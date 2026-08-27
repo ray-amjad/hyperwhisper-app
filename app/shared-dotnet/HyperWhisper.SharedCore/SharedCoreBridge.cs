@@ -288,6 +288,41 @@ public static class SharedCoreBridge
         return HyperwhisperCoreMethods.NormalizeUniversalModeJson(json);
     }
 
+    /// <summary>
+    /// Map the Linux settings store (flat, dotted keys) into the universal-v2
+    /// shared <c>settings</c> block.
+    /// </summary>
+    /// <remarks>
+    /// The whole store may be passed in: only keys with a row in the core's
+    /// <c>LINUX_*_PAIRS</c> tables are promoted, so Linux-only and device-local
+    /// keys cannot reach an exported backup through here. The result is always
+    /// COMPLETE — an absent key is emitted with the backup path's own default,
+    /// which is what makes an untouched profile export all 23 shared keys.
+    /// </remarks>
+    public static string LinuxSettingsToUniversal(string linuxJson)
+    {
+        ArgumentNullException.ThrowIfNull(linuxJson);
+        return HyperwhisperCoreMethods.LinuxSettingsToUniversalSettingsJson(linuxJson);
+    }
+
+    /// <summary>
+    /// Inverse of <see cref="LinuxSettingsToUniversal"/>: the universal-v2 shared
+    /// <c>settings</c> block into the flat dotted keys the Linux settings store
+    /// holds.
+    /// </summary>
+    /// <remarks>
+    /// PRESENT-ONLY and null-dropping, reproducing the shipping
+    /// <c>ApplySharedSettings</c>/<c>CopyCategory</c> allowlist: unknown keys and
+    /// unknown categories are dropped, and an explicit JSON <c>null</c> leaves the
+    /// live value alone. The caller deep-merges this over its own baseline
+    /// snapshot before writing it back.
+    /// </remarks>
+    public static string UniversalSettingsToLinuxSettings(string universalJson)
+    {
+        ArgumentNullException.ThrowIfNull(universalJson);
+        return HyperwhisperCoreMethods.UniversalSettingsToLinuxSettingsJson(universalJson);
+    }
+
     public static PortablePostProcessingPrompt BuildPostProcessingPrompt(PortablePromptContext context)
     {
         ArgumentNullException.ThrowIfNull(context);

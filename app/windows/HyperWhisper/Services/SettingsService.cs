@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Models;
 
@@ -967,6 +968,83 @@ public partial class SettingsService
             Save();
             NotifySettingsChanged();
         }
+    }
+
+    // =========================================================================
+    // BACKUP SNAPSHOT
+    // =========================================================================
+
+    /// <summary>
+    /// A JSON snapshot of the settings that are promoted to the universal backup
+    /// <c>settings</c> block, in this class's own NATIVE shape: flat, and
+    /// PascalCase because that is how <c>settings.json</c> stores them
+    /// (<see cref="Save"/> uses a plain <c>JsonSerializerOptions</c> with no
+    /// naming policy — <c>UniversalBackupMapper.CamelCaseOptions</c> is a
+    /// different serializer and does not apply here).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ONE method serves BOTH directions. On export it is the input to the shared
+    /// core's <c>windows_settings_to_universal</c>; on import it is the BASELINE
+    /// the core's answer is deep-merged over, so a key the backup does not carry
+    /// cannot clobber a live setting. <c>SettingsData</c> is private and every
+    /// value here is read through its public property, so the defaults each
+    /// property applies are already resolved.
+    /// </para>
+    /// <para>
+    /// <b>This snapshot is deliberately NOT all of <c>SettingsData</c>, and must
+    /// never become that.</b> <c>SettingsData</c> also holds
+    /// <c>RecordingsFolder</c> (a real user filesystem path),
+    /// <c>LastSelectedMicrophone</c> (a device name),
+    /// <c>GettingStartedCompletedSteps</c> and <c>LocalApiServerPersistedPort</c>.
+    /// A <c>.hwbackup.json</c> is a file users share. Add a key here only when it
+    /// is a cross-platform setting that belongs in the universal block — the
+    /// Windows-only settings that DO get exported travel through the curated
+    /// <c>WindowsSettingsExtensions</c> list in
+    /// <c>UniversalBackupMapper.BuildPlatformExtensions</c> instead.
+    /// </para>
+    /// <para>
+    /// <c>StreamingShortcut</c> is a <see cref="KeyboardShortcut"/>, not a scalar,
+    /// so it crosses as its persisted-string form; <c>FromPersistedString</c>
+    /// stays on the import side.
+    /// </para>
+    /// </remarks>
+    public string BuildBackupSettingsSnapshot()
+    {
+        var snapshot = new JsonObject
+        {
+            // general
+            ["LaunchMinimized"] = LaunchMinimized,
+            ["ShowRecordingWindow"] = ShowRecordingWindow,
+            ["CheckForUpdatesAutomatically"] = CheckForUpdatesAutomatically,
+            ["EnableErrorLogging"] = EnableErrorLogging,
+            ["ShareAnonymousSpeedData"] = ShareAnonymousSpeedData,
+            ["EnableSoundEffects"] = EnableSoundEffects,
+
+            // textOutput
+            ["AutoPasteEnabled"] = AutoPasteEnabled,
+            ["RemoveFillerWords"] = RemoveFillerWords,
+            ["RestoreClipboardAfterPaste"] = RestoreClipboardAfterPaste,
+            ["HideFromClipboardHistory"] = HideFromClipboardHistory,
+            ["ClipboardRestoreDelaySeconds"] = ClipboardRestoreDelaySeconds,
+            ["AutocapitalizeInsert"] = AutocapitalizeInsert,
+
+            // storage
+            ["StoreAsM4A"] = StoreAsM4A,
+
+            // streaming — six separately-named native properties
+            ["StreamingEnabled"] = StreamingEnabled,
+            ["StreamingProvider"] = StreamingProvider,
+            ["StreamingLanguage"] = StreamingLanguage,
+            ["StreamingDeepgramModel"] = StreamingDeepgramModel,
+            ["StreamingFastFormatting"] = StreamingFastFormatting,
+            ["StreamingShortcut"] = StreamingShortcut.ToPersistedString(),
+
+            // advanced
+            ["TypingSpeedWPM"] = TypingSpeedWPM,
+        };
+
+        return snapshot.ToJsonString();
     }
 
     // =========================================================================

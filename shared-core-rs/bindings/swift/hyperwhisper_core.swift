@@ -11734,6 +11734,24 @@ public func licenseValidationCacheSecs() -> Int64 {
 })
 }
 /**
+ * Map LINUX native settings JSON (the flat dotted `PortableSettingsService`
+ * store) into the universal-v2 `settings` block.
+ *
+ * The whole store may be passed in: every key without a pairs row is ignored,
+ * so Linux-only and device-local keys cannot reach the export through here.
+ * Always COMPLETE — an absent key is emitted with the backup path's own
+ * default, which is what makes an untouched Linux profile export all 23 shared
+ * keys. `platformExtensions.linux.settings` is built natively and is not
+ * modelled by the core on purpose.
+ */
+public func linuxSettingsToUniversalSettingsJson(linuxJson: String)throws  -> String {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeBackupError.lift) {
+    uniffi_hyperwhisper_core_fn_func_linux_settings_to_universal_settings_json(
+        FfiConverterString.lower(linuxJson),$0
+    )
+})
+}
+/**
  * Classify a provider error frame's `message` payload.
  *
  * See `hw_net::live::classify_error_message` for the twenty markers, the
@@ -12550,6 +12568,22 @@ public func stripWrapperMarkers(text: String) -> String {
 })
 }
 /**
+ * Inverse of [`linux_settings_to_universal_settings_json`]: the universal-v2
+ * `settings` block → the flat dotted keys `PortableSettingsService` stores.
+ *
+ * PRESENT-ONLY and null-dropping, reproducing `ApplySharedSettings`/`CopyCategory`:
+ * the tables are a per-category allowlist, so unknown keys and unknown
+ * categories are dropped. The caller deep-merges the result over its baseline
+ * snapshot before writing it back.
+ */
+public func universalSettingsToLinuxSettingsJson(universalJson: String)throws  -> String {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeBackupError.lift) {
+    uniffi_hyperwhisper_core_fn_func_universal_settings_to_linux_settings_json(
+        FfiConverterString.lower(universalJson),$0
+    )
+})
+}
+/**
  * Inverse of [`macos_settings_to_universal_settings_json`]: rebuild the macOS
  * 7-category native settings JSON from a universal `SettingsRecord` JSON.
  */
@@ -12561,6 +12595,27 @@ public func universalSettingsToMacosSettingsJson(recordJson: String)throws  -> S
 })
 }
 /**
+ * Inverse of [`windows_settings_to_universal_settings_json`]: the universal-v2
+ * `settings` block → Windows native settings JSON.
+ *
+ * PRESENT-ONLY, and an explicit JSON `null` counts as absent. The caller must
+ * deep-merge the result over its own baseline snapshot before applying, so that
+ * the day this returns a COMPLETE blob an absent backup key still cannot
+ * clobber a live setting (the obligation `BackupManager.swift`'s
+ * `currentSettingsBaseline()` → `deepMerged(over:)` already carries on macOS).
+ *
+ * No value interpretation happens here: the `SettingsService` setters own the
+ * streaming-provider fallback, the deepgram-model collapse, the shortcut
+ * re-canonicalisation and the clipboard-delay clamp.
+ */
+public func universalSettingsToWindowsSettingsJson(universalJson: String)throws  -> String {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeBackupError.lift) {
+    uniffi_hyperwhisper_core_fn_func_universal_settings_to_windows_settings_json(
+        FfiConverterString.lower(universalJson),$0
+    )
+})
+}
+/**
  * Validate a backup JSON document against the embedded universal-v2 schema's
  * structural invariants. Returns every error found (empty = valid).
  */
@@ -12568,6 +12623,27 @@ public func validateBackupJson(json: String) -> [HwValidationError] {
     return try!  FfiConverterSequenceTypeHwValidationError.lift(try! rustCall() {
     uniffi_hyperwhisper_core_fn_func_validate_backup_json(
         FfiConverterString.lower(json),$0
+    )
+})
+}
+/**
+ * Map WINDOWS native settings JSON (flat, PascalCase — `settings.json`'s own
+ * casing) into the universal-v2 `settings` block.
+ *
+ * The input is the snapshot `SettingsService.BuildBackupSettingsSnapshot()`
+ * produces: only the keys that are promoted to the universal block, never a
+ * filesystem path or a device name. The output is the five universal categories
+ * and NOTHING else — this function cannot emit a `platformExtensions` slice, so
+ * the curated `platformExtensions.windows.settings` list that
+ * `UniversalBackupMapper.BuildPlatformExtensions` builds natively stays the only
+ * way a Windows-only setting reaches a backup file.
+ *
+ * Present-only: a native key that is absent produces no universal key.
+ */
+public func windowsSettingsToUniversalSettingsJson(windowsJson: String)throws  -> String {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeBackupError.lift) {
+    uniffi_hyperwhisper_core_fn_func_windows_settings_to_universal_settings_json(
+        FfiConverterString.lower(windowsJson),$0
     )
 })
 }
@@ -12938,6 +13014,9 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_license_validation_cache_secs() != 34885) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_hyperwhisper_core_checksum_func_linux_settings_to_universal_settings_json() != 10501) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_hyperwhisper_core_checksum_func_live_classify_error_message() != 33535) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -13157,10 +13236,19 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_strip_wrapper_markers() != 55122) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_hyperwhisper_core_checksum_func_universal_settings_to_linux_settings_json() != 46044) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_hyperwhisper_core_checksum_func_universal_settings_to_macos_settings_json() != 34732) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_hyperwhisper_core_checksum_func_universal_settings_to_windows_settings_json() != 27733) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_hyperwhisper_core_checksum_func_validate_backup_json() != 15252) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_windows_settings_to_universal_settings_json() != 59780) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_method_hwlivesession_connect() != 14844) {

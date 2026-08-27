@@ -118,6 +118,105 @@ pub fn universal_settings_to_macos_settings_json(record_json: String) -> Result<
     })
 }
 
+/// Map WINDOWS native settings JSON (flat, PascalCase — `settings.json`'s own
+/// casing) into the universal-v2 `settings` block.
+///
+/// The input is the snapshot `SettingsService.BuildBackupSettingsSnapshot()`
+/// produces: only the keys that are promoted to the universal block, never a
+/// filesystem path or a device name. The output is the five universal categories
+/// and NOTHING else — this function cannot emit a `platformExtensions` slice, so
+/// the curated `platformExtensions.windows.settings` list that
+/// `UniversalBackupMapper.BuildPlatformExtensions` builds natively stays the only
+/// way a Windows-only setting reaches a backup file.
+///
+/// Present-only: a native key that is absent produces no universal key.
+#[uniffi::export]
+pub fn windows_settings_to_universal_settings_json(
+    windows_json: String,
+) -> Result<String, BackupError> {
+    let windows: hw_backup::WindowsSettings =
+        serde_json::from_str(&windows_json).map_err(|e| BackupError::Parse {
+            message: e.to_string(),
+        })?;
+    let record = hw_backup::windows_settings_to_universal(&windows);
+    serde_json::to_string(&record).map_err(|e| BackupError::Serialize {
+        message: e.to_string(),
+    })
+}
+
+/// Inverse of [`windows_settings_to_universal_settings_json`]: the universal-v2
+/// `settings` block → Windows native settings JSON.
+///
+/// PRESENT-ONLY, and an explicit JSON `null` counts as absent. The caller must
+/// deep-merge the result over its own baseline snapshot before applying, so that
+/// the day this returns a COMPLETE blob an absent backup key still cannot
+/// clobber a live setting (the obligation `BackupManager.swift`'s
+/// `currentSettingsBaseline()` → `deepMerged(over:)` already carries on macOS).
+///
+/// No value interpretation happens here: the `SettingsService` setters own the
+/// streaming-provider fallback, the deepgram-model collapse, the shortcut
+/// re-canonicalisation and the clipboard-delay clamp.
+#[uniffi::export]
+pub fn universal_settings_to_windows_settings_json(
+    universal_json: String,
+) -> Result<String, BackupError> {
+    let record: hw_backup::UniversalSettings =
+        serde_json::from_str(&universal_json).map_err(|e| BackupError::Parse {
+            message: e.to_string(),
+        })?;
+    let windows =
+        hw_backup::universal_to_windows_settings(&record).map_err(|e| BackupError::Parse {
+            message: e.to_string(),
+        })?;
+    serde_json::to_string(&windows).map_err(|e| BackupError::Serialize {
+        message: e.to_string(),
+    })
+}
+
+/// Map LINUX native settings JSON (the flat dotted `PortableSettingsService`
+/// store) into the universal-v2 `settings` block.
+///
+/// The whole store may be passed in: every key without a pairs row is ignored,
+/// so Linux-only and device-local keys cannot reach the export through here.
+/// Always COMPLETE — an absent key is emitted with the backup path's own
+/// default, which is what makes an untouched Linux profile export all 23 shared
+/// keys. `platformExtensions.linux.settings` is built natively and is not
+/// modelled by the core on purpose.
+#[uniffi::export]
+pub fn linux_settings_to_universal_settings_json(
+    linux_json: String,
+) -> Result<String, BackupError> {
+    let native: serde_json::Map<String, serde_json::Value> =
+        serde_json::from_str(&linux_json).map_err(|e| BackupError::Parse {
+            message: e.to_string(),
+        })?;
+    let record = hw_backup::linux_settings_to_universal(&native);
+    serde_json::to_string(&record).map_err(|e| BackupError::Serialize {
+        message: e.to_string(),
+    })
+}
+
+/// Inverse of [`linux_settings_to_universal_settings_json`]: the universal-v2
+/// `settings` block → the flat dotted keys `PortableSettingsService` stores.
+///
+/// PRESENT-ONLY and null-dropping, reproducing `ApplySharedSettings`/`CopyCategory`:
+/// the tables are a per-category allowlist, so unknown keys and unknown
+/// categories are dropped. The caller deep-merges the result over its baseline
+/// snapshot before writing it back.
+#[uniffi::export]
+pub fn universal_settings_to_linux_settings_json(
+    universal_json: String,
+) -> Result<String, BackupError> {
+    let record: hw_backup::UniversalSettings =
+        serde_json::from_str(&universal_json).map_err(|e| BackupError::Parse {
+            message: e.to_string(),
+        })?;
+    let native = hw_backup::universal_to_linux_settings(&record);
+    serde_json::to_string(&native).map_err(|e| BackupError::Serialize {
+        message: e.to_string(),
+    })
+}
+
 /// Canonicalize ONE wire-shaped universal-v2 mode object, returning the same
 /// object with its five cloud-routing fields normalized and every other key
 /// untouched. This is the single entry point both non-macOS mode-import paths

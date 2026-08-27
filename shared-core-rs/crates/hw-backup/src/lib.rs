@@ -29,8 +29,13 @@ pub mod records;
 pub mod validate;
 
 pub use mapping::{
-    from_records, macos_settings_to_universal, migrate_mode_cloud_routing,
-    normalize_universal_mode_value, to_records, universal_to_macos_settings, MacosSettings,
+    from_records, linux_settings_to_universal, macos_settings_to_universal,
+    migrate_mode_cloud_routing, normalize_universal_mode_value, to_records,
+    universal_to_linux_settings, universal_to_macos_settings, universal_to_windows_settings,
+    windows_settings_to_universal, LinuxSettingDefault, MacosSettings, WindowsSettings,
+    LINUX_ADVANCED_PAIRS, LINUX_GENERAL_PAIRS, LINUX_STORAGE_PAIRS, LINUX_STREAMING_PAIRS,
+    LINUX_TEXT_OUTPUT_PAIRS, WINDOWS_ADVANCED_PAIRS, WINDOWS_GENERAL_PAIRS, WINDOWS_STORAGE_PAIRS,
+    WINDOWS_STREAMING_PAIRS, WINDOWS_TEXT_OUTPUT_PAIRS,
 };
 pub use migrate::{
     migrate_cloud_accuracy_tier, migrate_cloud_pp_model, DEFAULT_CLOUD_ACCURACY_TIER,

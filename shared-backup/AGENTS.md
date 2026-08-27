@@ -21,8 +21,10 @@ Both platforms export to the same universal JSON format. On import, each platfor
 
 > **Current cross-platform reality (as of 2026-06).** BOTH platforms now read/write the **full**
 > universal v2 format — settings, modes, and vocabulary. The mapping tables below describe a live
-> code path on each side (macOS routes its 7 native settings categories through the Rust shared
-> core's `hw-backup` adapter; Windows maps its EF Core entities directly). macOS's full universal
+> code path on each side: **all three platforms now build the `settings` block in the Rust shared
+> core's `hw-backup` adapter** (macOS through its 7→5 category map, Windows and Linux through the
+> flat `(native, universal)` pairs tables below). Modes and vocabulary are still mapped natively on
+> each head, apart from the shared cloud-routing normalization. macOS's full universal
 > export/import ships behind the `backup.useUniversalV2Export` flag (default OFF) while it beds in; a
 > **vocabulary-only** `.hwbackup.json` (only the `vocabulary` key present — see
 > `examples/vocab-only.hwbackup.json`) remains the always-on, flag-independent interchange unit, and
@@ -40,24 +42,65 @@ key automatically round-trips into the correct category instead of drifting. See
 `examples/macos-export.hwbackup.json` for the exact shape, and `shared-core-rs/crates/hw-backup`
 (`mapping.rs`: `macos_settings_to_universal` / `universal_to_macos_settings`) for the adapter.
 
-| Universal Key | macOS Source | Windows Source |
+**All three platforms build this block in the shared core** (`hw-backup` `mapping.rs`). macOS uses
+the 7→5 category adapter above. Windows and Linux use flat adapters driven by `(native, universal)`
+PAIRS tables, because their native settings are flat:
+
+| Universal category | Windows table | Linux table |
 |---|---|---|
-| `general.launchMinimized` | `GeneralSettingsManager.launchMinimized` | `SettingsData.LaunchMinimized` |
-| `general.showRecordingWindow` | `GeneralSettingsManager.showRecordingWindow` | `SettingsData.ShowRecordingWindow` |
-| `general.checkForUpdatesAutomatically` | `GeneralSettingsManager.checkForUpdatesAutomatically` | `SettingsData.CheckForUpdatesAutomatically` |
-| `general.enableErrorLogging` | `GeneralSettingsManager.enableErrorLogging` | `SettingsData.EnableErrorLogging` |
-| `general.shareAnonymousSpeedData` | `GeneralSettingsManager.shareAnonymousSpeedData` | `SettingsData.ShareAnonymousSpeedData` |
-| `general.enableSoundEffects` | `AudioSettingsManager.enableSoundEffects` | `SettingsData.EnableSoundEffects` |
-| `textOutput.pasteResultText` | `SettingsManager.pasteResultText` | `SettingsData.AutoPasteEnabled` |
-| `textOutput.removeFillerWords` | `SettingsManager.removeFillerWords` | `SettingsData.RemoveFillerWords` |
-| `textOutput.restoreClipboardAfterPaste` | `SettingsManager.restoreClipboardAfterPaste` | `SettingsData.RestoreClipboardAfterPaste` |
-| `textOutput.hideFromClipboardHistory` | `SettingsManager.hideFromClipboardHistory` | `SettingsData.HideFromClipboardHistory` |
-| `textOutput.clipboardRestoreDelaySeconds` | `SettingsManager.clipboardRestoreDelaySeconds` | `SettingsData.ClipboardRestoreDelaySeconds` |
-| `textOutput.autocapitalizeInsert` | `SettingsManager.autocapitalizeInsert` | `SettingsData.AutocapitalizeInsert` |
-| `textOutput.storeWordTimestamps` | `SettingsManager.storeWordTimestamps` | —; Linux maps `PortableSettingsService` `textOutput.storeWordTimestamps` (local Whisper word/segment timestamps) |
-| `storage.storeAsM4A` | `StorageSettingsManager.storeAsM4A` | `SettingsData.StoreAsM4A` |
-| `advanced.maxRecordingDuration` | `SettingsManager.maxRecordingDurationSeconds` (seconds, 0 = no limit; macOS treats the value `300` — the old never-exposed default — as unset on import) | `SettingsData.MaxRecordingDuration` |
-| `advanced.typingSpeedWPM` | — (HomeStatsBar `@AppStorage("homeStats.typingSpeedWPM")` — macOS keeps this device-local, not exported) | `SettingsData.TypingSpeedWPM` |
+| `general` | `WINDOWS_GENERAL_PAIRS` | `LINUX_GENERAL_PAIRS` |
+| `textOutput` | `WINDOWS_TEXT_OUTPUT_PAIRS` | `LINUX_TEXT_OUTPUT_PAIRS` |
+| `storage` | `WINDOWS_STORAGE_PAIRS` | `LINUX_STORAGE_PAIRS` |
+| `streaming` | `WINDOWS_STREAMING_PAIRS` | `LINUX_STREAMING_PAIRS` |
+| `advanced` | `WINDOWS_ADVANCED_PAIRS` | `LINUX_ADVANCED_PAIRS` |
+
+Windows needs PAIRS rather than macOS's bare key list because its native names diverge
+(`pasteResultText` ← `AutoPasteEnabled`, and all six `Streaming*`) and `settings.json` is
+**PascalCase** — `SettingsService.Save()` uses a plain `JsonSerializerOptions` with no naming policy.
+Windows' native values reach the core through `SettingsService.BuildBackupSettingsSnapshot()`, which
+carries ONLY the promoted keys — never `RecordingsFolder`, `LastSelectedMicrophone` or any other
+device-local value. The Linux tables are a near-identity map (`PortableSettingsService`'s dotted keys
+ARE the universal keys) plus the export DEFAULTS, which is what makes an untouched Linux profile
+export all 23 shared keys. **Adding a universal setting on Windows or Linux means adding a row to the
+matching table**, not editing a native mapper.
+
+| Universal Key | macOS Source | Windows Source (`WINDOWS_*_PAIRS` row → native) |
+|---|---|---|
+| `general.launchMinimized` | `GeneralSettingsManager.launchMinimized` | `WINDOWS_GENERAL_PAIRS` → `SettingsData.LaunchMinimized` |
+| `general.showRecordingWindow` | `GeneralSettingsManager.showRecordingWindow` | `WINDOWS_GENERAL_PAIRS` → `SettingsData.ShowRecordingWindow` |
+| `general.checkForUpdatesAutomatically` | `GeneralSettingsManager.checkForUpdatesAutomatically` | `WINDOWS_GENERAL_PAIRS` → `SettingsData.CheckForUpdatesAutomatically` |
+| `general.enableErrorLogging` | `GeneralSettingsManager.enableErrorLogging` | `WINDOWS_GENERAL_PAIRS` → `SettingsData.EnableErrorLogging` |
+| `general.shareAnonymousSpeedData` | `GeneralSettingsManager.shareAnonymousSpeedData` | `WINDOWS_GENERAL_PAIRS` → `SettingsData.ShareAnonymousSpeedData` |
+| `general.enableSoundEffects` | `AudioSettingsManager.enableSoundEffects` | `WINDOWS_GENERAL_PAIRS` → `SettingsData.EnableSoundEffects` |
+| `textOutput.pasteResultText` | `SettingsManager.pasteResultText` | `WINDOWS_TEXT_OUTPUT_PAIRS` → `SettingsData.AutoPasteEnabled` (the rename) |
+| `textOutput.removeFillerWords` | `SettingsManager.removeFillerWords` | `WINDOWS_TEXT_OUTPUT_PAIRS` → `SettingsData.RemoveFillerWords` |
+| `textOutput.restoreClipboardAfterPaste` | `SettingsManager.restoreClipboardAfterPaste` | `WINDOWS_TEXT_OUTPUT_PAIRS` → `SettingsData.RestoreClipboardAfterPaste` |
+| `textOutput.hideFromClipboardHistory` | `SettingsManager.hideFromClipboardHistory` | `WINDOWS_TEXT_OUTPUT_PAIRS` → `SettingsData.HideFromClipboardHistory` |
+| `textOutput.clipboardRestoreDelaySeconds` | `SettingsManager.clipboardRestoreDelaySeconds` | `WINDOWS_TEXT_OUTPUT_PAIRS` → `SettingsData.ClipboardRestoreDelaySeconds` (setter clamps to 1–60) |
+| `textOutput.autocapitalizeInsert` | `SettingsManager.autocapitalizeInsert` | `WINDOWS_TEXT_OUTPUT_PAIRS` → `SettingsData.AutocapitalizeInsert` |
+| `textOutput.storeWordTimestamps` | `SettingsManager.storeWordTimestamps` | — no pairs row and no native property; Linux maps `PortableSettingsService` `textOutput.storeWordTimestamps` (local Whisper word/segment timestamps) |
+| `storage.storeAsM4A` | `StorageSettingsManager.storeAsM4A` | `WINDOWS_STORAGE_PAIRS` → `SettingsData.StoreAsM4A` |
+| `storage.keepAudioFiles` | `SettingsManager.keepAudioFiles` (macOS `advanced` category) | — no pairs row yet; `WINDOWS_STORAGE_PAIRS` gains one when the native property exists |
+| `advanced.maxRecordingDuration` | `SettingsManager.maxRecordingDurationSeconds` (seconds, 0 = no limit; macOS treats the value `300` — the old never-exposed default — as unset on import) | — no pairs row yet; `WINDOWS_ADVANCED_PAIRS` gains one when the native property exists |
+| `advanced.typingSpeedWPM` | — (HomeStatsBar `@AppStorage("homeStats.typingSpeedWPM")` — macOS keeps this device-local, not exported) | `WINDOWS_ADVANCED_PAIRS` → `SettingsData.TypingSpeedWPM` |
+
+The universal `streaming` block is Windows- and Linux-only today — macOS does not export it. Its six
+Windows native properties are all separately named, which is why `WINDOWS_STREAMING_PAIRS` exists.
+`StreamingShortcut` is a `KeyboardShortcut`, not a scalar: it crosses as its `ToPersistedString()`
+form, and `FromPersistedString` stays native.
+
+| Universal Key | Windows Source (`WINDOWS_STREAMING_PAIRS` row → native) | Linux Source |
+|---|---|---|
+| `streaming.enabled` | `SettingsData.StreamingEnabled` | `streaming.enabled` |
+| `streaming.provider` | `SettingsData.StreamingProvider` (setter falls back to `hyperwhisperCloud` for an unknown value) | `streaming.provider` (stored verbatim) |
+| `streaming.language` | `SettingsData.StreamingLanguage` | `streaming.language` (stored verbatim) |
+| `streaming.deepgramModel` | `SettingsData.StreamingDeepgramModel` (setter collapses anything but `nova-3-medical` to `nova-3-general`) | `streaming.deepgramModel` (stored verbatim) |
+| `streaming.fastFormatting` | `SettingsData.StreamingFastFormatting` | `streaming.fastFormatting` |
+| `streaming.shortcut` | `SettingsData.StreamingShortcut` (persisted string; setter re-canonicalises it) | `streaming.shortcut` (stored verbatim) |
+
+The core renames and regroups; it never interprets a value. Every rewrite in the Windows column above
+happens in a `SettingsService` setter on import, exactly where it did before — which is why the same
+universal blob restores differently on Windows and on Linux.
 
 macOS-only shortcut settings live under `platformExtensions.macos.settings.shortcuts` (the
 category-keyed extension above) and round-trip losslessly through the universal v2 adapter:
@@ -201,7 +244,7 @@ API keys are a flat object with lowercase provider-name keys. Both platforms map
 | macOS | `app/macos/hyperwhisper/Managers/BackupManager.swift` | `app/macos/hyperwhisper/Models/BackupModels.swift` |
 | Windows | `app/windows/HyperWhisper/Services/BackupService.cs` + `Services/UniversalBackupMapper.cs` | `app/windows/HyperWhisper/Models/UniversalBackupModels.cs` |
 | Linux | Shared C# backup service/mapper (during the Linux port) | Shared C# universal backup models |
-| Shared core | `shared-core-rs/crates/hw-backup` — universal⇄records mapping, the macOS 7→5 settings adapter, lossless `extra` passthrough, and structural validation | `crates/hw-backup/src/records.rs` |
+| Shared core | `shared-core-rs/crates/hw-backup` — universal⇄records mapping, all three settings adapters (macOS 7→5 categories; Windows and Linux flat pairs tables), lossless `extra` passthrough, and structural validation | `crates/hw-backup/src/records.rs` |
 
 The shared core is sans-I/O: it parses, maps, and validates in memory; each platform owns reading and writing the `.hwbackup.json` bytes and persisting the resulting records.
 </important>
