@@ -25,6 +25,12 @@ public sealed partial class ApplicationBackupService
             ["mistral"] = "MistralApiKey",
             ["soniox"] = "SonioxApiKey",
             ["gemini"] = "GeminiApiKey",
+            // A SEPARATE key from "gemini", which is the legacy Gemini
+            // post-processing/transcription key: same "AIza" shape, different
+            // API, and a user may hold different keys for the two. Squashed
+            // lowercase to match the Windows `[JsonPropertyName]` and the macOS
+            // member, so a backup round-trips across all three platforms.
+            ["geminitranscribe"] = "GeminiTranscribeApiKey",
             ["grok"] = "GrokApiKey",
         }.ToImmutableDictionary(StringComparer.Ordinal);
 

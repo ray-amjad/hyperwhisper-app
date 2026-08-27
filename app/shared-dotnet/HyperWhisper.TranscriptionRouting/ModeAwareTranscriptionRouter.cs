@@ -141,6 +141,7 @@ public sealed class ModeAwareTranscriptionRouter : IRecordedAudioTranscriber, ID
             "assemblyai" => CloudTranscriptionProvider.AssemblyAi,
             "soniox" => CloudTranscriptionProvider.Soniox,
             "gemini" => CloudTranscriptionProvider.Gemini,
+            "geminitranscribe" or "gemini-transcribe" => CloudTranscriptionProvider.GeminiTranscribe,
             "microsoftazurespeech" or "azure-mai" => CloudTranscriptionProvider.AzureMai,
             "googlespeech" or "google-chirp" => CloudTranscriptionProvider.GoogleChirp,
             "hyperwhisper" => CloudTranscriptionProvider.HyperWhisperCloud,
@@ -148,7 +149,8 @@ public sealed class ModeAwareTranscriptionRouter : IRecordedAudioTranscriber, ID
         };
         return value?.Trim().ToLowerInvariant() is
             "openai" or "groq" or "elevenlabs" or "mistral" or "grok" or "deepgram"
-            or "assemblyai" or "soniox" or "gemini" or "microsoftazurespeech"
+            or "assemblyai" or "soniox" or "gemini" or "geminitranscribe"
+            or "gemini-transcribe" or "microsoftazurespeech"
             or "azure-mai" or "googlespeech" or "google-chirp" or "hyperwhisper";
     }
 

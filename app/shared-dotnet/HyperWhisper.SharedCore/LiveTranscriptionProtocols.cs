@@ -31,6 +31,38 @@ internal interface ILiveTranscriptionProtocol
     IReadOnlyList<LiveProtocolFrame> AudioOpportunityFrames() => [];
     IReadOnlyList<LiveProtocolFrame> StopFrames();
     TimeSpan DrainTimeout { get; }
+
+    /// <summary>
+    /// Whether a <see cref="LiveProtocolEventKind.Complete"/> event ends the
+    /// session even when the client has NOT asked to stop yet.
+    ///
+    /// True for a vendor whose "complete" signal is emitted once, at the end of
+    /// the session: Grok's <c>transcript.done</c> and HyperWhisper Cloud's
+    /// <c>session_complete</c> (the backend only forwards it once the client
+    /// stopped). Deepgram, ElevenLabs and OpenAI map nothing to Complete at all,
+    /// so this flag cannot reach them.
+    ///
+    /// FALSE for a vendor that emits it at every TURN boundary — Gemini's
+    /// <c>generationComplete</c> fires at each pause in speech, and a terminal
+    /// reading silently ends a live dictation at the first one. The backend
+    /// models exactly this rule in
+    /// <c>hyperwhisper-cloud/src/routes/ws-streaming-shared.ts</c>: a 'complete'
+    /// upstream event closes the session only once <c>stopRequested</c>.
+    /// </summary>
+    bool CompleteEndsSessionBeforeStop => true;
+
+    /// <summary>
+    /// How long to wait for <see cref="LiveProtocolEventKind.Started"/> before
+    /// the first audio frame is sent. <see cref="TimeSpan.Zero"/> — the default —
+    /// means the vendor accepts audio from the moment the socket opens, so the
+    /// pump must not wait (Deepgram's <c>Metadata</c> frame, for instance, is not
+    /// a readiness signal).
+    ///
+    /// A positive value means audio sent before the handshake completes is
+    /// DISCARDED by the vendor, which costs the opening words of the dictation.
+    /// </summary>
+    TimeSpan StartTimeout => TimeSpan.Zero;
+
     LiveProtocolEvent Parse(ReadOnlyMemory<byte> message);
 }
 
@@ -566,6 +598,23 @@ internal sealed class GeminiTranscribeLiveProtocol : ILiveTranscriptionProtocol
     /// </remarks>
     public TimeSpan DrainTimeout => TimeSpan.FromSeconds(5);
 
+    /// <summary>
+    /// <c>generationComplete</c> is a TURN boundary, not the end of the session:
+    /// Google emits it at every pause in speech and then keeps transcribing. See
+    /// <see cref="ILiveTranscriptionProtocol.CompleteEndsSessionBeforeStop"/>.
+    /// </summary>
+    public bool CompleteEndsSessionBeforeStop => false;
+
+    /// <summary>
+    /// Audio sent before <c>setupComplete</c> is dropped by Google, so the pump
+    /// waits for it — see <c>hw-net/src/providers/gemini_transcribe.rs</c>
+    /// (<c>SetupComplete</c>: "Audio sent before this arrives must be buffered")
+    /// and <c>readyOnOpen: false</c> on the Cloud route. The handshake is a
+    /// sub-second round trip in practice; this budget only exists so a socket
+    /// that never acknowledges fails instead of hanging.
+    /// </summary>
+    public TimeSpan StartTimeout => TimeSpan.FromSeconds(5);
+
     public LiveProtocolFrame EncodeAudio(ReadOnlySpan<byte> pcm) =>
         LiveTranscriptionProtocolFactory.Text(JsonSerializer.Serialize(new
         {
@@ -682,6 +731,21 @@ internal sealed class HyperWhisperCloudLiveProtocol : ILiveTranscriptionProtocol
     private static bool AllowsVocabularyWithoutLanguage(string provider) =>
         !string.Equals(provider, "deepgram", StringComparison.Ordinal);
 
+    /// <summary>
+    /// Whether the tier's live vendor distinguishes <c>en-GB</c> from <c>en</c>.
+    ///
+    /// Deepgram Nova-3 takes a bare subtag, so the region is flattened for it —
+    /// unchanged, and the reason this route flattened unconditionally before a
+    /// second tier existed. Gemini takes the qualified form and treats it
+    /// differently (verified live), and both Windows
+    /// (<c>HyperWhisperCloudStreamingStrategy</c>) and macOS
+    /// (<c>HyperWhisperCloudStrategy</c>) pass the user's choice straight
+    /// through on this route, so flattening it here is the one place a Linux
+    /// user silently loses a region they deliberately picked.
+    /// </summary>
+    private static bool PreservesLanguageRegion(string provider) =>
+        !string.Equals(provider, "deepgram", StringComparison.Ordinal);
+
     public HyperWhisperCloudLiveProtocol(LiveTranscriptionConfig config)
     {
         var query = new List<string>();
@@ -698,7 +762,9 @@ internal sealed class HyperWhisperCloudLiveProtocol : ILiveTranscriptionProtocol
             throw LiveProtocolException.Unauthorized(config.Provider);
         }
         var provider = RouteProvider(config.CloudTier);
-        var language = LiveTranscriptionProtocolFactory.Language(config.Language);
+        var language = PreservesLanguageRegion(provider)
+            ? LiveTranscriptionProtocolFactory.LanguageCode(config.Language)
+            : LiveTranscriptionProtocolFactory.Language(config.Language);
         if (language is not null)
         {
             query.Add($"language={Uri.EscapeDataString(language)}");

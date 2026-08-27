@@ -35,13 +35,26 @@ return failures == 0 ? 0 : 1;
 static void AllCatalogsLoad()
 {
     Equal(39, PortableLocalizer.SupportedCultures.Count, "translated culture count");
-    // 658 + the four keys the Gemini 3.5 Transcribe BYOK provider added
-    // (mode.editor.provider.geminiTranscribe.tooltip, provider.geminiTranscribe,
-    // settings.api.invalidKey.geminiTranscribe,
-    // settings.api.provider.geminiTranscribe.description). The catalog-v8 tier
-    // rename is key-count neutral: googleChirp3's label/description became
-    // geminiTranscribe's.
-    Equal(662, PortableLocalizer.BaseKeyCount, "base key count");
+    // 658 + the nine keys Gemini 3.5 Transcribe added, in two groups.
+    //
+    // Four for the BYOK pre-recorded provider:
+    //   provider.geminiTranscribe
+    //   mode.editor.provider.geminiTranscribe.tooltip
+    //   settings.api.invalidKey.geminiTranscribe
+    //   settings.api.provider.geminiTranscribe.description
+    //
+    // Five for the live/streaming surface — the BYOK streaming provider row and
+    // its two status strings, plus the HyperWhisper Cloud live tier picker that
+    // the tier now needs a choice in:
+    //   settings.streaming.provider.geminiTranscribe
+    //   settings.streaming.providerStatus.geminiTranscribe.configured
+    //   settings.streaming.providerStatus.geminiTranscribe.missingKey
+    //   settings.streaming.cloudTier.title
+    //   settings.streaming.cloudTier.subtitle
+    //
+    // The catalog-v8 tier rename is key-count neutral: googleChirp3's
+    // label/description became geminiTranscribe's.
+    Equal(667, PortableLocalizer.BaseKeyCount, "base key count");
     var english = new PortableLocalizer(CultureInfo.InvariantCulture);
     var key = english.Key("home.welcome.title");
     NotBlank(english.Get(key), "base value");

@@ -132,6 +132,31 @@ try
         && credentialStore.Text("GroqApiKey") == "groq-before-failure",
         "failed secure-store import did not roll back previously written API keys");
 
+    // The Gemini 3.5 Transcribe key is a SEPARATE credential from the legacy
+    // "gemini" post-processing key: same "AIza" shape, different API. Before
+    // this was wired up, a user who held only the Transcribe key exported a
+    // backup that restored a machine with the provider silently unconfigured —
+    // and the legacy key restoring fine is exactly what masked it. The provider
+    // id is squashed lowercase, matching the Windows [JsonPropertyName] and the
+    // macOS member, so one file round-trips across all three platforms.
+    var geminiStore = new MemoryCredentialStore();
+    geminiStore.Seed("GeminiTranscribeApiKey", "aiza-transcribe-only-secret");
+    var geminiService = new ApplicationBackupService(database, settings, geminiStore);
+    var geminiExport = JsonNode.Parse(await geminiService.ExportAsync(new BackupExportSelection(
+        IncludeSettings: false, IncludeModes: false, IncludeVocabulary: false, IncludeCredentials: true)))!.AsObject();
+    Assert(geminiExport["apiKeys"] is JsonObject geminiKeys
+        && geminiKeys.Count == 1
+        && geminiKeys["geminitranscribe"]!.GetValue<string>() == "aiza-transcribe-only-secret"
+        && !geminiKeys.ContainsKey("gemini"),
+        "the Gemini 3.5 Transcribe key was not exported under its own provider id");
+    var geminiRestore = new MemoryCredentialStore();
+    var geminiImport = await new ApplicationBackupService(database, settings, geminiRestore)
+        .ImportAsync(geminiExport.ToJsonString(), credentialSelection);
+    Assert(geminiImport.IsSuccess && geminiImport.Value!.CredentialsImported == 1
+        && geminiRestore.Text("GeminiTranscribeApiKey") == "aiza-transcribe-only-secret"
+        && !geminiRestore.Contains("GeminiApiKey"),
+        "the Gemini 3.5 Transcribe key did not survive a backup round trip");
+
     var invalidProvider = full.DeepClone().AsObject();
     invalidProvider["apiKeys"] = new JsonObject { [new string('p', 65)] = "value" };
     Assert(service.Inspect(invalidProvider.ToJsonString()).Error?.Code == "backup.invalid_credentials",
@@ -312,7 +337,7 @@ try
     Assert((await modes.ListAsync()).Single(item => item.Id == second.Id).CloudAccuracyTier == "elevenLabsScribeV2",
         "a backup with no cloudAccuracyTier no longer falls back to elevenLabsScribeV2");
 
-    Console.WriteLine("Backup application tests passed (39/39).");
+    Console.WriteLine("Backup application tests passed (41/41).");
 }
 finally
 {

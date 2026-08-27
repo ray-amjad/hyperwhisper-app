@@ -122,6 +122,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("cancellation stops in-flight HTTP and returns structured cancellation", TestCancellationAsync),
     ("live strategies construct and parse all six provider protocols", TestLiveProvidersAsync),
     ("gemini live setup frame pins the input_audio_transcription position", TestGeminiLiveSetupFrameAsync),
+    ("a mid-session provider complete is a turn boundary not the end", TestMidSessionTurnBoundaryAsync),
+    ("the audio pump waits for the provider setup handshake", TestAudioPumpWaitsForStartAsync),
     ("hyperwhisper cloud live route is derived from the selected tier", TestCloudLiveRouteAsync),
     ("live diagnostics redact credentials audio and transcript text", TestLiveDiagnosticsRedactionAsync),
     ("live provider failures and buffer limits are structured", TestLiveFailureAndBoundsAsync),
@@ -557,10 +559,18 @@ static async Task TestLiveProvidersAsync()
 
     foreach (var value in cases)
     {
-        var socket = new FakeStreamingWebSocket(value.Frames);
+        // The provider ANSWERS audio; it does not pre-empt it. Frame 0 of every
+        // case is the session-started frame, so it is released on connect; the
+        // rest wait for the first PCM chunk. That ordering matters now that
+        // Gemini holds its audio back until `setupComplete`
+        // (GeminiTranscribeLiveProtocol.StartTimeout) — a socket that hands over
+        // its whole script the instant the client reads would end the session
+        // before the pump had run, and `AudioChunksSent` below would be 0.
+        var socket = new PacedStreamingWebSocket(
+            value.Frames.Select((frame, index) => new PacedFrame(frame, index > 0 ? 1 : 0)));
         var sink = new LiveSink();
         var service = new LiveCloudTranscriptionService(new FakeWebSocketFactory(socket), sink);
-        var result = await service.TranscribeAsync(value.Config, Audio(value.AudioBytes));
+        var result = await service.TranscribeAsync(value.Config, socket.PacedAudio(1, value.AudioBytes));
         Assert.True(result.IsSuccess);
         Assert.Equal(value.Expected, result.Transcript);
         Assert.Equal(1, result.AudioChunksSent);
@@ -840,6 +850,147 @@ static async Task TestGeminiLiveSetupFrameAsync()
 }
 
 /// <summary>
+/// `generationComplete` is a TURN boundary, not the end of the session: Google
+/// emits one at every pause in speech and then keeps transcribing.
+///
+/// The case above places it AFTER both turns, so it cannot tell a turn boundary
+/// from a session end — which is exactly why treating any Complete as terminal
+/// shipped. Here it lands BETWEEN two utterances, four chunks into a 24-chunk
+/// stream, which is what a speaker pausing mid-dictation actually produces. The
+/// old behaviour returned IsSuccess with only the first utterance, stopped
+/// pumping audio, and never sent `audio_stream_end` — the user kept dictating
+/// into a dead session and was told it worked.
+///
+/// The rule is the backend's (`ws-streaming-shared.ts`: a 'complete' upstream
+/// event closes the session only once `stopRequested`), so this also pins that
+/// the SAME signal after the stop frame IS terminal, and that the vendors whose
+/// complete really does mean end-of-session keep the old behaviour.
+/// </summary>
+static async Task TestMidSessionTurnBoundaryAsync()
+{
+    var config = new LiveTranscriptionConfig(
+        LiveTranscriptionProvider.GeminiTranscribe, ApiKey: "AIza-secret");
+
+    var midSession = new PacedStreamingWebSocket(
+    [
+        new PacedFrame(TextFrame("{\"setupComplete\":{}}")),
+        new PacedFrame(TextFrame("{\"serverContent\":{\"inputTranscription\":{\"text\":\"first utterance.\"}}}"), 2),
+        // The pause. Under the shipped reading the session ends right here.
+        new PacedFrame(TextFrame("{\"serverContent\":{\"generationComplete\":true}}"), 4),
+        new PacedFrame(TextFrame("{\"serverContent\":{\"inputTranscription\":{\"text\":\"second utterance.\"}}}"), 12),
+        // Google's post-stop complete. Released only once `audio_stream_end` has
+        // gone out, so this asserts the terminal reading without racing it.
+        new PacedFrame(TextFrame("{\"serverContent\":{\"generationComplete\":true}}"), AfterStop: true),
+    ]);
+    var result = await new LiveCloudTranscriptionService(new FakeWebSocketFactory(midSession))
+        .TranscribeAsync(config, midSession.PacedAudio(24));
+
+    Assert.True(result.IsSuccess);
+    Assert.Equal("first utterance. second utterance.", result.Transcript);
+    Assert.Equal(24, midSession.AudioFramesSent);
+    Assert.Equal(24, result.AudioChunksSent);
+    Assert.Equal(
+        "{\"realtime_input\":{\"audio_stream_end\":true}}",
+        Encoding.UTF8.GetString(midSession.Sent[^1].Data));
+
+    // Without a post-stop complete Google simply goes quiet (measured 54 s), so
+    // the session must still terminate on the drain budget with everything it
+    // heard, not hang and not lose the second turn.
+    var silentAfterStop = new PacedStreamingWebSocket(
+    [
+        new PacedFrame(TextFrame("{\"setupComplete\":{}}")),
+        new PacedFrame(TextFrame("{\"serverContent\":{\"inputTranscription\":{\"text\":\"first utterance.\"}}}"), 2),
+        new PacedFrame(TextFrame("{\"serverContent\":{\"generationComplete\":true}}"), 4),
+        new PacedFrame(TextFrame("{\"serverContent\":{\"inputTranscription\":{\"text\":\"second utterance.\"}}}"), 12),
+    ]);
+    var clock = System.Diagnostics.Stopwatch.StartNew();
+    var drained = await new LiveCloudTranscriptionService(new FakeWebSocketFactory(silentAfterStop))
+        .TranscribeAsync(config, silentAfterStop.PacedAudio(24));
+    clock.Stop();
+    Assert.True(drained.IsSuccess);
+    Assert.Equal("first utterance. second utterance.", drained.Transcript);
+    Assert.True(clock.Elapsed < TimeSpan.FromSeconds(20));
+
+    // HyperWhisper Cloud is the other vendor whose complete reaches this code.
+    // Its `session_complete` genuinely IS the end of the session — the backend
+    // only forwards one once the upstream closed — so it must stay terminal even
+    // before a stop, and the audio pump must stop with it. Deepgram, ElevenLabs
+    // and OpenAI map nothing to Complete at all and cannot be reached by this.
+    var cloudComplete = new PacedStreamingWebSocket(
+    [
+        new PacedFrame(TextFrame("{\"type\":\"ready\",\"sessionId\":\"s1\"}")),
+        new PacedFrame(TextFrame("{\"type\":\"transcript\",\"text\":\"cloud final\",\"is_final\":true}"), 2),
+        new PacedFrame(TextFrame("{\"type\":\"session_complete\"}"), 4),
+    ], StopMarker: "\"type\":\"stop\"");
+    var cloudResult = await new LiveCloudTranscriptionService(new FakeWebSocketFactory(cloudComplete))
+        .TranscribeAsync(
+            new LiveTranscriptionConfig(LiveTranscriptionProvider.HyperWhisperCloud, LicenseKey: "hw"),
+            cloudComplete.PacedAudio(24));
+    Assert.True(cloudResult.IsSuccess);
+    Assert.Equal("cloud final", cloudResult.Transcript);
+    Assert.True(cloudComplete.AudioFramesSent < 24);
+}
+
+/// <summary>
+/// Gemini discards audio that arrives before `setupComplete`, so pumping the
+/// stream the moment the socket opens loses the opening words — the requirement
+/// is stated in `hw-net/src/providers/gemini_transcribe.rs` ("Audio sent before
+/// this arrives must be buffered") and mirrored on the Cloud route as
+/// `readyOnOpen: false`. Windows and macOS both gate on session-started; this
+/// pins the .NET/Linux path to the same contract.
+///
+/// The gate is per-protocol, NOT global: Deepgram accepts audio from the moment
+/// the socket opens, and its `Metadata` frame is not a readiness signal, so
+/// gating it would stall every Deepgram dictation. That is asserted too.
+/// </summary>
+static async Task TestAudioPumpWaitsForStartAsync()
+{
+    var config = new LiveTranscriptionConfig(
+        LiveTranscriptionProvider.GeminiTranscribe, ApiKey: "AIza-secret");
+
+    // The handshake takes a real, measurable moment. If the pump does not wait,
+    // all 24 chunks are gone before `setupComplete` is even delivered.
+    var gated = new PacedStreamingWebSocket(
+    [
+        new PacedFrame(TextFrame("{\"setupComplete\":{}}"), DelayMilliseconds: 150),
+        new PacedFrame(TextFrame("{\"serverContent\":{\"inputTranscription\":{\"text\":\"opening words.\"}}}"), 2),
+        new PacedFrame(TextFrame("{\"serverContent\":{\"generationComplete\":true}}"), AfterStop: true),
+    ]);
+    var result = await new LiveCloudTranscriptionService(new FakeWebSocketFactory(gated))
+        .TranscribeAsync(config, gated.PacedAudio(24));
+    Assert.True(result.IsSuccess);
+    Assert.Equal("opening words.", result.Transcript);
+    Assert.Equal(0, gated.AudioFramesAtFirstRelease);
+    Assert.Equal(24, gated.AudioFramesSent);
+    // The setup frame still goes out first — the gate is on audio, not on the
+    // handshake itself, or the provider would never have anything to answer.
+    Assert.True(Encoding.UTF8.GetString(gated.Sent[0].Data)
+        .Contains("\"setup\"", StringComparison.Ordinal));
+
+    // A provider that never acknowledges must fail cleanly on a bounded wait,
+    // not hang the dictation, and must not spray audio at a socket that is not
+    // listening.
+    var never = new PacedStreamingWebSocket([]);
+    var clock = System.Diagnostics.Stopwatch.StartNew();
+    var timedOut = await new LiveCloudTranscriptionService(new FakeWebSocketFactory(never))
+        .TranscribeAsync(config, never.PacedAudio(24));
+    clock.Stop();
+    Assert.Equal(LiveTranscriptionFailureCode.Timeout, timedOut.Failure!.Code);
+    Assert.Equal(0, never.AudioFramesSent);
+    Assert.True(clock.Elapsed < TimeSpan.FromSeconds(20));
+
+    // Deepgram: no readiness frame ever arrives, and every chunk must still be
+    // sent. This is the regression guard on scoping the gate per protocol.
+    var deepgram = new PacedStreamingWebSocket([], StopMarker: "CloseStream");
+    var deepgramResult = await new LiveCloudTranscriptionService(new FakeWebSocketFactory(deepgram))
+        .TranscribeAsync(
+            new LiveTranscriptionConfig(LiveTranscriptionProvider.Deepgram, ApiKey: "dg"),
+            deepgram.PacedAudio(24));
+    Assert.Equal(24, deepgram.AudioFramesSent);
+    Assert.Equal(LiveTranscriptionFailureCode.NoSpeech, deepgramResult.Failure!.Code);
+}
+
+/// <summary>
 /// The HyperWhisper Cloud live route is DERIVED from the selected cloud tier
 /// (`/ws/streaming-{sttProvider}`), so a new live vendor is a catalog change.
 /// The two things this guards: `deepgramNova3` and a null/garbage tier must both
@@ -884,6 +1035,20 @@ static async Task TestCloudLiveRouteAsync()
     // With an explicit language both tiers send it.
     Assert.True((await Route("deepgramNova3", "en", ["Kalamazoo"])).Query
         .Contains("vocabulary=Kalamazoo", StringComparison.Ordinal));
+
+    // Region handling is per-vendor on this one route. Deepgram Nova-3 takes a
+    // bare subtag, so `en-GB` is still flattened for it. Gemini distinguishes
+    // `en-GB` from `en`, and Windows and macOS both pass the user's choice
+    // through here — flattening it for the Gemini tier would silently ignore a
+    // region only the Linux client's users had picked.
+    var deepgramRegion = (await Route("deepgramNova3", "en-GB")).Query;
+    Assert.True(deepgramRegion.Contains("language=en", StringComparison.Ordinal));
+    Assert.False(deepgramRegion.Contains("en-GB", StringComparison.Ordinal));
+    Assert.True((await Route("geminiTranscribe", "en-GB")).Query
+        .Contains("language=en-GB", StringComparison.Ordinal));
+    // "auto" still means auto-detect on both, not a literal language.
+    Assert.False((await Route("geminiTranscribe", "auto")).Query
+        .Contains("language=", StringComparison.Ordinal));
 }
 
 static async Task<string> ConnectQuery(LiveTranscriptionConfig config)
@@ -1048,7 +1213,7 @@ sealed class QueueHandler(IEnumerable<HttpResponseMessage> responses) : HttpMess
     }
 }
 
-sealed class FakeWebSocketFactory(FakeStreamingWebSocket socket) : IStreamingWebSocketFactory
+sealed class FakeWebSocketFactory(IStreamingWebSocket socket) : IStreamingWebSocketFactory
 {
     public IStreamingWebSocket Create() => socket;
 }
@@ -1085,6 +1250,160 @@ sealed class FakeStreamingWebSocket(IEnumerable<StreamingWebSocketFrame> frames)
         }
         await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
         throw new InvalidOperationException("Unreachable.");
+    }
+
+    public Task CloseAsync(
+        System.Net.WebSockets.WebSocketCloseStatus status,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return Task.CompletedTask;
+    }
+
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+}
+
+/// <summary>
+/// One scripted inbound frame plus the condition that releases it.
+/// </summary>
+/// <param name="Frame">The frame to deliver.</param>
+/// <param name="AfterAudioFrames">Hold it until <see cref="PacedStreamingWebSocket.PacedAudio"/>
+/// has handed over this many PCM chunks, so "mid-session" is a fact rather than
+/// a race. Counted at the source rather than by sniffing the wire, because the
+/// six protocols encode audio six different ways.</param>
+/// <param name="AfterStop">Hold it until the client's stop frame has gone out.</param>
+/// <param name="DelayMilliseconds">Make the provider take a measurable moment to
+/// answer, so a client that does not wait is caught deterministically.</param>
+sealed record PacedFrame(
+    StreamingWebSocketFrame Frame,
+    int AfterAudioFrames = 0,
+    bool AfterStop = false,
+    int DelayMilliseconds = 0);
+
+/// <summary>
+/// A fake socket that releases each scripted frame only when the client has
+/// reached a given point in the session. <see cref="FakeStreamingWebSocket"/>
+/// hands over everything it holds as fast as the client reads, which is why the
+/// suite could only ever place a frame before or after the whole audio stream.
+/// </summary>
+sealed class PacedStreamingWebSocket(
+    IEnumerable<PacedFrame> script,
+    string StopMarker = "audio_stream_end") : IStreamingWebSocket
+{
+    private readonly Queue<PacedFrame> _script = new(script);
+    private readonly object _gate = new();
+    private int _audioFrames;
+    private int _audioYielded;
+    private int _receiveEntries;
+    private int _dequeued;
+    private volatile bool _stopSent;
+
+    public StreamingWebSocketConnectOptions? Options { get; private set; }
+    public List<(byte[] Data, System.Net.WebSockets.WebSocketMessageType Type)> Sent { get; } = [];
+    public int AudioFramesSent => Volatile.Read(ref _audioFrames);
+
+    /// <summary>
+    /// How many audio frames the client had already sent when the FIRST inbound
+    /// frame was delivered. Zero proves the pump waited for the handshake.
+    /// </summary>
+    public int AudioFramesAtFirstRelease { get; private set; } = -1;
+
+    public Task ConnectAsync(StreamingWebSocketConnectOptions options, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        Options = options;
+        return Task.CompletedTask;
+    }
+
+    public Task SendAsync(
+        ReadOnlyMemory<byte> data,
+        System.Net.WebSockets.WebSocketMessageType messageType,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var bytes = data.ToArray();
+        Sent.Add((bytes, messageType));
+        var text = messageType == System.Net.WebSockets.WebSocketMessageType.Text
+            ? Encoding.UTF8.GetString(bytes)
+            : null;
+        if (text is not null && text.Contains(StopMarker, StringComparison.Ordinal))
+        {
+            _stopSent = true;
+        }
+        else if (text is null || text.Contains("\"mime_type\"", StringComparison.Ordinal))
+        {
+            Interlocked.Increment(ref _audioFrames);
+        }
+        return Task.CompletedTask;
+    }
+
+    public async Task<StreamingWebSocketFrame> ReceiveAsync(CancellationToken cancellationToken)
+    {
+        Interlocked.Increment(ref _receiveEntries);
+        // Never complete synchronously: the receive loop would otherwise run the
+        // whole script to its end before the audio pump has been scheduled once.
+        await Task.Yield();
+        while (Next() is { } next)
+        {
+            if (Volatile.Read(ref _audioYielded) < next.AfterAudioFrames || (next.AfterStop && !_stopSent))
+            {
+                await Task.Delay(1, cancellationToken);
+                continue;
+            }
+            if (next.DelayMilliseconds > 0)
+            {
+                await Task.Delay(next.DelayMilliseconds, cancellationToken);
+            }
+            if (AudioFramesAtFirstRelease < 0)
+            {
+                AudioFramesAtFirstRelease = AudioFramesSent;
+            }
+            lock (_gate)
+            {
+                _dequeued++;
+                return _script.Dequeue().Frame;
+            }
+        }
+        await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+        throw new InvalidOperationException("Unreachable.");
+    }
+
+    private PacedFrame? Next()
+    {
+        lock (_gate) return _script.Count > 0 ? _script.Peek() : null;
+    }
+
+    /// <summary>
+    /// A PCM stream in lock step with the script: the next chunk is held back
+    /// until every frame due at the chunks already sent has been delivered AND
+    /// the client has come back for more (which means it finished handling it).
+    ///
+    /// Without that the pump — 24 chunks of `await Task.Yield()` — finishes in
+    /// microseconds and sends its stop frame before the receive loop has read the
+    /// second frame, so "the provider said this MID-session" silently becomes
+    /// "after the client stopped" and the test proves nothing.
+    ///
+    /// The wait is bounded: once the receive loop has ended (a terminal frame) it
+    /// never comes back for more, and a test that stops mid-stream would
+    /// otherwise deadlock here rather than fail.
+    /// </summary>
+    public async IAsyncEnumerable<ReadOnlyMemory<byte>> PacedAudio(int count, int chunkBytes = 320)
+    {
+        for (var index = 0; index < count; index++)
+        {
+            var deadline = Environment.TickCount64 + 2000;
+            while (Environment.TickCount64 < deadline)
+            {
+                var next = Next();
+                var pendingDue = next is { AfterStop: false }
+                    && next.AfterAudioFrames <= Volatile.Read(ref _audioYielded);
+                var handled = Volatile.Read(ref _receiveEntries) > Volatile.Read(ref _dequeued);
+                if (!pendingDue && handled) break;
+                await Task.Delay(1);
+            }
+            Interlocked.Increment(ref _audioYielded);
+            yield return new byte[chunkBytes];
+        }
     }
 
     public Task CloseAsync(

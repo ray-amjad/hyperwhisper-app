@@ -180,7 +180,10 @@ public sealed class ModesViewModel : ViewModelBase
     public string CustomEndpointApiKey { get => _customEndpointApiKey; set => Set(ref _customEndpointApiKey, value ?? string.Empty); }
     public IReadOnlyList<string> PostProcessingModes { get; } = ["off", "cloud", "local"];
     public IReadOnlyList<string> PostProcessingProviders { get; } = ["hyperwhispercloud", "openai", "anthropic", "groq", "grok", "gemini", "cerebras", "mistral", "custom"];
-    public IReadOnlyList<string> CloudProviders { get; } = ["openai", "groq", "elevenlabs", "mistral", "grok", "deepgram", "assemblyai", "soniox", "gemini", "microsoftazurespeech", "googlespeech", "hyperwhisper"];
+    // Lowercase ids, matched ordinally on save. `geminitranscribe` is the BYOK
+    // Gemini 3.5 Transcribe provider, distinct from `gemini` (the multimodal
+    // model) and from the `geminiTranscribe` HyperWhisper Cloud accuracy TIER.
+    public IReadOnlyList<string> CloudProviders { get; } = ["openai", "groq", "elevenlabs", "mistral", "grok", "deepgram", "assemblyai", "soniox", "gemini", "geminitranscribe", "microsoftazurespeech", "googlespeech", "hyperwhisper"];
     public IReadOnlyList<string> CloudAccuracyTiers { get; } = ["groqWhisper", "deepgramNova3", "grokStt", "azureMaiTranscribe", "geminiTranscribe", "elevenLabsScribeV2", "openaiWhisper", "gemini", "mistralVoxtral", "assemblyAI", "soniox"];
     public IReadOnlyList<string> CloudDomains { get; } = ["", "medical"];
     public UiStatus Status { get; } = new();

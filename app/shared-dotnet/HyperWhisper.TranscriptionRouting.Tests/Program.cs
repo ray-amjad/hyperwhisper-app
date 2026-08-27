@@ -97,7 +97,8 @@ static async Task TestRouterAsync(string root)
     foreach (var providerId in new[]
     {
         "openai", "groq", "elevenlabs", "mistral", "grok", "deepgram",
-        "assemblyai", "soniox", "gemini", "microsoftAzureSpeech",
+        "assemblyai", "soniox", "gemini", "geminiTranscribe", "geminitranscribe",
+        "gemini-transcribe", "microsoftAzureSpeech",
         "googleSpeech", "hyperwhisper",
     })
     {
@@ -130,6 +131,14 @@ static async Task TestRouterAsync(string root)
             && mapped.Vocabulary!.SequenceEqual(["Global", "Ray", "Codex", "Rustscript", "multi word"]),
             $"{providerId} language/vocabulary mapping changed");
         if (providerId == "gemini") Assert(mapped.Prompt == "verbatim prompt", "Gemini prompt was dropped");
+        // BYOK Gemini 3.5 Transcribe. Every persisted spelling — Windows writes
+        // camelCase, macOS lowercase, the catalog uses the hyphenated form — has
+        // to land on its OWN provider. Failing the map is not a fallback: the
+        // router returns InvalidRequest and the dictation never reaches a
+        // provider at all, which is what shipped.
+        if (providerId.Contains("ranscribe", StringComparison.Ordinal))
+            Assert(mapped.Provider == CloudTranscriptionProvider.GeminiTranscribe,
+                $"cloud provider id '{providerId}' mapped to {mapped.Provider}, not GeminiTranscribe");
         if (providerId == "hyperwhisper")
             Assert(mapped.RoutedProvider == "gemini-transcribe"
                 && mapped.RoutedModel == "gemini-3.5-transcribe"

@@ -78,6 +78,17 @@ public sealed class LiveCloudTranscriptionService
             }
 
             var receiveTask = ReceiveLoopAsync(socket, protocol, state, sessionCancellation.Token);
+
+            // Some vendors discard audio that arrives before their setup
+            // handshake completes, which costs the opening words of the
+            // dictation. Hold the pump until the provider says it is ready — the
+            // capture side buffers meanwhile — bounded so a socket that never
+            // acknowledges fails cleanly instead of hanging.
+            if (protocol.StartTimeout > TimeSpan.Zero)
+            {
+                await WaitForStartAsync(state, receiveTask, protocol.StartTimeout, cancellationToken).ConfigureAwait(false);
+            }
+
             await foreach (var chunk in audio.WithCancellation(cancellationToken).ConfigureAwait(false))
             {
                 if (state.Failure is not null || state.Completed.Task.IsCompleted)
@@ -115,6 +126,9 @@ public sealed class LiveCloudTranscriptionService
 
             if (state.Failure is null && !state.Completed.Task.IsCompleted)
             {
+                // Publish the stop BEFORE the frames go out, so the receive loop
+                // reads a provider "complete" that answers this stop as terminal.
+                state.StopRequested = true;
                 foreach (var frame in protocol.StopFrames())
                 {
                     await socket.SendAsync(frame.Data, frame.Type, cancellationToken).ConfigureAwait(false);
@@ -230,10 +244,25 @@ public sealed class LiveCloudTranscriptionService
                 state.MessagesReceived++;
                 var providerEvent = protocol.Parse(frame.Data);
                 HandleEvent(providerEvent, state);
-                if (state.Failure is not null || providerEvent.Kind == LiveProtocolEventKind.Complete)
+                if (state.Failure is not null)
                 {
                     state.Completed.TrySetResult();
                     return;
+                }
+                if (providerEvent.Kind == LiveProtocolEventKind.Complete)
+                {
+                    // A provider "complete" is only terminal once the client has
+                    // asked to stop. Before that it is a TURN boundary for the
+                    // vendors that emit one there (Gemini's `generationComplete`
+                    // fires at every pause): the turn's text is already committed
+                    // by HandleEvent, so keep the session alive rather than
+                    // reporting success on a half-finished dictation.
+                    if (protocol.CompleteEndsSessionBeforeStop || state.StopRequested)
+                    {
+                        state.Completed.TrySetResult();
+                        return;
+                    }
+                    Observe(state, "turn_complete");
                 }
             }
         }
@@ -267,6 +296,40 @@ public sealed class LiveCloudTranscriptionService
         }
     }
 
+    /// <summary>
+    /// Waits for the provider's session-started acknowledgement, or for the
+    /// session to end first. A provider that never acknowledges leaves a
+    /// <see cref="LiveTranscriptionFailureCode.Timeout"/> failure on the state,
+    /// which the caller's audio loop reads on its first iteration.
+    /// </summary>
+    private async Task WaitForStartAsync(
+        SessionState state,
+        Task receiveTask,
+        TimeSpan timeout,
+        CancellationToken cancellationToken)
+    {
+        if (state.Started.Task.IsCompleted)
+        {
+            return;
+        }
+        Observe(state, "awaiting_start");
+        using var startCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var expiry = Task.Delay(timeout, startCancellation.Token);
+        await Task.WhenAny(state.Started.Task, state.Completed.Task, receiveTask, expiry).ConfigureAwait(false);
+        startCancellation.Cancel();
+        if (state.Started.Task.IsCompleted
+            || state.Failure is not null
+            || state.Completed.Task.IsCompleted
+            || cancellationToken.IsCancellationRequested)
+        {
+            return;
+        }
+        state.Failure = new LiveTranscriptionFailure(
+            LiveTranscriptionFailureCode.Timeout,
+            "The streaming provider did not acknowledge the session.",
+            state.Provider);
+    }
+
     private void HandleEvent(LiveProtocolEvent value, SessionState state)
     {
         switch (value.Kind)
@@ -287,6 +350,7 @@ public sealed class LiveCloudTranscriptionService
                     state.Provider);
                 break;
             case LiveProtocolEventKind.Started:
+                state.Started.TrySetResult();
                 Observe(state, "started");
                 break;
             case LiveProtocolEventKind.Ignore:
@@ -361,8 +425,15 @@ public sealed class LiveCloudTranscriptionService
 
     private sealed class SessionState(LiveTranscriptionProvider provider)
     {
+        /// <summary>
+        /// Written by the audio pump, read by the receive loop on another
+        /// thread, so it is volatile rather than an auto-property.
+        /// </summary>
+        public volatile bool StopRequested;
+
         public LiveTranscriptionProvider Provider { get; } = provider;
         public StringBuilder Transcript { get; } = new();
+        public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource Completed { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public LiveTranscriptionFailure? Failure { get; set; }
         public int AudioChunksSent { get; set; }
