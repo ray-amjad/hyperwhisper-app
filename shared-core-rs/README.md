@@ -21,6 +21,7 @@ shared-core-rs/
     hw-license/           license validate + trial limits + 24h cache / 7-day grace (KeyValueStore)
     hw-backup/            backup validate + universal-v2 bidirectional settings/mode mapping
     hw-catalog/           models + cloud-stt + cloud-pp + app-type catalog lookups
+    hw-input/             push-to-talk state machine as a pure step function (ptt_step)
   bindings/               generated Swift / C# / Kotlin (committed)
   tests/fixtures/         golden input -> output fixtures captured from current impls
 ```

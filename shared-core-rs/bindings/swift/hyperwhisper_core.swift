@@ -2529,6 +2529,553 @@ public func FfiConverterTypeHwProviderHealth_lower(_ value: HwProviderHealth) ->
 
 
 /**
+ * The timing constants and the double-tap-lock toggle. Mirrors
+ * `ptt::PttConfig`.
+ *
+ * Build one with [`ptt_config`] rather than by hand: it fills in the two
+ * constants that already agreed across the heads (250 ms activation delay,
+ * 1500 ms double-press window) so they cannot drift again. The other two did
+ * not agree and each head keeps what it ships — macOS 1000 ms minimum lock and
+ * no key-up debounce; Windows and Linux 2000 ms and 100 ms.
+ */
+public struct HwPttConfig {
+    public var activationDelayMs: UInt64
+    public var doublePressWindowMs: UInt64
+    public var minimumLockMs: UInt64
+    /**
+     * `0` commits a release immediately, which is what macOS does.
+     */
+    public var keyUpDebounceMs: UInt64
+    public var doublePressLock: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(activationDelayMs: UInt64, doublePressWindowMs: UInt64, minimumLockMs: UInt64, 
+        /**
+         * `0` commits a release immediately, which is what macOS does.
+         */keyUpDebounceMs: UInt64, doublePressLock: Bool) {
+        self.activationDelayMs = activationDelayMs
+        self.doublePressWindowMs = doublePressWindowMs
+        self.minimumLockMs = minimumLockMs
+        self.keyUpDebounceMs = keyUpDebounceMs
+        self.doublePressLock = doublePressLock
+    }
+}
+
+
+
+extension HwPttConfig: Equatable, Hashable {
+    public static func ==(lhs: HwPttConfig, rhs: HwPttConfig) -> Bool {
+        if lhs.activationDelayMs != rhs.activationDelayMs {
+            return false
+        }
+        if lhs.doublePressWindowMs != rhs.doublePressWindowMs {
+            return false
+        }
+        if lhs.minimumLockMs != rhs.minimumLockMs {
+            return false
+        }
+        if lhs.keyUpDebounceMs != rhs.keyUpDebounceMs {
+            return false
+        }
+        if lhs.doublePressLock != rhs.doublePressLock {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(activationDelayMs)
+        hasher.combine(doublePressWindowMs)
+        hasher.combine(minimumLockMs)
+        hasher.combine(keyUpDebounceMs)
+        hasher.combine(doublePressLock)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwPttConfig: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwPttConfig {
+        return
+            try HwPttConfig(
+                activationDelayMs: FfiConverterUInt64.read(from: &buf), 
+                doublePressWindowMs: FfiConverterUInt64.read(from: &buf), 
+                minimumLockMs: FfiConverterUInt64.read(from: &buf), 
+                keyUpDebounceMs: FfiConverterUInt64.read(from: &buf), 
+                doublePressLock: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwPttConfig, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.activationDelayMs, into: &buf)
+        FfiConverterUInt64.write(value.doublePressWindowMs, into: &buf)
+        FfiConverterUInt64.write(value.minimumLockMs, into: &buf)
+        FfiConverterUInt64.write(value.keyUpDebounceMs, into: &buf)
+        FfiConverterBool.write(value.doublePressLock, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwPttConfig_lift(_ buf: RustBuffer) throws -> HwPttConfig {
+    return try FfiConverterTypeHwPttConfig.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwPttConfig_lower(_ value: HwPttConfig) -> RustBuffer {
+    return FfiConverterTypeHwPttConfig.lower(value)
+}
+
+
+/**
+ * Everything the machine remembers between events. The head owns one of these
+ * and hands it back on the next call. Mirrors `ptt::PttMachineState`.
+ *
+ * `first_tap_ms` does double duty: in `PttActive` it is when recording started
+ * (the lock window is measured from it), and in `UnlatchPending` it is when the
+ * first unlock tap was released, with `null` as the "not yet tapped" sentinel.
+ */
+public struct HwPttMachineState {
+    public var state: HwPttState
+    /**
+     * Whether the configured shortcut is currently satisfied, as last reported
+     * by the head.
+     */
+    public var keyDown: Bool
+    /**
+     * `true` when `PttActive` was entered by holding past the activation delay.
+     * A hold always stops on release; a quick tap can latch.
+     */
+    public var enteredViaHold: Bool
+    public var firstTapMs: UInt64?
+    /**
+     * When `LatchActive` was entered. Bounce protection measures
+     * `minimum_lock_ms` from here.
+     */
+    public var lastLockMs: UInt64?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(state: HwPttState, 
+        /**
+         * Whether the configured shortcut is currently satisfied, as last reported
+         * by the head.
+         */keyDown: Bool, 
+        /**
+         * `true` when `PttActive` was entered by holding past the activation delay.
+         * A hold always stops on release; a quick tap can latch.
+         */enteredViaHold: Bool, firstTapMs: UInt64?, 
+        /**
+         * When `LatchActive` was entered. Bounce protection measures
+         * `minimum_lock_ms` from here.
+         */lastLockMs: UInt64?) {
+        self.state = state
+        self.keyDown = keyDown
+        self.enteredViaHold = enteredViaHold
+        self.firstTapMs = firstTapMs
+        self.lastLockMs = lastLockMs
+    }
+}
+
+
+
+extension HwPttMachineState: Equatable, Hashable {
+    public static func ==(lhs: HwPttMachineState, rhs: HwPttMachineState) -> Bool {
+        if lhs.state != rhs.state {
+            return false
+        }
+        if lhs.keyDown != rhs.keyDown {
+            return false
+        }
+        if lhs.enteredViaHold != rhs.enteredViaHold {
+            return false
+        }
+        if lhs.firstTapMs != rhs.firstTapMs {
+            return false
+        }
+        if lhs.lastLockMs != rhs.lastLockMs {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(state)
+        hasher.combine(keyDown)
+        hasher.combine(enteredViaHold)
+        hasher.combine(firstTapMs)
+        hasher.combine(lastLockMs)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwPttMachineState: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwPttMachineState {
+        return
+            try HwPttMachineState(
+                state: FfiConverterTypeHwPttState.read(from: &buf), 
+                keyDown: FfiConverterBool.read(from: &buf), 
+                enteredViaHold: FfiConverterBool.read(from: &buf), 
+                firstTapMs: FfiConverterOptionUInt64.read(from: &buf), 
+                lastLockMs: FfiConverterOptionUInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwPttMachineState, into buf: inout [UInt8]) {
+        FfiConverterTypeHwPttState.write(value.state, into: &buf)
+        FfiConverterBool.write(value.keyDown, into: &buf)
+        FfiConverterBool.write(value.enteredViaHold, into: &buf)
+        FfiConverterOptionUInt64.write(value.firstTapMs, into: &buf)
+        FfiConverterOptionUInt64.write(value.lastLockMs, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwPttMachineState_lift(_ buf: RustBuffer) throws -> HwPttMachineState {
+    return try FfiConverterTypeHwPttMachineState.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwPttMachineState_lower(_ value: HwPttMachineState) -> RustBuffer {
+    return FfiConverterTypeHwPttMachineState.lower(value)
+}
+
+
+/**
+ * The next state and everything the head must do about it. Mirrors
+ * `ptt::PttStepResult`.
+ *
+ * At most one signal per step — no transition both starts and stops a
+ * recording.
+ */
+public struct HwPttStepResult {
+    /**
+     * Store this and pass it back in on the next event.
+     */
+    public var state: HwPttMachineState
+    public var signal: HwPttSignal?
+    /**
+     * Apply in order. Starting a running timer replaces it.
+     */
+    public var timers: [HwPttTimerCommand]
+    /**
+     * `true` to start watching for interfering key presses, `false` to stop,
+     * `null` to leave the head's current arming alone.
+     *
+     * Linux performed this inside its own reducer at nearly every transition.
+     * Reporting it here is what keeps the Linux wrapper from re-deriving the
+     * transition table. macOS and Windows watch unconditionally and ignore it.
+     */
+    public var armInterference: Bool?
+    /**
+     * Clear any keyboard state the head holds on the machine's behalf — Linux's
+     * `IGlobalShortcutService.ResetKeyboardState()`. The other two heads have no
+     * equivalent and ignore it.
+     */
+    public var resetKeyboardState: Bool
+    public var transition: HwPttTransition
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Store this and pass it back in on the next event.
+         */state: HwPttMachineState, signal: HwPttSignal?, 
+        /**
+         * Apply in order. Starting a running timer replaces it.
+         */timers: [HwPttTimerCommand], 
+        /**
+         * `true` to start watching for interfering key presses, `false` to stop,
+         * `null` to leave the head's current arming alone.
+         *
+         * Linux performed this inside its own reducer at nearly every transition.
+         * Reporting it here is what keeps the Linux wrapper from re-deriving the
+         * transition table. macOS and Windows watch unconditionally and ignore it.
+         */armInterference: Bool?, 
+        /**
+         * Clear any keyboard state the head holds on the machine's behalf — Linux's
+         * `IGlobalShortcutService.ResetKeyboardState()`. The other two heads have no
+         * equivalent and ignore it.
+         */resetKeyboardState: Bool, transition: HwPttTransition) {
+        self.state = state
+        self.signal = signal
+        self.timers = timers
+        self.armInterference = armInterference
+        self.resetKeyboardState = resetKeyboardState
+        self.transition = transition
+    }
+}
+
+
+
+extension HwPttStepResult: Equatable, Hashable {
+    public static func ==(lhs: HwPttStepResult, rhs: HwPttStepResult) -> Bool {
+        if lhs.state != rhs.state {
+            return false
+        }
+        if lhs.signal != rhs.signal {
+            return false
+        }
+        if lhs.timers != rhs.timers {
+            return false
+        }
+        if lhs.armInterference != rhs.armInterference {
+            return false
+        }
+        if lhs.resetKeyboardState != rhs.resetKeyboardState {
+            return false
+        }
+        if lhs.transition != rhs.transition {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(state)
+        hasher.combine(signal)
+        hasher.combine(timers)
+        hasher.combine(armInterference)
+        hasher.combine(resetKeyboardState)
+        hasher.combine(transition)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwPttStepResult: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwPttStepResult {
+        return
+            try HwPttStepResult(
+                state: FfiConverterTypeHwPttMachineState.read(from: &buf), 
+                signal: FfiConverterOptionTypeHwPttSignal.read(from: &buf), 
+                timers: FfiConverterSequenceTypeHwPttTimerCommand.read(from: &buf), 
+                armInterference: FfiConverterOptionBool.read(from: &buf), 
+                resetKeyboardState: FfiConverterBool.read(from: &buf), 
+                transition: FfiConverterTypeHwPttTransition.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwPttStepResult, into buf: inout [UInt8]) {
+        FfiConverterTypeHwPttMachineState.write(value.state, into: &buf)
+        FfiConverterOptionTypeHwPttSignal.write(value.signal, into: &buf)
+        FfiConverterSequenceTypeHwPttTimerCommand.write(value.timers, into: &buf)
+        FfiConverterOptionBool.write(value.armInterference, into: &buf)
+        FfiConverterBool.write(value.resetKeyboardState, into: &buf)
+        FfiConverterTypeHwPttTransition.write(value.transition, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwPttStepResult_lift(_ buf: RustBuffer) throws -> HwPttStepResult {
+    return try FfiConverterTypeHwPttStepResult.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwPttStepResult_lower(_ value: HwPttStepResult) -> RustBuffer {
+    return FfiConverterTypeHwPttStepResult.lower(value)
+}
+
+
+/**
+ * One timer instruction. Mirrors `ptt::PttTimerCommand`.
+ *
+ * `delay_ms` is meaningless for `Cancel` and is reported as `0`. Starting a
+ * timer that is already running replaces it; cancelling one that is not running
+ * is a no-op.
+ */
+public struct HwPttTimerCommand {
+    public var timer: HwPttTimer
+    public var action: HwPttTimerAction
+    public var delayMs: UInt64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(timer: HwPttTimer, action: HwPttTimerAction, delayMs: UInt64) {
+        self.timer = timer
+        self.action = action
+        self.delayMs = delayMs
+    }
+}
+
+
+
+extension HwPttTimerCommand: Equatable, Hashable {
+    public static func ==(lhs: HwPttTimerCommand, rhs: HwPttTimerCommand) -> Bool {
+        if lhs.timer != rhs.timer {
+            return false
+        }
+        if lhs.action != rhs.action {
+            return false
+        }
+        if lhs.delayMs != rhs.delayMs {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(timer)
+        hasher.combine(action)
+        hasher.combine(delayMs)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwPttTimerCommand: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwPttTimerCommand {
+        return
+            try HwPttTimerCommand(
+                timer: FfiConverterTypeHwPttTimer.read(from: &buf), 
+                action: FfiConverterTypeHwPttTimerAction.read(from: &buf), 
+                delayMs: FfiConverterUInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwPttTimerCommand, into buf: inout [UInt8]) {
+        FfiConverterTypeHwPttTimer.write(value.timer, into: &buf)
+        FfiConverterTypeHwPttTimerAction.write(value.action, into: &buf)
+        FfiConverterUInt64.write(value.delayMs, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwPttTimerCommand_lift(_ buf: RustBuffer) throws -> HwPttTimerCommand {
+    return try FfiConverterTypeHwPttTimerCommand.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwPttTimerCommand_lower(_ value: HwPttTimerCommand) -> RustBuffer {
+    return FfiConverterTypeHwPttTimerCommand.lower(value)
+}
+
+
+/**
+ * What changed, for logs and telemetry. Mirrors `ptt::PttTransition`.
+ */
+public struct HwPttTransition {
+    public var from: HwPttState
+    public var to: HwPttState
+    public var reason: HwPttReason
+    /**
+     * The interval the decision turned on, when there was one: time since the
+     * first tap for the tap reasons, time since the lock for `BounceProtected`
+     * and `UnlockArmed`.
+     */
+    public var elapsedMs: UInt64?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(from: HwPttState, to: HwPttState, reason: HwPttReason, 
+        /**
+         * The interval the decision turned on, when there was one: time since the
+         * first tap for the tap reasons, time since the lock for `BounceProtected`
+         * and `UnlockArmed`.
+         */elapsedMs: UInt64?) {
+        self.from = from
+        self.to = to
+        self.reason = reason
+        self.elapsedMs = elapsedMs
+    }
+}
+
+
+
+extension HwPttTransition: Equatable, Hashable {
+    public static func ==(lhs: HwPttTransition, rhs: HwPttTransition) -> Bool {
+        if lhs.from != rhs.from {
+            return false
+        }
+        if lhs.to != rhs.to {
+            return false
+        }
+        if lhs.reason != rhs.reason {
+            return false
+        }
+        if lhs.elapsedMs != rhs.elapsedMs {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(from)
+        hasher.combine(to)
+        hasher.combine(reason)
+        hasher.combine(elapsedMs)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwPttTransition: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwPttTransition {
+        return
+            try HwPttTransition(
+                from: FfiConverterTypeHwPttState.read(from: &buf), 
+                to: FfiConverterTypeHwPttState.read(from: &buf), 
+                reason: FfiConverterTypeHwPttReason.read(from: &buf), 
+                elapsedMs: FfiConverterOptionUInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwPttTransition, into buf: inout [UInt8]) {
+        FfiConverterTypeHwPttState.write(value.from, into: &buf)
+        FfiConverterTypeHwPttState.write(value.to, into: &buf)
+        FfiConverterTypeHwPttReason.write(value.reason, into: &buf)
+        FfiConverterOptionUInt64.write(value.elapsedMs, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwPttTransition_lift(_ buf: RustBuffer) throws -> HwPttTransition {
+    return try FfiConverterTypeHwPttTransition.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwPttTransition_lower(_ value: HwPttTransition) -> RustBuffer {
+    return FfiConverterTypeHwPttTransition.lower(value)
+}
+
+
+/**
  * The parsed result of a successful transcription. Mirrors `hw_net::Transcript`.
  */
 public struct HwTranscript {
@@ -7468,6 +8015,715 @@ extension HwProvider: Equatable, Hashable {}
 
 
 
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * Everything that can drive the machine. Mirrors `ptt::PttEvent`.
+ */
+
+public enum HwPttEvent {
+    
+    /**
+     * The configured shortcut became satisfied.
+     */
+    case keyDown
+    /**
+     * The configured shortcut stopped being satisfied.
+     */
+    case keyUp
+    /**
+     * The activation timer elapsed.
+     */
+    case activationTimeout
+    /**
+     * The latch timer elapsed.
+     */
+    case latchTimeout
+    /**
+     * The key-up debounce timer elapsed.
+     *
+     * `key_physically_held` is the head's hardware cross-check taken after the
+     * key event has been fully delivered — `GetAsyncKeyState` on Windows. A head
+     * with no such probe passes `false`; the machine still consults its own
+     * `key_down`.
+     */
+    case keyUpDebounceTimeout(keyPhysicallyHeld: Bool
+    )
+    /**
+     * Another key was pressed while the shortcut was held, so this was a
+     * keyboard shortcut and not push-to-talk.
+     */
+    case interference
+    /**
+     * Tear the recording down because the head knows the key was released but
+     * never saw the release. macOS raises this after its CGEventTap is
+     * re-enabled.
+     *
+     * Never synthesise a `KeyUp` for this. A synthesised release takes the
+     * quick-tap branch and can latch instead of stopping — the stuck-microphone
+     * bug (#300), spelled out at `BareModifierKeyMonitor.swift:495`.
+     */
+    case forceStop
+    /**
+     * Full reset: configuration changed, or the monitor is starting or
+     * stopping.
+     */
+    case reset
+    /**
+     * Recording was stopped by something other than this machine. Handled
+     * identically to `Reset`, including from `WaitingForActivation`, where
+     * macOS and Windows used to return early and leave the activation timer
+     * armed.
+     */
+    case resetToIdle
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwPttEvent: FfiConverterRustBuffer {
+    typealias SwiftType = HwPttEvent
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwPttEvent {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .keyDown
+        
+        case 2: return .keyUp
+        
+        case 3: return .activationTimeout
+        
+        case 4: return .latchTimeout
+        
+        case 5: return .keyUpDebounceTimeout(keyPhysicallyHeld: try FfiConverterBool.read(from: &buf)
+        )
+        
+        case 6: return .interference
+        
+        case 7: return .forceStop
+        
+        case 8: return .reset
+        
+        case 9: return .resetToIdle
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: HwPttEvent, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .keyDown:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .keyUp:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .activationTimeout:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .latchTimeout:
+            writeInt(&buf, Int32(4))
+        
+        
+        case let .keyUpDebounceTimeout(keyPhysicallyHeld):
+            writeInt(&buf, Int32(5))
+            FfiConverterBool.write(keyPhysicallyHeld, into: &buf)
+            
+        
+        case .interference:
+            writeInt(&buf, Int32(6))
+        
+        
+        case .forceStop:
+            writeInt(&buf, Int32(7))
+        
+        
+        case .reset:
+            writeInt(&buf, Int32(8))
+        
+        
+        case .resetToIdle:
+            writeInt(&buf, Int32(9))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwPttEvent_lift(_ buf: RustBuffer) throws -> HwPttEvent {
+    return try FfiConverterTypeHwPttEvent.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwPttEvent_lower(_ value: HwPttEvent) -> RustBuffer {
+    return FfiConverterTypeHwPttEvent.lower(value)
+}
+
+
+
+extension HwPttEvent: Equatable, Hashable {}
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * Why the machine did what it did. Mirrors `ptt::PttReason`.
+ *
+ * Carried purely for logs and telemetry — macOS keeps its Sentry breadcrumbs
+ * native and reads their payloads off [`HwPttTransition`] rather than
+ * re-deriving the transition table.
+ */
+
+public enum HwPttReason {
+    
+    case ignored
+    case activationArmed
+    case holdActivated
+    case releasePending
+    case spuriousKeyUpIgnored
+    case holdReleaseStopped
+    case quickTapStarted
+    case quickTapDiscarded
+    case reacquired
+    case doubleTapLocked
+    case singleTapStopped
+    case latchTimeoutStopped
+    case bounceProtected
+    case unlockArmed
+    case unlockFirstTap
+    case unlockConfirmed
+    case unlockTooSlow
+    case unlockTimedOut
+    case interferenceCancelled
+    case interferenceStopped
+    case forceStopped
+    case externalReset
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwPttReason: FfiConverterRustBuffer {
+    typealias SwiftType = HwPttReason
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwPttReason {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .ignored
+        
+        case 2: return .activationArmed
+        
+        case 3: return .holdActivated
+        
+        case 4: return .releasePending
+        
+        case 5: return .spuriousKeyUpIgnored
+        
+        case 6: return .holdReleaseStopped
+        
+        case 7: return .quickTapStarted
+        
+        case 8: return .quickTapDiscarded
+        
+        case 9: return .reacquired
+        
+        case 10: return .doubleTapLocked
+        
+        case 11: return .singleTapStopped
+        
+        case 12: return .latchTimeoutStopped
+        
+        case 13: return .bounceProtected
+        
+        case 14: return .unlockArmed
+        
+        case 15: return .unlockFirstTap
+        
+        case 16: return .unlockConfirmed
+        
+        case 17: return .unlockTooSlow
+        
+        case 18: return .unlockTimedOut
+        
+        case 19: return .interferenceCancelled
+        
+        case 20: return .interferenceStopped
+        
+        case 21: return .forceStopped
+        
+        case 22: return .externalReset
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: HwPttReason, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .ignored:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .activationArmed:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .holdActivated:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .releasePending:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .spuriousKeyUpIgnored:
+            writeInt(&buf, Int32(5))
+        
+        
+        case .holdReleaseStopped:
+            writeInt(&buf, Int32(6))
+        
+        
+        case .quickTapStarted:
+            writeInt(&buf, Int32(7))
+        
+        
+        case .quickTapDiscarded:
+            writeInt(&buf, Int32(8))
+        
+        
+        case .reacquired:
+            writeInt(&buf, Int32(9))
+        
+        
+        case .doubleTapLocked:
+            writeInt(&buf, Int32(10))
+        
+        
+        case .singleTapStopped:
+            writeInt(&buf, Int32(11))
+        
+        
+        case .latchTimeoutStopped:
+            writeInt(&buf, Int32(12))
+        
+        
+        case .bounceProtected:
+            writeInt(&buf, Int32(13))
+        
+        
+        case .unlockArmed:
+            writeInt(&buf, Int32(14))
+        
+        
+        case .unlockFirstTap:
+            writeInt(&buf, Int32(15))
+        
+        
+        case .unlockConfirmed:
+            writeInt(&buf, Int32(16))
+        
+        
+        case .unlockTooSlow:
+            writeInt(&buf, Int32(17))
+        
+        
+        case .unlockTimedOut:
+            writeInt(&buf, Int32(18))
+        
+        
+        case .interferenceCancelled:
+            writeInt(&buf, Int32(19))
+        
+        
+        case .interferenceStopped:
+            writeInt(&buf, Int32(20))
+        
+        
+        case .forceStopped:
+            writeInt(&buf, Int32(21))
+        
+        
+        case .externalReset:
+            writeInt(&buf, Int32(22))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwPttReason_lift(_ buf: RustBuffer) throws -> HwPttReason {
+    return try FfiConverterTypeHwPttReason.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwPttReason_lower(_ value: HwPttReason) -> RustBuffer {
+    return FfiConverterTypeHwPttReason.lower(value)
+}
+
+
+
+extension HwPttReason: Equatable, Hashable {}
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * What the head must do to the recording. Mirrors `ptt::PttSignal`.
+ */
+
+public enum HwPttSignal {
+    
+    /**
+     * Start recording (`onModifierDown` / `Pressed`).
+     */
+    case startRecording
+    /**
+     * Stop recording (`onModifierUp` / `Released`).
+     */
+    case stopRecording
+    /**
+     * Cancel and discard: the key was part of a keyboard shortcut.
+     */
+    case interfered
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwPttSignal: FfiConverterRustBuffer {
+    typealias SwiftType = HwPttSignal
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwPttSignal {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .startRecording
+        
+        case 2: return .stopRecording
+        
+        case 3: return .interfered
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: HwPttSignal, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .startRecording:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .stopRecording:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .interfered:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwPttSignal_lift(_ buf: RustBuffer) throws -> HwPttSignal {
+    return try FfiConverterTypeHwPttSignal.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwPttSignal_lower(_ value: HwPttSignal) -> RustBuffer {
+    return FfiConverterTypeHwPttSignal.lower(value)
+}
+
+
+
+extension HwPttSignal: Equatable, Hashable {}
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * The five push-to-talk states. Mirrors `ptt::PttState`.
+ */
+
+public enum HwPttState {
+    
+    /**
+     * Not recording, no key held.
+     */
+    case idle
+    /**
+     * Key is down; waiting out the activation delay to see whether this is a
+     * hold or the leading modifier of a keyboard shortcut.
+     */
+    case waitingForActivation
+    /**
+     * Recording, started either by a hold or by the first tap of a lock
+     * sequence.
+     */
+    case pttActive
+    /**
+     * Recording hands-free after a confirmed double-tap lock.
+     */
+    case latchActive
+    /**
+     * First tap of the unlock sequence seen; still recording.
+     */
+    case unlatchPending
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwPttState: FfiConverterRustBuffer {
+    typealias SwiftType = HwPttState
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwPttState {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .idle
+        
+        case 2: return .waitingForActivation
+        
+        case 3: return .pttActive
+        
+        case 4: return .latchActive
+        
+        case 5: return .unlatchPending
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: HwPttState, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .idle:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .waitingForActivation:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .pttActive:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .latchActive:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .unlatchPending:
+            writeInt(&buf, Int32(5))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwPttState_lift(_ buf: RustBuffer) throws -> HwPttState {
+    return try FfiConverterTypeHwPttState.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwPttState_lower(_ value: HwPttState) -> RustBuffer {
+    return FfiConverterTypeHwPttState.lower(value)
+}
+
+
+
+extension HwPttState: Equatable, Hashable {}
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * The three timers the machine can ask for. Mirrors `ptt::PttTimer`.
+ */
+
+public enum HwPttTimer {
+    
+    /**
+     * Fires `ActivationTimeout` after `activation_delay_ms`.
+     */
+    case activation
+    /**
+     * Fires `LatchTimeout` after `double_press_window_ms`. Does double duty as
+     * the lock timeout and the unlock timeout.
+     */
+    case latch
+    /**
+     * Fires `KeyUpDebounceTimeout` after `key_up_debounce_ms`.
+     */
+    case keyUpDebounce
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwPttTimer: FfiConverterRustBuffer {
+    typealias SwiftType = HwPttTimer
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwPttTimer {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .activation
+        
+        case 2: return .latch
+        
+        case 3: return .keyUpDebounce
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: HwPttTimer, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .activation:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .latch:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .keyUpDebounce:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwPttTimer_lift(_ buf: RustBuffer) throws -> HwPttTimer {
+    return try FfiConverterTypeHwPttTimer.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwPttTimer_lower(_ value: HwPttTimer) -> RustBuffer {
+    return FfiConverterTypeHwPttTimer.lower(value)
+}
+
+
+
+extension HwPttTimer: Equatable, Hashable {}
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+
+public enum HwPttTimerAction {
+    
+    case start
+    case cancel
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwPttTimerAction: FfiConverterRustBuffer {
+    typealias SwiftType = HwPttTimerAction
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwPttTimerAction {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .start
+        
+        case 2: return .cancel
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: HwPttTimerAction, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .start:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .cancel:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwPttTimerAction_lift(_ buf: RustBuffer) throws -> HwPttTimerAction {
+    return try FfiConverterTypeHwPttTimerAction.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwPttTimerAction_lower(_ value: HwPttTimerAction) -> RustBuffer {
+    return FfiConverterTypeHwPttTimerAction.lower(value)
+}
+
+
+
+extension HwPttTimerAction: Equatable, Hashable {}
+
+
+
 
 /**
  * Normalized transcription failures. Mirrors `hw_net::TranscriptionError` as a
@@ -8433,6 +9689,30 @@ fileprivate struct FfiConverterOptionTypeHwLiveUpgradeRefusal: FfiConverterRustB
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeHwPttSignal: FfiConverterRustBuffer {
+    typealias SwiftType = HwPttSignal?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeHwPttSignal.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeHwPttSignal.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionSequenceString: FfiConverterRustBuffer {
     typealias SwiftType = [String]?
 
@@ -8524,6 +9804,31 @@ fileprivate struct FfiConverterSequenceTypeHwLiveFrame: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeHwLiveFrame.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeHwPttTimerCommand: FfiConverterRustBuffer {
+    typealias SwiftType = [HwPttTimerCommand]
+
+    public static func write(_ value: [HwPttTimerCommand], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeHwPttTimerCommand.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [HwPttTimerCommand] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [HwPttTimerCommand]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeHwPttTimerCommand.read(from: &buf))
         }
         return seq
     }
@@ -10286,6 +11591,46 @@ public func processVoiceCommands(text: String) -> String {
 })
 }
 /**
+ * Build a config with the two shared constants already filled in.
+ *
+ * Pass the head's own `minimum_lock_ms` and `key_up_debounce_ms`: macOS 1000
+ * and 0, Windows and Linux 2000 and 100. Those two are deliberately still
+ * per-platform.
+ */
+public func pttConfig(minimumLockMs: UInt64, keyUpDebounceMs: UInt64, doublePressLock: Bool) -> HwPttConfig {
+    return try!  FfiConverterTypeHwPttConfig.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_ptt_config(
+        FfiConverterUInt64.lower(minimumLockMs),
+        FfiConverterUInt64.lower(keyUpDebounceMs),
+        FfiConverterBool.lower(doublePressLock),$0
+    )
+})
+}
+/**
+ * A freshly reset machine: idle, no key held, no timestamps.
+ */
+public func pttInitialState() -> HwPttMachineState {
+    return try!  FfiConverterTypeHwPttMachineState.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_ptt_initial_state($0
+    )
+})
+}
+/**
+ * Advance the push-to-talk machine by one event.
+ *
+ * `now_ms` must be a monotonic reading — see the module note on the clock.
+ */
+public func pttStep(state: HwPttMachineState, event: HwPttEvent, nowMs: UInt64, config: HwPttConfig) -> HwPttStepResult {
+    return try!  FfiConverterTypeHwPttStepResult.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_ptt_step(
+        FfiConverterTypeHwPttMachineState.lower(state),
+        FfiConverterTypeHwPttEvent.lower(event),
+        FfiConverterUInt64.lower(nowMs),
+        FfiConverterTypeHwPttConfig.lower(config),$0
+    )
+})
+}
+/**
  * Remove English filler words ("uh", "um", "er"); other languages untouched.
  */
 public func removeFillerWords(text: String, language: String?) -> String {
@@ -10929,6 +12274,15 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_process_voice_commands() != 18960) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_ptt_config() != 36519) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_ptt_initial_state() != 31529) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_ptt_step() != 64268) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_remove_filler_words() != 28431) {

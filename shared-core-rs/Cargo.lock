@@ -307,6 +307,7 @@ version = "0.1.0"
 dependencies = [
  "hw-backup",
  "hw-catalog",
+ "hw-input",
  "hw-license",
  "hw-net",
  "hw-phonetic",
@@ -315,6 +316,10 @@ dependencies = [
  "serde_json",
  "uniffi",
 ]
+
+[[package]]
+name = "hw-input"
+version = "0.1.0"
 
 [[package]]
 name = "hw-license"

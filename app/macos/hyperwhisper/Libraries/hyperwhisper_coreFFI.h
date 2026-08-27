@@ -1155,6 +1155,22 @@ RustBuffer uniffi_hyperwhisper_core_fn_func_preset_from_raw(RustBuffer raw, Rust
 RustBuffer uniffi_hyperwhisper_core_fn_func_process_voice_commands(RustBuffer text, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_FN_FUNC_PTT_CONFIG
+#define UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_FN_FUNC_PTT_CONFIG
+RustBuffer uniffi_hyperwhisper_core_fn_func_ptt_config(uint64_t minimum_lock_ms, uint64_t key_up_debounce_ms, int8_t double_press_lock, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_FN_FUNC_PTT_INITIAL_STATE
+#define UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_FN_FUNC_PTT_INITIAL_STATE
+RustBuffer uniffi_hyperwhisper_core_fn_func_ptt_initial_state(RustCallStatus *_Nonnull out_status
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_FN_FUNC_PTT_STEP
+#define UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_FN_FUNC_PTT_STEP
+RustBuffer uniffi_hyperwhisper_core_fn_func_ptt_step(RustBuffer state, RustBuffer event, uint64_t now_ms, RustBuffer config, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_FN_FUNC_REMOVE_FILLER_WORDS
 #define UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_FN_FUNC_REMOVE_FILLER_WORDS
 RustBuffer uniffi_hyperwhisper_core_fn_func_remove_filler_words(RustBuffer text, RustBuffer language, RustCallStatus *_Nonnull out_status
@@ -2453,6 +2469,24 @@ uint16_t uniffi_hyperwhisper_core_checksum_func_preset_from_raw(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_CHECKSUM_FUNC_PROCESS_VOICE_COMMANDS
 #define UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_CHECKSUM_FUNC_PROCESS_VOICE_COMMANDS
 uint16_t uniffi_hyperwhisper_core_checksum_func_process_voice_commands(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_CHECKSUM_FUNC_PTT_CONFIG
+#define UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_CHECKSUM_FUNC_PTT_CONFIG
+uint16_t uniffi_hyperwhisper_core_checksum_func_ptt_config(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_CHECKSUM_FUNC_PTT_INITIAL_STATE
+#define UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_CHECKSUM_FUNC_PTT_INITIAL_STATE
+uint16_t uniffi_hyperwhisper_core_checksum_func_ptt_initial_state(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_CHECKSUM_FUNC_PTT_STEP
+#define UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_CHECKSUM_FUNC_PTT_STEP
+uint16_t uniffi_hyperwhisper_core_checksum_func_ptt_step(void
     
 );
 #endif

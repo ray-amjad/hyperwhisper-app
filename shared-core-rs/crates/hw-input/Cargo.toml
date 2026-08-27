@@ -1,0 +1,11 @@
+[package]
+name = "hw-input"
+version = "0.1.0"
+edition = "2021"
+description = "Cross-platform input core: the push-to-talk state machine as a pure step function. Plain Rust; hw-core mirrors its types for UniFFI."
+publish = false
+
+[lib]
+crate-type = ["lib"]
+
+[dependencies]

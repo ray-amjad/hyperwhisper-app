@@ -26,6 +26,7 @@ uniffi = { workspace = true }
 hw-phonetic = { path = "../hw-phonetic" }
 hw-text = { path = "../hw-text" }
 hw-net = { path = "../hw-net" }
+hw-input = { path = "../hw-input" }
 hw-license = { path = "../hw-license" }
 hw-backup = { path = "../hw-backup" }
 hw-catalog = { path = "../hw-catalog" }

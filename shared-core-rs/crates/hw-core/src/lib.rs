@@ -22,6 +22,8 @@ mod ffi_backup;
 // way (UniFFI requires it); this only makes the module path reachable in-crate.
 pub mod ffi_catalog;
 mod ffi_completion;
+// The push-to-talk state machine, shared by all three heads (#287).
+mod ffi_input;
 mod ffi_license;
 // LLM post-processing request building (#282). Reuses `ffi_net`'s HTTP contract
 // records rather than declaring its own, so a post-processing request rides the
