@@ -76,6 +76,18 @@ public class LocalLlmModelInfo
             isRecommended: false),
 
         new(
+            id: "gemma-4-12b-it-Q4_K_M.gguf",
+            displayName: "Gemma 4 12B",
+            fileName: "gemma-4-12b-it-Q4_K_M.gguf",
+            huggingFaceRepo: "unsloth/gemma-4-12b-it-GGUF",
+            huggingFaceFile: "gemma-4-12b-it-Q4_K_M.gguf",
+            size: "7.1 GB",
+            sizeInBytes: 7_120_000_000,
+            recommendedVramBytes: 10L * 1024 * 1024 * 1024,
+            description: "Mid-size dense model that balances quality and speed.",
+            isRecommended: false),
+
+        new(
             id: "gemma-4-26B-A4B-it-UD-Q4_K_M.gguf",
             displayName: "Gemma 4 26B MoE",
             fileName: "gemma-4-26B-A4B-it-UD-Q4_K_M.gguf",

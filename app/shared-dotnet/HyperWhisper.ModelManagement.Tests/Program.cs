@@ -9,8 +9,8 @@ await CheckAsync("catalog matches authoritative Windows registries", () =>
 {
     Assert(PortableModelCatalog.Whisper.Count == 11, "Whisper catalog count changed");
     Assert(PortableModelCatalog.Parakeet.Count == 4, "Parakeet catalog count changed");
-    Assert(PortableModelCatalog.LocalLlm.Count == 4, "local LLM catalog count changed");
-    Assert(PortableModelCatalog.All.Count == 19, "combined catalog count changed");
+    Assert(PortableModelCatalog.LocalLlm.Count == 5, "local LLM catalog count changed");
+    Assert(PortableModelCatalog.All.Count == 20, "combined catalog count changed");
     Assert(PortableModelCatalog.Whisper.All(m => m.Artifacts.Single().ExactSizeBytes == m.ApproximateSizeBytes),
         "Whisper byte-exact sizes are not enforced");
     Assert(PortableModelCatalog.Parakeet.Single(m => m.Id == "parakeet-v3").SupportedLanguages.Count == 26,
