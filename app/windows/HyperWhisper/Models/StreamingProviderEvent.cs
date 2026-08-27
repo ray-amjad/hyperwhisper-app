@@ -14,6 +14,11 @@ public abstract record StreamingProviderEvent
         double DurationSeconds,
         double CreditsUsed
     ) : StreamingProviderEvent;
+    /// <summary>
+    /// The provider's completion signal. Whether it ends the SESSION or is only a
+    /// TURN boundary is a per-vendor fact the strategy declares — see
+    /// <c>IStreamingProviderStrategy.CompleteEndsSessionBeforeStop</c>.
+    /// </summary>
     public sealed record SessionComplete(double DurationSeconds, double CreditsUsed) : StreamingProviderEvent;
     public sealed record Error(string Message) : StreamingProviderEvent;
     public sealed record Warning(string Message, double? RemainingSeconds = null) : StreamingProviderEvent;

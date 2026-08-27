@@ -50,6 +50,20 @@ public sealed class GeminiStreamingStrategy : IStreamingProviderStrategy
     public bool SessionStartsOnWebSocketOpen => false;
     public int AudioSampleRate => 16000;
 
+    /// <summary>
+    /// The ONE strategy here that overrides this. <c>generationComplete</c> is a
+    /// TURN boundary: Google emits it every time it finishes generating for an
+    /// utterance, so a two-sentence dictation sees it mid-stream with more audio
+    /// still to come. Read as terminal, it ends the session at the first pause -
+    /// the client stops waiting on <c>_sessionCompletedTcs</c>, the socket closes
+    /// straight after <c>audio_stream_end</c>, and the LAST utterance's final never
+    /// arrives (mid-session it simply truncates the dictation).
+    ///
+    /// Same rule the backend proxy and the shared .NET stack already apply; see the
+    /// interface docs for both references.
+    /// </summary>
+    public bool CompleteEndsSessionBeforeStop => false;
+
     public Uri? BuildWebSocketUri(StreamingSessionConfig config)
     {
         if (string.IsNullOrWhiteSpace(config.ApiKey))
@@ -174,6 +188,10 @@ public sealed class GeminiStreamingStrategy : IStreamingProviderStrategy
             }
             if (content.GenerationComplete == true)
             {
+                // A TURN boundary before the client asks to stop, the end of the
+                // session after it - see CompleteEndsSessionBeforeStop below, which
+                // is what makes StreamingTranscriptionClient read it that way.
+                //
                 // Google reports no duration or credit figures on this route; BYOK
                 // sessions are not metered by HyperWhisper either way.
                 return new StreamingProviderEvent.SessionComplete(0, 0);

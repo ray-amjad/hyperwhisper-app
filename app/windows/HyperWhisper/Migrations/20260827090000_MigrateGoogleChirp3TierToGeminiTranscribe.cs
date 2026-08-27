@@ -40,6 +40,24 @@ public sealed class MigrateGoogleChirp3TierToGeminiTranscribe : Migration
         // The model is remapped in the same statement: `chirp_3` is not a model
         // of the new tier, so leaving it would make the Mode editor fall back to
         // the tier default anyway — writing it makes the stored row honest.
+        //
+        // SCOPING (precedent: 20260508120000_MigrateRemovedDeepgramModels, which
+        // guards on ProviderType AND CloudProvider). CloudAccuracyTier alone is
+        // NOT enough to identify a row this migration owns: the tier is only read
+        // for HyperWhisper Cloud modes, and it is left behind verbatim when a mode
+        // is switched to BYOK. A mode moved from HW-Cloud+Chirp 3 to BYOK Grok
+        // still carries `CloudAccuracyTier = 'googleChirp3'` next to Grok's `''`
+        // sentinel model id — an unscoped statement rewrites that model to
+        // `gemini-3.5-transcribe` and the next dictation posts a Google model to
+        // xAI.
+        //
+        // The two guards are deliberately WIDER than the precedent's plain
+        // equality. `ProviderType` is nullable and rows written by older builds
+        // legitimately carry NULL or '' while still being cloud modes, and
+        // `CloudProvider` is likewise unset on a mode that has never left the
+        // default; requiring `= 'cloud'` / `= 'hyperwhisper'` would silently skip
+        // exactly those users. Only an explicitly LOCAL mode, or one naming a real
+        // BYOK vendor, is excluded — which is the whole set this needs to miss.
         migrationBuilder.Sql(
             """
             UPDATE Modes
@@ -51,7 +69,9 @@ public sealed class MigrateGoogleChirp3TierToGeminiTranscribe : Migration
                 CloudAccuracyTier = 'geminiTranscribe'
             WHERE LOWER(CloudAccuracyTier) IN (
                 'googlechirp3', 'googlechirp', 'google-chirp', 'chirp', 'chirp_3', 'googlespeech'
-            );
+            )
+            AND (CloudProvider IS NULL OR CloudProvider = '' OR LOWER(CloudProvider) = 'hyperwhisper')
+            AND (ProviderType IS NULL OR ProviderType = '' OR LOWER(ProviderType) = 'cloud');
             """
         );
     }

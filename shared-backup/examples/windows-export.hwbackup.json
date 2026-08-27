@@ -184,7 +184,8 @@
   ],
   "apiKeys": {
     "openai": "sk-proj-example789",
-    "groq": "gsk_example012"
+    "groq": "gsk_example012",
+    "geminitranscribe": "AIza-example345"
   },
   "licenseKey": null,
   "platformExtensions": {

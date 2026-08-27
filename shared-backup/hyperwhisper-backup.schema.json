@@ -96,7 +96,7 @@
             "enabled": { "type": "boolean" },
             "provider": {
               "type": ["string", "null"],
-              "description": "Streaming transcription provider, for example 'hyperwhisperCloud', 'deepgram', 'elevenLabs', 'openAI', or 'xai'."
+              "description": "Streaming transcription provider, for example 'hyperwhisperCloud', 'deepgram', 'elevenLabs', 'openAI', 'xai', or 'geminiTranscribe' (Google Gemini 3.5 Transcribe Live, BYOK). Free string, deliberately not an enum: a value a reader does not recognise falls back to 'hyperwhisperCloud' rather than failing the restore, and platforms add BYOK vendors at different times. Some platforms also carry local engines here (macOS: 'parakeetLocal', 'nemotronLocal')."
             },
             "language": {
               "type": ["string", "null"],
@@ -276,7 +276,8 @@
         "elevenlabs": { "type": ["string", "null"] },
         "mistral": { "type": ["string", "null"] },
         "cerebras": { "type": ["string", "null"] },
-        "soniox": { "type": ["string", "null"] }
+        "soniox": { "type": ["string", "null"] },
+        "geminitranscribe": { "type": ["string", "null"], "description": "Google Gemini 3.5 Transcribe (BYOK). A SEPARATE key from 'gemini', which is the legacy Gemini post-processing/transcription key: same 'AIza' shape, different API, and a user may hold different keys for the two, so a backup that omits this one restores a machine that looks configured for Google and has no Gemini 3.5 Transcribe key at all. Squashed lowercase like 'assemblyai' and 'elevenlabs'; the camelCase catalog spelling 'geminiTranscribe' is tolerated on import." }
       },
       "additionalProperties": true
     }

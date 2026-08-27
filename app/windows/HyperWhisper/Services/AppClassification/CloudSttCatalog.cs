@@ -132,9 +132,17 @@ public sealed class CloudSttCatalog
     }
 
     /// <summary>
-    /// Every model offered by a vendor group, each paired with the tier that owns
-    /// it. The owning tier is what becomes the X-STT-Provider header, so a merged
-    /// row (Google) can still route each model correctly.
+    /// Every DICTATION model offered by a vendor group, each paired with the tier
+    /// that owns it. The owning tier is what becomes the X-STT-Provider header, so
+    /// a merged row (Google) can still route each model correctly.
+    ///
+    /// Models flagged <c>streaming: true</c> are excluded. That flag means the
+    /// model is served over a live WebSocket route ONLY — Gemini 3.5 Transcribe
+    /// Live is the first of them — and it has no pre-recorded endpoint at all, so
+    /// offering it in the Mode editor's Model dropdown ships a selectable row on
+    /// which every dictation fails with HTTP 400. The live picker is a different
+    /// list built from <see cref="StreamingCloudTierEntries"/>, which selects on
+    /// the same flag from the other side.
     /// </summary>
     public IReadOnlyList<CloudSttVendorModel> ModelsForVendorKey(string? vendorKey)
     {
@@ -144,7 +152,8 @@ public sealed class CloudSttCatalog
         var models = new List<CloudSttVendorModel>();
         foreach (var entry in group.Entries)
             foreach (var model in entry.Models)
-                models.Add(new CloudSttVendorModel { TierId = entry.Id, Model = model });
+                if (!model.Streaming)
+                    models.Add(new CloudSttVendorModel { TierId = entry.Id, Model = model });
         return models;
     }
 
@@ -315,6 +324,7 @@ public sealed class CloudSttCatalog
             IsDefault = m.@isDefault ?? false,
             PreviewStatus = m.@previewStatus ?? false,
             SupportsCustomVocabulary = m.@supportsCustomVocabulary ?? false,
+            Streaming = m.@streaming ?? false,
         })],
         CloudTier = e.@cloudTier is null ? null : new CloudSttCloudTier
         {
@@ -441,6 +451,15 @@ public sealed class CloudSttModel
     public bool IsDefault { get; init; }
     public bool PreviewStatus { get; init; }
     public bool SupportsCustomVocabulary { get; init; }
+
+    /// <summary>
+    /// Catalog v8: this model is served over a LIVE WebSocket route only, and has
+    /// no pre-recorded endpoint. It must never appear in a dictation model picker
+    /// — see <see cref="CloudSttCatalog.ModelsForVendorKey"/>. NOT the entry-level
+    /// <see cref="CloudSttFeatures.Streaming"/> vendor hint, which is merely
+    /// "this vendor offers streaming somewhere".
+    /// </summary>
+    public bool Streaming { get; init; }
 }
 
 public sealed class CloudSttAccess

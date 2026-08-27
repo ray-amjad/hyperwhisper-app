@@ -41,6 +41,29 @@ public interface IStreamingProviderStrategy
     /// this and combine with the base set rather than replace it.
     /// </summary>
     bool IsTerminalCloseCode(int closeCode) => closeCode is 1002 or 1003 or 1007 or 1008 or 1009 or 1011;
+
+    /// <summary>
+    /// Whether a <see cref="StreamingProviderEvent.SessionComplete"/> ends the
+    /// session even when the client has NOT asked to stop yet.
+    ///
+    /// True for a vendor whose completion signal is emitted once, at the end of
+    /// the session: xAI's <c>transcript.done</c> and HyperWhisper Cloud's
+    /// <c>session_complete</c> (the backend only forwards that once the client
+    /// stopped). Deepgram, ElevenLabs and OpenAI map nothing to SessionComplete at
+    /// all, so this flag cannot reach them — which is why the default is the
+    /// pre-existing unconditional behaviour and no other strategy changes.
+    ///
+    /// FALSE for a vendor that emits it at every TURN boundary — Gemini's
+    /// <c>serverContent.generationComplete</c> fires at each pause in speech, and
+    /// a terminal reading silently ends a live dictation at the first one. The
+    /// backend models exactly this rule in
+    /// <c>hyperwhisper-cloud/src/routes/ws-streaming-shared.ts</c> (a 'complete'
+    /// upstream event closes the session only once <c>stopRequested</c>), and so
+    /// does the shared .NET stack —
+    /// <c>ILiveTranscriptionProtocol.CompleteEndsSessionBeforeStop</c> in
+    /// HyperWhisper.SharedCore, whose name and semantics this deliberately mirrors.
+    /// </summary>
+    bool CompleteEndsSessionBeforeStop => true;
 }
 
 public sealed record StreamingStopStep(
