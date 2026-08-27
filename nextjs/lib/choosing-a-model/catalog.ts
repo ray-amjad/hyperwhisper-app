@@ -211,8 +211,10 @@ export type DeviceModel = {
 export type Model = CloudModel | DeviceModel;
 
 /**
- * Mirrored from `cloud-stt-catalog.json` v7 (2026-08-13). Benchmark columns
- * from the Artificial Analysis leaderboard, pulled 2026-08-19.
+ * Mirrored from `cloud-stt-catalog.json` v7 (2026-08-13), plus one row that is
+ * ahead of it — see the comment on the last entry. Benchmark columns from the
+ * Artificial Analysis leaderboard, pulled 2026-08-19, and 2026-08-27 for that
+ * last row.
  */
 const CLOUD_MODELS_RAW = [
   { id: "groqWhisper:whisper-large-v3-turbo", name: "Whisper Large v3 Turbo", vendorLabel: "Groq Whisper", vendor: "Groq", sttProvider: "groq", modelId: "whisper-large-v3-turbo", credits: 0.667, wer: 4.6, speedFactor: 122.2, languages: 100, streaming: false, customVocabulary: true, preview: false, isDefault: true, byok: true },
@@ -239,6 +241,45 @@ const CLOUD_MODELS_RAW = [
   { id: "gemini:gemini-2.5-pro", name: "Gemini 2.5 Pro", vendorLabel: "Google Gemini", vendor: "Google", sttProvider: "gemini", modelId: "gemini-2.5-pro", credits: 7.5, wer: 2.9, speedFactor: 13.3, languages: null, streaming: false, customVocabulary: true, preview: false, isDefault: false, byok: true },
   { id: "gemini:gemini-3-flash-preview", name: "Gemini 3 Flash", vendorLabel: "Google Gemini", vendor: "Google", sttProvider: "gemini", modelId: "gemini-3-flash-preview", credits: 3.0, wer: 2.9, speedFactor: 16.1, languages: null, streaming: false, customVocabulary: true, preview: true, isDefault: false, byok: true },
   { id: "gemini:gemini-3.1-pro-preview", name: "Gemini 3.1 Pro", vendorLabel: "Google Gemini", vendor: "Google", sttProvider: "gemini", modelId: "gemini-3.1-pro-preview", credits: 10.0, wer: 2.8, speedFactor: 7.0, languages: null, streaming: false, customVocabulary: true, preview: true, isDefault: false, byok: true },
+  /**
+   * **Ahead of the catalog, on purpose.** `cloud-stt-catalog.json` v7 does not
+   * have this model. Every field below is a prediction of what the catalog PR
+   * adding it will write, not a mirror of something already there, so this row
+   * is waived out of the cloud drift tests by `PENDING_CATALOG_IDS` in
+   * `tests/choosing-a-model-catalog.test.ts`. The waiver removes itself: the
+   * moment the catalog gains the model, a test there fails and says to delete
+   * the waiver and reconcile these fields against what the catalog actually
+   * says. It stays last in the array because the catalog appends to the gemini
+   * provider, and the drift test compares ORDERED arrays.
+   *
+   * **Where 5.1 credits comes from.** This model bills audio at 25 tokens per
+   * second, NOT the 32 tok/s the cloud service hard-codes for every other Gemini
+   * model (`GEMINI_AUDIO_TOKENS_PER_MINUTE = 1_920` in
+   * `hyperwhisper-cloud/src/lib/cost-calculator.ts`). So 1,500 audio tok/min at
+   * $2.00/1M is $0.0030, plus 175 text-output tok/min at $12.00/1M is $0.0021 —
+   * $0.0051 a minute, which is 5.1 credits. Artificial Analysis quotes the same
+   * figure rounded, as "approximately $5 per 1,000 minutes". Priced off the
+   * existing 1,920 constant instead it would come out near 5.94, so `credits`
+   * is the likeliest field to disagree once the catalog lands, and that is the
+   * disagreement to settle first.
+   *
+   * **`customVocabulary: true` claims something stronger here** than on the
+   * rows above it. The 2.5 and 3.x rows carry the same boolean for the
+   * system-prompt workaround the catalog's `customVocabulary.caveats` describes
+   * — an instruction glued onto the prompt, with no vocabulary field on the
+   * request. This model takes a real structured phrase list, in
+   * `generation_config.transcription_config.custom_vocabulary[]`. One boolean
+   * cannot express the difference, so this comment is the only place it exists.
+   *
+   * **`languages: null`, despite Google advertising 85+.** The catalog
+   * publishes a language count per PROVIDER, not per model, and the gemini
+   * provider's is the literal `"count": "unverified"` — which is why all five
+   * sibling rows are null too. A model-level count is not something this mirror
+   * can invent, and the page does not publish a breadth claim the catalog
+   * declines to make. `scopeForCount(null)` is `unknown`, and the
+   * `LanguageScope` doc comment above says why `unknown` is not read as `wide`.
+   */
+  { id: "gemini:gemini-3.5-transcribe", name: "Gemini 3.5 Transcribe", vendorLabel: "Google Gemini", vendor: "Google", sttProvider: "gemini", modelId: "gemini-3.5-transcribe", credits: 5.1, wer: 2.6, speedFactor: 84, languages: null, streaming: false, customVocabulary: true, preview: false, isDefault: false, byok: true },
 ] as const;
 
 export const CLOUD_MODELS: readonly CloudModel[] = CLOUD_MODELS_RAW.map(

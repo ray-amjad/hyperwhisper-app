@@ -356,6 +356,29 @@ function shownSize(
     : model.size;
 }
 
+/**
+ * Rows the page carries BEFORE the catalog does.
+ *
+ * `lib/choosing-a-model/catalog.ts` is a hand-written mirror of
+ * `cloud-stt-catalog.json`, and the two tests below hold it to that file
+ * exactly. Occasionally the page has to name a model in the week it is
+ * announced, before the catalog change that adds it to the desktop apps has
+ * merged. An id listed here is one of those rows. It is exempted from both
+ * cloud drift tests, and **every field of it is a prediction rather than a
+ * verified mirror** — the credits especially, which are derived from the
+ * vendor's published token pricing rather than read from anywhere we control.
+ *
+ * This set is meant to be empty, and it is not a standing exception list the
+ * way `UNTABLED` further down is. It is a debt with an expiry: the waiver buys
+ * nothing once the catalog has caught up, and from that moment it is hiding a
+ * comparison rather than deferring one. "the pending catalog rows have not
+ * landed in the catalog yet", immediately below the drift tests, is what
+ * enforces the expiry — it fails as soon as the catalog gains one of these
+ * models and says what to do about it. Deleting the id is the fix; deleting the
+ * assertion is not.
+ */
+const PENDING_CATALOG_IDS = new Set(["gemini:gemini-3.5-transcribe"]);
+
 test("the page's cloud mirror matches the catalog the apps read", async () => {
   const { CLOUD_MODELS } = await loadCatalog();
   const catalog = readCatalog();
@@ -376,7 +399,12 @@ test("the page's cloud mirror matches the catalog the apps read", async () => {
     })),
   );
 
-  const actual = CLOUD_MODELS.map((model: Record<string, unknown>) => ({
+  // A pending row is absent from `expected` by definition, and dropping it
+  // preserves the relative order of every other row, so the ordered comparison
+  // below stays exactly as strict as it is today for all of them.
+  const actual = CLOUD_MODELS.filter(
+    (model: { id: string }) => !PENDING_CATALOG_IDS.has(model.id),
+  ).map((model: Record<string, unknown>) => ({
     id: model.id,
     name: model.name,
     vendorLabel: model.vendorLabel,
@@ -402,6 +430,11 @@ test("documented language counts match the catalog", async () => {
   const catalog = readCatalog();
 
   for (const model of CLOUD_MODELS) {
+    // Same waiver as the test above. A no-op while the pending rows carry a
+    // null count, but one predicate applied uniformly is easier to defend than
+    // "the first drift test skips these and the second does not".
+    if (PENDING_CATALOG_IDS.has(model.id)) continue;
+
     const provider = catalog.providers.find(
       (entry) => entry.sttProvider === model.sttProvider,
     );
@@ -414,6 +447,41 @@ test("documented language counts match the catalog", async () => {
       model.languages,
       expected,
       `${model.id} language count drifted from the catalog`,
+    );
+  }
+});
+
+test("the pending catalog rows have not landed in the catalog yet", async () => {
+  const { CLOUD_MODELS } = await loadCatalog();
+  const catalog = readCatalog();
+
+  for (const pendingId of Array.from(PENDING_CATALOG_IDS)) {
+    const separator = pendingId.indexOf(":");
+    const providerId = pendingId.slice(0, separator);
+    const modelId = pendingId.slice(separator + 1);
+
+    // The self-removing half. The moment the catalog ships the model, the
+    // waiver stops deferring a comparison and starts suppressing one.
+    const provider = catalog.providers.find((entry) => entry.id === providerId);
+    const landed =
+      provider?.models.some((model) => model.id === modelId) === true;
+    assert.ok(
+      !landed,
+      `cloud-stt-catalog.json now has ${pendingId}, so the page must stop predicting it. ` +
+        `Two steps: (1) delete "${pendingId}" from PENDING_CATALOG_IDS at the top of this file, which ` +
+        `puts the row back under the two drift tests above; (2) reconcile that row in ` +
+        `lib/choosing-a-model/catalog.ts field by field against what the catalog now says — its credits, ` +
+        `display name, preview status and custom-vocabulary flag were every one of them a prediction, and ` +
+        `its position in CLOUD_MODELS_RAW has to match the catalog's model order because the drift test ` +
+        `compares ordered arrays.`,
+    );
+
+    // And the other direction: an id left behind after its row was renamed or
+    // deleted would sit in the set waiving nothing, silently, for good.
+    assert.ok(
+      CLOUD_MODELS.some((model: { id: string }) => model.id === pendingId),
+      `PENDING_CATALOG_IDS holds ${pendingId}, but no row in CLOUD_MODELS has that id. The row was ` +
+        `renamed or removed and the waiver now covers nothing — delete the id from the set.`,
     );
   }
 });
