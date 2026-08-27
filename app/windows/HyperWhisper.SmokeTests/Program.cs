@@ -42,6 +42,11 @@ using LlmPostProcessing = HyperWhisper.SharedCore.LlmPostProcessing;
 using PortableEndpointStatus = HyperWhisper.SharedCore.PortableEndpointStatus;
 using PortableLlmProvider = HyperWhisper.SharedCore.PortableLlmProvider;
 using PortableLlmRequest = HyperWhisper.SharedCore.PortableLlmRequest;
+using PortableModeIdentity = HyperWhisper.SharedCore.PortableModeIdentity;
+using PortableNoSpeechDiagnostics = HyperWhisper.SharedCore.PortableNoSpeechDiagnostics;
+using PortableNoSpeechInput = HyperWhisper.SharedCore.PortableNoSpeechInput;
+using PortableNoSpeechOutcome = HyperWhisper.SharedCore.PortableNoSpeechOutcome;
+using PortableSignalAccumulation = HyperWhisper.SharedCore.PortableSignalAccumulation;
 
 namespace HyperWhisper.SmokeTests;
 
@@ -1238,7 +1243,7 @@ internal static class Program
 
                 Assert(
                     TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic(audio, provider)
-                        == TranscriptionDiagnosticsService.NoSpeechDiagnosticOutcome.Skip,
+                        == PortableNoSpeechOutcome.Skip,
                     $"confirmed dead silence must report nothing at all, got {TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic(audio, provider)}");
             });
 
@@ -1259,7 +1264,7 @@ internal static class Program
 
                 Assert(
                     TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic(audio, provider)
-                        == TranscriptionDiagnosticsService.NoSpeechDiagnosticOutcome.Skip,
+                        == PortableNoSpeechOutcome.Skip,
                     $"the backend-confirmed low-signal sample must report nothing at all, got {TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic(audio, provider)}");
             });
 
@@ -1366,7 +1371,7 @@ internal static class Program
 
                 Assert(
                     TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic(audio, provider)
-                        == TranscriptionDiagnosticsService.NoSpeechDiagnosticOutcome.EmptyRecording,
+                        == PortableNoSpeechOutcome.EmptyRecording,
                     "a zero-frame recording should classify as EmptyRecording");
                 Assert(!TranscriptionDiagnosticsService.ShouldCaptureAsNoSpeech(audio, provider),
                     "an empty recording must no longer be reported as a no-speech diagnostic");
@@ -1392,11 +1397,11 @@ internal static class Program
 
                 Assert(
                     TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic(audio, provider)
-                        != TranscriptionDiagnosticsService.NoSpeechDiagnosticOutcome.Skip,
+                        != PortableNoSpeechOutcome.Skip,
                     "the 1.11.0 zero-frame cohort must still be reported, never skipped");
                 Assert(
                     TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic(audio, provider)
-                        == TranscriptionDiagnosticsService.NoSpeechDiagnosticOutcome.EmptyRecording,
+                        == PortableNoSpeechOutcome.EmptyRecording,
                     "the 1.11.0 zero-frame cohort should now report as EmptyRecording");
             });
 
@@ -1421,7 +1426,7 @@ internal static class Program
 
                 Assert(
                     TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic(audio, provider)
-                        == TranscriptionDiagnosticsService.NoSpeechDiagnosticOutcome.NoSpeech,
+                        == PortableNoSpeechOutcome.NoSpeech,
                     "a decodable file with no container duration must stay a no-speech diagnostic");
             });
 
@@ -1442,7 +1447,7 @@ internal static class Program
 
                 Assert(
                     TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic(audio, provider)
-                        == TranscriptionDiagnosticsService.NoSpeechDiagnosticOutcome.NoSpeech,
+                        == PortableNoSpeechOutcome.NoSpeech,
                     "a failed analysis must classify as NoSpeech even with zero duration/size");
                 Assert(TranscriptionDiagnosticsService.ShouldCaptureAsNoSpeech(audio, provider),
                     "a failed analysis should still be captured");
@@ -1465,7 +1470,7 @@ internal static class Program
 
                 Assert(
                     TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic(audio, provider)
-                        == TranscriptionDiagnosticsService.NoSpeechDiagnosticOutcome.NoSpeech,
+                        == PortableNoSpeechOutcome.NoSpeech,
                     "a normal 4.2s clip should stay a no-speech diagnostic");
             });
 
@@ -1476,7 +1481,7 @@ internal static class Program
                 // report under the old identity - the exact mislabelling this diagnostic
                 // exists to fix. One mapping now owns all three.
                 var noSpeech = TranscriptionDiagnosticsService.ResolveDiagnosticPresentation(
-                    TranscriptionDiagnosticsService.NoSpeechDiagnosticOutcome.NoSpeech);
+                    PortableNoSpeechOutcome.NoSpeech);
 
                 Assert(noSpeech.Name == "no_speech", $"expected 'no_speech', got '{noSpeech.Name}'");
                 Assert(noSpeech.Message == "Windows transcription no-speech diagnostic",
@@ -1485,7 +1490,7 @@ internal static class Program
                     $"expected 'transcription-no-speech', got '{noSpeech.FingerprintRoot}'");
 
                 var emptyRecording = TranscriptionDiagnosticsService.ResolveDiagnosticPresentation(
-                    TranscriptionDiagnosticsService.NoSpeechDiagnosticOutcome.EmptyRecording);
+                    PortableNoSpeechOutcome.EmptyRecording);
 
                 Assert(emptyRecording.Name == "empty_recording", $"expected 'empty_recording', got '{emptyRecording.Name}'");
                 Assert(emptyRecording.Message == "Windows transcription empty recording diagnostic",
@@ -1498,9 +1503,9 @@ internal static class Program
                 // uniqueness checks - so it fails in CI rather than in Sentry.
                 var names = new HashSet<string>(StringComparer.Ordinal);
                 var roots = new HashSet<string>(StringComparer.Ordinal);
-                foreach (var outcome in Enum.GetValues<TranscriptionDiagnosticsService.NoSpeechDiagnosticOutcome>())
+                foreach (var outcome in Enum.GetValues<PortableNoSpeechOutcome>())
                 {
-                    if (outcome == TranscriptionDiagnosticsService.NoSpeechDiagnosticOutcome.Skip)
+                    if (outcome == PortableNoSpeechOutcome.Skip)
                     {
                         // Skip is filtered out before anything is reported, so it has no
                         // presentation by design.
@@ -1642,6 +1647,194 @@ internal static class Program
                 Assert(fingerprint[4] == "none", $"expected 'none', got '{fingerprint[4]}'");
                 Assert(TranscriptionDiagnosticsService.ResolveCloudProviderTag(null) == "none",
                     "a null mode's cloud_provider tag should be 'none'");
+            });
+
+            Run("TranscriptionDiagnosticsService keeps the Windows fingerprint roots platform-distinct from macOS (#291)", () =>
+            {
+                // The classifier is shared with macOS now; the Sentry identity is
+                // deliberately NOT. macOS reports "macos-transcription-*" roots and
+                // "macOS transcription ..." messages. If either side ever adopted the
+                // other's, macOS events would land in the eight live Windows issues.
+                foreach (var outcome in Enum.GetValues<PortableNoSpeechOutcome>())
+                {
+                    if (outcome == PortableNoSpeechOutcome.Skip)
+                    {
+                        continue;
+                    }
+
+                    var presentation = TranscriptionDiagnosticsService.ResolveDiagnosticPresentation(outcome);
+                    Assert(!presentation.FingerprintRoot.StartsWith("macos-", StringComparison.Ordinal),
+                        $"outcome {outcome} reports under a macOS fingerprint root '{presentation.FingerprintRoot}'");
+                    Assert(presentation.Message.StartsWith("Windows ", StringComparison.Ordinal),
+                        $"outcome {outcome} reports under a non-Windows message '{presentation.Message}'");
+                }
+            });
+
+            Run("TranscriptionDiagnosticsService's dBFS floor still agrees with the shared core (#291)", () =>
+            {
+                // AudioAnalysisDiagnostics needs a compile-time constant for its
+                // optional parameters, so -120.0 is spelled out there as well as in
+                // hw-audio. Nothing else may drift: a floor mismatch would make the
+                // "silent" bucket and the dead-silence arm disagree about the same clip.
+                var defaults = new TranscriptionDiagnosticsService.AudioAnalysisDiagnostics(
+                    AnalysisSucceeded: false,
+                    DurationSeconds: 0,
+                    FileSizeBytes: 0);
+
+                Assert(defaults.PeakDbfs == PortableNoSpeechDiagnostics.MinimumDbfs,
+                    $"the local dBFS floor {defaults.PeakDbfs} does not match the core's {PortableNoSpeechDiagnostics.MinimumDbfs}");
+                Assert(defaults.RmsDbfs == PortableNoSpeechDiagnostics.MinimumDbfs,
+                    $"the local dBFS floor {defaults.RmsDbfs} does not match the core's {PortableNoSpeechDiagnostics.MinimumDbfs}");
+            });
+
+            Run("PortableNoSpeechDiagnostics dBFS maths and bucketing come from the core (#291)", () =>
+            {
+                Assert(PortableNoSpeechDiagnostics.ToDbfs(0) == PortableNoSpeechDiagnostics.MinimumDbfs,
+                    "digital silence must report the floor, not -infinity");
+                Assert(PortableNoSpeechDiagnostics.ToDbfs(-1) == PortableNoSpeechDiagnostics.MinimumDbfs,
+                    "a negative amplitude must report the floor");
+                Assert(PortableNoSpeechDiagnostics.ToDbfs(1.0) == 0.0,
+                    $"full scale should be 0 dBFS, got {PortableNoSpeechDiagnostics.ToDbfs(1.0)}");
+
+                // Floors, does not truncate: a negative buckets DOWNWARD. Truncation
+                // would put -38.2 in "-35dbfs" and silently shift every bucket.
+                Assert(PortableNoSpeechDiagnostics.BucketDbfs(-38.2) == "-40dbfs",
+                    $"expected '-40dbfs', got '{PortableNoSpeechDiagnostics.BucketDbfs(-38.2)}'");
+                Assert(PortableNoSpeechDiagnostics.BucketDbfs(PortableNoSpeechDiagnostics.MinimumDbfs) == "silent",
+                    "the floor buckets to 'silent'");
+
+                Assert(PortableNoSpeechDiagnostics.SilenceThreshold == 0.01f,
+                    $"the silence threshold drifted: {PortableNoSpeechDiagnostics.SilenceThreshold}");
+                Assert(PortableNoSpeechDiagnostics.ConfirmedSilencePeakDbfs == -50.0,
+                    "the confirmed-silence peak drifted");
+                Assert(PortableNoSpeechDiagnostics.LowSignalRmsDbfs == -38.0,
+                    "the low-signal RMS threshold drifted");
+                Assert(PortableNoSpeechDiagnostics.LowSignalNonSilentRatio == 0.06,
+                    "the low-signal ratio threshold drifted");
+            });
+
+            Run("PortableNoSpeechDiagnostics.Summarize guards an empty accumulation and reports full scale as 0 dBFS (#291)", () =>
+            {
+                var empty = PortableNoSpeechDiagnostics.Summarize(
+                    new PortableSignalAccumulation(0, 0, 0, 0));
+                Assert(empty.PeakDbfs == PortableNoSpeechDiagnostics.MinimumDbfs,
+                    "an empty accumulation must summarize to the floor, not NaN");
+                Assert(empty.RmsDbfs == PortableNoSpeechDiagnostics.MinimumDbfs,
+                    "an empty accumulation must summarize to the floor, not NaN");
+                Assert(empty.NonSilentRatio == 0, "an empty accumulation has no non-silent ratio");
+
+                var fullScale = PortableNoSpeechDiagnostics.Summarize(
+                    new PortableSignalAccumulation(4, 4, 4.0, 1.0));
+                Assert(fullScale.PeakDbfs == 0.0, $"expected 0 dBFS peak, got {fullScale.PeakDbfs}");
+                Assert(fullScale.RmsDbfs == 0.0, $"expected 0 dBFS RMS, got {fullScale.RmsDbfs}");
+                Assert(fullScale.NonSilentRatio == 1.0, $"expected a ratio of 1, got {fullScale.NonSilentRatio}");
+            });
+
+            Run("PortableNoSpeechDiagnostics.Classify keeps the empty-recording arm ahead of the empty-transcript arm (#291)", () =>
+            {
+                // Arm order is load-bearing and now lives in Rust. A zero-sample
+                // recording is a recorder failure and must keep its own identity even
+                // when the provider ALSO returned an empty transcript without its flag.
+                var outcome = PortableNoSpeechDiagnostics.Classify(new PortableNoSpeechInput(
+                    AnalysisSucceeded: true,
+                    DecodedSampleCount: 0,
+                    EmptyTranscriptWithoutFlag: true,
+                    BackendNoSpeechDetected: false,
+                    PeakDbfs: -120,
+                    RmsDbfs: -120,
+                    NonSilentRatio: 0));
+
+                Assert(outcome == PortableNoSpeechOutcome.EmptyRecording,
+                    $"expected EmptyRecording, got {outcome}");
+
+                // An unknown count (no decode loop ran) is deliberately NOT empty.
+                var unknown = PortableNoSpeechDiagnostics.Classify(new PortableNoSpeechInput(
+                    AnalysisSucceeded: true,
+                    DecodedSampleCount: null,
+                    EmptyTranscriptWithoutFlag: false,
+                    BackendNoSpeechDetected: true,
+                    PeakDbfs: -120,
+                    RmsDbfs: -120,
+                    NonSilentRatio: 0));
+
+                Assert(unknown == PortableNoSpeechOutcome.Skip,
+                    $"an unknown sample count must fall through to the ordinary arms, got {unknown}");
+            });
+
+            Run("PortableNoSpeechDiagnostics fingerprints an absent mode differently from a blank one (#291)", () =>
+            {
+                var absent = string.Join("|", PortableNoSpeechDiagnostics.BuildFingerprint(
+                    "transcription-no-speech", "live_recording", "provider_no_speech", null));
+                var blank = string.Join("|", PortableNoSpeechDiagnostics.BuildFingerprint(
+                    "transcription-no-speech", "live_recording", "provider_no_speech",
+                    new PortableModeIdentity(null, null, null)));
+
+                Assert(absent != blank,
+                    $"'no mode at all' and 'a mode with nothing written on it' must not group together, both were '{absent}'");
+                Assert(absent.EndsWith("|unknown|none", StringComparison.Ordinal),
+                    $"an absent mode should end 'unknown|none', got '{absent}'");
+                Assert(blank.EndsWith("|local|none", StringComparison.Ordinal),
+                    $"a blank mode routes local with no engine, got '{blank}'");
+            });
+
+            Run("TranscriptionDiagnosticsService.AnalyzeAudioFile measures 16 kHz mono, not the container format (#291)", () =>
+            {
+                // Decision 2: Windows used to accumulate over the container's own
+                // interleaved samples, so a 48 kHz stereo recording and the 16 kHz mono
+                // audio actually sent to the provider produced different non-silent
+                // ratios for the same clip - and a different one again from macOS, which
+                // already measured post-conversion. The reported sample rate and channel
+                // count must still be the SOURCE container's facts.
+                var wavPath = Path.Combine(
+                    Path.GetTempPath(),
+                    $"HyperWhisper.SmokeTests.NoSpeech.{Guid.NewGuid():N}.wav");
+
+                try
+                {
+                    var format = new NAudio.Wave.WaveFormat(48000, 16, 2);
+                    using (var writer = new NAudio.Wave.WaveFileWriter(wavPath, format))
+                    {
+                        var frame = new float[2];
+                        for (var i = 0; i < 48000; i++)
+                        {
+                            var value = (float)(0.5 * Math.Sin(2 * Math.PI * 440 * i / 48000.0));
+                            frame[0] = value;
+                            frame[1] = value;
+                            writer.WriteSamples(frame, 0, 2);
+                        }
+                    }
+
+                    var diagnostics = TranscriptionDiagnosticsService.AnalyzeAudioFile(wavPath, null);
+
+                    Assert(diagnostics.AnalysisSucceeded, "the generated WAV should analyze cleanly");
+                    Assert(diagnostics.SampleRate == 48000,
+                        $"audio_sample_rate_hz must stay the source rate, got {diagnostics.SampleRate}");
+                    Assert(diagnostics.Channels == 2,
+                        $"audio_channels must stay the source channel count, got {diagnostics.Channels}");
+
+                    // One second of audio: ~16000 mono samples after the resample, not
+                    // the 96000 interleaved samples the container holds.
+                    var decoded = diagnostics.DecodedSampleCount ?? -1;
+                    Assert(decoded > 15000 && decoded < 17000,
+                        $"expected ~16000 post-resample mono samples, got {decoded}");
+
+                    // A 0.5-amplitude sine is ~-6 dBFS peak and audible throughout.
+                    Assert(diagnostics.PeakDbfs > -8 && diagnostics.PeakDbfs < -4,
+                        $"expected a peak near -6 dBFS, got {diagnostics.PeakDbfs}");
+                    Assert(diagnostics.NonSilentRatio > 0.9,
+                        $"a continuous sine should be almost entirely non-silent, got {diagnostics.NonSilentRatio}");
+                }
+                finally
+                {
+                    try
+                    {
+                        File.Delete(wavPath);
+                    }
+                    catch
+                    {
+                        // Best-effort cleanup; a leftover temp file must not fail CI.
+                    }
+                }
             });
 
             Run("Deepgram's SessionStartsOnWebSocketOpen is true, and only Deepgram's (regression for #100)", () =>

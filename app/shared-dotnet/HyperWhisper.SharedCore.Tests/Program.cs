@@ -260,6 +260,183 @@ var tests = new (string Name, Func<Task> Run)[]
     ("a failure that lands after our own close cannot destroy the transcript", TestLivePostCloseFailureCannotDestroyTranscriptAsync),
     ("a cancel inside the post-close drain abandons the session", TestLiveCancelDuringDrainAsync),
     ("the live protocol owns a Rust handle and is disposed", TestRustLiveDisposalAsync),
+    // The no-speech diagnostic (issue #291). Windows and macOS both delegate
+    // measurement, classification and Sentry grouping here, and neither head's
+    // test suite runs on Linux — this is the only gate that executes the shared
+    // classifier itself rather than compiling against it.
+    ("the no-speech thresholds and dBFS maths stay in the shared core", () =>
+    {
+        Assert.Equal(0.01f, PortableNoSpeechDiagnostics.SilenceThreshold);
+        Assert.Equal(-120.0, PortableNoSpeechDiagnostics.MinimumDbfs);
+        Assert.Equal(-50.0, PortableNoSpeechDiagnostics.ConfirmedSilencePeakDbfs);
+        Assert.Equal(-38.0, PortableNoSpeechDiagnostics.LowSignalRmsDbfs);
+        Assert.Equal(0.06, PortableNoSpeechDiagnostics.LowSignalNonSilentRatio);
+
+        // Digital silence and a negative amplitude report the floor, never
+        // -infinity or NaN, which would poison the Sentry tag.
+        Assert.Equal(-120.0, PortableNoSpeechDiagnostics.ToDbfs(0));
+        Assert.Equal(-120.0, PortableNoSpeechDiagnostics.ToDbfs(-1));
+        Assert.Equal(0.0, PortableNoSpeechDiagnostics.ToDbfs(1.0));
+
+        // Floors, does NOT truncate: a negative buckets downward. Truncation
+        // would put -38.2 in "-35dbfs" and shift every bucket in the facet.
+        Assert.Equal("-40dbfs", PortableNoSpeechDiagnostics.BucketDbfs(-38.2));
+        Assert.Equal("silent", PortableNoSpeechDiagnostics.BucketDbfs(-120.0));
+        return Task.CompletedTask;
+    }),
+    ("summarizing an empty accumulation floors instead of dividing by zero", () =>
+    {
+        var empty = PortableNoSpeechDiagnostics.Summarize(new PortableSignalAccumulation(0, 0, 0, 0));
+        Assert.Equal(-120.0, empty.PeakDbfs);
+        Assert.Equal(-120.0, empty.RmsDbfs);
+        Assert.Equal(0.0, empty.NonSilentRatio);
+
+        var fullScale = PortableNoSpeechDiagnostics.Summarize(new PortableSignalAccumulation(4, 4, 4.0, 1.0));
+        Assert.Equal(0.0, fullScale.PeakDbfs);
+        Assert.Equal(0.0, fullScale.RmsDbfs);
+        Assert.Equal(1.0, fullScale.NonSilentRatio);
+        return Task.CompletedTask;
+    }),
+    ("the five no-speech arms are evaluated in the Windows order", () =>
+    {
+        static PortableNoSpeechOutcome Classify(
+            bool analysisSucceeded,
+            long? decodedSampleCount,
+            bool emptyTranscriptWithoutFlag,
+            bool backendNoSpeechDetected,
+            double peakDbfs,
+            double rmsDbfs,
+            double nonSilentRatio)
+            => PortableNoSpeechDiagnostics.Classify(new PortableNoSpeechInput(
+                analysisSucceeded,
+                decodedSampleCount,
+                emptyTranscriptWithoutFlag,
+                backendNoSpeechDetected,
+                peakDbfs,
+                rmsDbfs,
+                nonSilentRatio));
+
+        // 1. A failed analysis must stay ahead of everything: a zero sample
+        //    count means nothing when no decode loop ran.
+        Assert.Equal(
+            PortableNoSpeechOutcome.NoSpeech,
+            Classify(false, 0, false, true, -120, -120, 0));
+
+        // 2. A zero-sample recording is a recorder failure with its own
+        //    identity, even when the provider ALSO returned an empty transcript
+        //    without its flag.
+        Assert.Equal(
+            PortableNoSpeechOutcome.EmptyRecording,
+            Classify(true, 0, true, false, -120, -120, 0));
+
+        // An unknown count (no read loop) is deliberately NOT empty.
+        Assert.Equal(
+            PortableNoSpeechOutcome.Skip,
+            Classify(true, null, false, true, -120, -120, 0));
+
+        // 3. An empty transcript with no flag is a provider anomaly whatever
+        //    the signal looks like - it beats both skip arms below.
+        Assert.Equal(
+            PortableNoSpeechOutcome.NoSpeech,
+            Classify(true, 48000, true, true, -95, -100, 0));
+
+        // 4. Confirmed dead silence, which does not consult the backend flag.
+        Assert.Equal(
+            PortableNoSpeechOutcome.Skip,
+            Classify(true, 48000, false, false, -80, -90, 0));
+        Assert.Equal(
+            PortableNoSpeechOutcome.NoSpeech,
+            Classify(true, 48000, false, false, -40, -90, 0));
+
+        // 5. The real HYPERWHISPER-PA/-QB/-VY sample the thresholds were tuned
+        //    against, and the inclusive boundary.
+        Assert.Equal(
+            PortableNoSpeechOutcome.Skip,
+            Classify(true, 48000, false, true, -30, -39.64, 0.046));
+        Assert.Equal(
+            PortableNoSpeechOutcome.Skip,
+            Classify(true, 48000, false, true, -30, -38.0, 0.06));
+
+        // BOTH low-signal conditions must hold - an OR would let one quiet
+        // reading suppress a genuine backend-disagreement anomaly.
+        Assert.Equal(
+            PortableNoSpeechOutcome.NoSpeech,
+            Classify(true, 48000, false, true, -30, -39.64, 0.5));
+        Assert.Equal(
+            PortableNoSpeechOutcome.NoSpeech,
+            Classify(true, 48000, false, true, -30, -10.0, 0.046));
+
+        // The cohort the diagnostic exists to catch: healthy speech energy and
+        // no transcript.
+        Assert.Equal(
+            PortableNoSpeechOutcome.NoSpeech,
+            Classify(true, 48000, false, true, -18.47, -22.0, 0.35));
+
+        // A negative count cannot come from a decode loop; it takes the
+        // "unknown" answer rather than wrapping into an enormous one.
+        Assert.Equal(
+            PortableNoSpeechOutcome.Skip,
+            Classify(true, -5, false, true, -120, -120, 0));
+        return Task.CompletedTask;
+    }),
+    ("the no-speech fingerprint keeps Windows' element order and each head's root", () =>
+    {
+        static string Fingerprint(string root, PortableModeIdentity? mode) => string.Join(
+            "|",
+            PortableNoSpeechDiagnostics.BuildFingerprint(root, "live_recording", "provider_no_speech", mode));
+
+        // Byte-identical to what Windows emitted before #291 - its live Sentry
+        // groups have to survive the move into the core.
+        Assert.Equal(
+            "transcription-no-speech|live_recording|provider_no_speech|local|whisper",
+            Fingerprint("transcription-no-speech", new PortableModeIdentity("local", "groq", "whisper")));
+        Assert.Equal(
+            "transcription-no-speech|live_recording|provider_no_speech|cloud|groq",
+            Fingerprint("transcription-no-speech", new PortableModeIdentity("cloud", "groq", "whisper")));
+
+        // The root is the caller's and is NOT unified: sharing it would merge
+        // macOS events into Windows' live issues.
+        Assert.Equal(
+            "macos-transcription-no-speech|live_recording|provider_no_speech|local|parakeet",
+            Fingerprint("macos-transcription-no-speech", new PortableModeIdentity("local", "groq", "parakeet")));
+
+        // The production regression: two local modes with different leftover
+        // cloud vendors are ONE condition and must be one group.
+        Assert.Equal(
+            Fingerprint("transcription-no-speech", new PortableModeIdentity("local", "groq", "parakeet")),
+            Fingerprint("transcription-no-speech", new PortableModeIdentity("local", "gemini", "parakeet")));
+
+        // ...and a null or non-canonical provider type routes local just like
+        // the dispatch sites do, so it must not re-split the same cohort.
+        Assert.Equal(
+            Fingerprint("transcription-no-speech", new PortableModeIdentity(null, "groq", "whisper")),
+            Fingerprint("transcription-no-speech", new PortableModeIdentity("", "gemini", "whisper")));
+
+        // "No mode at all" is a different fact from "a mode with nothing
+        // written on it" - the nullable argument is what keeps them apart.
+        var absent = Fingerprint("transcription-no-speech", null);
+        var blank = Fingerprint("transcription-no-speech", new PortableModeIdentity(null, null, null));
+        Assert.True(absent.EndsWith("|unknown|none", StringComparison.Ordinal), absent);
+        Assert.True(blank.EndsWith("|local|none", StringComparison.Ordinal), blank);
+        Assert.Equal(5, PortableNoSpeechDiagnostics.BuildFingerprint("r", "s", "d", null).Length);
+        return Task.CompletedTask;
+    }),
+    ("the no-speech tags mask a local mode's stale cloud vendor", () =>
+    {
+        var staleLocal = new PortableModeIdentity("local", "groq", "whisper");
+        Assert.Equal("none", PortableNoSpeechDiagnostics.CloudProviderTag(staleLocal));
+        Assert.Equal("whisper", PortableNoSpeechDiagnostics.LocalEngineTag(staleLocal));
+
+        Assert.Equal("groq", PortableNoSpeechDiagnostics.CloudProviderTag(
+            new PortableModeIdentity("cloud", "groq", "whisper")));
+
+        Assert.Equal("none", PortableNoSpeechDiagnostics.CloudProviderTag(null));
+        Assert.Equal("none", PortableNoSpeechDiagnostics.LocalEngineTag(null));
+        // Blank is not an engine.
+        Assert.Equal("none", PortableNoSpeechDiagnostics.LocalEngineTag(
+            new PortableModeIdentity("local", null, "  ")));
+        return Task.CompletedTask;
+    }),
 };
 
 var failures = 0;
