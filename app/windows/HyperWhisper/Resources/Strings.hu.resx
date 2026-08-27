@@ -1891,6 +1891,9 @@ You can re-download it later.</value>
   <data name="settings.streaming.provider.xai" xml:space="preserve">
     <value>xAI</value>
   </data>
+  <data name="settings.streaming.provider.geminiTranscribe" xml:space="preserve">
+    <value>Gemini 3.5 Transcribe</value>
+  </data>
   <data name="settings.streaming.providerStatus.hyperwhisperCloud" xml:space="preserve">
     <value>Az Ön HyperWhisper Cloud kreditjeit használja. Nincs szükség külön API-kulcsra.</value>
   </data>
@@ -1917,6 +1920,18 @@ You can re-download it later.</value>
   </data>
   <data name="settings.streaming.providerStatus.xai.missingKey" xml:space="preserve">
     <value>xAI streaming requires a Grok API key in the Model Library API keys manager.</value>
+  </data>
+  <data name="settings.streaming.providerStatus.geminiTranscribe.configured" xml:space="preserve">
+    <value>Gemini API key is configured.</value>
+  </data>
+  <data name="settings.streaming.providerStatus.geminiTranscribe.missingKey" xml:space="preserve">
+    <value>Gemini 3.5 Transcribe streaming requires a Google Gemini API key in the Model Library API keys manager.</value>
+  </data>
+  <data name="settings.streaming.cloudTier.title" xml:space="preserve">
+    <value>Live engine</value>
+  </data>
+  <data name="settings.streaming.cloudTier.subtitle" xml:space="preserve">
+    <value>Which speech engine HyperWhisper Cloud uses for live transcription.</value>
   </data>
   <data name="settings.streaming.warning.vocabularyUnsupported" xml:space="preserve">
     <value>Custom vocabulary is not used with the selected streaming provider.</value>

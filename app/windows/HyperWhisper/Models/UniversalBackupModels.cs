@@ -145,6 +145,14 @@ public class UniversalStreamingSettings
     [JsonPropertyName("deepgramModel")]
     public string? DeepgramModel { get; set; }
 
+    /// <summary>
+    /// Which vendor HyperWhisper Cloud's live route uses, as a cloud-stt-catalog
+    /// entry id. Absent or null means the default, deepgramNova3 - which is what
+    /// every backup written before this key existed carries.
+    /// </summary>
+    [JsonPropertyName("cloudTier")]
+    public string? CloudTier { get; set; }
+
     [JsonPropertyName("fastFormatting")]
     public bool? FastFormatting { get; set; }
 

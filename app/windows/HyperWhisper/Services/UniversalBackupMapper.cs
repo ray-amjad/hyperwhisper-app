@@ -95,6 +95,7 @@ public static class UniversalBackupMapper
                 Provider = settings.StreamingProvider,
                 Language = settings.StreamingLanguage,
                 DeepgramModel = settings.StreamingDeepgramModel,
+                CloudTier = settings.StreamingCloudTier,
                 FastFormatting = settings.StreamingFastFormatting,
                 Shortcut = settings.StreamingShortcut.ToPersistedString()
             },
@@ -319,6 +320,10 @@ public static class UniversalBackupMapper
             if (!string.IsNullOrWhiteSpace(s.Provider)) settings.StreamingProvider = s.Provider;
             if (!string.IsNullOrWhiteSpace(s.Language)) settings.StreamingLanguage = s.Language;
             if (!string.IsNullOrWhiteSpace(s.DeepgramModel)) settings.StreamingDeepgramModel = s.DeepgramModel;
+            // An unknown or non-live tier is rejected back to deepgramNova3 by the
+            // setter, so a backup from a newer build cannot import a route we
+            // would 404 on.
+            if (!string.IsNullOrWhiteSpace(s.CloudTier)) settings.StreamingCloudTier = s.CloudTier;
             if (s.FastFormatting.HasValue) settings.StreamingFastFormatting = s.FastFormatting.Value;
             if (!string.IsNullOrWhiteSpace(s.Shortcut))
                 settings.StreamingShortcut = KeyboardShortcut.FromPersistedString(s.Shortcut);

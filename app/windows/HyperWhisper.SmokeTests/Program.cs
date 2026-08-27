@@ -1804,6 +1804,121 @@ internal static class Program
                 Assert(client.State == StreamingConnectionState.Disconnecting, $"expected State to remain Disconnecting, got {client.State}");
             });
 
+            Run("every StreamingTranscriptionProvider round-trips through its storage value", () =>
+            {
+                // The enum has SIX hand-maintained switches and not one of them is
+                // compiler-enforced - every arm ends in `_ =>`. The quiet one is
+                // IsValidStorageValue: SettingsService.StreamingProvider's setter
+                // resets anything it rejects to hyperwhisperCloud, so a member
+                // missing from it makes the user's selection silently revert on the
+                // next save. Nothing tested this before; walk the whole enum.
+                foreach (var provider in Enum.GetValues<StreamingTranscriptionProvider>())
+                {
+                    var storage = provider.StorageValue();
+                    Assert(!string.IsNullOrWhiteSpace(storage), $"{provider}: empty storage value");
+                    Assert(StreamingTranscriptionProviderExtensions.IsValidStorageValue(storage),
+                        $"{provider}: storage value '{storage}' is rejected by IsValidStorageValue, so the setting would silently revert");
+                    Assert(StreamingTranscriptionProviderExtensions.FromStorageValue(storage) == provider,
+                        $"{provider}: '{storage}' round-trips to {StreamingTranscriptionProviderExtensions.FromStorageValue(storage)}");
+                    Assert(!string.IsNullOrWhiteSpace(provider.DisplayName()), $"{provider}: empty display name");
+                }
+                Assert(!StreamingTranscriptionProviderExtensions.IsValidStorageValue("noSuchProvider"),
+                    "an unknown storage value must stay invalid");
+            });
+
+            Run("GeminiStreamingStrategy setup frame puts the config at setup.input_audio_transcription", () =>
+            {
+                // TRAP: the LIVE model takes its transcription config here, while the
+                // PRE-RECORDED model takes the same object at
+                // setup.generation_config.transcription_config. Sending the
+                // pre-recorded shape to the live socket closes it with 1007. Pinned
+                // against shared-conformance/live-frame-vectors.json.
+                var config = new StreamingSessionConfig(null, null, "en-US", "HyperWhisper", "AIza-test", null, false, false);
+                Assert(
+                    GeminiStreamingStrategy.BuildSetupFrame(config) ==
+                    "{\"setup\":{\"model\":\"models/gemini-3.5-transcribe-live\"," +
+                    "\"input_audio_transcription\":{\"language_codes\":[\"en-US\"]," +
+                    "\"custom_vocabulary\":[\"HyperWhisper\"]}}}",
+                    $"unexpected setup frame: {GeminiStreamingStrategy.BuildSetupFrame(config)}");
+
+                // Auto-detect drops language_codes but KEEPS custom_vocabulary. The
+                // "no vocabulary without a language" rule is Deepgram's, not Google's,
+                // and vocabulary is the headline reason to pick this provider.
+                var auto = new StreamingSessionConfig(null, null, "auto", "Kalamazoo", "AIza-test", null, false, false);
+                Assert(
+                    GeminiStreamingStrategy.BuildSetupFrame(auto) ==
+                    "{\"setup\":{\"model\":\"models/gemini-3.5-transcribe-live\"," +
+                    "\"input_audio_transcription\":{\"custom_vocabulary\":[\"Kalamazoo\"]}}}",
+                    $"unexpected auto-detect setup frame: {GeminiStreamingStrategy.BuildSetupFrame(auto)}");
+
+                // Region preserved, unlike every other strategy here.
+                var region = new StreamingSessionConfig(null, null, "en-GB", null, "AIza-test", null, false, false);
+                Assert(GeminiStreamingStrategy.BuildSetupFrame(region).Contains("\"language_codes\":[\"en-GB\"]"),
+                    "en-GB must not be flattened to en");
+            });
+
+            Run("GeminiStreamingStrategy maps interim to partial and inputTranscription to final without diffing", () =>
+            {
+                // NOT xAI-shaped. interimInputTranscription is cumulative only WITHIN
+                // a turn and restarts after each final; inputTranscription carries
+                // only that turn's committed text. Prefix-diffing would emit nothing
+                // for a second turn whose text repeats the first.
+                var strategy = new GeminiStreamingStrategy();
+                Assert(strategy.ParseMessage("{\"setupComplete\":{}}") is StreamingProviderEvent.SessionStarted,
+                    "setupComplete must start the session");
+                Assert(strategy.ParseMessage("{\"serverContent\":{\"interimInputTranscription\":{\"text\":\"hel\"}}}")
+                    is StreamingProviderEvent.PartialTranscript { Text: "hel" }, "interim must be a partial");
+                Assert(strategy.ParseMessage("{\"serverContent\":{\"inputTranscription\":{\"text\":\"again.\"}}}")
+                    is StreamingProviderEvent.FinalTranscript { Text: "again." }, "inputTranscription must be a final");
+                Assert(strategy.ParseMessage("{\"serverContent\":{\"inputTranscription\":{\"text\":\"again.\"}}}")
+                    is StreamingProviderEvent.FinalTranscript { Text: "again." },
+                    "a repeated turn must be emitted whole - diffing would swallow it");
+                Assert(strategy.ParseMessage("{\"serverContent\":{\"generationComplete\":true}}")
+                    is StreamingProviderEvent.SessionComplete, "generationComplete must end the session");
+                Assert(strategy.ParseMessage("{\"usageMetadata\":{\"totalTokenCount\":3}}") == null,
+                    "an unmodelled frame must be ignored, not an error");
+                Assert(strategy.ParseMessage("{\"error\":{\"code\":1007,\"message\":\"invalid setup\"}}")
+                    is StreamingProviderEvent.Error { Message: "invalid setup" }, "error frame must surface its message");
+            });
+
+            Run("HyperWhisperCloudStreamingStrategy derives its route from the selected cloud tier", () =>
+            {
+                // /ws/streaming-{sttProvider}. deepgramNova3 must stay byte-identical
+                // to the literal it replaced, because every installed client sends no
+                // tier at all; an unknown tier must fall back rather than derive a
+                // path the backend will 404.
+                var config = new StreamingSessionConfig("lic", null, "en", "Kalamazoo", null, null, false, false);
+                Assert(new HyperWhisperCloudStreamingStrategy().BuildWebSocketUri(config)!.AbsolutePath
+                    == "/ws/streaming-deepgram", "the parameterless ctor must reproduce the legacy route");
+                Assert(new HyperWhisperCloudStreamingStrategy("deepgramNova3").BuildWebSocketUri(config)!.AbsolutePath
+                    == "/ws/streaming-deepgram", "deepgramNova3 must derive /ws/streaming-deepgram");
+                Assert(new HyperWhisperCloudStreamingStrategy("geminiTranscribe").BuildWebSocketUri(config)!.AbsolutePath
+                    == "/ws/streaming-gemini-transcribe", "geminiTranscribe must derive /ws/streaming-gemini-transcribe");
+                foreach (var bogus in new string?[] { null, "", "   ", "notATier", "groqWhisper" })
+                {
+                    Assert(new HyperWhisperCloudStreamingStrategy(bogus).BuildWebSocketUri(config)!.AbsolutePath
+                        == "/ws/streaming-deepgram", $"tier '{bogus}' must fall back to Deepgram");
+                }
+
+                // The auto-detect vocabulary gate is Deepgram's constraint, so it must
+                // NOT be applied to the Gemini tier.
+                var autoDetect = new StreamingSessionConfig("lic", null, "auto", "Kalamazoo", null, null, false, false);
+                Assert(!new HyperWhisperCloudStreamingStrategy("deepgramNova3").BuildWebSocketUri(autoDetect)!
+                    .Query.Contains("vocabulary="), "Deepgram must withhold vocabulary in auto-detect");
+                Assert(new HyperWhisperCloudStreamingStrategy("geminiTranscribe").BuildWebSocketUri(autoDetect)!
+                    .Query.Contains("vocabulary=Kalamazoo"), "Gemini must send vocabulary in auto-detect");
+            });
+
+            Run("the live cloud tier picker offers exactly the vendors we serve a WS route for", () =>
+            {
+                // The STT catalog has no `enabled` gate, and the client derives its
+                // route with no allow-list of its own, so this list IS the guard
+                // against shipping a picker row that 404s at dictation time.
+                var ids = CloudSttCatalog.Shared.StreamingCloudTierEntries().Select(e => e.Id).ToArray();
+                Assert(ids.SequenceEqual(new[] { "deepgramNova3", "geminiTranscribe" }),
+                    $"unexpected live tier set: {string.Join(", ", ids)}");
+            });
+
             Run("IStreamingProviderStrategy.IsTerminalCloseCode default covers the standard fatal WebSocket protocol codes", () =>
             {
                 // The terminal-code allowlist moved from a StreamingTranscriptionClient-private,

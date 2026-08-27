@@ -147,6 +147,7 @@ public partial class SettingsService
         public string? StreamingProvider { get; set; }
         public string? StreamingLanguage { get; set; }
         public string? StreamingDeepgramModel { get; set; }
+        public string? StreamingCloudTier { get; set; }
         public bool? StreamingFastFormatting { get; set; }
 
         // Recording overlay position (screen ratios)
@@ -384,6 +385,53 @@ public partial class SettingsService
                 NotifySettingsChanged();
             }
         }
+    }
+
+    /// <summary>
+    /// Which vendor HyperWhisper Cloud's live route uses, as a
+    /// cloud-stt-catalog.json entry id. Meaningful only while
+    /// <see cref="StreamingProvider"/> is "hyperwhisperCloud"; every other
+    /// provider ignores it.
+    ///
+    /// Reuses <c>CloudAccuracyTier</c>'s value space on purpose, so the picker
+    /// reuses that tier's existing localized labels and there is no EF migration:
+    /// this is the settings JSON, not the Mode table.
+    ///
+    /// Unset (the state of every install that predates this setting) reads as
+    /// <c>deepgramNova3</c>, which derives the exact route those clients already
+    /// use. A value outside the live-eligible set is rejected back to that default
+    /// rather than persisted, because a tier with no backend WebSocket route would
+    /// 404 at dictation time.
+    /// </summary>
+    public string StreamingCloudTier
+    {
+        get => string.IsNullOrWhiteSpace(_settings.StreamingCloudTier)
+            ? Services.Streaming.HyperWhisperCloudStreamingStrategy.DefaultCloudTier
+            : _settings.StreamingCloudTier!;
+        set
+        {
+            var normalized = IsValidStreamingCloudTier(value)
+                ? value.Trim()
+                : Services.Streaming.HyperWhisperCloudStreamingStrategy.DefaultCloudTier;
+
+            if (_settings.StreamingCloudTier != normalized)
+            {
+                _settings.StreamingCloudTier = normalized;
+                Save();
+                LoggingService.Debug($"SettingsService: StreamingCloudTier set to: {normalized}");
+                NotifySettingsChanged();
+            }
+        }
+    }
+
+    private static bool IsValidStreamingCloudTier(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return false;
+        var candidate = value.Trim();
+        foreach (var entry in AppClassification.CloudSttCatalog.Shared.StreamingCloudTierEntries())
+            if (string.Equals(entry.Id, candidate, StringComparison.OrdinalIgnoreCase))
+                return true;
+        return false;
     }
 
     /// <summary>

@@ -46,6 +46,9 @@ public static class StreamingTranscriptionSessionFactory
             Language: settings.StreamingLanguage,
             Vocabulary: BuildVocabulary(strategy, vocabularyWords),
             ApiKey: apiKey,
+            // Model stays Deepgram-only. Gemini Live has exactly one model, so its
+            // strategy defaults to it rather than reading the Deepgram model box,
+            // which is what this free-text setting really is.
             Model: provider == StreamingTranscriptionProvider.Deepgram ? settings.StreamingDeepgramModel : null,
             FastFormatting: settings.StreamingFastFormatting,
             RemoveFillerWords: settings.RemoveFillerWords
@@ -62,13 +65,41 @@ public static class StreamingTranscriptionSessionFactory
     public static bool SupportsVocabulary(StreamingTranscriptionProvider provider) =>
         CreateStrategy(provider).SupportsVocabulary;
 
+    /// <summary>
+    /// Whether this provider accepts custom vocabulary while the language is left on
+    /// auto-detect. Deepgram Nova-3 silently drops keyterms there, so the settings
+    /// page warns; Gemini does not, and warning about it would be wrong.
+    /// Lives here rather than in the page so the page keeps no provider list of its
+    /// own (see the warning on BuildVocabulary below).
+    /// </summary>
+    public static bool SupportsVocabularyWithoutLanguage(StreamingTranscriptionProvider provider) =>
+        provider switch
+        {
+            // The one real constraint: Deepgram Nova-3 accepts `keyterm` only in
+            // monolingual mode and silently ignores it otherwise.
+            StreamingTranscriptionProvider.Deepgram => false,
+            // HyperWhisper Cloud inherits its live vendor's answer, because the
+            // cloud tier picker decides which upstream actually serves the session.
+            StreamingTranscriptionProvider.HyperWhisperCloud =>
+                !HyperWhisperCloudStreamingStrategy.TierRequiresLanguageForVocabulary(
+                    SettingsService.Instance.StreamingCloudTier),
+            // xAI and Gemini both take vocabulary with or without a language.
+            // Providers with no vocabulary at all never reach here - the caller
+            // returns on SupportsVocabulary first.
+            _ => true
+        };
+
     private static IStreamingProviderStrategy CreateStrategy(StreamingTranscriptionProvider provider) => provider switch
     {
         StreamingTranscriptionProvider.Deepgram => new DeepgramStreamingStrategy(),
         StreamingTranscriptionProvider.ElevenLabs => new ElevenLabsStreamingStrategy(),
         StreamingTranscriptionProvider.OpenAI => new OpenAIStreamingStrategy(),
         StreamingTranscriptionProvider.Xai => new XaiStreamingStrategy(),
-        _ => new HyperWhisperCloudStreamingStrategy()
+        StreamingTranscriptionProvider.GeminiTranscribe => new GeminiStreamingStrategy(),
+        // The cloud tier is a path selector on the ONE cloud strategy, deliberately
+        // not a StreamingTranscriptionProvider case: the credit and entitlement
+        // wiring keys off provider == hyperwhisperCloud and must keep matching.
+        _ => new HyperWhisperCloudStreamingStrategy(SettingsService.Instance.StreamingCloudTier)
     };
 
     private static string? GetApiKey(StreamingTranscriptionProvider provider) => provider switch
@@ -81,6 +112,8 @@ public static class StreamingTranscriptionSessionFactory
             ApiKeyService.Instance.GetApiKey(PostProcessingProvider.OpenAI),
         StreamingTranscriptionProvider.Xai =>
             ApiKeyService.Instance.GetApiKey(TranscriptionApiKeyType.Grok),
+        StreamingTranscriptionProvider.GeminiTranscribe =>
+            ApiKeyService.Instance.GetApiKey(TranscriptionApiKeyType.GeminiTranscribe),
         _ => null
     };
 
@@ -89,6 +122,7 @@ public static class StreamingTranscriptionSessionFactory
         StreamingTranscriptionProvider.Deepgram => TranscriptionApiKeyType.Deepgram,
         StreamingTranscriptionProvider.ElevenLabs => TranscriptionApiKeyType.ElevenLabs,
         StreamingTranscriptionProvider.Xai => TranscriptionApiKeyType.Grok,
+        StreamingTranscriptionProvider.GeminiTranscribe => TranscriptionApiKeyType.GeminiTranscribe,
         _ => null
     };
 

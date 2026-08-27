@@ -1755,6 +1755,9 @@
   <data name="settings.streaming.provider.xai" xml:space="preserve">
     <value>xAI</value>
   </data>
+  <data name="settings.streaming.provider.geminiTranscribe" xml:space="preserve">
+    <value>Gemini 3.5 Transcribe</value>
+  </data>
   <data name="settings.streaming.providerStatus.deepgram.configured" xml:space="preserve">
     <value>已配置 Deepgram API 密钥。</value>
   </data>
@@ -1775,6 +1778,18 @@
   </data>
   <data name="settings.streaming.providerStatus.xai.missingKey" xml:space="preserve">
     <value>xAI 流式转写需要在模型的 API 密钥管理器中配置 Grok API 密钥。</value>
+  </data>
+  <data name="settings.streaming.providerStatus.geminiTranscribe.configured" xml:space="preserve">
+    <value>Gemini API key is configured.</value>
+  </data>
+  <data name="settings.streaming.providerStatus.geminiTranscribe.missingKey" xml:space="preserve">
+    <value>Gemini 3.5 Transcribe streaming requires a Google Gemini API key in the Model Library API keys manager.</value>
+  </data>
+  <data name="settings.streaming.cloudTier.title" xml:space="preserve">
+    <value>Live engine</value>
+  </data>
+  <data name="settings.streaming.cloudTier.subtitle" xml:space="preserve">
+    <value>Which speech engine HyperWhisper Cloud uses for live transcription.</value>
   </data>
   <data name="settings.streaming.shortcut.title" xml:space="preserve">
     <value>流式转写快捷键</value>

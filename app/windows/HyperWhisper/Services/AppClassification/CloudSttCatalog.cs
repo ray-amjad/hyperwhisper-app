@@ -82,6 +82,31 @@ public sealed class CloudSttCatalog
     }
 
     /// <summary>
+    /// The cloud-tier entries HyperWhisper Cloud can also serve LIVE, in catalog
+    /// order — the eligible set for the streaming cloud-tier picker.
+    ///
+    /// Catalog-derived in Rust (<c>cloudTierEligible</c> AND some model with
+    /// <c>streaming: true</c>), never a hand-kept list here. Deliberately NOT the
+    /// entry-level <c>features.streaming</c> hint, which is true for six vendors
+    /// we serve no WebSocket route for — offering one of those would ship a 404 at
+    /// dictation time, and the STT catalog has no <c>enabled</c> gate to hide it.
+    ///
+    /// Ids are re-resolved through <see cref="GetById"/> exactly like the vendor
+    /// groups are, so a listed entry and the same entry fetched by id are one
+    /// object rather than two equal copies.
+    /// </summary>
+    public IReadOnlyList<CloudSttCatalogEntry> StreamingCloudTierEntries()
+    {
+        var list = new List<CloudSttCatalogEntry>();
+        foreach (var id in HyperwhisperCoreMethods.CloudSttStreamingCloudTierEntryIds())
+        {
+            var entry = GetById(id);
+            if (entry != null) list.Add(entry);
+        }
+        return list;
+    }
+
+    /// <summary>
     /// The Provider dropdown's rows: cloud-tier entries grouped by <c>vendor</c>
     /// and sorted by company name, so the list reads alphabetically and each
     /// company appears exactly once. Google owns two entries (Chirp + Gemini)

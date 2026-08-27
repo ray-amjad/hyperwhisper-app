@@ -5,6 +5,7 @@ using System.Windows.Input;
 using HyperWhisper.Localization;
 using HyperWhisper.Models;
 using HyperWhisper.Services;
+using HyperWhisper.Services.AppClassification;
 using HyperWhisper.Services.Streaming;
 using HyperWhisper.Views.Windows;
 
@@ -41,6 +42,13 @@ public partial class StreamingSettingsPage : Page
         SelectComboBoxItemByTag(ProviderBox, _settings.StreamingProvider);
         SelectComboBoxItemByTag(DeepgramModelBox, _settings.StreamingDeepgramModel);
         FastFormattingCheckbox.IsChecked = _settings.StreamingFastFormatting;
+
+        // Catalog-driven, so a third live vendor needs no edit here or in the XAML.
+        CloudTierBox.ItemsSource = CloudSttCatalog.Shared
+            .StreamingCloudTierEntries()
+            .Select(entry => new CloudTierChoice(entry.Id, TierLabel(entry.Id)))
+            .ToList();
+        CloudTierBox.SelectedValue = _settings.StreamingCloudTier;
 
         _isInitializing = false;
         UpdateStreamingOptionsVisibility();
@@ -229,6 +237,9 @@ public partial class StreamingSettingsPage : Page
         DeepgramPanel.Visibility = provider == StreamingTranscriptionProvider.Deepgram
             ? Visibility.Visible
             : Visibility.Collapsed;
+        HyperWhisperCloudPanel.Visibility = provider == StreamingTranscriptionProvider.HyperWhisperCloud
+            ? Visibility.Visible
+            : Visibility.Collapsed;
 
         ProviderStatusText.Text = provider switch
         {
@@ -245,6 +256,9 @@ public partial class StreamingSettingsPage : Page
             StreamingTranscriptionProvider.Xai => ApiKeyService.Instance.HasApiKey(TranscriptionApiKeyType.Grok)
                 ? Loc.S("settings.streaming.providerStatus.xai.configured")
                 : Loc.S("settings.streaming.providerStatus.xai.missingKey"),
+            StreamingTranscriptionProvider.GeminiTranscribe => ApiKeyService.Instance.HasApiKey(TranscriptionApiKeyType.GeminiTranscribe)
+                ? Loc.S("settings.streaming.providerStatus.geminiTranscribe.configured")
+                : Loc.S("settings.streaming.providerStatus.geminiTranscribe.missingKey"),
             _ => Loc.S("settings.streaming.providerStatus.hyperwhisperCloud")
         };
 
@@ -289,10 +303,12 @@ public partial class StreamingSettingsPage : Page
             return;
         }
 
-        // Auto-detect drops the terms on Deepgram (Nova-3 monolingual gate) and on
-        // HyperWhisper Cloud (BuildWebSocketUri omits Vocabulary without an
-        // explicit language). xAI accepts keyterms either way, so it is exempt.
-        if (provider is StreamingTranscriptionProvider.Deepgram or StreamingTranscriptionProvider.HyperWhisperCloud
+        // Auto-detect drops the terms on Deepgram (Nova-3's monolingual gate) and
+        // therefore on HyperWhisper Cloud too — but only while the cloud live tier
+        // is a Deepgram one. xAI and Gemini accept vocabulary either way, so the
+        // answer comes from the factory rather than a provider list kept here:
+        // a list here is what made xAI's keyterm support dead on arrival.
+        if (!StreamingTranscriptionSessionFactory.SupportsVocabularyWithoutLanguage(provider)
             && string.Equals(_settings.StreamingLanguage, "auto", System.StringComparison.OrdinalIgnoreCase))
         {
             VocabularyWarningText.Text = Loc.S("settings.streaming.warning.vocabularyAutoDetect");
@@ -302,6 +318,41 @@ public partial class StreamingSettingsPage : Page
 
         VocabularyWarningPanel.Visibility = Visibility.Collapsed;
     }
+
+    private void CloudTierBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_isInitializing) return;
+
+        if (CloudTierBox.SelectedValue is string tier)
+        {
+            _settings.StreamingCloudTier = tier;
+            // The Deepgram tier drops vocabulary in auto-detect and the Gemini tier
+            // does not, so the warning below the picker changes with this selection.
+            UpdateVocabularyWarning();
+            LoggingService.Info($"StreamingSettingsPage: Streaming cloud tier set to {tier}");
+        }
+    }
+
+    /// <summary>
+    /// The picker's row labels are the EXISTING per-tier strings the Mode editor
+    /// already ships (<c>modes.cloudAccuracy.&lt;id&gt;.label</c>) — reusing
+    /// CloudAccuracyTier's value space is exactly what buys that. Only the
+    /// picker's own heading is a new string, so this is one key per platform and
+    /// not 40 files of vendor names. Falls back to the catalog display name if a
+    /// future catalog id ever lands before its label does.
+    /// </summary>
+    private static string TierLabel(string tierId)
+    {
+        var localized = Loc.S($"modes.cloudAccuracy.{tierId}.label");
+        if (!string.IsNullOrWhiteSpace(localized) &&
+            !string.Equals(localized, $"modes.cloudAccuracy.{tierId}.label", System.StringComparison.Ordinal))
+        {
+            return localized;
+        }
+        return CloudSttCatalog.Shared.GetById(tierId)?.DisplayName ?? tierId;
+    }
+
+    private sealed record CloudTierChoice(string Id, string Label);
 
     private static void SelectComboBoxItemByTag(System.Windows.Controls.ComboBox comboBox, string tag)
     {
