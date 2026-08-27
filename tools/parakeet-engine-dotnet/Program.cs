@@ -466,8 +466,14 @@ internal sealed class EngineSession : IDisposable
     /// with no language set, and <c>is_no_space_language("auto")</c> is false by
     /// design. Joining on the language alone therefore wedged spaces into every
     /// auto-language Japanese dictation, which is exactly the #286 defect.
-    /// <see cref="SharedCoreBridge.SegmentSeparator"/> falls back to detecting
-    /// CJK in the segment text, as <c>append_trailing_space</c> already does.
+    /// <see cref="SharedCoreBridge.SegmentSeparator"/> falls back to detecting a
+    /// continuous script in the text on either side of the boundary, as
+    /// <c>append_trailing_space</c> already does for the text it is given.
+    /// </para>
+    /// <para>
+    /// The loop itself is <see cref="SharedCoreBridge.JoinSegments"/>, so the
+    /// daemon and every host build the same string from the same code rather than
+    /// from two copies of the same loop.
     /// </para>
     /// <para>
     /// <see cref="_segmentJoin"/> still feeds the rolling-offline live path's
@@ -475,17 +481,11 @@ internal sealed class EngineSession : IDisposable
     /// #286 leaves open and is out of scope here.
     /// </para>
     /// </summary>
-    private string JoinSegments(List<string> parts)
-    {
-        var joined = new StringBuilder();
-        foreach (var part in parts)
-        {
-            if (joined.Length > 0)
-                joined.Append(SharedCoreBridge.SegmentSeparator(_options.Language, part));
-            joined.Append(part);
-        }
-        return joined.ToString();
-    }
+    private string JoinSegments(List<string> parts) => JoinSegments(_options.Language, parts);
+
+    /// <summary>Test seam for <see cref="JoinSegments(List{string})"/>.</summary>
+    internal static string JoinSegments(string? language, IEnumerable<string> parts)
+        => SharedCoreBridge.JoinSegments(language, parts);
 
     private string DecodeOffline(float[] samples, int sampleRate)
     {

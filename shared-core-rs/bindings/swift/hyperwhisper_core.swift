@@ -11431,6 +11431,23 @@ public func hyperwhisperCloudParseTranscribeResponse(resp: HttpResponse)throws  
 })
 }
 /**
+ * Detect whether text is primarily written in a continuous script (no word
+ * spaces): CJK plus Thai.
+ *
+ * The text-side half of the segment-join policy (issue #286). Callers resolve a
+ * declared language through [`is_no_space_language`] and fall back to this when
+ * the language is `"auto"` — which is what the hosts pass most of the time. It
+ * covers Thai, which `contains_cjk` cannot, so the fallback agrees with the
+ * language table for every code in it.
+ */
+public func isContinuousScript(text: String) -> Bool {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_is_continuous_script(
+        FfiConverterString.lower(text),$0
+    )
+})
+}
+/**
  * Whether a language code is written without spaces between words.
  *
  * The join policy for concatenated transcription segments (issue #286): the
@@ -12770,6 +12787,9 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_hyperwhisper_cloud_parse_transcribe_response() != 23581) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_is_continuous_script() != 3237) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_is_no_space_language() != 44853) {

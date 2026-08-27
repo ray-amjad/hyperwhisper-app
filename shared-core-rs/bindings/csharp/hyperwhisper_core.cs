@@ -1164,6 +1164,8 @@ static class _UniFFILib {
     
     
     
+    
+    
 
     static _UniFFILib() {
         _UniFFILib.uniffiCheckContractApiVersion();
@@ -1578,6 +1580,10 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_hyperwhisper_cloud_parse_transcribe_response(RustBuffer @resp,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern sbyte uniffi_hyperwhisper_core_fn_func_is_continuous_script(RustBuffer @text,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -2558,6 +2564,10 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_hyperwhisper_cloud_parse_transcribe_response(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_is_continuous_script(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -3544,6 +3554,12 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_hyperwhisper_cloud_parse_transcribe_response();
             if (checksum != 23581) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_hyperwhisper_cloud_parse_transcribe_response` checksum `23581`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_is_continuous_script();
+            if (checksum != 3237) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_is_continuous_script` checksum `3237`, library returned `{checksum}`");
             }
         }
         {
@@ -12419,6 +12435,24 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterTypeHwTranscript.INSTANCE.Lift(
     _UniffiHelpers.RustCallWithError(FfiConverterTypeHwTranscriptionError.INSTANCE, (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_hyperwhisper_cloud_parse_transcribe_response(FfiConverterTypeHttpResponse.INSTANCE.Lower(@resp), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Detect whether text is primarily written in a continuous script (no word
+    /// spaces): CJK plus Thai.
+    ///
+    /// The text-side half of the segment-join policy (issue #286). Callers resolve a
+    /// declared language through [`is_no_space_language`] and fall back to this when
+    /// the language is `"auto"` — which is what the hosts pass most of the time. It
+    /// covers Thai, which `contains_cjk` cannot, so the fallback agrees with the
+    /// language table for every code in it.
+    /// </summary>
+    public static bool IsContinuousScript(string @text) {
+        return FfiConverterBoolean.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_is_continuous_script(FfiConverterString.INSTANCE.Lower(@text), ref _status)
 ));
     }
 

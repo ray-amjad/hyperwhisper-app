@@ -22,6 +22,12 @@ const AUTOMATIC_CODE: &str = "auto";
 const NO_SPACE_LANGUAGE_CODES: &[&str] =
     &["ja", "zh", "zh-TW", "zh-Hans", "zh-Hant", "ko", "th", "yue"];
 
+/// Inclusive Thai block. Not CJK — it is the one entry in
+/// [`NO_SPACE_LANGUAGE_CODES`] whose script is outside [`CJK_RANGES`], and
+/// [`is_continuous_script`] exists so the `"auto"` join agrees with the table
+/// for it too (issue #286).
+const THAI_RANGE: (u32, u32) = (0x0E00, 0x0E7F);
+
 /// Inclusive CJK Unicode ranges (scalar values). Superset of both platforms.
 const CJK_RANGES: &[(u32, u32)] = &[
     (0x4E00, 0x9FFF),   // CJK Unified Ideographs
@@ -87,10 +93,22 @@ pub fn is_no_space_language(language_code: &str) -> bool {
     is_no_space_code(&prefix)
 }
 
-/// Detect whether text *primarily* (>30% of non-space, non-punctuation chars)
-/// contains CJK characters. Mixed content like "これはtestです" is still CJK.
-pub fn contains_cjk(text: &str) -> bool {
-    let mut cjk_count = 0usize;
+/// Whether `value` is a CJK scalar.
+fn is_cjk_scalar(value: u32) -> bool {
+    CJK_RANGES.iter().any(|&(lo, hi)| value >= lo && value <= hi)
+}
+
+/// Whether `value` belongs to a script written without spaces between words:
+/// the CJK ranges plus Thai.
+fn is_continuous_script_scalar(value: u32) -> bool {
+    is_cjk_scalar(value) || (value >= THAI_RANGE.0 && value <= THAI_RANGE.1)
+}
+
+/// Share of non-space, non-punctuation characters matching `matches`, tested
+/// against the >30% rule both detectors use. Empty (or punctuation-only) input
+/// is `false`: nothing has been seen, so nothing is claimed.
+fn script_share_exceeds_threshold(text: &str, matches: fn(u32) -> bool) -> bool {
+    let mut matched_count = 0usize;
     let mut total_count = 0usize;
 
     for c in text.chars() {
@@ -98,16 +116,40 @@ pub fn contains_cjk(text: &str) -> bool {
             continue;
         }
         total_count += 1;
-        let value = c as u32;
-        if CJK_RANGES.iter().any(|&(lo, hi)| value >= lo && value <= hi) {
-            cjk_count += 1;
+        if matches(c as u32) {
+            matched_count += 1;
         }
     }
 
     if total_count == 0 {
         return false;
     }
-    (cjk_count as f64) / (total_count as f64) > 0.3
+    (matched_count as f64) / (total_count as f64) > 0.3
+}
+
+/// Detect whether text *primarily* (>30% of non-space, non-punctuation chars)
+/// contains CJK characters. Mixed content like "これはtestです" is still CJK.
+pub fn contains_cjk(text: &str) -> bool {
+    script_share_exceeds_threshold(text, is_cjk_scalar)
+}
+
+/// Detect whether text is *primarily* written in a continuous script — one with
+/// no spaces between words. [`contains_cjk`] plus Thai.
+///
+/// This is the text-side half of the join policy (issue #286) and the fallback
+/// the callers use when the language is `"auto"`, which is what the hosts
+/// actually pass most of the time. It is a separate function from
+/// [`contains_cjk`] on purpose: `contains_cjk` has other callers (autocapitalize
+/// and the platform smart-spacing shims), its name would become a lie if Thai
+/// were folded into it, and only the join policy needs to agree with every code
+/// in [`NO_SPACE_LANGUAGE_CODES`].
+///
+/// It covers exactly the scripts of that table: `ja` / `zh*` / `yue` (CJK
+/// ideographs, kana, the halfwidth/fullwidth forms), `ko` (Hangul, which is in
+/// [`CJK_RANGES`]) and `th` (Thai, which is not). So
+/// `separator("th", …) == separator("auto", <Thai text>)`.
+pub fn is_continuous_script(text: &str) -> bool {
+    script_share_exceeds_threshold(text, is_continuous_script_scalar)
 }
 
 /// Append a trailing space unless the text already ends in whitespace, is empty,

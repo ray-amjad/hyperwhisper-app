@@ -16,6 +16,8 @@ internal static class DaemonTests
             ("the join policy comes from the shared core", NoSpaceLanguageTable),
             ("the shared table widens the daemon's old four codes", NoSpaceLanguageWidening),
             ("an auto language joins VAD segments from the text", AutoLanguageSegmentJoin),
+            ("an auto-language join reads both sides of the boundary", AutoLanguageSegmentJoinIsSymmetric),
+            ("an auto-language join does not depend on where the VAD split", AutoLanguageJoinIsBoundaryIndependent),
         };
 
         var failures = 0;
@@ -108,18 +110,42 @@ internal static class DaemonTests
         Equal("alphabeta", JoinLikeDaemon("ja", ["alpha", "beta"]));
     }
 
-    /// <summary>The join loop in <c>EngineSession.JoinSegments</c>.</summary>
-    private static string JoinLikeDaemon(string language, string[] parts)
+    // The four ways a segment can carry no script evidence of its own. Each one
+    // used to break a Japanese VAD join, because the separator was decided from
+    // the segment AFTER the boundary alone.
+    private static void AutoLanguageSegmentJoinIsSymmetric()
     {
-        var joined = new System.Text.StringBuilder();
-        foreach (var part in parts)
-        {
-            if (joined.Length > 0)
-                joined.Append(HyperWhisper.SharedCore.SharedCoreBridge.SegmentSeparator(language, part));
-            joined.Append(part);
-        }
-        return joined.ToString();
+        // A VAD segment that decodes to nothing.
+        Equal("こんにちは世界", JoinLikeDaemon("auto", ["こんにちは", "", "世界"]));
+        Equal("こんにちは世界", JoinLikeDaemon("auto", ["こんにちは", "   ", "世界"]));
+        // Punctuation-only and digit-heavy segments.
+        Equal("日本語。", JoinLikeDaemon("auto", ["日本語", "。"]));
+        Equal("これは2024年です", JoinLikeDaemon("auto", ["これは", "2024年", "です"]));
+        // Symmetric around an embedded Latin run — a space on one side only was
+        // the visible symptom.
+        Equal("これはOKです", JoinLikeDaemon("auto", ["これは", "OK", "です"]));
+        // Thai: the one no-space language that is not CJK. `th` and `auto` must
+        // reach the same answer.
+        Equal("สวัสดีครับ", JoinLikeDaemon("auto", ["สวัสดี", "ครับ"]));
+        Equal("สวัสดีครับ", JoinLikeDaemon("th", ["สวัสดี", "ครับ"]));
     }
+
+    // Where the VAD put its boundaries must not change the transcript. This is
+    // what makes the daemon and the host agree even when their segmentation
+    // differs, which is the divergence #286 exists to close.
+    private static void AutoLanguageJoinIsBoundaryIndependent()
+    {
+        Equal("これはtestです", JoinLikeDaemon("auto", ["これはtestです"]));
+        Equal("これはtestです", JoinLikeDaemon("auto", ["これは", "test", "です"]));
+        Equal("これはtestです", JoinLikeDaemon("auto", ["これ", "はtest", "です"]));
+    }
+
+    /// <summary>
+    /// The daemon's own join, not a copy of it — <c>EngineSession.JoinSegments</c>
+    /// is what <c>DecodeOfflineWithVad</c> calls.
+    /// </summary>
+    private static string JoinLikeDaemon(string language, string[] parts)
+        => EngineSession.JoinSegments(language, parts);
 
     private static void True(bool condition, string because)
     {

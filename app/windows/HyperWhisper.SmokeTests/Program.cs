@@ -455,6 +455,27 @@ internal static class Program
                 Assert(ParakeetTranscriptionService.NormalizeLanguage(" EN ") == "en", "' EN ' → en");
             });
 
+            // The daemon's join has THREE classes since #286, so the respawn
+            // predicate cannot be a two-valued IsNoSpaceLanguage comparison: "en"
+            // and "auto" are both "spaced" to that test, but an auto-language
+            // daemon joins Japanese VAD segments with no space at all.
+            Run("ResolveJoinClass separates auto from a declared spaced language", () =>
+            {
+                foreach (var code in new[] { "ja", "zh", "ko", "yue" })
+                    Assert(ParakeetTranscriptionService.ResolveJoinClass(code) == "no-space", $"{code} → no-space");
+                foreach (var code in new[] { "en", "fr", "de" })
+                    Assert(ParakeetTranscriptionService.ResolveJoinClass(code) == "spaced", $"{code} → spaced");
+                Assert(ParakeetTranscriptionService.ResolveJoinClass("auto") == "auto", "auto → auto");
+
+                // The three pairs that must be a respawn, and the one that must not.
+                string Class(string? language) => ParakeetTranscriptionService.ResolveJoinClass(
+                    ParakeetTranscriptionService.NormalizeLanguage(language));
+                Assert(Class("en") != Class(null), "en → no language must change class");
+                Assert(Class("en") != Class("ja"), "en → ja must change class");
+                Assert(Class("auto") != Class("ja"), "auto → ja must change class");
+                Assert(Class("en") == Class("fr"), "en → fr must NOT change class");
+            });
+
             Run("Grok GetRequestTimeout scales with file size", () =>
             {
                 Assert(GrokSttService.GetRequestTimeout(0) == TimeSpan.FromMinutes(5), "0 bytes → 5min base");
@@ -1960,6 +1981,40 @@ internal static class Program
                     {
                         // Best-effort cleanup; a leftover temp file must not fail CI.
                     }
+                }
+            });
+
+            Run("MonoFoldSampleProvider carries a partial frame instead of ending the stream (#291)", () =>
+            {
+                // A source may legally return any count, including one that ends mid-frame.
+                // Dividing that count by the channel count gave 0 frames, and BOTH the analysis
+                // loop and WdlResamplingSampleProvider read a 0 as end-of-stream - so the
+                // measurement silently stopped at the prefix and still reported
+                // AnalysisSucceeded: true. Dropping the remainder instead of carrying it would
+                // also rotate every later frame across the channels.
+                var interleaved = new[] { 1f, 3f, 5f, 7f, 9f, 11f, 13f, 15f, 17f, 19f };
+                // The first read is ONE sample of a two-sample frame.
+                var source = new ChoppySampleProvider(interleaved, 2, [1, 2, 3, 4]);
+                var fold = new TranscriptionDiagnosticsService.MonoFoldSampleProvider(source);
+
+                var buffer = new float[16];
+                var produced = new List<float>();
+                int read;
+                while ((read = fold.Read(buffer, 0, buffer.Length)) > 0)
+                {
+                    for (var i = 0; i < read; i++)
+                    {
+                        produced.Add(buffer[i]);
+                    }
+                }
+
+                Assert(produced.Count == 5,
+                    $"expected all 5 folded frames, got {produced.Count} - a short read ended the stream");
+                for (var i = 0; i < produced.Count; i++)
+                {
+                    var expected = 2f + (4f * i);
+                    Assert(Math.Abs(produced[i] - expected) < 1e-6,
+                        $"frame {i} should be {expected}, got {produced[i]} - the frames are channel-rotated");
                 }
             });
 
@@ -4157,6 +4212,36 @@ internal static class Program
         public Task OnAudioSendOpportunityAsync(
             Func<byte[], WebSocketMessageType, CancellationToken, Task> webSocketSendAsync,
             CancellationToken cancellationToken) => throw new NotSupportedException();
+    }
+
+    /// <summary>
+    /// An <c>ISampleProvider</c> that hands out a scripted, deliberately awkward number of
+    /// samples per Read — starting with a count SMALLER than one sample frame, which is legal
+    /// and which the mono fold must not mistake for end-of-stream.
+    /// </summary>
+    private sealed class ChoppySampleProvider(float[] samples, int channels, int[] chunkSizes)
+        : NAudio.Wave.ISampleProvider
+    {
+        private int _position;
+        private int _chunk;
+
+        public NAudio.Wave.WaveFormat WaveFormat { get; } =
+            NAudio.Wave.WaveFormat.CreateIeeeFloatWaveFormat(16000, channels);
+
+        public int Read(float[] buffer, int offset, int count)
+        {
+            var remaining = samples.Length - _position;
+            if (remaining <= 0)
+            {
+                return 0;
+            }
+
+            var size = _chunk < chunkSizes.Length ? chunkSizes[_chunk++] : remaining;
+            size = Math.Min(Math.Min(size, count), remaining);
+            Array.Copy(samples, _position, buffer, offset, size);
+            _position += size;
+            return size;
+        }
     }
 
     private sealed class InMemoryCredentialBackend : IWindowsCredentialBackend

@@ -951,6 +951,41 @@ static void RunCanonicalPcmWaveTests(string root)
     Assert(new FileInfo(trailingPath).Length == trailingSize,
         "crash recovery truncated a trailing RIFF chunk");
 
+    // The same file, but with the RIFF size sized to cover the trailing chunk too — which is
+    // what a writer that emits a LIST chunk actually does. The header is then self-consistent
+    // in every field, and recovery must leave the file BYTE-IDENTICAL: it used to read
+    // `riffSize != 36 + dataLength` as a broken header and "repair" it by truncating to
+    // 44 + dataLength, deleting the chunk from disk with no way back.
+    var coveredPath = WriteWave(Path.Combine(root, "riff-covers-trailing.wav"), 64, 32, 64);
+    var coveredBytes = File.ReadAllBytes(coveredPath);
+    System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(
+        coveredBytes.AsSpan(4), (uint)(coveredBytes.Length - 8));
+    File.WriteAllBytes(coveredPath, coveredBytes);
+    Assert(ReadWave(coveredPath) is { DataLength: 64, DeclaredLengthsAgree: true },
+        "a RIFF size that legitimately covers a trailing chunk was read as a disagreement");
+    Assert(CanonicalPcmWave.InspectAndRepair(coveredPath, repair: false).IsSuccess,
+        "a self-consistent file with a trailing chunk was reported as an incomplete header");
+    Assert(CanonicalPcmWave.InspectAndRepair(coveredPath, repair: true).IsSuccess,
+        "a self-consistent file with a trailing chunk was rejected by crash recovery");
+    Assert(File.ReadAllBytes(coveredPath).AsSpan().SequenceEqual(coveredBytes),
+        "crash recovery rewrote a file whose header already described it");
+
+    // A declared length too small to hold one sample frame, on a file that is entirely there —
+    // a header patched with a stray value. Aligning 1 down to 0 used to report
+    // `audio_recovery.empty_wave` and quarantine a 200 KB recording that the unconditional
+    // recompute would have restored in full, so it falls back to the recompute instead.
+    Assert(ReadWave(WriteWave(Path.Combine(root, "declared-sub-frame.wav"), 1, 0, 64)).DataLength == 64,
+        "a sub-frame declared length discarded a recoverable recording");
+    Assert(CanonicalPcmWave.InspectAndRepair(
+        WriteWave(Path.Combine(root, "declared-sub-frame-repair.wav"), 1, 0, 64), repair: true) is
+        { IsSuccess: true, Value.DataLength: 64 },
+        "a sub-frame declared length was not repaired to the whole payload");
+    // ...but a file that really has no complete frame is still empty, whatever it declares.
+    Assert(CanonicalPcmWave.InspectAndRepair(
+        WriteWave(Path.Combine(root, "declared-sub-frame-empty.wav"), 1, 0, 1), repair: true)
+        .Error!.Code == "audio_recovery.empty_wave",
+        "a file with no complete sample frame was not rejected");
+
     // No trailing chunk: the ordinary file, where declared and recomputed are the same answer.
     Assert(ReadWave(WriteWave(Path.Combine(root, "declared-exact.wav"), 64, 0, 64)) is
         { DataLength: 64, DeclaredLengthsAgree: true },

@@ -530,11 +530,22 @@ public static class TranscriptionDiagnosticsService
     /// A plain average is the same 0.5/0.5 mix the 2-channel provider defaults to,
     /// generalized to N channels.
     /// </remarks>
-    private sealed class MonoFoldSampleProvider : ISampleProvider
+    // internal (not private): test seam for HyperWhisper.SmokeTests via
+    // InternalsVisibleTo, which drives it with a source that returns awkward
+    // read counts - see the short-read test.
+    internal sealed class MonoFoldSampleProvider : ISampleProvider
     {
         private readonly ISampleProvider _source;
         private readonly int _channels;
         private float[] _sourceBuffer = [];
+
+        /// <summary>
+        /// Samples of an incomplete frame held over from the previous <see cref="Read"/>, at the
+        /// start of <see cref="_sourceBuffer"/>. A source is free to return any count it likes,
+        /// including one that ends mid-frame; dropping the remainder instead of carrying it
+        /// would rotate every later frame across the channels by that many samples.
+        /// </summary>
+        private int _pending;
 
         internal MonoFoldSampleProvider(ISampleProvider source)
         {
@@ -547,16 +558,36 @@ public static class TranscriptionDiagnosticsService
 
         public int Read(float[] buffer, int offset, int count)
         {
+            if (count <= 0)
+            {
+                return 0;
+            }
+
             var required = count * _channels;
             if (_sourceBuffer.Length < required)
             {
-                _sourceBuffer = new float[required];
+                // Resize, not reallocate: the carried partial frame lives at the start of it.
+                Array.Resize(ref _sourceBuffer, required);
             }
 
-            var read = _source.Read(_sourceBuffer, 0, required);
-            // Whole frames only. A source that stops mid-frame drops the partial one,
-            // which is what every other fold in the app does.
-            var frames = read / _channels;
+            // Returning fewer than `count` frames is legal; returning 0 while the source still
+            // has audio is not — both the analysis loop and WdlResamplingSampleProvider read a 0
+            // as end-of-stream, so a source that returned 0 < read < _channels once would
+            // silently truncate the measurement and still report AnalysisSucceeded: true. Keep
+            // pulling until a whole frame exists or the source is genuinely exhausted.
+            var available = _pending;
+            while (available < _channels)
+            {
+                var read = _source.Read(_sourceBuffer, available, required - available);
+                if (read <= 0)
+                {
+                    break;
+                }
+
+                available += read;
+            }
+
+            var frames = available / _channels;
             for (var frame = 0; frame < frames; frame++)
             {
                 double sum = 0;
@@ -567,6 +598,13 @@ public static class TranscriptionDiagnosticsService
                 }
 
                 buffer[offset + frame] = (float)(sum / _channels);
+            }
+
+            // Carry whatever did not make up a whole frame to the next call.
+            _pending = available - (frames * _channels);
+            if (_pending > 0)
+            {
+                Array.Copy(_sourceBuffer, frames * _channels, _sourceBuffer, 0, _pending);
             }
 
             return frames;

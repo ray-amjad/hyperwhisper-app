@@ -89,6 +89,38 @@ fn no_space_language_is_case_insensitive_and_prefix_matched() {
     assert!(!is_no_space_language("  en  "));
 }
 
+/// `is_continuous_script` is the text-side half of the join policy: what the
+/// callers fall back to when the language is `"auto"`. It must agree with
+/// `is_no_space_language` for the SCRIPT of every code in that table — Thai
+/// included, which is why it is not `contains_cjk`.
+#[test]
+fn continuous_script_covers_every_no_space_language() {
+    // ja / zh / yue — kana and Han.
+    assert!(is_continuous_script("こんにちは"));
+    assert!(is_continuous_script("世界"));
+    assert!(is_continuous_script("今日はいい天気ですね。"));
+    // ko — Hangul is inside the CJK range table.
+    assert!(is_continuous_script("안녕하세요"));
+    // th — Thai is NOT CJK, and this is the case `contains_cjk` gets wrong.
+    assert!(!contains_cjk("สวัสดีครับ"));
+    assert!(is_continuous_script("สวัสดีครับ"));
+    assert!(is_continuous_script("ผมชอบ"));
+    // Space-delimited scripts stay space-delimited.
+    assert!(!is_continuous_script("Hello world."));
+    assert!(!is_continuous_script("Hallo Welt"));
+    assert!(!is_continuous_script("Привет мир"));
+    // Same >30% rule as contains_cjk: mixed content still counts, and empty or
+    // punctuation-only input claims nothing.
+    assert!(is_continuous_script("これはtestです"));
+    assert!(!is_continuous_script(""));
+    assert!(!is_continuous_script("   ...   "));
+    assert!(!is_continuous_script("。"));
+    // A digit-heavy segment is below the threshold on its own — which is why the
+    // callers test the text on BOTH sides of a segment boundary, not just the
+    // one after it.
+    assert!(!is_continuous_script("2024年"));
+}
+
 /// `append_trailing_space` and `is_no_space_language` must never disagree: the
 /// former is defined in terms of the latter for an explicit language.
 #[test]

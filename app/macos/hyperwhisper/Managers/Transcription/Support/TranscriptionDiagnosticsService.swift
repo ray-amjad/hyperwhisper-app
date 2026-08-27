@@ -67,8 +67,24 @@ struct AudioAnalysisDiagnostics {
     var peakDbfs: Double = audioMinimumDbfs()
     var rmsDbfs: Double = audioMinimumDbfs()
     var nonSilentRatio: Double = 0
-    /// nil = unknown (no decode loop ran). Deliberately NOT treated as empty.
+    /// Mono sample frames the DECODER produced, counted BEFORE the conversion to
+    /// 16 kHz — so for a 48 kHz file this counts 48,000 a second, exactly as the
+    /// Windows `DecodedSampleCount` does. Zero means precisely "the recorder
+    /// produced nothing", which is all the empty-recording arm reads it for.
+    ///
+    /// nil = unknown (the container would not open). Deliberately NOT treated as
+    /// empty.
+    ///
+    /// It is deliberately not the post-conversion count. `AudioConverter` emits
+    /// nothing at all for a decodable-but-very-short file, so measuring the arm
+    /// on its output reported "the recorder produced nothing" for a file the
+    /// recorder plainly did produce — the false report #291 removed on Windows.
     var decodedSampleCount: Int?
+    /// 16 kHz mono samples the dBFS figures above were actually measured over,
+    /// counted AFTER the conversion. The comparable measurement basis, reported
+    /// for context only; nothing classifies on it. Matches the Windows
+    /// `MeasuredSampleCount`.
+    var measuredSampleCount: Int?
     var analysisError: String?
 }
 
@@ -297,7 +313,21 @@ enum TranscriptionDiagnosticsService {
             "audio_non_silent_ratio": audio.nonSilentRatio,
             // The honest "was anything captured" signal — audio_duration_seconds
             // above falls back to the caller's wall-clock value.
+            //
+            // The two counts mean different things and are both reported, with the
+            // same meanings Windows gives them (#291):
+            //   audio_decoded_sample_count  — mono frames the DECODER produced,
+            //     counted at the SOURCE rate, before the conversion to 16 kHz.
+            //     Zero means exactly "the recorder produced nothing", which is all
+            //     the empty-recording arm reads it for.
+            //   audio_measured_sample_count — 16 kHz mono samples the dBFS figures
+            //     above were measured over. This one CAN be zero for a decodable
+            //     but very short file, which is why it is not the count the arm
+            //     reads.
+            // Neither is comparable with macOS values emitted before #291: this
+            // field used to carry the post-conversion count.
             "audio_decoded_sample_count": audio.decodedSampleCount.map { String($0) } ?? "unknown",
+            "audio_measured_sample_count": audio.measuredSampleCount.map { String($0) } ?? "unknown",
             "mode_name": mode,
             "backend_empty_transcript_without_flag": emptyTranscriptWithoutFlag,
             "mic_boost_failed": micBoostFailed
@@ -347,9 +377,19 @@ enum TranscriptionDiagnosticsService {
         var sourceSampleRate: Double?
         var sourceChannels: Int?
         var containerDuration: Double = 0
+        // The PRE-conversion frame count, at the source rate — the same thing
+        // Windows counts before its resampler, and the only count the
+        // empty-recording arm may read. `file.length` is frames, not interleaved
+        // samples, so like the Windows fold it does not scale with the channel
+        // count. Stays nil when the container will not open: "unknown", not
+        // "empty".
+        var decodedFrameCount: Int?
         if let file = try? AVAudioFile(forReading: audioURL) {
             sourceSampleRate = file.fileFormat.sampleRate
             sourceChannels = Int(file.fileFormat.channelCount)
+            if file.length >= 0 {
+                decodedFrameCount = Int(file.length)
+            }
             if file.fileFormat.sampleRate > 0 {
                 containerDuration = Double(file.length) / file.fileFormat.sampleRate
             }
@@ -375,6 +415,7 @@ enum TranscriptionDiagnosticsService {
                 fileSizeBytes: fileSize,
                 sampleRate: sourceSampleRate,
                 channels: sourceChannels,
+                decodedSampleCount: decodedFrameCount,
                 analysisError: error.localizedDescription
             )
         }
@@ -416,7 +457,14 @@ enum TranscriptionDiagnosticsService {
             peakDbfs: summary.peakDbfs,
             rmsDbfs: summary.rmsDbfs,
             nonSilentRatio: summary.nonSilentRatio,
-            decodedSampleCount: count
+            // Two counts, two meanings, both matching Windows (#291): what the
+            // decoder produced at the SOURCE rate, and what the dBFS figures were
+            // measured over at 16 kHz. `count` used to be reported as the decoded
+            // one, which made the same Sentry field mean different things on the
+            // two platforms — off by the source-rate ratio — and fed a
+            // post-conversion count to the `== 0` empty-recording arm.
+            decodedSampleCount: decodedFrameCount,
+            measuredSampleCount: count
         )
     }
 }

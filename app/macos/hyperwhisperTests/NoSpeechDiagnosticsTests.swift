@@ -20,6 +20,7 @@ struct NoSpeechDiagnosticsTests {
     private func audio(
         analysisSucceeded: Bool = true,
         decodedSampleCount: Int? = 48_000,
+        measuredSampleCount: Int? = 16_000,
         peakDbfs: Double = -12.0,
         rmsDbfs: Double = -20.0,
         nonSilentRatio: Double = 0.4
@@ -31,7 +32,8 @@ struct NoSpeechDiagnosticsTests {
             peakDbfs: peakDbfs,
             rmsDbfs: rmsDbfs,
             nonSilentRatio: nonSilentRatio,
-            decodedSampleCount: decodedSampleCount
+            decodedSampleCount: decodedSampleCount,
+            measuredSampleCount: measuredSampleCount
         )
     }
 
@@ -99,6 +101,24 @@ struct NoSpeechDiagnosticsTests {
         #expect(TranscriptionDiagnosticsService.classify(
             audio(decodedSampleCount: nil, peakDbfs: -120, rmsDbfs: -120, nonSilentRatio: 0),
             backendNoSpeechDetected: true) == .skip)
+    }
+
+    /// The arm reads the PRE-conversion count, as Windows does. `AudioConverter`
+    /// emits nothing at all for a decodable-but-very-short file, so classifying
+    /// on the post-conversion count called such a file "the recorder produced
+    /// nothing" — the false report #291 removed on Windows, which macOS was still
+    /// making because its `audio_decoded_sample_count` was the converter's output.
+    @Test func theEmptyRecordingArmReadsThePreConversionCount() {
+        #expect(TranscriptionDiagnosticsService.classify(
+            audio(decodedSampleCount: 8, measuredSampleCount: 0,
+                  peakDbfs: -120, rmsDbfs: -120, nonSilentRatio: 0),
+            backendNoSpeechDetected: true) != .emptyRecording)
+
+        // Nothing decoded at all is still an empty recording.
+        #expect(TranscriptionDiagnosticsService.classify(
+            audio(decodedSampleCount: 0, measuredSampleCount: 0,
+                  peakDbfs: -120, rmsDbfs: -120, nonSilentRatio: 0),
+            backendNoSpeechDetected: true) == .emptyRecording)
     }
 
     /// Arm 3, which macOS never had before #291. It is currently unreachable

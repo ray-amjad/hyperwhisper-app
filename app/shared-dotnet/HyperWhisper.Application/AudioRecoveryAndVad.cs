@@ -46,6 +46,10 @@ public static class CanonicalPcmWave
             }
 
             var actual = header!.DataLength;
+            // Repair rewrites the header AND truncates to it, so it must only ever run on a file
+            // whose header does not describe the file it is in. `DeclaredLengthsAgree` tolerates
+            // a trailing RIFF chunk for exactly that reason: a valid `LIST` or `JUNK` chunk after
+            // the audio is not a disagreement, and truncating one away is unrecoverable.
             if (!header.DeclaredLengthsAgree)
             {
                 if (!repair)

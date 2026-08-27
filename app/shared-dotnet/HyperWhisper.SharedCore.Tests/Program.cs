@@ -48,37 +48,62 @@ var tests = new (string Name, Func<Task> Run)[]
     ("the segment separator falls back to the text when no language is declared", () =>
     {
         // A declared language decides on its own, whatever the text looks like.
-        Assert.Equal("", SharedCoreBridge.SegmentSeparator("ja", "world"));
-        Assert.Equal("", SharedCoreBridge.SegmentSeparator("ZH-CN", "world"));
-        Assert.Equal(" ", SharedCoreBridge.SegmentSeparator("en", "世界"));
+        Assert.Equal("", SharedCoreBridge.SegmentSeparator("ja", "hello", "world"));
+        Assert.Equal("", SharedCoreBridge.SegmentSeparator("ZH-CN", "hello", "world"));
+        Assert.Equal(" ", SharedCoreBridge.SegmentSeparator("en", "こんにちは", "世界"));
 
-        // With nothing declared, the segment text decides — this is the case the
-        // fix exists for: default settings, Japanese dictation.
+        // With nothing declared, the text decides — this is the case the fix
+        // exists for: default settings, Japanese dictation.
         foreach (var automatic in new string?[] { null, "", "   ", "auto", "AUTO", " Auto " })
         {
             Assert.True(SharedCoreBridge.IsAutomaticLanguage(automatic));
-            Assert.Equal("", SharedCoreBridge.SegmentSeparator(automatic, "世界"));
-            Assert.Equal(" ", SharedCoreBridge.SegmentSeparator(automatic, "world"));
+            Assert.Equal("", SharedCoreBridge.SegmentSeparator(automatic, "こんにちは", "世界"));
+            Assert.Equal(" ", SharedCoreBridge.SegmentSeparator(automatic, "hello", "world"));
         }
         Assert.False(SharedCoreBridge.IsAutomaticLanguage("en"));
         Assert.False(SharedCoreBridge.IsAutomaticLanguage("ja"));
 
-        // An empty or absent next segment is not CJK, so it cannot silently turn
-        // an English session into a no-space one.
-        Assert.Equal(" ", SharedCoreBridge.SegmentSeparator("auto", ""));
-        Assert.Equal(" ", SharedCoreBridge.SegmentSeparator("auto", null));
+        // EITHER side of the boundary being continuous-script joins without a
+        // space. The accumulated text is the primary signal, because a single
+        // segment often carries no script evidence at all: these four all used to
+        // wedge a space into the middle of a Japanese dictation.
+        Assert.Equal("", SharedCoreBridge.SegmentSeparator("auto", "こんにちは", ""));
+        Assert.Equal("", SharedCoreBridge.SegmentSeparator("auto", "こんにちは", null));
+        Assert.Equal("", SharedCoreBridge.SegmentSeparator("auto", "日本語", "。"));
+        Assert.Equal("", SharedCoreBridge.SegmentSeparator("auto", "これは", "2024年"));
+        Assert.Equal("", SharedCoreBridge.SegmentSeparator("auto", "これは", "OK"));
+        Assert.Equal("", SharedCoreBridge.SegmentSeparator("auto", "これはOK", "です"));
+        // The first boundary of a stream has no accumulated text, so the incoming
+        // segment still has to be able to decide it.
+        Assert.Equal("", SharedCoreBridge.SegmentSeparator("auto", "", "世界"));
+        Assert.Equal("", SharedCoreBridge.SegmentSeparator("auto", null, "世界"));
+        // Nothing on either side is not evidence of a no-space language.
+        Assert.Equal(" ", SharedCoreBridge.SegmentSeparator("auto", "", ""));
+        Assert.Equal(" ", SharedCoreBridge.SegmentSeparator("auto", null, null));
 
-        // End to end: the three-segment Japanese dictation from issue #286, on
-        // the default "auto" language. Both sinks build from this one value, so
-        // asserting the join asserts the typed text and the saved text at once.
-        var joined = new StringBuilder();
-        foreach (var segment in new[] { "こんにちは", "世界", "です" })
-        {
-            if (joined.Length > 0)
-                joined.Append(SharedCoreBridge.SegmentSeparator("auto", segment));
-            joined.Append(segment);
-        }
-        Assert.Equal("こんにちは世界です", joined.ToString());
+        // Thai is a no-space LANGUAGE but is not CJK, so the auto fallback has to
+        // detect it too or `th` and `auto` disagree on the same audio.
+        Assert.True(SharedCoreBridge.IsNoSpaceLanguage("th"));
+        Assert.True(SharedCoreBridge.IsContinuousScript("สวัสดี"));
+        Assert.False(SharedCoreBridge.ContainsCjk("สวัสดี"));
+        Assert.Equal("", SharedCoreBridge.SegmentSeparator("th", "สวัสดี", "ครับ"));
+        Assert.Equal("", SharedCoreBridge.SegmentSeparator("auto", "สวัสดี", "ครับ"));
+
+        // End to end, through the production join: the three-segment Japanese
+        // dictation from issue #286 on the default "auto" language. Both sinks
+        // build from these separators, so asserting the join asserts the typed
+        // text and the saved text at once.
+        Assert.Equal("こんにちは世界です", SharedCoreBridge.JoinSegments("auto", ["こんにちは", "世界", "です"]));
+        Assert.Equal("hello there world", SharedCoreBridge.JoinSegments("auto", ["hello", "there", "world"]));
+        // A segment that decoded to nothing is skipped, not separated.
+        Assert.Equal("こんにちは世界", SharedCoreBridge.JoinSegments("auto", ["こんにちは", "", "世界"]));
+        Assert.Equal("hello world", SharedCoreBridge.JoinSegments("auto", ["hello", "   ", "world"]));
+        Assert.Equal("สวัสดีครับ", SharedCoreBridge.JoinSegments("auto", ["สวัสดี", "ครับ"]));
+        // Where the boundaries fell must not change the result — that is what
+        // keeps the daemon and the host in agreement when their VAD differs.
+        Assert.Equal("これはtestです", SharedCoreBridge.JoinSegments("auto", ["これはtestです"]));
+        Assert.Equal("これはtestです", SharedCoreBridge.JoinSegments("auto", ["これは", "test", "です"]));
+        Assert.Equal("これはtestです", SharedCoreBridge.JoinSegments("auto", ["これ", "はtest", "です"]));
         return Task.CompletedTask;
     }),
     ("backup validation returns structured failures", () =>
