@@ -559,6 +559,7 @@ public sealed class ModelLibraryManager
         ["gemma-4-31b"]                                   = (4, 3),
         ["gemma-4-E2B-it-Q4_K_M.gguf"]                    = (5, 1),
         ["gemma-4-E4B-it-Q4_K_M.gguf"]                    = (4, 2),
+        ["gemma-4-12b-it-Q4_K_M.gguf"]                    = (3, 3),
         ["gemma-4-26B-A4B-it-UD-Q4_K_M.gguf"]             = (2, 4),
         ["gemma-4-31B-it-Q4_K_M.gguf"]                    = (1, 5),
     };

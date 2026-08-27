@@ -113,6 +113,7 @@ public class LanguageModelInfo
         // GGUF files managed by the local model catalog; IDs match the macOS local LLM model IDs.
         new("gemma-4-E2B-it-Q4_K_M.gguf", "Gemma 4 E2B (Q4)", PostProcessingProvider.LocalLlm, "Recommended lightweight local model"),
         new("gemma-4-E4B-it-Q4_K_M.gguf", "Gemma 4 E4B (Q4)", PostProcessingProvider.LocalLlm, "Balanced local model"),
+        new("gemma-4-12b-it-Q4_K_M.gguf", "Gemma 4 12B (Q4)", PostProcessingProvider.LocalLlm, "Mid-size dense local model"),
         new("gemma-4-26B-A4B-it-UD-Q4_K_M.gguf", "Gemma 4 26B MoE (Q4)", PostProcessingProvider.LocalLlm, "Higher quality mixture-of-experts local model"),
         new("gemma-4-31B-it-Q4_K_M.gguf", "Gemma 4 31B Dense (Q4)", PostProcessingProvider.LocalLlm, "Highest quality dense local model"),
     ];
@@ -173,6 +174,10 @@ public class LanguageModelInfo
         // Local LLM: migrated from Qwen 3.5 to Gemma 4 (matches macOS).
         "Qwen3.5-4B-Q4_K_M.gguf" => "gemma-4-E2B-it-Q4_K_M.gguf",
         "Qwen3.5-9B-Q4_K_M.gguf" => "gemma-4-E4B-it-Q4_K_M.gguf",
+        // Local LLM: macOS shipped the 12B id with an uppercase B before the catalog
+        // moved to Unsloth's lowercase filename. A backup restored from such a Mac
+        // carries the old id, so map it here too (macOS migrates it in-app).
+        "gemma-4-12B-it-Q4_K_M.gguf" => "gemma-4-12b-it-Q4_K_M.gguf",
         // Gemini: Gemma hosted models removed from API 2026-03-08
         "gemma-3-12b-it" => "gemini-2.5-flash",
         "gemma-3-27b-it" => "gemini-2.5-flash",
