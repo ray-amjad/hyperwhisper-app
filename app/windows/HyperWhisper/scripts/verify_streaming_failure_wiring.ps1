@@ -46,7 +46,10 @@ $ProjectRoot = Split-Path -Parent $PSScriptRoot
 $RepoRoot = Resolve-Path (Join-Path $ProjectRoot "..\..\..")
 $FactorySource = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot "Services\Streaming\StreamingTranscriptionSessionFactory.cs")
 $ClientSource = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot "Services\Streaming\StreamingTranscriptionClient.cs")
-$HyperWhisperCloudSource = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot "Services\Streaming\HyperWhisperCloudStreamingStrategy.cs")
+# Issue #281 deleted the five per-provider C# strategies. HyperWhisper Cloud's
+# stop path is now the shared Rust core's, so that is where it is pinned - and
+# pinning it there covers Windows, Linux and macOS at once.
+$HyperWhisperCloudSource = Get-Content -Raw -LiteralPath (Join-Path $RepoRoot "shared-core-rs\crates\hw-net\src\live\hw_cloud.rs")
 $MainViewModelSource = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot "ViewModels\MainViewModel.cs")
 $MainWindowSource = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot "Views\Windows\MainWindow.xaml.cs")
 $OverlaySource = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot "Views\Windows\RecordingOverlayWindow.xaml.cs")
@@ -137,8 +140,13 @@ Assert-Match `
 
 Assert-Match `
     -Content $HyperWhisperCloudSource `
-    -Pattern "GetStopSequence\(\).*?SendMessage.*?\{\\`"type\\`":\\`"stop\\`"\}.*?WaitForSessionComplete.*?TimeSpan\.FromSeconds\(10\).*?Close" `
+    -Pattern 'fn stop_sequence\(\).*?StopStep::SendText.*?\{"type":"stop"\}.*?StopStep::WaitForSessionComplete.*?SESSION_COMPLETE_TIMEOUT_MS.*?StopStep::Close' `
     -Label "HyperWhisper Cloud stop waits for session_complete before closing so final text and credits can arrive"
+
+Assert-Match `
+    -Content $HyperWhisperCloudSource `
+    -Pattern 'const SESSION_COMPLETE_TIMEOUT_MS: u64 = 10_000;' `
+    -Label "HyperWhisper Cloud gives session_complete the full 10s to arrive"
 
 Assert-Match `
     -Content $ClientSource `

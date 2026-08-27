@@ -95,7 +95,10 @@ const REMOVED_MODEL_IDS: &[&str] = &[
 /// fall back to [`DEFAULT_MODEL`] when empty. PARITY: macOS
 /// `resolveDeepgramModelAlias` returns `nil`/passes through, and the call site
 /// falls back to `defaultModel` when the mode model is empty; we fold both steps.
-fn resolve_model(model: &str) -> String {
+/// `pub(crate)` because [`crate::live::LiveSession`]'s Deepgram protocol needs
+/// the same answer: the live path had this resolver on macOS and Windows and
+/// not on Linux, which sent the mode's model straight to the vendor.
+pub(crate) fn resolve_model(model: &str) -> String {
     let trimmed = model.trim();
     if trimmed.is_empty() {
         return DEFAULT_MODEL.to_string();

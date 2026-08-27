@@ -27,6 +27,8 @@ mod ffi_license;
 // records rather than declaring its own, so a post-processing request rides the
 // same platform transport a transcription request does.
 mod ffi_llm;
+// Live-streaming websocket policy and capabilities (#281).
+mod ffi_live;
 mod ffi_net;
 mod ffi_prompt;
 

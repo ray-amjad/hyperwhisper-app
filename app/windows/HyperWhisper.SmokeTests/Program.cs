@@ -572,7 +572,7 @@ internal static class Program
 
             Run("Deepgram parses every message shape of its \"channel\" field", () =>
             {
-                var strategy = new DeepgramStreamingStrategy();
+                using var strategy = LiveStrategy(StreamingTranscriptionProvider.Deepgram);
 
                 // "channel":[0,1] — the array form used by the endpointing frames.
                 Assert(strategy.ParseMessage("""{"type":"SpeechStarted","channel":[0,1],"timestamp":1.2}""")
@@ -1644,24 +1644,42 @@ internal static class Program
                     "a null mode's cloud_provider tag should be 'none'");
             });
 
-            Run("DeepgramStreamingStrategy.SessionStartsOnWebSocketOpen is true (regression for #100)", () =>
+            Run("Deepgram's SessionStartsOnWebSocketOpen is true, and only Deepgram's (regression for #100)", () =>
             {
                 // Deepgram never sends its only session-shaped message (Metadata) until
                 // after audio is sent, so startup must not block waiting for it — the
                 // client should treat the WebSocket handshake itself as session-start.
                 // A regression to false here reintroduces a guaranteed 10s connect
                 // timeout on every Windows Deepgram live session.
-                var strategy = new DeepgramStreamingStrategy();
-                Assert(strategy.SessionStartsOnWebSocketOpen,
+                //
+                // The flag now comes off the shared core's connect descriptor
+                // (issue #281) rather than a per-strategy literal, so the other four
+                // are asserted here too: the core answering true for one of them
+                // would deadlock its first chunk in the opposite direction.
+                using var deepgram = LiveStrategy(StreamingTranscriptionProvider.Deepgram);
+                Assert(deepgram.SessionStartsOnWebSocketOpen,
                     "Deepgram must start streaming on WebSocket open, not wait for a Metadata message");
+
+                foreach (var provider in new[]
+                         {
+                             StreamingTranscriptionProvider.HyperWhisperCloud,
+                             StreamingTranscriptionProvider.ElevenLabs,
+                             StreamingTranscriptionProvider.OpenAI,
+                             StreamingTranscriptionProvider.Xai,
+                         })
+                {
+                    using var strategy = LiveStrategy(provider);
+                    Assert(!strategy.SessionStartsOnWebSocketOpen,
+                        $"{provider} must wait for its own session-started message");
+                }
             });
 
-            Run("DeepgramStreamingStrategy.ParseMessage still classifies a late Metadata message as SessionStarted", () =>
+            Run("Deepgram still classifies a late Metadata message as SessionStarted", () =>
             {
                 // Even though startup no longer blocks on Metadata, a Metadata message
                 // can still legitimately arrive later (after audio starts flowing) and
                 // must keep parsing correctly.
-                var strategy = new DeepgramStreamingStrategy();
+                using var strategy = LiveStrategy(StreamingTranscriptionProvider.Deepgram);
                 var evt = strategy.ParseMessage("{\"type\":\"Metadata\",\"request_id\":\"abc-123\"}");
 
                 Assert(evt is StreamingProviderEvent.SessionStarted, $"expected SessionStarted, got {evt}");
@@ -1676,7 +1694,7 @@ internal static class Program
                 // everything else fall through to ~3s of doomed reconnect churn before finally
                 // surfacing a generic message instead of the provider's own close description.
                 var config = new StreamingSessionConfig(null, null, "en", null, "test-api-key", null, false, false);
-                var client = new StreamingTranscriptionClient(new DeepgramStreamingStrategy(), config);
+                var client = new StreamingTranscriptionClient(new NoOpStreamingProviderStrategy(), config);
                 // HandleCloseResult's own shutdown guard no-ops on a freshly constructed
                 // (Idle) client - drive it into a realistic in-session state first.
                 client.SetStateForTesting(StreamingConnectionState.Streaming);
@@ -1695,7 +1713,7 @@ internal static class Program
             {
                 // Deepgram's NET-xxxx errors (timeout / no audio) close with 1011.
                 var config = new StreamingSessionConfig(null, null, "en", null, "test-api-key", null, false, false);
-                var client = new StreamingTranscriptionClient(new DeepgramStreamingStrategy(), config);
+                var client = new StreamingTranscriptionClient(new NoOpStreamingProviderStrategy(), config);
                 client.SetStateForTesting(StreamingConnectionState.Streaming);
                 string? capturedMessage = null;
                 client.ErrorReceived += m => capturedMessage = m;
@@ -1711,7 +1729,7 @@ internal static class Program
             Run("StreamingTranscriptionClient.HandleCloseResult still recognizes HyperWhisper's own 4001 (credits exhausted)", () =>
             {
                 var config = new StreamingSessionConfig(null, null, "en", null, "test-api-key", null, false, false);
-                var client = new StreamingTranscriptionClient(new DeepgramStreamingStrategy(), config);
+                var client = new StreamingTranscriptionClient(new NoOpStreamingProviderStrategy(), config);
                 client.SetStateForTesting(StreamingConnectionState.Streaming);
                 string? capturedMessage = null;
                 client.ErrorReceived += m => capturedMessage = m;
@@ -1726,7 +1744,7 @@ internal static class Program
             Run("StreamingTranscriptionClient.HandleCloseResult still recognizes HyperWhisper's own 4002 (max session duration)", () =>
             {
                 var config = new StreamingSessionConfig(null, null, "en", null, "test-api-key", null, false, false);
-                var client = new StreamingTranscriptionClient(new DeepgramStreamingStrategy(), config);
+                var client = new StreamingTranscriptionClient(new NoOpStreamingProviderStrategy(), config);
                 client.SetStateForTesting(StreamingConnectionState.Streaming);
                 string? capturedMessage = null;
                 client.ErrorReceived += m => capturedMessage = m;
@@ -1741,7 +1759,7 @@ internal static class Program
             Run("StreamingTranscriptionClient.HandleCloseResult does not treat a normal closure (1000) as terminal", () =>
             {
                 var config = new StreamingSessionConfig(null, null, "en", null, "test-api-key", null, false, false);
-                var client = new StreamingTranscriptionClient(new DeepgramStreamingStrategy(), config);
+                var client = new StreamingTranscriptionClient(new NoOpStreamingProviderStrategy(), config);
                 client.SetStateForTesting(StreamingConnectionState.Streaming);
                 string? capturedMessage = null;
                 client.ErrorReceived += m => capturedMessage = m;
@@ -1756,7 +1774,7 @@ internal static class Program
             Run("StreamingTranscriptionClient.HandleCloseResult does not treat a null close status as terminal", () =>
             {
                 var config = new StreamingSessionConfig(null, null, "en", null, "test-api-key", null, false, false);
-                var client = new StreamingTranscriptionClient(new DeepgramStreamingStrategy(), config);
+                var client = new StreamingTranscriptionClient(new NoOpStreamingProviderStrategy(), config);
                 client.SetStateForTesting(StreamingConnectionState.Streaming);
                 string? capturedMessage = null;
                 client.ErrorReceived += m => capturedMessage = m;
@@ -1774,7 +1792,7 @@ internal static class Program
                 // as terminal (the earlier blanket "any non-1000 code is terminal" diff broke
                 // this).
                 var config = new StreamingSessionConfig(null, null, "en", null, "test-api-key", null, false, false);
-                var client = new StreamingTranscriptionClient(new DeepgramStreamingStrategy(), config);
+                var client = new StreamingTranscriptionClient(new NoOpStreamingProviderStrategy(), config);
                 client.SetStateForTesting(StreamingConnectionState.Streaming);
                 string? capturedMessage = null;
                 client.ErrorReceived += m => capturedMessage = m;
@@ -1792,7 +1810,7 @@ internal static class Program
                 // an in-flight StopAsync/Dispose shutdown - HandleCloseResult can still observe
                 // a close arriving concurrently with our own Disconnecting/Idle transition.
                 var config = new StreamingSessionConfig(null, null, "en", null, "test-api-key", null, false, false);
-                var client = new StreamingTranscriptionClient(new DeepgramStreamingStrategy(), config);
+                var client = new StreamingTranscriptionClient(new NoOpStreamingProviderStrategy(), config);
                 client.SetStateForTesting(StreamingConnectionState.Disconnecting);
                 string? capturedMessage = null;
                 client.ErrorReceived += m => capturedMessage = m;
@@ -1808,12 +1826,13 @@ internal static class Program
             {
                 // The terminal-code allowlist moved from a StreamingTranscriptionClient-private,
                 // Deepgram-flavored comment into the strategy interface as a default interface
-                // method - verify the default itself (not just Deepgram, which takes no override)
-                // covers the standard non-recoverable codes and still excludes the transient ones.
+                // method, and from there into the shared Rust core (issue #281) - so this runs
+                // through the real FFI and is the Windows half of a cross-platform check.
+                // No implementation overrides the default, so any strategy exercises it.
                 // Typed as the interface (not the concrete class) so this actually calls through
                 // to the default interface method - C# only considers a DIM when the member is
                 // accessed via the interface type.
-                IStreamingProviderStrategy strategy = new DeepgramStreamingStrategy();
+                IStreamingProviderStrategy strategy = new NoOpStreamingProviderStrategy();
                 foreach (var fatalCode in new[] { 1002, 1003, 1007, 1008, 1009, 1011 })
                 {
                     Assert(strategy.IsTerminalCloseCode(fatalCode), $"expected close code {fatalCode} to be terminal by default");
@@ -1829,7 +1848,7 @@ internal static class Program
                 // Confirmed non-hypothetical: hyperwhisper-cloud/src/routes/ws-streaming-deepgram.ts
                 // sends 1009 for an oversized audio stream from the HyperWhisperCloud backend.
                 var config = new StreamingSessionConfig(null, null, "en", null, "test-api-key", null, false, false);
-                var client = new StreamingTranscriptionClient(new DeepgramStreamingStrategy(), config);
+                var client = new StreamingTranscriptionClient(new NoOpStreamingProviderStrategy(), config);
                 client.SetStateForTesting(StreamingConnectionState.Streaming);
                 string? capturedMessage = null;
                 client.ErrorReceived += m => capturedMessage = m;
@@ -1844,7 +1863,7 @@ internal static class Program
             Run("StreamingTranscriptionClient.HandleCloseResult treats Protocol Error (1002) as terminal", () =>
             {
                 var config = new StreamingSessionConfig(null, null, "en", null, "test-api-key", null, false, false);
-                var client = new StreamingTranscriptionClient(new DeepgramStreamingStrategy(), config);
+                var client = new StreamingTranscriptionClient(new NoOpStreamingProviderStrategy(), config);
                 client.SetStateForTesting(StreamingConnectionState.Streaming);
                 string? capturedMessage = null;
                 client.ErrorReceived += m => capturedMessage = m;
@@ -1866,7 +1885,7 @@ internal static class Program
                 // (which falls back to FinalText instead of preserving CurrentPartial). The "already
                 // at target state" case must still be treated as success for this bookkeeping.
                 var config = new StreamingSessionConfig(null, null, "en", null, "test-api-key", null, false, false);
-                var client = new StreamingTranscriptionClient(new DeepgramStreamingStrategy(), config);
+                var client = new StreamingTranscriptionClient(new NoOpStreamingProviderStrategy(), config);
                 client.SetStateForTesting(StreamingConnectionState.Error);
                 string? capturedMessage = null;
                 client.ErrorReceived += m => capturedMessage = m;
@@ -1878,14 +1897,382 @@ internal static class Program
                 Assert(client.State == StreamingConnectionState.Error, $"expected State to remain Error, got {client.State}");
             });
 
-            Run("OpenAIStreamingStrategy.GetStopSequence omits the commit frame below the 100ms server minimum (HYPERWHISPER-S8/S9)", () =>
+            // THE FIVE LIVE PROTOCOLS, from the shared Rust core (issue #281).
+            //
+            // Windows no longer implements any of them. These run through the real
+            // FFI on the real DLL, so between them they are this head's proof that
+            // the provider mapping, the connect descriptor, the framing rule, the
+            // parsers and the ordered stop paths survived the move. The portable
+            // HyperWhisper.SharedCore.Tests suite asserts the same values from the
+            // Linux head; a difference between the two would be a mapping bug here.
+
+            Run("Every streaming provider maps onto the shared core's capability table", () =>
+            {
+                var expected = new (StreamingTranscriptionProvider Provider, string Label, int SampleRate, bool Vocabulary)[]
+                {
+                    (StreamingTranscriptionProvider.HyperWhisperCloud, "HyperWhisper Cloud (Streaming)", 16000, true),
+                    (StreamingTranscriptionProvider.Deepgram, "Deepgram (Streaming)", 16000, true),
+                    (StreamingTranscriptionProvider.ElevenLabs, "ElevenLabs (Streaming)", 16000, false),
+                    (StreamingTranscriptionProvider.OpenAI, "OpenAI (Streaming)", 24000, false),
+                    (StreamingTranscriptionProvider.Xai, "xAI (Streaming)", 16000, true),
+                };
+
+                foreach (var (provider, label, sampleRate, vocabulary) in expected)
+                {
+                    using var strategy = LiveStrategy(provider);
+
+                    // The " (Streaming)" suffix is persisted on every history entry:
+                    // changing one splits the vendor in two in the history list.
+                    Assert(strategy.TranscriptionProviderLabel == label,
+                        $"{provider}: expected label '{label}', got '{strategy.TranscriptionProviderLabel}'");
+                    // Wrong sample rate is not an error, it is a transcript at the
+                    // wrong speed - the capture graph is configured from this.
+                    Assert(strategy.AudioSampleRate == sampleRate,
+                        $"{provider}: expected {sampleRate}Hz, got {strategy.AudioSampleRate}Hz");
+                    Assert(strategy.SupportsVocabulary == vocabulary,
+                        $"{provider}: expected SupportsVocabulary {vocabulary}");
+                    // The settings page reads the capability with no credential and
+                    // no session, straight off the free function.
+                    Assert(StreamingTranscriptionSessionFactory.SupportsVocabulary(provider) == vocabulary,
+                        $"{provider}: the factory and the strategy disagree about vocabulary support");
+                }
+            });
+
+            Run("Every streaming provider builds its shipped connect URL", () =>
+            {
+                using (var deepgram = LiveStrategy(StreamingTranscriptionProvider.Deepgram))
+                {
+                    var url = deepgram.BuildWebSocketUri(LiveConfig())!.AbsoluteUri;
+                    // The thirteen constant parameters, plus the explicit language.
+                    // macOS sends ten; the .NET set won (issue #281).
+                    Assert(url.StartsWith("wss://api.deepgram.com/v1/listen?model=nova-3-general&", StringComparison.Ordinal),
+                        $"expected the resolved default model to lead the query, got '{url}'");
+                    foreach (var pair in new[]
+                             {
+                                 "encoding=linear16", "sample_rate=16000", "channels=1", "smart_format=true",
+                                 "punctuate=true", "filler_words=true", "no_delay=false", "endpointing=300",
+                                 "utterance_end_ms=1500", "interim_results=true", "vad_events=true",
+                                 "mip_opt_out=true", "language=en",
+                             })
+                    {
+                        Assert(url.Contains(pair, StringComparison.Ordinal), $"expected '{pair}' in '{url}'");
+                    }
+                    Assert(!url.Contains("detect_language", StringComparison.Ordinal),
+                        "an explicit language must not also ask Deepgram to detect one");
+
+                    // Auto-detect is spelled with a parameter, not by omitting one.
+                    var auto = deepgram.BuildWebSocketUri(LiveConfig(language: "auto"))!.AbsoluteUri;
+                    Assert(auto.Contains("detect_language=true", StringComparison.Ordinal),
+                        $"expected detect_language=true under auto, got '{auto}'");
+                    // "&language=", not "language=": detect_language=true contains
+                    // the shorter needle, so the bare form can never be absent.
+                    Assert(!auto.Contains("&language=", StringComparison.Ordinal),
+                        $"expected no language= under auto, got '{auto}'");
+                }
+
+                using (var cloud = LiveStrategy(StreamingTranscriptionProvider.HyperWhisperCloud))
+                {
+                    var url = cloud.BuildWebSocketUri(LiveConfig())!.AbsoluteUri;
+                    Assert(url.StartsWith(
+                            "wss://transcribe-prod-v2.hyperwhisper.com/ws/streaming-deepgram?license_key=smoke-license-key",
+                            StringComparison.Ordinal),
+                        $"expected the production relay with the license key first, got '{url}'");
+                    Assert(url.Contains("language=en", StringComparison.Ordinal), $"expected language=en, got '{url}'");
+                }
+
+                using (var elevenLabs = LiveStrategy(StreamingTranscriptionProvider.ElevenLabs))
+                {
+                    var url = elevenLabs.BuildWebSocketUri(LiveConfig())!.AbsoluteUri;
+                    Assert(url.StartsWith("wss://api.elevenlabs.io/v1/speech-to-text/realtime?", StringComparison.Ordinal),
+                        $"got '{url}'");
+                    foreach (var pair in new[]
+                             {
+                                 "model_id=scribe_v2_realtime", "audio_format=pcm_16000", "commit_strategy=vad",
+                                 "vad_silence_threshold_secs=1.5", "vad_threshold=0.4", "language_code=en",
+                             })
+                    {
+                        Assert(url.Contains(pair, StringComparison.Ordinal), $"expected '{pair}' in '{url}'");
+                    }
+                }
+
+                using (var openAi = LiveStrategy(StreamingTranscriptionProvider.OpenAI))
+                {
+                    var url = openAi.BuildWebSocketUri(LiveConfig())!.AbsoluteUri;
+                    Assert(url == "wss://api.openai.com/v1/realtime?intent=transcription", $"got '{url}'");
+
+                    // turn_detection null is load-bearing: it disables server-side
+                    // VAD, which is what makes the commit gate above ours to get right.
+                    var start = openAi.GetStartMessages(LiveConfig());
+                    Assert(start.Count == 1, $"expected exactly one start message, got {start.Count}");
+                    var frame = System.Text.Encoding.UTF8.GetString(start[0].Data);
+                    Assert(start[0].Type == WebSocketMessageType.Text, "the session update is a text frame");
+                    Assert(frame.Contains("\"type\":\"session.update\"", StringComparison.Ordinal), $"got '{frame}'");
+                    Assert(frame.Contains("\"model\":\"gpt-realtime-whisper\"", StringComparison.Ordinal), $"got '{frame}'");
+                    Assert(frame.Contains("\"rate\":24000", StringComparison.Ordinal), $"got '{frame}'");
+                    Assert(frame.Contains("\"turn_detection\":null", StringComparison.Ordinal), $"got '{frame}'");
+                    Assert(frame.Contains("\"language\":\"en\"", StringComparison.Ordinal), $"got '{frame}'");
+                }
+
+                using (var xai = LiveStrategy(StreamingTranscriptionProvider.Xai))
+                {
+                    var url = xai.BuildWebSocketUri(
+                        LiveConfig(vocabulary: ["HyperWhisper", "Deepgram"]))!.AbsoluteUri;
+                    Assert(url.StartsWith("wss://api.x.ai/v1/stt?", StringComparison.Ordinal), $"got '{url}'");
+                    Assert(url.Contains("language=en", StringComparison.Ordinal), $"got '{url}'");
+                    // keyterm is repeated once per term - the xAI vendor shape.
+                    Assert(url.Contains("keyterm=HyperWhisper", StringComparison.Ordinal), $"got '{url}'");
+                    Assert(url.Contains("keyterm=Deepgram", StringComparison.Ordinal), $"got '{url}'");
+                }
+
+                // Four of the five refuse to build a URL with no credential, and the
+                // client reads null as "cannot start" without opening a socket.
+                foreach (var provider in new[]
+                         {
+                             StreamingTranscriptionProvider.Deepgram,
+                             StreamingTranscriptionProvider.ElevenLabs,
+                             StreamingTranscriptionProvider.OpenAI,
+                             StreamingTranscriptionProvider.Xai,
+                             StreamingTranscriptionProvider.HyperWhisperCloud,
+                         })
+                {
+                    var bare = new StreamingSessionConfig(null, null, "en", null, null, null, false, false);
+                    using var strategy = new LiveProtocolStreamingStrategy(provider, bare);
+                    Assert(strategy.BuildWebSocketUri(bare) is null,
+                        $"{provider} must not build a connect URL with no credential");
+                }
+            });
+
+            Run("Audio framing comes from the core's descriptor, and the samples never cross the FFI", () =>
+            {
+                // The core answers HOW to wrap a chunk once, at connect time, and the
+                // base64 and the concatenation happen here on bytes this process
+                // already holds. Three providers take the PCM untouched; two wrap it
+                // in a fixed JSON envelope with one hole in the middle.
+                foreach (var provider in new[]
+                         {
+                             StreamingTranscriptionProvider.Deepgram,
+                             StreamingTranscriptionProvider.Xai,
+                             StreamingTranscriptionProvider.HyperWhisperCloud,
+                         })
+                {
+                    using var strategy = LiveStrategy(provider);
+                    var pcm = new byte[] { 1, 2, 3, 4 };
+                    var (data, type) = strategy.EncodeAudioChunk(pcm);
+                    Assert(type == WebSocketMessageType.Binary, $"{provider}: expected a binary frame, got {type}");
+                    Assert(data.Length == pcm.Length && data[0] == 1 && data[3] == 4,
+                        $"{provider}: expected the PCM to go out untouched");
+                }
+
+                using (var elevenLabs = LiveStrategy(StreamingTranscriptionProvider.ElevenLabs))
+                {
+                    var (data, type) = elevenLabs.EncodeAudioChunk(new byte[] { 1, 2, 3, 4 });
+                    var frame = System.Text.Encoding.UTF8.GetString(data);
+                    Assert(type == WebSocketMessageType.Text, $"expected a text frame, got {type}");
+                    Assert(frame ==
+                        "{\"message_type\":\"input_audio_chunk\",\"audio_base_64\":\"AQIDBA==\",\"commit\":false,\"sample_rate\":16000}",
+                        $"got '{frame}'");
+                }
+
+                using (var openAi = LiveStrategy(StreamingTranscriptionProvider.OpenAI))
+                {
+                    var (data, type) = openAi.EncodeAudioChunk(new byte[] { 1, 2, 3, 4 });
+                    var frame = System.Text.Encoding.UTF8.GetString(data);
+                    Assert(type == WebSocketMessageType.Text, $"expected a text frame, got {type}");
+                    Assert(frame == "{\"type\":\"input_audio_buffer.append\",\"audio\":\"AQIDBA==\"}",
+                        $"got '{frame}'");
+                }
+            });
+
+            Run("Every streaming provider answers its shipped ordered stop path", () =>
+            {
+                // ORDER IS LOAD-BEARING, and a flat frame list plus one drain timeout
+                // could not express it. Deepgram needs the 500ms gap - sending
+                // Finalize and CloseStream back to back lets the close be processed
+                // before the flush and loses the finalized tail. HyperWhisper Cloud
+                // and xAI wait on an EVENT, which is what carries credits_used.
+                using (var deepgram = LiveStrategy(StreamingTranscriptionProvider.Deepgram))
+                {
+                    var steps = deepgram.GetStopSequence();
+                    Assert(steps.Count == 4, $"expected 4 Deepgram stop steps, got {steps.Count}");
+                    Assert(steps[0].Action == StreamingStopAction.SendMessage
+                        && System.Text.Encoding.UTF8.GetString(steps[0].Payload!) == "{\"type\":\"Finalize\"}",
+                        "expected Finalize first");
+                    Assert(steps[1].Action == StreamingStopAction.Wait
+                        && steps[1].WaitAfter == TimeSpan.FromMilliseconds(500),
+                        $"expected a 500ms gap, got {steps[1].Action}/{steps[1].WaitAfter}");
+                    Assert(steps[2].Action == StreamingStopAction.SendMessage
+                        && System.Text.Encoding.UTF8.GetString(steps[2].Payload!) == "{\"type\":\"CloseStream\"}",
+                        "expected CloseStream after the gap");
+                    Assert(steps[3].Action == StreamingStopAction.Close, "expected a trailing close");
+                }
+
+                foreach (var (provider, frame) in new[]
+                         {
+                             (StreamingTranscriptionProvider.HyperWhisperCloud, "{\"type\":\"stop\"}"),
+                             (StreamingTranscriptionProvider.Xai, "{\"type\":\"audio.done\"}"),
+                         })
+                {
+                    using var strategy = LiveStrategy(provider);
+                    var steps = strategy.GetStopSequence();
+                    Assert(steps.Count == 3, $"{provider}: expected 3 stop steps, got {steps.Count}");
+                    Assert(steps[0].Action == StreamingStopAction.SendMessage
+                        && System.Text.Encoding.UTF8.GetString(steps[0].Payload!) == frame,
+                        $"{provider}: expected '{frame}' first");
+                    Assert(steps[1].Action == StreamingStopAction.WaitForSessionComplete
+                        && steps[1].WaitAfter == TimeSpan.FromSeconds(10),
+                        $"{provider}: expected a 10s wait on the completion EVENT, got {steps[1].Action}/{steps[1].WaitAfter}");
+                    Assert(steps[2].Action == StreamingStopAction.Close, $"{provider}: expected a trailing close");
+                }
+
+                using (var elevenLabs = LiveStrategy(StreamingTranscriptionProvider.ElevenLabs))
+                {
+                    // commit_strategy=vad means the server has already committed
+                    // everything it intends to: there is nothing to flush or drain.
+                    var steps = elevenLabs.GetStopSequence();
+                    Assert(steps.Count == 1 && steps[0].Action == StreamingStopAction.Close,
+                        $"expected ElevenLabs to close immediately, got {steps.Count} steps");
+                }
+            });
+
+            Run("Every streaming provider's parser reaches this head's event type", () =>
+            {
+                using (var cloud = LiveStrategy(StreamingTranscriptionProvider.HyperWhisperCloud))
+                {
+                    Assert(cloud.ParseMessage("{\"type\":\"ready\",\"sessionId\":\"s-1\"}")
+                            is StreamingProviderEvent.SessionStarted { SessionId: "s-1" },
+                        "expected ready to carry the session id");
+                    Assert(cloud.ParseMessage("{\"type\":\"transcript\",\"text\":\"hi\",\"is_final\":true}")
+                            is StreamingProviderEvent.FinalTranscript { Text: "hi" },
+                        "expected a final transcript");
+                    Assert(cloud.ParseMessage("{\"type\":\"transcript\",\"text\":\"hi\"}")
+                            is StreamingProviderEvent.PartialTranscript { Text: "hi" },
+                        "expected a partial transcript");
+                    // BILLING DATA. The stop path waits on this frame rather than
+                    // closing on a timer precisely so it is not lost.
+                    Assert(cloud.ParseMessage(
+                            "{\"type\":\"session_complete\",\"duration_seconds\":12.5,\"credits_used\":3.25}")
+                            is StreamingProviderEvent.SessionComplete { DurationSeconds: 12.5, CreditsUsed: 3.25 },
+                        "expected session_complete to carry the duration and the credits");
+                    Assert(cloud.ParseMessage("{\"type\":\"warning\",\"message\":\"almost out\"}")
+                            is StreamingProviderEvent.Warning { Message: "almost out" },
+                        "expected a warning to stay a warning and never end the session");
+                    Assert(cloud.ParseMessage("{\"type\":\"error\",\"message\":\"Credit balance exhausted\"}")
+                            is StreamingProviderEvent.Error { Message: "Credit balance exhausted" },
+                        "expected the provider's own wording to survive, so the classifier can read it");
+                    // A frame that is not JSON must not end a recording in progress.
+                    Assert(cloud.ParseMessage("not json at all") is null, "expected junk to be ignored");
+                    Assert(cloud.ParseMessage("{\"type\":\"something_new\"}") is null,
+                        "expected an unknown frame type to be ignored");
+                }
+
+                using (var xai = LiveStrategy(StreamingTranscriptionProvider.Xai))
+                {
+                    // transcript.done is BOTH the last final and the end of the
+                    // session; splitting it would drop the trailing words.
+                    Assert(xai.ParseMessage("{\"type\":\"transcript.done\",\"text\":\"all done\",\"duration\":4}")
+                            is StreamingProviderEvent.FinalTranscriptAndSessionComplete
+                            { Text: "all done", DurationSeconds: 4 },
+                        "expected transcript.done with text to carry both");
+                    // A second one with nothing new left is a plain completion.
+                    Assert(xai.ParseMessage("{\"type\":\"transcript.done\",\"text\":\"all done\",\"duration\":4}")
+                            is StreamingProviderEvent.SessionComplete,
+                        "expected the prefix delta to leave nothing new the second time");
+                }
+
+                using (var elevenLabs = LiveStrategy(StreamingTranscriptionProvider.ElevenLabs))
+                {
+                    // ELEVENLABS' auth_error WORDING CHANGED ON WINDOWS (issue #281).
+                    // A shared core cannot name one platform's settings screen, so the
+                    // shared sentence names neither. This head used to name its own
+                    // "Model Library API keys manager" and macOS said "in Settings";
+                    // on THIS head "Settings" dead-ends, because the streaming settings
+                    // page only reports whether a key is configured and the field lives
+                    // on the API-keys page. The sentence now names the action instead.
+                    Assert(elevenLabs.ParseMessage("{\"message_type\":\"auth_error\"}")
+                            is StreamingProviderEvent.Error
+                            { Message: "ElevenLabs authentication failed. Check that your ElevenLabs API key is correct and still active." },
+                        "expected the shared auth_error wording");
+                    Assert(elevenLabs.ParseMessage("{\"message_type\":\"quota_exceeded\"}")
+                            is StreamingProviderEvent.Error
+                            { Message: "ElevenLabs quota exceeded. Please check your account billing." },
+                        "quota_exceeded was character-identical and must be unchanged");
+                    Assert(elevenLabs.ParseMessage("{\"message_type\":\"rate_limited\"}")
+                            is StreamingProviderEvent.Error
+                            { Message: "ElevenLabs rate limit reached. Please try again in a moment." },
+                        "rate_limited was character-identical and must be unchanged");
+                }
+
+                using (var openAi = LiveStrategy(StreamingTranscriptionProvider.OpenAI))
+                {
+                    Assert(openAi.ParseMessage("{\"type\":\"session.updated\",\"session\":{\"id\":\"o-1\"}}")
+                            is StreamingProviderEvent.SessionStarted { SessionId: "o-1" },
+                        "expected session.updated to carry the session id");
+                    // Deltas accumulate per item: the client's contract for a partial
+                    // is the whole interim utterance, not what changed.
+                    openAi.ParseMessage(
+                        "{\"type\":\"conversation.item.input_audio_transcription.delta\",\"item_id\":\"i1\",\"delta\":\"he\"}");
+                    Assert(openAi.ParseMessage(
+                            "{\"type\":\"conversation.item.input_audio_transcription.delta\",\"item_id\":\"i1\",\"delta\":\"llo\"}")
+                            is StreamingProviderEvent.PartialTranscript { Text: "hello" },
+                        "expected the deltas to accumulate into one partial");
+                    Assert(openAi.ParseMessage(
+                            "{\"type\":\"conversation.item.input_audio_transcription.completed\",\"item_id\":\"i1\",\"transcript\":\"hello\"}")
+                            is StreamingProviderEvent.FinalTranscript { Text: "hello" },
+                        "expected the completion to confirm the item");
+                    Assert(openAi.ParseMessage("{\"type\":\"error\",\"error\":{\"message\":\"buffer too small\"}}")
+                            is StreamingProviderEvent.Error { Message: "buffer too small" },
+                        "expected OpenAI's nested error wording to survive");
+                }
+            });
+
+            Run("ConfigureWebSocket carries the core's handshake credentials onto the socket", () =>
+            {
+                // ClientWebSocketOptions exposes no reader for what was set, so this
+                // pins that every provider's handshake is applied without throwing -
+                // Deepgram's is two subprotocols ("token", <key>) rather than a header,
+                // and AddSubProtocol validates its argument.
+                foreach (var provider in new[]
+                         {
+                             StreamingTranscriptionProvider.HyperWhisperCloud,
+                             StreamingTranscriptionProvider.Deepgram,
+                             StreamingTranscriptionProvider.ElevenLabs,
+                             StreamingTranscriptionProvider.OpenAI,
+                             StreamingTranscriptionProvider.Xai,
+                         })
+                {
+                    var config = LiveConfig();
+                    using var strategy = LiveStrategy(provider, config);
+                    using var webSocket = new ClientWebSocket();
+                    Assert(strategy.BuildWebSocketUri(config) != null, $"{provider}: expected a connect URL");
+                    strategy.ConfigureWebSocket(webSocket, config);
+                }
+            });
+
+            // OPENAI'S COMMIT GATE, now the shared core's (issue #281).
+            //
+            // These eleven checks are the Windows twin of macOS's
+            // OpenAIStreamingCommitGateTests.swift. The gate itself moved into
+            // hw_net::live::openai and its assertions were ported into
+            // live/tests.rs, but they stay here as well and drive the real FFI:
+            // this is the Windows half of the cross-platform parity check, and it
+            // is the only thing that pins the coupling between
+            // StreamingAudioCapture's buffer length and the server's floor.
+            //
+            // One shared difference from the deleted C# strategy: the core reads
+            // no clock of its own, so it seeds its commit mark on the FIRST send
+            // opportunity instead of at construction. A session's first
+            // opportunity therefore never commits. In production that costs one
+            // 100 ms chunk and the 1.2 s interval had not elapsed at that point
+            // anyway, but a test that drives the periodic path has to prime it.
+
+            Run("OpenAI's stop sequence omits the commit frame below the 100ms server minimum (HYPERWHISPER-S8/S9)", () =>
             {
                 // OpenAI Realtime rejects input_audio_buffer.commit when under 100ms of
                 // audio was appended since the previous commit. 4080 bytes is the shape
                 // the production events reported: 2040 samples of 24kHz 16-bit mono PCM
                 // = 85ms, under the server floor of 4800 bytes. The stop sequence must
                 // drop that tail rather than provoke a "buffer too small" error frame.
-                var strategy = new OpenAIStreamingStrategy();
+                using var strategy = LiveStrategy(StreamingTranscriptionProvider.OpenAI);
                 strategy.EncodeAudioChunk(new byte[4080]);
 
                 var steps = strategy.GetStopSequence();
@@ -1895,7 +2282,7 @@ internal static class Program
                 Assert(steps[1].Action == StreamingStopAction.Close, $"expected the sequence to still close, got {steps[1].Action}");
             });
 
-            Run("OpenAIStreamingStrategy.GetStopSequence commits a buffer sitting exactly on the 100ms minimum", () =>
+            Run("OpenAI's stop sequence commits a buffer sitting exactly on the 100ms minimum", () =>
             {
                 // THE case Windows actually produces: StreamingAudioCapture sets
                 // BufferMilliseconds = 100, so every capture chunk is exactly 4800 bytes
@@ -1903,7 +2290,7 @@ internal static class Program
                 // rule is "at least 100ms", so this must commit. Any margin over 100ms
                 // would silently discard the user's whole final capture buffer, and with
                 // turn_detection null there is no server-side VAD auto-commit to save it.
-                var strategy = new OpenAIStreamingStrategy();
+                using var strategy = LiveStrategy(StreamingTranscriptionProvider.OpenAI);
                 strategy.EncodeAudioChunk(new byte[4800]);
 
                 var steps = strategy.GetStopSequence();
@@ -1915,7 +2302,7 @@ internal static class Program
                 Assert(boundaryFrame.Contains("input_audio_buffer.commit"), $"expected the commit frame, got '{boundaryFrame}'");
             });
 
-            Run("OpenAIStreamingStrategy: a full capture buffer always clears the OpenAI commit minimum", () =>
+            Run("OpenAI: a full capture buffer always clears the commit minimum", () =>
             {
                 // PINS THE COUPLING, not another byte count. Windows can only ever
                 // produce chunks of exactly StreamingAudioCapture.CaptureBufferMilliseconds
@@ -1928,9 +2315,10 @@ internal static class Program
                 // and silently so: halve it for latency and the last buffer of every
                 // OpenAI streaming session stops clearing the 100ms floor and is dropped
                 // with no error - the smoke suite would otherwise stay green throughout.
-                // Both numbers below come from production code, so this fails the moment
-                // either side of the coupling moves.
-                var strategy = new OpenAIStreamingStrategy();
+                // Both numbers below come from production code (the sample rate now from
+                // the shared core's capability table), so this fails the moment either
+                // side of the coupling moves.
+                using var strategy = LiveStrategy(StreamingTranscriptionProvider.OpenAI);
                 const int bytesPerSample = 2; // 16-bit PCM, as CreateWaveIn requests.
                 var captureChunkBytes =
                     StreamingAudioCapture.CaptureBufferMilliseconds * strategy.AudioSampleRate * bytesPerSample / 1000;
@@ -1944,11 +2332,11 @@ internal static class Program
                 Assert(steps[0].Action == StreamingStopAction.SendMessage, $"expected a SendMessage step first, got {steps[0].Action}");
             });
 
-            Run("OpenAIStreamingStrategy.GetStopSequence commits once enough audio has accumulated", () =>
+            Run("OpenAI's stop sequence commits once enough audio has accumulated", () =>
             {
                 // 12000 bytes = 6000 samples of 24kHz 16-bit mono PCM = 250ms, well over
                 // the threshold, so the commit frame must lead the stop sequence.
-                var strategy = new OpenAIStreamingStrategy();
+                using var strategy = LiveStrategy(StreamingTranscriptionProvider.OpenAI);
                 strategy.EncodeAudioChunk(new byte[12000]);
 
                 var steps = strategy.GetStopSequence();
@@ -1960,12 +2348,12 @@ internal static class Program
                 Assert(frame.Contains("input_audio_buffer.commit"), $"expected the commit frame, got '{frame}'");
             });
 
-            Run("OpenAIStreamingStrategy.GetStopSequence commits the same audio only once", () =>
+            Run("OpenAI's stop sequence commits the same audio only once", () =>
             {
-                // The accumulated bytes are claimed and zeroed under one lock, so a
+                // The accumulated bytes are claimed and zeroed in one operation, so a
                 // second read of the stop sequence must not re-commit audio the first
                 // one already covered.
-                var strategy = new OpenAIStreamingStrategy();
+                using var strategy = LiveStrategy(StreamingTranscriptionProvider.OpenAI);
                 strategy.EncodeAudioChunk(new byte[12000]);
 
                 var first = strategy.GetStopSequence();
@@ -1976,51 +2364,62 @@ internal static class Program
                 Assert(second[0].Action == StreamingStopAction.Wait, $"expected the second sequence to start with a wait, got {second[0].Action}");
             });
 
-            Run("OpenAIStreamingStrategy.GetStartMessages clears audio accumulated by a previous session", () =>
+            Run("Opening a connection clears audio accumulated by a previous session", () =>
             {
                 // A fresh session starts with an empty server-side buffer, so bytes
-                // counted before session.update must not license a commit afterwards.
-                var config = new StreamingSessionConfig(null, null, "en", null, "test-api-key", null, false, false);
-                var strategy = new OpenAIStreamingStrategy();
+                // counted before it must not license a commit afterwards.
+                //
+                // The reset moved with the protocol: the deleted strategy cleared its
+                // counter in GetStartMessages, the core clears it in connect() - which
+                // this head reaches through BuildWebSocketUri, the call the client makes
+                // once before every socket it opens, including a reconnect. Doing it
+                // there rather than at the start message also covers the four providers
+                // that send no start message at all.
+                using var strategy = LiveStrategy(StreamingTranscriptionProvider.OpenAI);
                 strategy.EncodeAudioChunk(new byte[12000]);
 
-                strategy.GetStartMessages(config);
+                Assert(strategy.BuildWebSocketUri(LiveConfig()) != null, "expected a connect URL for a keyed OpenAI session");
                 var steps = strategy.GetStopSequence();
 
                 Assert(steps.Count == 2, $"expected 2 stop steps after a session restart, got {steps.Count}");
                 Assert(steps[0].Action == StreamingStopAction.Wait, $"expected the sequence to start with a wait, got {steps[0].Action}");
             });
 
-            Run("OpenAIStreamingStrategy.OnAudioSendOpportunityAsync holds back a periodic commit under the 100ms minimum", () =>
+            Run("OpenAI holds back a periodic commit under the 100ms minimum", () =>
             {
                 // The clock is injected so the periodic path can be driven with no
-                // sleeping; advancing it past the hardcoded 1.2s interval is what opens
-                // the gate. The interval has elapsed, but only 85ms has accumulated, so
-                // no commit frame may go out.
-                var now = DateTimeOffset.UtcNow;
-                var strategy = new OpenAIStreamingStrategy(() => now);
-                var sent = new List<byte[]>();
-
-                strategy.EncodeAudioChunk(new byte[4080]);
-                now += TimeSpan.FromSeconds(2);
-                strategy.OnAudioSendOpportunityAsync(
-                    (data, type, ct) => { sent.Add(data); return Task.CompletedTask; },
-                    CancellationToken.None
-                ).GetAwaiter().GetResult();
-
-                Assert(sent.Count == 0, $"expected no periodic commit under the minimum, got {sent.Count} frames");
-            });
-
-            Run("OpenAIStreamingStrategy.OnAudioSendOpportunityAsync sends exactly one periodic commit once the minimum is met", () =>
-            {
-                var now = DateTimeOffset.UtcNow;
-                var strategy = new OpenAIStreamingStrategy(() => now);
+                // sleeping; advancing it past the 1.2s interval is what opens the gate.
+                // The interval has elapsed, but only 85ms has accumulated, so no commit
+                // frame may go out.
+                long now = 0;
+                using var strategy = LiveStrategy(StreamingTranscriptionProvider.OpenAI, nowMs: () => now);
                 var sent = new List<byte[]>();
                 Func<byte[], WebSocketMessageType, CancellationToken, Task> send =
                     (data, type, ct) => { sent.Add(data); return Task.CompletedTask; };
 
+                // Seed the core's commit mark - see the note above this group.
+                strategy.OnAudioSendOpportunityAsync(send, CancellationToken.None).GetAwaiter().GetResult();
+                Assert(sent.Count == 0, $"the seeding opportunity must never commit, got {sent.Count} frames");
+
+                strategy.EncodeAudioChunk(new byte[4080]);
+                now += 2000;
+                strategy.OnAudioSendOpportunityAsync(send, CancellationToken.None).GetAwaiter().GetResult();
+
+                Assert(sent.Count == 0, $"expected no periodic commit under the minimum, got {sent.Count} frames");
+            });
+
+            Run("OpenAI sends exactly one periodic commit once the minimum is met", () =>
+            {
+                long now = 0;
+                using var strategy = LiveStrategy(StreamingTranscriptionProvider.OpenAI, nowMs: () => now);
+                var sent = new List<byte[]>();
+                Func<byte[], WebSocketMessageType, CancellationToken, Task> send =
+                    (data, type, ct) => { sent.Add(data); return Task.CompletedTask; };
+
+                strategy.OnAudioSendOpportunityAsync(send, CancellationToken.None).GetAwaiter().GetResult();
+
                 strategy.EncodeAudioChunk(new byte[12000]);
-                now += TimeSpan.FromSeconds(2);
+                now += 2000;
                 strategy.OnAudioSendOpportunityAsync(send, CancellationToken.None).GetAwaiter().GetResult();
 
                 Assert(sent.Count == 1, $"expected exactly one periodic commit, got {sent.Count}");
@@ -2035,19 +2434,21 @@ internal static class Program
                 Assert(sent.Count == 1, $"expected the interval to gate the second commit, got {sent.Count} frames");
             });
 
-            Run("OpenAIStreamingStrategy.OnAudioSendOpportunityAsync commits on the next qualifying chunk after a byte-gate rejection", () =>
+            Run("OpenAI commits on the next qualifying chunk after a byte-gate rejection", () =>
             {
                 // The byte gate deliberately leaves the last-commit time STALE when it
                 // rejects, so the commit fires on the next chunk that clears the floor
                 // rather than a full interval later.
-                var now = DateTimeOffset.UtcNow;
-                var strategy = new OpenAIStreamingStrategy(() => now);
+                long now = 0;
+                using var strategy = LiveStrategy(StreamingTranscriptionProvider.OpenAI, nowMs: () => now);
                 var sent = new List<byte[]>();
                 Func<byte[], WebSocketMessageType, CancellationToken, Task> send =
                     (data, type, ct) => { sent.Add(data); return Task.CompletedTask; };
 
+                strategy.OnAudioSendOpportunityAsync(send, CancellationToken.None).GetAwaiter().GetResult();
+
                 strategy.EncodeAudioChunk(new byte[4080]);
-                now += TimeSpan.FromSeconds(2);
+                now += 2000;
                 strategy.OnAudioSendOpportunityAsync(send, CancellationToken.None).GetAwaiter().GetResult();
 
                 Assert(sent.Count == 0, $"expected the byte gate to reject 4080 bytes, got {sent.Count} frames");
@@ -2061,10 +2462,10 @@ internal static class Program
                 Assert(sent.Count == 1, $"expected the next qualifying chunk to commit immediately, got {sent.Count} frames");
             });
 
-            Run("OpenAIStreamingStrategy: a stop right after a periodic commit drops the sub-100ms tail", () =>
+            Run("OpenAI: a stop right after a periodic commit drops the sub-100ms tail", () =>
             {
                 // The bug this whole change exists to kill, reproduced end to end on a
-                // SINGLE strategy instance rather than in two isolated halves.
+                // SINGLE session rather than in two isolated halves.
                 //
                 // Every other case above drives EITHER the periodic path OR the stop
                 // sequence, so both stay green even if the periodic path stopped zeroing
@@ -2074,14 +2475,16 @@ internal static class Program
                 // audio the server already has, and emit a commit covering 85ms. That is
                 // exactly the rejected frame of HYPERWHISPER-S8/S9. The periodic commit
                 // must CONSUME its bytes, not merely observe them.
-                var now = DateTimeOffset.UtcNow;
-                var strategy = new OpenAIStreamingStrategy(() => now);
+                long now = 0;
+                using var strategy = LiveStrategy(StreamingTranscriptionProvider.OpenAI, nowMs: () => now);
                 var sent = new List<byte[]>();
                 Func<byte[], WebSocketMessageType, CancellationToken, Task> send =
                     (data, type, ct) => { sent.Add(data); return Task.CompletedTask; };
 
+                strategy.OnAudioSendOpportunityAsync(send, CancellationToken.None).GetAwaiter().GetResult();
+
                 strategy.EncodeAudioChunk(new byte[12000]);
-                now += TimeSpan.FromSeconds(2);
+                now += 2000;
                 strategy.OnAudioSendOpportunityAsync(send, CancellationToken.None).GetAwaiter().GetResult();
 
                 Assert(sent.Count == 1, $"expected the periodic commit to fire, got {sent.Count} frames");
@@ -2095,19 +2498,21 @@ internal static class Program
                 Assert(steps[1].Action == StreamingStopAction.Close, $"expected the sequence to still close, got {steps[1].Action}");
             });
 
-            Run("OpenAIStreamingStrategy: a stop after a periodic commit still commits a tail over the minimum", () =>
+            Run("OpenAI: a stop after a periodic commit still commits a tail over the minimum", () =>
             {
                 // The other half of the same composition: consuming the bytes at the
                 // periodic commit must not make the stop sequence permanently silent. A
                 // tail that clears the floor on its own still has to be committed.
-                var now = DateTimeOffset.UtcNow;
-                var strategy = new OpenAIStreamingStrategy(() => now);
+                long now = 0;
+                using var strategy = LiveStrategy(StreamingTranscriptionProvider.OpenAI, nowMs: () => now);
                 var sent = new List<byte[]>();
                 Func<byte[], WebSocketMessageType, CancellationToken, Task> send =
                     (data, type, ct) => { sent.Add(data); return Task.CompletedTask; };
 
+                strategy.OnAudioSendOpportunityAsync(send, CancellationToken.None).GetAwaiter().GetResult();
+
                 strategy.EncodeAudioChunk(new byte[12000]);
-                now += TimeSpan.FromSeconds(2);
+                now += 2000;
                 strategy.OnAudioSendOpportunityAsync(send, CancellationToken.None).GetAwaiter().GetResult();
 
                 Assert(sent.Count == 1, $"expected the periodic commit to fire, got {sent.Count} frames");
@@ -2361,9 +2766,9 @@ internal static class Program
                     "an ellipsis must be preserved");
             });
 
-            Run("DeepgramStreamingStrategy parses Results (object channel) into a FinalTranscript", () =>
+            Run("Deepgram parses Results (object channel) into a FinalTranscript", () =>
             {
-                var strategy = new DeepgramStreamingStrategy();
+                using var strategy = LiveStrategy(StreamingTranscriptionProvider.Deepgram);
                 var evt = strategy.ParseMessage(
                     "{\"type\":\"Results\",\"channel\":{\"alternatives\":[{\"transcript\":\"hello\"}]},\"is_final\":true}");
 
@@ -2372,22 +2777,24 @@ internal static class Program
                 Assert(final!.Text == "hello", $"expected text 'hello', got '{final.Text}'");
             });
 
-            Run("DeepgramStreamingStrategy parses SpeechStarted (array channel) without throwing — issue #106", () =>
+            Run("Deepgram parses SpeechStarted (array channel) without throwing — issue #106", () =>
             {
                 // Deepgram overloads "channel": an object on Results frames, an array of channel
                 // indices on SpeechStarted/UtteranceEnd frames. Before the fix, deserializing the
-                // array shape into the DeepgramChannel object threw and was swallowed by the
-                // outer try/catch, so this event never reached the caller.
-                var strategy = new DeepgramStreamingStrategy();
+                // array shape into a typed channel object threw and was swallowed by the outer
+                // try/catch, so this event never reached the caller. The shared core reads the
+                // frame through an untyped JSON value, which makes the polymorphism a non-event —
+                // but this is a shipped regression and keeps a Windows-side assertion.
+                using var strategy = LiveStrategy(StreamingTranscriptionProvider.Deepgram);
                 var evt = strategy.ParseMessage("{\"type\":\"SpeechStarted\",\"channel\":[0,1],\"timestamp\":1.2}");
 
                 Assert(evt is StreamingProviderEvent.Metadata,
                     $"expected Metadata, got {evt?.GetType().Name ?? "null"}");
             });
 
-            Run("DeepgramStreamingStrategy parses UtteranceEnd (array channel) without throwing — issue #106", () =>
+            Run("Deepgram parses UtteranceEnd (array channel) without throwing — issue #106", () =>
             {
-                var strategy = new DeepgramStreamingStrategy();
+                using var strategy = LiveStrategy(StreamingTranscriptionProvider.Deepgram);
                 var evt = strategy.ParseMessage("{\"type\":\"UtteranceEnd\",\"channel\":[0,1],\"last_word_end\":2.5}");
 
                 Assert(evt is StreamingProviderEvent.Metadata,
@@ -2916,30 +3323,37 @@ internal static class Program
             // HyperWhisper.SharedCore.Tests assert the same rule.
             Run("StreamingTranscriptionSessionFactory.BuildVocabulary normalizes through the shared core", () =>
             {
-                var strategy = new DeepgramStreamingStrategy();
-                Assert(strategy.SupportsVocabulary, "Deepgram must still declare vocabulary support");
+                const StreamingTranscriptionProvider deepgram = StreamingTranscriptionProvider.Deepgram;
+                Assert(StreamingTranscriptionSessionFactory.SupportsVocabulary(deepgram),
+                    "Deepgram must still declare vocabulary support");
 
                 var vocabulary = StreamingTranscriptionSessionFactory.BuildVocabulary(
-                    strategy,
+                    deepgram,
                     ["  API  ", "api", "Rust<script>", "multi\n  word", "   ", ""]);
-                // ", " join, first-seen casing/order, no cap: the strategies cap.
-                Assert(vocabulary == "API, Rustscript, multi word",
-                    $"expected the sanitized deduped ', '-joined vocabulary, got '{vocabulary}'");
+                // A TERM LIST, not a joined string: joining is a per-provider wire
+                // decision and moved into the core with the rest of the protocol
+                // (issue #281). First-seen casing/order, no cap here - the protocols cap.
+                Assert(vocabulary is { Count: 3 },
+                    $"expected 3 sanitized deduped terms, got {vocabulary?.Count.ToString() ?? "null"}");
+                Assert(string.Join(", ", vocabulary!) == "API, Rustscript, multi word",
+                    $"expected the sanitized deduped terms, got '{string.Join(", ", vocabulary!)}'");
 
-                // The strategy owns "does this provider take vocabulary".
+                // The shared core owns "does this provider take vocabulary".
+                Assert(!StreamingTranscriptionSessionFactory.SupportsVocabulary(StreamingTranscriptionProvider.OpenAI),
+                    "OpenAI Realtime has no vocabulary parameter");
                 Assert(StreamingTranscriptionSessionFactory.BuildVocabulary(
-                    new NoOpStreamingProviderStrategy(), ["API"]) is null,
-                    "a strategy without vocabulary support must still get null");
-                Assert(StreamingTranscriptionSessionFactory.BuildVocabulary(strategy, []) is null,
+                    StreamingTranscriptionProvider.OpenAI, ["API"]) is null,
+                    "a provider without vocabulary support must still get null");
+                Assert(StreamingTranscriptionSessionFactory.BuildVocabulary(deepgram, []) is null,
                     "an empty vocabulary must still get null");
-                Assert(StreamingTranscriptionSessionFactory.BuildVocabulary(strategy, ["<>", "   "]) is null,
+                Assert(StreamingTranscriptionSessionFactory.BuildVocabulary(deepgram, ["<>", "   "]) is null,
                     "a vocabulary that sanitizes away entirely must get null");
 
                 // Sanitization truncates a term at the core's 80-character limit.
                 var truncated = StreamingTranscriptionSessionFactory.BuildVocabulary(
-                    strategy, new[] { new string('x', 150) });
-                Assert(truncated is { Length: 80 },
-                    $"expected an 80-character truncated term, got '{truncated}'");
+                    deepgram, new[] { new string('x', 150) });
+                Assert(truncated is { Count: 1 } && truncated[0].Length == 80,
+                    $"expected one 80-character truncated term, got '{string.Join(", ", truncated ?? [])}'");
             });
 
             // The ISO 3166-1 region table now lives in the shared Rust core
@@ -3196,6 +3610,43 @@ internal static class Program
         }
         throw new InvalidOperationException($"expected {typeof(T).Name} was not thrown");
     }
+
+    /// <summary>
+    /// A live-streaming session config with every credential filled in, so a
+    /// strategy built from it reaches the shared core rather than short-circuiting
+    /// on a missing key.
+    /// </summary>
+    private static StreamingSessionConfig LiveConfig(
+        string? language = "en",
+        IReadOnlyList<string>? vocabulary = null,
+        string? model = null,
+        bool fastFormatting = false)
+        => new(
+            LicenseKey: "smoke-license-key",
+            DeviceId: "smoke-device-id",
+            Language: language,
+            Vocabulary: vocabulary,
+            ApiKey: "test-api-key",
+            Model: model,
+            FastFormatting: fastFormatting,
+            RemoveFillerWords: false);
+
+    /// <summary>
+    /// The one streaming strategy (#281), driven through the real FFI. Every
+    /// assertion below that reads a URL, a frame, a parsed event or a stop step
+    /// is reading what the shared Rust core produced on this machine, not a C#
+    /// copy of it.
+    /// </summary>
+    /// <param name="nowMs">
+    /// Injected monotonic clock. The core reads none of its own, so OpenAI's
+    /// 1.2 s commit interval and Deepgram's 3 s keepalive are driven by moving
+    /// this instead of sleeping.
+    /// </param>
+    private static LiveProtocolStreamingStrategy LiveStrategy(
+        StreamingTranscriptionProvider provider,
+        StreamingSessionConfig? config = null,
+        Func<long>? nowMs = null)
+        => new(provider, config ?? LiveConfig(), nowMs);
 
     /// <summary>
     /// Build a post-processing request through the shared core (#282). The URL,

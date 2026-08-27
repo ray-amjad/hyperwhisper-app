@@ -563,6 +563,309 @@ fileprivate struct FfiConverterData: FfiConverterRustBuffer {
 
 
 /**
+ * One live-streaming session: a config in, and every value the platform's
+ * socket loop needs out.
+ *
+ * The lifecycle is `new` → `connect` → (`note_audio` / `control_frames` /
+ * `parse`)\* → `stop_sequence`, with `reset` returning it to the state the
+ * constructor left it in so a reconnect can reuse the object.
+ *
+ * The generated binding is `IDisposable` in C# and reference-counted in Swift.
+ * **A consumer must dispose it** — the Rust side is an `Arc` the platform holds
+ * a raw handle to, and dropping the last reference without disposing leaks it
+ * for the life of the process.
+ *
+ * Thread safety is a `Mutex`, not a re-entrant one: the socket loop, the
+ * capture thread and the stop path all reach the same instance, and the shipped
+ * strategies already guard their counters with a lock for exactly that reason.
+ * No method calls another through the FFI, so there is nothing to re-enter.
+ */
+public protocol HwLiveSessionProtocol : AnyObject {
+    
+    /**
+     * Everything needed to open the socket. Resets the per-connection state,
+     * so calling it again after a drop is the whole reconnect preparation.
+     */
+    func connect() throws  -> HwLiveConnect
+    
+    /**
+     * Frames to send at an audio send opportunity, given the caller's clock.
+     *
+     * `now_ms` is a parameter, never a clock read here — that is what makes
+     * OpenAI's 1.2 s commit interval and Deepgram's 3 s keepalive testable
+     * without sleeping. Usually empty.
+     */
+    func controlFrames(nowMs: UInt64)  -> [HwLiveFrame]
+    
+    /**
+     * Record that `byte_count` bytes of PCM were just handed to the socket.
+     *
+     * A **count**, never the bytes: this is the one place a live session is
+     * told about audio, and it is told a number. Only OpenAI's commit gate
+     * reads it; the call is free for the other four and callers send it
+     * unconditionally.
+     */
+    func noteAudio(byteCount: UInt64) 
+    
+    /**
+     * Read one text message off the socket. Anything unrecognised — including
+     * text that is not JSON — is [`HwLiveEvent::Ignore`]: a provider adding a
+     * frame shape must never end a recording in progress.
+     */
+    func parse(text: String)  -> HwLiveEvent
+    
+    /**
+     * The provider this session speaks.
+     */
+    func provider()  -> HwLiveProvider
+    
+    /**
+     * Forget every frame this session has seen. What makes a reconnect able to
+     * reuse one object instead of rebuilding it from the config.
+     */
+    func reset() 
+    
+    /**
+     * The ordered stop path, given the caller's clock. Run the steps in order;
+     * do not reorder them and do not collapse the waits.
+     */
+    func stopSequence(nowMs: UInt64)  -> [HwLiveStopStep]
+    
+}
+
+/**
+ * One live-streaming session: a config in, and every value the platform's
+ * socket loop needs out.
+ *
+ * The lifecycle is `new` → `connect` → (`note_audio` / `control_frames` /
+ * `parse`)\* → `stop_sequence`, with `reset` returning it to the state the
+ * constructor left it in so a reconnect can reuse the object.
+ *
+ * The generated binding is `IDisposable` in C# and reference-counted in Swift.
+ * **A consumer must dispose it** — the Rust side is an `Arc` the platform holds
+ * a raw handle to, and dropping the last reference without disposing leaks it
+ * for the life of the process.
+ *
+ * Thread safety is a `Mutex`, not a re-entrant one: the socket loop, the
+ * capture thread and the stop path all reach the same instance, and the shipped
+ * strategies already guard their counters with a lock for exactly that reason.
+ * No method calls another through the FFI, so there is nothing to re-enter.
+ */
+open class HwLiveSession:
+    HwLiveSessionProtocol {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_hyperwhisper_core_fn_clone_hwlivesession(self.pointer, $0) }
+    }
+    /**
+     * Build a session for `config`.
+     *
+     * An exported constructor, not a `live_session_new(config)` free function:
+     * a `#[uniffi::Object]` gets no foreign constructor unless one is exported,
+     * and without it a consumer can name the type and never instantiate it.
+     * This renders as `new HwLiveSession(config)` in C# and
+     * `HwLiveSession(config:)` in Swift.
+     *
+     * Infallible on purpose. A missing credential is reported by
+     * [`HwLiveSession::connect`], which is the call that needs it, so the
+     * constructor a foreign language sees never throws.
+     */
+public convenience init(config: HwLiveConfig) {
+    let pointer =
+        try! rustCall() {
+    uniffi_hyperwhisper_core_fn_constructor_hwlivesession_new(
+        FfiConverterTypeHwLiveConfig.lower(config),$0
+    )
+}
+    self.init(unsafeFromRawPointer: pointer)
+}
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_hyperwhisper_core_fn_free_hwlivesession(pointer, $0) }
+    }
+
+    
+
+    
+    /**
+     * Everything needed to open the socket. Resets the per-connection state,
+     * so calling it again after a drop is the whole reconnect preparation.
+     */
+open func connect()throws  -> HwLiveConnect {
+    return try  FfiConverterTypeHwLiveConnect.lift(try rustCallWithError(FfiConverterTypeHwLiveError.lift) {
+    uniffi_hyperwhisper_core_fn_method_hwlivesession_connect(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Frames to send at an audio send opportunity, given the caller's clock.
+     *
+     * `now_ms` is a parameter, never a clock read here — that is what makes
+     * OpenAI's 1.2 s commit interval and Deepgram's 3 s keepalive testable
+     * without sleeping. Usually empty.
+     */
+open func controlFrames(nowMs: UInt64) -> [HwLiveFrame] {
+    return try!  FfiConverterSequenceTypeHwLiveFrame.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_method_hwlivesession_control_frames(self.uniffiClonePointer(),
+        FfiConverterUInt64.lower(nowMs),$0
+    )
+})
+}
+    
+    /**
+     * Record that `byte_count` bytes of PCM were just handed to the socket.
+     *
+     * A **count**, never the bytes: this is the one place a live session is
+     * told about audio, and it is told a number. Only OpenAI's commit gate
+     * reads it; the call is free for the other four and callers send it
+     * unconditionally.
+     */
+open func noteAudio(byteCount: UInt64) {try! rustCall() {
+    uniffi_hyperwhisper_core_fn_method_hwlivesession_note_audio(self.uniffiClonePointer(),
+        FfiConverterUInt64.lower(byteCount),$0
+    )
+}
+}
+    
+    /**
+     * Read one text message off the socket. Anything unrecognised — including
+     * text that is not JSON — is [`HwLiveEvent::Ignore`]: a provider adding a
+     * frame shape must never end a recording in progress.
+     */
+open func parse(text: String) -> HwLiveEvent {
+    return try!  FfiConverterTypeHwLiveEvent.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_method_hwlivesession_parse(self.uniffiClonePointer(),
+        FfiConverterString.lower(text),$0
+    )
+})
+}
+    
+    /**
+     * The provider this session speaks.
+     */
+open func provider() -> HwLiveProvider {
+    return try!  FfiConverterTypeHwLiveProvider.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_method_hwlivesession_provider(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Forget every frame this session has seen. What makes a reconnect able to
+     * reuse one object instead of rebuilding it from the config.
+     */
+open func reset() {try! rustCall() {
+    uniffi_hyperwhisper_core_fn_method_hwlivesession_reset(self.uniffiClonePointer(),$0
+    )
+}
+}
+    
+    /**
+     * The ordered stop path, given the caller's clock. Run the steps in order;
+     * do not reorder them and do not collapse the waits.
+     */
+open func stopSequence(nowMs: UInt64) -> [HwLiveStopStep] {
+    return try!  FfiConverterSequenceTypeHwLiveStopStep.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_method_hwlivesession_stop_sequence(self.uniffiClonePointer(),
+        FfiConverterUInt64.lower(nowMs),$0
+    )
+})
+}
+    
+
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwLiveSession: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = HwLiveSession
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> HwLiveSession {
+        return HwLiveSession(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: HwLiveSession) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwLiveSession {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: HwLiveSession, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLiveSession_lift(_ pointer: UnsafeMutableRawPointer) throws -> HwLiveSession {
+    return try FfiConverterTypeHwLiveSession.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLiveSession_lower(_ value: HwLiveSession) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeHwLiveSession.lower(value)
+}
+
+
+
+
+/**
  * Native key-value persistence implemented by the platform (callback
  * interface). Keys/values are plain strings; `get` returns `None` for a missing
  * key. Mirrors `hw_license::KeyValueStore`.
@@ -1654,6 +1957,328 @@ public func FfiConverterTypeHwLanguageSupport_lift(_ buf: RustBuffer) throws -> 
 #endif
 public func FfiConverterTypeHwLanguageSupport_lower(_ value: HwLanguageSupport) -> RustBuffer {
     return FfiConverterTypeHwLanguageSupport.lower(value)
+}
+
+
+/**
+ * Everything a live session needs to build its connection. Mirrors
+ * `lv::LiveConfig`.
+ *
+ * `vocabulary` is a term LIST, not the comma-joined string the heads pass
+ * around today: joining is a per-provider wire decision (xAI repeats
+ * `keyterm=`, HyperWhisper Cloud sends one `vocabulary=`), so the core takes
+ * the terms and each protocol decides.
+ *
+ * `base_url` re-points HyperWhisper Cloud at another backend — macOS's `#if
+ * DEBUG` build talks to staging, and a hardcoded production host here would
+ * bill a developer's key against production. `None` means the production host,
+ * and every other provider ignores the field.
+ */
+public struct HwLiveConfig {
+    public var provider: HwLiveProvider
+    public var apiKey: String?
+    public var licenseKey: String?
+    public var deviceId: String?
+    public var language: String?
+    public var vocabulary: [String]
+    public var model: String?
+    public var fastFormatting: Bool
+    public var baseUrl: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(provider: HwLiveProvider, apiKey: String?, licenseKey: String?, deviceId: String?, language: String?, vocabulary: [String], model: String?, fastFormatting: Bool, baseUrl: String?) {
+        self.provider = provider
+        self.apiKey = apiKey
+        self.licenseKey = licenseKey
+        self.deviceId = deviceId
+        self.language = language
+        self.vocabulary = vocabulary
+        self.model = model
+        self.fastFormatting = fastFormatting
+        self.baseUrl = baseUrl
+    }
+}
+
+
+
+extension HwLiveConfig: Equatable, Hashable {
+    public static func ==(lhs: HwLiveConfig, rhs: HwLiveConfig) -> Bool {
+        if lhs.provider != rhs.provider {
+            return false
+        }
+        if lhs.apiKey != rhs.apiKey {
+            return false
+        }
+        if lhs.licenseKey != rhs.licenseKey {
+            return false
+        }
+        if lhs.deviceId != rhs.deviceId {
+            return false
+        }
+        if lhs.language != rhs.language {
+            return false
+        }
+        if lhs.vocabulary != rhs.vocabulary {
+            return false
+        }
+        if lhs.model != rhs.model {
+            return false
+        }
+        if lhs.fastFormatting != rhs.fastFormatting {
+            return false
+        }
+        if lhs.baseUrl != rhs.baseUrl {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(provider)
+        hasher.combine(apiKey)
+        hasher.combine(licenseKey)
+        hasher.combine(deviceId)
+        hasher.combine(language)
+        hasher.combine(vocabulary)
+        hasher.combine(model)
+        hasher.combine(fastFormatting)
+        hasher.combine(baseUrl)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwLiveConfig: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwLiveConfig {
+        return
+            try HwLiveConfig(
+                provider: FfiConverterTypeHwLiveProvider.read(from: &buf), 
+                apiKey: FfiConverterOptionString.read(from: &buf), 
+                licenseKey: FfiConverterOptionString.read(from: &buf), 
+                deviceId: FfiConverterOptionString.read(from: &buf), 
+                language: FfiConverterOptionString.read(from: &buf), 
+                vocabulary: FfiConverterSequenceString.read(from: &buf), 
+                model: FfiConverterOptionString.read(from: &buf), 
+                fastFormatting: FfiConverterBool.read(from: &buf), 
+                baseUrl: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwLiveConfig, into buf: inout [UInt8]) {
+        FfiConverterTypeHwLiveProvider.write(value.provider, into: &buf)
+        FfiConverterOptionString.write(value.apiKey, into: &buf)
+        FfiConverterOptionString.write(value.licenseKey, into: &buf)
+        FfiConverterOptionString.write(value.deviceId, into: &buf)
+        FfiConverterOptionString.write(value.language, into: &buf)
+        FfiConverterSequenceString.write(value.vocabulary, into: &buf)
+        FfiConverterOptionString.write(value.model, into: &buf)
+        FfiConverterBool.write(value.fastFormatting, into: &buf)
+        FfiConverterOptionString.write(value.baseUrl, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLiveConfig_lift(_ buf: RustBuffer) throws -> HwLiveConfig {
+    return try FfiConverterTypeHwLiveConfig.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLiveConfig_lower(_ value: HwLiveConfig) -> RustBuffer {
+    return FfiConverterTypeHwLiveConfig.lower(value)
+}
+
+
+/**
+ * Everything the platform needs to open the socket. Mirrors `lv::LiveConnect`.
+ *
+ * Reuses `ffi_net`'s [`Header`] rather than declaring a second name for a
+ * name/value pair, the same way `ffi_llm` reuses its `HttpRequest`.
+ */
+public struct HwLiveConnect {
+    public var url: String
+    public var headers: [Header]
+    public var subprotocols: [String]
+    public var sampleRate: UInt32
+    public var framing: HwAudioFraming
+    public var startFrames: [HwLiveFrame]
+    public var sessionStartsOnOpen: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(url: String, headers: [Header], subprotocols: [String], sampleRate: UInt32, framing: HwAudioFraming, startFrames: [HwLiveFrame], sessionStartsOnOpen: Bool) {
+        self.url = url
+        self.headers = headers
+        self.subprotocols = subprotocols
+        self.sampleRate = sampleRate
+        self.framing = framing
+        self.startFrames = startFrames
+        self.sessionStartsOnOpen = sessionStartsOnOpen
+    }
+}
+
+
+
+extension HwLiveConnect: Equatable, Hashable {
+    public static func ==(lhs: HwLiveConnect, rhs: HwLiveConnect) -> Bool {
+        if lhs.url != rhs.url {
+            return false
+        }
+        if lhs.headers != rhs.headers {
+            return false
+        }
+        if lhs.subprotocols != rhs.subprotocols {
+            return false
+        }
+        if lhs.sampleRate != rhs.sampleRate {
+            return false
+        }
+        if lhs.framing != rhs.framing {
+            return false
+        }
+        if lhs.startFrames != rhs.startFrames {
+            return false
+        }
+        if lhs.sessionStartsOnOpen != rhs.sessionStartsOnOpen {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(url)
+        hasher.combine(headers)
+        hasher.combine(subprotocols)
+        hasher.combine(sampleRate)
+        hasher.combine(framing)
+        hasher.combine(startFrames)
+        hasher.combine(sessionStartsOnOpen)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwLiveConnect: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwLiveConnect {
+        return
+            try HwLiveConnect(
+                url: FfiConverterString.read(from: &buf), 
+                headers: FfiConverterSequenceTypeHeader.read(from: &buf), 
+                subprotocols: FfiConverterSequenceString.read(from: &buf), 
+                sampleRate: FfiConverterUInt32.read(from: &buf), 
+                framing: FfiConverterTypeHwAudioFraming.read(from: &buf), 
+                startFrames: FfiConverterSequenceTypeHwLiveFrame.read(from: &buf), 
+                sessionStartsOnOpen: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwLiveConnect, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.url, into: &buf)
+        FfiConverterSequenceTypeHeader.write(value.headers, into: &buf)
+        FfiConverterSequenceString.write(value.subprotocols, into: &buf)
+        FfiConverterUInt32.write(value.sampleRate, into: &buf)
+        FfiConverterTypeHwAudioFraming.write(value.framing, into: &buf)
+        FfiConverterSequenceTypeHwLiveFrame.write(value.startFrames, into: &buf)
+        FfiConverterBool.write(value.sessionStartsOnOpen, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLiveConnect_lift(_ buf: RustBuffer) throws -> HwLiveConnect {
+    return try FfiConverterTypeHwLiveConnect.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLiveConnect_lower(_ value: HwLiveConnect) -> RustBuffer {
+    return FfiConverterTypeHwLiveConnect.lower(value)
+}
+
+
+/**
+ * One frame to put on the wire. Mirrors `lv::LiveFrame`.
+ *
+ * `data` is a string because every frame the core produces is JSON text; the
+ * only binary frames in these protocols are audio, which the core never sees.
+ * `binary` keeps the platform's mapping onto its own message-type enum total
+ * rather than a hardcoded `Text` at the adapter.
+ */
+public struct HwLiveFrame {
+    public var data: String
+    public var binary: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(data: String, binary: Bool) {
+        self.data = data
+        self.binary = binary
+    }
+}
+
+
+
+extension HwLiveFrame: Equatable, Hashable {
+    public static func ==(lhs: HwLiveFrame, rhs: HwLiveFrame) -> Bool {
+        if lhs.data != rhs.data {
+            return false
+        }
+        if lhs.binary != rhs.binary {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(data)
+        hasher.combine(binary)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwLiveFrame: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwLiveFrame {
+        return
+            try HwLiveFrame(
+                data: FfiConverterString.read(from: &buf), 
+                binary: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwLiveFrame, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.data, into: &buf)
+        FfiConverterBool.write(value.binary, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLiveFrame_lift(_ buf: RustBuffer) throws -> HwLiveFrame {
+    return try FfiConverterTypeHwLiveFrame.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLiveFrame_lower(_ value: HwLiveFrame) -> RustBuffer {
+    return FfiConverterTypeHwLiveFrame.lower(value)
 }
 
 
@@ -5121,6 +5746,91 @@ extension HwAppType: Equatable, Hashable {}
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
+ * How a PCM chunk becomes a websocket frame. Mirrors `lv::AudioFraming`.
+ *
+ * **This descriptor is why audio never crosses this boundary.** The core says
+ * how to wrap a chunk once, at connect time; the platform does the base64 and
+ * the concatenation on bytes it already holds. A variant that carried the
+ * samples themselves would put a recording's worth of PCM through the FFI on
+ * every chunk — see `hw_net::contract` for the rule and
+ * `ffi_net`'s `audio_is_referenced_by_path_and_never_carried_as_bytes` for the
+ * batch path's version of this guard.
+ */
+
+public enum HwAudioFraming {
+    
+    /**
+     * Send the PCM bytes as a binary frame, unchanged.
+     */
+    case binary
+    /**
+     * Send `prefix + base64(pcm) + suffix` as a text frame.
+     */
+    case base64Json(prefix: String, suffix: String
+    )
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwAudioFraming: FfiConverterRustBuffer {
+    typealias SwiftType = HwAudioFraming
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwAudioFraming {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .binary
+        
+        case 2: return .base64Json(prefix: try FfiConverterString.read(from: &buf), suffix: try FfiConverterString.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: HwAudioFraming, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .binary:
+            writeInt(&buf, Int32(1))
+        
+        
+        case let .base64Json(prefix,suffix):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(prefix, into: &buf)
+            FfiConverterString.write(suffix, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwAudioFraming_lift(_ buf: RustBuffer) throws -> HwAudioFraming {
+    return try FfiConverterTypeHwAudioFraming.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwAudioFraming_lower(_ value: HwAudioFraming) -> RustBuffer {
+    return FfiConverterTypeHwAudioFraming.lower(value)
+}
+
+
+
+extension HwAudioFraming: Equatable, Hashable {}
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
  * The rule that failed. Mirrors `l::EndpointIssue`.
  */
 
@@ -5609,6 +6319,651 @@ public func FfiConverterTypeHwLicenseStatus_lower(_ value: HwLicenseStatus) -> R
 
 
 extension HwLicenseStatus: Equatable, Hashable {}
+
+
+
+
+/**
+ * Why a session could not produce a connection descriptor. Mirrors
+ * `lv::LiveError`.
+ *
+ * One arm on purpose: everything else that can go wrong on a live connection —
+ * DNS, TLS, a refused upgrade, a mid-session close — is transport, and
+ * transport stays native. `Display` is hand-written to match the leaf's
+ * `thiserror` message, the same way [`HwTranscriptionError`] does, so hw-core
+ * needs no extra dependency.
+ */
+public enum HwLiveError {
+
+    
+    
+    /**
+     * No usable credential: a blank API key, or (HyperWhisper Cloud) neither a
+     * license key nor a device id.
+     */
+    case MissingCredential
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwLiveError: FfiConverterRustBuffer {
+    typealias SwiftType = HwLiveError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwLiveError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .MissingCredential
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: HwLiveError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case .MissingCredential:
+            writeInt(&buf, Int32(1))
+        
+        }
+    }
+}
+
+
+extension HwLiveError: Equatable, Hashable {}
+
+extension HwLiveError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * The machine-readable kind an error frame carried, when the provider sends one
+ * instead of wording. Mirrors `lv::LiveErrorKind`.
+ *
+ * ElevenLabs alone: its error frames are a bare `message_type` with no message,
+ * so the wording a head would classify is the core's own. A head that keeps a
+ * failure taxonomy reads this; a head that classifies the wording ignores it and
+ * nothing changes. See `hw_net::live::LiveErrorKind` for why collapsing the
+ * three kinds cost `rate_limited` its "no reconnect" verdict.
+ */
+
+public enum HwLiveErrorKind {
+    
+    /**
+     * The credential was rejected.
+     */
+    case unauthorized
+    /**
+     * The account's allowance for the period is spent.
+     */
+    case quotaExceeded
+    /**
+     * Too many requests, or too many concurrent sessions, right now.
+     */
+    case rateLimited
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwLiveErrorKind: FfiConverterRustBuffer {
+    typealias SwiftType = HwLiveErrorKind
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwLiveErrorKind {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .unauthorized
+        
+        case 2: return .quotaExceeded
+        
+        case 3: return .rateLimited
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: HwLiveErrorKind, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .unauthorized:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .quotaExceeded:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .rateLimited:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLiveErrorKind_lift(_ buf: RustBuffer) throws -> HwLiveErrorKind {
+    return try FfiConverterTypeHwLiveErrorKind.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLiveErrorKind_lower(_ value: HwLiveErrorKind) -> RustBuffer {
+    return FfiConverterTypeHwLiveErrorKind.lower(value)
+}
+
+
+
+extension HwLiveErrorKind: Equatable, Hashable {}
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * What a provider error frame means for the reconnect path. Mirrors
+ * `lv::LiveErrorOutcome`.
+ */
+
+public enum HwLiveErrorOutcome {
+    
+    /**
+     * Reconnecting cannot help. Mark the provider's follow-up close as
+     * expected and surface the message as it stands.
+     */
+    case terminal
+    /**
+     * May clear on its own; leave the reconnect path alone.
+     */
+    case transient
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwLiveErrorOutcome: FfiConverterRustBuffer {
+    typealias SwiftType = HwLiveErrorOutcome
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwLiveErrorOutcome {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .terminal
+        
+        case 2: return .transient
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: HwLiveErrorOutcome, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .terminal:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .transient:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLiveErrorOutcome_lift(_ buf: RustBuffer) throws -> HwLiveErrorOutcome {
+    return try FfiConverterTypeHwLiveErrorOutcome.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLiveErrorOutcome_lower(_ value: HwLiveErrorOutcome) -> RustBuffer {
+    return FfiConverterTypeHwLiveErrorOutcome.lower(value)
+}
+
+
+
+extension HwLiveErrorOutcome: Equatable, Hashable {}
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * What one parsed provider message means. Mirrors `lv::LiveEvent`.
+ *
+ * Deliberately the macOS `StreamingProviderEvent` superset, not
+ * `shared-dotnet`'s six-case `LiveProtocolEvent`: a consumer that does not want
+ * an arm ignores it, but a consumer that needs one the core never produced has
+ * nowhere to go.
+ */
+
+public enum HwLiveEvent {
+    
+    case sessionStarted(sessionId: String?
+    )
+    case partialTranscript(text: String
+    )
+    case finalTranscript(text: String
+    )
+    case finalTranscriptAndSessionComplete(text: String, durationSeconds: Double, creditsUsed: Double
+    )
+    case sessionComplete(durationSeconds: Double, creditsUsed: Double
+    )
+    case error(message: String, 
+        /**
+         * The machine-readable kind, when the provider sent one instead of
+         * wording. `None` for four of the five — see [`HwLiveErrorKind`].
+         */kind: HwLiveErrorKind?
+    )
+    case warning(message: String
+    )
+    case metadata(raw: String
+    )
+    case ignore
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwLiveEvent: FfiConverterRustBuffer {
+    typealias SwiftType = HwLiveEvent
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwLiveEvent {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .sessionStarted(sessionId: try FfiConverterOptionString.read(from: &buf)
+        )
+        
+        case 2: return .partialTranscript(text: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 3: return .finalTranscript(text: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 4: return .finalTranscriptAndSessionComplete(text: try FfiConverterString.read(from: &buf), durationSeconds: try FfiConverterDouble.read(from: &buf), creditsUsed: try FfiConverterDouble.read(from: &buf)
+        )
+        
+        case 5: return .sessionComplete(durationSeconds: try FfiConverterDouble.read(from: &buf), creditsUsed: try FfiConverterDouble.read(from: &buf)
+        )
+        
+        case 6: return .error(message: try FfiConverterString.read(from: &buf), kind: try FfiConverterOptionTypeHwLiveErrorKind.read(from: &buf)
+        )
+        
+        case 7: return .warning(message: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 8: return .metadata(raw: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 9: return .ignore
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: HwLiveEvent, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .sessionStarted(sessionId):
+            writeInt(&buf, Int32(1))
+            FfiConverterOptionString.write(sessionId, into: &buf)
+            
+        
+        case let .partialTranscript(text):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(text, into: &buf)
+            
+        
+        case let .finalTranscript(text):
+            writeInt(&buf, Int32(3))
+            FfiConverterString.write(text, into: &buf)
+            
+        
+        case let .finalTranscriptAndSessionComplete(text,durationSeconds,creditsUsed):
+            writeInt(&buf, Int32(4))
+            FfiConverterString.write(text, into: &buf)
+            FfiConverterDouble.write(durationSeconds, into: &buf)
+            FfiConverterDouble.write(creditsUsed, into: &buf)
+            
+        
+        case let .sessionComplete(durationSeconds,creditsUsed):
+            writeInt(&buf, Int32(5))
+            FfiConverterDouble.write(durationSeconds, into: &buf)
+            FfiConverterDouble.write(creditsUsed, into: &buf)
+            
+        
+        case let .error(message,kind):
+            writeInt(&buf, Int32(6))
+            FfiConverterString.write(message, into: &buf)
+            FfiConverterOptionTypeHwLiveErrorKind.write(kind, into: &buf)
+            
+        
+        case let .warning(message):
+            writeInt(&buf, Int32(7))
+            FfiConverterString.write(message, into: &buf)
+            
+        
+        case let .metadata(raw):
+            writeInt(&buf, Int32(8))
+            FfiConverterString.write(raw, into: &buf)
+            
+        
+        case .ignore:
+            writeInt(&buf, Int32(9))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLiveEvent_lift(_ buf: RustBuffer) throws -> HwLiveEvent {
+    return try FfiConverterTypeHwLiveEvent.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLiveEvent_lower(_ value: HwLiveEvent) -> RustBuffer {
+    return FfiConverterTypeHwLiveEvent.lower(value)
+}
+
+
+
+extension HwLiveEvent: Equatable, Hashable {}
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * The five websocket transcription providers. Mirrors `lv::LiveProvider`.
+ *
+ * Local engines (Parakeet, Nemotron) are deliberately absent — they are not
+ * websocket protocols. Windows spells this vendor set with `Xai` where this
+ * enum says `Grok`; the head maps across at its boundary.
+ */
+
+public enum HwLiveProvider {
+    
+    case deepgram
+    case elevenLabs
+    case openAi
+    case grok
+    case hyperWhisperCloud
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwLiveProvider: FfiConverterRustBuffer {
+    typealias SwiftType = HwLiveProvider
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwLiveProvider {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .deepgram
+        
+        case 2: return .elevenLabs
+        
+        case 3: return .openAi
+        
+        case 4: return .grok
+        
+        case 5: return .hyperWhisperCloud
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: HwLiveProvider, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .deepgram:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .elevenLabs:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .openAi:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .grok:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .hyperWhisperCloud:
+            writeInt(&buf, Int32(5))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLiveProvider_lift(_ buf: RustBuffer) throws -> HwLiveProvider {
+    return try FfiConverterTypeHwLiveProvider.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLiveProvider_lower(_ value: HwLiveProvider) -> RustBuffer {
+    return FfiConverterTypeHwLiveProvider.lower(value)
+}
+
+
+
+extension HwLiveProvider: Equatable, Hashable {}
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * One step of the stop path, run in order. Mirrors `lv::StopStep`.
+ *
+ * The arms match Windows' shipped `StreamingStopAction` one for one, so a head
+ * that already runs stop steps maps this by renaming. A flat frame list plus a
+ * drain timeout cannot express these protocols: Deepgram needs a wait *between*
+ * two frames, and two providers wait on the completion *event* that carries
+ * `credits_used`.
+ */
+
+public enum HwLiveStopStep {
+    
+    case sendText(text: String
+    )
+    case wait(ms: UInt64
+    )
+    case waitForSessionComplete(timeoutMs: UInt64
+    )
+    case close
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwLiveStopStep: FfiConverterRustBuffer {
+    typealias SwiftType = HwLiveStopStep
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwLiveStopStep {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .sendText(text: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 2: return .wait(ms: try FfiConverterUInt64.read(from: &buf)
+        )
+        
+        case 3: return .waitForSessionComplete(timeoutMs: try FfiConverterUInt64.read(from: &buf)
+        )
+        
+        case 4: return .close
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: HwLiveStopStep, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .sendText(text):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(text, into: &buf)
+            
+        
+        case let .wait(ms):
+            writeInt(&buf, Int32(2))
+            FfiConverterUInt64.write(ms, into: &buf)
+            
+        
+        case let .waitForSessionComplete(timeoutMs):
+            writeInt(&buf, Int32(3))
+            FfiConverterUInt64.write(timeoutMs, into: &buf)
+            
+        
+        case .close:
+            writeInt(&buf, Int32(4))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLiveStopStep_lift(_ buf: RustBuffer) throws -> HwLiveStopStep {
+    return try FfiConverterTypeHwLiveStopStep.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLiveStopStep_lower(_ value: HwLiveStopStep) -> RustBuffer {
+    return FfiConverterTypeHwLiveStopStep.lower(value)
+}
+
+
+
+extension HwLiveStopStep: Equatable, Hashable {}
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * Why a server refused the websocket upgrade. Mirrors
+ * `lv::LiveUpgradeRefusal`.
+ */
+
+public enum HwLiveUpgradeRefusal {
+    
+    /**
+     * HTTP 402 — no balance to open a session with.
+     */
+    case insufficientCredits
+    /**
+     * HTTP 401 / 403 — the key is missing, wrong, revoked or not permitted.
+     */
+    case unauthorized
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwLiveUpgradeRefusal: FfiConverterRustBuffer {
+    typealias SwiftType = HwLiveUpgradeRefusal
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwLiveUpgradeRefusal {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .insufficientCredits
+        
+        case 2: return .unauthorized
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: HwLiveUpgradeRefusal, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .insufficientCredits:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .unauthorized:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLiveUpgradeRefusal_lift(_ buf: RustBuffer) throws -> HwLiveUpgradeRefusal {
+    return try FfiConverterTypeHwLiveUpgradeRefusal.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLiveUpgradeRefusal_lower(_ value: HwLiveUpgradeRefusal) -> RustBuffer {
+    return FfiConverterTypeHwLiveUpgradeRefusal.lower(value)
+}
+
+
+
+extension HwLiveUpgradeRefusal: Equatable, Hashable {}
 
 
 
@@ -7030,6 +8385,54 @@ fileprivate struct FfiConverterOptionTypeHwLicenseStatus: FfiConverterRustBuffer
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeHwLiveErrorKind: FfiConverterRustBuffer {
+    typealias SwiftType = HwLiveErrorKind?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeHwLiveErrorKind.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeHwLiveErrorKind.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeHwLiveUpgradeRefusal: FfiConverterRustBuffer {
+    typealias SwiftType = HwLiveUpgradeRefusal?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeHwLiveUpgradeRefusal.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeHwLiveUpgradeRefusal.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionSequenceString: FfiConverterRustBuffer {
     typealias SwiftType = [String]?
 
@@ -7096,6 +8499,31 @@ fileprivate struct FfiConverterSequenceTypeHeader: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeHeader.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeHwLiveFrame: FfiConverterRustBuffer {
+    typealias SwiftType = [HwLiveFrame]
+
+    public static func write(_ value: [HwLiveFrame], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeHwLiveFrame.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [HwLiveFrame] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [HwLiveFrame]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeHwLiveFrame.read(from: &buf))
         }
         return seq
     }
@@ -7271,6 +8699,31 @@ fileprivate struct FfiConverterSequenceTypeSttVendorGroup: FfiConverterRustBuffe
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeSttVendorGroup.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeHwLiveStopStep: FfiConverterRustBuffer {
+    typealias SwiftType = [HwLiveStopStep]
+
+    public static func write(_ value: [HwLiveStopStep], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeHwLiveStopStep.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [HwLiveStopStep] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [HwLiveStopStep]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeHwLiveStopStep.read(from: &buf))
         }
         return seq
     }
@@ -8321,6 +9774,96 @@ public func licenseValidationCacheSecs() -> Int64 {
 })
 }
 /**
+ * Classify a provider error frame's `message` payload.
+ *
+ * See `hw_net::live::classify_error_message` for the twenty markers, the
+ * deliberate rate-limit/quota asymmetry and why no bare `"401"` is matched.
+ * Unrecognised wording — including an empty message — is
+ * [`HwLiveErrorOutcome::Transient`], so a payload nobody has seen yet keeps its
+ * reconnect.
+ */
+public func liveClassifyErrorMessage(message: String) -> HwLiveErrorOutcome {
+    return try!  FfiConverterTypeHwLiveErrorOutcome.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_live_classify_error_message(
+        FfiConverterString.lower(message),$0
+    )
+})
+}
+/**
+ * Whether a websocket close code is one of the RFC-6455 non-recoverable set
+ * (1002, 1003, 1007, 1008, 1009, 1011).
+ *
+ * A provider that signals an unrecoverable session with a private close code
+ * combines it *with* this answer rather than replacing it.
+ */
+public func liveIsTerminalCloseCode(code: UInt16) -> Bool {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_live_is_terminal_close_code(
+        FfiConverterUInt16.lower(code),$0
+    )
+})
+}
+/**
+ * Normalize a language selection to the primary subtag a provider wants.
+ *
+ * `None` means "omit the language parameter entirely" and covers no selection,
+ * a blank string and the app's `"auto"` sentinel alike.
+ */
+public func liveNormalizeLanguage(code: String?) -> String? {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_live_normalize_language(
+        FfiConverterOptionString.lower(code),$0
+    )
+})
+}
+/**
+ * The human-readable provider label stored on a history entry. The
+ * " (Streaming)" suffix is what distinguishes a live session from the same
+ * vendor's batch transcription.
+ */
+public func liveProviderLabel(provider: HwLiveProvider) -> String {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_live_provider_label(
+        FfiConverterTypeHwLiveProvider.lower(provider),$0
+    )
+})
+}
+/**
+ * The PCM sample rate, in hertz, the provider's socket expects. The capture
+ * graph is configured from this before a session opens.
+ */
+public func liveRequiredSampleRate(provider: HwLiveProvider) -> UInt32 {
+    return try!  FfiConverterUInt32.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_live_required_sample_rate(
+        FfiConverterTypeHwLiveProvider.lower(provider),$0
+    )
+})
+}
+/**
+ * Whether the provider's live API takes a custom-vocabulary parameter at all.
+ * `false` means the terms are dropped before the socket opens.
+ */
+public func liveSupportsVocabulary(provider: HwLiveProvider) -> Bool {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_live_supports_vocabulary(
+        FfiConverterTypeHwLiveProvider.lower(provider),$0
+    )
+})
+}
+/**
+ * Classify the HTTP status of a websocket upgrade that never reached 101.
+ *
+ * `None` means the ordinary reconnect path still applies — 429, 5xx and a
+ * proxy mangling the upgrade all keep it.
+ */
+public func liveUpgradeRefusal(status: UInt16) -> HwLiveUpgradeRefusal? {
+    return try!  FfiConverterOptionTypeHwLiveUpgradeRefusal.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_live_upgrade_refusal(
+        FfiConverterUInt16.lower(status),$0
+    )
+})
+}
+/**
  * The "Hello world" probe the Add/Edit endpoint sheet sends.
  */
 public func llmBuildCustomEndpointTestRequest(rawUrl: String, model: String, apiKey: String?)throws  -> HttpRequest {
@@ -9253,6 +10796,27 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_license_validation_cache_secs() != 34885) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_hyperwhisper_core_checksum_func_live_classify_error_message() != 33535) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_live_is_terminal_close_code() != 62063) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_live_normalize_language() != 59840) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_live_provider_label() != 55784) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_live_required_sample_rate() != 26616) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_live_supports_vocabulary() != 20813) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_live_upgrade_refusal() != 28164) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_hyperwhisper_core_checksum_func_llm_build_custom_endpoint_test_request() != 5659) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -9424,6 +10988,27 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_validate_backup_json() != 15252) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_hyperwhisper_core_checksum_method_hwlivesession_connect() != 14844) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_method_hwlivesession_control_frames() != 1430) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_method_hwlivesession_note_audio() != 4758) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_method_hwlivesession_parse() != 10212) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_method_hwlivesession_provider() != 53933) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_method_hwlivesession_reset() != 25794) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_method_hwlivesession_stop_sequence() != 60526) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_hyperwhisper_core_checksum_method_keyvaluestore_get() != 51792) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -9431,6 +11016,9 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_method_keyvaluestore_delete() != 15555) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_constructor_hwlivesession_new() != 27481) {
         return InitializationResult.apiChecksumMismatch
     }
 

@@ -1100,6 +1100,38 @@ static class _UniFFILib {
     
     
     
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
 
     static _UniFFILib() {
         _UniFFILib.uniffiCheckContractApiVersion();
@@ -1107,6 +1139,46 @@ static class _UniFFILib {
         
         UniffiCallbackInterfaceKeyValueStore.Register();
         }
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern IntPtr uniffi_hyperwhisper_core_fn_clone_hwlivesession(IntPtr @ptr,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern void uniffi_hyperwhisper_core_fn_free_hwlivesession(IntPtr @ptr,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern IntPtr uniffi_hyperwhisper_core_fn_constructor_hwlivesession_new(RustBuffer @config,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_method_hwlivesession_connect(IntPtr @ptr,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_method_hwlivesession_control_frames(IntPtr @ptr,ulong @nowMs,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern void uniffi_hyperwhisper_core_fn_method_hwlivesession_note_audio(IntPtr @ptr,ulong @byteCount,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_method_hwlivesession_parse(IntPtr @ptr,RustBuffer @text,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_method_hwlivesession_provider(IntPtr @ptr,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern void uniffi_hyperwhisper_core_fn_method_hwlivesession_reset(IntPtr @ptr,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_method_hwlivesession_stop_sequence(IntPtr @ptr,ulong @nowMs,ref UniffiRustCallStatus _uniffi_out_err
+    );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern IntPtr uniffi_hyperwhisper_core_fn_clone_keyvaluestore(IntPtr @ptr,ref UniffiRustCallStatus _uniffi_out_err
@@ -1566,6 +1638,34 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern long uniffi_hyperwhisper_core_fn_func_license_validation_cache_secs(ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_live_classify_error_message(RustBuffer @message,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern sbyte uniffi_hyperwhisper_core_fn_func_live_is_terminal_close_code(ushort @code,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_live_normalize_language(RustBuffer @code,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_live_provider_label(RustBuffer @provider,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern uint uniffi_hyperwhisper_core_fn_func_live_required_sample_rate(RustBuffer @provider,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern sbyte uniffi_hyperwhisper_core_fn_func_live_supports_vocabulary(RustBuffer @provider,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_live_upgrade_refusal(ushort @status,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -2457,6 +2557,34 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_live_classify_error_message(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_live_is_terminal_close_code(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_live_normalize_language(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_live_provider_label(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_live_required_sample_rate(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_live_supports_vocabulary(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_live_upgrade_refusal(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_llm_build_custom_endpoint_test_request(
     );
 
@@ -2685,6 +2813,34 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_method_hwlivesession_connect(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_method_hwlivesession_control_frames(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_method_hwlivesession_note_audio(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_method_hwlivesession_parse(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_method_hwlivesession_provider(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_method_hwlivesession_reset(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_method_hwlivesession_stop_sequence(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_method_keyvaluestore_get(
     );
 
@@ -2694,6 +2850,10 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_method_keyvaluestore_delete(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_constructor_hwlivesession_new(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -3365,6 +3525,48 @@ static class _UniFFILib {
             }
         }
         {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_live_classify_error_message();
+            if (checksum != 33535) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_live_classify_error_message` checksum `33535`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_live_is_terminal_close_code();
+            if (checksum != 62063) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_live_is_terminal_close_code` checksum `62063`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_live_normalize_language();
+            if (checksum != 59840) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_live_normalize_language` checksum `59840`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_live_provider_label();
+            if (checksum != 55784) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_live_provider_label` checksum `55784`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_live_required_sample_rate();
+            if (checksum != 26616) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_live_required_sample_rate` checksum `26616`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_live_supports_vocabulary();
+            if (checksum != 20813) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_live_supports_vocabulary` checksum `20813`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_live_upgrade_refusal();
+            if (checksum != 28164) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_live_upgrade_refusal` checksum `28164`, library returned `{checksum}`");
+            }
+        }
+        {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_llm_build_custom_endpoint_test_request();
             if (checksum != 5659) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_llm_build_custom_endpoint_test_request` checksum `5659`, library returned `{checksum}`");
@@ -3707,6 +3909,48 @@ static class _UniFFILib {
             }
         }
         {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_method_hwlivesession_connect();
+            if (checksum != 14844) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_method_hwlivesession_connect` checksum `14844`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_method_hwlivesession_control_frames();
+            if (checksum != 1430) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_method_hwlivesession_control_frames` checksum `1430`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_method_hwlivesession_note_audio();
+            if (checksum != 4758) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_method_hwlivesession_note_audio` checksum `4758`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_method_hwlivesession_parse();
+            if (checksum != 10212) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_method_hwlivesession_parse` checksum `10212`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_method_hwlivesession_provider();
+            if (checksum != 53933) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_method_hwlivesession_provider` checksum `53933`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_method_hwlivesession_reset();
+            if (checksum != 25794) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_method_hwlivesession_reset` checksum `25794`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_method_hwlivesession_stop_sequence();
+            if (checksum != 60526) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_method_hwlivesession_stop_sequence` checksum `60526`, library returned `{checksum}`");
+            }
+        }
+        {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_method_keyvaluestore_get();
             if (checksum != 51792) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_method_keyvaluestore_get` checksum `51792`, library returned `{checksum}`");
@@ -3722,6 +3966,12 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_method_keyvaluestore_delete();
             if (checksum != 15555) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_method_keyvaluestore_delete` checksum `15555`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_constructor_hwlivesession_new();
+            if (checksum != 27481) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_constructor_hwlivesession_new` checksum `27481`, library returned `{checksum}`");
             }
         }
     }
@@ -3953,6 +4203,318 @@ class FfiConverterByteArray: FfiConverterRustBuffer<byte[]> {
     public override void Write(byte[] value, BigEndianStream stream) {
         stream.WriteInt(value.Length);
         stream.WriteBytes(value);
+    }
+}
+
+
+
+/// <summary>
+/// One live-streaming session: a config in, and every value the platform's
+/// socket loop needs out.
+///
+/// The lifecycle is `new` → `connect` → (`note_audio` / `control_frames` /
+/// `parse`)\* → `stop_sequence`, with `reset` returning it to the state the
+/// constructor left it in so a reconnect can reuse the object.
+///
+/// The generated binding is `IDisposable` in C# and reference-counted in Swift.
+/// **A consumer must dispose it** — the Rust side is an `Arc` the platform holds
+/// a raw handle to, and dropping the last reference without disposing leaks it
+/// for the life of the process.
+///
+/// Thread safety is a `Mutex`, not a re-entrant one: the socket loop, the
+/// capture thread and the stop path all reach the same instance, and the shipped
+/// strategies already guard their counters with a lock for exactly that reason.
+/// No method calls another through the FFI, so there is nothing to re-enter.
+/// </summary>
+internal interface IHwLiveSession {
+    /// <summary>
+    /// Everything needed to open the socket. Resets the per-connection state,
+    /// so calling it again after a drop is the whole reconnect preparation.
+    /// </summary>
+    /// <exception cref="HwLiveException"></exception>
+    HwLiveConnect Connect();
+    /// <summary>
+    /// Frames to send at an audio send opportunity, given the caller's clock.
+    ///
+    /// `now_ms` is a parameter, never a clock read here — that is what makes
+    /// OpenAI's 1.2 s commit interval and Deepgram's 3 s keepalive testable
+    /// without sleeping. Usually empty.
+    /// </summary>
+    List<HwLiveFrame> ControlFrames(ulong @nowMs);
+    /// <summary>
+    /// Record that `byte_count` bytes of PCM were just handed to the socket.
+    ///
+    /// A **count**, never the bytes: this is the one place a live session is
+    /// told about audio, and it is told a number. Only OpenAI's commit gate
+    /// reads it; the call is free for the other four and callers send it
+    /// unconditionally.
+    /// </summary>
+    void NoteAudio(ulong @byteCount);
+    /// <summary>
+    /// Read one text message off the socket. Anything unrecognised — including
+    /// text that is not JSON — is [`HwLiveEvent::Ignore`]: a provider adding a
+    /// frame shape must never end a recording in progress.
+    /// </summary>
+    HwLiveEvent Parse(string @text);
+    /// <summary>
+    /// The provider this session speaks.
+    /// </summary>
+    HwLiveProvider Provider();
+    /// <summary>
+    /// Forget every frame this session has seen. What makes a reconnect able to
+    /// reuse one object instead of rebuilding it from the config.
+    /// </summary>
+    void Reset();
+    /// <summary>
+    /// The ordered stop path, given the caller's clock. Run the steps in order;
+    /// do not reorder them and do not collapse the waits.
+    /// </summary>
+    List<HwLiveStopStep> StopSequence(ulong @nowMs);
+}
+/// <summary>
+/// One live-streaming session: a config in, and every value the platform's
+/// socket loop needs out.
+///
+/// The lifecycle is `new` → `connect` → (`note_audio` / `control_frames` /
+/// `parse`)\* → `stop_sequence`, with `reset` returning it to the state the
+/// constructor left it in so a reconnect can reuse the object.
+///
+/// The generated binding is `IDisposable` in C# and reference-counted in Swift.
+/// **A consumer must dispose it** — the Rust side is an `Arc` the platform holds
+/// a raw handle to, and dropping the last reference without disposing leaks it
+/// for the life of the process.
+///
+/// Thread safety is a `Mutex`, not a re-entrant one: the socket loop, the
+/// capture thread and the stop path all reach the same instance, and the shipped
+/// strategies already guard their counters with a lock for exactly that reason.
+/// No method calls another through the FFI, so there is nothing to re-enter.
+/// </summary>
+internal class HwLiveSession : IHwLiveSession, IDisposable {
+    protected IntPtr pointer;
+    private int _wasDestroyed = 0;
+    private long _callCounter = 1;
+
+    public HwLiveSession(IntPtr pointer) {
+        this.pointer = pointer;
+    }
+
+    ~HwLiveSession() {
+        Destroy();
+    }
+    /// <summary>
+    /// Build a session for `config`.
+    ///
+    /// An exported constructor, not a `live_session_new(config)` free function:
+    /// a `#[uniffi::Object]` gets no foreign constructor unless one is exported,
+    /// and without it a consumer can name the type and never instantiate it.
+    /// This renders as `new HwLiveSession(config)` in C# and
+    /// `HwLiveSession(config:)` in Swift.
+    ///
+    /// Infallible on purpose. A missing credential is reported by
+    /// [`HwLiveSession::connect`], which is the call that needs it, so the
+    /// constructor a foreign language sees never throws.
+    /// </summary>
+    public HwLiveSession(HwLiveConfig @config) :
+        this(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_constructor_hwlivesession_new(FfiConverterTypeHwLiveConfig.INSTANCE.Lower(@config), ref _status)
+)) {}
+
+    protected void FreeRustArcPtr() {
+        _UniffiHelpers.RustCall((ref UniffiRustCallStatus status) => {
+            _UniFFILib.uniffi_hyperwhisper_core_fn_free_hwlivesession(this.pointer, ref status);
+        });
+    }
+
+    protected IntPtr CloneRustArcPtr() {
+        return _UniffiHelpers.RustCall((ref UniffiRustCallStatus status) => {
+            return _UniFFILib.uniffi_hyperwhisper_core_fn_clone_hwlivesession(this.pointer, ref status);
+        });
+    }
+
+    public void Destroy()
+    {
+        // Only allow a single call to this method.
+        if (Interlocked.CompareExchange(ref _wasDestroyed, 1, 0) == 0)
+        {
+            // This decrement always matches the initial count of 1 given at creation time.
+            if (Interlocked.Decrement(ref _callCounter) == 0)
+            {
+                FreeRustArcPtr();
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        Destroy();
+        GC.SuppressFinalize(this); // Suppress finalization to avoid unnecessary GC overhead.
+    }
+
+    private void IncrementCallCounter() 
+    {
+        // Check and increment the call counter, to keep the object alive.
+        // This needs a compare-and-set retry loop in case of concurrent updates.
+        long count;
+        do
+        {
+            count = Interlocked.Read(ref _callCounter);
+            if (count == 0L) throw new System.ObjectDisposedException(String.Format("'{0}' object has already been destroyed", this.GetType().Name));
+            if (count == long.MaxValue) throw new System.OverflowException(String.Format("'{0}' call counter would overflow", this.GetType().Name));
+
+        } while (Interlocked.CompareExchange(ref _callCounter, count + 1, count) != count);
+    }
+
+    private void DecrementCallCounter() 
+    {
+        // This decrement always matches the increment we performed above.
+        if (Interlocked.Decrement(ref _callCounter) == 0) {
+            FreeRustArcPtr();
+        }
+    }
+
+    internal void CallWithPointer(Action<IntPtr> action)
+    {
+        IncrementCallCounter();
+        try {
+            action(CloneRustArcPtr());
+        }
+        finally {
+            DecrementCallCounter();
+        }
+    }
+
+    internal T CallWithPointer<T>(Func<IntPtr, T> func)
+    {   
+        IncrementCallCounter();
+        try {
+            return func(CloneRustArcPtr());
+        }
+        finally {
+            DecrementCallCounter();
+        }
+    }
+
+    
+    /// <summary>
+    /// Everything needed to open the socket. Resets the per-connection state,
+    /// so calling it again after a drop is the whole reconnect preparation.
+    /// </summary>
+    /// <exception cref="HwLiveException"></exception>
+    public HwLiveConnect Connect() {
+        return CallWithPointer(thisPtr => FfiConverterTypeHwLiveConnect.INSTANCE.Lift(
+    _UniffiHelpers.RustCallWithError(FfiConverterTypeHwLiveError.INSTANCE, (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_method_hwlivesession_connect(thisPtr,  ref _status)
+)));
+    }
+    
+    
+    /// <summary>
+    /// Frames to send at an audio send opportunity, given the caller's clock.
+    ///
+    /// `now_ms` is a parameter, never a clock read here — that is what makes
+    /// OpenAI's 1.2 s commit interval and Deepgram's 3 s keepalive testable
+    /// without sleeping. Usually empty.
+    /// </summary>
+    public List<HwLiveFrame> ControlFrames(ulong @nowMs) {
+        return CallWithPointer(thisPtr => FfiConverterSequenceTypeHwLiveFrame.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_method_hwlivesession_control_frames(thisPtr, FfiConverterUInt64.INSTANCE.Lower(@nowMs), ref _status)
+)));
+    }
+    
+    
+    /// <summary>
+    /// Record that `byte_count` bytes of PCM were just handed to the socket.
+    ///
+    /// A **count**, never the bytes: this is the one place a live session is
+    /// told about audio, and it is told a number. Only OpenAI's commit gate
+    /// reads it; the call is free for the other four and callers send it
+    /// unconditionally.
+    /// </summary>
+    public void NoteAudio(ulong @byteCount) {
+        CallWithPointer(thisPtr =>
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_method_hwlivesession_note_audio(thisPtr, FfiConverterUInt64.INSTANCE.Lower(@byteCount), ref _status)
+));
+    }
+    
+    
+    
+    /// <summary>
+    /// Read one text message off the socket. Anything unrecognised — including
+    /// text that is not JSON — is [`HwLiveEvent::Ignore`]: a provider adding a
+    /// frame shape must never end a recording in progress.
+    /// </summary>
+    public HwLiveEvent Parse(string @text) {
+        return CallWithPointer(thisPtr => FfiConverterTypeHwLiveEvent.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_method_hwlivesession_parse(thisPtr, FfiConverterString.INSTANCE.Lower(@text), ref _status)
+)));
+    }
+    
+    
+    /// <summary>
+    /// The provider this session speaks.
+    /// </summary>
+    public HwLiveProvider Provider() {
+        return CallWithPointer(thisPtr => FfiConverterTypeHwLiveProvider.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_method_hwlivesession_provider(thisPtr,  ref _status)
+)));
+    }
+    
+    
+    /// <summary>
+    /// Forget every frame this session has seen. What makes a reconnect able to
+    /// reuse one object instead of rebuilding it from the config.
+    /// </summary>
+    public void Reset() {
+        CallWithPointer(thisPtr =>
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_method_hwlivesession_reset(thisPtr,  ref _status)
+));
+    }
+    
+    
+    
+    /// <summary>
+    /// The ordered stop path, given the caller's clock. Run the steps in order;
+    /// do not reorder them and do not collapse the waits.
+    /// </summary>
+    public List<HwLiveStopStep> StopSequence(ulong @nowMs) {
+        return CallWithPointer(thisPtr => FfiConverterSequenceTypeHwLiveStopStep.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_method_hwlivesession_stop_sequence(thisPtr, FfiConverterUInt64.INSTANCE.Lower(@nowMs), ref _status)
+)));
+    }
+    
+    
+
+    
+}
+class FfiConverterTypeHwLiveSession: FfiConverter<HwLiveSession, IntPtr> {
+    public static FfiConverterTypeHwLiveSession INSTANCE = new FfiConverterTypeHwLiveSession();
+
+
+    public override IntPtr Lower(HwLiveSession value) {
+        return value.CallWithPointer(thisPtr => thisPtr);
+    }
+
+    public override HwLiveSession Lift(IntPtr value) {
+        return new HwLiveSession(value);
+    }
+
+    public override HwLiveSession Read(BigEndianStream stream) {
+        return Lift(new IntPtr(stream.ReadLong()));
+    }
+
+    public override int AllocationSize(HwLiveSession value) {
+        return 8;
+    }
+
+    public override void Write(HwLiveSession value, BigEndianStream stream) {
+        stream.WriteLong(Lower(value).ToInt64());
     }
 }
 
@@ -4663,6 +5225,172 @@ class FfiConverterTypeHwLanguageSupport: FfiConverterRustBuffer<HwLanguageSuppor
     public override void Write(HwLanguageSupport value, BigEndianStream stream) {
             FfiConverterSequenceString.INSTANCE.Write(value.@codes, stream);
             FfiConverterBoolean.INSTANCE.Write(value.@supportsAll, stream);
+    }
+}
+
+
+
+/// <summary>
+/// Everything a live session needs to build its connection. Mirrors
+/// `lv::LiveConfig`.
+///
+/// `vocabulary` is a term LIST, not the comma-joined string the heads pass
+/// around today: joining is a per-provider wire decision (xAI repeats
+/// `keyterm=`, HyperWhisper Cloud sends one `vocabulary=`), so the core takes
+/// the terms and each protocol decides.
+///
+/// `base_url` re-points HyperWhisper Cloud at another backend — macOS's `#if
+/// DEBUG` build talks to staging, and a hardcoded production host here would
+/// bill a developer's key against production. `None` means the production host,
+/// and every other provider ignores the field.
+/// </summary>
+internal record HwLiveConfig (
+    HwLiveProvider @provider, 
+    string? @apiKey, 
+    string? @licenseKey, 
+    string? @deviceId, 
+    string? @language, 
+    List<string> @vocabulary, 
+    string? @model, 
+    bool @fastFormatting, 
+    string? @baseUrl
+) {
+}
+
+class FfiConverterTypeHwLiveConfig: FfiConverterRustBuffer<HwLiveConfig> {
+    public static FfiConverterTypeHwLiveConfig INSTANCE = new FfiConverterTypeHwLiveConfig();
+
+    public override HwLiveConfig Read(BigEndianStream stream) {
+        return new HwLiveConfig(
+            @provider: FfiConverterTypeHwLiveProvider.INSTANCE.Read(stream),
+            @apiKey: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @licenseKey: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @deviceId: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @language: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @vocabulary: FfiConverterSequenceString.INSTANCE.Read(stream),
+            @model: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @fastFormatting: FfiConverterBoolean.INSTANCE.Read(stream),
+            @baseUrl: FfiConverterOptionalString.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwLiveConfig value) {
+        return 0
+            + FfiConverterTypeHwLiveProvider.INSTANCE.AllocationSize(value.@provider)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@apiKey)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@licenseKey)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@deviceId)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@language)
+            + FfiConverterSequenceString.INSTANCE.AllocationSize(value.@vocabulary)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@model)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@fastFormatting)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@baseUrl);
+    }
+
+    public override void Write(HwLiveConfig value, BigEndianStream stream) {
+            FfiConverterTypeHwLiveProvider.INSTANCE.Write(value.@provider, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@apiKey, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@licenseKey, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@deviceId, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@language, stream);
+            FfiConverterSequenceString.INSTANCE.Write(value.@vocabulary, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@model, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@fastFormatting, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@baseUrl, stream);
+    }
+}
+
+
+
+/// <summary>
+/// Everything the platform needs to open the socket. Mirrors `lv::LiveConnect`.
+///
+/// Reuses `ffi_net`'s [`Header`] rather than declaring a second name for a
+/// name/value pair, the same way `ffi_llm` reuses its `HttpRequest`.
+/// </summary>
+internal record HwLiveConnect (
+    string @url, 
+    List<Header> @headers, 
+    List<string> @subprotocols, 
+    uint @sampleRate, 
+    HwAudioFraming @framing, 
+    List<HwLiveFrame> @startFrames, 
+    bool @sessionStartsOnOpen
+) {
+}
+
+class FfiConverterTypeHwLiveConnect: FfiConverterRustBuffer<HwLiveConnect> {
+    public static FfiConverterTypeHwLiveConnect INSTANCE = new FfiConverterTypeHwLiveConnect();
+
+    public override HwLiveConnect Read(BigEndianStream stream) {
+        return new HwLiveConnect(
+            @url: FfiConverterString.INSTANCE.Read(stream),
+            @headers: FfiConverterSequenceTypeHeader.INSTANCE.Read(stream),
+            @subprotocols: FfiConverterSequenceString.INSTANCE.Read(stream),
+            @sampleRate: FfiConverterUInt32.INSTANCE.Read(stream),
+            @framing: FfiConverterTypeHwAudioFraming.INSTANCE.Read(stream),
+            @startFrames: FfiConverterSequenceTypeHwLiveFrame.INSTANCE.Read(stream),
+            @sessionStartsOnOpen: FfiConverterBoolean.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwLiveConnect value) {
+        return 0
+            + FfiConverterString.INSTANCE.AllocationSize(value.@url)
+            + FfiConverterSequenceTypeHeader.INSTANCE.AllocationSize(value.@headers)
+            + FfiConverterSequenceString.INSTANCE.AllocationSize(value.@subprotocols)
+            + FfiConverterUInt32.INSTANCE.AllocationSize(value.@sampleRate)
+            + FfiConverterTypeHwAudioFraming.INSTANCE.AllocationSize(value.@framing)
+            + FfiConverterSequenceTypeHwLiveFrame.INSTANCE.AllocationSize(value.@startFrames)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@sessionStartsOnOpen);
+    }
+
+    public override void Write(HwLiveConnect value, BigEndianStream stream) {
+            FfiConverterString.INSTANCE.Write(value.@url, stream);
+            FfiConverterSequenceTypeHeader.INSTANCE.Write(value.@headers, stream);
+            FfiConverterSequenceString.INSTANCE.Write(value.@subprotocols, stream);
+            FfiConverterUInt32.INSTANCE.Write(value.@sampleRate, stream);
+            FfiConverterTypeHwAudioFraming.INSTANCE.Write(value.@framing, stream);
+            FfiConverterSequenceTypeHwLiveFrame.INSTANCE.Write(value.@startFrames, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@sessionStartsOnOpen, stream);
+    }
+}
+
+
+
+/// <summary>
+/// One frame to put on the wire. Mirrors `lv::LiveFrame`.
+///
+/// `data` is a string because every frame the core produces is JSON text; the
+/// only binary frames in these protocols are audio, which the core never sees.
+/// `binary` keeps the platform's mapping onto its own message-type enum total
+/// rather than a hardcoded `Text` at the adapter.
+/// </summary>
+internal record HwLiveFrame (
+    string @data, 
+    bool @binary
+) {
+}
+
+class FfiConverterTypeHwLiveFrame: FfiConverterRustBuffer<HwLiveFrame> {
+    public static FfiConverterTypeHwLiveFrame INSTANCE = new FfiConverterTypeHwLiveFrame();
+
+    public override HwLiveFrame Read(BigEndianStream stream) {
+        return new HwLiveFrame(
+            @data: FfiConverterString.INSTANCE.Read(stream),
+            @binary: FfiConverterBoolean.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwLiveFrame value) {
+        return 0
+            + FfiConverterString.INSTANCE.AllocationSize(value.@data)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@binary);
+    }
+
+    public override void Write(HwLiveFrame value, BigEndianStream stream) {
+            FfiConverterString.INSTANCE.Write(value.@data, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@binary, stream);
     }
 }
 
@@ -6581,6 +7309,91 @@ class FfiConverterTypeHwAppType: FfiConverterRustBuffer<HwAppType> {
 
 
 /// <summary>
+/// How a PCM chunk becomes a websocket frame. Mirrors `lv::AudioFraming`.
+///
+/// **This descriptor is why audio never crosses this boundary.** The core says
+/// how to wrap a chunk once, at connect time; the platform does the base64 and
+/// the concatenation on bytes it already holds. A variant that carried the
+/// samples themselves would put a recording's worth of PCM through the FFI on
+/// every chunk — see `hw_net::contract` for the rule and
+/// `ffi_net`'s `audio_is_referenced_by_path_and_never_carried_as_bytes` for the
+/// batch path's version of this guard.
+/// </summary>
+internal record HwAudioFraming {
+    
+    /// <summary>
+    /// Send the PCM bytes as a binary frame, unchanged.
+    /// </summary>
+    public record Binary: HwAudioFraming {}
+    
+    
+    /// <summary>
+    /// Send `prefix + base64(pcm) + suffix` as a text frame.
+    /// </summary>
+    public record Base64Json (
+        string @prefix,
+        string @suffix
+    ) : HwAudioFraming {}
+    
+
+    
+}
+
+class FfiConverterTypeHwAudioFraming : FfiConverterRustBuffer<HwAudioFraming>{
+    public static FfiConverterRustBuffer<HwAudioFraming> INSTANCE = new FfiConverterTypeHwAudioFraming();
+
+    public override HwAudioFraming Read(BigEndianStream stream) {
+        var value = stream.ReadInt();
+        switch (value) {
+            case 1:
+                return new HwAudioFraming.Binary(
+                );
+            case 2:
+                return new HwAudioFraming.Base64Json(
+                    FfiConverterString.INSTANCE.Read(stream),
+                    FfiConverterString.INSTANCE.Read(stream)
+                );
+            default:
+                throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwAudioFraming.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(HwAudioFraming value) {
+        switch (value) {
+            case HwAudioFraming.Binary variant_value:
+                return 4;
+            case HwAudioFraming.Base64Json variant_value:
+                return 4
+                    + FfiConverterString.INSTANCE.AllocationSize(variant_value.@prefix)
+                    + FfiConverterString.INSTANCE.AllocationSize(variant_value.@suffix);
+            default:
+                throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwAudioFraming.AllocationSize()", value));
+        }
+    }
+
+    public override void Write(HwAudioFraming value, BigEndianStream stream) {
+        switch (value) {
+            case HwAudioFraming.Binary variant_value:
+                stream.WriteInt(1);
+                break;
+            case HwAudioFraming.Base64Json variant_value:
+                stream.WriteInt(2);
+                FfiConverterString.INSTANCE.Write(variant_value.@prefix, stream);
+                FfiConverterString.INSTANCE.Write(variant_value.@suffix, stream);
+                break;
+            default:
+                throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwAudioFraming.Write()", value));
+        }
+    }
+}
+
+
+
+
+
+
+
+/// <summary>
 /// The rule that failed. Mirrors `l::EndpointIssue`.
 /// </summary>
 internal enum HwEndpointIssue: int {
@@ -6806,6 +7619,552 @@ class FfiConverterTypeHwLicenseStatus: FfiConverterRustBuffer<HwLicenseStatus> {
     }
 
     public override void Write(HwLicenseStatus value, BigEndianStream stream) {
+        stream.WriteInt((int)value + 1);
+    }
+}
+
+
+
+
+
+
+
+/// <summary>
+/// Why a session could not produce a connection descriptor. Mirrors
+/// `lv::LiveError`.
+///
+/// One arm on purpose: everything else that can go wrong on a live connection —
+/// DNS, TLS, a refused upgrade, a mid-session close — is transport, and
+/// transport stays native. `Display` is hand-written to match the leaf's
+/// `thiserror` message, the same way [`HwTranscriptionError`] does, so hw-core
+/// needs no extra dependency.
+/// </summary>
+internal class HwLiveException: UniffiException {
+    HwLiveException() : base() {}
+    HwLiveException(String @Message) : base(@Message) {}
+
+    // Each variant is a nested class
+    
+    /// <summary>
+    /// No usable credential: a blank API key, or (HyperWhisper Cloud) neither a
+    /// license key nor a device id.
+    /// </summary>
+    public class MissingCredential : HwLiveException {
+        public MissingCredential() : base() {}
+    }
+    
+    
+
+    
+}
+
+class FfiConverterTypeHwLiveError : FfiConverterRustBuffer<HwLiveException>, CallStatusErrorHandler<HwLiveException> {
+    public static FfiConverterTypeHwLiveError INSTANCE = new FfiConverterTypeHwLiveError();
+
+    public override HwLiveException Read(BigEndianStream stream) {
+        var value = stream.ReadInt();
+        switch (value) {
+            case 1:
+                return new HwLiveException.MissingCredential();
+            default:
+                throw new InternalException(String.Format("invalid error value '{0}' in FfiConverterTypeHwLiveError.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(HwLiveException value) {
+        switch (value) {
+
+            case HwLiveException.MissingCredential variant_value:
+                return 4;
+            default:
+                throw new InternalException(String.Format("invalid error value '{0}' in FfiConverterTypeHwLiveError.AllocationSize()", value));
+        }
+    }
+
+    public override void Write(HwLiveException value, BigEndianStream stream) {
+        switch (value) {
+            case HwLiveException.MissingCredential variant_value:
+                stream.WriteInt(1);
+                break;
+            default:
+                throw new InternalException(String.Format("invalid error value '{0}' in FfiConverterTypeHwLiveError.Write()", value));
+        }
+    }
+}
+
+
+
+
+
+/// <summary>
+/// The machine-readable kind an error frame carried, when the provider sends one
+/// instead of wording. Mirrors `lv::LiveErrorKind`.
+///
+/// ElevenLabs alone: its error frames are a bare `message_type` with no message,
+/// so the wording a head would classify is the core's own. A head that keeps a
+/// failure taxonomy reads this; a head that classifies the wording ignores it and
+/// nothing changes. See `hw_net::live::LiveErrorKind` for why collapsing the
+/// three kinds cost `rate_limited` its "no reconnect" verdict.
+/// </summary>
+internal enum HwLiveErrorKind: int {
+    
+    /// <summary>
+    /// The credential was rejected.
+    /// </summary>
+    Unauthorized,
+    /// <summary>
+    /// The account's allowance for the period is spent.
+    /// </summary>
+    QuotaExceeded,
+    /// <summary>
+    /// Too many requests, or too many concurrent sessions, right now.
+    /// </summary>
+    RateLimited
+}
+
+class FfiConverterTypeHwLiveErrorKind: FfiConverterRustBuffer<HwLiveErrorKind> {
+    public static FfiConverterTypeHwLiveErrorKind INSTANCE = new FfiConverterTypeHwLiveErrorKind();
+
+    public override HwLiveErrorKind Read(BigEndianStream stream) {
+        var value = stream.ReadInt() - 1;
+        if (Enum.IsDefined(typeof(HwLiveErrorKind), value)) {
+            return (HwLiveErrorKind)value;
+        } else {
+            throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwLiveErrorKind.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(HwLiveErrorKind value) {
+        return 4;
+    }
+
+    public override void Write(HwLiveErrorKind value, BigEndianStream stream) {
+        stream.WriteInt((int)value + 1);
+    }
+}
+
+
+
+
+
+
+
+/// <summary>
+/// What a provider error frame means for the reconnect path. Mirrors
+/// `lv::LiveErrorOutcome`.
+/// </summary>
+internal enum HwLiveErrorOutcome: int {
+    
+    /// <summary>
+    /// Reconnecting cannot help. Mark the provider's follow-up close as
+    /// expected and surface the message as it stands.
+    /// </summary>
+    Terminal,
+    /// <summary>
+    /// May clear on its own; leave the reconnect path alone.
+    /// </summary>
+    Transient
+}
+
+class FfiConverterTypeHwLiveErrorOutcome: FfiConverterRustBuffer<HwLiveErrorOutcome> {
+    public static FfiConverterTypeHwLiveErrorOutcome INSTANCE = new FfiConverterTypeHwLiveErrorOutcome();
+
+    public override HwLiveErrorOutcome Read(BigEndianStream stream) {
+        var value = stream.ReadInt() - 1;
+        if (Enum.IsDefined(typeof(HwLiveErrorOutcome), value)) {
+            return (HwLiveErrorOutcome)value;
+        } else {
+            throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwLiveErrorOutcome.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(HwLiveErrorOutcome value) {
+        return 4;
+    }
+
+    public override void Write(HwLiveErrorOutcome value, BigEndianStream stream) {
+        stream.WriteInt((int)value + 1);
+    }
+}
+
+
+
+
+
+
+
+/// <summary>
+/// What one parsed provider message means. Mirrors `lv::LiveEvent`.
+///
+/// Deliberately the macOS `StreamingProviderEvent` superset, not
+/// `shared-dotnet`'s six-case `LiveProtocolEvent`: a consumer that does not want
+/// an arm ignores it, but a consumer that needs one the core never produced has
+/// nowhere to go.
+/// </summary>
+internal record HwLiveEvent {
+    
+    public record SessionStarted (
+        string? @sessionId
+    ) : HwLiveEvent {}
+    
+    public record PartialTranscript (
+        string @text
+    ) : HwLiveEvent {}
+    
+    public record FinalTranscript (
+        string @text
+    ) : HwLiveEvent {}
+    
+    public record FinalTranscriptAndSessionComplete (
+        string @text,
+        double @durationSeconds,
+        double @creditsUsed
+    ) : HwLiveEvent {}
+    
+    public record SessionComplete (
+        double @durationSeconds,
+        double @creditsUsed
+    ) : HwLiveEvent {}
+    
+    public record Error (
+        string @message,
+        HwLiveErrorKind? @kind
+    ) : HwLiveEvent {}
+    
+    public record Warning (
+        string @message
+    ) : HwLiveEvent {}
+    
+    public record Metadata (
+        string @raw
+    ) : HwLiveEvent {}
+    
+    public record Ignore: HwLiveEvent {}
+    
+    
+
+    
+}
+
+class FfiConverterTypeHwLiveEvent : FfiConverterRustBuffer<HwLiveEvent>{
+    public static FfiConverterRustBuffer<HwLiveEvent> INSTANCE = new FfiConverterTypeHwLiveEvent();
+
+    public override HwLiveEvent Read(BigEndianStream stream) {
+        var value = stream.ReadInt();
+        switch (value) {
+            case 1:
+                return new HwLiveEvent.SessionStarted(
+                    FfiConverterOptionalString.INSTANCE.Read(stream)
+                );
+            case 2:
+                return new HwLiveEvent.PartialTranscript(
+                    FfiConverterString.INSTANCE.Read(stream)
+                );
+            case 3:
+                return new HwLiveEvent.FinalTranscript(
+                    FfiConverterString.INSTANCE.Read(stream)
+                );
+            case 4:
+                return new HwLiveEvent.FinalTranscriptAndSessionComplete(
+                    FfiConverterString.INSTANCE.Read(stream),
+                    FfiConverterDouble.INSTANCE.Read(stream),
+                    FfiConverterDouble.INSTANCE.Read(stream)
+                );
+            case 5:
+                return new HwLiveEvent.SessionComplete(
+                    FfiConverterDouble.INSTANCE.Read(stream),
+                    FfiConverterDouble.INSTANCE.Read(stream)
+                );
+            case 6:
+                return new HwLiveEvent.Error(
+                    FfiConverterString.INSTANCE.Read(stream),
+                    FfiConverterOptionalTypeHwLiveErrorKind.INSTANCE.Read(stream)
+                );
+            case 7:
+                return new HwLiveEvent.Warning(
+                    FfiConverterString.INSTANCE.Read(stream)
+                );
+            case 8:
+                return new HwLiveEvent.Metadata(
+                    FfiConverterString.INSTANCE.Read(stream)
+                );
+            case 9:
+                return new HwLiveEvent.Ignore(
+                );
+            default:
+                throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwLiveEvent.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(HwLiveEvent value) {
+        switch (value) {
+            case HwLiveEvent.SessionStarted variant_value:
+                return 4
+                    + FfiConverterOptionalString.INSTANCE.AllocationSize(variant_value.@sessionId);
+            case HwLiveEvent.PartialTranscript variant_value:
+                return 4
+                    + FfiConverterString.INSTANCE.AllocationSize(variant_value.@text);
+            case HwLiveEvent.FinalTranscript variant_value:
+                return 4
+                    + FfiConverterString.INSTANCE.AllocationSize(variant_value.@text);
+            case HwLiveEvent.FinalTranscriptAndSessionComplete variant_value:
+                return 4
+                    + FfiConverterString.INSTANCE.AllocationSize(variant_value.@text)
+                    + FfiConverterDouble.INSTANCE.AllocationSize(variant_value.@durationSeconds)
+                    + FfiConverterDouble.INSTANCE.AllocationSize(variant_value.@creditsUsed);
+            case HwLiveEvent.SessionComplete variant_value:
+                return 4
+                    + FfiConverterDouble.INSTANCE.AllocationSize(variant_value.@durationSeconds)
+                    + FfiConverterDouble.INSTANCE.AllocationSize(variant_value.@creditsUsed);
+            case HwLiveEvent.Error variant_value:
+                return 4
+                    + FfiConverterString.INSTANCE.AllocationSize(variant_value.@message)
+                    + FfiConverterOptionalTypeHwLiveErrorKind.INSTANCE.AllocationSize(variant_value.@kind);
+            case HwLiveEvent.Warning variant_value:
+                return 4
+                    + FfiConverterString.INSTANCE.AllocationSize(variant_value.@message);
+            case HwLiveEvent.Metadata variant_value:
+                return 4
+                    + FfiConverterString.INSTANCE.AllocationSize(variant_value.@raw);
+            case HwLiveEvent.Ignore variant_value:
+                return 4;
+            default:
+                throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwLiveEvent.AllocationSize()", value));
+        }
+    }
+
+    public override void Write(HwLiveEvent value, BigEndianStream stream) {
+        switch (value) {
+            case HwLiveEvent.SessionStarted variant_value:
+                stream.WriteInt(1);
+                FfiConverterOptionalString.INSTANCE.Write(variant_value.@sessionId, stream);
+                break;
+            case HwLiveEvent.PartialTranscript variant_value:
+                stream.WriteInt(2);
+                FfiConverterString.INSTANCE.Write(variant_value.@text, stream);
+                break;
+            case HwLiveEvent.FinalTranscript variant_value:
+                stream.WriteInt(3);
+                FfiConverterString.INSTANCE.Write(variant_value.@text, stream);
+                break;
+            case HwLiveEvent.FinalTranscriptAndSessionComplete variant_value:
+                stream.WriteInt(4);
+                FfiConverterString.INSTANCE.Write(variant_value.@text, stream);
+                FfiConverterDouble.INSTANCE.Write(variant_value.@durationSeconds, stream);
+                FfiConverterDouble.INSTANCE.Write(variant_value.@creditsUsed, stream);
+                break;
+            case HwLiveEvent.SessionComplete variant_value:
+                stream.WriteInt(5);
+                FfiConverterDouble.INSTANCE.Write(variant_value.@durationSeconds, stream);
+                FfiConverterDouble.INSTANCE.Write(variant_value.@creditsUsed, stream);
+                break;
+            case HwLiveEvent.Error variant_value:
+                stream.WriteInt(6);
+                FfiConverterString.INSTANCE.Write(variant_value.@message, stream);
+                FfiConverterOptionalTypeHwLiveErrorKind.INSTANCE.Write(variant_value.@kind, stream);
+                break;
+            case HwLiveEvent.Warning variant_value:
+                stream.WriteInt(7);
+                FfiConverterString.INSTANCE.Write(variant_value.@message, stream);
+                break;
+            case HwLiveEvent.Metadata variant_value:
+                stream.WriteInt(8);
+                FfiConverterString.INSTANCE.Write(variant_value.@raw, stream);
+                break;
+            case HwLiveEvent.Ignore variant_value:
+                stream.WriteInt(9);
+                break;
+            default:
+                throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwLiveEvent.Write()", value));
+        }
+    }
+}
+
+
+
+
+
+
+
+/// <summary>
+/// The five websocket transcription providers. Mirrors `lv::LiveProvider`.
+///
+/// Local engines (Parakeet, Nemotron) are deliberately absent — they are not
+/// websocket protocols. Windows spells this vendor set with `Xai` where this
+/// enum says `Grok`; the head maps across at its boundary.
+/// </summary>
+internal enum HwLiveProvider: int {
+    
+    Deepgram,
+    ElevenLabs,
+    OpenAi,
+    Grok,
+    HyperWhisperCloud
+}
+
+class FfiConverterTypeHwLiveProvider: FfiConverterRustBuffer<HwLiveProvider> {
+    public static FfiConverterTypeHwLiveProvider INSTANCE = new FfiConverterTypeHwLiveProvider();
+
+    public override HwLiveProvider Read(BigEndianStream stream) {
+        var value = stream.ReadInt() - 1;
+        if (Enum.IsDefined(typeof(HwLiveProvider), value)) {
+            return (HwLiveProvider)value;
+        } else {
+            throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwLiveProvider.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(HwLiveProvider value) {
+        return 4;
+    }
+
+    public override void Write(HwLiveProvider value, BigEndianStream stream) {
+        stream.WriteInt((int)value + 1);
+    }
+}
+
+
+
+
+
+
+
+/// <summary>
+/// One step of the stop path, run in order. Mirrors `lv::StopStep`.
+///
+/// The arms match Windows' shipped `StreamingStopAction` one for one, so a head
+/// that already runs stop steps maps this by renaming. A flat frame list plus a
+/// drain timeout cannot express these protocols: Deepgram needs a wait *between*
+/// two frames, and two providers wait on the completion *event* that carries
+/// `credits_used`.
+/// </summary>
+internal record HwLiveStopStep {
+    
+    public record SendText (
+        string @text
+    ) : HwLiveStopStep {}
+    
+    public record Wait (
+        ulong @ms
+    ) : HwLiveStopStep {}
+    
+    public record WaitForSessionComplete (
+        ulong @timeoutMs
+    ) : HwLiveStopStep {}
+    
+    public record Close: HwLiveStopStep {}
+    
+    
+
+    
+}
+
+class FfiConverterTypeHwLiveStopStep : FfiConverterRustBuffer<HwLiveStopStep>{
+    public static FfiConverterRustBuffer<HwLiveStopStep> INSTANCE = new FfiConverterTypeHwLiveStopStep();
+
+    public override HwLiveStopStep Read(BigEndianStream stream) {
+        var value = stream.ReadInt();
+        switch (value) {
+            case 1:
+                return new HwLiveStopStep.SendText(
+                    FfiConverterString.INSTANCE.Read(stream)
+                );
+            case 2:
+                return new HwLiveStopStep.Wait(
+                    FfiConverterUInt64.INSTANCE.Read(stream)
+                );
+            case 3:
+                return new HwLiveStopStep.WaitForSessionComplete(
+                    FfiConverterUInt64.INSTANCE.Read(stream)
+                );
+            case 4:
+                return new HwLiveStopStep.Close(
+                );
+            default:
+                throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwLiveStopStep.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(HwLiveStopStep value) {
+        switch (value) {
+            case HwLiveStopStep.SendText variant_value:
+                return 4
+                    + FfiConverterString.INSTANCE.AllocationSize(variant_value.@text);
+            case HwLiveStopStep.Wait variant_value:
+                return 4
+                    + FfiConverterUInt64.INSTANCE.AllocationSize(variant_value.@ms);
+            case HwLiveStopStep.WaitForSessionComplete variant_value:
+                return 4
+                    + FfiConverterUInt64.INSTANCE.AllocationSize(variant_value.@timeoutMs);
+            case HwLiveStopStep.Close variant_value:
+                return 4;
+            default:
+                throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwLiveStopStep.AllocationSize()", value));
+        }
+    }
+
+    public override void Write(HwLiveStopStep value, BigEndianStream stream) {
+        switch (value) {
+            case HwLiveStopStep.SendText variant_value:
+                stream.WriteInt(1);
+                FfiConverterString.INSTANCE.Write(variant_value.@text, stream);
+                break;
+            case HwLiveStopStep.Wait variant_value:
+                stream.WriteInt(2);
+                FfiConverterUInt64.INSTANCE.Write(variant_value.@ms, stream);
+                break;
+            case HwLiveStopStep.WaitForSessionComplete variant_value:
+                stream.WriteInt(3);
+                FfiConverterUInt64.INSTANCE.Write(variant_value.@timeoutMs, stream);
+                break;
+            case HwLiveStopStep.Close variant_value:
+                stream.WriteInt(4);
+                break;
+            default:
+                throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwLiveStopStep.Write()", value));
+        }
+    }
+}
+
+
+
+
+
+
+
+/// <summary>
+/// Why a server refused the websocket upgrade. Mirrors
+/// `lv::LiveUpgradeRefusal`.
+/// </summary>
+internal enum HwLiveUpgradeRefusal: int {
+    
+    /// <summary>
+    /// HTTP 402 — no balance to open a session with.
+    /// </summary>
+    InsufficientCredits,
+    /// <summary>
+    /// HTTP 401 / 403 — the key is missing, wrong, revoked or not permitted.
+    /// </summary>
+    Unauthorized
+}
+
+class FfiConverterTypeHwLiveUpgradeRefusal: FfiConverterRustBuffer<HwLiveUpgradeRefusal> {
+    public static FfiConverterTypeHwLiveUpgradeRefusal INSTANCE = new FfiConverterTypeHwLiveUpgradeRefusal();
+
+    public override HwLiveUpgradeRefusal Read(BigEndianStream stream) {
+        var value = stream.ReadInt() - 1;
+        if (Enum.IsDefined(typeof(HwLiveUpgradeRefusal), value)) {
+            return (HwLiveUpgradeRefusal)value;
+        } else {
+            throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwLiveUpgradeRefusal.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(HwLiveUpgradeRefusal value) {
+        return 4;
+    }
+
+    public override void Write(HwLiveUpgradeRefusal value, BigEndianStream stream) {
         stream.WriteInt((int)value + 1);
     }
 }
@@ -8119,6 +9478,68 @@ class FfiConverterOptionalTypeHwLicenseStatus: FfiConverterRustBuffer<HwLicenseS
 
 
 
+class FfiConverterOptionalTypeHwLiveErrorKind: FfiConverterRustBuffer<HwLiveErrorKind?> {
+    public static FfiConverterOptionalTypeHwLiveErrorKind INSTANCE = new FfiConverterOptionalTypeHwLiveErrorKind();
+
+    public override HwLiveErrorKind? Read(BigEndianStream stream) {
+        if (stream.ReadByte() == 0) {
+            return null;
+        }
+        return FfiConverterTypeHwLiveErrorKind.INSTANCE.Read(stream);
+    }
+
+    public override int AllocationSize(HwLiveErrorKind? value) {
+        if (value == null) {
+            return 1;
+        } else {
+            return 1 + FfiConverterTypeHwLiveErrorKind.INSTANCE.AllocationSize((HwLiveErrorKind)value);
+        }
+    }
+
+    public override void Write(HwLiveErrorKind? value, BigEndianStream stream) {
+        if (value == null) {
+            stream.WriteByte(0);
+        } else {
+            stream.WriteByte(1);
+            FfiConverterTypeHwLiveErrorKind.INSTANCE.Write((HwLiveErrorKind)value, stream);
+        }
+    }
+}
+
+
+
+
+class FfiConverterOptionalTypeHwLiveUpgradeRefusal: FfiConverterRustBuffer<HwLiveUpgradeRefusal?> {
+    public static FfiConverterOptionalTypeHwLiveUpgradeRefusal INSTANCE = new FfiConverterOptionalTypeHwLiveUpgradeRefusal();
+
+    public override HwLiveUpgradeRefusal? Read(BigEndianStream stream) {
+        if (stream.ReadByte() == 0) {
+            return null;
+        }
+        return FfiConverterTypeHwLiveUpgradeRefusal.INSTANCE.Read(stream);
+    }
+
+    public override int AllocationSize(HwLiveUpgradeRefusal? value) {
+        if (value == null) {
+            return 1;
+        } else {
+            return 1 + FfiConverterTypeHwLiveUpgradeRefusal.INSTANCE.AllocationSize((HwLiveUpgradeRefusal)value);
+        }
+    }
+
+    public override void Write(HwLiveUpgradeRefusal? value, BigEndianStream stream) {
+        if (value == null) {
+            stream.WriteByte(0);
+        } else {
+            stream.WriteByte(1);
+            FfiConverterTypeHwLiveUpgradeRefusal.INSTANCE.Write((HwLiveUpgradeRefusal)value, stream);
+        }
+    }
+}
+
+
+
+
 class FfiConverterOptionalSequenceString: FfiConverterRustBuffer<List<string>?> {
     public static FfiConverterOptionalSequenceString INSTANCE = new FfiConverterOptionalSequenceString();
 
@@ -8227,6 +9648,48 @@ class FfiConverterSequenceTypeHeader: FfiConverterRustBuffer<List<Header>> {
 
         stream.WriteInt(value.Count);
         var writerFn = FfiConverterTypeHeader.INSTANCE.Write;
+        value.ForEach(item => writerFn(item, stream));
+    }
+}
+
+
+
+
+class FfiConverterSequenceTypeHwLiveFrame: FfiConverterRustBuffer<List<HwLiveFrame>> {
+    public static FfiConverterSequenceTypeHwLiveFrame INSTANCE = new FfiConverterSequenceTypeHwLiveFrame();
+
+    public override List<HwLiveFrame> Read(BigEndianStream stream) {
+        var length = stream.ReadInt();
+        var result = new List<HwLiveFrame>(length);
+        var readFn = FfiConverterTypeHwLiveFrame.INSTANCE.Read;
+        for (int i = 0; i < length; i++) {
+            result.Add(readFn(stream));
+        }
+        return result;
+    }
+
+    public override int AllocationSize(List<HwLiveFrame> value) {
+        var sizeForLength = 4;
+
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            return sizeForLength;
+        }
+
+        var allocationSizeFn = FfiConverterTypeHwLiveFrame.INSTANCE.AllocationSize;
+        var sizeForItems = value.Sum(item => allocationSizeFn(item));
+        return sizeForLength + sizeForItems;
+    }
+
+    public override void Write(List<HwLiveFrame> value, BigEndianStream stream) {
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            stream.WriteInt(0);
+            return;
+        }
+
+        stream.WriteInt(value.Count);
+        var writerFn = FfiConverterTypeHwLiveFrame.INSTANCE.Write;
         value.ForEach(item => writerFn(item, stream));
     }
 }
@@ -8521,6 +9984,48 @@ class FfiConverterSequenceTypeSttVendorGroup: FfiConverterRustBuffer<List<SttVen
 
         stream.WriteInt(value.Count);
         var writerFn = FfiConverterTypeSttVendorGroup.INSTANCE.Write;
+        value.ForEach(item => writerFn(item, stream));
+    }
+}
+
+
+
+
+class FfiConverterSequenceTypeHwLiveStopStep: FfiConverterRustBuffer<List<HwLiveStopStep>> {
+    public static FfiConverterSequenceTypeHwLiveStopStep INSTANCE = new FfiConverterSequenceTypeHwLiveStopStep();
+
+    public override List<HwLiveStopStep> Read(BigEndianStream stream) {
+        var length = stream.ReadInt();
+        var result = new List<HwLiveStopStep>(length);
+        var readFn = FfiConverterTypeHwLiveStopStep.INSTANCE.Read;
+        for (int i = 0; i < length; i++) {
+            result.Add(readFn(stream));
+        }
+        return result;
+    }
+
+    public override int AllocationSize(List<HwLiveStopStep> value) {
+        var sizeForLength = 4;
+
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            return sizeForLength;
+        }
+
+        var allocationSizeFn = FfiConverterTypeHwLiveStopStep.INSTANCE.AllocationSize;
+        var sizeForItems = value.Sum(item => allocationSizeFn(item));
+        return sizeForLength + sizeForItems;
+    }
+
+    public override void Write(List<HwLiveStopStep> value, BigEndianStream stream) {
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            stream.WriteInt(0);
+            return;
+        }
+
+        stream.WriteInt(value.Count);
+        var writerFn = FfiConverterTypeHwLiveStopStep.INSTANCE.Write;
         value.ForEach(item => writerFn(item, stream));
     }
 }
@@ -9699,6 +11204,103 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterInt64.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_license_validation_cache_secs( ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Classify a provider error frame's `message` payload.
+    ///
+    /// See `hw_net::live::classify_error_message` for the twenty markers, the
+    /// deliberate rate-limit/quota asymmetry and why no bare `"401"` is matched.
+    /// Unrecognised wording — including an empty message — is
+    /// [`HwLiveErrorOutcome::Transient`], so a payload nobody has seen yet keeps its
+    /// reconnect.
+    /// </summary>
+    public static HwLiveErrorOutcome LiveClassifyErrorMessage(string @message) {
+        return FfiConverterTypeHwLiveErrorOutcome.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_live_classify_error_message(FfiConverterString.INSTANCE.Lower(@message), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Whether a websocket close code is one of the RFC-6455 non-recoverable set
+    /// (1002, 1003, 1007, 1008, 1009, 1011).
+    ///
+    /// A provider that signals an unrecoverable session with a private close code
+    /// combines it *with* this answer rather than replacing it.
+    /// </summary>
+    public static bool LiveIsTerminalCloseCode(ushort @code) {
+        return FfiConverterBoolean.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_live_is_terminal_close_code(FfiConverterUInt16.INSTANCE.Lower(@code), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Normalize a language selection to the primary subtag a provider wants.
+    ///
+    /// `None` means "omit the language parameter entirely" and covers no selection,
+    /// a blank string and the app's `"auto"` sentinel alike.
+    /// </summary>
+    public static string? LiveNormalizeLanguage(string? @code) {
+        return FfiConverterOptionalString.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_live_normalize_language(FfiConverterOptionalString.INSTANCE.Lower(@code), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The human-readable provider label stored on a history entry. The
+    /// " (Streaming)" suffix is what distinguishes a live session from the same
+    /// vendor's batch transcription.
+    /// </summary>
+    public static string LiveProviderLabel(HwLiveProvider @provider) {
+        return FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_live_provider_label(FfiConverterTypeHwLiveProvider.INSTANCE.Lower(@provider), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The PCM sample rate, in hertz, the provider's socket expects. The capture
+    /// graph is configured from this before a session opens.
+    /// </summary>
+    public static uint LiveRequiredSampleRate(HwLiveProvider @provider) {
+        return FfiConverterUInt32.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_live_required_sample_rate(FfiConverterTypeHwLiveProvider.INSTANCE.Lower(@provider), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Whether the provider's live API takes a custom-vocabulary parameter at all.
+    /// `false` means the terms are dropped before the socket opens.
+    /// </summary>
+    public static bool LiveSupportsVocabulary(HwLiveProvider @provider) {
+        return FfiConverterBoolean.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_live_supports_vocabulary(FfiConverterTypeHwLiveProvider.INSTANCE.Lower(@provider), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Classify the HTTP status of a websocket upgrade that never reached 101.
+    ///
+    /// `None` means the ordinary reconnect path still applies — 429, 5xx and a
+    /// proxy mangling the upgrade all keep it.
+    /// </summary>
+    public static HwLiveUpgradeRefusal? LiveUpgradeRefusal(ushort @status) {
+        return FfiConverterOptionalTypeHwLiveUpgradeRefusal.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_live_upgrade_refusal(FfiConverterUInt16.INSTANCE.Lower(@status), ref _status)
 ));
     }
 

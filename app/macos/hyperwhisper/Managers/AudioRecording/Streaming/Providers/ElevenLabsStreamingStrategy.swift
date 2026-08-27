@@ -233,7 +233,7 @@ final class ElevenLabsStreamingStrategy: StreamingProviderStrategy {
             // AUTHENTICATION ERROR:
             // API key is invalid, expired, or missing. User needs to check their key.
             logger.error("ElevenLabs auth error received")
-            return .error(message: "ElevenLabs authentication failed. Please check your API key in Settings.")
+            return .error(message: "ElevenLabs authentication failed. Check that your ElevenLabs API key is correct and still active.")
 
         case "quota_exceeded":
             // QUOTA EXCEEDED:

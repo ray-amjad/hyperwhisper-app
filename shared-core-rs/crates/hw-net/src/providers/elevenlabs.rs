@@ -70,15 +70,9 @@ pub fn build_transcribe_request(
     parts.push(multipart_field("tag_audio_events", "false"));
 
     // language_code — omitted when absent / empty / "auto"; normalized to the
-    // primary subtag (e.g. en-US → en). Mirrors normalizeLanguageCode.
-    if let Some(lang) = params.language.as_deref() {
-        let trimmed = lang.trim();
-        if !trimmed.is_empty() && !trimmed.eq_ignore_ascii_case("auto") {
-            parts.push(multipart_field(
-                "language_code",
-                normalize_language(trimmed),
-            ));
-        }
+    // primary subtag (e.g. en-US → en) through the one shared normalizer.
+    if let Some(lang) = crate::live::normalize_language(params.language.as_deref()) {
+        parts.push(multipart_field("language_code", lang));
     }
 
     // keyterms — Scribe v2 only, capped 100 terms, drop terms > 50 chars.
@@ -123,11 +117,6 @@ fn keyterms(vocabulary: &[String]) -> Vec<String> {
         .filter(|w| w.chars().count() <= ELEVENLABS_MAX_TERM_CHARS)
         .take(ELEVENLABS_MAX_TERMS)
         .collect()
-}
-
-/// Normalize a BCP-47 tag to its primary subtag (`en-US` → `en`).
-fn normalize_language(code: &str) -> String {
-    code.split('-').next().unwrap_or(code).to_string()
 }
 
 /// Parse the ElevenLabs Scribe response.
