@@ -1,0 +1,2918 @@
+{
+  "description": "Cross-platform golden vectors for the universal-v2 backup adapters (issue #277). The modeNormalization rows were hand-authored in commit 1a against the SHIPPING native code — Windows UniversalBackupMapper.MapToMode (+ CloudTranscriptionModels.ResolveModelAlias and CloudSttCatalog.NormalizeCloudProvider) and Linux ApplicationBackupService.ParseMode — so the Rust port in commit 1b can be diffed against them on the same inputs. A row with a single \"expected\" is one where the two heads AGREE today. A row carrying \"expectedWindows\" and \"expectedLinux\" records a drift that ships right now: Linux runs no cloud-routing migration, no catalog provider normalization, no model-alias resolution and no domain gate at all. Those rows collapse to a single \"expected\" in 1b; rows with one \"expected\" must not move.",
+  "modeNormalization": [
+    {
+      "name": "absent: a mode carrying no cloud-routing keys at all",
+      "note": "Trap #4. Every absent field must come out at the CALLER's own default (Mode.cs field initialisers), never at the core default (deepgramNova3 / grok:grok-4.3).",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000001",
+        "name": "vec-001"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "absent: every cloud-routing key present but explicitly JSON null",
+      "note": "JSON null must behave exactly like an absent key on both heads.",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000002",
+        "name": "vec-002",
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": null,
+        "cloudPostProcessingModel": null
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier alias: \"medium\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000003",
+        "name": "vec-003",
+        "cloudAccuracyTier": "medium"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "groqWhisper",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "medium",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier alias: \"groq\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000004",
+        "name": "vec-004",
+        "cloudAccuracyTier": "groq"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "groqWhisper",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "groq",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier alias: \"fireworks\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000005",
+        "name": "vec-005",
+        "cloudAccuracyTier": "fireworks"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "groqWhisper",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "fireworks",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier alias: \"high\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000006",
+        "name": "vec-006",
+        "cloudAccuracyTier": "high"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "deepgramNova3",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "high",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier alias: \"deepgram\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000007",
+        "name": "vec-007",
+        "cloudAccuracyTier": "deepgram"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "deepgramNova3",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "deepgram",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier alias: \"grok\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000008",
+        "name": "vec-008",
+        "cloudAccuracyTier": "grok"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "grokStt",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "grok",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier alias: \"microsoftazurespeech\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000009",
+        "name": "vec-009",
+        "cloudAccuracyTier": "microsoftazurespeech"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "azureMaiTranscribe",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "microsoftazurespeech",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier alias: \"azure\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000010",
+        "name": "vec-010",
+        "cloudAccuracyTier": "azure"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "azureMaiTranscribe",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "azure",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier alias: \"azure-mai\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000011",
+        "name": "vec-011",
+        "cloudAccuracyTier": "azure-mai"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "azureMaiTranscribe",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "azure-mai",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier alias: \"azuremai\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000012",
+        "name": "vec-012",
+        "cloudAccuracyTier": "azuremai"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "azureMaiTranscribe",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "azuremai",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier alias: \"googlespeech\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000013",
+        "name": "vec-013",
+        "cloudAccuracyTier": "googlespeech"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "googleChirp3",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "googlespeech",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier alias: \"chirp\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000014",
+        "name": "vec-014",
+        "cloudAccuracyTier": "chirp"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "googleChirp3",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "chirp",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier alias: \"google-chirp\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000015",
+        "name": "vec-015",
+        "cloudAccuracyTier": "google-chirp"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "googleChirp3",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "google-chirp",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier alias: \"googlechirp\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000016",
+        "name": "vec-016",
+        "cloudAccuracyTier": "googlechirp"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "googleChirp3",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "googlechirp",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier alias: \"highest\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000017",
+        "name": "vec-017",
+        "cloudAccuracyTier": "highest"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "highest",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier alias: \"elevenlabs\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000018",
+        "name": "vec-018",
+        "cloudAccuracyTier": "elevenlabs"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenlabs",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier canonical id passes through unchanged",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000019",
+        "name": "vec-019",
+        "cloudAccuracyTier": "grokStt"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "grokStt",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier canonical id, exact casing",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000020",
+        "name": "vec-020",
+        "cloudAccuracyTier": "elevenLabsScribeV2"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier canonical id is matched case-insensitively",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000021",
+        "name": "vec-021",
+        "cloudAccuracyTier": "GROKSTT"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "grokStt",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "GROKSTT",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier alias is matched case-insensitively",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000022",
+        "name": "vec-022",
+        "cloudAccuracyTier": "MicrosoftAzureSpeech"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "azureMaiTranscribe",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "MicrosoftAzureSpeech",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier unknown value falls back to the core default",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000023",
+        "name": "vec-023",
+        "cloudAccuracyTier": "not-a-real-tier"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "deepgramNova3",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "not-a-real-tier",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier is surrounded by whitespace (Rust trims, C# present-guard does not)",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000024",
+        "name": "vec-024",
+        "cloudAccuracyTier": "  high  "
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "deepgramNova3",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "  high  ",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier is whitespace only",
+      "note": "Windows' MigrateCloudAccuracyTierPresent treats whitespace as absent and keeps the entity default; Linux stores the whitespace verbatim.",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000025",
+        "name": "vec-025",
+        "cloudAccuracyTier": "   "
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "   ",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier is the empty string",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000026",
+        "name": "vec-026",
+        "cloudAccuracyTier": ""
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token: \"cerebras\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000027",
+        "name": "vec-027",
+        "cloudPostProcessingModel": "cerebras"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "cerebras:gpt-oss-120b"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "cerebras"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token: \"cerebras-gpt-oss-120b\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000028",
+        "name": "vec-028",
+        "cloudPostProcessingModel": "cerebras-gpt-oss-120b"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "cerebras:gpt-oss-120b"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "cerebras-gpt-oss-120b"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token: \"cerebrasgptoss120b\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000029",
+        "name": "vec-029",
+        "cloudPostProcessingModel": "cerebrasgptoss120b"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "cerebras:gpt-oss-120b"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "cerebrasgptoss120b"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token: \"gpt-oss-120b\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000030",
+        "name": "vec-030",
+        "cloudPostProcessingModel": "gpt-oss-120b"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "cerebras:gpt-oss-120b"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "gpt-oss-120b"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token: \"default\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000031",
+        "name": "vec-031",
+        "cloudPostProcessingModel": "default"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "cerebras:gpt-oss-120b"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "default"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token: \"groq\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000032",
+        "name": "vec-032",
+        "cloudPostProcessingModel": "groq"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "groq:openai/gpt-oss-120b"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "groq"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token: \"groq-gpt-oss-120b\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000033",
+        "name": "vec-033",
+        "cloudPostProcessingModel": "groq-gpt-oss-120b"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "groq:openai/gpt-oss-120b"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "groq-gpt-oss-120b"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token: \"groqgptoss120b\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000034",
+        "name": "vec-034",
+        "cloudPostProcessingModel": "groqgptoss120b"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "groq:openai/gpt-oss-120b"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "groqgptoss120b"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token: \"openai/gpt-oss-120b\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000035",
+        "name": "vec-035",
+        "cloudPostProcessingModel": "openai/gpt-oss-120b"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "groq:openai/gpt-oss-120b"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "openai/gpt-oss-120b"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token: \"anthropic\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000036",
+        "name": "vec-036",
+        "cloudPostProcessingModel": "anthropic"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token: \"claude-haiku-4-5\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000037",
+        "name": "vec-037",
+        "cloudPostProcessingModel": "claude-haiku-4-5"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token: \"claude-haiku-4.5\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000038",
+        "name": "vec-038",
+        "cloudPostProcessingModel": "claude-haiku-4.5"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "claude-haiku-4.5"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token: \"claudehaiku\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000039",
+        "name": "vec-039",
+        "cloudPostProcessingModel": "claudehaiku"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "claudehaiku"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token: \"grok\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000040",
+        "name": "vec-040",
+        "cloudPostProcessingModel": "grok"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "grok:grok-4.3"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "grok"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token: \"grok-4.3\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000041",
+        "name": "vec-041",
+        "cloudPostProcessingModel": "grok-4.3"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "grok:grok-4.3"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "grok-4.3"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token: \"grokfast\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000042",
+        "name": "vec-042",
+        "cloudPostProcessingModel": "grokfast"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "grok:grok-4.3"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "grokfast"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token: \"grok-4-1-fast-non-reasoning\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000043",
+        "name": "vec-043",
+        "cloudPostProcessingModel": "grok-4-1-fast-non-reasoning"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "grok:grok-4.3"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "grok-4-1-fast-non-reasoning"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token: \"grok-4.1-fast-non-reasoning\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000044",
+        "name": "vec-044",
+        "cloudPostProcessingModel": "grok-4.1-fast-non-reasoning"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "grok:grok-4.3"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "grok-4.1-fast-non-reasoning"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token: \"grok-4-fast-non-reasoning\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000045",
+        "name": "vec-045",
+        "cloudPostProcessingModel": "grok-4-fast-non-reasoning"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "grok:grok-4.3"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "grok-4-fast-non-reasoning"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token: \"grok-4-1-fast-reasoning\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000046",
+        "name": "vec-046",
+        "cloudPostProcessingModel": "grok-4-1-fast-reasoning"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "grok:grok-4.3"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "grok-4-1-fast-reasoning"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token: \"grok-4-fast-reasoning\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000047",
+        "name": "vec-047",
+        "cloudPostProcessingModel": "grok-4-fast-reasoning"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "grok:grok-4.3"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "grok-4-fast-reasoning"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token, mixed casing",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000048",
+        "name": "vec-048",
+        "cloudPostProcessingModel": "cerebrasGptOss120B"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "cerebras:gpt-oss-120b"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "cerebrasGptOss120B"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token, mixed casing (grok)",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000049",
+        "name": "vec-049",
+        "cloudPostProcessingModel": "grokFast"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "grok:grok-4.3"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "grokFast"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token, mixed casing (anthropic)",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000050",
+        "name": "vec-050",
+        "cloudPostProcessingModel": "claudeHaiku"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "claudeHaiku"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel unknown single token falls back",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000051",
+        "name": "vec-051",
+        "cloudPostProcessingModel": "not-a-real-model"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "grok:grok-4.3"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "not-a-real-model"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel surrounded by whitespace",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000052",
+        "name": "vec-052",
+        "cloudPostProcessingModel": "  claudeHaiku  "
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "  claudeHaiku  "
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel is whitespace only",
+      "note": "Present-only guard on Windows keeps the entity default rather than forcing the core fallback.",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000053",
+        "name": "vec-053",
+        "cloudPostProcessingModel": "   "
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "   "
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel is the empty string",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000054",
+        "name": "vec-054",
+        "cloudPostProcessingModel": ""
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": ""
+      }
+    },
+    {
+      "name": "qualified pp model: engine casing is canonicalised",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000055",
+        "name": "vec-055",
+        "cloudPostProcessingModel": "GROK:grok-4.3"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "grok:grok-4.3"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "GROK:grok-4.3"
+      }
+    },
+    {
+      "name": "qualified pp model: engine casing is canonicalised (anthropic)",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000056",
+        "name": "vec-056",
+        "cloudPostProcessingModel": "Anthropic:claude-haiku-4-5"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "Anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "qualified pp model: engine casing is canonicalised (cerebras)",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000057",
+        "name": "vec-057",
+        "cloudPostProcessingModel": "CEREBRAS:gpt-oss-120b"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "cerebras:gpt-oss-120b"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "CEREBRAS:gpt-oss-120b"
+      }
+    },
+    {
+      "name": "qualified pp model: already-canonical engine passes through verbatim",
+      "note": "The model id is NOT validated against the catalog — a known engine passes the whole value through.",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000058",
+        "name": "vec-058",
+        "cloudPostProcessingModel": "openai:gpt-5.6-luna"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "openai:gpt-5.6-luna"
+      }
+    },
+    {
+      "name": "qualified pp model: unknown model id under a known engine is still kept",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000059",
+        "name": "vec-059",
+        "cloudPostProcessingModel": "mistral:some-future-model"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "mistral:some-future-model"
+      }
+    },
+    {
+      "name": "qualified pp model: UNKNOWN engine falls through to the legacy switch and hits the fallback",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000060",
+        "name": "vec-060",
+        "cloudPostProcessingModel": "notanengine:some-model"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "grok:grok-4.3"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "notanengine:some-model"
+      }
+    },
+    {
+      "name": "qualified pp model: unknown engine whose suffix IS a legacy token still hits the fallback",
+      "note": "The legacy switch matches the WHOLE trimmed string, not the part after the colon.",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000061",
+        "name": "vec-061",
+        "cloudPostProcessingModel": "notanengine:claudeHaiku"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "grok:grok-4.3"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "notanengine:claudeHaiku"
+      }
+    },
+    {
+      "name": "cloudProvider legacy alias \"microsoftazurespeech\" folds onto hyperwhisper + azureMaiTranscribe",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000062",
+        "name": "vec-062",
+        "cloudProvider": "microsoftazurespeech",
+        "cloudTranscriptionDomain": "medical"
+      },
+      "expectedWindows": {
+        "cloudProvider": "hyperwhisper",
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": "medical",
+        "cloudAccuracyTier": "azureMaiTranscribe",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "microsoftazurespeech",
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": "medical",
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "cloudProvider legacy alias \"microsoftAzureSpeech\" folds onto hyperwhisper + azureMaiTranscribe",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000063",
+        "name": "vec-063",
+        "cloudProvider": "microsoftAzureSpeech",
+        "cloudTranscriptionDomain": "medical"
+      },
+      "expectedWindows": {
+        "cloudProvider": "hyperwhisper",
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": "medical",
+        "cloudAccuracyTier": "azureMaiTranscribe",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "microsoftAzureSpeech",
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": "medical",
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "cloudProvider legacy alias \"googlespeech\" folds onto hyperwhisper + googleChirp3",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000064",
+        "name": "vec-064",
+        "cloudProvider": "googlespeech",
+        "cloudTranscriptionDomain": "medical"
+      },
+      "expectedWindows": {
+        "cloudProvider": "hyperwhisper",
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": "medical",
+        "cloudAccuracyTier": "googleChirp3",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "googlespeech",
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": "medical",
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "cloudProvider legacy alias \"googleSpeech\" folds onto hyperwhisper + googleChirp3",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000065",
+        "name": "vec-065",
+        "cloudProvider": "googleSpeech",
+        "cloudTranscriptionDomain": "medical"
+      },
+      "expectedWindows": {
+        "cloudProvider": "hyperwhisper",
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": "medical",
+        "cloudAccuracyTier": "googleChirp3",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "googleSpeech",
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": "medical",
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "cloudProvider fold: the folded accuracy tier WINS over the mode's own cloudAccuracyTier",
+      "note": "Precedence on Windows is normalizedCloudProvider.AccuracyTier ?? migrated(universal) ?? Mode default.",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000066",
+        "name": "vec-066",
+        "cloudProvider": "microsoftazurespeech",
+        "cloudAccuracyTier": "high"
+      },
+      "expectedWindows": {
+        "cloudProvider": "hyperwhisper",
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "azureMaiTranscribe",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "microsoftazurespeech",
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "high",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "cloudProvider fold: a legacy model id is NOT aliased, because ResolveModelAlias sees the RAW provider",
+      "note": "MapToMode passes universal.CloudProvider (raw), not the normalized provider, to FromIdentifier — so the azure branch hits the passthrough arm.",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000067",
+        "name": "vec-067",
+        "cloudProvider": "microsoftazurespeech",
+        "cloudTranscriptionModel": "nova-3"
+      },
+      "expectedWindows": {
+        "cloudProvider": "hyperwhisper",
+        "cloudTranscriptionModel": "nova-3",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "azureMaiTranscribe",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "microsoftazurespeech",
+        "cloudTranscriptionModel": "nova-3",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "BYOK passthrough: \"deepgram\" is a tier alias but NOT a provider alias — it must not fold",
+      "note": "deepgram appears in TIER_ALIASES for accuracy-tier migration; legacyCloudProviderAliases is kept separate exactly so BYOK provider names survive.",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000068",
+        "name": "vec-068",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general"
+      },
+      "expected": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "BYOK passthrough: \"groq\" is a tier alias but NOT a provider alias",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000069",
+        "name": "vec-069",
+        "cloudProvider": "groq",
+        "cloudTranscriptionModel": "whisper-large-v3-turbo"
+      },
+      "expected": {
+        "cloudProvider": "groq",
+        "cloudTranscriptionModel": "whisper-large-v3-turbo",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "BYOK passthrough: \"elevenlabs\" is a tier alias but NOT a provider alias",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000070",
+        "name": "vec-070",
+        "cloudProvider": "elevenlabs",
+        "cloudTranscriptionModel": "scribe_v2"
+      },
+      "expected": {
+        "cloudProvider": "elevenlabs",
+        "cloudTranscriptionModel": "scribe_v2",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "BYOK passthrough: a deepgram mode with a legacy model id still resolves the model",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000071",
+        "name": "vec-071",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-2",
+        "cloudTranscriptionDomain": "medical"
+      },
+      "expectedWindows": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-2-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-2",
+        "cloudTranscriptionDomain": "medical",
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "domain gate: hyperwhisper keeps the domain",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000072",
+        "name": "vec-072",
+        "cloudProvider": "hyperwhisper",
+        "cloudTranscriptionDomain": "medical"
+      },
+      "expected": {
+        "cloudProvider": "hyperwhisper",
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": "medical",
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "domain gate: a BYOK provider DROPS the domain on Windows",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000073",
+        "name": "vec-073",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionDomain": "medical"
+      },
+      "expectedWindows": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": "medical",
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "domain gate: an absent provider DROPS the domain on Windows",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000074",
+        "name": "vec-074",
+        "cloudTranscriptionDomain": "medical"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": "medical",
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "domain gate: a folded provider keeps the domain, because the fold happens first",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000075",
+        "name": "vec-075",
+        "cloudProvider": "googlespeech",
+        "cloudTranscriptionDomain": "medical"
+      },
+      "expectedWindows": {
+        "cloudProvider": "hyperwhisper",
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": "medical",
+        "cloudAccuracyTier": "googleChirp3",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "googlespeech",
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": "medical",
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "domain gate: hyperwhisper with no domain stays absent",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000076",
+        "name": "vec-076",
+        "cloudProvider": "hyperwhisper"
+      },
+      "expected": {
+        "cloudProvider": "hyperwhisper",
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "assemblyai model alias: \"universal\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000077",
+        "name": "vec-077",
+        "cloudProvider": "assemblyai",
+        "cloudTranscriptionModel": "universal"
+      },
+      "expectedWindows": {
+        "cloudProvider": "assemblyai",
+        "cloudTranscriptionModel": "universal-2",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "assemblyai",
+        "cloudTranscriptionModel": "universal",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "assemblyai model alias: \"slam-1\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000078",
+        "name": "vec-078",
+        "cloudProvider": "assemblyai",
+        "cloudTranscriptionModel": "slam-1"
+      },
+      "expectedWindows": {
+        "cloudProvider": "assemblyai",
+        "cloudTranscriptionModel": "universal-3-5-pro",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "assemblyai",
+        "cloudTranscriptionModel": "slam-1",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "assemblyai model alias: \"universal-3-pro\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000079",
+        "name": "vec-079",
+        "cloudProvider": "assemblyai",
+        "cloudTranscriptionModel": "universal-3-pro"
+      },
+      "expectedWindows": {
+        "cloudProvider": "assemblyai",
+        "cloudTranscriptionModel": "universal-3-5-pro",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "assemblyai",
+        "cloudTranscriptionModel": "universal-3-pro",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "assemblyai model alias: \"universal-3-pro-medical\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000080",
+        "name": "vec-080",
+        "cloudProvider": "assemblyai",
+        "cloudTranscriptionModel": "universal-3-pro-medical"
+      },
+      "expectedWindows": {
+        "cloudProvider": "assemblyai",
+        "cloudTranscriptionModel": "universal-3-5-pro-medical",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "assemblyai",
+        "cloudTranscriptionModel": "universal-3-pro-medical",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "elevenlabs model alias: \"scribe_v1\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000081",
+        "name": "vec-081",
+        "cloudProvider": "elevenlabs",
+        "cloudTranscriptionModel": "scribe_v1"
+      },
+      "expectedWindows": {
+        "cloudProvider": "elevenlabs",
+        "cloudTranscriptionModel": "scribe_v2",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "elevenlabs",
+        "cloudTranscriptionModel": "scribe_v1",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "soniox model alias: \"stt-async-v4\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000082",
+        "name": "vec-082",
+        "cloudProvider": "soniox",
+        "cloudTranscriptionModel": "stt-async-v4"
+      },
+      "expectedWindows": {
+        "cloudProvider": "soniox",
+        "cloudTranscriptionModel": "stt-async-v5",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "soniox",
+        "cloudTranscriptionModel": "stt-async-v4",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "gemini model alias: \"gemini-3.1-flash-lite-preview\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000083",
+        "name": "vec-083",
+        "cloudProvider": "gemini",
+        "cloudTranscriptionModel": "gemini-3.1-flash-lite-preview"
+      },
+      "expectedWindows": {
+        "cloudProvider": "gemini",
+        "cloudTranscriptionModel": "gemini-3.1-flash-lite",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "gemini",
+        "cloudTranscriptionModel": "gemini-3.1-flash-lite-preview",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "gemini model alias: \"gemini-2.0-flash\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000084",
+        "name": "vec-084",
+        "cloudProvider": "gemini",
+        "cloudTranscriptionModel": "gemini-2.0-flash"
+      },
+      "expectedWindows": {
+        "cloudProvider": "gemini",
+        "cloudTranscriptionModel": "gemini-3.6-flash",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "gemini",
+        "cloudTranscriptionModel": "gemini-2.0-flash",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"nova-3\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000085",
+        "name": "vec-085",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3"
+      },
+      "expectedWindows": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"nova-2\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000086",
+        "name": "vec-086",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-2"
+      },
+      "expectedWindows": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-2-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-2",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"enhanced\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000087",
+        "name": "vec-087",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "enhanced"
+      },
+      "expectedWindows": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "enhanced",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"base\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000088",
+        "name": "vec-088",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "base"
+      },
+      "expectedWindows": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "base",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"nova-2-meeting\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000089",
+        "name": "vec-089",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-2-meeting"
+      },
+      "expectedWindows": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-2-meeting",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"nova-2-phonecall\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000090",
+        "name": "vec-090",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-2-phonecall"
+      },
+      "expectedWindows": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-2-phonecall",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"nova-2-voicemail\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000091",
+        "name": "vec-091",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-2-voicemail"
+      },
+      "expectedWindows": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-2-voicemail",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"nova-2-finance\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000092",
+        "name": "vec-092",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-2-finance"
+      },
+      "expectedWindows": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-2-finance",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"nova-2-conversationalai\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000093",
+        "name": "vec-093",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-2-conversationalai"
+      },
+      "expectedWindows": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-2-conversationalai",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"nova-2-automotive\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000094",
+        "name": "vec-094",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-2-automotive"
+      },
+      "expectedWindows": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-2-automotive",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"nova-2-video\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000095",
+        "name": "vec-095",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-2-video"
+      },
+      "expectedWindows": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-2-video",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"nova\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000096",
+        "name": "vec-096",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova"
+      },
+      "expectedWindows": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"nova-phonecall\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000097",
+        "name": "vec-097",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-phonecall"
+      },
+      "expectedWindows": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-phonecall",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"enhanced-general\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000098",
+        "name": "vec-098",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "enhanced-general"
+      },
+      "expectedWindows": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "enhanced-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"enhanced-meeting\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000099",
+        "name": "vec-099",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "enhanced-meeting"
+      },
+      "expectedWindows": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "enhanced-meeting",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"enhanced-phonecall\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000100",
+        "name": "vec-100",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "enhanced-phonecall"
+      },
+      "expectedWindows": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "enhanced-phonecall",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"enhanced-finance\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000101",
+        "name": "vec-101",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "enhanced-finance"
+      },
+      "expectedWindows": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "enhanced-finance",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"base-general\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000102",
+        "name": "vec-102",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "base-general"
+      },
+      "expectedWindows": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "base-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"base-meeting\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000103",
+        "name": "vec-103",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "base-meeting"
+      },
+      "expectedWindows": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "base-meeting",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"base-phonecall\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000104",
+        "name": "vec-104",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "base-phonecall"
+      },
+      "expectedWindows": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "base-phonecall",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"base-voicemail\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000105",
+        "name": "vec-105",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "base-voicemail"
+      },
+      "expectedWindows": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "base-voicemail",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"base-finance\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000106",
+        "name": "vec-106",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "base-finance"
+      },
+      "expectedWindows": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "base-finance",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"base-conversationalai\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000107",
+        "name": "vec-107",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "base-conversationalai"
+      },
+      "expectedWindows": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "base-conversationalai",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"base-video\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000108",
+        "name": "vec-108",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "base-video"
+      },
+      "expectedWindows": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "base-video",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"whisper-tiny\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000109",
+        "name": "vec-109",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "whisper-tiny"
+      },
+      "expectedWindows": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "whisper-tiny",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"whisper-base\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000110",
+        "name": "vec-110",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "whisper-base"
+      },
+      "expectedWindows": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "whisper-base",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"whisper-small\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000111",
+        "name": "vec-111",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "whisper-small"
+      },
+      "expectedWindows": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "whisper-small",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"whisper-medium\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000112",
+        "name": "vec-112",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "whisper-medium"
+      },
+      "expectedWindows": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "whisper-medium",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"whisper-large\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000113",
+        "name": "vec-113",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "whisper-large"
+      },
+      "expectedWindows": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "whisper-large",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "model alias table is matched case-insensitively",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000114",
+        "name": "vec-114",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "NOVA-3"
+      },
+      "expectedWindows": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "NOVA-3",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "model alias: a current id passes through unchanged",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000115",
+        "name": "vec-115",
+        "cloudProvider": "assemblyai",
+        "cloudTranscriptionModel": "universal-3-5-pro"
+      },
+      "expected": {
+        "cloudProvider": "assemblyai",
+        "cloudTranscriptionModel": "universal-3-5-pro",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "model alias: a provider with no alias table passes the model through",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000116",
+        "name": "vec-116",
+        "cloudProvider": "openai",
+        "cloudTranscriptionModel": "whisper-1"
+      },
+      "expected": {
+        "cloudProvider": "openai",
+        "cloudTranscriptionModel": "whisper-1",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "model alias: hyperwhisper is NOT one of the five tables, so a legacy id is kept",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000117",
+        "name": "vec-117",
+        "cloudProvider": "hyperwhisper",
+        "cloudTranscriptionModel": "nova-3"
+      },
+      "expected": {
+        "cloudProvider": "hyperwhisper",
+        "cloudTranscriptionModel": "nova-3",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "model alias: the empty model id survives as the empty string",
+      "note": "Grok registers its single entry under id \"\" — ResolveModelAlias short-circuits on IsNullOrEmpty.",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000118",
+        "name": "vec-118",
+        "cloudProvider": "grok",
+        "cloudTranscriptionModel": ""
+      },
+      "expected": {
+        "cloudProvider": "grok",
+        "cloudTranscriptionModel": "",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "unknown provider: FromIdentifier returns None, so ALL FIVE tables are chained (elevenlabs)",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000119",
+        "name": "vec-119",
+        "cloudTranscriptionModel": "scribe_v1"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": "scribe_v2",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": "scribe_v1",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "unknown provider: chain resolves an assemblyai id",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000120",
+        "name": "vec-120",
+        "cloudTranscriptionModel": "universal"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": "universal-2",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": "universal",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "unknown provider: chain resolves a deepgram id",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000121",
+        "name": "vec-121",
+        "cloudTranscriptionModel": "nova-3"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": "nova-3",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "unknown provider: chain resolves a soniox id",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000122",
+        "name": "vec-122",
+        "cloudTranscriptionModel": "stt-async-v4"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": "stt-async-v5",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": "stt-async-v4",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "unknown provider: chain resolves a gemini id",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000123",
+        "name": "vec-123",
+        "cloudTranscriptionModel": "gemini-2.0-flash"
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": "gemini-3.6-flash",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": "gemini-2.0-flash",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "unrecognised provider string: kept verbatim, but the model still goes through the chain",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000124",
+        "name": "vec-124",
+        "cloudProvider": "some-future-vendor",
+        "cloudTranscriptionModel": "nova-3"
+      },
+      "expectedWindows": {
+        "cloudProvider": "some-future-vendor",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "some-future-vendor",
+        "cloudTranscriptionModel": "nova-3",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "empty provider string: echoed back as the empty string, not null",
+      "note": "normalize_cloud_provider filters on !is_empty and returns the ORIGINAL Option, so \"\" round-trips as \"\".",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000125",
+        "name": "vec-125",
+        "cloudProvider": "",
+        "cloudTranscriptionModel": "",
+        "cloudTranscriptionDomain": "medical"
+      },
+      "expectedWindows": {
+        "cloudProvider": "",
+        "cloudTranscriptionModel": "",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "",
+        "cloudTranscriptionModel": "",
+        "cloudTranscriptionDomain": "medical",
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "platformExtensions.windows.cloudAccuracyTier overrides the universal value",
+      "note": "Windows re-applies the extension value AFTER the universal one; Linux reads platformExtensions.linux and never sees this slice.",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000126",
+        "name": "vec-126",
+        "cloudAccuracyTier": "high",
+        "cloudPostProcessingModel": "grok",
+        "platformExtensions": {
+          "windows": {
+            "cloudAccuracyTier": "highest",
+            "cloudPostProcessingModel": "claudeHaiku"
+          }
+        }
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "high",
+        "cloudPostProcessingModel": "grok"
+      }
+    },
+    {
+      "name": "platformExtensions.windows present but carrying no tier: the universal value survives",
+      "note": "Present-only again — an extension slice without the key must not overwrite with a default.",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000127",
+        "name": "vec-127",
+        "cloudAccuracyTier": "high",
+        "platformExtensions": {
+          "windows": {
+            "localEngine": "parakeet"
+          }
+        }
+      },
+      "expectedWindows": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "deepgramNova3",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "high",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "platformExtensions.windows tier does NOT beat the provider fold on the provider itself",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000128",
+        "name": "vec-128",
+        "cloudProvider": "microsoftazurespeech",
+        "platformExtensions": {
+          "windows": {
+            "cloudAccuracyTier": "medium"
+          }
+        }
+      },
+      "expectedWindows": {
+        "cloudProvider": "hyperwhisper",
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "groqWhisper",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "microsoftazurespeech",
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "a foreign (macos) per-mode slice does not affect cloud routing",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000129",
+        "name": "vec-129",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-2",
+        "platformExtensions": {
+          "macos": {
+            "someMacKey": true
+          }
+        }
+      },
+      "expectedWindows": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-2-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-2",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "legacy macOS-authored HyperWhisper Cloud mode",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000130",
+        "name": "vec-130",
+        "cloudProvider": "hyperwhisper",
+        "cloudTranscriptionModel": "nova-3",
+        "cloudTranscriptionDomain": "medical",
+        "cloudAccuracyTier": "high",
+        "cloudPostProcessingModel": "claudeHaiku"
+      },
+      "expectedWindows": {
+        "cloudProvider": "hyperwhisper",
+        "cloudTranscriptionModel": "nova-3",
+        "cloudTranscriptionDomain": "medical",
+        "cloudAccuracyTier": "deepgramNova3",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      },
+      "expectedLinux": {
+        "cloudProvider": "hyperwhisper",
+        "cloudTranscriptionModel": "nova-3",
+        "cloudTranscriptionDomain": "medical",
+        "cloudAccuracyTier": "high",
+        "cloudPostProcessingModel": "claudeHaiku"
+      }
+    },
+    {
+      "name": "legacy azure standalone mode, the full fold",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000131",
+        "name": "vec-131",
+        "cloudProvider": "microsoftAzureSpeech",
+        "cloudTranscriptionModel": "mai-transcribe-1.5",
+        "cloudTranscriptionDomain": "medical",
+        "cloudAccuracyTier": "medium",
+        "cloudPostProcessingModel": "default"
+      },
+      "expectedWindows": {
+        "cloudProvider": "hyperwhisper",
+        "cloudTranscriptionModel": "mai-transcribe-1.5",
+        "cloudTranscriptionDomain": "medical",
+        "cloudAccuracyTier": "azureMaiTranscribe",
+        "cloudPostProcessingModel": "cerebras:gpt-oss-120b"
+      },
+      "expectedLinux": {
+        "cloudProvider": "microsoftAzureSpeech",
+        "cloudTranscriptionModel": "mai-transcribe-1.5",
+        "cloudTranscriptionDomain": "medical",
+        "cloudAccuracyTier": "medium",
+        "cloudPostProcessingModel": "default"
+      }
+    },
+    {
+      "name": "legacy BYOK assemblyai medical mode",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000132",
+        "name": "vec-132",
+        "cloudProvider": "assemblyai",
+        "cloudTranscriptionModel": "universal-3-pro-medical",
+        "cloudTranscriptionDomain": "medical",
+        "cloudAccuracyTier": "highest",
+        "cloudPostProcessingModel": "groq-gpt-oss-120b"
+      },
+      "expectedWindows": {
+        "cloudProvider": "assemblyai",
+        "cloudTranscriptionModel": "universal-3-5-pro-medical",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "groq:openai/gpt-oss-120b"
+      },
+      "expectedLinux": {
+        "cloudProvider": "assemblyai",
+        "cloudTranscriptionModel": "universal-3-pro-medical",
+        "cloudTranscriptionDomain": "medical",
+        "cloudAccuracyTier": "highest",
+        "cloudPostProcessingModel": "groq-gpt-oss-120b"
+      }
+    }
+  ],
+  "windowsSettings": [],
+  "linuxSettings": [],
+  "macosSettings": [],
+  "unknownKeyRoundTrip": []
+}

@@ -557,6 +557,49 @@ internal static class Program
                 }
             });
 
+            // NATIVE CAPTURE (issue #277, phase 1a). Drives every
+            // shared-conformance/backup-vectors.json modeNormalization row through the
+            // SHIPPING Windows mode-import path — UniversalBackupMapper.MapToMode, which
+            // composes CloudSttCatalog.NormalizeCloudProvider, the core's
+            // MigrateCloudAccuracyTier / MigrateCloudPpModel, CloudTranscriptionModels
+            // .ResolveModelAlias and the cloudTranscriptionDomain gate — and pins the
+            // answer this build produces. It changes no behavior; it records it, so the
+            // Rust port can be diffed on the same inputs before the native copies go.
+            //
+            // A row carries "expected" when Windows and Linux already agree, and
+            // "expectedWindows"/"expectedLinux" when they do not. The same file is read
+            // by app/shared-dotnet/HyperWhisper.Backup.Application.Tests.
+            Run("backup mode-normalization vectors — native capture", () =>
+            {
+                var vectorsPath = Path.Combine(AppContext.BaseDirectory, "backup-vectors.json");
+                Assert(File.Exists(vectorsPath), $"backup-vectors.json not found at {vectorsPath}");
+
+                using var vectors = JsonDocument.Parse(File.ReadAllText(vectorsPath));
+                var rows = vectors.RootElement.GetProperty("modeNormalization");
+                Assert(rows.GetArrayLength() > 0, "backup-vectors.json has no modeNormalization rows");
+
+                foreach (var row in rows.EnumerateArray())
+                {
+                    var label = row.GetProperty("name").GetString()
+                        ?? throw new InvalidOperationException("a vector row has no name");
+                    var expected = row.TryGetProperty("expected", out var shared)
+                        ? shared
+                        : row.GetProperty("expectedWindows");
+
+                    var universal = JsonSerializer.Deserialize<UniversalMode>(
+                        row.GetProperty("mode").GetRawText())
+                        ?? throw new InvalidOperationException($"vector '{label}' did not deserialize");
+
+                    var mode = UniversalBackupMapper.MapToMode(universal);
+
+                    AssertModeVectorField(label, "cloudProvider", expected, mode.CloudProvider);
+                    AssertModeVectorField(label, "cloudTranscriptionModel", expected, mode.CloudTranscriptionModel);
+                    AssertModeVectorField(label, "cloudTranscriptionDomain", expected, mode.CloudTranscriptionDomain);
+                    AssertModeVectorField(label, "cloudAccuracyTier", expected, mode.CloudAccuracyTier);
+                    AssertModeVectorField(label, "cloudPostProcessingModel", expected, mode.CloudPostProcessingModel);
+                }
+            });
+
             Run("Groq post-processing sends an explicit output-token cap", () =>
             {
                 using var body = ReadLlmBody(PortableLlmProvider.Groq, "openai/gpt-oss-20b");
@@ -3957,6 +4000,27 @@ internal static class Program
     {
         if (!condition)
             throw new InvalidOperationException(message);
+    }
+
+    /// <summary>
+    /// Compares one field of a backup-vectors.json expectation against the value the
+    /// native mapper produced. JSON <c>null</c> means the field must come out null —
+    /// the absent-stays-absent rule the vectors exist to pin.
+    /// </summary>
+    private static void AssertModeVectorField(
+        string label,
+        string field,
+        JsonElement expected,
+        string? actual)
+    {
+        Assert(expected.TryGetProperty(field, out var element),
+            $"vector '{label}' is missing the expected field '{field}'");
+
+        var want = element.ValueKind == JsonValueKind.Null ? null : element.GetString();
+        Assert(want == actual,
+            $"vector '{label}': {field} expected {Quote(want)}, got {Quote(actual)}");
+
+        static string Quote(string? value) => value is null ? "null" : $"'{value}'";
     }
 
     private static async Task<T> ExpectAsync<T>(Func<Task> action) where T : Exception

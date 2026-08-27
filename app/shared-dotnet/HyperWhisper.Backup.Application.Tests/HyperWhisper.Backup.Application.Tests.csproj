@@ -8,6 +8,10 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\HyperWhisper.Application\HyperWhisper.Application.csproj" />
+    <!-- The vectors are the cross-platform contract, not a fixture of this
+         project: app/windows/HyperWhisper.SmokeTests runs the same file. -->
+    <Content Include="../../../shared-conformance/backup-vectors.json"
+             Link="backup-vectors.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="../../../shared-core-rs/target/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so"
              Condition="Exists('../../../shared-core-rs/target/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so')">
       <Link>libhyperwhisper_core.so</Link>

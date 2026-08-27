@@ -274,7 +274,67 @@ try
             ["platformExtensions"]!["macos"]!["futureMac"]!.GetValue<string>() == "keep",
         "foreign platform extensions were not preserved across import/export");
 
-    Console.WriteLine("Backup application tests passed (37/37).");
+    // NATIVE CAPTURE (issue #277, phase 1a). Drives every
+    // shared-conformance/backup-vectors.json modeNormalization row through the SHIPPING
+    // Linux mode-import path (ApplicationBackupService.ImportAsync -> ParseMode) and pins
+    // the answer this build produces. It changes no behavior; it records it, so the Rust
+    // port can be diffed on the same inputs before the native copies go.
+    //
+    // A row carries "expected" when Windows and Linux already agree, and
+    // "expectedWindows"/"expectedLinux" when they do not — Linux runs no cloud-routing
+    // migration, no catalog provider normalization, no model-alias resolution and no
+    // cloudTranscriptionDomain gate, so most rows differ today. That recorded
+    // disagreement IS the drift #277 asked to be documented; 1b collapses it.
+    // The same file is read by app/windows/HyperWhisper.SmokeTests.
+    var vectorsPath = Path.Combine(AppContext.BaseDirectory, "backup-vectors.json");
+    Assert(File.Exists(vectorsPath), $"backup-vectors.json not found at {vectorsPath}");
+    var vectorRows = JsonNode.Parse(await File.ReadAllTextAsync(vectorsPath))!
+        .AsObject()["modeNormalization"]!.AsArray();
+    Assert(vectorRows.Count > 0, "backup-vectors.json has no modeNormalization rows");
+
+    // A dedicated database so the vector modes cannot perturb the assertions above
+    // (BackupImportSelection.All replaces every existing mode).
+    var vectorRoot = Path.Combine(root, "mode-normalization-vectors");
+    Directory.CreateDirectory(vectorRoot);
+    var vectorPaths = new TestPaths(vectorRoot);
+    var vectorSettings = new PortableSettingsService(new MemoryPrivateFileService(), vectorPaths);
+    Assert(vectorSettings.Load().IsSuccess, "vector settings did not initialize");
+    var vectorDatabase = new ApplicationDb(vectorPaths);
+    await vectorDatabase.MigrateAsync();
+    var vectorService = new ApplicationBackupService(vectorDatabase, vectorSettings);
+
+    var vectorBackup = new JsonObject
+    {
+        ["schemaVersion"] = 2,
+        ["exportDate"] = DateTimeOffset.UtcNow.ToString("O"),
+        ["appVersion"] = "1.0.0",
+        ["platform"] = "linux",
+        ["modes"] = new JsonArray(vectorRows.Select(item => item!["mode"]!.DeepClone()).ToArray()),
+    };
+    var vectorImport = await vectorService.ImportAsync(vectorBackup.ToJsonString());
+    Assert(vectorImport.IsSuccess, $"vector import failed: {vectorImport.Error?.Message}");
+
+    var importedModes = (await new ModeRepository(vectorDatabase).ListAsync())
+        .ToDictionary(item => item.Id);
+    foreach (var vectorRow in vectorRows)
+    {
+        var vector = vectorRow!.AsObject();
+        var label = vector["name"]!.GetValue<string>();
+        var expected = (vector["expected"] ?? vector["expectedLinux"]) as JsonObject
+            ?? throw new InvalidOperationException(
+                $"vector '{label}' declares neither 'expected' nor 'expectedLinux'");
+        var id = Guid.Parse(vector["mode"]!["id"]!.GetValue<string>());
+        Assert(importedModes.TryGetValue(id, out var imported), $"vector '{label}' was not imported");
+
+        AssertModeVectorField(label, "cloudProvider", expected, imported!.CloudProvider);
+        AssertModeVectorField(label, "cloudTranscriptionModel", expected, imported.CloudTranscriptionModel);
+        AssertModeVectorField(label, "cloudTranscriptionDomain", expected, imported.CloudTranscriptionDomain);
+        AssertModeVectorField(label, "cloudAccuracyTier", expected, imported.CloudAccuracyTier);
+        AssertModeVectorField(label, "cloudPostProcessingModel", expected, imported.CloudPostProcessingModel);
+    }
+
+    Console.WriteLine($"Backup mode-normalization vectors: {vectorRows.Count}/{vectorRows.Count} rows matched the Linux import.");
+    Console.WriteLine("Backup application tests passed (38/38).");
 }
 finally
 {
@@ -284,6 +344,19 @@ finally
 static void Assert(bool condition, string message)
 {
     if (!condition) throw new InvalidOperationException(message);
+}
+
+// Compares one field of a backup-vectors.json expectation against the value the native
+// importer produced. JSON null means the field must come out null — the
+// absent-stays-absent rule the vectors exist to pin.
+static void AssertModeVectorField(string label, string field, JsonObject expected, string? actual)
+{
+    Assert(expected.ContainsKey(field), $"vector '{label}' is missing the expected field '{field}'");
+    var want = expected[field]?.GetValue<string>();
+    Assert(want == actual,
+        $"vector '{label}': {field} expected {Quote(want)}, got {Quote(actual)}");
+
+    static string Quote(string? value) => value is null ? "null" : $"'{value}'";
 }
 
 static async Task AssertThrowsAsync<TException>(Func<Task> action, string message) where TException : Exception

@@ -12,6 +12,10 @@
   <ItemGroup>
     <ProjectReference Include="..\HyperWhisper\HyperWhisper.csproj" />
     <ProjectReference Include="..\..\shared-dotnet\HyperWhisper.Application\HyperWhisper.Application.csproj" />
+    <!-- The vectors are the cross-platform contract, not a fixture of this
+         project: the Linux backup harness runs the same file. -->
+    <Content Include="../../../shared-conformance/backup-vectors.json"
+             Link="backup-vectors.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
