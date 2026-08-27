@@ -2,261 +2,8 @@ using HyperWhisper.Data.Entities;
 using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.SpeechOutput;
-using HyperWhisper.SharedCore;
-using HyperWhisper.Storage;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 
 namespace HyperWhisper.PortableApplication.Transcription;
-
-public enum TranscriptionWorkflowState
-{
-    Idle,
-    Recording,
-    Stopping,
-    Transcribing,
-    Retrying,
-    Completed,
-    Cancelled,
-    Failed,
-}
-
-public sealed record TranscriptionBackendCapability(
-    bool IsAvailable,
-    string DisplayName,
-    string? UnavailableReason = null);
-
-public enum PortableTranscriptionErrorCode
-{
-    InvalidRequest,
-    BackendUnavailable,
-    TranscriptionFailed,
-    Cancelled,
-}
-
-public sealed record PortableTranscriptionFailure(
-    PortableTranscriptionErrorCode Code,
-    string Message);
-
-public sealed record TranscriptionWordTimestamp(
-    [property: JsonPropertyName("word")] string Word,
-    [property: JsonPropertyName("start")] double Start,
-    [property: JsonPropertyName("end")] double End,
-    [property: JsonPropertyName("probability")] double? Probability = null);
-
-public sealed record TranscriptionSegmentTimestamp(
-    [property: JsonPropertyName("id")] int Id,
-    [property: JsonPropertyName("start")] double Start,
-    [property: JsonPropertyName("end")] double End,
-    [property: JsonPropertyName("text")] string Text);
-
-public sealed record TranscriptionTimestamps(
-    [property: JsonPropertyName("segments")] IReadOnlyList<TranscriptionSegmentTimestamp> Segments,
-    [property: JsonPropertyName("words")] IReadOnlyList<TranscriptionWordTimestamp>? Words,
-    [property: JsonPropertyName("raw_text")] string RawText)
-{
-    [JsonPropertyName("basis")]
-    public string Basis => "raw_text";
-
-    public string? ToPersistedJson() => Segments.Count == 0 && (Words?.Count ?? 0) == 0
-        ? null
-        : JsonSerializer.Serialize(this);
-}
-
-public sealed record PortableTranscriptionResult(
-    string? Text,
-    string? Provider,
-    PortableTranscriptionFailure? Failure,
-    string? RawText = null,
-    string? PostProcessedText = null,
-    string? PostProcessingProvider = null,
-    TextInjectionOutcome? InjectionOutcome = null,
-    TranscriptionTimestamps? Timestamps = null)
-{
-    public bool IsSuccess => Failure is null && !string.IsNullOrWhiteSpace(Text);
-
-    public static PortableTranscriptionResult Success(string text, string provider) =>
-        new(text, provider, null);
-
-    public static PortableTranscriptionResult Failed(
-        PortableTranscriptionErrorCode code,
-        string message,
-        string? provider = null) =>
-        new(null, provider, new PortableTranscriptionFailure(code, message));
-}
-
-public interface IRecordedAudioTranscriber
-{
-    TranscriptionBackendCapability Capability { get; }
-
-    Task<PortableTranscriptionResult> TranscribeAsync(
-        string audioPath,
-        TranscriptionWorkflowRequest request,
-        CancellationToken cancellationToken = default) =>
-        TranscribeAsync(audioPath, request.Language, cancellationToken);
-
-    // Compatibility entry point for fixed local backends. Mode-aware routers
-    // override the request overload above; existing platform implementations
-    // continue to receive the normalized language without losing compatibility.
-    Task<PortableTranscriptionResult> TranscribeAsync(
-        string audioPath,
-        string? language,
-        CancellationToken cancellationToken = default);
-}
-
-public sealed record BatchAudioPreprocessResult(string TranscriptionPath, string? TrimmedAudioPath, string Reason);
-
-public interface IBatchAudioPreprocessor
-{
-    Task<BatchAudioPreprocessResult> PreprocessAsync(string path, CancellationToken cancellationToken = default);
-}
-
-public interface ICompletedAudioTransformer
-{
-    Task<PlatformResult<string>> TransformAsync(string path, CancellationToken cancellationToken = default);
-}
-
-public sealed class CompletedAudioRetention(
-    Func<bool> keepAudio,
-    PortableStorageLifecycleService storage,
-    ICompletedAudioTransformer? transformer = null)
-{
-    private readonly Func<bool> _keepAudio = keepAudio ?? throw new ArgumentNullException(nameof(keepAudio));
-    private readonly PortableStorageLifecycleService _storage = storage ?? throw new ArgumentNullException(nameof(storage));
-    private readonly ICompletedAudioTransformer? _transformer = transformer;
-
-    public bool ShouldKeepAudio => _keepAudio();
-
-    public Task<StorageCleanupResult> DeleteAsync(string path, CancellationToken cancellationToken) =>
-        _storage.EnforceKeepAudioAsync(path, keepAudio: false, cancellationToken);
-
-    public Task<PlatformResult<string>> TransformAsync(string path, CancellationToken cancellationToken) =>
-        _transformer is null
-            ? Task.FromResult(PlatformResult<string>.Success(path))
-            : _transformer.TransformAsync(path, cancellationToken);
-}
-
-public sealed record PortablePostProcessingResult(
-    string Text,
-    bool WasApplied,
-    string? Provider,
-    string? FailureCode = null,
-    string? FailureMessage = null)
-{
-    public static PortablePostProcessingResult Applied(string text, string provider) =>
-        new(text, true, provider);
-
-    public static PortablePostProcessingResult Skipped(
-        string original,
-        string? failureCode = null,
-        string? failureMessage = null) =>
-        new(original, false, null, failureCode, failureMessage);
-}
-
-public interface ITranscriptionPostProcessor
-{
-    Task<PortablePostProcessingResult> ProcessAsync(
-        string transcript,
-        Mode mode,
-        ApplicationContextSnapshot? applicationContext,
-        CancellationToken cancellationToken = default) =>
-        ProcessAsync(transcript, mode, cancellationToken);
-
-    // Compatibility entry point for processors that do not consume desktop
-    // context. New processors should override the context-aware overload.
-    Task<PortablePostProcessingResult> ProcessAsync(
-        string transcript,
-        Mode mode,
-        CancellationToken cancellationToken = default);
-}
-
-public sealed record TranscriptionWorkflowRequest(
-    string? Language = null,
-    string? ModeName = null,
-    Guid? ModeId = null,
-    Mode? SelectedMode = null,
-    IReadOnlyList<string>? Vocabulary = null,
-    ApplicationContextSnapshot? ApplicationContext = null,
-    IReadOnlyList<PortableVocabularyReplacement>? VocabularyReplacements = null,
-    IReadOnlyList<PortableVocabularyReplacement>? ModeVocabularyReplacements = null,
-    SpeechOutputProcessingOptions? OutputOptions = null,
-    bool PasteResultText = true,
-    PortableCursorContext CursorContext = PortableCursorContext.Unknown,
-    bool StoreWordTimestamps = true)
-{
-    /// <summary>Freezes mutable mode and list state for one transcription operation.</summary>
-    public TranscriptionWorkflowRequest Snapshot() => this with
-    {
-        SelectedMode = SelectedMode is null ? null : CloneMode(SelectedMode),
-        Vocabulary = Vocabulary?.ToArray(),
-        ApplicationContext = ApplicationContext is null ? null : ApplicationContext with { },
-        VocabularyReplacements = VocabularyReplacements?.ToArray(),
-        ModeVocabularyReplacements = ModeVocabularyReplacements?.ToArray(),
-        OutputOptions = OutputOptions is null ? null : OutputOptions with { },
-    };
-
-    private static Mode CloneMode(Mode value) => new()
-    {
-        Id = value.Id, Name = value.Name, Preset = value.Preset,
-        IsDefault = value.IsDefault, IsSystemProvided = value.IsSystemProvided, SortOrder = value.SortOrder,
-        Language = value.Language, Model = value.Model, ModelType = value.ModelType,
-        LocalEngine = value.LocalEngine, LocalParakeetModel = value.LocalParakeetModel,
-        CloudProvider = value.CloudProvider, CloudTranscriptionModel = value.CloudTranscriptionModel,
-        CloudTranscriptionDomain = value.CloudTranscriptionDomain, ProviderType = value.ProviderType,
-        CloudAccuracyTier = value.CloudAccuracyTier, GeminiCustomPrompt = value.GeminiCustomPrompt,
-        Punctuation = value.Punctuation, Capitalization = value.Capitalization,
-        ProfanityFilter = value.ProfanityFilter, RemoveTrailingPeriod = value.RemoveTrailingPeriod,
-        EnglishSpelling = value.EnglishSpelling, PostProcessingMode = value.PostProcessingMode,
-        PostProcessingProvider = value.PostProcessingProvider, LanguageModel = value.LanguageModel,
-        LocalPostProcessingModel = value.LocalPostProcessingModel, UserSystemPrompt = value.UserSystemPrompt,
-        CustomInstructions = value.CustomInstructions, EnableScreenOCR = value.EnableScreenOCR,
-        CloudPostProcessingModel = value.CloudPostProcessingModel,
-        CustomVocabulary = value.CustomVocabulary?.ToList(),
-        CreatedDate = value.CreatedDate, ModifiedDate = value.ModifiedDate,
-        ForeignPlatformExtensions = value.ForeignPlatformExtensions,
-    };
-}
-
-public static class TranscriptionTextDelivery
-{
-    public static async ValueTask<TextInjectionOutcome> DeliverAsync(
-        ITextInjectionService textInjection,
-        string text,
-        bool pasteResultText,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(textInjection);
-        ArgumentNullException.ThrowIfNull(text);
-        if (pasteResultText)
-            return await textInjection.InjectTranscriptAsync(text, cancellationToken).ConfigureAwait(false);
-        var copied = await textInjection.CopyToClipboardAsync(text, cancellationToken).ConfigureAwait(false);
-        return copied.IsSuccess ? TextInjectionOutcome.CopiedToClipboard : TextInjectionOutcome.Failed;
-    }
-}
-
-public sealed record TranscriptionWorkflowSnapshot(
-    TranscriptionWorkflowState State,
-    string Message,
-    string? ErrorCode,
-    IReadOnlyList<AudioInputDevice> AudioDevices,
-    string? SelectedAudioDeviceId,
-    TranscriptionBackendCapability Backend)
-{
-    public bool CanStartRecording => State is not (TranscriptionWorkflowState.Recording
-        or TranscriptionWorkflowState.Stopping or TranscriptionWorkflowState.Transcribing
-        or TranscriptionWorkflowState.Retrying)
-        && Backend.IsAvailable && AudioDevices.Count > 0;
-
-    public bool CanTranscribeFile => State is not (TranscriptionWorkflowState.Recording
-        or TranscriptionWorkflowState.Stopping or TranscriptionWorkflowState.Transcribing
-        or TranscriptionWorkflowState.Retrying)
-        && Backend.IsAvailable;
-
-    public bool CanStop => State == TranscriptionWorkflowState.Recording;
-    public bool CanCancel => State is TranscriptionWorkflowState.Recording
-        or TranscriptionWorkflowState.Stopping or TranscriptionWorkflowState.Transcribing
-        or TranscriptionWorkflowState.Retrying;
-}
 
 /// <summary>
 /// Portable recording/transcription state machine. A processing history row is
@@ -765,42 +512,9 @@ public sealed class TranscriptionWorkflow : IDisposable
         {
             operation.Token.ThrowIfCancellationRequested();
             var rawText = result.Text!.Trim();
-            var processingInput = rawText;
             string? postProcessedText = null;
-            string? postProcessingProvider = null;
-            if (ShouldPostProcess(request.SelectedMode) && _postProcessor is not null)
-            {
-                PortablePostProcessingResult postProcessing;
-                try
-                {
-                    postProcessing = await _postProcessor.ProcessAsync(
-                        rawText,
-                        request.SelectedMode!,
-                        request.ApplicationContext,
-                        operation.Token).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException)
-                {
-                    postProcessing = PortablePostProcessingResult.Skipped(
-                        rawText, "postprocessing.cancelled", "Post-processing was cancelled.");
-                }
-                catch (Exception)
-                {
-                    postProcessing = PortablePostProcessingResult.Skipped(
-                        rawText, "postprocessing.failed", "Post-processing failed.");
-                }
-
-                // Windows keeps the raw transcription whenever post-processing
-                // fails, is cancelled, or returns empty output. Never persist a
-                // provider or synthetic completion unless enhancement applied.
-                if (postProcessing.WasApplied
-                    && !string.IsNullOrWhiteSpace(postProcessing.Text)
-                    && !string.IsNullOrWhiteSpace(postProcessing.Provider))
-                {
-                    processingInput = postProcessing.Text.Trim();
-                    postProcessingProvider = postProcessing.Provider;
-                }
-            }
+            var (processingInput, postProcessingProvider) =
+                await ApplyPostProcessingAsync(rawText, request, operation.Token).ConfigureAwait(false);
 
             var output = SpeechOutputProcessor.Process(new SpeechOutputProcessingRequest(
                 processingInput,
@@ -844,18 +558,8 @@ public sealed class TranscriptionWorkflow : IDisposable
                 }
             }
 
-            transcript.Text = finalText;
-            transcript.TranscribedText = rawText;
-            transcript.PostProcessedText = postProcessedText;
-            transcript.WordTimestampsJson = request.StoreWordTimestamps
-                ? result.Timestamps?.ToPersistedJson()
-                : null;
-            transcript.Status = TranscriptStatus.Completed;
-            transcript.FailedReason = null;
-            transcript.TranscriptionProvider = result.Provider ?? _transcriber.Capability.DisplayName;
-            transcript.PostProcessingProvider = postProcessingProvider;
-            transcript.Mode = request.SelectedMode?.Name ?? request.ModeName;
-            transcript.ModeId = request.SelectedMode?.Id ?? request.ModeId;
+            PopulateCompletedTranscript(
+                transcript, request, result, finalText, rawText, postProcessedText, postProcessingProvider);
             var deleteCompletedAudio = ownsAudio && _audioRetention is not null && !_audioRetention.ShouldKeepAudio;
             if (ownsAudio && _audioRetention is { ShouldKeepAudio: true })
             {
@@ -866,17 +570,7 @@ public sealed class TranscriptionWorkflow : IDisposable
             if (!await _history.UpdateAsync(transcript, operation.Token).ConfigureAwait(false))
                 throw new InvalidOperationException("The processing transcript disappeared before completion.");
             if (deleteCompletedAudio)
-            {
-                try
-                {
-                    _ = await _audioRetention!.DeleteAsync(audioPath, operation.Token).ConfigureAwait(false);
-                }
-                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-                {
-                    // The transcript is complete and no longer references the file.
-                    // The recording-root inventory still reports the orphan.
-                }
-            }
+                await DeleteCompletedAudioAsync(audioPath, operation.Token).ConfigureAwait(false);
             lock (_sync)
             {
                 FinishOperationLocked(operation);
@@ -912,6 +606,86 @@ public sealed class TranscriptionWorkflow : IDisposable
                 result.Provider,
                 audioPath,
                 deleteOwnedAudioOnTerminalFailure).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Runs the optional post-processor. Returns the text to feed into speech
+    /// output and the provider to persist, or the raw text and no provider when
+    /// post-processing is off, fails, is cancelled, or returns empty output.
+    /// </summary>
+    private async Task<(string ProcessingInput, string? Provider)> ApplyPostProcessingAsync(
+        string rawText,
+        TranscriptionWorkflowRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!ShouldPostProcess(request.SelectedMode) || _postProcessor is null)
+            return (rawText, null);
+
+        PortablePostProcessingResult postProcessing;
+        try
+        {
+            postProcessing = await _postProcessor.ProcessAsync(
+                rawText,
+                request.SelectedMode!,
+                request.ApplicationContext,
+                cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            postProcessing = PortablePostProcessingResult.Skipped(
+                rawText, "postprocessing.cancelled", "Post-processing was cancelled.");
+        }
+        catch (Exception)
+        {
+            postProcessing = PortablePostProcessingResult.Skipped(
+                rawText, "postprocessing.failed", "Post-processing failed.");
+        }
+
+        // Windows keeps the raw transcription whenever post-processing
+        // fails, is cancelled, or returns empty output. Never persist a
+        // provider or synthetic completion unless enhancement applied.
+        if (postProcessing.WasApplied
+            && !string.IsNullOrWhiteSpace(postProcessing.Text)
+            && !string.IsNullOrWhiteSpace(postProcessing.Provider))
+            return (postProcessing.Text.Trim(), postProcessing.Provider);
+
+        return (rawText, null);
+    }
+
+    private void PopulateCompletedTranscript(
+        Transcript transcript,
+        TranscriptionWorkflowRequest request,
+        PortableTranscriptionResult result,
+        string finalText,
+        string rawText,
+        string? postProcessedText,
+        string? postProcessingProvider)
+    {
+        transcript.Text = finalText;
+        transcript.TranscribedText = rawText;
+        transcript.PostProcessedText = postProcessedText;
+        transcript.WordTimestampsJson = request.StoreWordTimestamps
+            ? result.Timestamps?.ToPersistedJson()
+            : null;
+        transcript.Status = TranscriptStatus.Completed;
+        transcript.FailedReason = null;
+        transcript.TranscriptionProvider = result.Provider ?? _transcriber.Capability.DisplayName;
+        transcript.PostProcessingProvider = postProcessingProvider;
+        transcript.Mode = request.SelectedMode?.Name ?? request.ModeName;
+        transcript.ModeId = request.SelectedMode?.Id ?? request.ModeId;
+    }
+
+    private async Task DeleteCompletedAudioAsync(string audioPath, CancellationToken cancellationToken)
+    {
+        try
+        {
+            _ = await _audioRetention!.DeleteAsync(audioPath, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            // The transcript is complete and no longer references the file.
+            // The recording-root inventory still reports the orphan.
         }
     }
 
