@@ -20,6 +20,28 @@ var tests = new (string Name, Func<Task> Run)[]
         Assert.Equal("hello ", SharedCoreBridge.AppendTrailingSpace("hello", "en"));
         return Task.CompletedTask;
     }),
+    // The CJK segment-join policy (issue #286). The parakeet daemon and the
+    // Linux live-delivery path both pick their separator from this instead of
+    // keeping a private ja|zh|ko|yue table.
+    ("the no-space join policy stays in the shared core", () =>
+    {
+        foreach (var code in new[] { "ja", "zh", "ko", "yue", "th", "zh-Hant" })
+        {
+            Assert.True(SharedCoreBridge.IsNoSpaceLanguage(code));
+        }
+        // Case-insensitive, whitespace-tolerant, two-character prefix fallback.
+        Assert.True(SharedCoreBridge.IsNoSpaceLanguage("JA"));
+        Assert.True(SharedCoreBridge.IsNoSpaceLanguage("zh-CN"));
+        Assert.True(SharedCoreBridge.IsNoSpaceLanguage("  ja  "));
+        // "No language declared" is not a no-space language — text-based
+        // detection is ContainsCjk's job, not this one's.
+        foreach (var code in new[] { "en", "de", "en-US", "auto", "" })
+        {
+            Assert.False(SharedCoreBridge.IsNoSpaceLanguage(code));
+        }
+        Assert.False(SharedCoreBridge.IsNoSpaceLanguage(null));
+        return Task.CompletedTask;
+    }),
     ("backup validation returns structured failures", () =>
     {
         Assert.True(SharedCoreBridge.ValidateBackup("{}").Count > 0);

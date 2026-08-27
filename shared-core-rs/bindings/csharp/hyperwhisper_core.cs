@@ -1138,6 +1138,8 @@ static class _UniFFILib {
     
     
     
+    
+    
 
     static _UniFFILib() {
         _UniFFILib.uniffiCheckContractApiVersion();
@@ -1532,6 +1534,10 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_hyperwhisper_cloud_parse_transcribe_response(RustBuffer @resp,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern sbyte uniffi_hyperwhisper_core_fn_func_is_no_space_language(RustBuffer @languageCode,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -2463,6 +2469,10 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_is_no_space_language(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_is_retryable(
     );
 
@@ -3384,6 +3394,12 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_hyperwhisper_cloud_parse_transcribe_response();
             if (checksum != 23581) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_hyperwhisper_cloud_parse_transcribe_response` checksum `23581`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_is_no_space_language();
+            if (checksum != 44853) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_is_no_space_language` checksum `44853`, library returned `{checksum}`");
             }
         }
         {
@@ -11798,6 +11814,22 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterTypeHwTranscript.INSTANCE.Lift(
     _UniffiHelpers.RustCallWithError(FfiConverterTypeHwTranscriptionError.INSTANCE, (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_hyperwhisper_cloud_parse_transcribe_response(FfiConverterTypeHttpResponse.INSTANCE.Lower(@resp), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Whether a language code is written without spaces between words.
+    ///
+    /// The join policy for concatenated transcription segments (issue #286): the
+    /// parakeet daemon and the Linux live-delivery path both pick `""` versus `" "`
+    /// from this, instead of each keeping its own table. Case-insensitive, with a
+    /// two-character prefix fallback for regional variants (`"zh-CN"` → `"zh"`).
+    /// </summary>
+    public static bool IsNoSpaceLanguage(string @languageCode) {
+        return FfiConverterBoolean.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_is_no_space_language(FfiConverterString.INSTANCE.Lower(@languageCode), ref _status)
 ));
     }
 

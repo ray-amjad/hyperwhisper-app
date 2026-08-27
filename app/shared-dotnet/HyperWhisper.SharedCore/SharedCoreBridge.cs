@@ -108,6 +108,28 @@ public static class SharedCoreBridge
         return HyperwhisperCoreMethods.AppendTrailingSpace(text, language);
     }
 
+    /// <summary>
+    /// Whether <paramref name="language"/> is written without spaces between
+    /// words, so consecutive transcription segments join with <c>""</c> rather
+    /// than <c>" "</c>.
+    /// <para>
+    /// The single source of truth for the CJK join policy (issue #286). Callers
+    /// that used to keep a private <c>ja|zh|ko|yue</c> table — the parakeet
+    /// daemon, the Linux live-delivery path — read it from here, which also
+    /// gains them <c>th</c> and the explicit <c>zh-TW</c> / <c>zh-Hans</c> /
+    /// <c>zh-Hant</c> spellings.
+    /// </para>
+    /// <para>
+    /// Case-insensitive, whitespace-tolerant, and a regional variant falls back
+    /// to its two-character prefix (<c>"zh-CN"</c> → <c>"zh"</c>). A null,
+    /// empty or <c>"auto"</c> language is <b>not</b> no-space: with no declared
+    /// language there is nothing to decide on, and text-based detection is
+    /// <see cref="ContainsCjk"/>'s job.
+    /// </para>
+    /// </summary>
+    public static bool IsNoSpaceLanguage(string? language) =>
+        HyperwhisperCoreMethods.IsNoSpaceLanguage(language ?? string.Empty);
+
     public static string ApplyAutocapitalize(string text, PortableCursorContext context)
     {
         ArgumentNullException.ThrowIfNull(text);

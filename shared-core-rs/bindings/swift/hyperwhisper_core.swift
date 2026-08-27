@@ -10825,6 +10825,21 @@ public func hyperwhisperCloudParseTranscribeResponse(resp: HttpResponse)throws  
 })
 }
 /**
+ * Whether a language code is written without spaces between words.
+ *
+ * The join policy for concatenated transcription segments (issue #286): the
+ * parakeet daemon and the Linux live-delivery path both pick `""` versus `" "`
+ * from this, instead of each keeping its own table. Case-insensitive, with a
+ * two-character prefix fallback for regional variants (`"zh-CN"` → `"zh"`).
+ */
+public func isNoSpaceLanguage(languageCode: String) -> Bool {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_is_no_space_language(
+        FfiConverterString.lower(languageCode),$0
+    )
+})
+}
+/**
  * Whether a classified error should be retried.
  */
 public func isRetryable(status: UInt16, body: String) -> Bool {
@@ -12055,6 +12070,9 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_hyperwhisper_cloud_parse_transcribe_response() != 23581) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_is_no_space_language() != 44853) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_is_retryable() != 28969) {

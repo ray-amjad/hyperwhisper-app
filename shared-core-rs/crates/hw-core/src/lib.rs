@@ -87,6 +87,17 @@ pub fn contains_cjk(text: String) -> bool {
     hw_text::contains_cjk(&text)
 }
 
+/// Whether a language code is written without spaces between words.
+///
+/// The join policy for concatenated transcription segments (issue #286): the
+/// parakeet daemon and the Linux live-delivery path both pick `""` versus `" "`
+/// from this, instead of each keeping its own table. Case-insensitive, with a
+/// two-character prefix fallback for regional variants (`"zh-CN"` → `"zh"`).
+#[uniffi::export]
+pub fn is_no_space_language(language_code: String) -> bool {
+    hw_text::is_no_space_language(&language_code)
+}
+
 /// Replace a single vocabulary word with its replacement (whole-word,
 /// case-insensitive, literal replacement). Per-item primitive — the platform
 /// loops its vocabulary list.

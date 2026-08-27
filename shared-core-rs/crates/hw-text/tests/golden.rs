@@ -48,6 +48,61 @@ fn trailing_space_language_is_case_insensitive() {
     assert_eq!(append_trailing_space("Hallo Welt.", "DE"), "Hallo Welt. ");
 }
 
+/// `is_no_space_language` is the exported join policy (issue #286): the parakeet
+/// daemon and the Linux live-delivery path pick `""` versus `" "` from it rather
+/// than each keeping its own table.
+#[test]
+fn no_space_language_table() {
+    // The codes the parakeet daemons already had.
+    for code in ["ja", "zh", "ko", "yue"] {
+        assert!(is_no_space_language(code), "{code} should be no-space");
+    }
+    // The codes the daemons gain by moving onto this table.
+    for code in ["th", "zh-TW", "zh-Hans", "zh-Hant"] {
+        assert!(is_no_space_language(code), "{code} should be no-space");
+    }
+    // Space-delimited languages, and the two "no language declared" spellings.
+    for code in ["en", "de", "fr", "es", "ru", "ar", "auto", "", "  "] {
+        assert!(!is_no_space_language(code), "{code:?} should be spaced");
+    }
+}
+
+#[test]
+fn no_space_language_is_case_insensitive_and_prefix_matched() {
+    // Case-insensitive, mirroring the Windows `OrdinalIgnoreCase` table.
+    assert!(is_no_space_language("JA"));
+    assert!(is_no_space_language("KO"));
+    assert!(is_no_space_language("ZH-HANT"));
+    assert!(is_no_space_language("zh-hant"));
+    assert!(is_no_space_language("YUE"));
+    // Two-character prefix fallback for regional variants.
+    assert!(is_no_space_language("zh-CN"));
+    assert!(is_no_space_language("ZH-CN"));
+    assert!(is_no_space_language("ja-JP"));
+    assert!(is_no_space_language("ko-KR"));
+    // The prefix rule must not drag in an unrelated language that happens to
+    // share no prefix with the table.
+    assert!(!is_no_space_language("en-US"));
+    assert!(!is_no_space_language("yu")); // "yue" is an exact entry, not a prefix
+    // Surrounding whitespace is ignored, so a raw settings value still resolves.
+    assert!(is_no_space_language("  ja  "));
+    assert!(!is_no_space_language("  en  "));
+}
+
+/// `append_trailing_space` and `is_no_space_language` must never disagree: the
+/// former is defined in terms of the latter for an explicit language.
+#[test]
+fn trailing_space_agrees_with_the_no_space_table() {
+    for code in ["ja", "zh", "ko", "yue", "th", "zh-Hant", "zh-CN", "JA"] {
+        assert!(is_no_space_language(code));
+        assert_eq!(append_trailing_space("text", code), "text", "code {code}");
+    }
+    for code in ["en", "de", "fr", "en-US"] {
+        assert!(!is_no_space_language(code));
+        assert_eq!(append_trailing_space("text", code), "text ", "code {code}");
+    }
+}
+
 /// An empty or whitespace-only mode language means "no language set", which is
 /// the same thing as "auto" — detect from the text instead of appending blindly.
 #[test]

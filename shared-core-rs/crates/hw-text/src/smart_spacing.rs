@@ -15,8 +15,12 @@ use regex::Regex;
 const AUTOMATIC_CODE: &str = "auto";
 
 /// Language codes that don't use spaces between words (continuous script).
+///
+/// `yue` (Cantonese) comes from the parakeet daemons' own table (issue #286):
+/// it is written in Chinese characters, so it joins without spaces, and it does
+/// not fall out of the two-character prefix rule the way `zh-CN` does.
 const NO_SPACE_LANGUAGE_CODES: &[&str] =
-    &["ja", "zh", "zh-TW", "zh-Hans", "zh-Hant", "ko", "th"];
+    &["ja", "zh", "zh-TW", "zh-Hans", "zh-Hant", "ko", "th", "yue"];
 
 /// Inclusive CJK Unicode ranges (scalar values). Superset of both platforms.
 const CJK_RANGES: &[(u32, u32)] = &[
@@ -58,7 +62,22 @@ fn is_no_space_code(code: &str) -> bool {
         .any(|c| c.eq_ignore_ascii_case(code))
 }
 
-fn is_no_space_language(language_code: &str) -> bool {
+/// Whether `language_code` is written without spaces between words.
+///
+/// The single source of truth for the CJK join policy (issue #286). Callers that
+/// concatenate transcription segments — the parakeet daemon, the Linux live
+/// delivery path — pick their separator from this, so a language added here
+/// changes every join at once instead of drifting per-platform table.
+///
+/// Matching is case-insensitive, surrounding whitespace is ignored, and a
+/// regional variant falls back to its two-character prefix (`"zh-CN"` → `"zh"`).
+/// `""` and `"auto"` are not no-space languages — with no declared language the
+/// caller has nothing to go on, and [`append_trailing_space`] falls back to
+/// [`contains_cjk`] instead.
+pub fn is_no_space_language(language_code: &str) -> bool {
+    // `append_trailing_space` already trims before it gets here; trimming again
+    // is free and keeps a head that passes a raw settings value honest.
+    let language_code = language_code.trim();
     if is_no_space_code(language_code) {
         return true;
     }

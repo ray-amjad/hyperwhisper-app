@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Runtime.InteropServices;
+using HyperWhisper.SharedCore;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 using SherpaOnnx;
@@ -172,8 +173,26 @@ internal static class Program
         };
     }
 
-    // Keep in sync with is_no_space_language() in tools/parakeet-engine/main.cpp.
-    public static bool IsNoSpaceLanguage(string code) => code is "ja" or "zh" or "ko" or "yue";
+    /// <summary>
+    /// Whether the daemon joins transcription segments for <paramref name="code"/>
+    /// without spaces.
+    /// <para>
+    /// This used to be a private <c>ja|zh|ko|yue</c> literal. It now reads the
+    /// shared join policy out of <c>hw-text</c> (issue #286), which is the same
+    /// table the Linux live-delivery path and <c>append_trailing_space</c> use.
+    /// The daemon keeps <c>yue</c> — it was added to the shared table for this —
+    /// and gains <c>th</c>, the explicit <c>zh-TW</c> / <c>zh-Hans</c> /
+    /// <c>zh-Hant</c> spellings, case-insensitivity and the two-character prefix
+    /// fallback (<c>"zh-CN"</c>).
+    /// </para>
+    /// <para>
+    /// <c>tools/parakeet-engine/main.cpp</c> (the Windows x64 C++ daemon) still
+    /// carries its own copy of the old four-code table and is deliberately not
+    /// changed here; it is a separate process with no .NET runtime to reach the
+    /// core through.
+    /// </para>
+    /// </summary>
+    public static bool IsNoSpaceLanguage(string code) => SharedCoreBridge.IsNoSpaceLanguage(code);
 
     public static float Rms(float[] samples)
     {

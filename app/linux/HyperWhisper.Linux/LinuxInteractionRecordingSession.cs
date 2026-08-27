@@ -34,7 +34,15 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
     private Task _liveDeliveryTail = Task.CompletedTask;
     private CancellationTokenSource? _liveDeliveryCancellation;
     private readonly StringBuilder _liveFinalText = new();
-    private int _liveFinalSegments;
+
+    /// <summary>
+    /// What goes between two live final segments — <c>""</c> for a no-space
+    /// language, <c>" "</c> otherwise. Resolved once from the shared join policy
+    /// when delivery begins (issue #286), so the injected text and the saved
+    /// history text are built from the same value and a Japanese session stops
+    /// getting spaces wedged between its segments.
+    /// </summary>
+    private string _liveSegmentSeparator = " ";
     private PortableCursorContext _cursorContext = PortableCursorContext.Unknown;
 
     public LinuxInteractionRecordingSession(
@@ -385,9 +393,15 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         lock (_liveDeliveryGate)
         {
             if (!_streaming || _liveDeliveryCancellation is null) return;
-            if (_liveFinalText.Length > 0) _liveFinalText.Append(' ');
-            _liveFinalText.Append(update.Text);
-            injectionText = (_liveFinalSegments++ == 0 ? string.Empty : " ") + update.Text;
+            // One separator value, resolved once, used by both sinks. These used
+            // to disagree twice over: history joined with a hardcoded space in
+            // every language, and it tested `_liveFinalText.Length > 0` while the
+            // injection tested a segment counter — so an empty first final
+            // segment left history empty but advanced the counter, and the second
+            // segment was typed with a separator that was never saved.
+            var separator = _liveFinalText.Length == 0 ? string.Empty : _liveSegmentSeparator;
+            injectionText = separator + update.Text;
+            _liveFinalText.Append(injectionText);
             token = _liveDeliveryCancellation.Token;
             if (!_viewModel.Settings.PasteResultText) return;
             _liveDeliveryTail = DeliverLiveFinalAsync(_liveDeliveryTail, injectionText, token);
@@ -415,7 +429,10 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
             _liveDeliveryCancellation = new CancellationTokenSource();
             _liveDeliveryTail = Task.CompletedTask;
             _liveFinalText.Clear();
-            _liveFinalSegments = 0;
+            _liveSegmentSeparator =
+                SharedCoreBridge.IsNoSpaceLanguage(_viewModel.Settings.StreamingLanguage)
+                    ? string.Empty
+                    : " ";
         }
     }
 
