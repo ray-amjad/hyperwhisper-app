@@ -83,6 +83,9 @@ public sealed class PulseAudioRecorder : IAudioRecorder
                     UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite,
                 });
                 _format = new WaveFormat(options.SampleRate, (short)options.BitsPerSample, (short)options.ChannelCount);
+                // The length fields are a placeholder until CaptureLoop patches them on stop.
+                // A crash in between leaves them at zero, which readers survive because
+                // PcmWaveHeader recomputes the payload length from the file itself.
                 WaveFile.WriteHeader(_output, _format, 0);
                 _output.Position = WaveFile.HeaderSize;
                 _session = opened.Value!;

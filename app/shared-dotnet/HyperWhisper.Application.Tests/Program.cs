@@ -15,6 +15,7 @@ using HyperWhisper.Statistics;
 using HyperWhisper.Diagnostics;
 using System.IO.Compression;
 using HyperWhisper.PortableApplication.Audio;
+using HyperWhisper.Platform.Abstractions.Audio;
 
 var root = Path.Combine(Path.GetTempPath(), "HyperWhisper.Application.Tests", Guid.NewGuid().ToString("N"));
 Directory.CreateDirectory(root);
@@ -26,6 +27,7 @@ try
     await RunTranscriptionWorkflowTestsAsync(root);
     await RunHistoryRetryTestsAsync(root);
     await RunHistoryExperienceTestsAsync(root);
+    RunCanonicalPcmWaveTests(Path.Combine(root, "pcm-wave"));
     await RunCrashAudioRecoveryTestsAsync(Path.Combine(root, "crash-recovery"));
     await RunVoiceActivityTrimTestsAsync(Path.Combine(root, "vad"));
 
@@ -840,6 +842,76 @@ static async Task RunHistoryExperienceTestsAsync(string root)
     {
         // The containment behavior is covered wherever the host permits symlink creation.
     }
+}
+
+static void RunCanonicalPcmWaveTests(string root)
+{
+    Directory.CreateDirectory(root);
+
+    // The one builder must still emit the exact 44 bytes both call sites used to emit by hand.
+    var built = new MemoryStream();
+    PcmWaveHeader.Write(built, 16000, 1, 16, 6);
+    Assert(built.Position == PcmWaveHeader.HeaderSize, "the builder did not leave the stream after the header");
+    byte[] expected =
+    [
+        (byte)'R', (byte)'I', (byte)'F', (byte)'F', 0x2A, 0x00, 0x00, 0x00,   // RIFF, 36 + 6
+        (byte)'W', (byte)'A', (byte)'V', (byte)'E', (byte)'f', (byte)'m', (byte)'t', (byte)' ',
+        0x10, 0x00, 0x00, 0x00,                                              // fmt chunk size 16
+        0x01, 0x00,                                                          // PCM
+        0x01, 0x00,                                                          // 1 channel
+        0x80, 0x3E, 0x00, 0x00,                                              // 16000 Hz
+        0x00, 0x7D, 0x00, 0x00,                                              // 32000 bytes/second
+        0x02, 0x00,                                                          // block align 2
+        0x10, 0x00,                                                          // 16 bits
+        (byte)'d', (byte)'a', (byte)'t', (byte)'a', 0x06, 0x00, 0x00, 0x00,
+    ];
+    Assert(built.ToArray().AsSpan().SequenceEqual(expected), "the canonical 44-byte header changed shape");
+
+    // Both heads relied on a checked cast to refuse a payload the 32-bit RIFF fields cannot describe.
+    var overflowed = false;
+    try { PcmWaveHeader.Write(new MemoryStream(), 16000, 1, 16, uint.MaxValue - 35); }
+    catch (OverflowException) { overflowed = true; }
+    Assert(overflowed, "an unrepresentable data length did not overflow");
+
+    // A recording interrupted by a crash still declares the placeholder length of zero. The read
+    // path recomputes from the file and aligns down, so the trailing half-frame is dropped.
+    var crashed = Path.Combine(root, "crashed.wav");
+    using (var stream = File.Create(crashed))
+    {
+        PcmWaveHeader.Write(stream, 16000, 1, 16, 0);
+        stream.Position = PcmWaveHeader.HeaderSize;
+        stream.Write([1, 0, 2, 0, 3, 0, 4]);
+    }
+    var inspected = CanonicalPcmWave.InspectAndRepair(crashed, repair: false);
+    Assert(inspected.IsFailure && inspected.Error!.Code == "audio_recovery.incomplete_header",
+        "an unpatched header was not reported as incomplete without repair");
+    var repaired = CanonicalPcmWave.InspectAndRepair(crashed, repair: true);
+    Assert(repaired.IsSuccess && repaired.Value!.DataLength == 6,
+        "the recomputed payload length was not aligned down to whole sample frames");
+    Assert(new FileInfo(crashed).Length == PcmWaveHeader.HeaderSize + 6,
+        "repair did not truncate the half-written sample frame");
+    using (var stream = File.OpenRead(crashed))
+    {
+        Assert(PcmWaveHeader.TryRead(stream, out var header) == PcmWaveHeaderStatus.Valid
+            && header!.DeclaredLengthsAgree && header.DataLength == 6,
+            "the repaired header did not round-trip through the shared reader");
+    }
+    Assert(CanonicalPcmWave.InspectAndRepair(crashed, repair: false).IsSuccess,
+        "repair was not idempotent");
+
+    // A header-only file has no complete frame, whatever it declares.
+    var empty = Path.Combine(root, "empty.wav");
+    using (var stream = File.Create(empty)) PcmWaveHeader.Write(stream, 16000, 1, 16, 0);
+    Assert(CanonicalPcmWave.InspectAndRepair(empty, repair: true).Error!.Code == "audio_recovery.empty_wave",
+        "a sample-free recording was not rejected");
+
+    // Fields that cannot narrow are a typed rejection, not an OverflowException from a checked cast.
+    var hostile = File.ReadAllBytes(empty);
+    System.Buffers.Binary.BinaryPrimitives.WriteUInt16LittleEndian(hostile.AsSpan(22), 40000);
+    var hostilePath = Path.Combine(root, "hostile-channels.wav");
+    File.WriteAllBytes(hostilePath, [.. hostile, .. new byte[8]]);
+    Assert(CanonicalPcmWave.InspectAndRepair(hostilePath, repair: false).Error!.Code == "audio_recovery.unsupported_wave",
+        "an out-of-range channel count was not reported as an unsupported format");
 }
 
 static async Task RunCrashAudioRecoveryTestsAsync(string root)

@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Platform.Abstractions;
+using HyperWhisper.Platform.Abstractions.Audio;
 using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.PortableApplication.Transcription;
 
@@ -12,49 +13,49 @@ public sealed record WavePcmInfo(int SampleRate, short Channels, short BitsPerSa
     public double DurationSeconds => DataLength / (double)(SampleRate * BlockAlign);
 }
 
+/// <summary>
+/// Crash-recovery view of the canonical PCM WAV header: the shared reader and builder in
+/// <see cref="PcmWaveHeader"/>, plus this path's own <c>audio_recovery.*</c> error codes and its
+/// repair policy.
+/// </summary>
 public static class CanonicalPcmWave
 {
-    public const int HeaderSize = 44;
+    public const int HeaderSize = PcmWaveHeader.HeaderSize;
 
     public static PlatformResult<WavePcmInfo> InspectAndRepair(string path, bool repair)
     {
         try
         {
-            using var stream = new FileStream(path, repair ? FileMode.Open : FileMode.Open,
+            using var stream = new FileStream(path, FileMode.Open,
                 repair ? FileAccess.ReadWrite : FileAccess.Read, FileShare.Read);
-            if (stream.Length < HeaderSize)
-                return PlatformResult<WavePcmInfo>.Failure("audio_recovery.truncated_header", "The WAV header is incomplete.");
-            Span<byte> header = stackalloc byte[HeaderSize];
-            stream.ReadExactly(header);
-            if (!header[..4].SequenceEqual("RIFF"u8) || !header[8..12].SequenceEqual("WAVE"u8)
-                || !header[12..16].SequenceEqual("fmt "u8) || !header[36..40].SequenceEqual("data"u8)
-                || BinaryPrimitives.ReadUInt16LittleEndian(header[20..]) != 1)
-                return PlatformResult<WavePcmInfo>.Failure("audio_recovery.invalid_wave", "The file is not canonical PCM WAV audio.");
-            var channels = checked((short)BinaryPrimitives.ReadUInt16LittleEndian(header[22..]));
-            var sampleRate = checked((int)BinaryPrimitives.ReadUInt32LittleEndian(header[24..]));
-            var bits = checked((short)BinaryPrimitives.ReadUInt16LittleEndian(header[34..]));
-            if (channels <= 0 || sampleRate <= 0 || bits != 16)
-                return PlatformResult<WavePcmInfo>.Failure("audio_recovery.unsupported_wave", "Only 16-bit PCM WAV audio can be recovered.");
-            var actual = stream.Length - HeaderSize;
-            var blockAlign = channels * (bits / 8);
-            actual -= actual % blockAlign;
-            if (actual <= 0)
-                return PlatformResult<WavePcmInfo>.Failure("audio_recovery.empty_wave", "The recording contains no complete audio samples.");
-            if (actual > uint.MaxValue - 36)
-                return PlatformResult<WavePcmInfo>.Failure("audio_recovery.wave_too_large", "The recording is too large to recover safely.");
-            var declared = BinaryPrimitives.ReadUInt32LittleEndian(header[40..]);
-            if (declared != actual || BinaryPrimitives.ReadUInt32LittleEndian(header[4..]) != 36 + actual)
+            var status = PcmWaveHeader.TryRead(stream, out var header);
+            switch (status)
+            {
+                case PcmWaveHeaderStatus.Valid:
+                    break;
+                case PcmWaveHeaderStatus.TruncatedHeader:
+                    return PlatformResult<WavePcmInfo>.Failure("audio_recovery.truncated_header", "The WAV header is incomplete.");
+                case PcmWaveHeaderStatus.UnsupportedFormat:
+                    return PlatformResult<WavePcmInfo>.Failure("audio_recovery.unsupported_wave", "Only 16-bit PCM WAV audio can be recovered.");
+                case PcmWaveHeaderStatus.NoCompleteSamples:
+                    return PlatformResult<WavePcmInfo>.Failure("audio_recovery.empty_wave", "The recording contains no complete audio samples.");
+                case PcmWaveHeaderStatus.TooLarge:
+                    return PlatformResult<WavePcmInfo>.Failure("audio_recovery.wave_too_large", "The recording is too large to recover safely.");
+                default:
+                    return PlatformResult<WavePcmInfo>.Failure("audio_recovery.invalid_wave", "The file is not canonical PCM WAV audio.");
+            }
+
+            var actual = header!.DataLength;
+            if (!header.DeclaredLengthsAgree)
             {
                 if (!repair)
                     return PlatformResult<WavePcmInfo>.Failure("audio_recovery.incomplete_header", "The WAV length header is incomplete.");
                 stream.SetLength(HeaderSize + actual);
-                BinaryPrimitives.WriteUInt32LittleEndian(header[4..], checked((uint)(36 + actual)));
-                BinaryPrimitives.WriteUInt32LittleEndian(header[40..], checked((uint)actual));
-                stream.Position = 0;
-                stream.Write(header);
+                PcmWaveHeader.Write(stream, header.SampleRate, header.Channels, header.BitsPerSample, actual);
                 stream.Flush(flushToDisk: true);
             }
-            return PlatformResult<WavePcmInfo>.Success(new(sampleRate, channels, bits, actual));
+            return PlatformResult<WavePcmInfo>.Success(
+                new(header.SampleRate, header.Channels, header.BitsPerSample, actual));
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or OverflowException)
         {
@@ -63,23 +64,7 @@ public static class CanonicalPcmWave
     }
 
     public static void WriteHeader(Stream stream, WavePcmInfo info, long dataLength)
-    {
-        Span<byte> header = stackalloc byte[HeaderSize];
-        "RIFF"u8.CopyTo(header);
-        BinaryPrimitives.WriteUInt32LittleEndian(header[4..], checked((uint)(36 + dataLength)));
-        "WAVEfmt "u8.CopyTo(header[8..]);
-        BinaryPrimitives.WriteUInt32LittleEndian(header[16..], 16);
-        BinaryPrimitives.WriteUInt16LittleEndian(header[20..], 1);
-        BinaryPrimitives.WriteUInt16LittleEndian(header[22..], checked((ushort)info.Channels));
-        BinaryPrimitives.WriteUInt32LittleEndian(header[24..], checked((uint)info.SampleRate));
-        BinaryPrimitives.WriteUInt32LittleEndian(header[28..], checked((uint)(info.SampleRate * info.BlockAlign)));
-        BinaryPrimitives.WriteUInt16LittleEndian(header[32..], checked((ushort)info.BlockAlign));
-        BinaryPrimitives.WriteUInt16LittleEndian(header[34..], checked((ushort)info.BitsPerSample));
-        "data"u8.CopyTo(header[36..]);
-        BinaryPrimitives.WriteUInt32LittleEndian(header[40..], checked((uint)dataLength));
-        stream.Position = 0;
-        stream.Write(header);
-    }
+        => PcmWaveHeader.Write(stream, info.SampleRate, info.Channels, info.BitsPerSample, dataLength);
 }
 
 public sealed record CrashAudioRecoverySummary(int Recovered, int Quarantined, int Skipped);

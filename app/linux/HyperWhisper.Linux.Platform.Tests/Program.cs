@@ -48,6 +48,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Pulse recorder reports unavailable capability", PulseRecorderUnavailable),
     ("Pulse playback delegates PCM and ends safely", PulsePlaybackDelegates),
     ("Pulse playback isolates failing subscribers", PulsePlaybackSubscriberSafety),
+    ("WAV reader recomputes an unpatched data length", WaveHeaderRecomputesDataLength),
+    ("WAV reader rejects sample-free and non-canonical files", WaveHeaderRejectsEmptyAndInvalid),
     ("injection falls back losslessly to clipboard", InjectionClipboardFallback),
     ("injection uses uinput after clipboard", InjectionUsesUInput),
     ("injection restores captured clipboard", InjectionRestoresClipboard),
@@ -719,6 +721,90 @@ static async Task PulsePlaybackSubscriberSafety()
         Assert.Success(service.Load(path));
         service.Play();
         await reached.Task.WaitAsync(TimeSpan.FromSeconds(2));
+    });
+}
+
+// A recording interrupted by a crash keeps the placeholder header PulseAudioRecorder writes at
+// start: `data` declares zero bytes even though every captured byte is on disk. The reader must
+// recompute the payload from the file, and align down so a half-written frame is dropped.
+static async Task WaveHeaderRecomputesDataLength()
+{
+    await WithTemporaryDirectoryAsync(async directory =>
+    {
+        var path = Path.Combine(directory, "crashed.wav");
+        using (var stream = File.Create(path))
+        {
+            WaveFile.WriteHeader(stream, new WaveFormat(16_000, 16, 1), 0);
+            stream.Position = WaveFile.HeaderSize;
+            stream.Write([1, 0, 2, 0, 3, 0, 4]);
+        }
+
+        using (var stream = File.OpenRead(path))
+        {
+            var header = WaveFile.ReadHeader(stream);
+            Assert.True(header.IsSuccess);
+            Assert.Equal(6L, header.Value.DataLength);
+            Assert.Equal(44L, header.Value.DataOffset);
+            Assert.Equal(16_000, header.Value.Format.SampleRate);
+            Assert.Equal((short)1, header.Value.Format.Channels);
+        }
+
+        var playback = new FakePlaybackSession();
+        using var service = new PulseAudioPlaybackService(new FakePulseApi { PlaybackSession = playback });
+        var ended = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.PlaybackEnded += (_, _) => ended.TrySetResult();
+        Assert.Success(service.Load(path));
+        Assert.Equal(TimeSpan.FromSeconds(6 / 32_000d), service.TotalDuration);
+        service.Play();
+        await ended.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.Equal(6, playback.BytesWritten);
+    });
+}
+
+static async Task WaveHeaderRejectsEmptyAndInvalid()
+{
+    await WithTemporaryDirectoryAsync(async directory =>
+    {
+        var headerOnly = Path.Combine(directory, "header-only.wav");
+        using (var stream = File.Create(headerOnly))
+            WaveFile.WriteHeader(stream, new WaveFormat(16_000, 16, 1), 0);
+        using (var stream = File.OpenRead(headerOnly))
+        {
+            var header = WaveFile.ReadHeader(stream);
+            Assert.True(header.IsFailure);
+            Assert.Equal("audio_format_unsupported", header.Error!.Code);
+        }
+
+        // A declared length far larger than the file no longer decides anything: the reader
+        // trusts the file, so playback loads it and stops at the real end of the payload.
+        var overDeclared = Path.Combine(directory, "over-declared.wav");
+        using (var stream = File.Create(overDeclared))
+        {
+            WaveFile.WriteHeader(stream, new WaveFormat(16_000, 16, 1), 4096);
+            stream.Position = WaveFile.HeaderSize;
+            stream.Write([9, 0]);
+        }
+        using (var stream = File.OpenRead(overDeclared))
+            Assert.Equal(2L, WaveFile.ReadHeader(stream).Value.DataLength);
+
+        var eightBit = Path.Combine(directory, "eight-bit.wav");
+        using (var stream = File.Create(eightBit))
+        {
+            WaveFile.WriteHeader(stream, new WaveFormat(16_000, 8, 1), 0);
+            stream.Position = WaveFile.HeaderSize;
+            stream.Write([1, 2, 3, 4]);
+        }
+        using (var stream = File.OpenRead(eightBit))
+        {
+            var header = WaveFile.ReadHeader(stream);
+            Assert.True(header.IsFailure);
+            Assert.Equal("audio_format_unsupported", header.Error!.Code);
+        }
+
+        var truncated = Path.Combine(directory, "truncated.wav");
+        await File.WriteAllBytesAsync(truncated, [1, 2, 3]);
+        using (var stream = File.OpenRead(truncated))
+            Assert.True(WaveFile.ReadHeader(stream).IsFailure);
     });
 }
 

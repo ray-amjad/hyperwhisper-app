@@ -8,5 +8,18 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../HyperWhisper.Linux.Platform/HyperWhisper.Linux.Platform.csproj" />
+    <!-- HyperWhisper.Linux.Platform P/Invokes the shared Rust core (push-to-talk, app
+         classification). CI supplies it through a global LD_LIBRARY_PATH, so a plain local
+         `dotnet run` used to fail with DllNotFoundException; stage it beside the harness. -->
+    <Content Include="../../../shared-core-rs/target/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so"
+             Condition="Exists('../../../shared-core-rs/target/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so')">
+      <Link>libhyperwhisper_core.so</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
+
+  <Target Name="EnsureSharedCoreNativeLibrary" BeforeTargets="Build">
+    <Error Condition="!Exists('../../../shared-core-rs/target/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so')"
+           Text="Build shared-core-rs in release mode before running the Linux platform tests." />
+  </Target>
 </Project>
