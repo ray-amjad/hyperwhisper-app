@@ -132,17 +132,50 @@ public sealed class CloudSttCatalog
     }
 
     /// <summary>
+    /// Cloud model ids HyperWhisper Cloud serves ONLY over the live WebSocket
+    /// route. They must never be offered as — or accepted as — a mode's dictation
+    /// model: <c>/transcribe</c> answers one with a 400, so every dictation in
+    /// such a mode fails.
+    ///
+    /// NOT derivable from the per-model <see cref="CloudSttModel.Streaming"/>
+    /// flag, despite how that reads. <c>streaming: true</c> means "HyperWhisper
+    /// Cloud routes this model live", and <c>deepgramNova3</c> carries it on BOTH
+    /// <c>nova-3-general</c> and <c>nova-3-medical</c> — which are the DEFAULT
+    /// pre-recorded models. Filtering the dictation picker on that flag would
+    /// delete the default dictation model from it.
+    ///
+    /// The catalog has no "live-only" field, so this list is the Windows mirror of
+    /// the same fact the other heads state literally:
+    /// <c>GEMINI_TRANSCRIBE_LIVE_MODEL</c> in
+    /// <c>hyperwhisper-cloud/src/providers/gemini-transcribe.ts</c> (which raises
+    /// the 400), <c>LIVE_MODEL</c> in hw-net's <c>gemini_transcribe.rs</c>,
+    /// <c>CloudSTTCatalog.liveOnlyModelIds</c> on macOS, and the deliberate
+    /// omission from <c>CloudTranscriptionModel.GeminiTranscribe</c> here. Adding
+    /// a catalog field would let all of them derive it — raised as a follow-up.
+    /// </summary>
+    public static readonly IReadOnlySet<string> LiveOnlyModelIds =
+        new HashSet<string>(["gemini-3.5-transcribe-live"], StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Whether <paramref name="modelId"/> is one of <see cref="LiveOnlyModelIds"/>
+    /// (case-insensitive and trimmed, matching the rest of this catalog's model
+    /// lookups). False for null/blank — "no model chosen" resolves to the tier
+    /// default, which is never live-only.
+    /// </summary>
+    public static bool IsLiveOnlyModel(string? modelId)
+        => !string.IsNullOrWhiteSpace(modelId) && LiveOnlyModelIds.Contains(modelId.Trim());
+
+    /// <summary>
     /// Every DICTATION model offered by a vendor group, each paired with the tier
     /// that owns it. The owning tier is what becomes the X-STT-Provider header, so
     /// a merged row (Google) can still route each model correctly.
     ///
-    /// Models flagged <c>streaming: true</c> are excluded. That flag means the
-    /// model is served over a live WebSocket route ONLY — Gemini 3.5 Transcribe
-    /// Live is the first of them — and it has no pre-recorded endpoint at all, so
-    /// offering it in the Mode editor's Model dropdown ships a selectable row on
-    /// which every dictation fails with HTTP 400. The live picker is a different
-    /// list built from <see cref="StreamingCloudTierEntries"/>, which selects on
-    /// the same flag from the other side.
+    /// Live-only models are excluded — see <see cref="LiveOnlyModelIds"/>, and
+    /// note in particular that the per-model <c>streaming</c> flag is NOT the
+    /// filter. Offering a live-only model in the Mode editor's Model dropdown
+    /// ships a selectable row on which every dictation fails with HTTP 400. The
+    /// live picker is a different list built from
+    /// <see cref="StreamingCloudTierEntries"/>.
     /// </summary>
     public IReadOnlyList<CloudSttVendorModel> ModelsForVendorKey(string? vendorKey)
     {
@@ -152,10 +185,22 @@ public sealed class CloudSttCatalog
         var models = new List<CloudSttVendorModel>();
         foreach (var entry in group.Entries)
             foreach (var model in entry.Models)
-                if (!model.Streaming)
+                if (!IsLiveOnlyModel(model.Id))
                     models.Add(new CloudSttVendorModel { TierId = entry.Id, Model = model });
         return models;
     }
+
+    /// <summary>
+    /// The given tier's own models minus the live-only ones — the set the SEND
+    /// path validates a stored <c>CloudTranscriptionModel</c> against.
+    ///
+    /// The picker no longer offers a live-only id, but a backup restore, a Local
+    /// API write or a mode saved before that filter existed can all still put one
+    /// in the field, and a plain tier-membership test accepts it because it IS a
+    /// model of the tier.
+    /// </summary>
+    public IReadOnlyList<CloudSttModel> DictationModelsForId(string? id)
+        => [.. ModelsForId(id).Where(model => !IsLiveOnlyModel(model.Id))];
 
     /// <summary>The X-STT-Provider header value for the given tier id, or null if unknown.</summary>
     public string? SttProviderForId(string? id)
@@ -453,11 +498,17 @@ public sealed class CloudSttModel
     public bool SupportsCustomVocabulary { get; init; }
 
     /// <summary>
-    /// Catalog v8: this model is served over a LIVE WebSocket route only, and has
-    /// no pre-recorded endpoint. It must never appear in a dictation model picker
-    /// — see <see cref="CloudSttCatalog.ModelsForVendorKey"/>. NOT the entry-level
-    /// <see cref="CloudSttFeatures.Streaming"/> vendor hint, which is merely
-    /// "this vendor offers streaming somewhere".
+    /// Catalog v8: HyperWhisper Cloud routes THIS model over a live WebSocket.
+    /// It says nothing about whether the model also has a pre-recorded endpoint —
+    /// <c>nova-3-general</c> and <c>nova-3-medical</c> both carry it and are
+    /// Deepgram's default DICTATION models. So this is emphatically NOT the
+    /// dictation-picker filter; that is
+    /// <see cref="CloudSttCatalog.LiveOnlyModelIds"/>. What it does drive is the
+    /// live tier list (<see cref="CloudSttCatalog.StreamingCloudTierEntries"/>),
+    /// derived in Rust from this same flag.
+    ///
+    /// Distinct again from the entry-level <see cref="CloudSttFeatures.Streaming"/>
+    /// vendor hint, which is merely "this vendor offers streaming somewhere".
     /// </summary>
     public bool Streaming { get; init; }
 }

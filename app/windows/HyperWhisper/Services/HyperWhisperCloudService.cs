@@ -341,8 +341,17 @@ public class HyperWhisperCloudService : ITranscriptionProvider, ITranscriptionDi
         // consistent with the picker and avoids a backend 400 on a mismatched
         // model. Falls back to empty (backend default) when the catalog has no
         // models for the tier.
+        // A live-only id (gemini-3.5-transcribe-live) IS a member of its tier, so
+        // the plain membership test below accepts it and the backend answers every
+        // dictation with a 400 ("WebSocket-only model, not served by /transcribe").
+        // The Mode editor's picker no longer offers one, but a backup restore, a
+        // Local API write or a mode saved before that filter existed can all still
+        // put one here, so the send path has to reject it too and fall back to the
+        // tier default. Mirrors macOS's `dictationModels` check in
+        // HyperWhisperCloudProvider.swift.
         var tierStorageId = accuracyTier.ToStorageValue();
         var modelBelongsToTier = !string.IsNullOrEmpty(cloudTranscriptionModel)
+            && !Services.AppClassification.CloudSttCatalog.IsLiveOnlyModel(cloudTranscriptionModel)
             && Services.AppClassification.CloudSttCatalog.Shared.GetModel(tierStorageId, cloudTranscriptionModel) != null;
         var resolvedModel = modelBelongsToTier
             ? cloudTranscriptionModel!

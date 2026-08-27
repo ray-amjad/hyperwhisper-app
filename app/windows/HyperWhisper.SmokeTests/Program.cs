@@ -3377,24 +3377,44 @@ internal static class Program
 
                 var live = catalog.GetModel("geminiTranscribe", "gemini-3.5-transcribe-live");
                 Assert(live != null, "the catalog no longer carries gemini-3.5-transcribe-live");
-                Assert(live!.Streaming, "gemini-3.5-transcribe-live lost its `streaming` flag in the catalog");
 
                 var offered = catalog.ModelsForVendorKey("google").Select(entry => entry.Model.Id).ToArray();
                 Assert(!offered.Contains("gemini-3.5-transcribe-live"),
-                    $"a streaming-only model reached the dictation picker: {string.Join(", ", offered)}");
+                    $"a live-only model reached the dictation picker: {string.Join(", ", offered)}");
                 Assert(offered.Contains("gemini-3.5-transcribe"),
                     $"the pre-recorded Google model must still be offered, got: {string.Join(", ", offered)}");
 
-                // The filter must key on the per-model flag, not drop a whole
-                // vendor: every OTHER cloud-tier vendor keeps every model it has.
-                foreach (var entry in catalog.CloudTierEligibleProviders())
+                // REGRESSION GUARD (mirrors macOS's deepgramNova3StaysSelectableForDictation).
+                // The per-model `streaming` flag is NOT the filter, however much it
+                // reads like one: it means "HW Cloud routes this model live", and
+                // Deepgram carries it on nova-3-general and nova-3-medical, which
+                // are the DEFAULT pre-recorded dictation models. Filtering on it
+                // deletes the default dictation model from the picker - a worse bug
+                // than the one this test exists for. Both facts are pinned here so
+                // the flag cannot quietly become the filter again.
+                Assert(catalog.GetModel("deepgramNova3", "nova-3-general")!.Streaming,
+                    "nova-3-general lost its `streaming` flag - this guard no longer guards anything");
+                var deepgram = catalog.ModelsForVendorKey("deepgram").Select(entry => entry.Model.Id).ToArray();
+                Assert(deepgram.Contains("nova-3-general") && deepgram.Contains("nova-3-medical"),
+                    $"Deepgram's pre-recorded models must stay selectable for dictation, got: {string.Join(", ", deepgram)}");
+                Assert(deepgram.Length == catalog.ModelsForId("deepgramNova3").Count,
+                    "the dictation picker dropped a Deepgram model - only live-only ids may be filtered");
+
+                Assert(CloudSttCatalog.IsLiveOnlyModel("  GEMINI-3.5-TRANSCRIBE-LIVE  "),
+                    "live-only matching must be trimmed and case-insensitive, like every other catalog model lookup");
+                foreach (var notLiveOnly in new string?[] { null, "", "   ", "gemini-3.5-transcribe", "nova-3-general" })
                 {
-                    var expected = entry.Models.Count(model => !model.Streaming);
-                    var actual = catalog.ModelsForVendorKey(entry.Vendor)
-                        .Count(vendorModel => string.Equals(vendorModel.TierId, entry.Id, StringComparison.OrdinalIgnoreCase));
-                    Assert(actual == expected,
-                        $"tier '{entry.Id}' offers {actual} dictation models, expected {expected}");
+                    Assert(!CloudSttCatalog.IsLiveOnlyModel(notLiveOnly),
+                        $"'{notLiveOnly}' must not be treated as live-only");
                 }
+
+                // The SEND path has to reject it too: the picker no longer offers
+                // one, but a backup restore or a Local API write can still store it,
+                // and it IS a member of the tier so plain membership accepts it.
+                Assert(!catalog.DictationModelsForId("geminiTranscribe").Any(model => model.Id == "gemini-3.5-transcribe-live"),
+                    "the send path's model set still accepts the live-only id - every dictation would 400");
+                Assert(catalog.DictationModelsForId("deepgramNova3").Count == catalog.ModelsForId("deepgramNova3").Count,
+                    "the send path's model set dropped a Deepgram dictation model");
             });
 
             Run("the Gemini 3.5 Transcribe API key survives a backup export/restore round trip", () =>
