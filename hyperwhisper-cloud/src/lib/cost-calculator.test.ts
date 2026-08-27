@@ -23,6 +23,7 @@ import {
   computeSonioxTranscriptionCost,
   computeXaiGrokFastChatCost,
   computeXaiTranscriptionCost,
+  countCjkChars,
   creditsForCost,
   estimateGeminiTranscribeOutputTokens,
   estimatePromptInputReservationUsd,
@@ -31,6 +32,7 @@ import {
   formatUsd,
   isGroqUsage,
   roundUsd,
+  usdForCredits,
   usdToCredits,
   type GroqUsage,
 } from './cost-calculator';
@@ -273,6 +275,53 @@ describe('new STT provider cost functions', () => {
     expect(failClosed).toBeCloseTo(0.0053, 4);
   });
 
+  test('a PARTIAL usage object falls back too — a missing AUDIO count, not a zero total', () => {
+    // The shape the production caller actually produces: output tokens are
+    // ESTIMATED from the transcript, so they are >= 1 on every real response and
+    // the total is never zero. Keying the fallback on the total made it dead
+    // code and billed a minute of speech at 24x under.
+    const estimatedOutputOnly = computeGeminiTranscribeCost('gemini-3.5-transcribe', {
+      audioInputTokens: 0, textInputTokens: 1, outputTokens: 188, fallbackDurationSeconds: 60,
+    });
+    expect(estimatedOutputOnly).toBeCloseTo(0.0053, 4);
+
+    // The fallback is a FLOOR, never a discount: a usage object that reports
+    // more than the estimate keeps its own figure.
+    const talkative = computeGeminiTranscribeCost('gemini-3.5-transcribe', {
+      audioInputTokens: 0, outputTokens: 5000, fallbackDurationSeconds: 60,
+    });
+    expect(talkative).toBeCloseTo(5000 * (12.00 / 1e6), 9);
+  });
+
+  test('a reported audio-token count is trusted verbatim — the fallback stays out of it', () => {
+    // A real 1-second clip must not be inflated to a 10-minute size estimate.
+    const measured = computeGeminiTranscribeCost('gemini-3.5-transcribe', {
+      audioInputTokens: 25, outputTokens: 4, fallbackDurationSeconds: 600,
+    });
+    expect(measured).toBeCloseTo(25 * (2.00 / 1e6) + 4 * (12.00 / 1e6), 9);
+  });
+
+  test('CJK output tokens are estimated denser than the Latin 4 chars/token', () => {
+    // Gemini's tokenizer spends ~1 token per 1-1.5 Han/Kana characters. Pricing
+    // Japanese at 4 chars/token under-bills the output half several times over;
+    // the estimate below is a deliberate floor at 2 chars/token.
+    const japanese = 'これはハイパーウィスパーの書き起こしのテストです。';
+    expect(countCjkChars(japanese)).toBe(japanese.length);
+    expect(estimateGeminiTranscribeOutputTokens(japanese))
+      .toBe(Math.ceil(japanese.length / 2));
+    expect(estimateGeminiTranscribeOutputTokens(japanese))
+      .toBeGreaterThan(Math.ceil(japanese.length / 4));
+
+    // Latin text is unchanged, and accented Latin / Cyrillic is NOT counted as
+    // CJK — those tokenize close enough to the 4 chars/token figure.
+    expect(estimateGeminiTranscribeOutputTokens('a'.repeat(400))).toBe(100);
+    expect(countCjkChars('déjà vu, привет')).toBe(0);
+
+    // A mixed transcript charges each script at its own ratio.
+    expect(estimateGeminiTranscribeOutputTokens(`${'a'.repeat(400)}${japanese}`))
+      .toBe(Math.ceil(100 + japanese.length / 2));
+  });
+
   test('an unknown model falls back to the pre-recorded rate, never $0', () => {
     const known = computeGeminiTranscribeCost('gemini-3.5-transcribe', {
       audioInputTokens: 1500, outputTokens: 188,
@@ -297,11 +346,30 @@ describe('new STT provider cost functions', () => {
 
   test('the live cost prefers a real transcript length when the session provides one', () => {
     const estimated = computeGeminiTranscribeLiveCost(60);
-    // A silent minute produced almost no text — billing the per-second output
-    // estimate anyway would over-charge.
+    // A near-silent minute produced almost no text — billing the per-second
+    // output estimate anyway would over-charge.
     expect(computeGeminiTranscribeLiveCost(60, 8)).toBeLessThan(estimated);
     // A very talkative minute costs more than the estimate.
     expect(computeGeminiTranscribeLiveCost(60, 2000)).toBeGreaterThan(estimated);
+  });
+
+  test('a live session that ended with NO final is priced as unknown, not as zero output', () => {
+    // A minute of forwarded audio and zero committed characters means the
+    // session ended before a final landed (abrupt close, or the stop grace
+    // expiring) — the interims were real speech and Google billed for them.
+    // Pricing it on audio alone drops ~43% of the charge.
+    const audioOnly = 60 * 25 * (3.50 / 1e6);
+    expect(computeGeminiTranscribeLiveCost(60, 0)).toBe(computeGeminiTranscribeLiveCost(60));
+    expect(computeGeminiTranscribeLiveCost(60, 0)).toBeGreaterThan(audioOnly);
+    expect(audioOnly / computeGeminiTranscribeLiveCost(60, 0)).toBeCloseTo(0.57, 2);
+  });
+
+  test('usdForCredits inverts usdToCredits, so a balance can clamp a charge', () => {
+    expect(usdForCredits(4.6)).toBeCloseTo(0.0046, 9);
+    expect(creditsForCost(usdForCredits(4.6))).toBe(4.6);
+    expect(usdForCredits(0)).toBe(0);
+    expect(usdForCredits(-5)).toBe(0);
+    expect(usdForCredits(Number.NaN)).toBe(0);
   });
 
   test('gemini-transcribe reserves vocabulary tokens at the input rate', () => {

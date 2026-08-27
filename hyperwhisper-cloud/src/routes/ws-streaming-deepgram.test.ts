@@ -698,6 +698,30 @@ describe('streaming socket lifecycle', () => {
       expect(harness.client.messagesOfType('session_complete')).toHaveLength(1);
     });
 
+    test('logs the upstream close code, though this vendor defines no parseUpstreamClose', async () => {
+      // The log used to be nested inside `if (vendor.parseUpstreamClose)`, a
+      // hook only Gemini defines — so the route carrying most of the revenue
+      // never recorded why Deepgram hung up.
+      const harness = openSession();
+      const logged: unknown[][] = [];
+      const originalLog = console.log;
+      console.log = (...args: unknown[]) => { logged.push(args); };
+      try {
+        harness.upstream.emit('close', { code: 1011, reason: 'upstream exploded' });
+        await drainPendingDeductions(2000);
+      } finally {
+        console.log = originalLog;
+      }
+
+      const closeLine = logged.find(([event]) => event === 'ws_streaming.upstream_close');
+      expect(closeLine).toBeDefined();
+      expect(closeLine![1]).toMatchObject({
+        provider: 'deepgram',
+        code: 1011,
+        reason: 'upstream exploded',
+      });
+    });
+
     test('closes the client socket when Deepgram ends the session', async () => {
       const harness = openSession();
 

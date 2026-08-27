@@ -164,14 +164,21 @@ export function parseGeminiLiveFrame(raw: string): UpstreamEvent[] {
   const content = json.serverContent;
   if (!isRecord(content)) return [];
 
-  const interim = readText(content, 'interimInputTranscription');
-  if (interim !== undefined) {
-    return [{ kind: 'transcript', text: interim, isFinal: false, speechFinal: false }];
-  }
-
+  // FINAL FIRST. A frame that carries both fields is the turn closing, and the
+  // committed text is the one the client must not lose: emitting the preview
+  // instead leaves the turn permanently uncommitted, because the interim
+  // restarts at the next turn boundary and no later frame repeats these words.
+  // The three native heads (`GeminiLiveProtocol.cs`, the macOS strategy and the
+  // Rust core's `gemini_transcribe.rs`) all read final-first for this reason —
+  // an order this backend has to match, not choose.
   const final = readText(content, 'inputTranscription');
   if (final !== undefined) {
     return [{ kind: 'transcript', text: final, isFinal: true, speechFinal: true }];
+  }
+
+  const interim = readText(content, 'interimInputTranscription');
+  if (interim !== undefined) {
+    return [{ kind: 'transcript', text: interim, isFinal: false, speechFinal: false }];
   }
 
   if (content.generationComplete === true || content.turnComplete === true) {

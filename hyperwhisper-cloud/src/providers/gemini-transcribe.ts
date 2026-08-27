@@ -341,10 +341,33 @@ export async function transcribeWithGeminiTranscribe(
     : estimateAudioSeconds(audio.byteLength, contentType);
 
   if (!transcript) {
+    // NOT the zero-cost no_speech every duration-billed sibling here returns.
+    // Those providers bill us per audio minute and we absorb a silent clip as
+    // goodwill; this one is TOKEN-billed and Google charges the full 25
+    // tokens/sec of input whether or not a word came back. Reporting $0 makes
+    // silent audio a free channel to paid upstream requests — one balance funds
+    // unlimited calls — so the input half of the bill is real and is charged.
+    // Only the output half is genuinely zero: there is no transcript.
+    const noSpeechCostUsd = computeGeminiTranscribeCost(model, {
+      audioInputTokens: audioTokens,
+      textInputTokens: textTokens,
+      outputTokens: 0,
+      fallbackDurationSeconds: estimateAudioSeconds(audio.byteLength, contentType),
+    });
     logProviderEvent(provider, 'no_speech', {
-      model, elapsedMs: Math.round(performance.now() - startedAt), audioTokens,
+      model,
+      elapsedMs: Math.round(performance.now() - startedAt),
+      audioTokens,
+      durationSeconds,
+      costUsd: noSpeechCostUsd,
     }, context);
-    return { text: '', language, durationSeconds: 0, costUsd: 0, source: 'no_speech' };
+    return {
+      text: '',
+      language,
+      durationSeconds,
+      costUsd: noSpeechCostUsd,
+      source: 'no_speech',
+    };
   }
 
   // `usage.total_output_tokens` is 0 on every response from this endpoint, so

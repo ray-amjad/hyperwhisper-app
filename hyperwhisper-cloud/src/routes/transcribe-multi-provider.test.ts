@@ -10,6 +10,7 @@ mock.module('../lib/redis', () => ({
 }));
 
 const { transcribeRoute, estimateCreditsForProviderFallbacks } = await import('./transcribe');
+const { drainPendingDeductions } = await import('../middleware/credits');
 
 const originalFetch = globalThis.fetch;
 
@@ -754,6 +755,77 @@ describe('Gemini 3.5 Transcribe routing (X-STT-Provider: gemini-transcribe)', ()
     const response = await buildApp().fetch(req);
     expect(response.status).toBe(413);
     expect(fetchCalled).toBe(false);
+  });
+
+  test('a silent clip is reported as no_speech but STILL charged', async () => {
+    // Google bills 25 input tokens/sec whether or not a word comes back. Free
+    // no-speech here would let one balance fund unlimited paid upstream calls.
+    const charges: Array<{ amount: number }> = [];
+    globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes('/v1beta/interactions')) {
+        return Response.json({
+          id: 'interaction-silent',
+          steps: [{ content: [{ text: '   ' }] }],
+          usage: {
+            input_tokens_by_modality: [{ modality: 'audio', tokens: 236 }],
+            total_output_tokens: 0,
+          },
+        });
+      }
+      if (url.includes('/api/license/credits')) {
+        charges.push(JSON.parse(String(init?.body)) as { amount: number });
+        return Response.json({ credits_remaining: 999 });
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    process.env.GEMINI_API_KEY = 'test';
+    const response = await buildApp().fetch(request({ 'X-STT-Provider': 'gemini-transcribe' }));
+    const body = await response.json() as {
+      text: string;
+      duration: number;
+      no_speech_detected?: boolean;
+      cost: { usd: number; credits: number };
+    };
+    await drainPendingDeductions(2000);
+
+    expect(body.no_speech_detected).toBe(true);
+    expect(body.text).toBe('');
+    expect(body.duration).toBeCloseTo(9.44, 2);
+    expect(body.cost.usd).toBeCloseTo(236 * (2 / 1e6), 9);
+    expect(body.cost.credits).toBeGreaterThan(0);
+    expect(charges).toHaveLength(1);
+    expect(charges[0]!.amount).toBe(body.cost.credits);
+  });
+
+  test('a silent clip from a DURATION-billed provider is still free', async () => {
+    // The route gates on the adapter's own cost, so the goodwill the other
+    // adapters extend on a silent clip is untouched — no per-provider table.
+    const charges: unknown[] = [];
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('api.deepgram.com')) {
+        return Response.json({
+          results: { channels: [{ alternatives: [{ transcript: '  ' }] }] },
+          metadata: { duration: 4, request_id: 'dg-silent' },
+        });
+      }
+      if (url.includes('/api/license/credits')) {
+        charges.push(url);
+        return Response.json({ credits_remaining: 999 });
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    process.env.DEEPGRAM_API_KEY = 'test';
+    const response = await buildApp().fetch(request({ 'X-STT-Provider': 'deepgram' }));
+    const body = await response.json() as { no_speech_detected?: boolean; cost: { credits: number } };
+    await drainPendingDeductions(2000);
+
+    expect(body.no_speech_detected).toBe(true);
+    expect(body.cost.credits).toBe(0);
+    expect(charges).toHaveLength(0);
   });
 });
 

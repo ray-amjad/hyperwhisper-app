@@ -40,7 +40,7 @@
 import type { Context, Next } from 'hono';
 import type { WSMessageReceive } from 'hono/ws';
 import { generateRequestId, getClientIP } from '../lib/request-id';
-import { creditsForCost } from '../lib/cost-calculator';
+import { creditsForCost, usdForCredits } from '../lib/cost-calculator';
 import { validateAuth, type AuthContext } from '../middleware/auth';
 import { deductCredits, validateCredits } from '../middleware/credits';
 import { isIPBlocked } from '../lib/redis';
@@ -186,7 +186,8 @@ export interface StreamingVendor {
    * Decode the upstream CLOSE frame, for vendors that report a fault by closing
    * rather than by sending an error frame. Runs before the session is settled,
    * so anything it returns still reaches the client. The raw code and reason are
-   * logged either way — do not echo an upstream reason string to the client.
+   * logged for EVERY vendor, with or without this hook (`ws_streaming.upstream_close`)
+   * — do not echo an upstream reason string to the client.
    */
   parseUpstreamClose?(code: number, reason: string): UpstreamEvent[];
   /**
@@ -198,10 +199,18 @@ export interface StreamingVendor {
   stopFrames?(): string[];
   readonly stopGraceMs?: number;
   /**
-   * Cost in USD of `seconds` of audio. `transcriptChars` is passed only at
-   * end-of-session, where the full transcript is known; the mid-session cutoff
-   * omits it deliberately so the safety valve never under-estimates on a
-   * fast talker whose finals have not landed yet.
+   * Cost in USD of `seconds` of audio, and of `transcriptChars` characters of
+   * committed transcript for a vendor whose bill depends on both.
+   *
+   * The SAME two inputs are passed at the mid-session credit cutoff and at
+   * end-of-session — the cutoff uses the chars committed so far. They have to
+   * agree: a cutoff priced on duration alone under-estimates a fast talker (the
+   * output half of a token-billed vendor's charge grows with the words, not the
+   * seconds) and the session bills past the balance it was cut off at. The
+   * cutoff still lags by whatever final has not landed yet, so `endSession`
+   * additionally CLAMPS the charge to the balance seen at auth. A vendor that
+   * ignores `transcriptChars` (Deepgram is flat per-second) is unaffected by
+   * either mechanism.
    */
   costForSeconds(seconds: number, transcriptChars?: number): number;
 }
@@ -319,6 +328,11 @@ export function createStreamingEventsFor(vendor: StreamingVendor, c: Context) {
   let upstreamAcceptsAudio = vendor.readyOnOpen;
   let readySent = false;
   let stopRequested = false;
+  /**
+   * The client asked to stop before the vendor would accept audio, so the
+   * end-of-audio marker is held back until the queued audio has gone out.
+   */
+  let stopDeferred = false;
   let stopTimer: ReturnType<typeof setTimeout> | null = null;
   /** Set when a terminal upstream fault should close the client with 1011. */
   let clientCloseCode: number | null = null;
@@ -350,7 +364,16 @@ export function createStreamingEventsFor(vendor: StreamingVendor, c: Context) {
       stopTimer = null;
     }
 
-    const costUsd = vendor.costForSeconds(totalDurationSeconds, transcriptChars);
+    // The metered charge, then the clamp. `enforceCreditCutoff` ends a session
+    // the moment the running charge reaches the balance seen at auth, but it can
+    // only see the finals that have landed — a trailing final delivered during
+    // the stop grace can still push the metered figure past that balance. Bill
+    // the lesser, so a session can never deduct more than the credits the user
+    // held when it opened. (Deepgram is flat per-second and reaches this with
+    // metered == cutoff, so the clamp is inert there.)
+    const meteredCostUsd = vendor.costForSeconds(totalDurationSeconds, transcriptChars);
+    const reservedCostUsd = usdForCredits(auth.credits);
+    const costUsd = Math.min(meteredCostUsd, reservedCostUsd);
     const creditsUsed = creditsForCost(costUsd);
 
     if (clientSocket) {
@@ -366,6 +389,9 @@ export function createStreamingEventsFor(vendor: StreamingVendor, c: Context) {
       transcriptChars,
       costUsd,
       creditsUsed,
+      // Only present when the clamp actually bit, so its absence is the normal
+      // case and "how often do we eat the difference?" is one Axiom query.
+      ...(meteredCostUsd > costUsd ? { meteredCostUsd, clampedToReservedCredits: auth.credits } : {}),
     });
 
     if (creditsUsed > 0) {
@@ -404,15 +430,20 @@ export function createStreamingEventsFor(vendor: StreamingVendor, c: Context) {
   /**
    * End the session once the running cost reaches the balance seen at auth, so a
    * low-balance user can't stream indefinitely on end-of-session billing.
-   * Duration-only on purpose — see `costForSeconds`.
+   *
+   * Priced with the transcript committed SO FAR, not on duration alone: for a
+   * token-billed vendor the output half of the bill tracks the words, so a
+   * duration-only cutoff lets a fast talker run well past their balance and then
+   * be charged for it. `endSession` clamps whatever the remaining lag is —
+   * see `costForSeconds`.
    */
   function enforceCreditCutoff(): boolean {
-    const creditsUsed = creditsForCost(vendor.costForSeconds(totalDurationSeconds));
+    const creditsUsed = creditsForCost(vendor.costForSeconds(totalDurationSeconds, transcriptChars));
     if (creditsUsed < auth.credits) return false;
     if (clientSocket) {
       sendToClient(clientSocket, { type: 'error', message: 'Credit balance exhausted' });
     }
-    log('credit_cutoff', { durationSeconds: totalDurationSeconds, creditsUsed });
+    log('credit_cutoff', { durationSeconds: totalDurationSeconds, transcriptChars, creditsUsed });
     closeUpstream('Credits exhausted');
     return true;
   }
@@ -428,6 +459,64 @@ export function createStreamingEventsFor(vendor: StreamingVendor, c: Context) {
     enforceCreditCutoff();
   }
 
+  /** Arm the backstop that ends the session when the vendor never finishes. */
+  function armStopGrace(restart: boolean = false): void {
+    if (stopTimer) {
+      if (!restart) return;
+      clearTimeout(stopTimer);
+    }
+    stopTimer = setTimeout(() => {
+      log('stop_grace_expired');
+      closeUpstream('Client requested stop');
+    }, vendor.stopGraceMs ?? 5000);
+  }
+
+  /** Send the vendor's end-of-audio frames and wait out the grace period. */
+  function sendStopFrames(frames: string[]): void {
+    stopDeferred = false;
+    stopRequested = true;
+    if (upstreamWs && upstreamWs.readyState === WebSocket.OPEN) {
+      for (const frame of frames) upstreamWs.send(frame);
+    }
+    // Restart the clock: the grace window exists to catch the trailing final,
+    // which cannot arrive before the marker that asks for it.
+    armStopGrace(true);
+  }
+
+  /**
+   * The client asked to stop.
+   *
+   * WIRE ORDER IS LOAD-BEARING. The end-of-audio marker must reach the vendor
+   * AFTER the audio it terminates. A push-to-talk shorter than the vendor's
+   * setup handshake gets here with audio still in `pendingAudio` and the vendor
+   * not yet accepting it, and sending the marker now produces
+   * `setup → AUDIO_STREAM_END → audio → audio`: the vendor transcribes nothing,
+   * the user gets an empty result, and the forwarded seconds are still billed.
+   * So defer, and let the `ready` handler send it once the queue has drained.
+   * The grace backstop is armed either way, so a `setupComplete` that never
+   * arrives still settles the session instead of hanging.
+   */
+  function requestStop(): void {
+    if (stopRequested || stopDeferred) return;
+
+    const frames = vendor.stopFrames?.() ?? [];
+    if (frames.length === 0) {
+      // No end-of-stream frame: closing IS the stop, and it needs no ordering.
+      stopRequested = true;
+      closeUpstream('Client requested stop');
+      return;
+    }
+
+    if (!upstreamAcceptsAudio) {
+      stopDeferred = true;
+      log('stop_deferred', { pendingAudioBytes });
+      armStopGrace();
+      return;
+    }
+
+    sendStopFrames(frames);
+  }
+
   function handleUpstreamEvent(event: UpstreamEvent, ws: WSContext): void {
     switch (event.kind) {
       case 'ready': {
@@ -438,6 +527,9 @@ export function createStreamingEventsFor(vendor: StreamingVendor, c: Context) {
           log('ready');
         }
         flushPendingAudio();
+        // A stop that beat the handshake: the queue has drained, so the marker
+        // can go out now, behind the audio it terminates.
+        if (stopDeferred) sendStopFrames(vendor.stopFrames?.() ?? []);
         return;
       }
       case 'transcript': {
@@ -529,8 +621,11 @@ export function createStreamingEventsFor(vendor: StreamingVendor, c: Context) {
 
       upstreamWs.addEventListener('close', async (event) => {
         const { code, reason } = (event ?? {}) as { code?: number; reason?: string };
+        // Logged for every vendor, hook or no hook: the close code is how an
+        // upstream fault is diagnosed after the fact, and the vendor that
+        // carries most of the revenue (Deepgram) defines no `parseUpstreamClose`.
+        log('upstream_close', { code: code ?? null, reason: reason || null });
         if (vendor.parseUpstreamClose) {
-          log('upstream_close', { code: code ?? null, reason: reason || null });
           for (const decoded of vendor.parseUpstreamClose(code ?? 1000, reason ?? '')) {
             handleUpstreamEvent(decoded, ws);
           }
@@ -549,12 +644,14 @@ export function createStreamingEventsFor(vendor: StreamingVendor, c: Context) {
       }, 30000);
     },
     onMessage: (event: MessageEvent<WSMessageReceive>) => {
-      if (!upstreamWs || upstreamWs.readyState !== WebSocket.OPEN) {
-        return;
-      }
-
       const data = event.data;
       if (data instanceof ArrayBuffer) {
+        // Audio needs an OPEN upstream socket: `send()` on a CONNECTING one
+        // throws, and there is nothing useful to do with the chunk yet.
+        if (!upstreamWs || upstreamWs.readyState !== WebSocket.OPEN) {
+          return;
+        }
+
         // Count every inbound frame toward the session total first — even ones
         // we reject below — so a flood of oversized frames still trips the
         // cumulative cap and closes the socket instead of looping forever.
@@ -616,23 +713,12 @@ export function createStreamingEventsFor(vendor: StreamingVendor, c: Context) {
           const msg: unknown = JSON.parse(data);
           const msgType = isRecord(msg) ? msg.type : undefined;
           if (msgType === 'stop') {
-            const frames = vendor.stopFrames?.() ?? [];
-            if (frames.length === 0) {
-              closeUpstream('Client requested stop');
-              return;
-            }
-            // The vendor has an end-of-stream frame: send it and keep the socket
-            // open long enough for the trailing final transcript to arrive,
+            // A vendor with an end-of-stream frame keeps the socket open for
+            // `stopGraceMs` so the trailing final transcript can still arrive,
             // with a hard backstop because these vendors do not close by
-            // themselves once the stream ends.
-            stopRequested = true;
-            for (const frame of frames) upstreamWs.send(frame);
-            if (!stopTimer) {
-              stopTimer = setTimeout(() => {
-                log('stop_grace_expired');
-                closeUpstream('Client requested stop');
-              }, vendor.stopGraceMs ?? 5000);
-            }
+            // themselves once the stream ends. Ordering and the deferral live in
+            // `requestStop`.
+            requestStop();
             return;
           }
           if (msgType === 'pong') {

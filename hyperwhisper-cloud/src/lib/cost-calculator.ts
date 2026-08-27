@@ -104,7 +104,10 @@ const GEMINI_FALLBACK_RATE = GEMINI_RATES['gemini-2.5-flash'];
 //     uses twice (RESERVATION_CHARS_PER_TOKEN / FALLBACK_CHARS_PER_TOKEN). The
 //     transcript is the only output the model produced, we hold it in full when
 //     we bill, and the estimate lands within a few percent of a real tokeniser
-//     for the dictation-length text this path sees. If Google ever starts
+//     for LATIN-SCRIPT text at dictation length. It is NOT accurate for every
+//     script: CJK tokenizes at roughly 1–1.5 chars/token, several times denser,
+//     so `estimateGeminiTranscribeOutputTokens` counts those characters
+//     separately (GEMINI_TRANSCRIBE_CJK_CHARS_PER_TOKEN). If Google ever starts
 //     populating `total_output_tokens`, prefer it and delete the estimate —
 //     `estimateGeminiTranscribeOutputTokens` is the single place to change.
 //
@@ -428,15 +431,59 @@ export function estimatePromptInputReservationUsd(
   return 0;
 }
 
+// CJK scripts tokenize FAR denser than the ~4 chars/token that holds for Latin
+// text: Gemini's SentencePiece vocabulary spends roughly one token per 1–1.5
+// Han/Kana/Hangul characters. Charging a Japanese transcript at 4 chars/token
+// under-bills the output half of the bill several times over.
+//
+// The value below is deliberately a FLOOR (2 chars/token), not a best estimate:
+// it removes most of the under-charge without risking an over-charge on a real
+// user's dictation, because no measurement of this endpoint's own tokenizer is
+// possible — `/v1beta/interactions` reports `total_output_tokens: 0`, so there
+// is nothing to calibrate against short of a separate `countTokens` study.
+// Tighten it toward 1 token/char only with numbers in hand.
+const GEMINI_TRANSCRIBE_CJK_CHARS_PER_TOKEN = 2;
+// Han, Hiragana, Katakana, Hangul, and the CJK punctuation/full-width forms that
+// travel with them. Deliberately not "any non-ASCII": accented Latin, Cyrillic
+// and Greek tokenize close enough to the 4 chars/token figure.
+const CJK_PATTERN = new RegExp(
+  '['
+  + '\\u3000-\\u303F' // CJK symbols and punctuation
+  + '\\u3040-\\u30FF' // Hiragana + Katakana
+  + '\\u3400-\\u4DBF' // CJK unified ideographs, extension A
+  + '\\u4E00-\\u9FFF' // CJK unified ideographs
+  + '\\uAC00-\\uD7AF' // Hangul syllables
+  + '\\uF900-\\uFAFF' // CJK compatibility ideographs
+  + '\\uFF00-\\uFFEF' // Full-width and half-width forms
+  + ']',
+  'g',
+);
+
+/** How many characters of `text` belong to a CJK script. */
+export function countCjkChars(text: string): number {
+  return text.match(CJK_PATTERN)?.length ?? 0;
+}
+
 /**
  * Output-token estimate for a Gemini 3.5 Transcribe response.
  *
  * Exists because `usage.total_output_tokens` is always 0 on `/v1beta/interactions`
  * (see the block above) — this is the deliberate substitute, not a fallback for
  * a malformed response.
+ *
+ * Script-aware, following the per-vendor precedent of
+ * {@link estimateSonioxContextTokens}: the ~4 chars/token heuristic is a Latin
+ * figure and is several times too generous for CJK. The LIVE path
+ * ({@link computeGeminiTranscribeLiveCost}) cannot use this — it meters a
+ * running character COUNT, never the text — so a CJK live session keeps the
+ * Latin ratio. Fixing that means carrying the text into the streaming route.
  */
 export function estimateGeminiTranscribeOutputTokens(transcript: string): number {
-  return Math.ceil(transcript.length / RESERVATION_CHARS_PER_TOKEN);
+  const cjkChars = countCjkChars(transcript);
+  const otherChars = transcript.length - cjkChars;
+  return Math.ceil(
+    cjkChars / GEMINI_TRANSCRIBE_CJK_CHARS_PER_TOKEN + otherChars / RESERVATION_CHARS_PER_TOKEN,
+  );
 }
 
 export interface GeminiTranscribeUsage {
@@ -452,22 +499,32 @@ export interface GeminiTranscribeUsage {
 
 /**
  * Gemini 3.5 Transcribe (pre-recorded). Bills the reported input tokens plus the
- * ESTIMATED output tokens; an absent/changed `usage` object falls back to a
- * duration-based estimate so a transcription never bills $0 (fail-closed,
- * matching the other token-billed adapters here).
+ * ESTIMATED output tokens; an absent/changed/PARTIAL `usage` object falls back to
+ * a duration-based estimate so a transcription never bills less than the audio
+ * was worth (fail-closed, matching the other token-billed adapters here).
+ *
+ * The trigger is a missing AUDIO-token count specifically, not a zero total.
+ * `audioInputTokens` is the only field we cannot reconstruct: the output tokens
+ * are already our own estimate (the endpoint reports 0), so a response whose
+ * `usage` object is absent or has lost its audio modality still arrives here
+ * with `outputTokens >= 1` from the transcript and would otherwise skip the
+ * fallback entirely and bill a few cents per million — 24x under a real charge.
+ * When the audio tokens are missing we take the GREATER of the two figures, so
+ * a partial usage object can only ever raise the bill toward the truth.
  */
 export function computeGeminiTranscribeCost(model: string, usage: GeminiTranscribeUsage): number {
   const rate = GEMINI_TRANSCRIBE_RATES[model] ?? GEMINI_TRANSCRIBE_FALLBACK_RATE;
-  const inputTokens = Math.max(0, usage.audioInputTokens) + Math.max(0, usage.textInputTokens ?? 0);
+  const audioInputTokens = Math.max(0, usage.audioInputTokens);
+  const inputTokens = audioInputTokens + Math.max(0, usage.textInputTokens ?? 0);
   const outputTokens = Math.max(0, usage.outputTokens);
 
   const tokenCost = inputTokens * rate.inputPerToken + outputTokens * rate.outputPerToken;
-  if (tokenCost > 0) {
+  if (audioInputTokens > 0) {
     return roundUsd(tokenCost);
   }
 
   const seconds = Math.max(0, usage.fallbackDurationSeconds ?? 0);
-  return roundUsd(geminiTranscribeSecondsCost(seconds, rate));
+  return roundUsd(Math.max(tokenCost, geminiTranscribeSecondsCost(seconds, rate)));
 }
 
 /** Per-second cost at `rate`, with output estimated from the audio duration. */
@@ -485,11 +542,18 @@ function geminiTranscribeSecondsCost(seconds: number, rate: GeminiTranscribeRate
  * `transcriptChars` is optional so a mid-session cutoff can bill on duration
  * alone; pass it at end-of-session, where the full transcript is known, for the
  * closer figure. Consumed by `routes/ws-streaming-gemini-transcribe.ts`.
+ *
+ * ZERO chars is treated the same as "not supplied", not as "no output was
+ * produced". A session that streamed audio but ended before any final landed —
+ * an abrupt client close mid-turn, or the stop grace expiring — has interim
+ * text on the wire and a real Google bill behind it, and pricing it on audio
+ * alone drops ~43% of the charge. Genuine silence pays the same estimate, which
+ * is the same direction Deepgram's flat per-second rate already takes.
  */
 export function computeGeminiTranscribeLiveCost(durationSeconds: number, transcriptChars?: number): number {
   const rate = GEMINI_TRANSCRIBE_RATES['gemini-3.5-transcribe-live'];
   const seconds = Math.max(0, durationSeconds);
-  if (transcriptChars === undefined) {
+  if (transcriptChars === undefined || transcriptChars <= 0) {
     return roundUsd(geminiTranscribeSecondsCost(seconds, rate));
   }
   const outputTokens = Math.ceil(Math.max(0, transcriptChars) / RESERVATION_CHARS_PER_TOKEN);
@@ -637,6 +701,20 @@ export function usdToCredits(usd: number): number {
   }
 
   return usd / USD_PER_CREDIT;
+}
+
+/**
+ * Inverse of {@link usdToCredits} — what a credit balance is worth in USD.
+ *
+ * Used by the live-streaming shell to clamp an end-of-session charge to the
+ * balance the mid-session cutoff was measured against, so a session can never
+ * bill past the credits the user actually had when it opened.
+ */
+export function usdForCredits(credits: number): number {
+  if (!Number.isFinite(credits) || credits <= 0) {
+    return 0;
+  }
+  return credits * USD_PER_CREDIT;
 }
 
 export function creditsForCost(costUsd: number): number {

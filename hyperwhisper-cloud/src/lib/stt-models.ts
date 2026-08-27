@@ -229,8 +229,16 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
     fallbackChain: ['gemini-transcribe'],
     async: false,
     // $2.00/1M in at 1,500 audio tokens/min + ~$12.00/1M out on an estimated
-    // ~190 output tokens/min of speech ⇒ ~$0.0053/min; ~$0.0092/min live. The
-    // reservation rounds each up a touch so a fast talker can't out-bill it.
+    // ~190 output tokens/min of speech ⇒ ~$0.0053/min; ~$0.0092/min live,
+    // rounded up a touch below.
+    //
+    // These are ~150 wpm figures and a fast talker DOES out-bill them: the
+    // output half tracks words, not seconds, so 250 wpm bills roughly 8.4
+    // credits/min pre-recorded and 14.7 live against the 5.5 / 9.6 here. That
+    // is what `estimatedUsdPerMinute` is for — a preflight sizing estimate, not
+    // a cap. The cap is enforced where the money moves: the live route prices
+    // its mid-session cutoff with the transcript seen so far and clamps the
+    // final deduction to the balance seen at auth (`ws-streaming-shared.ts`).
     models: [
       { id: 'gemini-3.5-transcribe', isPreview: true, supportsVocabulary: true, estimatedUsdPerMinute: 0.0055 },
       { id: 'gemini-3.5-transcribe-live', isPreview: true, supportsVocabulary: true, estimatedUsdPerMinute: 0.0096 },

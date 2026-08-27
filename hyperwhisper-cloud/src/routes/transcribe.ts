@@ -830,9 +830,17 @@ export async function transcribeRoute(c: Context) {
     : actualProvider;
 
   const noSpeech = result.source === 'no_speech';
-  const creditsUsed = noSpeech ? 0 : creditsForCost(result.costUsd);
+  // A no-speech result is free — EXCEPT where the upstream still billed us for
+  // the audio and the adapter says so by returning a cost with it. Every
+  // duration-billed provider here returns `costUsd: 0` for no_speech and is
+  // unaffected; `gemini-transcribe` is token-billed on its audio input whether
+  // or not a word comes back, and charging $0 there turns silent audio into an
+  // unmetered channel to a paid upstream. The adapter's cost is the gate, so
+  // this route never needs a per-provider table.
+  const billable = !noSpeech || result.costUsd > 0;
+  const creditsUsed = billable ? creditsForCost(result.costUsd) : 0;
 
-  if (!noSpeech) {
+  if (billable) {
     deductCredits(
       authResult.value,
       result.costUsd,

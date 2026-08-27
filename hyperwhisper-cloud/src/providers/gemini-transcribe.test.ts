@@ -292,23 +292,64 @@ describe('transcribeWithGeminiTranscribe — response handling', () => {
       .toEqual({ audioTokens: 0, textTokens: 0 });
   });
 
-  test('an empty transcript is no_speech and bills nothing', async () => {
+  test('an empty transcript is no_speech but still bills the audio Google charged us for', async () => {
+    // NOT the free no_speech the duration-billed adapters return. This endpoint
+    // bills 25 input tokens/sec whether or not a word comes back, so a $0 answer
+    // would make silent audio an unmetered channel to a paid upstream request.
     captureRequest(sampleResponse('   '));
     const result = await transcribeWithGeminiTranscribe(audio(), 'audio/mp3');
 
     expect(result.source).toBe('no_speech');
     expect(result.text).toBe('');
-    expect(result.costUsd).toBe(0);
-    expect(result.durationSeconds).toBe(0);
+    // The real clip length, not 0: 236 audio tokens at 25 tok/s.
+    expect(result.durationSeconds).toBeCloseTo(9.44, 2);
+    // 236 audio + 1 text input token at $2/1M, and no output tokens — there is
+    // genuinely no transcript to bill for.
+    expect(result.costUsd).toBeCloseTo(237 * (2 / 1e6), 9);
   });
 
-  test('a response with no usage object still bills (fail-closed) from a size estimate', async () => {
+  test('a silent clip with no usage object bills the duration estimate, not $0', async () => {
+    captureRequest({ steps: [{ content: [{ text: '' }] }] });
+    const result = await transcribeWithGeminiTranscribe(audio(320_000), 'audio/wav');
+
+    expect(result.source).toBe('no_speech');
+    // 10 s of wav: 250 audio tokens at $2/1M, plus the per-second output
+    // estimate the fail-closed fallback carries.
+    expect(result.costUsd).toBeCloseTo(10 * 25 * (2 / 1e6) + 10 * 3.125 * (12 / 1e6), 9);
+    expect(result.durationSeconds).toBeCloseTo(10, 3);
+  });
+
+  test('a response with no usage object bills the duration estimate, not the output tokens alone', async () => {
+    // The shape production actually emits when `usage` is missing or loses a
+    // modality: the transcript is present, so the estimated OUTPUT tokens are
+    // non-zero and the old `tokenCost > 0` guard skipped the fallback entirely.
     captureRequest({ steps: [{ content: [{ text: 'hello there' }] }] });
     // 32,000 B/s for wav → 10 s of audio.
     const result = await transcribeWithGeminiTranscribe(audio(320_000), 'audio/wav');
 
     expect(result.text).toBe('hello there');
-    expect(result.costUsd).toBeGreaterThan(0);
+    expect(result.durationSeconds).toBeCloseTo(10, 3);
+    // 10 s at 25 audio tok/s × $2/1M + the 3.125 output tok/s estimate × $12/1M.
+    expect(result.costUsd).toBeCloseTo(0.000875, 9);
+    // What billing the estimated output tokens alone would have charged — 24x
+    // under. ceil(11 chars / 4) = 3 tokens at $12/1M.
+    expect(result.costUsd).toBeGreaterThan(3 * (12 / 1e6) * 20);
+  });
+
+  test('a usage object that reports text tokens but no audio modality also fails closed', async () => {
+    captureRequest({
+      steps: [{ content: [{ text: 'hello there' }] }],
+      usage: {
+        total_input_tokens: 1,
+        input_tokens_by_modality: [{ modality: 'text', tokens: 1 }],
+        total_output_tokens: 0,
+      },
+    });
+    const result = await transcribeWithGeminiTranscribe(audio(320_000), 'audio/wav');
+
+    // The audio-token count is the one field that cannot be reconstructed, so
+    // its absence — not a zero TOTAL — is what arms the duration fallback.
+    expect(result.costUsd).toBeCloseTo(0.000875, 9);
     expect(result.durationSeconds).toBeCloseTo(10, 3);
   });
 

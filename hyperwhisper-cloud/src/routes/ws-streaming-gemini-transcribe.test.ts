@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { Hono } from 'hono';
 import type { Context } from 'hono';
 import type { WSMessageReceive } from 'hono/ws';
-import { computeGeminiTranscribeLiveCost, creditsForCost } from '../lib/cost-calculator';
+import { computeGeminiTranscribeLiveCost, creditsForCost, usdForCredits } from '../lib/cost-calculator';
 import { drainPendingDeductions } from '../middleware/credits';
 import type { AuthContext } from '../middleware/auth';
 
@@ -378,6 +378,15 @@ function fakeContext(auth: AuthContext, url: string): Context {
   return { get: (key: string) => vars[key], req: { url } } as unknown as Context;
 }
 
+/** Classify one client→server frame, so a test can assert the WIRE ORDER. */
+function frameKind(frame: Record<string, unknown>): string {
+  if (frame.setup !== undefined) return 'setup';
+  const input = frame.realtime_input as Record<string, unknown> | undefined;
+  if (input?.audio !== undefined) return 'audio';
+  if (input?.audio_stream_end !== undefined) return 'audioStreamEnd';
+  return 'unknown';
+}
+
 function audioFrame(seconds: number): ArrayBuffer {
   return new ArrayBuffer(Math.round(seconds * BYTES_PER_SECOND));
 }
@@ -650,6 +659,35 @@ describe('gemini live socket lifecycle', () => {
       await harness.endSession();
     });
 
+    test('one frame carrying BOTH transcriptions commits the final, not the preview', async () => {
+      // Final-first, matching `GeminiLiveProtocol` on Windows, the macOS
+      // strategy and the Rust core. Reading the interim first meant a turn that
+      // closed in a single frame was only ever previewed: the interim restarts
+      // at the next turn boundary, so those words were never committed and the
+      // user lost them.
+      const both = {
+        serverContent: {
+          interimInputTranscription: { text: 'Hello, this is a' },
+          inputTranscription: { text: 'Hello, this is a test.' },
+        },
+      };
+
+      expect(parseGeminiLiveFrame(JSON.stringify(both))).toEqual([
+        { kind: 'transcript', text: 'Hello, this is a test.', isFinal: true, speechFinal: true },
+      ]);
+
+      const harness = openSession();
+      harness.upstream.deliver(both);
+
+      expect(harness.client.messagesOfType('transcript')).toEqual([
+        { type: 'transcript', text: 'Hello, this is a test.', is_final: true, speech_final: true },
+      ]);
+      await harness.endSession();
+      // Committed text bills; a preview would have left transcriptChars at 0.
+      expect(licenseCharges[0]!.metadata.transcription_cost_usd)
+        .toBe(computeGeminiTranscribeLiveCost(0, 'Hello, this is a test.'.length));
+    });
+
     test('a mid-session generationComplete is a turn boundary, not the end of the session', async () => {
       const harness = openSession();
 
@@ -720,6 +758,54 @@ describe('gemini live socket lifecycle', () => {
       expect(harness.upstream.closes).toHaveLength(0);
       await harness.endSession();
     });
+
+    test('a stop that beats setupComplete is held back until the queued audio has gone', async () => {
+      // Any push-to-talk shorter than Google's handshake lands here. Sending
+      // audio_stream_end straight away put it AHEAD of the audio it terminates
+      // (setup → END → audio → audio): Google transcribed nothing, the user got
+      // an empty result, and the forwarded seconds were still charged.
+      const harness = openSession({ skipSetup: true });
+
+      harness.events.onMessage(binaryMessage(audioFrame(4)));
+      harness.events.onMessage(binaryMessage(audioFrame(4)));
+      harness.events.onMessage(textMessage(JSON.stringify({ type: 'stop' })));
+
+      // Nothing may overtake the handshake.
+      expect(harness.upstream.jsonFrames.map(frameKind)).toEqual(['setup']);
+
+      harness.upstream.setupComplete();
+
+      expect(harness.upstream.jsonFrames.map(frameKind))
+        .toEqual(['setup', 'audio', 'audio', 'audioStreamEnd']);
+
+      // And the session behaves like any other stop from here: the trailing
+      // final still arrives inside the grace window and is committed.
+      harness.upstream.deliver({ serverContent: { inputTranscription: { text: 'eight seconds of words' } } });
+      harness.upstream.deliver({ serverContent: { generationComplete: true } });
+
+      expect(harness.client.messagesOfType('transcript').at(-1)).toEqual({
+        type: 'transcript', text: 'eight seconds of words', is_final: true, speech_final: true,
+      });
+      expect(harness.upstream.closes).toEqual([{ code: 1000, reason: 'Session ended' }]);
+      await harness.endSession();
+      expect(harness.client.messagesOfType('session_complete')[0]!.duration_seconds).toBe(8);
+    });
+
+    test('a deferred stop still settles the session when setupComplete never arrives', async () => {
+      const harness = openSession({ skipSetup: true });
+
+      harness.events.onMessage(binaryMessage(audioFrame(1)));
+      harness.events.onMessage(textMessage(JSON.stringify({ type: 'stop' })));
+      expect(harness.upstream.closes).toHaveLength(0);
+
+      // Deferring must not become a hang: the grace backstop is armed by the
+      // stop itself, not by the frames it is still waiting to send.
+      await Bun.sleep(5_050);
+
+      expect(harness.upstream.closes).toEqual([{ code: 1000, reason: 'Client requested stop' }]);
+      expect(harness.upstream.jsonFrames.map(frameKind)).toEqual(['setup']);
+      await harness.endSession();
+    }, 10_000);
   });
 
   describe('upstream faults', () => {
@@ -813,7 +899,56 @@ describe('gemini live socket lifecycle', () => {
 
       await harness.endSession();
 
-      expect(licenseCharges[0]!.amount).toBe(creditsForCost(computeGeminiTranscribeLiveCost(10, 0)));
+      // A 4,000-character preview must not bill as 1,000 output tokens. With no
+      // final committed the session falls back to the per-second estimate.
+      expect(licenseCharges[0]!.amount).toBe(creditsForCost(computeGeminiTranscribeLiveCost(10)));
+    });
+
+    test('a session that ends before any final lands still bills the output half', async () => {
+      // Confirmed as real, not theoretical: an abrupt client close mid-turn (or
+      // the stop grace expiring) leaves transcriptChars at 0 with 20 s of audio
+      // already forwarded and interims on the wire. Pricing that on audio alone
+      // drops ~43% of the charge, because the output tokens are 43% of it.
+      const harness = openSession();
+      harness.events.onMessage(binaryMessage(audioFrame(20)));
+      harness.upstream.deliver({ serverContent: { interimInputTranscription: { text: 'x'.repeat(250) } } });
+
+      await harness.endSession();
+
+      const audioOnly = 20 * 25 * (3.50 / 1e6);
+      expect(licenseCharges[0]!.amount).toBe(creditsForCost(computeGeminiTranscribeLiveCost(20)));
+      expect(licenseCharges[0]!.metadata.transcription_cost_usd as number).toBeGreaterThan(audioOnly);
+    });
+
+    test('a fast talker cannot bill past the balance the cutoff was measured against', async () => {
+      // ~250 wpm is 30 characters of committed transcript per second — well past
+      // the 12.5 chars/sec a duration-only estimate assumes. The cutoff used to
+      // price on duration alone, let the session run to 30 s, and then deduct
+      // the real (much larger) figure with nothing clamping it.
+      const harness = openSession({ credits: 4.6 });
+
+      for (let second = 0; second < 40 && harness.upstream.closes.length === 0; second += 1) {
+        harness.events.onMessage(binaryMessage(audioFrame(1)));
+        harness.upstream.deliver({ serverContent: { inputTranscription: { text: 'y'.repeat(30) } } });
+      }
+
+      expect(harness.client.messagesOfType('error')).toEqual([
+        { type: 'error', message: 'Credit balance exhausted' },
+      ]);
+      // The words are priced, so the cutoff fires long before the 30 seconds a
+      // duration-only cutoff allowed.
+      const forwardedSeconds = harness.upstream.audioFramesForwarded;
+      expect(forwardedSeconds).toBeLessThan(30);
+
+      await harness.endSession();
+
+      // The remaining lag (the final delivered after the last metered chunk) is
+      // clamped: the deduction never exceeds the reservation.
+      expect(computeGeminiTranscribeLiveCost(forwardedSeconds, forwardedSeconds * 30))
+        .toBeGreaterThan(usdForCredits(4.6));
+      expect(licenseCharges).toHaveLength(1);
+      expect(licenseCharges[0]!.amount).toBeLessThanOrEqual(4.6);
+      expect(harness.client.messagesOfType('session_complete')[0]!.credits_used).toBeLessThanOrEqual(4.6);
     });
 
     test('records the explicit language on the charge', async () => {
