@@ -900,24 +900,40 @@ describe('gemini live socket lifecycle', () => {
       await harness.endSession();
 
       // A 4,000-character preview must not bill as 1,000 output tokens. With no
-      // final committed the session falls back to the per-second estimate.
-      expect(licenseCharges[0]!.amount).toBe(creditsForCost(computeGeminiTranscribeLiveCost(10)));
+      // final committed the output half of the bill is zero and the session
+      // pays for the audio it forwarded.
+      const audioOnly = 10 * 25 * (3.50 / 1e6);
+      expect(licenseCharges[0]!.amount).toBe(creditsForCost(computeGeminiTranscribeLiveCost(10, 0)));
+      expect(licenseCharges[0]!.metadata.transcription_cost_usd as number).toBeCloseTo(audioOnly, 9);
     });
 
-    test('a session that ends before any final lands still bills the output half', async () => {
-      // Confirmed as real, not theoretical: an abrupt client close mid-turn (or
-      // the stop grace expiring) leaves transcriptChars at 0 with 20 s of audio
-      // already forwarded and interims on the wire. Pricing that on audio alone
-      // drops ~43% of the charge, because the output tokens are 43% of it.
-      const harness = openSession();
-      harness.events.onMessage(binaryMessage(audioFrame(20)));
-      harness.upstream.deliver({ serverContent: { interimInputTranscription: { text: 'x'.repeat(250) } } });
+    test('a session that commits nothing is never billed more than one that commits a word', async () => {
+      // Regression guard on the metered charge, end to end through the route.
+      // The credit cutoff and the end-of-session deduction both price the
+      // session through `costForSeconds`, and that curve must not fall as the
+      // transcript grows: a stuck push-to-talk (20 s of silence, no final) used
+      // to be billed the ~150 wpm output estimate — MORE than the same 20 s
+      // that actually produced a word.
+      async function costOf(finalText: string | null): Promise<number> {
+        licenseCharges.length = 0;
+        const harness = openSession();
+        harness.events.onMessage(binaryMessage(audioFrame(20)));
+        harness.upstream.deliver({ serverContent: { interimInputTranscription: { text: 'x'.repeat(250) } } });
+        if (finalText !== null) {
+          harness.upstream.deliver({ serverContent: { inputTranscription: { text: finalText } } });
+        }
+        await harness.endSession();
+        return licenseCharges[0]!.metadata.transcription_cost_usd as number;
+      }
 
-      await harness.endSession();
+      const silent = await costOf(null);
+      const oneWord = await costOf('word');
+      const talkative = await costOf('y'.repeat(600));
 
-      const audioOnly = 20 * 25 * (3.50 / 1e6);
-      expect(licenseCharges[0]!.amount).toBe(creditsForCost(computeGeminiTranscribeLiveCost(20)));
-      expect(licenseCharges[0]!.metadata.transcription_cost_usd as number).toBeGreaterThan(audioOnly);
+      expect(silent).toBeLessThanOrEqual(oneWord);
+      expect(oneWord).toBeLessThanOrEqual(talkative);
+      // ...and silence is exactly the audio it forwarded, nothing more.
+      expect(silent).toBeCloseTo(20 * 25 * (3.50 / 1e6), 9);
     });
 
     test('a fast talker cannot bill past the balance the cutoff was measured against', async () => {
@@ -961,19 +977,26 @@ describe('gemini live socket lifecycle', () => {
     });
 
     test('cuts the session off at the balance seen at auth', async () => {
-      // 4.6 credits is the floor; give exactly that and stream past it.
+      // 4.6 credits is the floor; give exactly that and stream past it. This
+      // session commits no transcript, so it is priced on audio alone and
+      // reaches the balance later than the 30 s reservation assumes (the
+      // reservation prices a spoken minute) — the cutoff still fires, and
+      // nothing is forwarded after it.
       const harness = openSession({ credits: 4.6 });
 
-      for (let second = 0; second < 30; second += 1) {
+      let second = 0;
+      for (; second < 120 && harness.upstream.closes.length === 0; second += 1) {
         harness.events.onMessage(binaryMessage(audioFrame(1)));
       }
+      expect(second).toBeLessThan(120);
       expect(harness.client.messagesOfType('error')).toEqual([
         { type: 'error', message: 'Credit balance exhausted' },
       ]);
       expect(harness.upstream.closes).toEqual([{ code: 1000, reason: 'Credits exhausted' }]);
 
+      const forwarded = harness.upstream.audioFramesForwarded;
       harness.events.onMessage(binaryMessage(audioFrame(5)));
-      expect(harness.upstream.audioFramesForwarded).toBe(30);
+      expect(harness.upstream.audioFramesForwarded).toBe(forwarded);
       await harness.endSession();
     });
 

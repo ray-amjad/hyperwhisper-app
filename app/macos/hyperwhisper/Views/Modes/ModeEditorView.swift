@@ -547,6 +547,26 @@ struct ModeEditorView: View {
         selectedCloudTier.vendorGroupDictationModels
     }
 
+    /// What the Model dropdown must be showing for a stored (tier, model) pair —
+    /// the stored id when the dropdown offers it, the tier default otherwise.
+    ///
+    /// Reads the same list the picker is built from (`vendorGroupDictationModels`,
+    /// via `hyperwhisperCloudModels`). A clamp keyed on `tier.models` instead
+    /// disagreed with the picker in both directions: it reset a perfectly valid
+    /// model belonging to a sibling tier of the same company row, and it ACCEPTED
+    /// a live-only id the picker refuses to list — leaving a blank menu button on
+    /// a mode whose every dictation fails with HTTP 400.
+    ///
+    /// Static and pure so the repair is testable without a SwiftUI environment.
+    static func clampedCloudTranscriptionModel(
+        tier: CloudAccuracyTier,
+        storedModelId: String
+    ) -> String {
+        tier.vendorGroupDictationModels.contains { $0.id == storedModelId }
+            ? storedModelId
+            : tier.defaultModelId
+    }
+
     /// Provider dropdown selection — the catalog `vendor` key rather than the
     /// tier, so a company with several tiers occupies one row. Picking a company
     /// lands on its first tier and that tier's default model.
@@ -636,10 +656,19 @@ struct ModeEditorView: View {
             // a valid selection (avoids a SwiftUI Picker selection warning).
             if currentCloudProvider == .hyperwhisper {
                 let tier = selectedCloudTier
-                let modelIds = tier.models.map { $0.id }
-                if !modelIds.contains(cloudTranscriptionModel) {
-                    cloudTranscriptionModel = tier.defaultModelId
-                }
+                // Validate against exactly what the Model dropdown OFFERS
+                // (`hyperwhisperCloudModels`), not against `tier.models`. The two
+                // disagreed in both directions: the dropdown spans the whole
+                // vendor group, so a valid sibling-tier model was being reset to
+                // the tier default, and it excludes the live-only ids, so
+                // `gemini-3.5-transcribe-live` passed the clamp and then matched
+                // no tag — a blank menu button on a mode whose every dictation
+                // 400s. A clamp that accepts what the picker refuses to show is
+                // not a clamp.
+                cloudTranscriptionModel = Self.clampedCloudTranscriptionModel(
+                    tier: tier,
+                    storedModelId: cloudTranscriptionModel
+                )
                 // A domain only makes sense for assemblyAI; clear stale values.
                 if !showsMedicalDomainToggle {
                     cloudTranscriptionDomain = nil

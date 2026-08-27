@@ -299,18 +299,29 @@ class HyperWhisperCloudStrategy: StreamingProviderStrategy {
     /// Define the shutdown sequence for HyperWhisper Cloud.
     ///
     /// SEQUENCE:
-    /// 1. Send {"type":"stop"} — tells the server to close the Deepgram connection
-    /// 2. Wait 0.5s — gives the server time to send session_complete with credit info
+    /// 1. Send {"type":"stop"} — tells the server to end the upstream session
+    /// 2. Wait for `session_complete` (10 s cap) — the last final, then the bill
     /// 3. Close WebSocket — clean connection teardown
     ///
-    /// WHY THE WAIT:
-    /// The server needs time to receive the stop signal, close the Deepgram stream,
-    /// calculate credit usage, and send back the session_complete message. Without
-    /// the delay, we'd close the WebSocket before receiving the credit deduction info.
+    /// WHY IT WAITS FOR THE EVENT AND NOT A FIXED 0.5 s:
+    /// The flat half-second predates the vendors behind this route needing a
+    /// flush. It is enough for Deepgram, which finalizes on the marker, and it
+    /// is NOT enough for Gemini: the backend forwards `audio_stream_end` and
+    /// then holds the socket open for its whole `STOP_GRACE_MS` (5 s in
+    /// `ws-streaming-gemini-transcribe.ts`) because Google delivers the last
+    /// turn's final ~0.5 s AFTER the marker — right on top of this deadline.
+    /// Closing at 0.5 s drops the last utterance of every live session and the
+    /// credit figure with it, and the client would have no `session_complete`
+    /// to reconcile against.
+    ///
+    /// `waitForSessionComplete` returns the instant the event lands, so Deepgram
+    /// is not slowed down: the 10 s is a cap, not a delay, and it matches the
+    /// budget `HyperWhisperCloudStreamingStrategy` on Windows and the
+    /// shared-.NET live service already use.
     func stopSequence() -> [StreamingStopStep] {
         [
             .sendText(#"{"type":"stop"}"#),
-            .wait(0.5),
+            .waitForSessionComplete(timeout: 10.0),
             .closeWebSocket
         ]
     }

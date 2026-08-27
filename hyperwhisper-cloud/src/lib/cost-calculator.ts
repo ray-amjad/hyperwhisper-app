@@ -539,21 +539,25 @@ function geminiTranscribeSecondsCost(seconds: number, rate: GeminiTranscribeRate
  * streaming route meters as the session runs. Audio tokens are the same 25/sec
  * as the pre-recorded model at the live model's higher rate.
  *
- * `transcriptChars` is optional so a mid-session cutoff can bill on duration
- * alone; pass it at end-of-session, where the full transcript is known, for the
- * closer figure. Consumed by `routes/ws-streaming-gemini-transcribe.ts`.
+ * `transcriptChars` is optional. OMITTED means "no transcript figure exists yet"
+ * — the reservation/minimum-balance estimate — and prices the output half from
+ * the duration at ~150 wpm. SUPPLIED means "this is how much text the session
+ * produced", and ZERO is a real answer: it prices the output half at zero.
  *
- * ZERO chars is treated the same as "not supplied", not as "no output was
- * produced". A session that streamed audio but ended before any final landed —
- * an abrupt client close mid-turn, or the stop grace expiring — has interim
- * text on the wire and a real Google bill behind it, and pricing it on audio
- * alone drops ~43% of the charge. Genuine silence pays the same estimate, which
- * is the same direction Deepgram's flat per-second rate already takes.
+ * MONOTONICITY IS A REQUIREMENT, not an accident of the arithmetic. This
+ * function must never charge more for a shorter transcript at the same
+ * duration. Treating `0` as "unknown" broke that: at 60 s, 0 chars billed the
+ * ~150 wpm estimate (9.2 credits) and 1 char billed 5.3, so every session under
+ * 749 chars/min cost less than silence and a stuck push-to-talk minute
+ * over-billed by 74%. A finals-less session now bills the audio it forwarded
+ * and nothing more — an under-charge of the output half in a rare case, which
+ * is the side to be wrong on when the alternative is charging a user more for
+ * saying less.
  */
 export function computeGeminiTranscribeLiveCost(durationSeconds: number, transcriptChars?: number): number {
   const rate = GEMINI_TRANSCRIBE_RATES['gemini-3.5-transcribe-live'];
   const seconds = Math.max(0, durationSeconds);
-  if (transcriptChars === undefined || transcriptChars <= 0) {
+  if (transcriptChars === undefined) {
     return roundUsd(geminiTranscribeSecondsCost(seconds, rate));
   }
   const outputTokens = Math.ceil(Math.max(0, transcriptChars) / RESERVATION_CHARS_PER_TOKEN);

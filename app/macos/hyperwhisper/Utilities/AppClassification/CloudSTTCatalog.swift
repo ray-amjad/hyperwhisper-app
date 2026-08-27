@@ -167,7 +167,18 @@ struct CloudSTTCatalog {
     /// deliberate omission from `CloudTranscriptionModel.GeminiTranscribe` on
     /// Windows. Adding a catalog field would let all four derive it — see the
     /// note in this PR's review.
-    static let liveOnlyModelIds: Set<String> = ["gemini-3.5-transcribe-live"]
+    ///
+    /// `gpt-live-transcribe` is here for the same reason and is the WORSE of the
+    /// two: unlike Gemini, nothing on the backend rejects it, so it is forwarded
+    /// to OpenAI's realtime-only model and 400s there — at 17 credits/min
+    /// against the tier default's 6, on a model the picker used to list.
+    ///
+    /// The list is the same on all three heads and is pinned by
+    /// `shared-conformance/live-only-models.json`.
+    static let liveOnlyModelIds: Set<String> = [
+        "gemini-3.5-transcribe-live",
+        "gpt-live-transcribe",
+    ]
 
     /// Whether `modelId` is one of `liveOnlyModelIds` (case-insensitive, trimmed,
     /// matching the rest of the catalog's model lookups).

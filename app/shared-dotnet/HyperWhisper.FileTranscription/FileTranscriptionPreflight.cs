@@ -195,7 +195,11 @@ public sealed class PortableFileTranscriptionPreflight
         if (provider == CloudTranscriptionProvider.HyperWhisperCloud)
         {
             var tier = SharedCoreBridge.CanonicalCloudSttTier(target.CloudCatalogTier);
-            modelId = requestedModel.Length != 0 && SharedCoreBridge.CloudSttContainsModel(tier, requestedModel)
+            // File transcription is the pre-recorded route: a live-only model id
+            // is a member of the tier but 400s on a POST, so it resolves to the
+            // tier default. See `SharedCoreBridge.LiveOnlyCloudSttModelIds`.
+            modelId = requestedModel.Length != 0
+                && SharedCoreBridge.CloudSttContainsDictationModel(tier, requestedModel)
                 ? requestedModel
                 : SharedCoreBridge.CloudSttDefaultModel(tier) ?? string.Empty;
             if (modelId.Length == 0)

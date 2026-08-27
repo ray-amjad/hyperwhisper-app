@@ -113,8 +113,13 @@ public sealed class ModeAwareTranscriptionRouter : IRecordedAudioTranscriber, ID
                 provider == CloudTranscriptionProvider.Gemini ? Normalize(mode.GeminiCustomPrompt) : null);
 
         var tier = SharedCoreBridge.CanonicalCloudSttTier(mode.CloudAccuracyTier);
+        // Dictation is the PRE-RECORDED route, so a live-only model id falls back
+        // to the tier default instead of being forwarded. There is no picker
+        // filtering it out on Linux — the model box is a bare text field — so a
+        // mode carrying `gemini-3.5-transcribe-live` would otherwise POST it and
+        // take an HTTP 400 on every dictation.
         var routedModel = !string.IsNullOrWhiteSpace(mode.CloudTranscriptionModel)
-            && SharedCoreBridge.CloudSttContainsModel(tier, mode.CloudTranscriptionModel)
+            && SharedCoreBridge.CloudSttContainsDictationModel(tier, mode.CloudTranscriptionModel)
                 ? mode.CloudTranscriptionModel
                 : SharedCoreBridge.CloudSttDefaultModel(tier);
         return new(

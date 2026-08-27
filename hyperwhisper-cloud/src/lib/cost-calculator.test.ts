@@ -353,15 +353,30 @@ describe('new STT provider cost functions', () => {
     expect(computeGeminiTranscribeLiveCost(60, 2000)).toBeGreaterThan(estimated);
   });
 
-  test('a live session that ended with NO final is priced as unknown, not as zero output', () => {
-    // A minute of forwarded audio and zero committed characters means the
-    // session ended before a final landed (abrupt close, or the stop grace
-    // expiring) — the interims were real speech and Google billed for them.
-    // Pricing it on audio alone drops ~43% of the charge.
+  test('the live cost never decreases as the transcript grows, and silence is the floor', () => {
+    // Regression guard. Treating 0 chars as "unknown" and pricing it at the
+    // ~150 wpm per-second estimate made the curve fall off a cliff at 1
+    // character: 60 s billed 9.2 credits for silence and 5.3 for one letter, so
+    // every session below 150 wpm cost less than saying nothing, and a stuck
+    // push-to-talk minute over-billed by 74%.
     const audioOnly = 60 * 25 * (3.50 / 1e6);
-    expect(computeGeminiTranscribeLiveCost(60, 0)).toBe(computeGeminiTranscribeLiveCost(60));
-    expect(computeGeminiTranscribeLiveCost(60, 0)).toBeGreaterThan(audioOnly);
-    expect(audioOnly / computeGeminiTranscribeLiveCost(60, 0)).toBeCloseTo(0.57, 2);
+    expect(computeGeminiTranscribeLiveCost(60, 0)).toBeCloseTo(audioOnly, 9);
+
+    let previous = computeGeminiTranscribeLiveCost(60, 0);
+    for (const chars of [1, 2, 3, 4, 5, 8, 40, 100, 748, 749, 750, 1000, 2000, 10_000]) {
+      const cost = computeGeminiTranscribeLiveCost(60, chars);
+      expect(cost).toBeGreaterThanOrEqual(previous);
+      previous = cost;
+    }
+
+    // Silence is the cheapest a 60 s session can be, and specifically cheaper
+    // than the same minute spoken at a normal 150 wpm.
+    const spokenMinute = computeGeminiTranscribeLiveCost(60, 749);
+    expect(computeGeminiTranscribeLiveCost(60, 0)).toBeLessThan(spokenMinute);
+    // The omitted-argument form is the reservation estimate, and is unchanged:
+    // it means "no transcript figure exists yet", not "zero characters".
+    expect(computeGeminiTranscribeLiveCost(60)).toBeGreaterThan(computeGeminiTranscribeLiveCost(60, 0));
+    expect(computeGeminiTranscribeLiveCost(60)).toBeCloseTo(spokenMinute, 4);
   });
 
   test('usdForCredits inverts usdToCredits, so a balance can clamp a charge', () => {

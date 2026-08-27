@@ -507,11 +507,36 @@ struct StreamingView: View {
     /// for what now ships as `geminiTranscribe` — would render a BLANK selection
     /// even though the session itself routes correctly. Writes pass straight
     /// through: the picker can only produce a current id.
-    private var normalizedProviderBinding: Binding<String> {
+    ///
+    /// `objectWillChange.send()` is NOT optional here, and is the whole reason
+    /// this binding is written out rather than closed over in one line. The
+    /// backing property is `@AppStorage`, not `@Published`: `@AppStorage` does
+    /// not implement the enclosing-instance subscript, so assigning to it from
+    /// outside a View writes UserDefaults and publishes NOTHING. The projected
+    /// binding this replaced (`$settingsManager.streamingProvider`) published on
+    /// every write for free, so dropping it silently froze the whole section —
+    /// no body re-evaluation means `.onChange(of: settingsManager.streamingProvider)`
+    /// never fires either, and picking a provider that needs a key never reveals
+    /// the key field. Send BEFORE the write, the way `willSet` would.
+    ///
+    /// Built by a static that takes the manager explicitly so the tests can
+    /// exercise this exact binding without standing up a SwiftUI environment
+    /// (`StreamingSettingsBindingTests`).
+    static func providerBinding(for settings: SettingsManager) -> Binding<String> {
         Binding(
-            get: { selectedProvider.rawValue },
-            set: { settingsManager.streamingProvider = $0 }
+            get: {
+                (StreamingTranscriptionProvider.fromStorageValue(settings.streamingProvider)
+                    ?? .hyperwhisperCloud).rawValue
+            },
+            set: {
+                settings.objectWillChange.send()
+                settings.streamingProvider = $0
+            }
         )
+    }
+
+    private var normalizedProviderBinding: Binding<String> {
+        Self.providerBinding(for: settingsManager)
     }
 
     /// Reads the stored tier through the same clamp the route derivation uses, so
@@ -519,11 +544,24 @@ struct StreamingView: View {
     /// both set it — shows the row the session will actually use instead of an
     /// empty selection. Writes pass straight through: every value the picker can
     /// produce is already in the eligible set.
-    private var normalizedCloudTierBinding: Binding<String> {
+    ///
+    /// Publishes before the write for the same reason as
+    /// `normalizedProviderBinding` above — `streamingCloudTier` is `@AppStorage`
+    /// too, so without this, changing the live tier leaves the vocabulary
+    /// language warning (`cloudTierRequiresLanguageForVocabulary`) showing the
+    /// previous tier's answer.
+    static func cloudTierBinding(for settings: SettingsManager) -> Binding<String> {
         Binding(
-            get: { HyperWhisperCloudStrategy.normalizedCloudTier(settingsManager.streamingCloudTier) },
-            set: { settingsManager.streamingCloudTier = $0 }
+            get: { HyperWhisperCloudStrategy.normalizedCloudTier(settings.streamingCloudTier) },
+            set: {
+                settings.objectWillChange.send()
+                settings.streamingCloudTier = $0
+            }
         )
+    }
+
+    private var normalizedCloudTierBinding: Binding<String> {
+        Self.cloudTierBinding(for: settingsManager)
     }
 
     /// Whether the selected cloud live tier needs an explicit language before it

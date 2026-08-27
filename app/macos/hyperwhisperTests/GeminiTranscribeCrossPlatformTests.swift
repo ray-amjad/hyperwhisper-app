@@ -329,21 +329,75 @@ struct LiveOnlyCloudModelTests {
 
     @Test("The send path rejects a stored live-only model instead of posting it")
     func sendPathValidationDropsTheLiveOnlyModel() {
-        // `HyperWhisperCloudProvider` resolves X-STT-Model by testing membership
-        // of the tier's models and falling back to the tier default. The
-        // live-only id IS a member, so the plain test accepted it and the mode
-        // 400'd on every dictation — and the picker filter alone does not save a
-        // mode restored from a backup or written by the Local API.
+        // Runs the PRODUCTION resolver — the one `transcribe(...)` calls to fill
+        // `X-STT-Model` — rather than restating its ternary. A picker filter is
+        // not a validation: a backup restore, a Local API PATCH or a mode saved
+        // before the filter existed all still put a live-only id in this field,
+        // and posting it 400s every dictation in that mode.
         let tier = CloudAccuracyTier.geminiTranscribe
-        let tierModelIds = tier.dictationModels.map { $0.id }
-        #expect(!tierModelIds.contains(Self.liveModelId))
 
-        let resolved = tierModelIds.contains(Self.liveModelId) ? Self.liveModelId : tier.defaultModelId
-        #expect(resolved == "gemini-3.5-transcribe")
+        #expect(
+            HyperWhisperCloudProvider.resolvedSTTModelId(tier: tier, storedModelId: Self.liveModelId)
+                == "gemini-3.5-transcribe"
+        )
+        // Whitespace and the BYOK leftover take the same fallback.
+        #expect(
+            HyperWhisperCloudProvider.resolvedSTTModelId(
+                tier: tier, storedModelId: "  \(Self.liveModelId)  "
+            ) == "gemini-3.5-transcribe"
+        )
+        #expect(
+            HyperWhisperCloudProvider.resolvedSTTModelId(tier: tier, storedModelId: "whisper-1")
+                == "gemini-3.5-transcribe"
+        )
+        // A legitimate dictation model is passed through untouched, so the
+        // rejection cannot be mistaken for "always send the default".
+        #expect(
+            HyperWhisperCloudProvider.resolvedSTTModelId(
+                tier: tier, storedModelId: "gemini-3.5-transcribe"
+            ) == "gemini-3.5-transcribe"
+        )
+        // ...including on a tier that has several, which a blanket default would
+        // also break.
+        #expect(
+            HyperWhisperCloudProvider.resolvedSTTModelId(
+                tier: .deepgramNova3, storedModelId: "nova-3-medical"
+            ) == "nova-3-medical"
+        )
         // The fallback must itself be a legal dictation model, or the rejection
         // just swaps one 400 for another.
         #expect(!CloudSTTCatalog.isLiveOnlyModel(tier.defaultModelId))
-        #expect(tierModelIds.contains(tier.defaultModelId))
+    }
+
+    @Test("The editor's .onAppear clamp agrees with the model dropdown")
+    func theEditorClampMatchesThePickerItOffers() {
+        // The clamp and the picker read the same list. When they disagreed, a
+        // mode carrying the live-only id passed the clamp (it is in
+        // `tier.models`) and then matched no picker tag — a blank menu button on
+        // a mode whose every dictation 400s.
+        let tier = CloudAccuracyTier.geminiTranscribe
+        #expect(
+            ModeEditorView.clampedCloudTranscriptionModel(
+                tier: tier, storedModelId: Self.liveModelId
+            ) == "gemini-3.5-transcribe"
+        )
+        #expect(
+            ModeEditorView.clampedCloudTranscriptionModel(
+                tier: tier, storedModelId: "gemini-3.5-transcribe"
+            ) == "gemini-3.5-transcribe"
+        )
+        // A sibling tier of the same company row is offered by the dropdown, so
+        // the clamp must leave it alone rather than reset it to the tier default.
+        let ownModelIds = Set(tier.dictationModels.map { $0.id })
+        if let sibling = tier.vendorGroupDictationModels.first(where: {
+            !ownModelIds.contains($0.id)
+        }) {
+            #expect(
+                ModeEditorView.clampedCloudTranscriptionModel(
+                    tier: tier, storedModelId: sibling.id
+                ) == sibling.id
+            )
+        }
     }
 
     @Test("The live model is still reachable on the streaming path")

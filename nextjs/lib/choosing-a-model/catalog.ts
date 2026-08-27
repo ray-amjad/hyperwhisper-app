@@ -211,8 +211,10 @@ export type DeviceModel = {
 export type Model = CloudModel | DeviceModel;
 
 /**
- * Mirrored from `cloud-stt-catalog.json` v7 (2026-08-13). Benchmark columns
- * from the Artificial Analysis leaderboard, pulled 2026-08-19.
+ * Mirrored from `cloud-stt-catalog.json` v8 (2026-08-27). Benchmark columns
+ * from the Artificial Analysis leaderboard, pulled 2026-08-19 — a model the
+ * leaderboard has not measured carries `wer: null` / `speedFactor: null`
+ * rather than a guess (the Gemini 3.5 Transcribe pair, newly added).
  */
 const CLOUD_MODELS_RAW = [
   { id: "groqWhisper:whisper-large-v3-turbo", name: "Whisper Large v3 Turbo", vendorLabel: "Groq Whisper", vendor: "Groq", sttProvider: "groq", modelId: "whisper-large-v3-turbo", credits: 0.667, wer: 4.6, speedFactor: 122.2, languages: 100, streaming: false, customVocabulary: true, preview: false, isDefault: true, byok: true },
@@ -223,7 +225,8 @@ const CLOUD_MODELS_RAW = [
   { id: "deepgramNova3:nova-2-medical", name: "Nova 2 Medical", vendorLabel: "Deepgram Nova 3", vendor: "Deepgram", sttProvider: "deepgram", modelId: "nova-2-medical", credits: 5.5, wer: null, speedFactor: null, languages: 64, streaming: true, customVocabulary: true, preview: false, isDefault: false, byok: true },
   { id: "grokStt:", name: "Grok Speech-to-Text", vendorLabel: "Grok STT", vendor: "xAI", sttProvider: "grok", modelId: "", credits: 1.67, wer: 4.0, speedFactor: 230.1, languages: 25, streaming: true, customVocabulary: true, preview: false, isDefault: true, byok: true },
   { id: "azureMaiTranscribe:mai-transcribe-1.5", name: "MAI-Transcribe 1.5", vendorLabel: "Microsoft MAI-Transcribe 1.5", vendor: "Microsoft", sttProvider: "azure-mai", modelId: "mai-transcribe-1.5", credits: 6.0, wer: 2.4, speedFactor: 183.3, languages: 42, streaming: false, customVocabulary: true, preview: false, isDefault: true, byok: false },
-  { id: "googleChirp3:chirp_3", name: "Chirp 3", vendorLabel: "Google Chirp 3", vendor: "Google", sttProvider: "google-chirp", modelId: "chirp_3", credits: 16.0, wer: 4.3, speedFactor: null, languages: 111, streaming: true, customVocabulary: true, preview: false, isDefault: true, byok: false },
+  { id: "geminiTranscribe:gemini-3.5-transcribe", name: "Gemini 3.5 Transcribe", vendorLabel: "Google Gemini 3.5 Transcribe", vendor: "Google", sttProvider: "gemini-transcribe", modelId: "gemini-3.5-transcribe", credits: 5.5, wer: null, speedFactor: null, languages: null, streaming: true, customVocabulary: true, preview: true, isDefault: true, byok: true },
+  { id: "geminiTranscribe:gemini-3.5-transcribe-live", name: "Gemini 3.5 Transcribe Live", vendorLabel: "Google Gemini 3.5 Transcribe", vendor: "Google", sttProvider: "gemini-transcribe", modelId: "gemini-3.5-transcribe-live", credits: 9.6, wer: null, speedFactor: null, languages: null, streaming: true, customVocabulary: true, preview: true, isDefault: false, byok: true },
   { id: "elevenLabsScribeV2:scribe_v2", name: "Scribe v2", vendorLabel: "ElevenLabs Scribe v2", vendor: "ElevenLabs", sttProvider: "elevenlabs", modelId: "scribe_v2", credits: 9.83, wer: 2.2, speedFactor: 57.0, languages: 99, streaming: false, customVocabulary: true, preview: false, isDefault: true, byok: true },
   { id: "openaiWhisper:gpt-4o-transcribe", name: "GPT-4o Transcribe", vendorLabel: "OpenAI Whisper", vendor: "OpenAI", sttProvider: "openai", modelId: "gpt-4o-transcribe", credits: 6.0, wer: 4.0, speedFactor: 38.1, languages: 100, streaming: false, customVocabulary: true, preview: false, isDefault: true, byok: true },
   { id: "openaiWhisper:gpt-4o-mini-transcribe", name: "GPT-4o Mini Transcribe", vendorLabel: "OpenAI Whisper", vendor: "OpenAI", sttProvider: "openai", modelId: "gpt-4o-mini-transcribe", credits: 3.0, wer: 4.5, speedFactor: 43.5, languages: 100, streaming: false, customVocabulary: true, preview: false, isDefault: false, byok: true },

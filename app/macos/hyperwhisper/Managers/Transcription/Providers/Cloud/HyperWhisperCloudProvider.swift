@@ -52,6 +52,31 @@ import Foundation
 /// Uses Cloudflare Workers for edge-based speech-to-text processing
 class HyperWhisperCloudProvider: TranscriptionProvider {
 
+    // MARK: - Send-path model resolution
+
+    /// The `X-STT-Model` header value for a mode's stored model within `tier`.
+    /// An empty result means "omit the header" and let the backend apply the
+    /// provider default.
+    ///
+    /// `dictationModels`, NOT `models`: a live-only id such as
+    /// `gemini-3.5-transcribe-live` IS a member of its tier, so a plain
+    /// membership test accepts it and the backend answers every dictation with a
+    /// 400 ("WebSocket-only model and is not served by /transcribe"). The Mode
+    /// editor's picker no longer offers one, but a backup restore, a Local API
+    /// PATCH or a mode saved before that filter existed can all still put one in
+    /// the field, so the SEND path has to reject it too — a picker filter is not
+    /// a validation.
+    ///
+    /// `cloudTranscriptionModel` is shared with the BYOK path (Core Data default
+    /// `"whisper-1"`), so an unrelated id is the normal case, not an edge one.
+    ///
+    /// Static and pure so the resolution is testable on its own — the caller
+    /// needs a license manager, a credit manager and an audio file.
+    static func resolvedSTTModelId(tier: CloudAccuracyTier, storedModelId: String?) -> String {
+        let raw = (storedModelId ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return tier.dictationModels.contains { $0.id == raw } ? raw : tier.defaultModelId
+    }
+
     // MARK: - Properties
 
     /// License manager for getting device ID / license key
@@ -257,18 +282,10 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
         // models (mirrors ModeEditorView.onAppear) so we never send a mismatched
         // X-STT-Model the backend 400s on; an unknown model falls back to the
         // tier default ("" → header omitted).
-        let rawModelId = (mode?.cloudTranscriptionModel ?? "")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        //
-        // `dictationModels`, not `models`: a live-only id such as
-        // `gemini-3.5-transcribe-live` IS a member of the tier, so the plain
-        // membership test accepts it and the backend answers every dictation
-        // with a 400 ("WebSocket-only model and is not served by /transcribe").
-        // The picker no longer offers one, but a backup restore, a Local API
-        // PATCH or a mode saved before that filter existed can all still put one
-        // here, so the send path has to reject it too.
-        let tierModelIds = accuracyTier.dictationModels.map { $0.id }
-        let selectedModelId = tierModelIds.contains(rawModelId) ? rawModelId : accuracyTier.defaultModelId
+        let selectedModelId = Self.resolvedSTTModelId(
+            tier: accuracyTier,
+            storedModelId: mode?.cloudTranscriptionModel
+        )
         // X-STT-Domain: "medical" (assemblyAI) or nil.
         let trimmedDomain = mode?.cloudTranscriptionDomain?
             .trimmingCharacters(in: .whitespacesAndNewlines)
