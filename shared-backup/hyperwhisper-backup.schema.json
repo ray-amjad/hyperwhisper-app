@@ -106,6 +106,10 @@
               "type": ["string", "null"],
               "description": "Deepgram streaming model ID."
             },
+            "cloudTier": {
+              "type": ["string", "null"],
+              "description": "Which vendor HyperWhisper Cloud's live route uses, as a cloud-stt-catalog.json entry id, for example 'deepgramNova3' or 'geminiTranscribe'. Meaningful only when 'provider' is 'hyperwhisperCloud'. Absent or null means the default, 'deepgramNova3', which is what every client built before this key shipped uses."
+            },
             "fastFormatting": { "type": "boolean" },
             "shortcut": {
               "type": ["string", "null"],

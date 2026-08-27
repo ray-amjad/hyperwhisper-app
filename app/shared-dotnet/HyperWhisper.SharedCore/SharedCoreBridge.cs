@@ -223,6 +223,18 @@ public static class SharedCoreBridge
     public static string? CloudSttProvider(string tierId) =>
         HyperwhisperCoreMethods.CloudSttProvider(tierId);
 
+    /// <summary>
+    /// Cloud-tier entry ids HyperWhisper Cloud can also serve LIVE, in catalog
+    /// order — the eligible set for the streaming cloud-tier picker.
+    ///
+    /// Catalog-derived (<c>cloudTierEligible</c> AND some model with
+    /// <c>streaming: true</c>), never a hand-kept list. Note this is NOT the
+    /// entry-level <c>features.streaming</c> hint, which is true for six vendors
+    /// we serve no WebSocket route for.
+    /// </summary>
+    public static IReadOnlyList<string> StreamingCloudSttTiers() =>
+        HyperwhisperCoreMethods.CloudSttStreamingCloudTierEntryIds();
+
     public static string? CloudSttDefaultModel(string tierId) =>
         HyperwhisperCoreMethods.CloudSttDefaultModelId(tierId);
 

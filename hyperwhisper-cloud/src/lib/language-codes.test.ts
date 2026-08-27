@@ -403,31 +403,47 @@ describe('describeLanguage', () => {
   });
 });
 
-describe('catalog parity — VALUE space (cloud-stt-catalog.json)', () => {
-  test('the Chirp locale set matches the catalog exactly', async () => {
-    const codes = await upstreamCodes('googleChirp3');
-    const fromCatalog = new Set(codes.map(c => c.toLowerCase()));
-    expect([...__tables.GOOGLE_CHIRP_LOCALES].sort()).toEqual([...fromCatalog].sort());
+// Chirp is the one mapped provider with no catalog entry left to check against.
+// Catalog v8 replaced `googleChirp3` with `geminiTranscribe` as Google's cloud
+// tier; Chirp's upstream-native locale list moved into `GOOGLE_CHIRP_LOCALES` in
+// language-codes.ts, which is now its only copy. The provider itself is very much
+// alive — clients shipped before v8 still send `X-STT-Provider: google-chirp` into
+// a fail-closed registry — so the tables still have to be held to something. What
+// remains checkable is (a) the two tables against each other, and (b) the KEY
+// space against `chirp_3` in models-catalog.json, which the parity block below
+// already does in both directions.
+describe('google-chirp locale tables (no longer catalog-backed)', () => {
+  test('cloud-stt-catalog.json really has retired the googleChirp3 entry', async () => {
+    // A tripwire, not a preference: if someone re-adds the entry, the three
+    // assertions this block replaced should come back rather than these weaker
+    // self-consistency ones.
+    const catalog = (await Bun.file(STT_CATALOG_PATH).json()) as { providers: CatalogProvider[] };
+    expect(catalog.providers.map(p => p.id)).not.toContain('googleChirp3');
   });
 
-  test('every Chirp base code maps to a locale the catalog lists', async () => {
-    const codes = await upstreamCodes('googleChirp3');
-    const fromCatalog = new Set(codes.map(c => c.toLowerCase()));
+  test('every Chirp base code maps to a locale the allow-list accepts', () => {
+    // `resolveGoogleChirpLocale` gates region/script-qualified codes on
+    // GOOGLE_CHIRP_LOCALES, so a default that is not in it is a locale we would
+    // emit for a bare code but reject for the qualified form of the same language.
+    const allowed = new Set([...__tables.GOOGLE_CHIRP_LOCALES].map(c => c.toLowerCase()));
     const strays = Object.entries(__tables.GOOGLE_CHIRP_LOCALE_BY_BASE)
-      .filter(([, locale]) => !fromCatalog.has(locale.toLowerCase()))
+      .filter(([, locale]) => !allowed.has(locale.toLowerCase()))
       .map(([base, locale]) => `${base} → ${locale}`);
     expect(strays).toEqual([]);
   });
 
-  test('every Chirp language the catalog lists is reachable from a base code', async () => {
-    // Guards the other direction: a language Google adds should not stay
-    // unreachable just because nobody extended the base table.
-    const codes = await upstreamCodes('googleChirp3');
+  test('every allow-listed Chirp locale is reachable from a base code', () => {
+    // Guards the other direction: a language in the allow-list should not stay
+    // unreachable from the picker just because nobody extended the base table.
     const reachable = new Set(Object.values(__tables.GOOGLE_CHIRP_LOCALE_BY_BASE).map(l => primarySubtag(l)));
-    const unreachable = [...new Set(codes.map(c => primarySubtag(c)))].filter(base => !reachable.has(base));
+    const unreachable = [...new Set([...__tables.GOOGLE_CHIRP_LOCALES].map(c => primarySubtag(c)))].filter(
+      base => !reachable.has(base),
+    );
     expect(unreachable).toEqual([]);
   });
+});
 
+describe('catalog parity — VALUE space (cloud-stt-catalog.json)', () => {
   test('the Azure locale set matches the catalog exactly', async () => {
     const codes = await upstreamCodes('azureMaiTranscribe');
     expect([...__tables.AZURE_MAI_LOCALES].sort()).toEqual([...codes].sort());

@@ -70,6 +70,10 @@ public static class LinuxLiveStreamingSettingsMapper
         return normalized switch
         {
             "deepgram" => configured,
+            // The live model id is fixed for this vendor: the catalog carries
+            // exactly one `streaming: true` row for it, and the free-text model
+            // box on this page is the Deepgram model picker in disguise.
+            "geminitranscribe" => "gemini-3.5-transcribe-live",
             "parakeetlocal" => configured is "parakeet-v2" or "parakeet-v3"
                 ? configured : "parakeet-v3",
             "nemotronlocal" => "nemotron-3.5-ml-560ms",

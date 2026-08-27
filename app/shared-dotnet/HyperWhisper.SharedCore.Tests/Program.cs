@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using System.Text.Json;
 using HyperWhisper.SharedCore;
 
 var tests = new (string Name, Func<Task> Run)[]
@@ -119,7 +120,9 @@ var tests = new (string Name, Func<Task> Run)[]
     ("retry policy retries transient responses deterministically", TestRetryAsync),
     ("unauthorized responses are classified without leaking provider bodies", TestUnauthorizedAsync),
     ("cancellation stops in-flight HTTP and returns structured cancellation", TestCancellationAsync),
-    ("live strategies construct and parse all five provider protocols", TestLiveProvidersAsync),
+    ("live strategies construct and parse all six provider protocols", TestLiveProvidersAsync),
+    ("gemini live setup frame pins the input_audio_transcription position", TestGeminiLiveSetupFrameAsync),
+    ("hyperwhisper cloud live route is derived from the selected tier", TestCloudLiveRouteAsync),
     ("live diagnostics redact credentials audio and transcript text", TestLiveDiagnosticsRedactionAsync),
     ("live provider failures and buffer limits are structured", TestLiveFailureAndBoundsAsync),
     ("live cancellation stops transport deterministically", TestLiveCancellationAsync),
@@ -524,6 +527,21 @@ static async Task TestLiveProvidersAsync()
                 CloseFrame(),
             ],
             "grok final"),
+        // `usageMetadata` is a real unmodelled frame Google interleaves; it must be
+        // ignored rather than treated as an error. Multi-turn accumulation (the
+        // no-prefix-diffing contract) is asserted in TestGeminiLiveSetupFrameAsync.
+        new LiveCase(
+            new LiveTranscriptionConfig(LiveTranscriptionProvider.GeminiTranscribe, ApiKey: "AIza-secret", Language: "en-US", Vocabulary: ["Codex"]),
+            "generativelanguage.googleapis.com",
+            [
+                TextFrame("{\"setupComplete\":{}}"),
+                TextFrame("{\"usageMetadata\":{\"totalTokenCount\":3}}"),
+                TextFrame("{\"serverContent\":{\"interimInputTranscription\":{\"text\":\"gemini par\"}}}"),
+                TextFrame("{\"serverContent\":{\"inputTranscription\":{\"text\":\"gemini final\"}}}"),
+                TextFrame("{\"serverContent\":{\"generationComplete\":true}}"),
+                CloseFrame(),
+            ],
+            "gemini final"),
         new LiveCase(
             new LiveTranscriptionConfig(LiveTranscriptionProvider.HyperWhisperCloud, LicenseKey: "hw-secret", Language: "en", Vocabulary: ["Codex"]),
             "transcribe-prod-v2.hyperwhisper.com",
@@ -714,6 +732,158 @@ static async Task TestLiveVocabularyAsync()
             index % 2 == 0 ? new string('z', 60) + index : $"term{index}")]));
     Assert.Equal(100, CountOccurrences(capped, "keyterm="));
     Assert.False(capped.Contains("zzzz", StringComparison.Ordinal));
+}
+
+/// <summary>
+/// TRAP 3, pinned. Gemini takes the same transcription config object at two
+/// different paths depending on the model: the pre-recorded model wants
+/// `setup.generation_config.transcription_config`, the LIVE model wants
+/// `setup.input_audio_transcription`. Sending the pre-recorded shape to the live
+/// socket closes it with code 1007, which is terminal, not retryable — so this
+/// asserts the exact frame rather than "some setup was sent". The expectations
+/// are copied from shared-conformance/live-frame-vectors.json.
+///
+/// Also pins the two contracts a reader is most likely to get wrong from the
+/// docs: vocabulary is NOT gated on an explicit language (that is a Deepgram
+/// constraint; Gemini accepts custom_vocabulary in auto-detect, verified live),
+/// and consecutive `inputTranscription` frames are per-turn deltas that must be
+/// APPENDED, never prefix-diffed the way GrokLiveProtocol diffs its
+/// session-cumulative text.
+/// </summary>
+static async Task TestGeminiLiveSetupFrameAsync()
+{
+    static async Task<JsonElement> Setup(LiveTranscriptionConfig config)
+    {
+        var socket = new FakeStreamingWebSocket([CloseFrame()]);
+        var service = new LiveCloudTranscriptionService(new FakeWebSocketFactory(socket));
+        await service.TranscribeAsync(config, Audio(320));
+        Assert.True(socket.Sent.Count > 0);
+        return JsonDocument.Parse(socket.Sent[0].Data).RootElement.Clone();
+    }
+
+    var full = await Setup(new LiveTranscriptionConfig(
+        LiveTranscriptionProvider.GeminiTranscribe, ApiKey: "AIza-secret",
+        Language: "en-US", Vocabulary: ["HyperWhisper"]));
+    Assert.Equal(
+        "{\"setup\":{\"model\":\"models/gemini-3.5-transcribe-live\"," +
+        "\"input_audio_transcription\":{\"language_codes\":[\"en-US\"]," +
+        "\"custom_vocabulary\":[\"HyperWhisper\"]}}}",
+        full.GetRawText());
+    // The wrong-but-plausible position must be absent, not merely unused.
+    Assert.False(full.GetProperty("setup").TryGetProperty("generation_config", out _));
+
+    // Region is PRESERVED. Every other live protocol here flattens "en-GB" to
+    // "en"; Gemini takes the qualified form and throwing the region away would
+    // silently ignore a deliberate user choice.
+    var region = await Setup(new LiveTranscriptionConfig(
+        LiveTranscriptionProvider.GeminiTranscribe, ApiKey: "AIza-secret", Language: "en-GB"));
+    Assert.Equal(
+        "[\"en-GB\"]",
+        region.GetProperty("setup").GetProperty("input_audio_transcription")
+            .GetProperty("language_codes").GetRawText());
+
+    // Auto-detect: language_codes omitted entirely, custom_vocabulary still sent.
+    var auto = await Setup(new LiveTranscriptionConfig(
+        LiveTranscriptionProvider.GeminiTranscribe, ApiKey: "AIza-secret",
+        Language: "auto", Vocabulary: ["Kalamazoo"]));
+    var autoTranscription = auto.GetProperty("setup").GetProperty("input_audio_transcription");
+    Assert.False(autoTranscription.TryGetProperty("language_codes", out _));
+    Assert.Equal("[\"Kalamazoo\"]", autoTranscription.GetProperty("custom_vocabulary").GetRawText());
+
+    // A bare model id is prefixed; an already-prefixed one is left alone.
+    var prefixed = await Setup(new LiveTranscriptionConfig(
+        LiveTranscriptionProvider.GeminiTranscribe, ApiKey: "AIza-secret",
+        Model: "models/gemini-3.5-transcribe-live"));
+    Assert.Equal("models/gemini-3.5-transcribe-live", prefixed.GetProperty("setup").GetProperty("model").GetString());
+
+    // Audio and stop frames, byte-for-byte against the vectors. This socket
+    // deliberately never sends a close or a generationComplete, because Google
+    // does not either — measured 54 s of silence after audio_stream_end. So this
+    // also proves the client stops on its own DrainTimeout instead of hanging on
+    // an upstream close that never comes.
+    var audioSocket = new FakeStreamingWebSocket([TextFrame("{\"setupComplete\":{}}")]);
+    var audioService = new LiveCloudTranscriptionService(new FakeWebSocketFactory(audioSocket));
+    var started = System.Diagnostics.Stopwatch.StartNew();
+    var drained = await audioService.TranscribeAsync(
+        new LiveTranscriptionConfig(LiveTranscriptionProvider.GeminiTranscribe, ApiKey: "AIza-secret"),
+        Audio(320));
+    started.Stop();
+    // Silence in, NoSpeech out — the point is that it RETURNS, bounded by the
+    // drain budget, rather than blocking on a close Google never sends.
+    Assert.Equal(LiveTranscriptionFailureCode.NoSpeech, drained.Failure!.Code);
+    Assert.True(started.Elapsed < TimeSpan.FromSeconds(20));
+    var frames = audioSocket.Sent.Select(frame => Encoding.UTF8.GetString(frame.Data)).ToArray();
+    Assert.True(frames.Any(frame =>
+        frame.Contains("\"mime_type\":\"audio/pcm;rate=16000\"", StringComparison.Ordinal) &&
+        frame.Contains("\"realtime_input\"", StringComparison.Ordinal)));
+    Assert.Equal("{\"realtime_input\":{\"audio_stream_end\":true}}", frames[^1]);
+
+    // Two turns: appended, not diffed. "second turn." shares no prefix rule with
+    // "first turn." — under Grok's Delta() the second final would be emitted whole
+    // only by accident, so the case that actually discriminates is a turn whose
+    // text repeats the previous one.
+    var turns = new FakeStreamingWebSocket(
+    [
+        TextFrame("{\"setupComplete\":{}}"),
+        TextFrame("{\"serverContent\":{\"inputTranscription\":{\"text\":\"again.\"}}}"),
+        TextFrame("{\"serverContent\":{\"interimInputTranscription\":{\"text\":\"ag\"}}}"),
+        TextFrame("{\"serverContent\":{\"inputTranscription\":{\"text\":\"again.\"}}}"),
+        TextFrame("{\"serverContent\":{\"generationComplete\":true}}"),
+        CloseFrame(),
+    ]);
+    var turnsResult = await new LiveCloudTranscriptionService(new FakeWebSocketFactory(turns))
+        .TranscribeAsync(
+            new LiveTranscriptionConfig(LiveTranscriptionProvider.GeminiTranscribe, ApiKey: "AIza-secret"),
+            Audio(320));
+    Assert.True(turnsResult.IsSuccess);
+    Assert.Equal("again. again.", turnsResult.Transcript);
+}
+
+/// <summary>
+/// The HyperWhisper Cloud live route is DERIVED from the selected cloud tier
+/// (`/ws/streaming-{sttProvider}`), so a new live vendor is a catalog change.
+/// The two things this guards: `deepgramNova3` and a null/garbage tier must both
+/// still produce the byte-identical legacy path (installed clients send no tier
+/// at all), and the Deepgram-only "no vocabulary without an explicit language"
+/// rule must NOT be applied to the Gemini tier.
+/// </summary>
+static async Task TestCloudLiveRouteAsync()
+{
+    static async Task<Uri> Route(string? tier, string? language, IReadOnlyList<string>? vocabulary = null)
+    {
+        var socket = new FakeStreamingWebSocket([CloseFrame()]);
+        var service = new LiveCloudTranscriptionService(new FakeWebSocketFactory(socket));
+        await service.TranscribeAsync(
+            new LiveTranscriptionConfig(
+                LiveTranscriptionProvider.HyperWhisperCloud, LicenseKey: "hw",
+                Language: language, Vocabulary: vocabulary, CloudTier: tier),
+            Audio(320));
+        Assert.NotNull(socket.Options);
+        return socket.Options!.Uri;
+    }
+
+    Assert.Equal("/ws/streaming-deepgram", (await Route(null, "en")).AbsolutePath);
+    Assert.Equal("/ws/streaming-deepgram", (await Route("deepgramNova3", "en")).AbsolutePath);
+    Assert.Equal("/ws/streaming-deepgram", (await Route("  ", "en")).AbsolutePath);
+    // An id the catalog does not know must not produce /ws/streaming-nonsense.
+    Assert.Equal("/ws/streaming-deepgram", (await Route("notATier", "en")).AbsolutePath);
+    Assert.Equal("/ws/streaming-gemini-transcribe", (await Route("geminiTranscribe", "en")).AbsolutePath);
+
+    // Deepgram Nova-3 silently drops keyterms in auto-detect, so we withhold them.
+    var deepgramAuto = await Route("deepgramNova3", "auto", ["Kalamazoo"]);
+    Assert.False(deepgramAuto.Query.Contains("vocabulary=", StringComparison.Ordinal));
+    Assert.False(deepgramAuto.Query.Contains("language=", StringComparison.Ordinal));
+
+    // Gemini accepts custom_vocabulary in auto-detect, and vocabulary is the whole
+    // reason to pick that tier — withholding it would delete the headline feature
+    // for every auto-detect user.
+    var geminiAuto = await Route("geminiTranscribe", "auto", ["Kalamazoo"]);
+    Assert.True(geminiAuto.Query.Contains("vocabulary=Kalamazoo", StringComparison.Ordinal));
+    Assert.False(geminiAuto.Query.Contains("language=", StringComparison.Ordinal));
+
+    // With an explicit language both tiers send it.
+    Assert.True((await Route("deepgramNova3", "en", ["Kalamazoo"])).Query
+        .Contains("vocabulary=Kalamazoo", StringComparison.Ordinal));
 }
 
 static async Task<string> ConnectQuery(LiveTranscriptionConfig config)

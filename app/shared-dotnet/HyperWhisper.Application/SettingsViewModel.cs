@@ -1,6 +1,7 @@
 using System.Windows.Input;
 using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.Platform.Abstractions;
+using HyperWhisper.SharedCore;
 
 namespace HyperWhisper.PortableApplication.ViewModels;
 
@@ -36,6 +37,7 @@ public sealed class SettingsViewModel : ViewModelBase
     private string _streamingProvider = "deepgram";
     private string _streamingLanguage = "auto";
     private string _streamingModel = "nova-3-general";
+    private string _streamingCloudTier = "deepgramNova3";
     private bool _streamingFastFormatting;
     private bool _autostartEnabled;
     private bool _launchMinimized;
@@ -100,9 +102,24 @@ public sealed class SettingsViewModel : ViewModelBase
     public double ClipboardRestoreDelaySeconds { get => _clipboardRestoreDelaySeconds; set => Set(ref _clipboardRestoreDelaySeconds, Math.Clamp(value, 0, 60)); }
     public bool StoreWordTimestamps { get => _storeWordTimestamps; set => Set(ref _storeWordTimestamps, value); }
     public bool StreamingEnabled { get => _streamingEnabled; set => Set(ref _streamingEnabled, value); }
-    public string StreamingProvider { get => _streamingProvider; set => Set(ref _streamingProvider, NormalizeStreamingProvider(value)); }
+    public string StreamingProvider
+    {
+        get => _streamingProvider;
+        set
+        {
+            if (Set(ref _streamingProvider, NormalizeStreamingProvider(value)))
+            {
+                Notify(nameof(StreamingUsesHyperWhisperCloud));
+            }
+        }
+    }
+
+    /// <summary>Gates the cloud live-vendor picker; the tier is meaningless for every other provider.</summary>
+    public bool StreamingUsesHyperWhisperCloud =>
+        string.Equals(_streamingProvider, "hyperwhisper", StringComparison.Ordinal);
     public string StreamingLanguage { get => _streamingLanguage; set => Set(ref _streamingLanguage, string.IsNullOrWhiteSpace(value) ? "auto" : value.Trim()); }
     public string StreamingModel { get => _streamingModel; set => Set(ref _streamingModel, value?.Trim() ?? string.Empty); }
+    public string StreamingCloudTier { get => _streamingCloudTier; set => Set(ref _streamingCloudTier, NormalizeStreamingCloudTier(value)); }
     public bool StreamingFastFormatting { get => _streamingFastFormatting; set => Set(ref _streamingFastFormatting, value); }
     public bool AutostartEnabled { get => _autostartEnabled; set => Set(ref _autostartEnabled, value); }
     public bool LaunchMinimized { get => _launchMinimized; set => Set(ref _launchMinimized, value); }
@@ -164,8 +181,18 @@ public sealed class SettingsViewModel : ViewModelBase
     public IReadOnlyList<string> LocalLlmBackends { get; } = ["cpu", "vulkan", "cuda"];
     public IReadOnlyList<string> PushToTalkModes { get; } = ["Disabled", "Modifier", "CustomShortcut"];
     public IReadOnlyList<string> PushToTalkModifiers { get; } = Enum.GetNames<ModifierSide>();
+    // NOTE the pre-existing casing wart: "grok" here is spelled "xai" on macOS
+    // and Windows. NormalizeStreamingProvider accepts both spellings, and
+    // LiveStreamingModeRouter.TryProvider accepts both too — keep it that way.
     public IReadOnlyList<string> StreamingProviders { get; } =
-        ["deepgram", "elevenlabs", "openai", "grok", "hyperwhisper", "parakeetLocal", "nemotronLocal"];
+        ["deepgram", "elevenlabs", "openai", "grok", "geminiTranscribe", "hyperwhisper", "parakeetLocal", "nemotronLocal"];
+
+    /// <summary>
+    /// Which vendor HyperWhisper Cloud's live route uses. Catalog-derived, so a
+    /// future third live vendor is a catalog change and no code change here.
+    /// Only meaningful while <see cref="StreamingProvider"/> is "hyperwhisper".
+    /// </summary>
+    public IReadOnlyList<string> StreamingCloudTiers { get; } = SharedCoreBridge.StreamingCloudSttTiers();
     public IReadOnlyList<string> AudioEnvironmentPolicies { get; } = ["unchanged", "duck", "mute"];
     public UiStatus Status { get; } = new();
     public ICommand SaveCommand { get; }
@@ -207,6 +234,7 @@ public sealed class SettingsViewModel : ViewModelBase
         StreamingProvider = _settings.Get("streaming.provider", "deepgram") ?? "deepgram";
         StreamingLanguage = _settings.Get("streaming.language", "auto") ?? "auto";
         StreamingModel = _settings.Get("streaming.deepgramModel", "nova-3-general") ?? "nova-3-general";
+        StreamingCloudTier = _settings.Get("streaming.cloudTier", "deepgramNova3") ?? "deepgramNova3";
         StreamingFastFormatting = _settings.Get("streaming.fastFormatting", false);
         AutostartEnabled = _settings.Get("autostartEnabled", false);
         LaunchMinimized = _settings.Get("general.launchMinimized", false);
@@ -280,6 +308,7 @@ public sealed class SettingsViewModel : ViewModelBase
         _settings.Set("streaming.provider", NormalizeStreamingProvider(StreamingProvider));
         _settings.Set("streaming.language", StreamingLanguage);
         _settings.Set("streaming.deepgramModel", StreamingModel);
+        _settings.Set("streaming.cloudTier", NormalizeStreamingCloudTier(StreamingCloudTier));
         _settings.Set("streaming.fastFormatting", StreamingFastFormatting);
         _settings.Set("autostartEnabled", AutostartEnabled);
         _settings.Set("general.launchMinimized", LaunchMinimized);
@@ -417,14 +446,34 @@ public sealed class SettingsViewModel : ViewModelBase
         _ => "auto",
     };
 
+    // Fails OPEN to "deepgram" — an id this switch does not know is silently
+    // rewritten on the next Save(). LiveStreamingModeRouter.TryProvider is the
+    // second, independent normalization of the same string and fails CLOSED.
+    // Both must learn a new provider; updating one is a silent-drift bug.
     private static string NormalizeStreamingProvider(string? value) => value?.Trim().ToLowerInvariant() switch
     {
         "elevenlabs" => "elevenlabs", "openai" => "openai", "grok" or "xai" => "grok",
+        "geminitranscribe" or "gemini-transcribe" or "gemini_transcribe" => "geminiTranscribe",
         "hyperwhisper" or "hyperwhispercloud" => "hyperwhisper",
         "parakeetlocal" or "parakeet_local" => "parakeetLocal",
         "nemotronlocal" or "nemotron_local" => "nemotronLocal",
         _ => "deepgram",
     };
+
+    /// <summary>
+    /// Canonicalise through the shared core (so a retired id like
+    /// <c>googleChirp3</c> migrates rather than resetting), then hold the result
+    /// to the live-eligible set. A tier that is cloud-tier eligible but has no
+    /// backend WebSocket route would 404 at dictation time, so anything outside
+    /// the set falls back to Deepgram.
+    /// </summary>
+    private string NormalizeStreamingCloudTier(string? value)
+    {
+        var canonical = SharedCoreBridge.CanonicalCloudSttTier(value);
+        return StreamingCloudTiers.Contains(canonical, StringComparer.Ordinal)
+            ? canonical
+            : SharedCoreBridge.CanonicalCloudSttTier("deepgramNova3");
+    }
 
     private static string NormalizeAudioPolicy(string? value) => value?.Trim().ToLowerInvariant() switch
     {

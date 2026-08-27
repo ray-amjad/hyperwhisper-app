@@ -162,6 +162,7 @@ public sealed partial class ApplicationBackupService(
             ["provider"] = _settings.Get<string?>("streaming.provider"),
             ["language"] = _settings.Get<string?>("streaming.language"),
             ["deepgramModel"] = _settings.Get<string?>("streaming.deepgramModel"),
+            ["cloudTier"] = _settings.Get<string?>("streaming.cloudTier"),
             ["fastFormatting"] = _settings.Get("streaming.fastFormatting", false),
             ["shortcut"] = _settings.Get<string?>("streaming.shortcut"),
         },
@@ -177,7 +178,7 @@ public sealed partial class ApplicationBackupService(
         CopyCategory(settings, "general", ["launchMinimized", "showRecordingWindow", "checkForUpdatesAutomatically", "enableErrorLogging", "shareAnonymousSpeedData", "enableSoundEffects"]);
         CopyCategory(settings, "textOutput", ["pasteResultText", "removeFillerWords", "restoreClipboardAfterPaste", "hideFromClipboardHistory", "clipboardRestoreDelaySeconds", "autocapitalizeInsert", "storeWordTimestamps"]);
         CopyCategory(settings, "storage", ["keepAudioFiles", "storeAsM4A"]);
-        CopyCategory(settings, "streaming", ["enabled", "provider", "language", "deepgramModel", "fastFormatting", "shortcut"]);
+        CopyCategory(settings, "streaming", ["enabled", "provider", "language", "deepgramModel", "cloudTier", "fastFormatting", "shortcut"]);
         CopyCategory(settings, "advanced", ["maxRecordingDuration", "typingSpeedWPM"]);
     }
 

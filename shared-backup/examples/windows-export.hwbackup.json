@@ -29,6 +29,7 @@
       "provider": "openAI",
       "language": "auto",
       "deepgramModel": "nova-3-general",
+      "cloudTier": "geminiTranscribe",
       "fastFormatting": true,
       "shortcut": "Ctrl+Shift+S"
     },

@@ -28,6 +28,7 @@ var checks = new (string Name, Action Run)[]
     ("picker-language folding matches the vectors", CheckPickerLanguages),
     ("models-catalog lookups match the vectors", CheckModelsEntries),
     ("the vectors cover every polymorphic branch", CheckCoverage),
+    ("streaming cloud tiers are exactly the vendors we serve a WS route for", CheckStreamingCloudTiers),
 };
 
 foreach (var check in checks)
@@ -148,6 +149,36 @@ void CheckVendorGroups()
 
     True(HyperwhisperCoreMethods.CloudSttVendorGroup("noSuchTier") is null,
         "an unknown tier id must not resolve to a vendor group");
+}
+
+// The eligible set for the HyperWhisper Cloud live tier picker. This is the guard
+// that stops someone flipping a `models[].streaming` flag on a vendor we serve no
+// backend WebSocket route for and shipping a 404 at dictation time: the STT
+// catalog has no `enabled` gate to hide a half-finished vendor behind, and the
+// client derives its route as `/ws/streaming-{sttProvider}` with no allow-list of
+// its own. Widen this list only in the same change that adds the backend route.
+//
+// Deliberately NOT derived from the entry-level `features.streaming` hint, which
+// is true for six vendors (grok, assemblyAI, mistral, soniox, …) that have no
+// HyperWhisper Cloud live route at all.
+void CheckStreamingCloudTiers()
+{
+    string[] expected = ["deepgramNova3", "geminiTranscribe"];
+    SequenceEqual(expected, HyperwhisperCoreMethods.CloudSttStreamingCloudTierEntryIds(),
+        "streaming cloud tier entry ids");
+
+    // The picker shows a localized label per id and the route needs the vendor's
+    // sttProvider, so every eligible id must resolve through both lookups.
+    foreach (var id in expected)
+    {
+        var entry = HyperwhisperCoreMethods.CloudSttEntry(id);
+        True(entry is not null, $"{id}: eligible for the live picker but absent from the catalog");
+        True(entry!.@access?.@cloudTierEligible == true, $"{id}: live-eligible but not cloudTierEligible");
+        True(!string.IsNullOrWhiteSpace(HyperwhisperCoreMethods.CloudSttProvider(id)),
+            $"{id}: no sttProvider, so /ws/streaming-{{sttProvider}} cannot be derived");
+        True(entry.@models.Any(model => model.@streaming == true),
+            $"{id}: no model marked streaming, so the eligible set disagrees with the catalog");
+    }
 }
 
 void CheckPickerLanguages()
