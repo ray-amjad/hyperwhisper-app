@@ -2781,20 +2781,22 @@ sealed class QueuedInteractionUiDispatcher : IUiDispatcher
 sealed class FakePushToTalkScheduler : IPushToTalkScheduler
 {
     private readonly List<Scheduled> _scheduled = [];
-    public DateTimeOffset Now { get; private set; } = DateTimeOffset.UnixEpoch;
+    // A virtual monotonic clock in milliseconds, matching the real scheduler's
+    // Environment.TickCount64.
+    public ulong NowMs { get; private set; }
     public IDisposable Schedule(TimeSpan delay, Action action)
-    { var value = new Scheduled(Now + delay, action); _scheduled.Add(value); return value; }
+    { var value = new Scheduled(NowMs + (ulong)delay.TotalMilliseconds, action); _scheduled.Add(value); return value; }
     public void Advance(TimeSpan amount)
     {
-        Now += amount;
-        while (_scheduled.Where(value => !value.Cancelled && value.Due <= Now).OrderBy(value => value.Due).FirstOrDefault() is { } next)
+        NowMs += (ulong)amount.TotalMilliseconds;
+        while (_scheduled.Where(value => !value.Cancelled && value.Due <= NowMs).OrderBy(value => value.Due).FirstOrDefault() is { } next)
         { _scheduled.Remove(next); next.Fire(); }
         _scheduled.RemoveAll(value => value.Cancelled);
     }
-    private sealed class Scheduled(DateTimeOffset due, Action action) : IDisposable
+    private sealed class Scheduled(ulong due, Action action) : IDisposable
     {
         private Action? _action = action;
-        public DateTimeOffset Due { get; } = due;
+        public ulong Due { get; } = due;
         public bool Cancelled => _action is null;
         public void Fire() => Interlocked.Exchange(ref _action, null)?.Invoke();
         public void Dispose() => _action = null;
