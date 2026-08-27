@@ -1312,6 +1312,7 @@
     },
     {
       "name": "cloudProvider legacy alias \"microsoftazurespeech\" folds onto hyperwhisper + azureMaiTranscribe",
+      "note": "The folded tier lands on the mode ONLY because this mode carries no cloudAccuracyTier of its own — see vec-066 for the case where it does, and loses. This applies to the other plain-fold rows too (vec-063/064/065/067/075).",
       "mode": {
         "id": "00000000-0000-4000-8000-000000000062",
         "name": "vec-062",
@@ -1403,8 +1404,8 @@
       }
     },
     {
-      "name": "cloudProvider fold: the folded accuracy tier WINS over the mode's own cloudAccuracyTier",
-      "note": "Precedence on Windows is normalizedCloudProvider.AccuracyTier ?? migrated(universal) ?? Mode default.",
+      "name": "cloudProvider fold: the mode's OWN cloudAccuracyTier BEATS the folded provider tier",
+      "note": "The object initializer really is `normalizedCloudProvider.AccuracyTier ?? migrated(universal) ?? Mode default`, so the fold wins THERE — but MapToMode then assigns CloudAccuracyTier a second time, unconditionally, from whichever post-initializer arm it takes. With no platformExtensions.windows it takes the else arm, `migrated(universal.CloudAccuracyTier) ?? mode.CloudAccuracyTier`, and MigrateCloudAccuracyTierPresent returns null ONLY for a null/blank input (an unknown value falls back to deepgramNova3, never to null). So any present tier overwrites the fold. Here 'high' is a real migrateFrom alias of deepgramNova3, so azureMaiTranscribe is discarded. The fold survives only when the arm's own tier source is absent or blank.",
       "mode": {
         "id": "00000000-0000-4000-8000-000000000066",
         "name": "vec-066",
@@ -1415,7 +1416,7 @@
         "cloudProvider": "hyperwhisper",
         "cloudTranscriptionModel": null,
         "cloudTranscriptionDomain": null,
-        "cloudAccuracyTier": "azureMaiTranscribe",
+        "cloudAccuracyTier": "deepgramNova3",
         "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
       },
       "expectedLinux": {
@@ -2778,7 +2779,8 @@
       }
     },
     {
-      "name": "platformExtensions.windows tier does NOT beat the provider fold on the provider itself",
+      "name": "platformExtensions.windows tier BEATS the folded tier; the fold still owns cloudProvider",
+      "note": "The winExt arm of MapToMode. cloudProvider stays folded to hyperwhisper — nothing in platformExtensions can undo that — but the tier does not stay folded: `migrated(winExt.CloudAccuracyTier) ?? mode.CloudAccuracyTier` migrates 'medium' to groqWhisper and discards azureMaiTranscribe. Note this arm does NOT re-read universal.CloudAccuracyTier, so when winExt carries no tier the folded tier is what survives — that is the one place the initializer's `normalizedCloudProvider.AccuracyTier ??` is load-bearing.",
       "mode": {
         "id": "00000000-0000-4000-8000-000000000128",
         "name": "vec-128",
@@ -2859,7 +2861,8 @@
       }
     },
     {
-      "name": "legacy azure standalone mode, the full fold",
+      "name": "legacy azure standalone mode: provider and domain fold, but its own cloudAccuracyTier survives",
+      "note": "Same rule as vec-066, on a fully-populated legacy mode. The provider folds to hyperwhisper (which in turn opens the domain gate, so 'medical' is kept), but the mode's own 'medium' is migrated to groqWhisper and overwrites the folded azureMaiTranscribe in the post-initializer else arm. This is NOT the 'full fold' the old label claimed: a legacy azure mode that carries any tier of its own lands on that tier, not on azureMaiTranscribe.",
       "mode": {
         "id": "00000000-0000-4000-8000-000000000131",
         "name": "vec-131",
@@ -2873,7 +2876,7 @@
         "cloudProvider": "hyperwhisper",
         "cloudTranscriptionModel": "mai-transcribe-1.5",
         "cloudTranscriptionDomain": "medical",
-        "cloudAccuracyTier": "azureMaiTranscribe",
+        "cloudAccuracyTier": "groqWhisper",
         "cloudPostProcessingModel": "cerebras:gpt-oss-120b"
       },
       "expectedLinux": {
