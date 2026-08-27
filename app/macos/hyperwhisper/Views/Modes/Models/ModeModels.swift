@@ -217,7 +217,7 @@ struct ModeData {
         self.cloudProvider = mode.cloudProvider ?? "hyperwhisper"
         self.cloudTranscriptionModel = CloudTranscriptionModels.resolveModelAlias(
             mode.cloudTranscriptionModel ?? "whisper-1",
-            provider: CloudProvider(rawValue: self.cloudProvider)
+            provider: CloudProvider.parse(self.cloudProvider)
         )
         // Convert from Core Data Int16 to enum, default to cloud for backward compatibility
         let processingMode = isLegacyVoiceToText ? .off : (PostProcessingMode(rawValue: mode.postProcessingMode) ?? .cloud)
@@ -499,6 +499,22 @@ enum CloudAccuracyTier: String, CaseIterable, Identifiable {
     var vendorGroupModels: [CloudSTTCatalog.Model] {
         guard let group = CloudSTTCatalog.shared.vendorGroup(forEntryId: rawValue) else { return models }
         return group.models.map(\.model)
+    }
+
+    /// `vendorGroupModels` minus anything HyperWhisper Cloud serves only over
+    /// the live WebSocket route. This is what the mode editor's Model dropdown
+    /// offers: a live-only model reaches `/transcribe` as an HTTP 400, so every
+    /// dictation in a mode carrying one fails. See
+    /// `CloudSTTCatalog.liveOnlyModelIds` for why the per-model `streaming` flag
+    /// is not the right filter.
+    var vendorGroupDictationModels: [CloudSTTCatalog.Model] {
+        vendorGroupModels.filter { !CloudSTTCatalog.isLiveOnlyModel($0.id) }
+    }
+
+    /// This tier's own models, minus the live-only ones — the set the send path
+    /// validates a stored `cloudTranscriptionModel` against.
+    var dictationModels: [CloudSTTCatalog.Model] {
+        models.filter { !CloudSTTCatalog.isLiveOnlyModel($0.id) }
     }
 
     /// Whether this engine (provider/tier) is the recommended default for

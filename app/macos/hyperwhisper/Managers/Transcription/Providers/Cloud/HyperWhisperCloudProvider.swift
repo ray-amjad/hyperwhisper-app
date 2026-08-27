@@ -259,7 +259,15 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
         // tier default ("" → header omitted).
         let rawModelId = (mode?.cloudTranscriptionModel ?? "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        let tierModelIds = accuracyTier.models.map { $0.id }
+        //
+        // `dictationModels`, not `models`: a live-only id such as
+        // `gemini-3.5-transcribe-live` IS a member of the tier, so the plain
+        // membership test accepts it and the backend answers every dictation
+        // with a 400 ("WebSocket-only model and is not served by /transcribe").
+        // The picker no longer offers one, but a backup restore, a Local API
+        // PATCH or a mode saved before that filter existed can all still put one
+        // here, so the send path has to reject it too.
+        let tierModelIds = accuracyTier.dictationModels.map { $0.id }
         let selectedModelId = tierModelIds.contains(rawModelId) ? rawModelId : accuracyTier.defaultModelId
         // X-STT-Domain: "medical" (assemblyAI) or nil.
         let trimmedDomain = mode?.cloudTranscriptionDomain?

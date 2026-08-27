@@ -573,7 +573,7 @@ struct MenuBarItems: View {
         guard let mode = appState.selectedModeSnapshot else { return false }
         if mode.model.lowercased() == "cloud",
            let providerRaw = mode.rawCloudProvider,
-           let provider = CloudProvider(rawValue: providerRaw),
+           let provider = CloudProvider.parse(providerRaw),
            cloudProviderHealthManager.status(for: provider).shouldBlockTranscription {
             return true
         }

@@ -361,7 +361,7 @@ class APIKeySettingsManager: ObservableObject {
         // Check transcription API key if using cloud
         if isCloudTranscription {
             let cloudProviderString = mode.cloudProvider ?? "hyperwhisper"
-            if let cloudProvider = CloudProvider(rawValue: cloudProviderString) {
+            if let cloudProvider = CloudProvider.parse(cloudProviderString) {
                 if !hasAPIKey(for: cloudProvider) {
                     missingKeys.append(MissingAPIKey(context: .transcription(cloudProvider)))
                 }
@@ -402,7 +402,7 @@ class APIKeySettingsManager: ObservableObject {
         }
 
         if isCloudTranscription {
-            if let cloudProvider = CloudProvider(rawValue: snapshot.cloudProvider) {
+            if let cloudProvider = CloudProvider.parse(snapshot.cloudProvider) {
                 if !hasAPIKey(for: cloudProvider) {
                     missingKeys.append(MissingAPIKey(context: .transcription(cloudProvider)))
                 }

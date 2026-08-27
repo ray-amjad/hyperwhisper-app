@@ -18,7 +18,7 @@ extension RecordingTranscriptionFlow {
         provider: String,
         model: String?
     ) -> String {
-        switch StreamingTranscriptionProvider(rawValue: provider) {
+        switch StreamingTranscriptionProvider.fromStorageValue(provider) {
         case .parakeetLocal:
             return Self.parakeetAllowedLanguage(language, model: model)
         default:
@@ -198,7 +198,7 @@ extension RecordingTranscriptionFlow {
         let service: any StreamingClientProtocol
         var apiKey: String?
 
-        switch StreamingTranscriptionProvider(rawValue: provider) {
+        switch StreamingTranscriptionProvider.fromStorageValue(provider) {
         case .deepgram:
             // Deepgram direct streaming - requires user's Deepgram API key
             let deepgramKey = KeychainManager.shared.getAPIKey(for: .deepgram)
@@ -376,7 +376,7 @@ extension RecordingTranscriptionFlow {
         var licenseKey: String?
         var deviceId: String?
 
-        if StreamingTranscriptionProvider(rawValue: provider) == .hyperwhisperCloud || provider == "hyperwhisperCloud" {
+        if StreamingTranscriptionProvider.fromStorageValue(provider) == .hyperwhisperCloud || provider == "hyperwhisperCloud" {
             guard let licenseManager = licenseManager else {
                 AppLogger.audio.error("❌ Streaming failed: LicenseManager not available")
                 await cancelRecordingWithError("Streaming transcription unavailable")
@@ -487,7 +487,7 @@ extension RecordingTranscriptionFlow {
         // is used ONLY for filler removal, never for typing/CJK/vocabulary, which
         // continue to treat the language as genuinely unknown.
         let fillerRemovalLanguage = Self.fillerRemovalLanguageHint(streamingLanguage: streamingLanguage)
-        let isLocalProvider = StreamingTranscriptionProvider(rawValue: provider)?.isLocal ?? false
+        let isLocalProvider = StreamingTranscriptionProvider.fromStorageValue(provider)?.isLocal ?? false
         // Exact-vocab substitutions on the local path. Cloud providers
         // already receive vocabulary hints server-side; re-applying
         // substitutions there would fight the server's own normalization.

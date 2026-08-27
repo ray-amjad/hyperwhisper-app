@@ -199,7 +199,11 @@ class TranscriptionProviderRouter {
         }
 
         // CLOUD PROVIDER SELECTION
-        let cloudProviderType = mode?.cloudProvider.flatMap { CloudProvider(rawValue: $0) } ?? .hyperwhisper
+        // `parse`, not `init(rawValue:)`: the `?? .hyperwhisper` fallback below
+        // is a BILLING decision. A camelCase id restored from a Windows/Linux
+        // backup would miss the case-sensitive lookup and silently move a BYOK
+        // user onto paid credits.
+        let cloudProviderType = CloudProvider.parse(mode?.cloudProvider) ?? .hyperwhisper
 
         // Validate API key (except for HyperWhisper Cloud which uses license/device ID)
         guard let settings = settingsManager else {
@@ -581,7 +585,7 @@ class TranscriptionProviderRouter {
     func isHyperWhisperCloudActive(model: String?, cloudProvider: String?) -> Bool {
         let modelString = (model ?? "base").lowercased()
         guard modelString == "cloud" else { return false }
-        let resolved = cloudProvider.flatMap { CloudProvider(rawValue: $0) } ?? .hyperwhisper
+        let resolved = CloudProvider.parse(cloudProvider) ?? .hyperwhisper
         return resolved.routesViaHyperWhisperCloud
     }
 

@@ -203,7 +203,7 @@ extension RecordingTranscriptionFlow {
             let streamingLanguage = settingsManager?.streamingLanguageEffective ?? LanguageData.automaticCode
             let streamingProvider = settingsManager?.streamingProvider ?? "hyperwhisperCloud"
             let streamingModel: String?
-            switch StreamingTranscriptionProvider(rawValue: streamingProvider) {
+            switch StreamingTranscriptionProvider.fromStorageValue(streamingProvider) {
             case .parakeetLocal:
                 streamingModel = settingsManager?.streamingLocalParakeetVersion
             case .nemotronLocal:

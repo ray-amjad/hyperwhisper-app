@@ -59,7 +59,7 @@ struct StreamingView: View {
     /// The currently selected streaming provider, derived from settings.
     /// Falls back to HyperWhisper Cloud if the stored value is invalid.
     private var selectedProvider: StreamingTranscriptionProvider {
-        StreamingTranscriptionProvider(rawValue: settingsManager.streamingProvider) ?? .hyperwhisperCloud
+        StreamingTranscriptionProvider.fromStorageValue(settingsManager.streamingProvider) ?? .hyperwhisperCloud
     }
 
     /// API key value for the currently selected direct streaming provider.
@@ -396,7 +396,7 @@ struct StreamingView: View {
             Spacer()
 
             // Provider picker using StreamingTranscriptionProvider enum for type-safe selection
-            Picker("", selection: $settingsManager.streamingProvider) {
+            Picker("", selection: normalizedProviderBinding) {
                 ForEach(StreamingTranscriptionProvider.allCases) { provider in
                     Text(provider.displayName).tag(provider.rawValue)
                 }
@@ -498,6 +498,20 @@ struct StreamingView: View {
             .frame(width: 200, alignment: .trailing)
             .frame(maxWidth: .infinity, alignment: .trailing)
         }
+    }
+
+    /// Reads the stored provider through the same tolerant parse the recording
+    /// flow uses, for the same reason as `normalizedCloudTierBinding` below: the
+    /// rows are tagged with `StreamingTranscriptionProvider.rawValue`, so a
+    /// stored value that is a legacy alias rather than a current id — `gemini`
+    /// for what now ships as `geminiTranscribe` — would render a BLANK selection
+    /// even though the session itself routes correctly. Writes pass straight
+    /// through: the picker can only produce a current id.
+    private var normalizedProviderBinding: Binding<String> {
+        Binding(
+            get: { selectedProvider.rawValue },
+            set: { settingsManager.streamingProvider = $0 }
+        )
     }
 
     /// Reads the stored tier through the same clamp the route derivation uses, so

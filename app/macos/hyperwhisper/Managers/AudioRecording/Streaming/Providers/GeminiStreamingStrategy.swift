@@ -16,6 +16,16 @@
 //  which IS correct for POST /v1beta/interactions) makes the server close the
 //  socket with 1007. One config object, two models, two different paths.
 //
+//  TRAP 2 — `generationComplete` is a TURN boundary, not the end of the session.
+//  Google emits one after EVERY utterance, so mapping it straight to
+//  `.sessionComplete` latches the shared client's `didReceiveSessionComplete`
+//  on the first pause, `waitForSessionComplete` then returns instantly at stop,
+//  and the socket closes behind `audio_stream_end` before the last utterance's
+//  final arrives. `clientRequestedStop` below is the gate — the same rule the
+//  backend applies in `hyperwhisper-cloud/src/routes/ws-streaming-shared.ts`.
+//  Deepgram, ElevenLabs, OpenAI and xAI genuinely do send a terminal completion
+//  and are deliberately left alone.
+//
 //  NOT xAI-SHAPED, despite the JSON framing looking like it. Gemini's
 //  `interimInputTranscription` is cumulative only WITHIN a turn and restarts
 //  after each final, and `inputTranscription` carries only that turn's committed
@@ -41,6 +51,30 @@ final class GeminiStreamingStrategy: StreamingProviderStrategy {
     private static let modelPrefix = "models/"
     private static let audioMimeType = "audio/pcm;rate=16000"
 
+    /// True once the client has begun its stop sequence for THIS session.
+    ///
+    /// `generationComplete` is a TURN boundary, not the end of the session:
+    /// Google emits one after every utterance. The shared client latches
+    /// `didReceiveSessionComplete` permanently on a `.sessionComplete` event and
+    /// only clears it in `startSession`, so reporting the first turn boundary as
+    /// a completion makes `waitForSessionComplete` return instantly at stop —
+    /// the socket closes right behind `audio_stream_end` and the last
+    /// utterance's final never arrives.
+    ///
+    /// So the same rule the backend applies in
+    /// `hyperwhisper-cloud/src/routes/ws-streaming-shared.ts` ("only terminal
+    /// once the client asked to stop") is applied here, at the only layer that
+    /// knows Gemini's turn semantics. Every other vendor is untouched: their
+    /// completion frame really is terminal, and their strategies keep mapping it
+    /// straight to `.sessionComplete`.
+    ///
+    /// Raised in `stopSequence()` — the client calls it exactly once, at the top
+    /// of `stopSession()`, before any stop step runs — and cleared in
+    /// `startMessages(config:)`, which runs on every fresh socket, so a reused
+    /// strategy instance cannot inherit the previous session's flag. Same
+    /// mutable-strategy-state idiom as `OpenAIStreamingStrategy`'s commit gate.
+    private var clientRequestedStop = false
+
     var transcriptionProviderLabel: String { "Gemini 3.5 Transcribe (Streaming)" }
     var supportsVocabulary: Bool { true }
     var audioSampleRate: Double { 16000 }
@@ -63,6 +97,9 @@ final class GeminiStreamingStrategy: StreamingProviderStrategy {
     }
 
     func startMessages(config: StreamingSessionConfig) -> [URLSessionWebSocketTask.Message] {
+        // Fresh socket — including a mid-session reconnect — so no stop has been
+        // asked for yet and `generationComplete` is a turn boundary again.
+        clientRequestedStop = false
         guard let json = Self.setupFrame(config: config) else {
             logger.error("Failed to encode Gemini setup frame")
             return []
@@ -149,24 +186,45 @@ final class GeminiStreamingStrategy: StreamingProviderStrategy {
             return nil
         }
 
+        // `generationComplete` closes a TURN. It is the end of the SESSION only
+        // when we already asked to stop — see `clientRequestedStop`.
+        let sessionEnded = content.generationComplete == true && clientRequestedStop
+
         // Final first: a frame could in principle carry both, and the committed
-        // text is the one that must reach the document.
+        // text is the one that must reach the document. When the terminal
+        // complete rides along on that same frame, both are reported, so the
+        // stop sequence does not sit out its whole wait for a completion that
+        // has already been and gone.
         if let final = content.inputTranscription?.text, !final.isEmpty {
-            return .finalTranscript(text: final)
+            // Google reports no duration or credit figures on this route, and a
+            // BYOK session is not metered by HyperWhisper either way.
+            return sessionEnded
+                ? .finalTranscriptAndSessionComplete(text: final, durationSeconds: 0, creditsUsed: 0)
+                : .finalTranscript(text: final)
         }
         if let partial = content.interimInputTranscription?.text, !partial.isEmpty {
             return .partialTranscript(text: partial)
         }
         if content.generationComplete == true {
-            // Google reports no duration or credit figures on this route, and a
-            // BYOK session is not metered by HyperWhisper either way.
+            guard sessionEnded else {
+                // Mid-dictation turn boundary. The turn's text was already
+                // committed by the `inputTranscription` frame(s) above; reporting
+                // nothing here keeps the socket open for the next utterance.
+                logger.debug("Gemini turn boundary — session stays open")
+                return nil
+            }
             return .sessionComplete(durationSeconds: 0, creditsUsed: 0)
         }
         return nil
     }
 
     func stopSequence() -> [StreamingStopStep] {
-        [
+        // The client calls this once, at the top of `stopSession()`, before any
+        // step runs — so from here on a `generationComplete` really does end the
+        // session. If Google never sends one, `waitForSessionComplete`'s own
+        // timeout below bounds the wait and the socket is closed regardless.
+        clientRequestedStop = true
+        return [
             .sendText(#"{"realtime_input":{"audio_stream_end":true}}"#),
             // Google does NOT close the socket after audio_stream_end — measured
             // 54 s of silence — so this is the whole stop budget, not a courtesy

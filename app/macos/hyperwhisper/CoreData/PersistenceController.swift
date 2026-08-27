@@ -632,6 +632,61 @@ class PersistenceController: ObservableObject {
         "googlechirp3", "googlechirp", "google-chirp", "chirp", "chirp_3", "googlespeech",
     ]
 
+    /// What the Chirp 3 → Gemini 3.5 Transcribe migration writes back to one
+    /// stored mode row. `nil` fields are left as they are.
+    struct GoogleChirp3TierRewrite: Equatable {
+        var accuracyTier: String?
+        var transcriptionModel: String?
+    }
+
+    /// The rewrite a single stored row earns, or `nil` for "leave this row
+    /// alone". Pure, so the provider guard below is testable without standing up
+    /// a Core Data stack.
+    ///
+    /// SCOPED TO HYPERWHISPER CLOUD MODES, mirroring the `WHERE CloudProvider =`
+    /// clause of the `20260508120000_MigrateRemovedDeepgramModels` precedent.
+    /// `cloudAccuracyTier` is only meaningful for HW-Cloud modes, but a mode
+    /// switched from HW-Cloud+Chirp3 to a BYOK provider KEEPS the stale tier —
+    /// and several BYOK providers store an empty `cloudTranscriptionModel` (Grok's
+    /// single model is catalogued under the id `""`). Without the guard, such a
+    /// row matches on the stale tier, trips the `storedModel.isEmpty` branch and
+    /// has Google's `gemini-3.5-transcribe` stamped onto it — which the next
+    /// dictation then POSTs to xAI.
+    ///
+    /// A nil/empty provider counts as HyperWhisper Cloud, matching
+    /// `createOrUpdateMode`'s `?? "hyperwhisper"` default.
+    static func googleChirp3TierRewrite(
+        cloudProvider: String?,
+        cloudAccuracyTier: String?,
+        cloudTranscriptionModel: String?
+    ) -> GoogleChirp3TierRewrite? {
+        let storedTier = (cloudAccuracyTier ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        guard retiredGoogleChirp3TierValues.contains(storedTier) else { return nil }
+
+        let resolvedProvider = CloudProvider.parse(cloudProvider) ?? .hyperwhisper
+        guard resolvedProvider == .hyperwhisper else { return nil }
+
+        var rewrite = GoogleChirp3TierRewrite(
+            accuracyTier: CloudAccuracyTier.geminiTranscribe.rawValue,
+            transcriptionModel: nil
+        )
+
+        // `chirp_3` is not a model of the new tier, so the editor would
+        // fall back to the tier default on next open anyway — write it
+        // now so the stored row is honest and the first transcription
+        // sends a valid X-STT-Model. A model the user picked that is NOT
+        // Chirp's is left alone; it cannot exist on this tier today, but
+        // silently overwriting a deliberate choice is the worse failure.
+        let storedModel = (cloudTranscriptionModel ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if storedModel.isEmpty || storedModel.caseInsensitiveCompare("chirp_3") == .orderedSame {
+            rewrite.transcriptionModel = CloudAccuracyTier.geminiTranscribe.defaultModelId
+        }
+        return rewrite
+    }
+
     /// One-time data migration for the retired `googleChirp3` accuracy tier.
     ///
     /// Catalog v8 replaced Chirp 3 with Gemini 3.5 Transcribe as Google's cloud
@@ -662,25 +717,19 @@ class PersistenceController: ObservableObject {
             var changedCount = 0
 
             for mode in modes {
-                let stored = (mode.cloudAccuracyTier ?? "")
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-                    .lowercased()
-                guard Self.retiredGoogleChirp3TierValues.contains(stored) else { continue }
+                guard let rewrite = Self.googleChirp3TierRewrite(
+                    cloudProvider: mode.cloudProvider,
+                    cloudAccuracyTier: mode.cloudAccuracyTier,
+                    cloudTranscriptionModel: mode.cloudTranscriptionModel
+                ) else { continue }
 
-                mode.cloudAccuracyTier = CloudAccuracyTier.geminiTranscribe.rawValue
-                changedCount += 1
-
-                // `chirp_3` is not a model of the new tier, so the editor would
-                // fall back to the tier default on next open anyway — write it
-                // now so the stored row is honest and the first transcription
-                // sends a valid X-STT-Model. A model the user picked that is NOT
-                // Chirp's is left alone; it cannot exist on this tier today, but
-                // silently overwriting a deliberate choice is the worse failure.
-                let storedModel = (mode.cloudTranscriptionModel ?? "")
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-                if storedModel.isEmpty || storedModel.caseInsensitiveCompare("chirp_3") == .orderedSame {
-                    mode.cloudTranscriptionModel = CloudAccuracyTier.geminiTranscribe.defaultModelId
+                if let tier = rewrite.accuracyTier {
+                    mode.cloudAccuracyTier = tier
                 }
+                if let model = rewrite.transcriptionModel {
+                    mode.cloudTranscriptionModel = model
+                }
+                changedCount += 1
             }
 
             if context.hasChanges {
@@ -1963,7 +2012,12 @@ class PersistenceController: ObservableObject {
         }
 
         mode?.languageModel = normalizedLanguageModel
-        mode?.cloudProvider = cloudProvider ?? "hyperwhisper"
+        // Canonicalise on the WRITE path: this is the single funnel every mode
+        // write goes through (GUI edit, Local API PATCH, backup restore), so a
+        // camelCase id from a Windows/Linux backup — `geminiTranscribe` — is
+        // stored in the lowercase form every reader and every picker tag below
+        // expects. An id this build does not model passes through verbatim.
+        mode?.cloudProvider = CloudProvider.canonicalStorageValue(cloudProvider) ?? "hyperwhisper"
         // cloudTranscriptionModel is assigned below, after the accuracy tier is
         // resolved, so an omitted model derives from the resolved tier's catalog
         // default (e.g. scribe_v2) instead of persisting a stale "whisper-1".
@@ -1997,7 +2051,7 @@ class PersistenceController: ObservableObject {
         // (openai / soniox / …) there is no accuracy tier — fall back to THAT
         // provider's own default model, otherwise a tier-derived id like
         // "scribe_v2" would be persisted and sent to e.g. OpenAI and rejected.
-        let resolvedCloudProvider = CloudProvider(rawValue: mode?.cloudProvider ?? "hyperwhisper") ?? .hyperwhisper
+        let resolvedCloudProvider = CloudProvider.parse(mode?.cloudProvider) ?? .hyperwhisper
         mode?.cloudTranscriptionModel = cloudTranscriptionModel
             ?? (resolvedCloudProvider == .hyperwhisper
                 ? (CloudAccuracyTier(rawValue: resolvedAccuracyTier)?.defaultModelId ?? "")
@@ -2397,7 +2451,7 @@ class PersistenceController: ObservableObject {
                 cloudTranscriptionModel: backupMode.cloudTranscriptionModel.map {
                     CloudTranscriptionModels.resolveModelAlias(
                         $0,
-                        provider: backupMode.cloudProvider.flatMap { CloudProvider(rawValue: $0) }
+                        provider: CloudProvider.parse(backupMode.cloudProvider)
                     )
                 },
                 postProcessingMode: backupMode.postProcessingMode,

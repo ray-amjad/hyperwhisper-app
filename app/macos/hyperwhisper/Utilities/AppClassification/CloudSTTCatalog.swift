@@ -146,6 +146,38 @@ struct CloudSTTCatalog {
         let normalized = cloudSttNormalizeCloudProvider(value: value)
         return (provider: normalized.provider, accuracyTier: normalized.accuracyTier)
     }
+
+    // MARK: - Live-only models
+
+    /// Cloud model ids HyperWhisper Cloud serves ONLY over the live WebSocket
+    /// route. They must never be offered as — or accepted as — a mode's
+    /// dictation model: `/transcribe` answers one with a 400, so every
+    /// dictation in such a mode fails.
+    ///
+    /// NOT derivable from the per-model `streaming` flag, despite how that reads.
+    /// `streaming: true` means "HyperWhisper Cloud routes this model live", and
+    /// `deepgramNova3` carries it on BOTH `nova-3-general` and `nova-3-medical`
+    /// — which are the DEFAULT pre-recorded models. Filtering the dictation
+    /// picker on `streaming == true` would delete the default dictation model
+    /// from it. The catalog has no "live-only" field to key off, so this list is
+    /// the macOS mirror of the same fact the other heads state literally:
+    /// `GEMINI_TRANSCRIBE_LIVE_MODEL` in
+    /// `hyperwhisper-cloud/src/providers/gemini-transcribe.ts` (which raises the
+    /// 400), `LIVE_MODEL` in `hw-net`'s `gemini_transcribe.rs`, and the
+    /// deliberate omission from `CloudTranscriptionModel.GeminiTranscribe` on
+    /// Windows. Adding a catalog field would let all four derive it — see the
+    /// note in this PR's review.
+    static let liveOnlyModelIds: Set<String> = ["gemini-3.5-transcribe-live"]
+
+    /// Whether `modelId` is one of `liveOnlyModelIds` (case-insensitive, trimmed,
+    /// matching the rest of the catalog's model lookups).
+    static func isLiveOnlyModel(_ modelId: String?) -> Bool {
+        guard let trimmed = modelId?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !trimmed.isEmpty else {
+            return false
+        }
+        return liveOnlyModelIds.contains(trimmed.lowercased())
+    }
 }
 
 // MARK: - SwiftUI conformances on the shared-core records

@@ -139,11 +139,25 @@ enum RustHTTPExecutor {
     /// the URL, the headers and the body from the core (issue #282).
     ///
     /// Only inline bodies are attached. A file-backed body must go through
-    /// `execute`, which streams it from disk.
+    /// `execute`, which streams it from disk — and asking for one here THROWS
+    /// rather than returning a bodyless request. Dropping it silently would put
+    /// a fully-formed, correctly-authenticated request with an empty payload on
+    /// the wire, which reads at the call site as a provider rejecting valid
+    /// input. Unreachable today (every caller builds a JSON `.bytes` body), so
+    /// the switch is exhaustive with no `default` arm: a new `Body` case has to
+    /// be classified here rather than falling into the silent path.
     static func buildInlineURLRequest(from request: HttpRequest) throws -> URLRequest {
         var urlRequest = try buildURLRequest(from: request)
-        if case let .bytes(_, payload) = request.body {
+        switch request.body {
+        case .empty:
+            break
+        case let .bytes(_, payload):
             urlRequest.httpBody = payload
+        case .fileStream, .multipart, .jsonWithBase64File:
+            throw TranscriptionError.serverError(
+                statusCode: 0,
+                message: "buildInlineURLRequest cannot attach a file-backed body — route this request through RustHTTPExecutor.execute"
+            )
         }
         return urlRequest
     }
@@ -270,6 +284,11 @@ enum RustHTTPExecutor {
 
     // MARK: - Inline-base64 JSON assembly (Gemini 3.5 Transcribe)
 
+    /// Read size for the chunked base64 encoder. 3-byte-aligned so a full chunk
+    /// encodes without padding; 1.5 MB in → 2 MB of base64 out. Not `private`
+    /// so the tests can straddle the boundary the carry logic turns on.
+    static let base64ChunkSize = 3 * 512 * 1024
+
     /// Write `prefix` ++ base64(file at `path`) ++ `suffix` into `tempURL`.
     ///
     /// The encoding is the STANDARD alphabet, padded, with no line breaks —
@@ -286,7 +305,11 @@ enum RustHTTPExecutor {
     ///
     /// The caller owns `tempURL`'s lifecycle (creates the cleanup `defer` before
     /// calling), matching `writeMultipartBody`.
-    private static func writeJSONWithBase64Body(
+    ///
+    /// Not `private`, so `RustHTTPExecutorBase64Tests` can exercise the carry
+    /// across the chunk boundary. A carry bug corrupts only recordings larger
+    /// than `chunkSize` (1.5 MB), which no other test reaches.
+    static func writeJSONWithBase64Body(
         to tempURL: URL,
         prefix: Data,
         path: String,
@@ -302,9 +325,7 @@ enum RustHTTPExecutor {
         let fileHandle = try FileHandle(forReadingFrom: URL(fileURLWithPath: path))
         defer { try? fileHandle.close() }
 
-        // 3-byte-aligned so a full chunk encodes without padding; 1.5 MB in →
-        // 2 MB of base64 out.
-        let chunkSize = 3 * 512 * 1024
+        let chunkSize = base64ChunkSize
         var pending = Data()
         while true {
             let chunk = try fileHandle.read(upToCount: chunkSize) ?? Data()

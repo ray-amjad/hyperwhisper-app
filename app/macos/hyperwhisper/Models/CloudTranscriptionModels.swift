@@ -26,6 +26,50 @@ enum CloudProvider: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
+    // MARK: - Parsing persisted / imported values
+
+    /// Parse a `cloudProvider` value that crossed a persistence, backup or
+    /// Local API boundary, tolerating whitespace and CASE.
+    ///
+    /// The raw values above are all lowercase, but the cross-platform backup
+    /// format is not: Windows persists and exports camelCase ids
+    /// (`CloudTranscriptionProvider.cs` writes `geminiTranscribe`). A plain
+    /// `CloudProvider(rawValue:)` therefore returns nil for `"geminiTranscribe"`,
+    /// and every call site's `?? .hyperwhisper` fallback turns that miss into a
+    /// SILENT downgrade: a BYOK user restoring a Windows backup stops using
+    /// their own Google key and is billed HyperWhisper credits instead, with no
+    /// error and no visible change in the UI.
+    ///
+    /// The shared core's `normalize_cloud_provider` now lowercases the values it
+    /// passes through, so the import path arrives here already canonical — but
+    /// this parse is what covers every OTHER boundary (Core Data rows written by
+    /// an older build, the Local API, a hand-edited backup) and what keeps the
+    /// two halves independent.
+    ///
+    /// Use this instead of `init(rawValue:)` anywhere the string came from
+    /// storage. Unrecognised values still return nil, so a provider belonging to
+    /// another platform is not silently coerced onto one of ours.
+    static func parse(_ value: String?) -> CloudProvider? {
+        guard let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !trimmed.isEmpty else {
+            return nil
+        }
+        return CloudProvider(rawValue: trimmed.lowercased())
+    }
+
+    /// The canonical spelling to PERSIST for `value`: the matching case's raw
+    /// value when `parse` recognises it, otherwise the input verbatim.
+    ///
+    /// Applied on the write path so an imported camelCase id is stored in the
+    /// lowercase form every reader and every SwiftUI picker tag expects. An
+    /// unrecognised value passes through untouched — it may belong to a platform
+    /// this build does not model, and rewriting or dropping it would lose the
+    /// user's setting on the next export.
+    static func canonicalStorageValue(_ value: String?) -> String? {
+        guard let value else { return nil }
+        return parse(value)?.rawValue ?? value
+    }
+
     /// Display name for the provider
     var displayName: String {
         switch self {

@@ -317,12 +317,44 @@ enum StreamingTranscriptionProvider: String, CaseIterable, Identifiable {
     case elevenLabs = "elevenLabs"
     case openAI = "openAI"
     case xai = "xai"
-    case gemini = "gemini"
+    /// Google's Gemini 3.5 Transcribe Live socket.
+    ///
+    /// The raw value is `geminiTranscribe`, NOT `gemini`: the streaming provider
+    /// id travels in the cross-platform backup (`settings.streaming.provider`),
+    /// Windows and Linux already write `geminiTranscribe` there, and the
+    /// vendor's OTHER product — the multimodal LLM — is what `gemini` means
+    /// everywhere else in this app (`CloudProvider.gemini`,
+    /// `KeychainManager.APIKeyType.gemini`). macOS never exported the streaming
+    /// block, so nothing in the wild carries the old spelling from here; the
+    /// pre-release local value is still accepted by `fromStorageValue` below.
+    case gemini = "geminiTranscribe"
     case parakeetLocal = "parakeetLocal"
     case nemotronLocal = "nemotronLocal"
 
     /// Identifiable conformance for SwiftUI Picker
     var id: String { rawValue }
+
+    /// Pre-release spellings still accepted from storage, mapped onto the id
+    /// that ships. Keyed lowercase; `fromStorageValue` lowercases before lookup.
+    private static let legacyStorageAliases: [String: StreamingTranscriptionProvider] = [
+        // Shipped on this branch before the id was aligned to Windows/Linux.
+        "gemini": .gemini,
+    ]
+
+    /// Parse a persisted or imported `streamingProvider` value.
+    ///
+    /// Prefer this over `init(rawValue:)` at every read of
+    /// `SettingsManager.streamingProvider`: an unrecognised value falls back to
+    /// HyperWhisper Cloud at each call site, which would silently move a user
+    /// off the direct provider (and the API key) they configured.
+    static func fromStorageValue(_ value: String?) -> StreamingTranscriptionProvider? {
+        guard let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !trimmed.isEmpty else {
+            return nil
+        }
+        if let exact = StreamingTranscriptionProvider(rawValue: trimmed) { return exact }
+        return legacyStorageAliases[trimmed.lowercased()]
+    }
 
     /// User-facing display name shown in the provider picker
     var displayName: String {

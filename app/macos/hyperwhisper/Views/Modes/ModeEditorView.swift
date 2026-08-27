@@ -150,7 +150,7 @@ struct ModeEditorView: View {
             // single implicit model has the empty-string id, so "whisper-1" would
             // match no picker tag and render the Model row as a blank menu button.
             // Only fall back to "whisper-1" when the provider itself is unknown.
-            let savedCloudProviderEnum = CloudProvider(rawValue: mode.cloudProvider ?? "")
+            let savedCloudProviderEnum = CloudProvider.parse(mode.cloudProvider)
             let savedCloudModel = mode.cloudTranscriptionModel?
                 .trimmingCharacters(in: .whitespacesAndNewlines)
             let seededCloudModel: String = {
@@ -171,12 +171,16 @@ struct ModeEditorView: View {
             let normalizedCloudProvider = CloudSTTCatalog.shared.normalizeCloudProvider(savedCloudProvider)
             let legacyProviderTier: CloudAccuracyTier? = normalizedCloudProvider.accuracyTier
                 .flatMap { CloudAccuracyTier(rawValue: $0) }
+            // Canonicalised, because this value is seeded straight into
+            // `_cloudProvider` and the provider Picker tags its rows with
+            // `CloudProvider.rawValue`. A camelCase id restored from a
+            // Windows/Linux backup matches no tag and renders a BLANK menu.
             let migratedCloudProviderRaw = legacyProviderTier != nil
                 ? CloudProvider.hyperwhisper.rawValue
-                : (savedCloudProvider ?? "hyperwhisper")
+                : (CloudProvider.canonicalStorageValue(savedCloudProvider) ?? "hyperwhisper")
             let migratedAccuracyTierRaw = legacyProviderTier?.rawValue
                 ?? CloudAccuracyTier.fromStorageValue(mode.cloudAccuracyTier).rawValue
-            let initialCloudProvider = CloudProvider(rawValue: migratedCloudProviderRaw) ?? .hyperwhisper
+            let initialCloudProvider = CloudProvider.parse(migratedCloudProviderRaw) ?? .hyperwhisper
 
             // Resolve post-processing provider — compute against the migrated
             // cloudProvider so legacy Azure/Google modes get the HW Cloud
@@ -289,7 +293,7 @@ struct ModeEditorView: View {
 
     /// Current cloud provider enum
     private var currentCloudProvider: CloudProvider {
-        CloudProvider(rawValue: cloudProvider) ?? .hyperwhisper
+        CloudProvider.parse(cloudProvider) ?? .hyperwhisper
     }
 
     /// Cloud transcription providers shown in the picker. Always
@@ -362,7 +366,7 @@ struct ModeEditorView: View {
                     // This keeps a saved Deepgram/Groq/etc. choice intact across a
                     // harmless Source toggle away and back.
                     if let savedProviderRaw = lastDirectCloudProvider,
-                       let savedProvider = CloudProvider(rawValue: savedProviderRaw),
+                       let savedProvider = CloudProvider.parse(savedProviderRaw),
                        availableDirectCloudProviders.contains(savedProvider) {
                         cloudProvider = savedProviderRaw
                         cloudTranscriptionModel = lastDirectCloudTranscriptionModel
@@ -533,8 +537,14 @@ struct ModeEditorView: View {
     /// Models offered by the selected Provider row. That row is a *company*, so
     /// the list spans every tier the company owns — "Google" lists Transcribe and
     /// Gemini models together.
+    ///
+    /// Live-only models are excluded: this dropdown picks a DICTATION model, and
+    /// `gemini-3.5-transcribe-live` is served by the WebSocket route alone, so
+    /// choosing it here makes every dictation in the mode fail with an HTTP 400.
+    /// The live picker lives in Streaming settings and is fed separately from
+    /// `CloudAccuracyTier.streamingEligibleTiers`.
     private var hyperwhisperCloudModels: [CloudSTTCatalog.Model] {
-        selectedCloudTier.vendorGroupModels
+        selectedCloudTier.vendorGroupDictationModels
     }
 
     /// Provider dropdown selection — the catalog `vendor` key rather than the
@@ -915,7 +925,7 @@ struct ModeEditorView: View {
                 .pickerStyle(.menu)
                 .labelsHidden()
                 .onChange(of: cloudProvider) { _, newProvider in
-                    guard let provider = CloudProvider(rawValue: newProvider) else { return }
+                    guard let provider = CloudProvider.parse(newProvider) else { return }
                     showAllCloudTranscriptionModels = false
                     cloudTranscriptionModel = CloudTranscriptionModels.defaultModel(for: provider)
                     cloudTranscriptionDomain = nil
