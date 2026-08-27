@@ -317,6 +317,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "hw-input"
+version = "0.1.0"
+
+[[package]]
 name = "hw-license"
 version = "0.1.0"
 dependencies = [
