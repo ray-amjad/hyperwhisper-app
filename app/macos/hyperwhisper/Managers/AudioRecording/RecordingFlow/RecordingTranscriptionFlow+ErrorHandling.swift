@@ -124,8 +124,18 @@ extension RecordingTranscriptionFlow {
             metadata["selectedDeviceTransportType"] = CoreAudioDeviceHelper.transportTypeString(for: deviceID) ?? "unknown"
         }
 
+        // PRIVACY: the folder PATH is never sent. The default is
+        // `~/Documents/hyperwhisper/recordings`, so the raw string carries the
+        // account name, and `SentryService.beforeSend` only redacts extras whose
+        // KEY matches transcript/text/prompt — it never looks at values. The two
+        // booleans below carry the diagnostic value the path was carrying:
+        // "did the user move this folder, and is it off the home volume".
         let recordingsFolder = settingsManager?.recordingsFolder ?? ""
-        metadata["recordingsFolder"] = recordingsFolder
+        let defaultRecordingsFolder = FileManager.default
+            .urls(for: .documentDirectory, in: .userDomainMask).first?
+            .appendingPathComponent("hyperwhisper/recordings").path
+        metadata["recordingsFolderIsDefault"] = !recordingsFolder.isEmpty && recordingsFolder == defaultRecordingsFolder
+        metadata["recordingsFolderIsInHome"] = recordingsFolder.hasPrefix(NSHomeDirectory() + "/")
         if recordingsFolder.isEmpty {
             metadata["recordingsFolderWritable"] = false
             metadata["recordingsFolderExists"] = false
