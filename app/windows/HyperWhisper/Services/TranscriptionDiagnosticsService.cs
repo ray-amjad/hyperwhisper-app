@@ -1,37 +1,47 @@
 using System.IO;
 using NAudio.Wave;
+using NAudio.Wave.SampleProviders;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Models;
 using HyperWhisper.Services.Transcription;
+using HyperWhisper.SharedCore;
 
 namespace HyperWhisper.Services;
 
 /// <summary>
 /// Captures privacy-safe diagnostics for transcription failures.
 /// Focuses on audio signal quality and provider metadata rather than transcript content.
+///
+/// <para>
+/// The thresholds, the dBFS maths, the five classification arms and the
+/// fingerprint shape all live in the shared core (<c>hw-audio</c>, issue #291)
+/// and are reached through <see cref="PortableNoSpeechDiagnostics"/>. Only the
+/// NAudio decode loop, the Sentry payload and the platform-distinct
+/// name/message/fingerprint-root are Windows'.
+/// </para>
 /// </summary>
 public static class TranscriptionDiagnosticsService
 {
-    private const float SilenceThreshold = 0.01f;
-    private const double MinimumDbfs = -120.0;
-    private const double ConfirmedSilencePeakDbfs = -50.0;
+    /// <summary>
+    /// The measurement basis for <see cref="AnalyzeAudioFile"/>: 16 kHz mono,
+    /// matching what every transcription path actually sends
+    /// (<c>TranscriptionService.PrepareAudioStream</c>,
+    /// <c>FileTranscriptionService.ConvertToWhisperFormatAsync</c>, the parakeet
+    /// daemon) and what macOS's
+    /// <c>AudioConverter</c> already measured on. Measuring the container format
+    /// instead made the same recording report a different non-silent ratio on
+    /// each platform, which is exactly the cross-platform comparability #291
+    /// exists to create.
+    /// </summary>
+    private const int AnalysisSampleRate = 16000;
 
-    // Backend-confirmed low-signal skip: both conditions must hold (kept as && -
-    // an OR would let a single quiet reading skip capture on its own, risking
-    // suppression of genuine backend-disagreement anomalies this diagnostic exists
-    // to catch). Widened from -50.0dBFS / 0.02 (HYPERWHISPER-PA, -QB, -VY: the real
-    // no-speech sample RmsDbfs -39.64 / NonSilentRatio 0.046 with
-    // BackendNoSpeechDetected true was well within "no speech" territory but was
-    // being captured as a full Sentry issue because the old thresholds were too
-    // strict) to -38.0dBFS / 0.06 - a modest margin over that sample (~1.6dB /
-    // ~0.014 ratio) rather than doubling it, so a soft-spoken-user case with
-    // meaningfully more non-silent signal (e.g. NonSilentRatio 0.07, well above
-    // the incident sample's 0.046) still gets captured as a potential genuine
-    // backend-disagreement anomaly instead of being silently skipped too. These
-    // still reject (capture) a clearly loud/anomalous case, e.g. RmsDbfs around
-    // -15 to -20dBFS with NonSilentRatio ~0.3+.
-    private const double LowSignalRmsDbfs = -38.0;
-    private const double LowSignalNonSilentRatio = 0.06;
+    /// <summary>
+    /// Duplicated from <see cref="PortableNoSpeechDiagnostics.MinimumDbfs"/>
+    /// ONLY because <see cref="AudioAnalysisDiagnostics"/>'s optional parameters
+    /// need a compile-time constant. Never compare against this — use the
+    /// portable property. A smoke test asserts the two agree.
+    /// </summary>
+    private const double MinimumDbfs = -120.0;
 
     public static void CaptureNoSpeechDiagnostic(
         Guid transcriptId,
@@ -49,7 +59,7 @@ public static class TranscriptionDiagnosticsService
         var audioDiagnostics = AnalyzeAudioFile(audioPath, fallbackDurationSeconds);
         var outcome = ClassifyNoSpeechDiagnostic(audioDiagnostics, providerDiagnostics);
 
-        if (outcome == NoSpeechDiagnosticOutcome.Skip)
+        if (outcome == PortableNoSpeechOutcome.Skip)
         {
             LoggingService.Debug(
                 "TranscriptionDiagnosticsService: Skipping expected no-speech diagnostic " +
@@ -87,7 +97,7 @@ public static class TranscriptionDiagnosticsService
             // steps rather than passed raw: a continuous float as a tag has
             // near-100% cardinality (every event gets its own "bucket" of one),
             // which defeats faceting entirely - the whole point of promoting it.
-            ["audio_rms_dbfs_bucket"] = BucketDbfs(audioDiagnostics.RmsDbfs),
+            ["audio_rms_dbfs_bucket"] = PortableNoSpeechDiagnostics.BucketDbfs(audioDiagnostics.RmsDbfs),
             ["selected_input_device_name"] = inputDeviceName ?? "n/a",
             ["capture_device_count"] = captureDeviceCount?.ToString() ?? "unknown"
         };
@@ -104,6 +114,11 @@ public static class TranscriptionDiagnosticsService
             ["audio_file_extension"] = Path.GetExtension(audioPath),
             ["audio_file_size_bytes"] = audioDiagnostics.FileSizeBytes,
             ["audio_duration_seconds"] = audioDiagnostics.DurationSeconds,
+            // The SOURCE container's format, not the measurement basis. The
+            // signal figures below are measured on 16 kHz mono (see
+            // AnalysisSampleRate) but these two must keep reporting what the
+            // recorder actually wrote, because that is the fact a device or
+            // format regression shows up in.
             ["audio_sample_rate_hz"] = audioDiagnostics.SampleRate,
             ["audio_channels"] = audioDiagnostics.Channels,
             ["audio_peak_dbfs"] = audioDiagnostics.PeakDbfs,
@@ -111,7 +126,20 @@ public static class TranscriptionDiagnosticsService
             ["audio_non_silent_ratio"] = audioDiagnostics.NonSilentRatio,
             // The honest "was anything captured" signal - audio_duration_seconds above
             // falls back to the caller's wall-clock value when the container has none.
+            //
+            // The two counts mean different things and are both reported (#291):
+            //   audio_decoded_sample_count  - mono frames the DECODER produced, counted
+            //     before the 16 kHz resampler. Zero means exactly "the recorder produced
+            //     nothing", which is all the empty-recording arm reads it for. Since the
+            //     fold to mono it is a frame count, not an interleaved-sample count, so it
+            //     no longer scales with the source channel count.
+            //   audio_measured_sample_count - 16 kHz mono samples the dBFS figures below
+            //     were actually measured over. This one CAN be zero for a decodable but
+            //     very short file, because the resampler emits nothing until it can fill a
+            //     whole output frame - which is why it is not the count the arm reads.
+            // Neither is comparable with values emitted before #291.
             ["audio_decoded_sample_count"] = (object?)audioDiagnostics.DecodedSampleCount ?? "unknown",
+            ["audio_measured_sample_count"] = (object?)audioDiagnostics.MeasuredSampleCount ?? "unknown",
             ["mode_name"] = mode?.Name ?? "unknown",
             ["mode_preset"] = mode?.Preset ?? "unknown",
             ["transcription_provider_display_name"] = transcriptionProviderDisplayName ?? providerDiagnostics?.ProviderDisplayName ?? exception?.ProviderName ?? "unknown",
@@ -148,7 +176,15 @@ public static class TranscriptionDiagnosticsService
             dedupeKey: dedupeKey);
     }
 
-    private static AudioAnalysisDiagnostics AnalyzeAudioFile(string audioPath, double? fallbackDurationSeconds)
+    /// <summary>
+    /// Measure the recording's signal. Decodes to <see cref="AnalysisSampleRate"/>
+    /// mono first, so the numbers mean the same thing here as on macOS and as in
+    /// the audio the provider was actually sent.
+    /// </summary>
+    // internal (not private): test seam for HyperWhisper.SmokeTests via
+    // InternalsVisibleTo (see HyperWhisper.csproj) - no other accessibility
+    // change is intended.
+    internal static AudioAnalysisDiagnostics AnalyzeAudioFile(string audioPath, double? fallbackDurationSeconds)
     {
         if (!File.Exists(audioPath))
         {
@@ -164,32 +200,84 @@ public static class TranscriptionDiagnosticsService
             var fileInfo = new FileInfo(audioPath);
             using var reader = new AudioFileReader(audioPath);
 
+            // Same pair the transcription paths already run
+            // (TranscriptionService.PrepareAudioStream:820-828,
+            // FileTranscriptionService.ConvertToWhisperFormatAsync:119-128): fold to
+            // mono, then resample to 16 kHz.
+            //
+            // The fold is MonoFoldSampleProvider rather than NAudio's ToMono() /
+            // StereoToMonoSampleProvider, which handle two channels and throw
+            // NotImplementedException on anything else. Throwing here would downgrade a
+            // perfectly readable multichannel file to AnalysisSucceeded: false, and NOT
+            // folding it would measure the interleaved stream - a 3-channel 48 kHz file
+            // would contribute 48,000 samples a second instead of 16,000, and one live
+            // channel among two silent ones would report a third of the true non-silent
+            // ratio and several dB of extra headroom on RMS. Both change which
+            // classification arm fires. Averaging every channel matches what the 2-channel
+            // case already did (NAudio 2.2.1's StereoToMonoSampleProvider defaults to
+            // 0.5/0.5) and extends it to any channel count.
+            ISampleProvider provider = reader;
+            if (provider.WaveFormat.Channels > 1)
+            {
+                provider = new MonoFoldSampleProvider(provider);
+            }
+
+            // Counted BEFORE the resampler on purpose - see the extras comment in
+            // CaptureNoSpeechDiagnostic. WdlResamplingSampleProvider.Read returns 0 when it
+            // cannot fill a whole output frame, so a decodable-but-tiny file would report
+            // zero decoded samples and the empty-recording arm would call it "the recorder
+            // produced nothing", which is false.
+            var decoded = new CountingSampleProvider(provider);
+            provider = decoded;
+
+            if (provider.WaveFormat.SampleRate != AnalysisSampleRate)
+            {
+                provider = new WdlResamplingSampleProvider(provider, AnalysisSampleRate);
+            }
+
+            // Read once, outside the loop: every member of PortableNoSpeechDiagnostics
+            // crosses the FFI boundary.
+            var silenceThreshold = PortableNoSpeechDiagnostics.SilenceThreshold;
+
             var buffer = new float[4096];
-            long sampleCount = 0;
-            long nonSilentSampleCount = 0;
+            ulong sampleCount = 0;
+            ulong nonSilentSampleCount = 0;
             double sumSquares = 0;
             double peak = 0;
 
             int read;
-            while ((read = reader.Read(buffer, 0, buffer.Length)) > 0)
+            while ((read = provider.Read(buffer, 0, buffer.Length)) > 0)
             {
                 for (var i = 0; i < read; i++)
                 {
                     var abs = Math.Abs(buffer[i]);
-                    peak = Math.Max(peak, abs);
-                    sumSquares += abs * abs;
+                    // `>` and not Math.Max: a NaN sample must not become the peak. Math.Max
+                    // PROPAGATES NaN, which floors the peak to -120 dBFS and silently
+                    // changes which arm fires; `abs > peak` is false for NaN, so the sample
+                    // is ignored. This is the rule hw_audio::no_speech::accumulate applies,
+                    // and macOS applies the same one - see that function's "Non-finite
+                    // input" note.
+                    if (abs > peak)
+                    {
+                        peak = abs;
+                    }
+                    sumSquares += (double)abs * abs;
 
-                    if (abs >= SilenceThreshold)
+                    if (abs >= silenceThreshold)
                     {
                         nonSilentSampleCount++;
                     }
                 }
 
-                sampleCount += read;
+                sampleCount += (ulong)read;
             }
 
-            var rms = sampleCount > 0 ? Math.Sqrt(sumSquares / sampleCount) : 0;
-            var nonSilentRatio = sampleCount > 0 ? (double)nonSilentSampleCount / sampleCount : 0;
+            var summary = PortableNoSpeechDiagnostics.Summarize(new PortableSignalAccumulation(
+                SampleCount: sampleCount,
+                NonSilentCount: nonSilentSampleCount,
+                SumSquares: sumSquares,
+                Peak: peak));
+
             var durationSeconds = reader.TotalTime.TotalSeconds > 0
                 ? reader.TotalTime.TotalSeconds
                 : fallbackDurationSeconds ?? 0;
@@ -198,12 +286,15 @@ public static class TranscriptionDiagnosticsService
                 AnalysisSucceeded: true,
                 DurationSeconds: Math.Round(durationSeconds, 3),
                 FileSizeBytes: fileInfo.Length,
+                // The source container's format. The measurements above are on
+                // 16 kHz mono; these two stay the recorder's own facts.
                 SampleRate: reader.WaveFormat.SampleRate,
                 Channels: reader.WaveFormat.Channels,
-                PeakDbfs: ToDbfs(peak),
-                RmsDbfs: ToDbfs(rms),
-                NonSilentRatio: Math.Round(nonSilentRatio, 4),
-                DecodedSampleCount: sampleCount);
+                PeakDbfs: summary.PeakDbfs,
+                RmsDbfs: summary.RmsDbfs,
+                NonSilentRatio: summary.NonSilentRatio,
+                DecodedSampleCount: decoded.SampleCount,
+                MeasuredSampleCount: (long)sampleCount);
         }
         catch (Exception ex)
         {
@@ -235,32 +326,6 @@ public static class TranscriptionDiagnosticsService
     private static string DescribeAnalysisError(Exception ex)
         => $"{ex.GetType().Name} (0x{ex.HResult:X8})";
 
-    private static double ToDbfs(double linear)
-    {
-        if (linear <= 0)
-        {
-            return MinimumDbfs;
-        }
-
-        return Math.Round(20 * Math.Log10(linear), 2);
-    }
-
-    /// <summary>
-    /// Buckets a dBFS value to the nearest 5dB step (e.g. -38.2 -> "-40dbfs") for
-    /// use as a low-cardinality Sentry tag. A raw float would give every event its
-    /// own effectively-unique value, making it useless for faceting/segmenting.
-    /// </summary>
-    private static string BucketDbfs(double dbfs)
-    {
-        if (dbfs <= MinimumDbfs)
-        {
-            return "silent";
-        }
-
-        var bucket = (int)(Math.Floor(dbfs / 5.0) * 5.0);
-        return $"{bucket}dbfs";
-    }
-
     /// <summary>
     /// Builds the Sentry grouping fingerprint. The last two elements are the honest
     /// provider axis: <c>Mode.CloudProvider</c> and <c>Mode.ProviderType</c> are
@@ -270,14 +335,20 @@ public static class TranscriptionDiagnosticsService
     /// -RM local+none, -XB local+gemini, -XR local+groq). Local modes therefore group
     /// on their local engine; cloud modes keep grouping per vendor.
     /// <para>
-    /// The provider-type element is canonicalized through the same
-    /// <see cref="IsLocalMode"/> predicate rather than emitted raw, because
-    /// <c>ProviderType</c> is nullable and non-canonical values route local all the
-    /// same: a raw value would re-split the cohort the engine element just merged
-    /// (<c>"local"</c> vs <c>null</c> vs <c>""</c> = three groups for one condition).
-    /// Values are not normalized, only bucketed into local/cloud. A genuinely absent
-    /// mode stays <c>"unknown"</c> - "no mode at all" is a different fact from "a mode
-    /// whose ProviderType was never written".
+    /// The provider-type element is canonicalized through the core's local-mode
+    /// predicate rather than emitted raw, because <c>ProviderType</c> is nullable
+    /// and non-canonical values route local all the same: a raw value would
+    /// re-split the cohort the engine element just merged (<c>"local"</c> vs
+    /// <c>null</c> vs <c>""</c> = three groups for one condition). Values are not
+    /// normalized, only bucketed into local/cloud. A genuinely absent mode stays
+    /// <c>"unknown"</c> - "no mode at all" is a different fact from "a mode whose
+    /// ProviderType was never written".
+    /// </para>
+    /// <para>
+    /// The element ORDER and the five-element shape are the core's since #291 and
+    /// are byte-identical to what this method emitted before, so the existing
+    /// Windows Sentry groups survive. Only <paramref name="fingerprintRoot"/> is
+    /// per-platform.
     /// </para>
     /// </summary>
     // internal (not private): test seam for HyperWhisper.SmokeTests via
@@ -288,16 +359,11 @@ public static class TranscriptionDiagnosticsService
         string diagnosticStage,
         string diagnosticSource,
         Mode? mode)
-    {
-        return new[]
-        {
+        => PortableNoSpeechDiagnostics.BuildFingerprint(
             fingerprintRoot,
             diagnosticStage,
             diagnosticSource,
-            mode is null ? "unknown" : (IsLocalMode(mode) ? "local" : "cloud"),
-            IsLocalMode(mode) ? ResolveLocalEngine(mode) : (mode?.CloudProvider ?? "none")
-        };
-    }
+            ToModeIdentity(mode));
 
     /// <summary>
     /// The <c>cloud_provider</c> tag with the same staleness masked off, so faceting
@@ -308,40 +374,23 @@ public static class TranscriptionDiagnosticsService
     // InternalsVisibleTo (see HyperWhisper.csproj) - no other accessibility
     // change is intended.
     internal static string ResolveCloudProviderTag(Mode? mode)
-        => IsLocalMode(mode) ? "none" : (mode?.CloudProvider ?? "none");
-
-    /// <summary>
-    /// Mirrors how the app actually dispatches: <c>Mode.ProviderType</c> is nullable
-    /// with no initializer and nothing backfills it, and every routing site treats
-    /// "cloud" as the special case and everything else - including null and empty - as
-    /// local (<c>MainViewModel.GetLocalProvider</c>, <c>TranscriptionRetryHandler</c>,
-    /// <c>TranscriptionProviderFactory.IsHyperWhisperCloudActive</c>). Matching only the
-    /// literal "local" here would leave every mode with a null or non-canonical
-    /// ProviderType grouping on its stale CloudProvider, i.e. part of the cluster this
-    /// fixes would stay fragmented. Case-insensitive, matching the routing sites that
-    /// compare that way; values are not normalized on write, and this does not
-    /// normalize them either.
-    /// </summary>
-    private static bool IsLocalMode(Mode? mode)
-        => !string.Equals(mode?.ProviderType, "cloud", StringComparison.OrdinalIgnoreCase);
+        => PortableNoSpeechDiagnostics.CloudProviderTag(ToModeIdentity(mode));
 
     private static string ResolveLocalEngine(Mode? mode)
-        => string.IsNullOrWhiteSpace(mode?.LocalEngine) ? "none" : mode!.LocalEngine;
+        => PortableNoSpeechDiagnostics.LocalEngineTag(ToModeIdentity(mode));
 
-    // internal (not private): test seam for HyperWhisper.SmokeTests via
-    // InternalsVisibleTo (see HyperWhisper.csproj) - no other accessibility
-    // change is intended.
-    internal enum NoSpeechDiagnosticOutcome
-    {
-        /// <summary>Expected/benign - capture nothing.</summary>
-        Skip,
-
-        /// <summary>Nothing was recorded at all - a recorder failure, reported separately.</summary>
-        EmptyRecording,
-
-        /// <summary>Audio exists but produced no transcript - the original diagnostic.</summary>
-        NoSpeech
-    }
+    /// <summary>
+    /// The three persisted mode fields the core groups and facets on. Passed as a
+    /// whole, and as a nullable, because "no mode at all" is a different fact from
+    /// "a mode whose ProviderType was never written" - the two produce different
+    /// fingerprints. The values are handed over raw; the core owns the
+    /// local-vs-cloud predicate and the <c>"none"</c> fallbacks, so Windows,
+    /// macOS and Linux cannot drift on them.
+    /// </summary>
+    private static PortableModeIdentity? ToModeIdentity(Mode? mode)
+        => mode is null
+            ? null
+            : new PortableModeIdentity(mode.ProviderType, mode.CloudProvider, mode.LocalEngine);
 
     /// <summary>
     /// Everything a reportable outcome is published as: the <c>diagnostic_name</c> tag
@@ -366,18 +415,23 @@ public static class TranscriptionDiagnosticsService
     // internal (not private): test seam for HyperWhisper.SmokeTests via
     // InternalsVisibleTo (see HyperWhisper.csproj) - no other accessibility
     // change is intended.
-    internal static DiagnosticPresentation ResolveDiagnosticPresentation(NoSpeechDiagnosticOutcome outcome)
+    internal static DiagnosticPresentation ResolveDiagnosticPresentation(PortableNoSpeechOutcome outcome)
         => outcome switch
         {
             // The message is the Sentry group identity for eight live issues
             // (HYPERWHISPER-PA/-QB/-RM/-T6/-VY/-XB/-XR/-W7). It must stay
             // character-identical - editing it starts a new group and orphans them.
-            NoSpeechDiagnosticOutcome.NoSpeech => new DiagnosticPresentation(
+            //
+            // The fingerprint ROOT is deliberately NOT shared with macOS either
+            // (macOS uses "macos-transcription-*"): only the shape comes from the
+            // core, because unifying the roots would merge macOS events into these
+            // same live Windows issues.
+            PortableNoSpeechOutcome.NoSpeech => new DiagnosticPresentation(
                 Name: "no_speech",
                 Message: "Windows transcription no-speech diagnostic",
                 FingerprintRoot: "transcription-no-speech"),
 
-            NoSpeechDiagnosticOutcome.EmptyRecording => new DiagnosticPresentation(
+            PortableNoSpeechOutcome.EmptyRecording => new DiagnosticPresentation(
                 Name: "empty_recording",
                 Message: "Windows transcription empty recording diagnostic",
                 FingerprintRoot: "transcription-empty-recording"),
@@ -393,66 +447,27 @@ public static class TranscriptionDiagnosticsService
     // internal (not private): test seam for HyperWhisper.SmokeTests via
     // InternalsVisibleTo (see HyperWhisper.csproj) - no other accessibility
     // change is intended.
-    internal static NoSpeechDiagnosticOutcome ClassifyNoSpeechDiagnostic(
+    internal static PortableNoSpeechOutcome ClassifyNoSpeechDiagnostic(
         AudioAnalysisDiagnostics audioDiagnostics,
         TranscriptionProviderDiagnostics? providerDiagnostics)
-    {
-        // MUST stay first: with no usable analysis we can't tell an empty recording
-        // from a quiet one, so fall back to the full no-speech report.
-        if (!audioDiagnostics.AnalysisSucceeded)
-        {
-            return NoSpeechDiagnosticOutcome.NoSpeech;
-        }
-
-        // A header-only / zero-frame file means the recorder produced nothing, which
-        // is a different fault from "we recorded audio and got no words back". It is
-        // still reported - just under its own name and fingerprint - so a real
-        // recorder failure never gets silently dropped.
-        //
-        // The discriminator is the decoded sample count, NOT DurationSeconds or
-        // FileSizeBytes, both of which lie here:
-        //  - DurationSeconds falls back to the caller's value when the container
-        //    reports none, so a header-only WAV from a 5-second recording arrives as
-        //    5.0 (false negative: it would fall through to the dead-silence rule and
-        //    be reported as nothing at all), while a decodable file whose container
-        //    reports no duration arrives as 0 on the file-transcription path, where no
-        //    recorder ever ran (false positive).
-        //  - FileSizeBytes <= 0 cannot co-occur with AnalysisSucceeded: AudioFileReader
-        //    has already parsed a header by then, and a zero-byte file throws out to
-        //    the catch as AnalysisSucceeded: false.
-        // Zero decoded samples is true in both directions and needs no fallback.
-        // Null (unknown - no read loop ran) is deliberately not empty.
-        if (audioDiagnostics.DecodedSampleCount == 0)
-        {
-            return NoSpeechDiagnosticOutcome.EmptyRecording;
-        }
-
-        if (providerDiagnostics?.EmptyTranscriptWithoutFlag == true)
-        {
-            return NoSpeechDiagnosticOutcome.NoSpeech;
-        }
-
-        if (audioDiagnostics.NonSilentRatio == 0 &&
-            audioDiagnostics.PeakDbfs < ConfirmedSilencePeakDbfs)
-        {
-            return NoSpeechDiagnosticOutcome.Skip;
-        }
-
-        if (providerDiagnostics?.BackendNoSpeechDetected == true &&
-            audioDiagnostics.NonSilentRatio <= LowSignalNonSilentRatio &&
-            audioDiagnostics.RmsDbfs <= LowSignalRmsDbfs)
-        {
-            return NoSpeechDiagnosticOutcome.Skip;
-        }
-
-        return NoSpeechDiagnosticOutcome.NoSpeech;
-    }
+        // The five arms, their order and their thresholds are the core's
+        // (hw_audio::no_speech::classify) - this shape was Windows' and is now
+        // shared, so macOS cannot drift off it. The reasoning for each arm lives
+        // with the code, in the Rust.
+        => PortableNoSpeechDiagnostics.Classify(new PortableNoSpeechInput(
+            AnalysisSucceeded: audioDiagnostics.AnalysisSucceeded,
+            DecodedSampleCount: audioDiagnostics.DecodedSampleCount,
+            EmptyTranscriptWithoutFlag: providerDiagnostics?.EmptyTranscriptWithoutFlag ?? false,
+            BackendNoSpeechDetected: providerDiagnostics?.BackendNoSpeechDetected ?? false,
+            PeakDbfs: audioDiagnostics.PeakDbfs,
+            RmsDbfs: audioDiagnostics.RmsDbfs,
+            NonSilentRatio: audioDiagnostics.NonSilentRatio));
 
     /// <summary>
     /// True when the input is reported <i>as a no-speech diagnostic</i>. This is NOT
-    /// "is anything captured": an <see cref="NoSpeechDiagnosticOutcome.EmptyRecording"/>
+    /// "is anything captured": an <see cref="PortableNoSpeechOutcome.EmptyRecording"/>
     /// is also captured, under its own name and fingerprint, and returns false here.
-    /// Only <see cref="NoSpeechDiagnosticOutcome.Skip"/> means nothing is reported.
+    /// Only <see cref="PortableNoSpeechOutcome.Skip"/> means nothing is reported.
     /// </summary>
     // internal (not private): test seam for HyperWhisper.SmokeTests via
     // InternalsVisibleTo (see HyperWhisper.csproj) - no other accessibility
@@ -460,7 +475,7 @@ public static class TranscriptionDiagnosticsService
     internal static bool ShouldCaptureAsNoSpeech(
         AudioAnalysisDiagnostics audioDiagnostics,
         TranscriptionProviderDiagnostics? providerDiagnostics)
-        => ClassifyNoSpeechDiagnostic(audioDiagnostics, providerDiagnostics) == NoSpeechDiagnosticOutcome.NoSpeech;
+        => ClassifyNoSpeechDiagnostic(audioDiagnostics, providerDiagnostics) == PortableNoSpeechOutcome.NoSpeech;
 
     // internal (not private): test seam for HyperWhisper.SmokeTests via
     // InternalsVisibleTo (see HyperWhisper.csproj) - no other accessibility
@@ -472,10 +487,22 @@ public static class TranscriptionDiagnosticsService
     /// audio was actually decoded - use <paramref name="DecodedSampleCount"/> for that.
     /// </param>
     /// <param name="DecodedSampleCount">
-    /// Samples the decoder actually produced while reading the file, or <c>null</c> when
-    /// no read loop ran (analysis failed, or a synthetic record in a test). Zero is the
-    /// only honest "the recorder captured nothing" signal - see
-    /// <see cref="ClassifyNoSpeechDiagnostic"/>. Null means unknown, never empty.
+    /// Mono sample frames the decoder actually produced while reading the file, counted
+    /// BEFORE the 16 kHz resampler, or <c>null</c> when no read loop ran (analysis failed,
+    /// or a synthetic record in a test). Zero is the only honest "the recorder captured
+    /// nothing" signal - see <see cref="ClassifyNoSpeechDiagnostic"/>. Null means unknown,
+    /// never empty.
+    /// <para>
+    /// It is deliberately not the post-resample count.
+    /// <c>WdlResamplingSampleProvider.Read</c> returns 0 until it can fill a whole output
+    /// frame, so a decodable file with fewer frames than the sinc window needs measures
+    /// zero 16 kHz samples while the decoder produced plenty - and the empty-recording arm
+    /// would report "the recorder produced nothing", which is false.
+    /// </para>
+    /// </param>
+    /// <param name="MeasuredSampleCount">
+    /// 16 kHz mono samples the dBFS figures were measured over, counted AFTER the
+    /// resampler. Reported for context only; nothing classifies on it.
     /// </param>
     internal sealed record AudioAnalysisDiagnostics(
         bool AnalysisSucceeded,
@@ -487,6 +514,123 @@ public static class TranscriptionDiagnosticsService
         double RmsDbfs = MinimumDbfs,
         double NonSilentRatio = 0,
         string? AnalysisError = null,
-        long? DecodedSampleCount = null
+        long? DecodedSampleCount = null,
+        long? MeasuredSampleCount = null
     );
+
+    /// <summary>
+    /// Folds any channel count down to mono by averaging across channels, for any channel
+    /// count and without throwing.
+    /// </summary>
+    /// <remarks>
+    /// NAudio 2.2.1's <c>ToMono()</c> and <see cref="StereoToMonoSampleProvider"/> handle
+    /// exactly two channels and throw <see cref="NotImplementedException"/> on anything
+    /// else. A diagnostic must not turn a readable file into an analysis failure, and it
+    /// must not measure a multichannel stream interleaved either, so it folds its own.
+    /// A plain average is the same 0.5/0.5 mix the 2-channel provider defaults to,
+    /// generalized to N channels.
+    /// </remarks>
+    // internal (not private): test seam for HyperWhisper.SmokeTests via
+    // InternalsVisibleTo, which drives it with a source that returns awkward
+    // read counts - see the short-read test.
+    internal sealed class MonoFoldSampleProvider : ISampleProvider
+    {
+        private readonly ISampleProvider _source;
+        private readonly int _channels;
+        private float[] _sourceBuffer = [];
+
+        /// <summary>
+        /// Samples of an incomplete frame held over from the previous <see cref="Read"/>, at the
+        /// start of <see cref="_sourceBuffer"/>. A source is free to return any count it likes,
+        /// including one that ends mid-frame; dropping the remainder instead of carrying it
+        /// would rotate every later frame across the channels by that many samples.
+        /// </summary>
+        private int _pending;
+
+        internal MonoFoldSampleProvider(ISampleProvider source)
+        {
+            _source = source;
+            _channels = source.WaveFormat.Channels;
+            WaveFormat = WaveFormat.CreateIeeeFloatWaveFormat(source.WaveFormat.SampleRate, 1);
+        }
+
+        public WaveFormat WaveFormat { get; }
+
+        public int Read(float[] buffer, int offset, int count)
+        {
+            if (count <= 0)
+            {
+                return 0;
+            }
+
+            var required = count * _channels;
+            if (_sourceBuffer.Length < required)
+            {
+                // Resize, not reallocate: the carried partial frame lives at the start of it.
+                Array.Resize(ref _sourceBuffer, required);
+            }
+
+            // Returning fewer than `count` frames is legal; returning 0 while the source still
+            // has audio is not — both the analysis loop and WdlResamplingSampleProvider read a 0
+            // as end-of-stream, so a source that returned 0 < read < _channels once would
+            // silently truncate the measurement and still report AnalysisSucceeded: true. Keep
+            // pulling until a whole frame exists or the source is genuinely exhausted.
+            var available = _pending;
+            while (available < _channels)
+            {
+                var read = _source.Read(_sourceBuffer, available, required - available);
+                if (read <= 0)
+                {
+                    break;
+                }
+
+                available += read;
+            }
+
+            var frames = available / _channels;
+            for (var frame = 0; frame < frames; frame++)
+            {
+                double sum = 0;
+                var start = frame * _channels;
+                for (var channel = 0; channel < _channels; channel++)
+                {
+                    sum += _sourceBuffer[start + channel];
+                }
+
+                buffer[offset + frame] = (float)(sum / _channels);
+            }
+
+            // Carry whatever did not make up a whole frame to the next call.
+            _pending = available - (frames * _channels);
+            if (_pending > 0)
+            {
+                Array.Copy(_sourceBuffer, frames * _channels, _sourceBuffer, 0, _pending);
+            }
+
+            return frames;
+        }
+    }
+
+    /// <summary>
+    /// Passes samples straight through and counts them. Inserted before the resampler so
+    /// the empty-recording arm reads a count that means "the decoder produced nothing"
+    /// rather than "the resampler could not fill an output frame yet".
+    /// </summary>
+    private sealed class CountingSampleProvider(ISampleProvider source) : ISampleProvider
+    {
+        public long SampleCount { get; private set; }
+
+        public WaveFormat WaveFormat => source.WaveFormat;
+
+        public int Read(float[] buffer, int offset, int count)
+        {
+            var read = source.Read(buffer, offset, count);
+            if (read > 0)
+            {
+                SampleCount += read;
+            }
+
+            return read;
+        }
+    }
 }

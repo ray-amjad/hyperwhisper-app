@@ -196,6 +196,18 @@ if not exist "%RES_DIR%\silero_vad.onnx" (
     echo ERROR: silero_vad.onnx missing from %RES_DIR%
     exit /b 1
 )
+REM The managed daemon reads its CJK segment-join policy from the shared Rust
+REM core (issue #286), so it P/Invokes hyperwhisper_core.dll from its OWN
+REM directory - the head's copy at the app root is not on this process's native
+REM search path. Fail here rather than ship a daemon that throws
+REM DllNotFoundException on its first transcription.
+if not exist "%RES_DIR%\hyperwhisper_core.dll" (
+    echo ERROR: hyperwhisper_core.dll missing from %RES_DIR%
+    echo Build shared-core-rs for aarch64-pc-windows-msvc and stage it at
+    echo   %REPO_ROOT%\app\windows\HyperWhisper\Resources\rust-core\arm64\hyperwhisper_core.dll
+    echo before re-running this script. See Resources\rust-core\README.md.
+    exit /b 1
+)
 
 echo.
 echo === Managed ARM64 binaries copied to Resources! ===

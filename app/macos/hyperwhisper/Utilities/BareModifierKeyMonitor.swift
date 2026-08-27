@@ -49,7 +49,11 @@ import AppKit
 /// - CGEventTap API: Higher priority than NSEvent, receives events before other observers
 /// - 250ms Activation Delay: Prevents keyboard shortcuts (Cmd+C) from triggering PTT
 /// - Fn Debouncing: 75ms debounce for reliable Fn key detection
-/// - State Machine: Simplified from 8 states to 5 states
+/// - State Machine: SHARED. The five-state transition table lives in the Rust
+///   core (`pttStep`, issue #287) and is the same one the Windows and Linux
+///   heads run. This class owns the CGEventTap, the Fn debounce, the timers,
+///   the monotonic clock, the 100ms audio-engine warm-up on the quick-tap path,
+///   and the Sentry breadcrumbs.
 ///
 /// Features:
 /// - PTT Mode: Hold to record, release to stop (with 250ms activation delay)
@@ -58,16 +62,27 @@ import AppKit
 /// - Suspension: Can be temporarily suspended to ignore input (e.g., during auto-paste)
 /// - Interference Detection: Detects when other keys are pressed during activation/PTT and cancels recording
 ///
-/// State Machine Flow:
+/// State Machine Flow (owned by the core; reproduced here for orientation):
 /// 1. Idle -> Down -> WaitingForActivation (Starts 250ms timer)
 /// 2. WaitingForActivation -> Timer Fired -> PTT Active (Start Recording)
 /// 3. WaitingForActivation -> Interference (e.g. 'C' pressed) -> Idle (Cancel PTT)
 /// 4. WaitingForActivation -> Up (quick tap) -> PTT Active (First tap of lock sequence)
-/// 5. PTT Active -> Up within interval -> Latch Active (Double tap lock confirmed)
-/// 6. Latch Active -> Down -> UnlatchPending (reset firstTapTime to 0)
+/// 5. PTT Active -> Up, entered via quick tap, within interval -> Latch Active (lock confirmed)
+/// 6. Latch Active -> Down -> UnlatchPending (clear firstTapTime)
 /// 7. UnlatchPending -> Up (first) -> UnlatchPending (set firstTapTime, start timer)
 /// 8. UnlatchPending -> Up (second, within interval) -> Idle + Stop (Double tap unlock confirmed)
 /// 9. UnlatchPending -> Timeout -> Latch Active (user didn't complete unlock)
+///
+/// TWO BEHAVIOUR CHANGES came with the move to the shared table (issue #287):
+///
+/// 1. A hold past the 250ms activation delay, released inside the 1.5s
+///    double-press window, now STOPS. It used to latch into hands-free
+///    recording here, and stopped on Windows and Linux. The core tracks how PTT
+///    Active was entered (`enteredViaHold`), which this head had no equivalent
+///    for.
+/// 2. `resetToIdle()` from `waitingForActivation` is now a full cancel. It used
+///    to return early and leave the 250ms activation timer armed to start a
+///    recording that had already been cancelled.
 @MainActor
 final class BareModifierKeyMonitor {
     // MARK: - Singleton
@@ -81,14 +96,6 @@ final class BareModifierKeyMonitor {
         case control
         case leftOption
         case rightOption
-    }
-
-    private enum MonitorState {
-        case idle                   // No recording
-        case waitingForActivation   // Waiting 250ms to confirm it's not a shortcut
-        case pttActive              // Recording (hold to record)
-        case latchActive            // Recording (locked via double-tap)
-        case unlatchPending         // First tap of unlock sequence (waiting for 2nd)
     }
 
     // MARK: - Properties
@@ -110,8 +117,9 @@ final class BareModifierKeyMonitor {
     /// Whether we detected the modifier key is currently pressed
     private var isModifierPressed = false
 
-    /// Current state of the detection state machine
-    private var state: MonitorState = .idle
+    /// The shared state machine's record. Owned here; the core is a pure
+    /// function over it.
+    private var machine: HwPttMachineState = pttInitialState()
 
     /// Timer for double-tap detection and unlatch timeout
     private var latchTimer: Timer?
@@ -119,35 +127,50 @@ final class BareModifierKeyMonitor {
     /// Timer for initial activation delay (to prevent shortcut triggers)
     private var activationTimer: Timer?
 
+    /// Timer for the core's key-up debounce. Never armed on this head — see
+    /// `keyUpDebounceMs` — but wired up so turning the debounce on works.
+    private var keyUpDebounceTimer: Timer?
+
     /// Timer for delayed start in double-tap mode (audio engine initialization)
     private var doubleTapStartTimer: Timer?
 
-    /// Timestamp of first tap (for double-tap detection)
-    private var firstTapTime: TimeInterval = 0
+    /// Minimum time (ms) to stay locked before allowing the unlock sequence.
+    /// Prevents Fn key bounce from immediately triggering unlock after lock.
+    /// 1000ms matches Parakeet's minimum transcription duration requirement.
+    ///
+    /// Windows and Linux both ship 2000ms. The two are deliberately NOT unified
+    /// by the move to the shared machine — each platform passes what it ships.
+    private static let minimumLockMs: UInt64 = 1_000
 
-    /// Timestamp when latch (lock) was activated
-    /// Used to prevent immediate unlock from key bounce events
-    private var lastLatchActiveTime: TimeInterval = 0
-
-    /// Minimum time (seconds) to stay locked before allowing unlock sequence
-    /// This prevents Fn key bounce from immediately triggering unlock after lock
-    /// Set to 1.0s to match Parakeet's minimum transcription duration requirement
-    private let minimumLockDuration: TimeInterval = 1.0
+    /// This head commits a key-up immediately: it has no key-up debounce, unlike
+    /// Windows and Linux (100ms). It debounces the Fn key on BOTH edges instead,
+    /// before the event ever reaches the machine — see `handleFnKeyEvent`.
+    private static let keyUpDebounceMs: UInt64 = 0
 
     /// Configuration: Enable double-tap to lock
-    var doublePressEnabled: Bool = true
+    var doublePressEnabled: Bool = true {
+        didSet { pttConfiguration = Self.makeConfiguration(doublePressEnabled) }
+    }
 
-    /// Configuration: Double-tap interval (seconds)
-    /// 1.5s provides a generous window for double-tap detection:
-    /// - First tap release to second tap release
-    /// - Typical human double-tap takes 250-600ms
-    /// - 1.5s accommodates slower/deliberate taps without feeling sluggish
-    var doublePressInterval: TimeInterval = 1.5
+    /// The timing constants the core measures against. The 250ms activation
+    /// delay and the 1.5s double-press window are filled in by the core and are
+    /// identical on all three platforms; only the two values above are ours.
+    private var pttConfiguration: HwPttConfig = BareModifierKeyMonitor.makeConfiguration(true)
 
-    /// Configuration: Delay before activating PTT to filter out shortcuts (e.g. Cmd+C)
-    /// 250ms allows users to type shortcuts without triggering PTT.
-    /// If another key is pressed within this window, PTT activation is cancelled.
-    var activationDelay: TimeInterval = 0.25
+    private static func makeConfiguration(_ doublePressLock: Bool) -> HwPttConfig {
+        pttConfig(
+            minimumLockMs: BareModifierKeyMonitor.minimumLockMs,
+            keyUpDebounceMs: BareModifierKeyMonitor.keyUpDebounceMs,
+            doublePressLock: doublePressLock
+        )
+    }
+
+    /// A MONOTONIC millisecond reading. Never `Date()`: this head compared
+    /// wall-clock timestamps, so an NTP step during a locked recording could
+    /// make the time-since-lock interval negative and defeat bounce protection.
+    private var nowMs: UInt64 {
+        DispatchTime.now().uptimeNanoseconds / 1_000_000
+    }
 
     /// Configuration: Delay before starting recording in double-tap mode
     /// This short delay (100ms) allows the audio engine to initialize properly before capture begins.
@@ -192,7 +215,7 @@ final class BareModifierKeyMonitor {
         currentMode = mode
         isMonitoring = true
         isModifierPressed = false
-        state = .idle
+        machine = pttInitialState()
 
         // CGEVENTTAP SETUP:
         // We monitor both flagsChanged (for modifier keys) and keyDown (for interference detection).
@@ -313,20 +336,21 @@ final class BareModifierKeyMonitor {
         latchTimer?.invalidate()
         latchTimer = nil
 
+        keyUpDebounceTimer?.invalidate()
+        keyUpDebounceTimer = nil
+
         doubleTapStartTimer?.invalidate()
         doubleTapStartTimer = nil
 
         // Cancel Fn debounce task
-        fnDebounceTask?.cancel()
-        fnDebounceTask = nil
-        pendingFnKeyState = nil
+        cancelFnDebounce()
 
         // Reset state
         isMonitoring = false
         currentMode = nil
         requiredModifierKeys = nil
         isModifierPressed = false
-        state = .idle
+        machine = pttInitialState()
 
         AppLogger.audio.debug("BareModifierKeyMonitor stopped")
     }
@@ -336,20 +360,9 @@ final class BareModifierKeyMonitor {
         isSuspended = suspended
         if suspended {
             // Reset state to prevent stuck modifiers
-            state = .idle
             isModifierPressed = false
-
-            // Invalidate timers (no DispatchQueue wrapper needed)
-            activationTimer?.invalidate()
-            activationTimer = nil
-
-            latchTimer?.invalidate()
-            latchTimer = nil
-
-            // Cancel Fn debounce
-            fnDebounceTask?.cancel()
-            fnDebounceTask = nil
-            pendingFnKeyState = nil
+            cancelFnDebounce()
+            step(.reset)
 
             AppLogger.audio.debug("BareModifierKeyMonitor suspended")
         } else {
@@ -376,32 +389,19 @@ final class BareModifierKeyMonitor {
     ///
     /// **Safe to Call:**
     /// If the monitor already triggered the stop (via double-tap unlock), it will
-    /// already be in .idle state, so this is a no-op.
+    /// already be idle, so this changes nothing.
+    ///
+    /// **Changed with issue #287:** this is now a full cancel from
+    /// `waitingForActivation` too. It used to return early from there, leaving
+    /// the 250ms activation timer armed to start a recording that had already
+    /// been cancelled.
     func resetToIdle() {
-        // Only reset if we're in a recording-related state
-        guard state == .latchActive || state == .unlatchPending || state == .pttActive else {
-            return
-        }
+        AppLogger.audio.debug("BareModifierKeyMonitor resetToIdle from state: \(String(describing: self.machine.state))")
 
-        AppLogger.audio.debug("BareModifierKeyMonitor resetToIdle from state: \(String(describing: self.state))")
-
-        state = .idle
         isModifierPressed = false
-
-        // Cancel all timers
-        activationTimer?.invalidate()
-        activationTimer = nil
-
-        latchTimer?.invalidate()
-        latchTimer = nil
-
-        doubleTapStartTimer?.invalidate()
-        doubleTapStartTimer = nil
-
-        // Cancel Fn debounce
-        fnDebounceTask?.cancel()
-        fnDebounceTask = nil
-        pendingFnKeyState = nil
+        cancelDoubleTapStartTimer()
+        cancelFnDebounce()
+        step(.resetToIdle)
     }
 
     // MARK: - Private Implementation (CGEvent Handlers)
@@ -415,7 +415,7 @@ final class BareModifierKeyMonitor {
         let flags = event.flags
 
         // If we're in activation or active PTT and see extra modifiers, treat as interference.
-        if state == .waitingForActivation || state == .pttActive {
+        if machine.state == .waitingForActivation || machine.state == .pttActive {
             if hasInterferingModifiers(flags, mode: currentMode) {
                 handleInterference()
                 return
@@ -462,8 +462,10 @@ final class BareModifierKeyMonitor {
         if isSuspended { return }
         guard isMonitoring, let currentMode = currentMode else { return }
 
-        // Only hold-to-talk states can get stuck on a dropped release.
-        guard state == .waitingForActivation || state == .pttActive else { return }
+        // Only hold-to-talk states can get stuck on a dropped release. The core
+        // enforces the same guard on `.forceStop`; this early return just avoids
+        // the log line and the flags query.
+        guard machine.state == .waitingForActivation || machine.state == .pttActive else { return }
 
         // Query the live modifier flags directly from the system rather than relying on a
         // (now-missing) event.
@@ -479,37 +481,25 @@ final class BareModifierKeyMonitor {
         // If the system agrees the modifier is still held, nothing was missed.
         guard !isPressed else { return }
 
-        AppLogger.audio.debug("BareModifierKeyMonitor: reconciling dropped release after tap re-enable from state \(String(describing: self.state))")
+        AppLogger.audio.debug("BareModifierKeyMonitor: reconciling dropped release after tap re-enable from state \(String(describing: self.machine.state))")
 
         SentryService.addBreadcrumb(
             message: "PTT tap re-enabled — reconciled dropped modifier release",
             category: "ptt.tap",
             data: [
                 "mode": String(describing: currentMode),
-                "previousState": String(describing: state)
+                "previousState": String(describing: machine.state)
             ]
         )
 
-        // The modifier was released while the tap was disabled. Deterministically tear the
-        // recording down instead of routing through handleKeyUp(), which (in pttActive)
-        // could mistake the synthesised release for a double-tap and latch instead of stop.
-        let wasActive = (state == .pttActive)
-
-        cancelActivationTimer()
-        cancelLatchTimer()
+        // The modifier was released while the tap was disabled. `.forceStop` tears
+        // the recording down deterministically. It is a distinct event and NOT a
+        // synthesised `.keyUp`, which (in pttActive) could be mistaken for a
+        // double-tap and latch instead of stop.
         cancelDoubleTapStartTimer()
-        fnDebounceTask?.cancel()
-        fnDebounceTask = nil
-        pendingFnKeyState = nil
-
-        state = .idle
+        cancelFnDebounce()
         isModifierPressed = false
-
-        // Only fire the stop callback if recording had actually started (pttActive). In
-        // waitingForActivation recording never began, so cancelling the timer is enough.
-        if wasActive {
-            triggerStop()
-        }
+        step(.forceStop)
     }
 
     /// Handle keyDown events from CGEventTap
@@ -521,7 +511,7 @@ final class BareModifierKeyMonitor {
 
         // Only treat key presses as interference while we're in the activation window
         // or actively recording in PTT mode (non-latched).
-        switch state {
+        switch machine.state {
         case .waitingForActivation, .pttActive:
             handleInterference()
         default:
@@ -546,10 +536,8 @@ final class BareModifierKeyMonitor {
         //
         // The fix: bypass debounce for ALL Fn events when unlocking, so the state
         // machine can accurately track press/release during the unlock sequence.
-        if state == .latchActive || state == .unlatchPending {
-            fnDebounceTask?.cancel()
-            fnDebounceTask = nil
-            pendingFnKeyState = nil
+        if machine.state == .latchActive || machine.state == .unlatchPending {
+            cancelFnDebounce()
             processKeyPress(isPressed: isPressed)
             return
         }
@@ -581,374 +569,191 @@ final class BareModifierKeyMonitor {
         guard isPressed != isModifierPressed else { return }
         isModifierPressed = isPressed
 
-        if isPressed {
-            handleKeyDown()
-        } else {
-            handleKeyUp()
-        }
+        step(isPressed ? .keyDown : .keyUp)
     }
 
-    // MARK: - State Machine
+    private func cancelFnDebounce() {
+        fnDebounceTask?.cancel()
+        fnDebounceTask = nil
+        pendingFnKeyState = nil
+    }
 
-    private func handleKeyDown() {
-        switch state {
-        case .idle:
-            // Start activation delay timer (250ms to filter out shortcuts)
-            state = .waitingForActivation
-            startActivationTimer()
+    // MARK: - State Machine (shared — `hw-input` via `pttStep`)
 
-        case .waitingForActivation:
-            // Already waiting, ignore duplicate down events
-            break
+    /// Feed one event to the shared machine, store the record it returns and do
+    /// what it asks for.
+    ///
+    /// Everything that calls this is on the main actor, so the machine is never
+    /// stepped concurrently and needs no lock of its own.
+    private func step(_ event: HwPttEvent) {
+        let result = pttStep(
+            state: machine,
+            event: event,
+            nowMs: nowMs,
+            config: pttConfiguration
+        )
+        machine = result.state
 
-        case .pttActive:
-            // DOUBLE-TAP SECOND PRESS: User pressed modifier again while in pttActive
-            //
-            // This proves the first tap wasn't abandoned - user is actively engaged.
-            // Cancel the auto-stop safety timeout since its purpose (detect abandoned tap)
-            // no longer applies. The recording will continue until:
-            // - Quick release (within 1.5s): locks to latchActive
-            // - Slow release (after 1.5s): stops recording (checked in keyUp)
-            // - Interference detected: stops recording
-            //
-            // Trade-off: If user accidentally presses and walks away, no safety timeout.
-            // Mitigation: Recording state visible in menu bar UI.
-            cancelLatchTimer()
-            break
+        for command in result.timers {
+            apply(command)
+        }
 
-        case .latchActive:
-            // BOUNCE PROTECTION FIX (HYPERWHISPER-45):
-            // Problem: When users double-tap FN to lock recording, the Fn key sometimes
-            // generates spurious bounce events (extra keyDown/keyUp within milliseconds).
-            // These bounce events were immediately triggering the unlock sequence,
-            // stopping the recording after ~0.6 seconds and causing "Transcription failed"
-            // errors because Parakeet requires at least 1 second of audio.
-            //
-            // Solution: Enforce a 1-second cooldown after locking before allowing any
-            // unlock sequence to begin. Bounce events during this window are ignored.
-            let now = Date().timeIntervalSince1970
-            let timeSinceLock = now - lastLatchActiveTime
-            if timeSinceLock < minimumLockDuration {
-                AppLogger.audio.debug("Ignoring keyDown - too soon after lock (\(Int(timeSinceLock * 1000))ms < \(Int(self.minimumLockDuration * 1000))ms)")
-
-                // SENTRY BREADCRUMB: Track bounce protection activation
-                SentryService.addBreadcrumb(
-                    message: "Bounce protection: ignoring early unlock attempt",
-                    category: "ptt.doubletap",
-                    data: [
-                        "mode": String(describing: currentMode),
-                        "timeSinceLockMs": Int(timeSinceLock * 1000),
-                        "minimumLockDurationMs": Int(minimumLockDuration * 1000)
-                    ]
-                )
-                return
-            }
-
-            // In locked mode, first tap of unlock sequence
-            // Reset firstTapTime to 0 as sentinel - actual time will be set on first keyUp
-            // This makes unlock symmetric with lock (both measure keyUp-to-keyUp)
-
-            // Cancel any pending recording start timer from lock sequence
-            // We're entering unlock mode, so we don't want recording to start
+        if result.transition.reason == .unlockArmed {
+            // Entering the unlock sequence. Drop any pending quick-tap start so a
+            // recording the user is unlocking out of cannot begin behind it.
             cancelDoubleTapStartTimer()
-
-            state = .unlatchPending
-            firstTapTime = 0
-
-        case .unlatchPending:
-            // Subsequent keyDown during unlock sequence - just stay in state
-            // Don't update firstTapTime as it was set on first keyUp
-            break
         }
-    }
 
-    private func handleKeyUp() {
-        switch state {
-        case .idle:
-            // Not recording, ignore key up
-            break
+        // `armInterference` and `resetKeyboardState` are Linux's effects. This
+        // head watches for interference unconditionally and holds no keyboard
+        // state on the machine's behalf, so both are deliberately ignored.
 
-        case .waitingForActivation:
-            // Released before activation timer fired (too quick)
-            cancelActivationTimer()
+        recordBreadcrumb(for: result.transition)
 
-            if doublePressEnabled {
-                // DOUBLE-TAP LOCK MODE: First tap of potential double-tap-to-lock sequence
-                // We use a short delay before starting recording to allow the audio engine
-                // to initialize properly. Without this delay, quick taps may result in
-                // empty/silent audio files causing "no speech detected" errors.
-                state = .pttActive
-                firstTapTime = Date().timeIntervalSince1970
-
-                // SENTRY BREADCRUMB: Track double-tap first tap for debugging
-                SentryService.addBreadcrumb(
-                    message: "Double-tap first tap detected",
-                    category: "ptt.doubletap",
-                    data: [
-                        "mode": String(describing: currentMode),
-                        "previousState": "waitingForActivation",
-                        "newState": "pttActive",
-                        "doublePressInterval": doublePressInterval,
-                        "doubleTapStartDelay": doubleTapStartDelay
-                    ]
-                )
-
+        guard let signal = result.signal else { return }
+        switch signal {
+        case .startRecording:
+            if machine.enteredViaHold {
+                triggerStart()
+            } else {
+                // Quick taps wait for the audio engine; holds have already had
+                // the 250ms activation delay to warm it up.
                 startDoubleTapDelayedRecording()
-                startLatchTimer() // Wait for second tap
-            } else {
-                // Double-tap disabled, just ignore short taps
-                state = .idle
             }
-
-        case .pttActive:
-            // Check if this is a double-tap (second tap within interval)
-            let now = Date().timeIntervalSince1970
-            let timeSinceFirstTap = now - firstTapTime
-            if doublePressEnabled && timeSinceFirstTap <= doublePressInterval {
-                // Second tap detected -> Lock recording
-                cancelLatchTimer()
-                state = .latchActive
-                lastLatchActiveTime = Date().timeIntervalSince1970  // Track lock time for bounce protection
-                AppLogger.audio.debug("Double tap lock confirmed")
-
-                // SENTRY BREADCRUMB: Track successful double-tap lock
-                SentryService.addBreadcrumb(
-                    message: "Double-tap lock confirmed",
-                    category: "ptt.doubletap",
-                    data: [
-                        "mode": String(describing: currentMode),
-                        "timeSinceFirstTap": timeSinceFirstTap,
-                        "withinInterval": true
-                    ]
-                )
-            } else {
-                // Single release -> Stop recording
-                // SENTRY BREADCRUMB: Track single tap (not a double-tap)
-                SentryService.addBreadcrumb(
-                    message: "Single tap release - stopping recording",
-                    category: "ptt.doubletap",
-                    data: [
-                        "mode": String(describing: currentMode),
-                        "timeSinceFirstTap": timeSinceFirstTap,
-                        "doublePressInterval": doublePressInterval,
-                        "reason": timeSinceFirstTap > doublePressInterval ? "tooSlow" : "doublePressDisabled"
-                    ]
-                )
-
-                state = .idle
-                triggerStop()
-            }
-
-        case .latchActive:
-            // In locked mode, release doesn't stop recording
-            // User must double-tap to unlock
-            break
-
-        case .unlatchPending:
-            // SYMMETRIC UNLOCK: Mirror the lock mechanism exactly
-            // Lock: first keyUp sets time, second keyUp checks interval
-            // Unlock: first keyUp sets time, second keyUp checks interval
-
-            if firstTapTime == 0 {
-                // FIRST keyUp of unlock sequence - record time and wait for second tap
-                firstTapTime = Date().timeIntervalSince1970
-                AppLogger.audio.debug("Double tap unlock: first tap complete, waiting for second")
-
-                // SENTRY BREADCRUMB: Track first tap of unlock sequence
-                SentryService.addBreadcrumb(
-                    message: "Double-tap unlock first tap detected",
-                    category: "ptt.doubletap",
-                    data: [
-                        "mode": String(describing: currentMode),
-                        "previousState": "unlatchPending",
-                        "doublePressInterval": doublePressInterval
-                    ]
-                )
-
-                // Start timer - if user doesn't complete second tap, go back to locked
-                startLatchTimer()
-                // Stay in unlatchPending, waiting for second keyUp
-
-            } else {
-                // SECOND keyUp of unlock sequence - check timing
-                let now = Date().timeIntervalSince1970
-                let timeSinceFirstTap = now - firstTapTime
-
-                if timeSinceFirstTap <= doublePressInterval {
-                    // Second tap release within interval -> Unlock and stop
-                    cancelLatchTimer()
-                    AppLogger.audio.debug("Double tap unlock confirmed")
-
-                    // SENTRY BREADCRUMB: Track successful double-tap unlock
-                    SentryService.addBreadcrumb(
-                        message: "Double-tap unlock confirmed",
-                        category: "ptt.doubletap",
-                        data: [
-                            "mode": String(describing: currentMode),
-                            "timeSinceFirstTap": timeSinceFirstTap,
-                            "withinInterval": true
-                        ]
-                    )
-
-                    state = .idle
-                    triggerStop()
-                } else {
-                    // Too slow - go back to latchActive and let user try again
-                    cancelLatchTimer()
-                    AppLogger.audio.debug("Double tap unlock too slow (\(timeSinceFirstTap)s) - resetting to locked")
-
-                    SentryService.addBreadcrumb(
-                        message: "Double-tap unlock failed - too slow",
-                        category: "ptt.doubletap",
-                        data: [
-                            "mode": String(describing: currentMode),
-                            "timeSinceFirstTap": timeSinceFirstTap,
-                            "doublePressInterval": doublePressInterval
-                        ]
-                    )
-
-                    state = .latchActive
-                }
-            }
+        case .stopRecording:
+            triggerStop()
+        case .interfered:
+            onInterferenceDetected?()
         }
     }
 
-    private func handleActivationTimeout() {
-        // Activation timer fired -> User is holding the key -> Start PTT
-        guard state == .waitingForActivation else { return }
+    private func apply(_ command: HwPttTimerCommand) {
+        let starting = command.action == .start
 
-        state = .pttActive
-        firstTapTime = Date().timeIntervalSince1970
-        triggerStart()
+        switch command.timer {
+        case .activation:
+            activationTimer?.invalidate()
+            activationTimer = starting ? scheduleTimer(command.delayMs, event: .activationTimeout) : nil
+
+        case .latch:
+            latchTimer?.invalidate()
+            latchTimer = starting ? scheduleTimer(command.delayMs, event: .latchTimeout) : nil
+
+        case .keyUpDebounce:
+            // Unreachable today: `keyUpDebounceMs` is 0 here, so the core commits
+            // a release in the same step and never asks for this timer. Wired up
+            // anyway so that turning the debounce on cannot silently do nothing.
+            keyUpDebounceTimer?.invalidate()
+            keyUpDebounceTimer = starting
+                ? scheduleTimer(command.delayMs, event: .keyUpDebounceTimeout(keyPhysicallyHeld: false))
+                : nil
+        }
     }
 
-    private func handleLatchTimeout() {
-        // Latch timer expired -> No second tap detected
-        // Handles both lock timeout (pttActive) and unlock timeout (unlatchPending)
-
-        if state == .pttActive {
-            // LOCK TIMEOUT: User did first tap but not second -> stop recording
-            let timeSinceFirstTap = Date().timeIntervalSince1970 - firstTapTime
-            SentryService.addBreadcrumb(
-                message: "Latch timeout - no second tap detected",
-                category: "ptt.doubletap",
-                data: [
-                    "mode": String(describing: currentMode),
-                    "timeSinceFirstTap": timeSinceFirstTap,
-                    "doublePressInterval": doublePressInterval,
-                    "outcome": "stoppingRecording"
-                ]
-            )
-
-            state = .idle
-            triggerStop()
-
-        } else if state == .unlatchPending {
-            // UNLOCK TIMEOUT: User did first tap but not second -> go back to locked
-            let timeSinceFirstTap = Date().timeIntervalSince1970 - firstTapTime
-            AppLogger.audio.debug("Unlock timeout - going back to locked mode")
-
-            SentryService.addBreadcrumb(
-                message: "Unlock timeout - no second tap detected",
-                category: "ptt.doubletap",
-                data: [
-                    "mode": String(describing: currentMode),
-                    "timeSinceFirstTap": timeSinceFirstTap,
-                    "doublePressInterval": doublePressInterval,
-                    "outcome": "backToLocked"
-                ]
-            )
-
-            state = .latchActive
+    private func scheduleTimer(_ delayMs: UInt64, event: HwPttEvent) -> Timer {
+        // Timer callbacks are not @MainActor, so hop back before stepping.
+        Timer.scheduledTimer(withTimeInterval: TimeInterval(delayMs) / 1000, repeats: false) { [weak self] _ in
+            Task { @MainActor in
+                self?.step(event)
+            }
         }
     }
 
     /// Handle interference during activation or active PTT.
-    /// - For .waitingForActivation: cancels activation and never starts recording.
-    /// - For .pttActive: stops recording and notifies the callback so the caller can discard.
+    /// - For `.waitingForActivation`: cancels activation and never starts recording.
+    /// - For `.pttActive`: stops recording and notifies the callback so the caller can discard.
+    /// - In a locked recording: ignored, because hands-free recording expects other keys.
     private func handleInterference() {
-        switch state {
-        case .waitingForActivation:
-            cancelActivationTimer()
-            cancelDoubleTapStartTimer()
+        cancelDoubleTapStartTimer()
+        isModifierPressed = false
+        step(.interference)
+    }
 
-            // SENTRY BREADCRUMB: Track interference during activation
-            SentryService.addBreadcrumb(
-                message: "Interference detected during activation",
-                category: "ptt.interference",
-                data: [
-                    "mode": String(describing: currentMode),
-                    "previousState": "waitingForActivation",
-                    "outcome": "cancelled"
-                ]
-            )
+    // MARK: - Telemetry
 
-            state = .idle
-            isModifierPressed = false
-            AppLogger.audio.debug("BareModifierKeyMonitor interference during activation - cancelling PTT start")
-            onInterferenceDetected?()
+    /// The Sentry breadcrumbs stay native. The core reports which transition it
+    /// took, why, and the interval the decision turned on, so nothing here has
+    /// to re-derive the transition table to build a payload.
+    private func recordBreadcrumb(for transition: HwPttTransition) {
+        var category = "ptt.doubletap"
+        var data: [String: Any] = [
+            "mode": String(describing: currentMode),
+            "previousState": String(describing: transition.from),
+            "newState": String(describing: transition.to)
+        ]
+        if let elapsedMs = transition.elapsedMs {
+            data["elapsedMs"] = Int(elapsedMs)
+        }
 
-        case .pttActive:
-            cancelActivationTimer()
-            cancelLatchTimer()
-            cancelDoubleTapStartTimer()
+        let message: String
+        switch transition.reason {
+        case .bounceProtected:
+            // BOUNCE PROTECTION (HYPERWHISPER-45): the Fn key sometimes emits a
+            // spurious keyDown/keyUp pair milliseconds after a lock, which used
+            // to unlock immediately and cut the recording to ~0.6s — below
+            // Parakeet's one-second floor.
+            message = "Bounce protection: ignoring early unlock attempt"
+            data["minimumLockDurationMs"] = Int(pttConfiguration.minimumLockMs)
 
-            // SENTRY BREADCRUMB: Track interference while recording active
-            SentryService.addBreadcrumb(
-                message: "Interference detected while PTT active",
-                category: "ptt.interference",
-                data: [
-                    "mode": String(describing: currentMode),
-                    "previousState": "pttActive",
-                    "outcome": "stoppingRecording"
-                ]
-            )
+        case .quickTapStarted:
+            message = "Double-tap first tap detected"
+            data["doublePressWindowMs"] = Int(pttConfiguration.doublePressWindowMs)
+            data["doubleTapStartDelay"] = doubleTapStartDelay
 
-            state = .idle
-            isModifierPressed = false
-            AppLogger.audio.debug("BareModifierKeyMonitor interference while active - stopping PTT")
-            onInterferenceDetected?()
+        case .doubleTapLocked:
+            message = "Double-tap lock confirmed"
+            data["withinInterval"] = true
+
+        case .singleTapStopped:
+            message = "Single tap release - stopping recording"
+            data["doublePressWindowMs"] = Int(pttConfiguration.doublePressWindowMs)
+
+        case .holdReleaseStopped:
+            // Changed in issue #287. A hold released inside the double-press
+            // window stops now; it used to latch here and stopped on Windows and
+            // Linux. Breadcrumbed so the change is visible in the field.
+            message = "Hold release - stopping recording"
+
+        case .unlockFirstTap:
+            message = "Double-tap unlock first tap detected"
+            data["doublePressWindowMs"] = Int(pttConfiguration.doublePressWindowMs)
+
+        case .unlockConfirmed:
+            message = "Double-tap unlock confirmed"
+            data["withinInterval"] = true
+
+        case .unlockTooSlow:
+            message = "Double-tap unlock failed - too slow"
+            data["doublePressWindowMs"] = Int(pttConfiguration.doublePressWindowMs)
+
+        case .latchTimeoutStopped:
+            message = "Latch timeout - no second tap detected"
+            data["outcome"] = "stoppingRecording"
+
+        case .unlockTimedOut:
+            message = "Unlock timeout - no second tap detected"
+            data["outcome"] = "backToLocked"
+
+        case .interferenceCancelled:
+            category = "ptt.interference"
+            message = "Interference detected during activation"
+            data["outcome"] = "cancelled"
+
+        case .interferenceStopped:
+            category = "ptt.interference"
+            message = "Interference detected while PTT active"
+            data["outcome"] = "stoppingRecording"
 
         default:
-            break
+            // Everything else is routine and was never breadcrumbed.
+            return
         }
+
+        AppLogger.audio.debug("BareModifierKeyMonitor: \(message, privacy: .public)")
+        SentryService.addBreadcrumb(message: message, category: category, data: data)
     }
 
     // MARK: - Timers
-
-    private func startActivationTimer() {
-        activationTimer?.invalidate()
-
-        // Timer callback is not @MainActor, so we need to dispatch to main actor
-        activationTimer = Timer.scheduledTimer(withTimeInterval: activationDelay, repeats: false) { [weak self] _ in
-            guard let self = self else { return }
-            Task { @MainActor in
-                self.handleActivationTimeout()
-            }
-        }
-    }
-
-    private func cancelActivationTimer() {
-        activationTimer?.invalidate()
-        activationTimer = nil
-    }
-
-    private func startLatchTimer() {
-        latchTimer?.invalidate()
-
-        // Timer callback is not @MainActor, so we need to dispatch to main actor
-        latchTimer = Timer.scheduledTimer(withTimeInterval: doublePressInterval, repeats: false) { [weak self] _ in
-            guard let self = self else { return }
-            Task { @MainActor in
-                self.handleLatchTimeout()
-            }
-        }
-    }
-
-    private func cancelLatchTimer() {
-        latchTimer?.invalidate()
-        latchTimer = nil
-    }
 
     /// Start recording after a short delay in double-tap mode
     /// This delay allows the audio engine to initialize properly before capture begins.
@@ -963,9 +768,11 @@ final class BareModifierKeyMonitor {
         doubleTapStartTimer = Timer.scheduledTimer(withTimeInterval: doubleTapStartDelay, repeats: false) { [weak self] _ in
             guard let self = self else { return }
             Task { @MainActor in
-                // Only start if we're still in pttActive state (user didn't cancel)
-                guard self.state == .pttActive || self.state == .latchActive else {
-                    AppLogger.audio.debug("Double-tap start cancelled - state changed to \(String(describing: self.state))")
+                // Only start if we're still recording (user didn't cancel). The
+                // second tap of a lock sequence can land inside this window, so
+                // latchActive counts too.
+                guard self.machine.state == .pttActive || self.machine.state == .latchActive else {
+                    AppLogger.audio.debug("Double-tap start cancelled - state changed to \(String(describing: self.machine.state))")
                     return
                 }
                 AppLogger.audio.debug("Double-tap delayed recording start triggered")

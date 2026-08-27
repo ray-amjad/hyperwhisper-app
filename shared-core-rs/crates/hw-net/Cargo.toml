@@ -9,6 +9,7 @@ publish = false
 crate-type = ["lib"]
 
 [dependencies]
+hw-catalog = { path = "../hw-catalog" }
 hw-text = { path = "../hw-text" }
 serde = { workspace = true }
 serde_json = { workspace = true }

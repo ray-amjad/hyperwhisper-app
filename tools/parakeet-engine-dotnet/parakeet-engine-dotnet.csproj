@@ -15,8 +15,53 @@
     <PackageReference Include="org.k2fsa.sherpa.onnx" Version="1.13.3" />
   </ItemGroup>
 
+  <!-- The daemon takes its CJK segment-join policy from the shared Rust core
+       (issue #286) instead of a private ja|zh|ko|yue table. That makes the
+       generated UniFFI binding — and therefore a P/Invoke into
+       libhyperwhisper_core.so / hyperwhisper_core.dll — a runtime dependency of
+       this process, which publishes into its OWN directory beside the app. -->
+  <ItemGroup>
+    <ProjectReference Include="../../app/shared-dotnet/HyperWhisper.SharedCore/HyperWhisper.SharedCore.csproj" />
+  </ItemGroup>
+
   <ItemGroup>
     <InternalsVisibleTo Include="parakeet-engine-dotnet.Tests" />
   </ItemGroup>
+
+  <!-- Stage the native core next to parakeet-engine's own executable. The
+       daemon is published to a `parakeet-engine/` subdirectory of the app, and
+       the default native-library resolver probes the app base directory of the
+       PROCESS doing the loading — so the head's copy at the app root is not on
+       the daemon's search path and it needs its own. Both heads stage the core
+       into their Resources tree before publishing; those are the same files. -->
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'linux-x64' And Exists('../../app/linux/HyperWhisper.Linux/Resources/rust-core/linux-x64/libhyperwhisper_core.so')">
+    <Content Include="../../app/linux/HyperWhisper.Linux/Resources/rust-core/linux-x64/libhyperwhisper_core.so">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <Link>libhyperwhisper_core.so</Link>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'win-arm64' And Exists('../../app/windows/HyperWhisper/Resources/rust-core/arm64/hyperwhisper_core.dll')">
+    <Content Include="../../app/windows/HyperWhisper/Resources/rust-core/arm64/hyperwhisper_core.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <Link>hyperwhisper_core.dll</Link>
+    </Content>
+  </ItemGroup>
+
+  <!-- Fail-loud guard, matching HyperWhisper.csproj's EnsureRustCoreDll: the
+       Content blocks above are Exists()-guarded, so without this a publish with
+       no core staged would succeed and ship a daemon that throws
+       DllNotFoundException on its first transcription. Only the two shipping
+       RIDs are checked — a RID-less build is the test harness, which stages the
+       core itself from the cargo target directory. -->
+  <Target Name="EnsureParakeetEngineRustCore" BeforeTargets="Build;Publish"
+          Condition="'$(DesignTimeBuild)' != 'true'">
+    <Error Condition="'$(RuntimeIdentifier)' == 'linux-x64' And !Exists('../../app/linux/HyperWhisper.Linux/Resources/rust-core/linux-x64/libhyperwhisper_core.so')"
+           Text="libhyperwhisper_core.so is missing from app/linux/HyperWhisper.Linux/Resources/rust-core/linux-x64/. Build shared-core-rs for x86_64-unknown-linux-gnu and stage it there before publishing the parakeet daemon." />
+    <Error Condition="'$(RuntimeIdentifier)' == 'win-arm64' And !Exists('../../app/windows/HyperWhisper/Resources/rust-core/arm64/hyperwhisper_core.dll')"
+           Text="hyperwhisper_core.dll (arm64) is missing from app\windows\HyperWhisper\Resources\rust-core\arm64\. Build shared-core-rs for aarch64-pc-windows-msvc and stage it there before publishing the parakeet daemon. See Resources/rust-core/README.md." />
+  </Target>
 
 </Project>

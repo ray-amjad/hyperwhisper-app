@@ -304,9 +304,24 @@ public sealed class LiveStreamingSessionController : IAsyncDisposable
         return new LiveStreamingSessionOutcome(transcription, failure, _capture.Duration);
     }
 
-    private static bool CanReconnect(LiveTranscriptionFailure? failure) => failure?.Code is
-        LiveTranscriptionFailureCode.Network or LiveTranscriptionFailureCode.Timeout
-        or LiveTranscriptionFailureCode.ProviderUnavailable;
+    /// <summary>
+    /// Whether a fresh socket could plausibly succeed where this one failed.
+    ///
+    /// <c>IsTerminal</c> is checked first and it is the point of issue #281: an
+    /// error frame from any provider arrives as
+    /// <see cref="LiveTranscriptionFailureCode.ProviderUnavailable"/>, so
+    /// "Credit balance exhausted" from HyperWhisper Cloud — the default
+    /// provider — used to be indistinguishable from a passing outage and earned
+    /// a retry that could only fail the same way, twice more, before telling the
+    /// user the wrong thing. macOS has suppressed that since
+    /// <c>StreamingProviderErrorPolicy</c> shipped; this is the same rule, from
+    /// the same source.
+    /// </summary>
+    private static bool CanReconnect(LiveTranscriptionFailure? failure) =>
+        failure is { IsTerminal: false }
+        && failure.Code is LiveTranscriptionFailureCode.Network
+            or LiveTranscriptionFailureCode.Timeout
+            or LiveTranscriptionFailureCode.ProviderUnavailable;
 
     private void RaiseConnectionState(LiveStreamingConnectionState state)
     {

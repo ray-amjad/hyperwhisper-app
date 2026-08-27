@@ -21,7 +21,9 @@ pub use prompt::{
     build_system_info, build_system_prompt, sanitize_vocabulary_word, AppType, EnglishSpelling,
     Preset, PromptContext,
 };
-pub use smart_spacing::{append_trailing_space, contains_cjk};
+pub use smart_spacing::{
+    append_trailing_space, contains_cjk, is_continuous_script, is_no_space_language,
+};
 pub use text_processing::{
     extract_cleaned_from_wrapped, finalize_streaming_text, process_voice_commands,
     remove_filler_words, remove_trailing_period, sanitize_streaming_buffer,

@@ -10,6 +10,8 @@ members = [
     "crates/hw-phonetic",
     "crates/hw-text",
     "crates/hw-net",
+    "crates/hw-input",
+    "crates/hw-audio",
     "crates/hw-license",
     "crates/hw-backup",
     "crates/hw-catalog",

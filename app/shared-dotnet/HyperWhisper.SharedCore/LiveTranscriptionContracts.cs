@@ -53,11 +53,21 @@ public enum LiveTranscriptionFailureCode
     Unknown,
 }
 
+/// <param name="IsTerminal">
+/// Whether reconnecting with the same credentials cannot rescue the session —
+/// an exhausted balance, a revoked key, a refused upgrade. Set from the shared
+/// terminal-error policy (issue #281); <see cref="Code"/> alone cannot say it,
+/// because a provider's error frame arrives as
+/// <see cref="LiveTranscriptionFailureCode.ProviderUnavailable"/> whether the
+/// account is out of credit or the service is merely having a bad minute, and
+/// only the first of those must stop the retry.
+/// </param>
 public sealed record LiveTranscriptionFailure(
     LiveTranscriptionFailureCode Code,
     string Message,
     LiveTranscriptionProvider Provider,
-    int? CloseStatus = null);
+    int? CloseStatus = null,
+    bool IsTerminal = false);
 
 public sealed record LiveTranscriptionResult(
     string? Transcript,

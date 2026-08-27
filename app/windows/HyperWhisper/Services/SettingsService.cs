@@ -439,7 +439,7 @@ public partial class SettingsService
     /// </remarks>
     internal static string NormalizeStreamingCloudTier(string? value)
     {
-        var fallback = Services.Streaming.HyperWhisperCloudStreamingStrategy.DefaultCloudTier;
+        var fallback = Services.Streaming.LiveProtocolStreamingStrategy.DefaultCloudTier;
         if (string.IsNullOrWhiteSpace(value)) return fallback;
 
         var candidate = value.Trim();

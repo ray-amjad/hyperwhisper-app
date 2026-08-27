@@ -1,36 +1,51 @@
 using HyperWhisper.Platform.Abstractions;
+using HyperWhisper.SharedCore;
 
 namespace HyperWhisper.Linux.Platform.Input;
 
 internal interface IPushToTalkScheduler
 {
-    DateTimeOffset Now { get; }
+    /// <summary>
+    /// A MONOTONIC millisecond reading. Never a wall clock: the state machine
+    /// measures the post-lock bounce window and the double-press window from it,
+    /// and an NTP step used to be able to make either interval negative.
+    /// </summary>
+    ulong NowMs { get; }
     IDisposable Schedule(TimeSpan delay, Action action);
 }
 internal sealed class PushToTalkScheduler : IPushToTalkScheduler
 {
-    public DateTimeOffset Now => DateTimeOffset.UtcNow;
+    public ulong NowMs => (ulong)Environment.TickCount64;
     public IDisposable Schedule(TimeSpan delay, Action action)
     { Timer? timer = null; timer = new Timer(_ => { timer?.Dispose(); action(); }, null, delay, Timeout.InfiniteTimeSpan); return timer; }
 }
 
+/// <summary>
+/// The Linux push-to-talk head. Owns the evdev/portal event source, the timer
+/// primitive and the clock; the five-state machine itself lives in the shared
+/// Rust core (<see cref="PortablePushToTalkCore"/>, issue #287) and is shared
+/// with the Windows and macOS heads.
+/// </summary>
 public sealed class LinuxPushToTalkMonitor : IPushToTalkMonitor
 {
     private const string ActionName = "push-to-talk";
-    private static readonly TimeSpan ActivationDelay = TimeSpan.FromMilliseconds(250);
-    private static readonly TimeSpan KeyUpDebounce = TimeSpan.FromMilliseconds(100);
-    private static readonly TimeSpan DoublePressWindow = TimeSpan.FromMilliseconds(1500);
-    private static readonly TimeSpan MinimumLockDuration = TimeSpan.FromMilliseconds(2000);
+
+    // Linux keeps the values it shipped. The activation delay (250 ms) and the
+    // double-press window (1500 ms) already matched the other platforms and come
+    // from the core.
+    private const ulong MinimumLockMs = 2000;
+    private const ulong KeyUpDebounceMs = 100;
+
     private readonly object _gate = new();
     private readonly IGlobalShortcutService _shortcuts;
     private readonly IShortcutInterferenceSource? _interference;
     private readonly IPushToTalkScheduler _scheduler;
     private PushToTalkConfiguration _configuration = new(PushToTalkMode.Disabled);
-    private MonitorState _state;
-    private IDisposable? _activationTimer, _latchTimer, _debounceTimer;
-    private DateTimeOffset? _firstTap;
-    private DateTimeOffset _lastLock;
-    private bool _enteredViaHold, _keyDown, _disposed;
+    private PortablePttMachineState _machine = PortablePushToTalkCore.InitialState();
+    private PortablePttConfig _pttConfig = PortablePushToTalkCore.Config(MinimumLockMs, KeyUpDebounceMs, false);
+    /// <summary>One slot per <see cref="PortablePttTimer"/>, indexed by the enum.</summary>
+    private readonly IDisposable?[] _timers = new IDisposable?[3];
+    private bool _disposed;
     public LinuxPushToTalkMonitor() : this(new LinuxGlobalShortcutService(), new PushToTalkScheduler()) { }
     internal LinuxPushToTalkMonitor(IGlobalShortcutService shortcuts, IPushToTalkScheduler? scheduler = null)
     {
@@ -43,7 +58,15 @@ public sealed class LinuxPushToTalkMonitor : IPushToTalkMonitor
     public event EventHandler? Released;
     public event EventHandler? Interfered;
     public void Configure(PushToTalkConfiguration configuration)
-    { ArgumentNullException.ThrowIfNull(configuration); lock (_gate) { _configuration = configuration; ResetState(); } }
+    {
+        ArgumentNullException.ThrowIfNull(configuration);
+        lock (_gate)
+        {
+            _configuration = configuration;
+            _pttConfig = PortablePushToTalkCore.Config(MinimumLockMs, KeyUpDebounceMs, configuration.DoublePressLock);
+        }
+        Dispatch(PortablePttEvent.Reset);
+    }
     public PlatformResult Start()
     {
         if (_disposed) return PlatformResult.Failure("push_to_talk.disposed", "The push-to-talk monitor is disposed.");
@@ -65,115 +88,72 @@ public sealed class LinuxPushToTalkMonitor : IPushToTalkMonitor
     private void OnPressed(object? sender, ShortcutTriggeredEventArgs args)
     {
         if (args.Name != ActionName) return;
-        lock (_gate)
-        {
-            _keyDown = true;
-            switch (_state)
-            {
-                case MonitorState.Idle:
-                    _state = MonitorState.WaitingForActivation; ArmInterference(true); StartActivationTimer(); break;
-                case MonitorState.WaitingForActivation: break;
-                case MonitorState.PttActive: Cancel(ref _debounceTimer); Cancel(ref _latchTimer); break;
-                case MonitorState.LatchActive:
-                    if (_scheduler.Now - _lastLock >= MinimumLockDuration)
-                    { _state = MonitorState.UnlatchPending; _firstTap = null; }
-                    break;
-                case MonitorState.UnlatchPending: break;
-            }
-        }
+        Dispatch(PortablePttEvent.KeyDown);
     }
     private void OnReleased(object? sender, ShortcutTriggeredEventArgs args)
     {
         if (args.Name != ActionName) return;
-        var release = false;
+        Dispatch(PortablePttEvent.KeyUp);
+    }
+    private void OnInterfered(object? sender, EventArgs args) => Dispatch(PortablePttEvent.Interference);
+
+    /// <summary>
+    /// Step the shared machine and apply what it asks for. Every mutation happens
+    /// under <see cref="_gate"/>; the resulting event is raised outside it, so a
+    /// subscriber can call back in without deadlocking.
+    /// </summary>
+    /// <param name="fired">
+    /// The timer whose callback is driving this event, if any. Its slot is
+    /// cleared before the step runs so a cancel in the same step cannot dispose a
+    /// handle the step itself re-armed.
+    /// </param>
+    private void Dispatch(PortablePttEvent @event, PortablePttTimer? fired = null)
+    {
+        PortablePttSignal? signal;
         lock (_gate)
         {
-            _keyDown = false;
-            switch (_state)
+            if (fired is { } timer) _timers[(int)timer] = null;
+
+            var result = PortablePushToTalkCore.Step(_machine, @event, _scheduler.NowMs, _pttConfig);
+            _machine = result.State;
+
+            foreach (var command in result.Timers)
             {
-                case MonitorState.WaitingForActivation: Cancel(ref _activationTimer); StartDebounce(); break;
-                case MonitorState.PttActive:
-                    if (_enteredViaHold) StartDebounce();
-                    else if (_configuration.DoublePressLock && _firstTap is { } first && _scheduler.Now - first <= DoublePressWindow)
-                    { Cancel(ref _latchTimer); _state = MonitorState.LatchActive; _lastLock = _scheduler.Now; ArmInterference(false); }
-                    else { Cancel(ref _latchTimer); _state = MonitorState.Idle; ArmInterference(false); release = true; }
-                    break;
-                case MonitorState.UnlatchPending:
-                    if (_firstTap is null) { _firstTap = _scheduler.Now; StartLatchTimer(); }
-                    else if (_scheduler.Now - _firstTap <= DoublePressWindow)
-                    { Cancel(ref _latchTimer); _state = MonitorState.Idle; release = true; }
-                    else { Cancel(ref _latchTimer); _state = MonitorState.LatchActive; }
-                    break;
+                var slot = (int)command.Timer;
+                _timers[slot]?.Dispose();
+                _timers[slot] = command.Start
+                    ? _scheduler.Schedule(TimeSpan.FromMilliseconds(command.DelayMs), () => Dispatch(TimeoutFor(command.Timer), command.Timer))
+                    : null;
             }
+
+            if (result.ArmInterference is { } armed) _interference?.SetInterferenceArmed(armed);
+            if (result.ResetKeyboardState) _shortcuts.ResetKeyboardState();
+            signal = result.Signal;
         }
-        if (release) Raise(Released);
-    }
-    private void StartActivationTimer()
-    {
-        Cancel(ref _activationTimer); _activationTimer = _scheduler.Schedule(ActivationDelay, () =>
+
+        switch (signal)
         {
-            var press = false; lock (_gate)
-            { _activationTimer = null; if (_state == MonitorState.WaitingForActivation && _keyDown) { _state = MonitorState.PttActive; _enteredViaHold = true; _firstTap = _scheduler.Now; press = true; } }
-            if (press) Raise(Pressed);
-        });
+            case PortablePttSignal.StartRecording: Raise(Pressed); break;
+            case PortablePttSignal.StopRecording: Raise(Released); break;
+            case PortablePttSignal.Interfered: Raise(Interfered); break;
+        }
     }
-    private void StartDebounce()
+
+    private static PortablePttEvent TimeoutFor(PortablePttTimer timer) => timer switch
     {
-        Cancel(ref _debounceTimer); _debounceTimer = _scheduler.Schedule(KeyUpDebounce, () =>
-        {
-            var press = false; var release = false;
-            lock (_gate)
-            {
-                _debounceTimer = null;
-                if (_keyDown) { if (_state == MonitorState.WaitingForActivation) StartActivationTimer(); return; }
-                if (_state == MonitorState.PttActive && _enteredViaHold)
-                { _state = MonitorState.Idle; ArmInterference(false); release = true; }
-                else if (_state == MonitorState.WaitingForActivation)
-                {
-                    if (_configuration.DoublePressLock)
-                    { _state = MonitorState.PttActive; _enteredViaHold = false; _firstTap = _scheduler.Now; press = true; StartLatchTimer(); }
-                    else { _state = MonitorState.Idle; ArmInterference(false); }
-                }
-            }
-            if (press) Raise(Pressed); if (release) Raise(Released);
-        });
-    }
-    private void StartLatchTimer()
-    {
-        Cancel(ref _latchTimer); _latchTimer = _scheduler.Schedule(DoublePressWindow, () =>
-        {
-            var release = false; lock (_gate)
-            {
-                _latchTimer = null;
-                if (_state == MonitorState.PttActive) { _state = MonitorState.Idle; ArmInterference(false); release = true; }
-                else if (_state == MonitorState.UnlatchPending) _state = MonitorState.LatchActive;
-            }
-            if (release) Raise(Released);
-        });
-    }
-    private void OnInterfered(object? sender, EventArgs args)
-    {
-        var emit = false; lock (_gate)
-        { if (_state is MonitorState.WaitingForActivation or MonitorState.PttActive) { ResetState(); emit = true; } }
-        if (emit) Raise(Interfered);
-    }
-    private void ArmInterference(bool armed) => _interference?.SetInterferenceArmed(armed);
-    private static void Cancel(ref IDisposable? timer) { timer?.Dispose(); timer = null; }
-    private void ResetState()
-    {
-        Cancel(ref _activationTimer); Cancel(ref _latchTimer); Cancel(ref _debounceTimer);
-        _state = MonitorState.Idle; _firstTap = null; _enteredViaHold = false; _keyDown = false;
-        ArmInterference(false); _shortcuts.ResetKeyboardState();
-    }
+        PortablePttTimer.Activation => PortablePttEvent.ActivationTimeout,
+        PortablePttTimer.Latch => PortablePttEvent.LatchTimeout,
+        _ => PortablePttEvent.KeyUpDebounceTimeout,
+    };
+
     private void Raise(EventHandler? handlers)
     { if (handlers is null) return; foreach (EventHandler handler in handlers.GetInvocationList()) try { handler(this, EventArgs.Empty); } catch { } }
-    public void Reset() { lock (_gate) ResetState(); }
-    public void ResetToIdle() { lock (_gate) ResetState(); }
+    public void Reset() => Dispatch(PortablePttEvent.Reset);
+    public void ResetToIdle() => Dispatch(PortablePttEvent.ResetToIdle);
     public void Dispose()
     {
         if (_disposed) return; _disposed = true; Reset(); _shortcuts.ShortcutPressed -= OnPressed; _shortcuts.ShortcutReleased -= OnReleased;
         if (_interference is not null) _interference.Interfered -= OnInterfered;
         _shortcuts.Dispose(); Pressed = null; Released = null; Interfered = null;
     }
-    private enum MonitorState { Idle, WaitingForActivation, PttActive, LatchActive, UnlatchPending }
 }

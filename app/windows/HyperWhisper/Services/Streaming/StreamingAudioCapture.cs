@@ -15,8 +15,10 @@ public sealed class StreamingAudioCapture : IDisposable
     /// 16-bit that is exactly 4800 bytes, and multi-channel capture mixes down to
     /// the same figure.
     /// <para>
-    /// This is COUPLED to <c>OpenAIStreamingStrategy</c>'s 100 ms commit minimum,
-    /// and the coupling is silent: <see cref="Stop"/> clears
+    /// This is COUPLED to the shared core's 100 ms OpenAI commit minimum
+    /// (<c>hw_net::live::openai::MIN_COMMIT_MS</c>, reached through
+    /// <see cref="LiveProtocolStreamingStrategy"/>), and the coupling is silent:
+    /// <see cref="Stop"/> clears
     /// <see cref="IsCapturing"/> before <c>StopRecording()</c>, so NAudio's short
     /// trailing buffer never reaches a strategy and the pending-byte counter is
     /// only ever 0 or a multiple of this buffer's size. Lower this for latency

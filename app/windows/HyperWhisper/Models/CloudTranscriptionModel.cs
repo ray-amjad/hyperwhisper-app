@@ -108,7 +108,7 @@ public static class CloudTranscriptionModels
             // Requires OpenAI's Realtime WebSocket API. NOT request-capable via this
             // catalog today: OpenAIWhisperService (the consumer of this registry) is a
             // REST/batch client. Windows DOES have a WebSocket transport elsewhere
-            // (Services/Streaming/OpenAIStreamingStrategy.cs), but that's a separate
+            // (Services/Streaming/, through the shared core's live protocols), but that's a separate
             // live-dictation feature with its own hardcoded "gpt-realtime-whisper"
             // model, not wired to this catalog. Marked unavailable so it can't be
             // selected until a REST or streaming path is built for it — same caveat

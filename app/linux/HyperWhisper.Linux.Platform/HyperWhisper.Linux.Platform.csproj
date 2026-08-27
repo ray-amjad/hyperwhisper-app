@@ -13,6 +13,11 @@
          snapshot carried `AppType = "other"` and the Sensitive screen-OCR gate
          in the shared prompt builder could never fire. -->
     <ProjectReference Include="../../shared-dotnet/HyperWhisper.AppClassification/HyperWhisper.AppClassification.csproj" />
+    <!-- The shared push-to-talk state machine (issue #287). The five-state
+         machine was written here, in the Windows head and in macOS; it now lives
+         in the hw-input crate and this head keeps only the evdev/portal event
+         source, the timers and the clock. -->
+    <ProjectReference Include="../../shared-dotnet/HyperWhisper.SharedCore/HyperWhisper.SharedCore.csproj" />
     <InternalsVisibleTo Include="HyperWhisper.Linux.Platform.Tests" />
   </ItemGroup>
 

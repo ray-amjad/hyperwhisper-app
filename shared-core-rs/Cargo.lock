@@ -284,6 +284,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 
 [[package]]
+name = "hw-audio"
+version = "0.1.0"
+
+[[package]]
 name = "hw-backup"
 version = "0.1.0"
 dependencies = [
@@ -305,8 +309,10 @@ dependencies = [
 name = "hw-core"
 version = "0.1.0"
 dependencies = [
+ "hw-audio",
  "hw-backup",
  "hw-catalog",
+ "hw-input",
  "hw-license",
  "hw-net",
  "hw-phonetic",
@@ -315,6 +321,10 @@ dependencies = [
  "serde_json",
  "uniffi",
 ]
+
+[[package]]
+name = "hw-input"
+version = "0.1.0"
 
 [[package]]
 name = "hw-license"
@@ -329,6 +339,7 @@ dependencies = [
 name = "hw-net"
 version = "0.1.0"
 dependencies = [
+ "hw-catalog",
  "hw-text",
  "serde",
  "serde_json",

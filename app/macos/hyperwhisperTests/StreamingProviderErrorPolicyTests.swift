@@ -172,7 +172,7 @@ struct StreamingProviderErrorPolicyTests {
         // arrives before the session-started frame, which is the case that has
         // to fail startup rather than wait out the connection timeout.
         let outcome = StreamingProviderErrorPolicy.outcome(
-            forProviderMessage: "ElevenLabs authentication failed. Please check your API key in Settings."
+            forProviderMessage: "ElevenLabs authentication failed. Check that your ElevenLabs API key is correct and still active."
         )
 
         #expect(outcome == .terminal)

@@ -7,6 +7,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using HyperWhisper.Models;
 using HyperWhisper.Utilities;
+// Aliased, not imported: HyperWhisper.SharedCore also declares
+// CloudTranscriptionProvider, which would clash with HyperWhisper.Models.
+using PortableLiveUpgradeRefusal = HyperWhisper.SharedCore.PortableLiveUpgradeRefusal;
+using SharedCoreBridge = HyperWhisper.SharedCore.SharedCoreBridge;
 
 namespace HyperWhisper.Services.Streaming;
 
@@ -337,28 +341,31 @@ public sealed class StreamingTranscriptionClient : IAsyncDisposable, IDisposable
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Mirrors macOS's <c>StreamingProviderErrorPolicy.upgradeRefusal</c>, and
-    /// covers the same gap: the terminal-close handling below only helps a user
-    /// who runs out of credits <em>during</em> a session. The same user one
-    /// keypress later never opens a socket at all — HyperWhisper Cloud requires
-    /// 30 seconds of balance and refuses the upgrade with 402 — and that path
-    /// had only .NET's own "status code '402' when status code '101' was
-    /// expected" to show for it.
+    /// This head and macOS used to keep the same status table twice. Since issue
+    /// #281 the classification is the shared core's
+    /// (<c>hw_net::live::upgrade_refusal</c>) and only the two user-facing
+    /// sentences below stay here, because they are this app's wording and name
+    /// this app's Settings screen. It covers the gap the terminal-close handling
+    /// below cannot: that only helps a user who runs out of credits
+    /// <em>during</em> a session, while the same user one keypress later never
+    /// opens a socket at all — HyperWhisper Cloud requires 30 seconds of balance
+    /// and refuses the upgrade with 402 — and that path had only .NET's own
+    /// "status code '402' when status code '101' was expected" to show for it.
     /// </para>
     /// <para>
-    /// 402, 401 and 403 each name a state the <em>user</em> changes: top up, fix
-    /// the key. Everything else — 429, 5xx, a proxy mangling the upgrade — keeps
-    /// its retry, so null for an unrecognised status is the safe default rather
-    /// than a gap. Requires <c>CollectHttpResponseDetails</c>, without which
-    /// <c>HttpStatusCode</c> is 0 and this correctly finds nothing.
+    /// Requires <c>CollectHttpResponseDetails</c>, without which
+    /// <c>HttpStatusCode</c> is 0 and this correctly finds nothing — 0 is not one
+    /// of the refusal statuses.
     /// </para>
     /// </remarks>
     private static string? TerminalUpgradeMessage(ClientWebSocket? webSocket) => webSocket == null
         ? null
-        : (int)webSocket.HttpStatusCode switch
+        : SharedCoreBridge.LiveUpgradeRefusal((int)webSocket.HttpStatusCode) switch
         {
-            402 => "Streaming could not start because credits are exhausted. Add more credits in Settings.",
-            401 or 403 => "Streaming could not start because the account key was refused. Check your key in Settings.",
+            PortableLiveUpgradeRefusal.InsufficientCredits =>
+                "Streaming could not start because credits are exhausted. Add more credits in Settings.",
+            PortableLiveUpgradeRefusal.Unauthorized =>
+                "Streaming could not start because the account key was refused. Check your key in Settings.",
             _ => null
         };
 
@@ -678,6 +685,14 @@ public sealed class StreamingTranscriptionClient : IAsyncDisposable, IDisposable
                 Raise(WarningReceived, warningMessage);
                 return;
 
+            // NOT classified through SharedCoreBridge.ClassifyLiveErrorMessage, deliberately.
+            // macOS needs that split because its client keeps reconnecting after an error frame;
+            // this one moves to Error, and RunReceiveLoopAsync's `State is ... Error` guard then
+            // ends the session for EVERY provider error frame, terminal or not. So there is no
+            // doomed-reconnect fan-out here to suppress - the bias is the opposite one, and
+            // wiring the classifier in would LOOSEN termination: a transient frame would start
+            // keeping its reconnect. That is a real behaviour change on a shipped path and it
+            // belongs to the client rework, not to issue #281's single-sourcing.
             case StreamingProviderEvent.Error error:
                 LoggingService.Error($"StreamingTranscriptionClient: provider error - {error.Message}");
                 Raise(ErrorReceived, error.Message);
@@ -1036,6 +1051,14 @@ public sealed class StreamingTranscriptionClient : IAsyncDisposable, IDisposable
         {
             _disposed = true;
             _sendLock.Dispose();
+            // The live strategy owns a handle onto a Rust `Arc` (issue #281) and
+            // MUST be released with the client that holds it - a client is built
+            // per recording, so leaking one leaks a session per dictation for the
+            // life of the process. Not a `using` on the field: the strategy is
+            // handed in by the caller and only this class knows when the session
+            // is over. A strategy that is not disposable (the smoke suite's
+            // no-op) is left alone.
+            (_strategy as IDisposable)?.Dispose();
         }
     }
 

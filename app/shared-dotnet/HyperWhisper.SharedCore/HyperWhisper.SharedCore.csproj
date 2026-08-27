@@ -41,5 +41,11 @@
     <InternalsVisibleTo Include="HyperWhisper.AppClassification" />
     <!-- Runs shared-conformance/app-type-vectors.json against the binding. -->
     <InternalsVisibleTo Include="HyperWhisper.AppTypeConformance.Tests" />
+    <!-- The live-streaming protocol adapter is internal (issue #281), and it is
+         the head's whole proof that the Rust `HwLiveSession` object is right:
+         the connect descriptor, the framing rule, every parser and every ordered
+         stop sequence are asserted against it directly rather than inferred from
+         a socket transcript. -->
+    <InternalsVisibleTo Include="HyperWhisper.SharedCore.Tests" />
   </ItemGroup>
 </Project>

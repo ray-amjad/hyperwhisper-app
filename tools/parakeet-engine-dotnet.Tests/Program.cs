@@ -1,62 +1,160 @@
-var tests = new (string Name, Action Run)[]
+// This harness deliberately does NOT use top-level statements. The daemon's own
+// entry point is a global `Program` type, and a top-level-statement file emits a
+// second global `Program` that shadows it — `Program.IsNoSpaceLanguage` then
+// fails to resolve (CS0436 + CS0117). A named entry point keeps the daemon's
+// type reachable.
+internal static class DaemonTests
 {
-    ("three stable passes commit while retaining a tail", StableAgreement),
-    ("unstable hypotheses remain volatile", UnstableAgreement),
-    ("finish commits the unconfirmed tail without overlap", FinishDeduplicates),
-    ("no-space languages preserve their join policy", NoSpaceJoin),
-};
+    private static int Main()
+    {
+        var tests = new (string Name, Action Run)[]
+        {
+            ("three stable passes commit while retaining a tail", StableAgreement),
+            ("unstable hypotheses remain volatile", UnstableAgreement),
+            ("finish commits the unconfirmed tail without overlap", FinishDeduplicates),
+            ("no-space languages preserve their join policy", NoSpaceJoin),
+            ("the join policy comes from the shared core", NoSpaceLanguageTable),
+            ("the shared table widens the daemon's old four codes", NoSpaceLanguageWidening),
+            ("an auto language joins VAD segments from the text", AutoLanguageSegmentJoin),
+            ("an auto-language join reads both sides of the boundary", AutoLanguageSegmentJoinIsSymmetric),
+            ("an auto-language join does not depend on where the VAD split", AutoLanguageJoinIsBoundaryIndependent),
+        };
 
-var failures = 0;
-foreach (var test in tests)
-{
-    try { test.Run(); Console.WriteLine($"PASS {test.Name}"); }
-    catch (Exception error) { failures++; Console.Error.WriteLine($"FAIL {test.Name}: {error.Message}"); }
-}
-Console.WriteLine($"{tests.Length - failures}/{tests.Length} tests passed");
-return failures == 0 ? 0 : 1;
+        var failures = 0;
+        foreach (var test in tests)
+        {
+            try { test.Run(); Console.WriteLine($"PASS {test.Name}"); }
+            catch (Exception error) { failures++; Console.Error.WriteLine($"FAIL {test.Name}: {error.Message}"); }
+        }
+        Console.WriteLine($"{tests.Length - failures}/{tests.Length} tests passed");
+        return failures == 0 ? 0 : 1;
+    }
 
-static void StableAgreement()
-{
-    var engine = new BoundedWordAgreement(" ");
-    var value = "one two three four five six seven eight nine ten";
-    Equal("", engine.Observe(value).Committed);
-    Equal("", engine.Observe(value).Committed);
-    var third = engine.Observe(value);
-    Equal("one two three four five six seven", third.Committed);
-    Equal(value, third.Preview);
-}
+    private static void StableAgreement()
+    {
+        var engine = new BoundedWordAgreement(" ");
+        var value = "one two three four five six seven eight nine ten";
+        Equal("", engine.Observe(value).Committed);
+        Equal("", engine.Observe(value).Committed);
+        var third = engine.Observe(value);
+        Equal("one two three four five six seven", third.Committed);
+        Equal(value, third.Preview);
+    }
 
-static void UnstableAgreement()
-{
-    var engine = new BoundedWordAgreement(" ");
-    _ = engine.Observe("one two three four five six seven eight");
-    _ = engine.Observe("one two changed four five six seven eight");
-    var third = engine.Observe("one two three four five six seven eight");
-    Equal("", third.Committed);
-    Equal("one two three four five six seven eight", third.Preview);
-}
+    private static void UnstableAgreement()
+    {
+        var engine = new BoundedWordAgreement(" ");
+        _ = engine.Observe("one two three four five six seven eight");
+        _ = engine.Observe("one two changed four five six seven eight");
+        var third = engine.Observe("one two three four five six seven eight");
+        Equal("", third.Committed);
+        Equal("one two three four five six seven eight", third.Preview);
+    }
 
-static void FinishDeduplicates()
-{
-    var engine = new BoundedWordAgreement(" ");
-    var value = "one two three four five six seven eight nine ten";
-    _ = engine.Observe(value);
-    _ = engine.Observe(value);
-    _ = engine.Observe(value);
-    var final = engine.Finish("six seven eight nine ten eleven");
-    Equal("eight nine ten eleven", final.Committed);
-    Equal("one two three four five six seven eight nine ten eleven", final.Preview);
-}
+    private static void FinishDeduplicates()
+    {
+        var engine = new BoundedWordAgreement(" ");
+        var value = "one two three four five six seven eight nine ten";
+        _ = engine.Observe(value);
+        _ = engine.Observe(value);
+        _ = engine.Observe(value);
+        var final = engine.Finish("six seven eight nine ten eleven");
+        Equal("eight nine ten eleven", final.Committed);
+        Equal("one two three four five six seven eight nine ten eleven", final.Preview);
+    }
 
-static void NoSpaceJoin()
-{
-    var engine = new BoundedWordAgreement("");
-    var final = engine.Finish("alpha beta gamma");
-    Equal("alphabetagamma", final.Preview);
-}
+    private static void NoSpaceJoin()
+    {
+        var engine = new BoundedWordAgreement("");
+        var final = engine.Finish("alpha beta gamma");
+        Equal("alphabetagamma", final.Preview);
+    }
 
-static void Equal<T>(T expected, T actual)
-{
-    if (!EqualityComparer<T>.Default.Equals(expected, actual))
-        throw new InvalidOperationException($"Expected '{expected}', received '{actual}'.");
+    // Program.IsNoSpaceLanguage now delegates to hw-text through the UniFFI core
+    // (issue #286). This asserts against the real native library, so it also
+    // proves the daemon can load libhyperwhisper_core.so — the P/Invoke this
+    // change introduces into a process that previously had none.
+    private static void NoSpaceLanguageTable()
+    {
+        foreach (var code in new[] { "ja", "zh", "ko", "yue" })
+            True(Program.IsNoSpaceLanguage(code), $"{code} should be no-space");
+        foreach (var code in new[] { "en", "de", "fr", "es", "ru", "auto", "" })
+            True(!Program.IsNoSpaceLanguage(code), $"'{code}' should be spaced");
+    }
+
+    // The four codes the daemon used to hardcode were a strict subset. Moving
+    // onto the shared table adds Thai, the explicit Chinese script tags, case
+    // insensitivity and the two-character prefix fallback.
+    private static void NoSpaceLanguageWidening()
+    {
+        foreach (var code in new[] { "th", "zh-TW", "zh-Hans", "zh-Hant" })
+            True(Program.IsNoSpaceLanguage(code), $"{code} should be no-space");
+        foreach (var code in new[] { "JA", "YUE", "ZH-HANT" })
+            True(Program.IsNoSpaceLanguage(code), $"{code} should be no-space");
+        foreach (var code in new[] { "zh-CN", "ja-JP", "ko-KR" })
+            True(Program.IsNoSpaceLanguage(code), $"{code} should be no-space");
+        True(!Program.IsNoSpaceLanguage("en-US"), "en-US should be spaced");
+    }
+
+    // `--language auto` is what the hosts send for a mode with no language
+    // (`ParakeetDaemonLiveTranscriber.NormalizeLanguage`), and it is not a
+    // no-space code — so `DecodeOfflineWithVad` used to wedge a space between
+    // every Japanese VAD segment. It now resolves the separator per boundary
+    // from the segment text, mirroring `append_trailing_space`.
+    private static void AutoLanguageSegmentJoin()
+    {
+        Equal("こんにちは世界です", JoinLikeDaemon("auto", ["こんにちは", "世界", "です"]));
+        Equal("hello there world", JoinLikeDaemon("auto", ["hello", "there", "world"]));
+        // A declared language still wins over the text.
+        Equal("こんにちは 世界", JoinLikeDaemon("en", ["こんにちは", "世界"]));
+        Equal("alphabeta", JoinLikeDaemon("ja", ["alpha", "beta"]));
+    }
+
+    // The four ways a segment can carry no script evidence of its own. Each one
+    // used to break a Japanese VAD join, because the separator was decided from
+    // the segment AFTER the boundary alone.
+    private static void AutoLanguageSegmentJoinIsSymmetric()
+    {
+        // A VAD segment that decodes to nothing.
+        Equal("こんにちは世界", JoinLikeDaemon("auto", ["こんにちは", "", "世界"]));
+        Equal("こんにちは世界", JoinLikeDaemon("auto", ["こんにちは", "   ", "世界"]));
+        // Punctuation-only and digit-heavy segments.
+        Equal("日本語。", JoinLikeDaemon("auto", ["日本語", "。"]));
+        Equal("これは2024年です", JoinLikeDaemon("auto", ["これは", "2024年", "です"]));
+        // Symmetric around an embedded Latin run — a space on one side only was
+        // the visible symptom.
+        Equal("これはOKです", JoinLikeDaemon("auto", ["これは", "OK", "です"]));
+        // Thai: the one no-space language that is not CJK. `th` and `auto` must
+        // reach the same answer.
+        Equal("สวัสดีครับ", JoinLikeDaemon("auto", ["สวัสดี", "ครับ"]));
+        Equal("สวัสดีครับ", JoinLikeDaemon("th", ["สวัสดี", "ครับ"]));
+    }
+
+    // Where the VAD put its boundaries must not change the transcript. This is
+    // what makes the daemon and the host agree even when their segmentation
+    // differs, which is the divergence #286 exists to close.
+    private static void AutoLanguageJoinIsBoundaryIndependent()
+    {
+        Equal("これはtestです", JoinLikeDaemon("auto", ["これはtestです"]));
+        Equal("これはtestです", JoinLikeDaemon("auto", ["これは", "test", "です"]));
+        Equal("これはtestです", JoinLikeDaemon("auto", ["これ", "はtest", "です"]));
+    }
+
+    /// <summary>
+    /// The daemon's own join, not a copy of it — <c>EngineSession.JoinSegments</c>
+    /// is what <c>DecodeOfflineWithVad</c> calls.
+    /// </summary>
+    private static string JoinLikeDaemon(string language, string[] parts)
+        => EngineSession.JoinSegments(language, parts);
+
+    private static void True(bool condition, string because)
+    {
+        if (!condition) throw new InvalidOperationException(because);
+    }
+
+    private static void Equal<T>(T expected, T actual)
+    {
+        if (!EqualityComparer<T>.Default.Equals(expected, actual))
+            throw new InvalidOperationException($"Expected '{expected}', received '{actual}'.");
+    }
 }

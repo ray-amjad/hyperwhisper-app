@@ -63,16 +63,11 @@ fn alias(primary: &str) -> &str {
 /// case, an unsupported code, or no selection). Mirrors
 /// `supportedFormattingLanguage(for:)`.
 pub fn supported_formatting_language(code: Option<&str>) -> Option<String> {
-    let raw = code?.trim();
-    if raw.is_empty() {
-        return None;
-    }
-    let lower = raw.to_lowercase();
-    if lower == "auto" {
-        return None;
-    }
-    let primary = lower.split('-').next().unwrap_or(&lower);
-    let normalized = alias(primary);
+    // The generic half — trim, blank/`auto` → omit, lowercase, primary subtag —
+    // is the shared normalizer. Only the alias map and the support filter below
+    // are xAI's own.
+    let primary = crate::live::normalize_language(code)?;
+    let normalized = alias(&primary);
     if SUPPORTED_FORMATTING_LANGUAGES.contains(&normalized) {
         Some(normalized.to_string())
     } else {

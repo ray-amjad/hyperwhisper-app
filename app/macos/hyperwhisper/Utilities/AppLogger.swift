@@ -334,6 +334,23 @@ final class AppLogger {
     ///   - maxLines: Maximum number of log lines to return (default: 100)
     /// - Returns: Sanitized log text, or nil if retrieval failed
     static func getRecentLogs(minutes: Int = 5, maxLines: Int = 100) -> String? {
+        // HOW LONG THIS BLOCKS IS ITSELF A DIAGNOSTIC (Sentry HYPERWHISPER-F7).
+        // `log show` is a subprocess and `waitUntilExit()` blocks the CALLING
+        // thread. 55 of the 56 `SentryService.capture` sites leave
+        // `includeRecentLogs` at its default of `true`, so any of them reached
+        // from the main thread parks it here for as long as the subprocess
+        // takes. Nothing measured that until now, so a hang report could not
+        // say whether the app was stalled inside its own error reporting.
+        //
+        // The `running` state is published BEFORE the subprocess starts, so an
+        // AppHang raised while the fetch is in flight carries it.
+        let fetchStart = Date()
+        let onMainThread = Thread.isMainThread
+        publishDiagnosticLogState([
+            "diagnostic_logs_state": "running",
+            "diagnostic_logs_on_main_thread": onMainThread
+        ])
+
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/log")
         process.arguments = [
@@ -353,7 +370,18 @@ final class AppLogger {
             process.waitUntilExit()
 
             let data = outputPipe.fileHandleForReading.readDataToEndOfFile()
+            let fetchMs = Int((Date().timeIntervalSince(fetchStart) * 1_000).rounded())
+
             guard let output = String(data: data, encoding: .utf8), !output.isEmpty else {
+                // Was silent before. An empty result and a slow empty result are
+                // different faults, and only the timing tells them apart.
+                finishDiagnosticLogState(
+                    outcome: "empty",
+                    fetchMs: fetchMs,
+                    onMainThread: onMainThread,
+                    lineCount: 0,
+                    exitCode: Int(process.terminationStatus)
+                )
                 return nil
             }
 
@@ -366,12 +394,69 @@ final class AppLogger {
             // Sanitize each line
             let sanitizedLines = lines.map { sanitizeLogLine($0) }
 
+            finishDiagnosticLogState(
+                outcome: "ok",
+                fetchMs: fetchMs,
+                onMainThread: onMainThread,
+                lineCount: lines.count,
+                exitCode: Int(process.terminationStatus)
+            )
+
             return sanitizedLines.joined(separator: "\n")
 
         } catch {
-            audio.error("Failed to retrieve recent logs: \(error, privacy: .public)")
+            // Was reported under the `audio` category, which hid it from anyone
+            // filtering the unified log for a diagnostics fault.
+            let fetchMs = Int((Date().timeIntervalSince(fetchStart) * 1_000).rounded())
+            settings.error("Failed to retrieve recent logs after \(fetchMs, privacy: .public)ms: \(error, privacy: .public)")
+            finishDiagnosticLogState(
+                outcome: "launch_failed",
+                fetchMs: fetchMs,
+                onMainThread: onMainThread,
+                lineCount: 0,
+                exitCode: nil
+            )
             return nil
         }
+    }
+
+    /// Milliseconds above which a `log show` fetch is reported as a stall
+    /// rather than as normal cost. The app-hang threshold is 10 000 ms, so a
+    /// fetch past this point is already a large part of one.
+    private static let slowDiagnosticLogFetchMs = 2_000
+
+    /// Publish the state of the `log show` fetch as Sentry SCOPE extras.
+    /// Scope extras survive `SentryService.beforeSend`, which nils breadcrumbs.
+    private static func publishDiagnosticLogState(_ extras: [String: Any]) {
+        guard isErrorLoggingEnabled else { return }
+        SentryService.setExtras(extras)
+    }
+
+    private static func finishDiagnosticLogState(
+        outcome: String,
+        fetchMs: Int,
+        onMainThread: Bool,
+        lineCount: Int,
+        exitCode: Int?
+    ) {
+        if fetchMs >= slowDiagnosticLogFetchMs {
+            settings.error("⏱️ Recent-log fetch stalled the caller for \(fetchMs, privacy: .public)ms · onMainThread=\(onMainThread, privacy: .public) · outcome=\(outcome, privacy: .public)")
+        } else {
+            settings.debug("Recent-log fetch took \(fetchMs, privacy: .public)ms · outcome=\(outcome, privacy: .public)")
+        }
+
+        var extras: [String: Any] = [
+            "diagnostic_logs_state": "finished",
+            "diagnostic_logs_outcome": outcome,
+            "diagnostic_logs_fetch_ms": fetchMs,
+            "diagnostic_logs_on_main_thread": onMainThread,
+            "diagnostic_logs_line_count": lineCount,
+            "diagnostic_logs_was_slow": fetchMs >= slowDiagnosticLogFetchMs
+        ]
+        if let exitCode {
+            extras["diagnostic_logs_exit_code"] = exitCode
+        }
+        publishDiagnosticLogState(extras)
     }
 
     /// Sanitizes a single log line to remove potential PII.

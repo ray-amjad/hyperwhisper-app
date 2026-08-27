@@ -27,6 +27,7 @@ on:
       - "shared-app-classification/**"
       - "packaging/linux/**"
       - "tools/parakeet-engine-dotnet/**"
+      - "tools/parakeet-engine-dotnet.Tests/**"
       - ".github/scripts/test-linux-release-policy.py"
       - ".github/workflows/linux-ci.yml"
       - ".github/workflows/linux-release.yml"
@@ -211,6 +212,24 @@ jobs:
               --no-build
           done
 
+      # The parakeet daemon ships on Linux and (as the managed build) on Windows
+      # ARM64, but no workflow ran its test harness — so its word-agreement and
+      # segment-join tests had never executed anywhere. Since issue #286 the
+      # daemon P/Invokes the shared Rust core for its CJK join policy, and this
+      # is the only gate that proves that call works.
+      - name: Build and execute parakeet daemon tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet build \
+            tools/parakeet-engine-dotnet.Tests/parakeet-engine-dotnet.Tests.csproj \
+            --configuration Release \
+            -p:TreatWarningsAsErrors=true
+          dotnet run \
+            --project tools/parakeet-engine-dotnet.Tests/parakeet-engine-dotnet.Tests.csproj \
+            --configuration Release \
+            --no-build
+
       - name: Build and run Linux integration-spike tests
         shell: bash
         run: |
@@ -329,6 +348,10 @@ jobs:
           test -x artifacts/hyperwhisper-linux/parakeet-engine/parakeet-engine
           test -s artifacts/hyperwhisper-linux/parakeet-engine/libsherpa-onnx-c-api.so
           test -s artifacts/hyperwhisper-linux/libhyperwhisper_core.so
+          # The daemon is a separate process, so the loader probes ITS directory
+          # and not the app root — it carries its own copy of the shared core
+          # (issue #286). Staged by parakeet-engine-dotnet.csproj on publish.
+          test -s artifacts/hyperwhisper-linux/parakeet-engine/libhyperwhisper_core.so
           file artifacts/hyperwhisper-linux/HyperWhisper
           file artifacts/hyperwhisper-linux/parakeet-engine/parakeet-engine
           file artifacts/hyperwhisper-linux/libhyperwhisper_core.so

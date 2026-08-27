@@ -294,8 +294,10 @@ public partial class StreamingSettingsPage : Page
         }
 
         var provider = StreamingTranscriptionProviderExtensions.FromStorageValue(_settings.StreamingProvider);
-        // Ask the strategy, never a second provider list — see
-        // StreamingTranscriptionSessionFactory.SupportsVocabulary.
+        // Ask the shared core, never a second provider list — see
+        // StreamingTranscriptionSessionFactory.SupportsVocabulary, which reads
+        // hw_net::live::supports_vocabulary (issue #281) with no credential and
+        // no session.
         if (!StreamingTranscriptionSessionFactory.SupportsVocabulary(provider))
         {
             VocabularyWarningText.Text = Loc.S("settings.streaming.warning.vocabularyUnsupported");

@@ -4,11 +4,24 @@ using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
 using HyperWhisper.Models;
+// Aliased, not imported: HyperWhisper.SharedCore also declares
+// CloudTranscriptionProvider, which would clash with HyperWhisper.Models.
+using SharedCoreBridge = HyperWhisper.SharedCore.SharedCoreBridge;
 
 namespace HyperWhisper.Services.Streaming;
 
 /// <summary>
-/// Provider-specific WebSocket protocol adapter for streaming transcription.
+/// The seam between <see cref="StreamingTranscriptionClient"/> — which owns
+/// transport, reconnect and state — and whatever decides what goes on the wire.
+///
+/// <para>
+/// There used to be five implementations of this, one per provider. Since issue
+/// #281 there is one, <see cref="LiveProtocolStreamingStrategy"/>, and it
+/// answers from the shared Rust core. The interface is kept unchanged rather
+/// than folded away: it is what let the five deletions land without touching the
+/// thousand-line client, and it is the seam the smoke suite drives the client
+/// through with no socket.
+/// </para>
 /// </summary>
 public interface IStreamingProviderStrategy
 {
@@ -30,17 +43,14 @@ public interface IStreamingProviderStrategy
     /// <summary>
     /// Whether a WebSocket close code means this provider's session cannot recover and the
     /// connection should end immediately instead of going through StreamingTranscriptionClient's
-    /// reconnect/backoff path. The default covers the WebSocket protocol's own standard
-    /// non-recoverable close codes (RFC 6455 §7.4.1), which apply to any provider regardless of
-    /// its wire protocol: 1002 (Protocol Error), 1003 (Unsupported Data), 1007 (Invalid Payload
-    /// Data), 1008 (Policy Violation), 1009 (Message Too Big), and 1011 (Internal Error). Standard
-    /// transient codes - 1000 (Normal, handled separately by the caller), 1001 (Going Away), 1006
-    /// (Abnormal/no close frame), 1012 (Service Restart), and 1013 (Try Again Later) - are
-    /// deliberately excluded so they keep falling through to the reconnect path. Providers that
-    /// use additional close codes of their own to signal an unrecoverable session should override
-    /// this and combine with the base set rather than replace it.
+    /// reconnect/backoff path. The default is the shared core's RFC 6455 §7.4.1 set (issue #281),
+    /// so this head, the Linux head and macOS cannot drift on it - the full rationale for which
+    /// codes are in and which are deliberately out now lives on
+    /// <c>hw_net::live::is_terminal_close_code</c>. Providers that use additional close codes of
+    /// their own to signal an unrecoverable session should override this and combine with the base
+    /// set rather than replace it.
     /// </summary>
-    bool IsTerminalCloseCode(int closeCode) => closeCode is 1002 or 1003 or 1007 or 1008 or 1009 or 1011;
+    bool IsTerminalCloseCode(int closeCode) => SharedCoreBridge.IsTerminalLiveCloseCode(closeCode);
 
     /// <summary>
     /// Whether a <see cref="StreamingProviderEvent.SessionComplete"/> ends the
@@ -62,6 +72,11 @@ public interface IStreamingProviderStrategy
     /// does the shared .NET stack —
     /// <c>ILiveTranscriptionProtocol.CompleteEndsSessionBeforeStop</c> in
     /// HyperWhisper.SharedCore, whose name and semantics this deliberately mirrors.
+    ///
+    /// The per-provider answer comes from the shared core
+    /// (<c>hw_net::live::complete_ends_session_before_stop</c>), so this head,
+    /// the Linux head and macOS cannot drift on it. The default here stays
+    /// <c>true</c> for any strategy that is not core-backed.
     /// </summary>
     bool CompleteEndsSessionBeforeStop => true;
 }

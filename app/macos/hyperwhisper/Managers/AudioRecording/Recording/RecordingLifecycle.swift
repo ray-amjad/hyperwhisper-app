@@ -613,7 +613,11 @@ class RecordingLifecycle {
                     withIntermediateDirectories: true,
                     attributes: nil
                 )
-                AppLogger.audio.debug("Recordings directory ready: \(directory.path, privacy: .public)")
+                // The path is NOT logged: the default recordings folder is
+                // `~/Documents/hyperwhisper/recordings`, so it carries the
+                // account name. Log its depth instead — enough to tell a
+                // default folder from a user-chosen one.
+                AppLogger.audio.debug("Recordings directory ready · depth=\(directory.pathComponents.count, privacy: .public)")
             } catch {
                 AppLogger.audio.error("Failed to create recordings directory: \(error.localizedDescription)")
             }

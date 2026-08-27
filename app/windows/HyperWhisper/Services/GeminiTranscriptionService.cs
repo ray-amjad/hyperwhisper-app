@@ -133,18 +133,8 @@ public class GeminiTranscriptionService : ApiKeyTranscriptionServiceBase
         // generateContent request. The custom prompt rides in `prompt`.
         // TODO-verify (Windows/CI): Rust shared-core swap.
         var contentType = TranscriptionPreflight.MimeTypeFor(audioPath, "audio/wav", MimeTypes);
-        var coreParams = RustCoreMapping.TranscribeParams(
-            audioPath: audioPath,
-            audioMime: contentType,
-            language: language,
-            vocabulary: vocabulary ?? Array.Empty<string>(),
-            // Direct-vendor request: the core cannot attach X-Latency-Opt-Out to
-            // one by construction. Pass the user's real choice anyway so this site
-            // stays correct if it is ever routed.
-            shareAnonymousSpeedData: SettingsService.Instance.ShareAnonymousSpeedData,
-            apiKey: ApiKey,
-            model: ModelId,
-            prompt: _customPrompt);
+        var coreParams = BuildDirectVendorParams(
+            audioPath, contentType, language, vocabulary, prompt: _customPrompt);
 
         GeminiFile? uploadedFile = null;
         try

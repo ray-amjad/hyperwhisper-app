@@ -16,17 +16,24 @@ uniffi::setup_scaffolding!("hyperwhisper_core");
 
 // hw-core is split into per-leaf FFI submodules for organization; this stays
 // the single integration crate (`setup_scaffolding!` lives here in lib.rs).
+//
+// The no-speech audio diagnostic, shared by Windows and macOS (#291).
+mod ffi_audio;
 mod ffi_backup;
 // Public so `tests/catalog_vectors.rs` can build the golden conformance vectors
 // from the same functions the bindings export. The FFI items are `pub` either
 // way (UniFFI requires it); this only makes the module path reachable in-crate.
 pub mod ffi_catalog;
 mod ffi_completion;
+// The push-to-talk state machine, shared by all three heads (#287).
+mod ffi_input;
 mod ffi_license;
 // LLM post-processing request building (#282). Reuses `ffi_net`'s HTTP contract
 // records rather than declaring its own, so a post-processing request rides the
 // same platform transport a transcription request does.
 mod ffi_llm;
+// Live-streaming websocket policy and capabilities (#281).
+mod ffi_live;
 mod ffi_net;
 mod ffi_prompt;
 
@@ -81,6 +88,30 @@ pub fn append_trailing_space(text: String, mode_language: String) -> String {
 #[uniffi::export]
 pub fn contains_cjk(text: String) -> bool {
     hw_text::contains_cjk(&text)
+}
+
+/// Detect whether text is primarily written in a continuous script (no word
+/// spaces): CJK plus Thai.
+///
+/// The text-side half of the segment-join policy (issue #286). Callers resolve a
+/// declared language through [`is_no_space_language`] and fall back to this when
+/// the language is `"auto"` — which is what the hosts pass most of the time. It
+/// covers Thai, which `contains_cjk` cannot, so the fallback agrees with the
+/// language table for every code in it.
+#[uniffi::export]
+pub fn is_continuous_script(text: String) -> bool {
+    hw_text::is_continuous_script(&text)
+}
+
+/// Whether a language code is written without spaces between words.
+///
+/// The join policy for concatenated transcription segments (issue #286): the
+/// parakeet daemon and the Linux live-delivery path both pick `""` versus `" "`
+/// from this, instead of each keeping its own table. Case-insensitive, with a
+/// two-character prefix fallback for regional variants (`"zh-CN"` → `"zh"`).
+#[uniffi::export]
+pub fn is_no_space_language(language_code: String) -> bool {
+    hw_text::is_no_space_language(&language_code)
 }
 
 /// Replace a single vocabulary word with its replacement (whole-word,

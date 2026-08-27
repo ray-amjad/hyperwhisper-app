@@ -75,17 +75,7 @@ public class SonioxService : ApiKeyTranscriptionServiceBase
         // baked by the per-step core builders.
         // TODO-verify (Windows/CI): Rust shared-core swap.
         var contentType = TranscriptionPreflight.MimeTypeFor(audioPath, "application/octet-stream", MimeTypes);
-        var coreParams = RustCoreMapping.TranscribeParams(
-            audioPath: audioPath,
-            audioMime: contentType,
-            language: language,
-            vocabulary: vocabulary ?? Array.Empty<string>(),
-            // Direct-vendor request: the core cannot attach X-Latency-Opt-Out to
-            // one by construction. Pass the user's real choice anyway so this site
-            // stays correct if it is ever routed.
-            shareAnonymousSpeedData: SettingsService.Instance.ShareAnonymousSpeedData,
-            apiKey: ApiKey,
-            model: ModelId);
+        var coreParams = BuildDirectVendorParams(audioPath, contentType, language, vocabulary);
 
         string? transcriptionId = null;
         string? fileId = null;
