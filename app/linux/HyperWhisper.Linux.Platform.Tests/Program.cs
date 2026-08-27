@@ -50,6 +50,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("Pulse playback isolates failing subscribers", PulsePlaybackSubscriberSafety),
     ("WAV reader recomputes an unpatched data length", WaveHeaderRecomputesDataLength),
     ("WAV reader rejects sample-free and non-canonical files", WaveHeaderRejectsEmptyAndInvalid),
+    ("WAV playback stops at the declared data length", WavePlaybackStopsAtTheDeclaredDataLength),
     ("injection falls back losslessly to clipboard", InjectionClipboardFallback),
     ("injection uses uinput after clipboard", InjectionUsesUInput),
     ("injection restores captured clipboard", InjectionRestoresClipboard),
@@ -805,6 +806,38 @@ static async Task WaveHeaderRejectsEmptyAndInvalid()
         await File.WriteAllBytesAsync(truncated, [1, 2, 3]);
         using (var stream = File.OpenRead(truncated))
             Assert.True(WaveFile.ReadHeader(stream).IsFailure);
+    });
+}
+
+// A `data` chunk followed by another RIFF chunk is a valid canonical WAV. Playback must stop at
+// the declared length: counting the trailing chunk in the duration and writing its bytes to the
+// sink plays it as noise.
+static async Task WavePlaybackStopsAtTheDeclaredDataLength()
+{
+    await WithTemporaryDirectoryAsync(async directory =>
+    {
+        var path = Path.Combine(directory, "trailing-chunk.wav");
+        using (var stream = File.Create(path))
+        {
+            WaveFile.WriteHeader(stream, new WaveFormat(16_000, 16, 1), 6);
+            stream.Position = WaveFile.HeaderSize;
+            stream.Write([1, 0, 2, 0, 3, 0]);
+            stream.Write("LIST"u8);
+            stream.Write(new byte[32]);
+        }
+
+        using (var stream = File.OpenRead(path))
+            Assert.Equal(6L, WaveFile.ReadHeader(stream).Value.DataLength);
+
+        var playback = new FakePlaybackSession();
+        using var service = new PulseAudioPlaybackService(new FakePulseApi { PlaybackSession = playback });
+        var ended = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.PlaybackEnded += (_, _) => ended.TrySetResult();
+        Assert.Success(service.Load(path));
+        Assert.Equal(TimeSpan.FromSeconds(6 / 32_000d), service.TotalDuration);
+        service.Play();
+        await ended.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.Equal(6, playback.BytesWritten);
     });
 }
 

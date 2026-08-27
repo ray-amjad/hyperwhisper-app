@@ -25,8 +25,9 @@ public static class TranscriptionDiagnosticsService
     /// <summary>
     /// The measurement basis for <see cref="AnalyzeAudioFile"/>: 16 kHz mono,
     /// matching what every transcription path actually sends
-    /// (<c>TranscriptionService.PrepareWavStream</c>,
-    /// <c>FileTranscriptionService</c>, the parakeet daemon) and what macOS's
+    /// (<c>TranscriptionService.PrepareAudioStream</c>,
+    /// <c>FileTranscriptionService.ConvertToWhisperFormatAsync</c>, the parakeet
+    /// daemon) and what macOS's
     /// <c>AudioConverter</c> already measured on. Measuring the container format
     /// instead made the same recording report a different non-silent ratio on
     /// each platform, which is exactly the cross-platform comparability #291
@@ -126,13 +127,19 @@ public static class TranscriptionDiagnosticsService
             // The honest "was anything captured" signal - audio_duration_seconds above
             // falls back to the caller's wall-clock value when the container has none.
             //
-            // NOTE (#291): this is now a POST-RESAMPLE count of 16 kHz mono samples,
-            // not a count of the container's own interleaved samples. Zero still means
-            // exactly "the recorder produced nothing", which is all the empty-recording
-            // arm reads it for, but the magnitude no longer scales with the source
-            // sample rate or channel count - do not compare it against values from
-            // events emitted before this change.
+            // The two counts mean different things and are both reported (#291):
+            //   audio_decoded_sample_count  - mono frames the DECODER produced, counted
+            //     before the 16 kHz resampler. Zero means exactly "the recorder produced
+            //     nothing", which is all the empty-recording arm reads it for. Since the
+            //     fold to mono it is a frame count, not an interleaved-sample count, so it
+            //     no longer scales with the source channel count.
+            //   audio_measured_sample_count - 16 kHz mono samples the dBFS figures below
+            //     were actually measured over. This one CAN be zero for a decodable but
+            //     very short file, because the resampler emits nothing until it can fill a
+            //     whole output frame - which is why it is not the count the arm reads.
+            // Neither is comparable with values emitted before #291.
             ["audio_decoded_sample_count"] = (object?)audioDiagnostics.DecodedSampleCount ?? "unknown",
+            ["audio_measured_sample_count"] = (object?)audioDiagnostics.MeasuredSampleCount ?? "unknown",
             ["mode_name"] = mode?.Name ?? "unknown",
             ["mode_preset"] = mode?.Preset ?? "unknown",
             ["transcription_provider_display_name"] = transcriptionProviderDisplayName ?? providerDiagnostics?.ProviderDisplayName ?? exception?.ProviderName ?? "unknown",
@@ -193,18 +200,35 @@ public static class TranscriptionDiagnosticsService
             var fileInfo = new FileInfo(audioPath);
             using var reader = new AudioFileReader(audioPath);
 
-            // Same pair the transcription paths already run (TranscriptionService
-            // .PrepareWavStream, FileTranscriptionService.ConvertToWav): fold to
-            // mono, then resample to 16 kHz. Stereo only - StereoToMonoSampleProvider
-            // rejects anything else, and a throw here would downgrade a perfectly
-            // readable multichannel file to AnalysisSucceeded: false. Three or more
-            // channels therefore keep being measured interleaved, exactly as every
-            // channel count was before #291.
+            // Same pair the transcription paths already run
+            // (TranscriptionService.PrepareAudioStream:820-828,
+            // FileTranscriptionService.ConvertToWhisperFormatAsync:119-128): fold to
+            // mono, then resample to 16 kHz.
+            //
+            // The fold is MonoFoldSampleProvider rather than NAudio's ToMono() /
+            // StereoToMonoSampleProvider, which handle two channels and throw
+            // NotImplementedException on anything else. Throwing here would downgrade a
+            // perfectly readable multichannel file to AnalysisSucceeded: false, and NOT
+            // folding it would measure the interleaved stream - a 3-channel 48 kHz file
+            // would contribute 48,000 samples a second instead of 16,000, and one live
+            // channel among two silent ones would report a third of the true non-silent
+            // ratio and several dB of extra headroom on RMS. Both change which
+            // classification arm fires. Averaging every channel matches what the 2-channel
+            // case already did (NAudio 2.2.1's StereoToMonoSampleProvider defaults to
+            // 0.5/0.5) and extends it to any channel count.
             ISampleProvider provider = reader;
-            if (provider.WaveFormat.Channels == 2)
+            if (provider.WaveFormat.Channels > 1)
             {
-                provider = new StereoToMonoSampleProvider(provider);
+                provider = new MonoFoldSampleProvider(provider);
             }
+
+            // Counted BEFORE the resampler on purpose - see the extras comment in
+            // CaptureNoSpeechDiagnostic. WdlResamplingSampleProvider.Read returns 0 when it
+            // cannot fill a whole output frame, so a decodable-but-tiny file would report
+            // zero decoded samples and the empty-recording arm would call it "the recorder
+            // produced nothing", which is false.
+            var decoded = new CountingSampleProvider(provider);
+            provider = decoded;
 
             if (provider.WaveFormat.SampleRate != AnalysisSampleRate)
             {
@@ -227,7 +251,16 @@ public static class TranscriptionDiagnosticsService
                 for (var i = 0; i < read; i++)
                 {
                     var abs = Math.Abs(buffer[i]);
-                    peak = Math.Max(peak, abs);
+                    // `>` and not Math.Max: a NaN sample must not become the peak. Math.Max
+                    // PROPAGATES NaN, which floors the peak to -120 dBFS and silently
+                    // changes which arm fires; `abs > peak` is false for NaN, so the sample
+                    // is ignored. This is the rule hw_audio::no_speech::accumulate applies,
+                    // and macOS applies the same one - see that function's "Non-finite
+                    // input" note.
+                    if (abs > peak)
+                    {
+                        peak = abs;
+                    }
                     sumSquares += (double)abs * abs;
 
                     if (abs >= silenceThreshold)
@@ -260,7 +293,8 @@ public static class TranscriptionDiagnosticsService
                 PeakDbfs: summary.PeakDbfs,
                 RmsDbfs: summary.RmsDbfs,
                 NonSilentRatio: summary.NonSilentRatio,
-                DecodedSampleCount: (long)sampleCount);
+                DecodedSampleCount: decoded.SampleCount,
+                MeasuredSampleCount: (long)sampleCount);
         }
         catch (Exception ex)
         {
@@ -453,10 +487,22 @@ public static class TranscriptionDiagnosticsService
     /// audio was actually decoded - use <paramref name="DecodedSampleCount"/> for that.
     /// </param>
     /// <param name="DecodedSampleCount">
-    /// Samples the decoder actually produced while reading the file, or <c>null</c> when
-    /// no read loop ran (analysis failed, or a synthetic record in a test). Zero is the
-    /// only honest "the recorder captured nothing" signal - see
-    /// <see cref="ClassifyNoSpeechDiagnostic"/>. Null means unknown, never empty.
+    /// Mono sample frames the decoder actually produced while reading the file, counted
+    /// BEFORE the 16 kHz resampler, or <c>null</c> when no read loop ran (analysis failed,
+    /// or a synthetic record in a test). Zero is the only honest "the recorder captured
+    /// nothing" signal - see <see cref="ClassifyNoSpeechDiagnostic"/>. Null means unknown,
+    /// never empty.
+    /// <para>
+    /// It is deliberately not the post-resample count.
+    /// <c>WdlResamplingSampleProvider.Read</c> returns 0 until it can fill a whole output
+    /// frame, so a decodable file with fewer frames than the sinc window needs measures
+    /// zero 16 kHz samples while the decoder produced plenty - and the empty-recording arm
+    /// would report "the recorder produced nothing", which is false.
+    /// </para>
+    /// </param>
+    /// <param name="MeasuredSampleCount">
+    /// 16 kHz mono samples the dBFS figures were measured over, counted AFTER the
+    /// resampler. Reported for context only; nothing classifies on it.
     /// </param>
     internal sealed record AudioAnalysisDiagnostics(
         bool AnalysisSucceeded,
@@ -468,6 +514,85 @@ public static class TranscriptionDiagnosticsService
         double RmsDbfs = MinimumDbfs,
         double NonSilentRatio = 0,
         string? AnalysisError = null,
-        long? DecodedSampleCount = null
+        long? DecodedSampleCount = null,
+        long? MeasuredSampleCount = null
     );
+
+    /// <summary>
+    /// Folds any channel count down to mono by averaging across channels, for any channel
+    /// count and without throwing.
+    /// </summary>
+    /// <remarks>
+    /// NAudio 2.2.1's <c>ToMono()</c> and <see cref="StereoToMonoSampleProvider"/> handle
+    /// exactly two channels and throw <see cref="NotImplementedException"/> on anything
+    /// else. A diagnostic must not turn a readable file into an analysis failure, and it
+    /// must not measure a multichannel stream interleaved either, so it folds its own.
+    /// A plain average is the same 0.5/0.5 mix the 2-channel provider defaults to,
+    /// generalized to N channels.
+    /// </remarks>
+    private sealed class MonoFoldSampleProvider : ISampleProvider
+    {
+        private readonly ISampleProvider _source;
+        private readonly int _channels;
+        private float[] _sourceBuffer = [];
+
+        internal MonoFoldSampleProvider(ISampleProvider source)
+        {
+            _source = source;
+            _channels = source.WaveFormat.Channels;
+            WaveFormat = WaveFormat.CreateIeeeFloatWaveFormat(source.WaveFormat.SampleRate, 1);
+        }
+
+        public WaveFormat WaveFormat { get; }
+
+        public int Read(float[] buffer, int offset, int count)
+        {
+            var required = count * _channels;
+            if (_sourceBuffer.Length < required)
+            {
+                _sourceBuffer = new float[required];
+            }
+
+            var read = _source.Read(_sourceBuffer, 0, required);
+            // Whole frames only. A source that stops mid-frame drops the partial one,
+            // which is what every other fold in the app does.
+            var frames = read / _channels;
+            for (var frame = 0; frame < frames; frame++)
+            {
+                double sum = 0;
+                var start = frame * _channels;
+                for (var channel = 0; channel < _channels; channel++)
+                {
+                    sum += _sourceBuffer[start + channel];
+                }
+
+                buffer[offset + frame] = (float)(sum / _channels);
+            }
+
+            return frames;
+        }
+    }
+
+    /// <summary>
+    /// Passes samples straight through and counts them. Inserted before the resampler so
+    /// the empty-recording arm reads a count that means "the decoder produced nothing"
+    /// rather than "the resampler could not fill an output frame yet".
+    /// </summary>
+    private sealed class CountingSampleProvider(ISampleProvider source) : ISampleProvider
+    {
+        public long SampleCount { get; private set; }
+
+        public WaveFormat WaveFormat => source.WaveFormat;
+
+        public int Read(float[] buffer, int offset, int count)
+        {
+            var read = source.Read(buffer, offset, count);
+            if (read > 0)
+            {
+                SampleCount += read;
+            }
+
+            return read;
+        }
+    }
 }

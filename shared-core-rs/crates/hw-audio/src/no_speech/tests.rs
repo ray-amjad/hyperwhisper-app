@@ -150,6 +150,34 @@ fn a_poisoned_sum_of_squares_floors_instead_of_propagating() {
     assert_eq!(summary.peak_dbfs, -6.02);
 }
 
+/// The peak rule the heads must match: a non-finite sample is IGNORED, never
+/// taken as the peak. Written as `amplitude > peak` and not as a max-of-two
+/// helper, because C# `Math.Max` and Swift `max` propagate `NaN` — a head that
+/// reaches for the helper floors the peak to the silent floor and skips an
+/// event arm 4 would otherwise report. Position in the buffer must not matter.
+#[test]
+fn a_non_finite_sample_never_becomes_the_peak() {
+    for poison in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+        for samples in [
+            [poison, 0.5, 0.25],
+            [0.5, poison, 0.25],
+            [0.25, 0.5, poison],
+        ] {
+            let acc = accumulate(SignalAccumulation::default(), &samples);
+            // An infinity is a real ordering, so it does become the peak; only
+            // `NaN` is unordered and therefore ignored. Either way the reported
+            // dBFS is finite, which is the property the heads must preserve.
+            if poison.is_nan() {
+                assert_eq!(acc.peak, 0.5, "NaN must not displace a real peak");
+                assert_eq!(summarize(acc).peak_dbfs, -6.02);
+            } else {
+                assert_eq!(summarize(acc).peak_dbfs, MINIMUM_DBFS);
+            }
+            assert!(summarize(acc).peak_dbfs.is_finite());
+        }
+    }
+}
+
 // ===========================================================================
 // classify — arm order is the contract
 // ===========================================================================

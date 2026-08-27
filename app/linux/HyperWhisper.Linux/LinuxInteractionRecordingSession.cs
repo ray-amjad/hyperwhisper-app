@@ -36,13 +36,13 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
     private readonly StringBuilder _liveFinalText = new();
 
     /// <summary>
-    /// What goes between two live final segments — <c>""</c> for a no-space
-    /// language, <c>" "</c> otherwise. Resolved once from the shared join policy
-    /// when delivery begins (issue #286), so the injected text and the saved
-    /// history text are built from the same value and a Japanese session stops
-    /// getting spaces wedged between its segments.
+    /// The streaming language in force for this delivery, snapshotted when it
+    /// begins so a mid-stream settings change cannot make the injected text and
+    /// the saved history text disagree (issue #286). The separator itself is
+    /// resolved per segment by <see cref="SharedCoreBridge.SegmentSeparator"/>,
+    /// because the default value of this setting is <c>"auto"</c> — see there.
     /// </summary>
-    private string _liveSegmentSeparator = " ";
+    private string? _liveStreamingLanguage;
     private PortableCursorContext _cursorContext = PortableCursorContext.Unknown;
 
     public LinuxInteractionRecordingSession(
@@ -393,13 +393,15 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
         lock (_liveDeliveryGate)
         {
             if (!_streaming || _liveDeliveryCancellation is null) return;
-            // One separator value, resolved once, used by both sinks. These used
-            // to disagree twice over: history joined with a hardcoded space in
-            // every language, and it tested `_liveFinalText.Length > 0` while the
+            // ONE separator value per segment, used by both sinks. These used to
+            // disagree twice over: history joined with a hardcoded space in every
+            // language, and it tested `_liveFinalText.Length > 0` while the
             // injection tested a segment counter — so an empty first final
             // segment left history empty but advanced the counter, and the second
             // segment was typed with a separator that was never saved.
-            var separator = _liveFinalText.Length == 0 ? string.Empty : _liveSegmentSeparator;
+            var separator = _liveFinalText.Length == 0
+                ? string.Empty
+                : SharedCoreBridge.SegmentSeparator(_liveStreamingLanguage, update.Text);
             injectionText = separator + update.Text;
             _liveFinalText.Append(injectionText);
             token = _liveDeliveryCancellation.Token;
@@ -429,10 +431,7 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
             _liveDeliveryCancellation = new CancellationTokenSource();
             _liveDeliveryTail = Task.CompletedTask;
             _liveFinalText.Clear();
-            _liveSegmentSeparator =
-                SharedCoreBridge.IsNoSpaceLanguage(_viewModel.Settings.StreamingLanguage)
-                    ? string.Empty
-                    : " ";
+            _liveStreamingLanguage = _viewModel.Settings.StreamingLanguage;
         }
     }
 

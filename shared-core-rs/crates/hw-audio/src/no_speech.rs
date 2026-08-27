@@ -116,10 +116,22 @@ impl Default for AudioSignalSummary {
 /// UniFFI, because crossing the boundary once per decode chunk to copy the
 /// samples would cost more than the arithmetic saves. It exists so the loop has
 /// exactly one definition to test against, and so a head can be checked for
-/// drift by comparing against it.
+/// drift by comparing against it. Nothing calls it in production, by design; a
+/// head that diverges from it is a bug in the head.
 ///
-/// `NaN` samples are ignored by the peak (IEEE `maxNum`) and poison
-/// `sum_squares`, which [`summarize`] then floors — see the module note.
+/// # The peak rule is part of the contract
+///
+/// The peak takes a sample only when `amplitude > peak`, which is **false** for
+/// `NaN` — so a non-finite sample is ignored and cannot poison the peak. A head
+/// that writes this as a max-of-two helper instead does NOT match: C#
+/// `Math.Max` and Swift `max` both PROPAGATE `NaN`, which would floor the peak
+/// to [`MINIMUM_DBFS`] and silently change which arm of [`classify`] fires. Both
+/// heads therefore write the comparison, not the helper —
+/// `TranscriptionDiagnosticsService.AnalyzeAudioFile` on Windows and
+/// `analyzeAudioFile` on macOS.
+///
+/// `sum_squares` is a running sum and is deliberately left to poison, because
+/// [`summarize`] floors it — see the module note on non-finite input.
 pub fn accumulate(acc: SignalAccumulation, samples: &[f32]) -> SignalAccumulation {
     let mut acc = acc;
     for sample in samples {

@@ -15,6 +15,7 @@ internal static class DaemonTests
             ("no-space languages preserve their join policy", NoSpaceJoin),
             ("the join policy comes from the shared core", NoSpaceLanguageTable),
             ("the shared table widens the daemon's old four codes", NoSpaceLanguageWidening),
+            ("an auto language joins VAD segments from the text", AutoLanguageSegmentJoin),
         };
 
         var failures = 0;
@@ -91,6 +92,33 @@ internal static class DaemonTests
         foreach (var code in new[] { "zh-CN", "ja-JP", "ko-KR" })
             True(Program.IsNoSpaceLanguage(code), $"{code} should be no-space");
         True(!Program.IsNoSpaceLanguage("en-US"), "en-US should be spaced");
+    }
+
+    // `--language auto` is what the hosts send for a mode with no language
+    // (`ParakeetDaemonLiveTranscriber.NormalizeLanguage`), and it is not a
+    // no-space code — so `DecodeOfflineWithVad` used to wedge a space between
+    // every Japanese VAD segment. It now resolves the separator per boundary
+    // from the segment text, mirroring `append_trailing_space`.
+    private static void AutoLanguageSegmentJoin()
+    {
+        Equal("こんにちは世界です", JoinLikeDaemon("auto", ["こんにちは", "世界", "です"]));
+        Equal("hello there world", JoinLikeDaemon("auto", ["hello", "there", "world"]));
+        // A declared language still wins over the text.
+        Equal("こんにちは 世界", JoinLikeDaemon("en", ["こんにちは", "世界"]));
+        Equal("alphabeta", JoinLikeDaemon("ja", ["alpha", "beta"]));
+    }
+
+    /// <summary>The join loop in <c>EngineSession.JoinSegments</c>.</summary>
+    private static string JoinLikeDaemon(string language, string[] parts)
+    {
+        var joined = new System.Text.StringBuilder();
+        foreach (var part in parts)
+        {
+            if (joined.Length > 0)
+                joined.Append(HyperWhisper.SharedCore.SharedCoreBridge.SegmentSeparator(language, part));
+            joined.Append(part);
+        }
+        return joined.ToString();
     }
 
     private static void True(bool condition, string because)

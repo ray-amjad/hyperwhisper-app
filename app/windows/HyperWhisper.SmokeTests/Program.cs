@@ -1812,17 +1812,143 @@ internal static class Program
                     Assert(diagnostics.Channels == 2,
                         $"audio_channels must stay the source channel count, got {diagnostics.Channels}");
 
-                    // One second of audio: ~16000 mono samples after the resample, not
-                    // the 96000 interleaved samples the container holds.
+                    // One second of audio. The two counts mean different things:
+                    // DecodedSampleCount is pre-resample mono frames (48000 here, one per
+                    // source frame, NOT the 96000 interleaved samples the container holds),
+                    // and MeasuredSampleCount is the ~16000 samples the dBFS figures were
+                    // measured over.
                     var decoded = diagnostics.DecodedSampleCount ?? -1;
-                    Assert(decoded > 15000 && decoded < 17000,
-                        $"expected ~16000 post-resample mono samples, got {decoded}");
+                    Assert(decoded == 48000,
+                        $"expected 48000 pre-resample mono frames, got {decoded}");
+                    var measured = diagnostics.MeasuredSampleCount ?? -1;
+                    Assert(measured > 15000 && measured < 17000,
+                        $"expected ~16000 post-resample mono samples, got {measured}");
 
                     // A 0.5-amplitude sine is ~-6 dBFS peak and audible throughout.
                     Assert(diagnostics.PeakDbfs > -8 && diagnostics.PeakDbfs < -4,
                         $"expected a peak near -6 dBFS, got {diagnostics.PeakDbfs}");
                     Assert(diagnostics.NonSilentRatio > 0.9,
                         $"a continuous sine should be almost entirely non-silent, got {diagnostics.NonSilentRatio}");
+                }
+                finally
+                {
+                    try
+                    {
+                        File.Delete(wavPath);
+                    }
+                    catch
+                    {
+                        // Best-effort cleanup; a leftover temp file must not fail CI.
+                    }
+                }
+            });
+
+            Run("TranscriptionDiagnosticsService.AnalyzeAudioFile folds any channel count to mono (#291)", () =>
+            {
+                // NAudio's ToMono()/StereoToMonoSampleProvider throw on more than two
+                // channels, so a 3-channel file used to stay interleaved: one live channel
+                // among two silent ones measured a third of the true non-silent ratio and
+                // several dB of extra RMS headroom, which is enough to move it across the
+                // backend-confirmed low-signal threshold and skip an event that should be
+                // reported. Folding must handle any channel count and must never downgrade
+                // a readable file to AnalysisSucceeded: false.
+                var wavPath = Path.Combine(
+                    Path.GetTempPath(),
+                    $"HyperWhisper.SmokeTests.NoSpeech.Multichannel.{Guid.NewGuid():N}.wav");
+
+                try
+                {
+                    var format = NAudio.Wave.WaveFormat.CreateIeeeFloatWaveFormat(48000, 3);
+                    using (var writer = new NAudio.Wave.WaveFileWriter(wavPath, format))
+                    {
+                        var frame = new float[3];
+                        for (var i = 0; i < 48000; i++)
+                        {
+                            // One channel at a steady 0.06, two digitally silent.
+                            frame[0] = 0.06f;
+                            frame[1] = 0f;
+                            frame[2] = 0f;
+                            writer.WriteSamples(frame, 0, 3);
+                        }
+                    }
+
+                    var diagnostics = TranscriptionDiagnosticsService.AnalyzeAudioFile(wavPath, null);
+
+                    Assert(diagnostics.AnalysisSucceeded,
+                        "a 3-channel file must analyze, not fall back to AnalysisSucceeded: false");
+                    Assert(diagnostics.Channels == 3,
+                        $"audio_channels must stay the source channel count, got {diagnostics.Channels}");
+                    Assert(diagnostics.SampleRate == 48000,
+                        $"audio_sample_rate_hz must stay the source rate, got {diagnostics.SampleRate}");
+
+                    // 48000 source frames folded to 48000 mono frames - not 144000
+                    // interleaved samples.
+                    var decoded = diagnostics.DecodedSampleCount ?? -1;
+                    Assert(decoded == 48000,
+                        $"expected 48000 folded mono frames, got {decoded}");
+
+                    // Folded, every sample is 0.06/3 = 0.02, above the 0.01 silence
+                    // threshold, so the ratio is ~1. Interleaved it would have been the
+                    // ~0.3333 of one live channel in three.
+                    Assert(diagnostics.NonSilentRatio > 0.9,
+                        $"the folded signal should be non-silent throughout, got {diagnostics.NonSilentRatio}");
+                    // 0.02 linear is -33.98 dBFS. Interleaved, the peak would have been
+                    // the raw 0.06 of the live channel, about -24.4 dBFS.
+                    Assert(diagnostics.PeakDbfs > -35 && diagnostics.PeakDbfs < -33,
+                        $"expected a folded peak near -34 dBFS, got {diagnostics.PeakDbfs}");
+                    Assert(diagnostics.RmsDbfs > -35 && diagnostics.RmsDbfs < -33,
+                        $"expected a folded RMS near -34 dBFS, got {diagnostics.RmsDbfs}");
+                }
+                finally
+                {
+                    try
+                    {
+                        File.Delete(wavPath);
+                    }
+                    catch
+                    {
+                        // Best-effort cleanup; a leftover temp file must not fail CI.
+                    }
+                }
+            });
+
+            Run("TranscriptionDiagnosticsService.AnalyzeAudioFile does not call a tiny file an empty recording (#291)", () =>
+            {
+                // WdlResamplingSampleProvider.Read returns 0 until it can emit a whole
+                // output frame, so a decodable file shorter than the sinc window measures
+                // zero 16 kHz samples. DecodedSampleCount is counted before the resampler
+                // precisely so arm 2 does not report "the recorder produced nothing" for a
+                // file the recorder plainly did produce.
+                var wavPath = Path.Combine(
+                    Path.GetTempPath(),
+                    $"HyperWhisper.SmokeTests.NoSpeech.Tiny.{Guid.NewGuid():N}.wav");
+
+                try
+                {
+                    var format = new NAudio.Wave.WaveFormat(48000, 16, 1);
+                    using (var writer = new NAudio.Wave.WaveFileWriter(wavPath, format))
+                    {
+                        var samples = new float[8];
+                        for (var i = 0; i < samples.Length; i++)
+                        {
+                            samples[i] = 0.5f;
+                        }
+
+                        writer.WriteSamples(samples, 0, samples.Length);
+                    }
+
+                    var diagnostics = TranscriptionDiagnosticsService.AnalyzeAudioFile(wavPath, null);
+
+                    Assert(diagnostics.AnalysisSucceeded, "a tiny WAV should still analyze");
+                    Assert(diagnostics.DecodedSampleCount == 8,
+                        $"the decoder produced 8 frames, got {diagnostics.DecodedSampleCount}");
+
+                    var provider = new TranscriptionProviderDiagnostics(
+                        ProviderDisplayName: "test", BackendNoSpeechDetected: true);
+                    Assert(
+                        TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic(diagnostics, provider)
+                            != PortableNoSpeechOutcome.EmptyRecording,
+                        "a decodable file must never be reported as 'the recorder produced nothing'");
                 }
                 finally
                 {

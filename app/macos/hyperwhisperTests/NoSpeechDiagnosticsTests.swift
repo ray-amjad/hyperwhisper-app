@@ -225,6 +225,31 @@ struct NoSpeechDiagnosticsTests {
         #expect(local.localEngine == "large-v3-turbo")
     }
 
+    /// The engine tag is lowercased for the same reason the router lowercases the
+    /// model id before `selectLocalProvider`: a non-canonically-cased id from a
+    /// hand-edited or cross-platform backup selects the same engine, so it is one
+    /// condition and must be one Sentry group.
+    @Test func theEngineTagIsCaseInsensitive() {
+        let shouty = TranscriptionDiagnosticsService.modeIdentity(
+            rawModel: " Parakeet-TDT-0.6B-V3 ", cloudProvider: nil)
+        #expect(shouty.providerType == "local")
+        #expect(shouty.localEngine == "parakeet-tdt-0.6b-v3")
+
+        func fingerprint(rawModel: String) -> String {
+            let identity = TranscriptionDiagnosticsService.modeIdentity(
+                rawModel: rawModel, cloudProvider: nil)
+            return noSpeechFingerprint(
+                fingerprintRoot: "macos-transcription-no-speech",
+                diagnosticStage: "live_recording",
+                diagnosticSource: "provider_no_speech",
+                mode: HwModeIdentity(
+                    providerType: identity.providerType,
+                    cloudProvider: identity.cloudProvider,
+                    localEngine: identity.localEngine)).joined(separator: "|")
+        }
+        #expect(fingerprint(rawModel: "Parakeet") == fingerprint(rawModel: "parakeet"))
+    }
+
     /// The production regression the provider axis exists to fix: two local
     /// modes on the same engine with different leftover cloud vendors are ONE
     /// condition and must be one Sentry group.
@@ -273,9 +298,9 @@ struct NoSpeechDiagnosticsTests {
     // MARK: - dBFS helpers
 
     @Test func dbfsConversionAndBucketingComeFromTheCore() {
-        #expect(audioToDbfs(0) == audioMinimumDbfs())
-        #expect(audioToDbfs(-1) == audioMinimumDbfs())
-        #expect(audioToDbfs(1.0) == 0.0)
+        #expect(audioToDbfs(linear: 0) == audioMinimumDbfs())
+        #expect(audioToDbfs(linear: -1) == audioMinimumDbfs())
+        #expect(audioToDbfs(linear: 1.0) == 0.0)
 
         // Floors, does not truncate: a negative buckets DOWNWARD.
         #expect(audioBucketDbfs(dbfs: -38.2) == "-40dbfs")

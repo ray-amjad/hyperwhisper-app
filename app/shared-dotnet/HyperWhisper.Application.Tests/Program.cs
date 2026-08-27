@@ -905,6 +905,61 @@ static void RunCanonicalPcmWaveTests(string root)
     Assert(CanonicalPcmWave.InspectAndRepair(empty, repair: true).Error!.Code == "audio_recovery.empty_wave",
         "a sample-free recording was not rejected");
 
+    // The declared length decides whenever it can, and is recomputed only when it cannot.
+    // Recomputing unconditionally would read a trailing RIFF chunk as audio.
+    static string WriteWave(string path, uint declaredDataLength, int trailingBytes, int payloadBytes)
+    {
+        using var stream = File.Create(path);
+        PcmWaveHeader.Write(stream, 16000, 1, 16, declaredDataLength);
+        stream.Position = PcmWaveHeader.HeaderSize;
+        stream.Write(new byte[payloadBytes]);
+        if (trailingBytes > 0)
+        {
+            stream.Write("LIST"u8);
+            stream.Write(new byte[trailingBytes]);
+        }
+        return path;
+    }
+
+    static PcmWaveHeaderInfo ReadWave(string path)
+    {
+        using var stream = File.OpenRead(path);
+        Assert(PcmWaveHeader.TryRead(stream, out var header) == PcmWaveHeaderStatus.Valid,
+            $"{Path.GetFileName(path)} did not read as a canonical PCM WAV");
+        return header!;
+    }
+
+    // Declared 0 — the crash case. Must still recompute, or every unpatched recording reports
+    // an empty payload.
+    Assert(ReadWave(WriteWave(Path.Combine(root, "declared-zero.wav"), 0, 0, 64)).DataLength == 64,
+        "a zero declared length was not recomputed from the file");
+
+    // Declared beyond the end of the file — a truncated download or a partial copy. Clamp to
+    // what is actually there rather than reporting bytes that do not exist.
+    Assert(ReadWave(WriteWave(Path.Combine(root, "declared-over.wav"), 4096, 0, 64)).DataLength == 64,
+        "a declared length past the end of the file was not clamped");
+
+    // Declared shorter than the file, with a trailing chunk. The declared length wins: those
+    // bytes are another RIFF chunk, and playing or measuring them as audio is the defect.
+    var trailingPath = WriteWave(Path.Combine(root, "declared-trailing.wav"), 64, 32, 64);
+    var trailingSize = new FileInfo(trailingPath).Length;
+    Assert(ReadWave(trailingPath).DataLength == 64, "a trailing RIFF chunk was measured as audio");
+    // ...and because the declared fields are consistent, crash recovery leaves the file alone
+    // instead of truncating the chunk away.
+    Assert(CanonicalPcmWave.InspectAndRepair(trailingPath, repair: true) is { IsSuccess: true },
+        "a file with a trailing chunk was rejected by crash recovery");
+    Assert(new FileInfo(trailingPath).Length == trailingSize,
+        "crash recovery truncated a trailing RIFF chunk");
+
+    // No trailing chunk: the ordinary file, where declared and recomputed are the same answer.
+    Assert(ReadWave(WriteWave(Path.Combine(root, "declared-exact.wav"), 64, 0, 64)) is
+        { DataLength: 64, DeclaredLengthsAgree: true },
+        "a well-formed file did not read back its own declared length");
+
+    // A declared length that is not a whole number of frames is aligned down like any other.
+    Assert(ReadWave(WriteWave(Path.Combine(root, "declared-odd.wav"), 63, 0, 64)).DataLength == 62,
+        "an odd declared length was not aligned down to a whole sample frame");
+
     // Fields that cannot narrow are a typed rejection, not an OverflowException from a checked cast.
     var hostile = File.ReadAllBytes(empty);
     System.Buffers.Binary.BinaryPrimitives.WriteUInt16LittleEndian(hostile.AsSpan(22), 40000);

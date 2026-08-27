@@ -42,6 +42,45 @@ var tests = new (string Name, Func<Task> Run)[]
         Assert.False(SharedCoreBridge.IsNoSpaceLanguage(null));
         return Task.CompletedTask;
     }),
+    // The auto-language hole. "auto" is the DEFAULT streaming language and what
+    // the hosts send the daemon for a mode with no language, so a policy read
+    // from the language alone would leave #286 unfixed for almost every user.
+    ("the segment separator falls back to the text when no language is declared", () =>
+    {
+        // A declared language decides on its own, whatever the text looks like.
+        Assert.Equal("", SharedCoreBridge.SegmentSeparator("ja", "world"));
+        Assert.Equal("", SharedCoreBridge.SegmentSeparator("ZH-CN", "world"));
+        Assert.Equal(" ", SharedCoreBridge.SegmentSeparator("en", "世界"));
+
+        // With nothing declared, the segment text decides — this is the case the
+        // fix exists for: default settings, Japanese dictation.
+        foreach (var automatic in new string?[] { null, "", "   ", "auto", "AUTO", " Auto " })
+        {
+            Assert.True(SharedCoreBridge.IsAutomaticLanguage(automatic));
+            Assert.Equal("", SharedCoreBridge.SegmentSeparator(automatic, "世界"));
+            Assert.Equal(" ", SharedCoreBridge.SegmentSeparator(automatic, "world"));
+        }
+        Assert.False(SharedCoreBridge.IsAutomaticLanguage("en"));
+        Assert.False(SharedCoreBridge.IsAutomaticLanguage("ja"));
+
+        // An empty or absent next segment is not CJK, so it cannot silently turn
+        // an English session into a no-space one.
+        Assert.Equal(" ", SharedCoreBridge.SegmentSeparator("auto", ""));
+        Assert.Equal(" ", SharedCoreBridge.SegmentSeparator("auto", null));
+
+        // End to end: the three-segment Japanese dictation from issue #286, on
+        // the default "auto" language. Both sinks build from this one value, so
+        // asserting the join asserts the typed text and the saved text at once.
+        var joined = new StringBuilder();
+        foreach (var segment in new[] { "こんにちは", "世界", "です" })
+        {
+            if (joined.Length > 0)
+                joined.Append(SharedCoreBridge.SegmentSeparator("auto", segment));
+            joined.Append(segment);
+        }
+        Assert.Equal("こんにちは世界です", joined.ToString());
+        return Task.CompletedTask;
+    }),
     ("backup validation returns structured failures", () =>
     {
         Assert.True(SharedCoreBridge.ValidateBackup("{}").Count > 0);

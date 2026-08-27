@@ -454,7 +454,37 @@ internal sealed class EngineSession : IDisposable
             return DecodeOffline(audio.Samples, audio.SampleRate);
         }
 
-        return string.Join(_segmentJoin, parts);
+        return JoinSegments(parts);
+    }
+
+    /// <summary>
+    /// Concatenate VAD segments under the shared join policy.
+    /// <para>
+    /// Resolved per boundary rather than from <see cref="_segmentJoin"/>, because
+    /// the language the hosts pass is usually <c>"auto"</c> — that is what
+    /// <c>ParakeetDaemonLiveTranscriber.NormalizeLanguage</c> sends for a mode
+    /// with no language set, and <c>is_no_space_language("auto")</c> is false by
+    /// design. Joining on the language alone therefore wedged spaces into every
+    /// auto-language Japanese dictation, which is exactly the #286 defect.
+    /// <see cref="SharedCoreBridge.SegmentSeparator"/> falls back to detecting
+    /// CJK in the segment text, as <c>append_trailing_space</c> already does.
+    /// </para>
+    /// <para>
+    /// <see cref="_segmentJoin"/> still feeds the rolling-offline live path's
+    /// <c>BoundedWordAgreement</c>, which is the streaming word-agreement engine
+    /// #286 leaves open and is out of scope here.
+    /// </para>
+    /// </summary>
+    private string JoinSegments(List<string> parts)
+    {
+        var joined = new StringBuilder();
+        foreach (var part in parts)
+        {
+            if (joined.Length > 0)
+                joined.Append(SharedCoreBridge.SegmentSeparator(_options.Language, part));
+            joined.Append(part);
+        }
+        return joined.ToString();
     }
 
     private string DecodeOffline(float[] samples, int sampleRate)

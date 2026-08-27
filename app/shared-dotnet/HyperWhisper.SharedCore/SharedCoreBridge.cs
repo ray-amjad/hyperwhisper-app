@@ -130,6 +130,45 @@ public static class SharedCoreBridge
     public static bool IsNoSpaceLanguage(string? language) =>
         HyperwhisperCoreMethods.IsNoSpaceLanguage(language ?? string.Empty);
 
+    /// <summary>
+    /// Whether <paramref name="language"/> declares nothing to decide a join
+    /// policy from — null, blank, or the literal <c>"auto"</c>. Mirrors STEP 3 of
+    /// the Rust <c>append_trailing_space</c>, which treats an empty code and
+    /// <c>"auto"</c> identically.
+    /// </summary>
+    public static bool IsAutomaticLanguage(string? language) =>
+        string.IsNullOrWhiteSpace(language)
+        || string.Equals(language.Trim(), "auto", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// What to put between the transcription segment already delivered and
+    /// <paramref name="nextSegment"/>: <c>""</c> for a language written without
+    /// word spaces, <c>" "</c> otherwise. The one join policy for every caller
+    /// that concatenates segments (issue #286) — resolve it once per boundary and
+    /// build every sink's string from that single value.
+    /// <para>
+    /// <see cref="IsNoSpaceLanguage"/> alone is not enough, because the language
+    /// the hosts actually pass is usually <c>"auto"</c>: it is the default of the
+    /// Linux <c>StreamingLanguage</c> setting, what <c>ModelLibraryViewModel</c>
+    /// resets that setting to whenever the picked model cannot do the chosen
+    /// language, and what <c>ParakeetDaemonLiveTranscriber.NormalizeLanguage</c>
+    /// sends the daemon for a mode with no language. <c>"auto"</c> is not a
+    /// no-space language by design, so deciding from the language alone would
+    /// join a Japanese dictation with spaces and #286's fix would never fire in
+    /// the configuration almost everyone runs.
+    /// </para>
+    /// <para>
+    /// The fallback is the one <c>append_trailing_space</c> already uses: detect
+    /// CJK in the text itself. It is therefore a per-boundary decision, not a
+    /// per-session one — with no declared language nothing is knowable until text
+    /// arrives.
+    /// </para>
+    /// </summary>
+    public static string SegmentSeparator(string? language, string? nextSegment) =>
+        IsAutomaticLanguage(language)
+            ? (ContainsCjk(nextSegment ?? string.Empty) ? string.Empty : " ")
+            : (IsNoSpaceLanguage(language) ? string.Empty : " ");
+
     public static string ApplyAutocapitalize(string text, PortableCursorContext context)
     {
         ArgumentNullException.ThrowIfNull(text);

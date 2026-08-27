@@ -172,9 +172,17 @@ enum TranscriptionDiagnosticsService {
     /// `Mode.model` itself, because that is the id `selectLocalProvider` picks
     /// the engine from — macOS has no separate engine column the way Windows
     /// does, so this is the closest honest analogue rather than a constant.
+    ///
+    /// It is lowercased for the same reason the router lowercases it before
+    /// `selectLocalProvider`: a non-canonically-cased id from a hand-edited or
+    /// cross-platform backup reaches this code, and it selects the same engine
+    /// whatever its casing. Reporting the raw casing would split one condition
+    /// into two Sentry groups — `"Parakeet"` and `"parakeet"` are one engine.
     static func modeIdentity(rawModel: String?, cloudProvider: String?) -> NoSpeechModeIdentity {
-        let trimmed = (rawModel ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        let isCloud = trimmed.isEmpty || trimmed.lowercased() == "cloud"
+        let trimmed = (rawModel ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        let isCloud = trimmed.isEmpty || trimmed == "cloud"
         return NoSpeechModeIdentity(
             providerType: isCloud ? "cloud" : "local",
             cloudProvider: cloudProvider,
