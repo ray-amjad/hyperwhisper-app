@@ -22,6 +22,7 @@ shared-core-rs/
     hw-backup/            backup validate + universal-v2 bidirectional settings/mode mapping
     hw-catalog/           models + cloud-stt + cloud-pp + app-type catalog lookups
     hw-input/             push-to-talk state machine as a pure step function (ptt_step)
+    hw-audio/             no-speech dBFS classifier as pure functions over accumulated stats
   bindings/               generated Swift / C# / Kotlin (committed)
   tests/fixtures/         golden input -> output fixtures captured from current impls
 ```

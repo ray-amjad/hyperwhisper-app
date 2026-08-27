@@ -8,5 +8,20 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../parakeet-engine-dotnet/parakeet-engine-dotnet.csproj" />
+    <!-- The daemon reads its CJK join policy from the shared Rust core (issue
+         #286), so this harness P/Invokes libhyperwhisper_core.so and needs it
+         beside its own assembly. Same shape as
+         app/shared-dotnet/HyperWhisper.Application.Tests. -->
+    <Content Include="../../shared-core-rs/target/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so"
+             Condition="Exists('../../shared-core-rs/target/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so')">
+      <Link>libhyperwhisper_core.so</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
+
+  <Target Name="EnsureSharedCoreNativeLibrary" BeforeTargets="Build"
+          Condition="'$(DesignTimeBuild)' != 'true'">
+    <Error Condition="!Exists('../../shared-core-rs/target/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so')"
+           Text="Build shared-core-rs in release mode for x86_64-unknown-linux-gnu before running the parakeet daemon tests: cargo build --release --target x86_64-unknown-linux-gnu." />
+  </Target>
 </Project>

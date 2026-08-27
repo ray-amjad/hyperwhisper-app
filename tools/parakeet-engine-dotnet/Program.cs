@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Runtime.InteropServices;
+using HyperWhisper.SharedCore;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 using SherpaOnnx;
@@ -172,8 +173,26 @@ internal static class Program
         };
     }
 
-    // Keep in sync with is_no_space_language() in tools/parakeet-engine/main.cpp.
-    public static bool IsNoSpaceLanguage(string code) => code is "ja" or "zh" or "ko" or "yue";
+    /// <summary>
+    /// Whether the daemon joins transcription segments for <paramref name="code"/>
+    /// without spaces.
+    /// <para>
+    /// This used to be a private <c>ja|zh|ko|yue</c> literal. It now reads the
+    /// shared join policy out of <c>hw-text</c> (issue #286), which is the same
+    /// table the Linux live-delivery path and <c>append_trailing_space</c> use.
+    /// The daemon keeps <c>yue</c> — it was added to the shared table for this —
+    /// and gains <c>th</c>, the explicit <c>zh-TW</c> / <c>zh-Hans</c> /
+    /// <c>zh-Hant</c> spellings, case-insensitivity and the two-character prefix
+    /// fallback (<c>"zh-CN"</c>).
+    /// </para>
+    /// <para>
+    /// <c>tools/parakeet-engine/main.cpp</c> (the Windows x64 C++ daemon) still
+    /// carries its own copy of the old four-code table and is deliberately not
+    /// changed here; it is a separate process with no .NET runtime to reach the
+    /// core through.
+    /// </para>
+    /// </summary>
+    public static bool IsNoSpaceLanguage(string code) => SharedCoreBridge.IsNoSpaceLanguage(code);
 
     public static float Rms(float[] samples)
     {
@@ -435,8 +454,38 @@ internal sealed class EngineSession : IDisposable
             return DecodeOffline(audio.Samples, audio.SampleRate);
         }
 
-        return string.Join(_segmentJoin, parts);
+        return JoinSegments(parts);
     }
+
+    /// <summary>
+    /// Concatenate VAD segments under the shared join policy.
+    /// <para>
+    /// Resolved per boundary rather than from <see cref="_segmentJoin"/>, because
+    /// the language the hosts pass is usually <c>"auto"</c> — that is what
+    /// <c>ParakeetDaemonLiveTranscriber.NormalizeLanguage</c> sends for a mode
+    /// with no language set, and <c>is_no_space_language("auto")</c> is false by
+    /// design. Joining on the language alone therefore wedged spaces into every
+    /// auto-language Japanese dictation, which is exactly the #286 defect.
+    /// <see cref="SharedCoreBridge.SegmentSeparator"/> falls back to detecting a
+    /// continuous script in the text on either side of the boundary, as
+    /// <c>append_trailing_space</c> already does for the text it is given.
+    /// </para>
+    /// <para>
+    /// The loop itself is <see cref="SharedCoreBridge.JoinSegments"/>, so the
+    /// daemon and every host build the same string from the same code rather than
+    /// from two copies of the same loop.
+    /// </para>
+    /// <para>
+    /// <see cref="_segmentJoin"/> still feeds the rolling-offline live path's
+    /// <c>BoundedWordAgreement</c>, which is the streaming word-agreement engine
+    /// #286 leaves open and is out of scope here.
+    /// </para>
+    /// </summary>
+    private string JoinSegments(List<string> parts) => JoinSegments(_options.Language, parts);
+
+    /// <summary>Test seam for <see cref="JoinSegments(List{string})"/>.</summary>
+    internal static string JoinSegments(string? language, IEnumerable<string> parts)
+        => SharedCoreBridge.JoinSegments(language, parts);
 
     private string DecodeOffline(float[] samples, int sampleRate)
     {

@@ -318,7 +318,11 @@ extension RecordingTranscriptionFlow {
     /// object ID. For the retry reference we resolve the now-failed transcript on
     /// the view context AFTER awaiting the writer (auto-merge has applied the
     /// failed status by then).
-    func handleTranscriptionError(_ error: Error, processingTranscriptID: NSManagedObjectID?, mode: String, duration: TimeInterval, audioURL: URL) {
+    /// - Parameter modeIdentity: the provider axis the no-speech diagnostic
+    ///   groups on, snapshotted off the Core Data `Mode` by the caller (which is
+    ///   where the resolved mode is in scope). Value-typed and `Sendable` so it
+    ///   can cross onto the detached capture task.
+    func handleTranscriptionError(_ error: Error, processingTranscriptID: NSManagedObjectID?, mode: String, modeIdentity: NoSpeechModeIdentity?, duration: TimeInterval, audioURL: URL) {
         // HYPERWHISPER-EX: `TranscriptionPipeline` deliberately excludes
         // `.noSpeechDetected` from Sentry capture as "user-recoverable", which
         // also hid every case where the audio DID contain speech and a provider
@@ -340,9 +344,22 @@ extension RecordingTranscriptionFlow {
                     audioURL: audioURL,
                     fallbackDurationSeconds: duration,
                     mode: mode,
+                    modeIdentity: modeIdentity,
                     diagnosticStage: "live_recording",
                     diagnosticSource: "provider_no_speech",
                     error: te,
+                    // Reaching here means the provider itself reported no-speech:
+                    // `.noSpeechDetected` is what `RustRetry` maps the provider's
+                    // `.NoSpeech` to, and what `LibWhisperProvider` throws for an
+                    // empty local transcript. The literal used to sit inside the
+                    // classifier; it belongs here, at the site that knows.
+                    //
+                    // `emptyTranscriptWithoutFlag` is left at its default: the
+                    // error case carries no associated value, so macOS cannot
+                    // distinguish the two producers and arm 3 of the shared
+                    // classifier is unreachable here. See the parameter's doc
+                    // comment on `captureNoSpeechDiagnostic`.
+                    backendNoSpeechDetected: true,
                     inputDeviceName: deviceName,
                     micBoostFailed: micBoostFailed
                 )

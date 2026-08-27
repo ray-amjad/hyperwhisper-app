@@ -20,6 +20,92 @@ var tests = new (string Name, Func<Task> Run)[]
         Assert.Equal("hello ", SharedCoreBridge.AppendTrailingSpace("hello", "en"));
         return Task.CompletedTask;
     }),
+    // The CJK segment-join policy (issue #286). The parakeet daemon and the
+    // Linux live-delivery path both pick their separator from this instead of
+    // keeping a private ja|zh|ko|yue table.
+    ("the no-space join policy stays in the shared core", () =>
+    {
+        foreach (var code in new[] { "ja", "zh", "ko", "yue", "th", "zh-Hant" })
+        {
+            Assert.True(SharedCoreBridge.IsNoSpaceLanguage(code));
+        }
+        // Case-insensitive, whitespace-tolerant, two-character prefix fallback.
+        Assert.True(SharedCoreBridge.IsNoSpaceLanguage("JA"));
+        Assert.True(SharedCoreBridge.IsNoSpaceLanguage("zh-CN"));
+        Assert.True(SharedCoreBridge.IsNoSpaceLanguage("  ja  "));
+        // "No language declared" is not a no-space language — text-based
+        // detection is ContainsCjk's job, not this one's.
+        foreach (var code in new[] { "en", "de", "en-US", "auto", "" })
+        {
+            Assert.False(SharedCoreBridge.IsNoSpaceLanguage(code));
+        }
+        Assert.False(SharedCoreBridge.IsNoSpaceLanguage(null));
+        return Task.CompletedTask;
+    }),
+    // The auto-language hole. "auto" is the DEFAULT streaming language and what
+    // the hosts send the daemon for a mode with no language, so a policy read
+    // from the language alone would leave #286 unfixed for almost every user.
+    ("the segment separator falls back to the text when no language is declared", () =>
+    {
+        // A declared language decides on its own, whatever the text looks like.
+        Assert.Equal("", SharedCoreBridge.SegmentSeparator("ja", "hello", "world"));
+        Assert.Equal("", SharedCoreBridge.SegmentSeparator("ZH-CN", "hello", "world"));
+        Assert.Equal(" ", SharedCoreBridge.SegmentSeparator("en", "こんにちは", "世界"));
+
+        // With nothing declared, the text decides — this is the case the fix
+        // exists for: default settings, Japanese dictation.
+        foreach (var automatic in new string?[] { null, "", "   ", "auto", "AUTO", " Auto " })
+        {
+            Assert.True(SharedCoreBridge.IsAutomaticLanguage(automatic));
+            Assert.Equal("", SharedCoreBridge.SegmentSeparator(automatic, "こんにちは", "世界"));
+            Assert.Equal(" ", SharedCoreBridge.SegmentSeparator(automatic, "hello", "world"));
+        }
+        Assert.False(SharedCoreBridge.IsAutomaticLanguage("en"));
+        Assert.False(SharedCoreBridge.IsAutomaticLanguage("ja"));
+
+        // EITHER side of the boundary being continuous-script joins without a
+        // space. The accumulated text is the primary signal, because a single
+        // segment often carries no script evidence at all: these four all used to
+        // wedge a space into the middle of a Japanese dictation.
+        Assert.Equal("", SharedCoreBridge.SegmentSeparator("auto", "こんにちは", ""));
+        Assert.Equal("", SharedCoreBridge.SegmentSeparator("auto", "こんにちは", null));
+        Assert.Equal("", SharedCoreBridge.SegmentSeparator("auto", "日本語", "。"));
+        Assert.Equal("", SharedCoreBridge.SegmentSeparator("auto", "これは", "2024年"));
+        Assert.Equal("", SharedCoreBridge.SegmentSeparator("auto", "これは", "OK"));
+        Assert.Equal("", SharedCoreBridge.SegmentSeparator("auto", "これはOK", "です"));
+        // The first boundary of a stream has no accumulated text, so the incoming
+        // segment still has to be able to decide it.
+        Assert.Equal("", SharedCoreBridge.SegmentSeparator("auto", "", "世界"));
+        Assert.Equal("", SharedCoreBridge.SegmentSeparator("auto", null, "世界"));
+        // Nothing on either side is not evidence of a no-space language.
+        Assert.Equal(" ", SharedCoreBridge.SegmentSeparator("auto", "", ""));
+        Assert.Equal(" ", SharedCoreBridge.SegmentSeparator("auto", null, null));
+
+        // Thai is a no-space LANGUAGE but is not CJK, so the auto fallback has to
+        // detect it too or `th` and `auto` disagree on the same audio.
+        Assert.True(SharedCoreBridge.IsNoSpaceLanguage("th"));
+        Assert.True(SharedCoreBridge.IsContinuousScript("สวัสดี"));
+        Assert.False(SharedCoreBridge.ContainsCjk("สวัสดี"));
+        Assert.Equal("", SharedCoreBridge.SegmentSeparator("th", "สวัสดี", "ครับ"));
+        Assert.Equal("", SharedCoreBridge.SegmentSeparator("auto", "สวัสดี", "ครับ"));
+
+        // End to end, through the production join: the three-segment Japanese
+        // dictation from issue #286 on the default "auto" language. Both sinks
+        // build from these separators, so asserting the join asserts the typed
+        // text and the saved text at once.
+        Assert.Equal("こんにちは世界です", SharedCoreBridge.JoinSegments("auto", ["こんにちは", "世界", "です"]));
+        Assert.Equal("hello there world", SharedCoreBridge.JoinSegments("auto", ["hello", "there", "world"]));
+        // A segment that decoded to nothing is skipped, not separated.
+        Assert.Equal("こんにちは世界", SharedCoreBridge.JoinSegments("auto", ["こんにちは", "", "世界"]));
+        Assert.Equal("hello world", SharedCoreBridge.JoinSegments("auto", ["hello", "   ", "world"]));
+        Assert.Equal("สวัสดีครับ", SharedCoreBridge.JoinSegments("auto", ["สวัสดี", "ครับ"]));
+        // Where the boundaries fell must not change the result — that is what
+        // keeps the daemon and the host in agreement when their VAD differs.
+        Assert.Equal("これはtestです", SharedCoreBridge.JoinSegments("auto", ["これはtestです"]));
+        Assert.Equal("これはtestです", SharedCoreBridge.JoinSegments("auto", ["これは", "test", "です"]));
+        Assert.Equal("これはtestです", SharedCoreBridge.JoinSegments("auto", ["これ", "はtest", "です"]));
+        return Task.CompletedTask;
+    }),
     ("backup validation returns structured failures", () =>
     {
         Assert.True(SharedCoreBridge.ValidateBackup("{}").Count > 0);
@@ -238,6 +324,183 @@ var tests = new (string Name, Func<Task> Run)[]
     ("a failure that lands after our own close cannot destroy the transcript", TestLivePostCloseFailureCannotDestroyTranscriptAsync),
     ("a cancel inside the post-close drain abandons the session", TestLiveCancelDuringDrainAsync),
     ("the live protocol owns a Rust handle and is disposed", TestRustLiveDisposalAsync),
+    // The no-speech diagnostic (issue #291). Windows and macOS both delegate
+    // measurement, classification and Sentry grouping here, and neither head's
+    // test suite runs on Linux — this is the only gate that executes the shared
+    // classifier itself rather than compiling against it.
+    ("the no-speech thresholds and dBFS maths stay in the shared core", () =>
+    {
+        Assert.Equal(0.01f, PortableNoSpeechDiagnostics.SilenceThreshold);
+        Assert.Equal(-120.0, PortableNoSpeechDiagnostics.MinimumDbfs);
+        Assert.Equal(-50.0, PortableNoSpeechDiagnostics.ConfirmedSilencePeakDbfs);
+        Assert.Equal(-38.0, PortableNoSpeechDiagnostics.LowSignalRmsDbfs);
+        Assert.Equal(0.06, PortableNoSpeechDiagnostics.LowSignalNonSilentRatio);
+
+        // Digital silence and a negative amplitude report the floor, never
+        // -infinity or NaN, which would poison the Sentry tag.
+        Assert.Equal(-120.0, PortableNoSpeechDiagnostics.ToDbfs(0));
+        Assert.Equal(-120.0, PortableNoSpeechDiagnostics.ToDbfs(-1));
+        Assert.Equal(0.0, PortableNoSpeechDiagnostics.ToDbfs(1.0));
+
+        // Floors, does NOT truncate: a negative buckets downward. Truncation
+        // would put -38.2 in "-35dbfs" and shift every bucket in the facet.
+        Assert.Equal("-40dbfs", PortableNoSpeechDiagnostics.BucketDbfs(-38.2));
+        Assert.Equal("silent", PortableNoSpeechDiagnostics.BucketDbfs(-120.0));
+        return Task.CompletedTask;
+    }),
+    ("summarizing an empty accumulation floors instead of dividing by zero", () =>
+    {
+        var empty = PortableNoSpeechDiagnostics.Summarize(new PortableSignalAccumulation(0, 0, 0, 0));
+        Assert.Equal(-120.0, empty.PeakDbfs);
+        Assert.Equal(-120.0, empty.RmsDbfs);
+        Assert.Equal(0.0, empty.NonSilentRatio);
+
+        var fullScale = PortableNoSpeechDiagnostics.Summarize(new PortableSignalAccumulation(4, 4, 4.0, 1.0));
+        Assert.Equal(0.0, fullScale.PeakDbfs);
+        Assert.Equal(0.0, fullScale.RmsDbfs);
+        Assert.Equal(1.0, fullScale.NonSilentRatio);
+        return Task.CompletedTask;
+    }),
+    ("the five no-speech arms are evaluated in the Windows order", () =>
+    {
+        static PortableNoSpeechOutcome Classify(
+            bool analysisSucceeded,
+            long? decodedSampleCount,
+            bool emptyTranscriptWithoutFlag,
+            bool backendNoSpeechDetected,
+            double peakDbfs,
+            double rmsDbfs,
+            double nonSilentRatio)
+            => PortableNoSpeechDiagnostics.Classify(new PortableNoSpeechInput(
+                analysisSucceeded,
+                decodedSampleCount,
+                emptyTranscriptWithoutFlag,
+                backendNoSpeechDetected,
+                peakDbfs,
+                rmsDbfs,
+                nonSilentRatio));
+
+        // 1. A failed analysis must stay ahead of everything: a zero sample
+        //    count means nothing when no decode loop ran.
+        Assert.Equal(
+            PortableNoSpeechOutcome.NoSpeech,
+            Classify(false, 0, false, true, -120, -120, 0));
+
+        // 2. A zero-sample recording is a recorder failure with its own
+        //    identity, even when the provider ALSO returned an empty transcript
+        //    without its flag.
+        Assert.Equal(
+            PortableNoSpeechOutcome.EmptyRecording,
+            Classify(true, 0, true, false, -120, -120, 0));
+
+        // An unknown count (no read loop) is deliberately NOT empty.
+        Assert.Equal(
+            PortableNoSpeechOutcome.Skip,
+            Classify(true, null, false, true, -120, -120, 0));
+
+        // 3. An empty transcript with no flag is a provider anomaly whatever
+        //    the signal looks like - it beats both skip arms below.
+        Assert.Equal(
+            PortableNoSpeechOutcome.NoSpeech,
+            Classify(true, 48000, true, true, -95, -100, 0));
+
+        // 4. Confirmed dead silence, which does not consult the backend flag.
+        Assert.Equal(
+            PortableNoSpeechOutcome.Skip,
+            Classify(true, 48000, false, false, -80, -90, 0));
+        Assert.Equal(
+            PortableNoSpeechOutcome.NoSpeech,
+            Classify(true, 48000, false, false, -40, -90, 0));
+
+        // 5. The real HYPERWHISPER-PA/-QB/-VY sample the thresholds were tuned
+        //    against, and the inclusive boundary.
+        Assert.Equal(
+            PortableNoSpeechOutcome.Skip,
+            Classify(true, 48000, false, true, -30, -39.64, 0.046));
+        Assert.Equal(
+            PortableNoSpeechOutcome.Skip,
+            Classify(true, 48000, false, true, -30, -38.0, 0.06));
+
+        // BOTH low-signal conditions must hold - an OR would let one quiet
+        // reading suppress a genuine backend-disagreement anomaly.
+        Assert.Equal(
+            PortableNoSpeechOutcome.NoSpeech,
+            Classify(true, 48000, false, true, -30, -39.64, 0.5));
+        Assert.Equal(
+            PortableNoSpeechOutcome.NoSpeech,
+            Classify(true, 48000, false, true, -30, -10.0, 0.046));
+
+        // The cohort the diagnostic exists to catch: healthy speech energy and
+        // no transcript.
+        Assert.Equal(
+            PortableNoSpeechOutcome.NoSpeech,
+            Classify(true, 48000, false, true, -18.47, -22.0, 0.35));
+
+        // A negative count cannot come from a decode loop; it takes the
+        // "unknown" answer rather than wrapping into an enormous one.
+        Assert.Equal(
+            PortableNoSpeechOutcome.Skip,
+            Classify(true, -5, false, true, -120, -120, 0));
+        return Task.CompletedTask;
+    }),
+    ("the no-speech fingerprint keeps Windows' element order and each head's root", () =>
+    {
+        static string Fingerprint(string root, PortableModeIdentity? mode) => string.Join(
+            "|",
+            PortableNoSpeechDiagnostics.BuildFingerprint(root, "live_recording", "provider_no_speech", mode));
+
+        // Byte-identical to what Windows emitted before #291 - its live Sentry
+        // groups have to survive the move into the core.
+        Assert.Equal(
+            "transcription-no-speech|live_recording|provider_no_speech|local|whisper",
+            Fingerprint("transcription-no-speech", new PortableModeIdentity("local", "groq", "whisper")));
+        Assert.Equal(
+            "transcription-no-speech|live_recording|provider_no_speech|cloud|groq",
+            Fingerprint("transcription-no-speech", new PortableModeIdentity("cloud", "groq", "whisper")));
+
+        // The root is the caller's and is NOT unified: sharing it would merge
+        // macOS events into Windows' live issues.
+        Assert.Equal(
+            "macos-transcription-no-speech|live_recording|provider_no_speech|local|parakeet",
+            Fingerprint("macos-transcription-no-speech", new PortableModeIdentity("local", "groq", "parakeet")));
+
+        // The production regression: two local modes with different leftover
+        // cloud vendors are ONE condition and must be one group.
+        Assert.Equal(
+            Fingerprint("transcription-no-speech", new PortableModeIdentity("local", "groq", "parakeet")),
+            Fingerprint("transcription-no-speech", new PortableModeIdentity("local", "gemini", "parakeet")));
+
+        // ...and a null or non-canonical provider type routes local just like
+        // the dispatch sites do, so it must not re-split the same cohort.
+        Assert.Equal(
+            Fingerprint("transcription-no-speech", new PortableModeIdentity(null, "groq", "whisper")),
+            Fingerprint("transcription-no-speech", new PortableModeIdentity("", "gemini", "whisper")));
+
+        // "No mode at all" is a different fact from "a mode with nothing
+        // written on it" - the nullable argument is what keeps them apart.
+        var absent = Fingerprint("transcription-no-speech", null);
+        var blank = Fingerprint("transcription-no-speech", new PortableModeIdentity(null, null, null));
+        Assert.True(absent.EndsWith("|unknown|none", StringComparison.Ordinal), absent);
+        Assert.True(blank.EndsWith("|local|none", StringComparison.Ordinal), blank);
+        Assert.Equal(5, PortableNoSpeechDiagnostics.BuildFingerprint("r", "s", "d", null).Length);
+        return Task.CompletedTask;
+    }),
+    ("the no-speech tags mask a local mode's stale cloud vendor", () =>
+    {
+        var staleLocal = new PortableModeIdentity("local", "groq", "whisper");
+        Assert.Equal("none", PortableNoSpeechDiagnostics.CloudProviderTag(staleLocal));
+        Assert.Equal("whisper", PortableNoSpeechDiagnostics.LocalEngineTag(staleLocal));
+
+        Assert.Equal("groq", PortableNoSpeechDiagnostics.CloudProviderTag(
+            new PortableModeIdentity("cloud", "groq", "whisper")));
+
+        Assert.Equal("none", PortableNoSpeechDiagnostics.CloudProviderTag(null));
+        Assert.Equal("none", PortableNoSpeechDiagnostics.LocalEngineTag(null));
+        // Blank is not an engine.
+        Assert.Equal("none", PortableNoSpeechDiagnostics.LocalEngineTag(
+            new PortableModeIdentity("local", null, "  ")));
+        return Task.CompletedTask;
+    }),
 };
 
 var failures = 0;

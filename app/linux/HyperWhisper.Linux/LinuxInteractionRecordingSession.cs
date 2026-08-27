@@ -34,7 +34,15 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
     private Task _liveDeliveryTail = Task.CompletedTask;
     private CancellationTokenSource? _liveDeliveryCancellation;
     private readonly StringBuilder _liveFinalText = new();
-    private int _liveFinalSegments;
+
+    /// <summary>
+    /// The streaming language in force for this delivery, snapshotted when it
+    /// begins so a mid-stream settings change cannot make the injected text and
+    /// the saved history text disagree (issue #286). The separator itself is
+    /// resolved per segment by <see cref="SharedCoreBridge.SegmentSeparator"/>,
+    /// because the default value of this setting is <c>"auto"</c> — see there.
+    /// </summary>
+    private string? _liveStreamingLanguage;
     private PortableCursorContext _cursorContext = PortableCursorContext.Unknown;
 
     public LinuxInteractionRecordingSession(
@@ -380,14 +388,32 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
             _viewModel.Status.Success("Live transcription receiving speech…");
             return;
         }
+        // An empty or whitespace-only final carries no words — several streaming
+        // providers emit them — and delivering one would type a bare separator
+        // into the app and append the same to history. Both sinks skip it
+        // together, so the one-value invariant still holds.
+        if (string.IsNullOrWhiteSpace(update.Text)) return;
         CancellationToken token;
         string injectionText;
         lock (_liveDeliveryGate)
         {
             if (!_streaming || _liveDeliveryCancellation is null) return;
-            if (_liveFinalText.Length > 0) _liveFinalText.Append(' ');
-            _liveFinalText.Append(update.Text);
-            injectionText = (_liveFinalSegments++ == 0 ? string.Empty : " ") + update.Text;
+            // ONE separator value per segment, used by both sinks. These used to
+            // disagree twice over: history joined with a hardcoded space in every
+            // language, and it tested `_liveFinalText.Length > 0` while the
+            // injection tested a segment counter — so an empty first final
+            // segment left history empty but advanced the counter, and the second
+            // segment was typed with a separator that was never saved.
+            // Both sides of the boundary decide it: the text delivered so far is
+            // the primary signal (an empty, punctuation-only or digit-heavy final
+            // carries no script evidence of its own), the incoming segment the
+            // secondary one — see SegmentSeparator.
+            var separator = _liveFinalText.Length == 0
+                ? string.Empty
+                : SharedCoreBridge.SegmentSeparator(
+                    _liveStreamingLanguage, _liveFinalText.ToString(), update.Text);
+            injectionText = separator + update.Text;
+            _liveFinalText.Append(injectionText);
             token = _liveDeliveryCancellation.Token;
             if (!_viewModel.Settings.PasteResultText) return;
             _liveDeliveryTail = DeliverLiveFinalAsync(_liveDeliveryTail, injectionText, token);
@@ -415,7 +441,7 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
             _liveDeliveryCancellation = new CancellationTokenSource();
             _liveDeliveryTail = Task.CompletedTask;
             _liveFinalText.Clear();
-            _liveFinalSegments = 0;
+            _liveStreamingLanguage = _viewModel.Settings.StreamingLanguage;
         }
     }
 

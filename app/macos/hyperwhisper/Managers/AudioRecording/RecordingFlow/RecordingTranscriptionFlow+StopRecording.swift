@@ -677,7 +677,17 @@ extension RecordingTranscriptionFlow {
                 "stage_transcribe_ms": transcribeMs,
                 "stage_flow_ms": flowElapsedMs
             ])
-            handleTranscriptionError(error, processingTranscriptID: processingTranscriptID, mode: actualMode, duration: recordingDuration, audioURL: audioURL)
+            handleTranscriptionError(
+                error,
+                processingTranscriptID: processingTranscriptID,
+                mode: actualMode,
+                // Snapshot the resolved Mode here, on the main actor, while it is
+                // still in scope — the no-speech diagnostic groups on it and runs
+                // on a detached task, where a managed object must not follow.
+                modeIdentity: TranscriptionDiagnosticsService.modeIdentity(for: transcriptionMode),
+                duration: recordingDuration,
+                audioURL: audioURL
+            )
         }
     }
 

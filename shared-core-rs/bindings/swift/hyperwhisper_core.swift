@@ -463,6 +463,22 @@ fileprivate struct FfiConverterInt64: FfiConverterPrimitive {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterFloat: FfiConverterPrimitive {
+    typealias FfiType = Float
+    typealias SwiftType = Float
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Float {
+        return try lift(readFloat(&buf))
+    }
+
+    public static func write(_ value: Float, into buf: inout [UInt8]) {
+        writeFloat(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterDouble: FfiConverterPrimitive {
     typealias FfiType = Double
     typealias SwiftType = Double
@@ -1786,6 +1802,92 @@ public func FfiConverterTypeHttpResponse_lower(_ value: HttpResponse) -> RustBuf
 
 
 /**
+ * The measurements a diagnostic reports and classifies on. Mirrors
+ * `no_speech::AudioSignalSummary`.
+ */
+public struct HwAudioSignalSummary {
+    public var peakDbfs: Double
+    public var rmsDbfs: Double
+    /**
+     * Fraction of samples that reached the silence threshold, rounded to four
+     * decimal places.
+     */
+    public var nonSilentRatio: Double
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(peakDbfs: Double, rmsDbfs: Double, 
+        /**
+         * Fraction of samples that reached the silence threshold, rounded to four
+         * decimal places.
+         */nonSilentRatio: Double) {
+        self.peakDbfs = peakDbfs
+        self.rmsDbfs = rmsDbfs
+        self.nonSilentRatio = nonSilentRatio
+    }
+}
+
+
+
+extension HwAudioSignalSummary: Equatable, Hashable {
+    public static func ==(lhs: HwAudioSignalSummary, rhs: HwAudioSignalSummary) -> Bool {
+        if lhs.peakDbfs != rhs.peakDbfs {
+            return false
+        }
+        if lhs.rmsDbfs != rhs.rmsDbfs {
+            return false
+        }
+        if lhs.nonSilentRatio != rhs.nonSilentRatio {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(peakDbfs)
+        hasher.combine(rmsDbfs)
+        hasher.combine(nonSilentRatio)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwAudioSignalSummary: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwAudioSignalSummary {
+        return
+            try HwAudioSignalSummary(
+                peakDbfs: FfiConverterDouble.read(from: &buf), 
+                rmsDbfs: FfiConverterDouble.read(from: &buf), 
+                nonSilentRatio: FfiConverterDouble.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwAudioSignalSummary, into buf: inout [UInt8]) {
+        FfiConverterDouble.write(value.peakDbfs, into: &buf)
+        FfiConverterDouble.write(value.rmsDbfs, into: &buf)
+        FfiConverterDouble.write(value.nonSilentRatio, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwAudioSignalSummary_lift(_ buf: RustBuffer) throws -> HwAudioSignalSummary {
+    return try FfiConverterTypeHwAudioSignalSummary.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwAudioSignalSummary_lower(_ value: HwAudioSignalSummary) -> RustBuffer {
+    return FfiConverterTypeHwAudioSignalSummary.lower(value)
+}
+
+
+/**
  * The verdict on one custom endpoint. Mirrors `l::EndpointVerdict`.
  *
  * `url` is the single check a runtime caller needs: **empty means do not call
@@ -2452,6 +2554,229 @@ public func FfiConverterTypeHwLlmParams_lower(_ value: HwLlmParams) -> RustBuffe
 
 
 /**
+ * The three persisted mode fields the diagnostic groups and facets on. Mirrors
+ * `no_speech::ModeIdentity`.
+ *
+ * Passed as a whole, and as an `Option`, so that "no mode at all" stays
+ * distinguishable from "a mode whose `provider_type` was never written" — the
+ * two produce different fingerprints. Do not flatten it into three loose
+ * arguments.
+ */
+public struct HwModeIdentity {
+    public var providerType: String?
+    public var cloudProvider: String?
+    public var localEngine: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(providerType: String?, cloudProvider: String?, localEngine: String?) {
+        self.providerType = providerType
+        self.cloudProvider = cloudProvider
+        self.localEngine = localEngine
+    }
+}
+
+
+
+extension HwModeIdentity: Equatable, Hashable {
+    public static func ==(lhs: HwModeIdentity, rhs: HwModeIdentity) -> Bool {
+        if lhs.providerType != rhs.providerType {
+            return false
+        }
+        if lhs.cloudProvider != rhs.cloudProvider {
+            return false
+        }
+        if lhs.localEngine != rhs.localEngine {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(providerType)
+        hasher.combine(cloudProvider)
+        hasher.combine(localEngine)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwModeIdentity: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwModeIdentity {
+        return
+            try HwModeIdentity(
+                providerType: FfiConverterOptionString.read(from: &buf), 
+                cloudProvider: FfiConverterOptionString.read(from: &buf), 
+                localEngine: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwModeIdentity, into buf: inout [UInt8]) {
+        FfiConverterOptionString.write(value.providerType, into: &buf)
+        FfiConverterOptionString.write(value.cloudProvider, into: &buf)
+        FfiConverterOptionString.write(value.localEngine, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwModeIdentity_lift(_ buf: RustBuffer) throws -> HwModeIdentity {
+    return try FfiConverterTypeHwModeIdentity.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwModeIdentity_lower(_ value: HwModeIdentity) -> RustBuffer {
+    return FfiConverterTypeHwModeIdentity.lower(value)
+}
+
+
+/**
+ * Everything [`no_speech_classify`] decides on. Mirrors
+ * `no_speech::NoSpeechInput`.
+ */
+public struct HwNoSpeechInput {
+    /**
+     * `false` when the file could not be read or decoded at all.
+     */
+    public var analysisSucceeded: Bool
+    /**
+     * Samples the decoder produced, or `null` when no decode loop ran. `0`
+     * means the recorder captured nothing; `null` means unknown, and is
+     * deliberately NOT treated as empty.
+     */
+    public var decodedSampleCount: UInt64?
+    /**
+     * The provider returned an empty transcript without setting its no-speech
+     * flag — an anomaly, always reported.
+     */
+    public var emptyTranscriptWithoutFlag: Bool
+    /**
+     * The provider explicitly reported no speech.
+     */
+    public var backendNoSpeechDetected: Bool
+    public var peakDbfs: Double
+    public var rmsDbfs: Double
+    public var nonSilentRatio: Double
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * `false` when the file could not be read or decoded at all.
+         */analysisSucceeded: Bool, 
+        /**
+         * Samples the decoder produced, or `null` when no decode loop ran. `0`
+         * means the recorder captured nothing; `null` means unknown, and is
+         * deliberately NOT treated as empty.
+         */decodedSampleCount: UInt64?, 
+        /**
+         * The provider returned an empty transcript without setting its no-speech
+         * flag — an anomaly, always reported.
+         */emptyTranscriptWithoutFlag: Bool, 
+        /**
+         * The provider explicitly reported no speech.
+         */backendNoSpeechDetected: Bool, peakDbfs: Double, rmsDbfs: Double, nonSilentRatio: Double) {
+        self.analysisSucceeded = analysisSucceeded
+        self.decodedSampleCount = decodedSampleCount
+        self.emptyTranscriptWithoutFlag = emptyTranscriptWithoutFlag
+        self.backendNoSpeechDetected = backendNoSpeechDetected
+        self.peakDbfs = peakDbfs
+        self.rmsDbfs = rmsDbfs
+        self.nonSilentRatio = nonSilentRatio
+    }
+}
+
+
+
+extension HwNoSpeechInput: Equatable, Hashable {
+    public static func ==(lhs: HwNoSpeechInput, rhs: HwNoSpeechInput) -> Bool {
+        if lhs.analysisSucceeded != rhs.analysisSucceeded {
+            return false
+        }
+        if lhs.decodedSampleCount != rhs.decodedSampleCount {
+            return false
+        }
+        if lhs.emptyTranscriptWithoutFlag != rhs.emptyTranscriptWithoutFlag {
+            return false
+        }
+        if lhs.backendNoSpeechDetected != rhs.backendNoSpeechDetected {
+            return false
+        }
+        if lhs.peakDbfs != rhs.peakDbfs {
+            return false
+        }
+        if lhs.rmsDbfs != rhs.rmsDbfs {
+            return false
+        }
+        if lhs.nonSilentRatio != rhs.nonSilentRatio {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(analysisSucceeded)
+        hasher.combine(decodedSampleCount)
+        hasher.combine(emptyTranscriptWithoutFlag)
+        hasher.combine(backendNoSpeechDetected)
+        hasher.combine(peakDbfs)
+        hasher.combine(rmsDbfs)
+        hasher.combine(nonSilentRatio)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwNoSpeechInput: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwNoSpeechInput {
+        return
+            try HwNoSpeechInput(
+                analysisSucceeded: FfiConverterBool.read(from: &buf), 
+                decodedSampleCount: FfiConverterOptionUInt64.read(from: &buf), 
+                emptyTranscriptWithoutFlag: FfiConverterBool.read(from: &buf), 
+                backendNoSpeechDetected: FfiConverterBool.read(from: &buf), 
+                peakDbfs: FfiConverterDouble.read(from: &buf), 
+                rmsDbfs: FfiConverterDouble.read(from: &buf), 
+                nonSilentRatio: FfiConverterDouble.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwNoSpeechInput, into buf: inout [UInt8]) {
+        FfiConverterBool.write(value.analysisSucceeded, into: &buf)
+        FfiConverterOptionUInt64.write(value.decodedSampleCount, into: &buf)
+        FfiConverterBool.write(value.emptyTranscriptWithoutFlag, into: &buf)
+        FfiConverterBool.write(value.backendNoSpeechDetected, into: &buf)
+        FfiConverterDouble.write(value.peakDbfs, into: &buf)
+        FfiConverterDouble.write(value.rmsDbfs, into: &buf)
+        FfiConverterDouble.write(value.nonSilentRatio, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwNoSpeechInput_lift(_ buf: RustBuffer) throws -> HwNoSpeechInput {
+    return try FfiConverterTypeHwNoSpeechInput.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwNoSpeechInput_lower(_ value: HwNoSpeechInput) -> RustBuffer {
+    return FfiConverterTypeHwNoSpeechInput.lower(value)
+}
+
+
+/**
  * Result of a provider health probe. Mirrors `hw_net::ProviderHealth`.
  */
 public struct HwProviderHealth {
@@ -3072,6 +3397,118 @@ public func FfiConverterTypeHwPttTransition_lift(_ buf: RustBuffer) throws -> Hw
 #endif
 public func FfiConverterTypeHwPttTransition_lower(_ value: HwPttTransition) -> RustBuffer {
     return FfiConverterTypeHwPttTransition.lower(value)
+}
+
+
+/**
+ * What the head's decode loop counted. Mirrors `no_speech::SignalAccumulation`.
+ *
+ * `sum_squares` and `peak` are over the absolute amplitude, so both are
+ * non-negative for any real input.
+ */
+public struct HwSignalAccumulation {
+    /**
+     * Samples the decoder actually produced.
+     */
+    public var sampleCount: UInt64
+    /**
+     * Samples whose absolute amplitude reached [`audio_silence_threshold`].
+     */
+    public var nonSilentCount: UInt64
+    /**
+     * Sum of `amplitude * amplitude` over every sample.
+     */
+    public var sumSquares: Double
+    /**
+     * Largest absolute amplitude seen.
+     */
+    public var peak: Double
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Samples the decoder actually produced.
+         */sampleCount: UInt64, 
+        /**
+         * Samples whose absolute amplitude reached [`audio_silence_threshold`].
+         */nonSilentCount: UInt64, 
+        /**
+         * Sum of `amplitude * amplitude` over every sample.
+         */sumSquares: Double, 
+        /**
+         * Largest absolute amplitude seen.
+         */peak: Double) {
+        self.sampleCount = sampleCount
+        self.nonSilentCount = nonSilentCount
+        self.sumSquares = sumSquares
+        self.peak = peak
+    }
+}
+
+
+
+extension HwSignalAccumulation: Equatable, Hashable {
+    public static func ==(lhs: HwSignalAccumulation, rhs: HwSignalAccumulation) -> Bool {
+        if lhs.sampleCount != rhs.sampleCount {
+            return false
+        }
+        if lhs.nonSilentCount != rhs.nonSilentCount {
+            return false
+        }
+        if lhs.sumSquares != rhs.sumSquares {
+            return false
+        }
+        if lhs.peak != rhs.peak {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(sampleCount)
+        hasher.combine(nonSilentCount)
+        hasher.combine(sumSquares)
+        hasher.combine(peak)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwSignalAccumulation: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwSignalAccumulation {
+        return
+            try HwSignalAccumulation(
+                sampleCount: FfiConverterUInt64.read(from: &buf), 
+                nonSilentCount: FfiConverterUInt64.read(from: &buf), 
+                sumSquares: FfiConverterDouble.read(from: &buf), 
+                peak: FfiConverterDouble.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwSignalAccumulation, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.sampleCount, into: &buf)
+        FfiConverterUInt64.write(value.nonSilentCount, into: &buf)
+        FfiConverterDouble.write(value.sumSquares, into: &buf)
+        FfiConverterDouble.write(value.peak, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwSignalAccumulation_lift(_ buf: RustBuffer) throws -> HwSignalAccumulation {
+    return try FfiConverterTypeHwSignalAccumulation.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwSignalAccumulation_lower(_ value: HwSignalAccumulation) -> RustBuffer {
+    return FfiConverterTypeHwSignalAccumulation.lower(value)
 }
 
 
@@ -7804,6 +8241,91 @@ extension HwLlmWireProtocol: Equatable, Hashable {}
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
+ * What a no-speech failure is reported as, if anything. Mirrors
+ * `no_speech::NoSpeechOutcome`; variant order matches the Windows enum.
+ */
+
+public enum HwNoSpeechOutcome {
+    
+    /**
+     * Expected/benign — capture nothing.
+     */
+    case skip
+    /**
+     * Nothing was decoded at all — a recorder failure, reported separately
+     * under its own name, message and fingerprint root.
+     */
+    case emptyRecording
+    /**
+     * Audio exists but produced no transcript — the original diagnostic.
+     */
+    case noSpeech
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwNoSpeechOutcome: FfiConverterRustBuffer {
+    typealias SwiftType = HwNoSpeechOutcome
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwNoSpeechOutcome {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .skip
+        
+        case 2: return .emptyRecording
+        
+        case 3: return .noSpeech
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: HwNoSpeechOutcome, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .skip:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .emptyRecording:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .noSpeech:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwNoSpeechOutcome_lift(_ buf: RustBuffer) throws -> HwNoSpeechOutcome {
+    return try FfiConverterTypeHwNoSpeechOutcome.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwNoSpeechOutcome_lower(_ value: HwNoSpeechOutcome) -> RustBuffer {
+    return FfiConverterTypeHwNoSpeechOutcome.lower(value)
+}
+
+
+
+extension HwNoSpeechOutcome: Equatable, Hashable {}
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
  * One part of a multipart body. Mirrors `hw_net::Part`.
  */
 
@@ -9401,6 +9923,30 @@ fileprivate struct FfiConverterOptionString: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeHwModeIdentity: FfiConverterRustBuffer {
+    typealias SwiftType = HwModeIdentity?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeHwModeIdentity.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeHwModeIdentity.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeModelsEntry: FfiConverterRustBuffer {
     typealias SwiftType = ModelsEntry?
 
@@ -10224,6 +10770,66 @@ public func assemblyaiSyncTimeoutMs() -> UInt64 {
     )
 })
 }
+/**
+ * Bucket a dBFS value to the 5 dB step at or below it (`-38.2` -> `"-40dbfs"`)
+ * for use as a low-cardinality Sentry tag. Floors, does not truncate: negatives
+ * bucket downward. At or below the floor, and for non-finite input, the bucket
+ * is `"silent"`.
+ */
+public func audioBucketDbfs(dbfs: Double) -> String {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_audio_bucket_dbfs(
+        FfiConverterDouble.lower(dbfs),$0
+    )
+})
+}
+/**
+ * The dBFS value reported for digital silence, and the floor of the scale.
+ */
+public func audioMinimumDbfs() -> Double {
+    return try!  FfiConverterDouble.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_audio_minimum_dbfs($0
+    )
+})
+}
+/**
+ * Absolute sample amplitude at or above which a sample counts as non-silent.
+ *
+ * Read once before the decode loop and compare in 32-bit float, which is where
+ * both heads make the comparison. Widening it to 64-bit moves the boundary,
+ * because `0.01` is not exactly representable.
+ */
+public func audioSilenceThreshold() -> Float {
+    return try!  FfiConverterFloat.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_audio_silence_threshold($0
+    )
+})
+}
+/**
+ * Turn the head's raw counts into the reported measurements. An empty
+ * accumulation summarizes to the silent floor rather than dividing by zero.
+ */
+public func audioSummarizeSignal(accumulation: HwSignalAccumulation) -> HwAudioSignalSummary {
+    return try!  FfiConverterTypeHwAudioSignalSummary.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_audio_summarize_signal(
+        FfiConverterTypeHwSignalAccumulation.lower(accumulation),$0
+    )
+})
+}
+/**
+ * Convert a linear amplitude (0..=1) to dBFS, rounded to two decimals.
+ *
+ * Zero, negative and non-finite input return [`audio_minimum_dbfs`]. Rounding
+ * is away from zero at the midpoint — the Swift behaviour, not the C#
+ * `Math.Round(x, 2)` banker's behaviour.
+ */
+public func audioToDbfs(linear: Double) -> Double {
+    return try!  FfiConverterDouble.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_audio_to_dbfs(
+        FfiConverterDouble.lower(linear),$0
+    )
+})
+}
 public func azureMaiBuildTranscribeRequest(params: TranscribeParams)throws  -> HttpRequest {
     return try  FfiConverterTypeHttpRequest.lift(try rustCallWithError(FfiConverterTypeHwTranscriptionError.lift) {
     uniffi_hyperwhisper_core_fn_func_azure_mai_build_transcribe_request(
@@ -10821,6 +11427,38 @@ public func hyperwhisperCloudParseTranscribeResponse(resp: HttpResponse)throws  
     return try  FfiConverterTypeHwTranscript.lift(try rustCallWithError(FfiConverterTypeHwTranscriptionError.lift) {
     uniffi_hyperwhisper_core_fn_func_hyperwhisper_cloud_parse_transcribe_response(
         FfiConverterTypeHttpResponse.lower(resp),$0
+    )
+})
+}
+/**
+ * Detect whether text is primarily written in a continuous script (no word
+ * spaces): CJK plus Thai.
+ *
+ * The text-side half of the segment-join policy (issue #286). Callers resolve a
+ * declared language through [`is_no_space_language`] and fall back to this when
+ * the language is `"auto"` — which is what the hosts pass most of the time. It
+ * covers Thai, which `contains_cjk` cannot, so the fallback agrees with the
+ * language table for every code in it.
+ */
+public func isContinuousScript(text: String) -> Bool {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_is_continuous_script(
+        FfiConverterString.lower(text),$0
+    )
+})
+}
+/**
+ * Whether a language code is written without spaces between words.
+ *
+ * The join policy for concatenated transcription segments (issue #286): the
+ * parakeet daemon and the Linux live-delivery path both pick `""` versus `" "`
+ * from this, instead of each keeping its own table. Case-insensitive, with a
+ * two-character prefix fallback for regional variants (`"zh-CN"` → `"zh"`).
+ */
+public func isNoSpaceLanguage(languageCode: String) -> Bool {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_is_no_space_language(
+        FfiConverterString.lower(languageCode),$0
     )
 })
 }
@@ -11492,6 +12130,85 @@ public func nextRetry(attempt: UInt32, status: UInt16, body: String, retryAfter:
 })
 }
 /**
+ * Decide what to report. The five arms are evaluated in a fixed order — see
+ * `hw_audio::no_speech::classify`.
+ */
+public func noSpeechClassify(input: HwNoSpeechInput) -> HwNoSpeechOutcome {
+    return try!  FfiConverterTypeHwNoSpeechOutcome.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_no_speech_classify(
+        FfiConverterTypeHwNoSpeechInput.lower(input),$0
+    )
+})
+}
+/**
+ * The `cloud_provider` tag with the staleness masked off, so faceting on it
+ * does not attribute local-mode events to a cloud vendor the mode no longer
+ * uses.
+ */
+public func noSpeechCloudProviderTag(mode: HwModeIdentity?) -> String {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_no_speech_cloud_provider_tag(
+        FfiConverterOptionTypeHwModeIdentity.lower(mode),$0
+    )
+})
+}
+/**
+ * Below this peak, with a zero non-silent ratio, the clip is confirmed dead
+ * silence.
+ */
+public func noSpeechConfirmedSilencePeakDbfs() -> Double {
+    return try!  FfiConverterDouble.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_no_speech_confirmed_silence_peak_dbfs($0
+    )
+})
+}
+/**
+ * Build the five-element Sentry grouping fingerprint.
+ *
+ * `fingerprint_root` stays the caller's — it is the one part that is
+ * deliberately platform-distinct.
+ */
+public func noSpeechFingerprint(fingerprintRoot: String, diagnosticStage: String, diagnosticSource: String, mode: HwModeIdentity?) -> [String] {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_no_speech_fingerprint(
+        FfiConverterString.lower(fingerprintRoot),
+        FfiConverterString.lower(diagnosticStage),
+        FfiConverterString.lower(diagnosticSource),
+        FfiConverterOptionTypeHwModeIdentity.lower(mode),$0
+    )
+})
+}
+/**
+ * The `local_engine` tag: the mode's engine, or `"none"` when it is absent or
+ * blank. Values are reported as written, never normalized.
+ */
+public func noSpeechLocalEngineTag(mode: HwModeIdentity?) -> String {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_no_speech_local_engine_tag(
+        FfiConverterOptionTypeHwModeIdentity.lower(mode),$0
+    )
+})
+}
+/**
+ * See [`no_speech_low_signal_rms_dbfs`].
+ */
+public func noSpeechLowSignalNonSilentRatio() -> Double {
+    return try!  FfiConverterDouble.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_no_speech_low_signal_non_silent_ratio($0
+    )
+})
+}
+/**
+ * Backend-confirmed low-signal skip: this and
+ * [`no_speech_low_signal_non_silent_ratio`] must BOTH hold.
+ */
+public func noSpeechLowSignalRmsDbfs() -> Double {
+    return try!  FfiConverterDouble.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_no_speech_low_signal_rms_dbfs($0
+    )
+})
+}
+/**
  * Parse a universal-v2 backup and re-serialize it (canonicalize / round-trip).
  * Errors if the JSON is not a well-formed `UniversalBackup`.
  */
@@ -11865,6 +12582,21 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_assemblyai_sync_timeout_ms() != 59578) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_hyperwhisper_core_checksum_func_audio_bucket_dbfs() != 33921) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_audio_minimum_dbfs() != 37974) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_audio_silence_threshold() != 29240) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_audio_summarize_signal() != 24494) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_audio_to_dbfs() != 47745) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_hyperwhisper_core_checksum_func_azure_mai_build_transcribe_request() != 12803) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -12057,6 +12789,12 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_hyperwhisper_cloud_parse_transcribe_response() != 23581) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_hyperwhisper_core_checksum_func_is_continuous_script() != 3237) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_is_no_space_language() != 44853) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_hyperwhisper_core_checksum_func_is_retryable() != 28969) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -12247,6 +12985,27 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_next_retry() != 16456) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_no_speech_classify() != 39879) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_no_speech_cloud_provider_tag() != 31322) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_no_speech_confirmed_silence_peak_dbfs() != 36028) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_no_speech_fingerprint() != 45276) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_no_speech_local_engine_tag() != 20275) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_no_speech_low_signal_non_silent_ratio() != 49886) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_no_speech_low_signal_rms_dbfs() != 42193) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_normalize_backup_json() != 37661) {
