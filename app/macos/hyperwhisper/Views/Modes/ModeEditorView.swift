@@ -507,7 +507,7 @@ struct ModeEditorView: View {
     /// outer `cloudProvider` is "hyperwhisper" — which only registers nova-3 — so we
     /// resolve the SELECTED accuracy tier's routed upstream provider id instead (the
     /// same value sent in the X-STT-Provider header). Tiers whose upstream provider
-    /// isn't in `STTCapabilities` (azure-mai / google-chirp / gemini) yield an empty
+    /// isn't in `STTCapabilities` (azure-mai / gemini-transcribe / gemini) yield an empty
     /// spec list, which falls back to the full language list.
     private var languageFilterCloudProviderId: String {
         currentCloudProvider == .hyperwhisper ? selectedCloudTier.sttProvider : cloudProvider
@@ -531,7 +531,7 @@ struct ModeEditorView: View {
     }
 
     /// Models offered by the selected Provider row. That row is a *company*, so
-    /// the list spans every tier the company owns — "Google" lists Chirp and
+    /// the list spans every tier the company owns — "Google" lists Transcribe and
     /// Gemini models together.
     private var hyperwhisperCloudModels: [CloudSTTCatalog.Model] {
         selectedCloudTier.vendorGroupModels
@@ -1108,7 +1108,7 @@ struct ModeEditorView: View {
     private var hyperwhisperCloudProviderModelPicker: some View {
         VStack(alignment: .leading, spacing: 10) {
             // Level 1 — Provider, i.e. the company. One row per vendor, so the
-            // two Google tiers (Chirp + Gemini) share a row. The selection is
+            // two Google tiers (Transcribe + Gemini) share a row. The selection is
             // the vendor key; the binding maps it back to a tier for storage.
             HStack {
                 Text(localized: "modes.field.provider")

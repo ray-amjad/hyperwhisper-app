@@ -767,8 +767,8 @@ Edytuj te tryby, aby wybrać inny model przed jego usunięciem.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ kredytów/min";
 "modes.cloudAccuracy.grokStt.label" = "Najwyższa (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Najwyższa dokładność z wolniejszym przetwarzaniem. Najlepsze dla ważnych transkrypcji.";
-"modes.cloudAccuracy.googleChirp3.label" = "Wysoka (Google Chirp 3)";
-"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 z Chirp 3. Wielojęzyczny, z adaptacją fraz.";
+"modes.cloudAccuracy.geminiTranscribe.label" = "Wysoka (Google Gemini 3.5 Transcribe)";
+"modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Wielojęzyczny, z obsługą niestandardowego słownika.";
 "modes.cloudAccuracy.azureMaiTranscribe.label" = "Wysoka (Microsoft MAI-Transcribe 1.5)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 przez Azure Speech. 43 języki z uwzględnianiem kontekstu.";
 

@@ -767,8 +767,8 @@ Edita aquests modes per seleccionar un model diferent abans de eliminar-lo.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ crèdits/min";
 "modes.cloudAccuracy.grokStt.label" = "Màxima (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Màxima precisió amb processament més lent. Ideal per a transcripcions importants.";
-"modes.cloudAccuracy.googleChirp3.label" = "Alta (Google Chirp 3)";
-"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 amb Chirp 3. Multilingüe amb adaptació de frases.";
+"modes.cloudAccuracy.geminiTranscribe.label" = "Alta (Google Gemini 3.5 Transcribe)";
+"modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Multilingüe, amb compatibilitat amb vocabulari personalitzat.";
 "modes.cloudAccuracy.azureMaiTranscribe.label" = "Alta (Microsoft MAI-Transcribe 1.5)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 mitjançant Azure Speech. 43 idiomes amb adaptació contextual.";
 

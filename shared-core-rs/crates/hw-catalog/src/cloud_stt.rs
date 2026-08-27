@@ -857,7 +857,7 @@ mod tests {
     #[test]
     fn embedded_catalog_parses() {
         let c = catalog();
-        assert_eq!(c.version(), 7);
+        assert_eq!(c.version(), 8);
         assert!(c.providers().len() >= 10);
     }
 
@@ -917,16 +917,61 @@ mod tests {
         );
     }
 
-    // --- Golden: unverified tri-state (googleChirp3) ------------------------
+    // --- Golden: unverified tri-state ---------------------------------------
 
     #[test]
-    fn google_chirp_vocab_is_true_languages_present() {
+    fn azure_vocab_is_true_languages_present() {
         let c = catalog();
-        // googleChirp3 customVocabulary.supported == true (inline phrase set).
-        assert!(c.supports_custom_vocabulary("googleChirp3"));
-        // languages.codes IS a real array (count 111).
-        let codes = c.language_codes("googleChirp3").expect("codes present");
-        assert!(codes.contains(&"en-US".to_string()));
+        // Was googleChirp3 until catalog v8 replaced it with geminiTranscribe,
+        // whose language set is "unverified"; azureMaiTranscribe is the
+        // remaining cloud-only entry with a real locale array.
+        assert!(c.supports_custom_vocabulary("azureMaiTranscribe"));
+        let codes = c.language_codes("azureMaiTranscribe").expect("codes present");
+        assert!(codes.contains(&"en".to_string()));
+    }
+
+    #[test]
+    fn gemini_transcribe_vocab_is_true_languages_unverified() {
+        let c = catalog();
+        // The structured `custom_vocabulary` field, unlike the `gemini` entry's
+        // system-prompt encoding.
+        assert!(c.supports_custom_vocabulary("geminiTranscribe"));
+        assert_eq!(
+            c.custom_vocabulary_field_name("geminiTranscribe"),
+            Some("generation_config.transcription_config.custom_vocabulary")
+        );
+        // Google publishes "85+" but no per-code list for /v1beta/interactions.
+        assert_eq!(c.language_codes("geminiTranscribe"), None);
+        // It replaced googleChirp3 as the Google cloud tier, and that id must
+        // survive only as a migration alias — never as an entry.
+        assert!(c.entry("googleChirp3").is_none());
+        for alias in ["googleChirp3", "chirp_3", "google-chirp", "chirp", "googlechirp"] {
+            assert_eq!(
+                c.entry_by_migrate_from(alias).map(|e| e.id.as_str()),
+                Some("geminiTranscribe"),
+                "{alias} must migrate onto the Google cloud tier, not fall back to Deepgram"
+            );
+        }
+    }
+
+    #[test]
+    fn streaming_cloud_tier_entries_are_exactly_the_routed_vendors() {
+        let c = catalog();
+        let ids: Vec<&str> = c
+            .streaming_cloud_tier_entries()
+            .map(|e| e.id.as_str())
+            .collect();
+        assert_eq!(
+            ids,
+            vec!["deepgramNova3", "geminiTranscribe"],
+            "models[].streaming gates the HW-Cloud live picker and the catalog has no \
+             `enabled` gate — flipping it on a vendor with no /ws/streaming-* route \
+             ships a 404 at dictation time"
+        );
+        // The entry-level `features.streaming` hint is NOT the same set: it is
+        // true for vendors we serve no WS route for.
+        assert!(c.entry("soniox").unwrap().features.streaming);
+        assert!(!c.entry("soniox").unwrap().models.iter().any(|m| m.streaming()));
     }
 
     #[test]
@@ -1001,7 +1046,7 @@ mod tests {
         // Legacy standalone provider folds onto hyperwhisper + tier.
         let n = c.normalize_cloud_provider(Some("googlespeech"));
         assert_eq!(n.provider.as_deref(), Some("hyperwhisper"));
-        assert_eq!(n.accuracy_tier.as_deref(), Some("googleChirp3"));
+        assert_eq!(n.accuracy_tier.as_deref(), Some("geminiTranscribe"));
         // BYOK provider name passes through untouched (CRITICAL — must not
         // silently disable a user's BYOK setup).
         let byok = c.normalize_cloud_provider(Some("deepgram"));
@@ -1088,10 +1133,25 @@ mod tests {
         let gemini = c.entry("gemini").unwrap();
         assert_eq!(gemini.languages.count, None);
         assert_eq!(gemini.language_codes(), None);
-        // deepgramNova3 declares a real duration cap; a fractional size cap
-        // must not truncate to an integer.
+        // deepgramNova3 declares a real duration cap.
         assert_eq!(c.entry("deepgramNova3").unwrap().max_duration_minutes, Some(10));
-        assert_eq!(c.entry("googleChirp3").unwrap().max_file_size_mb, Some(9.5));
+        assert_eq!(c.entry("geminiTranscribe").unwrap().max_file_size_mb, Some(14.0));
+    }
+
+    #[test]
+    fn fractional_max_file_size_mb_does_not_truncate_to_an_integer() {
+        // googleChirp3's 9.5 MB inline cap was the embedded catalog's only
+        // fractional `maxFileSizeMb` until catalog v8 removed the entry. The
+        // decoder branch still has to survive one, so pin it synthetically.
+        let json = r#"{
+            "version": 8, "updated": "x",
+            "providers": [
+                {"id":"a","displayName":"Acme","vendor":"acme","maxFileSizeMb":9.5,
+                 "access":{"cloudTierEligible":true,"byokEligible":false}}
+            ]
+        }"#;
+        let c = CloudSttCatalog::parse(json).unwrap();
+        assert_eq!(c.entry("a").unwrap().max_file_size_mb, Some(9.5));
     }
 
     #[test]
@@ -1131,13 +1191,18 @@ mod tests {
         // Google owns two entries and contributes ONE row spanning both.
         let google = groups.iter().find(|g| g.vendor_key == "google").unwrap();
         let ids: Vec<&str> = google.entries.iter().map(|e| e.id.as_str()).collect();
-        assert_eq!(ids, vec!["googleChirp3", "gemini"], "catalog order inside a group");
-        assert_eq!(google.default_entry().map(|e| e.id.as_str()), Some("googleChirp3"));
+        assert_eq!(ids, vec!["geminiTranscribe", "gemini"], "catalog order inside a group");
+        assert_eq!(
+            google.default_entry().map(|e| e.id.as_str()),
+            Some("geminiTranscribe"),
+            "geminiTranscribe must sit at the departed googleChirp3's array index, \
+             or the Google row defaults to the BYOK LLM entry"
+        );
         // Its model list spans both entries, each tagged with its owning tier.
         let owners: BTreeSet<&str> = google.models().iter().map(|(id, _)| *id).collect();
         assert_eq!(
             owners.into_iter().collect::<Vec<_>>(),
-            vec!["gemini", "googleChirp3"]
+            vec!["gemini", "geminiTranscribe"]
         );
     }
 
@@ -1221,12 +1286,26 @@ mod tests {
                 "{dropped} must not reach the picker"
             );
         }
-        // Azure declares `nb`; Chirp declares `iw-IL`/`jv-ID`.
+        // Azure declares `nb`.
         let azure = c.picker_language_codes("azureMaiTranscribe").unwrap();
         assert!(azure.contains(&"no".to_string()) && !azure.contains(&"nb".to_string()));
-        let chirp = c.picker_language_codes("googleChirp3").unwrap();
-        assert!(chirp.contains(&"he".to_string()) && !chirp.contains(&"iw".to_string()));
-        assert!(chirp.contains(&"jw".to_string()) && !chirp.contains(&"jv".to_string()));
+        // googleChirp3 was the only entry declaring the deprecated `iw-IL` /
+        // `jv-ID` tags; catalog v8 replaced it, so pin that fold synthetically
+        // rather than losing the coverage.
+        let json = r#"{
+            "version": 8, "updated": "x",
+            "providers": [
+                {"id":"legacyTags","displayName":"Legacy","vendor":"legacy",
+                 "access":{"cloudTierEligible":true,"byokEligible":false},
+                 "languages":{"count":2,"autoDetect":false,"codes":["iw-IL","jv-ID"]}}
+            ]
+        }"#;
+        let legacy = CloudSttCatalog::parse(json)
+            .unwrap()
+            .picker_language_codes("legacyTags")
+            .unwrap();
+        assert!(legacy.contains(&"he".to_string()) && !legacy.contains(&"iw".to_string()));
+        assert!(legacy.contains(&"jw".to_string()) && !legacy.contains(&"jv".to_string()));
     }
 
     #[test]

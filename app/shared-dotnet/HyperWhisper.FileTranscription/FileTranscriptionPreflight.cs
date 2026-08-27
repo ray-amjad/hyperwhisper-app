@@ -275,6 +275,11 @@ public sealed class PortableFileTranscriptionPreflight
             [CloudTranscriptionProvider.Grok] = Cloud(500L * 1024 * 1024, "", [""]),
             [CloudTranscriptionProvider.AzureMai] = Cloud(300L * 1024 * 1024, "mai-transcribe-1.5", ["mai-transcribe-1.5"], account: true),
             [CloudTranscriptionProvider.GoogleChirp] = Cloud(9_500_000L, "chirp_3", ["chirp_3"], account: true),
+            // BYOK Gemini 3.5 Transcribe. 14 MB is the inline-audio ceiling the
+            // API enforces; `gemini-3.5-transcribe-live` is deliberately absent
+            // because it is WebSocket-only and cannot serve a file.
+            [CloudTranscriptionProvider.GeminiTranscribe] = Cloud(14L * 1024 * 1024, "gemini-3.5-transcribe",
+                ["gemini-3.5-transcribe"]),
             [CloudTranscriptionProvider.HyperWhisperCloud] = Cloud(2L * 1024 * 1024 * 1024, "default", ["default"], account: true),
         };
 }

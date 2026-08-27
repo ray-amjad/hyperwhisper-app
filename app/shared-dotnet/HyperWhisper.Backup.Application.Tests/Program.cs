@@ -274,7 +274,45 @@ try
             ["platformExtensions"]!["macos"]!["futureMac"]!.GetValue<string>() == "keep",
         "foreign platform extensions were not preserved across import/export");
 
-    Console.WriteLine("Backup application tests passed (37/37).");
+    // --- Catalog v8: a backup written by a pre-v8 client -------------------
+    //
+    // A backup file is the one input that is arbitrarily old, and it bypasses the
+    // one-shot EF migration entirely: that migration is already recorded as
+    // applied by the time a restore runs, so whatever the file says is what lands
+    // in the database. Every retired Chirp 3 spelling has to be canonicalised on
+    // the way in — and the failure is silent, because an unmigrated id resolves
+    // to Deepgram at read time with no error.
+    foreach (var legacyTier in new[]
+    {
+        "googleChirp3", "googlechirp3", "GOOGLECHIRP3",
+        "googlechirp", "google-chirp", "chirp", "chirp_3", "googlespeech",
+    })
+    {
+        var legacyBackup = JsonNode.Parse(await service.ExportAsync(
+            BackupExportSelection.SelectedModes([second.Id])))!.AsObject();
+        legacyBackup["modes"]!.AsArray()[0]!["cloudAccuracyTier"] = legacyTier;
+        Assert((await service.ImportAsync(legacyBackup.ToJsonString())).IsSuccess,
+            $"a backup carrying the retired tier '{legacyTier}' failed to import");
+
+        var restored = (await modes.ListAsync()).Single(item => item.Id == second.Id);
+        Assert(restored.CloudAccuracyTier != "deepgramNova3",
+            $"a backup carrying '{legacyTier}' restored onto Deepgram — the documented silent "
+                + "failure: the user changes vendor, credits and X-STT-Provider with no error.");
+        Assert(restored.CloudAccuracyTier == "geminiTranscribe",
+            $"a backup carrying '{legacyTier}' restored as '{restored.CloudAccuracyTier}'; the "
+                + "portable import path must canonicalise through the shared core.");
+    }
+
+    // An absent tier keeps this path's own documented default rather than the
+    // core's empty-input answer (deepgramNova3).
+    var noTierBackup = JsonNode.Parse(await service.ExportAsync(
+        BackupExportSelection.SelectedModes([second.Id])))!.AsObject();
+    noTierBackup["modes"]!.AsArray()[0]!.AsObject().Remove("cloudAccuracyTier");
+    Assert((await service.ImportAsync(noTierBackup.ToJsonString())).IsSuccess, "tier-less backup failed to import");
+    Assert((await modes.ListAsync()).Single(item => item.Id == second.Id).CloudAccuracyTier == "elevenLabsScribeV2",
+        "a backup with no cloudAccuracyTier no longer falls back to elevenLabsScribeV2");
+
+    Console.WriteLine("Backup application tests passed (39/39).");
 }
 finally
 {

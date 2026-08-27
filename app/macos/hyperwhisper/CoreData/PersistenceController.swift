@@ -153,6 +153,18 @@ class PersistenceController: ObservableObject {
     /// `hyperwhisper` + the matching accuracy tier. Catalog-driven.
     private static let cloudProviderMigrationDefaultsKey = "didNormalizeCloudProviderValuesV1"
 
+    /// UserDefaults flag for the one-shot migration that rewrites the retired
+    /// `googleChirp3` accuracy tier (and its aliases) onto `geminiTranscribe`.
+    ///
+    /// This needs its OWN key. `didNormalizeCloudProviderValuesV1` is already
+    /// `true` for every existing user, so reusing it would never re-run and the
+    /// retired value would only ever be rescued lazily at read time — by
+    /// `CloudAccuracyTier.fromStorageValue`, whose fallback on any miss is
+    /// `.deepgramNova3`. One unrescued read (the Local API PATCH path writes the
+    /// raw string straight through, for instance) and the user is silently moved
+    /// off Google.
+    private static let googleChirp3TierMigrationDefaultsKey = "didMigrateGoogleChirp3TierToGeminiTranscribeV1"
+
     /// UserDefaults flag controlling whether the Cloud-configuration store mirrors
     /// to CloudKit. Default: false (off). User-facing toggle lives in VocabularyView.
     /// When false, the cloud store loads as a plain local SQLite file — vocabulary
@@ -271,6 +283,12 @@ class PersistenceController: ObservableObject {
             normalizeCloudRouteIdentifiersIfNeeded()
             migrateRemovedDeepgramModelsIfNeeded()
             normalizeCloudProviderIfNeeded()
+            // AFTER normalizeCloudProviderIfNeeded: on a user who has never run
+            // that migration it can itself write a tier from a legacy
+            // `cloudProvider`, and the catalog now maps `googlespeech` to
+            // `geminiTranscribe`, so running this first would leave nothing to do
+            // and then let the older migration write the value again.
+            migrateGoogleChirp3TierIfNeeded()
             repairBrokenLocalModesOnLaunch()
             repairStaleProcessingTranscriptsOnLaunch()
         }
@@ -600,6 +618,84 @@ class PersistenceController: ObservableObject {
                 error: nsError,
                 message: "Failed to normalize cloud provider values",
                 tags: ["component": "PersistenceController", "operation": "normalizeCloudProvider"]
+            )
+        }
+    }
+
+    // MARK: - Google Chirp 3 → Gemini 3.5 Transcribe Tier Migration
+
+    /// Every persisted `cloudAccuracyTier` value that catalog v8 retired, mapped
+    /// onto `geminiTranscribe`. Mirrors the entry's `migrateFrom` list in
+    /// `shared-app-classification/cloud-stt-catalog.json` and the SQL in the
+    /// Windows/Linux migration `20260827090000_MigrateGoogleChirp3TierToGeminiTranscribe`.
+    private static let retiredGoogleChirp3TierValues: Set<String> = [
+        "googlechirp3", "googlechirp", "google-chirp", "chirp", "chirp_3", "googlespeech",
+    ]
+
+    /// One-time data migration for the retired `googleChirp3` accuracy tier.
+    ///
+    /// Catalog v8 replaced Chirp 3 with Gemini 3.5 Transcribe as Google's cloud
+    /// tier. `CloudAccuracyTier.fromStorageValue` does rescue the old value
+    /// through the catalog's `migrateFrom` aliases, but it is called at five
+    /// separate read sites and its fallback is `.deepgramNova3` — and the Local
+    /// API's mode PATCH path does not call it at all. Converge the stored data
+    /// once so no reader has to be the last line of defence.
+    ///
+    /// Deliberately gated by a NEW key: `didNormalizeCloudProviderValuesV1` is
+    /// already `true` for every existing user, which is exactly the population
+    /// this migration exists for.
+    ///
+    /// Unlike `normalizeCloudProviderIfNeeded`, this does NOT preserve a
+    /// "customised" tier: the value being rewritten IS the user's explicit
+    /// choice, and the whole point is to carry it forward rather than drop it.
+    private func migrateGoogleChirp3TierIfNeeded() {
+        let defaults = UserDefaults.standard
+        if defaults.bool(forKey: Self.googleChirp3TierMigrationDefaultsKey) {
+            return
+        }
+
+        let context = container.viewContext
+        let request: NSFetchRequest<Mode> = Mode.fetchRequest()
+
+        do {
+            let modes = try context.fetch(request)
+            var changedCount = 0
+
+            for mode in modes {
+                let stored = (mode.cloudAccuracyTier ?? "")
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                    .lowercased()
+                guard Self.retiredGoogleChirp3TierValues.contains(stored) else { continue }
+
+                mode.cloudAccuracyTier = CloudAccuracyTier.geminiTranscribe.rawValue
+                changedCount += 1
+
+                // `chirp_3` is not a model of the new tier, so the editor would
+                // fall back to the tier default on next open anyway — write it
+                // now so the stored row is honest and the first transcription
+                // sends a valid X-STT-Model. A model the user picked that is NOT
+                // Chirp's is left alone; it cannot exist on this tier today, but
+                // silently overwriting a deliberate choice is the worse failure.
+                let storedModel = (mode.cloudTranscriptionModel ?? "")
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                if storedModel.isEmpty || storedModel.caseInsensitiveCompare("chirp_3") == .orderedSame {
+                    mode.cloudTranscriptionModel = CloudAccuracyTier.geminiTranscribe.defaultModelId
+                }
+            }
+
+            if context.hasChanges {
+                try context.save()
+            }
+
+            defaults.set(true, forKey: Self.googleChirp3TierMigrationDefaultsKey)
+            AppLogger.coreData.info("Migrated googleChirp3 accuracy tier on \(changedCount, privacy: .public) modes")
+        } catch {
+            let nsError = error as NSError
+            AppLogger.logCoreData(.save, error: nsError)
+            SentryService.capture(
+                error: nsError,
+                message: "Failed to migrate the googleChirp3 accuracy tier",
+                tags: ["component": "PersistenceController", "operation": "migrateGoogleChirp3Tier"]
             )
         }
     }

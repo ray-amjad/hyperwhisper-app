@@ -767,8 +767,8 @@ Breyttu þessum stillingum til að velja annað líkan áður en þú fjarlægir
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ einingar/mín";
 "modes.cloudAccuracy.grokStt.label" = "Hæst (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Hæsta nákvæmni með hægari vinnslu. Best fyrir mikilvægar afritanir.";
-"modes.cloudAccuracy.googleChirp3.label" = "Há (Google Chirp 3)";
-"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 með Chirp 3. Fjöltyngt með frasaaðlögun.";
+"modes.cloudAccuracy.geminiTranscribe.label" = "Há (Google Gemini 3.5 Transcribe)";
+"modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Fjöltyngt, með stuðningi við sérsniðinn orðaforða.";
 "modes.cloudAccuracy.azureMaiTranscribe.label" = "Há (Microsoft MAI-Transcribe 1.5)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 í gegnum Azure Speech. 43 tungumál með samhengisaðlögun.";
 

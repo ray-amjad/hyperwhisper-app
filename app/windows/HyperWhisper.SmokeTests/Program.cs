@@ -2833,7 +2833,7 @@ internal static class Program
                 // shared-app-classification/AGENTS.md documents catalog edits as
                 // data-only, but the Provider dropdown is built straight from the
                 // catalog while persistence funnels through the CloudAccuracyTier
-                // enum, whose FromString fallback is DeepgramNova3. A 12th
+                // enum, whose FromString fallback is DeepgramNova3. A new
                 // cloudTierEligible entry with no enum case would therefore be a
                 // selectable row that transcribes and bills as Deepgram. Fail here
                 // instead, on the PR that adds the entry.
@@ -2851,6 +2851,39 @@ internal static class Program
                             + "Add the case to Models/CloudAccuracyTier.cs (and the macOS CloudAccuracyTier enum) "
                             + "in the same change as the catalog entry.");
                 }
+            });
+
+            Run("A persisted googleChirp3 tier migrates onto geminiTranscribe", () =>
+            {
+                // Catalog v8 retired googleChirp3 in favour of geminiTranscribe.
+                // FromString's fallback is DeepgramNova3, so every legacy spelling
+                // that misses would silently move a Google user to Deepgram —
+                // wrong X-STT-Provider, wrong credits, wrong vendor row.
+                // The stored data is converged by the EF migration
+                // 20260827090000_MigrateGoogleChirp3TierToGeminiTranscribe; this
+                // guards the read path that has to hold until it runs (and for
+                // any value arriving over the Local API or a backup restore).
+                foreach (var legacy in new[]
+                {
+                    "googleChirp3", "googlechirp3", "GOOGLECHIRP3",
+                    "googlespeech", "googleSpeech", "google-chirp", "googlechirp",
+                    "chirp", "chirp_3",
+                })
+                {
+                    var resolved = CloudAccuracyTierExtensions.FromString(legacy).ToStorageValue();
+                    Assert(
+                        resolved == "geminiTranscribe",
+                        $"legacy tier '{legacy}' resolved to '{resolved}', not 'geminiTranscribe' — "
+                            + "a Chirp 3 user would be silently moved to another vendor.");
+                }
+
+                // And the retired id must not come back as an enum member: the
+                // canonical loop in FromString runs before the catalog aliases,
+                // so a GoogleChirp3 member would win and strand the user on a
+                // tier with no catalog entry.
+                Assert(
+                    !Enum.GetNames<CloudAccuracyTier>().Contains("GoogleChirp3"),
+                    "CloudAccuracyTier.GoogleChirp3 is back; it would shadow the catalog migrateFrom alias.");
             });
 
             Run("Grok's empty model id resolves through a provider-scoped lookup", () =>

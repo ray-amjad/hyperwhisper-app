@@ -35,7 +35,13 @@ return failures == 0 ? 0 : 1;
 static void AllCatalogsLoad()
 {
     Equal(39, PortableLocalizer.SupportedCultures.Count, "translated culture count");
-    Equal(658, PortableLocalizer.BaseKeyCount, "base key count");
+    // 658 + the four keys the Gemini 3.5 Transcribe BYOK provider added
+    // (mode.editor.provider.geminiTranscribe.tooltip, provider.geminiTranscribe,
+    // settings.api.invalidKey.geminiTranscribe,
+    // settings.api.provider.geminiTranscribe.description). The catalog-v8 tier
+    // rename is key-count neutral: googleChirp3's label/description became
+    // geminiTranscribe's.
+    Equal(662, PortableLocalizer.BaseKeyCount, "base key count");
     var english = new PortableLocalizer(CultureInfo.InvariantCulture);
     var key = english.Key("home.welcome.title");
     NotBlank(english.Get(key), "base value");

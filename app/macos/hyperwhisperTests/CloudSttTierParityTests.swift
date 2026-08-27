@@ -131,6 +131,61 @@ struct CloudSttTierParityTests {
         )
     }
 
+    /// Catalog v8 retired `googleChirp3` and put `geminiTranscribe` in its array
+    /// slot as Google's cloud tier. Every persisted Chirp value in the wild has
+    /// to land there — and the failure mode is silent: `fromStorageValue`'s
+    /// final `return` is `.deepgramNova3`, so a missing `migrateFrom` alias
+    /// moves the user to a different vendor, at different credits, with no error
+    /// and no UI change they'd notice until the bill.
+    ///
+    /// `PersistenceController.migrateGoogleChirp3TierIfNeeded` rewrites the
+    /// stored rows once at launch, but this read path is what protects backups,
+    /// Local API writes and any row the one-shot missed.
+    @Test("A persisted googleChirp3 tier migrates onto geminiTranscribe, never Deepgram")
+    func retiredChirpTierMigratesOntoGeminiTranscribe() {
+        let legacy = [
+            "googleChirp3", "googlechirp3", "GOOGLECHIRP3", " googleChirp3 ",
+            "googlechirp", "google-chirp", "chirp", "chirp_3",
+            "googlespeech", "googleSpeech",
+        ]
+
+        for value in legacy {
+            let tier = CloudAccuracyTier.fromStorageValue(value)
+            #expect(
+                tier == .geminiTranscribe,
+                """
+                legacy tier '\(value)' resolved to .\(tier.rawValue). It must land on \
+                .geminiTranscribe — .deepgramNova3 is fromStorageValue's silent fallback, \
+                which would move every Chirp 3 user to a different vendor. Fix the \
+                `migrateFrom` list on the geminiTranscribe entry in \
+                shared-app-classification/cloud-stt-catalog.json.
+                """
+            )
+        }
+
+        // The old raw value must NOT come back as a case: the canonical loop at
+        // the top of `fromStorageValue` runs before the catalog alias lookup, so
+        // a re-added case would shadow the migration and strand the user on a
+        // tier with no catalog entry.
+        #expect(
+            CloudAccuracyTier(rawValue: "googleChirp3") == nil,
+            "re-adding the googleChirp3 case would shadow the catalog migration"
+        )
+        #expect(CloudSTTCatalog.shared.entry(byId: "googleChirp3") == nil)
+
+        // And the tier the user lands on has to be usable, not just parseable.
+        #expect(CloudAccuracyTier.geminiTranscribe.defaultModelId == "gemini-3.5-transcribe")
+        #expect(CloudAccuracyTier.geminiTranscribe.sttProvider == "gemini-transcribe")
+        #expect(
+            CloudAccuracyTier.defaultTier(forVendorKey: "google")?.rawValue == "geminiTranscribe",
+            """
+            the merged Google Provider row defaults to its FIRST catalog entry, so \
+            geminiTranscribe must keep Chirp's array index — otherwise picking "Google" \
+            selects the BYOK `gemini` LLM tier.
+            """
+        )
+    }
+
     @Test("Retired cloud models are not selectable")
     func retiredCloudModelsAreNotSelectable() {
         let retired = Set([

@@ -111,6 +111,7 @@ void CheckEntries()
             Equal(Bool(wm, "previewStatus"), gm.@previewStatus, $"{label}.previewStatus");
             Equal(Bool(wm, "supportsCustomVocabulary"), gm.@supportsCustomVocabulary,
                 $"{label}.supportsCustomVocabulary");
+            Equal(Bool(wm, "streaming"), gm.@streaming, $"{label}.streaming");
         }
     }
 }

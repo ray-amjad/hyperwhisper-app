@@ -320,10 +320,10 @@
       "id": "gemini-3.5-transcribe",
       "kind": "voice",
       "supportsCustomVocabulary": true,
-      "availableViaHyperWhisperCloud": false,
+      "availableViaHyperWhisperCloud": true,
       "platforms": ["macos", "windows"],
       "supportsAllLanguages": true,
-      "notes": "Google's dedicated speech API (POST /v1beta/interactions), NOT the multimodal :generateContent path the \"gemini\" rows use — that endpoint accepts this model, bills the audio and returns empty text. Separate BYOK key slot from \"gemini\". availableViaHyperWhisperCloud flips to true when the cloud tier lands. The live variant gemini-3.5-transcribe-live is WebSocket-only and is not a Model Library row."
+      "notes": "Google's dedicated speech API (POST /v1beta/interactions), NOT the multimodal :generateContent path the \"gemini\" rows use — that endpoint accepts this model, bills the audio and returns empty text. Separate BYOK key slot from \"gemini\". availableViaHyperWhisperCloud is true from catalog v8, where geminiTranscribe replaced googleChirp3 as the Google HyperWhisper Cloud tier and hyperwhisper-cloud serves X-STT-Provider: gemini-transcribe. The live variant gemini-3.5-transcribe-live is WebSocket-only and is not a Model Library row."
     },
 
     {

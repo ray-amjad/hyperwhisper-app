@@ -60,7 +60,7 @@ struct CloudSTTCatalog {
 
     /// The Provider dropdown's rows: cloud-tier entries grouped by `vendor` and
     /// sorted by company name, so the list reads alphabetically and each company
-    /// appears exactly once. Google owns two entries (Chirp + Gemini) and so
+    /// appears exactly once. Google owns two entries (Gemini 3.5 Transcribe + Gemini) and so
     /// contributes one row whose model list spans both.
     var cloudTierVendorGroups: [VendorGroup] {
         cloudSttCloudTierVendorGroups()

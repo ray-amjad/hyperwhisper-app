@@ -767,8 +767,8 @@
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ πιστώσεις/λεπτό";
 "modes.cloudAccuracy.grokStt.label" = "Υψηλότερο (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Υψηλότερη ακρίβεια με αργότερη επεξεργασία. Καλύτερο για σημαντικές μεταγραφές.";
-"modes.cloudAccuracy.googleChirp3.label" = "Υψηλή (Google Chirp 3)";
-"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 με Chirp 3. Πολύγλωσσο, με προσαρμογή φράσεων.";
+"modes.cloudAccuracy.geminiTranscribe.label" = "Υψηλή (Google Gemini 3.5 Transcribe)";
+"modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Πολύγλωσσο, με υποστήριξη προσαρμοσμένου λεξιλογίου.";
 "modes.cloudAccuracy.azureMaiTranscribe.label" = "Υψηλή (Microsoft MAI-Transcribe 1.5)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 μέσω Azure Speech. 43 γλώσσες με προσαρμογή βάσει συμφραζομένων.";
 

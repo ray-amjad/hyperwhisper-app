@@ -168,8 +168,15 @@ public sealed class ModeAwareTranscriptionRouter : IRecordedAudioTranscriber, ID
     private static string? NormalizeDomain(string? value) =>
         string.Equals(value?.Trim(), "medical", StringComparison.OrdinalIgnoreCase) ? "medical" : null;
 
-    private static string DefaultModel(CloudTranscriptionProvider provider) =>
-        SharedCoreBridge.CloudSttDefaultModel(CatalogTier(provider)) ?? string.Empty;
+    private static string DefaultModel(CloudTranscriptionProvider provider) => provider switch
+    {
+        // Chirp 3 lost its catalog entry in v8 (geminiTranscribe took Google's
+        // tier slot) but the standalone BYOK provider stays, so its default has
+        // to be pinned here — a catalog lookup on the dead id returns null and
+        // we would post a request with an empty model.
+        CloudTranscriptionProvider.GoogleChirp => "chirp_3",
+        _ => SharedCoreBridge.CloudSttDefaultModel(CatalogTier(provider)) ?? string.Empty,
+    };
 
     private static string CatalogTier(CloudTranscriptionProvider provider) => provider switch
     {
@@ -183,7 +190,9 @@ public sealed class ModeAwareTranscriptionRouter : IRecordedAudioTranscriber, ID
         CloudTranscriptionProvider.Soniox => "soniox",
         CloudTranscriptionProvider.Gemini => "gemini",
         CloudTranscriptionProvider.AzureMai => "azureMaiTranscribe",
-        CloudTranscriptionProvider.GoogleChirp => "googleChirp3",
+        CloudTranscriptionProvider.GeminiTranscribe => "geminiTranscribe",
+        // GoogleChirp is deliberately absent: catalog v8 retired `googleChirp3`,
+        // so it has no entry to look up. `DefaultModel` pins its model directly.
         CloudTranscriptionProvider.HyperWhisperCloud => "deepgramNova3",
         _ => "deepgramNova3",
     };

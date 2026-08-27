@@ -767,8 +767,8 @@
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ क्रेडिट/मिनट";
 "modes.cloudAccuracy.grokStt.label" = "सर्वोच्च (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - सर्वोच्च सटीकता धीमी प्रोसेसिंग के साथ। महत्वपूर्ण ट्रांसक्रिप्शन के लिए सर्वोत्तम।";
-"modes.cloudAccuracy.googleChirp3.label" = "उच्च (Google Chirp 3)";
-"modes.cloudAccuracy.googleChirp3.description" = "Chirp 3 के साथ Google Cloud Speech-to-Text V2। फ़्रेज़ अनुकूलन के साथ बहुभाषी।";
+"modes.cloudAccuracy.geminiTranscribe.label" = "उच्च (Google Gemini 3.5 Transcribe)";
+"modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. बहुभाषी, कस्टम शब्दावली समर्थन के साथ।";
 "modes.cloudAccuracy.azureMaiTranscribe.label" = "उच्च (Microsoft MAI-Transcribe 1.5)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Azure Speech के ज़रिए Microsoft MAI-Transcribe 1.5। संदर्भ-आधारित बायसिंग के साथ 43 भाषाएँ।";
 

@@ -811,8 +811,8 @@
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - high-accuracy transcription with strong multilingual coverage.";
 "modes.cloudAccuracy.azureMaiTranscribe.label" = "High (Microsoft MAI-Transcribe 1.5)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 via Azure Speech. 43 languages with contextual biasing.";
-"modes.cloudAccuracy.googleChirp3.label" = "High (Google Chirp 3)";
-"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 with Chirp 3. Multilingual with phrase adaptation.";
+"modes.cloudAccuracy.geminiTranscribe.label" = "High (Google Gemini 3.5 Transcribe)";
+"modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Multilingual, with custom vocabulary support.";
 "modes.cloudAccuracy.elevenLabsScribeV2.label" = "Highest (ElevenLabs Scribe v2)";
 "modes.cloudAccuracy.elevenLabsScribeV2.description" = "ElevenLabs Scribe v2 - highest accuracy transcription. Best for important transcriptions.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ credits/min";

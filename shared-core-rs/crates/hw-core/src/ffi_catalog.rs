@@ -1300,7 +1300,7 @@ mod tests {
 
         let google = cloud_stt_normalize_cloud_provider(Some("googleSpeech".to_string()));
         assert_eq!(google.provider.as_deref(), Some("hyperwhisper"));
-        assert_eq!(google.accuracy_tier.as_deref(), Some("googleChirp3"));
+        assert_eq!(google.accuracy_tier.as_deref(), Some("geminiTranscribe"));
 
         let byok = cloud_stt_normalize_cloud_provider(Some("deepgram".to_string()));
         assert_eq!(byok.provider.as_deref(), Some("deepgram"));

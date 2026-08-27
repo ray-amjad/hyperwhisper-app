@@ -380,7 +380,15 @@ enum CloudAccuracyTier: String, CaseIterable, Identifiable {
     case deepgramNova3 = "deepgramNova3"
     case grokStt = "grokStt"
     case azureMaiTranscribe = "azureMaiTranscribe"
-    case googleChirp3 = "googleChirp3"
+    /// Google's cloud-tier slot. Catalog v8 replaced `googleChirp3` with this
+    /// entry at the same array index (so "Google" still defaults to the routed
+    /// speech model rather than the BYOK LLM row). `googleChirp3` and its
+    /// aliases live on in the entry's `migrateFrom`, and
+    /// `PersistenceController.migrateGoogleChirp3TierIfNeeded` converges the
+    /// persisted values — do NOT re-add the old case, or `fromStorageValue`'s
+    /// canonical match at the top would win over the catalog alias and strand
+    /// users on a tier with no catalog entry.
+    case geminiTranscribe = "geminiTranscribe"
     case elevenLabsScribeV2 = "elevenLabsScribeV2"
     case openaiWhisper = "openaiWhisper"
     case assemblyAI = "assemblyAI"
@@ -423,7 +431,7 @@ enum CloudAccuracyTier: String, CaseIterable, Identifiable {
     // MARK: - Vendor grouping (Provider dropdown)
 
     /// The catalog `vendor` key this tier belongs to — the Provider dropdown's
-    /// selection tag. Two tiers can share one (Chirp + Gemini are both
+    /// selection tag. Two tiers can share one (Transcribe + Gemini are both
     /// `google`), which is what collapses them into a single Provider row.
     var vendorKey: String {
         CloudSTTCatalog.shared.entry(byId: rawValue)?.vendor ?? rawValue
@@ -459,7 +467,7 @@ enum CloudAccuracyTier: String, CaseIterable, Identifiable {
 
     /// The tier that owns `modelId` within this tier's vendor group. Selecting a
     /// Gemini model under the merged "Google" row has to move the tier from
-    /// `googleChirp3` to `gemini`, since the tier is what becomes the
+    /// `geminiTranscribe` to `gemini`, since the tier is what becomes the
     /// `X-STT-Provider` header. Falls back to `self` when nothing matches.
     func tierOwningModel(_ modelId: String) -> CloudAccuracyTier {
         guard let group = CloudSTTCatalog.shared.vendorGroup(forEntryId: rawValue) else { return self }
@@ -469,7 +477,7 @@ enum CloudAccuracyTier: String, CaseIterable, Identifiable {
     }
 
     /// Every model selectable under this tier's Provider row — the whole vendor
-    /// group, so the merged "Google" row lists Chirp and Gemini models together.
+    /// group, so the merged "Google" row lists both Google tiers models together.
     var vendorGroupModels: [CloudSTTCatalog.Model] {
         guard let group = CloudSTTCatalog.shared.vendorGroup(forEntryId: rawValue) else { return models }
         return group.models.map(\.model)
@@ -494,8 +502,8 @@ enum CloudAccuracyTier: String, CaseIterable, Identifiable {
             return "modes.cloudAccuracy.grokStt.description".localized
         case .azureMaiTranscribe:
             return "modes.cloudAccuracy.azureMaiTranscribe.description".localized
-        case .googleChirp3:
-            return "modes.cloudAccuracy.googleChirp3.description".localized
+        case .geminiTranscribe:
+            return "modes.cloudAccuracy.geminiTranscribe.description".localized
         case .openaiWhisper, .assemblyAI, .mistralVoxtral, .soniox, .gemini:
             // No localized description string for the catalog-v6 additions —
             // fall back to the provider display name.
@@ -521,8 +529,8 @@ enum CloudAccuracyTier: String, CaseIterable, Identifiable {
             return "grok"
         case .azureMaiTranscribe:
             return "azure-mai"
-        case .googleChirp3:
-            return "google-chirp"
+        case .geminiTranscribe:
+            return "gemini-transcribe"
         case .openaiWhisper:
             return "openai"
         case .assemblyAI:

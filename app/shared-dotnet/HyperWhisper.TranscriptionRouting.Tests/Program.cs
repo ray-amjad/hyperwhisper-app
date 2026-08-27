@@ -106,6 +106,11 @@ static async Task TestRouterAsync(string root)
             ProviderType = "cloud",
             CloudProvider = providerId,
             CloudTranscriptionModel = "selected-model",
+            // Deliberately the RETIRED tier id. Catalog v8 replaced googleChirp3
+            // with geminiTranscribe, and this is the .NET read path that has to
+            // migrate it — the assertion below pins the routed provider/model so
+            // a missing `migrateFrom` alias (which would silently fall back to
+            // Deepgram) fails here instead of on a user's bill.
             CloudAccuracyTier = "googleChirp3",
             CloudTranscriptionDomain = "medical",
             GeminiCustomPrompt = "verbatim prompt",
@@ -126,11 +131,64 @@ static async Task TestRouterAsync(string root)
             $"{providerId} language/vocabulary mapping changed");
         if (providerId == "gemini") Assert(mapped.Prompt == "verbatim prompt", "Gemini prompt was dropped");
         if (providerId == "hyperwhisper")
-            Assert(mapped.RoutedProvider == "google-chirp"
-                && mapped.RoutedModel == "chirp_3"
+            Assert(mapped.RoutedProvider == "gemini-transcribe"
+                && mapped.RoutedModel == "gemini-3.5-transcribe"
                 && mapped.RoutedDomain == "medical",
-                "HyperWhisper routed tier/model/domain mapping changed");
+                "HyperWhisper routed tier/model/domain mapping changed: the retired "
+                    + $"googleChirp3 tier routed to '{mapped.RoutedProvider}'/'{mapped.RoutedModel}'");
     }
+
+    // --- Catalog v8 migration proof: googleChirp3 -> geminiTranscribe ---------
+    //
+    // Chirp 3 lost its catalog entry; `geminiTranscribe` took Google's cloud-tier
+    // slot and carries every Chirp spelling in its `migrateFrom` list. This route
+    // is the one that turns a persisted tier into the X-STT-Provider header, and
+    // `SharedCoreBridge.CloudSttProvider` returns null for an id with no entry —
+    // at which point `BuildCloudRequest` falls back to the literal "deepgram".
+    // So a dropped alias does not throw, it silently bills a Google user as
+    // Deepgram. Pin every spelling, and pin the failure mode by name.
+    foreach (var legacyTier in new[]
+    {
+        "googleChirp3", "googlechirp3", "GOOGLECHIRP3", "  googleChirp3  ",
+        "googlespeech", "googleSpeech", "chirp", "google-chirp", "googlechirp", "chirp_3",
+    })
+    {
+        var legacyMode = new Mode
+        {
+            ProviderType = "cloud",
+            CloudProvider = "hyperwhisper",
+            // A pre-v8 client also persisted Chirp's model id alongside the tier.
+            // It is not a model of the new tier, so the router must fall back to
+            // the tier default rather than forward a model the backend will 400 on.
+            CloudTranscriptionModel = "chirp_3",
+            CloudAccuracyTier = legacyTier,
+        };
+        await router.TranscribeAsync(audio, new TranscriptionWorkflowRequest(SelectedMode: legacyMode));
+        var routed = cloud.LastRequest!;
+        Assert(routed.RoutedProvider != "deepgram",
+            $"legacy tier '{legacyTier}' fell through to Deepgram — the documented silent-failure "
+                + "mode. Its `migrateFrom` alias is missing from the geminiTranscribe catalog entry.");
+        Assert(routed.RoutedProvider == "gemini-transcribe",
+            $"legacy tier '{legacyTier}' routed to '{routed.RoutedProvider}', not 'gemini-transcribe'.");
+        Assert(routed.RoutedModel == "gemini-3.5-transcribe",
+            $"legacy tier '{legacyTier}' kept model '{routed.RoutedModel}'; chirp_3 is not a model "
+                + "of geminiTranscribe, so the tier default must win.");
+    }
+
+    // The same canonicalisation, one layer down, on the bridge the Mode editor
+    // and the Local API both call. Asserted separately so a regression names the
+    // layer that broke rather than only the route that noticed.
+    foreach (var legacyTier in new[] { "googleChirp3", "chirp_3", "google-chirp", "googlechirp3" })
+    {
+        Assert(SharedCoreBridge.CanonicalCloudSttTier(legacyTier) == "geminiTranscribe",
+            $"SharedCoreBridge.CanonicalCloudSttTier('{legacyTier}') did not resolve to geminiTranscribe.");
+    }
+
+    // And the retired id must not have come back as a catalog entry: an entry
+    // would win the canonical match ahead of the alias table and strand the user
+    // on a tier with no models and no credits/min.
+    Assert(SharedCoreBridge.CloudSttProvider("googleChirp3") is null,
+        "googleChirp3 is a catalog entry again; it would shadow the geminiTranscribe migrateFrom alias.");
 
     // This route's own 1000-term cap, kept out of the shared core deliberately:
     // the live-streaming router caps at 100 and neither may drift onto the other.

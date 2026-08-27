@@ -767,8 +767,8 @@ Redaguokite tuos režimus, kad pasirinktumėte kitą modelį prieš jį pašalin
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ kreditų/min";
 "modes.cloudAccuracy.grokStt.label" = "Aukščiausias (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Aukščiausias tikslumas su lėtesniu apdorojimu. Geriausia svarbių transkriptsiniu.";
-"modes.cloudAccuracy.googleChirp3.label" = "Aukštas (Google Chirp 3)";
-"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 su Chirp 3. Daugiakalbis, su frazių pritaikymu.";
+"modes.cloudAccuracy.geminiTranscribe.label" = "Aukštas (Google Gemini 3.5 Transcribe)";
+"modes.cloudAccuracy.geminiTranscribe.description" = "„Google Gemini 3.5 Transcribe“. Daugiakalbis, palaiko tinkintą žodyną.";
 "modes.cloudAccuracy.azureMaiTranscribe.label" = "Aukštas (Microsoft MAI-Transcribe 1.5)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 per Azure Speech. 43 kalbos su kontekstiniu pritaikymu.";
 

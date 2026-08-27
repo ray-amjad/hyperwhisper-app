@@ -52,7 +52,8 @@
           "creditsPerMinute": 0.667,
           "isDefault": true,
           "previewStatus": false,
-          "supportsCustomVocabulary": true
+          "supportsCustomVocabulary": true,
+          "streaming": null
         },
         {
           "id": "whisper-large-v3",
@@ -60,7 +61,8 @@
           "creditsPerMinute": 1.85,
           "isDefault": false,
           "previewStatus": false,
-          "supportsCustomVocabulary": true
+          "supportsCustomVocabulary": true,
+          "streaming": null
         }
       ]
     },
@@ -116,7 +118,8 @@
           "creditsPerMinute": 5.5,
           "isDefault": true,
           "previewStatus": false,
-          "supportsCustomVocabulary": true
+          "supportsCustomVocabulary": true,
+          "streaming": true
         },
         {
           "id": "nova-3-medical",
@@ -124,7 +127,8 @@
           "creditsPerMinute": 5.5,
           "isDefault": false,
           "previewStatus": false,
-          "supportsCustomVocabulary": true
+          "supportsCustomVocabulary": true,
+          "streaming": true
         },
         {
           "id": "nova-2-general",
@@ -132,7 +136,8 @@
           "creditsPerMinute": 5.5,
           "isDefault": false,
           "previewStatus": false,
-          "supportsCustomVocabulary": true
+          "supportsCustomVocabulary": true,
+          "streaming": null
         },
         {
           "id": "nova-2-medical",
@@ -140,7 +145,8 @@
           "creditsPerMinute": 5.5,
           "isDefault": false,
           "previewStatus": false,
-          "supportsCustomVocabulary": true
+          "supportsCustomVocabulary": true,
+          "streaming": null
         }
       ]
     },
@@ -193,7 +199,8 @@
           "creditsPerMinute": 1.67,
           "isDefault": true,
           "previewStatus": false,
-          "supportsCustomVocabulary": true
+          "supportsCustomVocabulary": true,
+          "streaming": null
         }
       ]
     },
@@ -247,66 +254,73 @@
           "creditsPerMinute": 6.0,
           "isDefault": true,
           "previewStatus": false,
-          "supportsCustomVocabulary": true
+          "supportsCustomVocabulary": true,
+          "streaming": null
         }
       ]
     },
     {
-      "id": "googleChirp3",
-      "displayName": "Google Chirp 3",
-      "displayModel": "chirp_3",
+      "id": "geminiTranscribe",
+      "displayName": "Google Gemini 3.5 Transcribe",
+      "displayModel": "gemini-3.5-transcribe",
       "vendor": "google",
       "vendorDisplayName": "Google",
       "vendorLabel": "Google",
-      "sttProvider": "google-chirp",
+      "sttProvider": "gemini-transcribe",
       "cloudTierEligible": true,
-      "byokEligible": false,
+      "byokEligible": true,
       "cloudTierAccuracy": "high",
-      "cloudTierCreditsPerMinute": 16.0,
-      "wordTimestamps": true,
-      "diarization": true,
+      "cloudTierCreditsPerMinute": 5.5,
+      "wordTimestamps": false,
+      "diarization": false,
       "streaming": true,
       "customVocabularySupported": "yes",
-      "customVocabularyFieldName": "adaptation.phraseSets",
-      "languagesCount": 111,
+      "customVocabularyFieldName": "generation_config.transcription_config.custom_vocabulary",
+      "languagesCount": null,
       "languagesAutoDetect": true,
-      "languagesCodeFormat": "BCP-47 locale (e.g. `en-US`, `cmn-Hans-CN`)",
-      "languagesHasCodes": true,
-      "languagesRawCodeCount": 111,
-      "maxFileSizeMb": 9.5,
+      "languagesCodeFormat": "BCP-47, bare subtag or locale (e.g. `en` or `en-US`)",
+      "languagesHasCodes": false,
+      "languagesRawCodeCount": 0,
+      "maxFileSizeMb": 14.0,
       "maxDurationMinutes": null,
       "acceptedFormats": [
         "wav",
-        "flac",
-        "mp3",
-        "ogg",
-        "opus",
-        "webm",
-        "amr",
-        "awb"
+        "mp3"
       ],
-      "previewStatus": false,
+      "previewStatus": true,
       "migrateFrom": [
         "googlespeech",
         "googleSpeech",
         "chirp",
         "google-chirp",
         "googlechirp",
-        "googlechirp3"
+        "googlechirp3",
+        "googleChirp3",
+        "chirp_3"
       ],
       "legacyCloudProviderAliases": [
         "googlespeech",
         "googleSpeech"
       ],
-      "defaultModelId": "chirp_3",
+      "defaultModelId": "gemini-3.5-transcribe",
       "models": [
         {
-          "id": "chirp_3",
-          "displayName": "Chirp 3",
-          "creditsPerMinute": 16.0,
+          "id": "gemini-3.5-transcribe",
+          "displayName": "Gemini 3.5 Transcribe",
+          "creditsPerMinute": 5.5,
           "isDefault": true,
-          "previewStatus": false,
-          "supportsCustomVocabulary": true
+          "previewStatus": true,
+          "supportsCustomVocabulary": true,
+          "streaming": null
+        },
+        {
+          "id": "gemini-3.5-transcribe-live",
+          "displayName": "Gemini 3.5 Transcribe Live",
+          "creditsPerMinute": 9.6,
+          "isDefault": false,
+          "previewStatus": true,
+          "supportsCustomVocabulary": true,
+          "streaming": true
         }
       ]
     },
@@ -368,7 +382,8 @@
           "creditsPerMinute": 9.83,
           "isDefault": true,
           "previewStatus": false,
-          "supportsCustomVocabulary": true
+          "supportsCustomVocabulary": true,
+          "streaming": null
         }
       ]
     },
@@ -418,7 +433,8 @@
           "creditsPerMinute": 6.0,
           "isDefault": true,
           "previewStatus": false,
-          "supportsCustomVocabulary": true
+          "supportsCustomVocabulary": true,
+          "streaming": null
         },
         {
           "id": "gpt-4o-mini-transcribe",
@@ -426,7 +442,8 @@
           "creditsPerMinute": 3.0,
           "isDefault": false,
           "previewStatus": false,
-          "supportsCustomVocabulary": true
+          "supportsCustomVocabulary": true,
+          "streaming": null
         },
         {
           "id": "whisper-1",
@@ -434,7 +451,8 @@
           "creditsPerMinute": 6.0,
           "isDefault": false,
           "previewStatus": false,
-          "supportsCustomVocabulary": true
+          "supportsCustomVocabulary": true,
+          "streaming": null
         },
         {
           "id": "gpt-transcribe",
@@ -442,7 +460,8 @@
           "creditsPerMinute": 4.5,
           "isDefault": false,
           "previewStatus": false,
-          "supportsCustomVocabulary": true
+          "supportsCustomVocabulary": true,
+          "streaming": null
         },
         {
           "id": "gpt-live-transcribe",
@@ -450,7 +469,8 @@
           "creditsPerMinute": 17.0,
           "isDefault": false,
           "previewStatus": false,
-          "supportsCustomVocabulary": true
+          "supportsCustomVocabulary": true,
+          "streaming": null
         }
       ]
     },
@@ -529,7 +549,8 @@
           "creditsPerMinute": 3.5,
           "isDefault": true,
           "previewStatus": false,
-          "supportsCustomVocabulary": true
+          "supportsCustomVocabulary": true,
+          "streaming": null
         },
         {
           "id": "universal-2",
@@ -537,7 +558,8 @@
           "creditsPerMinute": 2.5,
           "isDefault": false,
           "previewStatus": false,
-          "supportsCustomVocabulary": true
+          "supportsCustomVocabulary": true,
+          "streaming": null
         }
       ]
     },
@@ -583,7 +605,8 @@
           "creditsPerMinute": 3.0,
           "isDefault": true,
           "previewStatus": false,
-          "supportsCustomVocabulary": true
+          "supportsCustomVocabulary": true,
+          "streaming": null
         }
       ]
     },
@@ -635,7 +658,8 @@
           "creditsPerMinute": 1.67,
           "isDefault": true,
           "previewStatus": false,
-          "supportsCustomVocabulary": true
+          "supportsCustomVocabulary": true,
+          "streaming": null
         }
       ]
     },
@@ -682,7 +706,8 @@
           "creditsPerMinute": 2.4,
           "isDefault": true,
           "previewStatus": false,
-          "supportsCustomVocabulary": true
+          "supportsCustomVocabulary": true,
+          "streaming": null
         },
         {
           "id": "gemini-2.5-flash-lite",
@@ -690,7 +715,8 @@
           "creditsPerMinute": 0.8,
           "isDefault": false,
           "previewStatus": false,
-          "supportsCustomVocabulary": true
+          "supportsCustomVocabulary": true,
+          "streaming": null
         },
         {
           "id": "gemini-2.5-pro",
@@ -698,7 +724,8 @@
           "creditsPerMinute": 7.5,
           "isDefault": false,
           "previewStatus": false,
-          "supportsCustomVocabulary": true
+          "supportsCustomVocabulary": true,
+          "streaming": null
         },
         {
           "id": "gemini-3-flash-preview",
@@ -706,7 +733,8 @@
           "creditsPerMinute": 3.0,
           "isDefault": false,
           "previewStatus": true,
-          "supportsCustomVocabulary": true
+          "supportsCustomVocabulary": true,
+          "streaming": null
         },
         {
           "id": "gemini-3.1-pro-preview",
@@ -714,7 +742,8 @@
           "creditsPerMinute": 10.0,
           "isDefault": false,
           "previewStatus": true,
-          "supportsCustomVocabulary": true
+          "supportsCustomVocabulary": true,
+          "streaming": null
         }
       ]
     }
@@ -758,11 +787,12 @@
       "vendorKey": "google",
       "displayName": "Google",
       "entryIds": [
-        "googleChirp3",
+        "geminiTranscribe",
         "gemini"
       ],
       "models": [
-        "googleChirp3/chirp_3",
+        "geminiTranscribe/gemini-3.5-transcribe",
+        "geminiTranscribe/gemini-3.5-transcribe-live",
         "gemini/gemini-2.5-flash",
         "gemini/gemini-2.5-flash-lite",
         "gemini/gemini-2.5-pro",
@@ -1079,90 +1109,8 @@
       ]
     },
     {
-      "id": "googleChirp3",
-      "codes": [
-        "af",
-        "am",
-        "ar",
-        "as",
-        "auto",
-        "az",
-        "bg",
-        "bn",
-        "ca",
-        "cs",
-        "cy",
-        "da",
-        "de",
-        "el",
-        "en",
-        "es",
-        "et",
-        "eu",
-        "fa",
-        "fi",
-        "fr",
-        "gl",
-        "gu",
-        "ha",
-        "he",
-        "hi",
-        "hr",
-        "hu",
-        "hy",
-        "id",
-        "is",
-        "it",
-        "ja",
-        "jw",
-        "ka",
-        "kk",
-        "km",
-        "kn",
-        "ko",
-        "ky",
-        "lb",
-        "lo",
-        "lt",
-        "lv",
-        "mi",
-        "mk",
-        "ml",
-        "mn",
-        "mr",
-        "ms",
-        "mt",
-        "my",
-        "ne",
-        "nl",
-        "no",
-        "or",
-        "pa",
-        "pl",
-        "pt",
-        "ro",
-        "ru",
-        "sk",
-        "sl",
-        "sq",
-        "sr",
-        "sv",
-        "sw",
-        "ta",
-        "te",
-        "th",
-        "tl",
-        "tr",
-        "uk",
-        "uz",
-        "vi",
-        "wo",
-        "xh",
-        "yo",
-        "yue",
-        "zh",
-        "zu"
-      ]
+      "id": "geminiTranscribe",
+      "codes": null
     },
     {
       "id": "elevenLabsScribeV2",
@@ -2098,7 +2046,7 @@
       "id": "gemini-3.5-transcribe",
       "kind": "voice",
       "supportsCustomVocabulary": true,
-      "availableViaHyperWhisperCloud": false,
+      "availableViaHyperWhisperCloud": true,
       "supportsAllLanguages": true,
       "languageCodes": []
     },
