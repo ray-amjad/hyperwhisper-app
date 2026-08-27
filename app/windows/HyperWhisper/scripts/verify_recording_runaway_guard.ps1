@@ -30,6 +30,9 @@ $ProjectRoot = Split-Path -Parent $PSScriptRoot
 $RepoRoot = Resolve-Path (Join-Path $ProjectRoot "..\..\..")
 
 $WindowsViewModel = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot "ViewModels\MainViewModel.cs")
+$WindowsSettings = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot "Services\SettingsService.cs")
+$WindowsStrings = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot "Resources\Strings.resx")
+$RustMapping = Get-Content -Raw -LiteralPath (Join-Path $RepoRoot "shared-core-rs\crates\hw-backup\src\mapping.rs")
 $MacFlow = Get-Content -Raw -LiteralPath (Join-Path $RepoRoot "app\macos\hyperwhisper\Managers\AudioRecording\RecordingFlow\RecordingTranscriptionFlow.swift")
 $MacStart = Get-Content -Raw -LiteralPath (Join-Path $RepoRoot "app\macos\hyperwhisper\Managers\AudioRecording\RecordingFlow\RecordingTranscriptionFlow+StartRecording.swift")
 $MacStop = Get-Content -Raw -LiteralPath (Join-Path $RepoRoot "app\macos\hyperwhisper\Managers\AudioRecording\RecordingFlow\RecordingTranscriptionFlow+StopRecording.swift")
@@ -75,23 +78,60 @@ Assert-Match `
 
 Assert-Match `
     -Content $WindowsViewModel `
-    -Pattern "private void CheckRecordingDurationLimit\(\).*?_isStreamingSession.*?_recordingDurationLimitReached.*?RecordingDuration < MaxRecordingDuration.*?recording_duration_limit_reached.*?AutoStopRecordingAfterDurationLimitAsync\(\)" `
+    -Pattern "private void CheckRecordingDurationLimit\(\).*?_isStreamingSession.*?_recordingDurationLimitReached.*?RecordingDuration < EffectiveMaxRecordingDuration.*?recording_duration_limit_reached.*?AutoStopRecordingAfterDurationLimitAsync\(\)" `
     -Message "Windows batch duration guard must be one-shot, exclude streaming, and dispatch normal auto-stop."
+
+# The cap became restorable from a backup in phase 3 (issue #288), so the
+# 20-minute value is now a CEILING as well as the default. These assertions are
+# what stop a shared .hwbackup.json from weakening the guard: the effective cap is
+# the minimum of the setting and the hardcoded ceiling, the setter clamps every
+# write, and the shared core clamps the import path for all three heads.
+Assert-Match `
+    -Content $WindowsViewModel `
+    -Pattern "EffectiveMaxRecordingDuration.*?MaxRecordingDurationSeconds.*?configured < MaxRecordingDuration \? configured : MaxRecordingDuration" `
+    -Message "Windows must enforce the MINIMUM of the restored setting and the 20-minute ceiling."
+
+Assert-Match `
+    -Content $WindowsSettings `
+    -Pattern "MaxRecordingDurationCeilingSeconds = 20 \* 60" `
+    -Message "SettingsService must keep the 20-minute ceiling."
+
+Assert-Match `
+    -Content $WindowsSettings `
+    -Pattern "private static int Clamp\(int seconds\) =>.*?seconds > MaxRecordingDurationCeilingSeconds \? MaxRecordingDurationCeilingSeconds" `
+    -Message "SettingsService must clamp every MaxRecordingDurationSeconds write to the ceiling."
+
+Assert-Match `
+    -Content $RustMapping `
+    -Pattern "WINDOWS_MAX_RECORDING_DURATION_CEILING_SECS: i64 = 20 \* 60" `
+    -Message "The shared core must clamp an imported maxRecordingDuration to the same 20-minute ceiling."
 
 Assert-Match `
     -Content $WindowsViewModel `
     -Pattern "if \(_isStoppingRecording\).*?stop already in progress.*?return;.*?_isStoppingRecording = true;.*?finally.*?_isStoppingRecording = false;" `
     -Message "Windows batch stop must be guarded against duplicate stop/transcribe flows."
 
+# The two toast strings moved into Resources\Strings.resx behind Loc.S(), so the
+# literal text is asserted where it now lives and the call site is asserted by key.
 Assert-Match `
     -Content $WindowsViewModel `
-    -Pattern "private async Task AutoStopRecordingAfterDurationLimitAsync\(\).*?ShowErrorToastRequested.*?20-minute safety limit reached.*?await StopRecordingAndTranscribeAsync\(\)" `
+    -Pattern "private async Task AutoStopRecordingAfterDurationLimitAsync\(\).*?ShowErrorToastRequested.*?errors\.recordingDurationLimit.*?await StopRecordingAndTranscribeAsync\(\)" `
     -Message "Windows batch auto-stop must preserve the recording by transcribing it."
 
 Assert-Match `
+    -Content $WindowsStrings `
+    -Pattern "errors\.recordingDurationLimit.*?20-minute safety limit reached" `
+    -Message "The batch auto-stop toast must still name the 20-minute limit."
+
+Assert-Match `
     -Content $WindowsViewModel `
-    -Pattern "private void CheckStreamingDurationLimit\(\).*?RecordingDuration < MaxRecordingDuration.*?_streamingFailureMessage = `"Streaming reached the 20-minute safety limit\.`"" `
+    -Pattern "private void CheckStreamingDurationLimit\(\).*?RecordingDuration < EffectiveMaxRecordingDuration.*?_streamingFailureMessage = Loc\.S\(`"errors\.streamingDurationLimit`"\)" `
     -Message "Windows streaming must use the shared 20-minute cap."
+
+Assert-Match `
+    -Content $WindowsStrings `
+    -Pattern "errors\.streamingDurationLimit.*?Streaming reached the 20-minute safety limit\." `
+    -Message "The streaming limit toast must still name the 20-minute limit."
 
 Assert-Match `
     -Content $WindowsViewModel `

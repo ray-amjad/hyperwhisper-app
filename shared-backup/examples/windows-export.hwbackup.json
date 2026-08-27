@@ -18,7 +18,8 @@
       "restoreClipboardAfterPaste": true,
       "hideFromClipboardHistory": true,
       "clipboardRestoreDelaySeconds": 3.0,
-      "autocapitalizeInsert": true
+      "autocapitalizeInsert": true,
+      "storeWordTimestamps": true
     },
     "storage": {
       "keepAudioFiles": false,
@@ -33,7 +34,7 @@
       "shortcut": "Ctrl+Shift+S"
     },
     "advanced": {
-      "maxRecordingDuration": 300,
+      "maxRecordingDuration": 1200,
       "typingSpeedWPM": 50
     }
   },
@@ -219,6 +220,13 @@
             "lastTestSuccess": true
           }
         ]
+      }
+    },
+    "macos": {
+      "settings": {
+        "shortcuts": {
+          "pushToTalkMode": "disabled"
+        }
       }
     }
   }

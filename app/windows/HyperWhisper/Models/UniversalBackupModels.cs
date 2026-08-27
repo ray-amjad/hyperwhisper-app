@@ -47,12 +47,33 @@ public class UniversalBackup
 
     [JsonPropertyName("platformExtensions")]
     public Dictionary<string, JsonElement>? PlatformExtensions { get; set; }
+
+    /// <summary>
+    /// Unknown TOP-LEVEL keys, captured so a file written by a newer build is not
+    /// truncated when an older one re-exports it. Persisted between import and
+    /// export in <c>SettingsData.BackupUnknownRootKeys</c>.
+    /// </summary>
+    /// <remarks>
+    /// <c>platformExtensions</c> can never land here — it is a declared property —
+    /// and its foreign slices have their own store,
+    /// <c>SettingsData.BackupForeignPlatformExtensions</c>.
+    /// </remarks>
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Additional { get; set; }
 }
 
 // =========================================================================
 // SETTINGS
 // =========================================================================
 
+/// <remarks>
+/// Every settings type below carries a <c>[JsonExtensionData]</c> bag. Together
+/// they mirror the universal <c>settings</c> tree, which is what lets
+/// <c>UniversalBackupMapper</c> re-emit a captured key at its ORIGINAL nesting
+/// level — <c>textOutput.storeWordTimestamps</c> comes back under
+/// <c>textOutput</c>, never at the root — with no manual path arithmetic.
+/// A key matching a declared <c>[JsonPropertyName]</c> never lands in the bag.
+/// </remarks>
 public class UniversalSettings
 {
     [JsonPropertyName("general")]
@@ -69,6 +90,10 @@ public class UniversalSettings
 
     [JsonPropertyName("advanced")]
     public UniversalAdvancedSettings? Advanced { get; set; }
+
+    /// <summary>Unknown SECTIONS of the settings block (a whole future category).</summary>
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Additional { get; set; }
 }
 
 public class UniversalGeneralSettings
@@ -90,6 +115,10 @@ public class UniversalGeneralSettings
 
     [JsonPropertyName("enableSoundEffects")]
     public bool? EnableSoundEffects { get; set; }
+
+    /// <summary>Unknown keys of the <c>general</c> section.</summary>
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Additional { get; set; }
 }
 
 public class UniversalTextOutputSettings
@@ -111,6 +140,15 @@ public class UniversalTextOutputSettings
 
     [JsonPropertyName("autocapitalizeInsert")]
     public bool? AutocapitalizeInsert { get; set; }
+
+    /// <summary>
+    /// Unknown keys of the <c>textOutput</c> section. This is where
+    /// <c>storeWordTimestamps</c> lands: it exists on macOS and on Linux, Windows
+    /// has no property for it and is not gaining one, and before this bag existed
+    /// it died at deserialize — so a mac→Windows→mac trip lost it for good (#288).
+    /// </summary>
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Additional { get; set; }
 }
 
 public class UniversalStorageSettings
@@ -120,6 +158,10 @@ public class UniversalStorageSettings
 
     [JsonPropertyName("storeAsM4A")]
     public bool? StoreAsM4A { get; set; }
+
+    /// <summary>Unknown keys of the <c>storage</c> section.</summary>
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Additional { get; set; }
 }
 
 public class UniversalAdvancedSettings
@@ -129,6 +171,10 @@ public class UniversalAdvancedSettings
 
     [JsonPropertyName("typingSpeedWPM")]
     public int? TypingSpeedWPM { get; set; }
+
+    /// <summary>Unknown keys of the <c>advanced</c> section.</summary>
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Additional { get; set; }
 }
 
 public class UniversalStreamingSettings
@@ -150,6 +196,10 @@ public class UniversalStreamingSettings
 
     [JsonPropertyName("shortcut")]
     public string? Shortcut { get; set; }
+
+    /// <summary>Unknown keys of the <c>streaming</c> section.</summary>
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Additional { get; set; }
 }
 
 // =========================================================================
@@ -232,6 +282,16 @@ public class UniversalMode
 
     [JsonPropertyName("platformExtensions")]
     public Dictionary<string, JsonElement>? PlatformExtensions { get; set; }
+
+    /// <summary>
+    /// Unknown per-mode keys. CAPTURED BUT NOT PERSISTED, deliberately: a mode's
+    /// home is the EF entity <c>Data/Entities/Mode.cs</c>, so a store for these
+    /// would need a real EF migration, which is out of scope for #288. The bag
+    /// still earns its place — it keeps an unknown key alive for the lifetime of
+    /// the DTO, and it documents the gap at the point where it exists.
+    /// </summary>
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Additional { get; set; }
 }
 
 // =========================================================================
@@ -254,6 +314,13 @@ public class UniversalVocabularyItem
 
     [JsonPropertyName("source")]
     public string? Source { get; set; }
+
+    /// <summary>
+    /// Unknown per-item keys. Captured but NOT persisted, for the same reason as
+    /// <see cref="UniversalMode.Additional"/>: the home is an EF entity.
+    /// </summary>
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Additional { get; set; }
 }
 
 // =========================================================================

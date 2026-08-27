@@ -179,6 +179,56 @@ fn macos_top_level_extensions_preserved() {
     assert_eq!(macos["settings"]["general"]["launchAtLogin"], Value::Bool(true));
 }
 
+/// The Windows half of top-level foreign-slice retention (#288).
+///
+/// Until phase 3, `UniversalBackupMapper.BuildPlatformExtensions` returned
+/// `{"windows": …}` and nothing else, so a macOS or Linux TOP-LEVEL slice died on
+/// a Windows round-trip even though the per-mode slices survived. The fixture now
+/// carries a preserved `macos` slice alongside `windows`, exactly as a Windows
+/// export written after importing a macOS backup does — and both must reach the
+/// records unchanged.
+#[test]
+fn windows_top_level_extensions_preserved() {
+    let backup = parse_backup(WINDOWS_EXPORT).unwrap();
+    let records = to_records(&backup);
+
+    let windows = records
+        .platform_extensions
+        .get("windows")
+        .expect("windows top-level extension present");
+    assert_eq!(windows["settings"]["minimizeToTray"], Value::Bool(true));
+
+    let macos = records
+        .platform_extensions
+        .get("macos")
+        .expect("a preserved FOREIGN top-level slice must survive a Windows export");
+    assert_eq!(
+        macos["settings"]["shortcuts"]["pushToTalkMode"],
+        Value::String("disabled".into())
+    );
+}
+
+/// The three settings keys a mac→Windows→mac trip used to lose (#288). The
+/// Windows fixture is what a Windows export looks like AFTER the phase-3 fixes,
+/// so all three must be present and none may have been reinterpreted.
+#[test]
+fn windows_export_carries_the_three_restored_settings_keys() {
+    let backup = parse_backup(WINDOWS_EXPORT).unwrap();
+    let settings = backup.settings.as_ref().expect("settings present");
+    let value = serde_json::to_value(settings).unwrap();
+
+    // Was dropped because Windows had no native property at all.
+    assert_eq!(value["storage"]["keepAudioFiles"], Value::Bool(false));
+    // Was dropped for the same reason; 1200s = the 20-minute ceiling, which is
+    // also the Windows default. It is deliberately NOT 300 — that value is
+    // macOS's never-exposed legacy default and both heads read it as "unset".
+    assert_eq!(value["advanced"]["maxRecordingDuration"], Value::from(1200));
+    // Has no Windows property and is not gaining one: it survives through the
+    // native unknown-key store and is re-emitted under `textOutput`, never at the
+    // document root.
+    assert_eq!(value["textOutput"]["storeWordTimestamps"], Value::Bool(true));
+}
+
 #[test]
 fn linux_extensions_preserved() {
     let backup = parse_backup(LINUX_EXPORT).unwrap();

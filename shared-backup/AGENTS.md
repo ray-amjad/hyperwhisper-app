@@ -78,11 +78,26 @@ matching table**, not editing a native mapper.
 | `textOutput.hideFromClipboardHistory` | `SettingsManager.hideFromClipboardHistory` | `WINDOWS_TEXT_OUTPUT_PAIRS` → `SettingsData.HideFromClipboardHistory` |
 | `textOutput.clipboardRestoreDelaySeconds` | `SettingsManager.clipboardRestoreDelaySeconds` | `WINDOWS_TEXT_OUTPUT_PAIRS` → `SettingsData.ClipboardRestoreDelaySeconds` (setter clamps to 1–60) |
 | `textOutput.autocapitalizeInsert` | `SettingsManager.autocapitalizeInsert` | `WINDOWS_TEXT_OUTPUT_PAIRS` → `SettingsData.AutocapitalizeInsert` |
-| `textOutput.storeWordTimestamps` | `SettingsManager.storeWordTimestamps` | — no pairs row and no native property; Linux maps `PortableSettingsService` `textOutput.storeWordTimestamps` (local Whisper word/segment timestamps) |
+| `textOutput.storeWordTimestamps` | `SettingsManager.storeWordTimestamps` | **No pairs row and no native property, by design.** Preserved, not interpreted: `SettingsData.BackupUnknownSettings["textOutput"]["storeWordTimestamps"]` (see the unknown-key block below). Linux maps `PortableSettingsService` `textOutput.storeWordTimestamps` (local Whisper word/segment timestamps) |
 | `storage.storeAsM4A` | `StorageSettingsManager.storeAsM4A` | `WINDOWS_STORAGE_PAIRS` → `SettingsData.StoreAsM4A` |
-| `storage.keepAudioFiles` | `SettingsManager.keepAudioFiles` (macOS `advanced` category) | — no pairs row yet; `WINDOWS_STORAGE_PAIRS` gains one when the native property exists |
-| `advanced.maxRecordingDuration` | `SettingsManager.maxRecordingDurationSeconds` (seconds, 0 = no limit; macOS treats the value `300` — the old never-exposed default — as unset on import) | — no pairs row yet; `WINDOWS_ADVANCED_PAIRS` gains one when the native property exists |
+| `storage.keepAudioFiles` | `SettingsManager.keepAudioFiles` (macOS `advanced` category) | `WINDOWS_STORAGE_PAIRS` → `SettingsData.KeepAudioFiles` (default `true`). Windows PERSISTS and round-trips the value but does not yet act on it — retention on Windows runs off `autoDeleteEnabled` / `autoDeleteDaysOld`, and there is no Storage-page toggle. Before it existed the value was discarded outright |
+| `advanced.maxRecordingDuration` | `SettingsManager.maxRecordingDurationSeconds` (seconds, 0 = no limit; macOS treats the value `300` — the old never-exposed default — as unset on import) | `WINDOWS_ADVANCED_PAIRS` → `SettingsData.MaxRecordingDuration`, in seconds. **A backup may TIGHTEN this cap and can never loosen it** — see the table below |
 | `advanced.typingSpeedWPM` | — (HomeStatsBar `@AppStorage("homeStats.typingSpeedWPM")` — macOS keeps this device-local, not exported) | `WINDOWS_ADVANCED_PAIRS` → `SettingsData.TypingSpeedWPM` |
+
+**`advanced.maxRecordingDuration` is a SAFETY limit, so it is the one key an imported file cannot set
+freely.** Windows enforces a hard 20-minute ceiling (`MainViewModel.MaxRecordingDuration`), which is
+also its default. The rules below are applied in the shared core
+(`universal_to_windows_settings`, so all three bindings answer identically and
+`shared-conformance/backup-vectors.json` can pin them) and again in
+`SettingsService.MaxRecordingDurationSeconds`, so no writer — not even a hand-edited
+`settings.json` — can raise the ceiling:
+
+| Universal value (seconds) | Windows result |
+|---|---|
+| `300` — macOS's never-exposed legacy default | ABSENT: keep the live value, exactly as macOS does |
+| `<= 0` — macOS's "no limit" | ABSENT: Windows has no "off"; an unbounded recording is the failure mode the guard exists for |
+| `1`–`1200` | applied verbatim — TIGHTENING the cap is always allowed |
+| `> 1200` (Linux and macOS both default to `3600`) | clamped to `1200` |
 
 The universal `streaming` block is Windows- and Linux-only today — macOS does not export it. Its six
 Windows native properties are all separately named, which is why `WINDOWS_STREAMING_PAIRS` exists.
@@ -211,9 +226,61 @@ survives a Windows round-trip. Linux slices obey the same rule. Storage: macOS
 over a stale preserved copy on re-export. A mac→v2→Windows→v2→mac trip retains the `windows` mode
 slice, and Linux-authored slices must likewise survive trips through either existing platform.
 
+**Foreign-slice passthrough, TOP LEVEL (all platforms).** The same rule applies to the backup's
+TOP-LEVEL `platformExtensions` map, not just the per-mode ones: on import each platform preserves
+every *other* platform's top-level slice and re-emits it on the next export, and its OWN slice —
+rebuilt from live settings — always overwrites a stale preserved copy. Until issue #288 this worked
+on **Linux only**: Windows' `BuildPlatformExtensions` returned `{"windows": …}` and nothing else, and
+macOS's `encodeBackupV2` built the map purely from the Rust core's settings record, which only ever
+holds `macos`. Both now preserve.
+
+| Platform | Storage | What it holds | Merged back in |
+|---|---|---|---|
+| macOS | `UserDefaults` key `backup.foreignPlatformExtensions` (raw JSON) | the non-`macos` slices only | `BackupManager.mergingForeignTopLevelExtensions(into:stored:)`, called from `encodeBackupV2` |
+| Windows | `SettingsData.BackupForeignPlatformExtensions` (raw JSON, `settings.json`) | the non-`windows` slices only | `UniversalBackupMapper.BuildPlatformExtensions` |
+| Linux | the `backup.platformExtensions` setting (`PortableSettingsService`) | the WHOLE imported map, including `linux` | `ApplicationBackupExport`, which overwrites the `linux` slice on the way out |
+
+The two storage strategies differ and that is fine — the observable contract is identical, and
+`shared-conformance/backup-vectors.json`'s `unknownKeyRoundTrip` rows record both. Capture is a
+REPLACE, never a merge, on every head: the store describes the LAST IMPORTED file, so a backup with
+no foreign slice CLEARS it. Merging would re-publish a slice from an unrelated file under a different
+user's export. macOS's `deepMerged(over:)` / `currentSettingsBaseline()` is a whole-blob apply of the
+seven macOS settings categories and knows nothing about this field — do not route it through there.
+
 **Unknown-key fidelity.** The shared core preserves any unknown top-level / settings-category /
 mode / vocabulary key verbatim through a parse → re-serialize round-trip (serde `flatten`), so a
-backup written by a newer build does not lose data when re-exported by an older one.
+backup written by a newer build does not lose data when re-exported by an older one. That is the
+CORE's guarantee; each head then needs somewhere to keep the keys between an import and the next
+export, because the DTO is discarded at the end of the import.
+
+On Windows that store is **`SettingsData.BackupUnknownSettings`** (raw JSON), a MIRROR of the
+universal `settings` tree so every key keeps its SECTION:
+
+```json
+{ "textOutput": { "storeWordTimestamps": true }, "someFutureSection": { "a": 1 } }
+```
+
+A key unknown inside a known section nests under that section's name; a whole unknown section sits at
+the top of the same object. That is unambiguous, because the five known section names are declared
+properties and therefore never reach the settings-root extension bag. On export the blob is
+re-attached to the typed DTOs' `[JsonExtensionData]` bags, so `System.Text.Json` emits each key at
+exactly its original nesting level — `textOutput.storeWordTimestamps` comes back **under
+`textOutput`, never at the document root**, which would be a schema violation. Unknown TOP-LEVEL keys
+ride separately in `SettingsData.BackupUnknownRootKeys`; `platformExtensions` is never among them
+because it has its own store above. **These are three separate fields with three shapes and three
+merge points — do not collapse them.**
+
+Two known gaps, named rather than papered over:
+
+- **Windows mode / vocabulary unknown keys are NOT persisted.** `UniversalMode` and
+  `UniversalVocabularyItem` carry the `[JsonExtensionData]` bag, so an unknown key survives the DTO,
+  but their homes are EF entities (`Data/Entities/Mode.cs`, `VocabularyItem`) and a store would need
+  a real EF migration — out of scope for #288. Settings keys, which is where
+  `storeWordTimestamps` lives, are fully covered.
+- **Linux drops unknown SETTINGS keys.** `ApplicationBackupExport.ApplySharedSettings` →
+  `CopyCategory` is a per-category ALLOWLIST, so an unknown key inside a known category and a whole
+  unknown category are both dropped on import. Linux's top-level `platformExtensions` passthrough is
+  unaffected. Fixing this was not in #288's scope.
 </important>
 
 <important if="you are adding or changing an API key provider">

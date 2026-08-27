@@ -1,5 +1,5 @@
 {
-  "description": "Cross-platform golden vectors for the universal-v2 backup adapters (issue #277). The modeNormalization rows were hand-authored in commit 1a against the SHIPPING native code — Windows UniversalBackupMapper.MapToMode (+ CloudTranscriptionModels.ResolveModelAlias and CloudSttCatalog.NormalizeCloudProvider) and Linux ApplicationBackupService.ParseMode — so the Rust port in commit 1b can be diffed against them on the same inputs. A row with a single \"expected\" is one where the two heads AGREE today. A row carrying \"expectedWindows\" and \"expectedLinux\" records a drift that ships right now: Linux runs no cloud-routing migration, no catalog provider normalization, no model-alias resolution and no domain gate at all. Those rows collapse to a single \"expected\" in 1b; rows with one \"expected\" must not move. The windowsSettings / linuxSettings / macosSettings rows were added in commit 2a against the SHIPPING settings adapters: Windows UniversalBackupMapper.MapSettings / BuildPlatformExtensions / ApplySettings driven over a temp-rooted SettingsService, Linux ApplicationBackupService export/import over PortableSettingsService, and the macOS pair already in hw-backup mapping.rs. Native key names are written exactly as each head stores them — PascalCase for the Windows settings.json, the dotted universal keys for Linux, and the seven macOS categories. absentUniversalKeys / ignoredUniversalKeys record, per head, the universal keys that head does NOT carry today; those are the gaps phase 3 closes.",
+  "description": "Cross-platform golden vectors for the universal-v2 backup adapters (issue #277). The modeNormalization rows were hand-authored in commit 1a against the SHIPPING native code — Windows UniversalBackupMapper.MapToMode (+ CloudTranscriptionModels.ResolveModelAlias and CloudSttCatalog.NormalizeCloudProvider) and Linux ApplicationBackupService.ParseMode — so the Rust port in commit 1b can be diffed against them on the same inputs. A row with a single \"expected\" is one where the two heads AGREE today. A row carrying \"expectedWindows\" and \"expectedLinux\" records a drift that ships right now: Linux runs no cloud-routing migration, no catalog provider normalization, no model-alias resolution and no domain gate at all. Those rows collapse to a single \"expected\" in 1b; rows with one \"expected\" must not move. The windowsSettings / linuxSettings / macosSettings rows were added in commit 2a against the SHIPPING settings adapters: Windows UniversalBackupMapper.MapSettings / BuildPlatformExtensions / ApplySettings driven over a temp-rooted SettingsService, Linux ApplicationBackupService export/import over PortableSettingsService, and the macOS pair already in hw-backup mapping.rs. Native key names are written exactly as each head stores them — PascalCase for the Windows settings.json, the dotted universal keys for Linux, and the seven macOS categories. absentUniversalKeys / ignoredUniversalKeys record, per head, the universal keys that head does NOT carry today; those are the gaps phase 3 closes. Phase 3 CHANGES BEHAVIOUR on purpose, so the windowsSettings rows moved: storage.keepAudioFiles and advanced.maxRecordingDuration became real Windows settings (3a), the maxRecordingDuration rows pin the 20-minute ceiling and the two macOS sentinels, and unknownKeyRoundTrip was populated for the first time (3b/3c). The 132 modeNormalization rows are FROZEN and did not move.",
   "modeNormalization": [
     {
       "name": "absent: a mode carrying no cloud-routing keys at all",
@@ -2098,7 +2098,7 @@
   "windowsSettings": [
     {
       "name": "export: every promoted key, PascalCase native -> camelCase universal",
-      "note": "Pins the (native, universal) renames: textOutput.pasteResultText <- AutoPasteEnabled, and the SIX streaming keys (enabled/provider/language/deepgramModel/fastFormatting/shortcut) whose native names are all StreamingX. StreamingShortcut is not a scalar — export calls KeyboardShortcut.ToPersistedString().",
+      "note": "Pins the (native, universal) renames: textOutput.pasteResultText <- AutoPasteEnabled, and the SIX streaming keys (enabled/provider/language/deepgramModel/fastFormatting/shortcut) whose native names are all StreamingX. StreamingShortcut is not a scalar — export calls KeyboardShortcut.ToPersistedString(). Phase 3a added storage.keepAudioFiles and advanced.maxRecordingDuration, so only textOutput.storeWordTimestamps is still absent from the typed export — it round-trips through the unknown-key store instead (see unknownKeyRoundTrip).",
       "direction": "export",
       "native": {
         "LaunchMinimized": true,
@@ -2114,6 +2114,7 @@
         "ClipboardRestoreDelaySeconds": 2.5,
         "AutocapitalizeInsert": false,
         "StoreAsM4A": true,
+        "KeepAudioFiles": false,
         "StreamingEnabled": true,
         "StreamingProvider": "deepgram",
         "StreamingLanguage": "de",
@@ -2121,6 +2122,7 @@
         "StreamingFastFormatting": false,
         "StreamingShortcut": "Ctrl+Alt+Shift+F9",
         "TypingSpeedWPM": 95,
+        "MaxRecordingDuration": 600,
         "MinimizeToTray": false,
         "ThemeMode": 2,
         "AutoDeleteEnabled": true,
@@ -2151,7 +2153,8 @@
           "autocapitalizeInsert": false
         },
         "storage": {
-          "storeAsM4A": true
+          "storeAsM4A": true,
+          "keepAudioFiles": false
         },
         "streaming": {
           "enabled": true,
@@ -2162,7 +2165,8 @@
           "shortcut": "Ctrl+Alt+Shift+F9"
         },
         "advanced": {
-          "typingSpeedWPM": 95
+          "typingSpeedWPM": 95,
+          "maxRecordingDuration": 600
         }
       },
       "expectedPlatformExtensions": {
@@ -2188,8 +2192,6 @@
         "customEndpoints": []
       },
       "absentUniversalKeys": [
-        "storage.keepAudioFiles",
-        "advanced.maxRecordingDuration",
         "textOutput.storeWordTimestamps"
       ],
       "forbiddenPlatformExtensionKeys": [
@@ -2221,6 +2223,7 @@
         "ClipboardRestoreDelaySeconds": 10,
         "AutocapitalizeInsert": true,
         "StoreAsM4A": false,
+        "KeepAudioFiles": true,
         "StreamingEnabled": false,
         "StreamingProvider": "hyperwhisperCloud",
         "StreamingLanguage": "en",
@@ -2228,6 +2231,7 @@
         "StreamingFastFormatting": true,
         "StreamingShortcut": "Ctrl+Shift+Space",
         "TypingSpeedWPM": 40,
+        "MaxRecordingDuration": 1200,
         "MinimizeToTray": true,
         "ThemeMode": 0,
         "AutoDeleteEnabled": false,
@@ -2258,7 +2262,8 @@
           "autocapitalizeInsert": true
         },
         "storage": {
-          "storeAsM4A": false
+          "storeAsM4A": false,
+          "keepAudioFiles": true
         },
         "streaming": {
           "enabled": false,
@@ -2269,7 +2274,8 @@
           "shortcut": "Ctrl+Shift+Space"
         },
         "advanced": {
-          "typingSpeedWPM": 40
+          "typingSpeedWPM": 40,
+          "maxRecordingDuration": 1200
         }
       },
       "expectedPlatformExtensions": {
@@ -2295,8 +2301,6 @@
         "customEndpoints": []
       },
       "absentUniversalKeys": [
-        "storage.keepAudioFiles",
-        "advanced.maxRecordingDuration",
         "textOutput.storeWordTimestamps"
       ],
       "forbiddenPlatformExtensionKeys": [
@@ -2328,6 +2332,7 @@
         "ClipboardRestoreDelaySeconds": 10,
         "AutocapitalizeInsert": true,
         "StoreAsM4A": false,
+        "KeepAudioFiles": true,
         "StreamingEnabled": false,
         "StreamingProvider": "hyperwhisperCloud",
         "StreamingLanguage": "en",
@@ -2335,6 +2340,7 @@
         "StreamingFastFormatting": true,
         "StreamingShortcut": "Ctrl+Shift+Space",
         "TypingSpeedWPM": 40,
+        "MaxRecordingDuration": 1200,
         "MinimizeToTray": true,
         "ThemeMode": 0,
         "AutoDeleteEnabled": false,
@@ -2365,7 +2371,8 @@
           "autocapitalizeInsert": false
         },
         "storage": {
-          "storeAsM4A": true
+          "storeAsM4A": true,
+          "keepAudioFiles": false
         },
         "streaming": {
           "enabled": true,
@@ -2376,7 +2383,8 @@
           "shortcut": "Ctrl+Alt+Shift+F9"
         },
         "advanced": {
-          "typingSpeedWPM": 95
+          "typingSpeedWPM": 95,
+          "maxRecordingDuration": 600
         }
       },
       "expectedNative": {
@@ -2393,6 +2401,7 @@
         "ClipboardRestoreDelaySeconds": 2.5,
         "AutocapitalizeInsert": false,
         "StoreAsM4A": true,
+        "KeepAudioFiles": false,
         "StreamingEnabled": true,
         "StreamingProvider": "deepgram",
         "StreamingLanguage": "de",
@@ -2400,6 +2409,7 @@
         "StreamingFastFormatting": false,
         "StreamingShortcut": "Ctrl+Alt+Shift+F9",
         "TypingSpeedWPM": 95,
+        "MaxRecordingDuration": 600,
         "MinimizeToTray": true,
         "ThemeMode": 0,
         "AutoDeleteEnabled": false,
@@ -2431,6 +2441,7 @@
         "ClipboardRestoreDelaySeconds": 2.5,
         "AutocapitalizeInsert": false,
         "StoreAsM4A": true,
+        "KeepAudioFiles": false,
         "StreamingEnabled": true,
         "StreamingProvider": "deepgram",
         "StreamingLanguage": "de",
@@ -2438,6 +2449,7 @@
         "StreamingFastFormatting": false,
         "StreamingShortcut": "Ctrl+Alt+Shift+F9",
         "TypingSpeedWPM": 95,
+        "MaxRecordingDuration": 600,
         "MinimizeToTray": false,
         "ThemeMode": 2,
         "AutoDeleteEnabled": true,
@@ -2465,6 +2477,7 @@
         "ClipboardRestoreDelaySeconds": 2.5,
         "AutocapitalizeInsert": false,
         "StoreAsM4A": true,
+        "KeepAudioFiles": false,
         "StreamingEnabled": true,
         "StreamingProvider": "deepgram",
         "StreamingLanguage": "de",
@@ -2472,6 +2485,7 @@
         "StreamingFastFormatting": false,
         "StreamingShortcut": "Ctrl+Alt+Shift+F9",
         "TypingSpeedWPM": 95,
+        "MaxRecordingDuration": 600,
         "MinimizeToTray": false,
         "ThemeMode": 2,
         "AutoDeleteEnabled": true,
@@ -2503,6 +2517,7 @@
         "ClipboardRestoreDelaySeconds": 2.5,
         "AutocapitalizeInsert": false,
         "StoreAsM4A": true,
+        "KeepAudioFiles": false,
         "StreamingEnabled": true,
         "StreamingProvider": "deepgram",
         "StreamingLanguage": "de",
@@ -2510,6 +2525,7 @@
         "StreamingFastFormatting": false,
         "StreamingShortcut": "Ctrl+Alt+Shift+F9",
         "TypingSpeedWPM": 95,
+        "MaxRecordingDuration": 600,
         "MinimizeToTray": false,
         "ThemeMode": 2,
         "AutoDeleteEnabled": true,
@@ -2570,6 +2586,7 @@
         "ClipboardRestoreDelaySeconds": 2.5,
         "AutocapitalizeInsert": false,
         "StoreAsM4A": true,
+        "KeepAudioFiles": false,
         "StreamingEnabled": true,
         "StreamingProvider": "deepgram",
         "StreamingLanguage": "de",
@@ -2577,6 +2594,7 @@
         "StreamingFastFormatting": false,
         "StreamingShortcut": "Ctrl+Alt+Shift+F9",
         "TypingSpeedWPM": 95,
+        "MaxRecordingDuration": 600,
         "MinimizeToTray": false,
         "ThemeMode": 2,
         "AutoDeleteEnabled": true,
@@ -2608,6 +2626,7 @@
         "ClipboardRestoreDelaySeconds": 2.5,
         "AutocapitalizeInsert": false,
         "StoreAsM4A": true,
+        "KeepAudioFiles": false,
         "StreamingEnabled": true,
         "StreamingProvider": "deepgram",
         "StreamingLanguage": "de",
@@ -2615,6 +2634,7 @@
         "StreamingFastFormatting": false,
         "StreamingShortcut": "Ctrl+Alt+Shift+F9",
         "TypingSpeedWPM": 95,
+        "MaxRecordingDuration": 600,
         "MinimizeToTray": false,
         "ThemeMode": 2,
         "AutoDeleteEnabled": true,
@@ -2651,6 +2671,7 @@
         "ClipboardRestoreDelaySeconds": 2.5,
         "AutocapitalizeInsert": false,
         "StoreAsM4A": true,
+        "KeepAudioFiles": false,
         "StreamingEnabled": true,
         "StreamingProvider": "deepgram",
         "StreamingLanguage": "de",
@@ -2658,6 +2679,7 @@
         "StreamingFastFormatting": false,
         "StreamingShortcut": "Ctrl+Alt+Shift+F9",
         "TypingSpeedWPM": 95,
+        "MaxRecordingDuration": 600,
         "MinimizeToTray": false,
         "ThemeMode": 2,
         "AutoDeleteEnabled": true,
@@ -2689,6 +2711,7 @@
         "ClipboardRestoreDelaySeconds": 2.5,
         "AutocapitalizeInsert": false,
         "StoreAsM4A": true,
+        "KeepAudioFiles": false,
         "StreamingEnabled": true,
         "StreamingProvider": "deepgram",
         "StreamingLanguage": "de",
@@ -2696,6 +2719,7 @@
         "StreamingFastFormatting": false,
         "StreamingShortcut": "Ctrl+Alt+Shift+F9",
         "TypingSpeedWPM": 95,
+        "MaxRecordingDuration": 600,
         "MinimizeToTray": false,
         "ThemeMode": 2,
         "AutoDeleteEnabled": true,
@@ -2730,6 +2754,7 @@
         "ClipboardRestoreDelaySeconds": 2.5,
         "AutocapitalizeInsert": false,
         "StoreAsM4A": true,
+        "KeepAudioFiles": false,
         "StreamingEnabled": true,
         "StreamingProvider": "hyperwhisperCloud",
         "StreamingLanguage": "ja",
@@ -2737,6 +2762,7 @@
         "StreamingFastFormatting": false,
         "StreamingShortcut": "Ctrl+Shift+F9",
         "TypingSpeedWPM": 95,
+        "MaxRecordingDuration": 600,
         "MinimizeToTray": false,
         "ThemeMode": 2,
         "AutoDeleteEnabled": true,
@@ -2751,8 +2777,8 @@
       }
     },
     {
-      "name": "import: the three keys Windows does not carry are dropped on the floor",
-      "note": "THE #288 GAP, pinned. storage.keepAudioFiles and advanced.maxRecordingDuration exist on the UniversalStorageSettings / UniversalAdvancedSettings DTOs but MapSettings never writes them and ApplySettings never reads them; textOutput.storeWordTimestamps has no DTO property at all and no [JsonExtensionData], so it does not even survive deserialization. A macOS-or-Linux -> Windows -> macOS trip loses all three. Phase 3a adds the first two as real settings; 3b round-trips the third.",
+      "name": "import: two of the three lost keys now apply; the third is preserved instead",
+      "note": "THE #288 GAP, now closed. keepAudioFiles and maxRecordingDuration are real Windows settings as of phase 3a, so they apply here. textOutput.storeWordTimestamps still has no Windows property and is not gaining one — it no longer dies at deserialize, it is captured into SettingsData.BackupUnknownSettings and re-emitted under textOutput on the next export (proved by the unknownKeyRoundTrip rows). maxRecordingDuration is 600 here, inside the 20-minute ceiling; the sentinel and clamp rows below cover the rest.",
       "direction": "import",
       "baselineNative": {
         "LaunchMinimized": true,
@@ -2768,6 +2794,7 @@
         "ClipboardRestoreDelaySeconds": 2.5,
         "AutocapitalizeInsert": false,
         "StoreAsM4A": true,
+        "KeepAudioFiles": true,
         "StreamingEnabled": true,
         "StreamingProvider": "deepgram",
         "StreamingLanguage": "de",
@@ -2775,6 +2802,7 @@
         "StreamingFastFormatting": false,
         "StreamingShortcut": "Ctrl+Alt+Shift+F9",
         "TypingSpeedWPM": 95,
+        "MaxRecordingDuration": 1200,
         "MinimizeToTray": false,
         "ThemeMode": 2,
         "AutoDeleteEnabled": true,
@@ -2798,7 +2826,7 @@
         },
         "advanced": {
           "typingSpeedWPM": 55,
-          "maxRecordingDuration": 300
+          "maxRecordingDuration": 600
         }
       },
       "expectedNative": {
@@ -2815,6 +2843,7 @@
         "ClipboardRestoreDelaySeconds": 2.5,
         "AutocapitalizeInsert": false,
         "StoreAsM4A": false,
+        "KeepAudioFiles": false,
         "StreamingEnabled": true,
         "StreamingProvider": "deepgram",
         "StreamingLanguage": "de",
@@ -2822,6 +2851,7 @@
         "StreamingFastFormatting": false,
         "StreamingShortcut": "Ctrl+Alt+Shift+F9",
         "TypingSpeedWPM": 55,
+        "MaxRecordingDuration": 600,
         "MinimizeToTray": false,
         "ThemeMode": 2,
         "AutoDeleteEnabled": true,
@@ -2870,6 +2900,326 @@
         "advanced": {
           "typingSpeedWPM": 55
         }
+      }
+    },
+    {
+      "name": "import: a backup may TIGHTEN the recording cap",
+      "note": "Seconds. 600 is inside the 20-minute ceiling, so it applies verbatim — a user who wants a shorter runaway guard keeps it across a restore.",
+      "direction": "import",
+      "baselineNative": {
+        "LaunchMinimized": true,
+        "ShowRecordingWindow": false,
+        "CheckForUpdatesAutomatically": false,
+        "EnableErrorLogging": false,
+        "ShareAnonymousSpeedData": false,
+        "EnableSoundEffects": false,
+        "AutoPasteEnabled": false,
+        "RemoveFillerWords": false,
+        "RestoreClipboardAfterPaste": false,
+        "HideFromClipboardHistory": false,
+        "ClipboardRestoreDelaySeconds": 2.5,
+        "AutocapitalizeInsert": false,
+        "StoreAsM4A": true,
+        "KeepAudioFiles": true,
+        "StreamingEnabled": true,
+        "StreamingProvider": "deepgram",
+        "StreamingLanguage": "de",
+        "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingFastFormatting": false,
+        "StreamingShortcut": "Ctrl+Alt+Shift+F9",
+        "TypingSpeedWPM": 95,
+        "MaxRecordingDuration": 1200,
+        "MinimizeToTray": false,
+        "ThemeMode": 2,
+        "AutoDeleteEnabled": true,
+        "AutoDeleteDaysOld": 7,
+        "ParakeetEnabled": false,
+        "KeepMicrophoneWarm": true,
+        "MediaControlMode": "muteAudio",
+        "ToggleShortcut": "Ctrl+Alt+D",
+        "CancelShortcut": "Esc",
+        "ChangeModeShortcut": "Ctrl+Shift+.",
+        "AutoIncreaseMicVolume": false
+      },
+      "universal": {
+        "advanced": {
+          "maxRecordingDuration": 600
+        }
+      },
+      "expectedNative": {
+        "LaunchMinimized": true,
+        "ShowRecordingWindow": false,
+        "CheckForUpdatesAutomatically": false,
+        "EnableErrorLogging": false,
+        "ShareAnonymousSpeedData": false,
+        "EnableSoundEffects": false,
+        "AutoPasteEnabled": false,
+        "RemoveFillerWords": false,
+        "RestoreClipboardAfterPaste": false,
+        "HideFromClipboardHistory": false,
+        "ClipboardRestoreDelaySeconds": 2.5,
+        "AutocapitalizeInsert": false,
+        "StoreAsM4A": true,
+        "KeepAudioFiles": true,
+        "StreamingEnabled": true,
+        "StreamingProvider": "deepgram",
+        "StreamingLanguage": "de",
+        "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingFastFormatting": false,
+        "StreamingShortcut": "Ctrl+Alt+Shift+F9",
+        "TypingSpeedWPM": 95,
+        "MaxRecordingDuration": 600,
+        "MinimizeToTray": false,
+        "ThemeMode": 2,
+        "AutoDeleteEnabled": true,
+        "AutoDeleteDaysOld": 7,
+        "ParakeetEnabled": false,
+        "KeepMicrophoneWarm": true,
+        "MediaControlMode": "muteAudio",
+        "ToggleShortcut": "Ctrl+Alt+D",
+        "CancelShortcut": "Esc",
+        "ChangeModeShortcut": "Ctrl+Shift+.",
+        "AutoIncreaseMicVolume": false
+      }
+    },
+    {
+      "name": "import: a backup may never LOOSEN the recording cap",
+      "note": "Linux's own export default is 3600 (one hour) and macOS's is the same, so this is the ordinary cross-platform restore, not a hostile file. Windows clamps to 1200 = 20 minutes. The clamp is applied in the shared core (universal_to_windows_settings) AND again in SettingsService.MaxRecordingDurationSeconds, so no writer can raise the ceiling.",
+      "direction": "import",
+      "baselineNative": {
+        "LaunchMinimized": true,
+        "ShowRecordingWindow": false,
+        "CheckForUpdatesAutomatically": false,
+        "EnableErrorLogging": false,
+        "ShareAnonymousSpeedData": false,
+        "EnableSoundEffects": false,
+        "AutoPasteEnabled": false,
+        "RemoveFillerWords": false,
+        "RestoreClipboardAfterPaste": false,
+        "HideFromClipboardHistory": false,
+        "ClipboardRestoreDelaySeconds": 2.5,
+        "AutocapitalizeInsert": false,
+        "StoreAsM4A": true,
+        "KeepAudioFiles": true,
+        "StreamingEnabled": true,
+        "StreamingProvider": "deepgram",
+        "StreamingLanguage": "de",
+        "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingFastFormatting": false,
+        "StreamingShortcut": "Ctrl+Alt+Shift+F9",
+        "TypingSpeedWPM": 95,
+        "MaxRecordingDuration": 1200,
+        "MinimizeToTray": false,
+        "ThemeMode": 2,
+        "AutoDeleteEnabled": true,
+        "AutoDeleteDaysOld": 7,
+        "ParakeetEnabled": false,
+        "KeepMicrophoneWarm": true,
+        "MediaControlMode": "muteAudio",
+        "ToggleShortcut": "Ctrl+Alt+D",
+        "CancelShortcut": "Esc",
+        "ChangeModeShortcut": "Ctrl+Shift+.",
+        "AutoIncreaseMicVolume": false
+      },
+      "universal": {
+        "advanced": {
+          "maxRecordingDuration": 3600
+        }
+      },
+      "expectedNative": {
+        "LaunchMinimized": true,
+        "ShowRecordingWindow": false,
+        "CheckForUpdatesAutomatically": false,
+        "EnableErrorLogging": false,
+        "ShareAnonymousSpeedData": false,
+        "EnableSoundEffects": false,
+        "AutoPasteEnabled": false,
+        "RemoveFillerWords": false,
+        "RestoreClipboardAfterPaste": false,
+        "HideFromClipboardHistory": false,
+        "ClipboardRestoreDelaySeconds": 2.5,
+        "AutocapitalizeInsert": false,
+        "StoreAsM4A": true,
+        "KeepAudioFiles": true,
+        "StreamingEnabled": true,
+        "StreamingProvider": "deepgram",
+        "StreamingLanguage": "de",
+        "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingFastFormatting": false,
+        "StreamingShortcut": "Ctrl+Alt+Shift+F9",
+        "TypingSpeedWPM": 95,
+        "MaxRecordingDuration": 1200,
+        "MinimizeToTray": false,
+        "ThemeMode": 2,
+        "AutoDeleteEnabled": true,
+        "AutoDeleteDaysOld": 7,
+        "ParakeetEnabled": false,
+        "KeepMicrophoneWarm": true,
+        "MediaControlMode": "muteAudio",
+        "ToggleShortcut": "Ctrl+Alt+D",
+        "CancelShortcut": "Esc",
+        "ChangeModeShortcut": "Ctrl+Shift+.",
+        "AutoIncreaseMicVolume": false
+      }
+    },
+    {
+      "name": "import: macOS's 0 (\"no limit\") reads as unset, it does not disable the guard",
+      "note": "Windows has no \"off\" for the runaway guard: an unlimited recording is the failure mode the guard exists for. 0 is dropped as absent, so the live value stands.",
+      "direction": "import",
+      "baselineNative": {
+        "LaunchMinimized": true,
+        "ShowRecordingWindow": false,
+        "CheckForUpdatesAutomatically": false,
+        "EnableErrorLogging": false,
+        "ShareAnonymousSpeedData": false,
+        "EnableSoundEffects": false,
+        "AutoPasteEnabled": false,
+        "RemoveFillerWords": false,
+        "RestoreClipboardAfterPaste": false,
+        "HideFromClipboardHistory": false,
+        "ClipboardRestoreDelaySeconds": 2.5,
+        "AutocapitalizeInsert": false,
+        "StoreAsM4A": true,
+        "KeepAudioFiles": true,
+        "StreamingEnabled": true,
+        "StreamingProvider": "deepgram",
+        "StreamingLanguage": "de",
+        "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingFastFormatting": false,
+        "StreamingShortcut": "Ctrl+Alt+Shift+F9",
+        "TypingSpeedWPM": 95,
+        "MaxRecordingDuration": 1200,
+        "MinimizeToTray": false,
+        "ThemeMode": 2,
+        "AutoDeleteEnabled": true,
+        "AutoDeleteDaysOld": 7,
+        "ParakeetEnabled": false,
+        "KeepMicrophoneWarm": true,
+        "MediaControlMode": "muteAudio",
+        "ToggleShortcut": "Ctrl+Alt+D",
+        "CancelShortcut": "Esc",
+        "ChangeModeShortcut": "Ctrl+Shift+.",
+        "AutoIncreaseMicVolume": false
+      },
+      "universal": {
+        "advanced": {
+          "maxRecordingDuration": 0
+        }
+      },
+      "expectedNative": {
+        "LaunchMinimized": true,
+        "ShowRecordingWindow": false,
+        "CheckForUpdatesAutomatically": false,
+        "EnableErrorLogging": false,
+        "ShareAnonymousSpeedData": false,
+        "EnableSoundEffects": false,
+        "AutoPasteEnabled": false,
+        "RemoveFillerWords": false,
+        "RestoreClipboardAfterPaste": false,
+        "HideFromClipboardHistory": false,
+        "ClipboardRestoreDelaySeconds": 2.5,
+        "AutocapitalizeInsert": false,
+        "StoreAsM4A": true,
+        "KeepAudioFiles": true,
+        "StreamingEnabled": true,
+        "StreamingProvider": "deepgram",
+        "StreamingLanguage": "de",
+        "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingFastFormatting": false,
+        "StreamingShortcut": "Ctrl+Alt+Shift+F9",
+        "TypingSpeedWPM": 95,
+        "MaxRecordingDuration": 1200,
+        "MinimizeToTray": false,
+        "ThemeMode": 2,
+        "AutoDeleteEnabled": true,
+        "AutoDeleteDaysOld": 7,
+        "ParakeetEnabled": false,
+        "KeepMicrophoneWarm": true,
+        "MediaControlMode": "muteAudio",
+        "ToggleShortcut": "Ctrl+Alt+D",
+        "CancelShortcut": "Esc",
+        "ChangeModeShortcut": "Ctrl+Shift+.",
+        "AutoIncreaseMicVolume": false
+      }
+    },
+    {
+      "name": "import: macOS's legacy 300 reads as unset, not as a 5-minute cap",
+      "note": "THE QUIRK, mirrored on purpose. 300 was macOS's never-exposed default and macOS itself ignores it on import (BackupManager.swift). Reading it literally would silently cap a Windows user at 5 minutes because of a value nobody chose. shared-backup/examples/windows-export.hwbackup.json used to declare exactly 300; phase 3 changed it to 1200, which is what Windows actually exports.",
+      "direction": "import",
+      "baselineNative": {
+        "LaunchMinimized": true,
+        "ShowRecordingWindow": false,
+        "CheckForUpdatesAutomatically": false,
+        "EnableErrorLogging": false,
+        "ShareAnonymousSpeedData": false,
+        "EnableSoundEffects": false,
+        "AutoPasteEnabled": false,
+        "RemoveFillerWords": false,
+        "RestoreClipboardAfterPaste": false,
+        "HideFromClipboardHistory": false,
+        "ClipboardRestoreDelaySeconds": 2.5,
+        "AutocapitalizeInsert": false,
+        "StoreAsM4A": true,
+        "KeepAudioFiles": true,
+        "StreamingEnabled": true,
+        "StreamingProvider": "deepgram",
+        "StreamingLanguage": "de",
+        "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingFastFormatting": false,
+        "StreamingShortcut": "Ctrl+Alt+Shift+F9",
+        "TypingSpeedWPM": 95,
+        "MaxRecordingDuration": 1200,
+        "MinimizeToTray": false,
+        "ThemeMode": 2,
+        "AutoDeleteEnabled": true,
+        "AutoDeleteDaysOld": 7,
+        "ParakeetEnabled": false,
+        "KeepMicrophoneWarm": true,
+        "MediaControlMode": "muteAudio",
+        "ToggleShortcut": "Ctrl+Alt+D",
+        "CancelShortcut": "Esc",
+        "ChangeModeShortcut": "Ctrl+Shift+.",
+        "AutoIncreaseMicVolume": false
+      },
+      "universal": {
+        "advanced": {
+          "maxRecordingDuration": 300
+        }
+      },
+      "expectedNative": {
+        "LaunchMinimized": true,
+        "ShowRecordingWindow": false,
+        "CheckForUpdatesAutomatically": false,
+        "EnableErrorLogging": false,
+        "ShareAnonymousSpeedData": false,
+        "EnableSoundEffects": false,
+        "AutoPasteEnabled": false,
+        "RemoveFillerWords": false,
+        "RestoreClipboardAfterPaste": false,
+        "HideFromClipboardHistory": false,
+        "ClipboardRestoreDelaySeconds": 2.5,
+        "AutocapitalizeInsert": false,
+        "StoreAsM4A": true,
+        "KeepAudioFiles": true,
+        "StreamingEnabled": true,
+        "StreamingProvider": "deepgram",
+        "StreamingLanguage": "de",
+        "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingFastFormatting": false,
+        "StreamingShortcut": "Ctrl+Alt+Shift+F9",
+        "TypingSpeedWPM": 95,
+        "MaxRecordingDuration": 1200,
+        "MinimizeToTray": false,
+        "ThemeMode": 2,
+        "AutoDeleteEnabled": true,
+        "AutoDeleteDaysOld": 7,
+        "ParakeetEnabled": false,
+        "KeepMicrophoneWarm": true,
+        "MediaControlMode": "muteAudio",
+        "ToggleShortcut": "Ctrl+Alt+D",
+        "CancelShortcut": "Esc",
+        "ChangeModeShortcut": "Ctrl+Shift+.",
+        "AutoIncreaseMicVolume": false
       }
     }
   ],
@@ -3581,5 +3931,235 @@
       }
     }
   ],
-  "unknownKeyRoundTrip": []
+  "unknownKeyRoundTrip": [
+    {
+      "name": "settings: an unknown key comes back under ITS OWN SECTION, never at the root",
+      "note": "THE NAMED VICTIM (#288). textOutput.storeWordTimestamps exists on macOS and on Linux; Windows has no property for it and is not gaining one, so before phase 3b it died at deserialize and a mac -> Windows -> mac trip lost it for good. It is now captured into SettingsData.BackupUnknownSettings as a section-keyed MIRROR of the universal settings tree and re-attached to the typed DTO's [JsonExtensionData] bag on export, so System.Text.Json emits it at exactly its original nesting level with no manual path arithmetic. The root-level check is the point of the row: re-emitting it at the document root would be a schema violation.",
+      "kind": "settingsUnknownKey",
+      "heads": [
+        "windows"
+      ],
+      "importedSettings": {
+        "textOutput": {
+          "pasteResultText": true,
+          "storeWordTimestamps": true
+        },
+        "storage": {
+          "storeAsM4A": true
+        }
+      },
+      "expectedStored": {
+        "textOutput": {
+          "storeWordTimestamps": true
+        }
+      },
+      "expectedReExportedPaths": {
+        "textOutput.storeWordTimestamps": true
+      },
+      "forbiddenReExportedPaths": [
+        "storeWordTimestamps"
+      ]
+    },
+    {
+      "name": "settings: a whole unknown SECTION survives at the settings root",
+      "note": "A future category cannot collide with one of the five known section names, because those five are declared properties and therefore never reach UniversalSettings.Additional. That is what makes one flat store unambiguous for both nesting levels.",
+      "kind": "settingsUnknownKey",
+      "heads": [
+        "windows"
+      ],
+      "importedSettings": {
+        "storage": {
+          "storeAsM4A": true
+        },
+        "someFutureSection": {
+          "a": 1
+        }
+      },
+      "expectedStored": {
+        "someFutureSection": {
+          "a": 1
+        }
+      },
+      "expectedReExportedPaths": {
+        "someFutureSection.a": 1
+      },
+      "forbiddenReExportedPaths": [
+        "a"
+      ]
+    },
+    {
+      "name": "settings: a REPLACE, not a merge — a second import does not resurrect the first file's keys",
+      "note": "The blob describes the LAST IMPORTED backup. Merging would re-publish a key from an unrelated file under a different user's export.",
+      "kind": "settingsUnknownKey",
+      "heads": [
+        "windows"
+      ],
+      "importedSettings": {
+        "textOutput": {
+          "storeWordTimestamps": true
+        }
+      },
+      "thenImportedSettings": {
+        "storage": {
+          "storeAsM4A": true
+        }
+      },
+      "expectedStored": null,
+      "expectedReExportedPaths": {},
+      "forbiddenReExportedPaths": [
+        "textOutput.storeWordTimestamps"
+      ]
+    },
+    {
+      "name": "platformExtensions: a foreign TOP-LEVEL slice survives a round trip, and the own slice wins",
+      "note": "Until #288 this worked on Linux only. Windows' BuildPlatformExtensions returned {\"windows\": ...} and nothing else; macOS's encodeBackupV2 built the map purely from the core record, which only ever holds \"macos\". Both now preserve the foreign slices and re-emit them.",
+      "storageNote": "THE TWO STRATEGIES ARE DIFFERENT AND THAT IS FINE — expectedStoredByHead records what each head actually keeps. Windows (SettingsData.BackupForeignPlatformExtensions) and macOS (UserDefaults backup.foreignPlatformExtensions) store ONLY the foreign slices and add their own at export. Linux (the backup.platformExtensions setting) stores the WHOLE imported map and OVERWRITES its own \"linux\" slice at export (ApplicationBackupExport). The observable contract below is identical either way: every foreign slice survives, and the head's own slice is always rebuilt from live state.",
+      "kind": "topLevelPlatformExtensions",
+      "heads": [
+        "windows",
+        "macos",
+        "linux"
+      ],
+      "imported": {
+        "macos": {
+          "settings": {
+            "shortcuts": {
+              "pushToTalkMode": "disabled"
+            }
+          }
+        },
+        "windows": {
+          "settings": {
+            "minimizeToTray": false
+          }
+        },
+        "linux": {
+          "settings": {
+            "autostartEnabled": true
+          }
+        }
+      },
+      "expectedStoredByHead": {
+        "windows": {
+          "macos": {
+            "settings": {
+              "shortcuts": {
+                "pushToTalkMode": "disabled"
+              }
+            }
+          },
+          "linux": {
+            "settings": {
+              "autostartEnabled": true
+            }
+          }
+        },
+        "macos": {
+          "windows": {
+            "settings": {
+              "minimizeToTray": false
+            }
+          },
+          "linux": {
+            "settings": {
+              "autostartEnabled": true
+            }
+          }
+        },
+        "linux": {
+          "macos": {
+            "settings": {
+              "shortcuts": {
+                "pushToTalkMode": "disabled"
+              }
+            }
+          },
+          "windows": {
+            "settings": {
+              "minimizeToTray": false
+            }
+          },
+          "linux": {
+            "settings": {
+              "autostartEnabled": true
+            }
+          }
+        }
+      },
+      "expectedReExportedKeysByHead": {
+        "windows": [
+          "linux",
+          "macos",
+          "windows"
+        ],
+        "macos": [
+          "linux",
+          "macos",
+          "windows"
+        ],
+        "linux": [
+          "linux",
+          "macos",
+          "windows"
+        ]
+      },
+      "ownSliceKeyByHead": {
+        "windows": "windows",
+        "macos": "macos",
+        "linux": "linux"
+      }
+    },
+    {
+      "name": "platformExtensions: a backup with no foreign slice CLEARS the preserved store",
+      "note": "REPLACE, not merge, and for the same reason as the settings blob: a preserved macos slice from one file must not ride along on the export of a machine that has since restored a different one.",
+      "kind": "topLevelPlatformExtensions",
+      "heads": [
+        "windows",
+        "macos",
+        "linux"
+      ],
+      "imported": {
+        "windows": {
+          "settings": {
+            "minimizeToTray": false
+          }
+        }
+      },
+      "expectedStoredByHead": {
+        "windows": null,
+        "macos": {
+          "windows": {
+            "settings": {
+              "minimizeToTray": false
+            }
+          }
+        },
+        "linux": {
+          "windows": {
+            "settings": {
+              "minimizeToTray": false
+            }
+          }
+        }
+      },
+      "expectedReExportedKeysByHead": {
+        "windows": [
+          "windows"
+        ],
+        "macos": [
+          "macos",
+          "windows"
+        ],
+        "linux": [
+          "linux",
+          "windows"
+        ]
+      },
+      "ownSliceKeyByHead": {
+        "windows": "windows",
+        "macos": "macos",
+        "linux": "linux"
+      }
+    }
+  ]
 }

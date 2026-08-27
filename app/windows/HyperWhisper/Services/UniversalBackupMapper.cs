@@ -107,8 +107,187 @@ public static class UniversalBackupMapper
     {
         var universalJson = HyperwhisperCoreMethods.WindowsSettingsToUniversalSettingsJson(
             settings.BuildBackupSettingsSnapshot());
-        return JsonSerializer.Deserialize<UniversalSettings>(universalJson, CamelCaseOptions)
+        var universal = JsonSerializer.Deserialize<UniversalSettings>(universalJson, CamelCaseOptions)
             ?? new UniversalSettings();
+
+        MergeUnknownSettings(universal, settings.BackupUnknownSettings);
+        return universal;
+    }
+
+    // =========================================================================
+    // UNKNOWN SETTINGS KEYS — capture on import, re-emit on export
+    // =========================================================================
+
+    /// <summary>The five known universal settings categories.</summary>
+    private static readonly string[] SettingsSections =
+        ["general", "textOutput", "storage", "streaming", "advanced"];
+
+    /// <summary>
+    /// Builds the section-keyed blob stored in
+    /// <c>SettingsService.BackupUnknownSettings</c> from a freshly deserialized
+    /// <see cref="UniversalSettings"/>, or <c>null</c> when the backup carried no
+    /// unknown key at all.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The blob MIRRORS the universal <c>settings</c> tree: a key unknown inside a
+    /// known section nests under that section's name, and a whole unknown section
+    /// sits at the top of the same object. That is unambiguous — a root-level entry
+    /// can never collide with one of the five section names, because those five are
+    /// declared properties and therefore never reach
+    /// <see cref="UniversalSettings.Additional"/>.
+    /// </para>
+    /// <para>
+    /// Same routing rule as the macOS adapter's category-keyed
+    /// <c>platformExtensions.macos.settings</c> (<c>mapping.rs</c>: every key routes
+    /// home by its recorded category, no per-key allowlist that could silently
+    /// misroute a future key). Windows copies the RULE, not the parking location:
+    /// <c>platformExtensions.windows</c> stays a curated list, which is exactly why
+    /// these keys need a field of their own.
+    /// </para>
+    /// </remarks>
+    private static string? BuildUnknownSettings(UniversalSettings universal)
+    {
+        var blob = new JsonObject();
+
+        // Whole unknown sections, at the root of the blob.
+        CopyUnknown(blob, universal.Additional, typeof(UniversalSettings));
+
+        // Unknown keys inside a known section, under that section's name.
+        AddSection(blob, "general", universal.General?.Additional, typeof(UniversalGeneralSettings));
+        AddSection(blob, "textOutput", universal.TextOutput?.Additional, typeof(UniversalTextOutputSettings));
+        AddSection(blob, "storage", universal.Storage?.Additional, typeof(UniversalStorageSettings));
+        AddSection(blob, "streaming", universal.Streaming?.Additional, typeof(UniversalStreamingSettings));
+        AddSection(blob, "advanced", universal.Advanced?.Additional, typeof(UniversalAdvancedSettings));
+
+        return blob.Count == 0 ? null : blob.ToJsonString();
+
+        static void AddSection(
+            JsonObject blob, string name, Dictionary<string, JsonElement>? unknown, Type declaring)
+        {
+            var section = new JsonObject();
+            CopyUnknown(section, unknown, declaring);
+            if (section.Count > 0) blob[name] = section;
+        }
+
+        static void CopyUnknown(
+            JsonObject target, Dictionary<string, JsonElement>? unknown, Type declaring)
+        {
+            if (unknown == null) return;
+            var declared = DeclaredJsonNames(declaring);
+            foreach (var entry in unknown)
+            {
+                // Belt and braces: System.Text.Json already excludes declared names
+                // on deserialize, so this only matters if a name is promoted to a
+                // real property later.
+                if (declared.Contains(entry.Key)) continue;
+                target[entry.Key] = JsonNode.Parse(entry.Value.GetRawText());
+            }
+        }
+    }
+
+    /// <summary>
+    /// Re-attaches a stored <see cref="BuildUnknownSettings"/> blob onto a typed
+    /// <see cref="UniversalSettings"/> so <c>System.Text.Json</c> emits every
+    /// captured key at exactly its original nesting level —
+    /// <c>textOutput.storeWordTimestamps</c> comes back under <c>textOutput</c>,
+    /// never at the root — with no manual path arithmetic.
+    /// </summary>
+    /// <remarks>
+    /// A captured key that has since become a real property is DROPPED, so a live
+    /// value can never be shadowed by a stale one (and so the serializer cannot hit
+    /// a duplicate-key conflict).
+    /// </remarks>
+    private static void MergeUnknownSettings(UniversalSettings universal, string? stored)
+    {
+        if (string.IsNullOrWhiteSpace(stored)) return;
+
+        try
+        {
+            if (JsonNode.Parse(stored) is not JsonObject blob) return;
+
+            foreach (var entry in blob)
+            {
+                if (entry.Value is null) continue;
+
+                if (!SettingsSections.Contains(entry.Key))
+                {
+                    // A whole unknown section.
+                    Assign(universal.Additional ??= [], typeof(UniversalSettings),
+                        entry.Key, entry.Value);
+                    continue;
+                }
+
+                if (entry.Value is not JsonObject section) continue;
+                foreach (var keyed in section)
+                {
+                    if (keyed.Value is null) continue;
+                    switch (entry.Key)
+                    {
+                        case "general":
+                            Assign((universal.General ??= new()).Additional ??= [],
+                                typeof(UniversalGeneralSettings), keyed.Key, keyed.Value);
+                            break;
+                        case "textOutput":
+                            Assign((universal.TextOutput ??= new()).Additional ??= [],
+                                typeof(UniversalTextOutputSettings), keyed.Key, keyed.Value);
+                            break;
+                        case "storage":
+                            Assign((universal.Storage ??= new()).Additional ??= [],
+                                typeof(UniversalStorageSettings), keyed.Key, keyed.Value);
+                            break;
+                        case "streaming":
+                            Assign((universal.Streaming ??= new()).Additional ??= [],
+                                typeof(UniversalStreamingSettings), keyed.Key, keyed.Value);
+                            break;
+                        case "advanced":
+                            Assign((universal.Advanced ??= new()).Additional ??= [],
+                                typeof(UniversalAdvancedSettings), keyed.Key, keyed.Value);
+                            break;
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // Preserved bookkeeping must never be able to break an export.
+            LoggingService.Warn(
+                $"UniversalBackupMapper: could not re-attach preserved settings keys: {ex.Message}");
+        }
+
+        static void Assign(
+            Dictionary<string, JsonElement> target, Type declaring, string key, JsonNode value)
+        {
+            if (DeclaredJsonNames(declaring).Contains(key)) return;
+            target[key] = JsonSerializer.Deserialize<JsonElement>(value.ToJsonString());
+        }
+    }
+
+    private static readonly Dictionary<Type, HashSet<string>> DeclaredJsonNameCache = [];
+
+    /// <summary>
+    /// The <c>[JsonPropertyName]</c> values declared on <paramref name="type"/>.
+    /// Read by reflection rather than listed by hand so it cannot drift from the
+    /// DTO.
+    /// </summary>
+    private static HashSet<string> DeclaredJsonNames(Type type)
+    {
+        lock (DeclaredJsonNameCache)
+        {
+            if (DeclaredJsonNameCache.TryGetValue(type, out var cached)) return cached;
+
+            var names = type.GetProperties()
+                .Select(p => p.GetCustomAttributes(
+                    typeof(System.Text.Json.Serialization.JsonPropertyNameAttribute), false)
+                    .Cast<System.Text.Json.Serialization.JsonPropertyNameAttribute>()
+                    .FirstOrDefault()?.Name)
+                .Where(name => name != null)
+                .Select(name => name!)
+                .ToHashSet(StringComparer.Ordinal);
+
+            DeclaredJsonNameCache[type] = names;
+            return names;
+        }
     }
 
     /// <summary>
@@ -237,11 +416,44 @@ public static class UniversalBackupMapper
     }
 
     /// <summary>
-    /// Builds the top-level platformExtensions.windows object with Windows-specific settings.
+    /// Builds the TOP-LEVEL <c>platformExtensions</c> map: this platform's own
+    /// <c>"windows"</c> slice, plus every foreign slice preserved from the last
+    /// import (<c>SettingsService.BackupForeignPlatformExtensions</c>).
     /// </summary>
+    /// <remarks>
+    /// Until #288 this returned <c>{"windows": …}</c> and nothing else, so a macOS
+    /// or Linux top-level slice died on a Windows round-trip even though the
+    /// per-mode slices survived. The rule is the same one <see cref="MapMode"/>
+    /// already applies per mode: re-attach foreign slices, and OUR OWN SLICE
+    /// ALWAYS WINS over a stale preserved copy.
+    /// </remarks>
     public static Dictionary<string, JsonElement> BuildPlatformExtensions(SettingsService settings)
     {
         var result = new Dictionary<string, JsonElement>();
+
+        // Foreign slices FIRST, so the "windows" assignment below overwrites any
+        // stale preserved copy of our own slice rather than the other way round.
+        if (!string.IsNullOrWhiteSpace(settings.BackupForeignPlatformExtensions))
+        {
+            try
+            {
+                var foreign = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(
+                    settings.BackupForeignPlatformExtensions);
+                if (foreign != null)
+                {
+                    foreach (var kvp in foreign)
+                    {
+                        if (kvp.Key == WindowsPlatformKey) continue;
+                        result[kvp.Key] = kvp.Value;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LoggingService.Warn(
+                    $"UniversalBackupMapper: Failed to merge preserved top-level platform extensions: {ex.Message}");
+            }
+        }
 
         // Build Windows-specific settings
         var winSettings = new WindowsSettingsExtensions
@@ -273,9 +485,81 @@ public static class UniversalBackupMapper
         {
             ["settings"] = settingsJson
         };
-        result["windows"] = JsonSerializer.SerializeToElement(windowsObj);
+        result[WindowsPlatformKey] = JsonSerializer.SerializeToElement(windowsObj);
 
         return result;
+    }
+
+    /// <summary>This platform's own top-level <c>platformExtensions</c> key.</summary>
+    private const string WindowsPlatformKey = "windows";
+
+    /// <summary>
+    /// Captures every NON-<c>"windows"</c> top-level <c>platformExtensions</c> slice
+    /// of an imported backup into
+    /// <c>SettingsService.BackupForeignPlatformExtensions</c>, so
+    /// <see cref="BuildPlatformExtensions"/> can re-emit it on the next export.
+    /// Mirrors <see cref="MapToMode"/>'s per-mode capture.
+    /// </summary>
+    /// <remarks>
+    /// REPLACE, not merge: the stored map describes the LAST IMPORTED file. Merging
+    /// would resurrect a <c>macos</c> slice from an unrelated backup and re-publish
+    /// it under a different user's export. An imported file with no foreign slice
+    /// therefore CLEARS the store.
+    /// </remarks>
+    private static void CaptureForeignPlatformExtensions(
+        Dictionary<string, JsonElement>? platformExtensions, SettingsService settings)
+    {
+        var foreign = new Dictionary<string, JsonElement>();
+        if (platformExtensions != null)
+        {
+            foreach (var kvp in platformExtensions)
+            {
+                if (kvp.Key == WindowsPlatformKey) continue;
+                foreign[kvp.Key] = kvp.Value;
+            }
+        }
+
+        settings.BackupForeignPlatformExtensions =
+            foreign.Count == 0 ? null : JsonSerializer.Serialize(foreign);
+    }
+
+    /// <summary>
+    /// Captures the unknown TOP-LEVEL keys of an imported backup into
+    /// <c>SettingsService.BackupUnknownRootKeys</c>, and re-emits them on export.
+    /// <c>platformExtensions</c> is never among them — it is a declared property
+    /// with its own store.
+    /// </summary>
+    public static void CaptureUnknownRootKeys(UniversalBackup backup, SettingsService settings)
+    {
+        var unknown = backup.Additional;
+        settings.BackupUnknownRootKeys = unknown is null or { Count: 0 }
+            ? null
+            : JsonSerializer.Serialize(unknown);
+    }
+
+    /// <summary>Inverse of <see cref="CaptureUnknownRootKeys"/>, for the export site.</summary>
+    public static Dictionary<string, JsonElement>? ReadUnknownRootKeys(SettingsService settings)
+    {
+        if (string.IsNullOrWhiteSpace(settings.BackupUnknownRootKeys)) return null;
+        try
+        {
+            var stored = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(
+                settings.BackupUnknownRootKeys);
+            if (stored is null or { Count: 0 }) return null;
+
+            // A key that has since become a declared property must not be re-emitted
+            // from a stale capture.
+            var declared = DeclaredJsonNames(typeof(UniversalBackup));
+            var filtered = stored.Where(kvp => !declared.Contains(kvp.Key))
+                .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+            return filtered.Count == 0 ? null : filtered;
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Warn(
+                $"UniversalBackupMapper: Failed to re-attach preserved top-level keys: {ex.Message}");
+            return null;
+        }
     }
 
     // =========================================================================
@@ -332,6 +616,7 @@ public static class UniversalBackupMapper
 
         // storage
         if (TryBool(n, "StoreAsM4A", out var storeAsM4A)) settings.StoreAsM4A = storeAsM4A;
+        if (TryBool(n, "KeepAudioFiles", out var keepAudioFiles)) settings.KeepAudioFiles = keepAudioFiles;
 
         // streaming — the four string arms are whitespace-gated, the two bool arms are not
         if (TryBool(n, "StreamingEnabled", out var streamingEnabled)) settings.StreamingEnabled = streamingEnabled;
@@ -344,6 +629,14 @@ public static class UniversalBackupMapper
 
         // advanced
         if (TryInt(n, "TypingSpeedWPM", out var typingSpeedWPM)) settings.TypingSpeedWPM = typingSpeedWPM;
+        // The core has already dropped macOS's 300 / "no limit" sentinels and
+        // clamped anything above 20 minutes; the setter clamps again.
+        if (TryInt(n, "MaxRecordingDuration", out var maxRecordingDuration))
+            settings.MaxRecordingDurationSeconds = maxRecordingDuration;
+
+        // Finally, preserve the settings keys this build has no property for, so a
+        // re-export puts them back at their original path instead of dropping them.
+        settings.BackupUnknownSettings = BuildUnknownSettings(universalSettings);
     }
 
     /// <summary>
@@ -450,15 +743,21 @@ public static class UniversalBackupMapper
     }
 
     /// <summary>
-    /// Applies Windows-specific settings from platformExtensions.windows.settings.
+    /// Applies Windows-specific settings from platformExtensions.windows.settings,
+    /// and preserves every OTHER platform's top-level slice for re-export.
     /// </summary>
     public static void ApplyWindowsPlatformSettings(
         Dictionary<string, JsonElement>? platformExtensions,
         SettingsService settings,
         bool replaceExisting = false)
     {
+        // BEFORE the "windows" lookup, and unconditionally: a macOS or Linux backup
+        // has no "windows" slice at all, and that is exactly the case whose foreign
+        // slices must survive.
+        CaptureForeignPlatformExtensions(platformExtensions, settings);
+
         if (platformExtensions == null) return;
-        if (!platformExtensions.TryGetValue("windows", out var windowsElement)) return;
+        if (!platformExtensions.TryGetValue(WindowsPlatformKey, out var windowsElement)) return;
 
         try
         {

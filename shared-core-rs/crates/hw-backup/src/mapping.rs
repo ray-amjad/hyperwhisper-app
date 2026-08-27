@@ -703,9 +703,11 @@ pub struct WindowsSettings {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub autocapitalize_insert: Option<bool>,
 
-    // -- storage -- (extended in 3a with KeepAudioFiles)
+    // -- storage --
     #[serde(rename = "StoreAsM4A", skip_serializing_if = "Option::is_none")]
     pub store_as_m4a: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub keep_audio_files: Option<bool>,
 
     // -- streaming -- SIX separately-named native properties, not four.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -721,10 +723,33 @@ pub struct WindowsSettings {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub streaming_shortcut: Option<String>,
 
-    // -- advanced -- (extended in 3a with MaxRecordingDuration)
+    // -- advanced --
     #[serde(rename = "TypingSpeedWPM", skip_serializing_if = "Option::is_none")]
     pub typing_speed_wpm: Option<i64>,
+    /// SECONDS, like the universal key and like macOS's
+    /// `maxRecordingDurationSeconds`. Windows caps it at
+    /// [`WINDOWS_MAX_RECORDING_DURATION_CEILING_SECS`] — see
+    /// [`universal_to_windows_settings`].
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_recording_duration: Option<i64>,
 }
+
+/// Windows' hard recording/streaming safety ceiling, in seconds (20 minutes).
+///
+/// It mirrors `MainViewModel.MaxRecordingDuration = TimeSpan.FromMinutes(20)`,
+/// which is both the default and the maximum. A backup file may LOWER the cap
+/// but must never raise it: `verify_recording_runaway_guard.ps1` exists because
+/// an unbounded recording is a real failure mode (disk fill, a session the user
+/// forgot about), and an importable setting would otherwise let any shared
+/// `.hwbackup.json` switch the guard off.
+pub const WINDOWS_MAX_RECORDING_DURATION_CEILING_SECS: i64 = 20 * 60;
+
+/// The value macOS wrote as `advanced.maxRecordingDuration` before the setting
+/// was ever exposed in its UI. macOS itself treats it as "unset" on import
+/// (`BackupManager.swift`), and `shared-backup/examples/windows-export.hwbackup.json`
+/// used to declare it. Windows mirrors the quirk rather than silently capping a
+/// user's recordings at five minutes because of a value nobody chose.
+const MACOS_UNSET_MAX_RECORDING_DURATION_SECS: i64 = 300;
 
 /// `(native PascalCase key, universal camelCase key)`.
 ///
@@ -755,9 +780,14 @@ pub const WINDOWS_TEXT_OUTPUT_PAIRS: &[(&str, &str)] = &[
     // extension-data path instead.
 ];
 
-/// Extended in 3a with `("KeepAudioFiles", "keepAudioFiles")` — deliberately
-/// incomplete until then, because the native property does not exist yet.
-pub const WINDOWS_STORAGE_PAIRS: &[(&str, &str)] = &[("StoreAsM4A", "storeAsM4A")];
+pub const WINDOWS_STORAGE_PAIRS: &[(&str, &str)] = &[
+    ("StoreAsM4A", "storeAsM4A"),
+    // Added in phase 3a together with the native `SettingsData.KeepAudioFiles`.
+    // Before it existed, a macOS or Linux backup's value was dropped here while
+    // the Windows golden fixture already declared the key — #288's first named
+    // fidelity bug.
+    ("KeepAudioFiles", "keepAudioFiles"),
+];
 
 pub const WINDOWS_STREAMING_PAIRS: &[(&str, &str)] = &[
     ("StreamingEnabled", "enabled"),
@@ -769,9 +799,13 @@ pub const WINDOWS_STREAMING_PAIRS: &[(&str, &str)] = &[
     ("StreamingShortcut", "shortcut"),
 ];
 
-/// Extended in 3a with `("MaxRecordingDuration", "maxRecordingDuration")` —
-/// deliberately incomplete until then. See [`WINDOWS_STORAGE_PAIRS`].
-pub const WINDOWS_ADVANCED_PAIRS: &[(&str, &str)] = &[("TypingSpeedWPM", "typingSpeedWPM")];
+pub const WINDOWS_ADVANCED_PAIRS: &[(&str, &str)] = &[
+    ("TypingSpeedWPM", "typingSpeedWPM"),
+    // Added in phase 3a. The EXPORT direction is a plain table row; the IMPORT
+    // direction runs one extra step (see `universal_to_windows_settings`),
+    // because this key is a safety limit and cannot be restored verbatim.
+    ("MaxRecordingDuration", "maxRecordingDuration"),
+];
 
 /// Every Windows pairs table, with the universal category each one feeds.
 const WINDOWS_SECTIONS: &[(&str, &[(&str, &str)])] = &[
@@ -825,15 +859,31 @@ pub fn windows_settings_to_universal(windows: &WindowsSettings) -> UniversalSett
 ///
 /// PRESENT-ONLY, and an explicit JSON `null` counts as absent — exactly what
 /// `UniversalBackupMapper.ApplySettings`'s `HasValue` gates do today. A universal
-/// key with no pairs row (`storage.keepAudioFiles`, `advanced.maxRecordingDuration`,
-/// `textOutput.storeWordTimestamps`, or any future key) is DROPPED here, which is
-/// this build's shipping behaviour; phase 3 is what changes it.
+/// key with no pairs row (`textOutput.storeWordTimestamps`, or any future key) is
+/// DROPPED here; on Windows it survives instead through the unknown-key
+/// passthrough (`SettingsData.BackupUnknownSettings`), which is native.
 ///
-/// **No value interpretation happens here.** The Windows setters re-canonicalise
-/// `StreamingProvider`, collapse `StreamingDeepgramModel`, re-parse
-/// `StreamingShortcut` and clamp `ClipboardRestoreDelaySeconds`; that is a
-/// `SettingsService` responsibility and stays native. This function only renames
-/// and regroups.
+/// **Almost no value interpretation happens here.** The Windows setters
+/// re-canonicalise `StreamingProvider`, collapse `StreamingDeepgramModel`,
+/// re-parse `StreamingShortcut` and clamp `ClipboardRestoreDelaySeconds`; that is
+/// a `SettingsService` responsibility and stays native. This function otherwise
+/// only renames and regroups.
+///
+/// # The one exception: `advanced.maxRecordingDuration`
+///
+/// It is a SAFETY limit, so it is the one key a backup file must not be able to
+/// set freely. Three rules, applied here so all three bindings answer the same
+/// way and `shared-conformance/backup-vectors.json` can pin them:
+///
+/// | Universal value | Native `MaxRecordingDuration` |
+/// |---|---|
+/// | `300` (the macOS never-exposed default) | ABSENT — keep the live value, as macOS does |
+/// | `<= 0` (macOS's "no limit") | ABSENT — Windows has no "off"; the guard always runs |
+/// | `1..=1200` | the value |
+/// | `> 1200` | `1200` — clamped to the 20-minute ceiling |
+///
+/// `SettingsService.MaxRecordingDurationSeconds` clamps again on the native side,
+/// so a hand-edited `settings.json` cannot raise the ceiling either.
 pub fn universal_to_windows_settings(
     record: &UniversalSettings,
 ) -> Result<WindowsSettings, serde_json::Error> {
@@ -862,6 +912,26 @@ pub fn universal_to_windows_settings(
                 }
             }
         }
+    }
+
+    // The one non-rename step. Deliberately AFTER the table loop and keyed on the
+    // NATIVE name, so it applies to whatever the table produced and cannot be
+    // bypassed by a future second row feeding the same field.
+    match flat.get("MaxRecordingDuration").and_then(Value::as_i64) {
+        None => {}
+        Some(MACOS_UNSET_MAX_RECORDING_DURATION_SECS) => {
+            flat.remove("MaxRecordingDuration");
+        }
+        Some(secs) if secs <= 0 => {
+            flat.remove("MaxRecordingDuration");
+        }
+        Some(secs) if secs > WINDOWS_MAX_RECORDING_DURATION_CEILING_SECS => {
+            flat.insert(
+                "MaxRecordingDuration".to_string(),
+                Value::from(WINDOWS_MAX_RECORDING_DURATION_CEILING_SECS),
+            );
+        }
+        Some(_) => {}
     }
 
     serde_json::from_value(Value::Object(flat))
@@ -1092,6 +1162,7 @@ mod windows_linux_settings_tests {
                 let value = match *native {
                     "ClipboardRestoreDelaySeconds" => json!(1.5),
                     "TypingSpeedWPM" => json!(77),
+                    "MaxRecordingDuration" => json!(600),
                     n if n.starts_with("Streaming")
                         && !matches!(n, "StreamingEnabled" | "StreamingFastFormatting") =>
                     {
@@ -1111,8 +1182,9 @@ mod windows_linux_settings_tests {
         );
     }
 
-    /// Guards struct → table drift, which is the direction 3a will exercise: a
-    /// new `WindowsSettings` field with no pairs row would be write-only.
+    /// Guards struct → table drift: a new `WindowsSettings` field with no pairs
+    /// row would be write-only. Phase 3a is what this was waiting for — it added
+    /// `KeepAudioFiles` and `MaxRecordingDuration` on both sides at once.
     #[test]
     fn every_windows_settings_field_appears_in_exactly_one_pairs_table() {
         let full = WindowsSettings {
@@ -1129,6 +1201,7 @@ mod windows_linux_settings_tests {
             clipboard_restore_delay_seconds: Some(1.5),
             autocapitalize_insert: Some(true),
             store_as_m4a: Some(true),
+            keep_audio_files: Some(true),
             streaming_enabled: Some(true),
             streaming_provider: Some("p".into()),
             streaming_language: Some("l".into()),
@@ -1136,6 +1209,7 @@ mod windows_linux_settings_tests {
             streaming_fast_formatting: Some(true),
             streaming_shortcut: Some("s".into()),
             typing_speed_wpm: Some(77),
+            max_recording_duration: Some(600),
         };
         let serialized = serde_json::to_value(&full).unwrap();
         let mut struct_keys: Vec<String> =
@@ -1152,7 +1226,11 @@ mod windows_linux_settings_tests {
             struct_keys, table_keys,
             "WindowsSettings fields and the pairs tables have drifted apart"
         );
-        assert_eq!(struct_keys.len(), 20, "Windows promotes 20 keys today");
+        assert_eq!(
+            struct_keys.len(),
+            22,
+            "Windows promotes 22 keys since phase 3a (20 + KeepAudioFiles + MaxRecordingDuration)"
+        );
     }
 
     #[test]
@@ -1204,20 +1282,61 @@ mod windows_linux_settings_tests {
         );
     }
 
+    /// Phase 3a closed two of the three gaps. `storeWordTimestamps` stays dropped
+    /// HERE on purpose: there is no Windows native property for it and none is
+    /// being added, so it round-trips through the native unknown-key store
+    /// instead of through this adapter.
     #[test]
-    fn windows_import_drops_the_three_keys_this_build_does_not_carry() {
+    fn windows_import_now_carries_keep_audio_files_and_max_recording_duration() {
         let out = universal_to_windows_settings(&universal(json!({
             "textOutput": { "pasteResultText": true, "storeWordTimestamps": true },
             "storage": { "storeAsM4A": false, "keepAudioFiles": false },
-            "advanced": { "typingSpeedWPM": 55, "maxRecordingDuration": 300 }
+            "advanced": { "typingSpeedWPM": 55, "maxRecordingDuration": 600 }
         })))
         .unwrap();
         let flat = serde_json::to_value(&out).unwrap();
         assert_eq!(
             flat,
-            json!({ "AutoPasteEnabled": true, "StoreAsM4A": false, "TypingSpeedWPM": 55 }),
-            "phase 2 must not invent native properties that do not exist yet"
+            json!({
+                "AutoPasteEnabled": true,
+                "StoreAsM4A": false,
+                "KeepAudioFiles": false,
+                "TypingSpeedWPM": 55,
+                "MaxRecordingDuration": 600
+            }),
+            "storeWordTimestamps is the only one of the three still dropped here"
         );
+    }
+
+    /// The safety rule, stated as a table so a future edit has to argue with it.
+    #[test]
+    fn windows_import_never_lets_a_backup_weaken_the_recording_guard() {
+        fn imported(secs: Value) -> Option<i64> {
+            universal_to_windows_settings(&universal(json!({
+                "advanced": { "maxRecordingDuration": secs }
+            })))
+            .unwrap()
+            .max_recording_duration
+        }
+
+        // In range: verbatim, including a LOWER cap — tightening is always allowed.
+        assert_eq!(imported(json!(600)), Some(600));
+        assert_eq!(imported(json!(1)), Some(1));
+        assert_eq!(imported(json!(1200)), Some(1200));
+
+        // Above the ceiling: clamped, never accepted. Linux's own default (3600)
+        // is the realistic case, so a Linux -> Windows restore lands on 20 min.
+        assert_eq!(imported(json!(1201)), Some(1200));
+        assert_eq!(imported(json!(3600)), Some(1200));
+        assert_eq!(imported(json!(i64::MAX)), Some(1200));
+
+        // macOS's "no limit" must not disable the Windows guard; it reads as unset
+        // so the live 20-minute value stands.
+        assert_eq!(imported(json!(0)), None);
+        assert_eq!(imported(json!(-1)), None);
+
+        // macOS's never-exposed legacy default is not a user choice either.
+        assert_eq!(imported(json!(300)), None);
     }
 
     #[test]
@@ -1248,10 +1367,12 @@ mod windows_linux_settings_tests {
             "AutoPasteEnabled": false, "RemoveFillerWords": false,
             "RestoreClipboardAfterPaste": false, "HideFromClipboardHistory": false,
             "ClipboardRestoreDelaySeconds": 2.5, "AutocapitalizeInsert": false,
-            "StoreAsM4A": true, "StreamingEnabled": true,
+            "StoreAsM4A": true, "KeepAudioFiles": false, "StreamingEnabled": true,
             "StreamingProvider": "deepgram", "StreamingLanguage": "de",
             "StreamingDeepgramModel": "nova-3-medical", "StreamingFastFormatting": false,
-            "StreamingShortcut": "Ctrl+Alt+Shift+F9", "TypingSpeedWPM": 95
+            "StreamingShortcut": "Ctrl+Alt+Shift+F9", "TypingSpeedWPM": 95,
+            // Inside the ceiling, so the clamp is a no-op and the trip is lossless.
+            "MaxRecordingDuration": 600
         }))
         .unwrap();
         let back = universal_to_windows_settings(&windows_settings_to_universal(&native)).unwrap();

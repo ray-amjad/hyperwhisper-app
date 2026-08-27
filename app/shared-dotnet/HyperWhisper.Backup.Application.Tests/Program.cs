@@ -486,6 +486,102 @@ try
     }
     Console.WriteLine("Backup linux-settings deep-merge: baseline preserved, no key leaked.");
 
+    // PHASE 3c — the Linux half of the unknownKeyRoundTrip vectors.
+    //
+    // Top-level foreign-slice retention already worked here before #288; Windows and
+    // macOS were the broken heads. This block exists so the SAME rows are asserted on
+    // all three, and so a future Linux refactor cannot quietly drop what Windows and
+    // macOS were just fixed to keep.
+    //
+    // Linux's STORAGE STRATEGY differs on purpose and the vector records it: Linux
+    // persists the WHOLE imported map in the backup.platformExtensions setting and
+    // OVERWRITES its own "linux" slice at export time (ApplicationBackupExport), where
+    // Windows and macOS store only the foreign slices and add their own on the way
+    // out. The observable contract is identical either way, and that is what the
+    // expectedReExportedKeysByHead / own-slice assertions check.
+    {
+        var extensionRows = settingsDocument["unknownKeyRoundTrip"]!.AsArray()
+            .Select(node => node!.AsObject())
+            .Where(row => row["kind"]!.GetValue<string>() == "topLevelPlatformExtensions"
+                && row["heads"]!.AsArray().Any(head => head!.GetValue<string>() == "linux"))
+            .ToList();
+        Assert(extensionRows.Count > 0,
+            "backup-vectors.json has no topLevelPlatformExtensions row naming the linux head");
+
+        var caseIndex = 0;
+        foreach (var row in extensionRows)
+        {
+            var label = row["name"]!.GetValue<string>();
+            var caseRoot = Path.Combine(root, $"linux-foreign-extensions-{caseIndex++}");
+            Directory.CreateDirectory(caseRoot);
+            var casePaths = new TestPaths(caseRoot);
+            var caseSettings = new PortableSettingsService(new MemoryPrivateFileService(), casePaths);
+            Assert(caseSettings.Load().IsSuccess, $"'{label}': settings did not initialize");
+            // A live Linux-only value the export must rebuild its own slice from, so a
+            // stale preserved "linux" slice cannot win.
+            caseSettings.Set("autostartEnabled", false);
+            Assert(caseSettings.Save().IsSuccess, $"'{label}': seed did not save");
+
+            var caseDatabase = new ApplicationDb(casePaths);
+            await caseDatabase.MigrateAsync();
+            var caseService = new ApplicationBackupService(caseDatabase, caseSettings);
+
+            var file = new JsonObject
+            {
+                ["schemaVersion"] = 2,
+                ["exportDate"] = DateTimeOffset.UtcNow.ToString("O"),
+                ["appVersion"] = "1.0.0",
+                ["platform"] = "linux",
+                ["settings"] = new JsonObject(),
+                ["platformExtensions"] = row["imported"]!.DeepClone(),
+            }.ToJsonString();
+
+            var import = await caseService.ImportAsync(file, new BackupImportSelection(
+                ImportSettings: true, ImportModes: false, ImportVocabulary: false));
+            Assert(import.IsSuccess, $"'{label}': import failed: {import.Error?.Message}");
+
+            var stored = caseSettings.Get<JsonElement?>("backup.platformExtensions");
+            Assert(stored is not null, $"'{label}': Linux did not persist the imported map at all");
+            AssertVectorJson(label, "backup.platformExtensions",
+                row["expectedStoredByHead"]!["linux"],
+                JsonNode.Parse(stored!.Value.GetRawText()));
+
+            // Flip a live Linux-only value AFTER the import (the import may legitimately
+            // have applied the file's own "linux" slice). If the export still shows the
+            // imported value, the own slice lost to a stale preserved copy.
+            var flipped = !caseSettings.Get<bool>("autostartEnabled");
+            caseSettings.Set("autostartEnabled", flipped);
+            Assert(caseSettings.Save().IsSuccess, $"'{label}': flip did not save");
+
+            var exported = JsonNode.Parse(await caseService.ExportAsync(new BackupExportSelection(
+                IncludeSettings: true, IncludeModes: false, IncludeVocabulary: false)))!.AsObject();
+            var reExported = exported["platformExtensions"]!.AsObject();
+
+            var actualKeys = reExported.Select(entry => entry.Key)
+                .OrderBy(key => key, StringComparer.Ordinal).ToArray();
+            var wantKeys = row["expectedReExportedKeysByHead"]!["linux"]!.AsArray()
+                .Select(key => key!.GetValue<string>())
+                .OrderBy(key => key, StringComparer.Ordinal).ToArray();
+            Assert(actualKeys.SequenceEqual(wantKeys, StringComparer.Ordinal),
+                $"'{label}': re-exported top-level platformExtensions keys were "
+                + $"[{string.Join(", ", actualKeys)}], expected [{string.Join(", ", wantKeys)}]");
+
+            Assert(reExported["linux"]!["settings"]!["autostartEnabled"]!.GetValue<bool>() == flipped,
+                $"'{label}': the \"linux\" slice must be rebuilt from live settings and "
+                + "overwrite any preserved copy of itself");
+
+            // Every foreign slice comes back verbatim.
+            foreach (var expected in row["expectedStoredByHead"]!["linux"]!.AsObject())
+            {
+                if (expected.Key == "linux") continue;
+                AssertVectorJson(label, $"re-emitted '{expected.Key}' slice",
+                    expected.Value, reExported[expected.Key]);
+            }
+        }
+        Console.WriteLine(
+            $"Backup linux top-level platformExtensions: {extensionRows.Count} vector rows preserved.");
+    }
+
     var macosRows = settingsDocument["macosSettings"]!.AsArray();
     Assert(macosRows.Count > 0, "backup-vectors.json has no macosSettings rows");
     foreach (var macosRowNode in macosRows)

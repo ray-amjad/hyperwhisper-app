@@ -108,6 +108,7 @@ public partial class SettingsService
         public PushToTalkSettings? PushToTalk { get; set; }
         public string? RecordingsFolder { get; set; }
         public bool? StoreAsM4A { get; set; }
+        public bool? KeepAudioFiles { get; set; }
         public bool? UserChoseAlternateStorage { get; set; }
 
         // General settings
@@ -166,9 +167,40 @@ public partial class SettingsService
         // Home stats bar — assumed typing speed used to compute "minutes saved"
         public int? TypingSpeedWPM { get; set; }
 
+        // Recording safety cap, in SECONDS. Read through
+        // MaxRecordingDurationSeconds, which clamps it to (0, 20 min]. The name
+        // has no unit suffix because it is also the universal backup key
+        // (advanced.maxRecordingDuration) and the WINDOWS_ADVANCED_PAIRS native
+        // name; the property is where the unit is stated.
+        public int? MaxRecordingDuration { get; set; }
+
         // Local HTTP API (Settings → Local API)
         public bool? LocalApiServerEnabled { get; set; }
         public int? LocalApiServerPersistedPort { get; set; }
+
+        // ---------------------------------------------------------------------
+        // BACKUP ROUND-TRIP BOOKKEEPING — raw JSON, never interpreted
+        //
+        // Two fields, two shapes, two merge points. Collapsing them into one
+        // would re-emit settings keys under platformExtensions, which is a schema
+        // violation. Neither is a user preference and neither is shown anywhere.
+        // ---------------------------------------------------------------------
+
+        /// Settings keys the last imported backup carried that this build has no
+        /// property for, as a MIRROR of the universal `settings` tree so every key
+        /// keeps its section: {"textOutput":{"storeWordTimestamps":true}}.
+        /// Merged back in UniversalBackupMapper.MapSettings.
+        public string? BackupUnknownSettings { get; set; }
+
+        /// The non-"windows" TOP-LEVEL platformExtensions slices of the last
+        /// imported backup: {"macos":{...},"linux":{...}}. Merged back in
+        /// UniversalBackupMapper.BuildPlatformExtensions.
+        public string? BackupForeignPlatformExtensions { get; set; }
+
+        /// Top-level backup keys this build has no property for (never
+        /// `platformExtensions`, which has its own field above). Re-emitted at the
+        /// `new UniversalBackup` site in BackupService.
+        public string? BackupUnknownRootKeys { get; set; }
     }
 
     private SettingsData _settings;
@@ -241,6 +273,38 @@ public partial class SettingsService
                 _settings.StoreAsM4A = value;
                 Save();
                 LoggingService.Debug($"SettingsService: StoreAsM4A set to: {value}");
+                NotifySettingsChanged();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Whether recorded audio is kept on disk after a transcription completes.
+    /// Cross-platform setting: <c>storage.keepAudioFiles</c> in the universal
+    /// backup, <c>SettingsManager.keepAudioFiles</c> on macOS,
+    /// <c>storage.keepAudioFiles</c> on Linux. Default: true.
+    /// </summary>
+    /// <remarks>
+    /// SCOPE, stated plainly: Windows PERSISTS and round-trips this value but does
+    /// not yet act on it — retention on Windows is driven by
+    /// <see cref="AutoDeleteEnabled"/> / <see cref="AutoDeleteDaysOld"/> and there
+    /// is no Storage-page toggle for it. Before this property existed the value a
+    /// macOS or Linux backup carried was discarded outright (issue #288), which is
+    /// the fidelity bug being closed here. Making an imported backup start DELETING
+    /// a user's recordings is a separate, user-visible feature that needs its own
+    /// UI and its own review; it is deliberately not bundled into a restore-fidelity
+    /// change.
+    /// </remarks>
+    public bool KeepAudioFiles
+    {
+        get => _settings.KeepAudioFiles ?? true;
+        set
+        {
+            if (KeepAudioFiles != value)
+            {
+                _settings.KeepAudioFiles = value;
+                Save();
+                LoggingService.Debug($"SettingsService: KeepAudioFiles set to: {value}");
                 NotifySettingsChanged();
             }
         }
@@ -953,6 +1017,125 @@ public partial class SettingsService
     }
 
     // =========================================================================
+    // RECORDING SAFETY CAP
+    // =========================================================================
+
+    /// <summary>
+    /// Hard ceiling on a single recording or streaming session, in SECONDS.
+    /// Default and MAXIMUM: 1200 (20 minutes). Consumed by
+    /// <c>MainViewModel.EffectiveMaxRecordingDuration</c>.
+    /// </summary>
+    /// <remarks>
+    /// The setter CLAMPS to [1, <see cref="MaxRecordingDurationCeilingSeconds"/>].
+    /// A restored backup — or a hand-edited settings.json — may only TIGHTEN the
+    /// runaway guard, never loosen or disable it. The shared core applies the same
+    /// ceiling on the import path (<c>universal_to_windows_settings</c>), where it
+    /// additionally reads macOS's <c>0</c> ("no limit") and <c>300</c> (its old
+    /// never-exposed default) as "unset" so neither silently rewrites the cap.
+    /// This second clamp is what makes the ceiling hold for every writer, not just
+    /// the backup path.
+    /// </remarks>
+    public int MaxRecordingDurationSeconds
+    {
+        get => Clamp(_settings.MaxRecordingDuration ?? MaxRecordingDurationCeilingSeconds);
+        set
+        {
+            var clamped = Clamp(value);
+            if (MaxRecordingDurationSeconds != clamped)
+            {
+                _settings.MaxRecordingDuration = clamped;
+                Save();
+                LoggingService.Debug($"SettingsService: MaxRecordingDurationSeconds set to: {clamped}");
+                NotifySettingsChanged();
+            }
+        }
+    }
+
+    /// <summary>
+    /// The 20-minute runaway-recording ceiling, in seconds. Mirrors
+    /// <c>MainViewModel.MaxRecordingDuration = TimeSpan.FromMinutes(20)</c> and the
+    /// shared core's <c>WINDOWS_MAX_RECORDING_DURATION_CEILING_SECS</c>.
+    /// </summary>
+    public const int MaxRecordingDurationCeilingSeconds = 20 * 60;
+
+    private static int Clamp(int seconds) =>
+        seconds < 1 ? MaxRecordingDurationCeilingSeconds
+        : seconds > MaxRecordingDurationCeilingSeconds ? MaxRecordingDurationCeilingSeconds
+        : seconds;
+
+    // =========================================================================
+    // BACKUP ROUND-TRIP BOOKKEEPING
+    // =========================================================================
+
+    /// <summary>
+    /// Raw JSON mirror of the universal <c>settings</c> tree holding only the keys
+    /// the last imported backup carried that this build has no property for —
+    /// <c>{"textOutput":{"storeWordTimestamps":true}}</c>. Section-keyed, so a key
+    /// is re-emitted at its ORIGINAL nesting level and never at the root.
+    /// </summary>
+    /// <remarks>
+    /// Written by <c>UniversalBackupMapper.ApplySettings</c> (REPLACE, not merge —
+    /// the blob describes the last imported file) and read back by
+    /// <c>UniversalBackupMapper.MapSettings</c>. No <c>NotifySettingsChanged()</c>:
+    /// no UI observes this, and raising the event would re-register global
+    /// shortcuts on a bookkeeping write.
+    /// </remarks>
+    public string? BackupUnknownSettings
+    {
+        get => _settings.BackupUnknownSettings;
+        set
+        {
+            if (_settings.BackupUnknownSettings != value)
+            {
+                _settings.BackupUnknownSettings = value;
+                Save();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Raw JSON map of the NON-<c>"windows"</c> top-level <c>platformExtensions</c>
+    /// slices of the last imported backup — <c>{"macos":{…},"linux":{…}}</c>.
+    /// </summary>
+    /// <remarks>
+    /// Separate state from <see cref="BackupUnknownSettings"/>, with a different
+    /// shape and a different merge point (<c>BuildPlatformExtensions</c> rather
+    /// than <c>MapSettings</c>). Reusing one field for both would re-emit
+    /// <c>storeWordTimestamps</c> under <c>platformExtensions</c>. No
+    /// <c>NotifySettingsChanged()</c>, for the same reason as above.
+    /// </remarks>
+    public string? BackupForeignPlatformExtensions
+    {
+        get => _settings.BackupForeignPlatformExtensions;
+        set
+        {
+            if (_settings.BackupForeignPlatformExtensions != value)
+            {
+                _settings.BackupForeignPlatformExtensions = value;
+                Save();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Raw JSON object of TOP-LEVEL backup keys the last imported file carried that
+    /// this build has no property for. Never holds <c>platformExtensions</c> —
+    /// that has <see cref="BackupForeignPlatformExtensions"/>.
+    /// </summary>
+    public string? BackupUnknownRootKeys
+    {
+        get => _settings.BackupUnknownRootKeys;
+        set
+        {
+            if (_settings.BackupUnknownRootKeys != value)
+            {
+                _settings.BackupUnknownRootKeys = value;
+                Save();
+            }
+        }
+    }
+
+    // =========================================================================
     // CUSTOM ENDPOINTS
     // =========================================================================
 
@@ -1004,6 +1187,13 @@ public partial class SettingsService
     /// <c>UniversalBackupMapper.BuildPlatformExtensions</c> instead.
     /// </para>
     /// <para>
+    /// The three backup bookkeeping fields (<see cref="BackupUnknownSettings"/>,
+    /// <see cref="BackupForeignPlatformExtensions"/>,
+    /// <see cref="BackupUnknownRootKeys"/>) are NOT here either. They are raw
+    /// preserved JSON, not settings; each has its own merge point, and putting
+    /// them through the pairs tables would re-emit them at the wrong path.
+    /// </para>
+    /// <para>
     /// <c>StreamingShortcut</c> is a <see cref="KeyboardShortcut"/>, not a scalar,
     /// so it crosses as its persisted-string form; <c>FromPersistedString</c>
     /// stays on the import side.
@@ -1031,6 +1221,7 @@ public partial class SettingsService
 
             // storage
             ["StoreAsM4A"] = StoreAsM4A,
+            ["KeepAudioFiles"] = KeepAudioFiles,
 
             // streaming — six separately-named native properties
             ["StreamingEnabled"] = StreamingEnabled,
@@ -1042,6 +1233,8 @@ public partial class SettingsService
 
             // advanced
             ["TypingSpeedWPM"] = TypingSpeedWPM,
+            // Seconds, already clamped to the 20-minute ceiling by the property.
+            ["MaxRecordingDuration"] = MaxRecordingDurationSeconds,
         };
 
         return snapshot.ToJsonString();
