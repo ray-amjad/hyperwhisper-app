@@ -1132,6 +1132,12 @@ static class _UniFFILib {
     
     
     
+    
+    
+    
+    
+    
+    
 
     static _UniFFILib() {
         _UniFFILib.uniffiCheckContractApiVersion();
@@ -1818,6 +1824,18 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_process_voice_commands(RustBuffer @text,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_ptt_config(ulong @minimumLockMs,ulong @keyUpDebounceMs,sbyte @doublePressLock,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_ptt_initial_state(ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_ptt_step(RustBuffer @state,RustBuffer @event,ulong @nowMs,RustBuffer @config,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -2734,6 +2752,18 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_process_voice_commands(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_ptt_config(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_ptt_initial_state(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_ptt_step(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -3792,6 +3822,24 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_process_voice_commands();
             if (checksum != 18960) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_process_voice_commands` checksum `18960`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_ptt_config();
+            if (checksum != 36519) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_ptt_config` checksum `36519`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_ptt_initial_state();
+            if (checksum != 31529) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_ptt_initial_state` checksum `31529`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_ptt_step();
+            if (checksum != 64268) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_ptt_step` checksum `64268`, library returned `{checksum}`");
             }
         }
         {
@@ -5513,6 +5561,321 @@ class FfiConverterTypeHwProviderHealth: FfiConverterRustBuffer<HwProviderHealth>
             FfiConverterTypeHwProvider.INSTANCE.Write(value.@provider, stream);
             FfiConverterBoolean.INSTANCE.Write(value.@healthy, stream);
             FfiConverterOptionalUInt16.INSTANCE.Write(value.@status, stream);
+    }
+}
+
+
+
+/// <summary>
+/// The timing constants and the double-tap-lock toggle. Mirrors
+/// `ptt::PttConfig`.
+///
+/// Build one with [`ptt_config`] rather than by hand: it fills in the two
+/// constants that already agreed across the heads (250 ms activation delay,
+/// 1500 ms double-press window) so they cannot drift again. The other two did
+/// not agree and each head keeps what it ships — macOS 1000 ms minimum lock and
+/// no key-up debounce; Windows and Linux 2000 ms and 100 ms.
+/// </summary>
+/// <param name="key_up_debounce_ms">
+/// `0` commits a release immediately, which is what macOS does.
+/// </param>
+internal record HwPttConfig (
+    ulong @activationDelayMs, 
+    ulong @doublePressWindowMs, 
+    ulong @minimumLockMs, 
+    /// <summary>
+    /// `0` commits a release immediately, which is what macOS does.
+    /// </summary>
+    ulong @keyUpDebounceMs, 
+    bool @doublePressLock
+) {
+}
+
+class FfiConverterTypeHwPttConfig: FfiConverterRustBuffer<HwPttConfig> {
+    public static FfiConverterTypeHwPttConfig INSTANCE = new FfiConverterTypeHwPttConfig();
+
+    public override HwPttConfig Read(BigEndianStream stream) {
+        return new HwPttConfig(
+            @activationDelayMs: FfiConverterUInt64.INSTANCE.Read(stream),
+            @doublePressWindowMs: FfiConverterUInt64.INSTANCE.Read(stream),
+            @minimumLockMs: FfiConverterUInt64.INSTANCE.Read(stream),
+            @keyUpDebounceMs: FfiConverterUInt64.INSTANCE.Read(stream),
+            @doublePressLock: FfiConverterBoolean.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwPttConfig value) {
+        return 0
+            + FfiConverterUInt64.INSTANCE.AllocationSize(value.@activationDelayMs)
+            + FfiConverterUInt64.INSTANCE.AllocationSize(value.@doublePressWindowMs)
+            + FfiConverterUInt64.INSTANCE.AllocationSize(value.@minimumLockMs)
+            + FfiConverterUInt64.INSTANCE.AllocationSize(value.@keyUpDebounceMs)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@doublePressLock);
+    }
+
+    public override void Write(HwPttConfig value, BigEndianStream stream) {
+            FfiConverterUInt64.INSTANCE.Write(value.@activationDelayMs, stream);
+            FfiConverterUInt64.INSTANCE.Write(value.@doublePressWindowMs, stream);
+            FfiConverterUInt64.INSTANCE.Write(value.@minimumLockMs, stream);
+            FfiConverterUInt64.INSTANCE.Write(value.@keyUpDebounceMs, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@doublePressLock, stream);
+    }
+}
+
+
+
+/// <summary>
+/// Everything the machine remembers between events. The head owns one of these
+/// and hands it back on the next call. Mirrors `ptt::PttMachineState`.
+///
+/// `first_tap_ms` does double duty: in `PttActive` it is when recording started
+/// (the lock window is measured from it), and in `UnlatchPending` it is when the
+/// first unlock tap was released, with `null` as the "not yet tapped" sentinel.
+/// </summary>
+/// <param name="key_down">
+/// Whether the configured shortcut is currently satisfied, as last reported
+/// by the head.
+/// </param>
+/// <param name="entered_via_hold">
+/// `true` when `PttActive` was entered by holding past the activation delay.
+/// A hold always stops on release; a quick tap can latch.
+/// </param>
+/// <param name="last_lock_ms">
+/// When `LatchActive` was entered. Bounce protection measures
+/// `minimum_lock_ms` from here.
+/// </param>
+internal record HwPttMachineState (
+    HwPttState @state, 
+    /// <summary>
+    /// Whether the configured shortcut is currently satisfied, as last reported
+    /// by the head.
+    /// </summary>
+    bool @keyDown, 
+    /// <summary>
+    /// `true` when `PttActive` was entered by holding past the activation delay.
+    /// A hold always stops on release; a quick tap can latch.
+    /// </summary>
+    bool @enteredViaHold, 
+    ulong? @firstTapMs, 
+    /// <summary>
+    /// When `LatchActive` was entered. Bounce protection measures
+    /// `minimum_lock_ms` from here.
+    /// </summary>
+    ulong? @lastLockMs
+) {
+}
+
+class FfiConverterTypeHwPttMachineState: FfiConverterRustBuffer<HwPttMachineState> {
+    public static FfiConverterTypeHwPttMachineState INSTANCE = new FfiConverterTypeHwPttMachineState();
+
+    public override HwPttMachineState Read(BigEndianStream stream) {
+        return new HwPttMachineState(
+            @state: FfiConverterTypeHwPttState.INSTANCE.Read(stream),
+            @keyDown: FfiConverterBoolean.INSTANCE.Read(stream),
+            @enteredViaHold: FfiConverterBoolean.INSTANCE.Read(stream),
+            @firstTapMs: FfiConverterOptionalUInt64.INSTANCE.Read(stream),
+            @lastLockMs: FfiConverterOptionalUInt64.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwPttMachineState value) {
+        return 0
+            + FfiConverterTypeHwPttState.INSTANCE.AllocationSize(value.@state)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@keyDown)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@enteredViaHold)
+            + FfiConverterOptionalUInt64.INSTANCE.AllocationSize(value.@firstTapMs)
+            + FfiConverterOptionalUInt64.INSTANCE.AllocationSize(value.@lastLockMs);
+    }
+
+    public override void Write(HwPttMachineState value, BigEndianStream stream) {
+            FfiConverterTypeHwPttState.INSTANCE.Write(value.@state, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@keyDown, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@enteredViaHold, stream);
+            FfiConverterOptionalUInt64.INSTANCE.Write(value.@firstTapMs, stream);
+            FfiConverterOptionalUInt64.INSTANCE.Write(value.@lastLockMs, stream);
+    }
+}
+
+
+
+/// <summary>
+/// The next state and everything the head must do about it. Mirrors
+/// `ptt::PttStepResult`.
+///
+/// At most one signal per step — no transition both starts and stops a
+/// recording.
+/// </summary>
+/// <param name="state">
+/// Store this and pass it back in on the next event.
+/// </param>
+/// <param name="timers">
+/// Apply in order. Starting a running timer replaces it.
+/// </param>
+/// <param name="arm_interference">
+/// `true` to start watching for interfering key presses, `false` to stop,
+/// `null` to leave the head's current arming alone.
+/// 
+/// Linux performed this inside its own reducer at nearly every transition.
+/// Reporting it here is what keeps the Linux wrapper from re-deriving the
+/// transition table. macOS and Windows watch unconditionally and ignore it.
+/// </param>
+/// <param name="reset_keyboard_state">
+/// Clear any keyboard state the head holds on the machine's behalf — Linux's
+/// `IGlobalShortcutService.ResetKeyboardState()`. The other two heads have no
+/// equivalent and ignore it.
+/// </param>
+internal record HwPttStepResult (
+    /// <summary>
+    /// Store this and pass it back in on the next event.
+    /// </summary>
+    HwPttMachineState @state, 
+    HwPttSignal? @signal, 
+    /// <summary>
+    /// Apply in order. Starting a running timer replaces it.
+    /// </summary>
+    List<HwPttTimerCommand> @timers, 
+    /// <summary>
+    /// `true` to start watching for interfering key presses, `false` to stop,
+    /// `null` to leave the head's current arming alone.
+    ///
+    /// Linux performed this inside its own reducer at nearly every transition.
+    /// Reporting it here is what keeps the Linux wrapper from re-deriving the
+    /// transition table. macOS and Windows watch unconditionally and ignore it.
+    /// </summary>
+    bool? @armInterference, 
+    /// <summary>
+    /// Clear any keyboard state the head holds on the machine's behalf — Linux's
+    /// `IGlobalShortcutService.ResetKeyboardState()`. The other two heads have no
+    /// equivalent and ignore it.
+    /// </summary>
+    bool @resetKeyboardState, 
+    HwPttTransition @transition
+) {
+}
+
+class FfiConverterTypeHwPttStepResult: FfiConverterRustBuffer<HwPttStepResult> {
+    public static FfiConverterTypeHwPttStepResult INSTANCE = new FfiConverterTypeHwPttStepResult();
+
+    public override HwPttStepResult Read(BigEndianStream stream) {
+        return new HwPttStepResult(
+            @state: FfiConverterTypeHwPttMachineState.INSTANCE.Read(stream),
+            @signal: FfiConverterOptionalTypeHwPttSignal.INSTANCE.Read(stream),
+            @timers: FfiConverterSequenceTypeHwPttTimerCommand.INSTANCE.Read(stream),
+            @armInterference: FfiConverterOptionalBoolean.INSTANCE.Read(stream),
+            @resetKeyboardState: FfiConverterBoolean.INSTANCE.Read(stream),
+            @transition: FfiConverterTypeHwPttTransition.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwPttStepResult value) {
+        return 0
+            + FfiConverterTypeHwPttMachineState.INSTANCE.AllocationSize(value.@state)
+            + FfiConverterOptionalTypeHwPttSignal.INSTANCE.AllocationSize(value.@signal)
+            + FfiConverterSequenceTypeHwPttTimerCommand.INSTANCE.AllocationSize(value.@timers)
+            + FfiConverterOptionalBoolean.INSTANCE.AllocationSize(value.@armInterference)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@resetKeyboardState)
+            + FfiConverterTypeHwPttTransition.INSTANCE.AllocationSize(value.@transition);
+    }
+
+    public override void Write(HwPttStepResult value, BigEndianStream stream) {
+            FfiConverterTypeHwPttMachineState.INSTANCE.Write(value.@state, stream);
+            FfiConverterOptionalTypeHwPttSignal.INSTANCE.Write(value.@signal, stream);
+            FfiConverterSequenceTypeHwPttTimerCommand.INSTANCE.Write(value.@timers, stream);
+            FfiConverterOptionalBoolean.INSTANCE.Write(value.@armInterference, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@resetKeyboardState, stream);
+            FfiConverterTypeHwPttTransition.INSTANCE.Write(value.@transition, stream);
+    }
+}
+
+
+
+/// <summary>
+/// One timer instruction. Mirrors `ptt::PttTimerCommand`.
+///
+/// `delay_ms` is meaningless for `Cancel` and is reported as `0`. Starting a
+/// timer that is already running replaces it; cancelling one that is not running
+/// is a no-op.
+/// </summary>
+internal record HwPttTimerCommand (
+    HwPttTimer @timer, 
+    HwPttTimerAction @action, 
+    ulong @delayMs
+) {
+}
+
+class FfiConverterTypeHwPttTimerCommand: FfiConverterRustBuffer<HwPttTimerCommand> {
+    public static FfiConverterTypeHwPttTimerCommand INSTANCE = new FfiConverterTypeHwPttTimerCommand();
+
+    public override HwPttTimerCommand Read(BigEndianStream stream) {
+        return new HwPttTimerCommand(
+            @timer: FfiConverterTypeHwPttTimer.INSTANCE.Read(stream),
+            @action: FfiConverterTypeHwPttTimerAction.INSTANCE.Read(stream),
+            @delayMs: FfiConverterUInt64.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwPttTimerCommand value) {
+        return 0
+            + FfiConverterTypeHwPttTimer.INSTANCE.AllocationSize(value.@timer)
+            + FfiConverterTypeHwPttTimerAction.INSTANCE.AllocationSize(value.@action)
+            + FfiConverterUInt64.INSTANCE.AllocationSize(value.@delayMs);
+    }
+
+    public override void Write(HwPttTimerCommand value, BigEndianStream stream) {
+            FfiConverterTypeHwPttTimer.INSTANCE.Write(value.@timer, stream);
+            FfiConverterTypeHwPttTimerAction.INSTANCE.Write(value.@action, stream);
+            FfiConverterUInt64.INSTANCE.Write(value.@delayMs, stream);
+    }
+}
+
+
+
+/// <summary>
+/// What changed, for logs and telemetry. Mirrors `ptt::PttTransition`.
+/// </summary>
+/// <param name="elapsed_ms">
+/// The interval the decision turned on, when there was one: time since the
+/// first tap for the tap reasons, time since the lock for `BounceProtected`
+/// and `UnlockArmed`.
+/// </param>
+internal record HwPttTransition (
+    HwPttState @from, 
+    HwPttState @to, 
+    HwPttReason @reason, 
+    /// <summary>
+    /// The interval the decision turned on, when there was one: time since the
+    /// first tap for the tap reasons, time since the lock for `BounceProtected`
+    /// and `UnlockArmed`.
+    /// </summary>
+    ulong? @elapsedMs
+) {
+}
+
+class FfiConverterTypeHwPttTransition: FfiConverterRustBuffer<HwPttTransition> {
+    public static FfiConverterTypeHwPttTransition INSTANCE = new FfiConverterTypeHwPttTransition();
+
+    public override HwPttTransition Read(BigEndianStream stream) {
+        return new HwPttTransition(
+            @from: FfiConverterTypeHwPttState.INSTANCE.Read(stream),
+            @to: FfiConverterTypeHwPttState.INSTANCE.Read(stream),
+            @reason: FfiConverterTypeHwPttReason.INSTANCE.Read(stream),
+            @elapsedMs: FfiConverterOptionalUInt64.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwPttTransition value) {
+        return 0
+            + FfiConverterTypeHwPttState.INSTANCE.AllocationSize(value.@from)
+            + FfiConverterTypeHwPttState.INSTANCE.AllocationSize(value.@to)
+            + FfiConverterTypeHwPttReason.INSTANCE.AllocationSize(value.@reason)
+            + FfiConverterOptionalUInt64.INSTANCE.AllocationSize(value.@elapsedMs);
+    }
+
+    public override void Write(HwPttTransition value, BigEndianStream stream) {
+            FfiConverterTypeHwPttState.INSTANCE.Write(value.@from, stream);
+            FfiConverterTypeHwPttState.INSTANCE.Write(value.@to, stream);
+            FfiConverterTypeHwPttReason.INSTANCE.Write(value.@reason, stream);
+            FfiConverterOptionalUInt64.INSTANCE.Write(value.@elapsedMs, stream);
     }
 }
 
@@ -8527,6 +8890,435 @@ class FfiConverterTypeHwProvider: FfiConverterRustBuffer<HwProvider> {
 
 
 /// <summary>
+/// Everything that can drive the machine. Mirrors `ptt::PttEvent`.
+/// </summary>
+internal record HwPttEvent {
+    
+    /// <summary>
+    /// The configured shortcut became satisfied.
+    /// </summary>
+    public record KeyDown: HwPttEvent {}
+    
+    
+    /// <summary>
+    /// The configured shortcut stopped being satisfied.
+    /// </summary>
+    public record KeyUp: HwPttEvent {}
+    
+    
+    /// <summary>
+    /// The activation timer elapsed.
+    /// </summary>
+    public record ActivationTimeout: HwPttEvent {}
+    
+    
+    /// <summary>
+    /// The latch timer elapsed.
+    /// </summary>
+    public record LatchTimeout: HwPttEvent {}
+    
+    
+    /// <summary>
+    /// The key-up debounce timer elapsed.
+    ///
+    /// `key_physically_held` is the head's hardware cross-check taken after the
+    /// key event has been fully delivered — `GetAsyncKeyState` on Windows. A head
+    /// with no such probe passes `false`; the machine still consults its own
+    /// `key_down`.
+    /// </summary>
+    public record KeyUpDebounceTimeout (
+        bool @keyPhysicallyHeld
+    ) : HwPttEvent {}
+    
+    /// <summary>
+    /// Another key was pressed while the shortcut was held, so this was a
+    /// keyboard shortcut and not push-to-talk.
+    /// </summary>
+    public record Interference: HwPttEvent {}
+    
+    
+    /// <summary>
+    /// Tear the recording down because the head knows the key was released but
+    /// never saw the release. macOS raises this after its CGEventTap is
+    /// re-enabled.
+    ///
+    /// Never synthesise a `KeyUp` for this. A synthesised release takes the
+    /// quick-tap branch and can latch instead of stopping — the stuck-microphone
+    /// bug (#300), spelled out at `BareModifierKeyMonitor.swift:495`.
+    /// </summary>
+    public record ForceStop: HwPttEvent {}
+    
+    
+    /// <summary>
+    /// Full reset: configuration changed, or the monitor is starting or
+    /// stopping.
+    /// </summary>
+    public record Reset: HwPttEvent {}
+    
+    
+    /// <summary>
+    /// Recording was stopped by something other than this machine. Handled
+    /// identically to `Reset`, including from `WaitingForActivation`, where
+    /// macOS and Windows used to return early and leave the activation timer
+    /// armed.
+    /// </summary>
+    public record ResetToIdle: HwPttEvent {}
+    
+    
+
+    
+}
+
+class FfiConverterTypeHwPttEvent : FfiConverterRustBuffer<HwPttEvent>{
+    public static FfiConverterRustBuffer<HwPttEvent> INSTANCE = new FfiConverterTypeHwPttEvent();
+
+    public override HwPttEvent Read(BigEndianStream stream) {
+        var value = stream.ReadInt();
+        switch (value) {
+            case 1:
+                return new HwPttEvent.KeyDown(
+                );
+            case 2:
+                return new HwPttEvent.KeyUp(
+                );
+            case 3:
+                return new HwPttEvent.ActivationTimeout(
+                );
+            case 4:
+                return new HwPttEvent.LatchTimeout(
+                );
+            case 5:
+                return new HwPttEvent.KeyUpDebounceTimeout(
+                    FfiConverterBoolean.INSTANCE.Read(stream)
+                );
+            case 6:
+                return new HwPttEvent.Interference(
+                );
+            case 7:
+                return new HwPttEvent.ForceStop(
+                );
+            case 8:
+                return new HwPttEvent.Reset(
+                );
+            case 9:
+                return new HwPttEvent.ResetToIdle(
+                );
+            default:
+                throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwPttEvent.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(HwPttEvent value) {
+        switch (value) {
+            case HwPttEvent.KeyDown variant_value:
+                return 4;
+            case HwPttEvent.KeyUp variant_value:
+                return 4;
+            case HwPttEvent.ActivationTimeout variant_value:
+                return 4;
+            case HwPttEvent.LatchTimeout variant_value:
+                return 4;
+            case HwPttEvent.KeyUpDebounceTimeout variant_value:
+                return 4
+                    + FfiConverterBoolean.INSTANCE.AllocationSize(variant_value.@keyPhysicallyHeld);
+            case HwPttEvent.Interference variant_value:
+                return 4;
+            case HwPttEvent.ForceStop variant_value:
+                return 4;
+            case HwPttEvent.Reset variant_value:
+                return 4;
+            case HwPttEvent.ResetToIdle variant_value:
+                return 4;
+            default:
+                throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwPttEvent.AllocationSize()", value));
+        }
+    }
+
+    public override void Write(HwPttEvent value, BigEndianStream stream) {
+        switch (value) {
+            case HwPttEvent.KeyDown variant_value:
+                stream.WriteInt(1);
+                break;
+            case HwPttEvent.KeyUp variant_value:
+                stream.WriteInt(2);
+                break;
+            case HwPttEvent.ActivationTimeout variant_value:
+                stream.WriteInt(3);
+                break;
+            case HwPttEvent.LatchTimeout variant_value:
+                stream.WriteInt(4);
+                break;
+            case HwPttEvent.KeyUpDebounceTimeout variant_value:
+                stream.WriteInt(5);
+                FfiConverterBoolean.INSTANCE.Write(variant_value.@keyPhysicallyHeld, stream);
+                break;
+            case HwPttEvent.Interference variant_value:
+                stream.WriteInt(6);
+                break;
+            case HwPttEvent.ForceStop variant_value:
+                stream.WriteInt(7);
+                break;
+            case HwPttEvent.Reset variant_value:
+                stream.WriteInt(8);
+                break;
+            case HwPttEvent.ResetToIdle variant_value:
+                stream.WriteInt(9);
+                break;
+            default:
+                throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwPttEvent.Write()", value));
+        }
+    }
+}
+
+
+
+
+
+
+
+/// <summary>
+/// Why the machine did what it did. Mirrors `ptt::PttReason`.
+///
+/// Carried purely for logs and telemetry — macOS keeps its Sentry breadcrumbs
+/// native and reads their payloads off [`HwPttTransition`] rather than
+/// re-deriving the transition table.
+/// </summary>
+internal enum HwPttReason: int {
+    
+    Ignored,
+    ActivationArmed,
+    HoldActivated,
+    ReleasePending,
+    SpuriousKeyUpIgnored,
+    HoldReleaseStopped,
+    QuickTapStarted,
+    QuickTapDiscarded,
+    Reacquired,
+    DoubleTapLocked,
+    SingleTapStopped,
+    LatchTimeoutStopped,
+    BounceProtected,
+    UnlockArmed,
+    UnlockFirstTap,
+    UnlockConfirmed,
+    UnlockTooSlow,
+    UnlockTimedOut,
+    InterferenceCancelled,
+    InterferenceStopped,
+    ForceStopped,
+    ExternalReset
+}
+
+class FfiConverterTypeHwPttReason: FfiConverterRustBuffer<HwPttReason> {
+    public static FfiConverterTypeHwPttReason INSTANCE = new FfiConverterTypeHwPttReason();
+
+    public override HwPttReason Read(BigEndianStream stream) {
+        var value = stream.ReadInt() - 1;
+        if (Enum.IsDefined(typeof(HwPttReason), value)) {
+            return (HwPttReason)value;
+        } else {
+            throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwPttReason.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(HwPttReason value) {
+        return 4;
+    }
+
+    public override void Write(HwPttReason value, BigEndianStream stream) {
+        stream.WriteInt((int)value + 1);
+    }
+}
+
+
+
+
+
+
+
+/// <summary>
+/// What the head must do to the recording. Mirrors `ptt::PttSignal`.
+/// </summary>
+internal enum HwPttSignal: int {
+    
+    /// <summary>
+    /// Start recording (`onModifierDown` / `Pressed`).
+    /// </summary>
+    StartRecording,
+    /// <summary>
+    /// Stop recording (`onModifierUp` / `Released`).
+    /// </summary>
+    StopRecording,
+    /// <summary>
+    /// Cancel and discard: the key was part of a keyboard shortcut.
+    /// </summary>
+    Interfered
+}
+
+class FfiConverterTypeHwPttSignal: FfiConverterRustBuffer<HwPttSignal> {
+    public static FfiConverterTypeHwPttSignal INSTANCE = new FfiConverterTypeHwPttSignal();
+
+    public override HwPttSignal Read(BigEndianStream stream) {
+        var value = stream.ReadInt() - 1;
+        if (Enum.IsDefined(typeof(HwPttSignal), value)) {
+            return (HwPttSignal)value;
+        } else {
+            throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwPttSignal.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(HwPttSignal value) {
+        return 4;
+    }
+
+    public override void Write(HwPttSignal value, BigEndianStream stream) {
+        stream.WriteInt((int)value + 1);
+    }
+}
+
+
+
+
+
+
+
+/// <summary>
+/// The five push-to-talk states. Mirrors `ptt::PttState`.
+/// </summary>
+internal enum HwPttState: int {
+    
+    /// <summary>
+    /// Not recording, no key held.
+    /// </summary>
+    Idle,
+    /// <summary>
+    /// Key is down; waiting out the activation delay to see whether this is a
+    /// hold or the leading modifier of a keyboard shortcut.
+    /// </summary>
+    WaitingForActivation,
+    /// <summary>
+    /// Recording, started either by a hold or by the first tap of a lock
+    /// sequence.
+    /// </summary>
+    PttActive,
+    /// <summary>
+    /// Recording hands-free after a confirmed double-tap lock.
+    /// </summary>
+    LatchActive,
+    /// <summary>
+    /// First tap of the unlock sequence seen; still recording.
+    /// </summary>
+    UnlatchPending
+}
+
+class FfiConverterTypeHwPttState: FfiConverterRustBuffer<HwPttState> {
+    public static FfiConverterTypeHwPttState INSTANCE = new FfiConverterTypeHwPttState();
+
+    public override HwPttState Read(BigEndianStream stream) {
+        var value = stream.ReadInt() - 1;
+        if (Enum.IsDefined(typeof(HwPttState), value)) {
+            return (HwPttState)value;
+        } else {
+            throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwPttState.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(HwPttState value) {
+        return 4;
+    }
+
+    public override void Write(HwPttState value, BigEndianStream stream) {
+        stream.WriteInt((int)value + 1);
+    }
+}
+
+
+
+
+
+
+
+/// <summary>
+/// The three timers the machine can ask for. Mirrors `ptt::PttTimer`.
+/// </summary>
+internal enum HwPttTimer: int {
+    
+    /// <summary>
+    /// Fires `ActivationTimeout` after `activation_delay_ms`.
+    /// </summary>
+    Activation,
+    /// <summary>
+    /// Fires `LatchTimeout` after `double_press_window_ms`. Does double duty as
+    /// the lock timeout and the unlock timeout.
+    /// </summary>
+    Latch,
+    /// <summary>
+    /// Fires `KeyUpDebounceTimeout` after `key_up_debounce_ms`.
+    /// </summary>
+    KeyUpDebounce
+}
+
+class FfiConverterTypeHwPttTimer: FfiConverterRustBuffer<HwPttTimer> {
+    public static FfiConverterTypeHwPttTimer INSTANCE = new FfiConverterTypeHwPttTimer();
+
+    public override HwPttTimer Read(BigEndianStream stream) {
+        var value = stream.ReadInt() - 1;
+        if (Enum.IsDefined(typeof(HwPttTimer), value)) {
+            return (HwPttTimer)value;
+        } else {
+            throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwPttTimer.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(HwPttTimer value) {
+        return 4;
+    }
+
+    public override void Write(HwPttTimer value, BigEndianStream stream) {
+        stream.WriteInt((int)value + 1);
+    }
+}
+
+
+
+
+
+
+
+internal enum HwPttTimerAction: int {
+    
+    Start,
+    Cancel
+}
+
+class FfiConverterTypeHwPttTimerAction: FfiConverterRustBuffer<HwPttTimerAction> {
+    public static FfiConverterTypeHwPttTimerAction INSTANCE = new FfiConverterTypeHwPttTimerAction();
+
+    public override HwPttTimerAction Read(BigEndianStream stream) {
+        var value = stream.ReadInt() - 1;
+        if (Enum.IsDefined(typeof(HwPttTimerAction), value)) {
+            return (HwPttTimerAction)value;
+        } else {
+            throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwPttTimerAction.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(HwPttTimerAction value) {
+        return 4;
+    }
+
+    public override void Write(HwPttTimerAction value, BigEndianStream stream) {
+        stream.WriteInt((int)value + 1);
+    }
+}
+
+
+
+
+
+
+
+/// <summary>
 /// Normalized transcription failures. Mirrors `hw_net::TranscriptionError` as a
 /// UniFFI error enum. `Display` is implemented by hand (matching the leaf's
 /// `thiserror` messages) so hw-core needs no extra dependency.
@@ -9540,6 +10332,37 @@ class FfiConverterOptionalTypeHwLiveUpgradeRefusal: FfiConverterRustBuffer<HwLiv
 
 
 
+class FfiConverterOptionalTypeHwPttSignal: FfiConverterRustBuffer<HwPttSignal?> {
+    public static FfiConverterOptionalTypeHwPttSignal INSTANCE = new FfiConverterOptionalTypeHwPttSignal();
+
+    public override HwPttSignal? Read(BigEndianStream stream) {
+        if (stream.ReadByte() == 0) {
+            return null;
+        }
+        return FfiConverterTypeHwPttSignal.INSTANCE.Read(stream);
+    }
+
+    public override int AllocationSize(HwPttSignal? value) {
+        if (value == null) {
+            return 1;
+        } else {
+            return 1 + FfiConverterTypeHwPttSignal.INSTANCE.AllocationSize((HwPttSignal)value);
+        }
+    }
+
+    public override void Write(HwPttSignal? value, BigEndianStream stream) {
+        if (value == null) {
+            stream.WriteByte(0);
+        } else {
+            stream.WriteByte(1);
+            FfiConverterTypeHwPttSignal.INSTANCE.Write((HwPttSignal)value, stream);
+        }
+    }
+}
+
+
+
+
 class FfiConverterOptionalSequenceString: FfiConverterRustBuffer<List<string>?> {
     public static FfiConverterOptionalSequenceString INSTANCE = new FfiConverterOptionalSequenceString();
 
@@ -9690,6 +10513,48 @@ class FfiConverterSequenceTypeHwLiveFrame: FfiConverterRustBuffer<List<HwLiveFra
 
         stream.WriteInt(value.Count);
         var writerFn = FfiConverterTypeHwLiveFrame.INSTANCE.Write;
+        value.ForEach(item => writerFn(item, stream));
+    }
+}
+
+
+
+
+class FfiConverterSequenceTypeHwPttTimerCommand: FfiConverterRustBuffer<List<HwPttTimerCommand>> {
+    public static FfiConverterSequenceTypeHwPttTimerCommand INSTANCE = new FfiConverterSequenceTypeHwPttTimerCommand();
+
+    public override List<HwPttTimerCommand> Read(BigEndianStream stream) {
+        var length = stream.ReadInt();
+        var result = new List<HwPttTimerCommand>(length);
+        var readFn = FfiConverterTypeHwPttTimerCommand.INSTANCE.Read;
+        for (int i = 0; i < length; i++) {
+            result.Add(readFn(stream));
+        }
+        return result;
+    }
+
+    public override int AllocationSize(List<HwPttTimerCommand> value) {
+        var sizeForLength = 4;
+
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            return sizeForLength;
+        }
+
+        var allocationSizeFn = FfiConverterTypeHwPttTimerCommand.INSTANCE.AllocationSize;
+        var sizeForItems = value.Sum(item => allocationSizeFn(item));
+        return sizeForLength + sizeForItems;
+    }
+
+    public override void Write(List<HwPttTimerCommand> value, BigEndianStream stream) {
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            stream.WriteInt(0);
+            return;
+        }
+
+        stream.WriteInt(value.Count);
+        var writerFn = FfiConverterTypeHwPttTimerCommand.INSTANCE.Write;
         value.ForEach(item => writerFn(item, stream));
     }
 }
@@ -11758,6 +12623,45 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterString.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_process_voice_commands(FfiConverterString.INSTANCE.Lower(@text), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Build a config with the two shared constants already filled in.
+    ///
+    /// Pass the head's own `minimum_lock_ms` and `key_up_debounce_ms`: macOS 1000
+    /// and 0, Windows and Linux 2000 and 100. Those two are deliberately still
+    /// per-platform.
+    /// </summary>
+    public static HwPttConfig PttConfig(ulong @minimumLockMs, ulong @keyUpDebounceMs, bool @doublePressLock) {
+        return FfiConverterTypeHwPttConfig.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_ptt_config(FfiConverterUInt64.INSTANCE.Lower(@minimumLockMs), FfiConverterUInt64.INSTANCE.Lower(@keyUpDebounceMs), FfiConverterBoolean.INSTANCE.Lower(@doublePressLock), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// A freshly reset machine: idle, no key held, no timestamps.
+    /// </summary>
+    public static HwPttMachineState PttInitialState() {
+        return FfiConverterTypeHwPttMachineState.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_ptt_initial_state( ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Advance the push-to-talk machine by one event.
+    ///
+    /// `now_ms` must be a monotonic reading — see the module note on the clock.
+    /// </summary>
+    public static HwPttStepResult PttStep(HwPttMachineState @state, HwPttEvent @event, ulong @nowMs, HwPttConfig @config) {
+        return FfiConverterTypeHwPttStepResult.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_ptt_step(FfiConverterTypeHwPttMachineState.INSTANCE.Lower(@state), FfiConverterTypeHwPttEvent.INSTANCE.Lower(@event), FfiConverterUInt64.INSTANCE.Lower(@nowMs), FfiConverterTypeHwPttConfig.INSTANCE.Lower(@config), ref _status)
 ));
     }
 

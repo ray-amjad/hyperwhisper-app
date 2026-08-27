@@ -307,6 +307,7 @@ version = "0.1.0"
 dependencies = [
  "hw-backup",
  "hw-catalog",
+ "hw-input",
  "hw-license",
  "hw-net",
  "hw-phonetic",
