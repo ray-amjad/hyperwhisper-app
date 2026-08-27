@@ -19,7 +19,10 @@ uniffi::setup_scaffolding!("hyperwhisper_core");
 //
 // The no-speech audio diagnostic, shared by Windows and macOS (#291).
 mod ffi_audio;
-mod ffi_backup;
+// Public for the same reason as `ffi_catalog` below: the backup conformance
+// vectors (`shared-conformance/backup-vectors.json`) are driven from these
+// functions by an integration test.
+pub mod ffi_backup;
 // Public so `tests/catalog_vectors.rs` can build the golden conformance vectors
 // from the same functions the bindings export. The FFI items are `pub` either
 // way (UniFFI requires it); this only makes the module path reachable in-crate.

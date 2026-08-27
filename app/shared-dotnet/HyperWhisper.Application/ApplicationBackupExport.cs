@@ -222,9 +222,30 @@ public sealed partial class ApplicationBackupService(
         };
     }
 
+    // Entity-side defaults for a cloud-routing field the backup does not supply.
+    // Read from the Mode entity so the canonical default lives in exactly one
+    // place — the literals that used to sit inline here were a THIRD copy of the
+    // pair, and drifting from Mode.cs would have gone unnoticed.
+    private static readonly Mode ModeDefaults = new();
+
+    /// <summary>
+    /// Canonicalize a universal mode's five cloud-routing fields in the Rust
+    /// shared core. The same <c>normalize_universal_mode_json</c> call the Windows
+    /// importer makes, so the two heads now agree: before this, Linux ran no
+    /// cloudAccuracyTier / cloudPostProcessingModel migration, no catalog
+    /// cloudProvider fold, no legacy model-alias resolution and no
+    /// cloudTranscriptionDomain gate. Absent fields stay absent — the caller
+    /// applies <see cref="ModeDefaults"/>.
+    /// </summary>
+    private static JsonObject NormalizeCloudRouting(JsonObject mode)
+        => JsonNode.Parse(SharedCoreBridge.NormalizeUniversalMode(mode.ToJsonString()))
+            as JsonObject
+            ?? throw new JsonException("Mode normalization did not return an object.");
+
     private static Mode ParseMode(JsonNode? node)
     {
         var value = node as JsonObject ?? throw new JsonException("Mode must be an object.");
+        var normalized = NormalizeCloudRouting(value);
         var extensions = value["platformExtensions"] as JsonObject;
         var linux = extensions?["linux"] as JsonObject;
         var preservedExtensions = extensions?.DeepClone() as JsonObject;
@@ -236,13 +257,14 @@ public sealed partial class ApplicationBackupService(
             IsDefault = Bool(value, "isDefault"), SortOrder = Int(value, "sortOrder"),
             Punctuation = Bool(value, "punctuation", true), Capitalization = Bool(value, "capitalization", true),
             ProfanityFilter = Bool(value, "profanityFilter"), RemoveTrailingPeriod = Bool(value, "removeTrailingPeriod"),
-            EnglishSpelling = String(value, "englishSpelling"), CloudProvider = String(value, "cloudProvider"),
-            CloudTranscriptionModel = String(value, "cloudTranscriptionModel"), CloudTranscriptionDomain = String(value, "cloudTranscriptionDomain"),
+            EnglishSpelling = String(value, "englishSpelling"), CloudProvider = String(normalized, "cloudProvider"),
+            CloudTranscriptionModel = String(normalized, "cloudTranscriptionModel"), CloudTranscriptionDomain = String(normalized, "cloudTranscriptionDomain"),
             PostProcessingMode = Int(value, "postProcessingMode"), PostProcessingProvider = String(value, "postProcessingProvider"),
             LanguageModel = String(value, "languageModel"), LocalPostProcessingModel = String(value, "localPostProcessingModel"),
             UserSystemPrompt = String(value, "userSystemPrompt"), CustomInstructions = String(value, "customInstructions"),
-            GeminiCustomPrompt = String(value, "geminiCustomPrompt"), CloudAccuracyTier = String(value, "cloudAccuracyTier") ?? "elevenLabsScribeV2",
-            CloudPostProcessingModel = String(value, "cloudPostProcessingModel") ?? "anthropic:claude-haiku-4-5",
+            GeminiCustomPrompt = String(value, "geminiCustomPrompt"),
+            CloudAccuracyTier = String(normalized, "cloudAccuracyTier") ?? ModeDefaults.CloudAccuracyTier,
+            CloudPostProcessingModel = String(normalized, "cloudPostProcessingModel") ?? ModeDefaults.CloudPostProcessingModel,
             LocalEngine = String(linux, "localEngine") ?? "whisper", LocalParakeetModel = String(linux, "localParakeetModel"),
             ProviderType = String(linux, "providerType") ?? (String(value, "cloudProvider") is null ? "local" : "cloud"),
             EnableScreenOCR = Bool(linux, "enableScreenOCR"), CustomVocabulary = StringList(linux, "customVocabulary"),

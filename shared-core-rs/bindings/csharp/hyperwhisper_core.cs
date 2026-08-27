@@ -1166,6 +1166,10 @@ static class _UniFFILib {
     
     
     
+    
+    
+    
+    
 
     static _UniFFILib() {
         _UniFFILib.uniffiCheckContractApiVersion();
@@ -1436,6 +1440,10 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_cloud_stt_provider(RustBuffer @id,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_cloud_stt_resolve_model_alias(RustBuffer @modelId,RustBuffer @provider,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -1880,6 +1888,10 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_normalize_termination(RustBuffer @wireProtocol,RustBuffer @reason,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_normalize_universal_mode_json(RustBuffer @json,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -2423,6 +2435,10 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_cloud_stt_resolve_model_alias(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_cloud_stt_supports_custom_vocabulary(
     );
 
@@ -2864,6 +2880,10 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_normalize_termination(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_normalize_universal_mode_json(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -3338,6 +3358,12 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_cloud_stt_provider();
             if (checksum != 52282) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_cloud_stt_provider` checksum `52282`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_cloud_stt_resolve_model_alias();
+            if (checksum != 64463) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_cloud_stt_resolve_model_alias` checksum `64463`, library returned `{checksum}`");
             }
         }
         {
@@ -4004,6 +4030,12 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_normalize_termination();
             if (checksum != 6367) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_normalize_termination` checksum `6367`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_normalize_universal_mode_json();
+            if (checksum != 52698) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_normalize_universal_mode_json` checksum `52698`, library returned `{checksum}`");
             }
         }
         {
@@ -12078,6 +12110,23 @@ internal static class HyperwhisperCoreMethods {
 
 
     /// <summary>
+    /// Resolve a legacy cloud-STT model id onto its current catalog id.
+    ///
+    /// `provider` is the persisted `cloudProvider` identifier (`"deepgram"`,
+    /// `"assemblyai"`, …). `None`, an empty string, or an identifier the provider
+    /// enum does not know chains every alias table — the behaviour Windows'
+    /// `CloudTranscriptionModels.ResolveModelAlias` gives its
+    /// `null or CloudTranscriptionProvider.None` arm.
+    /// </summary>
+    public static string CloudSttResolveModelAlias(string @modelId, string? @provider) {
+        return FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_cloud_stt_resolve_model_alias(FfiConverterString.INSTANCE.Lower(@modelId), FfiConverterOptionalString.INSTANCE.Lower(@provider), ref _status)
+));
+    }
+
+
+    /// <summary>
     /// Whether the STT provider supports custom vocabulary.
     /// </summary>
     public static bool CloudSttSupportsCustomVocabulary(string @id) {
@@ -13298,6 +13347,47 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterTypeCompletionState.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_normalize_termination(FfiConverterTypeWireProtocol.INSTANCE.Lower(@wireProtocol), FfiConverterOptionalString.INSTANCE.Lower(@reason), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Canonicalize ONE wire-shaped universal-v2 mode object, returning the same
+    /// object with its five cloud-routing fields normalized and every other key
+    /// untouched. This is the single entry point both non-macOS mode-import paths
+    /// call (`UniversalBackupMapper.MapToMode`, `ApplicationBackupExport.ParseMode`).
+    ///
+    /// It is the COMPOSITION POINT: `hw_backup` owns the present-only
+    /// tier/post-processing-model migration, `hw_catalog` owns the `cloudProvider`
+    /// fold and the legacy model-alias tables, and the `cloudTranscriptionDomain`
+    /// gate lives here. `hw-backup` must not depend on `hw-catalog`
+    /// (`shared-core-rs/README.md`), which is why the seam is in this crate.
+    ///
+    /// What it does, in the order Windows does it:
+    ///
+    /// 1. `cloudProvider` is folded through the catalog — a legacy standalone-provider
+    /// alias such as `microsoftazurespeech` becomes `hyperwhisper` plus an accuracy
+    /// tier. BYOK names (`deepgram`, `groq`) pass through untouched.
+    /// 2. `cloudTranscriptionModel` is alias-resolved against the **RAW** (pre-fold)
+    /// provider. Windows passes `universal.CloudProvider` — not the folded value —
+    /// to `ResolveModelAlias`, so a folded azure mode resolves under
+    /// `MicrosoftAzureSpeech` (the passthrough arm) even though its stored provider
+    /// became `hyperwhisper`. Reproduced deliberately.
+    /// 3. `cloudAccuracyTier` / `cloudPostProcessingModel` follow the two-assignment
+    /// precedence documented on [`hw_backup::normalize_universal_mode_value`].
+    /// 4. `cloudTranscriptionDomain` (the `X-STT-Domain` header) only applies to
+    /// HyperWhisper Cloud modes, so it is DROPPED unless the folded provider is
+    /// `hyperwhisper` — a stale domain on a BYOK mode must not import.
+    ///
+    /// Absent fields stay absent: the caller applies its own entity default (both
+    /// heads share `elevenLabsScribeV2` / `anthropic:claude-haiku-4-5` from `Mode`'s
+    /// field initialisers). Errors only on JSON that is not an object.
+    /// </summary>
+    /// <exception cref="BackupException"></exception>
+    public static string NormalizeUniversalModeJson(string @json) {
+        return FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCallWithError(FfiConverterTypeBackupError.INSTANCE, (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_normalize_universal_mode_json(FfiConverterString.INSTANCE.Lower(@json), ref _status)
 ));
     }
 

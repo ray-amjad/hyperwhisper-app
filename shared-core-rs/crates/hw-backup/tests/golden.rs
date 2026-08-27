@@ -700,3 +700,168 @@ fn macos_adapter_matches_fixture_universal_settings() {
         &fixture_settings["advanced"]
     );
 }
+
+// ---------------------------------------------------------------------------
+// normalize_universal_mode_value — the wire-shaped, present-only normalization
+// both non-macOS importers now route through (#288, phase 1b).
+//
+// Only the tier / post-processing half lives in `hw-backup`: the `cloudProvider`
+// fold and the model-alias tables need the catalog, so they are composed in
+// `hw-core::ffi_backup::normalize_universal_mode_json`. `folded_accuracy_tier`
+// here stands in for what that composition passes down.
+// ---------------------------------------------------------------------------
+
+/// Run the normalizer over a mode object literal and return the result.
+fn normalized(mut mode: Value, folded_tier: Option<&str>) -> Value {
+    hw_backup::normalize_universal_mode_value(&mut mode, folded_tier);
+    mode
+}
+
+#[test]
+fn absent_cloud_routing_stays_absent() {
+    // Trap #4: stamping the core defaults here would regress BOTH .NET heads,
+    // whose shared native pair is elevenLabsScribeV2 / anthropic:claude-haiku-4-5.
+    let out = normalized(serde_json::json!({ "id": "m", "name": "n" }), None);
+    assert!(!out.as_object().unwrap().contains_key("cloudAccuracyTier"));
+    assert!(!out
+        .as_object()
+        .unwrap()
+        .contains_key("cloudPostProcessingModel"));
+    // Nothing else was invented either.
+    assert_eq!(out, serde_json::json!({ "id": "m", "name": "n" }));
+}
+
+#[test]
+fn explicit_null_is_treated_as_absent() {
+    let out = normalized(
+        serde_json::json!({
+            "cloudAccuracyTier": Value::Null,
+            "cloudPostProcessingModel": Value::Null
+        }),
+        None,
+    );
+    assert_eq!(out, serde_json::json!({}));
+}
+
+#[test]
+fn blank_string_is_treated_as_absent() {
+    // MigrateCloudAccuracyTierPresent guards with IsNullOrWhiteSpace, not just null.
+    let out = normalized(
+        serde_json::json!({ "cloudAccuracyTier": "   ", "cloudPostProcessingModel": "" }),
+        None,
+    );
+    assert_eq!(out, serde_json::json!({}));
+}
+
+#[test]
+fn present_values_are_migrated() {
+    let out = normalized(
+        serde_json::json!({ "cloudAccuracyTier": "highest", "cloudPostProcessingModel": "claudeHaiku" }),
+        None,
+    );
+    assert_eq!(out["cloudAccuracyTier"], "elevenLabsScribeV2");
+    assert_eq!(out["cloudPostProcessingModel"], "anthropic:claude-haiku-4-5");
+}
+
+#[test]
+fn folded_tier_applies_only_when_the_universal_value_is_absent() {
+    // No platformExtensions.windows → `universal ?? folded`.
+    let with_universal = normalized(
+        serde_json::json!({ "cloudAccuracyTier": "medium" }),
+        Some("azureMaiTranscribe"),
+    );
+    assert_eq!(
+        with_universal["cloudAccuracyTier"], "groqWhisper",
+        "a present universal tier must overwrite the folded one"
+    );
+
+    let without_universal = normalized(serde_json::json!({}), Some("azureMaiTranscribe"));
+    assert_eq!(without_universal["cloudAccuracyTier"], "azureMaiTranscribe");
+}
+
+#[test]
+fn windows_extension_tier_wins_over_both() {
+    // platformExtensions.windows present → `winExt ?? folded ?? universal`.
+    let out = normalized(
+        serde_json::json!({
+            "cloudAccuracyTier": "medium",
+            "platformExtensions": { "windows": { "cloudAccuracyTier": "grok" } }
+        }),
+        Some("azureMaiTranscribe"),
+    );
+    assert_eq!(out["cloudAccuracyTier"], "grokStt");
+}
+
+#[test]
+fn windows_extension_present_but_blank_falls_back_to_the_folded_tier() {
+    // The winExt arm's source is absent, so the folded tier survives — and, note,
+    // it beats the present universal value in THIS branch. That asymmetry is real
+    // Windows behaviour (MapToMode assigns CloudAccuracyTier twice), not a bug.
+    let out = normalized(
+        serde_json::json!({
+            "cloudAccuracyTier": "medium",
+            "platformExtensions": { "windows": { "localEngine": "whisper" } }
+        }),
+        Some("azureMaiTranscribe"),
+    );
+    assert_eq!(out["cloudAccuracyTier"], "azureMaiTranscribe");
+}
+
+#[test]
+fn windows_extension_pp_model_wins_but_is_never_folded() {
+    let out = normalized(
+        serde_json::json!({
+            "cloudPostProcessingModel": "claudeHaiku",
+            "platformExtensions": { "windows": { "cloudPostProcessingModel": "groqGptOss120B" } }
+        }),
+        Some("azureMaiTranscribe"),
+    );
+    assert_eq!(out["cloudPostProcessingModel"], "groq:openai/gpt-oss-120b");
+    // The fold never supplies a post-processing model.
+    let no_pp = normalized(serde_json::json!({}), Some("azureMaiTranscribe"));
+    assert!(!no_pp
+        .as_object()
+        .unwrap()
+        .contains_key("cloudPostProcessingModel"));
+}
+
+#[test]
+fn a_non_object_windows_slice_is_not_treated_as_present() {
+    // Windows decides `winExt != null` by whether the slice DESERIALIZES; a JSON
+    // null or a scalar throws and leaves it null, so the universal arm runs.
+    for slice in [Value::Null, serde_json::json!("nope"), serde_json::json!(7)] {
+        let out = normalized(
+            serde_json::json!({
+                "cloudAccuracyTier": "medium",
+                "platformExtensions": { "windows": slice }
+            }),
+            Some("azureMaiTranscribe"),
+        );
+        assert_eq!(out["cloudAccuracyTier"], "groqWhisper");
+    }
+}
+
+#[test]
+fn unrelated_keys_and_foreign_extensions_survive() {
+    let out = normalized(
+        serde_json::json!({
+            "id": "abc",
+            "name": "Hyper",
+            "language": "en",
+            "cloudAccuracyTier": "high",
+            "platformExtensions": { "macos": { "futureMac": "keep" } }
+        }),
+        None,
+    );
+    assert_eq!(out["id"], "abc");
+    assert_eq!(out["name"], "Hyper");
+    assert_eq!(out["language"], "en");
+    assert_eq!(out["platformExtensions"]["macos"]["futureMac"], "keep");
+    assert_eq!(out["cloudAccuracyTier"], "deepgramNova3");
+}
+
+#[test]
+fn a_non_object_mode_is_left_untouched() {
+    let out = normalized(serde_json::json!("not a mode"), Some("grokStt"));
+    assert_eq!(out, serde_json::json!("not a mode"));
+}

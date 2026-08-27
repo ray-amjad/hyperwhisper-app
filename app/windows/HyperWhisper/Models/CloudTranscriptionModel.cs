@@ -11,6 +11,8 @@
 // - gpt-4o-transcribe: ~$0.006/min (varies)
 // - gpt-4o-mini-transcribe: ~$0.003/min (varies)
 
+using uniffi.hyperwhisper_core;
+
 namespace HyperWhisper.Models;
 
 /// <summary>
@@ -532,73 +534,24 @@ public static class CloudTranscriptionModels
         return popular.Length > 0 ? popular : models;
     }
 
-    /// <summary>
-    /// Legacy AssemblyAI model IDs retired on 2026-05-11. Mapped transparently so existing
-    /// Modes and imported backups keep working. "universal" → "universal-2" (same multilingual
-    /// behavior); retired Universal-3 IDs and "slam-1" resolve to Universal-3.5 Pro.
-    /// </summary>
-    private static readonly Dictionary<string, string> LegacyAssemblyAIAliases =
-        new(StringComparer.OrdinalIgnoreCase)
-        {
-            { "universal", "universal-2" },
-            { "slam-1", "universal-3-5-pro" },
-            { "universal-3-pro", "universal-3-5-pro" },
-            { "universal-3-pro-medical", "universal-3-5-pro-medical" }
-        };
+    // =========================================================================
+    // LEGACY MODEL-ID ALIASES — owned by the Rust shared core
+    // =========================================================================
+    // The five per-provider alias tables used to live here as C# dictionaries.
+    // They now live in hw-catalog (shared-core-rs/crates/hw-catalog/src/model_alias.rs)
+    // and are exported as cloud_stt_resolve_model_alias, so the Windows UI, the
+    // Windows backup importer and the Linux backup importer all resolve a legacy
+    // model ID identically. The wrappers below keep every existing call site
+    // textually unchanged.
 
     /// <summary>
-    /// Legacy ElevenLabs model IDs retired by ElevenLabs. Mapped transparently so existing
-    /// Modes and imported backups keep working. "scribe_v1" → "scribe_v2" (scribe_v1 retired
-    /// 2026-07-09; scribe_v2 is the direct successor).
+    /// Shared guard + core call for the provider-scoped resolvers. A null/empty
+    /// model ID is returned untouched, exactly as the old dictionary lookups did.
     /// </summary>
-    private static readonly Dictionary<string, string> LegacyElevenLabsAliases =
-        new(StringComparer.OrdinalIgnoreCase)
-        {
-            { "scribe_v1", "scribe_v2" }
-        };
-
-    /// <summary>
-    /// Legacy Windows Deepgram IDs used before the catalog mirrored macOS domain-specific IDs,
-    /// plus the 25 IDs removed in the 2026-05 catalog cleanup. Removed IDs collapse to
-    /// `nova-3-general` so existing modes, settings, and backups continue to resolve.
-    /// </summary>
-    private static readonly Dictionary<string, string> LegacyDeepgramAliases =
-        new(StringComparer.OrdinalIgnoreCase)
-        {
-            // Pre-cleanup short aliases. `enhanced` and `base` previously resolved to
-            // their `-general` siblings, but those were removed in the cleanup, so they
-            // now collapse straight to Nova 3 General.
-            { "nova-3", "nova-3-general" },
-            { "nova-2", "nova-2-general" },
-            { "enhanced", "nova-3-general" },
-            { "base", "nova-3-general" },
-            // 2026-05 cleanup — every removed ID maps to Nova 3 General.
-            { "nova-2-meeting", "nova-3-general" },
-            { "nova-2-phonecall", "nova-3-general" },
-            { "nova-2-voicemail", "nova-3-general" },
-            { "nova-2-finance", "nova-3-general" },
-            { "nova-2-conversationalai", "nova-3-general" },
-            { "nova-2-automotive", "nova-3-general" },
-            { "nova-2-video", "nova-3-general" },
-            { "nova", "nova-3-general" },
-            { "nova-phonecall", "nova-3-general" },
-            { "enhanced-general", "nova-3-general" },
-            { "enhanced-meeting", "nova-3-general" },
-            { "enhanced-phonecall", "nova-3-general" },
-            { "enhanced-finance", "nova-3-general" },
-            { "base-general", "nova-3-general" },
-            { "base-meeting", "nova-3-general" },
-            { "base-phonecall", "nova-3-general" },
-            { "base-voicemail", "nova-3-general" },
-            { "base-finance", "nova-3-general" },
-            { "base-conversationalai", "nova-3-general" },
-            { "base-video", "nova-3-general" },
-            { "whisper-tiny", "nova-3-general" },
-            { "whisper-base", "nova-3-general" },
-            { "whisper-small", "nova-3-general" },
-            { "whisper-medium", "nova-3-general" },
-            { "whisper-large", "nova-3-general" }
-        };
+    private static string ResolveScopedModelAlias(string modelId, string providerIdentifier)
+        => string.IsNullOrEmpty(modelId)
+            ? modelId
+            : HyperwhisperCoreMethods.CloudSttResolveModelAlias(modelId, providerIdentifier);
 
     /// <summary>
     /// Resolve a legacy AssemblyAI model ID to its current equivalent. Non-AssemblyAI
@@ -606,19 +559,13 @@ public static class CloudTranscriptionModels
     /// do not add aliases for other providers here; give them their own resolver.
     /// </summary>
     public static string ResolveAssemblyAIModelAlias(string modelId)
-    {
-        if (string.IsNullOrEmpty(modelId)) return modelId;
-        return LegacyAssemblyAIAliases.TryGetValue(modelId, out var resolved) ? resolved : modelId;
-    }
+        => ResolveScopedModelAlias(modelId, "assemblyai");
 
     /// <summary>
     /// Resolve a legacy Deepgram model ID to its current macOS-compatible equivalent.
     /// </summary>
     public static string ResolveDeepgramModelAlias(string modelId)
-    {
-        if (string.IsNullOrEmpty(modelId)) return modelId;
-        return LegacyDeepgramAliases.TryGetValue(modelId, out var resolved) ? resolved : modelId;
-    }
+        => ResolveScopedModelAlias(modelId, "deepgram");
 
     /// <summary>
     /// Resolve a legacy ElevenLabs model ID to its current equivalent. Non-ElevenLabs
@@ -626,57 +573,31 @@ public static class CloudTranscriptionModels
     /// do not add aliases for other providers here; give them their own resolver.
     /// </summary>
     public static string ResolveElevenLabsModelAlias(string modelId)
-    {
-        if (string.IsNullOrEmpty(modelId)) return modelId;
-        return LegacyElevenLabsAliases.TryGetValue(modelId, out var resolved) ? resolved : modelId;
-    }
+        => ResolveScopedModelAlias(modelId, "elevenlabs");
 
-    private static readonly Dictionary<string, string> LegacySonioxAliases =
-        new(StringComparer.OrdinalIgnoreCase)
-        {
-            { "stt-async-v4", "stt-async-v5" }
-        };
-
+    /// <summary>Resolve a legacy Soniox model ID to its current equivalent.</summary>
     public static string ResolveSonioxModelAlias(string modelId)
-    {
-        if (string.IsNullOrEmpty(modelId)) return modelId;
-        return LegacySonioxAliases.TryGetValue(modelId, out var resolved) ? resolved : modelId;
-    }
+        => ResolveScopedModelAlias(modelId, "soniox");
 
-    private static readonly Dictionary<string, string> LegacyGeminiAliases =
-        new(StringComparer.OrdinalIgnoreCase)
-        {
-            { "gemini-3.1-flash-lite-preview", "gemini-3.1-flash-lite" },
-            { "gemini-2.0-flash", "gemini-3.6-flash" }
-        };
-
+    /// <summary>Resolve a legacy Gemini model ID to its current equivalent.</summary>
     public static string ResolveGeminiModelAlias(string modelId)
-    {
-        if (string.IsNullOrEmpty(modelId)) return modelId;
-        return LegacyGeminiAliases.TryGetValue(modelId, out var resolved) ? resolved : modelId;
-    }
+        => ResolveScopedModelAlias(modelId, "gemini");
 
     /// <summary>
     /// Resolve provider-specific model aliases before display, import, or request configuration.
     /// </summary>
+    /// <remarks>
+    /// Delegates to the shared core. A C# null provider and
+    /// CloudTranscriptionProvider.None both mean "provider unknown, chain every
+    /// table" — None is what FromIdentifier(...) returns for a missing or
+    /// unrecognized provider string, so real call sites land there rather than on
+    /// a literal null. GetIdentifier(None) is the empty string, which the core
+    /// treats identically to an absent provider, so both collapse onto one call.
+    /// </remarks>
     public static string ResolveModelAlias(string modelId, CloudTranscriptionProvider? provider = null)
     {
         if (string.IsNullOrEmpty(modelId)) return modelId;
-
-        return provider switch
-        {
-            CloudTranscriptionProvider.AssemblyAI => ResolveAssemblyAIModelAlias(modelId),
-            CloudTranscriptionProvider.Deepgram => ResolveDeepgramModelAlias(modelId),
-            CloudTranscriptionProvider.ElevenLabs => ResolveElevenLabsModelAlias(modelId),
-            CloudTranscriptionProvider.Soniox => ResolveSonioxModelAlias(modelId),
-            CloudTranscriptionProvider.Gemini => ResolveGeminiModelAlias(modelId),
-            // CloudTranscriptionProvider.None is what FromIdentifier(...) returns for a
-            // missing/unrecognized provider string (it's a concrete enum value, not C#
-            // null), so real call sites land here rather than the `null` arm below —
-            // treat it identically to "provider unknown, chain everything".
-            null or CloudTranscriptionProvider.None => ResolveGeminiModelAlias(ResolveSonioxModelAlias(ResolveDeepgramModelAlias(ResolveAssemblyAIModelAlias(ResolveElevenLabsModelAlias(modelId))))),
-            _ => modelId
-        };
+        return HyperwhisperCoreMethods.CloudSttResolveModelAlias(modelId, provider?.GetIdentifier());
     }
 
     /// <summary>

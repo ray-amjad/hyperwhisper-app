@@ -194,6 +194,115 @@ pub fn migrate_mode_cloud_routing(m: &mut ModeRecord) {
     }
 }
 
+/// PRESENT-ONLY tier migration: `None` for a missing/blank source, so an absent
+/// field stays absent and the CALLER keeps its own entity default. Mirrors
+/// `UniversalBackupMapper.MigrateCloudAccuracyTierPresent`.
+fn migrate_tier_present(value: Option<&str>) -> Option<String> {
+    let v = value?;
+    if v.trim().is_empty() {
+        return None;
+    }
+    Some(migrate_cloud_accuracy_tier(Some(v)))
+}
+
+/// PRESENT-ONLY post-processing-model migration. See [`migrate_tier_present`].
+fn migrate_pp_present(value: Option<&str>) -> Option<String> {
+    let v = value?;
+    if v.trim().is_empty() {
+        return None;
+    }
+    Some(migrate_cloud_pp_model(Some(v)))
+}
+
+/// Read a string field from a JSON object, treating an explicit `null` and a
+/// non-string value as absent (what `JsonNode`/`JsonElement` do on both heads).
+fn str_field<'a>(obj: &'a Map<String, Value>, key: &str) -> Option<&'a str> {
+    obj.get(key).and_then(Value::as_str)
+}
+
+/// Canonicalize the two cloud-ROUTING fields (`cloudAccuracyTier`,
+/// `cloudPostProcessingModel`) of a wire-shaped universal mode object, IN PLACE.
+///
+/// `folded_accuracy_tier` is the tier the catalog's `cloudProvider` fold produced
+/// (`hw_catalog::CloudSttCatalog::normalize_cloud_provider(...).accuracy_tier`).
+/// It is passed in rather than computed here because `hw-backup` is deliberately
+/// sans-catalog (`shared-core-rs/README.md`); `hw-core` composes the two.
+///
+/// # Precedence — ported from `UniversalBackupMapper.MapToMode`, which assigns
+/// `CloudAccuracyTier` TWICE
+///
+/// The object initializer sets `folded ?? migrated(universal) ?? Mode default`,
+/// and a post-initializer arm then reassigns UNCONDITIONALLY from
+/// `migrated(universal.cloudAccuracyTier)` or, when `platformExtensions.windows`
+/// is present, from `migrated(windowsExt.cloudAccuracyTier)`. Since the
+/// present-only migration returns `None` only for a null/blank source, ANY
+/// present tier overwrites the folded one; the folded tier survives only when
+/// its arm's source is absent or blank. Collapsed:
+///
+/// - `platformExtensions.windows` present → `winExt ?? folded ?? universal`
+/// - otherwise                            → `universal ?? folded`
+///
+/// and for `cloudPostProcessingModel` (never folded):
+///
+/// - `platformExtensions.windows` present → `winExt ?? universal`
+/// - otherwise                            → `universal`
+///
+/// **Absent stays absent.** When a chain yields nothing the key is REMOVED, not
+/// stamped with the core default — the caller applies its own entity default
+/// afterwards. Writing `deepgramNova3` / `grok:grok-4.3` here would regress both
+/// heads, whose shared native default pair is `elevenLabsScribeV2` /
+/// `anthropic:claude-haiku-4-5`.
+///
+/// Non-object input is left untouched.
+pub fn normalize_universal_mode_value(mode: &mut Value, folded_accuracy_tier: Option<&str>) {
+    let Some(obj) = mode.as_object_mut() else {
+        return;
+    };
+
+    // `platformExtensions.windows` is the second assignment's source when the
+    // slice exists at all — mirroring `winExt != null` on Windows, which is
+    // decided by the KEY's presence, not by whether the slice carries a tier.
+    let win_ext = obj
+        .get("platformExtensions")
+        .and_then(Value::as_object)
+        .and_then(|p| p.get("windows"))
+        .and_then(Value::as_object)
+        .cloned();
+
+    let universal_tier = migrate_tier_present(str_field(obj, "cloudAccuracyTier"));
+    let universal_pp = migrate_pp_present(str_field(obj, "cloudPostProcessingModel"));
+    let folded = folded_accuracy_tier.map(str::to_string);
+
+    let (tier, pp) = match win_ext {
+        Some(ext) => {
+            let win_tier = migrate_tier_present(str_field(&ext, "cloudAccuracyTier"));
+            let win_pp = migrate_pp_present(str_field(&ext, "cloudPostProcessingModel"));
+            (
+                win_tier.or(folded).or(universal_tier),
+                win_pp.or(universal_pp),
+            )
+        }
+        None => (universal_tier.or(folded), universal_pp),
+    };
+
+    set_or_remove(obj, "cloudAccuracyTier", tier);
+    set_or_remove(obj, "cloudPostProcessingModel", pp);
+}
+
+/// Write `value` at `key`, or REMOVE the key when there is nothing to write.
+/// Removal (rather than a JSON `null`) is what keeps "absent stays absent" true
+/// through a serialize/deserialize hop on either head.
+fn set_or_remove(obj: &mut Map<String, Value>, key: &str, value: Option<String>) {
+    match value {
+        Some(v) => {
+            obj.insert(key.to_string(), Value::String(v));
+        }
+        None => {
+            obj.remove(key);
+        }
+    }
+}
+
 // ============================================================================
 // Layer 2: macOS 7-category settings adapter
 // ============================================================================

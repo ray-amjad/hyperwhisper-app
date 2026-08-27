@@ -11119,6 +11119,23 @@ public func cloudSttProvider(id: String) -> String? {
 })
 }
 /**
+ * Resolve a legacy cloud-STT model id onto its current catalog id.
+ *
+ * `provider` is the persisted `cloudProvider` identifier (`"deepgram"`,
+ * `"assemblyai"`, …). `None`, an empty string, or an identifier the provider
+ * enum does not know chains every alias table — the behaviour Windows'
+ * `CloudTranscriptionModels.ResolveModelAlias` gives its
+ * `null or CloudTranscriptionProvider.None` arm.
+ */
+public func cloudSttResolveModelAlias(modelId: String, provider: String?) -> String {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_cloud_stt_resolve_model_alias(
+        FfiConverterString.lower(modelId),
+        FfiConverterOptionString.lower(provider),$0
+    )
+})
+}
+/**
  * Whether the STT provider supports custom vocabulary.
  */
 public func cloudSttSupportsCustomVocabulary(id: String) -> Bool {
@@ -12233,6 +12250,45 @@ public func normalizeTermination(wireProtocol: WireProtocol, reason: String?) ->
 })
 }
 /**
+ * Canonicalize ONE wire-shaped universal-v2 mode object, returning the same
+ * object with its five cloud-routing fields normalized and every other key
+ * untouched. This is the single entry point both non-macOS mode-import paths
+ * call (`UniversalBackupMapper.MapToMode`, `ApplicationBackupExport.ParseMode`).
+ *
+ * It is the COMPOSITION POINT: `hw_backup` owns the present-only
+ * tier/post-processing-model migration, `hw_catalog` owns the `cloudProvider`
+ * fold and the legacy model-alias tables, and the `cloudTranscriptionDomain`
+ * gate lives here. `hw-backup` must not depend on `hw-catalog`
+ * (`shared-core-rs/README.md`), which is why the seam is in this crate.
+ *
+ * What it does, in the order Windows does it:
+ *
+ * 1. `cloudProvider` is folded through the catalog — a legacy standalone-provider
+ * alias such as `microsoftazurespeech` becomes `hyperwhisper` plus an accuracy
+ * tier. BYOK names (`deepgram`, `groq`) pass through untouched.
+ * 2. `cloudTranscriptionModel` is alias-resolved against the **RAW** (pre-fold)
+ * provider. Windows passes `universal.CloudProvider` — not the folded value —
+ * to `ResolveModelAlias`, so a folded azure mode resolves under
+ * `MicrosoftAzureSpeech` (the passthrough arm) even though its stored provider
+ * became `hyperwhisper`. Reproduced deliberately.
+ * 3. `cloudAccuracyTier` / `cloudPostProcessingModel` follow the two-assignment
+ * precedence documented on [`hw_backup::normalize_universal_mode_value`].
+ * 4. `cloudTranscriptionDomain` (the `X-STT-Domain` header) only applies to
+ * HyperWhisper Cloud modes, so it is DROPPED unless the folded provider is
+ * `hyperwhisper` — a stale domain on a BYOK mode must not import.
+ *
+ * Absent fields stay absent: the caller applies its own entity default (both
+ * heads share `elevenLabsScribeV2` / `anthropic:claude-haiku-4-5` from `Mode`'s
+ * field initialisers). Errors only on JSON that is not an object.
+ */
+public func normalizeUniversalModeJson(json: String)throws  -> String {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeBackupError.lift) {
+    uniffi_hyperwhisper_core_fn_func_normalize_universal_mode_json(
+        FfiConverterString.lower(json),$0
+    )
+})
+}
+/**
  * Canonical vocabulary normalization for every egress path: sanitize each
  * term, drop the ones that sanitize to empty, de-duplicate case-insensitively
  * keeping first-seen casing and order, and stop at `limit`.
@@ -12681,6 +12737,9 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_cloud_stt_provider() != 52282) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_hyperwhisper_core_checksum_func_cloud_stt_resolve_model_alias() != 64463) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_hyperwhisper_core_checksum_func_cloud_stt_supports_custom_vocabulary() != 64386) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -13012,6 +13071,9 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_normalize_termination() != 6367) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_normalize_universal_mode_json() != 52698) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_normalize_vocabulary_terms() != 61974) {

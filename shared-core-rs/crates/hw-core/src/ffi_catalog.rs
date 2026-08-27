@@ -21,7 +21,9 @@ fn models() -> &'static hw_catalog::ModelsCatalog {
     })
 }
 
-fn cloud_stt() -> &'static hw_catalog::CloudSttCatalog {
+/// `pub(crate)` so `ffi_backup::normalize_universal_mode_json` can compose the
+/// `cloudProvider` fold with the `hw-backup` tier/pp migration.
+pub(crate) fn cloud_stt() -> &'static hw_catalog::CloudSttCatalog {
     static C: OnceLock<hw_catalog::CloudSttCatalog> = OnceLock::new();
     C.get_or_init(|| {
         hw_catalog::CloudSttCatalog::embedded().expect("embedded cloud-stt-catalog.json must parse")
@@ -684,6 +686,18 @@ pub fn cloud_stt_normalize_cloud_provider(value: Option<String>) -> NormalizedCl
     cloud_stt()
         .normalize_cloud_provider(value.as_deref())
         .into()
+}
+
+/// Resolve a legacy cloud-STT model id onto its current catalog id.
+///
+/// `provider` is the persisted `cloudProvider` identifier (`"deepgram"`,
+/// `"assemblyai"`, …). `None`, an empty string, or an identifier the provider
+/// enum does not know chains every alias table — the behaviour Windows'
+/// `CloudTranscriptionModels.ResolveModelAlias` gives its
+/// `null or CloudTranscriptionProvider.None` arm.
+#[uniffi::export]
+pub fn cloud_stt_resolve_model_alias(model_id: String, provider: Option<String>) -> String {
+    hw_catalog::resolve_model_alias(&model_id, provider.as_deref())
 }
 
 // ---------------------------------------------------------------------------

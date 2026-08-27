@@ -9,6 +9,8 @@ mod models;
 mod app_type;
 mod cloud_pp;
 mod cloud_stt;
+// Legacy cloud-STT model-id aliases (ported from the Windows dictionaries).
+mod model_alias;
 
 pub use models::{CatalogError, Entry, Kind, LanguageSupport, ModelsCatalog};
 
@@ -18,6 +20,11 @@ pub use cloud_stt::{
 };
 
 pub use cloud_pp::{CloudPpCatalog, CloudPpError, PpModel, PpProvider};
+
+pub use model_alias::{
+    resolve_assemblyai_model_alias, resolve_deepgram_model_alias, resolve_elevenlabs_model_alias,
+    resolve_gemini_model_alias, resolve_model_alias, resolve_soniox_model_alias,
+};
 
 pub use app_type::{
     is_webmail, AppClassification, AppType, AppTypeClassifier, AppTypeError, ClassifyRequest,

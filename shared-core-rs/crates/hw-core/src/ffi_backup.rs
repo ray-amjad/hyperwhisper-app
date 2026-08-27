@@ -118,6 +118,98 @@ pub fn universal_settings_to_macos_settings_json(record_json: String) -> Result<
     })
 }
 
+/// Canonicalize ONE wire-shaped universal-v2 mode object, returning the same
+/// object with its five cloud-routing fields normalized and every other key
+/// untouched. This is the single entry point both non-macOS mode-import paths
+/// call (`UniversalBackupMapper.MapToMode`, `ApplicationBackupExport.ParseMode`).
+///
+/// It is the COMPOSITION POINT: `hw_backup` owns the present-only
+/// tier/post-processing-model migration, `hw_catalog` owns the `cloudProvider`
+/// fold and the legacy model-alias tables, and the `cloudTranscriptionDomain`
+/// gate lives here. `hw-backup` must not depend on `hw-catalog`
+/// (`shared-core-rs/README.md`), which is why the seam is in this crate.
+///
+/// What it does, in the order Windows does it:
+///
+/// 1. `cloudProvider` is folded through the catalog — a legacy standalone-provider
+///    alias such as `microsoftazurespeech` becomes `hyperwhisper` plus an accuracy
+///    tier. BYOK names (`deepgram`, `groq`) pass through untouched.
+/// 2. `cloudTranscriptionModel` is alias-resolved against the **RAW** (pre-fold)
+///    provider. Windows passes `universal.CloudProvider` — not the folded value —
+///    to `ResolveModelAlias`, so a folded azure mode resolves under
+///    `MicrosoftAzureSpeech` (the passthrough arm) even though its stored provider
+///    became `hyperwhisper`. Reproduced deliberately.
+/// 3. `cloudAccuracyTier` / `cloudPostProcessingModel` follow the two-assignment
+///    precedence documented on [`hw_backup::normalize_universal_mode_value`].
+/// 4. `cloudTranscriptionDomain` (the `X-STT-Domain` header) only applies to
+///    HyperWhisper Cloud modes, so it is DROPPED unless the folded provider is
+///    `hyperwhisper` — a stale domain on a BYOK mode must not import.
+///
+/// Absent fields stay absent: the caller applies its own entity default (both
+/// heads share `elevenLabsScribeV2` / `anthropic:claude-haiku-4-5` from `Mode`'s
+/// field initialisers). Errors only on JSON that is not an object.
+#[uniffi::export]
+pub fn normalize_universal_mode_json(json: String) -> Result<String, BackupError> {
+    let mut value: serde_json::Value =
+        serde_json::from_str(&json).map_err(|e| BackupError::Parse {
+            message: e.to_string(),
+        })?;
+
+    let accuracy_tier = {
+        let Some(obj) = value.as_object_mut() else {
+            return Err(BackupError::Parse {
+                message: "universal mode must be a JSON object".to_string(),
+            });
+        };
+
+        // (1) cloudProvider fold. The RAW value is kept for step (2).
+        let raw_provider = obj
+            .get("cloudProvider")
+            .and_then(serde_json::Value::as_str)
+            .map(str::to_string);
+        let normalized =
+            crate::ffi_catalog::cloud_stt().normalize_cloud_provider(raw_provider.as_deref());
+
+        // (2) model alias, against the RAW provider (see the doc comment).
+        if let Some(model) = obj
+            .get("cloudTranscriptionModel")
+            .and_then(serde_json::Value::as_str)
+        {
+            let resolved = hw_catalog::resolve_model_alias(model, raw_provider.as_deref());
+            obj.insert(
+                "cloudTranscriptionModel".to_string(),
+                serde_json::Value::String(resolved),
+            );
+        }
+
+        match &normalized.provider {
+            Some(p) => {
+                obj.insert(
+                    "cloudProvider".to_string(),
+                    serde_json::Value::String(p.clone()),
+                );
+            }
+            None => {
+                obj.remove("cloudProvider");
+            }
+        }
+
+        // (4) domain gate — HyperWhisper Cloud modes only.
+        if normalized.provider.as_deref() != Some("hyperwhisper") {
+            obj.remove("cloudTranscriptionDomain");
+        }
+
+        normalized.accuracy_tier
+    };
+
+    // (3) tier / post-processing model.
+    hw_backup::normalize_universal_mode_value(&mut value, accuracy_tier.as_deref());
+
+    serde_json::to_string(&value).map_err(|e| BackupError::Serialize {
+        message: e.to_string(),
+    })
+}
+
 /// Migrate a persisted `cloudAccuracyTier` storage string to its canonical
 /// catalog id. `None`/empty → the default tier.
 #[uniffi::export]
@@ -130,4 +222,113 @@ pub fn migrate_cloud_accuracy_tier(value: Option<String>) -> String {
 #[uniffi::export]
 pub fn migrate_cloud_pp_model(value: Option<String>) -> String {
     hw_backup::migrate_cloud_pp_model(value.as_deref())
+}
+
+#[cfg(test)]
+mod normalize_universal_mode_tests {
+    use super::normalize_universal_mode_json;
+    use serde_json::{json, Value};
+
+    fn run(mode: Value) -> Value {
+        serde_json::from_str(&normalize_universal_mode_json(mode.to_string()).unwrap()).unwrap()
+    }
+
+    #[test]
+    fn legacy_provider_folds_onto_hyperwhisper_and_supplies_a_tier() {
+        let out = run(json!({ "cloudProvider": "microsoftazurespeech" }));
+        assert_eq!(out["cloudProvider"], "hyperwhisper");
+        assert_eq!(out["cloudAccuracyTier"], "azureMaiTranscribe");
+    }
+
+    #[test]
+    fn byok_providers_do_not_fold() {
+        // "deepgram" appears in a tier's migrateFrom list but is a real BYOK
+        // provider name; folding it would silently move a BYOK mode onto Cloud.
+        let out = run(json!({ "cloudProvider": "deepgram" }));
+        assert_eq!(out["cloudProvider"], "deepgram");
+        assert!(!out.as_object().unwrap().contains_key("cloudAccuracyTier"));
+    }
+
+    #[test]
+    fn model_alias_resolves_against_the_raw_pre_fold_provider() {
+        // THE TRAP: Windows passes universal.CloudProvider — not the folded value —
+        // to ResolveModelAlias. A folded azure mode therefore resolves under
+        // MicrosoftAzureSpeech (the passthrough arm) even though its stored
+        // provider became "hyperwhisper". Reproduced deliberately.
+        let out = run(json!({
+            "cloudProvider": "microsoftazurespeech",
+            "cloudTranscriptionModel": "nova-2"
+        }));
+        assert_eq!(out["cloudProvider"], "hyperwhisper");
+        assert_eq!(
+            out["cloudTranscriptionModel"], "nova-2",
+            "resolving against the FOLDED provider would have chained the tables"
+        );
+    }
+
+    #[test]
+    fn model_alias_uses_the_provider_scoped_table() {
+        let out = run(json!({ "cloudProvider": "deepgram", "cloudTranscriptionModel": "nova-2" }));
+        assert_eq!(out["cloudTranscriptionModel"], "nova-2-general");
+    }
+
+    #[test]
+    fn model_alias_chains_every_table_when_no_provider_is_given() {
+        let out = run(json!({ "cloudTranscriptionModel": "scribe_v1" }));
+        assert_eq!(out["cloudTranscriptionModel"], "scribe_v2");
+    }
+
+    #[test]
+    fn domain_survives_only_on_hyperwhisper_cloud_modes() {
+        let cloud = run(json!({
+            "cloudProvider": "hyperwhisper",
+            "cloudTranscriptionDomain": "medical"
+        }));
+        assert_eq!(cloud["cloudTranscriptionDomain"], "medical");
+
+        // A folded legacy provider becomes hyperwhisper, so its domain survives.
+        let folded = run(json!({
+            "cloudProvider": "microsoftazurespeech",
+            "cloudTranscriptionDomain": "medical"
+        }));
+        assert_eq!(folded["cloudTranscriptionDomain"], "medical");
+
+        // A stale domain on a BYOK mode must not import.
+        let byok = run(json!({
+            "cloudProvider": "deepgram",
+            "cloudTranscriptionDomain": "medical"
+        }));
+        assert!(!byok
+            .as_object()
+            .unwrap()
+            .contains_key("cloudTranscriptionDomain"));
+
+        // No provider at all → not a Cloud mode either.
+        let none = run(json!({ "cloudTranscriptionDomain": "medical" }));
+        assert!(!none
+            .as_object()
+            .unwrap()
+            .contains_key("cloudTranscriptionDomain"));
+    }
+
+    #[test]
+    fn absent_stays_absent_end_to_end() {
+        let out = run(json!({ "id": "m", "name": "n" }));
+        assert_eq!(out, json!({ "id": "m", "name": "n" }));
+    }
+
+    #[test]
+    fn pp_model_legacy_switch_matches_the_whole_token() {
+        // "notanengine:claudeHaiku" has an unknown engine, so it falls through to
+        // the single-token table, which matches the WHOLE trimmed string and misses
+        // — landing on the grok fallback, not anthropic.
+        let out = run(json!({ "cloudPostProcessingModel": "notanengine:claudeHaiku" }));
+        assert_eq!(out["cloudPostProcessingModel"], "grok:grok-4.3");
+    }
+
+    #[test]
+    fn a_non_object_document_is_an_error() {
+        assert!(normalize_universal_mode_json("[]".to_string()).is_err());
+        assert!(normalize_universal_mode_json("not json".to_string()).is_err());
+    }
 }

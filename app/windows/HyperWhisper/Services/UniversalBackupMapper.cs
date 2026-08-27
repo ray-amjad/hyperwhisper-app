@@ -1,7 +1,6 @@
 using System.Text.Json;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Models;
-// TODO-verify (Windows/CI): Rust shared-core swap — cloud tier / pp-model migration.
 using uniffi.hyperwhisper_core;
 
 namespace HyperWhisper.Services;
@@ -24,20 +23,50 @@ public static class UniversalBackupMapper
     };
 
     // =========================================================================
-    // SHARED-CORE STORAGE-STRING MIGRATIONS (present-only)
+    // SHARED-CORE MODE NORMALIZATION
     // =========================================================================
 
-    // TODO-verify (Windows/CI): Rust shared-core swap.
-    // Migrate persisted cloudAccuracyTier / cloudPostProcessingModel storage
-    // strings via the Rust shared core instead of the hand-rolled
-    // CloudAccuracyTierExtensions.FromString(...).ToStorageValue() /
-    // CloudPostProcessingModelExtensions.FromString(...).ToStorageValue() pair.
+    /// <summary>
+    /// Canonicalize an imported mode's five cloud-routing fields in the Rust
+    /// shared core (<c>normalize_universal_mode_json</c>): the cloudProvider
+    /// catalog fold, the legacy model-alias tables, the present-only
+    /// cloudAccuracyTier / cloudPostProcessingModel migration including the
+    /// platformExtensions.windows override, and the cloudTranscriptionDomain
+    /// gate. Linux's importer calls the same function, so both heads agree.
+    /// </summary>
+    /// <remarks>
+    /// PRESENT-ONLY: the core returns a field ABSENT (null here) when no source
+    /// supplied one, so the caller keeps the Mode entity's own default instead of
+    /// the core's. Only the five cloud-routing properties of the result are read;
+    /// every other field is taken from the original DTO.
+    /// </remarks>
+    private static UniversalMode NormalizeCloudRouting(UniversalMode universal)
+    {
+        try
+        {
+            var json = HyperwhisperCoreMethods.NormalizeUniversalModeJson(
+                JsonSerializer.Serialize(universal, CamelCaseOptions));
+            return JsonSerializer.Deserialize<UniversalMode>(json, CamelCaseOptions) ?? universal;
+        }
+        catch (Exception ex)
+        {
+            // A malformed mode must not abort the whole restore; fall back to the
+            // raw values, which is what an un-normalized import used to do.
+            LoggingService.Warn(
+                $"UniversalBackupMapper: cloud-routing normalization failed for '{universal.Name}': {ex.Message}");
+            return universal;
+        }
+    }
+
+    // PRESENT-ONLY storage-string migrations, still used by the EXPORT half
+    // (MapMode). The IMPORT half no longer needs them — NormalizeCloudRouting
+    // above does the whole job in one core call — but on export there is no
+    // universal mode to hand the core, only a Mode entity, so the two scalar
+    // migrations are called directly.
     //
-    // PRESENT-ONLY (mirrors the macOS M3-D decision): only migrate a non-null,
-    // non-whitespace source value. When the source is null/empty we return null
-    // so the caller can keep whatever default/fallback it already had, rather than
-    // letting the core write its own default where the field was intentionally
-    // absent. The core itself maps None/empty → its default, so we guard up front.
+    // Present-only: a null/whitespace source returns null so the caller keeps
+    // whatever default it already had, rather than letting the core write its own
+    // default where the field was intentionally absent.
     private static string? MigrateCloudAccuracyTierPresent(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -52,8 +81,8 @@ public static class UniversalBackupMapper
         return HyperwhisperCoreMethods.MigrateCloudPpModel(value);
     }
 
-    // Entity-side defaults used as the present-only fallback (read from the Mode
-    // entity so the canonical default lives in exactly one place).
+    // Entity-side defaults for an absent field (read from the Mode entity so the
+    // canonical default lives in exactly one place).
     private static readonly Mode ModeDefaults = new();
 
     // =========================================================================
@@ -135,7 +164,6 @@ public static class UniversalBackupMapper
             UserSystemPrompt = mode.UserSystemPrompt,
             CustomInstructions = mode.CustomInstructions,
             GeminiCustomPrompt = mode.GeminiCustomPrompt,
-            // TODO-verify (Windows/CI): Rust shared-core swap — present-only migration.
             // mode.CloudAccuracyTier/CloudPostProcessingModel are non-null entity fields
             // (carry defaults), so these are effectively always present; the present-only
             // helper still guards the empty case rather than forcing the core default.
@@ -435,8 +463,7 @@ public static class UniversalBackupMapper
     /// </summary>
     public static Mode MapToMode(UniversalMode universal)
     {
-        var normalizedCloudProvider = HyperWhisper.Services.AppClassification.CloudSttCatalog.Shared
-            .NormalizeCloudProvider(universal.CloudProvider);
+        var normalized = NormalizeCloudRouting(universal);
 
         var mode = new Mode
         {
@@ -452,18 +479,11 @@ public static class UniversalBackupMapper
             ProfanityFilter = universal.ProfanityFilter,
             RemoveTrailingPeriod = universal.RemoveTrailingPeriod ?? false,
             EnglishSpelling = universal.EnglishSpelling,
-            CloudProvider = normalizedCloudProvider.Provider,
-            // Resolve legacy provider-specific model IDs so older backups import onto current models.
-            CloudTranscriptionModel = universal.CloudTranscriptionModel is { } legacyModel
-                ? CloudTranscriptionModels.ResolveModelAlias(
-                    legacyModel,
-                    CloudTranscriptionProviderExtensions.FromIdentifier(universal.CloudProvider))
-                : null,
-            // Domain (X-STT-Domain) only applies to HyperWhisper Cloud modes; gate
-            // it so a stale domain on a BYOK mode isn't imported incorrectly.
-            CloudTranscriptionDomain = normalizedCloudProvider.Provider == "hyperwhisper"
-                ? universal.CloudTranscriptionDomain
-                : null,
+            // The cloudProvider fold, the legacy model-alias resolution and the
+            // cloudTranscriptionDomain gate all happen inside the shared core now.
+            CloudProvider = normalized.CloudProvider,
+            CloudTranscriptionModel = normalized.CloudTranscriptionModel,
+            CloudTranscriptionDomain = normalized.CloudTranscriptionDomain,
             PostProcessingMode = universal.PostProcessingMode,
             PostProcessingProvider = PostProcessingProviderExtensions.NormalizeStorageValue(universal.PostProcessingProvider),
             LanguageModel = universal.LanguageModel,
@@ -471,16 +491,14 @@ public static class UniversalBackupMapper
             UserSystemPrompt = universal.UserSystemPrompt,
             CustomInstructions = universal.CustomInstructions,
             GeminiCustomPrompt = universal.GeminiCustomPrompt,
-            // TODO-verify (Windows/CI): Rust shared-core swap — present-only migration.
-            // Precedence preserved: the catalog-normalized provider tier wins; otherwise
-            // migrate the universal value via the core ONLY when present; otherwise keep
-            // the Mode entity's own default (non-null field) rather than forcing the core
-            // default where the field was intentionally absent.
-            CloudAccuracyTier = normalizedCloudProvider.AccuracyTier
-                ?? MigrateCloudAccuracyTierPresent(universal.CloudAccuracyTier)
-                ?? ModeDefaults.CloudAccuracyTier,
-            CloudPostProcessingModel = MigrateCloudPpModelPresent(universal.CloudPostProcessingModel)
-                ?? ModeDefaults.CloudPostProcessingModel
+            // The core already applied the full precedence chain, including the
+            // platformExtensions.windows override. It returns the field ABSENT when
+            // no source supplied one, so the Mode entity's own default applies here
+            // rather than the core's (deepgramNova3 / grok:grok-4.3), which is not
+            // what either .NET head ships.
+            CloudAccuracyTier = normalized.CloudAccuracyTier ?? ModeDefaults.CloudAccuracyTier,
+            CloudPostProcessingModel =
+                normalized.CloudPostProcessingModel ?? ModeDefaults.CloudPostProcessingModel
         };
 
         // Try to extract Windows-specific fields from platformExtensions
@@ -506,14 +524,10 @@ public static class UniversalBackupMapper
             mode.LocalEngine = winExt.LocalEngine ?? "whisper";
             mode.LocalParakeetModel = winExt.LocalParakeetModel;
             mode.ProviderType = winExt.ProviderType;
-            // TODO-verify (Windows/CI): Rust shared-core swap — present-only migration.
-            // Only migrate the Windows-extension value when it is present; otherwise keep
-            // the value already set above from the universal section (do not overwrite a
-            // present universal value with the core default).
-            mode.CloudAccuracyTier =
-                MigrateCloudAccuracyTierPresent(winExt.CloudAccuracyTier) ?? mode.CloudAccuracyTier;
-            mode.CloudPostProcessingModel =
-                MigrateCloudPpModelPresent(winExt.CloudPostProcessingModel) ?? mode.CloudPostProcessingModel;
+            // winExt.CloudAccuracyTier / .CloudPostProcessingModel are NOT read here:
+            // the core already folded them in with the right precedence (a present
+            // Windows-extension value wins over the universal one, an absent one keeps
+            // whatever the universal section and the provider fold produced).
             mode.LocalPostProcessingModel = winExt.LocalPostProcessingModel ?? mode.LocalPostProcessingModel;
             mode.EnableScreenOCR = winExt.EnableScreenOCR ?? false;
             mode.CustomVocabulary = winExt.CustomVocabulary;
@@ -528,14 +542,7 @@ public static class UniversalBackupMapper
             mode.LocalEngine = "whisper";
             mode.LocalParakeetModel = null;
             mode.ProviderType = !string.IsNullOrEmpty(universal.CloudProvider) ? "cloud" : "local";
-            // TODO-verify (Windows/CI): Rust shared-core swap — present-only migration.
-            // Migrate the universal value via the core ONLY when present; otherwise keep
-            // the value already set in the object initializer (which used the same
-            // universal.* source) rather than forcing the core default.
-            mode.CloudAccuracyTier =
-                MigrateCloudAccuracyTierPresent(universal.CloudAccuracyTier) ?? mode.CloudAccuracyTier;
-            mode.CloudPostProcessingModel =
-                MigrateCloudPpModelPresent(universal.CloudPostProcessingModel) ?? mode.CloudPostProcessingModel;
+            // Tier / post-processing model already resolved by the core above.
             mode.EnableScreenOCR = false;
             mode.CustomVocabulary = null;
             mode.IsSystemProvided = false;

@@ -268,6 +268,26 @@ public static class SharedCoreBridge
             .ToArray();
     }
 
+    /// <summary>
+    /// Canonicalize ONE universal-v2 mode object's five cloud-routing fields:
+    /// the cloudProvider catalog fold, the legacy model-alias tables, the
+    /// present-only cloudAccuracyTier / cloudPostProcessingModel migration
+    /// (including the platformExtensions.windows override) and the
+    /// cloudTranscriptionDomain gate. Windows' UniversalBackupMapper calls the
+    /// same core function, so both non-macOS importers agree.
+    /// </summary>
+    /// <remarks>
+    /// A field no source supplied comes back ABSENT, not defaulted — the caller
+    /// applies its own Mode entity default. Stamping the core's own defaults here
+    /// would regress both heads, whose shared native pair is elevenLabsScribeV2 /
+    /// anthropic:claude-haiku-4-5.
+    /// </remarks>
+    public static string NormalizeUniversalMode(string json)
+    {
+        ArgumentNullException.ThrowIfNull(json);
+        return HyperwhisperCoreMethods.NormalizeUniversalModeJson(json);
+    }
+
     public static PortablePostProcessingPrompt BuildPostProcessingPrompt(PortablePromptContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
