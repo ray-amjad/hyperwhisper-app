@@ -4355,12 +4355,74 @@ internal static class Program
     /// compares whole objects, so an unexpected EXTRA key fails just as loudly as a
     /// missing one.
     /// </summary>
+    /// <remarks>
+    /// The message names the OFFENDING KEYS on its FIRST LINE, the way
+    /// <see cref="AssertModeVectorField"/> does — <c>advanced.maxRecordingDuration
+    /// expected absent, got 600</c> — because windows-ci is the only instrument that
+    /// can run this file and a round trip costs ~12 minutes. A bare "mismatch"
+    /// followed by two whole settings blobs to eyeball-diff spends that round trip
+    /// without saying what differed. The full blobs are still printed underneath, so
+    /// nothing that used to be in the log is lost.
+    /// </remarks>
     private static void AssertVectorJson(string label, string what, JsonNode? expected, JsonNode? actual)
     {
-        Assert(JsonNode.DeepEquals(expected, actual),
-            $"vector '{label}': {what} mismatch{Environment.NewLine}"
+        if (JsonNode.DeepEquals(expected, actual)) return;
+
+        var differences = new List<string>();
+        Describe(differences, path: "", expected, actual);
+        if (differences.Count == 0)
+            differences.Add($"whole value expected {Render(expected)}, got {Render(actual)}");
+
+        // Cap the first line: a wholesale shape change must not bury the log.
+        const int shown = 8;
+        var head = string.Join("; ", differences.Take(shown));
+        if (differences.Count > shown)
+            head += $"; (+{differences.Count - shown} more)";
+
+        throw new InvalidOperationException(
+            $"vector '{label}': {what} mismatch — {head}{Environment.NewLine}"
             + $"  expected {Render(expected)}{Environment.NewLine}"
             + $"  actual   {Render(actual)}");
+
+        // Walks both trees together and records one entry per differing LEAF, so the
+        // message reports the dotted key plus both values rather than the whole
+        // section. An absent key and an explicit JSON null read differently on
+        // purpose: that distinction is exactly what several rows exist to pin.
+        static void Describe(List<string> into, string path, JsonNode? expected, JsonNode? actual)
+        {
+            if (JsonNode.DeepEquals(expected, actual)) return;
+
+            if (expected is JsonObject wantObject && actual is JsonObject gotObject)
+            {
+                var keys = wantObject.Select(p => p.Key)
+                    .Concat(gotObject.Select(p => p.Key))
+                    .Distinct(StringComparer.Ordinal)
+                    .OrderBy(key => key, StringComparer.Ordinal);
+
+                foreach (var key in keys)
+                {
+                    var child = path.Length == 0 ? key : $"{path}.{key}";
+                    var hasWant = wantObject.TryGetPropertyValue(key, out var want);
+                    var hasGot = gotObject.TryGetPropertyValue(key, out var got);
+
+                    if (!hasWant) into.Add($"{child} expected absent, got {Render(got)}");
+                    else if (!hasGot) into.Add($"{child} expected {Render(want)}, got absent");
+                    else Describe(into, child, want, got);
+                }
+                return;
+            }
+
+            if (expected is JsonArray wantArray && actual is JsonArray gotArray
+                && wantArray.Count == gotArray.Count)
+            {
+                for (var i = 0; i < wantArray.Count; i++)
+                    Describe(into, $"{path}[{i}]", wantArray[i], gotArray[i]);
+                return;
+            }
+
+            into.Add($"{(path.Length == 0 ? "<root>" : path)} expected "
+                + $"{Render(expected)}, got {Render(actual)}");
+        }
 
         static string Render(JsonNode? node) => node?.ToJsonString() ?? "null";
     }

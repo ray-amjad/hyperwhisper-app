@@ -2864,11 +2864,7 @@
         "ChangeModeShortcut": "Ctrl+Shift+.",
         "AutoIncreaseMicVolume": false
       },
-      "ignoredUniversalKeys": [
-        "storage.keepAudioFiles",
-        "advanced.maxRecordingDuration",
-        "textOutput.storeWordTimestamps"
-      ],
+      "reExportNote": "The re-export is the whole point of the row, so all THREE keys have to show up in it — that is what \"the third is preserved instead\" means. storage.keepAudioFiles and advanced.maxRecordingDuration come back because phase 3a gave them real Windows properties, so they are in BuildBackupSettingsSnapshot and therefore in the WINDOWS_STORAGE_PAIRS / WINDOWS_ADVANCED_PAIRS output of windows_settings_to_universal. textOutput.storeWordTimestamps comes back from SettingsData.BackupUnknownSettings, re-attached to UniversalTextOutputSettings' [JsonExtensionData] bag by UniversalBackupMapper.MergeUnknownSettings — under textOutput, never at the root. maxRecordingDuration re-exports as 600, the value that survived the import, NOT the 1200 baseline.",
       "expectedUniversalAfterImport": {
         "general": {
           "launchMinimized": true,
@@ -2884,10 +2880,12 @@
           "restoreClipboardAfterPaste": false,
           "hideFromClipboardHistory": false,
           "clipboardRestoreDelaySeconds": 2.5,
-          "autocapitalizeInsert": false
+          "autocapitalizeInsert": false,
+          "storeWordTimestamps": true
         },
         "storage": {
-          "storeAsM4A": false
+          "storeAsM4A": false,
+          "keepAudioFiles": false
         },
         "streaming": {
           "enabled": true,
@@ -2898,7 +2896,8 @@
           "shortcut": "Ctrl+Alt+Shift+F9"
         },
         "advanced": {
-          "typingSpeedWPM": 55
+          "typingSpeedWPM": 55,
+          "maxRecordingDuration": 600
         }
       }
     },
