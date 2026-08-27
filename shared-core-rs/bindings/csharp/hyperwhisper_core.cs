@@ -1140,6 +1140,30 @@ static class _UniFFILib {
     
     
     
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
 
     static _UniFFILib() {
         _UniFFILib.uniffiCheckContractApiVersion();
@@ -1278,6 +1302,26 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ulong uniffi_hyperwhisper_core_fn_func_assemblyai_sync_timeout_ms(ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_audio_bucket_dbfs(double @dbfs,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern double uniffi_hyperwhisper_core_fn_func_audio_minimum_dbfs(ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern float uniffi_hyperwhisper_core_fn_func_audio_silence_threshold(ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_audio_summarize_signal(RustBuffer @accumulation,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern double uniffi_hyperwhisper_core_fn_func_audio_to_dbfs(double @linear,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -1797,6 +1841,34 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_no_speech_classify(RustBuffer @input,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_no_speech_cloud_provider_tag(RustBuffer @mode,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern double uniffi_hyperwhisper_core_fn_func_no_speech_confirmed_silence_peak_dbfs(ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_no_speech_fingerprint(RustBuffer @fingerprintRoot,RustBuffer @diagnosticStage,RustBuffer @diagnosticSource,RustBuffer @mode,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_no_speech_local_engine_tag(RustBuffer @mode,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern double uniffi_hyperwhisper_core_fn_func_no_speech_low_signal_non_silent_ratio(ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern double uniffi_hyperwhisper_core_fn_func_no_speech_low_signal_rms_dbfs(ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_normalize_backup_json(RustBuffer @json,ref UniffiRustCallStatus _uniffi_out_err
     );
 
@@ -2210,6 +2282,26 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_assemblyai_sync_timeout_ms(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_audio_bucket_dbfs(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_audio_minimum_dbfs(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_audio_silence_threshold(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_audio_summarize_signal(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_audio_to_dbfs(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -2729,6 +2821,34 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_no_speech_classify(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_no_speech_cloud_provider_tag(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_no_speech_confirmed_silence_peak_dbfs(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_no_speech_fingerprint(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_no_speech_local_engine_tag(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_no_speech_low_signal_non_silent_ratio(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_no_speech_low_signal_rms_dbfs(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_normalize_backup_json(
     );
 
@@ -3010,6 +3130,36 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_assemblyai_sync_timeout_ms();
             if (checksum != 59578) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_assemblyai_sync_timeout_ms` checksum `59578`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_audio_bucket_dbfs();
+            if (checksum != 33921) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_audio_bucket_dbfs` checksum `33921`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_audio_minimum_dbfs();
+            if (checksum != 37974) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_audio_minimum_dbfs` checksum `37974`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_audio_silence_threshold();
+            if (checksum != 29240) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_audio_silence_threshold` checksum `29240`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_audio_summarize_signal();
+            if (checksum != 24494) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_audio_summarize_signal` checksum `24494`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_audio_to_dbfs();
+            if (checksum != 47745) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_audio_to_dbfs` checksum `47745`, library returned `{checksum}`");
             }
         }
         {
@@ -3787,6 +3937,48 @@ static class _UniFFILib {
             }
         }
         {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_no_speech_classify();
+            if (checksum != 39879) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_no_speech_classify` checksum `39879`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_no_speech_cloud_provider_tag();
+            if (checksum != 31322) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_no_speech_cloud_provider_tag` checksum `31322`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_no_speech_confirmed_silence_peak_dbfs();
+            if (checksum != 36028) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_no_speech_confirmed_silence_peak_dbfs` checksum `36028`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_no_speech_fingerprint();
+            if (checksum != 45276) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_no_speech_fingerprint` checksum `45276`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_no_speech_local_engine_tag();
+            if (checksum != 20275) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_no_speech_local_engine_tag` checksum `20275`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_no_speech_low_signal_non_silent_ratio();
+            if (checksum != 49886) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_no_speech_low_signal_non_silent_ratio` checksum `49886`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_no_speech_low_signal_rms_dbfs();
+            if (checksum != 42193) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_no_speech_low_signal_rms_dbfs` checksum `42193`, library returned `{checksum}`");
+            }
+        }
+        {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_normalize_backup_json();
             if (checksum != 37661) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_normalize_backup_json` checksum `37661`, library returned `{checksum}`");
@@ -4147,6 +4339,32 @@ class FfiConverterInt64: FfiConverter<long, long> {
 
     public override void Write(long value, BigEndianStream stream) {
         stream.WriteLong(value);
+    }
+}
+
+
+
+class FfiConverterFloat: FfiConverter<float, float> {
+    public static FfiConverterFloat INSTANCE = new FfiConverterFloat();
+
+    public override float Lift(float value) {
+        return value;
+    }
+
+    public override float Read(BigEndianStream stream) {
+        return stream.ReadFloat();
+    }
+
+    public override float Lower(float value) {
+        return value;
+    }
+
+    public override int AllocationSize(float value) {
+        return 4;
+    }
+
+    public override void Write(float value, BigEndianStream stream) {
+        stream.WriteFloat(value);
     }
 }
 
@@ -5208,6 +5426,52 @@ class FfiConverterTypeHttpResponse: FfiConverterRustBuffer<HttpResponse> {
 
 
 /// <summary>
+/// The measurements a diagnostic reports and classifies on. Mirrors
+/// `no_speech::AudioSignalSummary`.
+/// </summary>
+/// <param name="non_silent_ratio">
+/// Fraction of samples that reached the silence threshold, rounded to four
+/// decimal places.
+/// </param>
+internal record HwAudioSignalSummary (
+    double @peakDbfs, 
+    double @rmsDbfs, 
+    /// <summary>
+    /// Fraction of samples that reached the silence threshold, rounded to four
+    /// decimal places.
+    /// </summary>
+    double @nonSilentRatio
+) {
+}
+
+class FfiConverterTypeHwAudioSignalSummary: FfiConverterRustBuffer<HwAudioSignalSummary> {
+    public static FfiConverterTypeHwAudioSignalSummary INSTANCE = new FfiConverterTypeHwAudioSignalSummary();
+
+    public override HwAudioSignalSummary Read(BigEndianStream stream) {
+        return new HwAudioSignalSummary(
+            @peakDbfs: FfiConverterDouble.INSTANCE.Read(stream),
+            @rmsDbfs: FfiConverterDouble.INSTANCE.Read(stream),
+            @nonSilentRatio: FfiConverterDouble.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwAudioSignalSummary value) {
+        return 0
+            + FfiConverterDouble.INSTANCE.AllocationSize(value.@peakDbfs)
+            + FfiConverterDouble.INSTANCE.AllocationSize(value.@rmsDbfs)
+            + FfiConverterDouble.INSTANCE.AllocationSize(value.@nonSilentRatio);
+    }
+
+    public override void Write(HwAudioSignalSummary value, BigEndianStream stream) {
+            FfiConverterDouble.INSTANCE.Write(value.@peakDbfs, stream);
+            FfiConverterDouble.INSTANCE.Write(value.@rmsDbfs, stream);
+            FfiConverterDouble.INSTANCE.Write(value.@nonSilentRatio, stream);
+    }
+}
+
+
+
+/// <summary>
 /// The verdict on one custom endpoint. Mirrors `l::EndpointVerdict`.
 ///
 /// `url` is the single check a runtime caller needs: **empty means do not call
@@ -5540,6 +5804,133 @@ class FfiConverterTypeHwLlmParams: FfiConverterRustBuffer<HwLlmParams> {
             FfiConverterOptionalString.INSTANCE.Write(value.@llmProviderHeader, stream);
             FfiConverterOptionalString.INSTANCE.Write(value.@llmModelHeader, stream);
             FfiConverterBoolean.INSTANCE.Write(value.@stream, stream);
+    }
+}
+
+
+
+/// <summary>
+/// The three persisted mode fields the diagnostic groups and facets on. Mirrors
+/// `no_speech::ModeIdentity`.
+///
+/// Passed as a whole, and as an `Option`, so that "no mode at all" stays
+/// distinguishable from "a mode whose `provider_type` was never written" — the
+/// two produce different fingerprints. Do not flatten it into three loose
+/// arguments.
+/// </summary>
+internal record HwModeIdentity (
+    string? @providerType, 
+    string? @cloudProvider, 
+    string? @localEngine
+) {
+}
+
+class FfiConverterTypeHwModeIdentity: FfiConverterRustBuffer<HwModeIdentity> {
+    public static FfiConverterTypeHwModeIdentity INSTANCE = new FfiConverterTypeHwModeIdentity();
+
+    public override HwModeIdentity Read(BigEndianStream stream) {
+        return new HwModeIdentity(
+            @providerType: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @cloudProvider: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @localEngine: FfiConverterOptionalString.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwModeIdentity value) {
+        return 0
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@providerType)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@cloudProvider)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@localEngine);
+    }
+
+    public override void Write(HwModeIdentity value, BigEndianStream stream) {
+            FfiConverterOptionalString.INSTANCE.Write(value.@providerType, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@cloudProvider, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@localEngine, stream);
+    }
+}
+
+
+
+/// <summary>
+/// Everything [`no_speech_classify`] decides on. Mirrors
+/// `no_speech::NoSpeechInput`.
+/// </summary>
+/// <param name="analysis_succeeded">
+/// `false` when the file could not be read or decoded at all.
+/// </param>
+/// <param name="decoded_sample_count">
+/// Samples the decoder produced, or `null` when no decode loop ran. `0`
+/// means the recorder captured nothing; `null` means unknown, and is
+/// deliberately NOT treated as empty.
+/// </param>
+/// <param name="empty_transcript_without_flag">
+/// The provider returned an empty transcript without setting its no-speech
+/// flag — an anomaly, always reported.
+/// </param>
+/// <param name="backend_no_speech_detected">
+/// The provider explicitly reported no speech.
+/// </param>
+internal record HwNoSpeechInput (
+    /// <summary>
+    /// `false` when the file could not be read or decoded at all.
+    /// </summary>
+    bool @analysisSucceeded, 
+    /// <summary>
+    /// Samples the decoder produced, or `null` when no decode loop ran. `0`
+    /// means the recorder captured nothing; `null` means unknown, and is
+    /// deliberately NOT treated as empty.
+    /// </summary>
+    ulong? @decodedSampleCount, 
+    /// <summary>
+    /// The provider returned an empty transcript without setting its no-speech
+    /// flag — an anomaly, always reported.
+    /// </summary>
+    bool @emptyTranscriptWithoutFlag, 
+    /// <summary>
+    /// The provider explicitly reported no speech.
+    /// </summary>
+    bool @backendNoSpeechDetected, 
+    double @peakDbfs, 
+    double @rmsDbfs, 
+    double @nonSilentRatio
+) {
+}
+
+class FfiConverterTypeHwNoSpeechInput: FfiConverterRustBuffer<HwNoSpeechInput> {
+    public static FfiConverterTypeHwNoSpeechInput INSTANCE = new FfiConverterTypeHwNoSpeechInput();
+
+    public override HwNoSpeechInput Read(BigEndianStream stream) {
+        return new HwNoSpeechInput(
+            @analysisSucceeded: FfiConverterBoolean.INSTANCE.Read(stream),
+            @decodedSampleCount: FfiConverterOptionalUInt64.INSTANCE.Read(stream),
+            @emptyTranscriptWithoutFlag: FfiConverterBoolean.INSTANCE.Read(stream),
+            @backendNoSpeechDetected: FfiConverterBoolean.INSTANCE.Read(stream),
+            @peakDbfs: FfiConverterDouble.INSTANCE.Read(stream),
+            @rmsDbfs: FfiConverterDouble.INSTANCE.Read(stream),
+            @nonSilentRatio: FfiConverterDouble.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwNoSpeechInput value) {
+        return 0
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@analysisSucceeded)
+            + FfiConverterOptionalUInt64.INSTANCE.AllocationSize(value.@decodedSampleCount)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@emptyTranscriptWithoutFlag)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@backendNoSpeechDetected)
+            + FfiConverterDouble.INSTANCE.AllocationSize(value.@peakDbfs)
+            + FfiConverterDouble.INSTANCE.AllocationSize(value.@rmsDbfs)
+            + FfiConverterDouble.INSTANCE.AllocationSize(value.@nonSilentRatio);
+    }
+
+    public override void Write(HwNoSpeechInput value, BigEndianStream stream) {
+            FfiConverterBoolean.INSTANCE.Write(value.@analysisSucceeded, stream);
+            FfiConverterOptionalUInt64.INSTANCE.Write(value.@decodedSampleCount, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@emptyTranscriptWithoutFlag, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@backendNoSpeechDetected, stream);
+            FfiConverterDouble.INSTANCE.Write(value.@peakDbfs, stream);
+            FfiConverterDouble.INSTANCE.Write(value.@rmsDbfs, stream);
+            FfiConverterDouble.INSTANCE.Write(value.@nonSilentRatio, stream);
     }
 }
 
@@ -5892,6 +6283,74 @@ class FfiConverterTypeHwPttTransition: FfiConverterRustBuffer<HwPttTransition> {
             FfiConverterTypeHwPttState.INSTANCE.Write(value.@to, stream);
             FfiConverterTypeHwPttReason.INSTANCE.Write(value.@reason, stream);
             FfiConverterOptionalUInt64.INSTANCE.Write(value.@elapsedMs, stream);
+    }
+}
+
+
+
+/// <summary>
+/// What the head's decode loop counted. Mirrors `no_speech::SignalAccumulation`.
+///
+/// `sum_squares` and `peak` are over the absolute amplitude, so both are
+/// non-negative for any real input.
+/// </summary>
+/// <param name="sample_count">
+/// Samples the decoder actually produced.
+/// </param>
+/// <param name="non_silent_count">
+/// Samples whose absolute amplitude reached [`audio_silence_threshold`].
+/// </param>
+/// <param name="sum_squares">
+/// Sum of `amplitude * amplitude` over every sample.
+/// </param>
+/// <param name="peak">
+/// Largest absolute amplitude seen.
+/// </param>
+internal record HwSignalAccumulation (
+    /// <summary>
+    /// Samples the decoder actually produced.
+    /// </summary>
+    ulong @sampleCount, 
+    /// <summary>
+    /// Samples whose absolute amplitude reached [`audio_silence_threshold`].
+    /// </summary>
+    ulong @nonSilentCount, 
+    /// <summary>
+    /// Sum of `amplitude * amplitude` over every sample.
+    /// </summary>
+    double @sumSquares, 
+    /// <summary>
+    /// Largest absolute amplitude seen.
+    /// </summary>
+    double @peak
+) {
+}
+
+class FfiConverterTypeHwSignalAccumulation: FfiConverterRustBuffer<HwSignalAccumulation> {
+    public static FfiConverterTypeHwSignalAccumulation INSTANCE = new FfiConverterTypeHwSignalAccumulation();
+
+    public override HwSignalAccumulation Read(BigEndianStream stream) {
+        return new HwSignalAccumulation(
+            @sampleCount: FfiConverterUInt64.INSTANCE.Read(stream),
+            @nonSilentCount: FfiConverterUInt64.INSTANCE.Read(stream),
+            @sumSquares: FfiConverterDouble.INSTANCE.Read(stream),
+            @peak: FfiConverterDouble.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwSignalAccumulation value) {
+        return 0
+            + FfiConverterUInt64.INSTANCE.AllocationSize(value.@sampleCount)
+            + FfiConverterUInt64.INSTANCE.AllocationSize(value.@nonSilentCount)
+            + FfiConverterDouble.INSTANCE.AllocationSize(value.@sumSquares)
+            + FfiConverterDouble.INSTANCE.AllocationSize(value.@peak);
+    }
+
+    public override void Write(HwSignalAccumulation value, BigEndianStream stream) {
+            FfiConverterUInt64.INSTANCE.Write(value.@sampleCount, stream);
+            FfiConverterUInt64.INSTANCE.Write(value.@nonSilentCount, stream);
+            FfiConverterDouble.INSTANCE.Write(value.@sumSquares, stream);
+            FfiConverterDouble.INSTANCE.Write(value.@peak, stream);
     }
 }
 
@@ -8773,6 +9232,54 @@ class FfiConverterTypeHwLlmWireProtocol: FfiConverterRustBuffer<HwLlmWireProtoco
 
 
 /// <summary>
+/// What a no-speech failure is reported as, if anything. Mirrors
+/// `no_speech::NoSpeechOutcome`; variant order matches the Windows enum.
+/// </summary>
+internal enum HwNoSpeechOutcome: int {
+    
+    /// <summary>
+    /// Expected/benign — capture nothing.
+    /// </summary>
+    Skip,
+    /// <summary>
+    /// Nothing was decoded at all — a recorder failure, reported separately
+    /// under its own name, message and fingerprint root.
+    /// </summary>
+    EmptyRecording,
+    /// <summary>
+    /// Audio exists but produced no transcript — the original diagnostic.
+    /// </summary>
+    NoSpeech
+}
+
+class FfiConverterTypeHwNoSpeechOutcome: FfiConverterRustBuffer<HwNoSpeechOutcome> {
+    public static FfiConverterTypeHwNoSpeechOutcome INSTANCE = new FfiConverterTypeHwNoSpeechOutcome();
+
+    public override HwNoSpeechOutcome Read(BigEndianStream stream) {
+        var value = stream.ReadInt() - 1;
+        if (Enum.IsDefined(typeof(HwNoSpeechOutcome), value)) {
+            return (HwNoSpeechOutcome)value;
+        } else {
+            throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwNoSpeechOutcome.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(HwNoSpeechOutcome value) {
+        return 4;
+    }
+
+    public override void Write(HwNoSpeechOutcome value, BigEndianStream stream) {
+        stream.WriteInt((int)value + 1);
+    }
+}
+
+
+
+
+
+
+
+/// <summary>
 /// One part of a multipart body. Mirrors `hw_net::Part`.
 /// </summary>
 internal record HwPart {
@@ -9976,6 +10483,37 @@ class FfiConverterOptionalString: FfiConverterRustBuffer<string?> {
 
 
 
+class FfiConverterOptionalTypeHwModeIdentity: FfiConverterRustBuffer<HwModeIdentity?> {
+    public static FfiConverterOptionalTypeHwModeIdentity INSTANCE = new FfiConverterOptionalTypeHwModeIdentity();
+
+    public override HwModeIdentity? Read(BigEndianStream stream) {
+        if (stream.ReadByte() == 0) {
+            return null;
+        }
+        return FfiConverterTypeHwModeIdentity.INSTANCE.Read(stream);
+    }
+
+    public override int AllocationSize(HwModeIdentity? value) {
+        if (value == null) {
+            return 1;
+        } else {
+            return 1 + FfiConverterTypeHwModeIdentity.INSTANCE.AllocationSize((HwModeIdentity)value);
+        }
+    }
+
+    public override void Write(HwModeIdentity? value, BigEndianStream stream) {
+        if (value == null) {
+            stream.WriteByte(0);
+        } else {
+            stream.WriteByte(1);
+            FfiConverterTypeHwModeIdentity.INSTANCE.Write((HwModeIdentity)value, stream);
+        }
+    }
+}
+
+
+
+
 class FfiConverterOptionalTypeModelsEntry: FfiConverterRustBuffer<ModelsEntry?> {
     public static FfiConverterOptionalTypeModelsEntry INSTANCE = new FfiConverterOptionalTypeModelsEntry();
 
@@ -11137,6 +11675,73 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterUInt64.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_assemblyai_sync_timeout_ms( ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Bucket a dBFS value to the 5 dB step at or below it (`-38.2` -> `"-40dbfs"`)
+    /// for use as a low-cardinality Sentry tag. Floors, does not truncate: negatives
+    /// bucket downward. At or below the floor, and for non-finite input, the bucket
+    /// is `"silent"`.
+    /// </summary>
+    public static string AudioBucketDbfs(double @dbfs) {
+        return FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_audio_bucket_dbfs(FfiConverterDouble.INSTANCE.Lower(@dbfs), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The dBFS value reported for digital silence, and the floor of the scale.
+    /// </summary>
+    public static double AudioMinimumDbfs() {
+        return FfiConverterDouble.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_audio_minimum_dbfs( ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Absolute sample amplitude at or above which a sample counts as non-silent.
+    ///
+    /// Read once before the decode loop and compare in 32-bit float, which is where
+    /// both heads make the comparison. Widening it to 64-bit moves the boundary,
+    /// because `0.01` is not exactly representable.
+    /// </summary>
+    public static float AudioSilenceThreshold() {
+        return FfiConverterFloat.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_audio_silence_threshold( ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Turn the head's raw counts into the reported measurements. An empty
+    /// accumulation summarizes to the silent floor rather than dividing by zero.
+    /// </summary>
+    public static HwAudioSignalSummary AudioSummarizeSignal(HwSignalAccumulation @accumulation) {
+        return FfiConverterTypeHwAudioSignalSummary.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_audio_summarize_signal(FfiConverterTypeHwSignalAccumulation.INSTANCE.Lower(@accumulation), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Convert a linear amplitude (0..=1) to dBFS, rounded to two decimals.
+    ///
+    /// Zero, negative and non-finite input return [`audio_minimum_dbfs`]. Rounding
+    /// is away from zero at the midpoint — the Swift behaviour, not the C#
+    /// `Math.Round(x, 2)` banker's behaviour.
+    /// </summary>
+    public static double AudioToDbfs(double @linear) {
+        return FfiConverterDouble.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_audio_to_dbfs(FfiConverterDouble.INSTANCE.Lower(@linear), ref _status)
 ));
     }
 
@@ -12547,6 +13152,92 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterTypeRetryDecision.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_next_retry(FfiConverterUInt32.INSTANCE.Lower(@attempt), FfiConverterUInt16.INSTANCE.Lower(@status), FfiConverterString.INSTANCE.Lower(@body), FfiConverterOptionalUInt64.INSTANCE.Lower(@retryAfter), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Decide what to report. The five arms are evaluated in a fixed order — see
+    /// `hw_audio::no_speech::classify`.
+    /// </summary>
+    public static HwNoSpeechOutcome NoSpeechClassify(HwNoSpeechInput @input) {
+        return FfiConverterTypeHwNoSpeechOutcome.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_no_speech_classify(FfiConverterTypeHwNoSpeechInput.INSTANCE.Lower(@input), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The `cloud_provider` tag with the staleness masked off, so faceting on it
+    /// does not attribute local-mode events to a cloud vendor the mode no longer
+    /// uses.
+    /// </summary>
+    public static string NoSpeechCloudProviderTag(HwModeIdentity? @mode) {
+        return FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_no_speech_cloud_provider_tag(FfiConverterOptionalTypeHwModeIdentity.INSTANCE.Lower(@mode), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Below this peak, with a zero non-silent ratio, the clip is confirmed dead
+    /// silence.
+    /// </summary>
+    public static double NoSpeechConfirmedSilencePeakDbfs() {
+        return FfiConverterDouble.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_no_speech_confirmed_silence_peak_dbfs( ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Build the five-element Sentry grouping fingerprint.
+    ///
+    /// `fingerprint_root` stays the caller's — it is the one part that is
+    /// deliberately platform-distinct.
+    /// </summary>
+    public static List<string> NoSpeechFingerprint(string @fingerprintRoot, string @diagnosticStage, string @diagnosticSource, HwModeIdentity? @mode) {
+        return FfiConverterSequenceString.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_no_speech_fingerprint(FfiConverterString.INSTANCE.Lower(@fingerprintRoot), FfiConverterString.INSTANCE.Lower(@diagnosticStage), FfiConverterString.INSTANCE.Lower(@diagnosticSource), FfiConverterOptionalTypeHwModeIdentity.INSTANCE.Lower(@mode), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The `local_engine` tag: the mode's engine, or `"none"` when it is absent or
+    /// blank. Values are reported as written, never normalized.
+    /// </summary>
+    public static string NoSpeechLocalEngineTag(HwModeIdentity? @mode) {
+        return FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_no_speech_local_engine_tag(FfiConverterOptionalTypeHwModeIdentity.INSTANCE.Lower(@mode), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// See [`no_speech_low_signal_rms_dbfs`].
+    /// </summary>
+    public static double NoSpeechLowSignalNonSilentRatio() {
+        return FfiConverterDouble.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_no_speech_low_signal_non_silent_ratio( ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Backend-confirmed low-signal skip: this and
+    /// [`no_speech_low_signal_non_silent_ratio`] must BOTH hold.
+    /// </summary>
+    public static double NoSpeechLowSignalRmsDbfs() {
+        return FfiConverterDouble.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_no_speech_low_signal_rms_dbfs( ref _status)
 ));
     }
 

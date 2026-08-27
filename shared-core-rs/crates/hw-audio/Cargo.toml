@@ -1,0 +1,11 @@
+[package]
+name = "hw-audio"
+version = "0.1.0"
+edition = "2021"
+description = "Cross-platform audio-signal core: the no-speech dBFS classifier as pure functions over accumulated stats. Plain Rust; hw-core mirrors its types for UniFFI."
+publish = false
+
+[lib]
+crate-type = ["lib"]
+
+[dependencies]
