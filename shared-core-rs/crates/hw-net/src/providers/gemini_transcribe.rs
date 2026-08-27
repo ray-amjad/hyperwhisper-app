@@ -93,6 +93,21 @@ pub const LIVE_AUDIO_MIME: &str = "audio/pcm;rate=16000";
 /// The WebSocket endpoint for `BidiGenerateContent`.
 pub const LIVE_WS_ROOT: &str = "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent";
 
+/// Maximum `custom_vocabulary` terms sent on either path (pre-recorded or live).
+///
+/// This is the number the rest of the feature already agrees on:
+/// `customVocabulary.maxPhrases` in `shared-app-classification/cloud-stt-catalog.json`,
+/// `MAX_VOCABULARY_TERMS` in `hyperwhisper-cloud/src/providers/gemini-transcribe.ts`,
+/// `maxVocabularyTerms` in the macOS `GeminiStreamingStrategy` and
+/// `MaxVocabularyTerms` in the Windows one. The BYOK path was the only one
+/// sending the list uncapped, which made the catalog's own caveat ("both forward
+/// it, capped at 100 terms of 80 chars") false for exactly the path it names.
+///
+/// The per-term 80-character cap is the other half, and comes for free:
+/// [`keyword_boost_terms`] truncates every term through
+/// `hw_text::sanitize_vocabulary_word`.
+pub const MAX_VOCABULARY_TERMS: usize = 100;
+
 /// Sentinel spliced into the serialized JSON body and then split back out, so
 /// the prefix/suffix halves of [`Body::JsonWithBase64File`] are produced by
 /// `serde_json` itself rather than by hand-written string concatenation — the
@@ -190,6 +205,10 @@ impl TranscriptionExtras {
 /// extras are dropped. A dictation app gets far more from correct spellings of
 /// the user's own jargon than from speaker labels or word offsets.
 ///
+/// Vocabulary is normalized through [`keyword_boost_terms`] and capped at
+/// [`MAX_VOCABULARY_TERMS`], the same limit the Cloud adapter and the three
+/// native live strategies apply.
+///
 /// Returns a `serde_json::Value` object, possibly empty (`{}`) when nothing is
 /// configured.
 pub fn transcription_config(
@@ -203,7 +222,7 @@ pub fn transcription_config(
         config.insert("language_codes".to_string(), serde_json::json!(codes));
     }
 
-    let terms = keyword_boost_terms(vocabulary, None);
+    let terms = keyword_boost_terms(vocabulary, Some(MAX_VOCABULARY_TERMS));
     if !terms.is_empty() {
         // TRAP 2: vocabulary wins. `extras` is discarded, not merged.
         config.insert("custom_vocabulary".to_string(), serde_json::json!(terms));
@@ -596,15 +615,21 @@ pub fn parse_live_server_message(frame: &str) -> Result<LiveServerMessage, Trans
         .get("serverContent")
         .or_else(|| json.get("server_content"));
     if let Some(content) = content {
-        if let Some(text) = transcription_text(content, "interimInputTranscription")
-            .or_else(|| transcription_text(content, "interim_input_transcription"))
-        {
-            return Ok(LiveServerMessage::PartialTranscript { text });
-        }
+        // FINAL FIRST, deliberately. One `serverContent` frame may carry BOTH
+        // `inputTranscription` and `interimInputTranscription`; checking the
+        // interim first would emit only the preview and drop the committed
+        // segment on the floor, so the user's text would end at the last
+        // hypothesis. Windows' and macOS' streaming strategies and the shared
+        // .NET client all check final first — this must match them.
         if let Some(text) = transcription_text(content, "inputTranscription")
             .or_else(|| transcription_text(content, "input_transcription"))
         {
             return Ok(LiveServerMessage::FinalTranscript { text });
+        }
+        if let Some(text) = transcription_text(content, "interimInputTranscription")
+            .or_else(|| transcription_text(content, "interim_input_transcription"))
+        {
+            return Ok(LiveServerMessage::PartialTranscript { text });
         }
         let complete = content
             .get("generationComplete")
@@ -819,6 +844,58 @@ mod tests {
         assert_eq!(
             json["generation_config"]["transcription_config"]["custom_vocabulary"],
             serde_json::json!(["HyperWhisper", "Kalamazoo"])
+        );
+    }
+
+    /// The BYOK path must send no more terms than the Cloud adapter and the
+    /// three native live strategies do — `customVocabulary.maxPhrases` in
+    /// `cloud-stt-catalog.json` is 100, and that entry's caveat names this very
+    /// file as "capped at 100 terms". Uncapped, the sentence was false and a
+    /// user with a large vocabulary sent BYOK a different request than Cloud.
+    #[test]
+    fn vocabulary_is_capped_at_the_catalog_limit_on_both_paths() {
+        assert_eq!(MAX_VOCABULARY_TERMS, 100, "must match the catalog maxPhrases");
+        let many: Vec<String> = (0..MAX_VOCABULARY_TERMS + 25)
+            .map(|i| format!("Term{i}"))
+            .collect();
+
+        // Pre-recorded.
+        let p = TranscribeParams {
+            vocabulary: many.clone(),
+            ..params()
+        };
+        let json = body_json(&build_transcribe_request(&p).unwrap());
+        let sent = json["generation_config"]["transcription_config"]["custom_vocabulary"]
+            .as_array()
+            .expect("custom_vocabulary must be an array")
+            .clone();
+        assert_eq!(sent.len(), MAX_VOCABULARY_TERMS);
+        // The cap keeps the FIRST terms, in order — the user's list order is
+        // their priority order.
+        assert_eq!(sent[0], serde_json::json!("Term0"));
+        assert_eq!(
+            sent[MAX_VOCABULARY_TERMS - 1],
+            serde_json::json!(format!("Term{}", MAX_VOCABULARY_TERMS - 1))
+        );
+
+        // Live setup frame — same enforcement point, so the same answer.
+        let frame: serde_json::Value =
+            serde_json::from_str(&build_live_setup_frame(LIVE_MODEL, Some("en-US"), &many))
+                .unwrap();
+        assert_eq!(
+            frame["setup"]["input_audio_transcription"]["custom_vocabulary"]
+                .as_array()
+                .expect("custom_vocabulary must be an array")
+                .len(),
+            MAX_VOCABULARY_TERMS
+        );
+
+        // A list at or under the cap is untouched.
+        let exactly: Vec<String> = (0..MAX_VOCABULARY_TERMS).map(|i| format!("T{i}")).collect();
+        let config = transcription_config(None, &exactly, &TranscriptionExtras::none());
+        assert_eq!(
+            config["custom_vocabulary"].as_array().unwrap().len(),
+            MAX_VOCABULARY_TERMS
         );
     }
 
@@ -1127,6 +1204,39 @@ mod tests {
                 "{frame}"
             );
         }
+    }
+
+    /// A single `serverContent` frame may carry BOTH transcriptions. The final
+    /// is the committed text, so it must win: checking the interim first would
+    /// emit only the preview and never commit the segment, leaving the user's
+    /// document ending at the last hypothesis. Windows, macOS and the shared
+    /// .NET client all check final-first; this keeps Rust with them. Pinned
+    /// cross-platform by the `one-frame-carrying-both-decodes-as-the-final`
+    /// vector in `shared-conformance/live-frame-vectors.json`.
+    #[test]
+    fn a_frame_with_both_transcriptions_commits_the_final() {
+        // Interim written FIRST, so a decoder that walks the object in wire
+        // order rather than checking the final key explicitly gets it wrong.
+        let frame = r#"{"serverContent":{
+            "interimInputTranscription":{"text":"hello wor"},
+            "inputTranscription":{"text":"hello world"}}}"#;
+        assert_eq!(
+            parse_live_server_message(frame).unwrap(),
+            LiveServerMessage::FinalTranscript {
+                text: "hello world".to_string()
+            }
+        );
+
+        // Same for the snake_case spellings of the two keys.
+        let snake = r#"{"server_content":{
+            "interim_input_transcription":{"text":"hello wor"},
+            "input_transcription":{"text":"hello world"}}}"#;
+        assert_eq!(
+            parse_live_server_message(snake).unwrap(),
+            LiveServerMessage::FinalTranscript {
+                text: "hello world".to_string()
+            }
+        );
     }
 
     #[test]

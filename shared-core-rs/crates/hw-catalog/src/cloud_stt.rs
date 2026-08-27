@@ -698,10 +698,39 @@ impl CloudSttCatalog {
     /// Normalize a persisted `cloudProvider` storage value. If `value` is a
     /// legacy standalone-provider alias for a provider now surfaced as a cloud
     /// tier (e.g. `microsoftazurespeech` → `azureMaiTranscribe`), returns
-    /// `(Some("hyperwhisper"), Some(<tier id>))`. Otherwise returns the input
-    /// unchanged with `accuracy_tier == None`. Critically, BYOK provider names
-    /// (`"deepgram"`, `"groq"`) pass through untouched even though they appear in
-    /// `migrateFrom`. Mirrors macOS/Windows `normalizeCloudProvider`.
+    /// `(Some("hyperwhisper"), Some(<tier id>))`. Otherwise the value passes
+    /// through — **ASCII-lowercased** — with `accuracy_tier == None`. Critically,
+    /// BYOK provider names (`"deepgram"`, `"groq"`) pass through rather than
+    /// folding onto the cloud tier, even though they appear in `migrateFrom`.
+    /// Mirrors macOS/Windows `normalizeCloudProvider`.
+    ///
+    /// ## Why the pass-through is lowercased
+    ///
+    /// `cloudProvider` is a cross-platform storage value, and the two platforms
+    /// do NOT write it the same way. Windows' `GetIdentifier` emits camelCase
+    /// (`geminiTranscribe`, `googleSpeech`, `microsoftAzureSpeech`); macOS'
+    /// `CloudProvider` enum raw values are ALL lowercase and are parsed with a
+    /// case-SENSITIVE `CloudProvider(rawValue:)` whose miss silently falls back
+    /// to `.hyperwhisper`. So a Windows→macOS restore of a camelCase id used to
+    /// land the user on HyperWhisper Cloud — billed credits — with no error and
+    /// no visible UI change.
+    ///
+    /// That asymmetry was latent until catalog v8: the only camelCase ids
+    /// Windows could write were `googleSpeech` and `microsoftAzureSpeech`, and
+    /// both are `legacyCloudProviderAliases`, so they were rewritten to
+    /// `"hyperwhisper"` by the branch above and never reached the pass-through.
+    /// `geminiTranscribe` is the first camelCase id that is `byokEligible` and
+    /// is NOT a legacy alias, so it is the first one the pass-through has to
+    /// carry — and the first that can silently move a BYOK user onto paid
+    /// credits. Lowercasing here fixes the whole class, not just that one id:
+    /// every value either platform can persist is a lowercase enum raw value on
+    /// macOS, and Windows' `FromIdentifier` matches on `ToLowerInvariant()`, so
+    /// the lowercase spelling is the one form BOTH parsers accept.
+    ///
+    /// An id this catalog does not know is lowercased too. It fails to parse on
+    /// either platform whichever way it is spelled, so nothing is lost, and
+    /// keeping the rule unconditional means a future camelCase provider id
+    /// cannot reintroduce the bug by simply not being in a table yet.
     pub fn normalize_cloud_provider(&self, value: Option<&str>) -> NormalizedCloudProvider {
         let Some(value) = value.filter(|v| !v.is_empty()) else {
             return NormalizedCloudProvider {
@@ -716,7 +745,7 @@ impl CloudSttCatalog {
             };
         }
         NormalizedCloudProvider {
-            provider: Some(value.to_string()),
+            provider: Some(value.to_ascii_lowercase()),
             accuracy_tier: None,
         }
     }
@@ -1061,6 +1090,69 @@ mod tests {
             c.normalize_cloud_provider(None),
             NormalizedCloudProvider { provider: None, accuracy_tier: None }
         );
+    }
+
+    /// A Windows→macOS restore must keep a BYOK user on their own Google key.
+    ///
+    /// Windows persists `geminiTranscribe`; macOS' `CloudProvider` raw value is
+    /// `geminitranscribe` and is parsed case-sensitively with a silent
+    /// `?? .hyperwhisper` fallback. Passing the camelCase spelling through
+    /// verbatim therefore moved the user onto paid credits with no error. It is
+    /// the first `byokEligible` camelCase id that is not also a legacy alias, so
+    /// it is the first id the pass-through branch has to get right.
+    #[test]
+    fn normalize_cloud_provider_folds_case_on_byok_ids() {
+        let c = catalog();
+        for spelling in [
+            "geminiTranscribe",
+            "geminitranscribe",
+            "GEMINITRANSCRIBE",
+            "GeminiTranscribe",
+            "gEmInItRaNsCrIbE",
+        ] {
+            let n = c.normalize_cloud_provider(Some(spelling));
+            assert_eq!(
+                n.provider.as_deref(),
+                Some("geminitranscribe"),
+                "`{spelling}` must normalize to the lowercase storage spelling \
+                 both platforms parse, NOT fold onto hyperwhisper"
+            );
+            assert_eq!(
+                n.accuracy_tier, None,
+                "`{spelling}` is a BYOK provider, not a cloud tier"
+            );
+        }
+    }
+
+    /// The same class of bug for every other id either platform can persist:
+    /// the pass-through must always be the lowercase spelling. The two camelCase
+    /// ids Windows wrote before catalog v8 still fold onto the cloud tier,
+    /// because they are `legacyCloudProviderAliases` — that branch runs first
+    /// and is unaffected by the lowercasing.
+    #[test]
+    fn normalize_cloud_provider_pass_through_is_always_lowercase() {
+        let c = catalog();
+        for (input, expected) in [
+            ("OpenAI", "openai"),
+            ("Deepgram", "deepgram"),
+            ("AssemblyAI", "assemblyai"),
+            ("ElevenLabs", "elevenlabs"),
+            ("HyperWhisper", "hyperwhisper"),
+            ("Grok", "grok"),
+            // Unknown ids are lowercased too, so a future camelCase provider id
+            // cannot reintroduce the bug by not being in a table yet.
+            ("someFutureProvider", "somefutureprovider"),
+        ] {
+            let n = c.normalize_cloud_provider(Some(input));
+            assert_eq!(n.provider.as_deref(), Some(expected), "input `{input}`");
+            assert_eq!(n.accuracy_tier, None, "input `{input}`");
+        }
+        // Legacy aliases still win over the pass-through, in either spelling.
+        for alias in ["googleSpeech", "googlespeech", "microsoftAzureSpeech"] {
+            let n = c.normalize_cloud_provider(Some(alias));
+            assert_eq!(n.provider.as_deref(), Some("hyperwhisper"), "alias `{alias}`");
+            assert!(n.accuracy_tier.is_some(), "alias `{alias}` must carry a tier");
+        }
     }
 
     // --- Misses --------------------------------------------------------------

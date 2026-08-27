@@ -2055,7 +2055,7 @@
       "id": "chirp_3",
       "kind": "voice",
       "supportsCustomVocabulary": true,
-      "availableViaHyperWhisperCloud": true,
+      "availableViaHyperWhisperCloud": false,
       "supportsAllLanguages": false,
       "languageCodes": [
         "af",

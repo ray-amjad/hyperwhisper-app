@@ -1311,6 +1311,21 @@ mod tests {
         assert_eq!(absent.accuracy_tier, None);
     }
 
+    /// The FFI boundary the platforms actually cross. Windows persists
+    /// `geminiTranscribe`; macOS' `CloudProvider` raw value is the lowercase
+    /// `geminitranscribe` and its `CloudProvider(rawValue:)` miss silently falls
+    /// back to `.hyperwhisper`, so a camelCase pass-through moved a BYOK user
+    /// onto paid credits on restore. The core must hand both platforms the one
+    /// spelling both parsers accept.
+    #[test]
+    fn cloud_stt_normalize_lowercases_gemini_transcribe_for_the_macos_parser() {
+        for spelling in ["geminiTranscribe", "geminitranscribe", "GEMINITRANSCRIBE"] {
+            let n = cloud_stt_normalize_cloud_provider(Some(spelling.to_string()));
+            assert_eq!(n.provider.as_deref(), Some("geminitranscribe"), "{spelling}");
+            assert_eq!(n.accuracy_tier, None, "{spelling} is BYOK, not a cloud tier");
+        }
+    }
+
     // =======================================================================
     // cloud-PP catalog
     // =======================================================================
