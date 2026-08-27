@@ -20,34 +20,39 @@ const XAI_EXCLUDE = ["image", "embedding", "tts", "audio", "vision"];
 export type Model = { id: string; display_name: string };
 export type ProviderResult = { ok: true; models: Model[] } | { ok: false; error: string };
 
-async function apiGet(url: string, headers: Record<string, string> = {}): Promise<unknown> {
-  const res = await fetch(url, {
-    headers: { "User-Agent": USER_AGENT, ...headers },
-    cache: "no-store",
-  });
-  if (!res.ok) {
-    // Log host + path + status only. Never log the full URL (the Gemini
-    // endpoint embeds the API key in its query string) and never log the
-    // upstream body (a provider could echo the request URL/key back in its
-    // error payload). Clients receive only the status code, never the body.
-    let target = "upstream";
-    try {
-      const { host, pathname } = new URL(url);
-      target = `${host}${pathname}`;
-    } catch {
-      // keep generic label if url is unparseable
+/** One authenticated GET against a provider's model endpoint. */
+type ApiGet = (url: string, headers?: Record<string, string>) => Promise<unknown>;
+
+function makeApiGet(fetchImpl: typeof fetch): ApiGet {
+  return async function apiGet(url, headers = {}) {
+    const res = await fetchImpl(url, {
+      headers: { "User-Agent": USER_AGENT, ...headers },
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      // Log host + path + status only. Never log the full URL (the Gemini
+      // endpoint embeds the API key in its query string) and never log the
+      // upstream body (a provider could echo the request URL/key back in its
+      // error payload). Clients receive only the status code, never the body.
+      let target = "upstream";
+      try {
+        const { host, pathname } = new URL(url);
+        target = `${host}${pathname}`;
+      } catch {
+        // keep generic label if url is unparseable
+      }
+      console.error(`[model-list] ${target} -> HTTP ${res.status}`);
+      throw new Error(`HTTP ${res.status}`);
     }
-    console.error(`[model-list] ${target} -> HTTP ${res.status}`);
-    throw new Error(`HTTP ${res.status}`);
-  }
-  return res.json();
+    return res.json();
+  };
 }
 
 function sortModels(models: Model[]): Model[] {
   return [...models].sort((a, b) => a.id.localeCompare(b.id));
 }
 
-async function fetchOpenAI(key: string): Promise<Model[]> {
+async function fetchOpenAI(key: string, apiGet: ApiGet): Promise<Model[]> {
   const data = (await apiGet("https://api.openai.com/v1/models", {
     Authorization: `Bearer ${key}`,
   })) as { data?: Array<{ id: string }> };
@@ -62,7 +67,7 @@ async function fetchOpenAI(key: string): Promise<Model[]> {
   return sortModels(models);
 }
 
-async function fetchAnthropic(key: string): Promise<Model[]> {
+async function fetchAnthropic(key: string, apiGet: ApiGet): Promise<Model[]> {
   const all: Model[] = [];
   let url: string | null = "https://api.anthropic.com/v1/models?limit=1000";
   const headers = { "x-api-key": key, "anthropic-version": "2023-06-01" };
@@ -84,7 +89,7 @@ async function fetchAnthropic(key: string): Promise<Model[]> {
   return sortModels(all);
 }
 
-async function fetchGemini(key: string): Promise<Model[]> {
+async function fetchGemini(key: string, apiGet: ApiGet): Promise<Model[]> {
   const all: Model[] = [];
   let url: string | null = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}&pageSize=1000`;
   while (url) {
@@ -109,7 +114,7 @@ async function fetchGemini(key: string): Promise<Model[]> {
   return sortModels(all);
 }
 
-async function fetchGroq(key: string): Promise<Model[]> {
+async function fetchGroq(key: string, apiGet: ApiGet): Promise<Model[]> {
   const data = (await apiGet("https://api.groq.com/openai/v1/models", {
     Authorization: `Bearer ${key}`,
   })) as { data?: Array<{ id: string }> };
@@ -121,7 +126,7 @@ async function fetchGroq(key: string): Promise<Model[]> {
   return sortModels(models);
 }
 
-async function fetchXAI(key: string): Promise<Model[]> {
+async function fetchXAI(key: string, apiGet: ApiGet): Promise<Model[]> {
   const data = (await apiGet("https://api.x.ai/v1/models", {
     Authorization: `Bearer ${key}`,
   })) as { data?: Array<{ id: string }> };
@@ -134,7 +139,7 @@ async function fetchXAI(key: string): Promise<Model[]> {
   return sortModels(models);
 }
 
-async function fetchCerebras(key: string): Promise<Model[]> {
+async function fetchCerebras(key: string, apiGet: ApiGet): Promise<Model[]> {
   const data = (await apiGet("https://api.cerebras.ai/v1/models", {
     Authorization: `Bearer ${key}`,
   })) as { data?: Array<{ id: string }> };
@@ -155,26 +160,6 @@ export type AvailableModels = {
   providers: Record<string, ProviderResult>;
 };
 
-async function fetchAvailableModelsUncached(): Promise<AvailableModels> {
-  const entries = await Promise.all(
-    PROVIDERS.map(async ({ name, envKey, fetcher }): Promise<[string, ProviderResult]> => {
-      const key = process.env[envKey];
-      if (!key) return [name, { ok: false, error: `missing ${envKey}` }];
-      try {
-        const models = await fetcher(key);
-        return [name, { ok: true, models }];
-      } catch (e) {
-        return [name, { ok: false, error: e instanceof Error ? e.message : String(e) }];
-      }
-    })
-  );
-
-  return {
-    fetchedAt: new Date().toISOString(),
-    providers: Object.fromEntries(entries),
-  };
-}
-
 // Per-instance in-memory cache (~1h TTL). Bounds the 6-provider fan-out even
 // against cache-busting query strings, which bypass Vercel's edge cache and
 // hit the function directly. In-flight de-duplication collapses concurrent
@@ -183,24 +168,86 @@ const CACHE_TTL_MS = 60 * 60 * 1000;
 // If every provider failed (e.g. a transient cold-start network blip), cache
 // only briefly so a fully-broken response isn't pinned for the full hour.
 const FAILURE_CACHE_TTL_MS = 60 * 1000;
-let cache: { value: AvailableModels; expiresAt: number } | null = null;
-let inFlight: Promise<AvailableModels> | null = null;
 
-export async function fetchAvailableModels(): Promise<AvailableModels> {
-  if (cache && cache.expiresAt > Date.now()) return cache.value;
-  if (inFlight) return inFlight;
+/**
+ * The three ambient dependencies of the model list: the HTTP client, the API
+ * keys, and the clock. Each one defaults to the real thing, so production code
+ * calls `fetchAvailableModels()` with no arguments and behaves as before.
+ */
+export type ModelListDeps = {
+  fetch: typeof fetch;
+  env: Record<string, string | undefined>;
+  now: () => number;
+};
 
-  inFlight = (async () => {
-    try {
-      const value = await fetchAvailableModelsUncached();
-      const anyOk = Object.values(value.providers).some((p) => p.ok);
-      const ttl = anyOk ? CACHE_TTL_MS : FAILURE_CACHE_TTL_MS;
-      cache = { value, expiresAt: Date.now() + ttl };
-      return value;
-    } finally {
-      inFlight = null;
-    }
-  })();
+export type ModelList = {
+  fetchAvailableModels: () => Promise<AvailableModels>;
+  fetchAvailableModelsUncached: () => Promise<AvailableModels>;
+};
 
-  return inFlight;
+/**
+ * Build a model list with its own cache and its own in-flight slot. The cache
+ * and the de-duplication state live here, not on the module, so a test can hold
+ * an instance whose state no other test can see.
+ */
+export function createModelList(deps: Partial<ModelListDeps> = {}): ModelList {
+  // Read the global through a wrapper so a caller that swaps `globalThis.fetch`
+  // after this instance is built still reaches the swapped one, as the direct
+  // `fetch(...)` call this replaced did.
+  const fetchImpl: typeof fetch = deps.fetch ?? ((...args) => globalThis.fetch(...args));
+  const env = deps.env ?? process.env;
+  const now = deps.now ?? Date.now;
+  const apiGet = makeApiGet(fetchImpl);
+
+  let cache: { value: AvailableModels; expiresAt: number } | null = null;
+  let inFlight: Promise<AvailableModels> | null = null;
+
+  async function fetchAvailableModelsUncached(): Promise<AvailableModels> {
+    const entries = await Promise.all(
+      PROVIDERS.map(async ({ name, envKey, fetcher }): Promise<[string, ProviderResult]> => {
+        const key = env[envKey];
+        if (!key) return [name, { ok: false, error: `missing ${envKey}` }];
+        try {
+          const models = await fetcher(key, apiGet);
+          return [name, { ok: true, models }];
+        } catch (e) {
+          return [name, { ok: false, error: e instanceof Error ? e.message : String(e) }];
+        }
+      })
+    );
+
+    return {
+      fetchedAt: new Date(now()).toISOString(),
+      providers: Object.fromEntries(entries),
+    };
+  }
+
+  async function fetchAvailableModels(): Promise<AvailableModels> {
+    if (cache && cache.expiresAt > now()) return cache.value;
+    if (inFlight) return inFlight;
+
+    inFlight = (async () => {
+      try {
+        const value = await fetchAvailableModelsUncached();
+        const anyOk = Object.values(value.providers).some((p) => p.ok);
+        const ttl = anyOk ? CACHE_TTL_MS : FAILURE_CACHE_TTL_MS;
+        cache = { value, expiresAt: now() + ttl };
+        return value;
+      } finally {
+        inFlight = null;
+      }
+    })();
+
+    return inFlight;
+  }
+
+  return { fetchAvailableModels, fetchAvailableModelsUncached };
+}
+
+// The process-wide instance the route handlers share. One per server instance,
+// exactly as the module-level cache it replaced was.
+const defaultModelList = createModelList();
+
+export function fetchAvailableModels(): Promise<AvailableModels> {
+  return defaultModelList.fetchAvailableModels();
 }
