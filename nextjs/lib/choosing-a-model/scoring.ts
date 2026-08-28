@@ -223,9 +223,16 @@ export function creditsPerMinute(model: Model): number {
 /**
  * Whether the reader's app can transcribe live with this model.
  *
- * Cloud support is a property of the endpoint and the same everywhere. Local
- * support is a property of the app in front of it, and the two apps differ: see
- * `DeviceModel.streamingPlatforms`.
+ * Local support is a property of the app in front of the model, and the two
+ * apps differ: see `DeviceModel.streamingPlatforms`.
+ *
+ * Cloud support takes no platform, and that is a simplification rather than a
+ * property of the endpoint — `CloudModel.streaming` records what HyperWhisper
+ * implements, not what the vendor API can do, and the heads are not identical
+ * (Linux takes a free-text Deepgram model where macOS and Windows offer two
+ * fixed ids). A cloud row is live here only where every desktop app can reach
+ * it, so no reader is shown a live claim their app cannot honour. Split this
+ * into platforms when the answer diverges for a row somebody ships.
  */
 export function supportsStreaming(model: Model, platform: Platform): boolean {
   return isCloud(model)

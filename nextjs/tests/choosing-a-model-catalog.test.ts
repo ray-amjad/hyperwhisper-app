@@ -369,35 +369,36 @@ function shownSize(
  * `gemini-3.5-transcribe`.
  *
  * Its per-model `streaming` flag cannot answer it either, and means something
- * narrower than it reads: "HyperWhisper Cloud routes this model live". The two
- * Nova 3 rows carry it while the Nova 2 rows do not, though all four stream
- * under BYOK. The assertion below holds this list to that flag in the one
- * direction that is true — a model the Cloud routes live must be a row this
- * page calls live — so a new live model landing in the catalog fails here.
+ * narrower than it reads: "HyperWhisper Cloud routes this model live". The
+ * assertion below holds this list to that flag in the one direction that is
+ * true — a model the Cloud routes live must be a row this page calls live — so
+ * a new live model landing in the catalog fails here. The reverse does not
+ * hold: a row can be live without the Cloud flag, if a BYOK route reaches it.
  *
  * A hand-kept list is the cost of a fact that lives in Swift, C# and Rust
  * sources a test cannot usefully parse. Keep the citation on every entry: it is
  * what makes the next edit checkable.
  */
 const LIVE_STREAMING_ROW_IDS = new Set([
-  // hw-net `live/deepgram.rs` + `DeepgramStreamingStrategy` send the mode's own
-  // model id, and `ws-streaming-deepgram.ts` proxies it, so every Deepgram row
-  // streams — Nova 2 included, which no catalog flag says.
+  // The two ids the live Deepgram pickers offer: `StreamingView.swift` on
+  // macOS, and `SettingsService.StreamingDeepgramModel` on Windows, which
+  // rewrites anything else to `nova-3-general`. `ws-streaming-deepgram.ts`
+  // hard-codes `model: 'nova-3'` besides. The Nova 2 rows are batch-only, which
+  // is why a route that forwards a model id is not on its own a live claim.
   "deepgramNova3:nova-3-general",
   "deepgramNova3:nova-3-medical",
-  "deepgramNova3:nova-2-general",
-  "deepgramNova3:nova-2-medical",
   // `XAIStreamingStrategy` builds a wss://api.x.ai URL with no model parameter,
   // which is also why this row's model id is the empty string.
   "grokStt:",
-  // `GeminiStreamingStrategy.liveModel` and hw-net `live/gemini_transcribe.rs`
-  // hard-code this id, and `ws-streaming-gemini-transcribe.ts` proxies it. The
-  // pre-recorded row is deliberately absent: it is the Interactions API model.
+  // `LIVE_MODEL` in hw-net `providers/gemini_transcribe.rs`, substituted by
+  // `live/gemini.rs` and `GeminiStreamingStrategy` and proxied by
+  // `ws-streaming-gemini-transcribe.ts`. The pre-recorded row is deliberately
+  // absent: it is the Interactions API model, and no caller sends its id live.
   "geminiTranscribe:gemini-3.5-transcribe-live",
-  // No OpenAI or ElevenLabs row: those routes run `gpt-realtime-whisper` and
-  // `scribe_v2_realtime`, ids this page does not list. `gpt-live-transcribe` is
-  // `IsAvailable = false` in `CloudTranscriptionModel.cs` and runs on neither
-  // the batch nor the live path.
+  // No OpenAI or ElevenLabs row. Both have live routes, but they run
+  // `gpt-realtime-whisper` and `scribe_v2_realtime`, ids this page does not
+  // list. `gpt-live-transcribe` is `IsAvailable = false` in
+  // `CloudTranscriptionModel.cs` and runs on neither the batch nor the live path.
 ]);
 
 test("the page's cloud mirror matches the catalog the apps read", async () => {
@@ -465,19 +466,32 @@ test("every model the Cloud routes live is a row the page calls live", () => {
   }
 });
 
-test("the page does not claim live for a vendor with no live route", async () => {
+test("no row is live for a vendor whose live route runs none of its rows", async () => {
   const { CLOUD_MODELS } = await loadCatalog();
 
-  // The four the vendor hint got wrong, named rather than derived: deriving the
-  // expectation from the same list the mirror uses would assert nothing.
-  const noLiveRoute = ["assemblyai", "mistral", "soniox", "openai"];
-  for (const model of CLOUD_MODELS as { id: string; sttProvider: string; streaming: boolean }[]) {
-    if (!noLiveRoute.includes(model.sttProvider)) continue;
+  /**
+   * Vendors where NO row on this page is reachable live, for either of the two
+   * reasons the vendor hint conflated. Named rather than derived: deriving the
+   * expectation from the same list the mirror uses would assert nothing.
+   *
+   *  - `assemblyai`, `mistral`, `soniox` — no live route exists at all, though
+   *    `features.streaming` is true for all three.
+   *  - `openai`, `elevenlabs` — a live route exists, but it runs
+   *    `gpt-realtime-whisper` / `scribe_v2_realtime`, which are not rows here.
+   */
+  const noLiveRow = ["assemblyai", "mistral", "soniox", "openai", "elevenlabs"];
+  for (const model of CLOUD_MODELS as {
+    id: string;
+    sttProvider: string;
+    streaming: boolean;
+  }[]) {
+    if (!noLiveRow.includes(model.sttProvider)) continue;
     assert.equal(
       model.streaming,
       false,
-      `${model.id} is marked live, but HyperWhisper implements no live route that runs it. ` +
-        `If one shipped, add the row to LIVE_STREAMING_ROW_IDS and drop its provider from this list.`,
+      `${model.id} is marked live, but no live route in this app reaches it. If one shipped — a new ` +
+        `route, or a picker that can now select this model — add the row to LIVE_STREAMING_ROW_IDS ` +
+        `with that source, and drop its provider from this list.`,
     );
   }
 });

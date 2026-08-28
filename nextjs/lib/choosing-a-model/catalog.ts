@@ -161,21 +161,28 @@ export type CloudModel = {
    * live sibling is a separate row.
    *
    * The rule, applied row by row: true when HyperWhisper implements a live
-   * route for the vendor AND that route runs this model. The routes are
-   * `shared-core-rs/crates/hw-net/src/live/` (Deepgram, ElevenLabs, OpenAI,
-   * xAI, Gemini Transcribe) with the native strategies beside them, plus two
-   * HyperWhisper Cloud proxies, `ws-streaming-deepgram.ts` and
-   * `ws-streaming-gemini-transcribe.ts`. Which model each route runs is what
-   * decides the flag:
+   * route AND a reader can reach THIS model through it. Five routes live in
+   * `shared-core-rs/crates/hw-net/src/live/` (`deepgram.rs`, `elevenlabs.rs`,
+   * `openai.rs`, `xai.rs`, `gemini.rs`) with the native strategies beside them,
+   * and two HyperWhisper Cloud proxies in `hyperwhisper-cloud/src/routes/`. A
+   * route existing is not enough — what the picker in front of it can select is
+   * what decides the flag:
    *
-   * - Deepgram sends the row's own model id, so all four Deepgram rows stream.
+   * - Deepgram: two rows only. Both desktop pickers offer `nova-3-general` and
+   *   `nova-3-medical` and nothing else (`StreamingView.swift`, and
+   *   `SettingsService.StreamingDeepgramModel` on Windows rewrites any other
+   *   value to `nova-3-general`), and `ws-streaming-deepgram.ts` hard-codes
+   *   `model: 'nova-3'`. The two Nova 2 rows are batch-only.
    * - xAI's live endpoint takes no model parameter, so its single row streams.
-   * - Gemini Transcribe hard-codes `gemini-3.5-transcribe-live`, so only that
-   *   row streams and the pre-recorded row does not.
-   * - OpenAI hard-codes `gpt-realtime-whisper` and ElevenLabs
-   *   `scribe_v2_realtime`. Neither id is a row on this page, so no OpenAI or
-   *   ElevenLabs row claims live. `gpt-live-transcribe` in particular is
-   *   `IsAvailable = false` on Windows and runs on neither path.
+   * - Gemini Transcribe: the live row only. `providers/gemini_transcribe.rs`
+   *   holds `LIVE_MODEL`, which `live/gemini.rs` and `GeminiStreamingStrategy`
+   *   substitute when the caller sends no model, and every caller pins that id.
+   *   The pre-recorded row is not offered live anywhere.
+   * - OpenAI and ElevenLabs have live routes, but they run
+   *   `gpt-realtime-whisper` and `scribe_v2_realtime` — ids this page does not
+   *   list — so no row of either vendor claims live. `gpt-live-transcribe` in
+   *   particular is `IsAvailable = false` in `CloudTranscriptionModel.cs` and
+   *   runs on neither the batch nor the live path.
    *
    * The drift test holds this column to the same list, so changing a row here
    * alone fails it.
@@ -253,8 +260,8 @@ const CLOUD_MODELS_RAW = [
   { id: "groqWhisper:whisper-large-v3", name: "Whisper Large v3", vendorLabel: "Groq Whisper", vendor: "Groq", sttProvider: "groq", modelId: "whisper-large-v3", credits: 1.85, wer: 4.1, speedFactor: 92.1, languages: 100, streaming: false, customVocabulary: true, preview: false, isDefault: false, byok: true },
   { id: "deepgramNova3:nova-3-general", name: "Nova 3 General", vendorLabel: "Deepgram Nova 3", vendor: "Deepgram", sttProvider: "deepgram", modelId: "nova-3-general", credits: 5.5, wer: 5.2, speedFactor: 541.1, languages: 64, streaming: true, customVocabulary: true, preview: false, isDefault: true, byok: true },
   { id: "deepgramNova3:nova-3-medical", name: "Nova 3 Medical", vendorLabel: "Deepgram Nova 3", vendor: "Deepgram", sttProvider: "deepgram", modelId: "nova-3-medical", credits: 5.5, wer: 5.2, speedFactor: 541.1, languages: 64, streaming: true, customVocabulary: true, preview: false, isDefault: false, byok: true },
-  { id: "deepgramNova3:nova-2-general", name: "Nova 2 General", vendorLabel: "Deepgram Nova 3", vendor: "Deepgram", sttProvider: "deepgram", modelId: "nova-2-general", credits: 5.5, wer: null, speedFactor: null, languages: 64, streaming: true, customVocabulary: true, preview: false, isDefault: false, byok: true },
-  { id: "deepgramNova3:nova-2-medical", name: "Nova 2 Medical", vendorLabel: "Deepgram Nova 3", vendor: "Deepgram", sttProvider: "deepgram", modelId: "nova-2-medical", credits: 5.5, wer: null, speedFactor: null, languages: 64, streaming: true, customVocabulary: true, preview: false, isDefault: false, byok: true },
+  { id: "deepgramNova3:nova-2-general", name: "Nova 2 General", vendorLabel: "Deepgram Nova 3", vendor: "Deepgram", sttProvider: "deepgram", modelId: "nova-2-general", credits: 5.5, wer: null, speedFactor: null, languages: 64, streaming: false, customVocabulary: true, preview: false, isDefault: false, byok: true },
+  { id: "deepgramNova3:nova-2-medical", name: "Nova 2 Medical", vendorLabel: "Deepgram Nova 3", vendor: "Deepgram", sttProvider: "deepgram", modelId: "nova-2-medical", credits: 5.5, wer: null, speedFactor: null, languages: 64, streaming: false, customVocabulary: true, preview: false, isDefault: false, byok: true },
   { id: "grokStt:", name: "Grok Speech-to-Text", vendorLabel: "Grok STT", vendor: "xAI", sttProvider: "grok", modelId: "", credits: 1.67, wer: 4.0, speedFactor: 230.1, languages: 25, streaming: true, customVocabulary: true, preview: false, isDefault: true, byok: true },
   { id: "azureMaiTranscribe:mai-transcribe-1.5", name: "MAI-Transcribe 1.5", vendorLabel: "Microsoft MAI-Transcribe 1.5", vendor: "Microsoft", sttProvider: "azure-mai", modelId: "mai-transcribe-1.5", credits: 6.0, wer: 2.4, speedFactor: 183.3, languages: 42, streaming: false, customVocabulary: true, preview: false, isDefault: true, byok: false },
   { id: "geminiTranscribe:gemini-3.5-transcribe", name: "Gemini 3.5 Transcribe", vendorLabel: "Google Gemini 3.5 Transcribe", vendor: "Google", sttProvider: "gemini-transcribe", modelId: "gemini-3.5-transcribe", credits: 5.5, wer: null, speedFactor: null, languages: null, streaming: false, customVocabulary: true, preview: true, isDefault: true, byok: true },
