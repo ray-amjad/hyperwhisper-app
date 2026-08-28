@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { AudioTooLargeError, ProviderUnavailableError } from './types';
 import { computeGoogleChirpTranscriptionCost } from '../lib/cost-calculator';
+import * as realGoogleAuth from '../lib/google-auth';
 
 // ---------------------------------------------------------------------------
 // Mock the GCS scratch-storage module. google-chirp.ts only knows the shape
@@ -31,11 +32,20 @@ mock.module('../lib/gcs-storage', () => ({
 
 // ---------------------------------------------------------------------------
 // Mock the Google OAuth helper — no real service-account JSON or Redis.
+//
+// The factory spreads the real module first and overrides only the two
+// functions google-chirp.ts calls. bun's module registry is process-wide, so a
+// factory that lists exports instead of spreading deletes the rest for every
+// other file in the run: an earlier version of this mock omitted
+// `createGoogleAuth`, and `lib/google-auth.test.ts` — which imports the module
+// for real — got this factory instead and failed with "createGoogleAuth is not
+// a function". Keep the spread when adding an override here.
 // ---------------------------------------------------------------------------
 let accessToken = 'test-access-token';
 let invalidateCalls = 0;
 
 mock.module('../lib/google-auth', () => ({
+  ...realGoogleAuth,
   getGoogleAccessToken: async () => accessToken,
   invalidateGoogleAccessToken: async () => { invalidateCalls += 1; },
 }));
