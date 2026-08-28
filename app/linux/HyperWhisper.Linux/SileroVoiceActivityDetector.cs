@@ -113,22 +113,3 @@ internal sealed class SileroVoiceActivityDetector(
         _gate.Dispose();
     }
 }
-
-internal sealed class FallbackVoiceActivityDetector(
-    IVoiceActivityDetector primary,
-    IVoiceActivityDetector fallback) : IVoiceActivityDetector
-{
-    public async ValueTask ResetAsync(CancellationToken cancellationToken = default)
-    {
-        await primary.ResetAsync(cancellationToken);
-        await fallback.ResetAsync(cancellationToken);
-    }
-
-    public async ValueTask<PlatformResult<bool>> ContainsSpeechAsync(
-        ReadOnlyMemory<float> mono16KhzPcm,
-        CancellationToken cancellationToken = default)
-    {
-        var result = await primary.ContainsSpeechAsync(mono16KhzPcm, cancellationToken);
-        return result.IsSuccess ? result : await fallback.ContainsSpeechAsync(mono16KhzPcm, cancellationToken);
-    }
-}

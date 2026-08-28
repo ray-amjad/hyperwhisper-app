@@ -232,14 +232,6 @@ final class NemotronModelManager: ObservableObject {
         downloadingModels.contains(modelId)
     }
 
-    var isModelInstalled: Bool {
-        availableModels.contains { $0.isDownloaded }
-    }
-
-    func isModelInstalled(_ modelId: String) -> Bool {
-        availableModels.first { $0.id == modelId }?.isDownloaded ?? false
-    }
-
     /// Whether the variant's metadata says "installed" but a load attempt failed
     /// (probably a partial / corrupt install). Drives the Library row's
     /// "Re-download" prompt.

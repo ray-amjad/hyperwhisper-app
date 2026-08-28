@@ -296,18 +296,6 @@ public static class SentryService
         }
     }
 
-    /// <summary>
-    /// Track a user action as a breadcrumb.
-    /// Use this for key user interactions to understand the flow before an error.
-    /// Examples: "started_recording", "transcription_complete", "mode_selected"
-    /// </summary>
-    /// <param name="action">Action name (e.g., "started_recording")</param>
-    /// <param name="data">Optional additional context</param>
-    public static void TrackUserAction(string action, Dictionary<string, string>? data = null)
-    {
-        AddBreadcrumb(action, "user_action", BreadcrumbLevel.Info, data);
-    }
-
     // =========================================================================
     // ERROR CAPTURE
     // =========================================================================
@@ -480,88 +468,6 @@ public static class SentryService
         catch (Exception ex)
         {
             LoggingService.Debug($"SentryService: Failed to set tag: {ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// Set multiple global tags at once for efficiency.
-    /// </summary>
-    /// <param name="tags">Dictionary of tag key-value pairs</param>
-    public static void SetTags(Dictionary<string, string> tags)
-    {
-        if (!_isInitialized || tags == null) return;
-
-        try
-        {
-            SentrySdk.ConfigureScope(scope =>
-            {
-                foreach (var (key, value) in tags)
-                {
-                    scope.SetTag(key, value);
-                }
-            });
-        }
-        catch (Exception ex)
-        {
-            LoggingService.Debug($"SentryService: Failed to set tags: {ex.Message}");
-        }
-    }
-
-    // =========================================================================
-    // TRANSCRIPTION CONTEXT
-    // =========================================================================
-
-    /// <summary>
-    /// Set transcription-specific context for better error filtering.
-    /// Call this before starting a transcription to tag all subsequent events.
-    /// </summary>
-    /// <param name="provider">The transcription provider ("local", "hyperwhisper_cloud", "openai")</param>
-    /// <param name="mode">The transcription mode name (e.g., "Default", "Meeting Notes")</param>
-    /// <param name="audioLengthSeconds">Duration of the audio being transcribed</param>
-    public static void SetTranscriptionContext(string provider, string mode, double? audioLengthSeconds = null)
-    {
-        if (!_isInitialized) return;
-
-        try
-        {
-            SentrySdk.ConfigureScope(scope =>
-            {
-                scope.SetTag("transcription_provider", provider);
-                scope.SetTag("transcription_mode", mode);
-
-                if (audioLengthSeconds.HasValue)
-                {
-                    // Round to nearest second for cleaner grouping
-                    scope.SetExtra("audio_length_seconds", (int)audioLengthSeconds.Value);
-                }
-            });
-        }
-        catch (Exception ex)
-        {
-            LoggingService.Debug($"SentryService: Failed to set transcription context: {ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// Clear transcription context after transcription completes.
-    /// Prevents stale context from appearing on unrelated errors.
-    /// </summary>
-    public static void ClearTranscriptionContext()
-    {
-        if (!_isInitialized) return;
-
-        try
-        {
-            SentrySdk.ConfigureScope(scope =>
-            {
-                scope.UnsetTag("transcription_provider");
-                scope.UnsetTag("transcription_mode");
-                // Note: Can't unset extras in C# SDK, but they're per-event anyway
-            });
-        }
-        catch (Exception ex)
-        {
-            LoggingService.Debug($"SentryService: Failed to clear transcription context: {ex.Message}");
         }
     }
 

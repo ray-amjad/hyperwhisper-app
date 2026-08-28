@@ -12,10 +12,6 @@ public sealed record GpuInfo
     public bool IsApu => !IsDiscrete
         && DedicatedMemoryBytes < 8L * 1024 * 1024 * 1024
         && SharedMemoryBytes > DedicatedMemoryBytes;
-
-    public long EffectiveMemoryBytes => IsApu
-        ? Math.Max(DedicatedMemoryBytes, SharedMemoryBytes / 2)
-        : DedicatedMemoryBytes;
 }
 
 public interface IGpuInfoProvider

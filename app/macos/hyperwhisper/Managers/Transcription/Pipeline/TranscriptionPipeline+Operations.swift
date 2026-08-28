@@ -2,27 +2,12 @@
 //  TranscriptionPipeline+Operations.swift
 //  hyperwhisper
 //
-//  Vocabulary, configuration, and retry helpers.
+//  Configuration and retry helpers.
 //
 
 import Foundation
 
 extension TranscriptionPipeline {
-
-    // MARK: - Vocabulary
-
-    /// Remove a word from custom vocabulary.
-    func removeFromVocabulary(_ word: String) {
-        let items = PersistenceController.shared.fetchAllVocabularyItems()
-        if let item = items.first(where: { $0.word == word }) {
-            PersistenceController.shared.deleteVocabularyItem(item)
-        }
-    }
-
-    /// Remove a vocabulary item by ID.
-    func removeFromVocabulary(byId id: UUID) {
-        PersistenceController.shared.deleteVocabularyItem(byId: id)
-    }
 
     // MARK: - Configuration
 

@@ -82,12 +82,6 @@ public static class PortableLicenseCore
     /// <summary>The production <c>/api/license/validate</c> endpoint.</summary>
     public static string ValidateUrl() => HyperwhisperCoreMethods.LicenseValidateUrl();
 
-    /// <summary>The validation cache duration, 24 hours, in seconds.</summary>
-    public static long ValidationCacheSeconds() => HyperwhisperCoreMethods.LicenseValidationCacheSecs();
-
-    /// <summary>The offline grace period, 7 days, in seconds.</summary>
-    public static long OfflineGraceSeconds() => HyperwhisperCoreMethods.LicenseOfflineGraceSecs();
-
     /// <summary>
     /// Builds the validate request. The core trims the license key and escapes
     /// the device fields.

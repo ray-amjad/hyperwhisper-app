@@ -75,11 +75,6 @@ struct CustomPostProcessingEndpoint: Codable, Identifiable, Equatable {
         return display
     }
 
-    /// Whether the endpoint has been tested and passed
-    var isVerified: Bool {
-        lastTestSuccess == true
-    }
-
     // MARK: - Initialization
 
     /// Create a new custom endpoint configuration

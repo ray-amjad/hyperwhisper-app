@@ -123,48 +123,12 @@ struct StandardHeaderStyle: ViewModifier {
     }
 }
 
-/// Standard settings row container style
-struct SettingsRowContainerStyle: ViewModifier {
-    func body(content: Content) -> some View {
-        content
-            .padding(DesignConstants.Spacing.rowPadding)
-            .background(RoundedRectangle(cornerRadius: DesignConstants.CornerRadius.medium, style: .continuous)
-                .fill(.thinMaterial))
-            .overlay(RoundedRectangle(cornerRadius: DesignConstants.CornerRadius.medium, style: .continuous)
-                .stroke(Color(nsColor: .separatorColor), lineWidth: 1))
-    }
-}
-
-/// Standard card style for content containers
-struct CardStyle: ViewModifier {
-    var padding: CGFloat = DesignConstants.Spacing.rowPadding
-    
-    func body(content: Content) -> some View {
-        content
-            .padding(padding)
-            .background(RoundedRectangle(cornerRadius: DesignConstants.CornerRadius.medium, style: .continuous)
-                .fill(.thinMaterial))
-            .overlay(RoundedRectangle(cornerRadius: DesignConstants.CornerRadius.medium, style: .continuous)
-                .stroke(Color(nsColor: .separatorColor), lineWidth: 1))
-    }
-}
-
 // MARK: - View Extensions
 
 extension View {
     /// Apply standard header styling
     func standardHeaderStyle() -> some View {
         modifier(StandardHeaderStyle())
-    }
-    
-    /// Apply standard settings row container styling
-    func settingsRowContainerStyle() -> some View {
-        modifier(SettingsRowContainerStyle())
-    }
-    
-    /// Apply standard card styling
-    func cardStyle(padding: CGFloat = DesignConstants.Spacing.rowPadding) -> some View {
-        modifier(CardStyle(padding: padding))
     }
 }
 
