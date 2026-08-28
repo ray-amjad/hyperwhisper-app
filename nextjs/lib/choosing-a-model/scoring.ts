@@ -223,9 +223,17 @@ export function creditsPerMinute(model: Model): number {
 /**
  * Whether the reader's app can transcribe live with this model.
  *
- * Cloud support is a property of the endpoint and the same everywhere. Local
- * support is a property of the app in front of it, and the two apps differ: see
- * `DeviceModel.streamingPlatforms`.
+ * Local support is a property of the app in front of the model, and the two
+ * apps differ: see `DeviceModel.streamingPlatforms`.
+ *
+ * Cloud support takes no platform, and that is a simplification rather than a
+ * property of the endpoint — `CloudModel.streaming` records what HyperWhisper
+ * implements, not what the vendor API can do. It holds because the flag is set
+ * as an INTERSECTION over the two apps this page describes, macOS and Windows,
+ * which agree today on every cloud row. See the field's own doc in `catalog.ts`
+ * for the rule and for why Linux, whose streaming model box is free text, is
+ * outside it. Split this into platforms when macOS and Windows diverge on a row
+ * somebody ships.
  */
 export function supportsStreaming(model: Model, platform: Platform): boolean {
   return isCloud(model)
