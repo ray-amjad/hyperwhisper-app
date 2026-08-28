@@ -1,9 +1,14 @@
 # Linux release evidence manifests
 
-Publishing a Linux release requires a reviewed manifest named
-`VERSION.json` in this directory. Releases and retrievable dry-run packages are
-built only by manually approved `workflow_dispatch` runs; dry runs never
-publish or receive Production signing/deployment secrets.
+A reviewed manifest named `VERSION.json` in this directory is **optional**. It
+is no longer a release gate: a release publishes without one. When a manifest
+is present the release workflow still validates it with the same fail-closed
+rules below, and attaches it to the GitHub Release. A manifest that does not
+pass still fails the run, so a broken attestation is never published.
+
+Releases and retrievable dry-run packages are built only by manually approved
+`workflow_dispatch` runs; dry runs never publish or receive Production
+signing/deployment secrets.
 
 The manifest binds all evidence to the exact release version and 40-character
 `testedCommit`. That commit must be an ancestor of the release commit, and the

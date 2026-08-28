@@ -6,16 +6,20 @@ compositor behavior, portal UX, physical input-device access, or GPU inference.
 Every release candidate must therefore complete this checklist on three clean
 x86_64 desktop installations plus a physical GPU host.
 
-Publishing is fail-closed: after completing the matrix, upload each redacted
+This checklist is **recommended, not enforced**. The release workflow no longer
+blocks on it. Recording the run is still the only way to prove a release was
+tested on real hardware: after completing the matrix, upload each redacted
 evidence bundle, record its HTTPS URL and SHA-256 in
 `release-evidence/VERSION.json`, and have the manifest reviewed against the
 exact tested commit. The release commit may add only evidence manifests after
 that commit. A manually approved dry run builds a retrievable package without
-publishing; a separately approved publishing run validates this ancestry/diff
-invariant and includes the manifest in the published checksums.
+publishing; a publishing run validates any manifest it finds against this
+ancestry/diff invariant and includes it in the published checksums. A manifest
+that fails validation still fails the release.
 
-Use `PASS`, `FAIL`, `BLOCKED`, or `NOT IMPLEMENTED` for every result. A release
-requires `PASS` everywhere marked **gate**; `NOT IMPLEMENTED` is not a pass.
+Use `PASS`, `FAIL`, `BLOCKED`, or `NOT IMPLEMENTED` for every result. Steps
+marked **gate** are the ones a manifest must record as `PASS`;
+`NOT IMPLEMENTED` is not a pass.
 
 ## Run identity and evidence fields
 

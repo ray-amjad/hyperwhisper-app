@@ -64,7 +64,7 @@ def main() -> None:
     require(
         RELEASE,
         "validate-release-evidence.py",
-        "publishing must require reviewed physical evidence",
+        "a checked-in evidence manifest must still be validated",
     )
     require(
         RELEASE,
@@ -84,10 +84,24 @@ def main() -> None:
         "dry-run packages must be retrievable for physical testing",
     )
     require(RELEASE, "retention-days: 14", "dry-run artifacts need bounded retention")
+    # Publishing no longer requires a signature, but an unsigned run must not
+    # hand anyone an unsigned APT repository. Prove it is withheld everywhere.
     require(
         RELEASE,
-        'if [[ "$publish" == "true" && "$require_apt_signature" != "true" ]]',
-        "publication must require signed APT metadata",
+        'if [[ "$REQUIRE_APT_SIGNATURE" == "true" ]]; then\n'
+        '            assets+=("hyperwhisper-apt-${VERSION}.tar.gz")',
+        "an unsigned run must withhold the APT archive from the GitHub Release",
+    )
+    require(
+        RELEASE,
+        'if [[ "$REQUIRE_APT_SIGNATURE" == "true" ]]; then\n'
+        '            mirrored+=("hyperwhisper-apt-${VERSION}.tar.gz")',
+        "an unsigned run must withhold the APT archive from the R2 mirror",
+    )
+    require(
+        RELEASE,
+        '"$publish" != "true" || "$require_apt_signature" != "true"',
+        "APT deployment must require both publication and a signature",
     )
     require(RELEASE, 'GITHUB_REF" != "refs/heads/main', "publishing must run from main")
     require(RELEASE, "Remote tag already exists", "publishing must reject tag collisions")
