@@ -154,6 +154,93 @@ jobs:
           echo "APT signature explicitly required: $require_apt_signature"
           echo "APT deployment enabled: $deploy_apt"
 
+      # Both probes sit here, directly after the metadata resolve that produces
+      # `publish`/`deploy_apt`, and before the 60-minute build. macOS and
+      # Windows do the same thing at the same point for their R2 credentials.
+      - name: Verify Cloudflare R2 credentials
+        if: steps.release.outputs.publish == 'true'
+        shell: bash
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+        run: |
+          set -euo pipefail
+          ENDPOINT="https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com"
+          BUCKET="${{ secrets.R2_BUCKET_NAME }}"
+          PROBE="_ci-preflight/linux-${{ github.run_id }}-${{ github.run_attempt }}.txt"
+
+          command -v aws >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq awscli; }
+
+          # Round-trip a throwaway object rather than calling head-bucket: an
+          # expired or read-only token still passes a read probe and then fails
+          # the real upload after the build is spent.
+          echo "r2-preflight" > "$RUNNER_TEMP/r2-preflight.txt"
+          if ! aws s3 cp "$RUNNER_TEMP/r2-preflight.txt" "s3://$BUCKET/$PROBE" --endpoint-url "$ENDPOINT"; then
+            echo "::error::Cloudflare R2 rejected the upload credentials. Create a new R2 API token with Object Read & Write on the builds bucket, write CLOUDFLARE_R2_ACCESS_KEY_ID and CLOUDFLARE_R2_SECRET_ACCESS_KEY to Infisical (--env=prod), wait for the sync, then re-run. Never edit the GitHub secret directly: the next sync overwrites it."
+            exit 1
+          fi
+
+          # Best-effort tidy-up. A token with write but not delete is still fine
+          # for a release, so a failure here must not fail the run.
+          aws s3 rm "s3://$BUCKET/$PROBE" --endpoint-url "$ENDPOINT" || true
+          echo "R2 credentials accepted."
+
+      # This one matters more than the R2 probe. `Atomically deploy signed APT
+      # repository` is the LAST step, and it runs after the GitHub Release is
+      # already published — so a stale key there does not merely waste a build,
+      # it leaves a release users can see and `apt` cannot install.
+      - name: Verify APT deployment credentials
+        if: steps.release.outputs.deploy_apt == 'true'
+        shell: bash
+        env:
+          APT_DEPLOY_HOST: ${{ vars.LINUX_APT_DEPLOY_HOST }}
+          APT_DEPLOY_USER: ${{ vars.LINUX_APT_DEPLOY_USER }}
+          APT_DEPLOY_PATH: ${{ vars.LINUX_APT_DEPLOY_PATH }}
+          APT_SSH_PRIVATE_KEY: ${{ secrets.LINUX_APT_SSH_PRIVATE_KEY }}
+          APT_SSH_KNOWN_HOSTS: ${{ secrets.LINUX_APT_SSH_KNOWN_HOSTS }}
+          APT_SIGNING_KEY: ${{ secrets.LINUX_APT_SIGNING_KEY }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$APT_SSH_PRIVATE_KEY" || -z "$APT_SSH_KNOWN_HOSTS" \
+              || -z "$APT_SIGNING_KEY" ]]; then
+            echo "::error::APT deployment requires pinned SSH and signing secrets. Author LINUX_APT_SSH_PRIVATE_KEY, LINUX_APT_SSH_KNOWN_HOSTS and LINUX_APT_SIGNING_KEY in Infisical (--env=prod) and wait for the sync."
+            exit 1
+          fi
+
+          ssh_dir="${RUNNER_TEMP}/apt-ssh-preflight"
+          key_file="${RUNNER_TEMP}/apt-signing-key-preflight.asc"
+          cleanup() { rm -f -- "$key_file" "$ssh_dir/id" "$ssh_dir/known_hosts"; }
+          trap cleanup EXIT
+          install -d -m 0700 "$ssh_dir"
+          umask 077
+          printf '%s' "$APT_SSH_PRIVATE_KEY" > "$ssh_dir/id"
+          printf '%s\n' "$APT_SSH_KNOWN_HOSTS" > "$ssh_dir/known_hosts"
+          printf '%s' "$APT_SIGNING_KEY" > "$key_file"
+          chmod 0600 "$ssh_dir/id" "$ssh_dir/known_hosts" "$key_file"
+
+          # Same pinned, non-interactive settings the deploy step uses, so a
+          # host-key or BatchMode mismatch surfaces here rather than there.
+          if ! ssh -i "$ssh_dir/id" \
+              -o BatchMode=yes \
+              -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=yes \
+              -o "UserKnownHostsFile=$ssh_dir/known_hosts" \
+              -o ConnectTimeout=15 \
+              "${APT_DEPLOY_USER}@${APT_DEPLOY_HOST}" \
+              "test -d '${APT_DEPLOY_PATH}' && test -w '${APT_DEPLOY_PATH}'"; then
+            echo "::error::The APT deploy host rejected the SSH key, or ${APT_DEPLOY_PATH} is missing or not writable. Rotate LINUX_APT_SSH_PRIVATE_KEY / LINUX_APT_SSH_KNOWN_HOSTS in Infisical (--env=prod), or fix the path on the host, then re-run."
+            exit 1
+          fi
+
+          # Prove the signing key actually imports. A truncated or wrong-armour
+          # key passes the non-empty check above and then fails at signing time.
+          if ! gpg --batch --import "$key_file" >/dev/null 2>&1; then
+            echo "::error::LINUX_APT_SIGNING_KEY is not an importable GPG key. Re-author it in Infisical (--env=prod)."
+            exit 1
+          fi
+          echo "APT SSH and signing credentials accepted."
+
       - name: Confirm required gates tested this exact commit
         shell: bash
         env:
@@ -423,6 +510,39 @@ jobs:
               --jq ".assets[].name" | grep -Fx -- "$asset" >/dev/null
           done
           echo "GitHub Release assets and exact tag target verified."
+
+      # Mirror to builds.hyperwhisper.com, the same host macOS and Windows use,
+      # so the website has one URL shape for every platform and the download
+      # path does not depend on the GitHub API. GitHub Releases stays the
+      # canonical record; this is a mirror, so it runs after that step.
+      - name: Upload Linux artifacts to Cloudflare R2
+        if: steps.release.outputs.publish == 'true'
+        shell: bash
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          ENDPOINT="https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com"
+          BUCKET="${{ secrets.R2_BUCKET_NAME }}"
+
+          for asset in \
+            "hyperwhisper_${VERSION}_amd64.deb" \
+            "hyperwhisper-apt-${VERSION}.tar.gz" \
+            "SHA256SUMS"; do
+            src="artifacts/release/${asset}"
+            # SHA256SUMS is the one name that would collide across releases, so
+            # it is uploaded under a versioned key.
+            key="$asset"
+            if [[ "$asset" == "SHA256SUMS" ]]; then
+              key="hyperwhisper-linux-${VERSION}-SHA256SUMS"
+            fi
+            echo "Uploading $key..."
+            aws s3 cp "$src" "s3://$BUCKET/$key" --endpoint-url "$ENDPOINT"
+          done
+          echo "Linux artifacts mirrored to https://builds.hyperwhisper.com/"
 
       - name: Atomically deploy signed APT repository
         if: steps.release.outputs.deploy_apt == 'true'
