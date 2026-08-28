@@ -481,4 +481,102 @@ struct ReleaseNotesHTMLTests {
         #expect(item.bulletPoints.isEmpty)
         #expect(!item.hasReleaseNotes)
     }
+
+    // MARK: - Decision (c): one title rule on both heads (#284)
+
+    /// The Windows feed's shape, which this head could not read before: it took
+    /// "everything before the list" and so made the whole `<h2>` element the
+    /// title only by accident of its text. The rule is now explicit and shared.
+    @Test func anH2BeforeTheListBecomesTheTitle() {
+        let item = AppcastItem(
+            version: "1.11.0",
+            buildNumber: "1",
+            pubDate: Date(),
+            releaseNotes: "<h2>What's New in 1.11.0</h2>\n<ul>\n<li>Links are now clickable.</li>\n</ul>"
+        )
+
+        #expect(item.releaseTitle.map { String($0.characters) } == "What's New in 1.11.0")
+        #expect(item.bulletPoints.map { String($0.characters) } == ["Links are now clickable."])
+    }
+
+    /// The half of decision (c) Windows did not have either: its `<h2>` regex
+    /// was case-sensitive and allowed no attributes.
+    @Test func theTitleHeadingMatchIsCaseInsensitiveAndAllowsAttributes() {
+        let item = AppcastItem(
+            version: "1.0.0",
+            buildNumber: "1",
+            pubDate: Date(),
+            releaseNotes: #"<H2 id="whats-new">Title</H2><ul><li>x</li></ul>"#
+        )
+
+        #expect(item.releaseTitle.map { String($0.characters) } == "Title")
+    }
+
+    /// An `<h2>` anywhere wins over the pre-list content — the Windows rule —
+    /// but an `<h3>` is a sub-heading and never becomes a title on its own.
+    @Test func onlyAnH2IsMatchedByName() {
+        let withH3 = AppcastItem(
+            version: "1.0.0", buildNumber: "1", pubDate: Date(),
+            releaseNotes: "<ul><li>x</li></ul><h3>Details</h3>"
+        )
+        #expect(withH3.releaseTitle == nil)
+
+        let withH2 = AppcastItem(
+            version: "1.0.0", buildNumber: "1", pubDate: Date(),
+            releaseNotes: "<ul><li>x</li></ul><h2>Late heading</h2>"
+        )
+        #expect(withH2.releaseTitle.map { String($0.characters) } == "Late heading")
+    }
+
+    /// A closing tag with whitespace before its `>` still closes the item. This
+    /// head already behaved this way — it searched for the prefix `</li` — and
+    /// the shared core keeps that behaviour rather than the Windows regex's,
+    /// which dropped the bullet entirely.
+    @Test func aClosingListTagWithWhitespaceStillClosesTheItem() {
+        let item = AppcastItem(
+            version: "1.0.0", buildNumber: "1", pubDate: Date(),
+            releaseNotes: "<ul><li>one</li ><li>two</li></ul>"
+        )
+
+        #expect(item.bulletPoints.map { String($0.characters) } == ["one", "two"])
+    }
+
+    // MARK: - Parse once, at construction (#284)
+
+    /// STRUCTURAL: `releaseTitle` and `bulletPoints` must be STORED properties.
+    ///
+    /// They were computed, so every SwiftUI `body` pass of every
+    /// `ReleaseNotesCard` re-ran the whole HTML parse — for every release in the
+    /// list, on every redraw. `Mirror` reports stored properties only, so a
+    /// regression back to `var releaseTitle: AttributedString? { ... }` fails
+    /// here rather than silently costing a parse per frame.
+    @Test func theTitleAndBulletsAreStoredNotRecomputed() {
+        let item = AppcastItem(
+            version: "2.5.3", buildNumber: "32", pubDate: Date(),
+            releaseNotes: "<b>Title</b><ul><li>one</li></ul>"
+        )
+
+        let stored = Mirror(reflecting: item).children.compactMap(\.label)
+        #expect(stored.contains("releaseTitle"))
+        #expect(stored.contains("bulletPoints"))
+
+        // And the stored values are the parsed ones, not empty defaults.
+        #expect(item.releaseTitle.map { String($0.characters) } == "Title")
+        #expect(item.bulletPoints.map { String($0.characters) } == ["one"])
+    }
+
+    /// Equatable still holds over the added stored properties: two items built
+    /// from the same feed entry compare equal, and a different note does not.
+    @Test func equalityStillFollowsTheFeedEntry() {
+        let date = Date()
+        let notes = "<b>Title</b><ul><li>one</li></ul>"
+
+        let first = AppcastItem(version: "1.0.0", buildNumber: "1", pubDate: date, releaseNotes: notes)
+        let second = AppcastItem(version: "1.0.0", buildNumber: "1", pubDate: date, releaseNotes: notes)
+        let other = AppcastItem(version: "1.0.0", buildNumber: "1", pubDate: date,
+                                releaseNotes: "<b>Other</b><ul><li>two</li></ul>")
+
+        #expect(first == second)
+        #expect(first != other)
+    }
 }

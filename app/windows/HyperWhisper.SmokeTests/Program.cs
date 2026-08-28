@@ -4175,7 +4175,111 @@ internal static class Program
                     "emphasis inside the link was lost");
             });
 
-            Run("AppcastItem.BulletPoints keeps inline emphasis and drops empty items", () =>
+            Run("InlineHtmlText.Runs renders already-parsed runs and rebuilds on rebind", () =>
+            {
+                // The counterpart to Source, for callers that hold runs rather
+                // than a fragment. HomePage binds this so the Recent Updates
+                // list renders what AppcastItem parsed once, instead of
+                // re-parsing every bullet on every layout pass (#284).
+                const string html = "before <a href=\"https://x.com\">see <b>this</b> page</a> after";
+                var textBlock = new System.Windows.Controls.TextBlock();
+                InlineHtmlText.SetRuns(textBlock, InlineHtml.Parse(html));
+
+                // Identical rendering to the Source case above: one Hyperlink
+                // across the whole anchor, not three siblings.
+                var inlines = textBlock.Inlines.ToList();
+                Assert(inlines.Count == 3, $"expected 3 inlines, got {inlines.Count}");
+                Assert(inlines[1] is System.Windows.Documents.Hyperlink hyperlink
+                        && hyperlink.NavigateUri?.AbsoluteUri == "https://x.com/"
+                        && hyperlink.Inlines.Count == 3,
+                    "the anchor should render as one Hyperlink holding its three runs");
+
+                // An ItemsControl recycles containers, so a rebind must REPLACE
+                // the previous item's runs rather than append to them.
+                InlineHtmlText.SetRuns(textBlock, InlineHtml.Parse("just text"));
+                Assert(textBlock.Inlines.Count == 1,
+                    $"rebinding should rebuild the TextBlock, got {textBlock.Inlines.Count} inlines");
+
+                InlineHtmlText.SetRuns(textBlock, null);
+                Assert(textBlock.Inlines.Count == 0, "binding null should clear the TextBlock");
+            });
+
+            Run("InlineHtml.SplitBlocks replaces the update dialog's <li> walker", () =>
+            {
+                // UpdateAvailableWindow held the THIRD copy of the <li>
+                // extractor: a "<(h[23]|li|p)[^>]*>(.*?)</\1>" walker. #284
+                // collapsed all three into hw-releasenotes, keeping the most
+                // forgiving reading of each disagreement.
+                var blocks = InlineHtml.SplitBlocks(
+                    "<h2>Title</h2><p>Intro</p><ul><li>a</li></ul><h3>More</h3><p>Outro</p>");
+
+                Assert(blocks.Select(block => block.Kind).SequenceEqual(new[]
+                    {
+                        HtmlBlockKind.Heading, HtmlBlockKind.Paragraph, HtmlBlockKind.Bullet,
+                        HtmlBlockKind.Heading, HtmlBlockKind.Paragraph
+                    }),
+                    $"wrong kinds: {string.Join(", ", blocks.Select(block => block.Kind))}");
+                Assert(blocks.Select(block => RunText(block.Runs))
+                        .SequenceEqual(["Title", "Intro", "a", "More", "Outro"]),
+                    $"wrong text: {string.Join(" | ", blocks.Select(block => RunText(block.Runs)))}");
+
+                // The backreference "</\1>" needed those exact characters, so a
+                // feed writing "</li >" lost the bullet here while macOS kept
+                // it; and "[^>]*" ended the open tag at a ">" inside a quoted
+                // attribute value, leaking 'b">' into the bullet's text.
+                Assert(InlineHtml.SplitBlocks("<ul><li>one</li ><li>two</li></ul>")
+                        .Select(block => RunText(block.Runs)).SequenceEqual(["one", "two"]),
+                    "a closing tag with whitespace before its > should still close the item");
+                Assert(InlineHtml.SplitBlocks("<ul><li class=\"a>b\">kept</li></ul>")
+                        .Select(block => RunText(block.Runs)).SequenceEqual(["kept"]),
+                    "a > inside a quoted attribute should stay an attribute");
+
+                // A note that is one textless block renders nothing, rather than
+                // falling through and printing its own markup as text.
+                Assert(InlineHtml.SplitBlocks("<p>   </p>").Count == 0,
+                    "an empty block element should not trigger the line fallback");
+                Assert(InlineHtml.SplitBlocks(null).Count == 0, "null should split into no blocks");
+            });
+
+            Run("InlineHtml.SplitBlocks keeps the fallback's parse-exactly-once guard", () =>
+            {
+                // A note with no block markup is still one block per line, split
+                // on <br> and on newlines, with "-"/"*" opening a bullet.
+                var blocks = InlineHtml.SplitBlocks("Heading line<br>- first\n* second\n   \n-  spaced");
+                Assert(blocks.Select(block => RunText(block.Runs))
+                        .SequenceEqual(["Heading line", "first", "second", "spaced"]),
+                    $"wrong fallback lines: {string.Join(" | ", blocks.Select(block => RunText(block.Runs)))}");
+                Assert(blocks.Select(block => block.Kind).SequenceEqual(new[]
+                    {
+                        HtmlBlockKind.Paragraph, HtmlBlockKind.Bullet,
+                        HtmlBlockKind.Bullet, HtmlBlockKind.Bullet
+                    }),
+                    "a leading - or * should open a bullet and a plain line a paragraph");
+
+                // THE GUARD. Each fallback line keeps its own markup and is
+                // parsed exactly ONCE. Flattening the note to text and parsing
+                // the result again decoded the entities on the first pass and
+                // read the decoded result as a tag on the second — turning
+                // markup the feed ESCAPED so it would show into a live link.
+                var escaped = InlineHtml.SplitBlocks(
+                    "Write &lt;a href=\"https://evil.example\"&gt;x&lt;/a&gt; to link.");
+                Assert(escaped.Count == 1 && RunText(escaped[0].Runs)
+                        == "Write <a href=\"https://evil.example\">x</a> to link.",
+                    "escaped markup was re-read as markup instead of staying text: "
+                        + string.Join(" | ", escaped.Select(block => RunText(block.Runs))));
+                Assert(escaped.All(block => block.Runs.All(run => run.Link is null)),
+                    "escaped markup was decoded and then re-read as a live link");
+
+                // And the other half of the same guard: a REAL anchor on a
+                // fallback line still reaches the renderer as a link, which the
+                // flattening pass used to drop.
+                var anchored = InlineHtml.SplitBlocks("see <a href=\"https://example.com/x\">the page</a>");
+                Assert(anchored.SelectMany(block => block.Runs)
+                        .Any(run => run.Link?.AbsoluteUri == "https://example.com/x"),
+                    "a real anchor in the fallback lost its link");
+            });
+
+            Run("AppcastItem.BulletPoints are parsed runs, keeping emphasis and dropping empty items", () =>
             {
                 var item = new AppcastItem
                 {
@@ -4183,11 +4287,152 @@ internal static class Program
                                  + "<li>Plain bullet.</li></ul>"
                 };
 
+                // THIS ASSERTION CHANGED IN #284, and it is the only one in this
+                // block that may. BulletPoints was a List<string> of raw <li>
+                // inner HTML that the renderer re-parsed per bullet, per layout
+                // pass; the <li> extraction and the inline parse now happen
+                // once, together, in the shared core. The input and the answer
+                // it stands for are unchanged.
                 Assert(item.BulletPoints.Count == 2, $"expected 2 bullets, got {item.BulletPoints.Count}");
-                Assert(InlineHtml.Parse(item.BulletPoints[0])[0].Bold,
-                    "first bullet should start with a bold run");
-                Assert(InlineHtml.PlainText(item.BulletPoints[1]) == "Plain bullet.",
-                    $"got '{InlineHtml.PlainText(item.BulletPoints[1])}'");
+                Assert(item.BulletPoints[0].Count == 2,
+                    $"expected the first bullet to split into 2 runs, got {item.BulletPoints[0].Count}");
+                Assert(item.BulletPoints[0][0] == new HtmlRun("Bold lead", Bold: true, Italic: false),
+                    $"expected a bold lead-in, got '{item.BulletPoints[0][0]}'");
+                Assert(item.BulletPoints[0][1] == new HtmlRun(" — detail.", Bold: false, Italic: false),
+                    $"expected the plain remainder, got '{item.BulletPoints[0][1]}'");
+                Assert(RunText(item.BulletPoints[1]) == "Plain bullet.",
+                    $"got '{RunText(item.BulletPoints[1])}'");
+
+                // A note that opens with the list has no title: a <b> inside the
+                // first bullet emphasises that bullet, it is not a heading.
+                Assert(!item.HasReleaseTitle && item.ReleaseTitle.Count == 0,
+                    $"a note opening with <ul> should have no title, got '{RunText(item.ReleaseTitle)}'");
+            });
+
+            Run("AppcastItem takes the first <h2> as the release title — #284 decision (c)", () =>
+            {
+                // The Windows feed's shape, unchanged: appcast-windows.xml opens
+                // every entry with "<h2>What's New in X</h2>". All 30 live
+                // entries were replayed through the shared core and produced the
+                // same title and bullets this head renders today.
+                var item = new AppcastItem
+                {
+                    ReleaseNotes = "<h2>What's New in 1.11.0</h2>\n<ul>\n"
+                                 + "<li>Links are now clickable.</li>\n</ul>"
+                };
+
+                Assert(RunText(item.ReleaseTitle) == "What's New in 1.11.0",
+                    $"got '{RunText(item.ReleaseTitle)}'");
+                Assert(item.HasReleaseTitle, "HasReleaseTitle should be true when there is a title");
+                Assert(item.BulletPoints.Select(RunText).SequenceEqual(["Links are now clickable."]),
+                    $"wrong bullets: {string.Join(" | ", item.BulletPoints.Select(RunText))}");
+            });
+
+            Run("AppcastItem matches the title heading case-insensitively and with attributes", () =>
+            {
+                // The half of decision (c) this head did not have: the old regex
+                // was "<h2>(.*?)</h2>" — case-SENSITIVE, and no attributes
+                // allowed — so "<H2>" or '<h2 id="x">' showed no title at all.
+                var item = new AppcastItem
+                {
+                    ReleaseNotes = "<H2 id=\"whats-new\">Title</H2><ul><li>x</li></ul>"
+                };
+
+                Assert(RunText(item.ReleaseTitle) == "Title", $"got '{RunText(item.ReleaseTitle)}'");
+            });
+
+            Run("AppcastItem takes only an <h2> by name, never an <h3>", () =>
+            {
+                // An <h2> anywhere in the note wins, which is what the old regex
+                // did. An <h3> is a sub-heading in the body and never becomes a
+                // title on its own — the update dialog still renders it as a
+                // heading block.
+                var withH3 = new AppcastItem { ReleaseNotes = "<ul><li>x</li></ul><h3>Details</h3>" };
+                Assert(!withH3.HasReleaseTitle,
+                    $"an <h3> should not become the title, got '{RunText(withH3.ReleaseTitle)}'");
+
+                var withH2 = new AppcastItem { ReleaseNotes = "<ul><li>x</li></ul><h2>Late heading</h2>" };
+                Assert(RunText(withH2.ReleaseTitle) == "Late heading",
+                    $"got '{RunText(withH2.ReleaseTitle)}'");
+            });
+
+            Run("AppcastItem gains the pre-list title branch, with its emphasis", () =>
+            {
+                // The other half of decision (c), which this head gains: with no
+                // <h2>, the title is the content before the first <ul> (or the
+                // first <li> when there is no <ul>). That is the macOS feed's
+                // shape, where the heading is a bare <b>…</b> — so the title
+                // carries emphasis and ReleaseTitle is runs, not a string.
+                var item = new AppcastItem
+                {
+                    ReleaseNotes = "<b>Enhanced Audio Recording</b>\n<ul>\n<li>Improved stability</li>\n</ul>"
+                };
+
+                Assert(RunText(item.ReleaseTitle) == "Enhanced Audio Recording",
+                    $"got '{RunText(item.ReleaseTitle)}'");
+                Assert(item.ReleaseTitle.All(run => run.Bold),
+                    "the title's emphasis should survive — this is why it is runs and not a string");
+                Assert(item.BulletPoints.Select(RunText).SequenceEqual(["Improved stability"]),
+                    "the pre-list heading must not be read as a bullet");
+
+                // A note with no notes at all has neither, and an empty <h2>
+                // falls through to this branch instead of hiding a real title.
+                var empty = new AppcastItem { ReleaseNotes = "" };
+                Assert(!empty.HasReleaseTitle && empty.BulletPoints.Count == 0 && !empty.HasReleaseNotes,
+                    "an empty note should have no title and no bullets");
+                var emptyHeading = new AppcastItem
+                {
+                    ReleaseNotes = "<h2>  </h2>Real title<ul><li>x</li></ul>"
+                };
+                Assert(RunText(emptyHeading.ReleaseTitle) == "Real title",
+                    $"a textless <h2> should not suppress the title, got '{RunText(emptyHeading.ReleaseTitle)}'");
+            });
+
+            Run("AppcastItem keeps a bullet whose closing tag carries whitespace", () =>
+            {
+                // The "</li >" disagreement, resolved macOS's way. This head's
+                // "</li>" regex did not match at all, so the run of bullets
+                // collapsed into one item carrying raw markup; macOS searched
+                // for the prefix "</li" and closed the item. Dropping a bullet
+                // the feed wrote is the worse failure, so the tokenizer wins.
+                var item = new AppcastItem { ReleaseNotes = "<ul><li>one</li ><li>two</li></ul>" };
+
+                Assert(item.BulletPoints.Select(RunText).SequenceEqual(["one", "two"]),
+                    $"got: {string.Join(" | ", item.BulletPoints.Select(RunText))}");
+            });
+
+            Run("AppcastItem parses the release notes ONCE, at construction", () =>
+            {
+                // STRUCTURAL, and the point of the phase. ReleaseTitle and
+                // BulletPoints were getters that re-ran a Regex — and then a
+                // second parse per bullet in the renderer — on every read, and
+                // WPF reads a bound property on every layout pass of every card
+                // in the Recent Updates list. They are cached fields now, filled
+                // by the ReleaseNotes init accessor.
+                //
+                // Reference equality is what proves it: a getter that re-parsed
+                // would hand back a fresh list every time. macOS pins the same
+                // property with Mirror, which reports stored properties only.
+                var item = new AppcastItem { ReleaseNotes = "<b>Title</b><ul><li>one</li></ul>" };
+
+                Assert(ReferenceEquals(item.ReleaseTitle, item.ReleaseTitle),
+                    "ReleaseTitle re-parses on every read");
+                Assert(ReferenceEquals(item.BulletPoints, item.BulletPoints),
+                    "BulletPoints re-parses on every read");
+                Assert(ReferenceEquals(item.BulletPoints[0], item.BulletPoints[0]),
+                    "each bullet's runs re-parse on every read");
+
+                // And the cached values are the parsed ones, not empty defaults.
+                Assert(RunText(item.ReleaseTitle) == "Title" && item.ReleaseTitle[0].Bold,
+                    $"got '{RunText(item.ReleaseTitle)}'");
+                Assert(item.BulletPoints.Select(RunText).SequenceEqual(["one"]),
+                    $"got: {string.Join(" | ", item.BulletPoints.Select(RunText))}");
+
+                // An item built without ReleaseNotes never runs the accessor, so
+                // the defaults must still be usable rather than null.
+                var bare = new AppcastItem { Version = "1.0.0" };
+                Assert(!bare.HasReleaseTitle && bare.BulletPoints.Count == 0,
+                    "an item with no ReleaseNotes should have empty title and bullets");
             });
 
             Run("Every cloudTierEligible catalog id has a CloudAccuracyTier case", () =>
@@ -4919,6 +5164,14 @@ internal static class Program
         if (!condition)
             throw new InvalidOperationException(message);
     }
+
+    /// <summary>
+    /// The tag-free text of a run sequence — what the old assertions got by
+    /// calling <c>InlineHtml.PlainText</c> on a block's inner HTML, now that the
+    /// blocks arrive already parsed (#284).
+    /// </summary>
+    private static string RunText(IReadOnlyList<HtmlRun> runs)
+        => string.Concat(runs.Select(run => run.Text));
 
     /// <summary>
     /// Compares one field of a backup-vectors.json expectation against the value the

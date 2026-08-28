@@ -54,9 +54,18 @@ enum ReleaseNotesHTML {
     /// Links are the exception: colour and underline are set outright, because
     /// a link that is not visibly a link is one nobody clicks.
     static func attributed(_ html: String) -> AttributedString {
+        attributed(runs(in: html))
+    }
+
+    /// Styled text from runs the core has already produced.
+    ///
+    /// `AppcastItem` parses its note once, at construction, and keeps the
+    /// blocks; this is how those blocks become text without going back across
+    /// the FFI boundary for a fragment that was already parsed.
+    static func attributed(_ runs: [Run]) -> AttributedString {
         var result = AttributedString()
 
-        for run in runs(in: html) {
+        for run in runs {
             var piece = AttributedString(run.text)
             var intent: InlinePresentationIntent = []
 
@@ -91,7 +100,17 @@ enum ReleaseNotesHTML {
     /// because a string the core allows but `URL` cannot parse is no link at
     /// all — which is what it was before this moved to Rust.
     static func runs(in html: String) -> [Run] {
-        releaseNotesParseInline(html: html, collapseWhitespace: true).map { run in
+        runs(from: releaseNotesParseInline(html: html, collapseWhitespace: true))
+    }
+
+    /// Map the core's runs onto this file's `Run`.
+    ///
+    /// Shared by `runs(in:)` and by `AppcastItem`, which gets its runs inside
+    /// the blocks of `releaseNotesParse` rather than by parsing a fragment of
+    /// its own — so the `URL(string:)` step, and the decision not to touch the
+    /// href before it, happen in exactly one place.
+    static func runs(from coreRuns: [HwRun]) -> [Run] {
+        coreRuns.map { run in
             var style: Style = []
             if run.bold { style.insert(.bold) }
             if run.italic { style.insert(.italic) }

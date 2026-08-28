@@ -1196,6 +1196,10 @@ static class _UniFFILib {
     
     
     
+    
+    
+    
+    
 
     static _UniFFILib() {
         _UniFFILib.uniffiCheckContractApiVersion();
@@ -1993,11 +1997,19 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_release_notes_parse(RustBuffer @html,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_release_notes_parse_inline(RustBuffer @html,sbyte @collapseWhitespace,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_release_notes_plain_text(RustBuffer @html,sbyte @collapseWhitespace,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_release_notes_split_blocks(RustBuffer @html,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -3037,11 +3049,19 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_release_notes_parse(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_release_notes_parse_inline(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_release_notes_plain_text(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_release_notes_split_blocks(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -4277,6 +4297,12 @@ static class _UniFFILib {
             }
         }
         {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_release_notes_parse();
+            if (checksum != 11115) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_release_notes_parse` checksum `11115`, library returned `{checksum}`");
+            }
+        }
+        {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_release_notes_parse_inline();
             if (checksum != 37012) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_release_notes_parse_inline` checksum `37012`, library returned `{checksum}`");
@@ -4286,6 +4312,12 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_release_notes_plain_text();
             if (checksum != 10264) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_release_notes_plain_text` checksum `10264`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_release_notes_split_blocks();
+            if (checksum != 45325) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_release_notes_split_blocks` checksum `45325`, library returned `{checksum}`");
             }
         }
         {
@@ -5728,6 +5760,45 @@ class FfiConverterTypeHwAudioSignalSummary: FfiConverterRustBuffer<HwAudioSignal
 
 
 /// <summary>
+/// One block-level element of a release note, already split into styled runs.
+/// Mirrors `hw_releasenotes::Block`.
+///
+/// The runs sit inside the block rather than in a parallel sequence: issue #284
+/// names `Vec<Vec<Run>>` as the shape to avoid, because nothing in it says which
+/// inner sequence is the heading, and both heads had to re-derive that from
+/// position.
+/// </summary>
+internal record HwBlock (
+    HwBlockKind @kind, 
+    List<HwRun> @runs
+) {
+}
+
+class FfiConverterTypeHwBlock: FfiConverterRustBuffer<HwBlock> {
+    public static FfiConverterTypeHwBlock INSTANCE = new FfiConverterTypeHwBlock();
+
+    public override HwBlock Read(BigEndianStream stream) {
+        return new HwBlock(
+            @kind: FfiConverterTypeHwBlockKind.INSTANCE.Read(stream),
+            @runs: FfiConverterSequenceTypeHwRun.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwBlock value) {
+        return 0
+            + FfiConverterTypeHwBlockKind.INSTANCE.AllocationSize(value.@kind)
+            + FfiConverterSequenceTypeHwRun.INSTANCE.AllocationSize(value.@runs);
+    }
+
+    public override void Write(HwBlock value, BigEndianStream stream) {
+            FfiConverterTypeHwBlockKind.INSTANCE.Write(value.@kind, stream);
+            FfiConverterSequenceTypeHwRun.INSTANCE.Write(value.@runs, stream);
+    }
+}
+
+
+
+/// <summary>
 /// The verdict on one custom endpoint. Mirrors `l::EndpointVerdict`.
 ///
 /// `url` is the single check a runtime caller needs: **empty means do not call
@@ -6559,6 +6630,46 @@ class FfiConverterTypeHwPttTransition: FfiConverterRustBuffer<HwPttTransition> {
             FfiConverterTypeHwPttState.INSTANCE.Write(value.@to, stream);
             FfiConverterTypeHwPttReason.INSTANCE.Write(value.@reason, stream);
             FfiConverterOptionalUInt64.INSTANCE.Write(value.@elapsedMs, stream);
+    }
+}
+
+
+
+/// <summary>
+/// A release note as the update cards render it. Mirrors
+/// `hw_releasenotes::ReleaseNote`.
+/// </summary>
+/// <param name="title">
+/// The heading above the bullet list, or `None` when the note has none.
+/// </param>
+internal record HwReleaseNote (
+    /// <summary>
+    /// The heading above the bullet list, or `None` when the note has none.
+    /// </summary>
+    HwBlock? @title, 
+    List<HwBlock> @bullets
+) {
+}
+
+class FfiConverterTypeHwReleaseNote: FfiConverterRustBuffer<HwReleaseNote> {
+    public static FfiConverterTypeHwReleaseNote INSTANCE = new FfiConverterTypeHwReleaseNote();
+
+    public override HwReleaseNote Read(BigEndianStream stream) {
+        return new HwReleaseNote(
+            @title: FfiConverterOptionalTypeHwBlock.INSTANCE.Read(stream),
+            @bullets: FfiConverterSequenceTypeHwBlock.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwReleaseNote value) {
+        return 0
+            + FfiConverterOptionalTypeHwBlock.INSTANCE.AllocationSize(value.@title)
+            + FfiConverterSequenceTypeHwBlock.INSTANCE.AllocationSize(value.@bullets);
+    }
+
+    public override void Write(HwReleaseNote value, BigEndianStream stream) {
+            FfiConverterOptionalTypeHwBlock.INSTANCE.Write(value.@title, stream);
+            FfiConverterSequenceTypeHwBlock.INSTANCE.Write(value.@bullets, stream);
     }
 }
 
@@ -8592,6 +8703,43 @@ class FfiConverterTypeHwAudioFraming : FfiConverterRustBuffer<HwAudioFraming>{
             default:
                 throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwAudioFraming.Write()", value));
         }
+    }
+}
+
+
+
+
+
+
+
+/// <summary>
+/// What a block is for. Mirrors `hw_releasenotes::BlockKind`.
+/// </summary>
+internal enum HwBlockKind: int {
+    
+    Heading,
+    Bullet,
+    Paragraph
+}
+
+class FfiConverterTypeHwBlockKind: FfiConverterRustBuffer<HwBlockKind> {
+    public static FfiConverterTypeHwBlockKind INSTANCE = new FfiConverterTypeHwBlockKind();
+
+    public override HwBlockKind Read(BigEndianStream stream) {
+        var value = stream.ReadInt() - 1;
+        if (Enum.IsDefined(typeof(HwBlockKind), value)) {
+            return (HwBlockKind)value;
+        } else {
+            throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwBlockKind.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(HwBlockKind value) {
+        return 4;
+    }
+
+    public override void Write(HwBlockKind value, BigEndianStream stream) {
+        stream.WriteInt((int)value + 1);
     }
 }
 
@@ -10860,6 +11008,37 @@ class FfiConverterOptionalString: FfiConverterRustBuffer<string?> {
 
 
 
+class FfiConverterOptionalTypeHwBlock: FfiConverterRustBuffer<HwBlock?> {
+    public static FfiConverterOptionalTypeHwBlock INSTANCE = new FfiConverterOptionalTypeHwBlock();
+
+    public override HwBlock? Read(BigEndianStream stream) {
+        if (stream.ReadByte() == 0) {
+            return null;
+        }
+        return FfiConverterTypeHwBlock.INSTANCE.Read(stream);
+    }
+
+    public override int AllocationSize(HwBlock? value) {
+        if (value == null) {
+            return 1;
+        } else {
+            return 1 + FfiConverterTypeHwBlock.INSTANCE.AllocationSize((HwBlock)value);
+        }
+    }
+
+    public override void Write(HwBlock? value, BigEndianStream stream) {
+        if (value == null) {
+            stream.WriteByte(0);
+        } else {
+            stream.WriteByte(1);
+            FfiConverterTypeHwBlock.INSTANCE.Write((HwBlock)value, stream);
+        }
+    }
+}
+
+
+
+
 class FfiConverterOptionalTypeHwModeIdentity: FfiConverterRustBuffer<HwModeIdentity?> {
     public static FfiConverterOptionalTypeHwModeIdentity INSTANCE = new FfiConverterOptionalTypeHwModeIdentity();
 
@@ -11402,6 +11581,48 @@ class FfiConverterSequenceTypeHeader: FfiConverterRustBuffer<List<Header>> {
 
         stream.WriteInt(value.Count);
         var writerFn = FfiConverterTypeHeader.INSTANCE.Write;
+        value.ForEach(item => writerFn(item, stream));
+    }
+}
+
+
+
+
+class FfiConverterSequenceTypeHwBlock: FfiConverterRustBuffer<List<HwBlock>> {
+    public static FfiConverterSequenceTypeHwBlock INSTANCE = new FfiConverterSequenceTypeHwBlock();
+
+    public override List<HwBlock> Read(BigEndianStream stream) {
+        var length = stream.ReadInt();
+        var result = new List<HwBlock>(length);
+        var readFn = FfiConverterTypeHwBlock.INSTANCE.Read;
+        for (int i = 0; i < length; i++) {
+            result.Add(readFn(stream));
+        }
+        return result;
+    }
+
+    public override int AllocationSize(List<HwBlock> value) {
+        var sizeForLength = 4;
+
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            return sizeForLength;
+        }
+
+        var allocationSizeFn = FfiConverterTypeHwBlock.INSTANCE.AllocationSize;
+        var sizeForItems = value.Sum(item => allocationSizeFn(item));
+        return sizeForLength + sizeForItems;
+    }
+
+    public override void Write(List<HwBlock> value, BigEndianStream stream) {
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            stream.WriteInt(0);
+            return;
+        }
+
+        stream.WriteInt(value.Count);
+        var writerFn = FfiConverterTypeHwBlock.INSTANCE.Write;
         value.ForEach(item => writerFn(item, stream));
     }
 }
@@ -13994,6 +14215,20 @@ internal static class HyperwhisperCoreMethods {
 
 
     /// <summary>
+    /// A release note split into its heading and its bullets — the release-notes
+    /// cards' view, and the single source of truth for the title rule (decision (c)
+    /// of #284: the first `<h2>` case-insensitively, else the content before the
+    /// list).
+    /// </summary>
+    public static HwReleaseNote ReleaseNotesParse(string @html) {
+        return FfiConverterTypeHwReleaseNote.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_release_notes_parse(FfiConverterString.INSTANCE.Lower(@html), ref _status)
+));
+    }
+
+
+    /// <summary>
     /// Split a release-notes fragment into styled runs.
     ///
     /// `collapse_whitespace` false keeps the fragment's own line breaks, for callers
@@ -14016,6 +14251,21 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterString.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_release_notes_plain_text(FfiConverterString.INSTANCE.Lower(@html), FfiConverterBoolean.INSTANCE.Lower(@collapseWhitespace), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Every block of a release note, in document order — the update dialog's view.
+    ///
+    /// A note with no block markup at all falls back to one block per line, so a
+    /// plain-text changelog still renders as a list. Each line keeps its own markup
+    /// and is parsed exactly once here; see `hw_releasenotes::split_blocks`.
+    /// </summary>
+    public static List<HwBlock> ReleaseNotesSplitBlocks(string @html) {
+        return FfiConverterSequenceTypeHwBlock.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_release_notes_split_blocks(FfiConverterString.INSTANCE.Lower(@html), ref _status)
 ));
     }
 

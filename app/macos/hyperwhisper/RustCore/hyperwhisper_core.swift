@@ -1888,6 +1888,81 @@ public func FfiConverterTypeHwAudioSignalSummary_lower(_ value: HwAudioSignalSum
 
 
 /**
+ * One block-level element of a release note, already split into styled runs.
+ * Mirrors `hw_releasenotes::Block`.
+ *
+ * The runs sit inside the block rather than in a parallel sequence: issue #284
+ * names `Vec<Vec<Run>>` as the shape to avoid, because nothing in it says which
+ * inner sequence is the heading, and both heads had to re-derive that from
+ * position.
+ */
+public struct HwBlock {
+    public var kind: HwBlockKind
+    public var runs: [HwRun]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(kind: HwBlockKind, runs: [HwRun]) {
+        self.kind = kind
+        self.runs = runs
+    }
+}
+
+
+
+extension HwBlock: Equatable, Hashable {
+    public static func ==(lhs: HwBlock, rhs: HwBlock) -> Bool {
+        if lhs.kind != rhs.kind {
+            return false
+        }
+        if lhs.runs != rhs.runs {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(kind)
+        hasher.combine(runs)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwBlock: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwBlock {
+        return
+            try HwBlock(
+                kind: FfiConverterTypeHwBlockKind.read(from: &buf), 
+                runs: FfiConverterSequenceTypeHwRun.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwBlock, into buf: inout [UInt8]) {
+        FfiConverterTypeHwBlockKind.write(value.kind, into: &buf)
+        FfiConverterSequenceTypeHwRun.write(value.runs, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwBlock_lift(_ buf: RustBuffer) throws -> HwBlock {
+    return try FfiConverterTypeHwBlock.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwBlock_lower(_ value: HwBlock) -> RustBuffer {
+    return FfiConverterTypeHwBlock.lower(value)
+}
+
+
+/**
  * The verdict on one custom endpoint. Mirrors `l::EndpointVerdict`.
  *
  * `url` is the single check a runtime caller needs: **empty means do not call
@@ -3421,6 +3496,82 @@ public func FfiConverterTypeHwPttTransition_lift(_ buf: RustBuffer) throws -> Hw
 #endif
 public func FfiConverterTypeHwPttTransition_lower(_ value: HwPttTransition) -> RustBuffer {
     return FfiConverterTypeHwPttTransition.lower(value)
+}
+
+
+/**
+ * A release note as the update cards render it. Mirrors
+ * `hw_releasenotes::ReleaseNote`.
+ */
+public struct HwReleaseNote {
+    /**
+     * The heading above the bullet list, or `None` when the note has none.
+     */
+    public var title: HwBlock?
+    public var bullets: [HwBlock]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The heading above the bullet list, or `None` when the note has none.
+         */title: HwBlock?, bullets: [HwBlock]) {
+        self.title = title
+        self.bullets = bullets
+    }
+}
+
+
+
+extension HwReleaseNote: Equatable, Hashable {
+    public static func ==(lhs: HwReleaseNote, rhs: HwReleaseNote) -> Bool {
+        if lhs.title != rhs.title {
+            return false
+        }
+        if lhs.bullets != rhs.bullets {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(title)
+        hasher.combine(bullets)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwReleaseNote: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwReleaseNote {
+        return
+            try HwReleaseNote(
+                title: FfiConverterOptionTypeHwBlock.read(from: &buf), 
+                bullets: FfiConverterSequenceTypeHwBlock.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwReleaseNote, into buf: inout [UInt8]) {
+        FfiConverterOptionTypeHwBlock.write(value.title, into: &buf)
+        FfiConverterSequenceTypeHwBlock.write(value.bullets, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwReleaseNote_lift(_ buf: RustBuffer) throws -> HwReleaseNote {
+    return try FfiConverterTypeHwReleaseNote.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwReleaseNote_lower(_ value: HwReleaseNote) -> RustBuffer {
+    return FfiConverterTypeHwReleaseNote.lower(value)
 }
 
 
@@ -6970,6 +7121,80 @@ extension HwAudioFraming: Equatable, Hashable {}
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
+ * What a block is for. Mirrors `hw_releasenotes::BlockKind`.
+ */
+
+public enum HwBlockKind {
+    
+    case heading
+    case bullet
+    case paragraph
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwBlockKind: FfiConverterRustBuffer {
+    typealias SwiftType = HwBlockKind
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwBlockKind {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .heading
+        
+        case 2: return .bullet
+        
+        case 3: return .paragraph
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: HwBlockKind, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .heading:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .bullet:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .paragraph:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwBlockKind_lift(_ buf: RustBuffer) throws -> HwBlockKind {
+    return try FfiConverterTypeHwBlockKind.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwBlockKind_lower(_ value: HwBlockKind) -> RustBuffer {
+    return FfiConverterTypeHwBlockKind.lower(value)
+}
+
+
+
+extension HwBlockKind: Equatable, Hashable {}
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
  * The rule that failed. Mirrors `l::EndpointIssue`.
  */
 
@@ -10103,6 +10328,30 @@ fileprivate struct FfiConverterOptionString: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeHwBlock: FfiConverterRustBuffer {
+    typealias SwiftType = HwBlock?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeHwBlock.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeHwBlock.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeHwModeIdentity: FfiConverterRustBuffer {
     typealias SwiftType = HwModeIdentity?
 
@@ -10505,6 +10754,31 @@ fileprivate struct FfiConverterSequenceTypeHeader: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeHeader.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeHwBlock: FfiConverterRustBuffer {
+    typealias SwiftType = [HwBlock]
+
+    public static func write(_ value: [HwBlock], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeHwBlock.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [HwBlock] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [HwBlock]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeHwBlock.read(from: &buf))
         }
         return seq
     }
@@ -12706,6 +12980,19 @@ public func pttStep(state: HwPttMachineState, event: HwPttEvent, nowMs: UInt64, 
 })
 }
 /**
+ * A release note split into its heading and its bullets — the release-notes
+ * cards' view, and the single source of truth for the title rule (decision (c)
+ * of #284: the first `<h2>` case-insensitively, else the content before the
+ * list).
+ */
+public func releaseNotesParse(html: String) -> HwReleaseNote {
+    return try!  FfiConverterTypeHwReleaseNote.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_release_notes_parse(
+        FfiConverterString.lower(html),$0
+    )
+})
+}
+/**
  * Split a release-notes fragment into styled runs.
  *
  * `collapse_whitespace` false keeps the fragment's own line breaks, for callers
@@ -12729,6 +13016,20 @@ public func releaseNotesPlainText(html: String, collapseWhitespace: Bool) -> Str
     uniffi_hyperwhisper_core_fn_func_release_notes_plain_text(
         FfiConverterString.lower(html),
         FfiConverterBool.lower(collapseWhitespace),$0
+    )
+})
+}
+/**
+ * Every block of a release note, in document order — the update dialog's view.
+ *
+ * A note with no block markup at all falls back to one block per line, so a
+ * plain-text changelog still renders as a list. Each line keeps its own markup
+ * and is parsed exactly once here; see `hw_releasenotes::split_blocks`.
+ */
+public func releaseNotesSplitBlocks(html: String) -> [HwBlock] {
+    return try!  FfiConverterSequenceTypeHwBlock.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_release_notes_split_blocks(
+        FfiConverterString.lower(html),$0
     )
 })
 }
@@ -13517,10 +13818,16 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_ptt_step() != 64268) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_hyperwhisper_core_checksum_func_release_notes_parse() != 11115) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_hyperwhisper_core_checksum_func_release_notes_parse_inline() != 37012) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_release_notes_plain_text() != 10264) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_release_notes_split_blocks() != 45325) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_remove_filler_words() != 28431) {

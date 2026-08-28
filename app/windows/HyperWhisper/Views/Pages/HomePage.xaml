@@ -260,22 +260,16 @@
                                                    VerticalAlignment="Center" Margin="12,0,0,0"/>
                                     </StackPanel>
 
-                                    <!-- Release title (<b>/<i> in the feed render as real emphasis) -->
-                                    <TextBlock utilities:InlineHtmlText.Source="{Binding ReleaseTitle}"
+                                    <!-- Release title (<b>/<i> in the feed render as real emphasis).
+                                         Runs, not Source: AppcastItem parsed the note once when it
+                                         was built, so nothing here re-parses it per layout pass.
+                                         HasReleaseTitle replaces the old DataTrigger on Value="" —
+                                         a list of runs is never equal to the empty string. -->
+                                    <TextBlock utilities:InlineHtmlText.Runs="{Binding ReleaseTitle}"
                                                FontSize="13" FontWeight="Medium"
                                                Foreground="{DynamicResource TextPrimaryBrush}"
-                                               TextWrapping="Wrap" Margin="0,0,0,0">
-                                        <TextBlock.Style>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="Visibility" Value="Visible"/>
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding ReleaseTitle}" Value="">
-                                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </TextBlock.Style>
-                                    </TextBlock>
+                                               TextWrapping="Wrap" Margin="0,0,0,0"
+                                               Visibility="{Binding HasReleaseTitle, Converter={StaticResource BoolToVisibilityConverter}}"/>
 
                                     <!-- Bullet points -->
                                     <ItemsControl ItemsSource="{Binding BulletPoints}" Margin="0,12,0,0">
@@ -285,7 +279,7 @@
                                                     <TextBlock Text="&#x2022;" FontSize="12"
                                                                Foreground="{DynamicResource TextSecondaryBrush}"
                                                                Margin="0,0,6,0" VerticalAlignment="Top"/>
-                                                    <TextBlock utilities:InlineHtmlText.Source="{Binding}"
+                                                    <TextBlock utilities:InlineHtmlText.Runs="{Binding}"
                                                                FontSize="12"
                                                                Foreground="{DynamicResource TextSecondaryBrush}"
                                                                TextWrapping="Wrap"/>

@@ -12,6 +12,13 @@
 //! that grows a `<span>` degrades to plain text instead of leaking markup into
 //! the UI.
 //!
+//! There are two layers. The **inline** layer ([`parse_inline`], [`plain_text`])
+//! turns a fragment into styled [`Run`]s. The **block** layer
+//! ([`split_blocks`], [`parse_release_note`]) sits on top of it and turns a
+//! whole note into `<h2>`/`<h3>`, `<li>` and `<p>` [`Block`]s — replacing three
+//! separate `<li>` extractors, two of them regex-based, that had already drifted
+//! apart from each other. See `block.rs` for which behaviour won each time.
+//!
 //! Only `http`, `https` and `mailto` links are carried through. A `javascript:`
 //! or `data:` href keeps its label and loses the link, so a compromised feed
 //! cannot turn a release note into something the user can click into running
@@ -65,8 +72,10 @@
     allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing)
 )]
 
+mod block;
 mod entity;
 mod inline;
 mod tag;
 
+pub use block::{parse_release_note, split_blocks, Block, BlockKind, ReleaseNote};
 pub use inline::{parse_inline, plain_text, Run};

@@ -1,4 +1,4 @@
-//! Fuzz both `hw-releasenotes` entry points over arbitrary input.
+//! Fuzz every `hw-releasenotes` entry point over arbitrary input.
 //!
 //! What this proves: the parser never panics. That matters more here than in
 //! most crates, because the shared-core release profile sets `panic = "abort"`
@@ -57,4 +57,48 @@ fuzz_target!(|data: &[u8]| {
             }
         }
     }
+
+    // The block layer, over the same input. It scans tags itself rather than
+    // going through `parse_inline`, so it has its own index arithmetic and its
+    // own way to fail to terminate — a `<li>` whose close tag is never found
+    // must still advance the cursor.
+    let blocks = hw_releasenotes::split_blocks(&html);
+    let note = hw_releasenotes::parse_release_note(&html);
+
+    // A block is never empty. Both entry points drop a block that carries no
+    // text, which is what keeps "<li>  </li>" out of a bullet list — and both
+    // heads render a block without checking, so an empty one is a blank row.
+    let every_block = blocks
+        .iter()
+        .chain(note.title.iter())
+        .chain(note.bullets.iter());
+
+    for block in every_block {
+        assert!(!block.runs.is_empty(), "empty block from {html:?}");
+        for run in &block.runs {
+            assert!(!run.text.is_empty());
+            if let Some(link) = &run.link {
+                let scheme = link
+                    .split_once(':')
+                    .map(|(head, _)| head.to_ascii_lowercase())
+                    .unwrap_or_default();
+                assert!(
+                    matches!(scheme.as_str(), "http" | "https" | "mailto"),
+                    "link escaped the scheme allowlist: {link:?}"
+                );
+            }
+        }
+    }
+
+    // Only `<li>` becomes a bullet, and `parse_release_note` never falls back to
+    // the line splitter — a card with no list renders its title and nothing
+    // else, rather than repeating the whole note underneath itself.
+    assert!(note
+        .bullets
+        .iter()
+        .all(|block| block.kind == hw_releasenotes::BlockKind::Bullet));
+    assert!(note
+        .title
+        .iter()
+        .all(|block| block.kind == hw_releasenotes::BlockKind::Heading));
 });
