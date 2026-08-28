@@ -141,35 +141,150 @@ final class AppLogger {
     }
     
     /// Logs Core Data operations
-    static func logCoreData(_ operation: CoreDataOperation, error: Error? = nil) {
+    ///
+    /// SENTRY HYPERWHISPER-VC / HYPERWHISPER-VB ("Core Data save failed"): the
+    /// save report used to carry two tags and a raw `\(error)` dump. Two things
+    /// were wrong with that.
+    ///
+    /// 1. It could not be diagnosed. `operation=save` does not say which entity,
+    ///    which attribute, which Cocoa code, or which of the eight save sites
+    ///    failed, so 19 identical-looking events described a fault nobody could
+    ///    name. `CoreDataSaveDiagnostics` supplies all four, as tags, so they
+    ///    are searchable and groupable.
+    /// 2. `\(error)` inlines `NSValidationErrorObject` — the failing row's own
+    ///    attribute values, transcript text included — into the unified log, and
+    ///    from there into the `recent_logs` Sentry extra. The line sanitiser
+    ///    works one line at a time and an `NSError` description is many lines,
+    ///    so the dump survived it. The raw interpolation is gone.
+    ///
+    /// - Parameters:
+    ///   - operation: which Core Data operation; for `.save`, which call site and
+    ///     which context.
+    ///   - error: the failure, if there was one.
+    ///   - metadata: extra privacy-safe context, e.g. `contextShape`.
+    static func logCoreData(_ operation: CoreDataOperation, error: Error? = nil, metadata: [String: Any] = [:]) {
         switch operation {
-        case .save:
-            if let error = error {
-                coreData.error("Failed to save context: \(error, privacy: .public)")
-                if isErrorLoggingEnabled { SentryService.capture(error: error, message: "Core Data save failed", tags: ["category": "coredata", "operation": "save"]) }
-            } else {
-                coreData.debug("Context saved successfully")
+        case .save(let site, let contextKey):
+            guard let error = error else {
+                coreData.debug("Context saved successfully · site=\(site, privacy: .public)")
+                CoreDataSaveDiagnostics.recordSuccess(contextKey: contextKey)
+                return
             }
+            let nsError = error as NSError
+            let streak = CoreDataSaveDiagnostics.recordFailure(contextKey: contextKey)
+            let summary = CoreDataSaveDiagnostics.summary(for: nsError)
+            // The pending counts go in the LOCAL line too. They are the signal
+            // that separates a poisoned context from one bad write, and a
+            // support engineer reading `log show` has no Sentry to fall back on
+            // — nor does a user who left error reporting switched off.
+            let shape = metadata
+                .sorted { $0.key < $1.key }
+                .map { "\($0.key)=\($0.value)" }
+                .joined(separator: " ")
+            coreData.error("Failed to save context · site=\(site, privacy: .public) · context=\(contextKey, privacy: .public) · \(summary, privacy: .public) · consecutiveFailures=\(streak.failureCount, privacy: .public) · sinceFirstFailureMs=\(streak.sinceFirstFailureMs, privacy: .public) · \(shape, privacy: .public)")
+            guard isErrorLoggingEnabled else { return }
+            var extras = CoreDataSaveDiagnostics.metadata(for: nsError)
+            extras["save_site"] = site
+            extras["save_context"] = contextKey
+            extras["consecutive_failures"] = streak.failureCount
+            extras["since_first_failure_ms"] = streak.sinceFirstFailureMs
+            for (key, value) in metadata { extras[key] = value }
+            SentryService.capture(
+                error: error,
+                message: "Core Data save failed",
+                extras: extras,
+                tags: coreDataTags(site: site, operation: "save", error: nsError, metadata: extras),
+                // GROUPING: the default fingerprint is `{{ default }}` + message,
+                // and `{{ default }}` is the stack trace. That split one fault
+                // across HYPERWHISPER-VB and HYPERWHISPER-VC while merging
+                // genuinely different validation failures into each. Group by
+                // what the fault IS instead.
+                fingerprint: [
+                    "core-data-save-failed",
+                    site,
+                    CoreDataSaveDiagnostics.codeName(nsError.code),
+                    extras["coredata_entity"] as? String ?? "unknown"
+                ],
+                // The structured extras above ARE the diagnosis now. Dropping the
+                // blob removes the only path by which a row's values reached
+                // Sentry, and takes a blocking `log show` subprocess off a save
+                // that may be failing on the main thread (HYPERWHISPER-F7).
+                includeRecentLogs: false
+            )
         case .fetch(let entity, let count):
             coreData.debug("Fetched \(count, privacy: .public) \(entity, privacy: .public) objects")
         case .delete(let entity):
-            coreData.info("Deleted \(entity, privacy: .public)")
+            // A delete that FAILED used to log "Deleted <entity>" at info: the
+            // error argument was accepted and then dropped on the floor, so the
+            // unified log recorded a failure as a success.
+            if let error = error {
+                let summary = CoreDataSaveDiagnostics.summary(for: error as NSError)
+                coreData.error("Failed to delete \(entity, privacy: .public) · \(summary, privacy: .public)")
+            } else {
+                coreData.info("Deleted \(entity, privacy: .public)")
+            }
         case .migration(let from, let to):
             coreData.info("Migrating from v\(from, privacy: .public) to v\(to, privacy: .public)")
         case .storeLoad:
             if let error = error {
-                coreData.fault("Failed to load persistent store: \(error, privacy: .public)")
+                let nsError = error as NSError
+                // Same dump as the save path. A store-load `NSError` carries the
+                // store URL, which is under the user's home directory.
+                let summary = CoreDataSaveDiagnostics.summary(for: nsError)
+                coreData.fault("Failed to load persistent store · \(summary, privacy: .public)")
                 // Always send critical store load errors to Sentry
-                SentryService.capture(error: error, message: "Failed to load persistent store", tags: ["category": "coredata", "operation": "storeLoad", "severity": "critical"])
+                var extras = CoreDataSaveDiagnostics.metadata(for: nsError)
+                for (key, value) in metadata { extras[key] = value }
+                SentryService.capture(
+                    error: error,
+                    message: "Failed to load persistent store",
+                    extras: extras,
+                    tags: coreDataTags(site: "store_load", operation: "storeLoad", error: nsError, metadata: extras)
+                        .merging(["severity": "critical"]) { current, _ in current },
+                    includeRecentLogs: false
+                )
             } else {
                 coreData.info("Persistent store loaded")
             }
         }
     }
-    
+
+    /// Tags for a Core Data failure. Every value is a fixed slug, an entity name
+    /// or an attribute name — all of them identifiers from the app's own model,
+    /// so cardinality stays bounded and nothing user-written is indexed.
+    private static func coreDataTags(
+        site: String,
+        operation: String,
+        error: NSError,
+        metadata: [String: Any]
+    ) -> [String: String] {
+        var tags = [
+            "category": "coredata",
+            "operation": operation,
+            "save_site": site,
+            "coredata_code": String(error.code),
+            "coredata_error": CoreDataSaveDiagnostics.codeName(error.code)
+        ]
+        if let contextKey = metadata["save_context"] as? String {
+            tags["save_context"] = contextKey
+        }
+        if let entity = metadata["coredata_entity"] as? String {
+            tags["coredata_entity"] = entity
+        }
+        if let attribute = metadata["coredata_attribute"] as? String {
+            tags["coredata_attribute"] = attribute
+        }
+        return tags
+    }
+
     /// Core Data operations
     enum CoreDataOperation {
-        case save
+        /// `site` names the call site as a fixed slug — eight of them funnelled
+        /// into one Sentry issue with no way to tell them apart. `contextKey`
+        /// names the context they save, because seven of those eight sites
+        /// commit the SAME `viewContext` and the failure streak belongs to the
+        /// context, not to the caller.
+        case save(site: String, contextKey: String)
         case fetch(entity: String, count: Int)
         case delete(entity: String)
         case migration(from: String, to: String)
