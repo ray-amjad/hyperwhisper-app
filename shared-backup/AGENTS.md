@@ -21,8 +21,10 @@ Both platforms export to the same universal JSON format. On import, each platfor
 
 > **Current cross-platform reality (as of 2026-06).** BOTH platforms now read/write the **full**
 > universal v2 format — settings, modes, and vocabulary. The mapping tables below describe a live
-> code path on each side (macOS routes its 7 native settings categories through the Rust shared
-> core's `hw-backup` adapter; Windows maps its EF Core entities directly). macOS's full universal
+> code path on each side: **all three platforms now build the `settings` block in the Rust shared
+> core's `hw-backup` adapter** (macOS through its 7→5 category map, Windows and Linux through the
+> flat `(native, universal)` pairs tables below). Modes and vocabulary are still mapped natively on
+> each head, apart from the shared cloud-routing normalization. macOS's full universal
 > export/import ships behind the `backup.useUniversalV2Export` flag (default OFF) while it beds in; a
 > **vocabulary-only** `.hwbackup.json` (only the `vocabulary` key present — see
 > `examples/vocab-only.hwbackup.json`) remains the always-on, flag-independent interchange unit, and
@@ -40,24 +42,80 @@ key automatically round-trips into the correct category instead of drifting. See
 `examples/macos-export.hwbackup.json` for the exact shape, and `shared-core-rs/crates/hw-backup`
 (`mapping.rs`: `macos_settings_to_universal` / `universal_to_macos_settings`) for the adapter.
 
-| Universal Key | macOS Source | Windows Source |
+**All three platforms build this block in the shared core** (`hw-backup` `mapping.rs`). macOS uses
+the 7→5 category adapter above. Windows and Linux use flat adapters driven by `(native, universal)`
+PAIRS tables, because their native settings are flat:
+
+| Universal category | Windows table | Linux table |
 |---|---|---|
-| `general.launchMinimized` | `GeneralSettingsManager.launchMinimized` | `SettingsData.LaunchMinimized` |
-| `general.showRecordingWindow` | `GeneralSettingsManager.showRecordingWindow` | `SettingsData.ShowRecordingWindow` |
-| `general.checkForUpdatesAutomatically` | `GeneralSettingsManager.checkForUpdatesAutomatically` | `SettingsData.CheckForUpdatesAutomatically` |
-| `general.enableErrorLogging` | `GeneralSettingsManager.enableErrorLogging` | `SettingsData.EnableErrorLogging` |
-| `general.shareAnonymousSpeedData` | `GeneralSettingsManager.shareAnonymousSpeedData` | `SettingsData.ShareAnonymousSpeedData` |
-| `general.enableSoundEffects` | `AudioSettingsManager.enableSoundEffects` | `SettingsData.EnableSoundEffects` |
-| `textOutput.pasteResultText` | `SettingsManager.pasteResultText` | `SettingsData.AutoPasteEnabled` |
-| `textOutput.removeFillerWords` | `SettingsManager.removeFillerWords` | `SettingsData.RemoveFillerWords` |
-| `textOutput.restoreClipboardAfterPaste` | `SettingsManager.restoreClipboardAfterPaste` | `SettingsData.RestoreClipboardAfterPaste` |
-| `textOutput.hideFromClipboardHistory` | `SettingsManager.hideFromClipboardHistory` | `SettingsData.HideFromClipboardHistory` |
-| `textOutput.clipboardRestoreDelaySeconds` | `SettingsManager.clipboardRestoreDelaySeconds` | `SettingsData.ClipboardRestoreDelaySeconds` |
-| `textOutput.autocapitalizeInsert` | `SettingsManager.autocapitalizeInsert` | `SettingsData.AutocapitalizeInsert` |
-| `textOutput.storeWordTimestamps` | `SettingsManager.storeWordTimestamps` | —; Linux maps `PortableSettingsService` `textOutput.storeWordTimestamps` (local Whisper word/segment timestamps) |
-| `storage.storeAsM4A` | `StorageSettingsManager.storeAsM4A` | `SettingsData.StoreAsM4A` |
-| `advanced.maxRecordingDuration` | `SettingsManager.maxRecordingDurationSeconds` (seconds, 0 = no limit; macOS treats the value `300` — the old never-exposed default — as unset on import) | `SettingsData.MaxRecordingDuration` |
-| `advanced.typingSpeedWPM` | — (HomeStatsBar `@AppStorage("homeStats.typingSpeedWPM")` — macOS keeps this device-local, not exported) | `SettingsData.TypingSpeedWPM` |
+| `general` | `WINDOWS_GENERAL_PAIRS` | `LINUX_GENERAL_PAIRS` |
+| `textOutput` | `WINDOWS_TEXT_OUTPUT_PAIRS` | `LINUX_TEXT_OUTPUT_PAIRS` |
+| `storage` | `WINDOWS_STORAGE_PAIRS` | `LINUX_STORAGE_PAIRS` |
+| `streaming` | `WINDOWS_STREAMING_PAIRS` | `LINUX_STREAMING_PAIRS` |
+| `advanced` | `WINDOWS_ADVANCED_PAIRS` | `LINUX_ADVANCED_PAIRS` |
+
+Windows needs PAIRS rather than macOS's bare key list because its native names diverge
+(`pasteResultText` ← `AutoPasteEnabled`, and all six `Streaming*`) and `settings.json` is
+**PascalCase** — `SettingsService.Save()` uses a plain `JsonSerializerOptions` with no naming policy.
+Windows' native values reach the core through `SettingsService.BuildBackupSettingsSnapshot()`, which
+carries ONLY the promoted keys — never `RecordingsFolder`, `LastSelectedMicrophone` or any other
+device-local value. The Linux tables are a near-identity map (`PortableSettingsService`'s dotted keys
+ARE the universal keys) plus the export DEFAULTS, which is what makes an untouched Linux profile
+export all 23 shared keys. **Adding a universal setting on Windows or Linux means adding a row to the
+matching table**, not editing a native mapper.
+
+| Universal Key | macOS Source | Windows Source (`WINDOWS_*_PAIRS` row → native) |
+|---|---|---|
+| `general.launchMinimized` | `GeneralSettingsManager.launchMinimized` | `WINDOWS_GENERAL_PAIRS` → `SettingsData.LaunchMinimized` |
+| `general.showRecordingWindow` | `GeneralSettingsManager.showRecordingWindow` | `WINDOWS_GENERAL_PAIRS` → `SettingsData.ShowRecordingWindow` |
+| `general.checkForUpdatesAutomatically` | `GeneralSettingsManager.checkForUpdatesAutomatically` | `WINDOWS_GENERAL_PAIRS` → `SettingsData.CheckForUpdatesAutomatically` |
+| `general.enableErrorLogging` | `GeneralSettingsManager.enableErrorLogging` | `WINDOWS_GENERAL_PAIRS` → `SettingsData.EnableErrorLogging` |
+| `general.shareAnonymousSpeedData` | `GeneralSettingsManager.shareAnonymousSpeedData` | `WINDOWS_GENERAL_PAIRS` → `SettingsData.ShareAnonymousSpeedData` |
+| `general.enableSoundEffects` | `AudioSettingsManager.enableSoundEffects` | `WINDOWS_GENERAL_PAIRS` → `SettingsData.EnableSoundEffects` |
+| `textOutput.pasteResultText` | `SettingsManager.pasteResultText` | `WINDOWS_TEXT_OUTPUT_PAIRS` → `SettingsData.AutoPasteEnabled` (the rename) |
+| `textOutput.removeFillerWords` | `SettingsManager.removeFillerWords` | `WINDOWS_TEXT_OUTPUT_PAIRS` → `SettingsData.RemoveFillerWords` |
+| `textOutput.restoreClipboardAfterPaste` | `SettingsManager.restoreClipboardAfterPaste` | `WINDOWS_TEXT_OUTPUT_PAIRS` → `SettingsData.RestoreClipboardAfterPaste` |
+| `textOutput.hideFromClipboardHistory` | `SettingsManager.hideFromClipboardHistory` | `WINDOWS_TEXT_OUTPUT_PAIRS` → `SettingsData.HideFromClipboardHistory` |
+| `textOutput.clipboardRestoreDelaySeconds` | `SettingsManager.clipboardRestoreDelaySeconds` | `WINDOWS_TEXT_OUTPUT_PAIRS` → `SettingsData.ClipboardRestoreDelaySeconds` (setter clamps to 1–60) |
+| `textOutput.autocapitalizeInsert` | `SettingsManager.autocapitalizeInsert` | `WINDOWS_TEXT_OUTPUT_PAIRS` → `SettingsData.AutocapitalizeInsert` |
+| `textOutput.storeWordTimestamps` | `SettingsManager.storeWordTimestamps` | **No pairs row and no native property, by design.** Preserved, not interpreted: `SettingsData.BackupUnknownSettings["textOutput"]["storeWordTimestamps"]` (see the unknown-key block below). Linux maps `PortableSettingsService` `textOutput.storeWordTimestamps` (local Whisper word/segment timestamps) |
+| `storage.storeAsM4A` | `StorageSettingsManager.storeAsM4A` | `WINDOWS_STORAGE_PAIRS` → `SettingsData.StoreAsM4A` |
+| `storage.keepAudioFiles` | `SettingsManager.keepAudioFiles` (macOS `advanced` category) | `WINDOWS_STORAGE_PAIRS` → `SettingsData.KeepAudioFiles` (default `true`). Windows PERSISTS and round-trips the value but does not yet act on it — retention on Windows runs off `autoDeleteEnabled` / `autoDeleteDaysOld`, and there is no Storage-page toggle. Before it existed the value was discarded outright |
+| `advanced.maxRecordingDuration` | `SettingsManager.maxRecordingDurationSeconds` (seconds, 0 = no limit; macOS treats the value `300` — the old never-exposed default — as unset on import) | `WINDOWS_ADVANCED_PAIRS` → `SettingsData.MaxRecordingDuration`, in seconds. **A backup may TIGHTEN this cap and can never loosen it** — see the table below |
+| `advanced.typingSpeedWPM` | — (HomeStatsBar `@AppStorage("homeStats.typingSpeedWPM")` — macOS keeps this device-local, not exported) | `WINDOWS_ADVANCED_PAIRS` → `SettingsData.TypingSpeedWPM` |
+
+**`advanced.maxRecordingDuration` is a SAFETY limit, so it is the one key an imported file cannot set
+freely.** Windows enforces a hard 20-minute ceiling (`MainViewModel.MaxRecordingDuration`), which is
+also its default. The rules below are applied in the shared core
+(`universal_to_windows_settings`, so all three bindings answer identically and
+`shared-conformance/backup-vectors.json` can pin them) and again in
+`SettingsService.MaxRecordingDurationSeconds`, so no writer — not even a hand-edited
+`settings.json` — can raise the ceiling:
+
+| Universal value (seconds) | Windows result |
+|---|---|
+| `300` — macOS's never-exposed legacy default | ABSENT: keep the live value, exactly as macOS does |
+| `<= 0` — macOS's "no limit" | ABSENT: Windows has no "off"; an unbounded recording is the failure mode the guard exists for |
+| `1`–`1200` | applied verbatim — TIGHTENING the cap is always allowed |
+| `> 1200` (Linux and macOS both default to `3600`) | clamped to `1200` |
+
+The universal `streaming` block is Windows- and Linux-only today — macOS does not export it. Its six
+Windows native properties are all separately named, which is why `WINDOWS_STREAMING_PAIRS` exists.
+`StreamingShortcut` is a `KeyboardShortcut`, not a scalar: it crosses as its `ToPersistedString()`
+form, and `FromPersistedString` stays native.
+
+| Universal Key | Windows Source (`WINDOWS_STREAMING_PAIRS` row → native) | Linux Source |
+|---|---|---|
+| `streaming.enabled` | `SettingsData.StreamingEnabled` | `streaming.enabled` |
+| `streaming.provider` | `SettingsData.StreamingProvider` (setter falls back to `hyperwhisperCloud` for an unknown value) | `streaming.provider` (stored verbatim) |
+| `streaming.language` | `SettingsData.StreamingLanguage` | `streaming.language` (stored verbatim) |
+| `streaming.deepgramModel` | `SettingsData.StreamingDeepgramModel` (setter collapses anything but `nova-3-medical` to `nova-3-general`) | `streaming.deepgramModel` (stored verbatim) |
+| `streaming.fastFormatting` | `SettingsData.StreamingFastFormatting` | `streaming.fastFormatting` |
+| `streaming.shortcut` | `SettingsData.StreamingShortcut` (persisted string; setter re-canonicalises it) | `streaming.shortcut` (stored verbatim) |
+
+The core renames and regroups; it never interprets a value. Every rewrite in the Windows column above
+happens in a `SettingsService` setter on import, exactly where it did before — which is why the same
+universal blob restores differently on Windows and on Linux.
 
 macOS-only shortcut settings live under `platformExtensions.macos.settings.shortcuts` (the
 category-keyed extension above) and round-trip losslessly through the universal v2 adapter:
@@ -168,9 +226,61 @@ survives a Windows round-trip. Linux slices obey the same rule. Storage: macOS
 over a stale preserved copy on re-export. A mac→v2→Windows→v2→mac trip retains the `windows` mode
 slice, and Linux-authored slices must likewise survive trips through either existing platform.
 
+**Foreign-slice passthrough, TOP LEVEL (all platforms).** The same rule applies to the backup's
+TOP-LEVEL `platformExtensions` map, not just the per-mode ones: on import each platform preserves
+every *other* platform's top-level slice and re-emits it on the next export, and its OWN slice —
+rebuilt from live settings — always overwrites a stale preserved copy. Until issue #288 this worked
+on **Linux only**: Windows' `BuildPlatformExtensions` returned `{"windows": …}` and nothing else, and
+macOS's `encodeBackupV2` built the map purely from the Rust core's settings record, which only ever
+holds `macos`. Both now preserve.
+
+| Platform | Storage | What it holds | Merged back in |
+|---|---|---|---|
+| macOS | `UserDefaults` key `backup.foreignPlatformExtensions` (raw JSON) | the non-`macos` slices only | `BackupManager.mergingForeignTopLevelExtensions(into:stored:)`, called from `encodeBackupV2` |
+| Windows | `SettingsData.BackupForeignPlatformExtensions` (raw JSON, `settings.json`) | the non-`windows` slices only | `UniversalBackupMapper.BuildPlatformExtensions` |
+| Linux | the `backup.platformExtensions` setting (`PortableSettingsService`) | the WHOLE imported map, including `linux` | `ApplicationBackupExport`, which overwrites the `linux` slice on the way out |
+
+The two storage strategies differ and that is fine — the observable contract is identical, and
+`shared-conformance/backup-vectors.json`'s `unknownKeyRoundTrip` rows record both. Capture is a
+REPLACE, never a merge, on every head: the store describes the LAST IMPORTED file, so a backup with
+no foreign slice CLEARS it. Merging would re-publish a slice from an unrelated file under a different
+user's export. macOS's `deepMerged(over:)` / `currentSettingsBaseline()` is a whole-blob apply of the
+seven macOS settings categories and knows nothing about this field — do not route it through there.
+
 **Unknown-key fidelity.** The shared core preserves any unknown top-level / settings-category /
 mode / vocabulary key verbatim through a parse → re-serialize round-trip (serde `flatten`), so a
-backup written by a newer build does not lose data when re-exported by an older one.
+backup written by a newer build does not lose data when re-exported by an older one. That is the
+CORE's guarantee; each head then needs somewhere to keep the keys between an import and the next
+export, because the DTO is discarded at the end of the import.
+
+On Windows that store is **`SettingsData.BackupUnknownSettings`** (raw JSON), a MIRROR of the
+universal `settings` tree so every key keeps its SECTION:
+
+```json
+{ "textOutput": { "storeWordTimestamps": true }, "someFutureSection": { "a": 1 } }
+```
+
+A key unknown inside a known section nests under that section's name; a whole unknown section sits at
+the top of the same object. That is unambiguous, because the five known section names are declared
+properties and therefore never reach the settings-root extension bag. On export the blob is
+re-attached to the typed DTOs' `[JsonExtensionData]` bags, so `System.Text.Json` emits each key at
+exactly its original nesting level — `textOutput.storeWordTimestamps` comes back **under
+`textOutput`, never at the document root**, which would be a schema violation. Unknown TOP-LEVEL keys
+ride separately in `SettingsData.BackupUnknownRootKeys`; `platformExtensions` is never among them
+because it has its own store above. **These are three separate fields with three shapes and three
+merge points — do not collapse them.**
+
+Two known gaps, named rather than papered over:
+
+- **Windows mode / vocabulary unknown keys are NOT persisted.** `UniversalMode` and
+  `UniversalVocabularyItem` carry the `[JsonExtensionData]` bag, so an unknown key survives the DTO,
+  but their homes are EF entities (`Data/Entities/Mode.cs`, `VocabularyItem`) and a store would need
+  a real EF migration — out of scope for #288. Settings keys, which is where
+  `storeWordTimestamps` lives, are fully covered.
+- **Linux drops unknown SETTINGS keys.** `ApplicationBackupExport.ApplySharedSettings` →
+  `CopyCategory` is a per-category ALLOWLIST, so an unknown key inside a known category and a whole
+  unknown category are both dropped on import. Linux's top-level `platformExtensions` passthrough is
+  unaffected. Fixing this was not in #288's scope.
 </important>
 
 <important if="you are adding or changing an API key provider">
@@ -205,7 +315,33 @@ One vendor can own more than one key. `gemini` is the legacy Gemini post-process
 | macOS | `app/macos/hyperwhisper/Managers/BackupManager.swift` | `app/macos/hyperwhisper/Models/BackupModels.swift` |
 | Windows | `app/windows/HyperWhisper/Services/BackupService.cs` + `Services/UniversalBackupMapper.cs` | `app/windows/HyperWhisper/Models/UniversalBackupModels.cs` |
 | Linux | Shared C# backup service/mapper (during the Linux port) | Shared C# universal backup models |
-| Shared core | `shared-core-rs/crates/hw-backup` — universal⇄records mapping, the macOS 7→5 settings adapter, lossless `extra` passthrough, and structural validation | `crates/hw-backup/src/records.rs` |
+| Shared core | `shared-core-rs/crates/hw-backup` — universal⇄records mapping, all three settings adapters (macOS 7→5 categories; Windows and Linux flat pairs tables), lossless `extra` passthrough, and structural validation | `crates/hw-backup/src/records.rs` |
 
 The shared core is sans-I/O: it parses, maps, and validates in memory; each platform owns reading and writing the `.hwbackup.json` bytes and persisting the resulting records.
+</important>
+
+<important if="you are changing a settings mapping table, the mode normalizer, or backup-vectors.json">
+
+`shared-conformance/backup-vectors.json` is the golden conformance file for this schema, and FOUR
+suites read it. Change one head and the other three fail, which is the point.
+
+| Suite | Runs | CI job |
+|---|---|---|
+| `shared-core-rs/crates/hw-core/tests/backup_vectors.rs` | every group except `unknownKeyRoundTrip`, straight off the FFI with no app around it | Shared Core Tests, Linux CI |
+| `app/macos/hyperwhisperTests/BackupConformanceVectorTests.swift` | `macosSettings` (macOS's own adapter) and `modeNormalization` (a binding check) | macOS CI |
+| `app/macos/hyperwhisperTests/BackupTopLevelExtensionsTests.swift` | the `macos` rows of `unknownKeyRoundTrip` | macOS CI |
+| `app/shared-dotnet/HyperWhisper.Backup.Application.Tests` | the Linux adapters, `macosSettings`, and the `linux` rows of `unknownKeyRoundTrip` | Linux CI, Windows CI |
+| `app/windows/HyperWhisper.SmokeTests` | `windowsSettings`, `modeNormalization` and the `windows` rows of `unknownKeyRoundTrip`, over the real `SettingsService` | Windows CI |
+
+Rules for the file itself:
+
+- The 132 `modeNormalization` rows are FROZEN. A row may be ADDED; an existing one may not move
+  without a deliberate behaviour change, and two suites assert the count.
+- A row pins VALUES, never JSON formatting. Every suite compares number-representation-insensitively,
+  so write `10` and not `10.0`.
+- A `modeNormalization` row must carry ONE `expected`. The per-head `expectedWindows` /
+  `expectedLinux` shape recorded a drift that phase 1b removed; re-introducing it is rejected.
+- `setterRewrittenNativeKeys` exempts a `windowsSettings` import key's VALUE from the core-only
+  suites, because the `SettingsService` setters own the final answer. It never exempts the key's
+  presence. Add one only with the setter that justifies it.
 </important>

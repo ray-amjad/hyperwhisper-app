@@ -20,6 +20,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.WebSockets;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Windows;
 using System.Windows.Input;
 using HyperWhisper.Data;
@@ -558,6 +559,365 @@ internal static class Program
                     Assert(CloudTranscriptionModels.GetModelsForProvider(provider).All(m => m.Id != oldId),
                         $"retired model {oldId} is still selectable");
                 }
+            });
+
+            // NATIVE CAPTURE (issue #277, phase 1a). Drives every
+            // shared-conformance/backup-vectors.json modeNormalization row through the
+            // SHIPPING Windows mode-import path — UniversalBackupMapper.MapToMode, which
+            // composes CloudSttCatalog.NormalizeCloudProvider, the core's
+            // MigrateCloudAccuracyTier / MigrateCloudPpModel, CloudTranscriptionModels
+            // .ResolveModelAlias and the cloudTranscriptionDomain gate — and pins the
+            // answer this build produces. It changes no behavior; it records it, so the
+            // Rust port can be diffed on the same inputs before the native copies go.
+            //
+            // A row carries "expected" when Windows and Linux already agree, and
+            // "expectedWindows"/"expectedLinux" when they do not. The same file is read
+            // by app/shared-dotnet/HyperWhisper.Backup.Application.Tests.
+            Run("backup mode-normalization vectors — native capture", () =>
+            {
+                var vectorsPath = Path.Combine(AppContext.BaseDirectory, "backup-vectors.json");
+                Assert(File.Exists(vectorsPath), $"backup-vectors.json not found at {vectorsPath}");
+
+                using var vectors = JsonDocument.Parse(File.ReadAllText(vectorsPath));
+                var rows = vectors.RootElement.GetProperty("modeNormalization");
+                Assert(rows.GetArrayLength() > 0, "backup-vectors.json has no modeNormalization rows");
+
+                foreach (var row in rows.EnumerateArray())
+                {
+                    var label = row.GetProperty("name").GetString()
+                        ?? throw new InvalidOperationException("a vector row has no name");
+                    var expected = row.TryGetProperty("expected", out var shared)
+                        ? shared
+                        : row.GetProperty("expectedWindows");
+
+                    var universal = JsonSerializer.Deserialize<UniversalMode>(
+                        row.GetProperty("mode").GetRawText())
+                        ?? throw new InvalidOperationException($"vector '{label}' did not deserialize");
+
+                    var mode = UniversalBackupMapper.MapToMode(universal);
+
+                    AssertModeVectorField(label, "cloudProvider", expected, mode.CloudProvider);
+                    AssertModeVectorField(label, "cloudTranscriptionModel", expected, mode.CloudTranscriptionModel);
+                    AssertModeVectorField(label, "cloudTranscriptionDomain", expected, mode.CloudTranscriptionDomain);
+                    AssertModeVectorField(label, "cloudAccuracyTier", expected, mode.CloudAccuracyTier);
+                    AssertModeVectorField(label, "cloudPostProcessingModel", expected, mode.CloudPostProcessingModel);
+                }
+            });
+
+            // NATIVE CAPTURE (issue #277, phase 2a). Drives every
+            // shared-conformance/backup-vectors.json windowsSettings row through the
+            // SHIPPING Windows settings adapters — UniversalBackupMapper.MapSettings and
+            // BuildPlatformExtensions on the way out, ApplySettings on the way in — over
+            // the real SettingsService, which Program.Main has already re-rooted at a
+            // temp AppData directory. It changes no behavior; it records it, so the Rust
+            // pairs table written in 2b can be diffed on the same inputs while the native
+            // mapper still exists. This is the ONLY observation of the Windows answer:
+            // net10.0-windows/WPF cannot run in the authoring sandbox, so windows-ci is
+            // the instrument.
+            //
+            // What the rows pin:
+            //   * the (native, universal) RENAMES. Windows' settings.json is PascalCase
+            //     (SettingsService.Save uses a plain JsonSerializerOptions
+            //     { WriteIndented = true } — no camelCase policy), and the native names
+            //     diverge from the universal ones where macOS's do not:
+            //     textOutput.pasteResultText <- AutoPasteEnabled, plus all seven streaming
+            //     keys, whose native properties are StreamingEnabled / StreamingProvider /
+            //     StreamingLanguage / StreamingDeepgramModel / StreamingCloudTier /
+            //     StreamingFastFormatting / StreamingShortcut.
+            //   * StreamingCloudTier reads through a CLAMPING getter: unset answers
+            //     deepgramNova3, so the export never carries a null tier, and an id
+            //     outside the live-eligible set is rejected back to that default.
+            //   * StreamingShortcut is NOT a scalar: export calls ToPersistedString() and
+            //     import calls KeyboardShortcut.FromPersistedString(), so the persisted
+            //     string form is what crosses the wire — and the setter re-canonicalises it.
+            //   * platformExtensions.windows.settings is a CURATED list
+            //     (WindowsSettingsExtensions), not everything-else. The forbidden-key
+            //     assertion is the guard against a 2b port that copies the macOS adapter's
+            //     "park every unpromoted key" rule into a PUBLIC backup file.
+            //   * the three universal keys this build does NOT carry at all
+            //     (storage.keepAudioFiles, advanced.maxRecordingDuration,
+            //     textOutput.storeWordTimestamps) are asserted ABSENT, so phase 3 has a
+            //     failing-to-passing record of the gap it closes.
+            Run("backup windows-settings vectors — native capture", () =>
+            {
+                var vectorsPath = Path.Combine(AppContext.BaseDirectory, "backup-vectors.json");
+                Assert(File.Exists(vectorsPath), $"backup-vectors.json not found at {vectorsPath}");
+
+                var document = JsonNode.Parse(File.ReadAllText(vectorsPath))!.AsObject();
+                var rows = document["windowsSettings"]!.AsArray();
+                Assert(rows.Count > 0, "backup-vectors.json has no windowsSettings rows");
+
+                var settings = SettingsService.Instance;
+
+                foreach (var rowNode in rows)
+                {
+                    var row = rowNode!.AsObject();
+                    var label = row["name"]!.GetValue<string>();
+                    var direction = row["direction"]!.GetValue<string>();
+
+                    if (direction == "export")
+                    {
+                        SeedWindowsSettings(settings, row["native"]!.AsObject(), label);
+
+                        var exported = JsonSerializer.SerializeToNode(
+                            UniversalBackupMapper.MapSettings(settings), UniversalCaptureOptions);
+                        AssertVectorJson(label, "settings", row["expectedUniversal"], exported);
+
+                        foreach (var absent in row["absentUniversalKeys"]!.AsArray())
+                        {
+                            var path = absent!.GetValue<string>().Split('.');
+                            Assert(exported![path[0]]?[path[1]] is null,
+                                $"vector '{label}': this build is not supposed to export '{absent}' — "
+                                + "if that changed, the vectors are stale, not the code");
+                        }
+
+                        var extensions = UniversalBackupMapper.BuildPlatformExtensions(settings);
+                        Assert(extensions.Count == 1 && extensions.ContainsKey("windows"),
+                            $"vector '{label}': BuildPlatformExtensions emitted "
+                            + $"{extensions.Count} top-level slices; today it emits only \"windows\"");
+
+                        var windowsSlice = JsonNode.Parse(extensions["windows"].GetRawText())!.AsObject();
+                        var extensionSettings = windowsSlice["settings"];
+                        AssertVectorJson(label, "platformExtensions.windows.settings",
+                            row["expectedPlatformExtensions"], extensionSettings);
+
+                        foreach (var forbidden in row["forbiddenPlatformExtensionKeys"]!.AsArray())
+                            Assert(extensionSettings![forbidden!.GetValue<string>()] is null,
+                                $"vector '{label}': platformExtensions.windows.settings leaked "
+                                + $"'{forbidden}'. That slice is a CURATED list; parking every "
+                                + "unpromoted setting there would publish user paths and device names.");
+
+                        continue;
+                    }
+
+                    Assert(direction == "import", $"vector '{label}': unknown direction '{direction}'");
+                    SeedWindowsSettings(settings, row["baselineNative"]!.AsObject(), label);
+
+                    var universal = JsonSerializer.Deserialize<UniversalSettings>(
+                        row["universal"]!.ToJsonString(), UniversalCaptureOptions)
+                        ?? throw new InvalidOperationException($"vector '{label}' did not deserialize");
+                    UniversalBackupMapper.ApplySettings(universal, settings);
+
+                    AssertVectorJson(label, "native settings",
+                        row["expectedNative"], ReadWindowsSettings(settings));
+
+                    if (row["expectedUniversalAfterImport"] is { } reExported)
+                        AssertVectorJson(label, "re-export after import", reExported,
+                            JsonSerializer.SerializeToNode(
+                                UniversalBackupMapper.MapSettings(settings), UniversalCaptureOptions));
+                }
+            });
+
+            // PHASE 3b / 3c — the unknownKeyRoundTrip vectors, driven through the real
+            // Windows import + export glue.
+            //
+            // These are the assertions no core-only harness can make: the storage is
+            // native (SettingsData.BackupUnknownSettings, .BackupForeignPlatformExtensions)
+            // and the re-emit runs through UniversalBackupMapper, which a
+            // HyperWhisper.SharedCore-only project cannot even reference.
+            //
+            // What each kind proves:
+            //   * settingsUnknownKey — textOutput.storeWordTimestamps has no Windows
+            //     property and is not gaining one. Before 3b it died at deserialize, so
+            //     a mac -> Windows -> mac trip lost it. It must now come back at its
+            //     ORIGINAL PATH: under textOutput, never at the settings root.
+            //   * topLevelPlatformExtensions — until #288 BuildPlatformExtensions
+            //     returned {"windows": ...} and nothing else, so a macOS or Linux
+            //     top-level slice died even though the per-mode slices survived. Our
+            //     own "windows" slice must still WIN over a stale preserved copy.
+            Run("backup unknown-key and foreign-slice round trip vectors", () =>
+            {
+                var vectorsPath = Path.Combine(AppContext.BaseDirectory, "backup-vectors.json");
+                Assert(File.Exists(vectorsPath), $"backup-vectors.json not found at {vectorsPath}");
+
+                var document = JsonNode.Parse(File.ReadAllText(vectorsPath))!.AsObject();
+                var rows = document["unknownKeyRoundTrip"]!.AsArray();
+                Assert(rows.Count > 0, "backup-vectors.json has no unknownKeyRoundTrip rows");
+
+                var settings = SettingsService.Instance;
+                var ran = 0;
+
+                foreach (var rowNode in rows)
+                {
+                    var row = rowNode!.AsObject();
+                    var label = row["name"]!.GetValue<string>();
+                    if (!row["heads"]!.AsArray().Any(h => h!.GetValue<string>() == "windows"))
+                        continue;
+                    ran++;
+
+                    switch (row["kind"]!.GetValue<string>())
+                    {
+                        case "settingsUnknownKey":
+                            RunSettingsUnknownKeyRow(settings, row, label);
+                            break;
+                        case "topLevelPlatformExtensions":
+                            RunForeignSliceRow(settings, row, label);
+                            break;
+                        default:
+                            throw new InvalidOperationException(
+                                $"vector '{label}': unknown kind '{row["kind"]}'");
+                    }
+                }
+
+                Assert(ran > 0, "no unknownKeyRoundTrip row names the windows head");
+            });
+
+            // PHASE 3a — the mac -> Windows -> mac trip for the two settings Windows
+            // gained. Both must survive AND the safety ceiling must hold: a backup can
+            // tighten the recording cap and can never loosen it.
+            Run("backup mac->Windows->mac keeps keepAudioFiles and clamps maxRecordingDuration", () =>
+            {
+                var settings = SettingsService.Instance;
+                SeedWindowsSettings(settings, new JsonObject
+                {
+                    ["KeepAudioFiles"] = true,
+                    ["MaxRecordingDuration"] = 1200,
+                }, "mac-trip");
+
+                // A macOS/Linux-shaped settings block: keepAudioFiles off, and the
+                // one-hour cap both of those platforms default to.
+                UniversalBackupMapper.ApplySettings(new UniversalSettings
+                {
+                    Storage = new UniversalStorageSettings { KeepAudioFiles = false },
+                    Advanced = new UniversalAdvancedSettings { MaxRecordingDuration = 3600 },
+                }, settings);
+
+                Assert(!settings.KeepAudioFiles,
+                    "keepAudioFiles must survive the import; discarding it is the #288 bug");
+                Assert(settings.MaxRecordingDurationSeconds == 1200,
+                    "a 3600s cap must be clamped to the 20-minute ceiling, got "
+                    + settings.MaxRecordingDurationSeconds);
+
+                // And back out again, at the right universal paths.
+                var exported = JsonSerializer.SerializeToNode(
+                    UniversalBackupMapper.MapSettings(settings), UniversalCaptureOptions)!;
+                Assert(exported["storage"]!["keepAudioFiles"]!.GetValue<bool>() == false,
+                    "the restored keepAudioFiles must come back out under storage");
+                Assert(exported["advanced"]!["maxRecordingDuration"]!.GetValue<int>() == 1200,
+                    "the clamped cap must come back out under advanced");
+
+                // A shorter cap is a user choice and must be kept verbatim.
+                UniversalBackupMapper.ApplySettings(new UniversalSettings
+                {
+                    Advanced = new UniversalAdvancedSettings { MaxRecordingDuration = 600 },
+                }, settings);
+                Assert(settings.MaxRecordingDurationSeconds == 600,
+                    "a backup must be able to TIGHTEN the recording cap");
+
+                // macOS's two sentinels must not rewrite it.
+                foreach (var sentinel in new[] { 300, 0 })
+                {
+                    UniversalBackupMapper.ApplySettings(new UniversalSettings
+                    {
+                        Advanced = new UniversalAdvancedSettings { MaxRecordingDuration = sentinel },
+                    }, settings);
+                    Assert(settings.MaxRecordingDurationSeconds == 600,
+                        $"the sentinel {sentinel} must read as unset, leaving the live 600s cap; got "
+                        + settings.MaxRecordingDurationSeconds);
+                }
+            });
+
+            // PHASE 2b — the new SettingsService.BuildBackupSettingsSnapshot() accessor
+            // is the ONLY thing that decides which native settings reach the shared
+            // core, on export AND as the import baseline. SettingsData is private and
+            // holds RecordingsFolder (a real user filesystem path),
+            // LastSelectedMicrophone (a device name), GettingStartedCompletedSteps and
+            // LocalApiServerPersistedPort. A .hwbackup.json is a file users share, and
+            // this repo is public. Pin the key set exactly: growing it is a decision,
+            // never an accident.
+            Run("backup settings snapshot carries exactly the promoted keys", () =>
+            {
+                var settings = SettingsService.Instance;
+                var snapshot = JsonNode.Parse(settings.BuildBackupSettingsSnapshot())!.AsObject();
+
+                string[] expected =
+                [
+                    "LaunchMinimized", "ShowRecordingWindow", "CheckForUpdatesAutomatically",
+                    "EnableErrorLogging", "ShareAnonymousSpeedData", "EnableSoundEffects",
+                    "AutoPasteEnabled", "RemoveFillerWords", "RestoreClipboardAfterPaste",
+                    "HideFromClipboardHistory", "ClipboardRestoreDelaySeconds", "AutocapitalizeInsert",
+                    // KeepAudioFiles and MaxRecordingDuration joined in phase 3a. Both
+                    // are plain cross-platform settings values — neither is a path nor
+                    // a device name — so the privacy rule below is unaffected.
+                    "StoreAsM4A", "KeepAudioFiles",
+                    "StreamingEnabled", "StreamingProvider", "StreamingLanguage",
+                    // StreamingCloudTier joined with the catalog-v8 live tier picker.
+                    // It reads through a clamping getter, so it is always present and
+                    // never null — a tier id, not a path or a device name.
+                    "StreamingDeepgramModel", "StreamingCloudTier",
+                    "StreamingFastFormatting", "StreamingShortcut",
+                    "TypingSpeedWPM", "MaxRecordingDuration",
+                ];
+
+                var actual = snapshot.Select(entry => entry.Key).OrderBy(key => key, StringComparer.Ordinal).ToArray();
+                var want = expected.OrderBy(key => key, StringComparer.Ordinal).ToArray();
+                Assert(actual.SequenceEqual(want, StringComparer.Ordinal),
+                    "the backup settings snapshot key set changed. Expected "
+                    + $"[{string.Join(", ", want)}], got [{string.Join(", ", actual)}]");
+
+                foreach (var forbidden in new[]
+                {
+                    "RecordingsFolder", "LastSelectedMicrophone", "LastSelectedModel",
+                    "GettingStartedCompletedSteps", "LocalApiServerPersistedPort",
+                    "LocalApiServerEnabled", "SelectedModeId", "RecordingOverlayXRatio",
+                    "RecordingOverlayYRatio", "PushToTalk",
+                    // Phase 3 bookkeeping. Raw preserved JSON, not settings: each has
+                    // its own merge point, and running them through the pairs tables
+                    // would re-emit them at the wrong path.
+                    "BackupUnknownSettings", "BackupForeignPlatformExtensions",
+                    "BackupUnknownRootKeys",
+                })
+                    Assert(snapshot[forbidden] is null,
+                        $"the backup settings snapshot leaked '{forbidden}'. That value is "
+                        + "device-local or a user path and must never reach a shared backup file.");
+
+                // StreamingShortcut is a KeyboardShortcut, not a scalar: it must cross
+                // as the persisted string, never as an object.
+                Assert(snapshot["StreamingShortcut"] is JsonValue
+                    && snapshot["StreamingShortcut"]!.GetValue<string>() == settings.StreamingShortcut.ToPersistedString(),
+                    "StreamingShortcut must be serialised via ToPersistedString()");
+            });
+
+            // PHASE 2b — the deep-merge on the Windows import half.
+            //
+            // ApplySettings now converts in the shared core and deep-merges the core's
+            // native-shaped answer over a baseline snapshot before running the setter
+            // chain. The merge is INERT today: the core is present-only, so a key it
+            // omits is filled from the baseline and its setter's dirty-check does
+            // nothing. Asserting the no-op is the point — the day the core returns a
+            // COMPLETE native blob, this is what stops an absent backup key arriving as
+            // a core default and clobbering a live setting.
+            Run("backup settings import deep-merges over the live baseline", () =>
+            {
+                var settings = SettingsService.Instance;
+                var seed = new JsonObject
+                {
+                    ["LaunchMinimized"] = false,
+                    ["TypingSpeedWPM"] = 95,
+                    ["StreamingProvider"] = "deepgram",
+                    ["StreamingLanguage"] = "de",
+                    ["StreamingDeepgramModel"] = "nova-3-medical",
+                    ["ClipboardRestoreDelaySeconds"] = 2.5,
+                    ["StoreAsM4A"] = true,
+                };
+                SeedWindowsSettings(settings, seed, "deep-merge");
+                var before = ReadWindowsSettings(settings);
+
+                // (1) An empty universal block must change NOTHING at all.
+                UniversalBackupMapper.ApplySettings(new UniversalSettings(), settings);
+                AssertVectorJson("deep-merge", "native settings after an empty import",
+                    before, ReadWindowsSettings(settings));
+
+                // (2) A block carrying ONE key must change exactly that key. Every
+                // other native value has to come from the baseline, not from a default.
+                UniversalBackupMapper.ApplySettings(
+                    new UniversalSettings { General = new UniversalGeneralSettings { LaunchMinimized = true } },
+                    settings);
+
+                var expected = before.DeepClone().AsObject();
+                expected["LaunchMinimized"] = true;
+                AssertVectorJson("deep-merge", "native settings after a one-key import",
+                    expected, ReadWindowsSettings(settings));
             });
 
             Run("Groq post-processing sends an explicit output-token cap", () =>
@@ -4511,6 +4871,336 @@ internal static class Program
         if (!condition)
             throw new InvalidOperationException(message);
     }
+
+    /// <summary>
+    /// Compares one field of a backup-vectors.json expectation against the value the
+    /// native mapper produced. JSON <c>null</c> means the field must come out null —
+    /// the absent-stays-absent rule the vectors exist to pin.
+    /// </summary>
+    private static void AssertModeVectorField(
+        string label,
+        string field,
+        JsonElement expected,
+        string? actual)
+    {
+        Assert(expected.TryGetProperty(field, out var element),
+            $"vector '{label}' is missing the expected field '{field}'");
+
+        var want = element.ValueKind == JsonValueKind.Null ? null : element.GetString();
+        Assert(want == actual,
+            $"vector '{label}': {field} expected {Quote(want)}, got {Quote(actual)}");
+
+        static string Quote(string? value) => value is null ? "null" : $"'{value}'";
+    }
+
+    /// <summary>
+    /// The serializer BackupService writes the universal document with
+    /// (<c>BackupService.UniversalJsonOptions</c>, minus <c>WriteIndented</c>) and the
+    /// one <c>UniversalBackupMapper</c> uses internally. Only
+    /// <see cref="JsonIgnoreCondition.WhenWritingNull"/> is load-bearing here — every
+    /// Universal* property carries an explicit <c>[JsonPropertyName]</c>, so the naming
+    /// policy never decides a key — but it is kept identical so the captured shape is
+    /// the shape that reaches a user's .hwbackup.json.
+    /// </summary>
+    private static readonly JsonSerializerOptions UniversalCaptureOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    };
+
+    /// <summary>
+    /// Compares a backup-vectors.json settings expectation against what the native
+    /// adapter produced. <see cref="JsonNode.DeepEquals"/> is insensitive to key order
+    /// and to number representation, so a row pins VALUES, never formatting — and it
+    /// compares whole objects, so an unexpected EXTRA key fails just as loudly as a
+    /// missing one.
+    /// </summary>
+    /// <remarks>
+    /// The message names the OFFENDING KEYS on its FIRST LINE, the way
+    /// <see cref="AssertModeVectorField"/> does — <c>advanced.maxRecordingDuration
+    /// expected absent, got 600</c> — because windows-ci is the only instrument that
+    /// can run this file and a round trip costs ~12 minutes. A bare "mismatch"
+    /// followed by two whole settings blobs to eyeball-diff spends that round trip
+    /// without saying what differed. The full blobs are still printed underneath, so
+    /// nothing that used to be in the log is lost.
+    /// </remarks>
+    private static void AssertVectorJson(string label, string what, JsonNode? expected, JsonNode? actual)
+    {
+        if (JsonNode.DeepEquals(expected, actual)) return;
+
+        var differences = new List<string>();
+        Describe(differences, path: "", expected, actual);
+        if (differences.Count == 0)
+            differences.Add($"whole value expected {Render(expected)}, got {Render(actual)}");
+
+        // Cap the first line: a wholesale shape change must not bury the log.
+        const int shown = 8;
+        var head = string.Join("; ", differences.Take(shown));
+        if (differences.Count > shown)
+            head += $"; (+{differences.Count - shown} more)";
+
+        throw new InvalidOperationException(
+            $"vector '{label}': {what} mismatch — {head}{Environment.NewLine}"
+            + $"  expected {Render(expected)}{Environment.NewLine}"
+            + $"  actual   {Render(actual)}");
+
+        // Walks both trees together and records one entry per differing LEAF, so the
+        // message reports the dotted key plus both values rather than the whole
+        // section. An absent key and an explicit JSON null read differently on
+        // purpose: that distinction is exactly what several rows exist to pin.
+        static void Describe(List<string> into, string path, JsonNode? expected, JsonNode? actual)
+        {
+            if (JsonNode.DeepEquals(expected, actual)) return;
+
+            if (expected is JsonObject wantObject && actual is JsonObject gotObject)
+            {
+                var keys = wantObject.Select(p => p.Key)
+                    .Concat(gotObject.Select(p => p.Key))
+                    .Distinct(StringComparer.Ordinal)
+                    .OrderBy(key => key, StringComparer.Ordinal);
+
+                foreach (var key in keys)
+                {
+                    var child = path.Length == 0 ? key : $"{path}.{key}";
+                    var hasWant = wantObject.TryGetPropertyValue(key, out var want);
+                    var hasGot = gotObject.TryGetPropertyValue(key, out var got);
+
+                    if (!hasWant) into.Add($"{child} expected absent, got {Render(got)}");
+                    else if (!hasGot) into.Add($"{child} expected {Render(want)}, got absent");
+                    else Describe(into, child, want, got);
+                }
+                return;
+            }
+
+            if (expected is JsonArray wantArray && actual is JsonArray gotArray
+                && wantArray.Count == gotArray.Count)
+            {
+                for (var i = 0; i < wantArray.Count; i++)
+                    Describe(into, $"{path}[{i}]", wantArray[i], gotArray[i]);
+                return;
+            }
+
+            into.Add($"{(path.Length == 0 ? "<root>" : path)} expected "
+                + $"{Render(expected)}, got {Render(actual)}");
+        }
+
+        static string Render(JsonNode? node) => node?.ToJsonString() ?? "null";
+    }
+
+    /// <summary>
+    /// Writes a backup-vectors.json <c>native</c> block onto the live SettingsService.
+    /// Keys are the NATIVE names — settings.json is PascalCase — and every one of them
+    /// goes through the real public setter, so the row is seeded through exactly the
+    /// path a restore uses, dirty-check, Save() and all. An unrecognized key throws:
+    /// a typo in the vectors must fail, not silently seed nothing.
+    /// </summary>
+    private static void SeedWindowsSettings(SettingsService settings, JsonObject native, string label)
+    {
+        foreach (var entry in native)
+        {
+            var value = entry.Value
+                ?? throw new InvalidOperationException(
+                    $"vector '{label}': native settings key '{entry.Key}' is null; "
+                    + "a seed must be an explicit value");
+
+            switch (entry.Key)
+            {
+                case "LaunchMinimized": settings.LaunchMinimized = value.GetValue<bool>(); break;
+                case "ShowRecordingWindow": settings.ShowRecordingWindow = value.GetValue<bool>(); break;
+                case "CheckForUpdatesAutomatically": settings.CheckForUpdatesAutomatically = value.GetValue<bool>(); break;
+                case "EnableErrorLogging": settings.EnableErrorLogging = value.GetValue<bool>(); break;
+                case "ShareAnonymousSpeedData": settings.ShareAnonymousSpeedData = value.GetValue<bool>(); break;
+                case "EnableSoundEffects": settings.EnableSoundEffects = value.GetValue<bool>(); break;
+                case "AutoPasteEnabled": settings.AutoPasteEnabled = value.GetValue<bool>(); break;
+                case "RemoveFillerWords": settings.RemoveFillerWords = value.GetValue<bool>(); break;
+                case "RestoreClipboardAfterPaste": settings.RestoreClipboardAfterPaste = value.GetValue<bool>(); break;
+                case "HideFromClipboardHistory": settings.HideFromClipboardHistory = value.GetValue<bool>(); break;
+                case "ClipboardRestoreDelaySeconds": settings.ClipboardRestoreDelaySeconds = value.GetValue<double>(); break;
+                case "AutocapitalizeInsert": settings.AutocapitalizeInsert = value.GetValue<bool>(); break;
+                case "StoreAsM4A": settings.StoreAsM4A = value.GetValue<bool>(); break;
+                case "KeepAudioFiles": settings.KeepAudioFiles = value.GetValue<bool>(); break;
+                case "MaxRecordingDuration": settings.MaxRecordingDurationSeconds = value.GetValue<int>(); break;
+                case "StreamingEnabled": settings.StreamingEnabled = value.GetValue<bool>(); break;
+                case "StreamingProvider": settings.StreamingProvider = value.GetValue<string>(); break;
+                case "StreamingLanguage": settings.StreamingLanguage = value.GetValue<string>(); break;
+                case "StreamingDeepgramModel": settings.StreamingDeepgramModel = value.GetValue<string>(); break;
+                case "StreamingCloudTier": settings.StreamingCloudTier = value.GetValue<string>(); break;
+                case "StreamingFastFormatting": settings.StreamingFastFormatting = value.GetValue<bool>(); break;
+                case "StreamingShortcut": settings.StreamingShortcut = KeyboardShortcut.FromPersistedString(value.GetValue<string>()); break;
+                case "TypingSpeedWPM": settings.TypingSpeedWPM = value.GetValue<int>(); break;
+                case "MinimizeToTray": settings.MinimizeToTray = value.GetValue<bool>(); break;
+                case "ThemeMode": settings.ThemeMode = (HyperWhisper.Models.ThemeMode)value.GetValue<int>(); break;
+                case "AutoDeleteEnabled": settings.AutoDeleteEnabled = value.GetValue<bool>(); break;
+                case "AutoDeleteDaysOld": settings.AutoDeleteDaysOld = value.GetValue<int>(); break;
+                case "ParakeetEnabled": settings.ParakeetEnabled = value.GetValue<bool>(); break;
+                case "KeepMicrophoneWarm": settings.KeepMicrophoneWarm = value.GetValue<bool>(); break;
+                case "MediaControlMode": settings.MediaControlMode = value.GetValue<string>(); break;
+                case "ToggleShortcut": settings.ToggleShortcut = KeyboardShortcut.FromPersistedString(value.GetValue<string>()); break;
+                case "CancelShortcut": settings.CancelShortcut = KeyboardShortcut.FromPersistedString(value.GetValue<string>()); break;
+                case "ChangeModeShortcut": settings.ChangeModeShortcut = KeyboardShortcut.FromPersistedString(value.GetValue<string>()); break;
+                case "AutoIncreaseMicVolume": settings.AutoIncreaseMicVolume = value.GetValue<bool>(); break;
+                default:
+                    throw new InvalidOperationException(
+                        $"vector '{label}': unknown Windows native settings key '{entry.Key}'");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Drives one <c>unknownKeyRoundTrip</c> row of kind <c>settingsUnknownKey</c>:
+    /// import the row's settings block, check what was persisted, then re-export and
+    /// check the captured key comes back at its ORIGINAL PATH.
+    /// </summary>
+    private static void RunSettingsUnknownKeyRow(
+        SettingsService settings, JsonObject row, string label)
+    {
+        ImportSettingsJson(settings, row["importedSettings"]!);
+        if (row["thenImportedSettings"] is { } second) ImportSettingsJson(settings, second);
+
+        var expectedStored = row["expectedStored"];
+        var actualStored = settings.BackupUnknownSettings is null
+            ? null
+            : JsonNode.Parse(settings.BackupUnknownSettings);
+        AssertVectorJson(label, "SettingsData.BackupUnknownSettings", expectedStored, actualStored);
+
+        var exported = JsonSerializer.SerializeToNode(
+            UniversalBackupMapper.MapSettings(settings), UniversalCaptureOptions)!.AsObject();
+
+        foreach (var expected in row["expectedReExportedPaths"]!.AsObject())
+        {
+            var actual = ResolvePath(exported, expected.Key);
+            Assert(actual is not null,
+                $"vector '{label}': re-export lost '{expected.Key}'. That is the #288 bug.");
+            AssertVectorJson(label, $"re-export at '{expected.Key}'", expected.Value, actual);
+        }
+
+        foreach (var forbidden in row["forbiddenReExportedPaths"]!.AsArray())
+        {
+            var path = forbidden!.GetValue<string>();
+            Assert(ResolvePath(exported, path) is null,
+                $"vector '{label}': re-export put a preserved key at '{path}'. A captured "
+                + "settings key must come back under its own SECTION, never at the root — "
+                + "the root is a schema violation.");
+        }
+
+        static JsonNode? ResolvePath(JsonObject root, string dotted)
+        {
+            JsonNode? node = root;
+            foreach (var segment in dotted.Split('.'))
+            {
+                if (node is not JsonObject obj || !obj.TryGetPropertyValue(segment, out node))
+                    return null;
+            }
+            return node;
+        }
+    }
+
+    /// <summary>
+    /// Deserializes a vector settings block exactly as BackupService would (so the
+    /// <c>[JsonExtensionData]</c> bags fill), then applies it.
+    /// </summary>
+    private static void ImportSettingsJson(SettingsService settings, JsonNode block)
+    {
+        var universal = JsonSerializer.Deserialize<UniversalSettings>(
+            block.ToJsonString(), UniversalCaptureOptions)
+            ?? throw new InvalidOperationException("settings block did not deserialize");
+        UniversalBackupMapper.ApplySettings(universal, settings);
+    }
+
+    /// <summary>
+    /// Drives one <c>unknownKeyRoundTrip</c> row of kind
+    /// <c>topLevelPlatformExtensions</c> for the Windows head.
+    /// </summary>
+    private static void RunForeignSliceRow(SettingsService settings, JsonObject row, string label)
+    {
+        var imported = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(
+            row["imported"]!.ToJsonString())
+            ?? throw new InvalidOperationException($"vector '{label}': imported did not deserialize");
+
+        UniversalBackupMapper.ApplyWindowsPlatformSettings(imported, settings);
+
+        // Windows stores ONLY the foreign slices and adds its own at export time.
+        // Linux stores the whole imported map instead and overwrites its own slice on
+        // the way out; the row records both, because the observable contract below is
+        // what has to match, not the storage strategy.
+        var expectedStored = row["expectedStoredByHead"]!["windows"];
+        var actualStored = settings.BackupForeignPlatformExtensions is null
+            ? null
+            : JsonNode.Parse(settings.BackupForeignPlatformExtensions);
+        AssertVectorJson(label, "SettingsData.BackupForeignPlatformExtensions",
+            expectedStored, actualStored);
+
+        // Our own slice must be REBUILT from live settings on every export, not
+        // replayed from anything preserved. Flip a live Windows-only value after the
+        // import: if the export still shows the imported value, the own slice lost to
+        // a stale copy — the exact failure MapMode's per-mode rule already prevents.
+        settings.MinimizeToTray = !settings.MinimizeToTray;
+
+        var reExported = UniversalBackupMapper.BuildPlatformExtensions(settings);
+        var actualKeys = reExported.Keys.OrderBy(k => k, StringComparer.Ordinal).ToArray();
+        var wantKeys = row["expectedReExportedKeysByHead"]!["windows"]!.AsArray()
+            .Select(k => k!.GetValue<string>())
+            .OrderBy(k => k, StringComparer.Ordinal).ToArray();
+        Assert(actualKeys.SequenceEqual(wantKeys, StringComparer.Ordinal),
+            $"vector '{label}': re-exported top-level platformExtensions keys were "
+            + $"[{string.Join(", ", actualKeys)}], expected [{string.Join(", ", wantKeys)}]");
+
+        var windowsSlice = JsonNode.Parse(reExported["windows"].GetRawText())!.AsObject();
+        Assert(windowsSlice["settings"]!["minimizeToTray"]!.GetValue<bool>() == settings.MinimizeToTray,
+            $"vector '{label}': the \"windows\" slice must be rebuilt from live settings and "
+            + "overwrite any preserved copy of itself.");
+
+        // And the foreign slices must have come through verbatim.
+        foreach (var expected in row["expectedStoredByHead"]!["windows"] as JsonObject ?? [])
+        {
+            Assert(reExported.ContainsKey(expected.Key),
+                $"vector '{label}': the preserved '{expected.Key}' slice was not re-emitted");
+            AssertVectorJson(label, $"re-emitted '{expected.Key}' slice", expected.Value,
+                JsonNode.Parse(reExported[expected.Key].GetRawText()));
+        }
+    }
+
+    /// <summary>
+    /// Reads back the same native key set <see cref="SeedWindowsSettings"/> writes, as
+    /// JSON, so an import row can be compared whole rather than field by field.
+    /// </summary>
+    private static JsonObject ReadWindowsSettings(SettingsService settings) => new()
+    {
+        ["LaunchMinimized"] = settings.LaunchMinimized,
+        ["ShowRecordingWindow"] = settings.ShowRecordingWindow,
+        ["CheckForUpdatesAutomatically"] = settings.CheckForUpdatesAutomatically,
+        ["EnableErrorLogging"] = settings.EnableErrorLogging,
+        ["ShareAnonymousSpeedData"] = settings.ShareAnonymousSpeedData,
+        ["EnableSoundEffects"] = settings.EnableSoundEffects,
+        ["AutoPasteEnabled"] = settings.AutoPasteEnabled,
+        ["RemoveFillerWords"] = settings.RemoveFillerWords,
+        ["RestoreClipboardAfterPaste"] = settings.RestoreClipboardAfterPaste,
+        ["HideFromClipboardHistory"] = settings.HideFromClipboardHistory,
+        ["ClipboardRestoreDelaySeconds"] = settings.ClipboardRestoreDelaySeconds,
+        ["AutocapitalizeInsert"] = settings.AutocapitalizeInsert,
+        ["StoreAsM4A"] = settings.StoreAsM4A,
+        ["KeepAudioFiles"] = settings.KeepAudioFiles,
+        ["StreamingEnabled"] = settings.StreamingEnabled,
+        ["StreamingProvider"] = settings.StreamingProvider,
+        ["StreamingLanguage"] = settings.StreamingLanguage,
+        ["StreamingDeepgramModel"] = settings.StreamingDeepgramModel,
+        ["StreamingCloudTier"] = settings.StreamingCloudTier,
+        ["StreamingFastFormatting"] = settings.StreamingFastFormatting,
+        ["StreamingShortcut"] = settings.StreamingShortcut.ToPersistedString(),
+        ["TypingSpeedWPM"] = settings.TypingSpeedWPM,
+        ["MaxRecordingDuration"] = settings.MaxRecordingDurationSeconds,
+        ["MinimizeToTray"] = settings.MinimizeToTray,
+        ["ThemeMode"] = (int)settings.ThemeMode,
+        ["AutoDeleteEnabled"] = settings.AutoDeleteEnabled,
+        ["AutoDeleteDaysOld"] = settings.AutoDeleteDaysOld,
+        ["ParakeetEnabled"] = settings.ParakeetEnabled,
+        ["KeepMicrophoneWarm"] = settings.KeepMicrophoneWarm,
+        ["MediaControlMode"] = settings.MediaControlMode,
+        ["ToggleShortcut"] = settings.ToggleShortcut.ToPersistedString(),
+        ["CancelShortcut"] = settings.CancelShortcut.ToPersistedString(),
+        ["ChangeModeShortcut"] = settings.ChangeModeShortcut.ToPersistedString(),
+        ["AutoIncreaseMicVolume"] = settings.AutoIncreaseMicVolume,
+    };
 
     private static async Task<T> ExpectAsync<T>(Func<Task> action) where T : Exception
     {

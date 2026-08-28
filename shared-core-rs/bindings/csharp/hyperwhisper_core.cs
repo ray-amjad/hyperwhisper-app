@@ -1180,6 +1180,18 @@ static class _UniFFILib {
     
     
     
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
 
     static _UniFFILib() {
         _UniFFILib.uniffiCheckContractApiVersion();
@@ -1450,6 +1462,10 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_cloud_stt_provider(RustBuffer @id,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_cloud_stt_resolve_model_alias(RustBuffer @modelId,RustBuffer @provider,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -1733,6 +1749,10 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_linux_settings_to_universal_settings_json(RustBuffer @linuxJson,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_live_classify_error_message(RustBuffer @message,ref UniffiRustCallStatus _uniffi_out_err
     );
 
@@ -1925,6 +1945,10 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_normalize_universal_mode_json(RustBuffer @json,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_normalize_vocabulary_terms(RustBuffer @words,RustBuffer @limit,ref UniffiRustCallStatus _uniffi_out_err
     );
 
@@ -2033,11 +2057,23 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_universal_settings_to_linux_settings_json(RustBuffer @universalJson,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_universal_settings_to_macos_settings_json(RustBuffer @recordJson,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_universal_settings_to_windows_settings_json(RustBuffer @universalJson,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_validate_backup_json(RustBuffer @json,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_windows_settings_to_universal_settings_json(RustBuffer @windowsJson,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -2465,6 +2501,10 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_cloud_stt_resolve_model_alias(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_cloud_stt_streaming_cloud_tier_entries(
     );
 
@@ -2745,6 +2785,10 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_linux_settings_to_universal_settings_json(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_live_classify_error_message(
     );
 
@@ -2937,6 +2981,10 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_normalize_universal_mode_json(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_normalize_vocabulary_terms(
     );
 
@@ -3045,11 +3093,23 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_universal_settings_to_linux_settings_json(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_universal_settings_to_macos_settings_json(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_universal_settings_to_windows_settings_json(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_validate_backup_json(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_windows_settings_to_universal_settings_json(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -3408,6 +3468,12 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_cloud_stt_provider();
             if (checksum != 52282) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_cloud_stt_provider` checksum `52282`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_cloud_stt_resolve_model_alias();
+            if (checksum != 64463) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_cloud_stt_resolve_model_alias` checksum `64463`, library returned `{checksum}`");
             }
         }
         {
@@ -3831,6 +3897,12 @@ static class _UniFFILib {
             }
         }
         {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_linux_settings_to_universal_settings_json();
+            if (checksum != 10501) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_linux_settings_to_universal_settings_json` checksum `10501`, library returned `{checksum}`");
+            }
+        }
+        {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_live_classify_error_message();
             if (checksum != 33535) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_live_classify_error_message` checksum `33535`, library returned `{checksum}`");
@@ -4119,6 +4191,12 @@ static class _UniFFILib {
             }
         }
         {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_normalize_universal_mode_json();
+            if (checksum != 52698) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_normalize_universal_mode_json` checksum `52698`, library returned `{checksum}`");
+            }
+        }
+        {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_normalize_vocabulary_terms();
             if (checksum != 61974) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_normalize_vocabulary_terms` checksum `61974`, library returned `{checksum}`");
@@ -4281,15 +4359,33 @@ static class _UniFFILib {
             }
         }
         {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_universal_settings_to_linux_settings_json();
+            if (checksum != 46044) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_universal_settings_to_linux_settings_json` checksum `46044`, library returned `{checksum}`");
+            }
+        }
+        {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_universal_settings_to_macos_settings_json();
             if (checksum != 34732) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_universal_settings_to_macos_settings_json` checksum `34732`, library returned `{checksum}`");
             }
         }
         {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_universal_settings_to_windows_settings_json();
+            if (checksum != 27733) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_universal_settings_to_windows_settings_json` checksum `27733`, library returned `{checksum}`");
+            }
+        }
+        {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_validate_backup_json();
             if (checksum != 15252) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_validate_backup_json` checksum `15252`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_windows_settings_to_universal_settings_json();
+            if (checksum != 59780) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_windows_settings_to_universal_settings_json` checksum `59780`, library returned `{checksum}`");
             }
         }
         {
@@ -12261,6 +12357,23 @@ internal static class HyperwhisperCoreMethods {
 
 
     /// <summary>
+    /// Resolve a legacy cloud-STT model id onto its current catalog id.
+    ///
+    /// `provider` is the persisted `cloudProvider` identifier (`"deepgram"`,
+    /// `"assemblyai"`, …). `None`, an empty string, or an identifier the provider
+    /// enum does not know chains every alias table — the behaviour Windows'
+    /// `CloudTranscriptionModels.ResolveModelAlias` gives its
+    /// `null or CloudTranscriptionProvider.None` arm.
+    /// </summary>
+    public static string CloudSttResolveModelAlias(string @modelId, string? @provider) {
+        return FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_cloud_stt_resolve_model_alias(FfiConverterString.INSTANCE.Lower(@modelId), FfiConverterOptionalString.INSTANCE.Lower(@provider), ref _status)
+));
+    }
+
+
+    /// <summary>
     /// Same set as `cloud_stt_streaming_cloud_tier_entry_ids`, as full entries.
     /// </summary>
     public static List<SttEntry> CloudSttStreamingCloudTierEntries() {
@@ -12970,6 +13083,26 @@ internal static class HyperwhisperCoreMethods {
 
 
     /// <summary>
+    /// Map LINUX native settings JSON (the flat dotted `PortableSettingsService`
+    /// store) into the universal-v2 `settings` block.
+    ///
+    /// The whole store may be passed in: every key without a pairs row is ignored,
+    /// so Linux-only and device-local keys cannot reach the export through here.
+    /// Always COMPLETE — an absent key is emitted with the backup path's own
+    /// default, which is what makes an untouched Linux profile export all 23 shared
+    /// keys. `platformExtensions.linux.settings` is built natively and is not
+    /// modelled by the core on purpose.
+    /// </summary>
+    /// <exception cref="BackupException"></exception>
+    public static string LinuxSettingsToUniversalSettingsJson(string @linuxJson) {
+        return FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCallWithError(FfiConverterTypeBackupError.INSTANCE, (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_linux_settings_to_universal_settings_json(FfiConverterString.INSTANCE.Lower(@linuxJson), ref _status)
+));
+    }
+
+
+    /// <summary>
     /// Classify a provider error frame's `message` payload.
     ///
     /// See `hw_net::live::classify_error_message` for the twenty markers, the
@@ -13575,6 +13708,47 @@ internal static class HyperwhisperCoreMethods {
 
 
     /// <summary>
+    /// Canonicalize ONE wire-shaped universal-v2 mode object, returning the same
+    /// object with its five cloud-routing fields normalized and every other key
+    /// untouched. This is the single entry point both non-macOS mode-import paths
+    /// call (`UniversalBackupMapper.MapToMode`, `ApplicationBackupExport.ParseMode`).
+    ///
+    /// It is the COMPOSITION POINT: `hw_backup` owns the present-only
+    /// tier/post-processing-model migration, `hw_catalog` owns the `cloudProvider`
+    /// fold and the legacy model-alias tables, and the `cloudTranscriptionDomain`
+    /// gate lives here. `hw-backup` must not depend on `hw-catalog`
+    /// (`shared-core-rs/README.md`), which is why the seam is in this crate.
+    ///
+    /// What it does, in the order Windows does it:
+    ///
+    /// 1. `cloudProvider` is folded through the catalog — a legacy standalone-provider
+    /// alias such as `microsoftazurespeech` becomes `hyperwhisper` plus an accuracy
+    /// tier. BYOK names (`deepgram`, `groq`) pass through untouched.
+    /// 2. `cloudTranscriptionModel` is alias-resolved against the **RAW** (pre-fold)
+    /// provider. Windows passes `universal.CloudProvider` — not the folded value —
+    /// to `ResolveModelAlias`, so a folded azure mode resolves under
+    /// `MicrosoftAzureSpeech` (the passthrough arm) even though its stored provider
+    /// became `hyperwhisper`. Reproduced deliberately.
+    /// 3. `cloudAccuracyTier` / `cloudPostProcessingModel` follow the two-assignment
+    /// precedence documented on [`hw_backup::normalize_universal_mode_value`].
+    /// 4. `cloudTranscriptionDomain` (the `X-STT-Domain` header) only applies to
+    /// HyperWhisper Cloud modes, so it is DROPPED unless the folded provider is
+    /// `hyperwhisper` — a stale domain on a BYOK mode must not import.
+    ///
+    /// Absent fields stay absent: the caller applies its own entity default (both
+    /// heads share `elevenLabsScribeV2` / `anthropic:claude-haiku-4-5` from `Mode`'s
+    /// field initialisers). Errors only on JSON that is not an object.
+    /// </summary>
+    /// <exception cref="BackupException"></exception>
+    public static string NormalizeUniversalModeJson(string @json) {
+        return FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCallWithError(FfiConverterTypeBackupError.INSTANCE, (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_normalize_universal_mode_json(FfiConverterString.INSTANCE.Lower(@json), ref _status)
+));
+    }
+
+
+    /// <summary>
     /// Canonical vocabulary normalization for every egress path: sanitize each
     /// term, drop the ones that sanitize to empty, de-duplicate case-insensitively
     /// keeping first-seen casing and order, and stop at `limit`.
@@ -13863,6 +14037,24 @@ internal static class HyperwhisperCoreMethods {
 
 
     /// <summary>
+    /// Inverse of [`linux_settings_to_universal_settings_json`]: the universal-v2
+    /// `settings` block → the flat dotted keys `PortableSettingsService` stores.
+    ///
+    /// PRESENT-ONLY and null-dropping, reproducing `ApplySharedSettings`/`CopyCategory`:
+    /// the tables are a per-category allowlist, so unknown keys and unknown
+    /// categories are dropped. The caller deep-merges the result over its baseline
+    /// snapshot before writing it back.
+    /// </summary>
+    /// <exception cref="BackupException"></exception>
+    public static string UniversalSettingsToLinuxSettingsJson(string @universalJson) {
+        return FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCallWithError(FfiConverterTypeBackupError.INSTANCE, (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_universal_settings_to_linux_settings_json(FfiConverterString.INSTANCE.Lower(@universalJson), ref _status)
+));
+    }
+
+
+    /// <summary>
     /// Inverse of [`macos_settings_to_universal_settings_json`]: rebuild the macOS
     /// 7-category native settings JSON from a universal `SettingsRecord` JSON.
     /// </summary>
@@ -13876,6 +14068,29 @@ internal static class HyperwhisperCoreMethods {
 
 
     /// <summary>
+    /// Inverse of [`windows_settings_to_universal_settings_json`]: the universal-v2
+    /// `settings` block → Windows native settings JSON.
+    ///
+    /// PRESENT-ONLY, and an explicit JSON `null` counts as absent. The caller must
+    /// deep-merge the result over its own baseline snapshot before applying, so that
+    /// the day this returns a COMPLETE blob an absent backup key still cannot
+    /// clobber a live setting (the obligation `BackupManager.swift`'s
+    /// `currentSettingsBaseline()` → `deepMerged(over:)` already carries on macOS).
+    ///
+    /// No value interpretation happens here: the `SettingsService` setters own the
+    /// streaming-provider fallback, the deepgram-model collapse, the shortcut
+    /// re-canonicalisation and the clipboard-delay clamp.
+    /// </summary>
+    /// <exception cref="BackupException"></exception>
+    public static string UniversalSettingsToWindowsSettingsJson(string @universalJson) {
+        return FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCallWithError(FfiConverterTypeBackupError.INSTANCE, (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_universal_settings_to_windows_settings_json(FfiConverterString.INSTANCE.Lower(@universalJson), ref _status)
+));
+    }
+
+
+    /// <summary>
     /// Validate a backup JSON document against the embedded universal-v2 schema's
     /// structural invariants. Returns every error found (empty = valid).
     /// </summary>
@@ -13883,6 +14098,29 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterSequenceTypeHwValidationError.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_validate_backup_json(FfiConverterString.INSTANCE.Lower(@json), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Map WINDOWS native settings JSON (flat, PascalCase — `settings.json`'s own
+    /// casing) into the universal-v2 `settings` block.
+    ///
+    /// The input is the snapshot `SettingsService.BuildBackupSettingsSnapshot()`
+    /// produces: only the keys that are promoted to the universal block, never a
+    /// filesystem path or a device name. The output is the five universal categories
+    /// and NOTHING else — this function cannot emit a `platformExtensions` slice, so
+    /// the curated `platformExtensions.windows.settings` list that
+    /// `UniversalBackupMapper.BuildPlatformExtensions` builds natively stays the only
+    /// way a Windows-only setting reaches a backup file.
+    ///
+    /// Present-only: a native key that is absent produces no universal key.
+    /// </summary>
+    /// <exception cref="BackupException"></exception>
+    public static string WindowsSettingsToUniversalSettingsJson(string @windowsJson) {
+        return FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCallWithError(FfiConverterTypeBackupError.INSTANCE, (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_windows_settings_to_universal_settings_json(FfiConverterString.INSTANCE.Lower(@windowsJson), ref _status)
 ));
     }
 

@@ -35,6 +35,12 @@
     <InternalsVisibleTo Include="HyperWhisper.ModelReadiness" />
     <!-- Runs shared-conformance/catalog-vectors.json against the binding. -->
     <InternalsVisibleTo Include="HyperWhisper.CatalogConformance.Tests" />
+    <!-- Runs shared-conformance/backup-vectors.json's macosSettings rows against
+         the binding (issue #277, phase 2a). The macOS settings adapter already
+         lives in hw-backup, so the only way to capture it from a head that runs
+         in CI on Linux is to call the exported functions directly; there is no
+         SharedCoreBridge wrapper for them and adding one is not a capture. -->
+    <InternalsVisibleTo Include="HyperWhisper.Backup.Application.Tests" />
     <!-- The app-type classifier for every .NET head (issue #279). It maps the
          binding's `AppClassifyRequest` / `AppClassification` records onto the
          platform's own `AppType`, and those records are `internal`. -->

@@ -115,9 +115,15 @@ public class BackupService
                     : null,
                 Modes = modes?.Select(UniversalBackupMapper.MapMode).ToList(),
                 Vocabulary = vocabulary?.Select(UniversalBackupMapper.MapVocabularyItem).ToList(),
-                // Windows platform settings live alongside the cross-platform settings section.
+                // Windows platform settings live alongside the cross-platform settings
+                // section. BuildPlatformExtensions also re-attaches the macOS / Linux
+                // top-level slices preserved from the last import.
                 PlatformExtensions = selection.IncludeSettings
                     ? UniversalBackupMapper.BuildPlatformExtensions(SettingsService.Instance)
+                    : null,
+                // Top-level keys a newer build wrote and this one has no property for.
+                Additional = selection.IncludeSettings
+                    ? UniversalBackupMapper.ReadUnknownRootKeys(SettingsService.Instance)
                     : null
             };
 
@@ -235,6 +241,7 @@ public class BackupService
                 var settings = SettingsService.Instance;
                 var universalSettings = backup.Settings;
                 var platformExtensions = backup.PlatformExtensions;
+                var importedBackup = backup;
                 settings.ApplyImport(() =>
                 {
                     if (universalSettings != null)
@@ -250,9 +257,15 @@ public class BackupService
                         }
                     }
 
-                    // Apply Windows-specific platform settings (only from Windows backups)
+                    // Apply Windows-specific platform settings (only from Windows
+                    // backups); ALSO preserves the macOS / Linux top-level slices.
                     UniversalBackupMapper.ApplyWindowsPlatformSettings(
                         platformExtensions, settings, replaceExisting);
+
+                    // Preserve unknown top-level keys. Deliberately here and NOT in
+                    // LoadValidatedBackup — that helper also serves Inspect, and
+                    // merely LOOKING at a file must not write settings.
+                    UniversalBackupMapper.CaptureUnknownRootKeys(importedBackup, settings);
                 });
             }
 
@@ -355,11 +368,13 @@ public class BackupService
                     var settings = SettingsService.Instance;
                     var universalSettings = backup.Settings;
                     var platformExtensions = backup.PlatformExtensions;
+                    var importedBackup = backup;
                     settings.ApplyImport(() =>
                     {
                         UniversalBackupMapper.ApplySettings(universalSettings, settings);
                         UniversalBackupMapper.ApplyWindowsPlatformSettings(
                             platformExtensions, settings);
+                        UniversalBackupMapper.CaptureUnknownRootKeys(importedBackup, settings);
                     });
                     summary.SettingsImported = true;
                 }

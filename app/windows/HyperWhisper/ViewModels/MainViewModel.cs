@@ -76,8 +76,31 @@ public partial class MainViewModel : ViewModelBase
     // (1 second is used because recordings shorter than that are unlikely to be useful)
     private DateTime? _lastToggleTime;
     private const int DebounceIntervalMs = 1000;
+    // HARD CEILING and default. Never raised — see EffectiveMaxRecordingDuration.
     private static readonly TimeSpan MaxRecordingDuration = TimeSpan.FromMinutes(20);
     private static readonly TimeSpan StreamingConnectionTimeout = TimeSpan.FromSeconds(15);
+
+    /// <summary>
+    /// The cap actually enforced by <see cref="CheckRecordingDurationLimit"/> and
+    /// <see cref="CheckStreamingDurationLimit"/>: the user's / restored
+    /// <c>advanced.maxRecordingDuration</c> setting, and never longer than
+    /// <see cref="MaxRecordingDuration"/>.
+    /// </summary>
+    /// <remarks>
+    /// A backup file may TIGHTEN the runaway guard and can never loosen or disable
+    /// it. Both clamps that guarantee that are elsewhere — the shared core's
+    /// <c>universal_to_windows_settings</c> on the import path and
+    /// <c>SettingsService.MaxRecordingDurationSeconds</c> on every write — so this
+    /// takes the minimum once more only to keep the invariant local and obvious.
+    /// </remarks>
+    private TimeSpan EffectiveMaxRecordingDuration
+    {
+        get
+        {
+            var configured = TimeSpan.FromSeconds(_settingsService.MaxRecordingDurationSeconds);
+            return configured < MaxRecordingDuration ? configured : MaxRecordingDuration;
+        }
+    }
 
     // Event handler delegates stored for proper unsubscription in Cleanup()
     private readonly Action<float> _audioLevelHandler;
@@ -1775,7 +1798,7 @@ public partial class MainViewModel : ViewModelBase
         if (!IsRecording ||
             _isStreamingSession ||
             _recordingDurationLimitReached ||
-            RecordingDuration < MaxRecordingDuration)
+            RecordingDuration < EffectiveMaxRecordingDuration)
         {
             return;
         }
@@ -1806,7 +1829,7 @@ public partial class MainViewModel : ViewModelBase
     {
         if (!_isStreamingSession ||
             _streamingDurationLimitReached ||
-            RecordingDuration < MaxRecordingDuration)
+            RecordingDuration < EffectiveMaxRecordingDuration)
         {
             return;
         }
