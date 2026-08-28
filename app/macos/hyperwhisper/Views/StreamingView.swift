@@ -519,18 +519,38 @@ struct StreamingView: View {
     /// never fires either, and picking a provider that needs a key never reveals
     /// the key field. Send BEFORE the write, the way `willSet` would.
     ///
-    /// Built by a static that takes the manager explicitly so the tests can
-    /// exercise this exact binding without standing up a SwiftUI environment
-    /// (`StreamingSettingsBindingTests`).
+    /// Built by a static so the tests can exercise this exact binding without
+    /// standing up a SwiftUI environment (`StreamingSettingsBindingTests`).
     static func providerBinding(for settings: SettingsManager) -> Binding<String> {
+        providerBinding(
+            read: { settings.streamingProvider },
+            write: { settings.streamingProvider = $0 },
+            publish: { settings.objectWillChange.send() }
+        )
+    }
+
+    /// The same binding over plain closures, and the one the tests drive.
+    ///
+    /// The tests must NOT reach it through a `SettingsManager`. The backing
+    /// property is `@AppStorage`, so any write lands in `UserDefaults.standard`,
+    /// and the macOS test host IS the running app: that write invalidates every
+    /// `@AppStorage` in the live view tree, the home window re-lays out, and its
+    /// `@FetchRequest` aborts the whole process — reported by `xcodebuild` as
+    /// dozens of unrelated tests "failing" in 0.000 seconds. Driving closures
+    /// over a local variable touches no global state and cannot do that.
+    static func providerBinding(
+        read: @escaping () -> String,
+        write: @escaping (String) -> Void,
+        publish: @escaping () -> Void
+    ) -> Binding<String> {
         Binding(
             get: {
-                (StreamingTranscriptionProvider.fromStorageValue(settings.streamingProvider)
+                (StreamingTranscriptionProvider.fromStorageValue(read())
                     ?? .hyperwhisperCloud).rawValue
             },
             set: {
-                settings.objectWillChange.send()
-                settings.streamingProvider = $0
+                publish()
+                write($0)
             }
         )
     }
@@ -551,11 +571,24 @@ struct StreamingView: View {
     /// language warning (`cloudTierRequiresLanguageForVocabulary`) showing the
     /// previous tier's answer.
     static func cloudTierBinding(for settings: SettingsManager) -> Binding<String> {
+        cloudTierBinding(
+            read: { settings.streamingCloudTier },
+            write: { settings.streamingCloudTier = $0 },
+            publish: { settings.objectWillChange.send() }
+        )
+    }
+
+    /// Closure form, for the same reason as `providerBinding(read:write:publish:)`.
+    static func cloudTierBinding(
+        read: @escaping () -> String,
+        write: @escaping (String) -> Void,
+        publish: @escaping () -> Void
+    ) -> Binding<String> {
         Binding(
-            get: { HyperWhisperCloudStrategy.normalizedCloudTier(settings.streamingCloudTier) },
+            get: { HyperWhisperCloudStrategy.normalizedCloudTier(read()) },
             set: {
-                settings.objectWillChange.send()
-                settings.streamingCloudTier = $0
+                publish()
+                write($0)
             }
         )
     }
