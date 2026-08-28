@@ -9,6 +9,26 @@ import { useTranslations } from "next-intl";
 
 type Platform = "mac" | "windows" | "linux";
 
+/**
+ * Shape of /linux-latest.json, written by linux-release.yml on every published
+ * Linux release. Linux updates through apt rather than Sparkle, so it has no
+ * appcast; this file is the one thing the site needs from a release.
+ */
+type LinuxLatest = {
+  version: string;
+  releasedAt: string;
+  deb: string;
+  aptArchive: string | null;
+  checksums: string;
+  releasePage: string;
+};
+
+// Used only if /linux-latest.json cannot be read. It points at the releases
+// list rather than a pinned version, so a stale build can never advertise a
+// version number that has been superseded.
+const LINUX_RELEASES_URL =
+  "https://github.com/ray-amjad/hyperwhisper-app/releases?q=linux";
+
 export default function DownloadPage() {
   const t = useTranslations("downloadPage");
   const searchParams = useSearchParams();
@@ -24,6 +44,7 @@ export default function DownloadPage() {
     linux: { url: null, countdown: 5, started: false },
   });
   const [copied, setCopied] = useState(false);
+  const [linuxLatest, setLinuxLatest] = useState<LinuxLatest | null>(null);
 
   const currentState = downloadState[selectedPlatform];
 
@@ -60,6 +81,28 @@ export default function DownloadPage() {
     }
     // macOS is default, no change needed
   }, [searchParams]);
+
+  // Read the current Linux version once the user is on the Linux tab. A failure
+  // is not an error state: the button falls back to the releases list, so the
+  // page stays useful if the file is missing or the fetch is blocked.
+  useEffect(() => {
+    if (selectedPlatform !== "linux" || linuxLatest) return;
+
+    let cancelled = false;
+
+    fetch("/linux-latest.json")
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data: LinuxLatest | null) => {
+        if (!cancelled && data?.version && data?.deb) setLinuxLatest(data);
+      })
+      .catch(() => {
+        // Fall back to LINUX_RELEASES_URL below.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedPlatform, linuxLatest]);
 
   // Fetch the macOS download URL on mount (but don't trigger download yet).
   useEffect(() => {
@@ -273,17 +316,29 @@ export default function DownloadPage() {
               </Button>
             </div>
           ) : selectedPlatform === "linux" ? (
-            <Button
-              as="a"
-              className="bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold hover:from-purple-500 hover:to-blue-500 transition-all hover:shadow-lg px-8"
-              href="https://github.com/ray-amjad/hyperwhisper-app/releases/tag/linux%2Fv1.0.0"
-              rel="noreferrer"
-              size="lg"
-              startContent={<Download className="w-5 h-5" />}
-              target="_blank"
-            >
-              Download Linux v1.0.0
-            </Button>
+            <div className="flex flex-col items-center gap-3">
+              <Button
+                as="a"
+                className="bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold hover:from-purple-500 hover:to-blue-500 transition-all hover:shadow-lg px-8"
+                href={linuxLatest?.deb ?? LINUX_RELEASES_URL}
+                rel="noreferrer"
+                size="lg"
+                startContent={<Download className="w-5 h-5" />}
+                target="_blank"
+              >
+                {linuxLatest
+                  ? `Download Linux v${linuxLatest.version}`
+                  : "Download Linux"}
+              </Button>
+              <a
+                className="text-sm text-gray-400 underline hover:text-gray-200"
+                href={linuxLatest?.releasePage ?? LINUX_RELEASES_URL}
+                rel="noreferrer"
+                target="_blank"
+              >
+                Checksums and release notes
+              </a>
+            </div>
           ) : (
             <Button
               className="bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold hover:from-purple-500 hover:to-blue-500 transition-all hover:shadow-lg px-8"
@@ -366,11 +421,12 @@ export default function DownloadPage() {
                 </div>
                 <p className="text-sm text-gray-400 mb-4">
                   Linux v1 targets Ubuntu 22.04+ and Debian 12+ on amd64.
-                  Replace VERSION with the version you downloaded.
+                  {!linuxLatest &&
+                    " Replace VERSION with the version you downloaded."}
                 </p>
                 <div className="rounded-lg border border-gray-700 bg-gray-800/80 p-3 overflow-x-auto">
                   <code className="text-sm font-mono text-gray-200 whitespace-pre">
-                    {`sudo apt install ./hyperwhisper_VERSION_amd64.deb
+                    {`sudo apt install ./hyperwhisper_${linuxLatest?.version ?? "VERSION"}_amd64.deb
 sudo usermod -aG hyperwhisper-input "$USER"`}
                   </code>
                 </div>
