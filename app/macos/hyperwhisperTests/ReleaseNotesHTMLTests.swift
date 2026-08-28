@@ -323,9 +323,16 @@ struct ReleaseNotesHTMLTests {
         #expect(ReleaseNotesHTML.plainText(#"a<br = "unterminated>b"#) == "a\nb")
     }
 
-    /// "\r\n" is one Character, equal to neither "\r" nor "\n", so a CRLF used
-    /// to be appended literally where the C# mirror — which walks UTF-16 units
-    /// — collapsed it. A non-breaking space is not collapsible on either.
+    /// Whitespace is collapsed one Unicode SCALAR VALUE at a time: the unit
+    /// `hw-releasenotes` pins for every index, scan limit and whitespace
+    /// predicate on all three heads. A CRLF is two scalars — "\r" and "\n",
+    /// each of them collapsible — so it collapses like any other run of
+    /// whitespace, and the expectations below are the same on every head.
+    ///
+    /// This file used to read text by GRAPHEME, where "\r\n" is one Character
+    /// equal to neither "\r" nor "\n", so the CRLF had to be named outright to
+    /// collapse at all; the C# mirror walked UTF-16 units. Both are gone.
+    /// A non-breaking space is not collapsible whitespace on any of them.
     @Test func aCarriageReturnLineFeedCollapsesLikeAnyOtherWhitespace() {
         #expect(ReleaseNotesHTML.plainText("line one\r\nline two") == "line one line two")
         #expect(ReleaseNotesHTML.plainText("a\r\n\r\n  b") == "a b")
@@ -369,6 +376,33 @@ struct ReleaseNotesHTMLTests {
         #expect(ReleaseNotesHTML.plainText("a &amp; b &mdash; c &#8212; d &#x2014; e") == "a & b — c — d — e")
         #expect(ReleaseNotesHTML.plainText("&bogus; stays") == "&bogus; stays")
         #expect(ReleaseNotesHTML.plainText("&lt;b&gt;not a tag&lt;/b&gt;") == "<b>not a tag</b>")
+    }
+
+    /// A DELIBERATE strictness change (#284, decision (a)). "&#+65;" and
+    /// "&#x+41;" used to decode to "A" here and stayed literal on Windows,
+    /// because `UInt32(_:radix:)` accepts a leading sign and
+    /// `NumberStyles.None` does not. Nothing pinned either, no feed carries
+    /// them, and this is remote input — so the shared decoder rejects a signed
+    /// body on both heads and the "&" stays literal text. ("&#-65;" never
+    /// decoded on either; it is pinned so it cannot start to.)
+    @Test func aNumericEntityWithASignedBodyStaysLiteral() {
+        #expect(ReleaseNotesHTML.plainText("&#+65;") == "&#+65;")
+        #expect(ReleaseNotesHTML.plainText("&#-65;") == "&#-65;")
+        #expect(ReleaseNotesHTML.plainText("&#x+41;") == "&#x+41;")
+
+        // The well-formed spellings still decode.
+        #expect(ReleaseNotesHTML.plainText("&#65;") == "A")
+        #expect(ReleaseNotesHTML.plainText("&#x41;") == "A")
+    }
+
+    /// The other half of decision (a), pinned in the direction this head
+    /// already took: "&#x 41;" never decoded here, and decoded to "A" on
+    /// Windows, where `NumberStyles.HexNumber` allows leading white. The
+    /// shared decoder keeps it literal, so this cannot regress into a decode.
+    @Test func aNumericEntityWithWhitespaceInItsBodyStaysLiteral() {
+        #expect(ReleaseNotesHTML.plainText("&#x 41;") == "&#x 41;")
+        #expect(ReleaseNotesHTML.plainText("&# 65;") == "&# 65;")
+        #expect(ReleaseNotesHTML.plainText("&#65 ;") == "&#65 ;")
     }
 
     @Test func feedIndentationCollapsesToSingleSpaces() {
