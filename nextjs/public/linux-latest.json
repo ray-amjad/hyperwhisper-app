@@ -1,0 +1,8 @@
+{
+  "version": "1.0.0",
+  "releasedAt": "2026-08-24T03:50:01Z",
+  "deb": "https://github.com/ray-amjad/hyperwhisper-app/releases/download/linux%2Fv1.0.0/hyperwhisper_1.0.0_amd64.deb",
+  "aptArchive": null,
+  "checksums": "https://github.com/ray-amjad/hyperwhisper-app/releases/download/linux%2Fv1.0.0/SHA256SUMS",
+  "releasePage": "https://github.com/ray-amjad/hyperwhisper-app/releases/tag/linux%2Fv1.0.0"
+}

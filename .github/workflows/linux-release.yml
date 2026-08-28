@@ -37,6 +37,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write   # the website version file lands via an auto-merged PR
 
 concurrency:
   group: linux-release
@@ -690,6 +691,80 @@ jobs:
             END { exit(found ? 0 : 1) }
           ' "${RUNNER_TEMP}/Packages"
           echo "Signed APT repository deployed and read back from $origin"
+
+      # The website's Linux download button reads this file. macOS and Windows
+      # land their appcast the same way — a commit on the base branch through an
+      # auto-merged PR — so the mechanism matches even though the format does
+      # not: Linux updates through apt, not Sparkle, so a Sparkle appcast here
+      # would be a costume.
+      #
+      # It runs last, after both the GitHub Release and the APT repository are
+      # live, so the site never advertises a version that is not fully shipped.
+      - name: Publish the Linux version to the website
+        if: steps.release.outputs.publish == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          BASE="${GITHUB_REF_NAME}"
+          BRANCH="release/linux-v${VERSION}-site"
+          TAG_ENCODED="${TAG//\//%2F}"
+          BUILDS="https://builds.hyperwhisper.com"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # The checkout step deliberately strips the token from the remote URL.
+          # Authenticate the push with a header instead of putting it back, so
+          # the credential never lands in .git/config.
+          auth_header="authorization: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+
+          git -c "http.extraheader=$auth_header" fetch -q --no-tags origin "$BASE"
+
+          # Clear any stale branch left behind by a failed run.
+          git -c "http.extraheader=$auth_header" push -q origin --delete "$BRANCH" 2>/dev/null || true
+          git checkout -q -B "$BRANCH" "origin/$BASE"
+
+          jq -n \
+            --arg version "$VERSION" \
+            --arg releasedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg deb "${BUILDS}/hyperwhisper_${VERSION}_amd64.deb" \
+            --arg aptArchive "${BUILDS}/hyperwhisper-apt-${VERSION}.tar.gz" \
+            --arg checksums "${BUILDS}/hyperwhisper-linux-${VERSION}-SHA256SUMS" \
+            --arg releasePage "https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG_ENCODED}" \
+            '{version:$version, releasedAt:$releasedAt, deb:$deb, aptArchive:$aptArchive, checksums:$checksums, releasePage:$releasePage}' \
+            > nextjs/public/linux-latest.json
+
+          git add nextjs/public/linux-latest.json
+          if git diff --cached --quiet; then
+            echo "linux-latest.json is already current; nothing to publish."
+            exit 0
+          fi
+
+          git commit -q -m "release: Linux v${VERSION} — publish the version to the website"
+          git -c "http.extraheader=$auth_header" push -q -u origin "$BRANCH"
+
+          gh pr create --base "$BASE" --head "$BRANCH" \
+            --title "release: Linux v${VERSION} — website version file" \
+            --body "Automated release commit from linux-release.yml."
+
+          # A brand-new PR can take a moment to report as mergeable.
+          for i in 1 2 3 4 5; do
+            if gh pr merge "$BRANCH" --squash --delete-branch; then
+              break
+            fi
+            if [ "$i" = 5 ]; then
+              echo "::error::The website version file did not merge after 5 attempts. The release itself shipped correctly; merge release/linux-v${VERSION}-site by hand to update the download page."
+              exit 1
+            fi
+            echo "merge attempt $i failed, retrying..."
+            sleep 5
+          done
+
+          echo "The website now advertises Linux v${VERSION}."
 
       - name: Report dry-run artifacts
         if: steps.release.outputs.publish != 'true'
