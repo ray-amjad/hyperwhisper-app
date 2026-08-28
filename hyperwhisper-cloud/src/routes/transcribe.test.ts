@@ -901,3 +901,55 @@ describe('self-only is a provider policy, not the length of a filtered chain', (
     expect(response.status).toBe(502);
   });
 });
+
+/**
+ * The route no longer knows WHICH provider is geo-blocked, from WHERE, or where
+ * a blocked request goes instead — `providers/geo-availability.ts` owns all of
+ * that (see its own tests). What the route still owns is carrying the plan out:
+ * emit the `fly-replay` header Fly reads, and spend nothing upstream first.
+ */
+describe('the route carries out the geo-routing plan it is handed', () => {
+  const originalRegion = process.env.FLY_REGION;
+
+  beforeEach(() => {
+    process.env.ELEVENLABS_API_KEY = 'test-elevenlabs-key';
+    process.env.FLY_REGION = 'nrt';
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    if (originalRegion === undefined) {
+      delete process.env.FLY_REGION;
+    } else {
+      process.env.FLY_REGION = originalRegion;
+    }
+  });
+
+  test('a small ElevenLabs request from a blocked region is replayed, untouched', async () => {
+    const audio = new Uint8Array(2048);
+
+    // Any upstream call at all means the replay did not short-circuit the route.
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      throw new Error(`Unexpected fetch: ${String(input)}`);
+    }) as unknown as typeof fetch;
+
+    const app = new Hono();
+    app.post('/transcribe', transcribeRoute);
+    const response = await app.fetch(new Request(
+      'http://localhost/transcribe?license_key=test-license&language=en',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'audio/wav',
+          'Content-Length': String(audio.byteLength),
+          'X-STT-Provider': 'elevenlabs',
+        },
+        body: audio,
+      },
+    ));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('fly-replay')).toBe('region=iad');
+    expect(await response.text()).toBe('');
+  });
+});
