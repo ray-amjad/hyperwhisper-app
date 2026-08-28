@@ -146,7 +146,7 @@ With push-to-talk, you hold a key to record. When you release the key, recording
     </Note>
 
     <Note>
-      Push-to-talk has a **250 ms activation delay** before recording starts. This delay ignores the modifier keys of normal shortcuts, for example `⌘C` to copy. These shortcuts do not start a recording session.
+      Push-to-talk has a **250 ms activation delay** before recording starts. This delay ignores the modifier keys of normal shortcuts, for example `⌘C` to copy. These shortcuts do not start a recording session. macOS, Windows, and Linux all use the same 250 ms delay.
     </Note>
   </Tab>
   <Tab title="Windows">
@@ -187,8 +187,6 @@ When double-press is on, two quick taps on the push-to-talk key lock recording o
 <Tabs>
   <Tab title="macOS">
     The **Double Press to Lock** toggle is in **Settings → Shortcuts**, below the push-to-talk card. It appears only when your push-to-talk mode is one modifier key (FN, Control, Left Option, or Right Option). The combination modes (FN + Control, FN + Left Option) and Custom mode do not have double-press lock.
-
-    The detection window is **1.5 seconds**. Lock mode starts only when both taps occur in this interval.
   </Tab>
   <Tab title="Windows">
     The **Double-Press Lock** checkbox is in **Settings → Shortcuts**. It appears when push-to-talk is in Modifier mode.
@@ -197,6 +195,24 @@ When double-press is on, two quick taps on the push-to-talk key lock recording o
     The **Double press to lock push-to-talk** checkbox is in **Settings → Shortcuts and push-to-talk**. It is off by default.
   </Tab>
 </Tabs>
+
+The detection window is **1.5 seconds** on all three platforms. Both taps must occur in this interval.
+
+#### Minimum lock time before you can unlock
+
+After the lock starts, HyperWhisper ignores the unlock sequence for a short time. This delay stops a key bounce, or a dropped packet from a wireless keyboard, from unlocking the recording immediately after it locked.
+
+| Platform | Minimum lock time |
+| --- | --- |
+| macOS | 1 second |
+| Windows | 2 seconds |
+| Linux | 2 seconds |
+
+If you tap two times before this time, HyperWhisper stays locked. Wait, then tap two times again.
+
+<Note>
+  On Windows and Linux, HyperWhisper waits **100 ms** after you release the push-to-talk key. It then reads the key again before it stops the recording. This delay keeps a recording alive when a wireless keyboard drops a packet during a hold. macOS has no such delay, because it filters the key on both edges before the event.
+</Note>
 
 ## Quick Capture (macOS)
 
