@@ -40,6 +40,19 @@ enum LocalAPIErrorCode: String, Codable, Sendable {
     case timeout = "TIMEOUT"
 }
 
+extension LocalAPIErrorCode {
+    /// Bridge a shared-core code into this `Codable` enum (issue #289).
+    ///
+    /// `hw_localapi` holds the same closed set of 14, so the round trip
+    /// through the wire string always succeeds; the fallback exists because
+    /// `init?(rawValue:)` is failable and Swift cannot see that both enums are
+    /// the same list. `LocalAPIErrorCodeParityTests` fails loudly if they ever
+    /// stop being.
+    init(shared code: HwLocalApiErrorCode) {
+        self = LocalAPIErrorCode(rawValue: localApiErrorCodeWireValue(code: code)) ?? .invalidRequest
+    }
+}
+
 // MARK: - Envelope
 
 struct APIError: Codable, Sendable {

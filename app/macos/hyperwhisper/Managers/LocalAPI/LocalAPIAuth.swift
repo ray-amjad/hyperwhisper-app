@@ -59,18 +59,19 @@ enum LocalAPIAuth {
     // MARK: - Header check
 
     /// Return true iff `request` carries `Authorization: Bearer <expected>`.
-    /// Uses constant-time compare on the decoded bytes so we don't leak the
-    /// length of the prefix that matches across the wire.
+    ///
+    /// THE COMPARE LIVES IN RUST (issue #289). All three platforms did this
+    /// differently — this file hand-rolled an XOR loop that returned early on
+    /// a length mismatch, so the length of the stored token leaked through
+    /// timing even though the loop that followed did not. `hw_localapi`
+    /// hashes both sides to a fixed 32 bytes first, so the compare runs the
+    /// same number of iterations for every request whatever the caller sent.
     static func authorize(_ request: HTTPRequest, expected: String) -> Bool {
         // FlyingFox surfaces headers via the request's headers map. We look
         // up case-insensitively since RFC 7230 §3.2 makes header names CI.
         let header = headerValue(request: request, name: "Authorization")
             ?? headerValue(request: request, name: "authorization")
-        guard let raw = header else { return false }
-        let trimmed = raw.trimmingCharacters(in: .whitespaces)
-        guard trimmed.lowercased().hasPrefix("bearer ") else { return false }
-        let provided = String(trimmed.dropFirst("bearer ".count)).trimmingCharacters(in: .whitespaces)
-        return constantTimeEqual(provided, expected)
+        return localApiAuthorize(authorizationHeader: header, expectedToken: expected)
     }
 
     private static func headerValue(request: HTTPRequest, name: String) -> String? {
@@ -130,36 +131,27 @@ enum LocalAPIAuth {
         }
     }
 
-    /// 32 random bytes → base64-url. Strips `=` padding and swaps `+/` for
-    /// `-_` so the token is safe to drop into a URL, a JSON value, or an
-    /// HTTP header without escaping.
-    private static func generateToken() -> String {
-        var bytes = [UInt8](repeating: 0, count: 32)
+    /// 32 random bytes → base64-url, the encoding all three platforms wrote
+    /// out separately.
+    ///
+    /// THE ENTROPY STAYS HERE AND THE ENCODING MOVED (issue #289). The shared
+    /// core builds with `panic = "abort"`, so a random-number failure inside
+    /// Rust would abort the whole app; `SecRandomCopyBytes` failing is
+    /// something this function can handle, and does — the UUID fallback below
+    /// is the pre-existing behaviour and is why `rand` is not a dependency of
+    /// `hw-localapi`.
+    static func generateToken() -> String {
+        var bytes = [UInt8](repeating: 0, count: Int(localApiTokenEntropyBytes()))
         let status = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
         if status != errSecSuccess {
             // Defensive fallback: UUID-based (less ideal but never blocking).
             return UUID().uuidString.replacingOccurrences(of: "-", with: "") + UUID().uuidString.replacingOccurrences(of: "-", with: "")
         }
-        let raw = Data(bytes).base64EncodedString()
-        return raw
-            .replacingOccurrences(of: "=", with: "")
-            .replacingOccurrences(of: "+", with: "-")
-            .replacingOccurrences(of: "/", with: "_")
-    }
-
-    /// Length-stable compare that avoids early-exit on first byte mismatch.
-    /// Required so the API doesn't leak even one character of the token via
-    /// timing variability — the bearer check is the only thing standing
-    /// between a local-network attacker and arbitrary transcription/post-
-    /// processing on the user's keys.
-    private static func constantTimeEqual(_ a: String, _ b: String) -> Bool {
-        let aBytes = Array(a.utf8)
-        let bBytes = Array(b.utf8)
-        if aBytes.count != bBytes.count { return false }
-        var diff: UInt8 = 0
-        for i in 0..<aBytes.count {
-            diff |= aBytes[i] ^ bBytes[i]
+        do {
+            return try localApiGenerateToken(entropy: Data(bytes))
+        } catch {
+            AppLogger.settings.error("LocalAPI auth: token encoding failed · \(error.localizedDescription, privacy: .public)")
+            return UUID().uuidString.replacingOccurrences(of: "-", with: "") + UUID().uuidString.replacingOccurrences(of: "-", with: "")
         }
-        return diff == 0
     }
 }
