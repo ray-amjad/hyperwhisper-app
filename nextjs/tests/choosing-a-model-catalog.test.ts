@@ -452,9 +452,10 @@ test("every model the Cloud routes live is a row the page calls live", () => {
       .map((model) => `${provider.id}:${model.id}`),
   );
 
-  // Deliberately one-directional. A row can stream under BYOK without the Cloud
-  // routing it — all four Deepgram rows do, and only two carry the flag — so
-  // the page's list is a superset, never an equality.
+  // Deliberately one-directional. A row can be live without the Cloud routing
+  // it: `grokStt:` streams BYOK-only and carries no catalog flag, so the page's
+  // list is a superset. Not an equality either way — a model the Cloud routes
+  // live must appear here, but appearing here does not require the flag.
   assert.ok(cloudLive.length > 0, "no catalog model carries `streaming: true`");
   for (const id of cloudLive) {
     assert.ok(

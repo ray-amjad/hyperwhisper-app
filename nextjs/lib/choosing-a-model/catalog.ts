@@ -160,24 +160,33 @@ export type CloudModel = {
    * for `gemini-3.5-transcribe`, the pre-recorded Interactions API model, whose
    * live sibling is a separate row.
    *
-   * The rule, applied row by row: true when HyperWhisper implements a live
-   * route AND a reader can reach THIS model through it. Five routes live in
-   * `shared-core-rs/crates/hw-net/src/live/` (`deepgram.rs`, `elevenlabs.rs`,
-   * `openai.rs`, `xai.rs`, `gemini.rs`) with the native strategies beside them,
-   * and two HyperWhisper Cloud proxies in `hyperwhisper-cloud/src/routes/`. A
-   * route existing is not enough — what the picker in front of it can select is
-   * what decides the flag:
+   * The rule, applied row by row: true when a reader of THIS page can reach
+   * this model live in BOTH apps it describes — macOS and Windows. An
+   * intersection, not a union, and `supportsStreaming` in `scoring.ts` takes no
+   * platform for cloud rows because of it. Linux is outside the page's scope and
+   * outside this rule: its streaming model box is free text
+   * (`LinuxLiveStreamingAdapters.cs` forwards whatever is typed), so a union
+   * rule would turn every Deepgram model into a live claim that the two apps
+   * this page names cannot honour.
+   *
+   * Five routes live in `shared-core-rs/crates/hw-net/src/live/` (`deepgram.rs`,
+   * `elevenlabs.rs`, `openai.rs`, `xai.rs`, `gemini.rs`) with the native
+   * strategies beside them, and two HyperWhisper Cloud proxies in
+   * `hyperwhisper-cloud/src/routes/`. A route existing is not enough — what the
+   * picker in front of it can select is what decides the flag:
    *
    * - Deepgram: two rows only. Both desktop pickers offer `nova-3-general` and
    *   `nova-3-medical` and nothing else (`StreamingView.swift`, and
    *   `SettingsService.StreamingDeepgramModel` on Windows rewrites any other
    *   value to `nova-3-general`), and `ws-streaming-deepgram.ts` hard-codes
-   *   `model: 'nova-3'`. The two Nova 2 rows are batch-only.
+   *   `model: 'nova-3'`. The two Nova 2 rows are batch-only on both.
    * - xAI's live endpoint takes no model parameter, so its single row streams.
-   * - Gemini Transcribe: the live row only. `providers/gemini_transcribe.rs`
-   *   holds `LIVE_MODEL`, which `live/gemini.rs` and `GeminiStreamingStrategy`
-   *   substitute when the caller sends no model, and every caller pins that id.
-   *   The pre-recorded row is not offered live anywhere.
+   * - Gemini Transcribe: the live row only. No caller sends a model id on this
+   *   path — macOS passes nil for `.gemini` deliberately — and each side
+   *   substitutes its own live constant when the id is empty: `LIVE_MODEL` in
+   *   `providers/gemini_transcribe.rs`, reached through `live/gemini.rs`, and a
+   *   duplicate `liveModel` literal in `GeminiStreamingStrategy`. Nothing on
+   *   the path would reject the pre-recorded id; nothing sends it either.
    * - OpenAI and ElevenLabs have live routes, but they run
    *   `gpt-realtime-whisper` and `scribe_v2_realtime` — ids this page does not
    *   list — so no row of either vendor claims live. `gpt-live-transcribe` in
