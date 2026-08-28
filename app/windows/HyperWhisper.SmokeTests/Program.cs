@@ -841,7 +841,11 @@ internal static class Program
                     // a device name — so the privacy rule below is unaffected.
                     "StoreAsM4A", "KeepAudioFiles",
                     "StreamingEnabled", "StreamingProvider", "StreamingLanguage",
-                    "StreamingDeepgramModel", "StreamingFastFormatting", "StreamingShortcut",
+                    // StreamingCloudTier joined with the catalog-v8 live tier picker.
+                    // It reads through a clamping getter, so it is always present and
+                    // never null — a tier id, not a path or a device name.
+                    "StreamingDeepgramModel", "StreamingCloudTier",
+                    "StreamingFastFormatting", "StreamingShortcut",
                     "TypingSpeedWPM", "MaxRecordingDuration",
                 ];
 

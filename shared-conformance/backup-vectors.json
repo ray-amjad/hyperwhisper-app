@@ -2658,7 +2658,8 @@
         "StreamingProvider",
         "StreamingLanguage",
         "StreamingDeepgramModel",
-        "StreamingShortcut"
+        "StreamingShortcut",
+        "StreamingCloudTier"
       ],
       "baselineNative": {
         "LaunchMinimized": true,
@@ -2952,6 +2953,7 @@
           "provider": "deepgram",
           "language": "de",
           "deepgramModel": "nova-3-medical",
+          "cloudTier": "deepgramNova3",
           "fastFormatting": false,
           "shortcut": "Ctrl+Alt+Shift+F9"
         },
