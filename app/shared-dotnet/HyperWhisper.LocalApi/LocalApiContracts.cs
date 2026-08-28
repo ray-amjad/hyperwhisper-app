@@ -55,7 +55,15 @@ public static class LocalApiErrorCodes
     ];
 }
 
-public sealed record LocalApiError(string Code, string Message, string? Hint = null);
+/// <summary>
+/// The error half of the envelope. A `hint` that is absent is OMITTED, not
+/// written as `null` (issue #289) — that is what macOS and Windows put on the
+/// wire, and what `hw-localapi` encodes for the guard and bearer rejections.
+/// </summary>
+public sealed record LocalApiError(
+    string Code,
+    string Message,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Hint = null);
 public sealed record LocalApiFailure([property: JsonPropertyName("error")] LocalApiError Error)
 {
     [JsonPropertyName("ok")] public bool Ok => false;
