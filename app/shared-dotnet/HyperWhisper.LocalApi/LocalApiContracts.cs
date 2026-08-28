@@ -5,14 +5,54 @@ using HyperWhisper.PortableApplication.Transcription;
 
 namespace HyperWhisper.LocalApi;
 
+/// <summary>
+/// The closed set of Local API error codes (issue #289).
+///
+/// The macOS decoder is a Swift `Codable` enum, so a code outside this set does
+/// not merely read as "unknown" — it makes the WHOLE envelope undecodable, and
+/// the caller sees a parse failure instead of the message. This head used to
+/// emit four codes that were never in the set: `PAYLOAD_TOO_LARGE`,
+/// `CANCELLED`, `UNAUTHORIZED` and `RECORDING_NOT_FOUND`. They are now mapped
+/// onto the codes the other two platforms already use for the same outcome.
+///
+/// `hw-localapi` owns the list; `LocalApiErrorCodes` is checked against
+/// `LocalApiAllErrorCodes()` by the portable test suite, so a code added on one
+/// side and not the other fails the build's tests rather than a client's parse.
+/// </summary>
 public static class LocalApiErrorCodes
 {
-    public const string InvalidRequest = "INVALID_REQUEST";
+    public const string ModelNotInstalled = "MODEL_NOT_INSTALLED";
+    public const string ModelNotFound = "MODEL_NOT_FOUND";
+    public const string EngineUnavailable = "ENGINE_UNAVAILABLE";
+    public const string MissingApiKey = "MISSING_API_KEY";
+    public const string FileNotFound = "FILE_NOT_FOUND";
+    public const string FileAccessDenied = "FILE_ACCESS_DENIED";
     public const string FileNotAllowed = "FILE_NOT_ALLOWED";
-    public const string PayloadTooLarge = "PAYLOAD_TOO_LARGE";
+    public const string AudioDecodeFailed = "AUDIO_DECODE_FAILED";
+    public const string TranscriptionFailed = "TRANSCRIPTION_FAILED";
     public const string ModeNotFound = "MODE_NOT_FOUND";
-    public const string Cancelled = "CANCELLED";
+    public const string ModeNameTaken = "MODE_NAME_TAKEN";
+    public const string InvalidRequest = "INVALID_REQUEST";
+    public const string RateLimited = "RATE_LIMITED";
+    public const string Timeout = "TIMEOUT";
+
+    /// <summary>
+    /// NOT part of the closed set, and deliberately never emitted. It is kept
+    /// declared so that a reader who goes looking for it finds this note rather
+    /// than adding it back: a response carrying this code cannot be decoded by
+    /// a macOS or MCP client at all. Use <see cref="TranscriptionFailed"/> for
+    /// an unexpected server-side failure.
+    /// </summary>
     public const string InternalError = "INTERNAL_ERROR";
+
+    /// <summary>The 14 codes a client may receive, in the shared order.</summary>
+    public static readonly IReadOnlyList<string> All =
+    [
+        ModelNotInstalled, ModelNotFound, EngineUnavailable, MissingApiKey,
+        FileNotFound, FileAccessDenied, FileNotAllowed, AudioDecodeFailed,
+        TranscriptionFailed, ModeNotFound, ModeNameTaken, InvalidRequest,
+        RateLimited, Timeout,
+    ];
 }
 
 public sealed record LocalApiError(string Code, string Message, string? Hint = null);

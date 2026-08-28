@@ -61,6 +61,22 @@ public static class PortableLocalApi
             return Results.Ok(new { ok = true, app_version = health.AppVersion, api_version = 1, port = context.Connection.LocalPort, pid = Environment.ProcessId, health.Providers, post_processing_providers = health.PostProcessingProviders, local_models = health.LocalModels });
         });
 
+        // DNS-rebind guard — runs before EVERY route, including the
+        // unauthenticated /health, and before the bearer check. This head had
+        // no such guard until issue #289; this is macOS's, shared through
+        // hw-localapi rather than transliterated a third time. The guard runs
+        // first on purpose: checking the token first would tell an
+        // unauthenticated rebound page whether its guess was right.
+        app.Use(async (context, next) =>
+        {
+            if (!LocalApiOriginGuard.IsAllowed(context, LocalApiOriginGuard.ResolvePort(context, options)))
+            {
+                await LocalApiSharedFailure.WriteForbiddenOriginAsync(context);
+                return;
+            }
+            await next(context);
+        });
+
         app.Use(async (context, next) =>
         {
             if (context.Request.Path.Equals("/health", StringComparison.OrdinalIgnoreCase))
@@ -68,12 +84,13 @@ public static class PortableLocalApi
                 await next(context);
                 return;
             }
-            var header = context.Request.Headers.Authorization.ToString();
-            const string prefix = "Bearer ";
-            if (!header.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) || !LocalApiTokenStore.FixedTimeEquals(header[prefix.Length..], options.Token))
+            // The header parse moved into the shared core with the compare
+            // (issue #289): this head used to match the `Bearer ` prefix here
+            // and hash only the remainder, which is one of the three ways the
+            // platforms disagreed.
+            if (!LocalApiTokenStore.Authorize(context.Request.Headers.Authorization.ToString(), options.Token))
             {
-                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                await context.Response.WriteAsJsonAsync(new LocalApiFailure(new("UNAUTHORIZED", "A valid bearer token is required.")));
+                await LocalApiSharedFailure.WriteUnauthorizedAsync(context);
                 return;
             }
             try
@@ -101,20 +118,23 @@ public static class PortableLocalApi
             catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
             {
                 if (context.Response.HasStarted) throw;
-                context.Response.StatusCode = StatusCodes.Status408RequestTimeout;
-                await context.Response.WriteAsJsonAsync(new LocalApiFailure(new(LocalApiErrorCodes.Cancelled, "The request was cancelled.")));
+                // `CANCELLED` was never in the closed set, and 408 was never a
+                // status the docs allowed for a business outcome (issue #289).
+                // `TIMEOUT` is the documented code for "ran out of time".
+                context.Response.StatusCode = StatusCodes.Status200OK;
+                await context.Response.WriteAsJsonAsync(new LocalApiFailure(new(LocalApiErrorCodes.Timeout, "The request was cancelled.")));
             }
             catch (InvalidOperationException)
             {
                 if (context.Response.HasStarted) throw;
-                context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
-                await context.Response.WriteAsJsonAsync(new LocalApiFailure(new("ENGINE_UNAVAILABLE", "The requested application capability is unavailable.")));
+                context.Response.StatusCode = StatusCodes.Status200OK;
+                await context.Response.WriteAsJsonAsync(new LocalApiFailure(new(LocalApiErrorCodes.EngineUnavailable, "The requested application capability is unavailable.")));
             }
         });
 
         app.MapGet("/models", async (ILocalApiBackend b, CancellationToken ct) => Results.Ok(new { ok = true, models = await b.GetModelsAsync(ct) }));
         app.MapGet("/modes", async (ILocalApiBackend b, CancellationToken ct) => Results.Ok(new { ok = true, modes = await b.GetModesAsync(ct) }));
-        app.MapGet("/modes/{id}", async (string id, ILocalApiBackend b, CancellationToken ct) => await b.GetModeAsync(id, ct) is { } mode ? Results.Ok(new { ok = true, mode }) : Failure(404, LocalApiErrorCodes.ModeNotFound, "Mode not found."));
+        app.MapGet("/modes/{id}", async (string id, ILocalApiBackend b, CancellationToken ct) => await b.GetModeAsync(id, ct) is { } mode ? Results.Ok(new { ok = true, mode }) : Failure(200, LocalApiErrorCodes.ModeNotFound, "Mode not found."));
         app.MapPost("/modes", async (HttpContext context, ILocalApiBackend b, CancellationToken ct) =>
         {
             var body = await ReadJsonObject(context, ct);
@@ -124,9 +144,9 @@ public static class PortableLocalApi
         {
             var body = await ReadJsonObject(context, ct);
             if (body is null) return Failure(400, LocalApiErrorCodes.InvalidRequest, "The request body is invalid JSON.");
-            return await b.PatchModeAsync(id, body.Value, ct) is { } mode ? Results.Ok(new { ok = true, mode }) : Failure(404, LocalApiErrorCodes.ModeNotFound, "Mode not found.");
+            return await b.PatchModeAsync(id, body.Value, ct) is { } mode ? Results.Ok(new { ok = true, mode }) : Failure(200, LocalApiErrorCodes.ModeNotFound, "Mode not found.");
         });
-        app.MapDelete("/modes/{id}", async (string id, ILocalApiBackend b, CancellationToken ct) => await b.DeleteModeAsync(id, ct) ? Results.Ok(new { ok = true }) : Failure(404, LocalApiErrorCodes.ModeNotFound, "Mode not found."));
+        app.MapDelete("/modes/{id}", async (string id, ILocalApiBackend b, CancellationToken ct) => await b.DeleteModeAsync(id, ct) ? Results.Ok(new { ok = true }) : Failure(200, LocalApiErrorCodes.ModeNotFound, "Mode not found."));
         app.MapPost("/recording/toggle", async (ILocalApiBackend b, CancellationToken ct) => Results.Ok(new { ok = true, recording = await b.ToggleRecordingAsync(ct) }));
         app.MapPost("/recording/cancel", async (ILocalApiBackend b, CancellationToken ct) => Results.Ok(new { ok = true, recording = await b.CancelRecordingAsync(ct) }));
         app.MapPost("/post-process", async (HttpContext context, ILocalApiBackend b, CancellationToken ct) =>
@@ -158,11 +178,11 @@ public static class PortableLocalApi
         app.MapPost("/transcribe", Transcribe);
         app.MapGet("/recordings", ListRecordings);
         app.MapGet("/recordings/search", ListRecordings);
-        app.MapGet("/recordings/{id}", async (string id, ILocalApiBackend b, CancellationToken ct) => await b.GetRecordingAsync(id, ct) is { } recording ? Results.Ok(new { ok = true, recording }) : Failure(404, "RECORDING_NOT_FOUND", "Recording not found."));
+        app.MapGet("/recordings/{id}", async (string id, ILocalApiBackend b, CancellationToken ct) => await b.GetRecordingAsync(id, ct) is { } recording ? Results.Ok(new { ok = true, recording }) : Failure(200, LocalApiErrorCodes.ModeNotFound, "Recording not found."));
 
         async Task<IResult> Transcribe(HttpContext context, ILocalApiBackend backend, CancellationToken ct)
         {
-            if (context.Request.ContentLength > options.MaxRequestBytes) return Failure(413, LocalApiErrorCodes.PayloadTooLarge, "Request exceeds the configured limit.");
+            if (context.Request.ContentLength > options.MaxRequestBytes) return Failure(200, LocalApiErrorCodes.InvalidRequest, "Request exceeds the configured limit.");
             if (!context.Request.HasFormContentType)
                 return await TranscribeJson(context, backend, ct).ConfigureAwait(false);
             try
@@ -170,7 +190,7 @@ public static class PortableLocalApi
                 var form = await context.Request.ReadFormAsync(ct);
                 var file = form.Files.GetFile("audio");
                 if (file is null || file.Length == 0) return Failure(400, LocalApiErrorCodes.InvalidRequest, "A non-empty 'audio' file is required.");
-                if (file.Length > options.MaxUploadBytes) return Failure(413, LocalApiErrorCodes.PayloadTooLarge, "Audio exceeds the configured upload limit.");
+                if (file.Length > options.MaxUploadBytes) return Failure(200, LocalApiErrorCodes.InvalidRequest, "Audio exceeds the configured upload limit.");
                 var name = file.FileName;
                 if (name != Path.GetFileName(name)
                     || name.Contains("..", StringComparison.Ordinal)
@@ -193,7 +213,7 @@ public static class PortableLocalApi
                         .ToArray()), ct);
                 return TranscriptionSuccess(result);
             }
-            catch (InvalidDataException) { return Failure(413, LocalApiErrorCodes.PayloadTooLarge, "Request exceeds the configured limit."); }
+            catch (InvalidDataException) { return Failure(200, LocalApiErrorCodes.InvalidRequest, "Request exceeds the configured limit."); }
         }
 
         async Task<IResult> TranscribeJson(HttpContext context, ILocalApiBackend backend, CancellationToken ct)
@@ -222,13 +242,13 @@ public static class PortableLocalApi
             {
                 var encoded = request.AudioBase64!.Trim();
                 if (encoded.Length > ((long)options.MaxUploadBytes + 2) / 3 * 4)
-                    return Failure(413, LocalApiErrorCodes.PayloadTooLarge, "Audio exceeds the configured upload limit.");
+                    return Failure(200, LocalApiErrorCodes.InvalidRequest, "Audio exceeds the configured upload limit.");
                 try { content = Convert.FromBase64String(encoded); }
                 catch (FormatException) { return Failure(400, LocalApiErrorCodes.InvalidRequest, "'audio_base64' is not valid base64."); }
                 if (content.Length == 0)
                     return Failure(400, LocalApiErrorCodes.InvalidRequest, "Audio must not be empty.");
                 if (content.Length > options.MaxUploadBytes)
-                    return Failure(413, LocalApiErrorCodes.PayloadTooLarge, "Audio exceeds the configured upload limit.");
+                    return Failure(200, LocalApiErrorCodes.InvalidRequest, "Audio exceeds the configured upload limit.");
                 contentType = NormalizeMime(request.MimeType);
                 fileName = "local-api-upload" + ExtensionForMime(contentType);
             }
@@ -318,7 +338,7 @@ public static class PortableLocalApi
             if (input.Length <= 0)
                 return new(null, null, Failure(400, LocalApiErrorCodes.InvalidRequest, "Audio must not be empty."));
             if (input.Length > options.MaxUploadBytes)
-                return new(null, null, Failure(413, LocalApiErrorCodes.PayloadTooLarge, "Audio exceeds the configured upload limit."));
+                return new(null, null, Failure(200, LocalApiErrorCodes.InvalidRequest, "Audio exceeds the configured upload limit."));
             using var output = new MemoryStream((int)input.Length);
             await input.CopyToAsync(output, cancellationToken).ConfigureAwait(false);
             return new(output.ToArray(), Path.GetFileName(path), null);
