@@ -58,7 +58,20 @@ extension RecordingTranscriptionFlow {
         )
 
         let recordingStartTransaction = SentryService.startTransaction(name: "Recording Start", operation: "audio.recording.start")
-        func finishStartTransaction(_ status: SpanStatus) {
+
+        // The breadcrumbs below never leave the machine: `SentryService.beforeSend`
+        // sets `event.breadcrumbs = nil`. `startTrace` mirrors the same progress
+        // into SCOPE extras, which survive `beforeSend` and ride along with the
+        // next event the SDK raises on its own — including the AppHang events of
+        // HYPERWHISPER-F7, whose stacks carry system frames only.
+        let preflightStart = Date()
+        let startTrace = RecordingStartTrace(attemptId: attemptId, trigger: resolvedTrigger)
+        startTrace.begin()
+
+        func finishStartTransaction(_ status: SpanStatus, outcome: RecordingStartOutcome) {
+            let totalMs = RecordingStartTrace.elapsedMs(since: preflightStart)
+            startTrace.finish(outcome, elapsedMs: totalMs)
+            AppLogger.audio.info("⏱️ Recording start finished · outcome=\(outcome.rawValue, privacy: .public) · total=\(totalMs, privacy: .public)ms")
             SentryService.finishSpan(recordingStartTransaction, status: status)
         }
 
@@ -76,20 +89,26 @@ extension RecordingTranscriptionFlow {
             ]
         )
 
-        let preflightStart = Date()
         var lastCheckpoint = preflightStart
-        func logPreflightCheckpoint(_ name: String) {
+
+        // Mark a step as ENTERED, before the call that performs it. A checkpoint
+        // only says which step last finished; a hang happens inside the step
+        // that never did, so the pending mark is what names it.
+        func enterPreflightStep(_ step: RecordingStartStep) {
+            startTrace.enter(step, elapsedMs: RecordingStartTrace.elapsedMs(since: preflightStart))
+        }
+
+        func logPreflightCheckpoint(_ step: RecordingStartStep) {
             let now = Date()
-            let step = now.timeIntervalSince(lastCheckpoint)
-            let total = now.timeIntervalSince(preflightStart)
-            AppLogger.audio.info("⏱️ Recording preflight checkpoint '\(name)' · step=\(String(format: "%.2f", step))s · total=\(String(format: "%.2f", total))s")
-            let stepMs = Int((step * 1_000).rounded())
-            let totalMs = Int((total * 1_000).rounded())
+            let stepMs = Int((now.timeIntervalSince(lastCheckpoint) * 1_000).rounded())
+            let totalMs = Int((now.timeIntervalSince(preflightStart) * 1_000).rounded())
+            AppLogger.audio.info("⏱️ Recording preflight checkpoint '\(step.rawValue, privacy: .public)' · step=\(stepMs, privacy: .public)ms · total=\(totalMs, privacy: .public)ms")
+            startTrace.checkpoint(step, stepMs: stepMs, elapsedMs: totalMs)
             SentryService.addBreadcrumb(
                 message: "Recording preflight checkpoint",
                 category: "audio.preflight",
                 data: [
-                    "checkpoint": name,
+                    "checkpoint": step.rawValue,
                     "stepMs": stepMs,
                     "totalMs": totalMs
                 ]
@@ -125,7 +144,7 @@ extension RecordingTranscriptionFlow {
             currentRecordingTriggerSource = .unknown
             sessionStartedWithTextDeliverySuppressed = false
             quickCaptureContext = nil
-            finishStartTransaction(.internalError)
+            finishStartTransaction(.internalError, outcome: .cancelledByNewerToggle)
             return
         }
 
@@ -156,29 +175,33 @@ extension RecordingTranscriptionFlow {
         // ═══════════════════════════════════════════════════════════════════════════
         if appState?.isStreamingShortcutTriggered == true {
             AppLogger.audio.info("📡 Streaming shortcut detected - using real-time transcription")
-            logPreflightCheckpoint("streaming shortcut detected")
+            logPreflightCheckpoint(.streamingShortcutDetected)
             clearActiveSessionMode()
 
             await MainActor.run {
                 appState?.showRecordingDialog = true
             }
-            logPreflightCheckpoint("streaming dialog shown")
+            logPreflightCheckpoint(.streamingDialogShown)
 
             // Frontmost app context already captured above (before dialog show).
 
             // Request microphone permission (streaming needs it too)
+            enterPreflightStep(.microphonePermission)
             let hasPermission = await SentryService.measureAsync(
                 operation: "audio.permission",
                 description: "request microphone permission (streaming)"
             ) {
                 await permissionManager.requestMicrophonePermission()
             }
+            // Mirrors the batch path below, so both mark the same boundary.
+            logPreflightCheckpoint(.microphonePermission)
+
             if !hasPermission {
                 await MainActor.run {
                     appState?.showRecordingDialog = false
                     permissionManager.showPermissionDeniedAlert = true
                 }
-                finishStartTransaction(.internalError)
+                finishStartTransaction(.internalError, outcome: .streamingPermissionDenied)
                 return
             }
 
@@ -203,11 +226,20 @@ extension RecordingTranscriptionFlow {
             let streamingLanguage = settingsManager?.streamingLanguageEffective ?? LanguageData.automaticCode
             let streamingProvider = settingsManager?.streamingProvider ?? "hyperwhisperCloud"
             let streamingModel: String?
-            switch StreamingTranscriptionProvider(rawValue: streamingProvider) {
+            switch StreamingTranscriptionProvider.fromStorageValue(streamingProvider) {
             case .parakeetLocal:
                 streamingModel = settingsManager?.streamingLocalParakeetVersion
             case .nemotronLocal:
                 streamingModel = settingsManager?.streamingLocalNemotronVariant
+            case .gemini:
+                // MUST NOT fall through to the `default:` arm below. Only two
+                // strategies read `config.model` — Deepgram's and Gemini's — and
+                // Gemini prefixes whatever arrives with `models/`, so the shared
+                // Deepgram setting would reach Google as `models/nova-3-general`
+                // and the socket would close on the setup frame. nil selects the
+                // strategy's own `gemini-3.5-transcribe-live` default, which is
+                // the only live model this provider has.
+                streamingModel = nil
             default:
                 streamingModel = settingsManager?.streamingDeepgramModel
             }
@@ -219,14 +251,15 @@ extension RecordingTranscriptionFlow {
             }
 
             // Start streaming transcription with the selected provider and settings
+            enterPreflightStep(.streamingStarted)
             await startStreamingTranscription(
                 language: streamingLanguage,
                 provider: streamingProvider,
                 model: streamingModel,
                 fastFormatting: streamingFastFormatting
             )
-            logPreflightCheckpoint("streaming started")
-            finishStartTransaction(isStreamingActive ? .ok : .internalError)
+            logPreflightCheckpoint(.streamingStarted)
+            finishStartTransaction(isStreamingActive ? .ok : .internalError, outcome: isStreamingActive ? .streamingActive : .streamingFailed)
             return
         }
 
@@ -249,13 +282,14 @@ extension RecordingTranscriptionFlow {
 
         // 3. REQUEST MICROPHONE PERMISSION
         // May show system dialog on first use.
+        enterPreflightStep(.microphonePermission)
         let hasPermission = await SentryService.measureAsync(
             operation: "audio.permission",
             description: "request microphone permission"
         ) {
             await permissionManager.requestMicrophonePermission()
         }
-        logPreflightCheckpoint("microphone permission")
+        logPreflightCheckpoint(.microphonePermission)
 
         guard hasPermission else {
             await MainActor.run {
@@ -263,7 +297,7 @@ extension RecordingTranscriptionFlow {
                 permissionManager.showPermissionDeniedAlert = true
             }
             quickCaptureContext = nil
-            finishStartTransaction(.internalError)
+            finishStartTransaction(.internalError, outcome: .microphonePermissionDenied)
             return
         }
 
@@ -278,13 +312,14 @@ extension RecordingTranscriptionFlow {
         // through `measureAsync`: the helper only knows `.ok` and `.internalError`, and
         // a superseded start is neither.
         let startSpan = SentryService.startSpan(operation: "audio.recorder", description: "start recording")
+        enterPreflightStep(.audioEngineStarted)
         let startOutcome: RecorderStartOutcome
         do {
             startOutcome = try await recordingLifecycle.startRecording()
         } catch {
             SentryService.finishSpan(startSpan, status: .internalError)
             await handleRecordingStartFailure(error)
-            finishStartTransaction(.internalError)
+            finishStartTransaction(.internalError, outcome: .recorderStartFailed)
             return
         }
 
@@ -321,19 +356,19 @@ extension RecordingTranscriptionFlow {
                 powerActivityManager.endPowerActivity()
             }
 
-            finishStartTransaction(.cancelled)
+            finishStartTransaction(.cancelled, outcome: .superseded)
             return
         }
 
         SentryService.finishSpan(startSpan, status: .ok)
-        logPreflightCheckpoint("audio engine started")
+        logPreflightCheckpoint(.audioEngineStarted)
 
         // 6. SHOW RECORDING UI NOW THAT THE RECORDER IS LIVE
         await MainActor.run {
             appState?.showRecordingDialog = true
             appState?.recordingState = .recording
         }
-        logPreflightCheckpoint("recording dialog shown")
+        logPreflightCheckpoint(.recordingDialogShown)
 
         // 6.5. PLAY START SOUND EFFECT & APPLY MEDIA CONTROL
         if let settings = settingsManager, settings.enableSoundEffects {
@@ -347,7 +382,7 @@ extension RecordingTranscriptionFlow {
             recordingLifecycle.applyMediaControl()
         }
 
-        logPreflightCheckpoint("recording state updated")
+        logPreflightCheckpoint(.recordingStateUpdated)
 
         // 7. ENABLE CANCEL SHORTCUT
         // Register handler only once per app lifetime to prevent accumulation
@@ -363,8 +398,8 @@ extension RecordingTranscriptionFlow {
         KeyboardShortcuts.enable(.cancelRecording)
 
         AppLogger.audio.info("⏺️ Started recording with mode: \(mode)")
-        logPreflightCheckpoint("critical path complete - recording active")
-        finishStartTransaction(.ok)
+        logPreflightCheckpoint(.criticalPathComplete)
+        finishStartTransaction(.ok, outcome: .ok)
         recordingLifecycle.persistSessionForActiveRecording()
         armRecordingMaxDurationTimer(mode: mode, attemptId: attemptId)
 
@@ -433,7 +468,12 @@ extension RecordingTranscriptionFlow {
                 return
             }
 
-            logPreflightCheckpoint("background validation passed")
+            // Guard on the attempt id, like every other Phase B block. The trace
+            // writes to one shared Sentry scope, so a superseded attempt logging
+            // here would overwrite the step of the attempt that is really live.
+            if self.currentRecordingAttemptId == attemptId {
+                logPreflightCheckpoint(.backgroundValidationPassed)
+            }
 
             // ═══════════════════════════════════════════════════════════════════════
             // NON-CRITICAL CONTEXT CAPTURE - fire and forget after validation passes
@@ -483,7 +523,7 @@ extension RecordingTranscriptionFlow {
                 frontmostPID: self.previousFrontmostPID
             )
 
-            logPreflightCheckpoint("context capture complete")
+            logPreflightCheckpoint(.contextCaptureComplete)
         }
     }
 

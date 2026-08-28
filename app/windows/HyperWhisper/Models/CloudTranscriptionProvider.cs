@@ -12,6 +12,7 @@
 // 7. Soniox - Async/file speech-to-text
 // 8. HyperWhisperCloud - Built-in cloud service (no API key required)
 // 9. Gemini - Google Gemini multimodal transcription
+// 10. GeminiTranscribe - Google Gemini 3.5 Transcribe (dedicated STT endpoint)
 
 using HyperWhisper.Localization;
 
@@ -62,7 +63,14 @@ public enum CloudTranscriptionProvider
     MicrosoftAzureSpeech = 12,
 
     /// <summary>Google Cloud Speech-to-Text V2 Chirp 3 (HyperWhisper Cloud only).</summary>
-    GoogleSpeech = 13
+    GoogleSpeech = 13,
+
+    /// <summary>
+    /// Google Gemini 3.5 Transcribe — the dedicated /v1beta/interactions STT
+    /// endpoint. Same vendor as <see cref="Gemini"/> but a different API and its
+    /// OWN key slot; the two are never interchangeable.
+    /// </summary>
+    GeminiTranscribe = 14
 }
 
 /// <summary>
@@ -87,6 +95,7 @@ public static class CloudTranscriptionProviderExtensions
         CloudTranscriptionProvider.Grok => Loc.S("provider.grok"),
         CloudTranscriptionProvider.MicrosoftAzureSpeech => Loc.S("provider.microsoftAzureSpeech"),
         CloudTranscriptionProvider.GoogleSpeech => Loc.S("provider.googleSpeech"),
+        CloudTranscriptionProvider.GeminiTranscribe => Loc.S("provider.geminiTranscribe"),
         _ => Loc.S("provider.none")
     };
 
@@ -108,6 +117,7 @@ public static class CloudTranscriptionProviderExtensions
         CloudTranscriptionProvider.Grok => "grok",
         CloudTranscriptionProvider.MicrosoftAzureSpeech => "microsoftAzureSpeech",
         CloudTranscriptionProvider.GoogleSpeech => "googleSpeech",
+        CloudTranscriptionProvider.GeminiTranscribe => "geminiTranscribe",
         _ => ""
     };
 
@@ -128,6 +138,9 @@ public static class CloudTranscriptionProviderExtensions
         "grok" => CloudTranscriptionProvider.Grok,
         "microsoftazurespeech" => CloudTranscriptionProvider.MicrosoftAzureSpeech,
         "googlespeech" => CloudTranscriptionProvider.GoogleSpeech,
+        // Lower-cased form of the "geminiTranscribe" identifier — the switch runs
+        // on ToLowerInvariant(), so the camelCase spelling would never match.
+        "geminitranscribe" => CloudTranscriptionProvider.GeminiTranscribe,
         _ => CloudTranscriptionProvider.None
     };
 
@@ -142,8 +155,11 @@ public static class CloudTranscriptionProviderExtensions
         CloudTranscriptionProvider.Groq => PostProcessingProvider.Groq,
         CloudTranscriptionProvider.Gemini => PostProcessingProvider.Gemini,
         CloudTranscriptionProvider.Grok => PostProcessingProvider.Grok,
-        // Deepgram, AssemblyAI, ElevenLabs, Mistral have their own keys
-        // handled via TranscriptionApiKeyType enum
+        // Deepgram, AssemblyAI, ElevenLabs, Mistral, Soniox have their own keys
+        // handled via TranscriptionApiKeyType enum. GeminiTranscribe is Google
+        // too, but deliberately does NOT share the Gemini key — it is a separate
+        // API with its own key slot (TranscriptionApiKeyType.GeminiTranscribe),
+        // so it must fall through to None here.
         _ => PostProcessingProvider.None
     };
 
@@ -174,6 +190,8 @@ public static class CloudTranscriptionProviderExtensions
         CloudTranscriptionProvider.Soniox => "https://console.soniox.com",
         CloudTranscriptionProvider.HyperWhisperCloud => "", // No API key needed
         CloudTranscriptionProvider.Gemini => "https://aistudio.google.com/apikey",
+        // Same Google AI Studio console as Gemini — one place issues both keys.
+        CloudTranscriptionProvider.GeminiTranscribe => "https://aistudio.google.com/apikey",
         CloudTranscriptionProvider.Grok => "https://console.x.ai/",
         CloudTranscriptionProvider.MicrosoftAzureSpeech => "",
         CloudTranscriptionProvider.GoogleSpeech => "",
@@ -189,6 +207,9 @@ public static class CloudTranscriptionProviderExtensions
         CloudTranscriptionProvider.AssemblyAI => 5L * 1024 * 1024 * 1024, // 5 GB
         CloudTranscriptionProvider.ElevenLabs => 3L * 1024 * 1024 * 1024, // 3 GB
         CloudTranscriptionProvider.Gemini => 2L * 1024 * 1024 * 1024, // 2 GB (Files API upload limit)
+        // Gemini 3.5 Transcribe sends the audio INLINE as base64 in the JSON body
+        // (~33% inflation), so the raw-file cap is well below the request cap.
+        CloudTranscriptionProvider.GeminiTranscribe => 14L * 1024 * 1024, // 14 MB raw
         CloudTranscriptionProvider.HyperWhisperCloud => 2L * 1024 * 1024 * 1024, // 2 GB
         CloudTranscriptionProvider.Mistral => 100L * 1024 * 1024, // 100 MB
         CloudTranscriptionProvider.Soniox => 1L * 1024 * 1024 * 1024, // 1 GB
@@ -212,6 +233,9 @@ public static class CloudTranscriptionProviderExtensions
         // provider values must NOT ship `initial_prompt` (Chirp 3 takes a
         // phrase set on the routed path only, Azure MAI uses a different
         // field). The HW Cloud send path has its own catalog-driven gate.
+        // GeminiTranscribe takes a real `custom_vocabulary` field on
+        // /v1beta/interactions, so it belongs in the `true` default below —
+        // listed here only so an audit grep for the provider finds this site.
         CloudTranscriptionProvider.MicrosoftAzureSpeech => false,
         CloudTranscriptionProvider.GoogleSpeech => false,
         CloudTranscriptionProvider.None => false,

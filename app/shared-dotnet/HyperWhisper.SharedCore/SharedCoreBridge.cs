@@ -94,6 +94,23 @@ public static class SharedCoreBridge
         return HyperwhisperCoreMethods.ContainsCjk(text);
     }
 
+    /// <summary>
+    /// Whether <paramref name="text"/> is primarily written in a continuous
+    /// script — one with no spaces between words. <see cref="ContainsCjk"/> plus
+    /// Thai.
+    /// <para>
+    /// This is the text-side half of the segment-join policy (issue #286), and
+    /// the only detector <see cref="SegmentSeparator"/> uses. It is deliberately
+    /// not <see cref="ContainsCjk"/>: Thai is in the no-space LANGUAGE table but
+    /// is not CJK, so deciding an <c>"auto"</c> join from CJK alone joined Thai
+    /// with spaces while <c>SegmentSeparator("th", …)</c> joined it without —
+    /// the same defect #286 fixed for Japanese, left standing for Thai.
+    /// <c>ContainsCjk</c> keeps its own meaning for its own callers.
+    /// </para>
+    /// </summary>
+    public static bool IsContinuousScript(string? text) =>
+        HyperwhisperCoreMethods.IsContinuousScript(text ?? string.Empty);
+
     public static string NormalizeAppType(string value)
     {
         ArgumentNullException.ThrowIfNull(value);
@@ -106,6 +123,128 @@ public static class SharedCoreBridge
         ArgumentNullException.ThrowIfNull(text);
         ArgumentNullException.ThrowIfNull(language);
         return HyperwhisperCoreMethods.AppendTrailingSpace(text, language);
+    }
+
+    /// <summary>
+    /// Whether <paramref name="language"/> is written without spaces between
+    /// words, so consecutive transcription segments join with <c>""</c> rather
+    /// than <c>" "</c>.
+    /// <para>
+    /// The single source of truth for the CJK join policy (issue #286). Callers
+    /// that used to keep a private <c>ja|zh|ko|yue</c> table — the parakeet
+    /// daemon, the Linux live-delivery path — read it from here, which also
+    /// gains them <c>th</c> and the explicit <c>zh-TW</c> / <c>zh-Hans</c> /
+    /// <c>zh-Hant</c> spellings.
+    /// </para>
+    /// <para>
+    /// Case-insensitive, whitespace-tolerant, and a regional variant falls back
+    /// to its two-character prefix (<c>"zh-CN"</c> → <c>"zh"</c>). A null,
+    /// empty or <c>"auto"</c> language is <b>not</b> no-space: with no declared
+    /// language there is nothing to decide on, and text-based detection is
+    /// <see cref="ContainsCjk"/>'s job.
+    /// </para>
+    /// </summary>
+    public static bool IsNoSpaceLanguage(string? language) =>
+        HyperwhisperCoreMethods.IsNoSpaceLanguage(language ?? string.Empty);
+
+    /// <summary>
+    /// Whether <paramref name="language"/> declares nothing to decide a join
+    /// policy from — null, blank, or the literal <c>"auto"</c>. Mirrors STEP 3 of
+    /// the Rust <c>append_trailing_space</c>, which treats an empty code and
+    /// <c>"auto"</c> identically.
+    /// </summary>
+    public static bool IsAutomaticLanguage(string? language) =>
+        string.IsNullOrWhiteSpace(language)
+        || string.Equals(language.Trim(), "auto", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// What to put at the boundary between <paramref name="precedingText"/> — the
+    /// text already accumulated — and <paramref name="nextSegment"/>: <c>""</c>
+    /// for a continuous script, <c>" "</c> otherwise. The one join policy for
+    /// every caller that concatenates segments (issue #286) — resolve it once per
+    /// boundary and build every sink's string from that single value.
+    /// <para>
+    /// <see cref="IsNoSpaceLanguage"/> alone is not enough, because the language
+    /// the hosts actually pass is usually <c>"auto"</c>: it is the default of the
+    /// Linux <c>StreamingLanguage</c> setting, what <c>ModelLibraryViewModel</c>
+    /// resets that setting to whenever the picked model cannot do the chosen
+    /// language, and what <c>ParakeetDaemonLiveTranscriber.NormalizeLanguage</c>
+    /// sends the daemon for a mode with no language. <c>"auto"</c> is not a
+    /// no-space language by design, so deciding from the language alone would
+    /// join a Japanese dictation with spaces and #286's fix would never fire in
+    /// the configuration almost everyone runs.
+    /// </para>
+    /// <para>
+    /// The <c>"auto"</c> fallback is the one <c>append_trailing_space</c> already
+    /// uses — detect the script in the text — but applied to BOTH sides of the
+    /// boundary, and it is <see cref="IsContinuousScript"/> rather than
+    /// <see cref="ContainsCjk"/> so Thai decides the same way its language code
+    /// does. Testing only the segment AFTER the boundary is wrong in four ways
+    /// that all show up in real streams, because a single segment often carries
+    /// no script evidence at all:
+    /// <list type="bullet">
+    /// <item>an empty or whitespace-only segment — several streaming providers
+    /// emit them as finals — scores as "not continuous" and wedges a space into
+    /// the middle of a Japanese dictation;</item>
+    /// <item>so does a punctuation-only segment (<c>"。"</c>), and so does a
+    /// digit-heavy one (<c>"2024年"</c> is 1 CJK character in 5);</item>
+    /// <item>it is asymmetric — <c>["これは", "OK", "です"]</c> would put a space
+    /// on the left of the Latin run and none on the right;</item>
+    /// <item>and it makes the result depend on where the boundaries fell, so the
+    /// daemon and the host could still disagree whenever their VAD split the same
+    /// audio differently — the very divergence #286 exists to close.</item>
+    /// </list>
+    /// The accumulated text is the primary signal (it is what
+    /// <c>append_trailing_space</c> tests, and it carries the whole session's
+    /// evidence); the next segment is the secondary one, so the first boundary of
+    /// a stream still resolves correctly.
+    /// </para>
+    /// </summary>
+    public static string SegmentSeparator(string? language, string? precedingText, string? nextSegment)
+    {
+        if (!IsAutomaticLanguage(language))
+        {
+            return IsNoSpaceLanguage(language) ? string.Empty : " ";
+        }
+
+        // Either side being continuous-script joins without a space. Short-circuits
+        // on the preceding text: each call crosses the FFI boundary.
+        return IsContinuousScript(precedingText) || IsContinuousScript(nextSegment)
+            ? string.Empty
+            : " ";
+    }
+
+    /// <summary>
+    /// Concatenate <paramref name="segments"/> under the shared join policy — the
+    /// production loop behind every batch join (the parakeet daemon's VAD
+    /// segments), resolving <see cref="SegmentSeparator"/> once per boundary
+    /// against the text accumulated so far.
+    /// <para>
+    /// Segments that are null, empty or whitespace-only are skipped rather than
+    /// separated: they carry no words, and emitting a separator for one would put
+    /// a bare space in the middle of the result.
+    /// </para>
+    /// </summary>
+    public static string JoinSegments(string? language, IEnumerable<string?> segments)
+    {
+        ArgumentNullException.ThrowIfNull(segments);
+        var joined = new System.Text.StringBuilder();
+        foreach (var segment in segments)
+        {
+            if (string.IsNullOrWhiteSpace(segment))
+            {
+                continue;
+            }
+
+            if (joined.Length > 0)
+            {
+                joined.Append(SegmentSeparator(language, joined.ToString(), segment));
+            }
+
+            joined.Append(segment);
+        }
+
+        return joined.ToString();
     }
 
     public static string ApplyAutocapitalize(string text, PortableCursorContext context)
@@ -253,12 +392,67 @@ public static class SharedCoreBridge
     public static string? CloudSttProvider(string tierId) =>
         HyperwhisperCoreMethods.CloudSttProvider(tierId);
 
+    /// <summary>
+    /// Cloud-tier entry ids HyperWhisper Cloud can also serve LIVE, in catalog
+    /// order — the eligible set for the streaming cloud-tier picker.
+    ///
+    /// Catalog-derived (<c>cloudTierEligible</c> AND some model with
+    /// <c>streaming: true</c>), never a hand-kept list. Note this is NOT the
+    /// entry-level <c>features.streaming</c> hint, which is true for six vendors
+    /// we serve no WebSocket route for.
+    /// </summary>
+    public static IReadOnlyList<string> StreamingCloudSttTiers() =>
+        HyperwhisperCoreMethods.CloudSttStreamingCloudTierEntryIds();
+
     public static string? CloudSttDefaultModel(string tierId) =>
         HyperwhisperCoreMethods.CloudSttDefaultModelId(tierId);
 
     public static bool CloudSttContainsModel(string tierId, string modelId) =>
         HyperwhisperCoreMethods.CloudSttModels(tierId)
             .Any(model => string.Equals(model.id, modelId, StringComparison.Ordinal));
+
+    /// <summary>
+    /// Model ids HyperWhisper Cloud serves ONLY over its live WebSocket route.
+    /// A pre-recorded POST carrying one of these is an HTTP 400 from the
+    /// upstream vendor, on every dictation, for as long as the mode keeps it.
+    ///
+    /// NOT derivable from the per-model <c>streaming</c> flag, despite how that
+    /// reads. <c>streaming: true</c> means "HyperWhisper Cloud routes this model
+    /// live", and <c>deepgramNova3</c> carries it on BOTH <c>nova-3-general</c>
+    /// and <c>nova-3-medical</c> — the default pre-recorded models. Filtering on
+    /// that flag would delete Deepgram's default dictation model.
+    ///
+    /// The catalog has no live-only field, so this is the shared-.NET mirror of
+    /// the same literal the other heads keep:
+    /// <c>CloudSttCatalog.LiveOnlyModelIds</c> (Windows),
+    /// <c>CloudSTTCatalog.liveOnlyModelIds</c> (macOS). All three are pinned
+    /// against <c>shared-conformance/live-only-models.json</c> so they cannot
+    /// drift apart.
+    /// </summary>
+    public static IReadOnlySet<string> LiveOnlyCloudSttModelIds { get; } =
+        new HashSet<string>(
+            ["gemini-3.5-transcribe-live", "gpt-live-transcribe"],
+            StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Whether <paramref name="modelId"/> is one of
+    /// <see cref="LiveOnlyCloudSttModelIds"/> (trimmed, case-insensitive).
+    /// False for null/blank — "no model chosen" resolves to the tier default,
+    /// which is never live-only.
+    /// </summary>
+    public static bool IsLiveOnlyCloudSttModel(string? modelId) =>
+        !string.IsNullOrWhiteSpace(modelId) && LiveOnlyCloudSttModelIds.Contains(modelId.Trim());
+
+    /// <summary>
+    /// Tier membership for a PRE-RECORDED request: the model must be in the
+    /// tier AND not live-only. Plain <see cref="CloudSttContainsModel"/> accepts
+    /// a live-only id, because it genuinely IS a model of the tier — the Linux
+    /// model box is a bare text field, and a backup restore or a Local API write
+    /// can put one there on any platform. Callers that route a file or a
+    /// dictation must use this one and fall back to the tier default.
+    /// </summary>
+    public static bool CloudSttContainsDictationModel(string tierId, string modelId) =>
+        !IsLiveOnlyCloudSttModel(modelId) && CloudSttContainsModel(tierId, modelId);
 
     // -----------------------------------------------------------------------
     // Live streaming (issue #281)
@@ -383,6 +577,46 @@ public static class SharedCoreBridge
         HyperwhisperCoreMethods.LiveSupportsVocabulary(CoreLiveProvider(provider));
 
     /// <summary>
+    /// Whether the provider honours custom vocabulary while the language is left
+    /// on auto-detect. A SECOND question from
+    /// <see cref="LiveSupportsVocabulary"/>: Deepgram Nova-3 accepts
+    /// <c>keyterm</c> only in monolingual mode and silently ignores it
+    /// otherwise, so its settings surfaces warn — while Gemini and xAI accept
+    /// theirs either way, and warning about those would be wrong.
+    /// </summary>
+    /// <param name="cloudTier">
+    /// Read for <see cref="LiveTranscriptionProvider.HyperWhisperCloud"/> only,
+    /// where the answer belongs to whichever vendor the relay will forward to.
+    /// <c>null</c> means the default tier.
+    /// </param>
+    public static bool LiveSupportsVocabularyWithoutLanguage(
+        LiveTranscriptionProvider provider,
+        string? cloudTier = null) =>
+        HyperwhisperCoreMethods.LiveSupportsVocabularyWithoutLanguage(
+            CoreLiveProvider(provider), cloudTier);
+
+    /// <summary>
+    /// Whether a session-complete event ends the session even when the client
+    /// has NOT asked to stop yet.
+    ///
+    /// <c>false</c> for Gemini alone: <c>generationComplete</c> is a TURN
+    /// boundary, fired at each pause in speech, so a terminal reading silently
+    /// ends a live dictation at the first one and the last utterance's final
+    /// never arrives.
+    /// </summary>
+    public static bool LiveCompleteEndsSessionBeforeStop(LiveTranscriptionProvider provider) =>
+        HyperwhisperCoreMethods.LiveCompleteEndsSessionBeforeStop(CoreLiveProvider(provider));
+
+    /// <summary>
+    /// How long to hold the audio pump waiting for the provider's
+    /// session-started frame, in milliseconds. <c>0</c> means send from the
+    /// moment the socket opens, which is every provider but Gemini — whose
+    /// server discards audio that arrives before <c>setupComplete</c>.
+    /// </summary>
+    public static int LiveStartTimeoutMs(LiveTranscriptionProvider provider) =>
+        (int)HyperwhisperCoreMethods.LiveStartTimeoutMs(CoreLiveProvider(provider));
+
+    /// <summary>
     /// The human-readable provider label stored on a history entry. The
     /// " (Streaming)" suffix is what distinguishes a live session from the same
     /// vendor's batch transcription.
@@ -406,6 +640,7 @@ public static class SharedCoreBridge
         LiveTranscriptionProvider.ElevenLabs => HwLiveProvider.ElevenLabs,
         LiveTranscriptionProvider.OpenAi => HwLiveProvider.OpenAi,
         LiveTranscriptionProvider.Grok => HwLiveProvider.Grok,
+        LiveTranscriptionProvider.GeminiTranscribe => HwLiveProvider.GeminiTranscribe,
         LiveTranscriptionProvider.HyperWhisperCloud => HwLiveProvider.HyperWhisperCloud,
         _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, "not a WebSocket streaming provider"),
     };

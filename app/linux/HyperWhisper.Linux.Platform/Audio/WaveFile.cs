@@ -1,53 +1,45 @@
-using System.Buffers.Binary;
 using HyperWhisper.Platform.Abstractions;
+using HyperWhisper.Platform.Abstractions.Audio;
 
 namespace HyperWhisper.Linux.Platform.Audio;
 
+/// <summary>
+/// Adapts the shared canonical PCM WAV header (<see cref="PcmWaveHeader"/>) to the Linux audio
+/// stack's own <see cref="WaveFormat"/> record and <c>audio_format_unsupported</c> error code.
+/// </summary>
 internal static class WaveFile
 {
-    public const int HeaderSize = 44;
+    public const int HeaderSize = PcmWaveHeader.HeaderSize;
 
     public static void WriteHeader(Stream stream, WaveFormat format, long dataLength)
-    {
-        Span<byte> header = stackalloc byte[HeaderSize];
-        "RIFF"u8.CopyTo(header);
-        BinaryPrimitives.WriteUInt32LittleEndian(header[4..], checked((uint)(36 + dataLength)));
-        "WAVEfmt "u8.CopyTo(header[8..]);
-        BinaryPrimitives.WriteUInt32LittleEndian(header[16..], 16);
-        BinaryPrimitives.WriteUInt16LittleEndian(header[20..], 1);
-        BinaryPrimitives.WriteUInt16LittleEndian(header[22..], checked((ushort)format.Channels));
-        BinaryPrimitives.WriteUInt32LittleEndian(header[24..], checked((uint)format.SampleRate));
-        BinaryPrimitives.WriteUInt32LittleEndian(header[28..], checked((uint)format.BytesPerSecond));
-        BinaryPrimitives.WriteUInt16LittleEndian(header[32..], checked((ushort)format.BlockAlign));
-        BinaryPrimitives.WriteUInt16LittleEndian(header[34..], checked((ushort)format.BitsPerSample));
-        "data"u8.CopyTo(header[36..]);
-        BinaryPrimitives.WriteUInt32LittleEndian(header[40..], checked((uint)dataLength));
-        stream.Position = 0;
-        stream.Write(header);
-    }
+        => PcmWaveHeader.Write(stream, format.SampleRate, format.Channels, format.BitsPerSample, dataLength);
 
+    /// <summary>
+    /// Reads the header. The returned data length is recomputed from the stream, so a recording
+    /// whose header was never patched (a crash between start and stop) reports the bytes it
+    /// actually holds instead of the zero it declares.
+    /// </summary>
     public static PlatformResult<(WaveFormat Format, long DataOffset, long DataLength)> ReadHeader(Stream stream)
     {
-        Span<byte> header = stackalloc byte[HeaderSize];
-        if (stream.Read(header) != HeaderSize
-            || !header[..4].SequenceEqual("RIFF"u8)
-            || !header[8..12].SequenceEqual("WAVE"u8)
-            || !header[12..16].SequenceEqual("fmt "u8)
-            || BinaryPrimitives.ReadUInt16LittleEndian(header[20..]) != 1
-            || !header[36..40].SequenceEqual("data"u8))
+        var status = PcmWaveHeader.TryRead(stream, out var header);
+        switch (status)
         {
-            return PlatformResult<(WaveFormat, long, long)>.Failure("audio_format_unsupported", "Only canonical PCM WAV files are supported.");
+            case PcmWaveHeaderStatus.Valid:
+                break;
+            case PcmWaveHeaderStatus.UnsupportedFormat:
+                return Failure("Only 16-bit PCM WAV files are supported.");
+            case PcmWaveHeaderStatus.NoCompleteSamples:
+                return Failure("The WAV file contains no complete audio samples.");
+            case PcmWaveHeaderStatus.TooLarge:
+                return Failure("The WAV file is too large to play back.");
+            default:
+                return Failure("Only canonical PCM WAV files are supported.");
         }
 
-        var format = new WaveFormat(
-            checked((int)BinaryPrimitives.ReadUInt32LittleEndian(header[24..])),
-            checked((short)BinaryPrimitives.ReadUInt16LittleEndian(header[34..])),
-            checked((short)BinaryPrimitives.ReadUInt16LittleEndian(header[22..])));
-        if (format.BitsPerSample != 16 || format.Channels <= 0 || format.SampleRate <= 0)
-        {
-            return PlatformResult<(WaveFormat, long, long)>.Failure("audio_format_unsupported", "Only 16-bit PCM WAV files are supported.");
-        }
+        var format = new WaveFormat(header!.SampleRate, header.BitsPerSample, header.Channels);
+        return PlatformResult<(WaveFormat, long, long)>.Success((format, HeaderSize, header.DataLength));
 
-        return PlatformResult<(WaveFormat, long, long)>.Success((format, HeaderSize, BinaryPrimitives.ReadUInt32LittleEndian(header[40..])));
+        static PlatformResult<(WaveFormat, long, long)> Failure(string message)
+            => PlatformResult<(WaveFormat, long, long)>.Failure("audio_format_unsupported", message);
     }
 }

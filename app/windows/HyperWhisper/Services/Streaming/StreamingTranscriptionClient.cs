@@ -591,7 +591,12 @@ public sealed class StreamingTranscriptionClient : IAsyncDisposable, IDisposable
             });
     }
 
-    private void HandleProviderEvent(StreamingProviderEvent? providerEvent)
+    // internal (not private): direct-call surface for HyperWhisper.SmokeTests via
+    // InternalsVisibleTo (see HyperWhisper.csproj), same seam as HandleCloseResult above - the
+    // turn-boundary rule below is decided from State, so pinning it needs a way to drive provider
+    // events at a chosen State without standing up a real WebSocket. No other accessibility change
+    // is intended; the receive loop is still the only production caller.
+    internal void HandleProviderEvent(StreamingProviderEvent? providerEvent)
     {
         switch (providerEvent)
         {
@@ -641,6 +646,33 @@ public sealed class StreamingTranscriptionClient : IAsyncDisposable, IDisposable
                 return;
 
             case StreamingProviderEvent.SessionComplete complete:
+                // For most vendors this frame is emitted once, at the end of the
+                // session, and CompleteEndsSessionBeforeStop (default true) keeps
+                // the original unconditional behaviour. Gemini is the exception: it
+                // emits its completion frame at every TURN boundary, so before we
+                // asked to stop this is "the current utterance is done", not "the
+                // session is over" - completing _sessionCompletedTcs there would
+                // release the stop sequence's wait early and drop the LAST
+                // utterance's final.
+                //
+                // StopAsync moves State to Disconnecting before it runs a single
+                // stop step, so State IS this client's "stop requested" flag - the
+                // same condition the backend proxy keys on (ws-streaming-shared.ts,
+                // 'complete' arm) and the shared .NET session loop uses
+                // (LiveCloudTranscriptionService, `|| state.StopRequested`).
+                //
+                // Nothing needs flushing on a turn boundary: the turn's own text
+                // already arrived as its final beforehand, and CurrentPartial is
+                // deliberately left alone so a preview that was never finalized
+                // survives to the next frame.
+                if (!_strategy.CompleteEndsSessionBeforeStop &&
+                    State != StreamingConnectionState.Disconnecting)
+                {
+                    LoggingService.Debug(
+                        $"StreamingTranscriptionClient: turn boundary from {_strategy.TranscriptionProviderLabel}, session continues");
+                    return;
+                }
+
                 _sessionCompletedTcs?.TrySetResult();
                 Raise(SessionCompleted, complete.DurationSeconds, complete.CreditsUsed);
                 return;

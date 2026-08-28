@@ -45,6 +45,7 @@
             "mistral",
             "soniox",
             "gemini",
+            "geminiTranscribe",
             "grok",
             "cerebras",
             "microsoftAzureSpeech",
@@ -56,7 +57,7 @@
             "nemotron",
             "localLLM"
           ],
-          "description": "Provider key. The transcription-only providers (deepgram, assemblyAI, elevenLabs, mistral, soniox, appleSpeech, localWhisper, parakeet, qwen3ASR, nemotron) and post-processing-only providers (anthropic, cerebras, localLLM) are disjoint; the rest (openai, groq, gemini, grok, hyperwhisper) appear in both roles, so use `kind` to disambiguate."
+          "description": "Provider key. The transcription-only providers (deepgram, assemblyAI, elevenLabs, mistral, soniox, appleSpeech, localWhisper, parakeet, qwen3ASR, nemotron) and post-processing-only providers (anthropic, cerebras, localLLM) are disjoint; geminiTranscribe is transcription-only and is a SEPARATE provider from gemini (different endpoint, different BYOK key slot); the rest (openai, groq, gemini, grok, hyperwhisper) appear in both roles, so use `kind` to disambiguate."
         },
         "kind": {
           "type": "string",

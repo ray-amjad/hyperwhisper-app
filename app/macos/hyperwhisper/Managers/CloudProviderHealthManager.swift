@@ -542,10 +542,10 @@ final class CloudProviderHealthManager: ObservableObject {
     ///
     /// - `healthy == true` → `.healthy`.
     /// - 401 / 403 → `.unauthorized`.
-    /// - **Gemini & Grok only**: HTTP 400 → `.unauthorized` (both vendors return
-    ///   400 for an invalid key on the models endpoint; the core leaves 400 as
-    ///   `healthy=false` with the raw status and defers this auth interpretation
-    ///   to the platform).
+    /// - **Gemini, Gemini 3.5 Transcribe & Grok only**: HTTP 400 →
+    ///   `.unauthorized` (these vendors return 400 for an invalid key on the
+    ///   models endpoint; the core leaves 400 as `healthy=false` with the raw
+    ///   status and defers this auth interpretation to the platform).
     /// - any other non-2xx → `.unreachable`.
     static func mapRustHealth(_ health: HwProviderHealth, for provider: CloudProvider) -> ProviderHealth {
         if health.healthy {
@@ -554,10 +554,13 @@ final class CloudProviderHealthManager: ObservableObject {
         switch health.status {
         case .some(401), .some(403):
             return .unauthorized
-        case .some(400) where provider == .gemini || provider == .grok:
+        case .some(400) where provider == .gemini || provider == .grok || provider == .geminiTranscribe:
             // NOTE: Gemini/xAI return 400 (Bad Request) for invalid API keys,
             // unlike OpenAI/Anthropic which return 401/403. Preserve the native
-            // special-case here.
+            // special-case here. Gemini 3.5 Transcribe probes the same Google
+            // models endpoint (with header auth) and behaves identically —
+            // verified live — so it must be listed or a bad key reads as
+            // ".unreachable" instead of ".unauthorized".
             return .unauthorized
         default:
             return .unreachable

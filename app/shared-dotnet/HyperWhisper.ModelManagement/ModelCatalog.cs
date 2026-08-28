@@ -70,6 +70,7 @@ public static class PortableModelCatalog
     [
         Llm("gemma-4-E2B-it-Q4_K_M.gguf", "Gemma 4 E2B (Recommended)", "unsloth/gemma-4-E2B-it-GGUF", 3_100_000_000, 4, "Fast and accurate, good all-rounder for local text cleanup.", true),
         Llm("gemma-4-E4B-it-Q4_K_M.gguf", "Gemma 4 E4B", "unsloth/gemma-4-E4B-it-GGUF", 5_000_000_000, 6, "Balanced local model with higher quality and more detail.", false),
+        Llm("gemma-4-12b-it-Q4_K_M.gguf", "Gemma 4 12B", "unsloth/gemma-4-12b-it-GGUF", 7_120_000_000, 10, "Mid-size dense model that balances quality and speed.", false),
         Llm("gemma-4-26B-A4B-it-UD-Q4_K_M.gguf", "Gemma 4 26B MoE", "unsloth/gemma-4-26B-A4B-it-GGUF", 16_900_000_000, 18, "Higher quality mixture-of-experts model for capable systems.", false),
         Llm("gemma-4-31B-it-Q4_K_M.gguf", "Gemma 4 31B Dense", "unsloth/gemma-4-31B-it-GGUF", 18_300_000_000, 20, "Highest quality dense local model, intended for high-memory machines.", false),
     ];

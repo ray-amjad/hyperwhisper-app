@@ -42,6 +42,8 @@
 "streaming.enable.title" = "Активиране на поточно предаване";
 "streaming.provider.picker.title" = "Доставчик";
 "streaming.model.title" = "Модел";
+"streaming.cloudTier.title" = "Механизъм на живо";
+"streaming.cloudTier.description" = "Кой гласов механизъм използва HyperWhisper Cloud за транскрипция на живо";
 "streaming.model.nova3general" = "Nova 3 General";
 "streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Бързо форматиране";
@@ -767,8 +769,8 @@
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ кредита/мин";
 "modes.cloudAccuracy.grokStt.label" = "Най-висока (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Най-висока точност с по-бавна обработка. Най-добра за важни транскрипции.";
-"modes.cloudAccuracy.googleChirp3.label" = "Висока (Google Chirp 3)";
-"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 с Chirp 3. Многоезичен, с адаптация на фрази.";
+"modes.cloudAccuracy.geminiTranscribe.label" = "Висока (Google Gemini 3.5 Transcribe)";
+"modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Многоезичен, с поддръжка на персонализиран речник.";
 "modes.cloudAccuracy.azureMaiTranscribe.label" = "Висока (Microsoft MAI-Transcribe 1.5)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 през Azure Speech. 43 езика с контекстно насочване.";
 

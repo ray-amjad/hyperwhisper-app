@@ -42,6 +42,8 @@
 "streaming.enable.title" = "Streamelés engedélyezése";
 "streaming.provider.picker.title" = "Szolgáltató";
 "streaming.model.title" = "Modell";
+"streaming.cloudTier.title" = "Élő motor";
+"streaming.cloudTier.description" = "Melyik beszédmotort használja a HyperWhisper Cloud az élő átirathoz";
 "streaming.model.nova3general" = "Nova 3 General";
 "streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Gyors formázás";
@@ -767,8 +769,8 @@ Szerkeszd ezeket a módokat, hogy eltávolítás előtt válassz másik modellt.
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ kredit/perc";
 "modes.cloudAccuracy.grokStt.label" = "Legmagasabb (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Legmagasabb pontosság lassabb feldolgozással. Legjobb fontos átírásokhoz.";
-"modes.cloudAccuracy.googleChirp3.label" = "Magas (Google Chirp 3)";
-"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 a Google Chirp 3 modellel. Többnyelvű, kifejezésadaptációval.";
+"modes.cloudAccuracy.geminiTranscribe.label" = "Magas (Google Gemini 3.5 Transcribe)";
+"modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Többnyelvű, egyéni szótár támogatásával.";
 "modes.cloudAccuracy.azureMaiTranscribe.label" = "Magas (Microsoft MAI-Transcribe 1.5)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 az Azure Speech szolgáltatáson keresztül. 43 nyelv, kontextusalapú súlyozással.";
 

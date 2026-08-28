@@ -31,7 +31,8 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
     private static readonly HashSet<string> CloudProviders = new(StringComparer.OrdinalIgnoreCase)
     {
         "openai", "groq", "deepgram", "assemblyai", "elevenlabs", "mistral",
-        "soniox", "hyperwhisper", "gemini", "grok", "microsoftazurespeech", "googlespeech",
+        "soniox", "hyperwhisper", "gemini", "geminitranscribe", "grok",
+        "microsoftazurespeech", "googlespeech",
     };
     private static readonly HashSet<string> WhisperModels = new(StringComparer.OrdinalIgnoreCase)
     {

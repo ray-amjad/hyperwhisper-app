@@ -5,6 +5,10 @@ using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Platform.Abstractions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+// Aliased, not imported: the Migrations namespace also declares a
+// `HistoryRepository`, which would collide with the app's own.
+using IMigrator = Microsoft.EntityFrameworkCore.Migrations.IMigrator;
 using HyperWhisper.PortableApplication.Transcription;
 using HyperWhisper.AudioNormalization;
 using HyperWhisper.SpeechOutput;
@@ -15,6 +19,7 @@ using HyperWhisper.Statistics;
 using HyperWhisper.Diagnostics;
 using System.IO.Compression;
 using HyperWhisper.PortableApplication.Audio;
+using HyperWhisper.Platform.Abstractions.Audio;
 
 var root = Path.Combine(Path.GetTempPath(), "HyperWhisper.Application.Tests", Guid.NewGuid().ToString("N"));
 Directory.CreateDirectory(root);
@@ -26,6 +31,7 @@ try
     await RunTranscriptionWorkflowTestsAsync(root);
     await RunHistoryRetryTestsAsync(root);
     await RunHistoryExperienceTestsAsync(root);
+    RunCanonicalPcmWaveTests(Path.Combine(root, "pcm-wave"));
     await RunCrashAudioRecoveryTestsAsync(Path.Combine(root, "crash-recovery"));
     await RunVoiceActivityTrimTestsAsync(Path.Combine(root, "vad"));
 
@@ -47,9 +53,11 @@ try
     await using (var context = database.CreateContext())
     {
         var applied = await context.Database.GetAppliedMigrationsAsync();
-        Assert(applied.Count() == 15, $"expected all 15 EF migrations, got {applied.Count()}");
+        Assert(applied.Count() == 16, $"expected all 16 EF migrations, got {applied.Count()}");
         Assert(await context.Database.CanConnectAsync(), "SQLite database is not connectable");
     }
+
+    await RunChirp3TierMigrationTestsAsync(Path.Combine(root, "chirp3-tier-migration"));
 
     var history = new HistoryRepository(database);
     var transcript = new Transcript
@@ -743,6 +751,174 @@ finally
     catch (IOException) { }
 }
 
+/// <summary>
+/// Catalog v8 migration proof for the EF path: a database written by a pre-v8
+/// build carries <c>CloudAccuracyTier = 'googleChirp3'</c>, and
+/// <c>20260827090000_MigrateGoogleChirp3TierToGeminiTranscribe</c> has to converge
+/// it. This runs the migrator for real — up to the migration BEFORE it, writes
+/// the legacy rows, then migrates the rest of the way — so it proves the SQL,
+/// not a restatement of the alias table.
+///
+/// One EF migration covers Windows AND Linux: both heads compile
+/// <c>app/windows/HyperWhisper/Migrations/*.cs</c> through
+/// <c>HyperWhisper.Application.csproj</c>'s source glob, which is also why this
+/// assertion lives in the portable suite rather than a Windows-only one.
+/// </summary>
+static async Task RunChirp3TierMigrationTestsAsync(string root)
+{
+    // The migration immediately before the one under test. Migrating to it
+    // reproduces a pre-v8 database with the final schema but none of the v8 data
+    // fixes — the exact state an upgrading user's file is in.
+    const string PreviousMigration = "20260823180000_AddWordTimestamps";
+
+    Directory.CreateDirectory(root);
+    var database = new ApplicationDb(new TestPaths(root));
+
+    await using (var context = database.CreateContext())
+    {
+        await context.Database.GetService<IMigrator>().MigrateAsync(PreviousMigration);
+        var applied = await context.Database.GetAppliedMigrationsAsync();
+        Assert(!applied.Contains("20260827090000_MigrateGoogleChirp3TierToGeminiTranscribe"),
+            "the Chirp 3 tier migration ran before the legacy rows were written — this test proves nothing");
+    }
+
+    // Every spelling the catalog's `migrateFrom` list carries, plus a control row
+    // that must NOT be touched.
+    string[] legacyTiers =
+    [
+        "googleChirp3", "googlechirp3", "GOOGLECHIRP3",
+        "googlechirp", "google-chirp", "chirp", "chirp_3", "googlespeech",
+    ];
+    var controlId = Guid.NewGuid();
+    var byokId = Guid.NewGuid();
+    var localId = Guid.NewGuid();
+    var unsetId = Guid.NewGuid();
+    await using (var context = database.CreateContext())
+    {
+        foreach (var tier in legacyTiers)
+        {
+            context.Modes.Add(new Mode
+            {
+                Name = $"legacy-{tier}",
+                ProviderType = "cloud",
+                CloudProvider = "hyperwhisper",
+                CloudAccuracyTier = tier,
+                CloudTranscriptionModel = "chirp_3",
+            });
+        }
+        // A user who deliberately chose ElevenLabs. The UPDATE's WHERE clause has
+        // to leave them alone; a missing clause would move the whole table.
+        context.Modes.Add(new Mode
+        {
+            Id = controlId,
+            Name = "control",
+            ProviderType = "cloud",
+            CloudProvider = "hyperwhisper",
+            CloudAccuracyTier = "elevenLabsScribeV2",
+            CloudTranscriptionModel = "scribe-v2",
+        });
+        // BYOK Grok. `CloudAccuracyTier` is only read for HyperWhisper Cloud
+        // modes and is left behind verbatim when a mode is switched to BYOK, so
+        // this row genuinely carries 'googleChirp3' next to Grok's empty-string
+        // sentinel model id. Every row above is HW-Cloud, so without this one the
+        // suite cannot see a tier-only WHERE clause stamping a Google model onto
+        // a BYOK mode — the next dictation would post gemini-3.5-transcribe to
+        // api.x.ai.
+        context.Modes.Add(new Mode
+        {
+            Id = byokId,
+            Name = "byok-grok",
+            ProviderType = "cloud",
+            CloudProvider = "grok",
+            CloudAccuracyTier = "googleChirp3",
+            CloudTranscriptionModel = string.Empty,
+        });
+        // An explicitly local mode carrying the same stale tier.
+        context.Modes.Add(new Mode
+        {
+            Id = localId,
+            Name = "local-whisper",
+            ProviderType = "local",
+            CloudAccuracyTier = "googleChirp3",
+            CloudTranscriptionModel = string.Empty,
+        });
+        // The other side of the same clause: an older build wrote a genuine
+        // HyperWhisper Cloud mode with ProviderType/CloudProvider still unset.
+        // Requiring `= 'cloud'` / `= 'hyperwhisper'` would skip exactly these
+        // users and leave them on a tier with no catalog entry.
+        context.Modes.Add(new Mode
+        {
+            Id = unsetId,
+            Name = "unset-cloud",
+            ProviderType = null,
+            CloudProvider = null,
+            CloudAccuracyTier = "googleChirp3",
+            CloudTranscriptionModel = null,
+        });
+        await context.SaveChangesAsync();
+    }
+
+    await database.MigrateAsync();
+
+    await using (var verify = database.CreateContext())
+    {
+        foreach (var tier in legacyTiers)
+        {
+            var migrated = await verify.Modes.SingleAsync(mode => mode.Name == $"legacy-{tier}");
+            Assert(migrated.CloudAccuracyTier != "deepgramNova3",
+                $"stored tier '{tier}' was migrated to Deepgram — the documented silent failure: "
+                    + "a Google user moves vendor, credits and X-STT-Provider with no error shown.");
+            Assert(migrated.CloudAccuracyTier == "geminiTranscribe",
+                $"stored tier '{tier}' is now '{migrated.CloudAccuracyTier}', not 'geminiTranscribe'. "
+                    + "Add the spelling to the UPDATE's WHERE clause in "
+                    + "20260827090000_MigrateGoogleChirp3TierToGeminiTranscribe and to the "
+                    + "geminiTranscribe entry's `migrateFrom` list.");
+            Assert(migrated.CloudTranscriptionModel == "gemini-3.5-transcribe",
+                $"stored tier '{tier}' kept model '{migrated.CloudTranscriptionModel}'; chirp_3 is not a "
+                    + "model of geminiTranscribe, so the row would route on a model the backend rejects.");
+        }
+
+        var control = await verify.Modes.SingleAsync(mode => mode.Id == controlId);
+        Assert(control.CloudAccuracyTier == "elevenLabsScribeV2" && control.CloudTranscriptionModel == "scribe-v2",
+            "the Chirp 3 migration rewrote a mode on a different tier — its WHERE clause is too broad");
+
+        var byok = await verify.Modes.SingleAsync(mode => mode.Id == byokId);
+        Assert(byok.CloudAccuracyTier == "googleChirp3" && byok.CloudTranscriptionModel == string.Empty,
+            "the Chirp 3 migration touched a BYOK Grok mode that merely carried the stale tier: it is now "
+                + $"'{byok.CloudAccuracyTier}'/'{byok.CloudTranscriptionModel}'. The WHERE clause must also "
+                + "guard on CloudProvider, or the next Grok dictation posts a Google model id to xAI.");
+
+        var local = await verify.Modes.SingleAsync(mode => mode.Id == localId);
+        Assert(local.CloudAccuracyTier == "googleChirp3" && local.CloudTranscriptionModel == string.Empty,
+            "the Chirp 3 migration rewrote an explicitly local mode — its WHERE clause must guard on ProviderType");
+
+        // The widened guard, from the other side: NULL is not "not a cloud mode".
+        var unset = await verify.Modes.SingleAsync(mode => mode.Id == unsetId);
+        Assert(unset.CloudAccuracyTier == "geminiTranscribe" && unset.CloudTranscriptionModel == "gemini-3.5-transcribe",
+            "a genuine HyperWhisper Cloud mode written by an older build (ProviderType/CloudProvider still "
+                + $"NULL) was skipped: it is on '{unset.CloudAccuracyTier}'. Plain equality on those two "
+                + "columns silently strands exactly those users on a tier with no catalog entry.");
+
+        // The read path has to agree with what the migration just wrote, or a row
+        // the one-shot missed (Local API write, restored backup) still breaks.
+        Assert(SharedCoreBridge.CanonicalCloudSttTier("googleChirp3") == "geminiTranscribe",
+            "the shared core no longer canonicalises googleChirp3 onto geminiTranscribe");
+    }
+
+    // Re-running must be a no-op, not a second rewrite: EF records the migration,
+    // and the UPDATE no longer matches anything.
+    await database.MigrateAsync();
+    await using (var again = database.CreateContext())
+    {
+        // One row per legacy spelling, plus the `unset-cloud` row the widened
+        // ProviderType/CloudProvider guard also owns. The BYOK, local and
+        // ElevenLabs controls stay out of this count.
+        Assert(await again.Modes.CountAsync(mode => mode.CloudAccuracyTier == "geminiTranscribe")
+            == legacyTiers.Length + 1,
+            "re-running the migration changed the migrated row count");
+    }
+}
+
 static async Task RunHistoryExperienceTestsAsync(string root)
 {
     var testRoot = Path.Combine(root, "history-experience");
@@ -840,6 +1016,166 @@ static async Task RunHistoryExperienceTestsAsync(string root)
     {
         // The containment behavior is covered wherever the host permits symlink creation.
     }
+}
+
+static void RunCanonicalPcmWaveTests(string root)
+{
+    Directory.CreateDirectory(root);
+
+    // The one builder must still emit the exact 44 bytes both call sites used to emit by hand.
+    var built = new MemoryStream();
+    PcmWaveHeader.Write(built, 16000, 1, 16, 6);
+    Assert(built.Position == PcmWaveHeader.HeaderSize, "the builder did not leave the stream after the header");
+    byte[] expected =
+    [
+        (byte)'R', (byte)'I', (byte)'F', (byte)'F', 0x2A, 0x00, 0x00, 0x00,   // RIFF, 36 + 6
+        (byte)'W', (byte)'A', (byte)'V', (byte)'E', (byte)'f', (byte)'m', (byte)'t', (byte)' ',
+        0x10, 0x00, 0x00, 0x00,                                              // fmt chunk size 16
+        0x01, 0x00,                                                          // PCM
+        0x01, 0x00,                                                          // 1 channel
+        0x80, 0x3E, 0x00, 0x00,                                              // 16000 Hz
+        0x00, 0x7D, 0x00, 0x00,                                              // 32000 bytes/second
+        0x02, 0x00,                                                          // block align 2
+        0x10, 0x00,                                                          // 16 bits
+        (byte)'d', (byte)'a', (byte)'t', (byte)'a', 0x06, 0x00, 0x00, 0x00,
+    ];
+    Assert(built.ToArray().AsSpan().SequenceEqual(expected), "the canonical 44-byte header changed shape");
+
+    // Both heads relied on a checked cast to refuse a payload the 32-bit RIFF fields cannot describe.
+    var overflowed = false;
+    try { PcmWaveHeader.Write(new MemoryStream(), 16000, 1, 16, uint.MaxValue - 35); }
+    catch (OverflowException) { overflowed = true; }
+    Assert(overflowed, "an unrepresentable data length did not overflow");
+
+    // A recording interrupted by a crash still declares the placeholder length of zero. The read
+    // path recomputes from the file and aligns down, so the trailing half-frame is dropped.
+    var crashed = Path.Combine(root, "crashed.wav");
+    using (var stream = File.Create(crashed))
+    {
+        PcmWaveHeader.Write(stream, 16000, 1, 16, 0);
+        stream.Position = PcmWaveHeader.HeaderSize;
+        stream.Write([1, 0, 2, 0, 3, 0, 4]);
+    }
+    var inspected = CanonicalPcmWave.InspectAndRepair(crashed, repair: false);
+    Assert(inspected.IsFailure && inspected.Error!.Code == "audio_recovery.incomplete_header",
+        "an unpatched header was not reported as incomplete without repair");
+    var repaired = CanonicalPcmWave.InspectAndRepair(crashed, repair: true);
+    Assert(repaired.IsSuccess && repaired.Value!.DataLength == 6,
+        "the recomputed payload length was not aligned down to whole sample frames");
+    Assert(new FileInfo(crashed).Length == PcmWaveHeader.HeaderSize + 6,
+        "repair did not truncate the half-written sample frame");
+    using (var stream = File.OpenRead(crashed))
+    {
+        Assert(PcmWaveHeader.TryRead(stream, out var header) == PcmWaveHeaderStatus.Valid
+            && header!.DeclaredLengthsAgree && header.DataLength == 6,
+            "the repaired header did not round-trip through the shared reader");
+    }
+    Assert(CanonicalPcmWave.InspectAndRepair(crashed, repair: false).IsSuccess,
+        "repair was not idempotent");
+
+    // A header-only file has no complete frame, whatever it declares.
+    var empty = Path.Combine(root, "empty.wav");
+    using (var stream = File.Create(empty)) PcmWaveHeader.Write(stream, 16000, 1, 16, 0);
+    Assert(CanonicalPcmWave.InspectAndRepair(empty, repair: true).Error!.Code == "audio_recovery.empty_wave",
+        "a sample-free recording was not rejected");
+
+    // The declared length decides whenever it can, and is recomputed only when it cannot.
+    // Recomputing unconditionally would read a trailing RIFF chunk as audio.
+    static string WriteWave(string path, uint declaredDataLength, int trailingBytes, int payloadBytes)
+    {
+        using var stream = File.Create(path);
+        PcmWaveHeader.Write(stream, 16000, 1, 16, declaredDataLength);
+        stream.Position = PcmWaveHeader.HeaderSize;
+        stream.Write(new byte[payloadBytes]);
+        if (trailingBytes > 0)
+        {
+            stream.Write("LIST"u8);
+            stream.Write(new byte[trailingBytes]);
+        }
+        return path;
+    }
+
+    static PcmWaveHeaderInfo ReadWave(string path)
+    {
+        using var stream = File.OpenRead(path);
+        Assert(PcmWaveHeader.TryRead(stream, out var header) == PcmWaveHeaderStatus.Valid,
+            $"{Path.GetFileName(path)} did not read as a canonical PCM WAV");
+        return header!;
+    }
+
+    // Declared 0 — the crash case. Must still recompute, or every unpatched recording reports
+    // an empty payload.
+    Assert(ReadWave(WriteWave(Path.Combine(root, "declared-zero.wav"), 0, 0, 64)).DataLength == 64,
+        "a zero declared length was not recomputed from the file");
+
+    // Declared beyond the end of the file — a truncated download or a partial copy. Clamp to
+    // what is actually there rather than reporting bytes that do not exist.
+    Assert(ReadWave(WriteWave(Path.Combine(root, "declared-over.wav"), 4096, 0, 64)).DataLength == 64,
+        "a declared length past the end of the file was not clamped");
+
+    // Declared shorter than the file, with a trailing chunk. The declared length wins: those
+    // bytes are another RIFF chunk, and playing or measuring them as audio is the defect.
+    var trailingPath = WriteWave(Path.Combine(root, "declared-trailing.wav"), 64, 32, 64);
+    var trailingSize = new FileInfo(trailingPath).Length;
+    Assert(ReadWave(trailingPath).DataLength == 64, "a trailing RIFF chunk was measured as audio");
+    // ...and because the declared fields are consistent, crash recovery leaves the file alone
+    // instead of truncating the chunk away.
+    Assert(CanonicalPcmWave.InspectAndRepair(trailingPath, repair: true) is { IsSuccess: true },
+        "a file with a trailing chunk was rejected by crash recovery");
+    Assert(new FileInfo(trailingPath).Length == trailingSize,
+        "crash recovery truncated a trailing RIFF chunk");
+
+    // The same file, but with the RIFF size sized to cover the trailing chunk too — which is
+    // what a writer that emits a LIST chunk actually does. The header is then self-consistent
+    // in every field, and recovery must leave the file BYTE-IDENTICAL: it used to read
+    // `riffSize != 36 + dataLength` as a broken header and "repair" it by truncating to
+    // 44 + dataLength, deleting the chunk from disk with no way back.
+    var coveredPath = WriteWave(Path.Combine(root, "riff-covers-trailing.wav"), 64, 32, 64);
+    var coveredBytes = File.ReadAllBytes(coveredPath);
+    System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(
+        coveredBytes.AsSpan(4), (uint)(coveredBytes.Length - 8));
+    File.WriteAllBytes(coveredPath, coveredBytes);
+    Assert(ReadWave(coveredPath) is { DataLength: 64, DeclaredLengthsAgree: true },
+        "a RIFF size that legitimately covers a trailing chunk was read as a disagreement");
+    Assert(CanonicalPcmWave.InspectAndRepair(coveredPath, repair: false).IsSuccess,
+        "a self-consistent file with a trailing chunk was reported as an incomplete header");
+    Assert(CanonicalPcmWave.InspectAndRepair(coveredPath, repair: true).IsSuccess,
+        "a self-consistent file with a trailing chunk was rejected by crash recovery");
+    Assert(File.ReadAllBytes(coveredPath).AsSpan().SequenceEqual(coveredBytes),
+        "crash recovery rewrote a file whose header already described it");
+
+    // A declared length too small to hold one sample frame, on a file that is entirely there —
+    // a header patched with a stray value. Aligning 1 down to 0 used to report
+    // `audio_recovery.empty_wave` and quarantine a 200 KB recording that the unconditional
+    // recompute would have restored in full, so it falls back to the recompute instead.
+    Assert(ReadWave(WriteWave(Path.Combine(root, "declared-sub-frame.wav"), 1, 0, 64)).DataLength == 64,
+        "a sub-frame declared length discarded a recoverable recording");
+    Assert(CanonicalPcmWave.InspectAndRepair(
+        WriteWave(Path.Combine(root, "declared-sub-frame-repair.wav"), 1, 0, 64), repair: true) is
+        { IsSuccess: true, Value.DataLength: 64 },
+        "a sub-frame declared length was not repaired to the whole payload");
+    // ...but a file that really has no complete frame is still empty, whatever it declares.
+    Assert(CanonicalPcmWave.InspectAndRepair(
+        WriteWave(Path.Combine(root, "declared-sub-frame-empty.wav"), 1, 0, 1), repair: true)
+        .Error!.Code == "audio_recovery.empty_wave",
+        "a file with no complete sample frame was not rejected");
+
+    // No trailing chunk: the ordinary file, where declared and recomputed are the same answer.
+    Assert(ReadWave(WriteWave(Path.Combine(root, "declared-exact.wav"), 64, 0, 64)) is
+        { DataLength: 64, DeclaredLengthsAgree: true },
+        "a well-formed file did not read back its own declared length");
+
+    // A declared length that is not a whole number of frames is aligned down like any other.
+    Assert(ReadWave(WriteWave(Path.Combine(root, "declared-odd.wav"), 63, 0, 64)).DataLength == 62,
+        "an odd declared length was not aligned down to a whole sample frame");
+
+    // Fields that cannot narrow are a typed rejection, not an OverflowException from a checked cast.
+    var hostile = File.ReadAllBytes(empty);
+    System.Buffers.Binary.BinaryPrimitives.WriteUInt16LittleEndian(hostile.AsSpan(22), 40000);
+    var hostilePath = Path.Combine(root, "hostile-channels.wav");
+    File.WriteAllBytes(hostilePath, [.. hostile, .. new byte[8]]);
+    Assert(CanonicalPcmWave.InspectAndRepair(hostilePath, repair: false).Error!.Code == "audio_recovery.unsupported_wave",
+        "an out-of-range channel count was not reported as an unsupported format");
 }
 
 static async Task RunCrashAudioRecoveryTestsAsync(string root)

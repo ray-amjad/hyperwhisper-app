@@ -8,11 +8,20 @@ public enum LiveTranscriptionProvider
     ElevenLabs,
     OpenAi,
     Grok,
+    GeminiTranscribe,
     HyperWhisperCloud,
     ParakeetLocal,
     NemotronLocal,
 }
 
+/// <param name="CloudTier">
+/// Which vendor HyperWhisper Cloud's live route should use, as a
+/// <c>cloud-stt-catalog.json</c> entry id (<c>deepgramNova3</c>,
+/// <c>geminiTranscribe</c>, …). Meaningful only when
+/// <paramref name="Provider"/> is <see cref="LiveTranscriptionProvider.HyperWhisperCloud"/>;
+/// every other provider ignores it. Null means the catalog default,
+/// <c>deepgramNova3</c>, which reproduces the pre-tier-picker behaviour exactly.
+/// </param>
 public sealed record LiveTranscriptionConfig(
     LiveTranscriptionProvider Provider,
     string? ApiKey = null,
@@ -21,10 +30,11 @@ public sealed record LiveTranscriptionConfig(
     string? Language = null,
     IReadOnlyList<string>? Vocabulary = null,
     string? Model = null,
-    bool FastFormatting = false)
+    bool FastFormatting = false,
+    string? CloudTier = null)
 {
     public override string ToString() =>
-        $"LiveTranscriptionConfig {{ Provider = {Provider}, HasApiKey = {!string.IsNullOrWhiteSpace(ApiKey)}, HasLicenseKey = {!string.IsNullOrWhiteSpace(LicenseKey)}, HasDeviceId = {!string.IsNullOrWhiteSpace(DeviceId)}, Language = {Language ?? "auto"}, VocabularyTerms = {Vocabulary?.Count ?? 0}, Model = {Model ?? "default"}, FastFormatting = {FastFormatting} }}";
+        $"LiveTranscriptionConfig {{ Provider = {Provider}, HasApiKey = {!string.IsNullOrWhiteSpace(ApiKey)}, HasLicenseKey = {!string.IsNullOrWhiteSpace(LicenseKey)}, HasDeviceId = {!string.IsNullOrWhiteSpace(DeviceId)}, Language = {Language ?? "auto"}, VocabularyTerms = {Vocabulary?.Count ?? 0}, Model = {Model ?? "default"}, FastFormatting = {FastFormatting}, CloudTier = {CloudTier ?? "default"} }}";
 }
 
 public enum LiveTranscriptionFailureCode

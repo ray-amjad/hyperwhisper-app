@@ -84,6 +84,56 @@ const GEMINI_RATES: Record<string, GeminiRate> = {
 };
 const GEMINI_FALLBACK_RATE = GEMINI_RATES['gemini-2.5-flash'];
 
+// ── Gemini 3.5 Transcribe (the dedicated speech models) ─────────────────────
+// A DIFFERENT product from the Gemini LLM rates above, on a different endpoint
+// (`/v1beta/interactions`, not `:generateContent`), with a different audio
+// tokenisation. Nothing here may be expressed in terms of GEMINI_RATES or
+// GEMINI_AUDIO_TOKENS_PER_MINUTE:
+//
+//   * Audio bills at 25 tokens/sec, NOT the 32 tok/s of the multimodal models.
+//     Measured against the live API: a 9.456 s clip reports exactly 236 audio
+//     tokens (24.96 tok/s) in `usage.input_tokens_by_modality`.
+//   * `usage.total_output_tokens` comes back as **0 on every response**, verified
+//     live across auto-detect / language-pinned / vocabulary requests. The
+//     endpoint simply does not report output tokens, so the transcript's output
+//     cost CANNOT be read from the usage object — and billing only the audio
+//     input would systematically under-charge by ~45%.
+//
+//     DECISION (not an oversight): estimate the output tokens from the returned
+//     transcript's length at the same ~4 chars/token heuristic this file already
+//     uses twice (RESERVATION_CHARS_PER_TOKEN / FALLBACK_CHARS_PER_TOKEN). The
+//     transcript is the only output the model produced, we hold it in full when
+//     we bill, and the estimate lands within a few percent of a real tokeniser
+//     for LATIN-SCRIPT text at dictation length. It is NOT accurate for every
+//     script: CJK tokenizes at roughly 1–1.5 chars/token, several times denser,
+//     so `estimateGeminiTranscribeOutputTokens` counts those characters
+//     separately (GEMINI_TRANSCRIBE_CJK_CHARS_PER_TOKEN). If Google ever starts
+//     populating `total_output_tokens`, prefer it and delete the estimate —
+//     `estimateGeminiTranscribeOutputTokens` is the single place to change.
+//
+// Rates: $2.00/1M input tokens (audio and text alike — one input price), $12.00/1M
+// output tokens for the pre-recorded model; $3.50 / $21.00 for the live model.
+// At ~150 wpm that is $0.0030 audio + ~$0.0023 output ≈ $0.0053/min pre-recorded
+// and ≈ $0.0092/min live, which is what `cloudTier.creditsPerMinute` 5.5 / 9.6 in
+// shared-app-classification/cloud-stt-catalog.json is derived from (both inside
+// that file's AGENTS.md ≤10% drift rule).
+export const GEMINI_TRANSCRIBE_AUDIO_TOKENS_PER_SECOND = 25;
+interface GeminiTranscribeRate {
+  /** One rate for every input modality — audio and text bill the same here. */
+  inputPerToken: number;
+  outputPerToken: number;
+}
+const GEMINI_TRANSCRIBE_RATES: Record<string, GeminiTranscribeRate> = {
+  'gemini-3.5-transcribe': { inputPerToken: 2.00 / M, outputPerToken: 12.00 / M },
+  'gemini-3.5-transcribe-live': { inputPerToken: 3.50 / M, outputPerToken: 21.00 / M },
+};
+const GEMINI_TRANSCRIBE_FALLBACK_RATE = GEMINI_TRANSCRIBE_RATES['gemini-3.5-transcribe'];
+// Output tokens per second of audio, used ONLY where no transcript is in hand
+// (the live path bills per second as the session runs). 12.5 chars/sec ÷
+// RESERVATION_CHARS_PER_TOKEN — i.e. the same char estimate applied to ~150 wpm
+// speech, so the two paths cannot disagree about what a minute of speech costs.
+const GEMINI_TRANSCRIBE_OUTPUT_TOKENS_PER_AUDIO_SECOND = 3.125;
+
 // AssemblyAI — duration-billed; medical is a +$0.15/hr add-on, not a model.
 const ASSEMBLYAI_UNIVERSAL2_COST_PER_AUDIO_MINUTE = 0.15 / 60;       // $0.0025/min
 // Universal-3.5 Pro (GA 2026-07-01, now the default) publishes the same
@@ -364,6 +414,14 @@ export function estimatePromptInputReservationUsd(
     if (model === 'gpt-4o-mini-transcribe') return tokens * OPENAI_GPT4O_MINI_TRANSCRIBE_INPUT_COST_PER_TOKEN;
     return tokens * OPENAI_GPT4O_TRANSCRIBE_INPUT_COST_PER_TOKEN;
   }
+  if (provider === 'gemini-transcribe') {
+    // The vocabulary goes upstream as `custom_vocabulary`, a structured field
+    // rather than prose, and bills as TEXT input tokens at the same per-token
+    // rate as the audio. (Live traffic reports only ~1 text token even with
+    // terms attached, so this over-reserves — which is the safe direction.)
+    const rate = GEMINI_TRANSCRIBE_RATES[model ?? ''] ?? GEMINI_TRANSCRIBE_FALLBACK_RATE;
+    return tokens * rate.inputPerToken;
+  }
   if (provider === 'soniox') {
     // Soniox charges the custom-context terms as async input-text tokens on top
     // of the audio/output blend. Its tokenizer (~0.3 tok/char) differs from the
@@ -371,6 +429,142 @@ export function estimatePromptInputReservationUsd(
     return estimateSonioxContextTokens(initialPrompt) * SONIOX_INPUT_TEXT_COST_PER_TOKEN;
   }
   return 0;
+}
+
+// CJK scripts tokenize FAR denser than the ~4 chars/token that holds for Latin
+// text: Gemini's SentencePiece vocabulary spends roughly one token per 1–1.5
+// Han/Kana/Hangul characters. Charging a Japanese transcript at 4 chars/token
+// under-bills the output half of the bill several times over.
+//
+// The value below is deliberately a FLOOR (2 chars/token), not a best estimate:
+// it removes most of the under-charge without risking an over-charge on a real
+// user's dictation, because no measurement of this endpoint's own tokenizer is
+// possible — `/v1beta/interactions` reports `total_output_tokens: 0`, so there
+// is nothing to calibrate against short of a separate `countTokens` study.
+// Tighten it toward 1 token/char only with numbers in hand.
+const GEMINI_TRANSCRIBE_CJK_CHARS_PER_TOKEN = 2;
+// Han, Hiragana, Katakana, Hangul, and the CJK punctuation/full-width forms that
+// travel with them. Deliberately not "any non-ASCII": accented Latin, Cyrillic
+// and Greek tokenize close enough to the 4 chars/token figure.
+const CJK_PATTERN = new RegExp(
+  '['
+  + '\\u3000-\\u303F' // CJK symbols and punctuation
+  + '\\u3040-\\u30FF' // Hiragana + Katakana
+  + '\\u3400-\\u4DBF' // CJK unified ideographs, extension A
+  + '\\u4E00-\\u9FFF' // CJK unified ideographs
+  + '\\uAC00-\\uD7AF' // Hangul syllables
+  + '\\uF900-\\uFAFF' // CJK compatibility ideographs
+  + '\\uFF00-\\uFFEF' // Full-width and half-width forms
+  + ']',
+  'g',
+);
+
+/** How many characters of `text` belong to a CJK script. */
+export function countCjkChars(text: string): number {
+  return text.match(CJK_PATTERN)?.length ?? 0;
+}
+
+/**
+ * Output-token estimate for a Gemini 3.5 Transcribe response.
+ *
+ * Exists because `usage.total_output_tokens` is always 0 on `/v1beta/interactions`
+ * (see the block above) — this is the deliberate substitute, not a fallback for
+ * a malformed response.
+ *
+ * Script-aware, following the per-vendor precedent of
+ * {@link estimateSonioxContextTokens}: the ~4 chars/token heuristic is a Latin
+ * figure and is several times too generous for CJK. The LIVE path
+ * ({@link computeGeminiTranscribeLiveCost}) cannot use this — it meters a
+ * running character COUNT, never the text — so a CJK live session keeps the
+ * Latin ratio. Fixing that means carrying the text into the streaming route.
+ */
+export function estimateGeminiTranscribeOutputTokens(transcript: string): number {
+  const cjkChars = countCjkChars(transcript);
+  const otherChars = transcript.length - cjkChars;
+  return Math.ceil(
+    cjkChars / GEMINI_TRANSCRIBE_CJK_CHARS_PER_TOKEN + otherChars / RESERVATION_CHARS_PER_TOKEN,
+  );
+}
+
+export interface GeminiTranscribeUsage {
+  /** `usage.input_tokens_by_modality[modality == "audio"].tokens`. */
+  audioInputTokens: number;
+  /** `usage.input_tokens_by_modality[modality == "text"].tokens`. Same rate. */
+  textInputTokens?: number;
+  /** Estimated from the transcript — the API reports 0. */
+  outputTokens: number;
+  /** Duration estimate (from payload size) used only if `usage` is absent. */
+  fallbackDurationSeconds?: number;
+}
+
+/**
+ * Gemini 3.5 Transcribe (pre-recorded). Bills the reported input tokens plus the
+ * ESTIMATED output tokens; an absent/changed/PARTIAL `usage` object falls back to
+ * a duration-based estimate so a transcription never bills less than the audio
+ * was worth (fail-closed, matching the other token-billed adapters here).
+ *
+ * The trigger is a missing AUDIO-token count specifically, not a zero total.
+ * `audioInputTokens` is the only field we cannot reconstruct: the output tokens
+ * are already our own estimate (the endpoint reports 0), so a response whose
+ * `usage` object is absent or has lost its audio modality still arrives here
+ * with `outputTokens >= 1` from the transcript and would otherwise skip the
+ * fallback entirely and bill a few cents per million — 24x under a real charge.
+ * When the audio tokens are missing we take the GREATER of the two figures, so
+ * a partial usage object can only ever raise the bill toward the truth.
+ */
+export function computeGeminiTranscribeCost(model: string, usage: GeminiTranscribeUsage): number {
+  const rate = GEMINI_TRANSCRIBE_RATES[model] ?? GEMINI_TRANSCRIBE_FALLBACK_RATE;
+  const audioInputTokens = Math.max(0, usage.audioInputTokens);
+  const inputTokens = audioInputTokens + Math.max(0, usage.textInputTokens ?? 0);
+  const outputTokens = Math.max(0, usage.outputTokens);
+
+  const tokenCost = inputTokens * rate.inputPerToken + outputTokens * rate.outputPerToken;
+  if (audioInputTokens > 0) {
+    return roundUsd(tokenCost);
+  }
+
+  const seconds = Math.max(0, usage.fallbackDurationSeconds ?? 0);
+  return roundUsd(Math.max(tokenCost, geminiTranscribeSecondsCost(seconds, rate)));
+}
+
+/** Per-second cost at `rate`, with output estimated from the audio duration. */
+function geminiTranscribeSecondsCost(seconds: number, rate: GeminiTranscribeRate): number {
+  return seconds * GEMINI_TRANSCRIBE_AUDIO_TOKENS_PER_SECOND * rate.inputPerToken
+    + seconds * GEMINI_TRANSCRIBE_OUTPUT_TOKENS_PER_AUDIO_SECOND * rate.outputPerToken;
+}
+
+/**
+ * Gemini 3.5 Transcribe Live (WebSocket). Billed from audio SECONDS rather than
+ * a usage object: the live socket reports no token counts at all, and the
+ * streaming route meters as the session runs. Audio tokens are the same 25/sec
+ * as the pre-recorded model at the live model's higher rate.
+ *
+ * `transcriptChars` is optional. OMITTED means "no transcript figure exists yet"
+ * — the reservation/minimum-balance estimate — and prices the output half from
+ * the duration at ~150 wpm. SUPPLIED means "this is how much text the session
+ * produced", and ZERO is a real answer: it prices the output half at zero.
+ *
+ * MONOTONICITY IS A REQUIREMENT, not an accident of the arithmetic. This
+ * function must never charge more for a shorter transcript at the same
+ * duration. Treating `0` as "unknown" broke that: at 60 s, 0 chars billed the
+ * ~150 wpm estimate (9.2 credits) and 1 char billed 5.3, so every session under
+ * 749 chars/min cost less than silence and a stuck push-to-talk minute
+ * over-billed by 74%. A finals-less session now bills the audio it forwarded
+ * and nothing more — an under-charge of the output half in a rare case, which
+ * is the side to be wrong on when the alternative is charging a user more for
+ * saying less.
+ */
+export function computeGeminiTranscribeLiveCost(durationSeconds: number, transcriptChars?: number): number {
+  const rate = GEMINI_TRANSCRIBE_RATES['gemini-3.5-transcribe-live'];
+  const seconds = Math.max(0, durationSeconds);
+  if (transcriptChars === undefined) {
+    return roundUsd(geminiTranscribeSecondsCost(seconds, rate));
+  }
+  const outputTokens = Math.ceil(Math.max(0, transcriptChars) / RESERVATION_CHARS_PER_TOKEN);
+  return roundUsd(
+    seconds * GEMINI_TRANSCRIBE_AUDIO_TOKENS_PER_SECOND * rate.inputPerToken
+      + outputTokens * rate.outputPerToken,
+  );
 }
 
 /**
@@ -511,6 +705,20 @@ export function usdToCredits(usd: number): number {
   }
 
   return usd / USD_PER_CREDIT;
+}
+
+/**
+ * Inverse of {@link usdToCredits} — what a credit balance is worth in USD.
+ *
+ * Used by the live-streaming shell to clamp an end-of-session charge to the
+ * balance the mid-session cutoff was measured against, so a session can never
+ * bill past the credits the user actually had when it opened.
+ */
+export function usdForCredits(credits: number): number {
+  if (!Number.isFinite(credits) || credits <= 0) {
+    return 0;
+  }
+  return credits * USD_PER_CREDIT;
 }
 
 export function creditsForCost(costUsd: number): number {

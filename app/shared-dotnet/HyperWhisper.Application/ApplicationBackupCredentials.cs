@@ -25,8 +25,29 @@ public sealed partial class ApplicationBackupService
             ["mistral"] = "MistralApiKey",
             ["soniox"] = "SonioxApiKey",
             ["gemini"] = "GeminiApiKey",
+            // A SEPARATE key from "gemini", which is the legacy Gemini
+            // post-processing/transcription key: same "AIza" shape, different
+            // API, and a user may hold different keys for the two. Squashed
+            // lowercase to match the Windows `[JsonPropertyName]` and the macOS
+            // member, so a backup round-trips across all three platforms.
+            ["geminitranscribe"] = "GeminiTranscribeApiKey",
             ["grok"] = "GrokApiKey",
         }.ToImmutableDictionary(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Every id in <see cref="CredentialAccounts"/>, indexed case-insensitively
+    /// so an incoming member can be folded back onto its canonical spelling.
+    ///
+    /// Windows and macOS write `geminiTranscribe` in camelCase; this file's own
+    /// map is squashed lowercase. Before this existed the mismatch was fatal
+    /// twice over: the id charset below rejected the capital letter and failed
+    /// the WHOLE restore — modes, vocabulary and settings included, not just the
+    /// keys — and even past that check the direct `CredentialAccounts[...]`
+    /// lookup in ImportCredentials would have thrown on the camelCase key.
+    /// </summary>
+    private static readonly ImmutableDictionary<string, string> CanonicalProviderIds =
+        CredentialAccounts.Keys.ToImmutableDictionary(
+            id => id, id => id, StringComparer.OrdinalIgnoreCase);
 
     private JsonObject ExportCredentials()
     {
@@ -70,15 +91,21 @@ public sealed partial class ApplicationBackupService
         var recognized = ImmutableDictionary.CreateBuilder<string, string>(StringComparer.Ordinal);
         foreach (var entry in keys)
         {
+            // Uppercase is accepted because the sibling platforms emit camelCase
+            // ids. Rejecting one here fails the entire restore, not just the key.
             if (entry.Key.Length is 0 or > MaximumProviderIdLength
                 || entry.Key.Any(character => character is not (>= 'a' and <= 'z')
+                    and not (>= 'A' and <= 'Z')
                     and not (>= '0' and <= '9') and not '-' and not '_' and not '.'))
                 return PlatformResult<ImmutableDictionary<string, string>>.Failure(
                     "backup.invalid_credentials", "The backup contains an invalid API-key provider identifier.");
             if (entry.Value is null) continue;
+            // Fold onto the canonical spelling: ImportCredentials indexes
+            // CredentialAccounts directly, so an un-folded camelCase id throws.
+            var canonicalId = CanonicalProviderIds.TryGetValue(entry.Key, out var folded) ? folded : null;
             if (entry.Value is not JsonValue valueNode || !valueNode.TryGetValue<string>(out var value))
             {
-                if (!CredentialAccounts.ContainsKey(entry.Key)) continue;
+                if (canonicalId is null) continue;
                 return PlatformResult<ImmutableDictionary<string, string>>.Failure(
                     "backup.invalid_credentials", "The backup contains an invalid API-key value.");
             }
@@ -87,8 +114,8 @@ public sealed partial class ApplicationBackupService
             if (value.Length > MaximumCredentialBytes || Encoding.UTF8.GetByteCount(value) > MaximumCredentialBytes)
                 return PlatformResult<ImmutableDictionary<string, string>>.Failure(
                     "backup.invalid_credentials", "An API key exceeds the backup size limit.");
-            if (!CredentialAccounts.ContainsKey(entry.Key)) continue;
-            recognized[entry.Key] = value;
+            if (canonicalId is null) continue;
+            recognized[canonicalId] = value;
         }
         return PlatformResult<ImmutableDictionary<string, string>>.Success(recognized.ToImmutable());
     }

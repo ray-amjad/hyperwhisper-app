@@ -152,6 +152,20 @@ class APIKeySettingsManager: ObservableObject {
         }
     }
 
+    /// Gemini 3.5 Transcribe API key for cloud transcription
+    /// Stored securely in macOS Keychain, never in UserDefaults
+    /// Used by: GeminiTranscribeProvider
+    ///
+    /// Deliberately NOT `geminiAPIKey`: same vendor, but a different API
+    /// (`/v1beta/interactions`) and a different BYOK slot, so a key pasted for
+    /// one must not silently become the other.
+    @Published var geminiTranscribeAPIKey: String = "" {
+        didSet {
+            guard !isLoadingFromKeychain else { return }
+            saveAPIKeyToKeychain(geminiTranscribeAPIKey, for: .geminiTranscribe)
+        }
+    }
+
     /// Whether to use OpenAI for transcription
     /// Stored in UserDefaults (not sensitive)
     @AppStorage("useOpenAITranscription") var useOpenAITranscription: Bool = false
@@ -203,6 +217,8 @@ class APIKeySettingsManager: ObservableObject {
             return grokAPIKey
         case .microsoftAzureSpeech, .googleSpeech:
             return ""  // HyperWhisper Cloud only — no BYOK in v1
+        case .geminiTranscribe:
+            return geminiTranscribeAPIKey
         }
     }
 
@@ -250,6 +266,8 @@ class APIKeySettingsManager: ObservableObject {
             grokAPIKey = key
         case .microsoftAzureSpeech, .googleSpeech:
             break
+        case .geminiTranscribe:
+            geminiTranscribeAPIKey = key
         }
         return true
     }
@@ -343,7 +361,7 @@ class APIKeySettingsManager: ObservableObject {
         // Check transcription API key if using cloud
         if isCloudTranscription {
             let cloudProviderString = mode.cloudProvider ?? "hyperwhisper"
-            if let cloudProvider = CloudProvider(rawValue: cloudProviderString) {
+            if let cloudProvider = CloudProvider.parse(cloudProviderString) {
                 if !hasAPIKey(for: cloudProvider) {
                     missingKeys.append(MissingAPIKey(context: .transcription(cloudProvider)))
                 }
@@ -384,7 +402,7 @@ class APIKeySettingsManager: ObservableObject {
         }
 
         if isCloudTranscription {
-            if let cloudProvider = CloudProvider(rawValue: snapshot.cloudProvider) {
+            if let cloudProvider = CloudProvider.parse(snapshot.cloudProvider) {
                 if !hasAPIKey(for: cloudProvider) {
                     missingKeys.append(MissingAPIKey(context: .transcription(cloudProvider)))
                 }
@@ -454,6 +472,7 @@ class APIKeySettingsManager: ObservableObject {
         sonioxAPIKey = KeychainManager.shared.getAPIKey(for: .soniox)
         cerebrasAPIKey = KeychainManager.shared.getAPIKey(for: .cerebras)
         grokAPIKey = KeychainManager.shared.getAPIKey(for: .grok)
+        geminiTranscribeAPIKey = KeychainManager.shared.getAPIKey(for: .geminiTranscribe)
 
         // Log configuration status (without exposing actual keys)
         let summary = KeychainManager.shared.getConfigurationSummary()
@@ -509,6 +528,8 @@ class APIKeySettingsManager: ObservableObject {
             return .gemini
         case .grok:
             return .grok
+        case .geminiTranscribe:
+            return .geminiTranscribe
         }
     }
 }

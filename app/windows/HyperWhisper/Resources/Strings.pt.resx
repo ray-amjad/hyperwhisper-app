@@ -1211,6 +1211,9 @@ You can re-download it later.</value>
   <data name="provider.gemini" xml:space="preserve">
     <value>Google Gemini</value>
   </data>
+  <data name="provider.geminiTranscribe" xml:space="preserve">
+    <value>Gemini 3.5 Transcribe</value>
+  </data>
   <data name="provider.cerebras" xml:space="preserve">
     <value>Cerebras</value>
   </data>
@@ -1436,14 +1439,23 @@ You can re-download it later.</value>
   <data name="mode.editor.provider.soniox.tooltip" xml:space="preserve">
     <value>Transcrição assíncrona com o mais recente modelo STT da Soniox</value>
   </data>
+  <data name="mode.editor.provider.geminiTranscribe.tooltip" xml:space="preserve">
+    <value>Modelo dedicado do Google de voz para texto, com vocabulário personalizado</value>
+  </data>
   <data name="provider.soniox" xml:space="preserve">
     <value>Soniox</value>
   </data>
   <data name="settings.api.invalidKey.soniox" xml:space="preserve">
     <value>Formato de chave API inválido. As chaves Soniox devem ter pelo menos 10 caracteres.</value>
   </data>
+  <data name="settings.api.invalidKey.geminiTranscribe" xml:space="preserve">
+    <value>Formato de chave de API inválido. As chaves do Gemini 3.5 Transcribe devem começar com "AIza" e ter pelo menos 30 caracteres.</value>
+  </data>
   <data name="settings.api.provider.soniox.description" xml:space="preserve">
     <value>Transcrição assíncrona multilingue via Soniox</value>
+  </data>
+  <data name="settings.api.provider.geminiTranscribe.description" xml:space="preserve">
+    <value>Modelo dedicado do Google de voz para texto com suporte a vocabulário personalizado</value>
   </data>
   <data name="settings.backup.export.apiKeysWarning" xml:space="preserve">
     <value>As chaves API serão armazenadas como texto simples no ficheiro de cópia de segurança.</value>
@@ -1789,11 +1801,11 @@ You can re-download it later.</value>
   <data name="modes.cloudAccuracy.azureMaiTranscribe.description" xml:space="preserve">
     <value>Microsoft MAI-Transcribe 1.5 - 43 languages with phrase biasing</value>
   </data>
-  <data name="modes.cloudAccuracy.googleChirp3.label" xml:space="preserve">
-    <value>Google Chirp 3</value>
+  <data name="modes.cloudAccuracy.geminiTranscribe.label" xml:space="preserve">
+    <value>Google Gemini 3.5 Transcribe</value>
   </data>
-  <data name="modes.cloudAccuracy.googleChirp3.description" xml:space="preserve">
-    <value>Google Chirp 3 - 100+ languages (no custom vocabulary)</value>
+  <data name="modes.cloudAccuracy.geminiTranscribe.description" xml:space="preserve">
+    <value>Google Gemini 3.5 Transcribe - dedicated speech model, 85+ languages, custom vocabulary</value>
   </data>
   <data name="modes.cloudAccuracy.creditsPerMinute" xml:space="preserve">
     <value>~{0} credits/min</value>
@@ -1879,6 +1891,9 @@ You can re-download it later.</value>
   <data name="settings.streaming.provider.xai" xml:space="preserve">
     <value>xAI</value>
   </data>
+  <data name="settings.streaming.provider.geminiTranscribe" xml:space="preserve">
+    <value>Gemini 3.5 Transcribe</value>
+  </data>
   <data name="settings.streaming.providerStatus.hyperwhisperCloud" xml:space="preserve">
     <value>Usa os seus créditos do HyperWhisper Cloud. Não é necessária uma chave de API separada.</value>
   </data>
@@ -1905,6 +1920,18 @@ You can re-download it later.</value>
   </data>
   <data name="settings.streaming.providerStatus.xai.missingKey" xml:space="preserve">
     <value>xAI streaming requires a Grok API key in the Model Library API keys manager.</value>
+  </data>
+  <data name="settings.streaming.providerStatus.geminiTranscribe.configured" xml:space="preserve">
+    <value>Gemini API key is configured.</value>
+  </data>
+  <data name="settings.streaming.providerStatus.geminiTranscribe.missingKey" xml:space="preserve">
+    <value>Gemini 3.5 Transcribe streaming requires a Google Gemini API key in the Model Library API keys manager.</value>
+  </data>
+  <data name="settings.streaming.cloudTier.title" xml:space="preserve">
+    <value>Live engine</value>
+  </data>
+  <data name="settings.streaming.cloudTier.subtitle" xml:space="preserve">
+    <value>Which speech engine HyperWhisper Cloud uses for live transcription.</value>
   </data>
   <data name="settings.streaming.warning.vocabularyUnsupported" xml:space="preserve">
     <value>Custom vocabulary is not used with the selected streaming provider.</value>

@@ -3,6 +3,21 @@
     <channel>
         <title>hyperwhisper</title>
         <item>
+            <title>2.45.0</title>
+            <pubDate>Fri, 28 Aug 2026 03:54:10 +0000</pubDate>
+            <sparkle:version>115</sparkle:version>
+            <sparkle:shortVersionString>2.45.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.45.0.dmg" length="34390441" type="application/octet-stream" sparkle:edSignature="0Y4Gj8+XzFeY1fDjzuyYr80Kr131vhNhIL+ACCt4q8Zow38Ds3l5Xmq+drz0gckYm1IbSATYIYIbJ4PEuGMaDw=="/>
+            <description>
+                <![CDATA[
+                <ul>
+                    <li><b>Google Gemini 3.5 Transcribe is here.</b> Google's dedicated speech model, for both recordings and live dictation. Multilingual, and it reads your custom vocabulary.</li><li><b>It replaces Chirp 3 as the Google tier on HyperWhisper Cloud.</b> Chirp 3 Modes move across on their own, and a new picker lets you choose the engine for live Cloud dictation.</li><li><b>A new first-run setup.</b> One question per step, and "Set Up Later" no longer changes your Mode, your provider key or your microphone.</li><li>Recording starts without the pause some Macs saw, and deleting old recordings no longer freezes the window.</li><li>Fixed cloud transcriptions failing on audio format, short live clips dropped by OpenAI Realtime, and local Whisper failing when memory ran low.</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
             <title>2.44.1</title>
             <pubDate>Sun, 16 Aug 2026 14:08:26 +0000</pubDate>
             <sparkle:version>114</sparkle:version>

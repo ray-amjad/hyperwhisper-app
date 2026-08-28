@@ -3,6 +3,14 @@ namespace HyperWhisper.Models;
 /// <summary>
 /// Streaming transcription providers supported by the Windows settings surface.
 /// Storage values intentionally match macOS AppStorage values for parity.
+///
+/// Adding a member is SIX edits in this file and none of them is compiler-enforced:
+/// every switch below ends in a `_ =>` arm. The quiet one is IsValidStorageValue -
+/// SettingsService.StreamingProvider's setter resets any value it rejects back to
+/// hyperwhisperCloud, so forgetting it there makes the user's selection silently
+/// revert the next time settings are saved. Then StreamingTranscriptionSessionFactory
+/// (three switches) and StreamingSettingsPage (the hard-coded ComboBox list plus two
+/// switches) - see the checklist in StreamingSettingsPage.xaml.cs.
 /// </summary>
 public enum StreamingTranscriptionProvider
 {
@@ -10,7 +18,8 @@ public enum StreamingTranscriptionProvider
     Deepgram,
     ElevenLabs,
     OpenAI,
-    Xai
+    Xai,
+    GeminiTranscribe
 }
 
 public static class StreamingTranscriptionProviderExtensions
@@ -22,6 +31,7 @@ public static class StreamingTranscriptionProviderExtensions
         StreamingTranscriptionProvider.ElevenLabs => "elevenLabs",
         StreamingTranscriptionProvider.OpenAI => "openAI",
         StreamingTranscriptionProvider.Xai => "xai",
+        StreamingTranscriptionProvider.GeminiTranscribe => "geminiTranscribe",
         _ => "hyperwhisperCloud"
     };
 
@@ -32,6 +42,7 @@ public static class StreamingTranscriptionProviderExtensions
         StreamingTranscriptionProvider.ElevenLabs => "ElevenLabs",
         StreamingTranscriptionProvider.OpenAI => "OpenAI",
         StreamingTranscriptionProvider.Xai => "xAI",
+        StreamingTranscriptionProvider.GeminiTranscribe => "Gemini 3.5 Transcribe",
         _ => "HyperWhisper Cloud"
     };
 
@@ -42,11 +53,12 @@ public static class StreamingTranscriptionProviderExtensions
         StreamingTranscriptionProvider.ElevenLabs => true,
         StreamingTranscriptionProvider.OpenAI => true,
         StreamingTranscriptionProvider.Xai => true,
+        StreamingTranscriptionProvider.GeminiTranscribe => true,
         _ => false
     };
 
     public static bool IsValidStorageValue(string? value) =>
-        value is "hyperwhisperCloud" or "deepgram" or "elevenLabs" or "openAI" or "xai";
+        value is "hyperwhisperCloud" or "deepgram" or "elevenLabs" or "openAI" or "xai" or "geminiTranscribe";
 
     public static StreamingTranscriptionProvider FromStorageValue(string? value) => value switch
     {
@@ -54,6 +66,7 @@ public static class StreamingTranscriptionProviderExtensions
         "elevenLabs" => StreamingTranscriptionProvider.ElevenLabs,
         "openAI" => StreamingTranscriptionProvider.OpenAI,
         "xai" => StreamingTranscriptionProvider.Xai,
+        "geminiTranscribe" => StreamingTranscriptionProvider.GeminiTranscribe,
         _ => StreamingTranscriptionProvider.HyperWhisperCloud
     };
 }

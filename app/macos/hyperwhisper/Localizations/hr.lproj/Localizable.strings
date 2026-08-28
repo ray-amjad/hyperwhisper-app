@@ -42,6 +42,8 @@
 "streaming.enable.title" = "Omogući strujanje";
 "streaming.provider.picker.title" = "Pružatelj usluga";
 "streaming.model.title" = "Model";
+"streaming.cloudTier.title" = "Pogon uživo";
+"streaming.cloudTier.description" = "Koji govorni pogon HyperWhisper Cloud koristi za transkripciju uživo";
 "streaming.model.nova3general" = "Nova 3 General";
 "streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Brzo formatiranje";
@@ -767,8 +769,8 @@ Uredi te načine rada kako bi odabrao drugi model prije uklanjanja.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ kredita/min";
 "modes.cloudAccuracy.grokStt.label" = "Najviša (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Najviša točnost sa sporijim obradom. Najbolje za važne transkripcije.";
-"modes.cloudAccuracy.googleChirp3.label" = "Visoka (Google Chirp 3)";
-"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 s modelom Chirp 3. Višejezično uz prilagodbu fraza.";
+"modes.cloudAccuracy.geminiTranscribe.label" = "Visoka (Google Gemini 3.5 Transcribe)";
+"modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Višejezično, s podrškom za prilagođeni rječnik.";
 "modes.cloudAccuracy.azureMaiTranscribe.label" = "Visoka (Microsoft MAI-Transcribe 1.5)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 putem Azure Speech. 43 jezika s kontekstualnim usmjeravanjem.";
 

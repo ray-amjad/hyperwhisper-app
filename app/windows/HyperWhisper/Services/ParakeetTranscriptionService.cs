@@ -182,7 +182,7 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
     /// <summary>
     /// The selected language affecting daemon behavior for the loaded model.
     /// Null if no model is loaded. ACCEPTED STALENESS: after a TDT mode switch
-    /// that <see cref="NeedsReload"/> skipped (same no-space join class, e.g.
+    /// that <see cref="NeedsReload"/> skipped (same join class, e.g.
     /// en→fr), this still reports the last SPAWN's language, not the mode's —
     /// the daemon genuinely runs with that spawn hint. Consumers (auto-restart,
     /// Qwen3 empty-result heuristic) only need the spawn value.
@@ -218,6 +218,32 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
     }
 
     /// <summary>
+    /// How the daemon spawned with <paramref name="normalizedLanguage"/> joins its
+    /// segments. THREE classes, not two — <c>"auto"</c> is its own.
+    /// </summary>
+    /// <remarks>
+    /// The daemon's join used to have two outcomes, so comparing
+    /// <see cref="IsNoSpaceLanguage"/> across a mode switch was enough. Since
+    /// issue #286 it has three: a no-space code joins with <c>""</c>, any other
+    /// declared code joins with <c>" "</c>, and <c>"auto"</c> decides per boundary
+    /// from the segment text. <c>"en"</c> and <c>"auto"</c> therefore produce
+    /// DIFFERENT transcripts for the same Japanese audio, while
+    /// <c>IsNoSpaceLanguage</c> calls them the same class — so a warm daemon
+    /// spawned for <c>en</c> was kept for an auto-language mode and went on
+    /// joining Japanese with spaces.
+    /// <para>
+    /// Over-classifying is safe here: the only cost of an unnecessary class change
+    /// is one extra daemon respawn.
+    /// </para>
+    /// </remarks>
+    internal static string ResolveJoinClass(string normalizedLanguage) => normalizedLanguage switch
+    {
+        "auto" => "auto",
+        var code when IsNoSpaceLanguage(code) => "no-space",
+        _ => "spaced",
+    };
+
+    /// <summary>
     /// Whether switching to <paramref name="modelId"/> + <paramref name="requestedLanguage"/>
     /// (raw mode value; null/"auto" mean auto-detect) requires respawning the daemon.
     /// Single source of truth for the previously copy-pasted call-site checks.
@@ -226,8 +252,8 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
     /// - Language-hint engines (Nemotron online, Qwen3) take the language at
     ///   spawn → reload on any normalized-language change.
     /// - Parakeet TDT auto-detects language; its spawn hint only picks the
-    ///   no-space segment join → reload only when the join class changes
-    ///   (en→fr skips; en→ja reloads).
+    ///   segment join → reload only when the join CLASS changes
+    ///   (en→fr skips; en→ja and en→auto reload — see <see cref="ResolveJoinClass"/>).
     /// </summary>
     public bool NeedsReload(string modelId, string? requestedLanguage)
     {
@@ -251,7 +277,7 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
             return !string.Equals(requested, loaded, StringComparison.Ordinal);
         }
 
-        return IsNoSpaceLanguage(requested) != IsNoSpaceLanguage(loaded);
+        return !string.Equals(ResolveJoinClass(requested), ResolveJoinClass(loaded), StringComparison.Ordinal);
     }
 
     // =========================================================================

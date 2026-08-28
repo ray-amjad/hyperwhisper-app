@@ -48,9 +48,14 @@ public static class StreamingTranscriptionSessionFactory
             Language: settings.StreamingLanguage,
             Vocabulary: BuildVocabulary(provider, vocabularyWords),
             ApiKey: apiKey,
+            // Model stays Deepgram-only. Gemini Live has exactly one model, so its
+            // strategy defaults to it rather than reading the Deepgram model box,
+            // which is what this free-text setting really is.
             Model: provider == StreamingTranscriptionProvider.Deepgram ? settings.StreamingDeepgramModel : null,
             FastFormatting: settings.StreamingFastFormatting,
-            RemoveFillerWords: settings.RemoveFillerWords
+            RemoveFillerWords: settings.RemoveFillerWords,
+            // Read for HyperWhisper Cloud only; the core ignores it elsewhere.
+            CloudTier: settings.StreamingCloudTier
         );
 
         return Result<StreamingTranscriptionClient>.Success(
@@ -67,6 +72,25 @@ public static class StreamingTranscriptionSessionFactory
     public static bool SupportsVocabulary(StreamingTranscriptionProvider provider) =>
         SharedCoreBridge.LiveSupportsVocabulary(LiveProtocolStreamingStrategy.CoreProvider(provider));
 
+    /// <summary>
+    /// Whether this provider accepts custom vocabulary while the language is left on
+    /// auto-detect. Deepgram Nova-3 silently drops keyterms there, so the settings
+    /// page warns; Gemini does not, and warning about it would be wrong.
+    /// Lives here rather than in the page so the page keeps no provider list of its
+    /// own (see the warning on BuildVocabulary below).
+    ///
+    /// The answer itself comes from the shared core, which also resolves the
+    /// HyperWhisper Cloud case: that tier inherits its live vendor's answer,
+    /// because the cloud tier picker decides which upstream actually serves the
+    /// session. The tier is a path selector, deliberately not a
+    /// StreamingTranscriptionProvider case - the credit and entitlement wiring
+    /// keys off provider == hyperwhisperCloud and must keep matching.
+    /// </summary>
+    public static bool SupportsVocabularyWithoutLanguage(StreamingTranscriptionProvider provider) =>
+        SharedCoreBridge.LiveSupportsVocabularyWithoutLanguage(
+            LiveProtocolStreamingStrategy.CoreProvider(provider),
+            SettingsService.Instance.StreamingCloudTier);
+
     private static string? GetApiKey(StreamingTranscriptionProvider provider) => provider switch
     {
         StreamingTranscriptionProvider.Deepgram =>
@@ -77,6 +101,8 @@ public static class StreamingTranscriptionSessionFactory
             ApiKeyService.Instance.GetApiKey(PostProcessingProvider.OpenAI),
         StreamingTranscriptionProvider.Xai =>
             ApiKeyService.Instance.GetApiKey(TranscriptionApiKeyType.Grok),
+        StreamingTranscriptionProvider.GeminiTranscribe =>
+            ApiKeyService.Instance.GetApiKey(TranscriptionApiKeyType.GeminiTranscribe),
         _ => null
     };
 
@@ -85,6 +111,7 @@ public static class StreamingTranscriptionSessionFactory
         StreamingTranscriptionProvider.Deepgram => TranscriptionApiKeyType.Deepgram,
         StreamingTranscriptionProvider.ElevenLabs => TranscriptionApiKeyType.ElevenLabs,
         StreamingTranscriptionProvider.Xai => TranscriptionApiKeyType.Grok,
+        StreamingTranscriptionProvider.GeminiTranscribe => TranscriptionApiKeyType.GeminiTranscribe,
         _ => null
     };
 

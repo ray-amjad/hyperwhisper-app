@@ -1,0 +1,128 @@
+{
+  "description": "Cross-platform conformance vectors for Gemini 3.5 Transcribe Live WebSocket frames (models/gemini-3.5-transcribe-live over BidiGenerateContent). Source of truth: shared-core-rs/crates/hw-net/src/providers/gemini_transcribe.rs, consumed by shared-core-rs/crates/hw-net/tests/live_frame_vectors.rs. The Rust frame builders are deliberately NOT exposed over UniFFI (no platform streaming strategy builds frames across FFI, and per-chunk audio marshalling would add a hot-path copy), so these vectors are how the native streaming strategies on macOS, Windows and Linux are held to the same wire shape. Client-to-server frames only; `expect` is the exact JSON object the client must send, compared structurally (key order is irrelevant).\n\nTHE TRAP THIS PINS: the live transcription config lives at `setup.input_audio_transcription`. The pre-recorded location (`setup.generation_config.transcription_config`, which is correct for POST /v1beta/interactions) makes the server close the socket with code 1007. The two models take the same config object at two different paths.\n\nSECOND TRAP, inherited from the pre-recorded path: `custom_vocabulary` is rejected with HTTP 400 / a socket error when sent alongside `diarization_mode` (\"custom_vocabulary is incompatible with diarization.\") or `timestamp_granularities` (\"custom_vocabulary is incompatible with timestamps.\"). HyperWhisper is a dictation app, so vocabulary wins and the other two are never sent.",
+  "endpoint": "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=<apiKey>",
+  "audioFormat": {
+    "encoding": "pcm_s16le",
+    "sampleRate": 16000,
+    "channels": 1,
+    "mimeType": "audio/pcm;rate=16000",
+    "note": "Audio frame `data` is standard base64 (padded, non-URL-safe, no line breaks) of the raw PCM bytes."
+  },
+  "cases": [
+    {
+      "name": "setup-language-and-vocabulary",
+      "kind": "setup",
+      "model": "gemini-3.5-transcribe-live",
+      "language": "en-US",
+      "vocabulary": ["HyperWhisper"],
+      "expect": {
+        "setup": {
+          "model": "models/gemini-3.5-transcribe-live",
+          "input_audio_transcription": {
+            "language_codes": ["en-US"],
+            "custom_vocabulary": ["HyperWhisper"]
+          }
+        }
+      }
+    },
+    {
+      "name": "setup-model-id-is-prefixed-with-models",
+      "kind": "setup",
+      "model": "models/gemini-3.5-transcribe-live",
+      "language": "en-US",
+      "vocabulary": [],
+      "expect": {
+        "setup": {
+          "model": "models/gemini-3.5-transcribe-live",
+          "input_audio_transcription": { "language_codes": ["en-US"] }
+        }
+      }
+    },
+    {
+      "name": "setup-auto-detect-omits-language-codes",
+      "kind": "setup",
+      "model": "gemini-3.5-transcribe-live",
+      "language": "auto",
+      "vocabulary": [],
+      "expect": {
+        "setup": {
+          "model": "models/gemini-3.5-transcribe-live",
+          "input_audio_transcription": {}
+        }
+      }
+    },
+    {
+      "name": "setup-vocabulary-only",
+      "kind": "setup",
+      "model": "gemini-3.5-transcribe-live",
+      "language": null,
+      "vocabulary": ["Kalamazoo", "HyperWhisper"],
+      "expect": {
+        "setup": {
+          "model": "models/gemini-3.5-transcribe-live",
+          "input_audio_transcription": {
+            "custom_vocabulary": ["Kalamazoo", "HyperWhisper"]
+          }
+        }
+      }
+    },
+    {
+      "name": "audio-chunk",
+      "kind": "audio",
+      "pcmBase64": "QUJD",
+      "expect": {
+        "realtime_input": {
+          "audio": { "data": "QUJD", "mime_type": "audio/pcm;rate=16000" }
+        }
+      }
+    },
+    {
+      "name": "audio-stream-end",
+      "kind": "audioStreamEnd",
+      "expect": { "realtime_input": { "audio_stream_end": true } }
+    }
+  ],
+  "serverMessages": [
+    {
+      "name": "setup-complete",
+      "frame": { "setupComplete": {} },
+      "expect": { "kind": "setupComplete" }
+    },
+    {
+      "name": "interim-transcription-is-a-partial",
+      "frame": { "serverContent": { "interimInputTranscription": { "text": "hel" } } },
+      "expect": { "kind": "partialTranscript", "text": "hel" }
+    },
+    {
+      "name": "input-transcription-is-a-final",
+      "frame": { "serverContent": { "inputTranscription": { "text": "hello" } } },
+      "expect": { "kind": "finalTranscript", "text": "hello" }
+    },
+    {
+      "name": "one-frame-carrying-both-decodes-as-the-final",
+      "note": "FINAL WINS. A single serverContent frame may carry inputTranscription AND interimInputTranscription. Every decoder must check the final FIRST: checking the interim first emits only the preview and drops the committed segment, so the user's text ends at the last hypothesis. Key order in this frame is deliberately interim-then-final so a decoder that walks the object in wire order gets it wrong.",
+      "frame": {
+        "serverContent": {
+          "interimInputTranscription": { "text": "hello wor" },
+          "inputTranscription": { "text": "hello world" }
+        }
+      },
+      "expect": { "kind": "finalTranscript", "text": "hello world" }
+    },
+    {
+      "name": "generation-complete-ends-the-session",
+      "frame": { "serverContent": { "generationComplete": true } },
+      "expect": { "kind": "complete" }
+    },
+    {
+      "name": "error-frame-is-terminal",
+      "frame": { "error": { "code": 1007, "message": "invalid setup" } },
+      "expect": { "kind": "error", "text": "invalid setup" }
+    },
+    {
+      "name": "unmodelled-frames-are-ignored-not-errors",
+      "frame": { "usageMetadata": { "totalTokenCount": 3 } },
+      "expect": { "kind": "unhandled" }
+    }
+  ]
+}

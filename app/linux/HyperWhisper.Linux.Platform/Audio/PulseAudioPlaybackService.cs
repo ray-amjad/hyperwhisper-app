@@ -44,8 +44,10 @@ public sealed class PulseAudioPlaybackService : IAudioPlaybackService
             using var stream = File.OpenRead(audioPath);
             var header = WaveFile.ReadHeader(stream);
             if (header.IsFailure) return PlatformResult.Failure(header.Error!.Code, header.Error.Message);
-            if (header.Value.DataOffset + header.Value.DataLength > stream.Length)
-                return PlatformResult.Failure("audio_file_truncated", "The WAV data length exceeds the file size.");
+            // No truncation check: the reader clamps the data length to the bytes the file
+            // actually holds, so it can never exceed the file size the way the raw declared
+            // header field could. It also stops at the declared length when that is shorter,
+            // so a trailing RIFF chunk is neither counted in the duration nor played.
             (_format, _dataOffset, _dataLength) = header.Value;
             _positionBytes = 0;
             LoadedFilePath = audioPath;

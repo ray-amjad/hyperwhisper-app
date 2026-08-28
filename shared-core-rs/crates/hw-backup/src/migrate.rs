@@ -52,7 +52,11 @@ const CANONICAL_TIERS: &[&str] = &[
     "deepgramNova3",
     "grokStt",
     "azureMaiTranscribe",
-    "googleChirp3",
+    // Catalog v8: `geminiTranscribe` replaced `googleChirp3` as the Google
+    // cloud tier. `googleChirp3` MUST NOT stay in this list — the canonical
+    // loop runs before the alias loop, so keeping it would round-trip a
+    // persisted value onto a tier with no catalog entry.
+    "geminiTranscribe",
     "elevenLabsScribeV2",
     "openaiWhisper",
     "assemblyAI",
@@ -78,11 +82,16 @@ const TIER_ALIASES: &[(&str, &str)] = &[
     ("azure", "azureMaiTranscribe"),
     ("azure-mai", "azureMaiTranscribe"),
     ("azuremai", "azureMaiTranscribe"),
-    // googleChirp3
-    ("googlespeech", "googleChirp3"),
-    ("chirp", "googleChirp3"),
-    ("google-chirp", "googleChirp3"),
-    ("googlechirp", "googleChirp3"),
+    // geminiTranscribe — including every alias googleChirp3 used to own, plus
+    // `googlechirp3` and `chirp_3` themselves. A backup written by a pre-v8
+    // client carries `"googleChirp3"` verbatim; without these rows it would
+    // fall through to `deepgramNova3` on restore.
+    ("googlespeech", "geminiTranscribe"),
+    ("chirp", "geminiTranscribe"),
+    ("google-chirp", "geminiTranscribe"),
+    ("googlechirp", "geminiTranscribe"),
+    ("googlechirp3", "geminiTranscribe"),
+    ("chirp_3", "geminiTranscribe"),
     // elevenLabsScribeV2
     ("highest", "elevenLabsScribeV2"),
     ("elevenlabs", "elevenLabsScribeV2"),
@@ -183,6 +192,32 @@ mod tests {
     #[test]
     fn tier_unknown_falls_back() {
         assert_eq!(migrate_cloud_accuracy_tier(Some("zzz")), "deepgramNova3");
+    }
+
+    /// Catalog v8 retired `googleChirp3`. Every spelling a pre-v8 backup can
+    /// carry has to land on `geminiTranscribe`; landing on `deepgramNova3`
+    /// would silently move a restoring user off Google entirely.
+    #[test]
+    fn retired_chirp_tier_restores_onto_gemini_transcribe() {
+        for value in [
+            "googleChirp3",
+            "googlechirp3",
+            "GOOGLECHIRP3",
+            "googlespeech",
+            "googleSpeech",
+            "google-chirp",
+            "googlechirp",
+            "chirp",
+            "chirp_3",
+        ] {
+            assert_eq!(
+                migrate_cloud_accuracy_tier(Some(value)),
+                "geminiTranscribe",
+                "{value} must restore onto the Google cloud tier"
+            );
+        }
+        // And the id itself must no longer be canonical.
+        assert!(!CANONICAL_TIERS.contains(&"googleChirp3"));
     }
 
     #[test]

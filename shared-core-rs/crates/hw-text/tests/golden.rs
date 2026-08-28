@@ -48,6 +48,93 @@ fn trailing_space_language_is_case_insensitive() {
     assert_eq!(append_trailing_space("Hallo Welt.", "DE"), "Hallo Welt. ");
 }
 
+/// `is_no_space_language` is the exported join policy (issue #286): the parakeet
+/// daemon and the Linux live-delivery path pick `""` versus `" "` from it rather
+/// than each keeping its own table.
+#[test]
+fn no_space_language_table() {
+    // The codes the parakeet daemons already had.
+    for code in ["ja", "zh", "ko", "yue"] {
+        assert!(is_no_space_language(code), "{code} should be no-space");
+    }
+    // The codes the daemons gain by moving onto this table.
+    for code in ["th", "zh-TW", "zh-Hans", "zh-Hant"] {
+        assert!(is_no_space_language(code), "{code} should be no-space");
+    }
+    // Space-delimited languages, and the two "no language declared" spellings.
+    for code in ["en", "de", "fr", "es", "ru", "ar", "auto", "", "  "] {
+        assert!(!is_no_space_language(code), "{code:?} should be spaced");
+    }
+}
+
+#[test]
+fn no_space_language_is_case_insensitive_and_prefix_matched() {
+    // Case-insensitive, mirroring the Windows `OrdinalIgnoreCase` table.
+    assert!(is_no_space_language("JA"));
+    assert!(is_no_space_language("KO"));
+    assert!(is_no_space_language("ZH-HANT"));
+    assert!(is_no_space_language("zh-hant"));
+    assert!(is_no_space_language("YUE"));
+    // Two-character prefix fallback for regional variants.
+    assert!(is_no_space_language("zh-CN"));
+    assert!(is_no_space_language("ZH-CN"));
+    assert!(is_no_space_language("ja-JP"));
+    assert!(is_no_space_language("ko-KR"));
+    // The prefix rule must not drag in an unrelated language that happens to
+    // share no prefix with the table.
+    assert!(!is_no_space_language("en-US"));
+    assert!(!is_no_space_language("yu")); // "yue" is an exact entry, not a prefix
+    // Surrounding whitespace is ignored, so a raw settings value still resolves.
+    assert!(is_no_space_language("  ja  "));
+    assert!(!is_no_space_language("  en  "));
+}
+
+/// `is_continuous_script` is the text-side half of the join policy: what the
+/// callers fall back to when the language is `"auto"`. It must agree with
+/// `is_no_space_language` for the SCRIPT of every code in that table — Thai
+/// included, which is why it is not `contains_cjk`.
+#[test]
+fn continuous_script_covers_every_no_space_language() {
+    // ja / zh / yue — kana and Han.
+    assert!(is_continuous_script("こんにちは"));
+    assert!(is_continuous_script("世界"));
+    assert!(is_continuous_script("今日はいい天気ですね。"));
+    // ko — Hangul is inside the CJK range table.
+    assert!(is_continuous_script("안녕하세요"));
+    // th — Thai is NOT CJK, and this is the case `contains_cjk` gets wrong.
+    assert!(!contains_cjk("สวัสดีครับ"));
+    assert!(is_continuous_script("สวัสดีครับ"));
+    assert!(is_continuous_script("ผมชอบ"));
+    // Space-delimited scripts stay space-delimited.
+    assert!(!is_continuous_script("Hello world."));
+    assert!(!is_continuous_script("Hallo Welt"));
+    assert!(!is_continuous_script("Привет мир"));
+    // Same >30% rule as contains_cjk: mixed content still counts, and empty or
+    // punctuation-only input claims nothing.
+    assert!(is_continuous_script("これはtestです"));
+    assert!(!is_continuous_script(""));
+    assert!(!is_continuous_script("   ...   "));
+    assert!(!is_continuous_script("。"));
+    // A digit-heavy segment is below the threshold on its own — which is why the
+    // callers test the text on BOTH sides of a segment boundary, not just the
+    // one after it.
+    assert!(!is_continuous_script("2024年"));
+}
+
+/// `append_trailing_space` and `is_no_space_language` must never disagree: the
+/// former is defined in terms of the latter for an explicit language.
+#[test]
+fn trailing_space_agrees_with_the_no_space_table() {
+    for code in ["ja", "zh", "ko", "yue", "th", "zh-Hant", "zh-CN", "JA"] {
+        assert!(is_no_space_language(code));
+        assert_eq!(append_trailing_space("text", code), "text", "code {code}");
+    }
+    for code in ["en", "de", "fr", "en-US"] {
+        assert!(!is_no_space_language(code));
+        assert_eq!(append_trailing_space("text", code), "text ", "code {code}");
+    }
+}
+
 /// An empty or whitespace-only mode language means "no language set", which is
 /// the same thing as "auto" — detect from the text instead of appending blindly.
 #[test]

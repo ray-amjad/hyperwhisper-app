@@ -42,6 +42,8 @@
 "streaming.enable.title" = "啟用串流";
 "streaming.provider.picker.title" = "提供商";
 "streaming.model.title" = "模型";
+"streaming.cloudTier.title" = "即時引擎";
+"streaming.cloudTier.description" = "HyperWhisper Cloud 用於即時轉錄的語音引擎";
 "streaming.model.nova3general" = "Nova 3 General";
 "streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "快速格式化";
@@ -767,8 +769,8 @@
 "modes.cloudAccuracy.creditsPerMinute" = "約 %@ 點數/分鐘";
 "modes.cloudAccuracy.grokStt.label" = "最高 (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - 最高準確性，處理較慢。最適合重要轉錄。";
-"modes.cloudAccuracy.googleChirp3.label" = "高（Google Chirp 3）";
-"modes.cloudAccuracy.googleChirp3.description" = "採用 Chirp 3 的 Google Cloud Speech-to-Text V2。支援多語言與詞組調適。";
+"modes.cloudAccuracy.geminiTranscribe.label" = "高（Google Gemini 3.5 Transcribe）";
+"modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe。支援多語言與自訂詞彙。";
 "modes.cloudAccuracy.azureMaiTranscribe.label" = "高（Microsoft MAI-Transcribe 1.5）";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "透過 Azure Speech 使用 Microsoft MAI-Transcribe 1.5。支援 43 種語言，並具備上下文偏詞功能。";
 

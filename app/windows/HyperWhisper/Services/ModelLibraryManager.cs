@@ -416,6 +416,7 @@ public sealed class ModelLibraryManager
             CloudTranscriptionProvider.ElevenLabs => _apiKeys.HasApiKey(TranscriptionApiKeyType.ElevenLabs),
             CloudTranscriptionProvider.Mistral => _apiKeys.HasApiKey(TranscriptionApiKeyType.Mistral),
             CloudTranscriptionProvider.Soniox => _apiKeys.HasApiKey(TranscriptionApiKeyType.Soniox),
+            CloudTranscriptionProvider.GeminiTranscribe => _apiKeys.HasApiKey(TranscriptionApiKeyType.GeminiTranscribe),
             _ => false
         };
     }
@@ -430,6 +431,10 @@ public sealed class ModelLibraryManager
         CloudTranscriptionProvider.Mistral => "providerMistral",
         CloudTranscriptionProvider.Soniox => "providerSoniox",
         CloudTranscriptionProvider.Gemini => "providerGemini",
+        // Same vendor as Gemini, so it reuses the Gemini logo rather than
+        // shipping a duplicate PNG. ApiKeysSettingsPage.xaml points at the same
+        // asset — keep the two in step.
+        CloudTranscriptionProvider.GeminiTranscribe => "providerGemini",
         CloudTranscriptionProvider.Grok => "providerGrok",
         CloudTranscriptionProvider.MicrosoftAzureSpeech => "providerMicrosoft",
         CloudTranscriptionProvider.GoogleSpeech => "providerGoogle",
@@ -559,6 +564,7 @@ public sealed class ModelLibraryManager
         ["gemma-4-31b"]                                   = (4, 3),
         ["gemma-4-E2B-it-Q4_K_M.gguf"]                    = (5, 1),
         ["gemma-4-E4B-it-Q4_K_M.gguf"]                    = (4, 2),
+        ["gemma-4-12b-it-Q4_K_M.gguf"]                    = (3, 3),
         ["gemma-4-26B-A4B-it-UD-Q4_K_M.gguf"]             = (2, 4),
         ["gemma-4-31B-it-Q4_K_M.gguf"]                    = (1, 5),
     };

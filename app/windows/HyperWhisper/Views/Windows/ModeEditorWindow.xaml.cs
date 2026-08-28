@@ -1195,7 +1195,14 @@ public partial class ModeEditorWindow : Window
                 bool foundCloudProvider = false;
                 foreach (ComboBoxItem item in CloudProviderCombo.Items)
                 {
-                    if (item.Tag?.ToString() == cloudProviderTag)
+                    // Case-INSENSITIVE on purpose. The shared core folds cloud
+                    // provider ids to lowercase, and NormalizeLegacyCloudModeValues
+                    // writes the folded value back on every init, so the stored id
+                    // is `geminitranscribe` while this combo's XAML tag is
+                    // `geminiTranscribe`. An ordinal compare found no match, fell
+                    // through to SelectedIndex = 0 (OpenAI) and SAVED that —
+                    // silently discarding the user's provider choice.
+                    if (string.Equals(item.Tag?.ToString(), cloudProviderTag, StringComparison.OrdinalIgnoreCase))
                     {
                         CloudProviderCombo.SelectedItem = item;
                         foundCloudProvider = true;
@@ -1803,6 +1810,7 @@ public partial class ModeEditorWindow : Window
             CloudTranscriptionProvider.ElevenLabs => ApiKeyService.Instance.HasApiKey(TranscriptionApiKeyType.ElevenLabs),
             CloudTranscriptionProvider.Mistral => ApiKeyService.Instance.HasApiKey(TranscriptionApiKeyType.Mistral),
             CloudTranscriptionProvider.Soniox => ApiKeyService.Instance.HasApiKey(TranscriptionApiKeyType.Soniox),
+            CloudTranscriptionProvider.GeminiTranscribe => ApiKeyService.Instance.HasApiKey(TranscriptionApiKeyType.GeminiTranscribe),
 
             _ => false
         };

@@ -195,6 +195,20 @@ class SettingsManager: ObservableObject {
     /// - "xai": xAI direct (requires Grok/xAI API key)
     @AppStorage("streamingProvider") var streamingProvider: String = "hyperwhisperCloud"
 
+    /// Which vendor HyperWhisper Cloud's live route uses, as a
+    /// `cloud-stt-catalog.json` entry id ("deepgramNova3", "geminiTranscribe").
+    /// Only meaningful when `streamingProvider` is "hyperwhisperCloud".
+    ///
+    /// Reuses `CloudAccuracyTier`'s value space on purpose, so the picker reuses
+    /// that tier's existing localized labels and this needs no Core Data version
+    /// bump: it is a global preference, not a Mode column.
+    ///
+    /// The default is the tier whose derived route (`/ws/streaming-deepgram`) is
+    /// byte-identical to the endpoint every already-installed client uses, so an
+    /// upgrade changes nothing until the user picks otherwise. An unrecognised
+    /// value resolves back to it in `HyperWhisperCloudStrategy`.
+    @AppStorage("streamingCloudTier") var streamingCloudTier: String = "deepgramNova3"
+
     /// Deepgram model for streaming transcription
     /// Only used when streamingProvider is "deepgram"
     /// Nova-3 family only: "nova-3-general" (default) or "nova-3-medical"
@@ -478,6 +492,11 @@ class SettingsManager: ObservableObject {
     var grokAPIKey: String {
         get { apiKeys.grokAPIKey }
         set { apiKeys.grokAPIKey = newValue }
+    }
+
+    var geminiTranscribeAPIKey: String {
+        get { apiKeys.geminiTranscribeAPIKey }
+        set { apiKeys.geminiTranscribeAPIKey = newValue }
     }
 
     var useOpenAITranscription: Bool {

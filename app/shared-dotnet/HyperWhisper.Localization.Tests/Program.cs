@@ -35,7 +35,38 @@ return failures == 0 ? 0 : 1;
 static void AllCatalogsLoad()
 {
     Equal(39, PortableLocalizer.SupportedCultures.Count, "translated culture count");
-    Equal(658, PortableLocalizer.BaseKeyCount, "base key count");
+    // 658 (the count before this feature) + the nine keys Gemini 3.5 Transcribe
+    // added, in two groups that landed in DIFFERENT commits.
+    //
+    // THIS NUMBER IS NOT DERIVED — it is a hand-maintained expectation, and the
+    // only thing that keeps `Strings.resx` from growing keys nobody translated.
+    // It has to be bumped in the same commit that adds the key. It was not, both
+    // times: the four BYOK keys landed with the backend phase and left this at
+    // 658, and the five `settings.streaming.*` keys landed with the Windows
+    // phase-5 commit and left it at 662 — which is why this suite was red from
+    // that commit until this line moved to 667, through the macOS phase-5 commit
+    // (which does not touch `Strings.resx` at all) and the one after it. A red
+    // localization suite is what a missing translation looks like here, so a
+    // stale number here does not just fail CI, it hides the next missing key.
+    //
+    // Four for the BYOK pre-recorded provider:
+    //   provider.geminiTranscribe
+    //   mode.editor.provider.geminiTranscribe.tooltip
+    //   settings.api.invalidKey.geminiTranscribe
+    //   settings.api.provider.geminiTranscribe.description
+    //
+    // Five for the live/streaming surface — the BYOK streaming provider row and
+    // its two status strings, plus the HyperWhisper Cloud live tier picker that
+    // the tier now needs a choice in:
+    //   settings.streaming.provider.geminiTranscribe
+    //   settings.streaming.providerStatus.geminiTranscribe.configured
+    //   settings.streaming.providerStatus.geminiTranscribe.missingKey
+    //   settings.streaming.cloudTier.title
+    //   settings.streaming.cloudTier.subtitle
+    //
+    // The catalog-v8 tier rename is key-count neutral: googleChirp3's
+    // label/description became geminiTranscribe's.
+    Equal(667, PortableLocalizer.BaseKeyCount, "base key count");
     var english = new PortableLocalizer(CultureInfo.InvariantCulture);
     var key = english.Key("home.welcome.title");
     NotBlank(english.Get(key), "base value");

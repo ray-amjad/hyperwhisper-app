@@ -109,6 +109,10 @@ struct ModelVector {
     is_default: Option<bool>,
     preview_status: Option<bool>,
     supports_custom_vocabulary: Option<bool>,
+    /// Catalog v8. Gates the HyperWhisper-Cloud live picker, and the catalog has
+    /// no `enabled` gate to hide a wrong value behind, so it is pinned here for
+    /// all three stacks rather than only in the Rust unit tests.
+    streaming: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
@@ -208,6 +212,7 @@ fn entry_vector(e: &SttEntry) -> EntryVector {
                 is_default: m.is_default,
                 preview_status: m.preview_status,
                 supports_custom_vocabulary: m.supports_custom_vocabulary,
+                streaming: m.streaming,
             })
             .collect(),
     }

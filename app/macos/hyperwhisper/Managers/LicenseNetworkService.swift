@@ -196,7 +196,15 @@ class LicenseNetworkService: LicenseNetworkServing {
             let coreRequest = licenseBuildValidateRequest(
                 licenseKey: trimmedKey,
                 deviceId: DeviceIdentifierGenerator.generate(),
-                deviceName: ProcessInfo.processInfo.hostName
+                // `ProcessInfo.processInfo.hostName` used to be here. It routes
+                // through `-[NSHost name]` → a blocking `.local` mDNS resolve
+                // (issue #313), and this call site is on the cooperative pool
+                // during launch validation. `DeviceName` reads the friendly
+                // computer name locally instead: "Ray's MacBook Pro" rather than
+                // "Rays-MacBook-Pro.local". The field is a display label in the
+                // licence portal's device list — device identity is carried by
+                // `device_id` — so the friendlier spelling is also the better one.
+                deviceName: DeviceName.current
             )
             requestBody = coreRequest.body
             contentType = coreRequest.contentType

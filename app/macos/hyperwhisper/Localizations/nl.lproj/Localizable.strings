@@ -42,6 +42,8 @@
 "streaming.enable.title" = "Streaming inschakelen";
 "streaming.provider.picker.title" = "Provider";
 "streaming.model.title" = "Model";
+"streaming.cloudTier.title" = "Live-engine";
+"streaming.cloudTier.description" = "Welke spraakengine HyperWhisper Cloud gebruikt voor live transcriptie";
 "streaming.model.nova3general" = "Nova 3 Algemeen";
 "streaming.model.nova3medical" = "Nova 3 Medisch";
 "streaming.fastFormatting.title" = "Snelle opmaak";
@@ -767,8 +769,8 @@ Bewerk die modi om een ander model te selecteren voordat je het verwijdert.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ credits/min";
 "modes.cloudAccuracy.grokStt.label" = "Hoogste (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Hoogste nauwkeurigheid met langzamere verwerking. Het beste voor belangrijke transcripties.";
-"modes.cloudAccuracy.googleChirp3.label" = "Hoog (Google Chirp 3)";
-"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 met Chirp 3. Meertalig met woordgroepaanpassing.";
+"modes.cloudAccuracy.geminiTranscribe.label" = "Hoog (Google Gemini 3.5 Transcribe)";
+"modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Meertalig, met ondersteuning voor aangepaste woordenlijsten.";
 "modes.cloudAccuracy.azureMaiTranscribe.label" = "Hoog (Microsoft MAI-Transcribe 1.5)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 via Azure Speech. 43 talen met contextuele afstemming.";
 

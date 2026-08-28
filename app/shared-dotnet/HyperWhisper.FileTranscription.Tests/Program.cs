@@ -41,6 +41,7 @@ static async Task CloudByteLimits()
         new ProviderLimit(CloudTranscriptionProvider.Grok, "", 500L * ByteSizes.MiB, false),
         new ProviderLimit(CloudTranscriptionProvider.AzureMai, "mai-transcribe-1.5", 300L * ByteSizes.MiB, true),
         new ProviderLimit(CloudTranscriptionProvider.GoogleChirp, "chirp_3", 9_500_000L, true),
+        new ProviderLimit(CloudTranscriptionProvider.GeminiTranscribe, "gemini-3.5-transcribe", 14L * ByteSizes.MiB, false),
         new ProviderLimit(CloudTranscriptionProvider.HyperWhisperCloud, "nova-3-general", 2L * ByteSizes.GiB, true, "deepgramNova3"),
     };
     foreach (var item in cases)

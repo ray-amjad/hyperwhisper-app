@@ -34,6 +34,9 @@ using HyperWhisper.Services.Transcription;
 using HyperWhisper.Utilities;
 using HyperWhisper.ViewModels;
 using HyperWhisper.Views.Pages.Settings;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using uniffi.hyperwhisper_core;
 using PlatformContracts = HyperWhisper.Platform.Abstractions;
 // Aliased, not imported: HyperWhisper.SharedCore also declares
@@ -42,6 +45,11 @@ using LlmPostProcessing = HyperWhisper.SharedCore.LlmPostProcessing;
 using PortableEndpointStatus = HyperWhisper.SharedCore.PortableEndpointStatus;
 using PortableLlmProvider = HyperWhisper.SharedCore.PortableLlmProvider;
 using PortableLlmRequest = HyperWhisper.SharedCore.PortableLlmRequest;
+using PortableModeIdentity = HyperWhisper.SharedCore.PortableModeIdentity;
+using PortableNoSpeechDiagnostics = HyperWhisper.SharedCore.PortableNoSpeechDiagnostics;
+using PortableNoSpeechInput = HyperWhisper.SharedCore.PortableNoSpeechInput;
+using PortableNoSpeechOutcome = HyperWhisper.SharedCore.PortableNoSpeechOutcome;
+using PortableSignalAccumulation = HyperWhisper.SharedCore.PortableSignalAccumulation;
 
 namespace HyperWhisper.SmokeTests;
 
@@ -448,6 +456,27 @@ internal static class Program
                 Assert(ParakeetTranscriptionService.NormalizeLanguage("  ") == "auto", "whitespace → auto");
                 Assert(ParakeetTranscriptionService.NormalizeLanguage("AUTO") == "auto", "AUTO → auto");
                 Assert(ParakeetTranscriptionService.NormalizeLanguage(" EN ") == "en", "' EN ' → en");
+            });
+
+            // The daemon's join has THREE classes since #286, so the respawn
+            // predicate cannot be a two-valued IsNoSpaceLanguage comparison: "en"
+            // and "auto" are both "spaced" to that test, but an auto-language
+            // daemon joins Japanese VAD segments with no space at all.
+            Run("ResolveJoinClass separates auto from a declared spaced language", () =>
+            {
+                foreach (var code in new[] { "ja", "zh", "ko", "yue" })
+                    Assert(ParakeetTranscriptionService.ResolveJoinClass(code) == "no-space", $"{code} → no-space");
+                foreach (var code in new[] { "en", "fr", "de" })
+                    Assert(ParakeetTranscriptionService.ResolveJoinClass(code) == "spaced", $"{code} → spaced");
+                Assert(ParakeetTranscriptionService.ResolveJoinClass("auto") == "auto", "auto → auto");
+
+                // The three pairs that must be a respawn, and the one that must not.
+                string Class(string? language) => ParakeetTranscriptionService.ResolveJoinClass(
+                    ParakeetTranscriptionService.NormalizeLanguage(language));
+                Assert(Class("en") != Class(null), "en → no language must change class");
+                Assert(Class("en") != Class("ja"), "en → ja must change class");
+                Assert(Class("auto") != Class("ja"), "auto → ja must change class");
+                Assert(Class("en") == Class("fr"), "en → fr must NOT change class");
             });
 
             Run("Grok GetRequestTimeout scales with file size", () =>
@@ -1238,7 +1267,7 @@ internal static class Program
 
                 Assert(
                     TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic(audio, provider)
-                        == TranscriptionDiagnosticsService.NoSpeechDiagnosticOutcome.Skip,
+                        == PortableNoSpeechOutcome.Skip,
                     $"confirmed dead silence must report nothing at all, got {TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic(audio, provider)}");
             });
 
@@ -1259,7 +1288,7 @@ internal static class Program
 
                 Assert(
                     TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic(audio, provider)
-                        == TranscriptionDiagnosticsService.NoSpeechDiagnosticOutcome.Skip,
+                        == PortableNoSpeechOutcome.Skip,
                     $"the backend-confirmed low-signal sample must report nothing at all, got {TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic(audio, provider)}");
             });
 
@@ -1366,7 +1395,7 @@ internal static class Program
 
                 Assert(
                     TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic(audio, provider)
-                        == TranscriptionDiagnosticsService.NoSpeechDiagnosticOutcome.EmptyRecording,
+                        == PortableNoSpeechOutcome.EmptyRecording,
                     "a zero-frame recording should classify as EmptyRecording");
                 Assert(!TranscriptionDiagnosticsService.ShouldCaptureAsNoSpeech(audio, provider),
                     "an empty recording must no longer be reported as a no-speech diagnostic");
@@ -1392,11 +1421,11 @@ internal static class Program
 
                 Assert(
                     TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic(audio, provider)
-                        != TranscriptionDiagnosticsService.NoSpeechDiagnosticOutcome.Skip,
+                        != PortableNoSpeechOutcome.Skip,
                     "the 1.11.0 zero-frame cohort must still be reported, never skipped");
                 Assert(
                     TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic(audio, provider)
-                        == TranscriptionDiagnosticsService.NoSpeechDiagnosticOutcome.EmptyRecording,
+                        == PortableNoSpeechOutcome.EmptyRecording,
                     "the 1.11.0 zero-frame cohort should now report as EmptyRecording");
             });
 
@@ -1421,7 +1450,7 @@ internal static class Program
 
                 Assert(
                     TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic(audio, provider)
-                        == TranscriptionDiagnosticsService.NoSpeechDiagnosticOutcome.NoSpeech,
+                        == PortableNoSpeechOutcome.NoSpeech,
                     "a decodable file with no container duration must stay a no-speech diagnostic");
             });
 
@@ -1442,7 +1471,7 @@ internal static class Program
 
                 Assert(
                     TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic(audio, provider)
-                        == TranscriptionDiagnosticsService.NoSpeechDiagnosticOutcome.NoSpeech,
+                        == PortableNoSpeechOutcome.NoSpeech,
                     "a failed analysis must classify as NoSpeech even with zero duration/size");
                 Assert(TranscriptionDiagnosticsService.ShouldCaptureAsNoSpeech(audio, provider),
                     "a failed analysis should still be captured");
@@ -1465,7 +1494,7 @@ internal static class Program
 
                 Assert(
                     TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic(audio, provider)
-                        == TranscriptionDiagnosticsService.NoSpeechDiagnosticOutcome.NoSpeech,
+                        == PortableNoSpeechOutcome.NoSpeech,
                     "a normal 4.2s clip should stay a no-speech diagnostic");
             });
 
@@ -1476,7 +1505,7 @@ internal static class Program
                 // report under the old identity - the exact mislabelling this diagnostic
                 // exists to fix. One mapping now owns all three.
                 var noSpeech = TranscriptionDiagnosticsService.ResolveDiagnosticPresentation(
-                    TranscriptionDiagnosticsService.NoSpeechDiagnosticOutcome.NoSpeech);
+                    PortableNoSpeechOutcome.NoSpeech);
 
                 Assert(noSpeech.Name == "no_speech", $"expected 'no_speech', got '{noSpeech.Name}'");
                 Assert(noSpeech.Message == "Windows transcription no-speech diagnostic",
@@ -1485,7 +1514,7 @@ internal static class Program
                     $"expected 'transcription-no-speech', got '{noSpeech.FingerprintRoot}'");
 
                 var emptyRecording = TranscriptionDiagnosticsService.ResolveDiagnosticPresentation(
-                    TranscriptionDiagnosticsService.NoSpeechDiagnosticOutcome.EmptyRecording);
+                    PortableNoSpeechOutcome.EmptyRecording);
 
                 Assert(emptyRecording.Name == "empty_recording", $"expected 'empty_recording', got '{emptyRecording.Name}'");
                 Assert(emptyRecording.Message == "Windows transcription empty recording diagnostic",
@@ -1498,9 +1527,9 @@ internal static class Program
                 // uniqueness checks - so it fails in CI rather than in Sentry.
                 var names = new HashSet<string>(StringComparer.Ordinal);
                 var roots = new HashSet<string>(StringComparer.Ordinal);
-                foreach (var outcome in Enum.GetValues<TranscriptionDiagnosticsService.NoSpeechDiagnosticOutcome>())
+                foreach (var outcome in Enum.GetValues<PortableNoSpeechOutcome>())
                 {
-                    if (outcome == TranscriptionDiagnosticsService.NoSpeechDiagnosticOutcome.Skip)
+                    if (outcome == PortableNoSpeechOutcome.Skip)
                     {
                         // Skip is filtered out before anything is reported, so it has no
                         // presentation by design.
@@ -1642,6 +1671,354 @@ internal static class Program
                 Assert(fingerprint[4] == "none", $"expected 'none', got '{fingerprint[4]}'");
                 Assert(TranscriptionDiagnosticsService.ResolveCloudProviderTag(null) == "none",
                     "a null mode's cloud_provider tag should be 'none'");
+            });
+
+            Run("TranscriptionDiagnosticsService keeps the Windows fingerprint roots platform-distinct from macOS (#291)", () =>
+            {
+                // The classifier is shared with macOS now; the Sentry identity is
+                // deliberately NOT. macOS reports "macos-transcription-*" roots and
+                // "macOS transcription ..." messages. If either side ever adopted the
+                // other's, macOS events would land in the eight live Windows issues.
+                foreach (var outcome in Enum.GetValues<PortableNoSpeechOutcome>())
+                {
+                    if (outcome == PortableNoSpeechOutcome.Skip)
+                    {
+                        continue;
+                    }
+
+                    var presentation = TranscriptionDiagnosticsService.ResolveDiagnosticPresentation(outcome);
+                    Assert(!presentation.FingerprintRoot.StartsWith("macos-", StringComparison.Ordinal),
+                        $"outcome {outcome} reports under a macOS fingerprint root '{presentation.FingerprintRoot}'");
+                    Assert(presentation.Message.StartsWith("Windows ", StringComparison.Ordinal),
+                        $"outcome {outcome} reports under a non-Windows message '{presentation.Message}'");
+                }
+            });
+
+            Run("TranscriptionDiagnosticsService's dBFS floor still agrees with the shared core (#291)", () =>
+            {
+                // AudioAnalysisDiagnostics needs a compile-time constant for its
+                // optional parameters, so -120.0 is spelled out there as well as in
+                // hw-audio. Nothing else may drift: a floor mismatch would make the
+                // "silent" bucket and the dead-silence arm disagree about the same clip.
+                var defaults = new TranscriptionDiagnosticsService.AudioAnalysisDiagnostics(
+                    AnalysisSucceeded: false,
+                    DurationSeconds: 0,
+                    FileSizeBytes: 0);
+
+                Assert(defaults.PeakDbfs == PortableNoSpeechDiagnostics.MinimumDbfs,
+                    $"the local dBFS floor {defaults.PeakDbfs} does not match the core's {PortableNoSpeechDiagnostics.MinimumDbfs}");
+                Assert(defaults.RmsDbfs == PortableNoSpeechDiagnostics.MinimumDbfs,
+                    $"the local dBFS floor {defaults.RmsDbfs} does not match the core's {PortableNoSpeechDiagnostics.MinimumDbfs}");
+            });
+
+            Run("PortableNoSpeechDiagnostics dBFS maths and bucketing come from the core (#291)", () =>
+            {
+                Assert(PortableNoSpeechDiagnostics.ToDbfs(0) == PortableNoSpeechDiagnostics.MinimumDbfs,
+                    "digital silence must report the floor, not -infinity");
+                Assert(PortableNoSpeechDiagnostics.ToDbfs(-1) == PortableNoSpeechDiagnostics.MinimumDbfs,
+                    "a negative amplitude must report the floor");
+                Assert(PortableNoSpeechDiagnostics.ToDbfs(1.0) == 0.0,
+                    $"full scale should be 0 dBFS, got {PortableNoSpeechDiagnostics.ToDbfs(1.0)}");
+
+                // Floors, does not truncate: a negative buckets DOWNWARD. Truncation
+                // would put -38.2 in "-35dbfs" and silently shift every bucket.
+                Assert(PortableNoSpeechDiagnostics.BucketDbfs(-38.2) == "-40dbfs",
+                    $"expected '-40dbfs', got '{PortableNoSpeechDiagnostics.BucketDbfs(-38.2)}'");
+                Assert(PortableNoSpeechDiagnostics.BucketDbfs(PortableNoSpeechDiagnostics.MinimumDbfs) == "silent",
+                    "the floor buckets to 'silent'");
+
+                Assert(PortableNoSpeechDiagnostics.SilenceThreshold == 0.01f,
+                    $"the silence threshold drifted: {PortableNoSpeechDiagnostics.SilenceThreshold}");
+                Assert(PortableNoSpeechDiagnostics.ConfirmedSilencePeakDbfs == -50.0,
+                    "the confirmed-silence peak drifted");
+                Assert(PortableNoSpeechDiagnostics.LowSignalRmsDbfs == -38.0,
+                    "the low-signal RMS threshold drifted");
+                Assert(PortableNoSpeechDiagnostics.LowSignalNonSilentRatio == 0.06,
+                    "the low-signal ratio threshold drifted");
+            });
+
+            Run("PortableNoSpeechDiagnostics.Summarize guards an empty accumulation and reports full scale as 0 dBFS (#291)", () =>
+            {
+                var empty = PortableNoSpeechDiagnostics.Summarize(
+                    new PortableSignalAccumulation(0, 0, 0, 0));
+                Assert(empty.PeakDbfs == PortableNoSpeechDiagnostics.MinimumDbfs,
+                    "an empty accumulation must summarize to the floor, not NaN");
+                Assert(empty.RmsDbfs == PortableNoSpeechDiagnostics.MinimumDbfs,
+                    "an empty accumulation must summarize to the floor, not NaN");
+                Assert(empty.NonSilentRatio == 0, "an empty accumulation has no non-silent ratio");
+
+                var fullScale = PortableNoSpeechDiagnostics.Summarize(
+                    new PortableSignalAccumulation(4, 4, 4.0, 1.0));
+                Assert(fullScale.PeakDbfs == 0.0, $"expected 0 dBFS peak, got {fullScale.PeakDbfs}");
+                Assert(fullScale.RmsDbfs == 0.0, $"expected 0 dBFS RMS, got {fullScale.RmsDbfs}");
+                Assert(fullScale.NonSilentRatio == 1.0, $"expected a ratio of 1, got {fullScale.NonSilentRatio}");
+            });
+
+            Run("PortableNoSpeechDiagnostics.Classify keeps the empty-recording arm ahead of the empty-transcript arm (#291)", () =>
+            {
+                // Arm order is load-bearing and now lives in Rust. A zero-sample
+                // recording is a recorder failure and must keep its own identity even
+                // when the provider ALSO returned an empty transcript without its flag.
+                var outcome = PortableNoSpeechDiagnostics.Classify(new PortableNoSpeechInput(
+                    AnalysisSucceeded: true,
+                    DecodedSampleCount: 0,
+                    EmptyTranscriptWithoutFlag: true,
+                    BackendNoSpeechDetected: false,
+                    PeakDbfs: -120,
+                    RmsDbfs: -120,
+                    NonSilentRatio: 0));
+
+                Assert(outcome == PortableNoSpeechOutcome.EmptyRecording,
+                    $"expected EmptyRecording, got {outcome}");
+
+                // An unknown count (no decode loop ran) is deliberately NOT empty.
+                var unknown = PortableNoSpeechDiagnostics.Classify(new PortableNoSpeechInput(
+                    AnalysisSucceeded: true,
+                    DecodedSampleCount: null,
+                    EmptyTranscriptWithoutFlag: false,
+                    BackendNoSpeechDetected: true,
+                    PeakDbfs: -120,
+                    RmsDbfs: -120,
+                    NonSilentRatio: 0));
+
+                Assert(unknown == PortableNoSpeechOutcome.Skip,
+                    $"an unknown sample count must fall through to the ordinary arms, got {unknown}");
+            });
+
+            Run("PortableNoSpeechDiagnostics fingerprints an absent mode differently from a blank one (#291)", () =>
+            {
+                var absent = string.Join("|", PortableNoSpeechDiagnostics.BuildFingerprint(
+                    "transcription-no-speech", "live_recording", "provider_no_speech", null));
+                var blank = string.Join("|", PortableNoSpeechDiagnostics.BuildFingerprint(
+                    "transcription-no-speech", "live_recording", "provider_no_speech",
+                    new PortableModeIdentity(null, null, null)));
+
+                Assert(absent != blank,
+                    $"'no mode at all' and 'a mode with nothing written on it' must not group together, both were '{absent}'");
+                Assert(absent.EndsWith("|unknown|none", StringComparison.Ordinal),
+                    $"an absent mode should end 'unknown|none', got '{absent}'");
+                Assert(blank.EndsWith("|local|none", StringComparison.Ordinal),
+                    $"a blank mode routes local with no engine, got '{blank}'");
+            });
+
+            Run("TranscriptionDiagnosticsService.AnalyzeAudioFile measures 16 kHz mono, not the container format (#291)", () =>
+            {
+                // Decision 2: Windows used to accumulate over the container's own
+                // interleaved samples, so a 48 kHz stereo recording and the 16 kHz mono
+                // audio actually sent to the provider produced different non-silent
+                // ratios for the same clip - and a different one again from macOS, which
+                // already measured post-conversion. The reported sample rate and channel
+                // count must still be the SOURCE container's facts.
+                var wavPath = Path.Combine(
+                    Path.GetTempPath(),
+                    $"HyperWhisper.SmokeTests.NoSpeech.{Guid.NewGuid():N}.wav");
+
+                try
+                {
+                    var format = new NAudio.Wave.WaveFormat(48000, 16, 2);
+                    using (var writer = new NAudio.Wave.WaveFileWriter(wavPath, format))
+                    {
+                        var frame = new float[2];
+                        for (var i = 0; i < 48000; i++)
+                        {
+                            var value = (float)(0.5 * Math.Sin(2 * Math.PI * 440 * i / 48000.0));
+                            frame[0] = value;
+                            frame[1] = value;
+                            writer.WriteSamples(frame, 0, 2);
+                        }
+                    }
+
+                    var diagnostics = TranscriptionDiagnosticsService.AnalyzeAudioFile(wavPath, null);
+
+                    Assert(diagnostics.AnalysisSucceeded, "the generated WAV should analyze cleanly");
+                    Assert(diagnostics.SampleRate == 48000,
+                        $"audio_sample_rate_hz must stay the source rate, got {diagnostics.SampleRate}");
+                    Assert(diagnostics.Channels == 2,
+                        $"audio_channels must stay the source channel count, got {diagnostics.Channels}");
+
+                    // One second of audio. The two counts mean different things:
+                    // DecodedSampleCount is pre-resample mono frames (48000 here, one per
+                    // source frame, NOT the 96000 interleaved samples the container holds),
+                    // and MeasuredSampleCount is the ~16000 samples the dBFS figures were
+                    // measured over.
+                    var decoded = diagnostics.DecodedSampleCount ?? -1;
+                    Assert(decoded == 48000,
+                        $"expected 48000 pre-resample mono frames, got {decoded}");
+                    var measured = diagnostics.MeasuredSampleCount ?? -1;
+                    Assert(measured > 15000 && measured < 17000,
+                        $"expected ~16000 post-resample mono samples, got {measured}");
+
+                    // A 0.5-amplitude sine is ~-6 dBFS peak and audible throughout.
+                    Assert(diagnostics.PeakDbfs > -8 && diagnostics.PeakDbfs < -4,
+                        $"expected a peak near -6 dBFS, got {diagnostics.PeakDbfs}");
+                    Assert(diagnostics.NonSilentRatio > 0.9,
+                        $"a continuous sine should be almost entirely non-silent, got {diagnostics.NonSilentRatio}");
+                }
+                finally
+                {
+                    try
+                    {
+                        File.Delete(wavPath);
+                    }
+                    catch
+                    {
+                        // Best-effort cleanup; a leftover temp file must not fail CI.
+                    }
+                }
+            });
+
+            Run("TranscriptionDiagnosticsService.AnalyzeAudioFile folds any channel count to mono (#291)", () =>
+            {
+                // NAudio's ToMono()/StereoToMonoSampleProvider throw on more than two
+                // channels, so a 3-channel file used to stay interleaved: one live channel
+                // among two silent ones measured a third of the true non-silent ratio and
+                // several dB of extra RMS headroom, which is enough to move it across the
+                // backend-confirmed low-signal threshold and skip an event that should be
+                // reported. Folding must handle any channel count and must never downgrade
+                // a readable file to AnalysisSucceeded: false.
+                var wavPath = Path.Combine(
+                    Path.GetTempPath(),
+                    $"HyperWhisper.SmokeTests.NoSpeech.Multichannel.{Guid.NewGuid():N}.wav");
+
+                try
+                {
+                    var format = NAudio.Wave.WaveFormat.CreateIeeeFloatWaveFormat(48000, 3);
+                    using (var writer = new NAudio.Wave.WaveFileWriter(wavPath, format))
+                    {
+                        var frame = new float[3];
+                        for (var i = 0; i < 48000; i++)
+                        {
+                            // One channel at a steady 0.06, two digitally silent.
+                            frame[0] = 0.06f;
+                            frame[1] = 0f;
+                            frame[2] = 0f;
+                            writer.WriteSamples(frame, 0, 3);
+                        }
+                    }
+
+                    var diagnostics = TranscriptionDiagnosticsService.AnalyzeAudioFile(wavPath, null);
+
+                    Assert(diagnostics.AnalysisSucceeded,
+                        "a 3-channel file must analyze, not fall back to AnalysisSucceeded: false");
+                    Assert(diagnostics.Channels == 3,
+                        $"audio_channels must stay the source channel count, got {diagnostics.Channels}");
+                    Assert(diagnostics.SampleRate == 48000,
+                        $"audio_sample_rate_hz must stay the source rate, got {diagnostics.SampleRate}");
+
+                    // 48000 source frames folded to 48000 mono frames - not 144000
+                    // interleaved samples.
+                    var decoded = diagnostics.DecodedSampleCount ?? -1;
+                    Assert(decoded == 48000,
+                        $"expected 48000 folded mono frames, got {decoded}");
+
+                    // Folded, every sample is 0.06/3 = 0.02, above the 0.01 silence
+                    // threshold, so the ratio is ~1. Interleaved it would have been the
+                    // ~0.3333 of one live channel in three.
+                    Assert(diagnostics.NonSilentRatio > 0.9,
+                        $"the folded signal should be non-silent throughout, got {diagnostics.NonSilentRatio}");
+                    // 0.02 linear is -33.98 dBFS. Interleaved, the peak would have been
+                    // the raw 0.06 of the live channel, about -24.4 dBFS.
+                    Assert(diagnostics.PeakDbfs > -35 && diagnostics.PeakDbfs < -33,
+                        $"expected a folded peak near -34 dBFS, got {diagnostics.PeakDbfs}");
+                    Assert(diagnostics.RmsDbfs > -35 && diagnostics.RmsDbfs < -33,
+                        $"expected a folded RMS near -34 dBFS, got {diagnostics.RmsDbfs}");
+                }
+                finally
+                {
+                    try
+                    {
+                        File.Delete(wavPath);
+                    }
+                    catch
+                    {
+                        // Best-effort cleanup; a leftover temp file must not fail CI.
+                    }
+                }
+            });
+
+            Run("TranscriptionDiagnosticsService.AnalyzeAudioFile does not call a tiny file an empty recording (#291)", () =>
+            {
+                // WdlResamplingSampleProvider.Read returns 0 until it can emit a whole
+                // output frame, so a decodable file shorter than the sinc window measures
+                // zero 16 kHz samples. DecodedSampleCount is counted before the resampler
+                // precisely so arm 2 does not report "the recorder produced nothing" for a
+                // file the recorder plainly did produce.
+                var wavPath = Path.Combine(
+                    Path.GetTempPath(),
+                    $"HyperWhisper.SmokeTests.NoSpeech.Tiny.{Guid.NewGuid():N}.wav");
+
+                try
+                {
+                    var format = new NAudio.Wave.WaveFormat(48000, 16, 1);
+                    using (var writer = new NAudio.Wave.WaveFileWriter(wavPath, format))
+                    {
+                        var samples = new float[8];
+                        for (var i = 0; i < samples.Length; i++)
+                        {
+                            samples[i] = 0.5f;
+                        }
+
+                        writer.WriteSamples(samples, 0, samples.Length);
+                    }
+
+                    var diagnostics = TranscriptionDiagnosticsService.AnalyzeAudioFile(wavPath, null);
+
+                    Assert(diagnostics.AnalysisSucceeded, "a tiny WAV should still analyze");
+                    Assert(diagnostics.DecodedSampleCount == 8,
+                        $"the decoder produced 8 frames, got {diagnostics.DecodedSampleCount}");
+
+                    var provider = new TranscriptionProviderDiagnostics(
+                        ProviderDisplayName: "test", BackendNoSpeechDetected: true);
+                    Assert(
+                        TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic(diagnostics, provider)
+                            != PortableNoSpeechOutcome.EmptyRecording,
+                        "a decodable file must never be reported as 'the recorder produced nothing'");
+                }
+                finally
+                {
+                    try
+                    {
+                        File.Delete(wavPath);
+                    }
+                    catch
+                    {
+                        // Best-effort cleanup; a leftover temp file must not fail CI.
+                    }
+                }
+            });
+
+            Run("MonoFoldSampleProvider carries a partial frame instead of ending the stream (#291)", () =>
+            {
+                // A source may legally return any count, including one that ends mid-frame.
+                // Dividing that count by the channel count gave 0 frames, and BOTH the analysis
+                // loop and WdlResamplingSampleProvider read a 0 as end-of-stream - so the
+                // measurement silently stopped at the prefix and still reported
+                // AnalysisSucceeded: true. Dropping the remainder instead of carrying it would
+                // also rotate every later frame across the channels.
+                var interleaved = new[] { 1f, 3f, 5f, 7f, 9f, 11f, 13f, 15f, 17f, 19f };
+                // The first read is ONE sample of a two-sample frame.
+                var source = new ChoppySampleProvider(interleaved, 2, [1, 2, 3, 4]);
+                var fold = new TranscriptionDiagnosticsService.MonoFoldSampleProvider(source);
+
+                var buffer = new float[16];
+                var produced = new List<float>();
+                int read;
+                while ((read = fold.Read(buffer, 0, buffer.Length)) > 0)
+                {
+                    for (var i = 0; i < read; i++)
+                    {
+                        produced.Add(buffer[i]);
+                    }
+                }
+
+                Assert(produced.Count == 5,
+                    $"expected all 5 folded frames, got {produced.Count} - a short read ended the stream");
+                for (var i = 0; i < produced.Count; i++)
+                {
+                    var expected = 2f + (4f * i);
+                    Assert(Math.Abs(produced[i] - expected) < 1e-6,
+                        $"frame {i} should be {expected}, got {produced[i]} - the frames are channel-rotated");
+                }
             });
 
             Run("Deepgram's SessionStartsOnWebSocketOpen is true, and only Deepgram's (regression for #100)", () =>
@@ -1820,6 +2197,176 @@ internal static class Program
 
                 Assert(capturedMessage == null, $"expected no ErrorReceived while Disconnecting, got '{capturedMessage}'");
                 Assert(client.State == StreamingConnectionState.Disconnecting, $"expected State to remain Disconnecting, got {client.State}");
+            });
+
+            Run("every StreamingTranscriptionProvider round-trips through its storage value", () =>
+            {
+                // The enum has SIX hand-maintained switches and not one of them is
+                // compiler-enforced - every arm ends in `_ =>`. The quiet one is
+                // IsValidStorageValue: SettingsService.StreamingProvider's setter
+                // resets anything it rejects to hyperwhisperCloud, so a member
+                // missing from it makes the user's selection silently revert on the
+                // next save. Nothing tested this before; walk the whole enum.
+                foreach (var provider in Enum.GetValues<StreamingTranscriptionProvider>())
+                {
+                    var storage = provider.StorageValue();
+                    Assert(!string.IsNullOrWhiteSpace(storage), $"{provider}: empty storage value");
+                    Assert(StreamingTranscriptionProviderExtensions.IsValidStorageValue(storage),
+                        $"{provider}: storage value '{storage}' is rejected by IsValidStorageValue, so the setting would silently revert");
+                    Assert(StreamingTranscriptionProviderExtensions.FromStorageValue(storage) == provider,
+                        $"{provider}: '{storage}' round-trips to {StreamingTranscriptionProviderExtensions.FromStorageValue(storage)}");
+                    Assert(!string.IsNullOrWhiteSpace(provider.DisplayName()), $"{provider}: empty display name");
+                }
+                Assert(!StreamingTranscriptionProviderExtensions.IsValidStorageValue("noSuchProvider"),
+                    "an unknown storage value must stay invalid");
+            });
+
+            Run("the Gemini live setup frame puts the config at setup.input_audio_transcription", () =>
+            {
+                // TRAP: the LIVE model takes its transcription config here, while the
+                // PRE-RECORDED model takes the same object at
+                // setup.generation_config.transcription_config. Sending the
+                // pre-recorded shape to the live socket closes it with 1007. Pinned
+                // against shared-conformance/live-frame-vectors.json.
+                // Asserted by PATH, not as raw text: the frame is built by the
+                // shared core now (issue #281), and serde_json sorts object keys
+                // where the old hand-written builder emitted them in declaration
+                // order. Google's protobuf-JSON reader is order-insensitive, so
+                // pinning the literal string would pin the serializer rather
+                // than the contract. The contract is WHERE each value sits.
+                static JsonElement Setup(StreamingSessionConfig config)
+                {
+                    using var strategy = LiveStrategy(
+                        StreamingTranscriptionProvider.GeminiTranscribe, config);
+                    Assert(strategy.BuildWebSocketUri(config) is not null,
+                        "Gemini must build a connect URL from an API key");
+                    var frames = strategy.GetStartMessages(config);
+                    Assert(frames.Count == 1, $"expected one setup frame, got {frames.Count}");
+                    return JsonDocument.Parse(frames[0].Data).RootElement.Clone();
+                }
+
+                var config = new StreamingSessionConfig(
+                    null, null, "en-US", ["HyperWhisper"], "AIza-test", null, false, false);
+                var setup = Setup(config).GetProperty("setup");
+                Assert(setup.GetProperty("model").GetString() == "models/gemini-3.5-transcribe-live",
+                    "unexpected live model");
+                var transcription = setup.GetProperty("input_audio_transcription");
+                Assert(transcription.GetProperty("language_codes")[0].GetString() == "en-US",
+                    "language_codes must carry the selected tag");
+                Assert(transcription.GetProperty("custom_vocabulary")[0].GetString() == "HyperWhisper",
+                    "custom_vocabulary must carry the terms");
+                // The wrong-but-plausible position must be ABSENT, not merely unused.
+                Assert(!setup.TryGetProperty("generation_config", out _),
+                    "the pre-recorded config position must stay empty on the live socket");
+
+                // Auto-detect drops language_codes but KEEPS custom_vocabulary. The
+                // "no vocabulary without a language" rule is Deepgram's, not Google's,
+                // and vocabulary is the headline reason to pick this provider.
+                var auto = new StreamingSessionConfig(
+                    null, null, "auto", ["Kalamazoo"], "AIza-test", null, false, false);
+                var autoTranscription = Setup(auto)
+                    .GetProperty("setup").GetProperty("input_audio_transcription");
+                Assert(!autoTranscription.TryGetProperty("language_codes", out _),
+                    "auto means send no language at all");
+                Assert(autoTranscription.GetProperty("custom_vocabulary")[0].GetString() == "Kalamazoo",
+                    "Gemini takes custom_vocabulary under auto-detect");
+
+                // Region preserved, unlike the primary-subtag providers.
+                var region = new StreamingSessionConfig(
+                    null, null, "en-GB", null, "AIza-test", null, false, false);
+                Assert(Setup(region).GetProperty("setup")
+                        .GetProperty("input_audio_transcription")
+                        .GetProperty("language_codes")[0].GetString() == "en-GB",
+                    "en-GB must not be flattened to en");
+            });
+
+            Run("Gemini maps interim to partial and inputTranscription to final without diffing", () =>
+            {
+                // NOT xAI-shaped. interimInputTranscription is cumulative only WITHIN
+                // a turn and restarts after each final; inputTranscription carries
+                // only that turn's committed text. Prefix-diffing would emit nothing
+                // for a second turn whose text repeats the first.
+                using var strategy = LiveStrategy(StreamingTranscriptionProvider.GeminiTranscribe);
+                Assert(strategy.ParseMessage("{\"setupComplete\":{}}") is StreamingProviderEvent.SessionStarted,
+                    "setupComplete must start the session");
+                Assert(strategy.ParseMessage("{\"serverContent\":{\"interimInputTranscription\":{\"text\":\"hel\"}}}")
+                    is StreamingProviderEvent.PartialTranscript { Text: "hel" }, "interim must be a partial");
+                Assert(strategy.ParseMessage("{\"serverContent\":{\"inputTranscription\":{\"text\":\"again.\"}}}")
+                    is StreamingProviderEvent.FinalTranscript { Text: "again." }, "inputTranscription must be a final");
+                Assert(strategy.ParseMessage("{\"serverContent\":{\"inputTranscription\":{\"text\":\"again.\"}}}")
+                    is StreamingProviderEvent.FinalTranscript { Text: "again." },
+                    "a repeated turn must be emitted whole - diffing would swallow it");
+                // Maps to SessionComplete, but whether that is TERMINAL is decided
+                // by CompleteEndsSessionBeforeStop - see the turn-boundary test.
+                Assert(strategy.ParseMessage("{\"serverContent\":{\"generationComplete\":true}}")
+                    is StreamingProviderEvent.SessionComplete, "generationComplete must map to the completion event");
+                Assert(strategy.ParseMessage("{\"usageMetadata\":{\"totalTokenCount\":3}}") == null,
+                    "an unmodelled frame must be ignored, not an error");
+                Assert(strategy.ParseMessage("{\"error\":{\"code\":1007,\"message\":\"invalid setup\"}}")
+                    is StreamingProviderEvent.Error { Message: "invalid setup" }, "error frame must surface its message");
+            });
+
+            Run("the HyperWhisper Cloud route is derived from the selected cloud tier", () =>
+            {
+                // /ws/streaming-{sttProvider}, derived by the shared core from the
+                // catalog entry the tier names. deepgramNova3 must stay
+                // byte-identical to the literal it replaced, because every installed
+                // client sends no tier at all; an unknown tier must fall back rather
+                // than derive a path the backend will 404.
+                static Uri Route(string? tier, string language, IReadOnlyList<string>? vocabulary = null)
+                {
+                    var config = new StreamingSessionConfig(
+                        "lic", null, language, vocabulary, null, null, false, false, tier);
+                    using var strategy = LiveStrategy(
+                        StreamingTranscriptionProvider.HyperWhisperCloud, config);
+                    var uri = strategy.BuildWebSocketUri(config);
+                    Assert(uri is not null, $"tier '{tier}' must build a connect URL");
+                    return uri!;
+                }
+
+                Assert(Route("deepgramNova3", "en").AbsolutePath == "/ws/streaming-deepgram",
+                    "deepgramNova3 must derive /ws/streaming-deepgram");
+                Assert(Route("geminiTranscribe", "en").AbsolutePath == "/ws/streaming-gemini-transcribe",
+                    "geminiTranscribe must derive /ws/streaming-gemini-transcribe");
+                foreach (var bogus in new string?[] { null, "", "   ", "notATier", "groqWhisper" })
+                {
+                    Assert(Route(bogus, "en").AbsolutePath == "/ws/streaming-deepgram",
+                        $"tier '{bogus}' must fall back to Deepgram");
+                }
+
+                // The auto-detect vocabulary gate is Deepgram's constraint, so it must
+                // NOT be applied to the Gemini tier.
+                Assert(!Route("deepgramNova3", "auto", ["Kalamazoo"]).Query.Contains("vocabulary="),
+                    "Deepgram must withhold vocabulary in auto-detect");
+                Assert(Route("geminiTranscribe", "auto", ["Kalamazoo"]).Query.Contains("vocabulary=Kalamazoo"),
+                    "Gemini must send vocabulary in auto-detect");
+            });
+
+            Run("the live cloud tier picker offers exactly the vendors we serve a WS route for", () =>
+            {
+                // The STT catalog has no `enabled` gate, and the client derives its
+                // route with no allow-list of its own, so this list IS the guard
+                // against shipping a picker row that 404s at dictation time.
+                var ids = CloudSttCatalog.Shared.StreamingCloudTierEntries().Select(e => e.Id).ToArray();
+                Assert(ids.SequenceEqual(new[] { "deepgramNova3", "geminiTranscribe" }),
+                    $"unexpected live tier set: {string.Join(", ", ids)}");
+
+                // The settings ComboBox binds SelectedValue to the stored id with
+                // SelectedValuePath="Id", and WPF matches that case-SENSITIVELY. A
+                // hand-edited settings.json or a retired tier therefore has to come
+                // back in the catalog's own casing, or the row renders blank while
+                // the session quietly runs on the fallback.
+                Assert(SettingsService.NormalizeStreamingCloudTier(" geminiTranscribe ") == "geminiTranscribe",
+                    "a padded id must normalize");
+                Assert(SettingsService.NormalizeStreamingCloudTier("GEMINITRANSCRIBE") == "geminiTranscribe",
+                    "a case variant must come back in the catalog's casing, not the caller's");
+                foreach (var bogus in new string?[] { null, "", "   ", "notATier", "googleChirp3" })
+                {
+                    Assert(SettingsService.NormalizeStreamingCloudTier(bogus) == "deepgramNova3",
+                        $"tier '{bogus}' must clamp to the default");
+                }
+                Assert(ids.Contains(LiveProtocolStreamingStrategy.DefaultCloudTier),
+                    "the fallback tier must itself be offered, or the picker is blank by default");
             });
 
             Run("IStreamingProviderStrategy.IsTerminalCloseCode default covers the standard fatal WebSocket protocol codes", () =>
@@ -3240,7 +3787,7 @@ internal static class Program
                 // shared-app-classification/AGENTS.md documents catalog edits as
                 // data-only, but the Provider dropdown is built straight from the
                 // catalog while persistence funnels through the CloudAccuracyTier
-                // enum, whose FromString fallback is DeepgramNova3. A 12th
+                // enum, whose FromString fallback is DeepgramNova3. A new
                 // cloudTierEligible entry with no enum case would therefore be a
                 // selectable row that transcribes and bills as Deepgram. Fail here
                 // instead, on the PR that adds the entry.
@@ -3258,6 +3805,39 @@ internal static class Program
                             + "Add the case to Models/CloudAccuracyTier.cs (and the macOS CloudAccuracyTier enum) "
                             + "in the same change as the catalog entry.");
                 }
+            });
+
+            Run("A persisted googleChirp3 tier migrates onto geminiTranscribe", () =>
+            {
+                // Catalog v8 retired googleChirp3 in favour of geminiTranscribe.
+                // FromString's fallback is DeepgramNova3, so every legacy spelling
+                // that misses would silently move a Google user to Deepgram —
+                // wrong X-STT-Provider, wrong credits, wrong vendor row.
+                // The stored data is converged by the EF migration
+                // 20260827090000_MigrateGoogleChirp3TierToGeminiTranscribe; this
+                // guards the read path that has to hold until it runs (and for
+                // any value arriving over the Local API or a backup restore).
+                foreach (var legacy in new[]
+                {
+                    "googleChirp3", "googlechirp3", "GOOGLECHIRP3",
+                    "googlespeech", "googleSpeech", "google-chirp", "googlechirp",
+                    "chirp", "chirp_3",
+                })
+                {
+                    var resolved = CloudAccuracyTierExtensions.FromString(legacy).ToStorageValue();
+                    Assert(
+                        resolved == "geminiTranscribe",
+                        $"legacy tier '{legacy}' resolved to '{resolved}', not 'geminiTranscribe' — "
+                            + "a Chirp 3 user would be silently moved to another vendor.");
+                }
+
+                // And the retired id must not come back as an enum member: the
+                // canonical loop in FromString runs before the catalog aliases,
+                // so a GoogleChirp3 member would win and strand the user on a
+                // tier with no catalog entry.
+                Assert(
+                    !Enum.GetNames<CloudAccuracyTier>().Contains("GoogleChirp3"),
+                    "CloudAccuracyTier.GoogleChirp3 is back; it would shadow the catalog migrateFrom alias.");
             });
 
             Run("Grok's empty model id resolves through a provider-scoped lookup", () =>
@@ -3534,6 +4114,353 @@ internal static class Program
                     "expected null - a 5xx never reaches this predicate as a terminal result, and even if it did, only 400 is the documented verdict status");
                 Assert(LicenseNetworkService.LicenseVerdictReason(401, verdictBody) == null, "expected null at 401");
                 Assert(LicenseNetworkService.LicenseVerdictReason(200, verdictBody) == null, "expected null at 200");
+            });
+
+            RunAsync("a mid-session generationComplete keeps BOTH utterances and still sends audio_stream_end", async () =>
+            {
+                // Google emits serverContent.generationComplete at EVERY turn
+                // boundary. Mapping it to SessionComplete completed
+                // _sessionCompletedTcs at the first pause, so the stop sequence's
+                // WaitForSessionComplete returned immediately, the socket closed
+                // right after audio_stream_end, and the LAST utterance's final never
+                // landed. Backend semantics: terminal only once the client asked to
+                // stop (ws-streaming-shared.ts, the 'complete' arm).
+                var config = new StreamingSessionConfig(null, null, "en", null, "AIza-test", null, false, false);
+                using var strategy = LiveStrategy(StreamingTranscriptionProvider.GeminiTranscribe, config);
+
+                Assert(!strategy.CompleteEndsSessionBeforeStop,
+                    "Gemini must declare its completion frame as a turn boundary before stop");
+                // Every other provider keeps the unconditional reading - a vendor
+                // whose 'complete' really is once-per-session must not be changed.
+                // The answer comes from the shared core (issue #281), so this walks
+                // the real provider enum rather than a hand-kept strategy list.
+                foreach (var provider in Enum.GetValues<StreamingTranscriptionProvider>())
+                {
+                    if (provider == StreamingTranscriptionProvider.GeminiTranscribe)
+                    {
+                        continue;
+                    }
+
+                    using var other = LiveStrategy(provider, config);
+                    Assert(other.CompleteEndsSessionBeforeStop,
+                        $"{other.TranscriptionProviderLabel} must keep the pre-existing terminal reading of SessionComplete");
+                }
+
+                var client = new StreamingTranscriptionClient(strategy, config);
+                client.SetStateForTesting(StreamingConnectionState.Streaming);
+
+                var sessionCompletedCount = 0;
+                client.SessionCompleted += (_, _) => sessionCompletedCount++;
+
+                // Utterance 1, turn boundary, utterance 2 - the exact live shape
+                // pinned by the backend's two-utterance relay test.
+                client.HandleProviderEvent(strategy.ParseMessage(
+                    "{\"serverContent\":{\"inputTranscription\":{\"text\":\"Hello, this is a test.\"}}}"));
+                client.HandleProviderEvent(strategy.ParseMessage(
+                    "{\"serverContent\":{\"generationComplete\":true}}"));
+                client.HandleProviderEvent(strategy.ParseMessage(
+                    "{\"serverContent\":{\"inputTranscription\":{\"text\":\"Let us meet on Wednesday.\"}}}"));
+
+                Assert(client.State == StreamingConnectionState.Streaming,
+                    $"the session must stay open across a turn boundary, State was {client.State}");
+                Assert(sessionCompletedCount == 0,
+                    "a mid-session turn boundary must not raise SessionCompleted - subscribers treat that as end-of-session");
+
+                // The stop sequence still runs in full. No socket is connected, so
+                // the sends are no-ops, but the steps - and the text they are there
+                // to protect - are what this pins.
+                var steps = strategy.GetStopSequence();
+                Assert(steps.Count > 0 && steps[0].Action == StreamingStopAction.SendMessage &&
+                       System.Text.Encoding.UTF8.GetString(steps[0].Payload!) ==
+                           "{\"realtime_input\":{\"audio_stream_end\":true}}",
+                    "the stop sequence must still open with audio_stream_end");
+                Assert(steps.Any(step => step.Action == StreamingStopAction.WaitForSessionComplete),
+                    "the stop sequence must still wait for the trailing final");
+
+                var finalText = await client.StopAsync();
+                Assert(finalText.Contains("Hello, this is a test.") && finalText.Contains("Let us meet on Wednesday."),
+                    $"both utterances must survive the turn boundary, got '{finalText}'");
+
+                // ...and the SAME frame after the client asked to stop IS the
+                // end-of-session signal the stop sequence is waiting for.
+                var stopping = new StreamingTranscriptionClient(strategy, config);
+                stopping.SetStateForTesting(StreamingConnectionState.Disconnecting);
+                var completedAfterStop = 0;
+                stopping.SessionCompleted += (_, _) => completedAfterStop++;
+                stopping.HandleProviderEvent(strategy.ParseMessage(
+                    "{\"serverContent\":{\"generationComplete\":true}}"));
+                Assert(completedAfterStop == 1,
+                    "a post-stop generationComplete must complete the session exactly once");
+            });
+
+            Run("the HyperWhisper Cloud dictation model picker never offers a streaming-only model", () =>
+            {
+                // gemini-3.5-transcribe-live is WebSocket-only - it has no
+                // pre-recorded endpoint, so every dictation on it 400s. The catalog
+                // already carries `"streaming": true` on that model; the Mode
+                // editor's Model dropdown flat-mapped every model and ignored it.
+                var catalog = CloudSttCatalog.Shared;
+
+                var live = catalog.GetModel("geminiTranscribe", "gemini-3.5-transcribe-live");
+                Assert(live != null, "the catalog no longer carries gemini-3.5-transcribe-live");
+
+                var offered = catalog.ModelsForVendorKey("google").Select(entry => entry.Model.Id).ToArray();
+                Assert(!offered.Contains("gemini-3.5-transcribe-live"),
+                    $"a live-only model reached the dictation picker: {string.Join(", ", offered)}");
+                Assert(offered.Contains("gemini-3.5-transcribe"),
+                    $"the pre-recorded Google model must still be offered, got: {string.Join(", ", offered)}");
+
+                // REGRESSION GUARD (mirrors macOS's deepgramNova3StaysSelectableForDictation).
+                // The per-model `streaming` flag is NOT the filter, however much it
+                // reads like one: it means "HW Cloud routes this model live", and
+                // Deepgram carries it on nova-3-general and nova-3-medical, which
+                // are the DEFAULT pre-recorded dictation models. Filtering on it
+                // deletes the default dictation model from the picker - a worse bug
+                // than the one this test exists for. Both facts are pinned here so
+                // the flag cannot quietly become the filter again.
+                Assert(catalog.GetModel("deepgramNova3", "nova-3-general")!.Streaming,
+                    "nova-3-general lost its `streaming` flag - this guard no longer guards anything");
+                var deepgram = catalog.ModelsForVendorKey("deepgram").Select(entry => entry.Model.Id).ToArray();
+                Assert(deepgram.Contains("nova-3-general") && deepgram.Contains("nova-3-medical"),
+                    $"Deepgram's pre-recorded models must stay selectable for dictation, got: {string.Join(", ", deepgram)}");
+                Assert(deepgram.Length == catalog.ModelsForId("deepgramNova3").Count,
+                    "the dictation picker dropped a Deepgram model - only live-only ids may be filtered");
+
+                Assert(CloudSttCatalog.IsLiveOnlyModel("  GEMINI-3.5-TRANSCRIBE-LIVE  "),
+                    "live-only matching must be trimmed and case-insensitive, like every other catalog model lookup");
+                foreach (var notLiveOnly in new string?[] { null, "", "   ", "gemini-3.5-transcribe", "nova-3-general" })
+                {
+                    Assert(!CloudSttCatalog.IsLiveOnlyModel(notLiveOnly),
+                        $"'{notLiveOnly}' must not be treated as live-only");
+                }
+
+                // The SEND path has to reject it too: the picker no longer offers
+                // one, but a backup restore or a Local API write can still store it,
+                // and it IS a member of the tier so plain membership accepts it.
+                //
+                // Assert on HyperWhisperCloudService.ResolveDictationModelId - the
+                // method that actually produces the X-STT-Model header. The earlier
+                // version of this check called CloudSttCatalog.DictationModelsForId,
+                // which has NO production caller, so it passed whether or not the
+                // send path guarded anything.
+                var geminiDefault = catalog.DefaultModelIdForId("geminiTranscribe");
+                Assert(geminiDefault == "gemini-3.5-transcribe",
+                    $"the geminiTranscribe tier default moved, this check needs updating - got '{geminiDefault}'");
+                Assert(HyperWhisperCloudService.ResolveDictationModelId("geminiTranscribe", "gemini-3.5-transcribe-live") == geminiDefault,
+                    "the send path still sends the live-only id as X-STT-Model - every dictation would 400");
+                Assert(HyperWhisperCloudService.ResolveDictationModelId("geminiTranscribe", "  GEMINI-3.5-TRANSCRIBE-LIVE  ") == geminiDefault,
+                    "the send path let a padded/upper-cased live-only id through");
+
+                // ...and it must NOT punt a legitimate model back to the default.
+                Assert(HyperWhisperCloudService.ResolveDictationModelId("geminiTranscribe", "gemini-3.5-transcribe") == "gemini-3.5-transcribe",
+                    "the send path replaced a valid Gemini dictation model with the tier default");
+                foreach (var deepgramModel in catalog.ModelsForId("deepgramNova3"))
+                {
+                    Assert(HyperWhisperCloudService.ResolveDictationModelId("deepgramNova3", deepgramModel.Id) == deepgramModel.Id,
+                        $"the send path dropped Deepgram's '{deepgramModel.Id}' - only live-only ids may be filtered");
+                }
+            });
+
+            Run("the Gemini 3.5 Transcribe API key survives a backup export/restore round trip", () =>
+            {
+                // Configure ONLY the new key. The LEGACY `gemini` post-processing
+                // key restores fine, which is what masked this: a user with both
+                // sees Google "configured" and Gemini 3.5 Transcribe silently unset.
+                var stored = new Dictionary<TranscriptionApiKeyType, string?>
+                {
+                    [TranscriptionApiKeyType.GeminiTranscribe] = "AIza-gemini-transcribe-key",
+                };
+
+                var exported = UniversalBackupMapper.MapApiKeys(
+                    _ => null,
+                    type => stored.TryGetValue(type, out var value) ? value : null);
+                Assert(exported.GeminiTranscribe == "AIza-gemini-transcribe-key",
+                    "the export dropped the Gemini 3.5 Transcribe key");
+                Assert(exported.Gemini == null,
+                    "the export must not fold the new key into the legacy `gemini` slot");
+
+                // Through the wire format, under the name the schema declares.
+                var json = JsonSerializer.Serialize(exported);
+                Assert(json.Contains("\"geminitranscribe\""),
+                    $"expected the schema's lowercase apiKeys name in the export, got: {json}");
+
+                var restored = new Dictionary<TranscriptionApiKeyType, string?>();
+                UniversalBackupMapper.ApplyApiKeys(
+                    JsonSerializer.Deserialize<UniversalApiKeys>(json)!,
+                    (_, _) => { },
+                    (type, value) => restored[type] = value);
+                Assert(restored.TryGetValue(TranscriptionApiKeyType.GeminiTranscribe, out var roundTripped) &&
+                       roundTripped == "AIza-gemini-transcribe-key",
+                    "the restore left Gemini 3.5 Transcribe unconfigured - the reported repro");
+
+                // A backup written with the camelCase catalog spelling still
+                // restores; it lands in the JsonExtensionData bag, not the field.
+                var camelCase = JsonSerializer.Deserialize<UniversalApiKeys>(
+                    "{\"geminiTranscribe\":\"AIza-from-another-platform\"}")!;
+                Assert(camelCase.GeminiTranscribe == null,
+                    "the camelCase spelling is deliberately NOT the declared field name");
+                var tolerated = new Dictionary<TranscriptionApiKeyType, string?>();
+                UniversalBackupMapper.ApplyApiKeys(camelCase, (_, _) => { }, (type, value) => tolerated[type] = value);
+                Assert(tolerated.TryGetValue(TranscriptionApiKeyType.GeminiTranscribe, out var fromCamel) &&
+                       fromCamel == "AIza-from-another-platform",
+                    "a camelCase `geminiTranscribe` key must still restore");
+            });
+
+            RunAsync("the Chirp 3 tier migration leaves a BYOK mode alone", async () =>
+            {
+                // The migration keys on CloudAccuracyTier. That column is left
+                // behind verbatim when a mode is switched to BYOK, so an unscoped
+                // UPDATE rewrites a BYOK Grok mode's `''` sentinel model id to
+                // gemini-3.5-transcribe and the next dictation posts a Google model
+                // to xAI. Precedent for the scoping:
+                // 20260508120000_MigrateRemovedDeepgramModels.
+                const string PreviousMigration = "20260823180000_AddWordTimestamps";
+                const string ThisMigration = "20260827090000_MigrateGoogleChirp3TierToGeminiTranscribe";
+
+                var databasePath = Path.Combine(
+                    Path.GetTempPath(), "HyperWhisper.SmokeTests", Guid.NewGuid().ToString("N"), "chirp3.db");
+
+                try
+                {
+                    using (var context = new HyperWhisperDbContext(databasePath))
+                    {
+                        await context.Database
+                            .GetService<Microsoft.EntityFrameworkCore.Migrations.IMigrator>()
+                            .MigrateAsync(PreviousMigration);
+                        var applied = await context.Database.GetAppliedMigrationsAsync();
+                        Assert(!applied.Contains(ThisMigration),
+                            "the migration under test already ran - this test would prove nothing");
+
+                        // The row the migration DOES own.
+                        context.Modes.Add(new Mode
+                        {
+                            Name = "cloud-chirp",
+                            ProviderType = "cloud",
+                            CloudProvider = "hyperwhisper",
+                            CloudAccuracyTier = "googleChirp3",
+                            CloudTranscriptionModel = "chirp_3",
+                        });
+                        // Switched to BYOK Grok and never re-saved: the stale tier
+                        // is still there, and Grok's model id is the empty sentinel
+                        // the CASE arm would rewrite.
+                        context.Modes.Add(new Mode
+                        {
+                            Name = "byok-grok",
+                            ProviderType = "cloud",
+                            CloudProvider = "grok",
+                            CloudAccuracyTier = "googleChirp3",
+                            CloudTranscriptionModel = "",
+                        });
+                        // Same shape, a BYOK vendor with a real model id.
+                        context.Modes.Add(new Mode
+                        {
+                            Name = "byok-deepgram",
+                            ProviderType = "cloud",
+                            CloudProvider = "deepgram",
+                            CloudAccuracyTier = "chirp_3",
+                            CloudTranscriptionModel = "nova-3-general",
+                        });
+                        await context.SaveChangesAsync();
+                    }
+
+                    using (var context = new HyperWhisperDbContext(databasePath))
+                    {
+                        await context.Database.MigrateAsync();
+                    }
+
+                    using (var verify = new HyperWhisperDbContext(databasePath))
+                    {
+                        var cloud = verify.Modes.Single(mode => mode.Name == "cloud-chirp");
+                        Assert(cloud.CloudAccuracyTier == "geminiTranscribe" &&
+                               cloud.CloudTranscriptionModel == "gemini-3.5-transcribe",
+                            $"the HW-Cloud Chirp row did not migrate: '{cloud.CloudAccuracyTier}' / '{cloud.CloudTranscriptionModel}'");
+
+                        var grok = verify.Modes.Single(mode => mode.Name == "byok-grok");
+                        Assert(grok.CloudProvider == "grok" && grok.CloudTranscriptionModel == "",
+                            $"the BYOK Grok mode was rewritten to '{grok.CloudTranscriptionModel}' - it would post a Google model to xAI");
+
+                        var deepgram = verify.Modes.Single(mode => mode.Name == "byok-deepgram");
+                        Assert(deepgram.CloudTranscriptionModel == "nova-3-general" &&
+                               deepgram.CloudAccuracyTier == "chirp_3",
+                            $"the BYOK Deepgram mode was rewritten: '{deepgram.CloudAccuracyTier}' / '{deepgram.CloudTranscriptionModel}'");
+                    }
+                }
+                finally
+                {
+                    try
+                    {
+                        var directory = Path.GetDirectoryName(databasePath);
+                        if (directory != null && Directory.Exists(directory))
+                            Directory.Delete(directory, recursive: true);
+                    }
+                    catch (IOException)
+                    {
+                    }
+                }
+            });
+
+            RunAsync("the inline-base64 body streams bytes identical to the buffered build it replaced", async () =>
+            {
+                // RustHttpExecutor used to hold the file, its base64 AND the joined
+                // array live at once - 88.7 MB of LOH for a 14 MB recording, on
+                // every one of up to 8 retry attempts. It now encodes onto the
+                // socket. The bytes must not have moved an inch: same padded,
+                // non-URL-safe alphabet, no line breaks.
+                var path = Path.Combine(
+                    Path.GetTempPath(), "HyperWhisper.SmokeTests", Guid.NewGuid().ToString("N") + ".wav");
+                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+
+                try
+                {
+                    // Deliberately NOT a multiple of 3, so the trailing partial
+                    // group exercises the encoder's final-block padding.
+                    var audio = new byte[(5 * 1024 * 1024) + 2];
+                    new Random(20260827).NextBytes(audio);
+                    await File.WriteAllBytesAsync(path, audio);
+
+                    var prefix = System.Text.Encoding.UTF8.GetBytes("{\"audio\":{\"data\":\"");
+                    var suffix = System.Text.Encoding.UTF8.GetBytes("\"}}");
+
+                    using var message = RustHttpExecutor.BuildRequestMessage(new HttpRequest(
+                        @method: uniffi.hyperwhisper_core.HttpMethod.Post,
+                        @url: "https://generativelanguage.googleapis.com/v1beta/interactions",
+                        @headers: new List<Header>(),
+                        @body: new Body.JsonWithBase64File(prefix, path, suffix)));
+
+                    Assert(message.Content != null, "the inline-base64 body produced no content at all");
+                    var produced = await message.Content!.ReadAsByteArrayAsync();
+
+                    // The exact previous implementation, verbatim.
+                    var base64 = Convert.ToBase64String(File.ReadAllBytes(path));
+                    var expected = new byte[prefix.Length + base64.Length + suffix.Length];
+                    Buffer.BlockCopy(prefix, 0, expected, 0, prefix.Length);
+                    Buffer.BlockCopy(System.Text.Encoding.ASCII.GetBytes(base64), 0, expected, prefix.Length, base64.Length);
+                    Buffer.BlockCopy(suffix, 0, expected, prefix.Length + base64.Length, suffix.Length);
+
+                    Assert(produced.Length == expected.Length,
+                        $"streamed body is {produced.Length} bytes, buffered build was {expected.Length}");
+                    Assert(produced.AsSpan().SequenceEqual(expected),
+                        "the streamed inline-base64 body is not byte-identical to the buffered build it replaced");
+
+                    // Content-Length must be declared, not chunked: the vendor
+                    // rejects a chunked upload on this endpoint.
+                    Assert(message.Content.Headers.ContentLength == expected.Length,
+                        $"declared Content-Length {message.Content.Headers.ContentLength}, body is {expected.Length}");
+                    Assert(message.Content.Headers.ContentType?.MediaType == "application/json",
+                        "the inline-base64 body must be sent as application/json");
+                }
+                finally
+                {
+                    try
+                    {
+                        var directory = Path.GetDirectoryName(path);
+                        if (directory != null && Directory.Exists(directory))
+                            Directory.Delete(directory, recursive: true);
+                    }
+                    catch (IOException)
+                    {
+                    }
+                }
             });
 
             Console.WriteLine(_failures == 0
@@ -3838,6 +4765,36 @@ internal static class Program
         public Task OnAudioSendOpportunityAsync(
             Func<byte[], WebSocketMessageType, CancellationToken, Task> webSocketSendAsync,
             CancellationToken cancellationToken) => throw new NotSupportedException();
+    }
+
+    /// <summary>
+    /// An <c>ISampleProvider</c> that hands out a scripted, deliberately awkward number of
+    /// samples per Read — starting with a count SMALLER than one sample frame, which is legal
+    /// and which the mono fold must not mistake for end-of-stream.
+    /// </summary>
+    private sealed class ChoppySampleProvider(float[] samples, int channels, int[] chunkSizes)
+        : NAudio.Wave.ISampleProvider
+    {
+        private int _position;
+        private int _chunk;
+
+        public NAudio.Wave.WaveFormat WaveFormat { get; } =
+            NAudio.Wave.WaveFormat.CreateIeeeFloatWaveFormat(16000, channels);
+
+        public int Read(float[] buffer, int offset, int count)
+        {
+            var remaining = samples.Length - _position;
+            if (remaining <= 0)
+            {
+                return 0;
+            }
+
+            var size = _chunk < chunkSizes.Length ? chunkSizes[_chunk++] : remaining;
+            size = Math.Min(Math.Min(size, count), remaining);
+            Array.Copy(samples, _position, buffer, offset, size);
+            _position += size;
+            return size;
+        }
     }
 
     private sealed class InMemoryCredentialBackend : IWindowsCredentialBackend

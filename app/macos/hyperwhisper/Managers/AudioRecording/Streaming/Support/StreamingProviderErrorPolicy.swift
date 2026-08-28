@@ -93,8 +93,10 @@ enum StreamingProviderErrorPolicy {
 
     /// Classifies a provider error message.
     ///
-    /// The twenty markers and the lowercased-substring rule live in
-    /// `hw_net::live::policy::classify_error_message`.
+    /// The twenty-one markers and the lowercased-substring rule live in
+    /// `hw_net::live::policy::classify_error_message`. The twenty-first is
+    /// Gemini 3.5 Transcribe Live's "…rejected the session setup", the one
+    /// marker that names our own bug rather than the user's account.
     ///
     /// - Parameter message: The `message` payload of a
     ///   `StreamingProviderEvent.error`, exactly as the strategy produced it.
@@ -172,5 +174,48 @@ enum StreamingProviderErrorPolicy {
         case .unauthorized:
             return .unauthorized
         }
+    }
+
+    // MARK: - Close codes
+
+    /// Whether a WebSocket close code means the session cannot be rescued by
+    /// reconnecting.
+    ///
+    /// ## Why this exists
+    ///
+    /// macOS classified error MESSAGES and refused UPGRADES but never the close
+    /// CODE, so a provider that closes a doomed session without first sending a
+    /// matching error frame fell through to the reconnect path and retried into
+    /// the same refusal. Both .NET heads have had this check for longer; this is
+    /// the macOS half.
+    ///
+    /// The concrete case that forced it: Gemini 3.5 Transcribe Live rejects a
+    /// malformed setup frame with **1007**, and the HyperWhisper Cloud route
+    /// closes terminal upstream faults with **1011**. Both are our bug or the
+    /// service's, identical on every attempt.
+    ///
+    /// ## Where the set lives
+    ///
+    /// In the shared core — `hw_net::live::policy::is_terminal_close_code` — so
+    /// the three heads cannot drift. It is the WebSocket protocol's own
+    /// non-recoverable set (RFC 6455 §7.4.1) and nothing else: 1002, 1003, 1007,
+    /// 1008, 1009, 1011. The standard transient codes are excluded ON PURPOSE
+    /// and must stay that way: 1000 Normal (the caller handles it separately),
+    /// 1001 Going Away, **1006 Abnormal / no close frame** — the ordinary
+    /// dropped connection, and the single most important exclusion — 1012
+    /// Service Restart and 1013 Try Again Later. Each of those is exactly what
+    /// auto-reconnect is for.
+    ///
+    /// HyperWhisper's own application codes (4001 credits exhausted, 4002 max
+    /// session duration) are deliberately NOT there: the client already handles
+    /// them by name, and 4001 additionally has to *report* itself rather than
+    /// just stop retrying. A code outside `UInt16` cannot be a WebSocket close
+    /// code, so it takes the same "not terminal" answer.
+    ///
+    /// - Parameter code: The raw WebSocket close code.
+    /// - Returns: `true` when reconnecting cannot help.
+    static func isTerminalCloseCode(_ code: Int) -> Bool {
+        guard let code = UInt16(exactly: code) else { return false }
+        return liveIsTerminalCloseCode(code: code)
     }
 }

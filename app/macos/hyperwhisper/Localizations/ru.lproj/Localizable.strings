@@ -42,6 +42,8 @@
 "streaming.enable.title" = "Включить потоковую передачу";
 "streaming.provider.picker.title" = "Провайдер";
 "streaming.model.title" = "Модель";
+"streaming.cloudTier.title" = "Движок в реальном времени";
+"streaming.cloudTier.description" = "Какой речевой движок HyperWhisper Cloud использует для транскрипции в реальном времени";
 "streaming.model.nova3general" = "Nova 3 General";
 "streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Быстрое форматирование";
@@ -767,8 +769,8 @@
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ кред./мин";
 "modes.cloudAccuracy.grokStt.label" = "Наивысшая (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Наивысшая точность с более медленной обработкой. Лучше для важных транскрипций.";
-"modes.cloudAccuracy.googleChirp3.label" = "Высокая (Google Chirp 3)";
-"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 с Chirp 3. Многоязычная модель с адаптацией по фразам.";
+"modes.cloudAccuracy.geminiTranscribe.label" = "Высокая (Google Gemini 3.5 Transcribe)";
+"modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Многоязычная модель с поддержкой пользовательского словаря.";
 "modes.cloudAccuracy.azureMaiTranscribe.label" = "Высокая (Microsoft MAI-Transcribe 1.5)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 через Azure Speech. 43 языка с контекстной адаптацией.";
 

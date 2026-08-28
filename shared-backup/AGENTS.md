@@ -176,6 +176,10 @@ backup written by a newer build does not lose data when re-exported by an older 
 <important if="you are adding or changing an API key provider">
 
 API keys are a flat object with lowercase provider-name keys. Both platforms map to their native secure storage (macOS Keychain, Windows SettingsService). Unknown keys are silently ignored on import.
+
+Multi-word providers squash to one lowercase word — `assemblyai`, `elevenlabs`, `geminitranscribe` — **not** the camelCase catalog id. Windows also accepts the camelCase spelling on import as a tolerance, but exports the lowercase one.
+
+One vendor can own more than one key. `gemini` is the legacy Gemini post-processing / transcription key and `geminitranscribe` is Google Gemini 3.5 Transcribe (BYOK): same `AIza` key shape, different APIs, and a user may hold different keys for the two. That pairing is the trap this section exists for — when only the *new* key is missing from the export, the old one still restores, so the machine looks configured and the new provider is silently unset.
 </important>
 
 <important if="you are adding or changing a field on Mode, VocabularyItem, settings, or an API key provider on either platform">

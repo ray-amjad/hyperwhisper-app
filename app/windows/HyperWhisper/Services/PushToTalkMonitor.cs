@@ -5,13 +5,19 @@ using System.Windows.Input;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Models;
 using HyperWhisper.Services.Platform;
+using HyperWhisper.SharedCore;
 using PlatformContracts = HyperWhisper.Platform.Abstractions;
 
 namespace HyperWhisper.Services;
 
 /// <summary>
 /// Watches keyboard state for push-to-talk behaviors (modifier or custom shortcut).
-/// Mirrors macOS BareModifierKeyMonitor's 5-state machine:
+///
+/// The 5-state machine itself is NOT here. It lives in the shared Rust core
+/// (<see cref="PortablePushToTalkCore"/>, issue #287) and is the same transition
+/// table the macOS and Linux heads run. This class owns what is genuinely
+/// Windows: the WH_KEYBOARD_LL hook, virtual-key mapping, AltGr handling, the
+/// GetAsyncKeyState cross-check, DispatcherTimer and the clock.
 ///
 /// - 250ms activation delay filters keyboard shortcuts (Ctrl+C, Alt+Tab, etc.)
 /// - Quick taps (release before timer) enter double-tap lock sequence, not interference
@@ -37,12 +43,6 @@ public sealed class PushToTalkMonitor : IDisposable, PlatformContracts.IPushToTa
     private const int VK_RSHIFT = 0xA1;
     private const int VK_LWIN = 0x5B;
     private const int VK_RWIN = 0x5C;
-
-    // Matches macOS BareModifierKeyMonitor timing:
-    // - 250ms activation delay filters out keyboard shortcuts (e.g. Ctrl+C)
-    // - 1500ms double-press window allows comfortable double-tap lock/unlock
-    private const int ActivationDelayMs = 250;
-    private const int DoublePressIntervalMs = 1500;
 
     private readonly PushToTalkSettings _settings = new();
     private readonly HashSet<int> _pressedKeys = new();
@@ -84,42 +84,32 @@ public sealed class PushToTalkMonitor : IDisposable, PlatformContracts.IPushToTa
     // =========================================================================
     // STATE MACHINE
     // =========================================================================
-    // Mirrors macOS BareModifierKeyMonitor's 5-state machine:
+    // The transition table lives in the shared Rust core (issue #287) and is the
+    // same one macOS and Linux run. What is left here is the Windows half:
+    // deciding when a raw WM_KEYDOWN/WM_KEYUP is worth reporting as a
+    // push-to-talk event at all, running the timers the core asks for, and
+    // answering its key-up debounce with a GetAsyncKeyState reading.
     //
-    //   Idle → (key down) → WaitingForActivation → (250ms timer) → PttActive → (key up) → Idle + stop
-    //                                             → (key up, quick tap) → PttActive (first tap of double-tap)
-    //                                             → (interference) → Idle
-    //   PttActive → (key up within interval) → LatchActive (double-tap lock)
-    //   LatchActive → (key down) → UnlatchPending
-    //   UnlatchPending → (first key up) → set firstTapTime, wait → (second key up within interval) → Idle + stop
-    //                                                             → (timeout) → LatchActive
-    //
-    // Key design decisions matching macOS:
-    // - Double-tap detection is on keyUp (not keyDown) for symmetric lock/unlock
-    // - Quick taps (release before 250ms timer) enter double-tap sequence, NOT interference
-    // - No minimum press duration — the 250ms activation delay handles filtering
+    // Two behaviours changed with the move, both deliberately (see the issue):
+    // - ResetToIdle from WaitingForActivation is now a full cancel. It used to
+    //   return early and leave the 250ms activation timer armed to start a
+    //   recording that had already been cancelled.
+    // - macOS adopted this head's enteredViaHold behaviour rather than the other
+    //   way round, so nothing changes here for hold-then-release.
 
-    private enum MonitorState
-    {
-        Idle,
-        WaitingForActivation,
-        PttActive,
-        LatchActive,
-        UnlatchPending
-    }
+    private PortablePttMachineState _machine = PortablePushToTalkCore.InitialState();
+    private PortablePttConfig _pttConfig =
+        PortablePushToTalkCore.Config(MinimumLockDurationMs, KeyUpDebounceMs, false);
 
-    private MonitorState _state = MonitorState.Idle;
-    private System.Windows.Threading.DispatcherTimer? _activationTimer;
-    private System.Windows.Threading.DispatcherTimer? _latchTimer;
-    private System.Windows.Threading.DispatcherTimer? _keyUpDebounceTimer;
-    private DateTime _firstTapTimeUtc;
-    private DateTime _lastLatchActiveTimeUtc;
-    private bool _enteredViaHold; // true = activated via hold (250ms timer), false = quick-tap
+    /// <summary>One slot per <see cref="PortablePttTimer"/>, indexed by the enum.</summary>
+    private readonly System.Windows.Threading.DispatcherTimer?[] _timers =
+        new System.Windows.Threading.DispatcherTimer?[3];
 
     // Minimum time to stay locked before allowing unlock.
     // 2000ms prevents spurious keyDown+keyUp pairs from wireless keyboards (RF glitches)
     // from accidentally triggering the unlock sequence right after locking.
-    private const int MinimumLockDurationMs = 2000;
+    // macOS ships 1000ms; unifying the two is a separate decision.
+    private const ulong MinimumLockDurationMs = 2000;
 
     // Debounce window for spurious WM_KEYUP events from wireless keyboards.
     //
@@ -131,9 +121,18 @@ public sealed class PushToTalkMonitor : IDisposable, PlatformContracts.IPushToTa
     // Additionally, GetKeyboardState is one event behind inside the hook callback, so
     // we cannot verify the true physical state there. Instead we call GetAsyncKeyState
     // from the timer callback (UI thread, after the hook has returned) to confirm whether
-    // the key is genuinely up before committing the release.
-    private const int KeyUpDebounceMs = 100;
+    // the key is genuinely up before committing the release. That reading is what the
+    // core's KeyUpDebounceTimeout event carries.
+    private const ulong KeyUpDebounceMs = 100;
     private bool _disposed;
+
+    /// <summary>
+    /// The monotonic reading the core measures every interval from. Never
+    /// DateTime: this head used to compare wall-clock timestamps, so an NTP step
+    /// during a locked recording could make the time-since-lock interval negative
+    /// and defeat bounce protection.
+    /// </summary>
+    private static ulong NowMs => (ulong)Environment.TickCount64;
 
     public event EventHandler? Pressed;
     public event EventHandler? Released;
@@ -152,6 +151,11 @@ public sealed class PushToTalkMonitor : IDisposable, PlatformContracts.IPushToTa
         _settings.Modifier = settings.Modifier;
         _settings.DoublePressLock = settings.DoublePressLock;
         _settings.CustomShortcut = settings.CustomShortcut?.Clone();
+
+        _pttConfig = PortablePushToTalkCore.Config(
+            MinimumLockDurationMs,
+            KeyUpDebounceMs,
+            settings.DoublePressLock);
     }
 
     void PlatformContracts.IPushToTalkMonitor.Configure(PlatformContracts.PushToTalkConfiguration configuration)
@@ -191,36 +195,27 @@ public sealed class PushToTalkMonitor : IDisposable, PlatformContracts.IPushToTa
 
     public void Reset()
     {
-        _state = MonitorState.Idle;
-        CancelActivationTimer();
-        CancelLatchTimer();
-        CancelKeyUpDebounce();
+        Dispatch(PortablePttEvent.Reset);
         _pressedKeys.Clear();
     }
 
     /// <summary>
     /// Reset state to idle when recording is stopped externally (cancel, error, etc.).
-    /// Matches macOS BareModifierKeyMonitor.resetToIdle() — prevents stale state
-    /// from misinterpreting the next key press as part of an unlock sequence.
+    /// Prevents stale state from misinterpreting the next key press as part of an
+    /// unlock sequence.
+    ///
+    /// This is a FULL cancel from every state, WaitingForActivation included. It
+    /// used to return early from there, which left the 250ms activation timer
+    /// armed to start a recording the app had already cancelled.
     /// </summary>
-    public void ResetToIdle()
-    {
-        if (_state == MonitorState.PttActive || _state == MonitorState.LatchActive || _state == MonitorState.UnlatchPending)
-        {
-            LoggingService.Debug($"PushToTalkMonitor: ResetToIdle from {_state}");
-            _state = MonitorState.Idle;
-            CancelActivationTimer();
-            CancelLatchTimer();
-            CancelKeyUpDebounce();
-        }
-    }
+    public void ResetToIdle() => Dispatch(PortablePttEvent.ResetToIdle);
 
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
 
-        Reset(); // also calls CancelKeyUpDebounce
+        Reset(); // cancels every timer the core owns
         if (_hookId != IntPtr.Zero)
         {
             UnhookWindowsHookEx(_hookId);
@@ -281,53 +276,17 @@ public sealed class PushToTalkMonitor : IDisposable, PlatformContracts.IPushToTa
         TracePttEvent("keyDown", vkCode);
 
         // Non-shortcut keys pressed during activation or active PTT = interference
-        if ((_state == MonitorState.WaitingForActivation || _state == MonitorState.PttActive)
+        if ((_machine.State == PortablePttState.WaitingForActivation || _machine.State == PortablePttState.PttActive)
             && !IsKeyPartOfShortcut(vkCode))
         {
-            HandleInterference();
+            Dispatch(PortablePttEvent.Interference);
             return;
         }
 
         if (!IsPrimaryKey(vkCode)) return;
         if (!IsShortcutSatisfied()) return;
 
-        switch (_state)
-        {
-            case MonitorState.Idle:
-                // Start 250ms activation delay to filter out keyboard shortcuts
-                _state = MonitorState.WaitingForActivation;
-                StartActivationTimer();
-                break;
-
-            case MonitorState.WaitingForActivation:
-                // Already waiting, ignore duplicate down events
-                break;
-
-            case MonitorState.PttActive:
-                // Key came back during debounce window (wireless keyboard bounce) or
-                // user is actively re-pressing — cancel both timers, stay recording.
-                CancelKeyUpDebounce();
-                CancelLatchTimer();
-                break;
-
-            case MonitorState.LatchActive:
-                // Bounce protection: ignore key-down too soon after locking
-                var timeSinceLock = (DateTime.UtcNow - _lastLatchActiveTimeUtc).TotalMilliseconds;
-                if (timeSinceLock < MinimumLockDurationMs)
-                {
-                    LoggingService.Debug($"PushToTalkMonitor: Ignoring keyDown - too soon after lock ({timeSinceLock:F0}ms < {MinimumLockDurationMs}ms)");
-                    return;
-                }
-
-                // First tap of unlock sequence
-                _state = MonitorState.UnlatchPending;
-                _firstTapTimeUtc = DateTime.MinValue; // sentinel — actual time set on first keyUp
-                break;
-
-            case MonitorState.UnlatchPending:
-                // Subsequent keyDown during unlock sequence — stay in state
-                break;
-        }
+        Dispatch(PortablePttEvent.KeyDown);
     }
 
     private void HandleKeyUp(int vkCode)
@@ -339,87 +298,95 @@ public sealed class PushToTalkMonitor : IDisposable, PlatformContracts.IPushToTa
         // For logical modifiers backed by multiple physical keys (e.g. "ctrl" = LCtrl + RCtrl),
         // only transition when the shortcut is no longer satisfied (both keys released).
         // This matches macOS which checks the logical modifier flag, not individual key-ups.
-        if (IsShortcutSatisfied() && _state != MonitorState.UnlatchPending) return;
+        // The unlock sequence is the exception: it counts releases, so it must see each one.
+        if (IsShortcutSatisfied() && _machine.State != PortablePttState.UnlatchPending) return;
 
-        switch (_state)
+        Dispatch(PortablePttEvent.KeyUp);
+    }
+
+    /// <summary>
+    /// Step the shared machine and apply what it asks for.
+    ///
+    /// Every caller is already on the UI thread — WH_KEYBOARD_LL delivers to the
+    /// thread that installed the hook, and DispatcherTimer ticks there too — so
+    /// this needs no lock, exactly as the hand-written machine did not.
+    /// </summary>
+    /// <param name="fired">
+    /// The timer whose tick is driving this event, if any. Its slot is cleared
+    /// before the step runs so a cancel in the same step cannot stop a timer the
+    /// step itself re-armed.
+    /// </param>
+    private void Dispatch(PortablePttEvent @event, PortablePttTimer? fired = null)
+    {
+        if (fired is { } spent)
         {
-            case MonitorState.Idle:
+            _timers[(int)spent]?.Stop();
+            _timers[(int)spent] = null;
+        }
+
+        // The core's debounce asks whether the key is genuinely up. GetKeyboardState
+        // is one event behind inside the hook callback, so only a timer tick — after
+        // the hook has returned — can answer honestly.
+        var keyPhysicallyHeld =
+            @event == PortablePttEvent.KeyUpDebounceTimeout && IsPhysicallyHeld();
+
+        var result = PortablePushToTalkCore.Step(_machine, @event, NowMs, _pttConfig, keyPhysicallyHeld);
+        _machine = result.State;
+
+        foreach (var command in result.Timers)
+        {
+            ApplyTimer(command);
+        }
+
+        if (result.Transition.Reason != PortablePttReason.Ignored)
+        {
+            var elapsed = result.Transition.ElapsedMs is { } ms ? $" after {ms}ms" : string.Empty;
+            LoggingService.Debug(
+                $"PushToTalkMonitor: {result.Transition.From} -> {result.Transition.To} ({result.Transition.Reason}{elapsed})");
+        }
+
+        switch (result.Signal)
+        {
+            case PortablePttSignal.StartRecording:
+                RaiseSafe(Pressed);
                 break;
-
-            case MonitorState.WaitingForActivation:
-                // Released before 250ms timer fired.
-                // Wireless keyboards can fire a spurious WM_KEYUP mid-hold that would
-                // reset the activation timer. Debounce here too: schedule a check and
-                // only exit WaitingForActivation if the key is confirmed physically up.
-                CancelActivationTimer();
-                StartKeyUpDebounce();
+            case PortablePttSignal.StopRecording:
+                RaiseSafe(Released);
                 break;
-
-            case MonitorState.PttActive:
-                if (_enteredViaHold)
-                {
-                    // Normal hold-to-record: debounce the release to guard against wireless
-                    // keyboard RF bounce firing a spurious WM_KEYUP mid-hold.
-                    // If no WM_KEYDOWN arrives within KeyUpDebounceMs, treat as real release.
-                    StartKeyUpDebounce();
-                }
-                else
-                {
-                    // Quick-tap path: check if this is a double-tap (second tap within interval)
-                    var timeSinceFirstTap = (DateTime.UtcNow - _firstTapTimeUtc).TotalMilliseconds;
-                    if (_settings.DoublePressLock && timeSinceFirstTap <= DoublePressIntervalMs)
-                    {
-                        // Second tap → lock recording (hands-free mode)
-                        CancelLatchTimer();
-                        _state = MonitorState.LatchActive;
-                        _lastLatchActiveTimeUtc = DateTime.UtcNow;
-                        LoggingService.Debug("PushToTalkMonitor: Double-tap lock confirmed");
-                    }
-                    else
-                    {
-                        // Single tap timeout or too slow → stop recording
-                        CancelLatchTimer();
-                        _state = MonitorState.Idle;
-                        RaiseSafe(Released);
-                    }
-                }
-                break;
-
-            case MonitorState.LatchActive:
-                // In locked mode, release doesn't stop — user must double-tap to unlock
-                break;
-
-            case MonitorState.UnlatchPending:
-                if (_firstTapTimeUtc == DateTime.MinValue)
-                {
-                    // First keyUp of unlock sequence — record time and wait for second tap
-                    _firstTapTimeUtc = DateTime.UtcNow;
-                    StartLatchTimer();
-                    LoggingService.Debug("PushToTalkMonitor: Unlock first tap, waiting for second");
-                }
-                else
-                {
-                    // Second keyUp — check timing
-                    var elapsed = (DateTime.UtcNow - _firstTapTimeUtc).TotalMilliseconds;
-                    CancelLatchTimer();
-
-                    if (elapsed <= DoublePressIntervalMs)
-                    {
-                        // Unlock confirmed → stop recording
-                        _state = MonitorState.Idle;
-                        RaiseSafe(Released);
-                        LoggingService.Debug("PushToTalkMonitor: Double-tap unlock confirmed");
-                    }
-                    else
-                    {
-                        // Too slow — go back to locked
-                        _state = MonitorState.LatchActive;
-                        LoggingService.Debug($"PushToTalkMonitor: Unlock too slow ({elapsed:F0}ms), back to locked");
-                    }
-                }
+            case PortablePttSignal.Interfered:
+                RaiseSafe(Interfered);
                 break;
         }
     }
+
+    private void ApplyTimer(PortablePttTimerCommand command)
+    {
+        var slot = (int)command.Timer;
+        _timers[slot]?.Stop();
+        _timers[slot] = null;
+
+        if (!command.Start) return;
+
+        var timer = new System.Windows.Threading.DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(command.DelayMs)
+        };
+        var kind = command.Timer;
+        timer.Tick += (s, args) =>
+        {
+            TracePttEvent($"{kind}Timer", null);
+            Dispatch(TimeoutFor(kind), kind);
+        };
+        _timers[slot] = timer;
+        timer.Start();
+    }
+
+    private static PortablePttEvent TimeoutFor(PortablePttTimer timer) => timer switch
+    {
+        PortablePttTimer.Activation => PortablePttEvent.ActivationTimeout,
+        PortablePttTimer.Latch => PortablePttEvent.LatchTimeout,
+        _ => PortablePttEvent.KeyUpDebounceTimeout
+    };
 
     private bool IsShortcutSatisfied()
     {
@@ -592,129 +559,6 @@ public sealed class PushToTalkMonitor : IDisposable, PlatformContracts.IPushToTa
     // INTERFERENCE & TIMERS
     // =========================================================================
 
-    private void HandleInterference()
-    {
-        TracePttEvent("interference", null);
-        CancelActivationTimer();
-        CancelLatchTimer();
-        CancelKeyUpDebounce();
-        _state = MonitorState.Idle;
-        LoggingService.Debug("PushToTalkMonitor: Interference detected, cancelling PTT");
-        RaiseSafe(Interfered);
-    }
-
-    private void StartActivationTimer()
-    {
-        CancelActivationTimer();
-        _activationTimer = new System.Windows.Threading.DispatcherTimer
-        {
-            Interval = TimeSpan.FromMilliseconds(ActivationDelayMs)
-        };
-        _activationTimer.Tick += (s, args) =>
-        {
-            TracePttEvent("activationTimer", null);
-            CancelActivationTimer();
-            if (_state == MonitorState.WaitingForActivation && IsShortcutSatisfied())
-            {
-                // User held the key past 250ms → start PTT recording.
-                // Mark as hold-activated so key-up stops recording instead of entering latch.
-                _state = MonitorState.PttActive;
-                _enteredViaHold = true;
-                _firstTapTimeUtc = DateTime.UtcNow;
-                RaiseSafe(Pressed);
-            }
-        };
-        _activationTimer.Start();
-    }
-
-    private void CancelActivationTimer()
-    {
-        _activationTimer?.Stop();
-        _activationTimer = null;
-    }
-
-    private void StartLatchTimer()
-    {
-        CancelLatchTimer();
-        _latchTimer = new System.Windows.Threading.DispatcherTimer
-        {
-            Interval = TimeSpan.FromMilliseconds(DoublePressIntervalMs)
-        };
-        _latchTimer.Tick += (s, args) =>
-        {
-            TracePttEvent("latchTimer", null);
-            CancelLatchTimer();
-            HandleLatchTimeout();
-        };
-        _latchTimer.Start();
-    }
-
-    private void CancelLatchTimer()
-    {
-        _latchTimer?.Stop();
-        _latchTimer = null;
-    }
-
-    private void StartKeyUpDebounce()
-    {
-        CancelKeyUpDebounce();
-        _keyUpDebounceTimer = new System.Windows.Threading.DispatcherTimer
-        {
-            Interval = TimeSpan.FromMilliseconds(KeyUpDebounceMs)
-        };
-        _keyUpDebounceTimer.Tick += (s, e) =>
-        {
-            TracePttEvent("keyUpDebounceTimer", null);
-            CancelKeyUpDebounce();
-
-            // Cross-check actual physical key state now that the hook has returned
-            // and GetAsyncKeyState reflects real hardware state.
-            // If the key is still physically held, the WM_KEYUP was spurious (RF bounce).
-            if (IsPhysicallyHeld())
-            {
-                LoggingService.Debug("PushToTalkMonitor: Spurious key-up confirmed via GetAsyncKeyState — resuming hold");
-                if (_state == MonitorState.WaitingForActivation)
-                {
-                    // Resume the activation timer from the start
-                    StartActivationTimer();
-                }
-                // PttActive: state and recording are unchanged — just stay in PttActive
-                return;
-            }
-
-            // Key is genuinely up — commit the release
-            if (_state == MonitorState.PttActive && _enteredViaHold)
-            {
-                _state = MonitorState.Idle;
-                RaiseSafe(Released);
-                LoggingService.Debug("PushToTalkMonitor: Key-up confirmed (hold release), stopping recording");
-            }
-            else if (_state == MonitorState.WaitingForActivation)
-            {
-                // Real quick tap while waiting — apply normal quick-tap logic
-                if (_settings.DoublePressLock)
-                {
-                    _state = MonitorState.PttActive;
-                    _enteredViaHold = false;
-                    _firstTapTimeUtc = DateTime.UtcNow;
-                    RaiseSafe(Pressed);
-                    StartLatchTimer();
-                }
-                else
-                {
-                    _state = MonitorState.Idle;
-                }
-            }
-        };
-        _keyUpDebounceTimer.Start();
-    }
-
-    private void CancelKeyUpDebounce()
-    {
-        _keyUpDebounceTimer?.Stop();
-        _keyUpDebounceTimer = null;
-    }
-
     /// <summary>
     /// Returns true if the PTT key (or any key satisfying the shortcut) is physically held
     /// according to GetAsyncKeyState. Only reliable when called from the UI thread AFTER
@@ -778,46 +622,21 @@ public sealed class PushToTalkMonitor : IDisposable, PlatformContracts.IPushToTa
         return false;
     }
 
-    /// <summary>
-    /// Latch timer expired — no second tap detected.
-    /// In PttActive: stop recording (user did first tap but not second).
-    /// In UnlatchPending: go back to locked (user didn't complete unlock).
-    /// </summary>
-    private void HandleLatchTimeout()
-    {
-        TracePttEvent("latchTimeout", null);
-
-        if (_state == MonitorState.PttActive)
-        {
-            _state = MonitorState.Idle;
-            RaiseSafe(Released);
-            LoggingService.Debug("PushToTalkMonitor: Latch timeout, stopping recording");
-        }
-        else if (_state == MonitorState.UnlatchPending)
-        {
-            _state = MonitorState.LatchActive;
-            LoggingService.Debug("PushToTalkMonitor: Unlock timeout, back to locked");
-        }
-    }
-
     private void TracePttEvent(string eventName, int? vkCode)
     {
         var isPrimary = vkCode.HasValue && IsPrimaryKey(vkCode.Value);
-        if (_state == MonitorState.Idle && !isPrimary && (eventName == "keyDown" || eventName == "keyUp"))
+        if (_machine.State == PortablePttState.Idle && !isPrimary && (eventName == "keyDown" || eventName == "keyUp"))
         {
             return;
         }
 
-        string sinceFirstTap = _firstTapTimeUtc == default
-            ? "none"
-            : $"{(DateTime.UtcNow - _firstTapTimeUtc).TotalMilliseconds:F0}ms";
-        string sinceLock = _lastLatchActiveTimeUtc == default
-            ? "none"
-            : $"{(DateTime.UtcNow - _lastLatchActiveTimeUtc).TotalMilliseconds:F0}ms";
+        var now = NowMs;
+        string sinceFirstTap = _machine.FirstTapMs is { } firstTap ? $"{now - firstTap}ms" : "none";
+        string sinceLock = _machine.LastLockMs is { } lastLock ? $"{now - lastLock}ms" : "none";
         var keyPart = vkCode.HasValue ? $" vk={vkCode.Value}" : "";
 
         LoggingService.Debug(
-            $"PushToTalkMonitor: trace {eventName}{keyPart} state={_state} enteredViaHold={_enteredViaHold} shortcutSatisfied={IsShortcutSatisfied()} sinceFirstTap={sinceFirstTap} sinceLock={sinceLock}");
+            $"PushToTalkMonitor: trace {eventName}{keyPart} state={_machine.State} enteredViaHold={_machine.EnteredViaHold} shortcutSatisfied={IsShortcutSatisfied()} sinceFirstTap={sinceFirstTap} sinceLock={sinceLock}");
     }
 
     private void RaiseSafe(EventHandler? evt)

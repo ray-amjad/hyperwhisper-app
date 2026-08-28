@@ -113,8 +113,13 @@ public sealed class ModeAwareTranscriptionRouter : IRecordedAudioTranscriber, ID
                 provider == CloudTranscriptionProvider.Gemini ? Normalize(mode.GeminiCustomPrompt) : null);
 
         var tier = SharedCoreBridge.CanonicalCloudSttTier(mode.CloudAccuracyTier);
+        // Dictation is the PRE-RECORDED route, so a live-only model id falls back
+        // to the tier default instead of being forwarded. There is no picker
+        // filtering it out on Linux — the model box is a bare text field — so a
+        // mode carrying `gemini-3.5-transcribe-live` would otherwise POST it and
+        // take an HTTP 400 on every dictation.
         var routedModel = !string.IsNullOrWhiteSpace(mode.CloudTranscriptionModel)
-            && SharedCoreBridge.CloudSttContainsModel(tier, mode.CloudTranscriptionModel)
+            && SharedCoreBridge.CloudSttContainsDictationModel(tier, mode.CloudTranscriptionModel)
                 ? mode.CloudTranscriptionModel
                 : SharedCoreBridge.CloudSttDefaultModel(tier);
         return new(
@@ -141,6 +146,7 @@ public sealed class ModeAwareTranscriptionRouter : IRecordedAudioTranscriber, ID
             "assemblyai" => CloudTranscriptionProvider.AssemblyAi,
             "soniox" => CloudTranscriptionProvider.Soniox,
             "gemini" => CloudTranscriptionProvider.Gemini,
+            "geminitranscribe" or "gemini-transcribe" => CloudTranscriptionProvider.GeminiTranscribe,
             "microsoftazurespeech" or "azure-mai" => CloudTranscriptionProvider.AzureMai,
             "googlespeech" or "google-chirp" => CloudTranscriptionProvider.GoogleChirp,
             "hyperwhisper" => CloudTranscriptionProvider.HyperWhisperCloud,
@@ -148,7 +154,8 @@ public sealed class ModeAwareTranscriptionRouter : IRecordedAudioTranscriber, ID
         };
         return value?.Trim().ToLowerInvariant() is
             "openai" or "groq" or "elevenlabs" or "mistral" or "grok" or "deepgram"
-            or "assemblyai" or "soniox" or "gemini" or "microsoftazurespeech"
+            or "assemblyai" or "soniox" or "gemini" or "geminitranscribe"
+            or "gemini-transcribe" or "microsoftazurespeech"
             or "azure-mai" or "googlespeech" or "google-chirp" or "hyperwhisper";
     }
 
@@ -168,8 +175,15 @@ public sealed class ModeAwareTranscriptionRouter : IRecordedAudioTranscriber, ID
     private static string? NormalizeDomain(string? value) =>
         string.Equals(value?.Trim(), "medical", StringComparison.OrdinalIgnoreCase) ? "medical" : null;
 
-    private static string DefaultModel(CloudTranscriptionProvider provider) =>
-        SharedCoreBridge.CloudSttDefaultModel(CatalogTier(provider)) ?? string.Empty;
+    private static string DefaultModel(CloudTranscriptionProvider provider) => provider switch
+    {
+        // Chirp 3 lost its catalog entry in v8 (geminiTranscribe took Google's
+        // tier slot) but the standalone BYOK provider stays, so its default has
+        // to be pinned here — a catalog lookup on the dead id returns null and
+        // we would post a request with an empty model.
+        CloudTranscriptionProvider.GoogleChirp => "chirp_3",
+        _ => SharedCoreBridge.CloudSttDefaultModel(CatalogTier(provider)) ?? string.Empty,
+    };
 
     private static string CatalogTier(CloudTranscriptionProvider provider) => provider switch
     {
@@ -183,7 +197,9 @@ public sealed class ModeAwareTranscriptionRouter : IRecordedAudioTranscriber, ID
         CloudTranscriptionProvider.Soniox => "soniox",
         CloudTranscriptionProvider.Gemini => "gemini",
         CloudTranscriptionProvider.AzureMai => "azureMaiTranscribe",
-        CloudTranscriptionProvider.GoogleChirp => "googleChirp3",
+        CloudTranscriptionProvider.GeminiTranscribe => "geminiTranscribe",
+        // GoogleChirp is deliberately absent: catalog v8 retired `googleChirp3`,
+        // so it has no entry to look up. `DefaultModel` pins its model directly.
         CloudTranscriptionProvider.HyperWhisperCloud => "deepgramNova3",
         _ => "deepgramNova3",
     };

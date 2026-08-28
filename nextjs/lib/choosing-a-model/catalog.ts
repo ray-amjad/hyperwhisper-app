@@ -211,10 +211,19 @@ export type DeviceModel = {
 export type Model = CloudModel | DeviceModel;
 
 /**
- * Mirrored from `cloud-stt-catalog.json` v7 (2026-08-13), plus one row that is
- * ahead of it — see the comment on the last entry. Benchmark columns from the
- * Artificial Analysis leaderboard, pulled 2026-08-19, and 2026-08-27 for that
- * last row.
+ * Mirrored from `cloud-stt-catalog.json` v8 (2026-08-27). Benchmark columns
+ * from the Artificial Analysis non-streaming leaderboard, pulled 2026-08-19,
+ * and 2026-08-28 for the `gemini-3.5-transcribe` row — a model that leaderboard
+ * has not measured carries `wer: null` / `speedFactor: null` rather than a
+ * guess.
+ *
+ * One leaderboard, deliberately. The page links
+ * `artificialanalysis.ai/speech-to-text/non-streaming` beside this column, so
+ * every number in it is read from that board and from no other. Artificial
+ * Analysis also publishes a streaming board, scored on its own audio; a figure
+ * lifted from there would be ranked against these as though the two were one
+ * measurement. `gemini-3.5-transcribe-live` is not on the non-streaming board,
+ * so it keeps a null `wer` — see the note on its row.
  */
 const CLOUD_MODELS_RAW = [
   { id: "groqWhisper:whisper-large-v3-turbo", name: "Whisper Large v3 Turbo", vendorLabel: "Groq Whisper", vendor: "Groq", sttProvider: "groq", modelId: "whisper-large-v3-turbo", credits: 0.667, wer: 4.6, speedFactor: 122.2, languages: 100, streaming: false, customVocabulary: true, preview: false, isDefault: true, byok: true },
@@ -225,7 +234,20 @@ const CLOUD_MODELS_RAW = [
   { id: "deepgramNova3:nova-2-medical", name: "Nova 2 Medical", vendorLabel: "Deepgram Nova 3", vendor: "Deepgram", sttProvider: "deepgram", modelId: "nova-2-medical", credits: 5.5, wer: null, speedFactor: null, languages: 64, streaming: true, customVocabulary: true, preview: false, isDefault: false, byok: true },
   { id: "grokStt:", name: "Grok Speech-to-Text", vendorLabel: "Grok STT", vendor: "xAI", sttProvider: "grok", modelId: "", credits: 1.67, wer: 4.0, speedFactor: 230.1, languages: 25, streaming: true, customVocabulary: true, preview: false, isDefault: true, byok: true },
   { id: "azureMaiTranscribe:mai-transcribe-1.5", name: "MAI-Transcribe 1.5", vendorLabel: "Microsoft MAI-Transcribe 1.5", vendor: "Microsoft", sttProvider: "azure-mai", modelId: "mai-transcribe-1.5", credits: 6.0, wer: 2.4, speedFactor: 183.3, languages: 42, streaming: false, customVocabulary: true, preview: false, isDefault: true, byok: false },
-  { id: "googleChirp3:chirp_3", name: "Chirp 3", vendorLabel: "Google Chirp 3", vendor: "Google", sttProvider: "google-chirp", modelId: "chirp_3", credits: 16.0, wer: 4.3, speedFactor: null, languages: 111, streaming: true, customVocabulary: true, preview: false, isDefault: true, byok: false },
+  // Read from the non-streaming leaderboard on 2026-08-28, where this model is
+  // 5th of the 9 ranked entries at 2.6% and 82.5x. Both figures move as
+  // Artificial Analysis re-runs the board, so they are a pull date and not a
+  // constant — the rest of this column was pulled 2026-08-19 and has drifted
+  // since (Scribe v2 reads 53.9x today against the 57.0 below). Re-syncing the
+  // whole column is its own change; this row is the one the ranking was missing.
+  { id: "geminiTranscribe:gemini-3.5-transcribe", name: "Gemini 3.5 Transcribe", vendorLabel: "Google Gemini 3.5 Transcribe", vendor: "Google", sttProvider: "gemini-transcribe", modelId: "gemini-3.5-transcribe", credits: 5.5, wer: 2.6, speedFactor: 82.5, languages: null, streaming: true, customVocabulary: true, preview: true, isDefault: true, byok: true },
+  // Not on the non-streaming leaderboard, so both columns stay null and
+  // `rankModels` scores it a neutral 0.5 on accuracy and latency rather than a
+  // guess. The row above is NOT a stand-in for it: they are different models on
+  // different APIs (Interactions vs the live WebSocket), and the live one bills
+  // 9.6 credits a minute against 5.5. Fill these two fields only from the board
+  // this column already reads — see the note above CLOUD_MODELS_RAW.
+  { id: "geminiTranscribe:gemini-3.5-transcribe-live", name: "Gemini 3.5 Transcribe Live", vendorLabel: "Google Gemini 3.5 Transcribe", vendor: "Google", sttProvider: "gemini-transcribe", modelId: "gemini-3.5-transcribe-live", credits: 9.6, wer: null, speedFactor: null, languages: null, streaming: true, customVocabulary: true, preview: true, isDefault: false, byok: true },
   { id: "elevenLabsScribeV2:scribe_v2", name: "Scribe v2", vendorLabel: "ElevenLabs Scribe v2", vendor: "ElevenLabs", sttProvider: "elevenlabs", modelId: "scribe_v2", credits: 9.83, wer: 2.2, speedFactor: 57.0, languages: 99, streaming: false, customVocabulary: true, preview: false, isDefault: true, byok: true },
   { id: "openaiWhisper:gpt-4o-transcribe", name: "GPT-4o Transcribe", vendorLabel: "OpenAI Whisper", vendor: "OpenAI", sttProvider: "openai", modelId: "gpt-4o-transcribe", credits: 6.0, wer: 4.0, speedFactor: 38.1, languages: 100, streaming: false, customVocabulary: true, preview: false, isDefault: true, byok: true },
   { id: "openaiWhisper:gpt-4o-mini-transcribe", name: "GPT-4o Mini Transcribe", vendorLabel: "OpenAI Whisper", vendor: "OpenAI", sttProvider: "openai", modelId: "gpt-4o-mini-transcribe", credits: 3.0, wer: 4.5, speedFactor: 43.5, languages: 100, streaming: false, customVocabulary: true, preview: false, isDefault: false, byok: true },
@@ -241,65 +263,6 @@ const CLOUD_MODELS_RAW = [
   { id: "gemini:gemini-2.5-pro", name: "Gemini 2.5 Pro", vendorLabel: "Google Gemini", vendor: "Google", sttProvider: "gemini", modelId: "gemini-2.5-pro", credits: 7.5, wer: 2.9, speedFactor: 13.3, languages: null, streaming: false, customVocabulary: true, preview: false, isDefault: false, byok: true },
   { id: "gemini:gemini-3-flash-preview", name: "Gemini 3 Flash", vendorLabel: "Google Gemini", vendor: "Google", sttProvider: "gemini", modelId: "gemini-3-flash-preview", credits: 3.0, wer: 2.9, speedFactor: 16.1, languages: null, streaming: false, customVocabulary: true, preview: true, isDefault: false, byok: true },
   { id: "gemini:gemini-3.1-pro-preview", name: "Gemini 3.1 Pro", vendorLabel: "Google Gemini", vendor: "Google", sttProvider: "gemini", modelId: "gemini-3.1-pro-preview", credits: 10.0, wer: 2.8, speedFactor: 7.0, languages: null, streaming: false, customVocabulary: true, preview: true, isDefault: false, byok: true },
-  /**
-   * **Ahead of the catalog, on purpose.** `cloud-stt-catalog.json` v7 does not
-   * have this model, so every field below is a prediction, not a mirror, and
-   * this row is waived out of the cloud drift tests by `PENDING_CATALOG_IDS` in
-   * `tests/choosing-a-model-catalog.test.ts`. Those tests compare `name`,
-   * `credits`, `preview`, `customVocabulary` and `isDefault` against the
-   * catalog's model object, and `vendorLabel`, `sttProvider`, `modelId`,
-   * `streaming`, `byok` and `languages` against its provider. `vendor`, `wer`
-   * and `speedFactor` are in neither compared shape — no test guards them, so
-   * re-check those by hand against the Artificial Analysis leaderboard, which
-   * the reconciliation below will not do for you. The waiver removes itself:
-   * the moment the catalog gains the model, a test there fails and says to
-   * delete the waiver and reconcile the compared fields against what it says. It
-   * stays last in the array because the catalog appends to the gemini provider,
-   * and the drift test compares ORDERED arrays.
-   *
-   * **Until that PR lands, this row describes a model no app can select.** The
-   * mirror has no availability field, and `preview: false` cannot stand in for
-   * one — `preview` IS one of the compared fields, so inventing a value would
-   * only move the failure to rebase time. In that window the page's own copy is
-   * false for this row: the models "HyperWhisper ships", "the price here is the
-   * price the app charges you", and "every model listed is switchable in
-   * Settings → Transcription". The "No preview models" chip is the sharpest
-   * form — it keeps this row and drops the two shipping Gemini previews. This is
-   * exactly why this PR must not merge first.
-   *
-   * **Where 5.1 credits comes from.** This model bills audio at 25 tokens per
-   * second: 1,500 audio tok/min at $2.00/1M is $0.0030, plus 175 text-output
-   * tok/min at $12.00/1M is $0.0021 — $0.0051 a minute, which is 5.1 credits.
-   * Artificial Analysis quotes the same figure rounded, as "approximately $5
-   * per 1,000 minutes". Those per-1M rates are the vendor's, and are the same
-   * numbers `gemini-3.1-pro-preview` already carries in `GEMINI_RATES`
-   * (`hyperwhisper-cloud/src/lib/cost-calculator.ts`), so the figure is a rate
-   * card applied to this model and not a typo. Note that 25 tok/s is not the 32
-   * tok/s that file assumes for Gemini audio, but that constant
-   * (`GEMINI_AUDIO_TOKENS_PER_MINUTE`) only feeds the fail-closed fallback for a
-   * response that carried no `usageMetadata`, never the priced path. The real
-   * gap is the rate card: `GEMINI_RATES` has no `gemini-3.5-transcribe` key, so
-   * until the catalog PR adds one the service prices this model at
-   * `gemini-2.5-flash`'s rates — roughly 1.94 credits a minute of recorded cost
-   * against the 5.1 this page prints.
-   *
-   * **`customVocabulary: true` claims something stronger here** than on the
-   * rows above it. The 2.5 and 3.x rows carry the same boolean for the
-   * system-prompt workaround the catalog's `customVocabulary.caveats` describes
-   * — an instruction glued onto the prompt, with no vocabulary field on the
-   * request. This model takes a real structured phrase list, in
-   * `generation_config.transcription_config.custom_vocabulary[]`. One boolean
-   * cannot express the difference, so this comment is the only place it exists.
-   *
-   * **`languages: null`, despite Google advertising 85+.** The catalog
-   * publishes a language count per PROVIDER, not per model, and the gemini
-   * provider's is the literal `"count": "unverified"` — which is why all five
-   * sibling rows are null too. A model-level count is not something this mirror
-   * can invent, and the page does not publish a breadth claim the catalog
-   * declines to make. `scopeForCount(null)` is `unknown`, and the
-   * `LanguageScope` doc comment above says why `unknown` is not read as `wide`.
-   */
-  { id: "gemini:gemini-3.5-transcribe", name: "Gemini 3.5 Transcribe", vendorLabel: "Google Gemini", vendor: "Google", sttProvider: "gemini", modelId: "gemini-3.5-transcribe", credits: 5.1, wer: 2.6, speedFactor: 84, languages: null, streaming: false, customVocabulary: true, preview: false, isDefault: false, byok: true },
 ] as const;
 
 export const CLOUD_MODELS: readonly CloudModel[] = CLOUD_MODELS_RAW.map(

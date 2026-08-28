@@ -37,6 +37,10 @@ assert_file "$ROOTFS/usr/lib/hyperwhisper/HyperWhisper"
 assert_file "$ROOTFS/usr/lib/hyperwhisper/libhyperwhisper_core.so"
 assert_file "$ROOTFS/usr/lib/hyperwhisper/parakeet-engine/parakeet-engine"
 assert_file "$ROOTFS/usr/lib/hyperwhisper/parakeet-engine/libsherpa-onnx-c-api.so"
+# The daemon takes its CJK segment-join policy from the shared Rust core (issue
+# #286) and runs as its own process, so the loader searches ITS directory rather
+# than the app root — it needs its own copy of the core.
+assert_file "$ROOTFS/usr/lib/hyperwhisper/parakeet-engine/libhyperwhisper_core.so"
 assert_file "$ROOTFS/usr/share/applications/hyperwhisper.desktop"
 assert_file "$ROOTFS/usr/share/pixmaps/hyperwhisper.png"
 assert_file "$ROOTFS/usr/share/hyperwhisper/packaging/70-hyperwhisper-input.rules"

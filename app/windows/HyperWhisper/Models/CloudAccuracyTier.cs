@@ -21,8 +21,17 @@ public enum CloudAccuracyTier
     /// <summary>Microsoft MAI-Transcribe 1.5 — High tier (HW Cloud only)</summary>
     AzureMaiTranscribe,
 
-    /// <summary>Google Chirp 3 — High tier (HW Cloud only; vocabulary sent as a phrase list)</summary>
-    GoogleChirp3,
+    /// <summary>
+    /// Gemini 3.5 Transcribe — High tier (vocabulary sent as the structured
+    /// <c>custom_vocabulary</c> field). Catalog v8 replaced <c>googleChirp3</c>
+    /// with this entry as Google's cloud tier.
+    ///
+    /// Do NOT re-add a <c>GoogleChirp3</c> member: <see cref="CloudAccuracyTierExtensions.FromString"/>
+    /// runs its canonical loop before consulting the catalog's <c>migrateFrom</c>
+    /// aliases, so the member would win and strand the user on a tier that has
+    /// no catalog entry (no credits, no models, no vocabulary flag).
+    /// </summary>
+    GeminiTranscribe,
 
     /// <summary>ElevenLabs Scribe v2 — Highest tier</summary>
     ElevenLabsScribeV2,
@@ -68,7 +77,7 @@ public static class CloudAccuracyTierExtensions
             CloudAccuracyTier.ElevenLabsScribeV2 => "elevenlabs",
             CloudAccuracyTier.GrokStt => "grok",
             CloudAccuracyTier.AzureMaiTranscribe => "azure-mai",
-            CloudAccuracyTier.GoogleChirp3 => "google-chirp",
+            CloudAccuracyTier.GeminiTranscribe => "gemini-transcribe",
             CloudAccuracyTier.OpenaiWhisper => "openai",
             CloudAccuracyTier.Gemini => "gemini",
             CloudAccuracyTier.MistralVoxtral => "mistral",
@@ -89,7 +98,7 @@ public static class CloudAccuracyTierExtensions
         CloudAccuracyTier.ElevenLabsScribeV2 => "elevenLabsScribeV2",
         CloudAccuracyTier.GrokStt => "grokStt",
         CloudAccuracyTier.AzureMaiTranscribe => "azureMaiTranscribe",
-        CloudAccuracyTier.GoogleChirp3 => "googleChirp3",
+        CloudAccuracyTier.GeminiTranscribe => "geminiTranscribe",
         CloudAccuracyTier.OpenaiWhisper => "openaiWhisper",
         CloudAccuracyTier.Gemini => "gemini",
         CloudAccuracyTier.MistralVoxtral => "mistralVoxtral",
