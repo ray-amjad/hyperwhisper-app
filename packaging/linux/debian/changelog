@@ -1,3 +1,14 @@
+hyperwhisper (1.1.0) stable; urgency=medium
+
+  * Add Gemini 3.5 Transcribe for recordings and live dictation, with
+    bring-your-own-key and a HyperWhisper Cloud live tier picker.
+  * Retire the Chirp 3 cloud tier; existing Modes move across on their own.
+  * Add Gemma 4 12B to the local language model catalog.
+  * Remove a license key offline, without a server round-trip.
+  * Fix live billing, backup restore, and live-only Mode handling.
+
+ -- HyperWhisper Contributors <opensource@hyperwhisper.com>  Fri, 28 Aug 2026 00:00:00 +0000
+
 hyperwhisper (1.0.0) stable; urgency=medium
 
   * Initial amd64 Linux package.
