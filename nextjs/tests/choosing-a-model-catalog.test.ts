@@ -27,6 +27,8 @@ type CatalogFile = {
       isDefault?: boolean;
       previewStatus?: boolean;
       supportsCustomVocabulary?: boolean;
+      /** "HyperWhisper Cloud routes this model live" — see LIVE_STREAMING_ROW_IDS. */
+      streaming?: boolean;
     }[];
   }[];
 };
@@ -356,6 +358,48 @@ function shownSize(
     : model.size;
 }
 
+/**
+ * The rows HyperWhisper can transcribe LIVE, and the route that proves each one.
+ *
+ * Held here rather than derived from the catalog, because the catalog cannot
+ * answer this question. Its `features.streaming` is a vendor-level hint —
+ * `CloudSTTCatalog.swift` calls it "true for six vendors we serve no WebSocket
+ * route for" — and deriving the column from it published a live claim for
+ * AssemblyAI, Mistral and Soniox, and for the pre-recorded
+ * `gemini-3.5-transcribe`.
+ *
+ * Its per-model `streaming` flag cannot answer it either, and means something
+ * narrower than it reads: "HyperWhisper Cloud routes this model live". The two
+ * Nova 3 rows carry it while the Nova 2 rows do not, though all four stream
+ * under BYOK. The assertion below holds this list to that flag in the one
+ * direction that is true — a model the Cloud routes live must be a row this
+ * page calls live — so a new live model landing in the catalog fails here.
+ *
+ * A hand-kept list is the cost of a fact that lives in Swift, C# and Rust
+ * sources a test cannot usefully parse. Keep the citation on every entry: it is
+ * what makes the next edit checkable.
+ */
+const LIVE_STREAMING_ROW_IDS = new Set([
+  // hw-net `live/deepgram.rs` + `DeepgramStreamingStrategy` send the mode's own
+  // model id, and `ws-streaming-deepgram.ts` proxies it, so every Deepgram row
+  // streams — Nova 2 included, which no catalog flag says.
+  "deepgramNova3:nova-3-general",
+  "deepgramNova3:nova-3-medical",
+  "deepgramNova3:nova-2-general",
+  "deepgramNova3:nova-2-medical",
+  // `XAIStreamingStrategy` builds a wss://api.x.ai URL with no model parameter,
+  // which is also why this row's model id is the empty string.
+  "grokStt:",
+  // `GeminiStreamingStrategy.liveModel` and hw-net `live/gemini_transcribe.rs`
+  // hard-code this id, and `ws-streaming-gemini-transcribe.ts` proxies it. The
+  // pre-recorded row is deliberately absent: it is the Interactions API model.
+  "geminiTranscribe:gemini-3.5-transcribe-live",
+  // No OpenAI or ElevenLabs row: those routes run `gpt-realtime-whisper` and
+  // `scribe_v2_realtime`, ids this page does not list. `gpt-live-transcribe` is
+  // `IsAvailable = false` in `CloudTranscriptionModel.cs` and runs on neither
+  // the batch nor the live path.
+]);
+
 test("the page's cloud mirror matches the catalog the apps read", async () => {
   const { CLOUD_MODELS } = await loadCatalog();
   const catalog = readCatalog();
@@ -368,7 +412,8 @@ test("the page's cloud mirror matches the catalog the apps read", async () => {
       sttProvider: provider.sttProvider,
       modelId: model.id,
       credits: model.creditsPerMinute,
-      streaming: provider.features?.streaming === true,
+      // The one column the catalog does not decide. See LIVE_STREAMING_ROW_IDS.
+      streaming: LIVE_STREAMING_ROW_IDS.has(`${provider.id}:${model.id}`),
       customVocabulary: model.supportsCustomVocabulary === true,
       preview: model.previewStatus === true,
       isDefault: model.isDefault === true,
@@ -395,6 +440,46 @@ test("the page's cloud mirror matches the catalog the apps read", async () => {
     expected,
     "lib/choosing-a-model/catalog.ts has drifted from cloud-stt-catalog.json",
   );
+});
+
+test("every model the Cloud routes live is a row the page calls live", () => {
+  const catalog = readCatalog();
+
+  const cloudLive = catalog.providers.flatMap((provider) =>
+    provider.models
+      .filter((model) => model.streaming === true)
+      .map((model) => `${provider.id}:${model.id}`),
+  );
+
+  // Deliberately one-directional. A row can stream under BYOK without the Cloud
+  // routing it — all four Deepgram rows do, and only two carry the flag — so
+  // the page's list is a superset, never an equality.
+  assert.ok(cloudLive.length > 0, "no catalog model carries `streaming: true`");
+  for (const id of cloudLive) {
+    assert.ok(
+      LIVE_STREAMING_ROW_IDS.has(id),
+      `cloud-stt-catalog.json routes ${id} live, but LIVE_STREAMING_ROW_IDS at the top of this ` +
+        `file does not list it, so /choosing-a-model shows it as not live. Add it there with the ` +
+        `route that runs it, and set \`streaming: true\` on its row in lib/choosing-a-model/catalog.ts.`,
+    );
+  }
+});
+
+test("the page does not claim live for a vendor with no live route", async () => {
+  const { CLOUD_MODELS } = await loadCatalog();
+
+  // The four the vendor hint got wrong, named rather than derived: deriving the
+  // expectation from the same list the mirror uses would assert nothing.
+  const noLiveRoute = ["assemblyai", "mistral", "soniox", "openai"];
+  for (const model of CLOUD_MODELS as { id: string; sttProvider: string; streaming: boolean }[]) {
+    if (!noLiveRoute.includes(model.sttProvider)) continue;
+    assert.equal(
+      model.streaming,
+      false,
+      `${model.id} is marked live, but HyperWhisper implements no live route that runs it. ` +
+        `If one shipped, add the row to LIVE_STREAMING_ROW_IDS and drop its provider from this list.`,
+    );
+  }
 });
 
 test("documented language counts match the catalog", async () => {

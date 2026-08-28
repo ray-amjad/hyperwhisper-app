@@ -148,6 +148,38 @@ export type CloudModel = {
   languages: number | null;
   /** Derived from `languages` by `scopeForCount`. */
   languageScope: LanguageScope;
+  /**
+   * Whether HyperWhisper can transcribe live with THIS model — the "Live
+   * streaming" chip.
+   *
+   * An app fact, not a vendor fact, so it is not mirrored from the catalog's
+   * `features.streaming`. `CloudSTTCatalog.swift` says why that field cannot
+   * answer this question: it is "the entry-level hint, which is true for six
+   * vendors we serve no WebSocket route for". Reading it here published a live
+   * claim for AssemblyAI, Mistral and Soniox, which neither app can stream, and
+   * for `gemini-3.5-transcribe`, the pre-recorded Interactions API model, whose
+   * live sibling is a separate row.
+   *
+   * The rule, applied row by row: true when HyperWhisper implements a live
+   * route for the vendor AND that route runs this model. The routes are
+   * `shared-core-rs/crates/hw-net/src/live/` (Deepgram, ElevenLabs, OpenAI,
+   * xAI, Gemini Transcribe) with the native strategies beside them, plus two
+   * HyperWhisper Cloud proxies, `ws-streaming-deepgram.ts` and
+   * `ws-streaming-gemini-transcribe.ts`. Which model each route runs is what
+   * decides the flag:
+   *
+   * - Deepgram sends the row's own model id, so all four Deepgram rows stream.
+   * - xAI's live endpoint takes no model parameter, so its single row streams.
+   * - Gemini Transcribe hard-codes `gemini-3.5-transcribe-live`, so only that
+   *   row streams and the pre-recorded row does not.
+   * - OpenAI hard-codes `gpt-realtime-whisper` and ElevenLabs
+   *   `scribe_v2_realtime`. Neither id is a row on this page, so no OpenAI or
+   *   ElevenLabs row claims live. `gpt-live-transcribe` in particular is
+   *   `IsAvailable = false` on Windows and runs on neither path.
+   *
+   * The drift test holds this column to the same list, so changing a row here
+   * alone fails it.
+   */
   streaming: boolean;
   customVocabulary: boolean;
   preview: boolean;
@@ -225,7 +257,7 @@ const CLOUD_MODELS_RAW = [
   { id: "deepgramNova3:nova-2-medical", name: "Nova 2 Medical", vendorLabel: "Deepgram Nova 3", vendor: "Deepgram", sttProvider: "deepgram", modelId: "nova-2-medical", credits: 5.5, wer: null, speedFactor: null, languages: 64, streaming: true, customVocabulary: true, preview: false, isDefault: false, byok: true },
   { id: "grokStt:", name: "Grok Speech-to-Text", vendorLabel: "Grok STT", vendor: "xAI", sttProvider: "grok", modelId: "", credits: 1.67, wer: 4.0, speedFactor: 230.1, languages: 25, streaming: true, customVocabulary: true, preview: false, isDefault: true, byok: true },
   { id: "azureMaiTranscribe:mai-transcribe-1.5", name: "MAI-Transcribe 1.5", vendorLabel: "Microsoft MAI-Transcribe 1.5", vendor: "Microsoft", sttProvider: "azure-mai", modelId: "mai-transcribe-1.5", credits: 6.0, wer: 2.4, speedFactor: 183.3, languages: 42, streaming: false, customVocabulary: true, preview: false, isDefault: true, byok: false },
-  { id: "geminiTranscribe:gemini-3.5-transcribe", name: "Gemini 3.5 Transcribe", vendorLabel: "Google Gemini 3.5 Transcribe", vendor: "Google", sttProvider: "gemini-transcribe", modelId: "gemini-3.5-transcribe", credits: 5.5, wer: null, speedFactor: null, languages: null, streaming: true, customVocabulary: true, preview: true, isDefault: true, byok: true },
+  { id: "geminiTranscribe:gemini-3.5-transcribe", name: "Gemini 3.5 Transcribe", vendorLabel: "Google Gemini 3.5 Transcribe", vendor: "Google", sttProvider: "gemini-transcribe", modelId: "gemini-3.5-transcribe", credits: 5.5, wer: null, speedFactor: null, languages: null, streaming: false, customVocabulary: true, preview: true, isDefault: true, byok: true },
   { id: "geminiTranscribe:gemini-3.5-transcribe-live", name: "Gemini 3.5 Transcribe Live", vendorLabel: "Google Gemini 3.5 Transcribe", vendor: "Google", sttProvider: "gemini-transcribe", modelId: "gemini-3.5-transcribe-live", credits: 9.6, wer: null, speedFactor: null, languages: null, streaming: true, customVocabulary: true, preview: true, isDefault: false, byok: true },
   { id: "elevenLabsScribeV2:scribe_v2", name: "Scribe v2", vendorLabel: "ElevenLabs Scribe v2", vendor: "ElevenLabs", sttProvider: "elevenlabs", modelId: "scribe_v2", credits: 9.83, wer: 2.2, speedFactor: 57.0, languages: 99, streaming: false, customVocabulary: true, preview: false, isDefault: true, byok: true },
   { id: "openaiWhisper:gpt-4o-transcribe", name: "GPT-4o Transcribe", vendorLabel: "OpenAI Whisper", vendor: "OpenAI", sttProvider: "openai", modelId: "gpt-4o-transcribe", credits: 6.0, wer: 4.0, speedFactor: 38.1, languages: 100, streaming: false, customVocabulary: true, preview: false, isDefault: true, byok: true },
@@ -233,10 +265,10 @@ const CLOUD_MODELS_RAW = [
   { id: "openaiWhisper:whisper-1", name: "Whisper", vendorLabel: "OpenAI Whisper", vendor: "OpenAI", sttProvider: "openai", modelId: "whisper-1", credits: 6.0, wer: 4.1, speedFactor: 29.1, languages: 100, streaming: false, customVocabulary: true, preview: false, isDefault: false, byok: true },
   { id: "openaiWhisper:gpt-transcribe", name: "GPT Transcribe", vendorLabel: "OpenAI Whisper", vendor: "OpenAI", sttProvider: "openai", modelId: "gpt-transcribe", credits: 4.5, wer: 3.3, speedFactor: 39.9, languages: 100, streaming: false, customVocabulary: true, preview: false, isDefault: false, byok: true },
   { id: "openaiWhisper:gpt-live-transcribe", name: "GPT Live Transcribe", vendorLabel: "OpenAI Whisper", vendor: "OpenAI", sttProvider: "openai", modelId: "gpt-live-transcribe", credits: 17.0, wer: null, speedFactor: null, languages: 100, streaming: false, customVocabulary: true, preview: false, isDefault: false, byok: true },
-  { id: "assemblyAI:universal-3-5-pro", name: "Universal-3.5 Pro", vendorLabel: "AssemblyAI", vendor: "AssemblyAI", sttProvider: "assemblyai", modelId: "universal-3-5-pro", credits: 3.5, wer: 3.0, speedFactor: null, languages: 98, streaming: true, customVocabulary: true, preview: false, isDefault: true, byok: true },
-  { id: "assemblyAI:universal-2", name: "Universal-2", vendorLabel: "AssemblyAI", vendor: "AssemblyAI", sttProvider: "assemblyai", modelId: "universal-2", credits: 2.5, wer: 3.8, speedFactor: 123.1, languages: 98, streaming: true, customVocabulary: true, preview: false, isDefault: false, byok: true },
-  { id: "mistralVoxtral:voxtral-mini-latest", name: "Voxtral Mini", vendorLabel: "Mistral Voxtral", vendor: "Mistral", sttProvider: "mistral", modelId: "voxtral-mini-latest", credits: 3.0, wer: 3.8, speedFactor: 78.1, languages: 13, streaming: true, customVocabulary: true, preview: false, isDefault: true, byok: true },
-  { id: "soniox:stt-async-v5", name: "Async v5", vendorLabel: "Soniox", vendor: "Soniox", sttProvider: "soniox", modelId: "stt-async-v5", credits: 1.67, wer: 3.8, speedFactor: 18.8, languages: 60, streaming: true, customVocabulary: true, preview: false, isDefault: true, byok: true },
+  { id: "assemblyAI:universal-3-5-pro", name: "Universal-3.5 Pro", vendorLabel: "AssemblyAI", vendor: "AssemblyAI", sttProvider: "assemblyai", modelId: "universal-3-5-pro", credits: 3.5, wer: 3.0, speedFactor: null, languages: 98, streaming: false, customVocabulary: true, preview: false, isDefault: true, byok: true },
+  { id: "assemblyAI:universal-2", name: "Universal-2", vendorLabel: "AssemblyAI", vendor: "AssemblyAI", sttProvider: "assemblyai", modelId: "universal-2", credits: 2.5, wer: 3.8, speedFactor: 123.1, languages: 98, streaming: false, customVocabulary: true, preview: false, isDefault: false, byok: true },
+  { id: "mistralVoxtral:voxtral-mini-latest", name: "Voxtral Mini", vendorLabel: "Mistral Voxtral", vendor: "Mistral", sttProvider: "mistral", modelId: "voxtral-mini-latest", credits: 3.0, wer: 3.8, speedFactor: 78.1, languages: 13, streaming: false, customVocabulary: true, preview: false, isDefault: true, byok: true },
+  { id: "soniox:stt-async-v5", name: "Async v5", vendorLabel: "Soniox", vendor: "Soniox", sttProvider: "soniox", modelId: "stt-async-v5", credits: 1.67, wer: 3.8, speedFactor: 18.8, languages: 60, streaming: false, customVocabulary: true, preview: false, isDefault: true, byok: true },
   { id: "gemini:gemini-2.5-flash", name: "Gemini 2.5 Flash", vendorLabel: "Google Gemini", vendor: "Google", sttProvider: "gemini", modelId: "gemini-2.5-flash", credits: 2.4, wer: 5.1, speedFactor: 73.7, languages: null, streaming: false, customVocabulary: true, preview: false, isDefault: true, byok: true },
   { id: "gemini:gemini-2.5-flash-lite", name: "Gemini 2.5 Flash Lite", vendorLabel: "Google Gemini", vendor: "Google", sttProvider: "gemini", modelId: "gemini-2.5-flash-lite", credits: 0.8, wer: 5.2, speedFactor: 70.7, languages: null, streaming: false, customVocabulary: true, preview: false, isDefault: false, byok: true },
   { id: "gemini:gemini-2.5-pro", name: "Gemini 2.5 Pro", vendorLabel: "Google Gemini", vendor: "Google", sttProvider: "gemini", modelId: "gemini-2.5-pro", credits: 7.5, wer: 2.9, speedFactor: 13.3, languages: null, streaming: false, customVocabulary: true, preview: false, isDefault: false, byok: true },
