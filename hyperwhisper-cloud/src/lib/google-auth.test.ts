@@ -40,16 +40,18 @@ afterEach(() => {
 });
 
 describe('createGoogleAuth single-flight minting', () => {
-  // Guard, not a behaviour test. `mock.module` is process-wide in bun, so a
-  // factory in an earlier suite that replaces `lib/google-auth` without
-  // forwarding `createGoogleAuth` leaves this whole file calling `undefined`.
-  // Without this the run fails as "'createGoogleAuth' is undefined" inside the
-  // single-flight test, which reads as a race in the code under test rather
-  // than as a mock leak from another file.
+  // A guard, not a behaviour test, and the reason it exists is worth the lines.
+  // `mock.module` is process-wide in bun: a factory in an earlier suite that
+  // replaces `lib/google-auth` without forwarding every export leaves this
+  // whole file calling `undefined`. `google-chirp.test.ts` did exactly that,
+  // and because `bun test` does not fix the file order, the run was red only
+  // when it happened to load first — google-chirp at position 4, this file at
+  // 33. It read as a race in the single-flight code under test, and the real
+  // message ("'createGoogleAuth' is undefined") pointed nowhere near the file
+  // that caused it. This turns any recurrence into a named test that says so.
   test('the module under test is the real one, not a mock.module replacement', () => {
     expect(typeof createGoogleAuth).toBe('function');
   });
-
 
   test('a cold-cache burst mints exactly one token and shares it', async () => {
     let authorizeCalls = 0;

@@ -232,11 +232,21 @@ class PersistenceController: ObservableObject {
             if let error = error as NSError? {
                 // Log critical error before crashing
                 AppLogger.logCoreData(.storeLoad, error: error)
+                // PRIVACY: `error.userInfo` was stringified straight into a
+                // Sentry extra, and `NSFilePathErrorKey` / the store URL inside
+                // it is `/Users/<account name>/Library/…`. `beforeSend` matches
+                // extra KEYS, not values, so "userInfo" sailed through it. The
+                // codes and names below are the diagnostic part of that dump.
+                var extras = CoreDataSaveDiagnostics.metadata(for: error)
+                extras["store"] = storeDescription.configuration ?? "unknown"
                 // Send critical error to Sentry before crashing
-                SentryService.capture(error: error, message: "Critical: Core Data failed to load", extras: ["userInfo": "\(error.userInfo)", "store": storeDescription.configuration ?? "unknown"], tags: ["component": "PersistenceController", "operation": "loadPersistentStores", "severity": "fatal"])
+                SentryService.capture(error: error, message: "Critical: Core Data failed to load", extras: extras, tags: ["component": "PersistenceController", "operation": "loadPersistentStores", "severity": "fatal"], includeRecentLogs: false)
                 // In production, this should be handled more gracefully
                 // Consider showing an alert to the user or attempting recovery
-                fatalError("Core Data failed to load: \(error), \(error.userInfo)")
+                //
+                // The crash message carried the same path. A `fatalError` string
+                // is read back out of the crash report, so it is a log line too.
+                fatalError("Core Data failed to load: \(CoreDataSaveDiagnostics.summary(for: error))")
             }
         }
 
@@ -542,11 +552,13 @@ class PersistenceController: ObservableObject {
             AppLogger.coreData.info("Normalized cloud route identifiers for \(changedCount, privacy: .public) mode fields")
         } catch {
             let nsError = error as NSError
-            AppLogger.logCoreData(.save, error: nsError)
-            SentryService.capture(
+            // One event, not two: the sibling SentryService.capture that used to
+            // sit here was ungated, stack-trace fingerprinted, and carried the
+            // recent_logs blob. `site` now says which caller failed.
+            AppLogger.logCoreData(
+                .save(site: "normalize_cloud_route_identifiers", contextKey: CoreDataSaveDiagnostics.viewContextKey),
                 error: nsError,
-                message: "Failed to normalize cloud route identifiers",
-                tags: ["component": "PersistenceController", "operation": "normalizeCloudRouteIdentifiers"]
+                metadata: CoreDataSaveDiagnostics.contextShape(context)
             )
         }
     }
@@ -595,11 +607,13 @@ class PersistenceController: ObservableObject {
             AppLogger.coreData.info("Normalized cloud provider values for \(changedCount, privacy: .public) mode fields")
         } catch {
             let nsError = error as NSError
-            AppLogger.logCoreData(.save, error: nsError)
-            SentryService.capture(
+            // One event, not two: the sibling SentryService.capture that used to
+            // sit here was ungated, stack-trace fingerprinted, and carried the
+            // recent_logs blob. `site` now says which caller failed.
+            AppLogger.logCoreData(
+                .save(site: "normalize_cloud_provider", contextKey: CoreDataSaveDiagnostics.viewContextKey),
                 error: nsError,
-                message: "Failed to normalize cloud provider values",
-                tags: ["component": "PersistenceController", "operation": "normalizeCloudProvider"]
+                metadata: CoreDataSaveDiagnostics.contextShape(context)
             )
         }
     }
@@ -686,11 +700,13 @@ class PersistenceController: ObservableObject {
             }
         } catch {
             let nsError = error as NSError
-            AppLogger.logCoreData(.save, error: nsError)
-            SentryService.capture(
+            // One event, not two: the sibling SentryService.capture that used to
+            // sit here was ungated, stack-trace fingerprinted, and carried the
+            // recent_logs blob. `site` now says which caller failed.
+            AppLogger.logCoreData(
+                .save(site: "repair_broken_local_modes", contextKey: CoreDataSaveDiagnostics.viewContextKey),
                 error: nsError,
-                message: "Failed to repair broken local post-processing modes",
-                tags: ["component": "PersistenceController", "operation": "repairBrokenLocalModes"]
+                metadata: CoreDataSaveDiagnostics.contextShape(context)
             )
         }
 
@@ -744,11 +760,13 @@ class PersistenceController: ObservableObject {
             AppLogger.coreData.info("Launch repair marked \(stale.count, privacy: .public) stale processing transcript(s) as interrupted")
         } catch {
             let nsError = error as NSError
-            AppLogger.logCoreData(.save, error: nsError)
-            SentryService.capture(
+            // One event, not two: the sibling SentryService.capture that used to
+            // sit here was ungated, stack-trace fingerprinted, and carried the
+            // recent_logs blob. `site` now says which caller failed.
+            AppLogger.logCoreData(
+                .save(site: "repair_stale_processing_transcripts", contextKey: CoreDataSaveDiagnostics.viewContextKey),
                 error: nsError,
-                message: "Failed to repair stale processing transcripts on launch",
-                tags: ["component": "PersistenceController", "operation": "repairStaleProcessingTranscripts"]
+                metadata: CoreDataSaveDiagnostics.contextShape(context)
             )
         }
     }
@@ -798,11 +816,13 @@ class PersistenceController: ObservableObject {
             }
         } catch {
             let nsError = error as NSError
-            AppLogger.logCoreData(.save, error: nsError)
-            SentryService.capture(
+            // One event, not two: the sibling SentryService.capture that used to
+            // sit here was ungated, stack-trace fingerprinted, and carried the
+            // recent_logs blob. `site` now says which caller failed.
+            AppLogger.logCoreData(
+                .save(site: "migrate_removed_deepgram_models", contextKey: CoreDataSaveDiagnostics.viewContextKey),
                 error: nsError,
-                message: "Failed to migrate removed Deepgram models on Modes",
-                tags: ["component": "PersistenceController", "operation": "migrateRemovedDeepgramModels"]
+                metadata: CoreDataSaveDiagnostics.contextShape(context)
             )
             // Don't set the flag — try again next launch.
             return
@@ -872,19 +892,53 @@ class PersistenceController: ObservableObject {
         let context = container.viewContext
         
         // Early return if no changes to save (performance optimization)
-        guard context.hasChanges else { return }
-        
+        guard context.hasChanges else {
+            // Nothing pending means somebody else drained this context, so it
+            // still accepts writes. Without this the streak below could only
+            // grow: `hyperwhisperApp` and the Local API's modes endpoint both
+            // save the shared `viewContext` directly, and a stale streak would
+            // report a healthy context as unwritable.
+            CoreDataSaveDiagnostics.recordSuccess(contextKey: CoreDataSaveDiagnostics.viewContextKey)
+            return
+        }
+
         do {
             // Persist changes to the Core Data store
             // Core Data automatically posts notification
             try context.save()
+            CoreDataSaveDiagnostics.recordSuccess(contextKey: CoreDataSaveDiagnostics.viewContextKey)
         } catch {
             // In production, handle this error appropriately
             let nsError = error as NSError
-            AppLogger.logCoreData(.save, error: nsError)
-            SentryService.capture(error: nsError, message: "Core Data save failed", tags: ["component": "PersistenceController", "operation": "save"])
+            // WHY THE SHAPE MATTERS HERE (Sentry HYPERWHISPER-VC): this path has
+            // no `rollback()`, unlike the background writer below. One rejected
+            // row therefore stays pending on the view context and every later
+            // save fails on it — which is what 19 events, 4 hours apart, from a
+            // single process actually were. `pending_*` growing across a streak
+            // says that; a stack trace cannot.
+            //
+            // Read here rather than before the `do`: a save that throws keeps its
+            // pending changes (that is the poisoning), so the sets are intact,
+            // and a save that works pays nothing for this.
+            let shape = CoreDataSaveDiagnostics.contextShape(context)
+            // One event, not two. The duplicate `SentryService.capture` that
+            // used to follow this line carried the same message with a
+            // stack-trace fingerprint, which is how one fault became both
+            // HYPERWHISPER-VB and HYPERWHISPER-VC.
+            AppLogger.logCoreData(
+                .save(site: PersistenceController.viewContextSaveSite, contextKey: CoreDataSaveDiagnostics.viewContextKey),
+                error: nsError,
+                metadata: shape
+            )
         }
     }
+
+    /// Save-site slug for the `viewContext` save. A constant so the log line, the
+    /// Sentry tag and the failure streak cannot drift apart.
+    private static let viewContextSaveSite = "view_context_save"
+
+    /// Save-site slug for the serial background writer.
+    private static let writerSaveSite = "background_writer"
     
     // MARK: - Background Writer (serial)
 
@@ -950,14 +1004,18 @@ class PersistenceController: ObservableObject {
             if context.hasChanges {
                 do {
                     try context.save()
+                    CoreDataSaveDiagnostics.recordSuccess(contextKey: CoreDataSaveDiagnostics.writerContextKey)
                 } catch {
                     saved = false
                     let nsError = error as NSError
-                    AppLogger.logCoreData(.save, error: nsError)
-                    SentryService.capture(
+                    // Read before `rollback()` below, which empties these sets.
+                    // A throwing save keeps its pending changes, so this is the
+                    // write that failed — and it costs nothing when saves work.
+                    let shape = CoreDataSaveDiagnostics.contextShape(context)
+                    AppLogger.logCoreData(
+                        .save(site: PersistenceController.writerSaveSite, contextKey: CoreDataSaveDiagnostics.writerContextKey),
                         error: nsError,
-                        message: "Core Data background write failed",
-                        tags: ["component": "PersistenceController", "operation": "performWrite"]
+                        metadata: shape
                     )
                     // Never leave the long-lived writer context poisoned.
                     context.rollback()
@@ -1600,8 +1658,11 @@ class PersistenceController: ObservableObject {
             didSeedDefaultModesOnLaunch = true
             AppLogger.coreData.info("Initialized \(defaultModes.count, privacy: .public) default modes for new install")
         } catch {
-            AppLogger.logCoreData(.save, error: error)
-            SentryService.capture(error: error, message: "Failed to initialize default modes", tags: ["component": "PersistenceController", "operation": "initializeModes"])
+            AppLogger.logCoreData(
+                .save(site: "initialize_default_modes", contextKey: CoreDataSaveDiagnostics.viewContextKey),
+                error: error,
+                metadata: CoreDataSaveDiagnostics.contextShape(context)
+            )
         }
     }
     
