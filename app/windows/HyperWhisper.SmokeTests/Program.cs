@@ -4088,14 +4088,62 @@ internal static class Program
 
             Run("InlineHtml collapses a CRLF and leaves a non-breaking space alone", () =>
             {
-                // macOS reads text by grapheme, where "\r\n" is one Character
-                // equal to neither "\r" nor "\n". Both mirrors must agree here.
+                // Whitespace is collapsed one Unicode SCALAR VALUE at a time:
+                // the unit hw-releasenotes pins for every index, scan limit and
+                // whitespace predicate on all three heads (#284, decision (b)).
+                // A CRLF is two scalars — "\r" and "\n", each of them
+                // collapsible — so it collapses like any other run of
+                // whitespace and the expectations below are the same
+                // everywhere.
+                //
+                // This file used to walk UTF-16 code units, and macOS walked
+                // graphemes, where "\r\n" is one Character equal to neither
+                // "\r" nor "\n" and had to be named outright to collapse at
+                // all. Both are gone. A non-breaking space is not collapsible
+                // whitespace on any of them.
                 Assert(InlineHtml.PlainText("line one\r\nline two") == "line one line two",
                     $"got '{InlineHtml.PlainText("line one\r\nline two")}'");
                 Assert(InlineHtml.PlainText("a\r\n\r\n  b") == "a b",
                     "a run of CRLFs should collapse to one space");
                 Assert(InlineHtml.PlainText("a&nbsp;b") == "a\u00A0b",
                     $"a non-breaking space is not collapsible: '{InlineHtml.PlainText("a&nbsp;b")}'");
+            });
+
+            Run("InlineHtml leaves a numeric entity with a signed body literal", () =>
+            {
+                // The other half of decision (a) (#284), pinned in the
+                // direction this head already took: "&#+65;" and "&#x+41;"
+                // never decoded here — NumberStyles.None rejects a sign — and
+                // decoded to "A" on macOS, where UInt32(_:radix:) accepts one.
+                // The shared decoder keeps all three literal, so this cannot
+                // regress into a decode.
+                foreach (var literal in new[] { "&#+65;", "&#-65;", "&#x+41;" })
+                {
+                    Assert(InlineHtml.PlainText(literal) == literal,
+                        $"'{literal}' should stay literal, got '{InlineHtml.PlainText(literal)}'");
+                }
+
+                // The well-formed spellings still decode.
+                Assert(InlineHtml.PlainText("&#65;") == "A", "'&#65;' stopped decoding");
+                Assert(InlineHtml.PlainText("&#x41;") == "A", "'&#x41;' stopped decoding");
+            });
+
+            Run("InlineHtml leaves a numeric entity with whitespace in its body literal", () =>
+            {
+                // A DELIBERATE strictness change (#284, decision (a)).
+                // "&#x 41;" used to decode to "A" HERE, because
+                // NumberStyles.HexNumber allows leading white, and stayed
+                // literal on macOS. Nothing pinned it, no feed carries it, and
+                // this is remote input — so the shared decoder now requires the
+                // body after '#' (and after an 'x'/'X') to be nothing but
+                // digits of the radix, on both heads. ("&# 65;" and "&#65 ;"
+                // never decoded on either; they are pinned so they cannot
+                // start to.)
+                foreach (var literal in new[] { "&#x 41;", "&# 65;", "&#65 ;" })
+                {
+                    Assert(InlineHtml.PlainText(literal) == literal,
+                        $"'{literal}' should stay literal, got '{InlineHtml.PlainText(literal)}'");
+                }
             });
 
             Run("InlineHtmlText renders an anchor containing emphasis as one link", () =>
