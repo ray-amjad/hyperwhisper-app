@@ -206,8 +206,10 @@ struct BackupConformanceVectorTests {
             // single `expected`, because after the port there is one answer.
             #expect(
                 row["expectedWindows"] == nil && row["expectedLinux"] == nil,
-                "vector '\(label)' carries a per-head expectation; the heads share one "
-                    + "normalizer since phase 1b, so a row must pin a single `expected`")
+                """
+                vector '\(label)' carries a per-head expectation; the heads share one \
+                normalizer since phase 1b, so a row must pin a single `expected`
+                """)
             let expected = try #require(
                 row["expected"] as? [String: Any], "\(label): missing `expected`")
 

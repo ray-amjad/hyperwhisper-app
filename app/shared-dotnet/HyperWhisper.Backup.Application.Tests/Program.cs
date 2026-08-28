@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using HyperWhisper.Data.Entities;
+using Microsoft.Data.Sqlite;
 using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.PortableApplication.ViewModels;
@@ -608,7 +609,38 @@ try
 }
 finally
 {
-    Directory.Delete(root, recursive: true);
+    // Every assertion has already run by here, so this is cleanup and not a
+    // test. It still has to work on BOTH hosts: this harness runs on Windows CI
+    // as well as Linux CI since the backup vectors were wired into all three
+    // stacks.
+    //
+    // Windows holds each SQLite file open in Microsoft.Data.Sqlite's CONNECTION
+    // POOL after the last DbContext is disposed, so a recursive delete of the
+    // temp root fails with "the process cannot access the file
+    // 'hyperwhisper.db'". Linux lets the unlink through regardless. Draining the
+    // pool releases the handles; the retry covers a handle the OS has not
+    // finished closing yet, which is timing and not a leak.
+    SqliteConnection.ClearAllPools();
+    for (var attempt = 1; ; attempt++)
+    {
+        try
+        {
+            Directory.Delete(root, recursive: true);
+            break;
+        }
+        catch (IOException) when (attempt < 5)
+        {
+            Thread.Sleep(200);
+        }
+        catch (IOException error)
+        {
+            // A temp directory left on a CI runner is noise; the exit code of
+            // this harness means "the vectors matched", so do not overwrite a
+            // pass with a cleanup failure. Say what was left behind instead.
+            Console.Error.WriteLine($"warning: could not remove {root}: {error.Message}");
+            break;
+        }
+    }
 }
 
 static void Assert(bool condition, string message)
