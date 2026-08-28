@@ -45,6 +45,51 @@ struct AppcastItem: Identifiable, Equatable {
     /// Format: <b>Title</b> <ul><li>Feature 1</li><li>Feature 2</li></ul>
     let releaseNotes: String?
 
+    /// Heading shown above the bullet list, if the feed has one.
+    ///
+    /// The rule is `hw-releasenotes`' and is shared with Windows (#284,
+    /// decision (c)): the first `<h2>` case-insensitively if the note has one,
+    /// otherwise the content before the first `<ul>` — or before the first
+    /// `<li>` when there is no `<ul>` — which is what this head did on its own.
+    /// The macOS feed carries no heading, so it still shows no title; a feed
+    /// that grows one is now read the same way on both platforms.
+    ///
+    /// Only the markup *before* the list counts under the second rule: a `<b>`
+    /// inside the first `<li>` emphasises that bullet, it is not a title.
+    let releaseTitle: AttributedString?
+
+    /// Bullet points from the release notes, one per `<li>` element, with
+    /// `<b>`/`<i>` emphasis and `<a href>` links preserved as styled runs.
+    /// An item that carries no text — an empty or whitespace-only `<li>` — is
+    /// dropped by the core.
+    let bulletPoints: [AttributedString]
+
+    // MARK: - Initialization
+
+    /// PARSE ONCE, AT CONSTRUCTION.
+    ///
+    /// `releaseTitle` and `bulletPoints` used to be computed properties, so
+    /// SwiftUI re-ran the whole HTML parse on every `body` pass of every
+    /// `ReleaseNotesCard` — for every release in the Recent Updates list, on
+    /// every redraw. They are stored now, and this initializer is the one place
+    /// the note is read.
+    ///
+    /// The labels and their order are the memberwise initializer's, deliberately:
+    /// `AppcastParser`, the `#if DEBUG` samples below and `ReleaseNotesHTMLTests`
+    /// all build an item positionally and keep compiling untouched.
+    init(version: String, buildNumber: String, pubDate: Date, releaseNotes: String?) {
+        self.version = version
+        self.buildNumber = buildNumber
+        self.pubDate = pubDate
+        self.releaseNotes = releaseNotes
+
+        // A feed entry with no notes parses as the empty fragment: no title, no
+        // bullets. There is no second call and no re-parse anywhere below.
+        let note = releaseNotesParse(html: releaseNotes ?? "")
+        self.releaseTitle = note.title.map { ReleaseNotesHTML.attributed(ReleaseNotesHTML.runs(from: $0.runs)) }
+        self.bulletPoints = note.bullets.map { ReleaseNotesHTML.attributed(ReleaseNotesHTML.runs(from: $0.runs)) }
+    }
+
     // MARK: - Computed Properties
 
     /// User-friendly formatted date string
@@ -54,49 +99,6 @@ struct AppcastItem: Identifiable, Equatable {
         formatter.dateStyle = .medium
         formatter.timeStyle = .none
         return formatter.string(from: pubDate)
-    }
-
-    /// Heading shown above the bullet list, if the feed has one
-    ///
-    /// Only the markup *before* the list counts: a `<b>` inside the first
-    /// `<li>` emphasises that bullet, it is not a title for the release.
-    var releaseTitle: AttributedString? {
-        guard let html = releaseNotes else { return nil }
-
-        let listStart = html.range(of: "<ul", options: .caseInsensitive)?.lowerBound
-            ?? html.range(of: "<li", options: .caseInsensitive)?.lowerBound
-        let heading = String(html[html.startIndex..<(listStart ?? html.endIndex)])
-
-        // Parsed once, not once to test for emptiness and again for the result:
-        // this is a computed property, re-read on every SwiftUI body pass.
-        let parsed = ReleaseNotesHTML.attributed(heading)
-        return parsed.characters.isEmpty ? nil : parsed
-    }
-
-    /// Bullet points from the release notes, one per `<li>` element, with
-    /// `<b>`/`<i>` emphasis and `<a href>` links preserved as styled runs.
-    /// An item that carries no text — an empty or whitespace-only `<li>` — is
-    /// dropped, which the parsed result already answers.
-    var bulletPoints: [AttributedString] {
-        listItemHTML.map(ReleaseNotesHTML.attributed).filter { !$0.characters.isEmpty }
-    }
-
-    /// Inner HTML of every `<li>` element, in document order
-    private var listItemHTML: [String] {
-        guard let html = releaseNotes else { return [] }
-
-        var items: [String] = []
-        var remainder = html[...]
-
-        while let openStart = remainder.range(of: "<li", options: .caseInsensitive),
-              let openEnd = remainder[openStart.upperBound...].firstIndex(of: ">"),
-              let close = remainder.range(of: "</li", options: .caseInsensitive,
-                                          range: openEnd..<remainder.endIndex) {
-            items.append(String(remainder[remainder.index(after: openEnd)..<close.lowerBound]))
-            remainder = remainder[close.upperBound...]
-        }
-
-        return items
     }
 
     /// Check if this release has release notes

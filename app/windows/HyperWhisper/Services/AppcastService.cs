@@ -136,17 +136,21 @@ public class AppcastService
         _lastFailureTime = DateTime.MinValue;
     }
 
+    /// <summary>
+    /// A defensive copy of the cached releases, newest first.
+    /// </summary>
+    /// <remarks>
+    /// <c>Copy()</c>, not a fresh object initializer: setting
+    /// <c>ReleaseNotes</c> parses the note (issue #284), so rebuilding each item
+    /// here would re-parse the whole cache on every read — which is the cost this
+    /// change removes, not one to move somewhere else. The copy shares the
+    /// already-parsed title and bullets.
+    /// </remarks>
     private List<AppcastItem> CreateReleaseResult(int maxCount)
     {
         return (_cachedReleases ?? [])
             .Take(maxCount)
-            .Select(item => new AppcastItem
-            {
-                Version = item.Version,
-                PubDate = item.PubDate,
-                ReleaseNotes = item.ReleaseNotes,
-                IsLatest = item.IsLatest
-            })
+            .Select(item => item.Copy())
             .ToList();
     }
 }

@@ -39,6 +39,8 @@ mod ffi_llm;
 mod ffi_live;
 mod ffi_net;
 mod ffi_prompt;
+// The appcast release-notes HTML parser, shared by macOS and Windows (#284).
+mod ffi_releasenotes;
 
 /// Encode a word with the Beider-Morse phonetic algorithm.
 ///

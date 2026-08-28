@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
@@ -141,77 +140,49 @@ public partial class UpdateAvailableWindow : Window, IUpdateAvailable
     // =========================================================================
 
     /// <summary>
-    /// Parses simple HTML (h2, ul/li, p) into themed WPF TextBlocks.
-    /// Handles the typical appcast release notes format without needing a WebBrowser.
-    /// Inline emphasis (&lt;b&gt;, &lt;i&gt;) is carried through to the TextBlock
-    /// rather than stripped, so a bold lead-in in the feed still reads as bold.
+    /// Turns the feed's release-notes HTML (h2/h3, ul/li, p) into themed WPF
+    /// cards, without needing a WebBrowser. Inline emphasis (&lt;b&gt;,
+    /// &lt;i&gt;) and links are carried through to the TextBlock rather than
+    /// stripped, so a bold lead-in in the feed still reads as bold.
     /// </summary>
+    /// <remarks>
+    /// The block split lives in the shared Rust core now (#284). This was the
+    /// third copy of one &lt;li&gt; extractor — a
+    /// <c>&lt;(h[23]|li|p)[^&gt;]*&gt;(.*?)&lt;/\1&gt;</c> walker with its own
+    /// &lt;br&gt;-split fallback — and the three had drifted: that
+    /// backreference needed the exact characters "&lt;/li&gt;", so a feed
+    /// writing "&lt;/li &gt;" lost the bullet here while macOS kept it, and
+    /// <c>[^&gt;]*</c> ended an open tag at a "&gt;" inside a quoted attribute.
+    /// <c>InlineHtml.SplitBlocks</c> keeps the more forgiving reading of both.
+    ///
+    /// The fallback's hard-won guard survives intact, in Rust: a note with no
+    /// block markup is still one card per line, and each line still keeps its
+    /// own markup and is parsed EXACTLY ONCE. Flattening the note here and
+    /// parsing the result again in the card dropped every &lt;a href&gt; before
+    /// it could render, and turned markup a feed had escaped so it would *show*
+    /// — "&amp;lt;a href=…&amp;gt;" — into a live link, because the first pass
+    /// decoded the entities and the second read the result as a tag. The core
+    /// pins that with <c>escaped_markup_in_the_fallback_is_parsed_exactly_once</c>,
+    /// and nothing below re-parses a block's text.
+    /// </remarks>
     private static void ParseHtmlToTextBlocks(string html, StackPanel container)
     {
-        // Strip outer tags like <body>, <html>
-        html = html.Trim();
-
-        // Process <h2> headers
-        // Process <li> items
-        // Process <p> paragraphs
-        // Fall back to plain text lines
-
-        // Each entry keeps its inline markup; only block tags are consumed here.
-        var lines = new List<(string html, bool isHeader, bool isBullet)>();
-
-        // Simple sequential parse: walk through the HTML and extract elements in order
-        var elementRegex = new Regex(
-            @"<(h[23]|li|p)[^>]*>(.*?)</\1>",
-            RegexOptions.IgnoreCase | RegexOptions.Singleline);
-
-        var matches = elementRegex.Matches(html);
-
-        if (matches.Count > 0)
+        foreach (var block in InlineHtml.SplitBlocks(html))
         {
-            foreach (Match match in matches)
-            {
-                var tag = match.Groups[1].Value.ToLowerInvariant();
-                var content = match.Groups[2].Value;
-
-                if (InlineHtml.PlainText(content).Length == 0) continue;
-
-                bool isHeader = tag.StartsWith("h");
-                bool isBullet = tag == "li";
-
-                lines.Add((content, isHeader, isBullet));
-            }
-        }
-        else
-        {
-            // Fallback: no block tags, so the note is a run of lines. Each line
-            // keeps its own markup and is parsed exactly once — by the card.
-            // Flattening the note here and parsing the result again there
-            // dropped every <a href> before it could be rendered, and turned
-            // markup a feed had escaped so it would *show* — "&lt;a href=…&gt;"
-            // — into a live link. A <br> ends a line here, as it did when the
-            // flattening pass turned it into one.
-            foreach (var line in Regex.Split(html, @"<br\s*/?>|\n", RegexOptions.IgnoreCase))
-            {
-                var trimmed = line.Trim();
-                if (InlineHtml.PlainText(trimmed).Trim().Length == 0) continue;
-
-                bool isBullet = trimmed.StartsWith("-") || trimmed.StartsWith("*");
-                if (isBullet) trimmed = trimmed.TrimStart('-', '*', ' ');
-                lines.Add((trimmed, false, isBullet));
-            }
-        }
-
-        // Build WPF elements with improved spacing
-        foreach (var (text, isHeader, isBullet) in lines)
-        {
-            container.Children.Add(CreateReleaseNoteCard(text, isHeader, isBullet));
+            container.Children.Add(CreateReleaseNoteCard(block));
         }
     }
 
-    private static Border CreateReleaseNoteCard(string html, bool isHeader, bool isBullet)
+    private static Border CreateReleaseNoteCard(HtmlBlock block)
     {
-        // Glyph selection reads the wording, so it needs the text without markup.
-        var text = InlineHtml.PlainText(html);
+        bool isHeader = block.Kind == HtmlBlockKind.Heading;
+        bool isBullet = block.Kind == HtmlBlockKind.Bullet;
+
+        // Glyph selection reads the wording, so it needs the text without
+        // markup — which is the block's run texts joined, since the core
+        // already dropped the tags and decoded the entities. Identical to the
+        // PlainText(html) call this replaces, without a second parse.
+        var text = string.Concat(block.Runs.Select(run => run.Text));
 
         var badge = new Border
         {
@@ -242,7 +213,7 @@ public partial class UpdateAvailableWindow : Window, IUpdateAvailable
             VerticalAlignment = VerticalAlignment.Center
         };
         textBlock.SetResourceReference(ForegroundProperty, isHeader ? "TextPrimaryBrush" : "TextSecondaryBrush");
-        InlineHtmlText.Apply(textBlock, html);
+        InlineHtmlText.Apply(textBlock, block.Runs);
 
         var grid = new Grid();
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });

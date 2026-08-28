@@ -31,6 +31,7 @@ hw-audio = { path = "../hw-audio" }
 hw-license = { path = "../hw-license" }
 hw-backup = { path = "../hw-backup" }
 hw-catalog = { path = "../hw-catalog" }
+hw-releasenotes = { path = "../hw-releasenotes" }
 # JSON-string boundary marshalling for the backup surface (the record types are
 # serde_json::Value trees that can't cross UniFFI, so hw-core (de)serializes them).
 serde_json = { workspace = true }

@@ -12,14 +12,18 @@
 // data: href keeps its label and loses the link, so a compromised feed cannot
 // turn a release note into something the user can click into running code.
 //
-// Mirrors macOS ReleaseNotesHTML.swift — both platforms read the same feeds,
-// so keep the two in step.
+// The PARSER is not here. Issue #284 moved it into the shared Rust core
+// (hw-releasenotes) and this is now a facade over ReleaseNotesParseInline /
+// ReleaseNotesPlainText: the tokenizer, the entity decoder and the scheme
+// allowlist existed in both C# and Swift, and every fix to one of them had to
+// be made twice. macOS ReleaseNotesHTML.swift is the same facade over the same
+// two calls, so the two heads can no longer drift apart. The InlineHtml block
+// of HyperWhisper.SmokeTests still pins the answer this file returns.
 //
 // Deliberately free of WPF types: WPF binding lives in InlineHtmlText.cs, so
 // this parser stays testable from the smoke-test console host.
 
-using System.Globalization;
-using System.Text;
+using uniffi.hyperwhisper_core;
 
 namespace HyperWhisper.Utilities;
 
@@ -29,469 +33,162 @@ namespace HyperWhisper.Utilities;
 /// </summary>
 public readonly record struct HtmlRun(string Text, bool Bold, bool Italic, Uri? Link = null);
 
+/// <summary>What a block-level element is for.</summary>
+public enum HtmlBlockKind
+{
+    /// <summary>An &lt;h2&gt; or &lt;h3&gt;.</summary>
+    Heading,
+
+    /// <summary>An &lt;li&gt;, or a "-"/"*" line in the plain-text fallback.</summary>
+    Bullet,
+
+    /// <summary>A &lt;p&gt;, or a plain line in the fallback.</summary>
+    Paragraph
+}
+
+/// <summary>
+/// One block-level element, already split into styled runs.
+/// </summary>
+/// <remarks>
+/// <c>Runs</c> is never empty: the core drops a block that carries no text, so
+/// "&lt;li&gt;  &lt;/li&gt;" never reaches a caller.
+/// </remarks>
+public readonly record struct HtmlBlock(HtmlBlockKind Kind, IReadOnlyList<HtmlRun> Runs);
+
+/// <summary>
+/// A release note as the Recent Updates cards render it: the heading above the
+/// bullet list, and the bullets.
+/// </summary>
+/// <param name="Title">
+/// The heading's runs, or an EMPTY list when the note has no title. Empty
+/// rather than null because it is bound straight into XAML, where "no runs"
+/// and "no title" render the same and a null check at every use site does not.
+/// </param>
+public sealed record HtmlReleaseNote(
+    IReadOnlyList<HtmlRun> Title,
+    IReadOnlyList<IReadOnlyList<HtmlRun>> Bullets);
+
 public static class InlineHtml
 {
-    /// <summary>Longest entity we look ahead for, including '&amp;' and ';'.</summary>
-    private const int EntityScanLimit = 12;
-
-    /// <summary>
-    /// Schemes we are willing to hand to the shell. Anything else — most of
-    /// all javascript: and data: — keeps its label and loses its link.
-    /// </summary>
-    private static readonly HashSet<string> AllowedSchemes =
-        new(StringComparer.OrdinalIgnoreCase) { "http", "https", "mailto" };
-
-    private static readonly Dictionary<string, string> NamedEntities = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["amp"] = "&",
-        ["lt"] = "<",
-        ["gt"] = ">",
-        ["quot"] = "\"",
-        ["apos"] = "'",
-        ["nbsp"] = " ",
-        ["mdash"] = "—",
-        ["ndash"] = "–",
-        ["hellip"] = "…"
-    };
-
     /// <summary>
     /// Tag-free, entity-decoded text — for glyph selection, logging and tests.
     /// </summary>
     /// <param name="collapseWhitespace">
     /// False keeps existing line breaks, for callers that split the result into lines.
     /// </param>
-    public static string PlainText(string? html, bool collapseWhitespace = true)
-    {
-        var text = new StringBuilder();
-        foreach (var run in Parse(html, collapseWhitespace))
-        {
-            text.Append(run.Text);
-        }
-        return text.ToString();
-    }
+    public static string PlainText(string? html, bool collapseWhitespace = true) =>
+        string.IsNullOrEmpty(html)
+            ? string.Empty
+            : HyperwhisperCoreMethods.ReleaseNotesPlainText(html, collapseWhitespace);
 
     /// <summary>
     /// Split a fragment into styled runs. HTML collapses whitespace, and feed
     /// entries are indented across several lines, so runs of whitespace become
     /// a single space unless the caller asks to keep them.
     /// </summary>
+    /// <remarks>
+    /// <c>Link</c> arrives from the core as the feed's href verbatim — already
+    /// entity-decoded, trimmed, and checked against the http/https/mailto
+    /// allowlist there. It is handed to <c>Uri.TryCreate</c> untouched:
+    /// decoding or trimming it a second time would open a different address
+    /// than the feed asked for, and the allowlist decision is not re-made here.
+    /// <c>Uri.TryCreate</c> itself stays, because a string the core allows but
+    /// <c>Uri</c> cannot parse is no link at all — which is what it was before
+    /// this moved to Rust. <c>UriKind.Absolute</c> is what still rejects a
+    /// relative "/path".
+    /// </remarks>
     public static List<HtmlRun> Parse(string? html, bool collapseWhitespace = true)
     {
-        var runs = new List<HtmlRun>();
-        if (string.IsNullOrEmpty(html)) return runs;
+        // InlineHtmlText.OnSourceChanged clears a TextBlock by binding null, so
+        // the empty answer is given here rather than across the FFI boundary.
+        if (string.IsNullOrEmpty(html)) return [];
 
-        var current = new StringBuilder();
-        var boldDepth = 0;
-        var italicDepth = 0;
-        var pendingSpace = false;
-        var producedText = false;
-
-        // One entry per open <a>, null when its href was missing or unusable —
-        // so the matching </a> still pops the right thing and the label
-        // survives as ordinary text. The innermost entry wins: a nested <a>
-        // with a rejected href must not inherit the outer destination.
-        var linkStack = new List<Uri?>();
-
-        void Flush()
-        {
-            if (current.Length == 0) return;
-            runs.Add(new HtmlRun(current.ToString(), boldDepth > 0, italicDepth > 0, linkStack.LastOrDefault()));
-            current.Clear();
-        }
-
-        // Close the current run at a <b>/<i>/<a> boundary. A space waiting to be
-        // written belongs *outside* the element: with the text before an opening
-        // tag, and with the text after a closing one. So "<b>See</b> <a>here</a>"
-        // does not underline and tint the space in front of the link, and
-        // "<a><b>the page</b> </a>now" does not leave a linked space behind
-        // either. Appending to an empty buffer makes that space its own run,
-        // carrying the style and destination in force where it is emitted.
-        void FlushAtTagBoundary(bool isClosing)
-        {
-            if (pendingSpace && !isClosing)
-            {
-                current.Append(' ');
-                pendingSpace = false;
-
-                // That space is now written, so whitespace straight after it
-                // collapses into it rather than arming a second one. Otherwise
-                // an element that produces no text at all — "a <a href=…><img
-                // …></a> b" — is spelt with a space on each side of nothing.
-                producedText = false;
-            }
-
-            Flush();
-        }
-
-        void Append(string text)
-        {
-            foreach (var character in text)
-            {
-                if (character is ' ' or '\n' or '\r' or '\t')
-                {
-                    if (collapseWhitespace)
-                    {
-                        pendingSpace = producedText;
-                        continue;
-                    }
-
-                    if (character is '\n' or '\r')
-                    {
-                        producedText = false;
-                    }
-                }
-
-                if (pendingSpace)
-                {
-                    current.Append(' ');
-                    pendingSpace = false;
-                }
-
-                current.Append(character);
-                producedText = true;
-            }
-        }
-
-        void AppendLineBreak()
-        {
-            current.Append('\n');
-            pendingSpace = false;
-            producedText = false;
-        }
-
-        void HandleTag(string raw)
-        {
-            var tag = ParseTag(raw);
-
-            if (tag.Name == "br")
-            {
-                AppendLineBreak();
-                return;
-            }
-
-            // A tag that closes itself opens and closes in one go, so it changes
-            // no state at all. Acting on it would push a depth or a link entry
-            // nothing ever pops, and the rest of the note would render bold,
-            // italic or linked: "<a …/>", "<b/>", "<i/>".
-            //
-            // "</a/>" is both closing and self-closing. It is the closing half
-            // that counts: skipping it would leave the depth or link entry its
-            // "<a>" pushed open, which is the very thing this guard is for.
-            if (tag.IsSelfClosing && !tag.IsClosing) return;
-
-            switch (tag.Name)
-            {
-                case "b":
-                case "strong":
-                    FlushAtTagBoundary(tag.IsClosing);
-                    boldDepth = tag.IsClosing ? Math.Max(0, boldDepth - 1) : boldDepth + 1;
-                    break;
-                case "i":
-                case "em":
-                    FlushAtTagBoundary(tag.IsClosing);
-                    italicDepth = tag.IsClosing ? Math.Max(0, italicDepth - 1) : italicDepth + 1;
-                    break;
-                case "a":
-                    FlushAtTagBoundary(tag.IsClosing);
-                    if (tag.IsClosing)
-                    {
-                        if (linkStack.Count > 0) linkStack.RemoveAt(linkStack.Count - 1);
-                    }
-                    else
-                    {
-                        linkStack.Add(LinkFrom(tag.Href));
-                    }
-                    break;
-            }
-        }
-
-        var index = 0;
-        while (index < html.Length)
-        {
-            var character = html[index];
-
-            if (character == '<')
-            {
-                var close = FindTagEnd(html, index);
-                if (close < 0)
-                {
-                    // Unterminated tag: the rest is text, not markup.
-                    Append(html[index..]);
-                    break;
-                }
-
-                HandleTag(html[(index + 1)..close]);
-                index = close + 1;
-                continue;
-            }
-
-            if (character == '&' && DecodeEntityAt(html, index, out var afterEntity) is { } decoded)
-            {
-                Append(decoded);
-                index = afterEntity;
-                continue;
-            }
-
-            Append(character.ToString());
-            index++;
-        }
-
-        Flush();
-        return runs;
+        return RunsFrom(HyperwhisperCoreMethods.ReleaseNotesParseInline(html, collapseWhitespace));
     }
 
     /// <summary>
-    /// Index of the '&gt;' that ends the tag opened at <paramref name="start"/>,
-    /// ignoring any '&gt;' inside a quoted attribute value — a URL may carry one
-    /// in its query. Returns -1 when the tag is never closed. A quote that is
-    /// never closed falls back to the first '&gt;', so one malformed attribute
-    /// cannot swallow the rest of the fragment as markup.
+    /// Every block of a release note, in document order — the update dialog's
+    /// view of a fragment.
     /// </summary>
     /// <remarks>
-    /// A quote only opens a value where <see cref="ParseTag"/> would read one:
-    /// straight after an '='. Anywhere else it is an ordinary character, so the
-    /// apostrophe in a bare "href=it's" cannot pair up with a later one and run
-    /// the scan past the '&gt;' that really ends the tag. The closing quote has
-    /// to end a value too, so a value left open in its own tag cannot pair up
-    /// with the quote of a later one either.
+    /// This replaced the third copy of the &lt;li&gt; extractor (#284): a
+    /// <c>&lt;(h[23]|li|p)[^&gt;]*&gt;(.*?)&lt;/\1&gt;</c> regex walker in
+    /// UpdateAvailableWindow with its own &lt;br&gt;-split fallback. A note with
+    /// no block markup at all still falls back to one block per line, and each
+    /// line still keeps its own markup and is parsed EXACTLY ONCE — flattening
+    /// the note and parsing the result again dropped every &lt;a href&gt; and
+    /// turned markup a feed had escaped so it would show into a live link.
+    /// <c>hw_releasenotes::split_blocks</c> owns that guard now and pins it with
+    /// a test; nothing here re-parses a block's text.
     /// </remarks>
-    private static int FindTagEnd(string html, int start)
+    public static List<HtmlBlock> SplitBlocks(string? html)
     {
-        var index = start + 1;
-        var inValuePosition = false;
+        if (string.IsNullOrEmpty(html)) return [];
 
-        while (index < html.Length)
-        {
-            var character = html[index];
-
-            if (inValuePosition && character is '"' or '\'')
-            {
-                var quotedEnd = html.IndexOf(character, index + 1);
-
-                // The quote that closes a value is followed by what may follow
-                // a value: another attribute, the tag's own '/' or '>'. A quote
-                // followed by anything else is a quote in some later tag, or in
-                // the prose between them — this value is never closed inside
-                // its own tag, so fall back to the first '>' rather than eat
-                // everything up to that unrelated quote.
-                if (quotedEnd < 0 || !EndsAttributeValue(html, quotedEnd + 1)) break;
-
-                index = quotedEnd + 1;
-                inValuePosition = false;
-                continue;
-            }
-
-            if (character == '>') return index;
-
-            // Whitespace between '=' and the value is allowed, so it leaves the
-            // position alone rather than ending it.
-            if (!char.IsWhiteSpace(character)) inValuePosition = character == '=';
-            index++;
-        }
-
-        return html.IndexOf('>', start);
+        return HyperwhisperCoreMethods.ReleaseNotesSplitBlocks(html)
+            .Select(block => new HtmlBlock(KindFrom(block.kind), RunsFrom(block.runs)))
+            .ToList();
     }
 
     /// <summary>
-    /// Whether a quoted attribute value may end just before
-    /// <paramref name="index"/>: another attribute, the tag's own '/' or
-    /// '&gt;', or the end of the fragment follows it.
-    /// </summary>
-    private static bool EndsAttributeValue(string html, int index) =>
-        index >= html.Length || html[index] is '>' or '/' || char.IsWhiteSpace(html[index]);
-
-    /// <summary>
-    /// Destination for an &lt;a&gt;'s href, or null when it is missing or is
-    /// not a scheme we are willing to open.
-    /// </summary>
-    private static Uri? LinkFrom(string? href)
-    {
-        if (href is null) return null;
-
-        // Entities only: feeds escape query separators, so "?a=1&amp;b=2" has to
-        // be decoded before it is a URL. Nothing else about the href may change —
-        // running it through the whole parser stripped markup and collapsed
-        // whitespace inside it, quietly opening a different address than the
-        // feed asked for.
-        var decoded = DecodeEntities(href).Trim();
-
-        if (!Uri.TryCreate(decoded, UriKind.Absolute, out var uri)) return null;
-        return AllowedSchemes.Contains(uri.Scheme) ? uri : null;
-    }
-
-    /// <summary>
-    /// One tag, tokenized: the element name (lower-cased), whether it closes an
-    /// element, whether it closes itself, and its href if it has one.
-    /// </summary>
-    private readonly record struct Tag(string Name, bool IsClosing, bool IsSelfClosing, string? Href);
-
-    /// <summary>
-    /// Walk a tag's body once — a leading '/', the element name, then attribute
-    /// by attribute — and report everything the caller needs to know about it.
-    /// The first href wins; its value keeps its own case.
+    /// A release note split into the title the cards show above the bullet list,
+    /// and the bullets themselves — parsed once, together.
     /// </summary>
     /// <remarks>
-    /// The tag is walked rather than searched, so a value that happens to
-    /// contain "href=" — a title, say — can never be mistaken for the attribute
-    /// itself, and a bare value that ends in '/' — most URLs — is not mistaken
-    /// for a self-closing tag. Only a '/' standing where a name may start, with
-    /// nothing but whitespace after it, closes the tag. An unterminated quote
-    /// gives up on the rest of the tag instead of inventing a value out of it.
+    /// Decision (c) of #284: the title is the first &lt;h2&gt;
+    /// case-insensitively and whatever attributes it carries, else the content
+    /// before the first &lt;ul&gt; (or before the first &lt;li&gt; when there is
+    /// no &lt;ul&gt;). This head used to take only the first
+    /// <c>&lt;h2&gt;</c> — case-SENSITIVE, no attributes allowed — and macOS
+    /// took only the content before the list. Each feed keeps rendering exactly
+    /// as it does today and each head gains the other's shape.
     /// </remarks>
-    private static Tag ParseTag(string raw)
+    public static HtmlReleaseNote ParseNote(string? html)
     {
-        var body = raw.Trim();
-        var index = 0;
+        if (string.IsNullOrEmpty(html)) return new HtmlReleaseNote([], []);
 
-        var isClosing = body.StartsWith('/');
-        if (isClosing) index++;
+        var note = HyperwhisperCoreMethods.ReleaseNotesParse(html);
 
-        var name = string.Empty;
-        var haveName = false;
-        var isSelfClosing = false;
-        string? href = null;
+        // The core reports "no title" as a missing block; the app reports it as
+        // no runs, so a caller never has to null-check before rendering.
+        IReadOnlyList<HtmlRun> title = note.title is { } block ? RunsFrom(block.runs) : [];
 
-        while (index < body.Length)
-        {
-            while (index < body.Length && char.IsWhiteSpace(body[index])) index++;
-            if (index >= body.Length) break;
+        var bullets = new List<IReadOnlyList<HtmlRun>>(note.bullets.Count);
+        foreach (var bullet in note.bullets) bullets.Add(RunsFrom(bullet.runs));
 
-            // A '/' where a name could start is the tag closing itself — "<a/>",
-            // "<br />", "<a href=… />" — but only if nothing but whitespace
-            // follows it, so the next token read clears this again. A '/' inside
-            // a bare value, on the other hand, is simply part of the URL.
-            if (body[index] == '/')
-            {
-                isSelfClosing = true;
-                index++;
-                continue;
-            }
-
-            isSelfClosing = false;
-
-            var tokenStart = index;
-            while (index < body.Length && !char.IsWhiteSpace(body[index])
-                   && body[index] != '=' && body[index] != '/') index++;
-            var tokenEnd = index;
-
-            // The first token is the element name; every token after it is an
-            // attribute, valued or not. The name is taken before its own value
-            // is read, so a malformed one — "<br = >" — gives up on the rest of
-            // the tag without taking the element with it.
-            var isName = !haveName;
-            if (isName)
-            {
-                name = body[tokenStart..tokenEnd].ToLowerInvariant();
-                haveName = true;
-            }
-
-            while (index < body.Length && char.IsWhiteSpace(body[index])) index++;
-
-            string? value = null;
-            if (index < body.Length && body[index] == '=')
-            {
-                index++;
-                while (index < body.Length && char.IsWhiteSpace(body[index])) index++;
-                if (index >= body.Length) break;   // "href=" with nothing after it
-
-                var quote = body[index];
-                if (quote is '"' or '\'')
-                {
-                    var quotedEnd = body.IndexOf(quote, index + 1);
-                    if (quotedEnd < 0) break;   // unterminated: nothing here is trustworthy
-                    value = body[(index + 1)..quotedEnd];
-                    index = quotedEnd + 1;
-                }
-                else
-                {
-                    var valueStart = index;
-                    while (index < body.Length && !char.IsWhiteSpace(body[index])) index++;
-                    value = body[valueStart..index];
-                }
-            }
-
-            if (!isName && href is null &&
-                body.AsSpan(tokenStart, tokenEnd - tokenStart).Equals("href", StringComparison.OrdinalIgnoreCase))
-            {
-                href = value;
-            }
-        }
-
-        return new Tag(name, isClosing, isSelfClosing, href);
+        return new HtmlReleaseNote(title, bullets);
     }
 
     /// <summary>
-    /// Decode every character entity in a fragment, leaving all other text —
-    /// markup included — exactly as it was.
+    /// Map the core's runs onto the app's own, building the <c>Uri</c> here.
     /// </summary>
-    private static string DecodeEntities(string text)
+    /// <remarks>
+    /// The single place a core type crosses into the app, so the UniFFI types
+    /// stay internal to the binding assembly and no other file has to see them.
+    /// </remarks>
+    private static List<HtmlRun> RunsFrom(List<HwRun> runs)
     {
-        if (!text.Contains('&')) return text;
+        var mapped = new List<HtmlRun>(runs.Count);
 
-        var result = new StringBuilder(text.Length);
-        var index = 0;
-
-        while (index < text.Length)
+        foreach (var run in runs)
         {
-            if (text[index] == '&' && DecodeEntityAt(text, index, out var afterEntity) is { } decoded)
-            {
-                result.Append(decoded);
-                index = afterEntity;
-                continue;
-            }
+            Uri? link = run.link is { } href && Uri.TryCreate(href, UriKind.Absolute, out var uri)
+                ? uri
+                : null;
 
-            result.Append(text[index]);
-            index++;
+            mapped.Add(new HtmlRun(run.text, run.bold, run.italic, link));
         }
 
-        return result.ToString();
+        return mapped;
     }
 
-    /// <summary>
-    /// Decode the entity starting at <paramref name="start"/> (an '&amp;'), and
-    /// report where it ends. Null when there is no complete, recognised entity
-    /// there, in which case the '&amp;' stays literal text.
-    /// </summary>
-    private static string? DecodeEntityAt(string text, int start, out int end)
+    private static HtmlBlockKind KindFrom(HwBlockKind kind) => kind switch
     {
-        end = start;
-
-        var limit = Math.Min(text.Length, start + EntityScanLimit);
-        var semicolon = text.IndexOf(';', start, limit - start);
-        if (semicolon <= start) return null;
-
-        if (DecodeEntity(text[(start + 1)..semicolon]) is not { } decoded) return null;
-
-        end = semicolon + 1;
-        return decoded;
-    }
-
-    /// <summary>
-    /// Decode the body of an entity ("amp", "#8212", "#x2014").
-    /// Returns null for anything unrecognised, so it stays literal text.
-    /// </summary>
-    private static string? DecodeEntity(string body)
-    {
-        if (NamedEntities.TryGetValue(body, out var named)) return named;
-        if (!body.StartsWith('#')) return null;
-
-        var digits = body[1..];
-        var isHex = digits.StartsWith('x') || digits.StartsWith('X');
-
-        var parsed = isHex
-            ? int.TryParse(digits[1..], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var hex) ? hex : -1
-            : int.TryParse(digits, NumberStyles.None, CultureInfo.InvariantCulture, out var dec) ? dec : -1;
-
-        if (parsed < 0 || parsed > 0x10FFFF) return null;
-
-        try
-        {
-            return char.ConvertFromUtf32(parsed);
-        }
-        catch (ArgumentOutOfRangeException)
-        {
-            // Surrogate code point — not a character on its own.
-            return null;
-        }
-    }
+        HwBlockKind.Heading => HtmlBlockKind.Heading,
+        HwBlockKind.Bullet => HtmlBlockKind.Bullet,
+        // Paragraph is the core's own answer for anything that is not a heading
+        // or a bullet, so it is the safe arm for a kind added there later: the
+        // block still renders, as body text, rather than throwing on a feed.
+        _ => HtmlBlockKind.Paragraph
+    };
 }
