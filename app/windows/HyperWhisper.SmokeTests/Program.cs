@@ -3931,12 +3931,24 @@ internal static class Program
                 // nothing ever popped and emboldened everything after it.
                 Assert(InlineHtml.Parse("before <b/> after").TrueForAll(run => !run.Bold),
                     $"'<b/>' bolded the rest: '{string.Join(", ", InlineHtml.Parse("before <b/> after"))}'");
+                // Each TrueForAll is paired with the text it should have
+                // produced. TrueForAll is vacuously true on an empty or
+                // truncated list, so on its own it also passes for a parser
+                // that aborted on the self-closing tag and lost the rest.
+                Assert(InlineHtml.PlainText("before <b/> after") == "before after",
+                    $"'<b/>' lost text: '{InlineHtml.PlainText("before <b/> after")}'");
                 Assert(InlineHtml.Parse("before <i/> after").TrueForAll(run => !run.Italic),
                     $"'<i/>' italicised the rest: '{string.Join(", ", InlineHtml.Parse("before <i/> after"))}'");
+                Assert(InlineHtml.PlainText("before <i/> after") == "before after",
+                    $"'<i/>' lost text: '{InlineHtml.PlainText("before <i/> after")}'");
                 Assert(InlineHtml.Parse("x<strong />y").TrueForAll(run => !run.Bold),
                     "'<strong />' bolded the rest");
+                Assert(InlineHtml.PlainText("x<strong />y") == "xy",
+                    $"'<strong />' lost text: '{InlineHtml.PlainText("x<strong />y")}'");
                 Assert(InlineHtml.Parse("x<em />y").TrueForAll(run => !run.Italic),
                     "'<em />' italicised the rest");
+                Assert(InlineHtml.PlainText("x<em />y") == "xy",
+                    $"'<em />' lost text: '{InlineHtml.PlainText("x<em />y")}'");
 
                 // The paired forms still style what they wrap.
                 Assert(InlineHtml.Parse("<b>still bold</b>")[0].Bold, "a real <b> stopped working");
@@ -4433,6 +4445,45 @@ internal static class Program
                 var bare = new AppcastItem { Version = "1.0.0" };
                 Assert(!bare.HasReleaseTitle && bare.BulletPoints.Count == 0,
                     "an item with no ReleaseNotes should have empty title and bullets");
+            });
+
+            Run("AppcastItem's cached lists are read-only for real, not just in the declared type", () =>
+            {
+                // Copy() shares these lists by reference with every copy, and
+                // its remarks call that safe. It is only safe if the lists
+                // cannot be written through: an IReadOnlyList<T> whose runtime
+                // type is a List<T> downcasts, and one caller doing that would
+                // mutate the note every other copy is rendering. The old
+                // getters handed back a fresh list per read and could not be
+                // corrupted that way, so this is a guarantee the parse-once
+                // change has to replace rather than drop.
+                //
+                // A wrapper, not a copy — the point of the change is to parse
+                // once, not to clone per read, so reference identity per read
+                // (asserted above) still has to hold.
+                var item = new AppcastItem { ReleaseNotes = "<b>Title</b><ul><li>one</li><li>two</li></ul>" };
+
+                foreach (var (name, list) in new (string, object)[]
+                {
+                    ("ReleaseTitle", item.ReleaseTitle),
+                    ("BulletPoints", item.BulletPoints),
+                    ("BulletPoints[0]", item.BulletPoints[0]),
+                    ("BulletPoints[1]", item.BulletPoints[1]),
+                    ("a bare item's ReleaseTitle", new AppcastItem().ReleaseTitle),
+                    ("a bare item's BulletPoints", new AppcastItem().BulletPoints),
+                })
+                {
+                    Assert(list is not List<HtmlRun> && list is not List<IReadOnlyList<HtmlRun>>,
+                        $"{name} downcasts to a writable List<T> ({list.GetType().Name})");
+                    Assert(list is System.Collections.IList { IsReadOnly: true },
+                        $"{name} is writable through IList ({list.GetType().Name})");
+                }
+
+                // The copy shares the very same lists, so the guarantee travels
+                // with it rather than being re-established per copy.
+                var copy = item.Copy();
+                Assert(ReferenceEquals(copy.BulletPoints, item.BulletPoints),
+                    "Copy() no longer shares the parsed bullets");
             });
 
             Run("Every cloudTierEligible catalog id has a CloudAccuracyTier case", () =>

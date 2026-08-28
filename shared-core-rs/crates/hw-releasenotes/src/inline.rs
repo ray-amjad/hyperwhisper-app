@@ -692,9 +692,19 @@ mod tests {
         assert!(runs("before <b/> after").iter().all(|r| !r.bold));
         assert_eq!(text("before <b/> after"), "before after");
 
+        // Each `all(…)` is paired with an equality check on the text, because
+        // `all` is vacuously true on empty or truncated output: a mutant that
+        // made a self-closing emphasis tag abort the parse — so `x<strong />y`
+        // rendered as "x" and the rest of the note was lost — passed the whole
+        // suite while only the unpaired assertions guarded these three cases.
         assert!(runs("before <i/> after").iter().all(|r| !r.italic));
+        assert_eq!(text("before <i/> after"), "before after");
+
         assert!(runs("x<strong />y").iter().all(|r| !r.bold));
+        assert_eq!(text("x<strong />y"), "xy");
+
         assert!(runs("x<em />y").iter().all(|r| !r.italic));
+        assert_eq!(text("x<em />y"), "xy");
 
         // The paired forms still style what they wrap.
         assert_eq!(
@@ -1001,11 +1011,19 @@ mod tests {
             let _ = parse_inline(html, false);
         }
 
-        // An unbalanced `</b>` must not underflow the depth counter.
+        // An unbalanced `</b>` must not underflow the depth counter. Each
+        // `all(…)` is paired with an equality check on the text: `all` is
+        // vacuously true on empty or truncated output, so on its own it would
+        // also pass for a parser that dropped the `x`.
         assert!(runs("</b></b>x").iter().all(|r| !r.bold));
+        assert_eq!(text("</b></b>x"), "x");
+
         assert!(runs("</i></i>x").iter().all(|r| !r.italic));
+        assert_eq!(text("</i></i>x"), "x");
+
         // Nor may an unbalanced `</a>` underflow the link stack.
         assert!(links("</a></a>x").iter().all(Option::is_none));
+        assert_eq!(text("</a></a>x"), "x");
     }
 
     /// A scheme-only or empty href is not a destination.

@@ -227,9 +227,18 @@ struct ReleaseNotesHTMLTests {
         #expect(ReleaseNotesHTML.runs(in: "before <b/> after").allSatisfy { !$0.style.contains(.bold) })
         #expect(ReleaseNotesHTML.plainText("before <b/> after") == "before after")
 
+        // Each allSatisfy is paired with the text it should have produced.
+        // allSatisfy is vacuously true on empty or truncated output, so on its
+        // own it also passes for a parser that aborted on the self-closing tag
+        // and lost the rest of the note.
         #expect(ReleaseNotesHTML.runs(in: "before <i/> after").allSatisfy { !$0.style.contains(.italic) })
+        #expect(ReleaseNotesHTML.plainText("before <i/> after") == "before after")
+
         #expect(ReleaseNotesHTML.runs(in: "x<strong />y").allSatisfy { !$0.style.contains(.bold) })
+        #expect(ReleaseNotesHTML.plainText("x<strong />y") == "xy")
+
         #expect(ReleaseNotesHTML.runs(in: "x<em />y").allSatisfy { !$0.style.contains(.italic) })
+        #expect(ReleaseNotesHTML.plainText("x<em />y") == "xy")
 
         // The paired forms still style what they wrap.
         #expect(ReleaseNotesHTML.runs(in: "<b>still bold</b>").first?.style.contains(.bold) == true)

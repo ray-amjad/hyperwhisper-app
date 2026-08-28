@@ -25,6 +25,14 @@
 //! * **`<H2 id="x">`** — Windows' title regex was case-*sensitive* and allowed
 //!   no attributes. Decision (c) makes the title match case-insensitive, with
 //!   attributes, on both heads. See [`parse_release_note`].
+//! * **`<li/>kept</li>`** — a block opener that closes itself. macOS matched
+//!   the prefix `<li` and then took the first `>`, which is the one in `/>`, so
+//!   it read the item as `kept`; the C# `<li[^>]*>` let `[^>]*` eat the `/` and
+//!   matched the same way. Neither could tell a self-closing block opener from
+//!   a plain one. **Both originals win, together**: a self-closing *block*
+//!   opener still opens an element here, so the bullet survives. (A *closing*
+//!   tag opens nothing, self-closing or not, and the inline layer is untouched
+//!   — `<b/>` there still styles nothing.)
 //!
 //! # Emptiness
 //!
@@ -68,13 +76,97 @@ pub struct ReleaseNote {
 /// The block-level elements this layer understands, mirroring the C# walker's
 /// `<(h[23]|li|p)>`. Everything else stays inline and is handled by
 /// [`crate::parse_inline`] — a `<ul>` or a `<div>` is transparent here.
-fn block_kind(name: &str) -> Option<BlockKind> {
-    match name {
-        "h2" | "h3" => Some(BlockKind::Heading),
-        "li" => Some(BlockKind::Bullet),
-        "p" => Some(BlockKind::Paragraph),
-        _ => None,
+///
+/// The order is fixed, because an element's position in this table is also its
+/// slot in [`MissingCloses`].
+const BLOCK_ELEMENTS: [(&str, BlockKind); 4] = [
+    ("h2", BlockKind::Heading),
+    ("h3", BlockKind::Heading),
+    ("li", BlockKind::Bullet),
+    ("p", BlockKind::Paragraph),
+];
+
+/// A block-level name's slot in [`BLOCK_ELEMENTS`] and its kind, or `None` when
+/// the name is not block-level.
+fn block_element(name: &str) -> Option<(usize, BlockKind)> {
+    BLOCK_ELEMENTS
+        .iter()
+        .enumerate()
+        .find(|(_, (candidate, _))| *candidate == name)
+        .map(|(slot, &(_, kind))| (slot, kind))
+}
+
+/// Where each block name's closing tag is already known to be absent from.
+///
+/// [`find_close`] scans to the end of the input, so if it reports `None` for
+/// one start position it reports `None` for every later one too. Recording that
+/// turns a run of openers that never close from O(n²) into O(n).
+///
+/// It matters because the fragment is a remote appcast feed and
+/// `AppcastService` parses every entry synchronously on the WPF dispatcher.
+/// Before this, in release mode, 32 KB of unclosed `<li>` took 2.5 s, 128 KB
+/// took 39 s and 256 KB took 157 s — and 120 KB of `<p>` relying on HTML's
+/// implicit `</p>`, which is valid markup rather than an attack, took 2.1 s.
+/// The macOS original stopped at the first missing `</li` and was O(n).
+///
+/// Only four names reach here, so this is four slots and not a map.
+#[derive(Default)]
+struct MissingCloses {
+    from: [Option<usize>; BLOCK_ELEMENTS.len()],
+}
+
+impl MissingCloses {
+    /// Whether searching for `slot`'s closing tag from `from` is already known
+    /// to fail.
+    ///
+    /// Sound because every `from` recorded here, and every `from` asked about,
+    /// is a position the scan from the recorded one also walks over: both
+    /// walkers step by the same rule from the same boundary, so the later scan
+    /// covers a suffix of the earlier one's ground.
+    fn known_absent(&self, slot: usize, from: usize) -> bool {
+        self.from
+            .get(slot)
+            .copied()
+            .flatten()
+            .is_some_and(|known| from >= known)
     }
+
+    /// Note that `slot`'s closing tag does not occur at or after `from`.
+    fn record(&mut self, slot: usize, from: usize) {
+        if let Some(entry) = self.from.get_mut(slot) {
+            *entry = Some(entry.map_or(from, |known| known.min(from)));
+        }
+    }
+}
+
+/// Whether the character at `index` opens a tag: the HTML spec's own tag-open
+/// rule, a `<` followed by an optional `/` and then an ASCII letter.
+///
+/// Anything else is text, and the caller advances one scalar over it. A release
+/// note is prose, and prose writes `2 < 3` and `Faster < 1s`. Treating that `<`
+/// as markup made the scan skip ahead to the next `>` — which is the element's
+/// own `</li>` or `</h2>` — so the block lost its tail, merged with the block
+/// after it, or disappeared into the fallback along with the whole note.
+///
+/// Both originals got this right, if by different accidents: macOS searched for
+/// the literal string `</li`, and the C# `(.*?)` crossed a bare `<` without
+/// looking at it.
+///
+/// This is the **block** layer's rule alone. The inline layer still reads every
+/// `<` as a tag start, which is the behaviour its two native oracle suites pin.
+fn opens_a_tag(chars: &[char], index: usize) -> bool {
+    if chars.get(index) != Some(&'<') {
+        return false;
+    }
+
+    let after = index.saturating_add(1);
+    let name_start = if chars.get(after) == Some(&'/') {
+        after.saturating_add(1)
+    } else {
+        after
+    };
+
+    chars.get(name_start).is_some_and(char::is_ascii_alphabetic)
 }
 
 /// One scanned element: its lowercased name, its kind, and its inner HTML with
@@ -94,8 +186,11 @@ struct Scanned {
 fn find_close(chars: &[char], from: usize, name: &str) -> Option<(usize, usize)> {
     let mut index = from;
 
-    while let Some(&character) = chars.get(index) {
-        if character != '<' {
+    while index < chars.len() {
+        // A `<` that does not open a tag is prose: step over it one scalar at a
+        // time rather than skipping to the next `>`, which would be this
+        // element's own closing tag. See [`opens_a_tag`].
+        if !opens_a_tag(chars, index) {
             index = index.saturating_add(1);
             continue;
         }
@@ -127,10 +222,12 @@ fn find_close(chars: &[char], from: usize, name: &str) -> Option<(usize, usize)>
 /// `</li>`.
 fn scan_block_elements(chars: &[char]) -> Vec<Scanned> {
     let mut found: Vec<Scanned> = Vec::new();
+    let mut missing = MissingCloses::default();
     let mut index = 0usize;
 
-    while let Some(&character) = chars.get(index) {
-        if character != '<' {
+    while index < chars.len() {
+        // A `<` that does not open a tag is prose — see [`opens_a_tag`].
+        if !opens_a_tag(chars, index) {
             index = index.saturating_add(1);
             continue;
         }
@@ -146,13 +243,23 @@ fn scan_block_elements(chars: &[char]) -> Vec<Scanned> {
         let parsed = tag::parse_tag(&body);
         let after_open = open_end.saturating_add(1);
 
-        // A closing or self-closing tag opens nothing, and a tag that is not
-        // block-level is inline content the block layer steps over.
-        let Some(kind) = block_kind(parsed.name.as_str()) else {
+        // A tag that is not block-level is inline content the block layer steps
+        // over, and a closing tag opens nothing. A *self-closing* block opener
+        // does open an element — neither original could tell one from a plain
+        // opener, and both made `<li/>kept</li>` a bullet. See the disagreement
+        // table above.
+        let Some((slot, kind)) = block_element(parsed.name.as_str()) else {
             index = after_open;
             continue;
         };
-        if parsed.is_closing || parsed.is_self_closing {
+        if parsed.is_closing {
+            index = after_open;
+            continue;
+        }
+
+        // This name's closing tag is already known to be absent from here on,
+        // so there is nothing to rescan. See [`MissingCloses`].
+        if missing.known_absent(slot, after_open) {
             index = after_open;
             continue;
         }
@@ -170,7 +277,10 @@ fn scan_block_elements(chars: &[char]) -> Vec<Scanned> {
                 });
                 index = after_close;
             }
-            None => index = after_open,
+            None => {
+                missing.record(slot, after_open);
+                index = after_open;
+            }
         }
     }
 
@@ -240,7 +350,10 @@ fn fallback_lines(chars: &[char]) -> Vec<String> {
             continue;
         }
 
-        if character == '<' {
+        // Same tag-open rule as the two scanners above: a `<` that opens no tag
+        // is prose. Skipping to the next `>` swallowed the newline that ends
+        // the line, so `a < b\nc > d` rendered as one line rather than two.
+        if opens_a_tag(chars, index) {
             if let Some(end) = tag::tag_end(chars, index) {
                 let body = chars
                     .get(index.saturating_add(1)..end)
@@ -439,6 +552,119 @@ mod tests {
         assert_eq!(texts(&split_blocks("<ul><li>one</li ><li>two</li></ul>")), ["one", "two"]);
         assert_eq!(texts(&split_blocks("<ul><li>one</LI><li>two</li></ul>")), ["one", "two"]);
         assert_eq!(texts(&split_blocks("<ul><li>one</li\n><li>two</li></ul>")), ["one", "two"]);
+    }
+
+    /// A `<` that does not open a tag is prose, and the item keeps it. Both
+    /// originals agreed here — macOS searched for the literal `</li`, and the
+    /// C# `(.*?)` crossed a bare `<` without looking at it.
+    #[test]
+    fn a_bare_angle_bracket_in_prose_does_not_end_the_item() {
+        let blocks = split_blocks("<ul><li>2 < 3 is true</li></ul>");
+        assert_eq!(texts(&blocks), ["2 < 3 is true"]);
+        assert_eq!(kinds(&blocks), [BlockKind::Bullet]);
+    }
+
+    /// The same `<`, one item earlier: it used to swallow the item's own
+    /// `</li>` and merge the bullet with the one after it.
+    #[test]
+    fn a_bare_angle_bracket_does_not_merge_two_items() {
+        let blocks = split_blocks("<ul><li>a < b</li><li>second</li></ul>");
+        assert_eq!(texts(&blocks), ["a < b", "second"]);
+        assert_eq!(kinds(&blocks), [BlockKind::Bullet, BlockKind::Bullet]);
+    }
+
+    /// And in a heading, where losing the `</h2>` used to drop the title
+    /// entirely and take the whole note down into the fallback with it.
+    #[test]
+    fn a_bare_angle_bracket_in_a_heading_does_not_lose_the_heading() {
+        let html = "<h2>Faster < 1s</h2><ul><li>one</li></ul>";
+        let blocks = split_blocks(html);
+        assert_eq!(texts(&blocks), ["Faster < 1s", "one"]);
+        assert_eq!(kinds(&blocks), [BlockKind::Heading, BlockKind::Bullet]);
+
+        let note = parse_release_note(html);
+        assert_eq!(title_text(&note).as_deref(), Some("Faster < 1s"));
+        assert_eq!(texts(&note.bullets), ["one"]);
+    }
+
+    /// The tag-open rule is the HTML spec's, and nothing looser: `<`, an
+    /// optional `/`, then an ASCII letter. A digit, a space, a `/` on its own
+    /// and a non-ASCII letter are all prose.
+    #[test]
+    fn only_an_ascii_letter_after_the_angle_bracket_opens_a_tag() {
+        for (html, expected) in [
+            ("<ul><li>x <3 y</li></ul>", "x <3 y"),
+            ("<ul><li>x < y</li></ul>", "x < y"),
+            ("<ul><li>x </ y</li></ul>", "x </ y"),
+            ("<ul><li>x <é y</li></ul>", "x <é y"),
+            ("<ul><li>x <_y</li></ul>", "x <_y"),
+        ] {
+            assert_eq!(texts(&split_blocks(html)), [expected], "for {html:?}");
+            assert_eq!(kinds(&split_blocks(html)), [BlockKind::Bullet], "for {html:?}");
+        }
+    }
+
+    /// The same bare `<`, in the FALLBACK branch — the third scanner in this
+    /// file. `fallback_lines` skipped to the next `>`, which swallowed the
+    /// newline that ends the line and merged two lines into one. The C# `else`
+    /// branch split on `<br\s*/?>|\n` and so ended the line unconditionally.
+    #[test]
+    fn a_bare_angle_bracket_does_not_swallow_a_line_break_in_the_fallback() {
+        let blocks = split_blocks("a < b\nc > d");
+        assert_eq!(texts(&blocks), ["a < b", "c > d"]);
+        assert_eq!(kinds(&blocks), [BlockKind::Paragraph, BlockKind::Paragraph]);
+
+        // A real tag still spans a newline inside its own body, and a `<br>`
+        // still ends a line.
+        assert_eq!(
+            texts(&split_blocks("see <a\nhref=\"https://example.com/x\">the page</a>")),
+            ["see the page"]
+        );
+        assert_eq!(texts(&split_blocks("one<br>two")), ["one", "two"]);
+    }
+
+    /// A self-closing *block* opener still opens an element. macOS matched the
+    /// prefix `<li` and then took the first `>` — the one in `/>` — and the C#
+    /// `<li[^>]*>` let `[^>]*` eat the `/`, so neither could tell a
+    /// self-closing block opener from a plain one. Both made this a bullet.
+    #[test]
+    fn a_self_closing_block_opener_still_opens_the_element() {
+        let blocks = split_blocks("<ul><li/>kept</li></ul>");
+        assert_eq!(texts(&blocks), ["kept"]);
+        assert_eq!(kinds(&blocks), [BlockKind::Bullet]);
+
+        assert_eq!(kinds(&split_blocks("<p/>kept</p>")), [BlockKind::Paragraph]);
+        assert_eq!(kinds(&split_blocks("<h2 />kept</h2>")), [BlockKind::Heading]);
+
+        // A *closing* tag still opens nothing, whether or not it closes itself.
+        assert_eq!(texts(&split_blocks("<ul></li/><li>kept</li></ul>")), ["kept"]);
+    }
+
+    /// [`find_close`] scans to the end of the input, so a `None` for one start
+    /// position is a `None` for every later one — and a run of openers that
+    /// never close must not rescan the tail once per opener.
+    ///
+    /// The input is a remote feed and `AppcastService` parses every entry
+    /// synchronously on the WPF dispatcher, so the quadratic form was a denial
+    /// of service: in RELEASE mode 32 KB of unclosed `<li>` took 2.5 s, 128 KB
+    /// took 39 s and 256 KB took 157 s. This test runs the 32 KB case in debug,
+    /// where it took about 21 s before the fix and is now unmeasurable.
+    #[test]
+    fn unclosed_openers_do_not_rescan_the_tail() {
+        let start = std::time::Instant::now();
+
+        assert!(split_blocks(&"<li>".repeat(8_000)).is_empty());
+        assert!(parse_release_note(&"<li>".repeat(8_000)).bullets.is_empty());
+
+        // HTML lets a `<p>` be closed implicitly by the next one. That is valid
+        // markup, not an attack, and it hit the same rescan.
+        assert_eq!(split_blocks(&"<p>hello world ".repeat(2_000)).len(), 1);
+
+        let elapsed = start.elapsed();
+        assert!(
+            elapsed < std::time::Duration::from_secs(5),
+            "the quadratic rescan is back: {elapsed:?}"
+        );
     }
 
     /// The `[^>]*` disagreement: a `>` inside a quoted attribute value used to

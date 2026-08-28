@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using HyperWhisper.Utilities;
 
 namespace HyperWhisper.Models;
@@ -5,8 +6,13 @@ namespace HyperWhisper.Models;
 public class AppcastItem
 {
     private readonly string _releaseNotes = "";
-    private readonly IReadOnlyList<HtmlRun> _releaseTitle = [];
-    private readonly IReadOnlyList<IReadOnlyList<HtmlRun>> _bulletPoints = [];
+    // Read-only for real, not just in the declared type — see AsReadOnly. An
+    // item built without ReleaseNotes never runs the init accessor, so its
+    // defaults have to hold the same invariant.
+    private readonly IReadOnlyList<HtmlRun> _releaseTitle = ReadOnlyCollection<HtmlRun>.Empty;
+
+    private readonly IReadOnlyList<IReadOnlyList<HtmlRun>> _bulletPoints =
+        ReadOnlyCollection<IReadOnlyList<HtmlRun>>.Empty;
 
     public string Version { get; init; } = "";
     public DateTime PubDate { get; init; }
@@ -34,10 +40,37 @@ public class AppcastItem
             // An entry with no notes parses as the empty fragment: no title, no
             // bullets. There is no second parse anywhere below, or in the views.
             var note = InlineHtml.ParseNote(value);
-            _releaseTitle = note.Title;
-            _bulletPoints = note.Bullets;
+            _releaseTitle = AsReadOnly(note.Title);
+
+            var bullets = new List<IReadOnlyList<HtmlRun>>(note.Bullets.Count);
+            foreach (var bullet in note.Bullets) bullets.Add(AsReadOnly(bullet));
+            _bulletPoints = new ReadOnlyCollection<IReadOnlyList<HtmlRun>>(bullets);
         }
     }
+
+    /// <summary>
+    /// The same items behind a genuinely read-only facade — a wrapper, never a
+    /// copy of the items themselves.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Copy"/> shares these lists by reference with every copy, and
+    /// the remarks on it call that safe. An <c>IReadOnlyList&lt;T&gt;</c> whose
+    /// runtime type is a <c>List&lt;T&gt;</c> does not make it safe: one caller
+    /// downcasting it would mutate the note every other copy is rendering, and
+    /// the old getters — which handed back a fresh list per read — could not be
+    /// corrupted that way. No caller downcasts today; this makes the type say
+    /// so instead of only the comment.
+    /// <para>
+    /// A wrapper, because the point of the change is to parse the note once and
+    /// not clone it per read. This runs in the init accessor, once per item.
+    /// </para>
+    /// </remarks>
+    private static ReadOnlyCollection<T> AsReadOnly<T>(IReadOnlyList<T> items) => items switch
+    {
+        ReadOnlyCollection<T> already => already,
+        IList<T> list => new ReadOnlyCollection<T>(list),
+        _ => new ReadOnlyCollection<T>(new List<T>(items)),
+    };
 
     public bool IsLatest { get; set; }
 
