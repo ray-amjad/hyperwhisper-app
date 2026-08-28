@@ -59,12 +59,27 @@ public class CustomEndpointManager : IDisposable
     // =========================================================================
 
     private CustomEndpointManager()
+        : this(new HttpClient { Timeout = TimeSpan.FromSeconds(30) })
     {
-        _httpClient = new HttpClient
-        {
-            Timeout = TimeSpan.FromSeconds(30)
-        };
         LoggingService.Info($"CustomEndpointManager: Initialized with {GetAllEndpoints().Count} endpoints");
+    }
+
+    /// <summary>
+    /// Test seam: build a manager over a caller-supplied transport.
+    /// </summary>
+    /// <remarks>
+    /// The singleton owns a real <see cref="HttpClient"/> aimed at the open
+    /// internet, so <see cref="TestEndpointAsync(string, string, string?)"/> —
+    /// the "Test" button in the Add/Edit endpoint window — could not be
+    /// exercised at all. Every branch of it (the parsed upstream error, the
+    /// accepted completion, the non-JSON body) needed a live provider and a
+    /// live key. This constructor takes the transport instead, so a test can
+    /// script the upstream response. It changes nothing for the app: the
+    /// private constructor above still supplies the same 30-second client.
+    /// </remarks>
+    internal CustomEndpointManager(HttpClient httpClient)
+    {
+        _httpClient = httpClient;
     }
 
     // =========================================================================

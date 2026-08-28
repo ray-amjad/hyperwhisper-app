@@ -961,6 +961,58 @@ internal static class Program
                     "an unparsable URL should not be accepted at all");
             });
 
+            // Only possible since CustomEndpointManager took its HttpClient as a
+            // constructor parameter: the singleton built its own, so the "Test"
+            // button's response handling needed a live provider and a live key.
+            RunAsync("Custom endpoint test maps every upstream reply", async () =>
+            {
+                const string Url = "http://localhost:1234/v1/chat/completions";
+                const string Model = "llama3.2";
+
+                var handler = new CapturingHandler();
+                using var client = new HttpClient(handler);
+                using var manager = new CustomEndpointManager(client);
+
+                // An upstream error body carries the reason the key was refused.
+                // Reporting "HTTP 401" instead loses it.
+                handler.Next = () => Respond(HttpStatusCode.Unauthorized,
+                    """{"error":{"message":"Incorrect API key provided"}}""");
+                var refused = await manager.TestEndpointAsync(Url, Model, "sk-wrong");
+                Assert(!refused.success, "a 401 should not report success");
+                Assert(refused.message == "Incorrect API key provided",
+                    $"401 body should be parsed, got '{refused.message}'");
+
+                // An error body with no "error" object has nothing to quote, so
+                // the status line is the fallback — not an empty message.
+                handler.Next = () => Respond(HttpStatusCode.ServiceUnavailable, """{"detail":"busy"}""");
+                var unparsable = await manager.TestEndpointAsync(Url, Model, "sk-test");
+                Assert(!unparsable.success, "a 503 should not report success");
+                Assert(unparsable.message == "HTTP 503", $"expected the status fallback, got '{unparsable.message}'");
+
+                // The happy path returns the completion text itself.
+                handler.Next = () => Respond(HttpStatusCode.OK,
+                    """{"choices":[{"message":{"content":"Hello World"}}]}""");
+                var ok = await manager.TestEndpointAsync(Url, Model, "sk-test");
+                Assert(ok.success, $"a valid completion should succeed, got '{ok.message}'");
+                Assert(ok.message == "Hello World", $"expected the completion text, got '{ok.message}'");
+
+                // A 200 that is not an OpenAI completion is the shape a wrong
+                // base URL produces — a proxy's HTML, say. It must not throw.
+                handler.Next = () => Respond(HttpStatusCode.OK, "<html>not json</html>");
+                var garbage = await manager.TestEndpointAsync(Url, Model, "sk-test");
+                Assert(!garbage.success, "a non-JSON 200 should not report success");
+                Assert(garbage.message == "Invalid response format - expected OpenAI-compatible response",
+                    $"expected the shape error, got '{garbage.message}'");
+
+                // Every reply above came from exactly one probe, and the probe
+                // went to the endpoint the user configured.
+                Assert(handler.Sends == 4, $"expected 4 upstream calls, saw {handler.Sends}");
+                Assert(handler.LastRequestUri?.Host == "localhost"
+                        && handler.LastRequestUri?.Port == 1234
+                        && handler.LastRequestUri?.AbsolutePath == "/v1/chat/completions",
+                    $"probe went to '{handler.LastRequestUri}'");
+            });
+
             Run("Deepgram parses every message shape of its \"channel\" field", () =>
             {
                 using var strategy = LiveStrategy(StreamingTranscriptionProvider.Deepgram);
@@ -5782,6 +5834,30 @@ internal static class Program
             "http://127.0.0.1:9/smoke",
             new List<Header>(),
             new Body.Empty());
+
+    /// <summary>
+    /// Scripted HttpMessageHandler that also records where the call went.
+    /// Set <see cref="Next"/> before each send. Used by the custom-endpoint test
+    /// checks, which assert on the request as well as on the reply.
+    /// </summary>
+    private sealed class CapturingHandler : HttpMessageHandler
+    {
+        public Func<HttpResponseMessage>? Next;
+        public int Sends;
+        public Uri? LastRequestUri;
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Sends++;
+            LastRequestUri = request.RequestUri;
+            if (Next is null)
+                throw new InvalidOperationException("CapturingHandler.Next was not set");
+            return Task.FromResult(Next());
+        }
+    }
+
+    private static HttpResponseMessage Respond(HttpStatusCode status, string body)
+        => new(status) { Content = new StringContent(body) };
 
     /// <summary>
     /// Scripted HttpMessageHandler: counts sends and delegates each attempt to
