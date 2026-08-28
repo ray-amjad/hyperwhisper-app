@@ -62,10 +62,11 @@ public sealed class ModeAwareTranscriptionRouter : IRecordedAudioTranscriber, ID
         var mode = request.SelectedMode;
         if (!string.Equals(mode?.ProviderType, "cloud", StringComparison.OrdinalIgnoreCase))
         {
-            var local = string.Equals(mode?.LocalEngine, "parakeet", StringComparison.OrdinalIgnoreCase)
-                ? _parakeet
-                : _whisper;
-            return await local.TranscribeAsync(audioPath, request, cancellationToken).ConfigureAwait(false);
+            var isParakeet = string.Equals(mode?.LocalEngine, "parakeet", StringComparison.OrdinalIgnoreCase);
+            var local = isParakeet ? _parakeet : _whisper;
+            var localResult = await local.TranscribeAsync(audioPath, request, cancellationToken)
+                .ConfigureAwait(false);
+            return ApplyLocalVocabulary(localResult, request, isParakeet);
         }
 
         if (!TryMapProvider(mode!.CloudProvider, out var provider))
@@ -90,6 +91,82 @@ public sealed class ModeAwareTranscriptionRouter : IRecordedAudioTranscriber, ID
             MapCloudError(failure?.Code),
             failure?.Message ?? "The cloud provider returned no transcription.",
             attribution);
+    }
+
+    /// <summary>
+    /// The two on-device vocabulary passes, over the raw local engine result
+    /// (issue #283). NEW ON LINUX: this head had no phonetic matching and no
+    /// substring pass at all — <c>grep -rn "Phonetic|BeiderMorse" app/linux
+    /// app/shared-dotnet</c> returned nothing, and the Windows copy lived in
+    /// <c>app/windows</c> where Linux could not reach it.
+    ///
+    /// This is the LOCAL branch only, which is where macOS and Windows run them:
+    /// inside the on-device provider, over its own raw output, BEFORE the
+    /// pipeline's <c>\b</c>-anchored pass in <c>SpeechOutputProcessor</c>. A
+    /// cloud transcription never sees either pass on any platform.
+    ///
+    /// 1. The phonetic (Beider-Morse) pass, for parakeet only. macOS runs it in
+    ///    ParakeetProvider and NemotronProvider and NOT in Qwen3AsrProvider or
+    ///    AppleSpeechAnalyzerProvider; whisper.cpp is this head's equivalent of
+    ///    the latter, so it is gated the same way.
+    /// 2. The unanchored, diacritic-insensitive substring pass, for every local
+    ///    engine — which is what all four macOS local providers do.
+    /// </summary>
+    private static PortableTranscriptionResult ApplyLocalVocabulary(
+        PortableTranscriptionResult result,
+        TranscriptionWorkflowRequest request,
+        bool isParakeet)
+    {
+        if (!result.IsSuccess) return result;
+
+        var entries = BuildVocabularyEntries(request);
+        if (entries.Count == 0) return result;
+
+        var text = result.Text!;
+        if (isParakeet) text = SharedCoreBridge.ApplyPhoneticVocabulary(text, entries).Text;
+        text = SharedCoreBridge.ApplySubstringVocabulary(text, entries);
+
+        return string.Equals(text, result.Text, StringComparison.Ordinal)
+            ? result
+            : result with { Text = text };
+    }
+
+    /// <summary>
+    /// Rebuild the whole vocabulary rows — word plus its optional replacement —
+    /// from the two lists the request already carries.
+    ///
+    /// <c>Vocabulary</c> is every word in list order; <c>VocabularyReplacements</c>
+    /// is the subset that has a replacement. macOS and Windows hand the core
+    /// whole rows because they read them straight out of Core Data / EF; this
+    /// head reassembles the same shape rather than growing a third field that
+    /// could go stale against the two above.
+    ///
+    /// A duplicate word keeps its LAST replacement, matching the dictionary
+    /// build rather than throwing on it — legacy rows can carry duplicates.
+    ///
+    /// <c>ModeVocabularyReplacements</c> is deliberately NOT folded in. macOS
+    /// and Windows run both local passes over the GLOBAL vocabulary only, and
+    /// this head passes an empty mode list anyway; merging it here would invent
+    /// a precedence rule neither platform has.
+    /// </summary>
+    private static List<PortableVocabularyEntry> BuildVocabularyEntries(
+        TranscriptionWorkflowRequest request)
+    {
+        var words = request.Vocabulary ?? [];
+        if (words.Count == 0) return [];
+
+        var replacements = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var entry in request.VocabularyReplacements ?? [])
+        {
+            if (entry is null || string.IsNullOrWhiteSpace(entry.Word)) continue;
+            replacements[entry.Word] = entry.Replacement;
+        }
+
+        return [.. words
+            .Where(word => !string.IsNullOrWhiteSpace(word))
+            .Select(word => new PortableVocabularyEntry(
+                word,
+                replacements.TryGetValue(word, out var replacement) ? replacement : null))];
     }
 
     public static CloudTranscriptionRequest BuildCloudRequest(
