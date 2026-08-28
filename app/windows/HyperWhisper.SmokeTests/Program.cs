@@ -19,6 +19,7 @@ using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Net.WebSockets;
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Windows;
@@ -29,6 +30,7 @@ using HyperWhisper.Models;
 using HyperWhisper.Services;
 using HyperWhisper.AppClassification;
 using HyperWhisper.Services.AppClassification;
+using HyperWhisper.Services.LocalApi;
 using HyperWhisper.Services.Platform;
 using HyperWhisper.Services.Streaming;
 using HyperWhisper.Services.Transcription;
@@ -5165,6 +5167,133 @@ internal static class Program
                     {
                     }
                 }
+            });
+
+            // =================================================================
+            // Local API wire contract (issue #289)
+            //
+            // #289 observed that `find app/macos app/windows -ipath '*test*'
+            // -iname '*localapi*'` was empty: of the three implementations of
+            // one documented contract, only the most-drifted had any tests.
+            // These are the Windows half.
+            //
+            // They test the SEAM, not the logic. The decision table, the
+            // encoder and the constant-time compare are pinned by the Rust
+            // crate's own suite, where they can be fuzzed. What can still go
+            // wrong here is the bridge — a header that never reaches the guard,
+            // a status the middleware overrides, a token the DPAPI store would
+            // reject.
+            // =================================================================
+
+            Run("the origin guard allows a loopback client and denies DNS rebinding", () =>
+            {
+                static bool Allowed(string? host, string? origin, string? fetchSite, int port)
+                {
+                    // Fully qualified: `Microsoft.AspNetCore.Http` cannot be
+                    // imported here, because its `HttpRequest` collides with
+                    // the UniFFI binding's own `HttpRequest` record.
+                    var context = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+                    if (host != null) context.Request.Headers["Host"] = host;
+                    if (origin != null) context.Request.Headers["Origin"] = origin;
+                    if (fetchSite != null) context.Request.Headers["Sec-Fetch-Site"] = fetchSite;
+                    return LocalApiOriginGuard.IsAllowed(context, port);
+                }
+
+                Assert(Allowed("127.0.0.1:51671", null, null, 51671), "a loopback curl client must be served");
+                Assert(Allowed("localhost:51671", null, null, 51671), "the localhost spelling must be served");
+                Assert(Allowed("LocalHost:51671", null, null, 51671), "Host is case-insensitive");
+                Assert(Allowed("127.0.0.1:51671", "http://127.0.0.1:51671", "same-origin", 51671),
+                    "a same-origin browser fetch must be served");
+
+                // The attack. A rebound page still sends the attacker's Host.
+                Assert(!Allowed("attacker.com:51671", "http://attacker.com:51671", "cross-site", 51671),
+                    "a DNS-rebound request must be rejected");
+                Assert(!Allowed("127.0.0.1:51671", "http://attacker.com", null, 51671),
+                    "a cross-origin Origin must be rejected");
+                Assert(!Allowed("127.0.0.1:51671", null, "cross-site", 51671),
+                    "cross-site fetch metadata must be rejected");
+                Assert(!Allowed(null, null, null, 51671), "a request with no Host header must be rejected");
+                Assert(!Allowed("127.0.0.1:51672", null, null, 51671), "the wrong port must be rejected");
+                Assert(!Allowed("127.0.0.1:51671", null, null, 0), "an unbound server must serve nothing");
+            });
+
+            Run("the bearer check accepts only the real token", () =>
+            {
+                var token = HyperwhisperCoreMethods.LocalApiGenerateToken(new byte[32]);
+                Assert(token.Length == 43, $"expected a 43-character token, got {token.Length}");
+                Assert(HyperwhisperCoreMethods.LocalApiIsWellFormedToken(token),
+                    "the generated token is not in the base64url alphabet the DPAPI store expects");
+
+                Assert(LocalApiAuth.Authorize($"Bearer {token}", token), "the real token must authorize");
+                Assert(LocalApiAuth.Authorize($"bearer {token}", token), "the scheme is case-insensitive");
+                Assert(LocalApiAuth.Authorize($"  Bearer {token}  ", token), "the header is trimmed");
+
+                Assert(!LocalApiAuth.Authorize("", token), "an absent header must not authorize");
+                Assert(!LocalApiAuth.Authorize(token, token), "a bare token with no scheme must not authorize");
+                Assert(!LocalApiAuth.Authorize($"Basic {token}", token), "another scheme must not authorize");
+                Assert(!LocalApiAuth.Authorize($"Bearer {token}x", token), "a longer token must not authorize");
+                for (var length = 0; length < token.Length; length++)
+                {
+                    Assert(!LocalApiAuth.Authorize($"Bearer {token[..length]}", token),
+                        $"a {length}-character prefix of the token must not authorize");
+                }
+                // The gap #289 closed on every platform at once.
+                Assert(!LocalApiAuth.Authorize($"Bearer {token}", ""),
+                    "an empty stored credential must authorize nothing");
+            });
+
+            Run("the error-code constants are the shared closed set of 14", () =>
+            {
+                // A Swift `Codable` enum is closed, so a client sharing the
+                // macOS decoder fails to decode the ENTIRE envelope on a
+                // fifteenth code. These constants must not grow one.
+                var shared = HyperwhisperCoreMethods.LocalApiAllErrorCodes()
+                    .Select(HyperwhisperCoreMethods.LocalApiErrorCodeWireValue)
+                    .ToHashSet(StringComparer.Ordinal);
+                Assert(shared.Count == 14, $"expected 14 shared codes, got {shared.Count}");
+
+                var windows = typeof(LocalApiErrorCode)
+                    .GetFields(BindingFlags.Public | BindingFlags.Static)
+                    .Where(field => field.IsLiteral && field.FieldType == typeof(string))
+                    .Select(field => (string)field.GetRawConstantValue()!)
+                    .ToHashSet(StringComparer.Ordinal);
+                Assert(windows.SetEquals(shared),
+                    $"the Windows constants and the shared set disagree: [{string.Join(", ", windows.Except(shared))}] / [{string.Join(", ", shared.Except(windows))}]");
+
+                // The four Linux emitted outside the set, plus the declared and
+                // never-used one.
+                foreach (var outside in new[] { "PAYLOAD_TOO_LARGE", "CANCELLED", "UNAUTHORIZED", "RECORDING_NOT_FOUND", "INTERNAL_ERROR" })
+                {
+                    Assert(HyperwhisperCoreMethods.LocalApiErrorCodeFromWireValue(outside) is null,
+                        $"{outside} must not be in the closed set");
+                }
+            });
+
+            Run("a business failure is HTTP 200 and the guard's 403 is macOS's response", () =>
+            {
+                foreach (var code in HyperwhisperCoreMethods.LocalApiAllErrorCodes())
+                {
+                    var business = HyperwhisperCoreMethods.LocalApiBusinessFailure(code, "x", null);
+                    Assert(business.httpStatus == 200,
+                        $"{code} came back as {business.httpStatus}, not the documented 200");
+                }
+                Assert(HyperwhisperCoreMethods.LocalApiBadRequestFailure("x", null).httpStatus == 400,
+                    "a malformed request is still 400");
+
+                var forbidden = HyperwhisperCoreMethods.LocalApiForbiddenOriginFailure();
+                Assert(forbidden.httpStatus == 403, "the origin guard responds 403");
+                Assert(HyperwhisperCoreMethods.LocalApiErrorCodeWireValue(forbidden.code) == "INVALID_REQUEST",
+                    "the guard must NOT invent a FORBIDDEN code - that would be a contract change on macOS");
+                Assert(forbidden.message == "Request rejected: Host/Origin not permitted.",
+                    "the guard's message is macOS's, verbatim");
+
+                // The 401 body must stay byte-identical to what Windows sent
+                // before #289 — no hint, because the hint names the platform's
+                // own discovery file and Windows never sent one.
+                var unauthorized = HyperwhisperCoreMethods.LocalApiUnauthorizedFailure(null);
+                Assert(unauthorized.httpStatus == 401, "a credential failure is still 401");
+                Assert(unauthorized.json == "{\"ok\":false,\"error\":{\"code\":\"INVALID_REQUEST\",\"message\":\"Missing or invalid bearer token\"}}",
+                    $"the 401 envelope changed shape: {unauthorized.json}");
             });
 
             Console.WriteLine(_failures == 0

@@ -307,19 +307,12 @@ final class LocalAPIServer: ObservableObject {
     /// still sends `Host: attacker.com`, so its requests never reach a handler.
     private func guarded(_ request: HTTPRequest, _ body: (LocalAPIServer) async -> HTTPResponse) async -> HTTPResponse {
         let port = await currentBoundPort()
-        guard port > 0, LocalAPIOriginGuard.isAllowed(request, port: port) else {
-            AppLogger.network.error("LocalAPI server: rejected request with disallowed Host/Origin (possible DNS-rebinding)")
-            let envelope = APIFailureEnvelope(
-                code: .invalidRequest,
-                message: "Request rejected: Host/Origin not permitted.",
-                hint: "The Local API only serves loopback clients on 127.0.0.1/localhost."
-            )
-            let data = (try? LocalAPIResponder.encoder.encode(envelope)) ?? Data()
-            return HTTPResponse(
-                statusCode: .forbidden,
-                headers: [.contentType: "application/json; charset=utf-8"],
-                body: data
-            )
+        // The `port > 0` case is inside the shared guard now, as
+        // `DeniedPortUnknown`, so all three platforms inherit it (#289).
+        let decision = LocalAPIOriginGuard.decision(request, port: port)
+        guard localApiOriginDecisionIsAllowed(decision: decision) else {
+            AppLogger.network.error("LocalAPI server: rejected request with disallowed Host/Origin (possible DNS-rebinding) · \(String(describing: decision), privacy: .public)")
+            return LocalAPIResponder.response(for: localApiForbiddenOriginFailure())
         }
         return await body(self)
     }
@@ -342,17 +335,13 @@ final class LocalAPIServer: ObservableObject {
     /// to the agent from a credential failure.
     private func authorized(_ request: HTTPRequest, _ body: (LocalAPIServer) async -> HTTPResponse) async -> HTTPResponse {
         if !LocalAPIAuth.authorize(request, expected: bearerToken) {
-            let envelope = APIFailureEnvelope(
-                code: .invalidRequest,
-                message: "Missing or invalid bearer token",
-                hint: "Send Authorization: Bearer <token>; the token lives in ~/Library/Application Support/HyperWhisper/local-api.json."
-            )
-            let data = (try? LocalAPIResponder.encoder.encode(envelope)) ?? Data()
-            return HTTPResponse(
-                statusCode: .unauthorized,
-                headers: [.contentType: "application/json; charset=utf-8",
-                          HTTPHeader("WWW-Authenticate"): "Bearer realm=\"hyperwhisper\""],
-                body: data
+            // The hint names this platform's discovery file, which is the one
+            // part of the 401 that legitimately differs per head (#289).
+            return LocalAPIResponder.response(
+                for: localApiUnauthorizedFailure(
+                    hint: "Send Authorization: Bearer <token>; the token lives in ~/Library/Application Support/HyperWhisper/local-api.json."
+                ),
+                extraHeaders: [HTTPHeader("WWW-Authenticate"): "Bearer realm=\"hyperwhisper\""]
             )
         }
         return await body(self)

@@ -23,8 +23,7 @@
 
   <!-- uniffi-bindgen-cs emits its types as `internal`, so consumers that touch
        the raw binding (rather than only the Portable* surface in
-       SharedCoreBridge) need explicit access. The Windows head and its smoke
-       suite do; the Linux head does not. -->
+       SharedCoreBridge) need explicit access. -->
   <ItemGroup>
     <InternalsVisibleTo Include="HyperWhisper" />
     <InternalsVisibleTo Include="HyperWhisper.SmokeTests" />
@@ -47,6 +46,15 @@
     <InternalsVisibleTo Include="HyperWhisper.AppClassification" />
     <!-- Runs shared-conformance/app-type-vectors.json against the binding. -->
     <InternalsVisibleTo Include="HyperWhisper.AppTypeConformance.Tests" />
+    <!-- The Local API's origin guard, bearer check, token encoder and failure
+         envelope all come from the binding now (issue #289). The decision and
+         failure records are `internal`, and the portable server is where the
+         Linux head serves them from. -->
+    <InternalsVisibleTo Include="HyperWhisper.LocalApi" />
+    <!-- Asserts the head's error-code constants against
+         `LocalApiAllErrorCodes()` — the closed set has to be read off the
+         binding for the check to mean anything. -->
+    <InternalsVisibleTo Include="HyperWhisper.LocalApi.Tests" />
     <!-- The live-streaming protocol adapter is internal (issue #281), and it is
          the head's whole proof that the Rust `HwLiveSession` object is right:
          the connect descriptor, the framing rule, every parser and every ordered

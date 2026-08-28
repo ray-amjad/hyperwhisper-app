@@ -17,6 +17,8 @@ var tests = new (string Name, Func<Task> Run)[]
 {
     ("route parity", RouteParity),
     ("bearer auth and public health", Auth),
+    ("origin guard runs on every route", OriginGuard),
+    ("error codes match the shared closed set", ErrorCodeParity),
     ("bounded multipart transcription", Multipart),
     ("Windows JSON transcription contract", JsonTranscriptionContract),
     ("Windows JSON file source is private and bounded", JsonFileSecurity),
@@ -68,6 +70,93 @@ static async Task Auth()
     Assert((await fixture.Client.GetAsync("/models")).StatusCode == HttpStatusCode.OK, "valid bearer rejected");
 }
 
+/// <summary>
+/// The DNS-rebind guard, on every route (issue #289).
+///
+/// The rejection is HTTP 403 with `INVALID_REQUEST`, exactly what macOS
+/// returns, and it comes ahead of the bearer check — a rebound page must not
+/// learn whether its token guess was right. `/health` is unauthenticated and is
+/// still guarded, which is the case this head missed entirely.
+/// </summary>
+static async Task OriginGuard()
+{
+    await using var fixture = await Fixture.Create();
+    fixture.Authenticate();
+
+    // Every route, authenticated or not, sees the guard.
+    foreach (var route in new[] { "/health", "/models", "/modes", "/recordings" })
+    {
+        using var rebound = new HttpRequestMessage(HttpMethod.Get, route);
+        rebound.Headers.Host = "attacker.example";
+        var response = await fixture.Client.SendAsync(rebound);
+        Assert(response.StatusCode == HttpStatusCode.Forbidden, $"rebound Host reached {route}");
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStreamAsync());
+        Assert(!document.RootElement.GetProperty("ok").GetBoolean()
+            && document.RootElement.GetProperty("error").GetProperty("code").GetString() == LocalApiErrorCodes.InvalidRequest,
+            $"guard rejection on {route} did not use the shared envelope");
+    }
+
+    // The guard runs BEFORE the bearer check: no token, still 403 not 401.
+    using (var unauthenticated = new HttpRequestMessage(HttpMethod.Get, "/models"))
+    {
+        unauthenticated.Headers.Host = "attacker.example";
+        Assert((await fixture.Client.SendAsync(unauthenticated)).StatusCode == HttpStatusCode.Forbidden,
+            "an unauthenticated rebound request learned that its token was wrong");
+    }
+
+    // A cross-site Origin is rejected even when the Host header is right.
+    using (var crossSite = new HttpRequestMessage(HttpMethod.Get, "/health"))
+    {
+        crossSite.Headers.Add("Origin", "https://attacker.example");
+        Assert((await fixture.Client.SendAsync(crossSite)).StatusCode == HttpStatusCode.Forbidden, "cross-site Origin was accepted");
+    }
+    using (var crossSite = new HttpRequestMessage(HttpMethod.Get, "/health"))
+    {
+        crossSite.Headers.Add("Sec-Fetch-Site", "cross-site");
+        Assert((await fixture.Client.SendAsync(crossSite)).StatusCode == HttpStatusCode.Forbidden, "cross-site Sec-Fetch-Site was accepted");
+    }
+
+    // A loopback caller on the bound port is allowed, by either name.
+    foreach (var host in new[] { $"127.0.0.1:{Fixture.ConfiguredPort}", $"localhost:{Fixture.ConfiguredPort}" })
+    {
+        using var allowed = new HttpRequestMessage(HttpMethod.Get, "/health");
+        allowed.Headers.Host = host;
+        Assert((await fixture.Client.SendAsync(allowed)).StatusCode == HttpStatusCode.OK, $"loopback Host {host} was rejected");
+    }
+
+    // The right host on the WRONG port is a rebind against another listener.
+    using (var wrongPort = new HttpRequestMessage(HttpMethod.Get, "/health"))
+    {
+        wrongPort.Headers.Host = $"127.0.0.1:{Fixture.ConfiguredPort + 1}";
+        Assert((await fixture.Client.SendAsync(wrongPort)).StatusCode == HttpStatusCode.Forbidden, "the wrong port was accepted");
+    }
+}
+
+/// <summary>
+/// The head's constants are the shared closed set, no more and no less
+/// (issue #289). A code outside it does not read as "unknown" to a macOS or MCP
+/// client — its `Codable` enum fails, and the whole envelope becomes
+/// undecodable, message included.
+/// </summary>
+static Task ErrorCodeParity()
+{
+    var shared = uniffi.hyperwhisper_core.HyperwhisperCoreMethods.LocalApiAllErrorCodes()
+        .Select(uniffi.hyperwhisper_core.HyperwhisperCoreMethods.LocalApiErrorCodeWireValue).ToArray();
+    Assert(shared.Length == 14, $"the shared closed set is {shared.Length} codes, not 14");
+    Assert(LocalApiErrorCodes.All.SequenceEqual(shared, StringComparer.Ordinal),
+        $"head codes drifted from the shared set: {string.Join(',', LocalApiErrorCodes.All)}");
+
+    // The four codes this head used to emit are still out of the set, and so is
+    // INTERNAL_ERROR — which stays declared, and unused, on purpose.
+    foreach (var outside in new[] { "PAYLOAD_TOO_LARGE", "CANCELLED", "UNAUTHORIZED", "RECORDING_NOT_FOUND", LocalApiErrorCodes.InternalError })
+    {
+        Assert(!shared.Contains(outside, StringComparer.Ordinal), $"{outside} entered the closed set");
+        Assert(uniffi.hyperwhisper_core.HyperwhisperCoreMethods.LocalApiErrorCodeFromWireValue(outside) is null,
+            $"{outside} decoded as a closed-set code");
+    }
+    return Task.CompletedTask;
+}
+
 static async Task Multipart()
 {
     await using var fixture = await Fixture.Create(maxUpload: 4);
@@ -78,7 +167,7 @@ static async Task Multipart()
     Assert(fixture.Backend.Upload?.Content.Length == 4, "backend did not receive bounded upload");
     using var large = new MultipartFormDataContent();
     large.Add(new ByteArrayContent([1, 2, 3, 4, 5]), "audio", "clip.wav");
-    Assert((await fixture.Client.PostAsync("/transcribe", large)).StatusCode == HttpStatusCode.RequestEntityTooLarge, "large upload accepted");
+    await AssertBusinessFailure(await fixture.Client.PostAsync("/transcribe", large), LocalApiErrorCodes.InvalidRequest, "large upload");
 }
 
 static async Task EndpointContractSnapshots()
@@ -188,8 +277,7 @@ static async Task JsonTranscriptionContract()
     Assert((await fixture.Client.PostAsync("/transcribe", invalid)).StatusCode == HttpStatusCode.BadRequest, "invalid base64 was accepted");
     var tooManyBytes = Convert.ToBase64String(new byte[1025]);
     using var oversized = JsonContent($$"""{"audio_base64":{{JsonSerializer.Serialize(tooManyBytes)}},"engine":"whisper","model":"base"}""");
-    Assert((await fixture.Client.PostAsync("/transcribe", oversized)).StatusCode == HttpStatusCode.RequestEntityTooLarge,
-        "oversized base64 audio was accepted");
+    await AssertBusinessFailure(await fixture.Client.PostAsync("/transcribe", oversized), LocalApiErrorCodes.InvalidRequest, "oversized base64 audio");
 }
 
 static async Task JsonFileSecurity()
@@ -213,7 +301,7 @@ static async Task JsonFileSecurity()
         Assert((await fixture.Client.PostAsync("/transcribe", relative)).StatusCode == HttpStatusCode.BadRequest, "relative traversal was accepted");
         await File.WriteAllBytesAsync(allowed, [1, 2, 3, 4, 5]);
         using var large = JsonContent($$"""{"file":{{JsonSerializer.Serialize(allowed)}},"engine":"whisper","model":"base"}""");
-        Assert((await fixture.Client.PostAsync("/transcribe", large)).StatusCode == HttpStatusCode.RequestEntityTooLarge, "oversized file was accepted");
+        await AssertBusinessFailure(await fixture.Client.PostAsync("/transcribe", large), LocalApiErrorCodes.InvalidRequest, "oversized file");
         if (!OperatingSystem.IsWindows())
         {
             var link = Path.Combine(fixture.AllowedRoot, "link.wav");
@@ -317,7 +405,8 @@ static Task TokenRegeneration()
     var replacement = store.Regenerate();
     Assert(original != replacement, "token regeneration retained the old credential");
     Assert(replacement == store.LoadOrCreate(), "replacement token was not persisted");
-    Assert(!LocalApiTokenStore.FixedTimeEquals(original, replacement), "old token still matched replacement");
+    Assert(!LocalApiTokenStore.Authorize($"Bearer {original}", replacement), "old token still matched replacement");
+    Assert(LocalApiTokenStore.Authorize($"Bearer {replacement}", replacement), "replacement token was not accepted");
     return Task.CompletedTask;
 }
 
@@ -441,16 +530,16 @@ static async Task ApplicationBackendErrors()
     Assert(deleteResponse.StatusCode == HttpStatusCode.BadRequest && await HasFailureEnvelope(deleteResponse), "last-mode delete was not structured failure");
 
     var toggleResponse = await fixture.Client.PostAsync("/recording/toggle", content: null);
-    Assert(toggleResponse.StatusCode == HttpStatusCode.ServiceUnavailable && await HasFailureEnvelope(toggleResponse), "recording start failure was reported as success");
+    await AssertBusinessFailure(toggleResponse, LocalApiErrorCodes.EngineUnavailable, "recording start failure");
 
     using var post = new StringContent("{\"text\":\"hello\",\"preset\":\"hyper\"}", Encoding.UTF8, "application/json");
     var postResponse = await fixture.Client.PostAsync("/post-process", post);
-    Assert(postResponse.StatusCode == HttpStatusCode.ServiceUnavailable && await HasFailureEnvelope(postResponse), "unavailable post-process was not structured failure");
+    await AssertBusinessFailure(postResponse, LocalApiErrorCodes.EngineUnavailable, "unavailable post-process");
 
     using var form = new MultipartFormDataContent();
     form.Add(new ByteArrayContent([1, 2, 3]), "audio", "clip.wav");
     var transcribeResponse = await fixture.Client.PostAsync("/transcribe", form);
-    Assert(transcribeResponse.StatusCode == HttpStatusCode.ServiceUnavailable && await HasFailureEnvelope(transcribeResponse), "unavailable transcription was not structured failure");
+    await AssertBusinessFailure(transcribeResponse, LocalApiErrorCodes.EngineUnavailable, "unavailable transcription");
     Assert(!Directory.EnumerateFiles(paths.RecordingsDirectory, "local-api-*").Any(), "failed transcription retained staged audio");
 
     using (var successWorkflow = new TranscriptionWorkflow(new NoRecorder(), new NoDevices(), new StaticTranscriber(success: true), history))
@@ -644,6 +733,21 @@ static async Task<bool> HasFailureEnvelope(HttpResponseMessage response)
     return document.RootElement.TryGetProperty("ok", out var ok) && !ok.GetBoolean() && document.RootElement.TryGetProperty("error", out _);
 }
 
+/// <summary>
+/// A business outcome: HTTP 200, the failure envelope, and a code from the
+/// closed set (issue #289). This head used to answer 404/413/503/408 here, and
+/// a client that trusted the status never read the code.
+/// </summary>
+static async Task AssertBusinessFailure(HttpResponseMessage response, string code, string what)
+{
+    Assert(response.StatusCode == HttpStatusCode.OK, $"{what}: business failures must be HTTP 200, got {(int)response.StatusCode}");
+    using var document = JsonDocument.Parse(await response.Content.ReadAsStreamAsync());
+    Assert(document.RootElement.TryGetProperty("ok", out var ok) && !ok.GetBoolean(), $"{what}: missing ok:false");
+    Assert(document.RootElement.TryGetProperty("error", out var error), $"{what}: missing error object");
+    var actual = error.GetProperty("code").GetString();
+    Assert(actual == code, $"{what}: expected {code}, got {actual}");
+}
+
 static void Assert(bool condition, string message)
 {
     if (!condition) throw new InvalidOperationException(message);
@@ -652,6 +756,11 @@ static void Assert(bool condition, string message)
 sealed class Fixture : IAsyncDisposable
 {
     public const string Token = "test-only-local-token-with-enough-entropy";
+    /// <summary>
+    /// Never bound — `UseTestServer` replaces Kestrel — but it is what the
+    /// origin guard checks the `Host` header against.
+    /// </summary>
+    public const int ConfiguredPort = 51671;
     public required Microsoft.AspNetCore.Builder.WebApplication App { get; init; }
     public required HttpClient Client { get; init; }
     public required FakeBackend Backend { get; init; }
@@ -662,10 +771,17 @@ sealed class Fixture : IAsyncDisposable
         backend ??= new FakeBackend();
         var allowedRoot = Path.Combine(Path.GetTempPath(), $"hyperwhisper-local-api-files-{Guid.NewGuid():N}");
         Directory.CreateDirectory(allowedRoot);
-        var options = new PortableLocalApiOptions(Token, 0, 4096, maxUpload, AllowedFileRoots: [allowedRoot]);
+        var options = new PortableLocalApiOptions(Token, ConfiguredPort, 4096, maxUpload, AllowedFileRoots: [allowedRoot]);
         var app = PortableLocalApi.Build([], options, backend, builder => builder.WebHost.UseTestServer());
         await app.StartAsync();
-        return new() { App = app, Client = app.GetTestClient(), Backend = backend as FakeBackend ?? new FakeBackend(), AllowedRoot = allowedRoot };
+        var client = app.GetTestClient();
+        // `TestServer` has no socket, so `Connection.LocalPort` is 0 and the
+        // origin guard falls back to the configured port (issue #289). The
+        // default client would send `Host: localhost` with no port, which the
+        // guard only accepts on port 80 — so address it the way a real caller
+        // does and the `Host` header follows.
+        client.BaseAddress = new Uri($"http://127.0.0.1:{ConfiguredPort}");
+        return new() { App = app, Client = client, Backend = backend as FakeBackend ?? new FakeBackend(), AllowedRoot = allowedRoot };
     }
     public async ValueTask DisposeAsync() { Client.Dispose(); await App.DisposeAsync(); if (Directory.Exists(AllowedRoot)) Directory.Delete(AllowedRoot, true); }
 }

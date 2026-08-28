@@ -2653,6 +2653,240 @@ public func FfiConverterTypeHwLlmParams_lower(_ value: HwLlmParams) -> RustBuffe
 
 
 /**
+ * A complete failure response. Mirrors `hw_localapi::Failure`.
+ *
+ * The head serializes the envelope with its own encoder, so this record does
+ * not dictate key order or how an absent hint is elided. What it does dictate
+ * is `http_status`, which is the half of #289 Linux got wrong.
+ */
+public struct HwLocalApiFailure {
+    /**
+     * The status to send. 200 for a business failure; 400/401/403 for the
+     * three protocol cases.
+     */
+    public var httpStatus: UInt16
+    /**
+     * The wire code, always one of the 14.
+     */
+    public var code: HwLocalApiErrorCode
+    /**
+     * Human-readable, shown to the agent by an MCP wrapper.
+     */
+    public var message: String
+    /**
+     * What to do about it, when there is something to say.
+     */
+    public var hint: String?
+    /**
+     * The whole envelope as JSON, for a head with no typed model to hand.
+     * `{"ok":false,"error":{"code":…,"message":…[,"hint":…]}}`.
+     */
+    public var json: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The status to send. 200 for a business failure; 400/401/403 for the
+         * three protocol cases.
+         */httpStatus: UInt16, 
+        /**
+         * The wire code, always one of the 14.
+         */code: HwLocalApiErrorCode, 
+        /**
+         * Human-readable, shown to the agent by an MCP wrapper.
+         */message: String, 
+        /**
+         * What to do about it, when there is something to say.
+         */hint: String?, 
+        /**
+         * The whole envelope as JSON, for a head with no typed model to hand.
+         * `{"ok":false,"error":{"code":…,"message":…[,"hint":…]}}`.
+         */json: String) {
+        self.httpStatus = httpStatus
+        self.code = code
+        self.message = message
+        self.hint = hint
+        self.json = json
+    }
+}
+
+
+
+extension HwLocalApiFailure: Equatable, Hashable {
+    public static func ==(lhs: HwLocalApiFailure, rhs: HwLocalApiFailure) -> Bool {
+        if lhs.httpStatus != rhs.httpStatus {
+            return false
+        }
+        if lhs.code != rhs.code {
+            return false
+        }
+        if lhs.message != rhs.message {
+            return false
+        }
+        if lhs.hint != rhs.hint {
+            return false
+        }
+        if lhs.json != rhs.json {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(httpStatus)
+        hasher.combine(code)
+        hasher.combine(message)
+        hasher.combine(hint)
+        hasher.combine(json)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwLocalApiFailure: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwLocalApiFailure {
+        return
+            try HwLocalApiFailure(
+                httpStatus: FfiConverterUInt16.read(from: &buf), 
+                code: FfiConverterTypeHwLocalApiErrorCode.read(from: &buf), 
+                message: FfiConverterString.read(from: &buf), 
+                hint: FfiConverterOptionString.read(from: &buf), 
+                json: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwLocalApiFailure, into buf: inout [UInt8]) {
+        FfiConverterUInt16.write(value.httpStatus, into: &buf)
+        FfiConverterTypeHwLocalApiErrorCode.write(value.code, into: &buf)
+        FfiConverterString.write(value.message, into: &buf)
+        FfiConverterOptionString.write(value.hint, into: &buf)
+        FfiConverterString.write(value.json, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLocalApiFailure_lift(_ buf: RustBuffer) throws -> HwLocalApiFailure {
+    return try FfiConverterTypeHwLocalApiFailure.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLocalApiFailure_lower(_ value: HwLocalApiFailure) -> RustBuffer {
+    return FfiConverterTypeHwLocalApiFailure.lower(value)
+}
+
+
+/**
+ * The three request headers the DNS-rebind guard reads. Mirrors
+ * `hw_localapi::OriginHeaders`.
+ *
+ * The head does the lookup, and the lookup must be case-insensitive (RFC 7230
+ * §3.2). Every head already has a case-insensitive header map — FlyingFox's
+ * `HTTPHeader`, ASP.NET Core's `IHeaderDictionary` — so this record carries
+ * values, never names.
+ */
+public struct HwLocalApiOriginHeaders {
+    /**
+     * `Host`. `None` means the request carried no `Host` header at all, which
+     * is itself a denial.
+     */
+    public var host: String?
+    /**
+     * `Origin`. `None` or empty is fine; a non-loopback value is a denial.
+     */
+    public var origin: String?
+    /**
+     * `Sec-Fetch-Site`. `None` is fine — curl and the MCP wrapper omit it.
+     */
+    public var secFetchSite: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * `Host`. `None` means the request carried no `Host` header at all, which
+         * is itself a denial.
+         */host: String?, 
+        /**
+         * `Origin`. `None` or empty is fine; a non-loopback value is a denial.
+         */origin: String?, 
+        /**
+         * `Sec-Fetch-Site`. `None` is fine — curl and the MCP wrapper omit it.
+         */secFetchSite: String?) {
+        self.host = host
+        self.origin = origin
+        self.secFetchSite = secFetchSite
+    }
+}
+
+
+
+extension HwLocalApiOriginHeaders: Equatable, Hashable {
+    public static func ==(lhs: HwLocalApiOriginHeaders, rhs: HwLocalApiOriginHeaders) -> Bool {
+        if lhs.host != rhs.host {
+            return false
+        }
+        if lhs.origin != rhs.origin {
+            return false
+        }
+        if lhs.secFetchSite != rhs.secFetchSite {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(host)
+        hasher.combine(origin)
+        hasher.combine(secFetchSite)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwLocalApiOriginHeaders: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwLocalApiOriginHeaders {
+        return
+            try HwLocalApiOriginHeaders(
+                host: FfiConverterOptionString.read(from: &buf), 
+                origin: FfiConverterOptionString.read(from: &buf), 
+                secFetchSite: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwLocalApiOriginHeaders, into buf: inout [UInt8]) {
+        FfiConverterOptionString.write(value.host, into: &buf)
+        FfiConverterOptionString.write(value.origin, into: &buf)
+        FfiConverterOptionString.write(value.secFetchSite, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLocalApiOriginHeaders_lift(_ buf: RustBuffer) throws -> HwLocalApiOriginHeaders {
+    return try FfiConverterTypeHwLocalApiOriginHeaders.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLocalApiOriginHeaders_lower(_ value: HwLocalApiOriginHeaders) -> RustBuffer {
+    return FfiConverterTypeHwLocalApiOriginHeaders.lower(value)
+}
+
+
+/**
  * The three persisted mode fields the diagnostic groups and facets on. Mirrors
  * `no_speech::ModeIdentity`.
  *
@@ -8632,6 +8866,353 @@ extension HwLlmWireProtocol: Equatable, Hashable {}
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
+ * The closed set of Local API error codes. Mirrors
+ * `hw_localapi::LocalApiErrorCode`.
+ *
+ * Closed is the property that matters: the macOS decoder is a Swift `Codable`
+ * enum, so a client sharing it fails to decode the whole envelope on a
+ * fifteenth code rather than seeing an unknown one. There is no `Other`
+ * variant here for the same reason.
+ */
+
+public enum HwLocalApiErrorCode {
+    
+    case modelNotInstalled
+    case modelNotFound
+    case engineUnavailable
+    case missingApiKey
+    case fileNotFound
+    case fileAccessDenied
+    case fileNotAllowed
+    case audioDecodeFailed
+    case transcriptionFailed
+    case modeNotFound
+    case modeNameTaken
+    case invalidRequest
+    case rateLimited
+    case timeout
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwLocalApiErrorCode: FfiConverterRustBuffer {
+    typealias SwiftType = HwLocalApiErrorCode
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwLocalApiErrorCode {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .modelNotInstalled
+        
+        case 2: return .modelNotFound
+        
+        case 3: return .engineUnavailable
+        
+        case 4: return .missingApiKey
+        
+        case 5: return .fileNotFound
+        
+        case 6: return .fileAccessDenied
+        
+        case 7: return .fileNotAllowed
+        
+        case 8: return .audioDecodeFailed
+        
+        case 9: return .transcriptionFailed
+        
+        case 10: return .modeNotFound
+        
+        case 11: return .modeNameTaken
+        
+        case 12: return .invalidRequest
+        
+        case 13: return .rateLimited
+        
+        case 14: return .timeout
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: HwLocalApiErrorCode, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .modelNotInstalled:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .modelNotFound:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .engineUnavailable:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .missingApiKey:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .fileNotFound:
+            writeInt(&buf, Int32(5))
+        
+        
+        case .fileAccessDenied:
+            writeInt(&buf, Int32(6))
+        
+        
+        case .fileNotAllowed:
+            writeInt(&buf, Int32(7))
+        
+        
+        case .audioDecodeFailed:
+            writeInt(&buf, Int32(8))
+        
+        
+        case .transcriptionFailed:
+            writeInt(&buf, Int32(9))
+        
+        
+        case .modeNotFound:
+            writeInt(&buf, Int32(10))
+        
+        
+        case .modeNameTaken:
+            writeInt(&buf, Int32(11))
+        
+        
+        case .invalidRequest:
+            writeInt(&buf, Int32(12))
+        
+        
+        case .rateLimited:
+            writeInt(&buf, Int32(13))
+        
+        
+        case .timeout:
+            writeInt(&buf, Int32(14))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLocalApiErrorCode_lift(_ buf: RustBuffer) throws -> HwLocalApiErrorCode {
+    return try FfiConverterTypeHwLocalApiErrorCode.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLocalApiErrorCode_lower(_ value: HwLocalApiErrorCode) -> RustBuffer {
+    return FfiConverterTypeHwLocalApiErrorCode.lower(value)
+}
+
+
+
+extension HwLocalApiErrorCode: Equatable, Hashable {}
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * Why the guard let a request through, or why it did not. Mirrors
+ * `hw_localapi::OriginDecision`.
+ *
+ * A head only needs the allow/deny bit — the wire response is the same 403
+ * whichever denial fired, and no reason ever reaches a client. The reasons
+ * cross the boundary anyway so a head can log which check rejected a request,
+ * which is the difference between "someone is probing us" and "the MCP wrapper
+ * is sending the wrong `Host`".
+ */
+
+public enum HwLocalApiOriginDecision {
+    
+    /**
+     * Safe to dispatch.
+     */
+    case allow
+    /**
+     * The server is not bound yet, so no `Host` can be checked against a port.
+     */
+    case deniedPortUnknown
+    /**
+     * No `Host` header, or one that is empty after trimming.
+     */
+    case deniedMissingHost
+    /**
+     * The `Host` header does not name loopback on the bound port.
+     */
+    case deniedHost
+    /**
+     * `Sec-Fetch-Site` was present and was neither `same-origin` nor `none`.
+     */
+    case deniedFetchSite
+    /**
+     * `Origin` was present, non-empty, and did not name loopback on the bound
+     * port.
+     */
+    case deniedOrigin
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwLocalApiOriginDecision: FfiConverterRustBuffer {
+    typealias SwiftType = HwLocalApiOriginDecision
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwLocalApiOriginDecision {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .allow
+        
+        case 2: return .deniedPortUnknown
+        
+        case 3: return .deniedMissingHost
+        
+        case 4: return .deniedHost
+        
+        case 5: return .deniedFetchSite
+        
+        case 6: return .deniedOrigin
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: HwLocalApiOriginDecision, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .allow:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .deniedPortUnknown:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .deniedMissingHost:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .deniedHost:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .deniedFetchSite:
+            writeInt(&buf, Int32(5))
+        
+        
+        case .deniedOrigin:
+            writeInt(&buf, Int32(6))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLocalApiOriginDecision_lift(_ buf: RustBuffer) throws -> HwLocalApiOriginDecision {
+    return try FfiConverterTypeHwLocalApiOriginDecision.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLocalApiOriginDecision_lower(_ value: HwLocalApiOriginDecision) -> RustBuffer {
+    return FfiConverterTypeHwLocalApiOriginDecision.lower(value)
+}
+
+
+
+extension HwLocalApiOriginDecision: Equatable, Hashable {}
+
+
+
+
+/**
+ * Why [`local_api_generate_token`] refused. Mirrors `hw_localapi::TokenError`.
+ */
+public enum HwLocalApiTokenError {
+
+    
+    
+    /**
+     * The host passed something other than 32 bytes.
+     */
+    case WrongEntropyLength(
+        /**
+         * Always 32.
+         */expected: UInt32, 
+        /**
+         * What the caller actually passed.
+         */actual: UInt32
+    )
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwLocalApiTokenError: FfiConverterRustBuffer {
+    typealias SwiftType = HwLocalApiTokenError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwLocalApiTokenError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .WrongEntropyLength(
+            expected: try FfiConverterUInt32.read(from: &buf), 
+            actual: try FfiConverterUInt32.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: HwLocalApiTokenError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .WrongEntropyLength(expected,actual):
+            writeInt(&buf, Int32(1))
+            FfiConverterUInt32.write(expected, into: &buf)
+            FfiConverterUInt32.write(actual, into: &buf)
+            
+        }
+    }
+}
+
+
+extension HwLocalApiTokenError: Equatable, Hashable {}
+
+extension HwLocalApiTokenError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
  * What a no-speech failure is reported as, if anything. Mirrors
  * `no_speech::NoSpeechOutcome`; variant order matches the Windows enum.
  */
@@ -10664,6 +11245,30 @@ fileprivate struct FfiConverterOptionTypeHwLiveUpgradeRefusal: FfiConverterRustB
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeHwLocalApiErrorCode: FfiConverterRustBuffer {
+    typealias SwiftType = HwLocalApiErrorCode?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeHwLocalApiErrorCode.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeHwLocalApiErrorCode.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeHwPttSignal: FfiConverterRustBuffer {
     typealias SwiftType = HwPttSignal?
 
@@ -11054,6 +11659,31 @@ fileprivate struct FfiConverterSequenceTypeHwLiveStopStep: FfiConverterRustBuffe
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeHwLiveStopStep.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeHwLocalApiErrorCode: FfiConverterRustBuffer {
+    typealias SwiftType = [HwLocalApiErrorCode]
+
+    public static func write(_ value: [HwLocalApiErrorCode], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeHwLocalApiErrorCode.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [HwLocalApiErrorCode] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [HwLocalApiErrorCode]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeHwLocalApiErrorCode.read(from: &buf))
         }
         return seq
     }
@@ -12600,6 +13230,192 @@ public func llmWrapTranscript(systemInfo: String, transcript: String) -> String 
 })
 }
 /**
+ * Every code, in the order the docs and the macOS enum list them.
+ */
+public func localApiAllErrorCodes() -> [HwLocalApiErrorCode] {
+    return try!  FfiConverterSequenceTypeHwLocalApiErrorCode.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_local_api_all_error_codes($0
+    )
+})
+}
+/**
+ * Whether an `Authorization` header presents the expected token.
+ *
+ * One constant-time compare of SHA-256 digests, replacing three divergent
+ * native behaviours. `authorization_header` is the raw header value, or `None`
+ * when the request carried none. An empty `expected_token` always denies.
+ */
+public func localApiAuthorize(authorizationHeader: String?, expectedToken: String) -> Bool {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_local_api_authorize(
+        FfiConverterOptionString.lower(authorizationHeader),
+        FfiConverterString.lower(expectedToken),$0
+    )
+})
+}
+/**
+ * A malformed request — HTTP 400, always `INVALID_REQUEST`.
+ */
+public func localApiBadRequestFailure(message: String, hint: String?) -> HwLocalApiFailure {
+    return try!  FfiConverterTypeHwLocalApiFailure.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_local_api_bad_request_failure(
+        FfiConverterString.lower(message),
+        FfiConverterOptionString.lower(hint),$0
+    )
+})
+}
+/**
+ * The HTTP status a business failure travels on: 200, on every platform.
+ *
+ * Exported as a function rather than left to each head, because "each head
+ * decides" is how Linux ended up returning 404/413/503/408 for outcomes the
+ * docs mandate 200 for.
+ */
+public func localApiBusinessFailure(code: HwLocalApiErrorCode, message: String, hint: String?) -> HwLocalApiFailure {
+    return try!  FfiConverterTypeHwLocalApiFailure.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_local_api_business_failure(
+        FfiConverterTypeHwLocalApiErrorCode.lower(code),
+        FfiConverterString.lower(message),
+        FfiConverterOptionString.lower(hint),$0
+    )
+})
+}
+/**
+ * Decide whether a request is safe to dispatch.
+ *
+ * Call this on EVERY route, including the unauthenticated `GET /health`,
+ * before the bearer check and before any dispatch. Pass the port the server is
+ * really bound to — a fallback bind lands somewhere other than the configured
+ * preference, and the `Host` header names where the client actually connected.
+ */
+public func localApiCheckOrigin(headers: HwLocalApiOriginHeaders, port: UInt16) -> HwLocalApiOriginDecision {
+    return try!  FfiConverterTypeHwLocalApiOriginDecision.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_local_api_check_origin(
+        FfiConverterTypeHwLocalApiOriginHeaders.lower(headers),
+        FfiConverterUInt16.lower(port),$0
+    )
+})
+}
+/**
+ * Parse a wire string back into the closed set, or `None` when it is not one
+ * of the 14.
+ *
+ * This is the conformance check a head runs over the codes it emits: a `None`
+ * names a code that would break the macOS decoder.
+ */
+public func localApiErrorCodeFromWireValue(value: String) -> HwLocalApiErrorCode? {
+    return try!  FfiConverterOptionTypeHwLocalApiErrorCode.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_local_api_error_code_from_wire_value(
+        FfiConverterString.lower(value),$0
+    )
+})
+}
+/**
+ * The wire string for a code — what goes in `error.code`.
+ */
+public func localApiErrorCodeWireValue(code: HwLocalApiErrorCode) -> String {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_local_api_error_code_wire_value(
+        FfiConverterTypeHwLocalApiErrorCode.lower(code),$0
+    )
+})
+}
+/**
+ * The response the origin guard returns — HTTP 403 carrying `INVALID_REQUEST`,
+ * exactly what macOS already sends (`LocalAPIServer.swift:311-316`).
+ *
+ * Not a new `FORBIDDEN` code. Issue #289 is explicit that inventing one would
+ * itself be a contract change on the one platform that ships the guard.
+ */
+public func localApiForbiddenOriginFailure() -> HwLocalApiFailure {
+    return try!  FfiConverterTypeHwLocalApiFailure.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_local_api_forbidden_origin_failure($0
+    )
+})
+}
+/**
+ * Encode 32 host-supplied CSPRNG bytes as a Local API bearer token: unpadded
+ * base64url, always 43 characters.
+ *
+ * The host draws the bytes from its own platform CSPRNG and decides what to do
+ * if that fails. See the module docs for why the entropy does not come from
+ * Rust.
+ */
+public func localApiGenerateToken(entropy: Data)throws  -> String {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeHwLocalApiTokenError.lift) {
+    uniffi_hyperwhisper_core_fn_func_local_api_generate_token(
+        FfiConverterData.lower(entropy),$0
+    )
+})
+}
+/**
+ * Whether a stored credential still has the shape
+ * [`local_api_generate_token`] produces.
+ *
+ * A *shape* check, for a head deciding whether to regenerate. Never use it in
+ * place of [`local_api_authorize`]: it looks only at the presented value and
+ * compares nothing.
+ */
+public func localApiIsWellFormedToken(token: String) -> Bool {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_local_api_is_well_formed_token(
+        FfiConverterString.lower(token),$0
+    )
+})
+}
+/**
+ * Whether a decision means "dispatch it".
+ *
+ * A head can match the enum instead. This exists so the common case is one
+ * call and cannot get the polarity wrong.
+ */
+public func localApiOriginDecisionIsAllowed(decision: HwLocalApiOriginDecision) -> Bool {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_local_api_origin_decision_is_allowed(
+        FfiConverterTypeHwLocalApiOriginDecision.lower(decision),$0
+    )
+})
+}
+/**
+ * How many entropy bytes [`local_api_generate_token`] requires.
+ *
+ * A constant rather than a magic 32 in three heads. `SecRandomCopyBytes` and
+ * `RandomNumberGenerator.GetBytes` both take a count; this is that count.
+ */
+public func localApiTokenEntropyBytes() -> UInt32 {
+    return try!  FfiConverterUInt32.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_local_api_token_entropy_bytes($0
+    )
+})
+}
+/**
+ * The SHA-256 fingerprint of a token, hex-encoded — for a log line that has to
+ * identify a credential without carrying it.
+ */
+public func localApiTokenFingerprint(token: String) -> String {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_local_api_token_fingerprint(
+        FfiConverterString.lower(token),$0
+    )
+})
+}
+/**
+ * The response a failed bearer check returns — HTTP 401 carrying
+ * `INVALID_REQUEST`, matching `LocalAPIServer.swift:344-353`.
+ *
+ * `hint` names the platform's own discovery-file path, which is the one part
+ * of this response that legitimately differs per head. The caller must still
+ * send `WWW-Authenticate: Bearer realm="hyperwhisper"`; a header is not part
+ * of the envelope.
+ */
+public func localApiUnauthorizedFailure(hint: String?) -> HwLocalApiFailure {
+    return try!  FfiConverterTypeHwLocalApiFailure.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_local_api_unauthorized_failure(
+        FfiConverterOptionString.lower(hint),$0
+    )
+})
+}
+/**
  * Map a macOS 7-category native settings JSON into a universal-v2 5-category
  * `SettingsRecord` JSON (macOS-only keys parked under `platformExtensions.macos`).
  * `existing_macos_ext_json`, when present, is the existing
@@ -13723,6 +14539,48 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_llm_wrap_transcript() != 44003) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_local_api_all_error_codes() != 35889) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_local_api_authorize() != 35162) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_local_api_bad_request_failure() != 17270) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_local_api_business_failure() != 57466) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_local_api_check_origin() != 60178) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_local_api_error_code_from_wire_value() != 15511) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_local_api_error_code_wire_value() != 39716) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_local_api_forbidden_origin_failure() != 49772) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_local_api_generate_token() != 22924) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_local_api_is_well_formed_token() != 22695) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_local_api_origin_decision_is_allowed() != 27804) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_local_api_token_entropy_bytes() != 13421) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_local_api_token_fingerprint() != 55514) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_local_api_unauthorized_failure() != 22025) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_macos_settings_to_universal_settings_json() != 44899) {

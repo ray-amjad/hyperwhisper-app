@@ -1200,6 +1200,34 @@ static class _UniFFILib {
     
     
     
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
 
     static _UniFFILib() {
         _UniFFILib.uniffiCheckContractApiVersion();
@@ -1870,6 +1898,62 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_llm_wrap_transcript(RustBuffer @systemInfo,RustBuffer @transcript,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_local_api_all_error_codes(ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern sbyte uniffi_hyperwhisper_core_fn_func_local_api_authorize(RustBuffer @authorizationHeader,RustBuffer @expectedToken,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_local_api_bad_request_failure(RustBuffer @message,RustBuffer @hint,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_local_api_business_failure(RustBuffer @code,RustBuffer @message,RustBuffer @hint,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_local_api_check_origin(RustBuffer @headers,ushort @port,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_local_api_error_code_from_wire_value(RustBuffer @value,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_local_api_error_code_wire_value(RustBuffer @code,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_local_api_forbidden_origin_failure(ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_local_api_generate_token(RustBuffer @entropy,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern sbyte uniffi_hyperwhisper_core_fn_func_local_api_is_well_formed_token(RustBuffer @token,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern sbyte uniffi_hyperwhisper_core_fn_func_local_api_origin_decision_is_allowed(RustBuffer @decision,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern uint uniffi_hyperwhisper_core_fn_func_local_api_token_entropy_bytes(ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_local_api_token_fingerprint(RustBuffer @token,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_local_api_unauthorized_failure(RustBuffer @hint,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -2922,6 +3006,62 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_llm_wrap_transcript(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_all_error_codes(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_authorize(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_bad_request_failure(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_business_failure(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_check_origin(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_error_code_from_wire_value(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_error_code_wire_value(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_forbidden_origin_failure(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_generate_token(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_is_well_formed_token(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_origin_decision_is_allowed(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_token_entropy_bytes(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_token_fingerprint(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_unauthorized_failure(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -4108,6 +4248,90 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_llm_wrap_transcript();
             if (checksum != 44003) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_llm_wrap_transcript` checksum `44003`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_all_error_codes();
+            if (checksum != 35889) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_all_error_codes` checksum `35889`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_authorize();
+            if (checksum != 35162) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_authorize` checksum `35162`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_bad_request_failure();
+            if (checksum != 17270) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_bad_request_failure` checksum `17270`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_business_failure();
+            if (checksum != 57466) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_business_failure` checksum `57466`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_check_origin();
+            if (checksum != 60178) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_check_origin` checksum `60178`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_error_code_from_wire_value();
+            if (checksum != 15511) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_error_code_from_wire_value` checksum `15511`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_error_code_wire_value();
+            if (checksum != 39716) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_error_code_wire_value` checksum `39716`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_forbidden_origin_failure();
+            if (checksum != 49772) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_forbidden_origin_failure` checksum `49772`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_generate_token();
+            if (checksum != 22924) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_generate_token` checksum `22924`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_is_well_formed_token();
+            if (checksum != 22695) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_is_well_formed_token` checksum `22695`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_origin_decision_is_allowed();
+            if (checksum != 27804) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_origin_decision_is_allowed` checksum `27804`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_token_entropy_bytes();
+            if (checksum != 13421) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_token_entropy_bytes` checksum `13421`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_token_fingerprint();
+            if (checksum != 55514) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_token_fingerprint` checksum `55514`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_unauthorized_failure();
+            if (checksum != 22025) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_unauthorized_failure` checksum `22025`, library returned `{checksum}`");
             }
         }
         {
@@ -6151,6 +6375,152 @@ class FfiConverterTypeHwLlmParams: FfiConverterRustBuffer<HwLlmParams> {
             FfiConverterOptionalString.INSTANCE.Write(value.@llmProviderHeader, stream);
             FfiConverterOptionalString.INSTANCE.Write(value.@llmModelHeader, stream);
             FfiConverterBoolean.INSTANCE.Write(value.@stream, stream);
+    }
+}
+
+
+
+/// <summary>
+/// A complete failure response. Mirrors `hw_localapi::Failure`.
+///
+/// The head serializes the envelope with its own encoder, so this record does
+/// not dictate key order or how an absent hint is elided. What it does dictate
+/// is `http_status`, which is the half of #289 Linux got wrong.
+/// </summary>
+/// <param name="http_status">
+/// The status to send. 200 for a business failure; 400/401/403 for the
+/// three protocol cases.
+/// </param>
+/// <param name="code">
+/// The wire code, always one of the 14.
+/// </param>
+/// <param name="message">
+/// Human-readable, shown to the agent by an MCP wrapper.
+/// </param>
+/// <param name="hint">
+/// What to do about it, when there is something to say.
+/// </param>
+/// <param name="json">
+/// The whole envelope as JSON, for a head with no typed model to hand.
+/// `{"ok":false,"error":{"code":…,"message":…[,"hint":…]}}`.
+/// </param>
+internal record HwLocalApiFailure (
+    /// <summary>
+    /// The status to send. 200 for a business failure; 400/401/403 for the
+    /// three protocol cases.
+    /// </summary>
+    ushort @httpStatus, 
+    /// <summary>
+    /// The wire code, always one of the 14.
+    /// </summary>
+    HwLocalApiErrorCode @code, 
+    /// <summary>
+    /// Human-readable, shown to the agent by an MCP wrapper.
+    /// </summary>
+    string @message, 
+    /// <summary>
+    /// What to do about it, when there is something to say.
+    /// </summary>
+    string? @hint, 
+    /// <summary>
+    /// The whole envelope as JSON, for a head with no typed model to hand.
+    /// `{"ok":false,"error":{"code":…,"message":…[,"hint":…]}}`.
+    /// </summary>
+    string @json
+) {
+}
+
+class FfiConverterTypeHwLocalApiFailure: FfiConverterRustBuffer<HwLocalApiFailure> {
+    public static FfiConverterTypeHwLocalApiFailure INSTANCE = new FfiConverterTypeHwLocalApiFailure();
+
+    public override HwLocalApiFailure Read(BigEndianStream stream) {
+        return new HwLocalApiFailure(
+            @httpStatus: FfiConverterUInt16.INSTANCE.Read(stream),
+            @code: FfiConverterTypeHwLocalApiErrorCode.INSTANCE.Read(stream),
+            @message: FfiConverterString.INSTANCE.Read(stream),
+            @hint: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @json: FfiConverterString.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwLocalApiFailure value) {
+        return 0
+            + FfiConverterUInt16.INSTANCE.AllocationSize(value.@httpStatus)
+            + FfiConverterTypeHwLocalApiErrorCode.INSTANCE.AllocationSize(value.@code)
+            + FfiConverterString.INSTANCE.AllocationSize(value.@message)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@hint)
+            + FfiConverterString.INSTANCE.AllocationSize(value.@json);
+    }
+
+    public override void Write(HwLocalApiFailure value, BigEndianStream stream) {
+            FfiConverterUInt16.INSTANCE.Write(value.@httpStatus, stream);
+            FfiConverterTypeHwLocalApiErrorCode.INSTANCE.Write(value.@code, stream);
+            FfiConverterString.INSTANCE.Write(value.@message, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@hint, stream);
+            FfiConverterString.INSTANCE.Write(value.@json, stream);
+    }
+}
+
+
+
+/// <summary>
+/// The three request headers the DNS-rebind guard reads. Mirrors
+/// `hw_localapi::OriginHeaders`.
+///
+/// The head does the lookup, and the lookup must be case-insensitive (RFC 7230
+/// §3.2). Every head already has a case-insensitive header map — FlyingFox's
+/// `HTTPHeader`, ASP.NET Core's `IHeaderDictionary` — so this record carries
+/// values, never names.
+/// </summary>
+/// <param name="host">
+/// `Host`. `None` means the request carried no `Host` header at all, which
+/// is itself a denial.
+/// </param>
+/// <param name="origin">
+/// `Origin`. `None` or empty is fine; a non-loopback value is a denial.
+/// </param>
+/// <param name="sec_fetch_site">
+/// `Sec-Fetch-Site`. `None` is fine — curl and the MCP wrapper omit it.
+/// </param>
+internal record HwLocalApiOriginHeaders (
+    /// <summary>
+    /// `Host`. `None` means the request carried no `Host` header at all, which
+    /// is itself a denial.
+    /// </summary>
+    string? @host, 
+    /// <summary>
+    /// `Origin`. `None` or empty is fine; a non-loopback value is a denial.
+    /// </summary>
+    string? @origin, 
+    /// <summary>
+    /// `Sec-Fetch-Site`. `None` is fine — curl and the MCP wrapper omit it.
+    /// </summary>
+    string? @secFetchSite
+) {
+}
+
+class FfiConverterTypeHwLocalApiOriginHeaders: FfiConverterRustBuffer<HwLocalApiOriginHeaders> {
+    public static FfiConverterTypeHwLocalApiOriginHeaders INSTANCE = new FfiConverterTypeHwLocalApiOriginHeaders();
+
+    public override HwLocalApiOriginHeaders Read(BigEndianStream stream) {
+        return new HwLocalApiOriginHeaders(
+            @host: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @origin: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @secFetchSite: FfiConverterOptionalString.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwLocalApiOriginHeaders value) {
+        return 0
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@host)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@origin)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@secFetchSite);
+    }
+
+    public override void Write(HwLocalApiOriginHeaders value, BigEndianStream stream) {
+            FfiConverterOptionalString.INSTANCE.Write(value.@host, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@origin, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@secFetchSite, stream);
     }
 }
 
@@ -9755,6 +10125,205 @@ class FfiConverterTypeHwLlmWireProtocol: FfiConverterRustBuffer<HwLlmWireProtoco
 
 
 /// <summary>
+/// The closed set of Local API error codes. Mirrors
+/// `hw_localapi::LocalApiErrorCode`.
+///
+/// Closed is the property that matters: the macOS decoder is a Swift `Codable`
+/// enum, so a client sharing it fails to decode the whole envelope on a
+/// fifteenth code rather than seeing an unknown one. There is no `Other`
+/// variant here for the same reason.
+/// </summary>
+internal enum HwLocalApiErrorCode: int {
+    
+    ModelNotInstalled,
+    ModelNotFound,
+    EngineUnavailable,
+    MissingApiKey,
+    FileNotFound,
+    FileAccessDenied,
+    FileNotAllowed,
+    AudioDecodeFailed,
+    TranscriptionFailed,
+    ModeNotFound,
+    ModeNameTaken,
+    InvalidRequest,
+    RateLimited,
+    Timeout
+}
+
+class FfiConverterTypeHwLocalApiErrorCode: FfiConverterRustBuffer<HwLocalApiErrorCode> {
+    public static FfiConverterTypeHwLocalApiErrorCode INSTANCE = new FfiConverterTypeHwLocalApiErrorCode();
+
+    public override HwLocalApiErrorCode Read(BigEndianStream stream) {
+        var value = stream.ReadInt() - 1;
+        if (Enum.IsDefined(typeof(HwLocalApiErrorCode), value)) {
+            return (HwLocalApiErrorCode)value;
+        } else {
+            throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwLocalApiErrorCode.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(HwLocalApiErrorCode value) {
+        return 4;
+    }
+
+    public override void Write(HwLocalApiErrorCode value, BigEndianStream stream) {
+        stream.WriteInt((int)value + 1);
+    }
+}
+
+
+
+
+
+
+
+/// <summary>
+/// Why the guard let a request through, or why it did not. Mirrors
+/// `hw_localapi::OriginDecision`.
+///
+/// A head only needs the allow/deny bit — the wire response is the same 403
+/// whichever denial fired, and no reason ever reaches a client. The reasons
+/// cross the boundary anyway so a head can log which check rejected a request,
+/// which is the difference between "someone is probing us" and "the MCP wrapper
+/// is sending the wrong `Host`".
+/// </summary>
+internal enum HwLocalApiOriginDecision: int {
+    
+    /// <summary>
+    /// Safe to dispatch.
+    /// </summary>
+    Allow,
+    /// <summary>
+    /// The server is not bound yet, so no `Host` can be checked against a port.
+    /// </summary>
+    DeniedPortUnknown,
+    /// <summary>
+    /// No `Host` header, or one that is empty after trimming.
+    /// </summary>
+    DeniedMissingHost,
+    /// <summary>
+    /// The `Host` header does not name loopback on the bound port.
+    /// </summary>
+    DeniedHost,
+    /// <summary>
+    /// `Sec-Fetch-Site` was present and was neither `same-origin` nor `none`.
+    /// </summary>
+    DeniedFetchSite,
+    /// <summary>
+    /// `Origin` was present, non-empty, and did not name loopback on the bound
+    /// port.
+    /// </summary>
+    DeniedOrigin
+}
+
+class FfiConverterTypeHwLocalApiOriginDecision: FfiConverterRustBuffer<HwLocalApiOriginDecision> {
+    public static FfiConverterTypeHwLocalApiOriginDecision INSTANCE = new FfiConverterTypeHwLocalApiOriginDecision();
+
+    public override HwLocalApiOriginDecision Read(BigEndianStream stream) {
+        var value = stream.ReadInt() - 1;
+        if (Enum.IsDefined(typeof(HwLocalApiOriginDecision), value)) {
+            return (HwLocalApiOriginDecision)value;
+        } else {
+            throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwLocalApiOriginDecision.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(HwLocalApiOriginDecision value) {
+        return 4;
+    }
+
+    public override void Write(HwLocalApiOriginDecision value, BigEndianStream stream) {
+        stream.WriteInt((int)value + 1);
+    }
+}
+
+
+
+
+
+
+
+/// <summary>
+/// Why [`local_api_generate_token`] refused. Mirrors `hw_localapi::TokenError`.
+/// </summary>
+internal class HwLocalApiTokenException: UniffiException {
+    HwLocalApiTokenException() : base() {}
+    HwLocalApiTokenException(String @Message) : base(@Message) {}
+
+    // Each variant is a nested class
+    
+    /// <summary>
+    /// The host passed something other than 32 bytes.
+    /// </summary>
+    
+    public class WrongEntropyLength : HwLocalApiTokenException {
+        // Members
+        public uint @expected;
+        public uint @actual;
+
+        // Constructor
+        public WrongEntropyLength(
+                uint @expected, 
+                uint @actual) : base(
+                "@expected" + "=" + @expected+ ", " +
+                "@actual" + "=" + @actual) {
+
+            this.@expected = @expected;
+
+            this.@actual = @actual;
+        }
+    }
+    
+
+    
+}
+
+class FfiConverterTypeHwLocalApiTokenError : FfiConverterRustBuffer<HwLocalApiTokenException>, CallStatusErrorHandler<HwLocalApiTokenException> {
+    public static FfiConverterTypeHwLocalApiTokenError INSTANCE = new FfiConverterTypeHwLocalApiTokenError();
+
+    public override HwLocalApiTokenException Read(BigEndianStream stream) {
+        var value = stream.ReadInt();
+        switch (value) {
+            case 1:
+                return new HwLocalApiTokenException.WrongEntropyLength(
+                    FfiConverterUInt32.INSTANCE.Read(stream),
+                    FfiConverterUInt32.INSTANCE.Read(stream));
+            default:
+                throw new InternalException(String.Format("invalid error value '{0}' in FfiConverterTypeHwLocalApiTokenError.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(HwLocalApiTokenException value) {
+        switch (value) {
+
+            case HwLocalApiTokenException.WrongEntropyLength variant_value:
+                return 4
+                    + FfiConverterUInt32.INSTANCE.AllocationSize(variant_value.@expected)
+                    + FfiConverterUInt32.INSTANCE.AllocationSize(variant_value.@actual);
+            default:
+                throw new InternalException(String.Format("invalid error value '{0}' in FfiConverterTypeHwLocalApiTokenError.AllocationSize()", value));
+        }
+    }
+
+    public override void Write(HwLocalApiTokenException value, BigEndianStream stream) {
+        switch (value) {
+            case HwLocalApiTokenException.WrongEntropyLength variant_value:
+                stream.WriteInt(1);
+                FfiConverterUInt32.INSTANCE.Write(variant_value.@expected, stream);
+                FfiConverterUInt32.INSTANCE.Write(variant_value.@actual, stream);
+                break;
+            default:
+                throw new InternalException(String.Format("invalid error value '{0}' in FfiConverterTypeHwLocalApiTokenError.Write()", value));
+        }
+    }
+}
+
+
+
+
+
+/// <summary>
 /// What a no-speech failure is reported as, if anything. Mirrors
 /// `no_speech::NoSpeechOutcome`; variant order matches the Windows enum.
 /// </summary>
@@ -11442,6 +12011,37 @@ class FfiConverterOptionalTypeHwLiveUpgradeRefusal: FfiConverterRustBuffer<HwLiv
 
 
 
+class FfiConverterOptionalTypeHwLocalApiErrorCode: FfiConverterRustBuffer<HwLocalApiErrorCode?> {
+    public static FfiConverterOptionalTypeHwLocalApiErrorCode INSTANCE = new FfiConverterOptionalTypeHwLocalApiErrorCode();
+
+    public override HwLocalApiErrorCode? Read(BigEndianStream stream) {
+        if (stream.ReadByte() == 0) {
+            return null;
+        }
+        return FfiConverterTypeHwLocalApiErrorCode.INSTANCE.Read(stream);
+    }
+
+    public override int AllocationSize(HwLocalApiErrorCode? value) {
+        if (value == null) {
+            return 1;
+        } else {
+            return 1 + FfiConverterTypeHwLocalApiErrorCode.INSTANCE.AllocationSize((HwLocalApiErrorCode)value);
+        }
+    }
+
+    public override void Write(HwLocalApiErrorCode? value, BigEndianStream stream) {
+        if (value == null) {
+            stream.WriteByte(0);
+        } else {
+            stream.WriteByte(1);
+            FfiConverterTypeHwLocalApiErrorCode.INSTANCE.Write((HwLocalApiErrorCode)value, stream);
+        }
+    }
+}
+
+
+
+
 class FfiConverterOptionalTypeHwPttSignal: FfiConverterRustBuffer<HwPttSignal?> {
     public static FfiConverterOptionalTypeHwPttSignal INSTANCE = new FfiConverterOptionalTypeHwPttSignal();
 
@@ -12085,6 +12685,48 @@ class FfiConverterSequenceTypeHwLiveStopStep: FfiConverterRustBuffer<List<HwLive
 
         stream.WriteInt(value.Count);
         var writerFn = FfiConverterTypeHwLiveStopStep.INSTANCE.Write;
+        value.ForEach(item => writerFn(item, stream));
+    }
+}
+
+
+
+
+class FfiConverterSequenceTypeHwLocalApiErrorCode: FfiConverterRustBuffer<List<HwLocalApiErrorCode>> {
+    public static FfiConverterSequenceTypeHwLocalApiErrorCode INSTANCE = new FfiConverterSequenceTypeHwLocalApiErrorCode();
+
+    public override List<HwLocalApiErrorCode> Read(BigEndianStream stream) {
+        var length = stream.ReadInt();
+        var result = new List<HwLocalApiErrorCode>(length);
+        var readFn = FfiConverterTypeHwLocalApiErrorCode.INSTANCE.Read;
+        for (int i = 0; i < length; i++) {
+            result.Add(readFn(stream));
+        }
+        return result;
+    }
+
+    public override int AllocationSize(List<HwLocalApiErrorCode> value) {
+        var sizeForLength = 4;
+
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            return sizeForLength;
+        }
+
+        var allocationSizeFn = FfiConverterTypeHwLocalApiErrorCode.INSTANCE.AllocationSize;
+        var sizeForItems = value.Sum(item => allocationSizeFn(item));
+        return sizeForLength + sizeForItems;
+    }
+
+    public override void Write(List<HwLocalApiErrorCode> value, BigEndianStream stream) {
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            stream.WriteInt(0);
+            return;
+        }
+
+        stream.WriteInt(value.Count);
+        var writerFn = FfiConverterTypeHwLocalApiErrorCode.INSTANCE.Write;
         value.ForEach(item => writerFn(item, stream));
     }
 }
@@ -13810,6 +14452,205 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterString.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_llm_wrap_transcript(FfiConverterString.INSTANCE.Lower(@systemInfo), FfiConverterString.INSTANCE.Lower(@transcript), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Every code, in the order the docs and the macOS enum list them.
+    /// </summary>
+    public static List<HwLocalApiErrorCode> LocalApiAllErrorCodes() {
+        return FfiConverterSequenceTypeHwLocalApiErrorCode.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_all_error_codes( ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Whether an `Authorization` header presents the expected token.
+    ///
+    /// One constant-time compare of SHA-256 digests, replacing three divergent
+    /// native behaviours. `authorization_header` is the raw header value, or `None`
+    /// when the request carried none. An empty `expected_token` always denies.
+    /// </summary>
+    public static bool LocalApiAuthorize(string? @authorizationHeader, string @expectedToken) {
+        return FfiConverterBoolean.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_authorize(FfiConverterOptionalString.INSTANCE.Lower(@authorizationHeader), FfiConverterString.INSTANCE.Lower(@expectedToken), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// A malformed request — HTTP 400, always `INVALID_REQUEST`.
+    /// </summary>
+    public static HwLocalApiFailure LocalApiBadRequestFailure(string @message, string? @hint) {
+        return FfiConverterTypeHwLocalApiFailure.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_bad_request_failure(FfiConverterString.INSTANCE.Lower(@message), FfiConverterOptionalString.INSTANCE.Lower(@hint), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The HTTP status a business failure travels on: 200, on every platform.
+    ///
+    /// Exported as a function rather than left to each head, because "each head
+    /// decides" is how Linux ended up returning 404/413/503/408 for outcomes the
+    /// docs mandate 200 for.
+    /// </summary>
+    public static HwLocalApiFailure LocalApiBusinessFailure(HwLocalApiErrorCode @code, string @message, string? @hint) {
+        return FfiConverterTypeHwLocalApiFailure.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_business_failure(FfiConverterTypeHwLocalApiErrorCode.INSTANCE.Lower(@code), FfiConverterString.INSTANCE.Lower(@message), FfiConverterOptionalString.INSTANCE.Lower(@hint), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Decide whether a request is safe to dispatch.
+    ///
+    /// Call this on EVERY route, including the unauthenticated `GET /health`,
+    /// before the bearer check and before any dispatch. Pass the port the server is
+    /// really bound to — a fallback bind lands somewhere other than the configured
+    /// preference, and the `Host` header names where the client actually connected.
+    /// </summary>
+    public static HwLocalApiOriginDecision LocalApiCheckOrigin(HwLocalApiOriginHeaders @headers, ushort @port) {
+        return FfiConverterTypeHwLocalApiOriginDecision.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_check_origin(FfiConverterTypeHwLocalApiOriginHeaders.INSTANCE.Lower(@headers), FfiConverterUInt16.INSTANCE.Lower(@port), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Parse a wire string back into the closed set, or `None` when it is not one
+    /// of the 14.
+    ///
+    /// This is the conformance check a head runs over the codes it emits: a `None`
+    /// names a code that would break the macOS decoder.
+    /// </summary>
+    public static HwLocalApiErrorCode? LocalApiErrorCodeFromWireValue(string @value) {
+        return FfiConverterOptionalTypeHwLocalApiErrorCode.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_error_code_from_wire_value(FfiConverterString.INSTANCE.Lower(@value), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The wire string for a code — what goes in `error.code`.
+    /// </summary>
+    public static string LocalApiErrorCodeWireValue(HwLocalApiErrorCode @code) {
+        return FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_error_code_wire_value(FfiConverterTypeHwLocalApiErrorCode.INSTANCE.Lower(@code), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The response the origin guard returns — HTTP 403 carrying `INVALID_REQUEST`,
+    /// exactly what macOS already sends (`LocalAPIServer.swift:311-316`).
+    ///
+    /// Not a new `FORBIDDEN` code. Issue #289 is explicit that inventing one would
+    /// itself be a contract change on the one platform that ships the guard.
+    /// </summary>
+    public static HwLocalApiFailure LocalApiForbiddenOriginFailure() {
+        return FfiConverterTypeHwLocalApiFailure.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_forbidden_origin_failure( ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Encode 32 host-supplied CSPRNG bytes as a Local API bearer token: unpadded
+    /// base64url, always 43 characters.
+    ///
+    /// The host draws the bytes from its own platform CSPRNG and decides what to do
+    /// if that fails. See the module docs for why the entropy does not come from
+    /// Rust.
+    /// </summary>
+    /// <exception cref="HwLocalApiTokenException"></exception>
+    public static string LocalApiGenerateToken(byte[] @entropy) {
+        return FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCallWithError(FfiConverterTypeHwLocalApiTokenError.INSTANCE, (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_generate_token(FfiConverterByteArray.INSTANCE.Lower(@entropy), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Whether a stored credential still has the shape
+    /// [`local_api_generate_token`] produces.
+    ///
+    /// A *shape* check, for a head deciding whether to regenerate. Never use it in
+    /// place of [`local_api_authorize`]: it looks only at the presented value and
+    /// compares nothing.
+    /// </summary>
+    public static bool LocalApiIsWellFormedToken(string @token) {
+        return FfiConverterBoolean.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_is_well_formed_token(FfiConverterString.INSTANCE.Lower(@token), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Whether a decision means "dispatch it".
+    ///
+    /// A head can match the enum instead. This exists so the common case is one
+    /// call and cannot get the polarity wrong.
+    /// </summary>
+    public static bool LocalApiOriginDecisionIsAllowed(HwLocalApiOriginDecision @decision) {
+        return FfiConverterBoolean.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_origin_decision_is_allowed(FfiConverterTypeHwLocalApiOriginDecision.INSTANCE.Lower(@decision), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// How many entropy bytes [`local_api_generate_token`] requires.
+    ///
+    /// A constant rather than a magic 32 in three heads. `SecRandomCopyBytes` and
+    /// `RandomNumberGenerator.GetBytes` both take a count; this is that count.
+    /// </summary>
+    public static uint LocalApiTokenEntropyBytes() {
+        return FfiConverterUInt32.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_token_entropy_bytes( ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The SHA-256 fingerprint of a token, hex-encoded — for a log line that has to
+    /// identify a credential without carrying it.
+    /// </summary>
+    public static string LocalApiTokenFingerprint(string @token) {
+        return FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_token_fingerprint(FfiConverterString.INSTANCE.Lower(@token), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The response a failed bearer check returns — HTTP 401 carrying
+    /// `INVALID_REQUEST`, matching `LocalAPIServer.swift:344-353`.
+    ///
+    /// `hint` names the platform's own discovery-file path, which is the one part
+    /// of this response that legitimately differs per head. The caller must still
+    /// send `WWW-Authenticate: Bearer realm="hyperwhisper"`; a header is not part
+    /// of the envelope.
+    /// </summary>
+    public static HwLocalApiFailure LocalApiUnauthorizedFailure(string? @hint) {
+        return FfiConverterTypeHwLocalApiFailure.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_unauthorized_failure(FfiConverterOptionalString.INSTANCE.Lower(@hint), ref _status)
 ));
     }
 

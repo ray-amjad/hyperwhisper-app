@@ -314,6 +314,7 @@ dependencies = [
  "hw-catalog",
  "hw-input",
  "hw-license",
+ "hw-localapi",
  "hw-net",
  "hw-phonetic",
  "hw-releasenotes",
@@ -335,6 +336,10 @@ dependencies = [
  "serde_json",
  "thiserror",
 ]
+
+[[package]]
+name = "hw-localapi"
+version = "0.1.0"
 
 [[package]]
 name = "hw-net"
