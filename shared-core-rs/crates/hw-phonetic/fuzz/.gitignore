@@ -1,0 +1,12 @@
+target
+Cargo.lock
+artifacts
+
+# cargo-fuzz's generated .gitignore excludes `corpus/` wholesale. The seed
+# corpus for this target is DELIBERATELY committed: it is transliterated from
+# the decision table in `shared-conformance/phonetic-vectors.json` and from the
+# fold/substring boundary cases in `src/`. CI never runs the fuzzer, so an
+# uncommitted corpus would mean every local run starts from nothing.
+# Machine-found additions are not committed.
+corpus/*
+!corpus/vocab/

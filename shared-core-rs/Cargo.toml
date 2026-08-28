@@ -23,7 +23,11 @@ members = [
 # offline resolve (`cargo build --offline`) or its Cargo.lock. It also carries
 # its own empty `[workspace]` table — both halves are required, because `exclude`
 # alone still lets a `cargo` invocation run from inside `fuzz/` walk up to here.
-exclude = ["crates/hw-releasenotes/fuzz", "crates/hw-localapi/fuzz"]
+exclude = [
+    "crates/hw-releasenotes/fuzz",
+    "crates/hw-localapi/fuzz",
+    "crates/hw-phonetic/fuzz",
+]
 
 # Shared release profile for every crate's artifacts. Matches the tuning the
 # retired `app/macos/rphonetic-ffi` crate used (small, LTO, stripped) so the

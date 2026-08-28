@@ -129,3 +129,25 @@ pub fn phonetic_apply_vocabulary(
         .collect();
     hw_phonetic::apply_vocabulary(&text, &entries).into()
 }
+
+/// The on-device providers' vocabulary pass: unanchored substring replacement,
+/// case-insensitive AND diacritic-insensitive, over the rows that DO carry a
+/// replacement, in list order.
+///
+/// This is deliberately NOT `apply_hardened_replacement`. That one anchors on
+/// `\b…\b` and is diacritic-SENSITIVE, and it runs later over the pipeline's own
+/// vocabulary list. This one runs first, inside the provider, over its own raw
+/// output — the split macOS made explicit in `VocabularyProcessor.swift` (commit
+/// 136071d) after finding four byte-identical copies of it.
+///
+/// Text outside a match comes back byte-identical: its case, its accents and its
+/// normalization form are untouched, matching Foundation's
+/// `replacingOccurrences(options: [.caseInsensitive, .diacriticInsensitive])`.
+#[uniffi::export]
+pub fn apply_substring_vocabulary(text: String, entries: Vec<HwVocabularyEntry>) -> String {
+    let entries: Vec<hw_phonetic::VocabularyEntry> = entries
+        .iter()
+        .map(hw_phonetic::VocabularyEntry::from)
+        .collect();
+    hw_phonetic::apply_substring_vocabulary(&text, &entries)
+}

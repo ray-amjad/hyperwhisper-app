@@ -1,5 +1,5 @@
 {
-  "description": "Golden phonetic vocabulary-matcher vectors (issue #283). Generated from hw-phonetic by `cargo test -p hw-core --test phonetic_vectors -- --ignored regenerate`. The `decision` field names which native matcher each unified answer came from: agreed / windows / macos / neither / new.",
+  "description": "Golden phonetic vocabulary-matcher vectors (issue #283). Generated from hw-phonetic by `cargo test -p hw-core --test phonetic_vectors -- --ignored regenerate`. `matcherCases` carries a `decision` field naming which native matcher each unified answer came from: agreed / windows / macos / neither / new. `substringCases` has no such field — only macOS ever had that pass, so every row is the macOS behaviour and Windows and Linux gain it whole.",
   "matcherCases": [
     {
       "name": "corrects a misrecognized token towards the vocabulary spelling",
@@ -317,6 +317,177 @@
         ],
         "entryCount": 1
       }
+    }
+  ],
+  "substringCases": [
+    {
+      "name": "replaces a plain substring",
+      "text": "say hyperwisper now",
+      "entries": [
+        {
+          "word": "hyperwisper",
+          "replacement": "HyperWhisper"
+        }
+      ],
+      "expected": "say HyperWhisper now"
+    },
+    {
+      "name": "is unanchored, unlike the hardened pass",
+      "text": "category",
+      "entries": [
+        {
+          "word": "cat",
+          "replacement": "dog"
+        }
+      ],
+      "expected": "dogegory"
+    },
+    {
+      "name": "is case-insensitive",
+      "text": "HYPERWISPER",
+      "entries": [
+        {
+          "word": "hyperwisper",
+          "replacement": "HyperWhisper"
+        }
+      ],
+      "expected": "HyperWhisper"
+    },
+    {
+      "name": "matches through an accent and leaves the rest of the text alone",
+      "text": "Zoë went to the Café today",
+      "entries": [
+        {
+          "word": "cafe",
+          "replacement": "Coffee House"
+        }
+      ],
+      "expected": "Zoë went to the Coffee House today"
+    },
+    {
+      "name": "an accented search word matches unaccented text",
+      "text": "the cafe",
+      "entries": [
+        {
+          "word": "Café",
+          "replacement": "Diner"
+        }
+      ],
+      "expected": "the Diner"
+    },
+    {
+      "name": "no match returns the original bytes, unnormalized and unfolded",
+      "text": "Zoë and café and İ",
+      "entries": [
+        {
+          "word": "nothing here",
+          "replacement": "X"
+        }
+      ],
+      "expected": "Zoë and café and İ"
+    },
+    {
+      "name": "the replacement is never rescanned",
+      "text": "aaaa",
+      "entries": [
+        {
+          "word": "aa",
+          "replacement": "aaa"
+        }
+      ],
+      "expected": "aaaaaa"
+    },
+    {
+      "name": "overlapping candidates are taken left to right",
+      "text": "aaa",
+      "entries": [
+        {
+          "word": "aa",
+          "replacement": "X"
+        }
+      ],
+      "expected": "Xa"
+    },
+    {
+      "name": "entries apply in list order, each over the result of the last",
+      "text": "cat",
+      "entries": [
+        {
+          "word": "cat",
+          "replacement": "dog"
+        },
+        {
+          "word": "dog",
+          "replacement": "fox"
+        }
+      ],
+      "expected": "fox"
+    },
+    {
+      "name": "a row with no replacement is skipped",
+      "text": "cat",
+      "entries": [
+        {
+          "word": "cat",
+          "replacement": null
+        }
+      ],
+      "expected": "cat"
+    },
+    {
+      "name": "a blank replacement is a no-op",
+      "text": "unchanged",
+      "entries": [
+        {
+          "word": "unchanged",
+          "replacement": "   "
+        }
+      ],
+      "expected": "unchanged"
+    },
+    {
+      "name": "a word that folds away to nothing is a no-op",
+      "text": "unchanged",
+      "entries": [
+        {
+          "word": "́",
+          "replacement": "X"
+        }
+      ],
+      "expected": "unchanged"
+    },
+    {
+      "name": "a match that would end part-way through one character is refused",
+      "text": "가",
+      "entries": [
+        {
+          "word": "ᄀ",
+          "replacement": "X"
+        }
+      ],
+      "expected": "가"
+    },
+    {
+      "name": "the same syllable still matches whole",
+      "text": "가",
+      "entries": [
+        {
+          "word": "가",
+          "replacement": "X"
+        }
+      ],
+      "expected": "X"
+    },
+    {
+      "name": "both sides are trimmed",
+      "text": "say cat now",
+      "entries": [
+        {
+          "word": "  cat  ",
+          "replacement": "  dog  "
+        }
+      ],
+      "expected": "say dog now"
     }
   ]
 }

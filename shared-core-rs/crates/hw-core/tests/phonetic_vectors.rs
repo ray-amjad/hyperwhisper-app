@@ -34,7 +34,9 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use hyperwhisper_core::ffi_phonetic::{phonetic_apply_vocabulary, HwVocabularyEntry};
+use hyperwhisper_core::ffi_phonetic::{
+    apply_substring_vocabulary, phonetic_apply_vocabulary, HwVocabularyEntry,
+};
 
 const VECTORS_PATH: &str = "../../../shared-conformance/phonetic-vectors.json";
 
@@ -52,6 +54,7 @@ fn vectors_path() -> PathBuf {
 struct Document {
     description: String,
     matcher_cases: Vec<MatcherVector>,
+    substring_cases: Vec<SubstringVector>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
@@ -89,6 +92,21 @@ struct ExpectedVector {
 struct MatchVector {
     token: String,
     replacement: String,
+}
+
+/// A row of the diacritic-insensitive substring pass.
+///
+/// This pass has no `decision` column: only macOS ever had it, so every row here
+/// is the macOS behaviour, and Windows and Linux gain it whole. What the rows
+/// pin is the part a naive port gets wrong — that text outside a match comes
+/// back byte-identical, in its own case, with its own accents.
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(rename_all = "camelCase")]
+struct SubstringVector {
+    name: String,
+    text: String,
+    entries: Vec<EntryVector>,
+    expected: String,
 }
 
 // ---------------------------------------------------------------------------
@@ -281,12 +299,103 @@ fn cases() -> Vec<(
     ]
 }
 
+fn substring_cases() -> Vec<(&'static str, &'static str, Vec<EntryVector>)> {
+    vec![
+        (
+            "replaces a plain substring",
+            "say hyperwisper now",
+            vec![replacing("hyperwisper", "HyperWhisper")],
+        ),
+        (
+            "is unanchored, unlike the hardened pass",
+            "category",
+            vec![replacing("cat", "dog")],
+        ),
+        (
+            "is case-insensitive",
+            "HYPERWISPER",
+            vec![replacing("hyperwisper", "HyperWhisper")],
+        ),
+        (
+            "matches through an accent and leaves the rest of the text alone",
+            // The row the offset map exists for: "Cafe\u{301}" matches "cafe",
+            // and the "Zo\u{eb}" that did NOT match keeps its diaeresis and its
+            // capital.
+            "Zo\u{eb} went to the Cafe\u{301} today",
+            vec![replacing("cafe", "Coffee House")],
+        ),
+        (
+            "an accented search word matches unaccented text",
+            "the cafe",
+            vec![replacing("Caf\u{e9}", "Diner")],
+        ),
+        (
+            "no match returns the original bytes, unnormalized and unfolded",
+            "Zo\u{eb} and cafe\u{301} and \u{130}",
+            vec![replacing("nothing here", "X")],
+        ),
+        (
+            "the replacement is never rescanned",
+            "aaaa",
+            vec![replacing("aa", "aaa")],
+        ),
+        (
+            "overlapping candidates are taken left to right",
+            "aaa",
+            vec![replacing("aa", "X")],
+        ),
+        (
+            "entries apply in list order, each over the result of the last",
+            "cat",
+            vec![replacing("cat", "dog"), replacing("dog", "fox")],
+        ),
+        (
+            "a row with no replacement is skipped",
+            "cat",
+            vec![word_only("cat")],
+        ),
+        (
+            "a blank replacement is a no-op",
+            "unchanged",
+            vec![replacing("unchanged", "   ")],
+        ),
+        (
+            "a word that folds away to nothing is a no-op",
+            // A lone combining acute: non-empty after trimming, empty after
+            // folding. An empty needle would match between every pair of
+            // characters.
+            "unchanged",
+            vec![replacing("\u{301}", "X")],
+        ),
+        (
+            "a match that would end part-way through one character is refused",
+            // A precomposed Hangul syllable folds into two jamo from ONE
+            // character, so a needle of just the leading jamo has no original
+            // range to splice.
+            "\u{AC00}",
+            vec![replacing("\u{1100}", "X")],
+        ),
+        (
+            "the same syllable still matches whole",
+            "\u{AC00}",
+            vec![replacing("\u{AC00}", "X")],
+        ),
+        (
+            "both sides are trimmed",
+            "say cat now",
+            vec![replacing("  cat  ", "  dog  ")],
+        ),
+    ]
+}
+
 fn build_document() -> Document {
     Document {
         description: "Golden phonetic vocabulary-matcher vectors (issue #283). \
             Generated from hw-phonetic by `cargo test -p hw-core --test phonetic_vectors \
-            -- --ignored regenerate`. The `decision` field names which native matcher \
-            each unified answer came from: agreed / windows / macos / neither / new."
+            -- --ignored regenerate`. `matcherCases` carries a `decision` field naming \
+            which native matcher each unified answer came from: agreed / windows / macos / \
+            neither / new. `substringCases` has no such field — only macOS ever had that \
+            pass, so every row is the macOS behaviour and Windows and Linux gain it whole."
             .to_string(),
         matcher_cases: cases()
             .into_iter()
@@ -299,18 +408,34 @@ fn build_document() -> Document {
                 entries,
             })
             .collect(),
+        substring_cases: substring_cases()
+            .into_iter()
+            .map(|(name, text, entries)| SubstringVector {
+                name: name.to_string(),
+                expected: run_substring(text, &entries),
+                text: text.to_string(),
+                entries,
+            })
+            .collect(),
     }
 }
 
-fn run(text: &str, entries: &[EntryVector]) -> ExpectedVector {
-    let ffi: Vec<HwVocabularyEntry> = entries
+fn to_ffi(entries: &[EntryVector]) -> Vec<HwVocabularyEntry> {
+    entries
         .iter()
         .map(|entry| HwVocabularyEntry {
             word: entry.word.clone(),
             replacement: entry.replacement.clone(),
         })
-        .collect();
-    let result = phonetic_apply_vocabulary(text.to_string(), ffi);
+        .collect()
+}
+
+fn run_substring(text: &str, entries: &[EntryVector]) -> String {
+    apply_substring_vocabulary(text.to_string(), to_ffi(entries))
+}
+
+fn run(text: &str, entries: &[EntryVector]) -> ExpectedVector {
+    let result = phonetic_apply_vocabulary(text.to_string(), to_ffi(entries));
     ExpectedVector {
         text: result.text,
         matches: result
@@ -366,6 +491,11 @@ fn vectors_match_the_shared_core() {
             want.name
         );
     }
+
+    assert_eq!(
+        expected.substring_cases, actual.substring_cases,
+        "the substring pass drifted — regenerate and read the diff"
+    );
 }
 
 /// A decision table is only proof while it still has a row in every bucket that
