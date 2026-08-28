@@ -37,6 +37,9 @@ mod ffi_license;
 mod ffi_llm;
 // Live-streaming websocket policy and capabilities (#281).
 mod ffi_live;
+// The Local API wire contract — origin guard, bearer token, failure envelope
+// (#289). Shared by all three heads.
+mod ffi_localapi;
 mod ffi_net;
 mod ffi_prompt;
 // The appcast release-notes HTML parser, shared by macOS and Windows (#284).

@@ -1,0 +1,46 @@
+# cargo-fuzz target for hw-localapi (#289).
+#
+# THIS PACKAGE IS DELIBERATELY OUTSIDE THE SHARED-CORE WORKSPACE.
+#
+# `libfuzzer-sys` and `arbitrary` are network dependencies with their own lock
+# graph. The shared core must keep building with `cargo build --offline`
+# (linux-ci.yml) and `cargo test --locked` / `cargo clippy --locked`, so they
+# must never enter that resolve or that Cargo.lock. Two things keep them out and
+# BOTH are required:
+#
+#   1. `exclude = [..., "crates/hw-localapi/fuzz"]` in shared-core-rs/Cargo.toml
+#      — stops the parent workspace from globbing this package in.
+#   2. the empty `[workspace]` table below — stops a `cargo` invocation run from
+#      INSIDE this directory from walking up and joining the parent workspace.
+#
+# CI never runs this target. It is run by hand, on nightly:
+#
+#   cd shared-core-rs/crates/hw-localapi/fuzz
+#   cargo +nightly fuzz run guard -- -max_total_time=300
+#
+# The `+nightly` is required: the ancestor `shared-core-rs/rust-toolchain.toml`
+# pins 1.86 even down here, and cargo-fuzz needs nightly's `-Z` sanitizer flags.
+
+[workspace]
+
+[package]
+name = "hw-localapi-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[dependencies.hw-localapi]
+path = ".."
+
+[[bin]]
+name = "guard"
+path = "fuzz_targets/guard.rs"
+test = false
+doc = false
+bench = false
