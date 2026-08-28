@@ -10,6 +10,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- The Local API checks build a `DefaultHttpContext` to drive the origin
+         guard (issue #289). The app head already carries this reference and it
+         flows transitively, but stating it here keeps the smoke suite building
+         if the head's own reference ever moves. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\HyperWhisper\HyperWhisper.csproj" />
     <ProjectReference Include="..\..\shared-dotnet\HyperWhisper.Application\HyperWhisper.Application.csproj" />
     <!-- The vectors are the cross-platform contract, not a fixture of this
