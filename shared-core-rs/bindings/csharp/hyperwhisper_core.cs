@@ -1228,6 +1228,10 @@ static class _UniFFILib {
     
     
     
+    
+    
+    
+    
 
     static _UniFFILib() {
         _UniFFILib.uniffiCheckContractApiVersion();
@@ -1326,6 +1330,10 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_apply_hardened_replacement(RustBuffer @text,RustBuffer @word,RustBuffer @replacement,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_apply_substring_vocabulary(RustBuffer @text,RustBuffer @entries,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -2057,6 +2065,10 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_phonetic_apply_vocabulary(RustBuffer @text,RustBuffer @entries,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_phonetic_encode(RustBuffer @word,ref UniffiRustCallStatus _uniffi_out_err
     );
 
@@ -2434,6 +2446,10 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_apply_hardened_replacement(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_apply_substring_vocabulary(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -3165,6 +3181,10 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_phonetic_apply_vocabulary(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_phonetic_encode(
     );
 
@@ -3390,6 +3410,12 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_apply_hardened_replacement();
             if (checksum != 32134) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_apply_hardened_replacement` checksum `32134`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_apply_substring_vocabulary();
+            if (checksum != 17401) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_apply_substring_vocabulary` checksum `17401`, library returned `{checksum}`");
             }
         }
         {
@@ -4485,9 +4511,15 @@ static class _UniFFILib {
             }
         }
         {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_phonetic_apply_vocabulary();
+            if (checksum != 45602) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_phonetic_apply_vocabulary` checksum `45602`, library returned `{checksum}`");
+            }
+        }
+        {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_phonetic_encode();
-            if (checksum != 15256) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_phonetic_encode` checksum `15256`, library returned `{checksum}`");
+            if (checksum != 39783) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_phonetic_encode` checksum `39783`, library returned `{checksum}`");
             }
         }
         {
@@ -6654,6 +6686,116 @@ class FfiConverterTypeHwNoSpeechInput: FfiConverterRustBuffer<HwNoSpeechInput> {
 
 
 /// <summary>
+/// The whole answer for one transcription.
+/// </summary>
+/// <param name="text">
+/// The corrected transcript, NFC-normalized.
+/// </param>
+/// <param name="matches">
+/// Every correction, in the order they were applied.
+/// </param>
+/// <param name="entry_count">
+/// How many vocabulary rows survived the build filters and were matched
+/// against — the number behind both platforms' "Phonetic matcher
+/// initialized with N vocabulary entries" log line, which would otherwise
+/// have no home once the matcher stopped being an object the host builds.
+/// </param>
+internal record HwPhoneticApplyResult (
+    /// <summary>
+    /// The corrected transcript, NFC-normalized.
+    /// </summary>
+    string @text, 
+    /// <summary>
+    /// Every correction, in the order they were applied.
+    /// </summary>
+    List<HwPhoneticMatch> @matches, 
+    /// <summary>
+    /// How many vocabulary rows survived the build filters and were matched
+    /// against — the number behind both platforms' "Phonetic matcher
+    /// initialized with N vocabulary entries" log line, which would otherwise
+    /// have no home once the matcher stopped being an object the host builds.
+    /// </summary>
+    uint @entryCount
+) {
+}
+
+class FfiConverterTypeHwPhoneticApplyResult: FfiConverterRustBuffer<HwPhoneticApplyResult> {
+    public static FfiConverterTypeHwPhoneticApplyResult INSTANCE = new FfiConverterTypeHwPhoneticApplyResult();
+
+    public override HwPhoneticApplyResult Read(BigEndianStream stream) {
+        return new HwPhoneticApplyResult(
+            @text: FfiConverterString.INSTANCE.Read(stream),
+            @matches: FfiConverterSequenceTypeHwPhoneticMatch.INSTANCE.Read(stream),
+            @entryCount: FfiConverterUInt32.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwPhoneticApplyResult value) {
+        return 0
+            + FfiConverterString.INSTANCE.AllocationSize(value.@text)
+            + FfiConverterSequenceTypeHwPhoneticMatch.INSTANCE.AllocationSize(value.@matches)
+            + FfiConverterUInt32.INSTANCE.AllocationSize(value.@entryCount);
+    }
+
+    public override void Write(HwPhoneticApplyResult value, BigEndianStream stream) {
+            FfiConverterString.INSTANCE.Write(value.@text, stream);
+            FfiConverterSequenceTypeHwPhoneticMatch.INSTANCE.Write(value.@matches, stream);
+            FfiConverterUInt32.INSTANCE.Write(value.@entryCount, stream);
+    }
+}
+
+
+
+/// <summary>
+/// One correction the matcher made.
+///
+/// The result carries these instead of Rust logging them, so each head keeps its
+/// own logger — `os.Logger` on macOS, `LoggingService` on Windows, `ILogger` on
+/// Linux — and its own privacy annotations.
+/// </summary>
+/// <param name="token">
+/// The transcript token as it appeared, trailing punctuation included.
+/// </param>
+/// <param name="replacement">
+/// The vocabulary spelling it was replaced with.
+/// </param>
+internal record HwPhoneticMatch (
+    /// <summary>
+    /// The transcript token as it appeared, trailing punctuation included.
+    /// </summary>
+    string @token, 
+    /// <summary>
+    /// The vocabulary spelling it was replaced with.
+    /// </summary>
+    string @replacement
+) {
+}
+
+class FfiConverterTypeHwPhoneticMatch: FfiConverterRustBuffer<HwPhoneticMatch> {
+    public static FfiConverterTypeHwPhoneticMatch INSTANCE = new FfiConverterTypeHwPhoneticMatch();
+
+    public override HwPhoneticMatch Read(BigEndianStream stream) {
+        return new HwPhoneticMatch(
+            @token: FfiConverterString.INSTANCE.Read(stream),
+            @replacement: FfiConverterString.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwPhoneticMatch value) {
+        return 0
+            + FfiConverterString.INSTANCE.AllocationSize(value.@token)
+            + FfiConverterString.INSTANCE.AllocationSize(value.@replacement);
+    }
+
+    public override void Write(HwPhoneticMatch value, BigEndianStream stream) {
+            FfiConverterString.INSTANCE.Write(value.@token, stream);
+            FfiConverterString.INSTANCE.Write(value.@replacement, stream);
+    }
+}
+
+
+
+/// <summary>
 /// Result of a provider health probe. Mirrors `hw_net::ProviderHealth`.
 /// </summary>
 internal record HwProviderHealth (
@@ -7232,6 +7374,45 @@ class FfiConverterTypeHwValidationError: FfiConverterRustBuffer<HwValidationErro
     public override void Write(HwValidationError value, BigEndianStream stream) {
             FfiConverterString.INSTANCE.Write(value.@path, stream);
             FfiConverterString.INSTANCE.Write(value.@message, stream);
+    }
+}
+
+
+
+/// <summary>
+/// One row of the user's vocabulary, as the host stores it.
+///
+/// `replacement` is `null` (or empty) for a spelling-hint row — those are what
+/// [`phonetic_apply_vocabulary`] corrects towards. A row that carries a
+/// replacement is skipped by the phonetic pass and handled by
+/// [`apply_substring_vocabulary`] / `apply_hardened_replacement` instead, which
+/// is exactly what both native matchers did.
+/// </summary>
+internal record HwVocabularyEntry (
+    string @word, 
+    string? @replacement
+) {
+}
+
+class FfiConverterTypeHwVocabularyEntry: FfiConverterRustBuffer<HwVocabularyEntry> {
+    public static FfiConverterTypeHwVocabularyEntry INSTANCE = new FfiConverterTypeHwVocabularyEntry();
+
+    public override HwVocabularyEntry Read(BigEndianStream stream) {
+        return new HwVocabularyEntry(
+            @word: FfiConverterString.INSTANCE.Read(stream),
+            @replacement: FfiConverterOptionalString.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwVocabularyEntry value) {
+        return 0
+            + FfiConverterString.INSTANCE.AllocationSize(value.@word)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@replacement);
+    }
+
+    public override void Write(HwVocabularyEntry value, BigEndianStream stream) {
+            FfiConverterString.INSTANCE.Write(value.@word, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@replacement, stream);
     }
 }
 
@@ -12272,6 +12453,48 @@ class FfiConverterSequenceTypeHwLiveFrame: FfiConverterRustBuffer<List<HwLiveFra
 
 
 
+class FfiConverterSequenceTypeHwPhoneticMatch: FfiConverterRustBuffer<List<HwPhoneticMatch>> {
+    public static FfiConverterSequenceTypeHwPhoneticMatch INSTANCE = new FfiConverterSequenceTypeHwPhoneticMatch();
+
+    public override List<HwPhoneticMatch> Read(BigEndianStream stream) {
+        var length = stream.ReadInt();
+        var result = new List<HwPhoneticMatch>(length);
+        var readFn = FfiConverterTypeHwPhoneticMatch.INSTANCE.Read;
+        for (int i = 0; i < length; i++) {
+            result.Add(readFn(stream));
+        }
+        return result;
+    }
+
+    public override int AllocationSize(List<HwPhoneticMatch> value) {
+        var sizeForLength = 4;
+
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            return sizeForLength;
+        }
+
+        var allocationSizeFn = FfiConverterTypeHwPhoneticMatch.INSTANCE.AllocationSize;
+        var sizeForItems = value.Sum(item => allocationSizeFn(item));
+        return sizeForLength + sizeForItems;
+    }
+
+    public override void Write(List<HwPhoneticMatch> value, BigEndianStream stream) {
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            stream.WriteInt(0);
+            return;
+        }
+
+        stream.WriteInt(value.Count);
+        var writerFn = FfiConverterTypeHwPhoneticMatch.INSTANCE.Write;
+        value.ForEach(item => writerFn(item, stream));
+    }
+}
+
+
+
+
 class FfiConverterSequenceTypeHwPttTimerCommand: FfiConverterRustBuffer<List<HwPttTimerCommand>> {
     public static FfiConverterSequenceTypeHwPttTimerCommand INSTANCE = new FfiConverterSequenceTypeHwPttTimerCommand();
 
@@ -12391,6 +12614,48 @@ class FfiConverterSequenceTypeHwValidationError: FfiConverterRustBuffer<List<HwV
 
         stream.WriteInt(value.Count);
         var writerFn = FfiConverterTypeHwValidationError.INSTANCE.Write;
+        value.ForEach(item => writerFn(item, stream));
+    }
+}
+
+
+
+
+class FfiConverterSequenceTypeHwVocabularyEntry: FfiConverterRustBuffer<List<HwVocabularyEntry>> {
+    public static FfiConverterSequenceTypeHwVocabularyEntry INSTANCE = new FfiConverterSequenceTypeHwVocabularyEntry();
+
+    public override List<HwVocabularyEntry> Read(BigEndianStream stream) {
+        var length = stream.ReadInt();
+        var result = new List<HwVocabularyEntry>(length);
+        var readFn = FfiConverterTypeHwVocabularyEntry.INSTANCE.Read;
+        for (int i = 0; i < length; i++) {
+            result.Add(readFn(stream));
+        }
+        return result;
+    }
+
+    public override int AllocationSize(List<HwVocabularyEntry> value) {
+        var sizeForLength = 4;
+
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            return sizeForLength;
+        }
+
+        var allocationSizeFn = FfiConverterTypeHwVocabularyEntry.INSTANCE.AllocationSize;
+        var sizeForItems = value.Sum(item => allocationSizeFn(item));
+        return sizeForLength + sizeForItems;
+    }
+
+    public override void Write(List<HwVocabularyEntry> value, BigEndianStream stream) {
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            stream.WriteInt(0);
+            return;
+        }
+
+        stream.WriteInt(value.Count);
+        var writerFn = FfiConverterTypeHwVocabularyEntry.INSTANCE.Write;
         value.ForEach(item => writerFn(item, stream));
     }
 }
@@ -12855,6 +13120,29 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterString.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_apply_hardened_replacement(FfiConverterString.INSTANCE.Lower(@text), FfiConverterString.INSTANCE.Lower(@word), FfiConverterString.INSTANCE.Lower(@replacement), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The on-device providers' vocabulary pass: unanchored substring replacement,
+    /// case-insensitive AND diacritic-insensitive, over the rows that DO carry a
+    /// replacement, in list order.
+    ///
+    /// This is deliberately NOT `apply_hardened_replacement`. That one anchors on
+    /// `\b…\b` and is diacritic-SENSITIVE, and it runs later over the pipeline's own
+    /// vocabulary list. This one runs first, inside the provider, over its own raw
+    /// output — the split macOS made explicit in `VocabularyProcessor.swift` (commit
+    /// 136071d) after finding four byte-identical copies of it.
+    ///
+    /// Text outside a match comes back byte-identical: its case, its accents and its
+    /// normalization form are untouched, matching Foundation's
+    /// `replacingOccurrences(options: [.caseInsensitive, .diacriticInsensitive])`.
+    /// </summary>
+    public static string ApplySubstringVocabulary(string @text, List<HwVocabularyEntry> @entries) {
+        return FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_apply_substring_vocabulary(FfiConverterString.INSTANCE.Lower(@text), FfiConverterSequenceTypeHwVocabularyEntry.INSTANCE.Lower(@entries), ref _status)
 ));
     }
 
@@ -14981,10 +15269,29 @@ internal static class HyperwhisperCoreMethods {
 
 
     /// <summary>
+    /// Correct a whole transcript against a whole vocabulary, in one call.
+    ///
+    /// Whole-word, `\b`-anchored, case-insensitive, literal replacement. Rows that
+    /// carry a replacement, and words of 2 Unicode scalars or fewer, are skipped. A
+    /// token that already equals ANY vocabulary word is left alone.
+    /// </summary>
+    public static HwPhoneticApplyResult PhoneticApplyVocabulary(string @text, List<HwVocabularyEntry> @entries) {
+        return FfiConverterTypeHwPhoneticApplyResult.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_phonetic_apply_vocabulary(FfiConverterString.INSTANCE.Lower(@text), FfiConverterSequenceTypeHwVocabularyEntry.INSTANCE.Lower(@entries), ref _status)
+));
+    }
+
+
+    /// <summary>
     /// Encode a word with the Beider-Morse phonetic algorithm.
     ///
     /// Replaces the old C-ABI `bm_encode` (pipe-separated `char*` + manual
     /// `bm_free`). Returns the phonetic codes directly; empty input -> empty list.
+    ///
+    /// Kept for the golden fixture test and for any host that wants the raw codes.
+    /// A host correcting a transcript should call [`phonetic_apply_vocabulary`]
+    /// instead — one call rather than one per word.
     /// </summary>
     public static List<string> PhoneticEncode(string @word) {
         return FfiConverterSequenceString.INSTANCE.Lift(

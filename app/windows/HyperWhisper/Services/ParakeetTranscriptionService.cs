@@ -19,6 +19,7 @@ using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using HyperWhisper.Models;
+using HyperWhisper.SharedCore;
 using HyperWhisper.Utilities;
 
 namespace HyperWhisper.Services;
@@ -126,29 +127,11 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
     /// </summary>
     private readonly bool _isShared;
 
-    /// <summary>
-    /// Cached phonetic matcher (vocabulary is pre-encoded via FFI at build time,
-    /// so rebuilding per transcription would pay one PhoneticEncode call per
-    /// entry every time). Rebuilt lazily when <see cref="_phoneticMatcherDirty"/>
-    /// is set by <see cref="VocabularyService.VocabularyChanged"/> (which also
-    /// fires on backup import). macOS builds a fresh matcher per transcription;
-    /// caching here is output-identical.
-    /// </summary>
-    private PhoneticVocabularyMatcher? _phoneticMatcher;
-    private volatile bool _phoneticMatcherDirty = true;
-    private readonly object _phoneticMatcherLock = new();
-
     public ParakeetTranscriptionService() : this(isShared: false) { }
 
     internal ParakeetTranscriptionService(bool isShared)
     {
         _isShared = isShared;
-        VocabularyService.Instance.VocabularyChanged += OnVocabularyChanged;
-    }
-
-    private void OnVocabularyChanged(object? sender, EventArgs e)
-    {
-        _phoneticMatcherDirty = true;
     }
 
     // =========================================================================
@@ -595,7 +578,7 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
 
         try
         {
-            return ApplyPhoneticVocabulary(await TranscribeInternalAsync(audioPath, cancellationToken));
+            return ApplyLocalVocabulary(await TranscribeInternalAsync(audioPath, cancellationToken));
         }
         catch (TranscriptionException ex) when (ex.Code == TranscriptionErrorCode.DaemonCrashed)
         {
@@ -612,7 +595,7 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
             {
                 await InitializeAsync(_lastModelDirectory, _lastLanguage);
                 LoggingService.Info("ParakeetTranscriptionService: Auto-restart successful, retrying transcription...");
-                return ApplyPhoneticVocabulary(await TranscribeInternalAsync(audioPath, cancellationToken));
+                return ApplyLocalVocabulary(await TranscribeInternalAsync(audioPath, cancellationToken));
             }
             catch (OperationCanceledException)
             {
@@ -632,23 +615,33 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
     }
 
     /// <summary>
-    /// Phonetic vocabulary pass over the raw engine result (Beider-Morse, via the
-    /// shared Rust core). Runs FIRST on the raw text; exact replacements run
-    /// second in the orchestrator — mirrors macOS ParakeetProvider.swift /
-    /// NemotronProvider.swift. Applies to TDT + Nemotron only; Qwen3 gets no
-    /// phonetic pass on macOS (Qwen3Provider), so it is gated here too.
+    /// The two on-device vocabulary passes over the raw engine result, both via
+    /// the shared Rust core (<c>hw-phonetic</c>, issue #283). They run FIRST on
+    /// the raw text; the orchestrator's <c>\b</c>-anchored
+    /// <see cref="VocabularyProcessor"/> pass runs second — mirrors macOS
+    /// ParakeetProvider.swift / NemotronProvider.swift.
+    ///
+    /// 1. The phonetic (Beider-Morse) pass. TDT + Nemotron only; Qwen3 gets no
+    ///    phonetic pass on macOS (Qwen3AsrProvider), so it is gated here too.
+    /// 2. The unanchored, diacritic-insensitive substring pass. This one runs
+    ///    for EVERY local engine including Qwen3, which is what all four macOS
+    ///    local providers do. NEW ON WINDOWS — there was no counterpart before.
+    ///
     /// Vocabulary is GLOBAL (all items, no settings gate) — macOS parity.
+    ///
+    /// One core call per pass per transcription. The retired
+    /// <c>PhoneticVocabularyMatcher</c> encoded one word per call, which is why
+    /// this class used to cache a built matcher and invalidate it on
+    /// <c>VocabularyService.VocabularyChanged</c>. Neither is needed now: the
+    /// core owns its own process-wide code cache, so a fresh read of the
+    /// vocabulary on every transcription costs a hash lookup per row and can
+    /// never serve a stale list.
     /// </summary>
-    private string ApplyPhoneticVocabulary(string text)
+    private string ApplyLocalVocabulary(string text)
     {
-        if (_isQwen3)
-        {
-            return text;
-        }
-
-        // The phonetic encode crosses the FFI on the transcription hot path;
-        // macOS links the core statically and has no equivalent failure mode, so
-        // degrade gracefully here rather than failing the transcription.
+        // Both passes cross the FFI on the transcription hot path; macOS links
+        // the core statically and has no equivalent failure mode, so degrade
+        // gracefully here rather than failing the transcription.
         try
         {
             var vocabulary = VocabularyService.Instance.GetAll();
@@ -657,22 +650,26 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
                 return text;
             }
 
-            PhoneticVocabularyMatcher matcher;
-            lock (_phoneticMatcherLock)
+            var entries = vocabulary
+                .Select(item => new PortableVocabularyEntry(item.Word ?? string.Empty, item.Replacement))
+                .ToList();
+
+            var corrected = text;
+            if (!_isQwen3)
             {
-                if (_phoneticMatcher == null || _phoneticMatcherDirty)
+                var phonetic = SharedCoreBridge.ApplyPhoneticVocabulary(corrected, entries);
+                foreach (var match in phonetic.Matches)
                 {
-                    _phoneticMatcherDirty = false;
-                    _phoneticMatcher = new PhoneticVocabularyMatcher(vocabulary);
+                    LoggingService.Debug($"Phonetic match: '{match.Token}' -> '{match.Replacement}'");
                 }
-                matcher = _phoneticMatcher;
+                corrected = phonetic.Text;
             }
 
-            return matcher.Apply(text);
+            return SharedCoreBridge.ApplySubstringVocabulary(corrected, entries);
         }
         catch (Exception ex)
         {
-            LoggingService.Warn($"ParakeetTranscriptionService: Phonetic vocabulary pass failed, returning unmatched text: {ex.Message}");
+            LoggingService.Warn($"ParakeetTranscriptionService: Local vocabulary pass failed, returning unmatched text: {ex.Message}");
             return text;
         }
     }
@@ -1201,9 +1198,6 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
             return;
         }
         LoggingService.Info("ParakeetTranscriptionService: Disposing...");
-
-        try { VocabularyService.Instance.VocabularyChanged -= OnVocabularyChanged; }
-        catch (Exception ex) { LoggingService.Warn($"ParakeetTranscriptionService: Failed to unsubscribe vocabulary listener: {ex.Message}"); }
 
         DisposeModel();
 

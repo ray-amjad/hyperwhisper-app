@@ -438,14 +438,34 @@ internal static class Program
                 Assert(codes.Count > 0, "expected non-empty phonetic codes");
             });
 
-            Run("PhoneticVocabularyMatcher corrects a misrecognition", () =>
+            // The matcher itself now lives in hw-phonetic (#283); this drives the
+            // bridge the local provider calls, so the entry mapping and the
+            // match list are covered too, not just the raw FFI.
+            Run("ApplyPhoneticVocabulary corrects a misrecognition", () =>
             {
-                var matcher = new PhoneticVocabularyMatcher(new[]
-                {
-                    new VocabularyItem { Word = "Whisper", Replacement = null }
-                });
-                var corrected = matcher.Apply("hyper wisper");
-                Assert(corrected == "hyper Whisper", $"got '{corrected}'");
+                var result = HyperWhisper.SharedCore.SharedCoreBridge.ApplyPhoneticVocabulary(
+                    "hyper wisper",
+                    [new HyperWhisper.SharedCore.PortableVocabularyEntry("Whisper", null)]);
+                Assert(result.Text == "hyper Whisper", $"got '{result.Text}'");
+                Assert(result.EntryCount == 1, $"got entry count {result.EntryCount}");
+                Assert(result.Matches.Count == 1, $"got {result.Matches.Count} matches");
+                Assert(result.Matches[0].Token == "wisper", $"got token '{result.Matches[0].Token}'");
+            });
+
+            // NEW ON WINDOWS (#283): the unanchored, diacritic-insensitive pass
+            // the four macOS local providers have always run. The search word is
+            // unaccented and the text is decomposed, and the "Zo\u00EB" that is
+            // NOT matched keeps its diaeresis and its capital. That is the whole
+            // reason the core maps folded byte offsets back to the original
+            // instead of returning the folded string.
+            Run("ApplySubstringVocabulary matches through an accent", () =>
+            {
+                var result = HyperWhisper.SharedCore.SharedCoreBridge.ApplySubstringVocabulary(
+                    "Zo\u00EB went to the Cafe\u0301 today",
+                    [new HyperWhisper.SharedCore.PortableVocabularyEntry("cafe", "Coffee House")]);
+                Assert(
+                    result == "Zo\u00EB went to the Coffee House today",
+                    $"got '{result}'");
             });
 
             Run("IsNoSpaceLanguage / NormalizeLanguage truth tables", () =>

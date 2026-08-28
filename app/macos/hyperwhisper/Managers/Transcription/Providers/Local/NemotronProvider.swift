@@ -231,8 +231,7 @@ final class NemotronProvider: TranscriptionProvider {
             await manager.cleanup()
 
             if !vocabulary.isEmpty {
-                let phoneticMatcher = PhoneticVocabularyMatcher(vocabulary: vocabulary)
-                text = phoneticMatcher.apply(to: text)
+                text = VocabularyProcessor.applyPhoneticVocabulary(to: text, vocabulary: vocabulary)
                 text = VocabularyProcessor.applySubstringVocabulary(to: text, vocabulary: vocabulary)
             }
             return text.trimmingCharacters(in: .whitespacesAndNewlines)

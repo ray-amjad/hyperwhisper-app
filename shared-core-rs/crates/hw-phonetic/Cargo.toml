@@ -2,7 +2,7 @@
 name = "hw-phonetic"
 version = "0.1.0"
 edition = "2021"
-description = "Beider-Morse phonetic encoding for vocabulary matching (was app/macos/rphonetic-ffi)."
+description = "Beider-Morse phonetic encoding plus the vocabulary matcher policy above it (was app/macos/rphonetic-ffi and the two native PhoneticVocabularyMatcher copies)."
 publish = false
 
 [lib]
@@ -11,3 +11,42 @@ crate-type = ["lib"]
 
 [dependencies]
 rphonetic = { version = "3", features = ["embedded_bm"] }
+# The `\b`-anchored, case-insensitive replacement the two native matchers did
+# with NSRegularExpression / System.Text.RegularExpressions, and the Unicode
+# `\p{P}` punctuation class that `Character.isPunctuation` / `char.IsPunctuation`
+# used for the trailing-punctuation strip. Already in the workspace lock via
+# `hw-text`.
+regex = "1"
+# The diacritic-insensitive substring pass needs real NFD. `hw-text` bans every
+# dep beyond `regex`, which is exactly why that pass lives here and not there
+# (issue #283 says so in as many words). This crate is not on the
+# network-facing surface `hw-releasenotes` / `hw-localapi` guard, and
+# `unicode-normalization` is a table-driven crate whose only transitive
+# dependency is `tinyvec`.
+unicode-normalization = "0.1"
+
+# ---------------------------------------------------------------------------
+# Panic-free-by-construction lints.
+#
+# THESE THREE ARE `clippy::restriction` LINTS. Restriction lints are
+# allow-by-default and are NOT part of `clippy::all`, so the workflows' plain
+# `cargo clippy --all-targets -- -D warnings` does NOT enable them: this table
+# is the only thing that turns them on. Cargo `[lints]` is stable since 1.74
+# (the workspace pins 1.86) and applies to EVERY target of the package, so
+# `--all-targets` picks it up with no workflow edit.
+#
+# Unit tests live inside the lib behind `#[cfg(test)]`, and the crate root
+# re-allows all three under `cfg(test)` — test code legitimately unwraps, and a
+# `tests/` integration file would be a separate crate that never sees that
+# attribute.
+#
+# Copied from `hw-releasenotes` (#284) and `hw-localapi` (#289). The reason it
+# applies here: this crate now takes the raw transcript AND the raw vocabulary
+# rows, and `substring.rs` does byte-offset arithmetic over a folded copy of the
+# transcript. The workspace release profile sets `panic = "abort"`, so an
+# out-of-range slice would abort the app mid-transcription rather than raise.
+# ---------------------------------------------------------------------------
+[lints.clippy]
+indexing_slicing = "deny"
+unwrap_used = "deny"
+expect_used = "deny"

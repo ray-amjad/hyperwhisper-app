@@ -3110,6 +3110,192 @@ public func FfiConverterTypeHwNoSpeechInput_lower(_ value: HwNoSpeechInput) -> R
 
 
 /**
+ * The whole answer for one transcription.
+ */
+public struct HwPhoneticApplyResult {
+    /**
+     * The corrected transcript, NFC-normalized.
+     */
+    public var text: String
+    /**
+     * Every correction, in the order they were applied.
+     */
+    public var matches: [HwPhoneticMatch]
+    /**
+     * How many vocabulary rows survived the build filters and were matched
+     * against — the number behind both platforms' "Phonetic matcher
+     * initialized with N vocabulary entries" log line, which would otherwise
+     * have no home once the matcher stopped being an object the host builds.
+     */
+    public var entryCount: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The corrected transcript, NFC-normalized.
+         */text: String, 
+        /**
+         * Every correction, in the order they were applied.
+         */matches: [HwPhoneticMatch], 
+        /**
+         * How many vocabulary rows survived the build filters and were matched
+         * against — the number behind both platforms' "Phonetic matcher
+         * initialized with N vocabulary entries" log line, which would otherwise
+         * have no home once the matcher stopped being an object the host builds.
+         */entryCount: UInt32) {
+        self.text = text
+        self.matches = matches
+        self.entryCount = entryCount
+    }
+}
+
+
+
+extension HwPhoneticApplyResult: Equatable, Hashable {
+    public static func ==(lhs: HwPhoneticApplyResult, rhs: HwPhoneticApplyResult) -> Bool {
+        if lhs.text != rhs.text {
+            return false
+        }
+        if lhs.matches != rhs.matches {
+            return false
+        }
+        if lhs.entryCount != rhs.entryCount {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(text)
+        hasher.combine(matches)
+        hasher.combine(entryCount)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwPhoneticApplyResult: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwPhoneticApplyResult {
+        return
+            try HwPhoneticApplyResult(
+                text: FfiConverterString.read(from: &buf), 
+                matches: FfiConverterSequenceTypeHwPhoneticMatch.read(from: &buf), 
+                entryCount: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwPhoneticApplyResult, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.text, into: &buf)
+        FfiConverterSequenceTypeHwPhoneticMatch.write(value.matches, into: &buf)
+        FfiConverterUInt32.write(value.entryCount, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwPhoneticApplyResult_lift(_ buf: RustBuffer) throws -> HwPhoneticApplyResult {
+    return try FfiConverterTypeHwPhoneticApplyResult.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwPhoneticApplyResult_lower(_ value: HwPhoneticApplyResult) -> RustBuffer {
+    return FfiConverterTypeHwPhoneticApplyResult.lower(value)
+}
+
+
+/**
+ * One correction the matcher made.
+ *
+ * The result carries these instead of Rust logging them, so each head keeps its
+ * own logger — `os.Logger` on macOS, `LoggingService` on Windows, `ILogger` on
+ * Linux — and its own privacy annotations.
+ */
+public struct HwPhoneticMatch {
+    /**
+     * The transcript token as it appeared, trailing punctuation included.
+     */
+    public var token: String
+    /**
+     * The vocabulary spelling it was replaced with.
+     */
+    public var replacement: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The transcript token as it appeared, trailing punctuation included.
+         */token: String, 
+        /**
+         * The vocabulary spelling it was replaced with.
+         */replacement: String) {
+        self.token = token
+        self.replacement = replacement
+    }
+}
+
+
+
+extension HwPhoneticMatch: Equatable, Hashable {
+    public static func ==(lhs: HwPhoneticMatch, rhs: HwPhoneticMatch) -> Bool {
+        if lhs.token != rhs.token {
+            return false
+        }
+        if lhs.replacement != rhs.replacement {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(token)
+        hasher.combine(replacement)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwPhoneticMatch: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwPhoneticMatch {
+        return
+            try HwPhoneticMatch(
+                token: FfiConverterString.read(from: &buf), 
+                replacement: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwPhoneticMatch, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.token, into: &buf)
+        FfiConverterString.write(value.replacement, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwPhoneticMatch_lift(_ buf: RustBuffer) throws -> HwPhoneticMatch {
+    return try FfiConverterTypeHwPhoneticMatch.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwPhoneticMatch_lower(_ value: HwPhoneticMatch) -> RustBuffer {
+    return FfiConverterTypeHwPhoneticMatch.lower(value)
+}
+
+
+/**
  * Result of a provider health probe. Mirrors `hw_net::ProviderHealth`.
  */
 public struct HwProviderHealth {
@@ -4166,6 +4352,81 @@ public func FfiConverterTypeHwValidationError_lift(_ buf: RustBuffer) throws -> 
 #endif
 public func FfiConverterTypeHwValidationError_lower(_ value: HwValidationError) -> RustBuffer {
     return FfiConverterTypeHwValidationError.lower(value)
+}
+
+
+/**
+ * One row of the user's vocabulary, as the host stores it.
+ *
+ * `replacement` is `null` (or empty) for a spelling-hint row — those are what
+ * [`phonetic_apply_vocabulary`] corrects towards. A row that carries a
+ * replacement is skipped by the phonetic pass and handled by
+ * [`apply_substring_vocabulary`] / `apply_hardened_replacement` instead, which
+ * is exactly what both native matchers did.
+ */
+public struct HwVocabularyEntry {
+    public var word: String
+    public var replacement: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(word: String, replacement: String?) {
+        self.word = word
+        self.replacement = replacement
+    }
+}
+
+
+
+extension HwVocabularyEntry: Equatable, Hashable {
+    public static func ==(lhs: HwVocabularyEntry, rhs: HwVocabularyEntry) -> Bool {
+        if lhs.word != rhs.word {
+            return false
+        }
+        if lhs.replacement != rhs.replacement {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(word)
+        hasher.combine(replacement)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwVocabularyEntry: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwVocabularyEntry {
+        return
+            try HwVocabularyEntry(
+                word: FfiConverterString.read(from: &buf), 
+                replacement: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwVocabularyEntry, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.word, into: &buf)
+        FfiConverterOptionString.write(value.replacement, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwVocabularyEntry_lift(_ buf: RustBuffer) throws -> HwVocabularyEntry {
+    return try FfiConverterTypeHwVocabularyEntry.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwVocabularyEntry_lower(_ value: HwVocabularyEntry) -> RustBuffer {
+    return FfiConverterTypeHwVocabularyEntry.lower(value)
 }
 
 
@@ -11417,6 +11678,31 @@ fileprivate struct FfiConverterSequenceTypeHwLiveFrame: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeHwPhoneticMatch: FfiConverterRustBuffer {
+    typealias SwiftType = [HwPhoneticMatch]
+
+    public static func write(_ value: [HwPhoneticMatch], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeHwPhoneticMatch.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [HwPhoneticMatch] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [HwPhoneticMatch]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeHwPhoneticMatch.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeHwPttTimerCommand: FfiConverterRustBuffer {
     typealias SwiftType = [HwPttTimerCommand]
 
@@ -11484,6 +11770,31 @@ fileprivate struct FfiConverterSequenceTypeHwValidationError: FfiConverterRustBu
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeHwValidationError.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeHwVocabularyEntry: FfiConverterRustBuffer {
+    typealias SwiftType = [HwVocabularyEntry]
+
+    public static func write(_ value: [HwVocabularyEntry], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeHwVocabularyEntry.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [HwVocabularyEntry] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [HwVocabularyEntry]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeHwVocabularyEntry.read(from: &buf))
         }
         return seq
     }
@@ -11792,6 +12103,29 @@ public func applyHardenedReplacement(text: String, word: String, replacement: St
         FfiConverterString.lower(text),
         FfiConverterString.lower(word),
         FfiConverterString.lower(replacement),$0
+    )
+})
+}
+/**
+ * The on-device providers' vocabulary pass: unanchored substring replacement,
+ * case-insensitive AND diacritic-insensitive, over the rows that DO carry a
+ * replacement, in list order.
+ *
+ * This is deliberately NOT `apply_hardened_replacement`. That one anchors on
+ * `\b…\b` and is diacritic-SENSITIVE, and it runs later over the pipeline's own
+ * vocabulary list. This one runs first, inside the provider, over its own raw
+ * output — the split macOS made explicit in `VocabularyProcessor.swift` (commit
+ * 136071d) after finding four byte-identical copies of it.
+ *
+ * Text outside a match comes back byte-identical: its case, its accents and its
+ * normalization form are untouched, matching Foundation's
+ * `replacingOccurrences(options: [.caseInsensitive, .diacriticInsensitive])`.
+ */
+public func applySubstringVocabulary(text: String, entries: [HwVocabularyEntry]) -> String {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_apply_substring_vocabulary(
+        FfiConverterString.lower(text),
+        FfiConverterSequenceTypeHwVocabularyEntry.lower(entries),$0
     )
 })
 }
@@ -13723,10 +14057,29 @@ public func parseHealthResponse(provider: HwProvider, resp: HttpResponse) -> HwP
 })
 }
 /**
+ * Correct a whole transcript against a whole vocabulary, in one call.
+ *
+ * Whole-word, `\b`-anchored, case-insensitive, literal replacement. Rows that
+ * carry a replacement, and words of 2 Unicode scalars or fewer, are skipped. A
+ * token that already equals ANY vocabulary word is left alone.
+ */
+public func phoneticApplyVocabulary(text: String, entries: [HwVocabularyEntry]) -> HwPhoneticApplyResult {
+    return try!  FfiConverterTypeHwPhoneticApplyResult.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_phonetic_apply_vocabulary(
+        FfiConverterString.lower(text),
+        FfiConverterSequenceTypeHwVocabularyEntry.lower(entries),$0
+    )
+})
+}
+/**
  * Encode a word with the Beider-Morse phonetic algorithm.
  *
  * Replaces the old C-ABI `bm_encode` (pipe-separated `char*` + manual
  * `bm_free`). Returns the phonetic codes directly; empty input -> empty list.
+ *
+ * Kept for the golden fixture test and for any host that wants the raw codes.
+ * A host correcting a transcript should call [`phonetic_apply_vocabulary`]
+ * instead — one call rather than one per word.
  */
 public func phoneticEncode(word: String) -> [String] {
     return try!  FfiConverterSequenceString.lift(try! rustCall() {
@@ -14110,6 +14463,9 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_apply_hardened_replacement() != 32134) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_apply_substring_vocabulary() != 17401) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_assemblyai_build_create_request() != 60524) {
@@ -14658,7 +15014,10 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_parse_health_response() != 7345) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_hyperwhisper_core_checksum_func_phonetic_encode() != 15256) {
+    if (uniffi_hyperwhisper_core_checksum_func_phonetic_apply_vocabulary() != 45602) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_phonetic_encode() != 39783) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_preset_from_raw() != 65395) {

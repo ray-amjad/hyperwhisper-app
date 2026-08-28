@@ -3,6 +3,7 @@ using HyperWhisper.Data.Entities;
 using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.PortableApplication.Transcription;
 using HyperWhisper.SharedCore;
+using HyperWhisper.SpeechOutput;
 using HyperWhisper.TranscriptionRouting;
 using HyperWhisper.LiveStreaming;
 using HyperWhisper.ModelManagement;
@@ -12,6 +13,7 @@ Directory.CreateDirectory(root);
 try
 {
     await TestRouterAsync(root);
+    await TestLocalVocabularyAsync(root);
     await TestParakeetProtocolAsync(root);
     await TestParakeetCancellationAsync(root);
     await TestParakeetLiveProtocolAsync(root);
@@ -225,6 +227,70 @@ static async Task TestRouterAsync(string root)
         "unsupported cloud provider did not fail structurally");
 }
 
+// The two on-device vocabulary passes on the router's LOCAL branch (issue
+// #283). Both are new on this head: it had no phonetic matching and no
+// substring pass at all before. The phonetic pass is parakeet-only, the
+// substring pass runs for every local engine, and a cloud transcription sees
+// neither — same split macOS and Windows have.
+static async Task TestLocalVocabularyAsync(string root)
+{
+    var audio = Path.Combine(root, "vocabulary.wav");
+    await File.WriteAllBytesAsync(audio, [1]);
+
+    var parakeetMode = new Mode { ProviderType = "local", LocalEngine = "parakeet", LocalParakeetModel = "parakeet-v3" };
+    var whisperMode = new Mode { ProviderType = "local", LocalEngine = "whisper" };
+
+    async Task<string> Transcribe(string spoken, Mode mode, TranscriptionWorkflowRequest request)
+    {
+        using var router = new ModeAwareTranscriptionRouter(
+            new FakeTranscriber("whisper", available: false, text: spoken),
+            new FakeTranscriber("parakeet", available: false, text: spoken),
+            new RecordingCloud());
+        var result = await router.TranscribeAsync(audio, request with { SelectedMode = mode });
+        Assert(result.IsSuccess, "the local route failed");
+        return result.Text!;
+    }
+
+    var whisperWord = new TranscriptionWorkflowRequest(Vocabulary: ["Whisper"]);
+    Assert(await Transcribe("hyper wisper", parakeetMode, whisperWord) == "hyper Whisper",
+        "the phonetic pass did not correct a Parakeet misrecognition");
+    // whisper.cpp is this head's equivalent of the macOS providers that skip
+    // the phonetic pass, so a misrecognition stays as spoken.
+    Assert(await Transcribe("hyper wisper", whisperMode, whisperWord) == "hyper wisper",
+        "the phonetic pass ran for an engine that must not get it");
+
+    var cafe = new TranscriptionWorkflowRequest(
+        Vocabulary: ["cafe"],
+        VocabularyReplacements: [new PortableVocabularyReplacement("cafe", "Coffee House")]);
+    foreach (var mode in new[] { parakeetMode, whisperMode })
+        Assert(await Transcribe("Zoë went to the Café today", mode, cafe) == "Zoë went to the Coffee House today",
+            "the substring pass did not match through an accent");
+
+    // A word with a replacement is the substring pass's row alone. Same word as
+    // the phonetic case above, so the misrecognition stays as spoken while the
+    // literal spelling is still replaced.
+    var replaced = new TranscriptionWorkflowRequest(
+        Vocabulary: ["Whisper"],
+        VocabularyReplacements: [new PortableVocabularyReplacement("Whisper", "Dictation")]);
+    Assert(await Transcribe("hyper wisper", parakeetMode, replaced) == "hyper wisper",
+        "a replacement-bearing row reached the phonetic matcher");
+    Assert(await Transcribe("hyper Whisper", parakeetMode, replaced) == "hyper Dictation",
+        "the substring pass did not apply a replacement");
+
+    Assert(await Transcribe("hyper wisper", parakeetMode, new TranscriptionWorkflowRequest()) == "hyper wisper",
+        "an empty vocabulary changed the text");
+
+    // The cloud branch runs neither pass on any platform.
+    using var cloudRouter = new ModeAwareTranscriptionRouter(
+        new FakeTranscriber("whisper", available: false),
+        new FakeTranscriber("parakeet", available: false),
+        new RecordingCloud());
+    var cloudMode = new Mode { ProviderType = "cloud", CloudProvider = "openai", CloudTranscriptionModel = "m" };
+    var cloudResult = await cloudRouter.TranscribeAsync(
+        audio, new TranscriptionWorkflowRequest(Vocabulary: ["Cloud"], SelectedMode: cloudMode));
+    Assert(cloudResult.Text == "cloud words", "a cloud transcription reached the local vocabulary passes");
+}
+
 static async Task TestParakeetProtocolAsync(string root)
 {
     var executable = Path.Combine(root, "parakeet-engine");
@@ -313,14 +379,15 @@ static void Assert(bool condition, string message)
     if (!condition) throw new InvalidOperationException(message);
 }
 
-sealed class FakeTranscriber(string provider, bool available = true) : IRecordedAudioTranscriber
+sealed class FakeTranscriber(string provider, bool available = true, string? text = null)
+    : IRecordedAudioTranscriber
 {
     public TranscriptionWorkflowRequest? LastRequest { get; private set; }
     public TranscriptionBackendCapability Capability => new(available, provider);
     public Task<PortableTranscriptionResult> TranscribeAsync(string path, string? language, CancellationToken token = default) =>
-        Task.FromResult(PortableTranscriptionResult.Success(provider, provider));
+        Task.FromResult(PortableTranscriptionResult.Success(text ?? provider, provider));
     public Task<PortableTranscriptionResult> TranscribeAsync(string path, TranscriptionWorkflowRequest request, CancellationToken token = default)
-    { LastRequest = request; return Task.FromResult(PortableTranscriptionResult.Success(provider, provider)); }
+    { LastRequest = request; return Task.FromResult(PortableTranscriptionResult.Success(text ?? provider, provider)); }
 }
 
 sealed class RecordingCloud : IBatchCloudTranscriptionClient

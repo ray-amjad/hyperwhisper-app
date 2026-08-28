@@ -180,3 +180,16 @@ jobs:
       # Linux one.
       - name: Run backup conformance vectors
         run: dotnet run --project app/shared-dotnet/HyperWhisper.Backup.Application.Tests -c Release
+
+      # ----------------------------------------------------------------
+      # 9. Phonetic conformance vectors
+      # ----------------------------------------------------------------
+      # shared-conformance/phonetic-vectors.json, the same three-platform
+      # shape. Issue #283 left exactly one phonetic matcher and exactly one
+      # diacritic-insensitive substring pass, so these vectors prove the
+      # Windows binding reads the same answers the Swift and Rust heads do.
+      # The matcher rows carry a `decision` field naming which native matcher
+      # each unified answer came from — the file is the record of where the
+      # two natives disagreed.
+      - name: Run phonetic conformance vectors
+        run: dotnet run --project app/shared-dotnet/HyperWhisper.PhoneticConformance.Tests -c Release
