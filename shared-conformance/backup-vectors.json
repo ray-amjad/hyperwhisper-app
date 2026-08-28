@@ -1,5 +1,5 @@
 {
-  "description": "Cross-platform golden vectors for the universal-v2 backup adapters (issue #277). The modeNormalization rows were hand-authored in commit 1a against the SHIPPING native code — Windows UniversalBackupMapper.MapToMode (+ CloudTranscriptionModels.ResolveModelAlias and CloudSttCatalog.NormalizeCloudProvider) and Linux ApplicationBackupService.ParseMode — so the Rust port in commit 1b can be diffed against them on the same inputs. A row with a single \"expected\" is one where the two heads AGREE today. A row carrying \"expectedWindows\" and \"expectedLinux\" records a drift that ships right now: Linux runs no cloud-routing migration, no catalog provider normalization, no model-alias resolution and no domain gate at all. Those rows collapse to a single \"expected\" in 1b; rows with one \"expected\" must not move. The windowsSettings / linuxSettings / macosSettings rows were added in commit 2a against the SHIPPING settings adapters: Windows UniversalBackupMapper.MapSettings / BuildPlatformExtensions / ApplySettings driven over a temp-rooted SettingsService, Linux ApplicationBackupService export/import over PortableSettingsService, and the macOS pair already in hw-backup mapping.rs. Native key names are written exactly as each head stores them — PascalCase for the Windows settings.json, the dotted universal keys for Linux, and the seven macOS categories. absentUniversalKeys / ignoredUniversalKeys record, per head, the universal keys that head does NOT carry today; those are the gaps phase 3 closes. Phase 3 CHANGES BEHAVIOUR on purpose, so the windowsSettings rows moved: storage.keepAudioFiles and advanced.maxRecordingDuration became real Windows settings (3a), the maxRecordingDuration rows pin the 20-minute ceiling and the two macOS sentinels, and unknownKeyRoundTrip was populated for the first time (3b/3c). The 132 modeNormalization rows are FROZEN and did not move.",
+  "description": "Cross-platform golden vectors for the universal-v2 backup adapters (issue #277). The modeNormalization rows were hand-authored in commit 1a against the SHIPPING native code — Windows UniversalBackupMapper.MapToMode (+ CloudTranscriptionModels.ResolveModelAlias and CloudSttCatalog.NormalizeCloudProvider) and Linux ApplicationBackupService.ParseMode — so the Rust port in commit 1b can be diffed against them on the same inputs. A row with a single \"expected\" is one where the two heads AGREE today. A row carrying \"expectedWindows\" and \"expectedLinux\" records a drift that ships right now: Linux runs no cloud-routing migration, no catalog provider normalization, no model-alias resolution and no domain gate at all. Those rows collapse to a single \"expected\" in 1b; rows with one \"expected\" must not move. The windowsSettings / linuxSettings / macosSettings rows were added in commit 2a against the SHIPPING settings adapters: Windows UniversalBackupMapper.MapSettings / BuildPlatformExtensions / ApplySettings driven over a temp-rooted SettingsService, Linux ApplicationBackupService export/import over PortableSettingsService, and the macOS pair already in hw-backup mapping.rs. Native key names are written exactly as each head stores them — PascalCase for the Windows settings.json, the dotted universal keys for Linux, and the seven macOS categories. absentUniversalKeys / ignoredUniversalKeys record, per head, the universal keys that head does NOT carry today; those are the gaps phase 3 closes. Phase 3 CHANGES BEHAVIOUR on purpose, so the windowsSettings rows moved: storage.keepAudioFiles and advanced.maxRecordingDuration became real Windows settings (3a), the maxRecordingDuration rows pin the 20-minute ceiling and the two macOS sentinels, and unknownKeyRoundTrip was populated for the first time (3b/3c). The 132 modeNormalization rows are FROZEN and did not move. Phase 4 wired the file into all three stacks and all three CIs, the way catalog-vectors.json already was: shared-core-rs/crates/hw-core/tests/backup_vectors.rs (the only head that calls the core with no app around it), app/macos/hyperwhisperTests/BackupConformanceVectorTests.swift, app/shared-dotnet/HyperWhisper.Backup.Application.Tests (now built on Windows CI as well as Linux CI) and app/windows/HyperWhisper.SmokeTests. It added exactly one field, setterRewrittenNativeKeys: it names the windowsSettings import keys whose FINAL value belongs to the SettingsService setters (the streaming-provider fallback, the deepgram-model collapse, the shortcut re-canonicalisation) rather than to the core, so a core-only head can pin every other key of expectedNative exactly instead of skipping the whole row. The key must still be EMITTED by the core; only its value is exempt.",
   "modeNormalization": [
     {
       "name": "absent: a mode carrying no cloud-routing keys at all",
@@ -2612,6 +2612,12 @@
       "name": "import: a blank streaming string is ignored, not applied as blank",
       "note": "The four string arms are IsNullOrWhiteSpace-gated; the two bool arms are not, so enabled and fastFormatting still apply.",
       "direction": "import",
+      "setterRewrittenNativeKeys": [
+        "StreamingProvider",
+        "StreamingLanguage",
+        "StreamingDeepgramModel",
+        "StreamingShortcut"
+      ],
       "baselineNative": {
         "LaunchMinimized": true,
         "ShowRecordingWindow": false,
@@ -2697,6 +2703,11 @@
       "name": "import: three streaming values are silently rewritten by the SettingsService setters",
       "note": "DRIFT, recorded deliberately. StreamingProvider falls back to hyperwhisperCloud unless the value is one of the five valid storage values; StreamingDeepgramModel collapses to nova-3-general unless it is exactly nova-3-medical; StreamingShortcut is re-canonicalised through FromPersistedString/ToPersistedString. Linux stores all three verbatim, so these are per-head answers today.",
       "direction": "import",
+      "setterRewrittenNativeKeys": [
+        "StreamingProvider",
+        "StreamingDeepgramModel",
+        "StreamingShortcut"
+      ],
       "baselineNative": {
         "LaunchMinimized": true,
         "ShowRecordingWindow": false,

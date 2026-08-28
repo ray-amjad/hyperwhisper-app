@@ -19,8 +19,10 @@ on:
       - "app/linux/**"
       - "shared-core-rs/**"
       - "shared-backup/**"
-      # HyperWhisper.CatalogConformance.Tests runs these vectors as part of the
-      # shared-dotnet sweep below.
+      # HyperWhisper.CatalogConformance.Tests and
+      # HyperWhisper.Backup.Application.Tests run these vectors as part of the
+      # shared-dotnet sweep below, and the shared Rust core's own
+      # tests/backup_vectors.rs runs them in the cargo step above it.
       - "shared-conformance/**"
       # The Linux head classifies the foreground app through the shared
       # classifier since issue #279, so a catalog edit changes its behaviour.

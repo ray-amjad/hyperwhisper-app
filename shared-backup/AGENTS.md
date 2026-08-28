@@ -315,3 +315,29 @@ API keys are a flat object with lowercase provider-name keys. Both platforms map
 
 The shared core is sans-I/O: it parses, maps, and validates in memory; each platform owns reading and writing the `.hwbackup.json` bytes and persisting the resulting records.
 </important>
+
+<important if="you are changing a settings mapping table, the mode normalizer, or backup-vectors.json">
+
+`shared-conformance/backup-vectors.json` is the golden conformance file for this schema, and FOUR
+suites read it. Change one head and the other three fail, which is the point.
+
+| Suite | Runs | CI job |
+|---|---|---|
+| `shared-core-rs/crates/hw-core/tests/backup_vectors.rs` | every group except `unknownKeyRoundTrip`, straight off the FFI with no app around it | Shared Core Tests, Linux CI |
+| `app/macos/hyperwhisperTests/BackupConformanceVectorTests.swift` | `macosSettings` (macOS's own adapter) and `modeNormalization` (a binding check) | macOS CI |
+| `app/macos/hyperwhisperTests/BackupTopLevelExtensionsTests.swift` | the `macos` rows of `unknownKeyRoundTrip` | macOS CI |
+| `app/shared-dotnet/HyperWhisper.Backup.Application.Tests` | the Linux adapters, `macosSettings`, and the `linux` rows of `unknownKeyRoundTrip` | Linux CI, Windows CI |
+| `app/windows/HyperWhisper.SmokeTests` | `windowsSettings`, `modeNormalization` and the `windows` rows of `unknownKeyRoundTrip`, over the real `SettingsService` | Windows CI |
+
+Rules for the file itself:
+
+- The 132 `modeNormalization` rows are FROZEN. A row may be ADDED; an existing one may not move
+  without a deliberate behaviour change, and two suites assert the count.
+- A row pins VALUES, never JSON formatting. Every suite compares number-representation-insensitively,
+  so write `10` and not `10.0`.
+- A `modeNormalization` row must carry ONE `expected`. The per-head `expectedWindows` /
+  `expectedLinux` shape recorded a drift that phase 1b removed; re-introducing it is rejected.
+- `setterRewrittenNativeKeys` exempts a `windowsSettings` import key's VALUE from the core-only
+  suites, because the `SettingsService` setters own the final answer. It never exempts the key's
+  presence. Add one only with the setter that justifies it.
+</important>
