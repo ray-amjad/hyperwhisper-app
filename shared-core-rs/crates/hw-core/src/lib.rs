@@ -41,18 +41,13 @@ mod ffi_live;
 // (#289). Shared by all three heads.
 mod ffi_localapi;
 mod ffi_net;
+// The Beider-Morse encoder and the vocabulary matcher above it (#283). Public
+// for the same reason as `ffi_catalog`: `tests/golden_phonetic.rs` and
+// `tests/phonetic_vectors.rs` drive these functions directly.
+pub mod ffi_phonetic;
 mod ffi_prompt;
 // The appcast release-notes HTML parser, shared by macOS and Windows (#284).
 mod ffi_releasenotes;
-
-/// Encode a word with the Beider-Morse phonetic algorithm.
-///
-/// Replaces the old C-ABI `bm_encode` (pipe-separated `char*` + manual
-/// `bm_free`). Returns the phonetic codes directly; empty input -> empty list.
-#[uniffi::export]
-pub fn phonetic_encode(word: String) -> Vec<String> {
-    hw_phonetic::encode(&word)
-}
 
 // ===========================================================================
 // hw-text (Milestone 1): pure text logic. Thin wrappers over the dep-free
