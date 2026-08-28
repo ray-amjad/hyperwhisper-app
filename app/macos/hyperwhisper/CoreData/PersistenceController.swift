@@ -754,11 +754,13 @@ class PersistenceController: ObservableObject {
             AppLogger.coreData.info("Migrated googleChirp3 accuracy tier on \(changedCount, privacy: .public) modes")
         } catch {
             let nsError = error as NSError
-            AppLogger.logCoreData(.save, error: nsError)
-            SentryService.capture(
+            // One event, not two, and the same shape every sibling migration
+            // reports: `site` names this caller, `contextKey` names the context
+            // whose failure streak it belongs to.
+            AppLogger.logCoreData(
+                .save(site: "migrate_google_chirp3_tier", contextKey: CoreDataSaveDiagnostics.viewContextKey),
                 error: nsError,
-                message: "Failed to migrate the googleChirp3 accuracy tier",
-                tags: ["component": "PersistenceController", "operation": "migrateGoogleChirp3Tier"]
+                metadata: CoreDataSaveDiagnostics.contextShape(context)
             )
         }
     }

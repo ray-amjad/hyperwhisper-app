@@ -2430,10 +2430,11 @@ sealed class FakeStreamingWebSocket(
 /// One scripted inbound frame plus the condition that releases it.
 /// </summary>
 /// <param name="Frame">The frame to deliver.</param>
-/// <param name="AfterAudioFrames">Hold it until <see cref="PacedStreamingWebSocket.PacedAudio"/>
-/// has handed over this many PCM chunks, so "mid-session" is a fact rather than
-/// a race. Counted at the source rather than by sniffing the wire, because the
-/// six protocols encode audio six different ways.</param>
+/// <param name="AfterAudioFrames">Hold it until the client has SENT this many of
+/// <see cref="PacedStreamingWebSocket.PacedAudio"/>'s PCM chunks, so "mid-session"
+/// is a fact rather than a race. Counted at the source rather than by sniffing the
+/// wire, because the six protocols encode audio six different ways — but only once
+/// the pump has come back for the next chunk, which is what makes it "sent".</param>
 /// <param name="AfterStop">Hold it until the client's stop frame has gone out.</param>
 /// <param name="DelayMilliseconds">Make the provider take a measurable moment to
 /// answer, so a client that does not wait is caught deterministically.</param>
@@ -2564,8 +2565,18 @@ sealed class PacedStreamingWebSocket(
                 if (!pendingDue && handled) break;
                 await Task.Delay(1);
             }
-            Interlocked.Increment(ref _audioYielded);
             yield return new byte[chunkBytes];
+            // Count the chunk only once the pump has COME BACK for the next one,
+            // which in `await foreach` means its body already ran: the frame is
+            // on the wire and `AudioChunksSent` is incremented. Counting at the
+            // yield instead let every frame gated on chunk 1 release while the
+            // pump was still suspended, so the receive loop could run the script
+            // to its terminal frame first; the pump then saw `Completed` at the
+            // top of its loop and broke with 0 chunks sent. That lost the race
+            // roughly one run in ten under coverage instrumentation, which is
+            // slow enough to open the window. The wait above is unaffected —
+            // during iteration i the count reads i either way.
+            Interlocked.Increment(ref _audioYielded);
         }
     }
 
