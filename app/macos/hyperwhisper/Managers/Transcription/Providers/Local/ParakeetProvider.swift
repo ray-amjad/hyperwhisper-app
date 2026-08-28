@@ -360,8 +360,7 @@ final class ParakeetProvider: TranscriptionProvider {
             // STEP 4a: Phonetic vocabulary matching (Beider-Morse)
             // Catches phonetically similar misrecognitions before exact matching
             if !vocabulary.isEmpty {
-                let phoneticMatcher = PhoneticVocabularyMatcher(vocabulary: vocabulary)
-                text = phoneticMatcher.apply(to: text)
+                text = VocabularyProcessor.applyPhoneticVocabulary(to: text, vocabulary: vocabulary)
             }
 
             // STEP 4b: Exact vocabulary replacements (case-insensitive string match)

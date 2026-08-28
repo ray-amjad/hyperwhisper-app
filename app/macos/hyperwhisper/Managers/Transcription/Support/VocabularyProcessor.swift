@@ -71,18 +71,19 @@ class VocabularyProcessor {
     ///
     /// Keep this next to `applyHardenedReplacement` so the two rule sets stay
     /// visible side by side rather than hidden in four provider files.
+    ///
+    /// Now a thin shim over the shared Rust core (`hw-phonetic`,
+    /// `applySubstringVocabulary`), so Windows and Linux — which had no
+    /// counterpart at all — run the same rules (issue #283). Foundation's
+    /// `.diacriticInsensitive` option splices the replacement into the ORIGINAL
+    /// text at the original range, so the core does the same via an
+    /// NFD-folded-to-original byte-offset map rather than returning a folded
+    /// string. The transcript is deliberately NOT normalized here: text outside
+    /// a match comes back byte-identical, exactly as Foundation left it.
     static func applySubstringReplacement(to text: String, word: String, replacement: String) -> String {
-        let trimmedWord = word.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedWord.isEmpty else { return text }
-
-        let trimmedReplacement = replacement.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedReplacement.isEmpty else { return text }
-
-        return text.replacingOccurrences(
-            of: trimmedWord,
-            with: trimmedReplacement,
-            options: [.caseInsensitive, .diacriticInsensitive],
-            range: nil
+        HyperWhisper.applySubstringVocabulary(
+            text: text,
+            entries: [HwVocabularyEntry(word: word, replacement: replacement)]
         )
     }
 
@@ -90,15 +91,57 @@ class VocabularyProcessor {
     /// substring rules, in list order.
     ///
     /// Entries with a nil `word` or a nil `replacement` are skipped, matching
-    /// the `guard let … else { continue }` the provider copies used.
+    /// the `guard let … else { continue }` the provider copies used. One core
+    /// call for the whole list.
     static func applySubstringVocabulary(to text: String, vocabulary: [Vocabulary]) -> String {
-        vocabulary.reduce(text) { partial, entry in
-            VocabularyProcessor.applySubstringReplacement(
-                to: partial,
-                word: entry.word ?? "",
-                replacement: entry.replacement ?? ""
-            )
+        HyperWhisper.applySubstringVocabulary(
+            text: text,
+            entries: vocabulary.map {
+                HwVocabularyEntry(word: $0.word ?? "", replacement: $0.replacement)
+            }
+        )
+    }
+
+    // MARK: - Phonetic Matcher
+
+    /// Apply phonetic (Beider-Morse) vocabulary matching to transcribed text.
+    ///
+    /// Replaces `PhoneticVocabularyMatcher`, which was the same eight-step
+    /// program as the Windows `PhoneticVocabularyMatcher.cs` and had drifted
+    /// from it (issue #283). The policy now lives in `hw-phonetic` and this is
+    /// ONE core call for the whole transcript: the old shape built a matcher per
+    /// transcription and encoded one word per call, so a 40-entry vocabulary
+    /// over a 300-word transcript crossed the boundary ~340 times.
+    ///
+    /// The core returns every correction rather than logging any of them, so the
+    /// log line below stays here, on `os.Logger`, with its own privacy
+    /// annotations.
+    ///
+    /// Behaviour differences the shared policy settles, all documented in
+    /// `shared-conformance/phonetic-vectors.json`: tokens now split on ALL
+    /// whitespace (the old `CharacterSet.whitespaces` excluded newlines, so a
+    /// multi-line transcript silently lost every correction after line 1), the
+    /// `<=2`-character gate counts Unicode scalars rather than graphemes, both
+    /// inputs are NFC-normalized, and the exact-hit short-circuit now protects
+    /// a word that matches ANY vocabulary entry rather than only the first.
+    static func applyPhoneticVocabulary(to text: String, vocabulary: [Vocabulary]) -> String {
+        let result = phoneticApplyVocabulary(
+            text: text,
+            entries: vocabulary.map {
+                HwVocabularyEntry(word: $0.word ?? "", replacement: $0.replacement)
+            }
+        )
+
+        if result.entryCount > 0 {
+            AppLogger.transcription.info(
+                "Phonetic matcher ran with \(result.entryCount, privacy: .public) vocabulary entries")
         }
+        for match in result.matches {
+            AppLogger.transcription.debug(
+                "Phonetic match: '\(match.token, privacy: .public)' → '\(match.replacement, privacy: .public)'")
+        }
+
+        return result.text
     }
 
     // MARK: - Public Methods
