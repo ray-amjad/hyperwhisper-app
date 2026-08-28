@@ -377,16 +377,24 @@ jobs:
             packaging/linux/debian/postrm
           desktop-file-validate packaging/linux/debian/hyperwhisper.desktop
 
+          # Build at the project's real version, not a fixed one, so the
+          # package version and the Debian changelog never disagree after a
+          # version bump.
+          version="$(sed -n 's:.*<Version>\([^<]*\)</Version>.*:\1:p' \
+            app/linux/HyperWhisper.Linux/HyperWhisper.Linux.csproj)"
+          test -n "$version"
+
           package_path="$(
             packaging/linux/scripts/build-deb.sh \
               --publish-dir artifacts/hyperwhisper-linux \
               --output-dir artifacts/debian \
-              --version 1.0.0 \
+              --version "$version" \
               --architecture amd64
           )"
 
           test -s "$package_path"
-          packaging/linux/scripts/test-package.sh "$package_path"
+          HYPERWHISPER_PACKAGE_VERSION="$version" \
+            packaging/linux/scripts/test-package.sh "$package_path"
           packaging/linux/scripts/test-apt-repository.sh "$package_path"
           lintian --fail-on warning "$package_path"
           dpkg-deb --info "$package_path"
