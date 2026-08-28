@@ -148,21 +148,6 @@ final class ParakeetModelManager: ObservableObject {
         return downloads.isDownloading(canonicalModelId)
     }
 
-    // ANY MODEL INSTALLED:
-    // Returns true if any Parakeet version is downloaded
-    var isModelInstalled: Bool {
-        availableModels.contains { $0.isDownloaded }
-    }
-
-    // SPECIFIC MODEL INSTALLED:
-    // Returns true if the specified model ID is downloaded
-    func isModelInstalled(_ modelId: String) -> Bool {
-        guard let canonicalModelId = Constants.canonicalModelId(for: modelId) else {
-            return false
-        }
-        return availableModels.first { $0.id == canonicalModelId }?.isDownloaded ?? false
-    }
-
     // VERSION DETECTION HELPER:
     // Determines AsrModelVersion based on model name string
     private func version(for modelName: String) -> AsrModelVersion? {

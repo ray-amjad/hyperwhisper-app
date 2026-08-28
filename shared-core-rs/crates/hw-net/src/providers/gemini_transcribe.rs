@@ -83,10 +83,6 @@ pub const DEFAULT_MODEL: &str = "gemini-3.5-transcribe";
 /// [`build_transcribe_request`] — see [`is_live_model`].
 pub const LIVE_MODEL: &str = "gemini-3.5-transcribe-live";
 
-/// Sample rate, in Hz, of the PCM the live socket expects. Mono, signed 16-bit,
-/// little-endian.
-pub const LIVE_SAMPLE_RATE: u32 = 16_000;
-
 /// MIME the live socket expects for its audio frames.
 pub const LIVE_AUDIO_MIME: &str = "audio/pcm;rate=16000";
 

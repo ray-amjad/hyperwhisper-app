@@ -347,17 +347,6 @@ public sealed class HyperWhisperCloudManager : INotifyPropertyChanged, IDisposab
     }
 
     /// <summary>
-    /// Checks if user has sufficient credits for estimated transcription time.
-    /// </summary>
-    /// <param name="estimatedMinutes">Estimated audio duration in minutes.</param>
-    /// <returns>True if sufficient credits available.</returns>
-    public bool HasSufficientCredits(int estimatedMinutes)
-    {
-        if (_credits == null) return true; // Assume OK if unknown
-        return _credits.MinutesRemaining >= estimatedMinutes;
-    }
-
-    /// <summary>
     /// Clears all cached data and resets state.
     /// </summary>
     public void Clear()
