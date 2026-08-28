@@ -115,6 +115,7 @@ public static class SharedModelsCatalog
         CloudTranscriptionProvider.HyperWhisperCloud => "hyperwhisper",
         CloudTranscriptionProvider.MicrosoftAzureSpeech => "microsoftAzureSpeech",
         CloudTranscriptionProvider.GoogleSpeech => "googleSpeech",
+        CloudTranscriptionProvider.GeminiTranscribe => "geminiTranscribe",
     };
 
     public static string CatalogKey(PostProcessingProvider provider) => provider switch

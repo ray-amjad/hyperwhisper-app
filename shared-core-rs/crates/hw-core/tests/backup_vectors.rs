@@ -594,13 +594,17 @@ fn vector_groups_are_populated() {
         }
     }
 
-    // The 132 mode rows are FROZEN (see the document's own description): they
-    // were captured against the shipping native code and phase 1b's whole
-    // argument is that the port reproduces them. Losing rows silently would
-    // shrink the contract to whatever still passes.
+    // The mode rows are FROZEN (see the document's own description): they were
+    // captured against the shipping native code and phase 1b's whole argument is
+    // that the port reproduces them. Losing rows silently would shrink the
+    // contract to whatever still passes.
+    //
+    // 132 → 134: catalog v8 (#331) added the `googlechirp3` and `chirp_3` tier
+    // aliases, and the rows cover the alias table exhaustively. The same merge
+    // re-derived seven existing rows onto `geminiTranscribe`; it removed none.
     assert_eq!(
         rows("modeNormalization").len(),
-        132,
+        134,
         "the frozen modeNormalization row count changed; a row may only be ADDED, and the \
          count here must be updated deliberately when one is"
     );

@@ -1,7 +1,7 @@
 {
   "$schemaDoc": "Shared source of truth for cloud STT provider capabilities. Loaded by macOS and Windows clients to drive UI affordances (custom-vocab field visibility, supported-language chips, credits/min caption, cloud-tier vs BYOK list filtering, accepted-format hints). Every fact is either verified from an upstream doc (with the URL in `sources`) OR marked the literal string `\"unverified\"`. See CLAUDE.md (symlink to AGENTS.md) in this directory before editing.",
-  "version": 7,
-  "updated": "2026-08-21",
+  "version": 8,
+  "updated": "2026-08-27",
   "providers": [
     {
       "id": "groqWhisper",
@@ -51,8 +51,8 @@
       "sttProvider": "deepgram",
       "access": { "cloudTierEligible": true, "byokEligible": true },
       "models": [
-        { "id": "nova-3-general", "displayName": "Nova 3 General", "creditsPerMinute": 5.5, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true },
-        { "id": "nova-3-medical", "displayName": "Nova 3 Medical", "creditsPerMinute": 5.5, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true },
+        { "id": "nova-3-general", "displayName": "Nova 3 General", "creditsPerMinute": 5.5, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true, "streaming": true },
+        { "id": "nova-3-medical", "displayName": "Nova 3 Medical", "creditsPerMinute": 5.5, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true, "streaming": true },
         { "id": "nova-2-general", "displayName": "Nova 2 General", "creditsPerMinute": 5.5, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true },
         { "id": "nova-2-medical", "displayName": "Nova 2 Medical", "creditsPerMinute": 5.5, "isDefault": false, "previewStatus": false, "supportsCustomVocabulary": true }
       ],
@@ -172,44 +172,45 @@
     },
 
     {
-      "id": "googleChirp3",
-      "displayName": "Google Chirp 3",
-      "displayModel": "chirp_3",
+      "id": "geminiTranscribe",
+      "displayName": "Google Gemini 3.5 Transcribe",
+      "displayModel": "gemini-3.5-transcribe",
       "vendor": "google",
       "vendorDisplayName": "Google",
-      "sttProvider": "google-chirp",
-      "access": { "cloudTierEligible": true, "byokEligible": false },
+      "sttProvider": "gemini-transcribe",
+      "access": { "cloudTierEligible": true, "byokEligible": true },
       "models": [
-        { "id": "chirp_3", "displayName": "Chirp 3", "creditsPerMinute": 16.0, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true }
+        { "id": "gemini-3.5-transcribe", "displayName": "Gemini 3.5 Transcribe", "creditsPerMinute": 5.5, "isDefault": true, "previewStatus": true, "supportsCustomVocabulary": true },
+        { "id": "gemini-3.5-transcribe-live", "displayName": "Gemini 3.5 Transcribe Live", "creditsPerMinute": 9.6, "isDefault": false, "previewStatus": true, "supportsCustomVocabulary": true, "streaming": true }
       ],
-      "cloudTier": { "accuracy": "high", "creditsPerMinute": 16.0 },
-      "migrateFrom": ["googlespeech", "googleSpeech", "chirp", "google-chirp", "googlechirp", "googlechirp3"],
+      "cloudTier": { "accuracy": "high", "creditsPerMinute": 5.5 },
+      "migrateFrom": ["googlespeech", "googleSpeech", "chirp", "google-chirp", "googlechirp", "googlechirp3", "googleChirp3", "chirp_3"],
       "legacyCloudProviderAliases": ["googlespeech", "googleSpeech"],
       "customVocabulary": {
         "supported": true,
-        "fieldName": "adaptation.phraseSets",
-        "maxPhrases": 1000,
-        "caveats": "Sent as an inline phrase set on `config.adaptation`. Google now documents Speech adaptation (biasing) as GA for Chirp 3 with a dictionary of up to 1,000 phrases, and recommends fewer entries to avoid hurting accuracy on non-listed terms. History: an earlier integration got 404 NOT_FOUND from this exact field (backend PR #15), so `google-chirp.ts` retries a rejected request once WITHOUT adaptation — biasing can be lost, the transcript cannot."
+        "fieldName": "generation_config.transcription_config.custom_vocabulary",
+        "maxPhrases": 100,
+        "caveats": "A real structured API field (unlike the `gemini` entry, which encodes terms in a system prompt). Verified live: with the term the model returns 'HyperWhisper', without it 'hyper whisper'. Our backend (`hyperwhisper-cloud/src/providers/gemini-transcribe.ts`) and the BYOK path (`shared-core-rs/crates/hw-net/src/providers/gemini_transcribe.rs`) both forward it, capped at 100 terms of 80 chars. Mutually exclusive with `diarization_mode` and `timestamp_granularities` — see `featuresCaveat`."
       },
       "languages": {
-        "count": 111,
+        "count": "unverified",
         "autoDetect": true,
-        "autoDetectCaveat": "Pass `language_codes: ['auto']` for auto-detect.",
-        "codeFormat": "BCP-47 locale (e.g. `en-US`, `cmn-Hans-CN`)",
-        "codes": ["ca-ES","cmn-Hans-CN","hr-HR","da-DK","nl-NL","en-AU","en-IN","en-GB","en-US","fi-FI","fr-CA","fr-FR","de-DE","el-GR","hi-IN","it-IT","ja-JP","ko-KR","pl-PL","pt-BR","pt-PT","ro-RO","ru-RU","es-ES","es-US","sv-SE","tr-TR","uk-UA","vi-VN","af-ZA","sq-AL","am-ET","ar-DZ","ar-BH","ar-EG","ar-IQ","ar-IL","ar-JO","ar-KW","ar-LB","ar-MR","ar-MA","ar-OM","ar-QA","ar-SA","ar-PS","ar-SY","ar-TN","ar-AE","ar-YE","ar-XA","hy-AM","as-IN","ast-ES","az-AZ","eu-ES","bn-BD","bn-IN","bg-BG","my-MM","yue-Hant-HK","cmn-Hant-TW","cs-CZ","en-PH","et-EE","fil-PH","gl-ES","ka-GE","gu-IN","ha-NG","iw-IL","hu-HU","is-IS","id-ID","jv-ID","kn-IN","kk-KZ","km-KH","ky-KG","lo-LA","lv-LV","lt-LT","lb-LU","mk-MK","ms-MY","ml-IN","mt-MT","mi-NZ","mr-IN","mn-MN","ne-NP","nso-ZA","no-NO","or-IN","fa-IR","pa-Guru-IN","sr-RS","sk-SK","sl-SI","es-MX","sw-KE","sw","ta-IN","te-IN","th-TH","uz-UZ","cy-GB","wo-SN","xh-ZA","yo-NG","zu-ZA"],
-        "notes": "29 locales are GA; ~74 are Preview. Word timestamps in BatchRecognize cap files at 20 min with 'some transcription degradation expected.'"
+        "autoDetectCaveat": "Omit `language_codes` (or send it empty) for auto-detect. Unlike Chirp 3, an explicit code may be a bare subtag (`en`) or a region-qualified locale (`en-US`) — both verified live.",
+        "codeFormat": "BCP-47, bare subtag or locale (e.g. `en` or `en-US`)",
+        "codes": "unverified",
+        "notes": "Google publishes '85+ languages' for the Gemini 3.5 Transcribe family but no per-code list for this endpoint. Marked unverified rather than guessing, per this directory's AGENTS.md."
       },
-      "acceptedFormats": ["wav","flac","mp3","ogg","opus","webm","amr","awb"],
-      "acceptedFormatsCaveat": "Speech V2 auto-detects via `AutoDetectDecodingConfig`. The listed extensions are inherited from the V2 API.",
-      "maxFileSizeMb": 9.5,
-      "maxFileSizeMbCaveat": "Inline path only. Audio > 9.5 MB or > ~55 s routes through GCS + batchRecognize (no client-visible cap, but adds 5–30 s latency).",
-      "features": { "wordTimestamps": true, "diarization": true, "streaming": true },
-      "diarizationCaveat": "Supported in BatchRecognize/Recognize for 14 languages; NOT available in StreamingRecognize.",
-      "regionalRouting": "Hard-coded to `us` region in our backend after a Speech V2 global-region regression. Multi-regions available: `us` (GA), `eu` (GA).",
-      "previewStatus": false,
+      "acceptedFormats": ["wav","mp3"],
+      "acceptedFormatsCaveat": "`audio/wav` and `audio/mp3` verified live against `/v1beta/interactions`. Our backend reuses the Gemini MIME mapper, so m4a/mp4/aac/ogg/flac/aiff are forwarded with a truthful `audio/*` type, but acceptance for this endpoint is unverified and therefore not listed.",
+      "maxFileSizeMb": 14,
+      "maxFileSizeMbCaveat": "Inline base64 only — there is no Files-API overflow path. Mirrors `GEMINI_TRANSCRIBE_INLINE_MAX_BYTES` (14 MiB) in `hyperwhisper-cloud/src/lib/constants.ts`: 20 MB request ceiling ÷ base64's ~33% inflation. Oversize audio is rejected with 413.",
+      "features": { "wordTimestamps": false, "diarization": false, "streaming": true },
+      "featuresCaveat": "The API documents `timestamp_granularities` and `diarization_mode`, but each returns HTTP 400 when sent alongside `custom_vocabulary` ('custom_vocabulary is incompatible with diarization.' / '... with timestamps.'). HyperWhisper is a dictation app and always sends vocabulary when the user has any, so both are resolved in favour of vocabulary and neither field is ever sent — reported false because that is what our integration actually delivers. `streaming: true` is the `gemini-3.5-transcribe-live` model on the BidiGenerateContent socket.",
+      "previewStatus": true,
+      "previewStatusCaveat": "Badged as preview: the models are new and the `/v1beta/interactions` endpoint is pinned to the dated revision `Api-Revision: 2026-05-20`. The badge is cosmetic — the entry is fully enabled.",
       "sources": [
-        "https://docs.cloud.google.com/speech-to-text/v2/docs/chirp_3-model",
-        "https://docs.cloud.google.com/speech-to-text/v2/docs/adaptation-model"
+        "https://ai.google.dev/gemini-api/docs/speech-to-text",
+        "https://ai.google.dev/gemini-api/docs/pricing"
       ]
     },
 

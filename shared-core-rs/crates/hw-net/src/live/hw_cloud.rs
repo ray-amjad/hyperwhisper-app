@@ -24,7 +24,59 @@ use crate::helpers::keyword_boost_terms;
 /// The production relay. Matches Windows' `StreamingEndpoint` and
 /// `shared-dotnet`'s literal.
 const DEFAULT_BASE_URL: &str = "wss://transcribe-prod-v2.hyperwhisper.com";
-const PATH: &str = "/ws/streaming-deepgram";
+
+/// The `sttProvider` whose route reproduces the endpoint this path hardcoded
+/// (`/ws/streaming-deepgram`) before the live tier picker existed. Anything
+/// unrecognised lands back here rather than deriving a path the relay 404s.
+pub(super) const DEEPGRAM_STT: &str = "deepgram";
+
+/// The catalog entry id that resolves to [`DEEPGRAM_STT`].
+const DEFAULT_CLOUD_TIER: &str = "deepgramNova3";
+
+/// The embedded catalog, parsed once.
+///
+/// `connect` runs on every socket and every reconnect; re-parsing the whole
+/// `cloud-stt-catalog.json` there would be pure waste. A parse failure is not
+/// reachable in a shipped build — the JSON is compile-time embedded and
+/// `hw-catalog`'s own suite parses it — and the `None` it leaves behind is
+/// handled the same way an unknown tier is: fall back to Deepgram.
+fn catalog() -> Option<&'static hw_catalog::CloudSttCatalog> {
+    static CATALOG: std::sync::OnceLock<Option<hw_catalog::CloudSttCatalog>> =
+        std::sync::OnceLock::new();
+    CATALOG
+        .get_or_init(|| hw_catalog::CloudSttCatalog::embedded().ok())
+        .as_ref()
+}
+
+/// Which upstream vendor the relay will use for `cloud_tier`.
+///
+/// The route is **derived**, never a table: `/ws/streaming-{sttProvider}`, where
+/// `sttProvider` comes from the catalog entry the tier names. `deepgramNova3`
+/// gives `/ws/streaming-deepgram`, byte-identical to the literal this replaced,
+/// so every installed client keeps working; `geminiTranscribe` gives
+/// `/ws/streaming-gemini-transcribe`.
+///
+/// A tier the catalog does not list — or lists but cannot serve live — falls
+/// back to Deepgram. Deriving a path from an arbitrary string would let a stale
+/// or hand-edited setting point the socket at a route the backend does not
+/// serve, which fails as an opaque upgrade error rather than as a wrong-looking
+/// transcript.
+pub(super) fn stt_provider_for_tier(cloud_tier: Option<&str>) -> &'static str {
+    let Some(catalog) = catalog() else {
+        return DEEPGRAM_STT;
+    };
+    let requested = cloud_tier.map(str::trim).filter(|t| !t.is_empty());
+    let tier = requested
+        .filter(|t| {
+            catalog
+                .streaming_cloud_tier_entries()
+                .any(|entry| entry.id.eq_ignore_ascii_case(t))
+        })
+        .unwrap_or(DEFAULT_CLOUD_TIER);
+    // The catalog outlives the process, so the borrow is 'static; an entry with
+    // no `sttProvider` is a catalog gap and takes the same fallback.
+    catalog.stt_provider(tier).unwrap_or(DEEPGRAM_STT)
+}
 
 /// How long to wait for `session_complete` after sending `stop`.
 ///
@@ -51,14 +103,22 @@ pub(super) fn connect(config: &LiveConfig) -> Result<LiveConnect, LiveError> {
         return Err(LiveError::MissingCredential);
     }
 
-    // Vocabulary is gated on an explicit language for the same reason it is on
-    // Deepgram: this endpoint relays to Deepgram, which ignores keyterms under
-    // auto-detect.
     // Verbatim, like Deepgram: this endpoint relays the tag straight through, so
     // truncating `zh-TW` here would ask Deepgram for Simplified Chinese. The
     // relay lowercases what it receives before forwarding, so this does not.
-    if let Some(language) = super::language_tag(config.language.as_deref()) {
-        query.push("language", &language);
+    let language = super::language_tag(config.language.as_deref());
+    if let Some(language) = &language {
+        query.push("language", language);
+    }
+
+    // Withholding vocabulary under auto-detect is a DEEPGRAM constraint (Nova-3
+    // silently drops keyterms with no language), not a HyperWhisper Cloud one —
+    // so it is gated on the tier's upstream, not on the provider. Gemini accepts
+    // `custom_vocabulary` under auto-detect, and vocabulary is the whole reason
+    // to pick that tier; applying Deepgram's rule to it would delete the feature
+    // for auto-detect users.
+    let stt_provider = stt_provider_for_tier(config.cloud_tier.as_deref());
+    if language.is_some() || stt_provider != DEEPGRAM_STT {
         let terms = keyword_boost_terms(&config.vocabulary, Some(MAX_TERMS));
         if !terms.is_empty() {
             query.push("vocabulary", &terms.join(", "));
@@ -66,7 +126,11 @@ pub(super) fn connect(config: &LiveConfig) -> Result<LiveConnect, LiveError> {
     }
 
     Ok(LiveConnect {
-        url: format!("{}{PATH}{}", base_url(config), query.suffix()),
+        url: format!(
+            "{}/ws/streaming-{stt_provider}{}",
+            base_url(config),
+            query.suffix()
+        ),
         // No headers. The client-identity headers the heads add
         // (`X-HyperWhisper-Platform`, `X-HyperWhisper-Version`) are the
         // platform's to know, not the core's — see `LiveConnect::headers`.
@@ -118,9 +182,11 @@ pub(super) fn parse(root: &serde_json::Value) -> LiveEvent {
             session_id: str_field(root, "sessionId").map(str::to_string),
         },
         Some("transcript") => match text_field(root, "text") {
-            Some(text) if bool_field(root, "is_final") == Some(true) => LiveEvent::FinalTranscript {
-                text: text.to_string(),
-            },
+            Some(text) if bool_field(root, "is_final") == Some(true) => {
+                LiveEvent::FinalTranscript {
+                    text: text.to_string(),
+                }
+            }
             Some(text) => LiveEvent::PartialTranscript {
                 text: text.to_string(),
             },

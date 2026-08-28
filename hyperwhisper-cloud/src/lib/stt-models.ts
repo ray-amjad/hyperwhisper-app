@@ -21,6 +21,7 @@ export type SttProviderId =
   | 'google-chirp'
   | 'openai'
   | 'gemini'
+  | 'gemini-transcribe'
   | 'assemblyai'
   | 'mistral'
   | 'soniox';
@@ -207,6 +208,40 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
       { id: 'gemini-2.5-pro', supportsVocabulary: false, estimatedUsdPerMinute: 0.0075 },
       { id: 'gemini-3-flash-preview', isPreview: true, supportsVocabulary: false, estimatedUsdPerMinute: 0.0030 },
       { id: 'gemini-3.1-pro-preview', isPreview: true, supportsVocabulary: false, estimatedUsdPerMinute: 0.0100 },
+    ],
+  },
+  // Google's DEDICATED speech models, on /v1beta/interactions — a different
+  // upstream product from the `gemini` entry above (which is the multimodal LLM
+  // on :generateContent) and deliberately a separate provider id, not extra
+  // model rows on it: :generateContent accepts these ids, bills the audio and
+  // returns an empty transcript. See providers/gemini-transcribe.ts (TRAP 1).
+  //
+  // Unlike the LLM entry, these have a real `custom_vocabulary` field, so
+  // supportsVocabulary is true.
+  //
+  // `gemini-3.5-transcribe-live` is registered so a client naming it gets a
+  // model-appropriate answer rather than the pre-recorded model's price, but it
+  // is served by the WebSocket route, NOT by /transcribe — the HTTP adapter
+  // rejects it with a 400 naming the reason.
+  'gemini-transcribe': {
+    id: 'gemini-transcribe',
+    defaultModel: 'gemini-3.5-transcribe',
+    fallbackChain: ['gemini-transcribe'],
+    async: false,
+    // $2.00/1M in at 1,500 audio tokens/min + ~$12.00/1M out on an estimated
+    // ~190 output tokens/min of speech ⇒ ~$0.0053/min; ~$0.0092/min live,
+    // rounded up a touch below.
+    //
+    // These are ~150 wpm figures and a fast talker DOES out-bill them: the
+    // output half tracks words, not seconds, so 250 wpm bills roughly 8.4
+    // credits/min pre-recorded and 14.7 live against the 5.5 / 9.6 here. That
+    // is what `estimatedUsdPerMinute` is for — a preflight sizing estimate, not
+    // a cap. The cap is enforced where the money moves: the live route prices
+    // its mid-session cutoff with the transcript seen so far and clamps the
+    // final deduction to the balance seen at auth (`ws-streaming-shared.ts`).
+    models: [
+      { id: 'gemini-3.5-transcribe', isPreview: true, supportsVocabulary: true, estimatedUsdPerMinute: 0.0055 },
+      { id: 'gemini-3.5-transcribe-live', isPreview: true, supportsVocabulary: true, estimatedUsdPerMinute: 0.0096 },
     ],
   },
   mistral: {

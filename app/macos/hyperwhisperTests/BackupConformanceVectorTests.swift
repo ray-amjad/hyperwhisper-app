@@ -25,7 +25,7 @@
 //    Windows and Linux mode importers share. Running it here is a BINDING check:
 //    `binding-drift.yml` proves the vendored Swift binding matches its source
 //    byte for byte, and nothing else proves the static library behind it still
-//    answers the same. The 132 rows are frozen, so any movement is a real one.
+//    answers the same. The rows are frozen, so any movement is a real one.
 //
 
 import Foundation
@@ -196,7 +196,10 @@ struct BackupConformanceVectorTests {
     @Test("modeNormalization rows: the Swift binding answers what Rust and C# answer")
     func modeNormalizationRowsMatchTheSharedCore() throws {
         let rows = try Self.rows("modeNormalization")
-        #expect(rows.count == 132, "the frozen modeNormalization row count changed")
+        // 132 → 134 when catalog v8 (#331) added the `googlechirp3` and `chirp_3`
+        // tier aliases. The count is asserted here AND in the Rust suite; a row
+        // may only be ADDED, and both counts move together, deliberately.
+        #expect(rows.count == 134, "the frozen modeNormalization row count changed")
 
         for row in rows {
             let label = Self.name(row)

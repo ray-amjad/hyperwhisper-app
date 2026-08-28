@@ -153,6 +153,18 @@ class PersistenceController: ObservableObject {
     /// `hyperwhisper` + the matching accuracy tier. Catalog-driven.
     private static let cloudProviderMigrationDefaultsKey = "didNormalizeCloudProviderValuesV1"
 
+    /// UserDefaults flag for the one-shot migration that rewrites the retired
+    /// `googleChirp3` accuracy tier (and its aliases) onto `geminiTranscribe`.
+    ///
+    /// This needs its OWN key. `didNormalizeCloudProviderValuesV1` is already
+    /// `true` for every existing user, so reusing it would never re-run and the
+    /// retired value would only ever be rescued lazily at read time — by
+    /// `CloudAccuracyTier.fromStorageValue`, whose fallback on any miss is
+    /// `.deepgramNova3`. One unrescued read (the Local API PATCH path writes the
+    /// raw string straight through, for instance) and the user is silently moved
+    /// off Google.
+    private static let googleChirp3TierMigrationDefaultsKey = "didMigrateGoogleChirp3TierToGeminiTranscribeV1"
+
     /// UserDefaults flag controlling whether the Cloud-configuration store mirrors
     /// to CloudKit. Default: false (off). User-facing toggle lives in VocabularyView.
     /// When false, the cloud store loads as a plain local SQLite file — vocabulary
@@ -232,11 +244,21 @@ class PersistenceController: ObservableObject {
             if let error = error as NSError? {
                 // Log critical error before crashing
                 AppLogger.logCoreData(.storeLoad, error: error)
+                // PRIVACY: `error.userInfo` was stringified straight into a
+                // Sentry extra, and `NSFilePathErrorKey` / the store URL inside
+                // it is `/Users/<account name>/Library/…`. `beforeSend` matches
+                // extra KEYS, not values, so "userInfo" sailed through it. The
+                // codes and names below are the diagnostic part of that dump.
+                var extras = CoreDataSaveDiagnostics.metadata(for: error)
+                extras["store"] = storeDescription.configuration ?? "unknown"
                 // Send critical error to Sentry before crashing
-                SentryService.capture(error: error, message: "Critical: Core Data failed to load", extras: ["userInfo": "\(error.userInfo)", "store": storeDescription.configuration ?? "unknown"], tags: ["component": "PersistenceController", "operation": "loadPersistentStores", "severity": "fatal"])
+                SentryService.capture(error: error, message: "Critical: Core Data failed to load", extras: extras, tags: ["component": "PersistenceController", "operation": "loadPersistentStores", "severity": "fatal"], includeRecentLogs: false)
                 // In production, this should be handled more gracefully
                 // Consider showing an alert to the user or attempting recovery
-                fatalError("Core Data failed to load: \(error), \(error.userInfo)")
+                //
+                // The crash message carried the same path. A `fatalError` string
+                // is read back out of the crash report, so it is a log line too.
+                fatalError("Core Data failed to load: \(CoreDataSaveDiagnostics.summary(for: error))")
             }
         }
 
@@ -271,6 +293,12 @@ class PersistenceController: ObservableObject {
             normalizeCloudRouteIdentifiersIfNeeded()
             migrateRemovedDeepgramModelsIfNeeded()
             normalizeCloudProviderIfNeeded()
+            // AFTER normalizeCloudProviderIfNeeded: on a user who has never run
+            // that migration it can itself write a tier from a legacy
+            // `cloudProvider`, and the catalog now maps `googlespeech` to
+            // `geminiTranscribe`, so running this first would leave nothing to do
+            // and then let the older migration write the value again.
+            migrateGoogleChirp3TierIfNeeded()
             repairBrokenLocalModesOnLaunch()
             repairStaleProcessingTranscriptsOnLaunch()
         }
@@ -542,11 +570,13 @@ class PersistenceController: ObservableObject {
             AppLogger.coreData.info("Normalized cloud route identifiers for \(changedCount, privacy: .public) mode fields")
         } catch {
             let nsError = error as NSError
-            AppLogger.logCoreData(.save, error: nsError)
-            SentryService.capture(
+            // One event, not two: the sibling SentryService.capture that used to
+            // sit here was ungated, stack-trace fingerprinted, and carried the
+            // recent_logs blob. `site` now says which caller failed.
+            AppLogger.logCoreData(
+                .save(site: "normalize_cloud_route_identifiers", contextKey: CoreDataSaveDiagnostics.viewContextKey),
                 error: nsError,
-                message: "Failed to normalize cloud route identifiers",
-                tags: ["component": "PersistenceController", "operation": "normalizeCloudRouteIdentifiers"]
+                metadata: CoreDataSaveDiagnostics.contextShape(context)
             )
         }
     }
@@ -595,11 +625,142 @@ class PersistenceController: ObservableObject {
             AppLogger.coreData.info("Normalized cloud provider values for \(changedCount, privacy: .public) mode fields")
         } catch {
             let nsError = error as NSError
-            AppLogger.logCoreData(.save, error: nsError)
-            SentryService.capture(
+            // One event, not two: the sibling SentryService.capture that used to
+            // sit here was ungated, stack-trace fingerprinted, and carried the
+            // recent_logs blob. `site` now says which caller failed.
+            AppLogger.logCoreData(
+                .save(site: "normalize_cloud_provider", contextKey: CoreDataSaveDiagnostics.viewContextKey),
                 error: nsError,
-                message: "Failed to normalize cloud provider values",
-                tags: ["component": "PersistenceController", "operation": "normalizeCloudProvider"]
+                metadata: CoreDataSaveDiagnostics.contextShape(context)
+            )
+        }
+    }
+
+    // MARK: - Google Chirp 3 → Gemini 3.5 Transcribe Tier Migration
+
+    /// Every persisted `cloudAccuracyTier` value that catalog v8 retired, mapped
+    /// onto `geminiTranscribe`. Mirrors the entry's `migrateFrom` list in
+    /// `shared-app-classification/cloud-stt-catalog.json` and the SQL in the
+    /// Windows/Linux migration `20260827090000_MigrateGoogleChirp3TierToGeminiTranscribe`.
+    private static let retiredGoogleChirp3TierValues: Set<String> = [
+        "googlechirp3", "googlechirp", "google-chirp", "chirp", "chirp_3", "googlespeech",
+    ]
+
+    /// What the Chirp 3 → Gemini 3.5 Transcribe migration writes back to one
+    /// stored mode row. `nil` fields are left as they are.
+    struct GoogleChirp3TierRewrite: Equatable {
+        var accuracyTier: String?
+        var transcriptionModel: String?
+    }
+
+    /// The rewrite a single stored row earns, or `nil` for "leave this row
+    /// alone". Pure, so the provider guard below is testable without standing up
+    /// a Core Data stack.
+    ///
+    /// SCOPED TO HYPERWHISPER CLOUD MODES, mirroring the `WHERE CloudProvider =`
+    /// clause of the `20260508120000_MigrateRemovedDeepgramModels` precedent.
+    /// `cloudAccuracyTier` is only meaningful for HW-Cloud modes, but a mode
+    /// switched from HW-Cloud+Chirp3 to a BYOK provider KEEPS the stale tier —
+    /// and several BYOK providers store an empty `cloudTranscriptionModel` (Grok's
+    /// single model is catalogued under the id `""`). Without the guard, such a
+    /// row matches on the stale tier, trips the `storedModel.isEmpty` branch and
+    /// has Google's `gemini-3.5-transcribe` stamped onto it — which the next
+    /// dictation then POSTs to xAI.
+    ///
+    /// A nil/empty provider counts as HyperWhisper Cloud, matching
+    /// `createOrUpdateMode`'s `?? "hyperwhisper"` default.
+    static func googleChirp3TierRewrite(
+        cloudProvider: String?,
+        cloudAccuracyTier: String?,
+        cloudTranscriptionModel: String?
+    ) -> GoogleChirp3TierRewrite? {
+        let storedTier = (cloudAccuracyTier ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        guard retiredGoogleChirp3TierValues.contains(storedTier) else { return nil }
+
+        let resolvedProvider = CloudProvider.parse(cloudProvider) ?? .hyperwhisper
+        guard resolvedProvider == .hyperwhisper else { return nil }
+
+        var rewrite = GoogleChirp3TierRewrite(
+            accuracyTier: CloudAccuracyTier.geminiTranscribe.rawValue,
+            transcriptionModel: nil
+        )
+
+        // `chirp_3` is not a model of the new tier, so the editor would
+        // fall back to the tier default on next open anyway — write it
+        // now so the stored row is honest and the first transcription
+        // sends a valid X-STT-Model. A model the user picked that is NOT
+        // Chirp's is left alone; it cannot exist on this tier today, but
+        // silently overwriting a deliberate choice is the worse failure.
+        let storedModel = (cloudTranscriptionModel ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if storedModel.isEmpty || storedModel.caseInsensitiveCompare("chirp_3") == .orderedSame {
+            rewrite.transcriptionModel = CloudAccuracyTier.geminiTranscribe.defaultModelId
+        }
+        return rewrite
+    }
+
+    /// One-time data migration for the retired `googleChirp3` accuracy tier.
+    ///
+    /// Catalog v8 replaced Chirp 3 with Gemini 3.5 Transcribe as Google's cloud
+    /// tier. `CloudAccuracyTier.fromStorageValue` does rescue the old value
+    /// through the catalog's `migrateFrom` aliases, but it is called at five
+    /// separate read sites and its fallback is `.deepgramNova3` — and the Local
+    /// API's mode PATCH path does not call it at all. Converge the stored data
+    /// once so no reader has to be the last line of defence.
+    ///
+    /// Deliberately gated by a NEW key: `didNormalizeCloudProviderValuesV1` is
+    /// already `true` for every existing user, which is exactly the population
+    /// this migration exists for.
+    ///
+    /// Unlike `normalizeCloudProviderIfNeeded`, this does NOT preserve a
+    /// "customised" tier: the value being rewritten IS the user's explicit
+    /// choice, and the whole point is to carry it forward rather than drop it.
+    private func migrateGoogleChirp3TierIfNeeded() {
+        let defaults = UserDefaults.standard
+        if defaults.bool(forKey: Self.googleChirp3TierMigrationDefaultsKey) {
+            return
+        }
+
+        let context = container.viewContext
+        let request: NSFetchRequest<Mode> = Mode.fetchRequest()
+
+        do {
+            let modes = try context.fetch(request)
+            var changedCount = 0
+
+            for mode in modes {
+                guard let rewrite = Self.googleChirp3TierRewrite(
+                    cloudProvider: mode.cloudProvider,
+                    cloudAccuracyTier: mode.cloudAccuracyTier,
+                    cloudTranscriptionModel: mode.cloudTranscriptionModel
+                ) else { continue }
+
+                if let tier = rewrite.accuracyTier {
+                    mode.cloudAccuracyTier = tier
+                }
+                if let model = rewrite.transcriptionModel {
+                    mode.cloudTranscriptionModel = model
+                }
+                changedCount += 1
+            }
+
+            if context.hasChanges {
+                try context.save()
+            }
+
+            defaults.set(true, forKey: Self.googleChirp3TierMigrationDefaultsKey)
+            AppLogger.coreData.info("Migrated googleChirp3 accuracy tier on \(changedCount, privacy: .public) modes")
+        } catch {
+            let nsError = error as NSError
+            // One event, not two, and the same shape every sibling migration
+            // reports: `site` names this caller, `contextKey` names the context
+            // whose failure streak it belongs to.
+            AppLogger.logCoreData(
+                .save(site: "migrate_google_chirp3_tier", contextKey: CoreDataSaveDiagnostics.viewContextKey),
+                error: nsError,
+                metadata: CoreDataSaveDiagnostics.contextShape(context)
             )
         }
     }
@@ -686,11 +847,13 @@ class PersistenceController: ObservableObject {
             }
         } catch {
             let nsError = error as NSError
-            AppLogger.logCoreData(.save, error: nsError)
-            SentryService.capture(
+            // One event, not two: the sibling SentryService.capture that used to
+            // sit here was ungated, stack-trace fingerprinted, and carried the
+            // recent_logs blob. `site` now says which caller failed.
+            AppLogger.logCoreData(
+                .save(site: "repair_broken_local_modes", contextKey: CoreDataSaveDiagnostics.viewContextKey),
                 error: nsError,
-                message: "Failed to repair broken local post-processing modes",
-                tags: ["component": "PersistenceController", "operation": "repairBrokenLocalModes"]
+                metadata: CoreDataSaveDiagnostics.contextShape(context)
             )
         }
 
@@ -744,11 +907,13 @@ class PersistenceController: ObservableObject {
             AppLogger.coreData.info("Launch repair marked \(stale.count, privacy: .public) stale processing transcript(s) as interrupted")
         } catch {
             let nsError = error as NSError
-            AppLogger.logCoreData(.save, error: nsError)
-            SentryService.capture(
+            // One event, not two: the sibling SentryService.capture that used to
+            // sit here was ungated, stack-trace fingerprinted, and carried the
+            // recent_logs blob. `site` now says which caller failed.
+            AppLogger.logCoreData(
+                .save(site: "repair_stale_processing_transcripts", contextKey: CoreDataSaveDiagnostics.viewContextKey),
                 error: nsError,
-                message: "Failed to repair stale processing transcripts on launch",
-                tags: ["component": "PersistenceController", "operation": "repairStaleProcessingTranscripts"]
+                metadata: CoreDataSaveDiagnostics.contextShape(context)
             )
         }
     }
@@ -798,11 +963,13 @@ class PersistenceController: ObservableObject {
             }
         } catch {
             let nsError = error as NSError
-            AppLogger.logCoreData(.save, error: nsError)
-            SentryService.capture(
+            // One event, not two: the sibling SentryService.capture that used to
+            // sit here was ungated, stack-trace fingerprinted, and carried the
+            // recent_logs blob. `site` now says which caller failed.
+            AppLogger.logCoreData(
+                .save(site: "migrate_removed_deepgram_models", contextKey: CoreDataSaveDiagnostics.viewContextKey),
                 error: nsError,
-                message: "Failed to migrate removed Deepgram models on Modes",
-                tags: ["component": "PersistenceController", "operation": "migrateRemovedDeepgramModels"]
+                metadata: CoreDataSaveDiagnostics.contextShape(context)
             )
             // Don't set the flag — try again next launch.
             return
@@ -872,19 +1039,53 @@ class PersistenceController: ObservableObject {
         let context = container.viewContext
         
         // Early return if no changes to save (performance optimization)
-        guard context.hasChanges else { return }
-        
+        guard context.hasChanges else {
+            // Nothing pending means somebody else drained this context, so it
+            // still accepts writes. Without this the streak below could only
+            // grow: `hyperwhisperApp` and the Local API's modes endpoint both
+            // save the shared `viewContext` directly, and a stale streak would
+            // report a healthy context as unwritable.
+            CoreDataSaveDiagnostics.recordSuccess(contextKey: CoreDataSaveDiagnostics.viewContextKey)
+            return
+        }
+
         do {
             // Persist changes to the Core Data store
             // Core Data automatically posts notification
             try context.save()
+            CoreDataSaveDiagnostics.recordSuccess(contextKey: CoreDataSaveDiagnostics.viewContextKey)
         } catch {
             // In production, handle this error appropriately
             let nsError = error as NSError
-            AppLogger.logCoreData(.save, error: nsError)
-            SentryService.capture(error: nsError, message: "Core Data save failed", tags: ["component": "PersistenceController", "operation": "save"])
+            // WHY THE SHAPE MATTERS HERE (Sentry HYPERWHISPER-VC): this path has
+            // no `rollback()`, unlike the background writer below. One rejected
+            // row therefore stays pending on the view context and every later
+            // save fails on it — which is what 19 events, 4 hours apart, from a
+            // single process actually were. `pending_*` growing across a streak
+            // says that; a stack trace cannot.
+            //
+            // Read here rather than before the `do`: a save that throws keeps its
+            // pending changes (that is the poisoning), so the sets are intact,
+            // and a save that works pays nothing for this.
+            let shape = CoreDataSaveDiagnostics.contextShape(context)
+            // One event, not two. The duplicate `SentryService.capture` that
+            // used to follow this line carried the same message with a
+            // stack-trace fingerprint, which is how one fault became both
+            // HYPERWHISPER-VB and HYPERWHISPER-VC.
+            AppLogger.logCoreData(
+                .save(site: PersistenceController.viewContextSaveSite, contextKey: CoreDataSaveDiagnostics.viewContextKey),
+                error: nsError,
+                metadata: shape
+            )
         }
     }
+
+    /// Save-site slug for the `viewContext` save. A constant so the log line, the
+    /// Sentry tag and the failure streak cannot drift apart.
+    private static let viewContextSaveSite = "view_context_save"
+
+    /// Save-site slug for the serial background writer.
+    private static let writerSaveSite = "background_writer"
     
     // MARK: - Background Writer (serial)
 
@@ -950,14 +1151,18 @@ class PersistenceController: ObservableObject {
             if context.hasChanges {
                 do {
                     try context.save()
+                    CoreDataSaveDiagnostics.recordSuccess(contextKey: CoreDataSaveDiagnostics.writerContextKey)
                 } catch {
                     saved = false
                     let nsError = error as NSError
-                    AppLogger.logCoreData(.save, error: nsError)
-                    SentryService.capture(
+                    // Read before `rollback()` below, which empties these sets.
+                    // A throwing save keeps its pending changes, so this is the
+                    // write that failed — and it costs nothing when saves work.
+                    let shape = CoreDataSaveDiagnostics.contextShape(context)
+                    AppLogger.logCoreData(
+                        .save(site: PersistenceController.writerSaveSite, contextKey: CoreDataSaveDiagnostics.writerContextKey),
                         error: nsError,
-                        message: "Core Data background write failed",
-                        tags: ["component": "PersistenceController", "operation": "performWrite"]
+                        metadata: shape
                     )
                     // Never leave the long-lived writer context poisoned.
                     context.rollback()
@@ -1600,8 +1805,11 @@ class PersistenceController: ObservableObject {
             didSeedDefaultModesOnLaunch = true
             AppLogger.coreData.info("Initialized \(defaultModes.count, privacy: .public) default modes for new install")
         } catch {
-            AppLogger.logCoreData(.save, error: error)
-            SentryService.capture(error: error, message: "Failed to initialize default modes", tags: ["component": "PersistenceController", "operation": "initializeModes"])
+            AppLogger.logCoreData(
+                .save(site: "initialize_default_modes", contextKey: CoreDataSaveDiagnostics.viewContextKey),
+                error: error,
+                metadata: CoreDataSaveDiagnostics.contextShape(context)
+            )
         }
     }
     
@@ -1867,7 +2075,12 @@ class PersistenceController: ObservableObject {
         }
 
         mode?.languageModel = normalizedLanguageModel
-        mode?.cloudProvider = cloudProvider ?? "hyperwhisper"
+        // Canonicalise on the WRITE path: this is the single funnel every mode
+        // write goes through (GUI edit, Local API PATCH, backup restore), so a
+        // camelCase id from a Windows/Linux backup — `geminiTranscribe` — is
+        // stored in the lowercase form every reader and every picker tag below
+        // expects. An id this build does not model passes through verbatim.
+        mode?.cloudProvider = CloudProvider.canonicalStorageValue(cloudProvider) ?? "hyperwhisper"
         // cloudTranscriptionModel is assigned below, after the accuracy tier is
         // resolved, so an omitted model derives from the resolved tier's catalog
         // default (e.g. scribe_v2) instead of persisting a stale "whisper-1".
@@ -1901,7 +2114,7 @@ class PersistenceController: ObservableObject {
         // (openai / soniox / …) there is no accuracy tier — fall back to THAT
         // provider's own default model, otherwise a tier-derived id like
         // "scribe_v2" would be persisted and sent to e.g. OpenAI and rejected.
-        let resolvedCloudProvider = CloudProvider(rawValue: mode?.cloudProvider ?? "hyperwhisper") ?? .hyperwhisper
+        let resolvedCloudProvider = CloudProvider.parse(mode?.cloudProvider) ?? .hyperwhisper
         mode?.cloudTranscriptionModel = cloudTranscriptionModel
             ?? (resolvedCloudProvider == .hyperwhisper
                 ? (CloudAccuracyTier(rawValue: resolvedAccuracyTier)?.defaultModelId ?? "")
@@ -2301,7 +2514,7 @@ class PersistenceController: ObservableObject {
                 cloudTranscriptionModel: backupMode.cloudTranscriptionModel.map {
                     CloudTranscriptionModels.resolveModelAlias(
                         $0,
-                        provider: backupMode.cloudProvider.flatMap { CloudProvider(rawValue: $0) }
+                        provider: CloudProvider.parse(backupMode.cloudProvider)
                     )
                 },
                 postProcessingMode: backupMode.postProcessingMode,

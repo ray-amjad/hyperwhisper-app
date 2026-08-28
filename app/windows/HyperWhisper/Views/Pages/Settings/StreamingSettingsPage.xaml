@@ -223,8 +223,54 @@
                                         <ComboBoxItem Content="{loc:Loc settings.streaming.provider.elevenLabs}" Tag="elevenLabs"/>
                                         <ComboBoxItem Content="{loc:Loc settings.streaming.provider.openAI}" Tag="openAI"/>
                                         <ComboBoxItem Content="{loc:Loc settings.streaming.provider.xai}" Tag="xai"/>
+                                        <ComboBoxItem Content="{loc:Loc settings.streaming.provider.geminiTranscribe}" Tag="geminiTranscribe"/>
                                     </ComboBox>
                                 </Grid>
+
+                                <!-- Which vendor HyperWhisper Cloud's live route uses. Bound to a
+                                     list, not hard-coded ComboBoxItems like the provider row above,
+                                     so a future third live vendor is a catalog change and no XAML
+                                     edit. Items come from CloudSttCatalog.StreamingCloudTierEntries. -->
+                                <StackPanel x:Name="HyperWhisperCloudPanel"
+                                            Visibility="Collapsed">
+                                    <Separator Background="{DynamicResource BorderBrush}"
+                                               Margin="0,12"/>
+
+                                    <Grid MinHeight="38">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="42"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="220"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <TextBlock Text="&#xE950;"
+                                                   FontFamily="Segoe MDL2 Assets"
+                                                   FontSize="20"
+                                                   Foreground="{DynamicResource TextSecondaryBrush}"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"/>
+
+                                        <StackPanel Grid.Column="1"
+                                                    VerticalAlignment="Center">
+                                            <TextBlock Text="{loc:Loc settings.streaming.cloudTier.title}"
+                                                       FontSize="14"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                            <TextBlock Text="{loc:Loc settings.streaming.cloudTier.subtitle}"
+                                                       FontSize="12"
+                                                       Foreground="{DynamicResource TextSecondaryBrush}"
+                                                       Margin="0,2,20,0"
+                                                       TextWrapping="Wrap"/>
+                                        </StackPanel>
+
+                                        <ComboBox x:Name="CloudTierBox"
+                                                  Grid.Column="2"
+                                                  VerticalAlignment="Center"
+                                                  DisplayMemberPath="Label"
+                                                  SelectedValuePath="Id"
+                                                  SelectionChanged="CloudTierBox_SelectionChanged"/>
+                                    </Grid>
+                                </StackPanel>
 
                                 <StackPanel x:Name="DeepgramPanel"
                                             Visibility="Collapsed">

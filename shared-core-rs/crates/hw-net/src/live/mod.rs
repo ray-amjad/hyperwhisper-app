@@ -163,6 +163,7 @@ mod capabilities;
 mod config;
 mod deepgram;
 mod elevenlabs;
+mod gemini;
 mod hw_cloud;
 mod language;
 mod openai;
@@ -173,7 +174,10 @@ mod xai;
 #[cfg(test)]
 mod tests;
 
-pub use capabilities::{provider_label, required_sample_rate, supports_vocabulary};
+pub use capabilities::{
+    complete_ends_session_before_stop, provider_label, required_sample_rate, start_timeout_ms,
+    supports_vocabulary, supports_vocabulary_without_language,
+};
 pub use config::{
     AudioFraming, LiveConfig, LiveConnect, LiveError, LiveErrorKind, LiveEvent, LiveFrame, StopStep,
 };
@@ -184,29 +188,37 @@ pub use policy::{
 };
 pub use session::LiveSession;
 
-/// The five websocket transcription providers.
+/// The six websocket transcription providers.
 ///
 /// Local engines (Parakeet, Nemotron) are deliberately absent: they are not
 /// websocket protocols and share none of this. The arm names match
 /// `shared-dotnet`'s `LiveTranscriptionProvider`, and `Grok` matches
 /// [`crate::contract::Provider::Grok`] — Windows spells the same vendor `Xai`
 /// in its own type and maps across.
+///
+/// [`LiveProvider::GeminiTranscribe`] is the BYOK Gemini 3.5 Transcribe Live
+/// socket (issue #331) and is distinct from the same vendor reached through
+/// [`LiveProvider::HyperWhisperCloud`]'s `geminiTranscribe` tier: the former
+/// talks to Google with the user's own key, the latter to our relay with a
+/// license key, and only the latter bills credits.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum LiveProvider {
     Deepgram,
     ElevenLabs,
     OpenAi,
     Grok,
+    GeminiTranscribe,
     HyperWhisperCloud,
 }
 
 impl LiveProvider {
     /// Every arm, for exhaustive tests and for the FFI round-trip guard.
-    pub const ALL: [LiveProvider; 5] = [
+    pub const ALL: [LiveProvider; 6] = [
         LiveProvider::Deepgram,
         LiveProvider::ElevenLabs,
         LiveProvider::OpenAi,
         LiveProvider::Grok,
+        LiveProvider::GeminiTranscribe,
         LiveProvider::HyperWhisperCloud,
     ];
 }

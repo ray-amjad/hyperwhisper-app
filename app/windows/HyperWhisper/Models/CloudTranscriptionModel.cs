@@ -482,6 +482,31 @@ public static class CloudTranscriptionModels
     };
 
     // =========================================================================
+    // GEMINI 3.5 TRANSCRIBE MODELS
+    // Google's dedicated STT endpoint (/v1beta/interactions). Distinct from the
+    // Gemini multimodal models above — different API, different key.
+    // =========================================================================
+
+    /// <summary>
+    /// Google Gemini 3.5 Transcribe models (pre-recorded only).
+    /// - gemini-3.5-transcribe: the one batch model.
+    /// The live/streaming sibling (gemini-3.5-transcribe-live) is deliberately
+    /// NOT listed here — it belongs to the streaming provider list, and the Rust
+    /// builder rejects it on the pre-recorded path.
+    /// </summary>
+    public static readonly CloudTranscriptionModel[] GeminiTranscribe = new[]
+    {
+        new CloudTranscriptionModel
+        {
+            Id = "gemini-3.5-transcribe",
+            DisplayName = "Gemini 3.5 Transcribe",
+            Description = "Google's dedicated speech-to-text model with custom vocabulary support",
+            Provider = CloudTranscriptionProvider.GeminiTranscribe,
+            IsPopular = true
+        }
+    };
+
+    // =========================================================================
     // ALL MODELS
     // =========================================================================
 
@@ -497,6 +522,7 @@ public static class CloudTranscriptionModels
             .Concat(Mistral)
             .Concat(Soniox)
             .Concat(Gemini)
+            .Concat(GeminiTranscribe)
             .Concat(Grok)
             .Concat(MicrosoftAzureSpeech)
             .Concat(GoogleSpeech)
@@ -516,6 +542,7 @@ public static class CloudTranscriptionModels
             CloudTranscriptionProvider.Mistral => Mistral,
             CloudTranscriptionProvider.Soniox => Soniox,
             CloudTranscriptionProvider.Gemini => Gemini,
+            CloudTranscriptionProvider.GeminiTranscribe => GeminiTranscribe,
             CloudTranscriptionProvider.HyperWhisperCloud => new[] { HyperWhisperCloudSentinel },
             CloudTranscriptionProvider.Grok => Grok,
             CloudTranscriptionProvider.MicrosoftAzureSpeech => MicrosoftAzureSpeech,
@@ -660,6 +687,7 @@ public static class CloudTranscriptionModels
             CloudTranscriptionProvider.Mistral => "voxtral-mini-latest",
             CloudTranscriptionProvider.Soniox => "stt-async-v5",  // Parity with macOS + cloud default; v4 auto-routes to v5 upstream after 2026-06-30
             CloudTranscriptionProvider.Gemini => "gemini-2.5-flash",
+            CloudTranscriptionProvider.GeminiTranscribe => "gemini-3.5-transcribe",
             CloudTranscriptionProvider.HyperWhisperCloud => HyperWhisperCloudSentinel.Id,
             CloudTranscriptionProvider.Grok => "",
             CloudTranscriptionProvider.MicrosoftAzureSpeech => "mai-transcribe-1.5",

@@ -42,6 +42,8 @@
 "streaming.enable.title" = "Dayakan Streaming";
 "streaming.provider.picker.title" = "Pembekal";
 "streaming.model.title" = "Model";
+"streaming.cloudTier.title" = "Enjin Langsung";
+"streaming.cloudTier.description" = "Enjin pertuturan yang digunakan HyperWhisper Cloud untuk transkripsi langsung";
 "streaming.model.nova3general" = "Nova 3 General";
 "streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Pemformatan Pantas";
@@ -767,8 +769,8 @@ Edit mod tersebut untuk memilih model yang berbeza sebelum mengalihkannya.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ kredit/min";
 "modes.cloudAccuracy.grokStt.label" = "Tertinggi (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Ketepatan tertinggi dengan pemprosesan yang lebih perlahan. Terbaik untuk transkripsi penting.";
-"modes.cloudAccuracy.googleChirp3.label" = "Tinggi (Google Chirp 3)";
-"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 dengan Chirp 3. Berbilang bahasa dengan penyesuaian frasa.";
+"modes.cloudAccuracy.geminiTranscribe.label" = "Tinggi (Google Gemini 3.5 Transcribe)";
+"modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Berbilang bahasa, dengan sokongan perbendaharaan kata tersuai.";
 "modes.cloudAccuracy.azureMaiTranscribe.label" = "Tinggi (Microsoft MAI-Transcribe 1.5)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 melalui Azure Speech. 43 bahasa dengan pemberatan kontekstual.";
 

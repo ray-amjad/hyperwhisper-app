@@ -1,5 +1,5 @@
 {
-  "description": "Cross-platform golden vectors for the universal-v2 backup adapters (issue #277). The modeNormalization rows were hand-authored in commit 1a against the SHIPPING native code — Windows UniversalBackupMapper.MapToMode (+ CloudTranscriptionModels.ResolveModelAlias and CloudSttCatalog.NormalizeCloudProvider) and Linux ApplicationBackupService.ParseMode — so the Rust port in commit 1b can be diffed against them on the same inputs. A row with a single \"expected\" is one where the two heads AGREE today. A row carrying \"expectedWindows\" and \"expectedLinux\" records a drift that ships right now: Linux runs no cloud-routing migration, no catalog provider normalization, no model-alias resolution and no domain gate at all. Those rows collapse to a single \"expected\" in 1b; rows with one \"expected\" must not move. The windowsSettings / linuxSettings / macosSettings rows were added in commit 2a against the SHIPPING settings adapters: Windows UniversalBackupMapper.MapSettings / BuildPlatformExtensions / ApplySettings driven over a temp-rooted SettingsService, Linux ApplicationBackupService export/import over PortableSettingsService, and the macOS pair already in hw-backup mapping.rs. Native key names are written exactly as each head stores them — PascalCase for the Windows settings.json, the dotted universal keys for Linux, and the seven macOS categories. absentUniversalKeys / ignoredUniversalKeys record, per head, the universal keys that head does NOT carry today; those are the gaps phase 3 closes. Phase 3 CHANGES BEHAVIOUR on purpose, so the windowsSettings rows moved: storage.keepAudioFiles and advanced.maxRecordingDuration became real Windows settings (3a), the maxRecordingDuration rows pin the 20-minute ceiling and the two macOS sentinels, and unknownKeyRoundTrip was populated for the first time (3b/3c). The 132 modeNormalization rows are FROZEN and did not move. Phase 4 wired the file into all three stacks and all three CIs, the way catalog-vectors.json already was: shared-core-rs/crates/hw-core/tests/backup_vectors.rs (the only head that calls the core with no app around it), app/macos/hyperwhisperTests/BackupConformanceVectorTests.swift, app/shared-dotnet/HyperWhisper.Backup.Application.Tests (now built on Windows CI as well as Linux CI) and app/windows/HyperWhisper.SmokeTests. It added exactly one field, setterRewrittenNativeKeys: it names the windowsSettings import keys whose FINAL value belongs to the SettingsService setters (the streaming-provider fallback, the deepgram-model collapse, the shortcut re-canonicalisation) rather than to the core, so a core-only head can pin every other key of expectedNative exactly instead of skipping the whole row. The key must still be EMITTED by the core; only its value is exempt.",
+  "description": "Cross-platform golden vectors for the universal-v2 backup adapters (issue #277). The modeNormalization rows were hand-authored in commit 1a against the SHIPPING native code — Windows UniversalBackupMapper.MapToMode (+ CloudTranscriptionModels.ResolveModelAlias and CloudSttCatalog.NormalizeCloudProvider) and Linux ApplicationBackupService.ParseMode — so the Rust port in commit 1b can be diffed against them on the same inputs. A row with a single \"expected\" is one where the two heads AGREE today. A row carrying \"expectedWindows\" and \"expectedLinux\" records a drift that ships right now: Linux runs no cloud-routing migration, no catalog provider normalization, no model-alias resolution and no domain gate at all. Those rows collapse to a single \"expected\" in 1b; rows with one \"expected\" must not move. The windowsSettings / linuxSettings / macosSettings rows were added in commit 2a against the SHIPPING settings adapters: Windows UniversalBackupMapper.MapSettings / BuildPlatformExtensions / ApplySettings driven over a temp-rooted SettingsService, Linux ApplicationBackupService export/import over PortableSettingsService, and the macOS pair already in hw-backup mapping.rs. Native key names are written exactly as each head stores them — PascalCase for the Windows settings.json, the dotted universal keys for Linux, and the seven macOS categories. absentUniversalKeys / ignoredUniversalKeys record, per head, the universal keys that head does NOT carry today; those are the gaps phase 3 closes. Phase 3 CHANGES BEHAVIOUR on purpose, so the windowsSettings rows moved: storage.keepAudioFiles and advanced.maxRecordingDuration became real Windows settings (3a), the maxRecordingDuration rows pin the 20-minute ceiling and the two macOS sentinels, and unknownKeyRoundTrip was populated for the first time (3b/3c). The modeNormalization rows are FROZEN and did not move in phase 3. They moved ONCE afterwards, when main merged catalog v8 (#331): that retired googleChirp3 in favour of geminiTranscribe, so the seven rows whose answer was googleChirp3 were RE-DERIVED against the shipping core by the same 1a method — no row was loosened, and only cloudAccuracyTier moved on any of them. Catalog v8 also ADDED two tier aliases (googlechirp3, chirp_3), so the frozen count grew deliberately from 132 to 134; the count is asserted in two suites and both were updated with it. Phase 4 wired the file into all three stacks and all three CIs, the way catalog-vectors.json already was: shared-core-rs/crates/hw-core/tests/backup_vectors.rs (the only head that calls the core with no app around it), app/macos/hyperwhisperTests/BackupConformanceVectorTests.swift, app/shared-dotnet/HyperWhisper.Backup.Application.Tests (now built on Windows CI as well as Linux CI) and app/windows/HyperWhisper.SmokeTests. It added exactly one field, setterRewrittenNativeKeys: it names the windowsSettings import keys whose FINAL value belongs to the SettingsService setters (the streaming-provider fallback, the deepgram-model collapse, the shortcut re-canonicalisation) rather than to the core, so a core-only head can pin every other key of expectedNative exactly instead of skipping the whole row. The key must still be EMITTED by the core; only its value is exempt.",
   "modeNormalization": [
     {
       "name": "absent: a mode carrying no cloud-routing keys at all",
@@ -197,7 +197,7 @@
         "cloudProvider": null,
         "cloudTranscriptionModel": null,
         "cloudTranscriptionDomain": null,
-        "cloudAccuracyTier": "googleChirp3",
+        "cloudAccuracyTier": "geminiTranscribe",
         "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
       }
     },
@@ -212,7 +212,7 @@
         "cloudProvider": null,
         "cloudTranscriptionModel": null,
         "cloudTranscriptionDomain": null,
-        "cloudAccuracyTier": "googleChirp3",
+        "cloudAccuracyTier": "geminiTranscribe",
         "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
       }
     },
@@ -227,7 +227,7 @@
         "cloudProvider": null,
         "cloudTranscriptionModel": null,
         "cloudTranscriptionDomain": null,
-        "cloudAccuracyTier": "googleChirp3",
+        "cloudAccuracyTier": "geminiTranscribe",
         "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
       }
     },
@@ -242,7 +242,7 @@
         "cloudProvider": null,
         "cloudTranscriptionModel": null,
         "cloudTranscriptionDomain": null,
-        "cloudAccuracyTier": "googleChirp3",
+        "cloudAccuracyTier": "geminiTranscribe",
         "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
       }
     },
@@ -959,7 +959,7 @@
       }
     },
     {
-      "name": "cloudProvider legacy alias \"googlespeech\" folds onto hyperwhisper + googleChirp3",
+      "name": "cloudProvider legacy alias \"googlespeech\" folds onto hyperwhisper + geminiTranscribe",
       "mode": {
         "id": "00000000-0000-4000-8000-000000000064",
         "name": "vec-064",
@@ -970,12 +970,12 @@
         "cloudProvider": "hyperwhisper",
         "cloudTranscriptionModel": null,
         "cloudTranscriptionDomain": "medical",
-        "cloudAccuracyTier": "googleChirp3",
+        "cloudAccuracyTier": "geminiTranscribe",
         "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
       }
     },
     {
-      "name": "cloudProvider legacy alias \"googleSpeech\" folds onto hyperwhisper + googleChirp3",
+      "name": "cloudProvider legacy alias \"googleSpeech\" folds onto hyperwhisper + geminiTranscribe",
       "mode": {
         "id": "00000000-0000-4000-8000-000000000065",
         "name": "vec-065",
@@ -986,7 +986,7 @@
         "cloudProvider": "hyperwhisper",
         "cloudTranscriptionModel": null,
         "cloudTranscriptionDomain": "medical",
-        "cloudAccuracyTier": "googleChirp3",
+        "cloudAccuracyTier": "geminiTranscribe",
         "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
       }
     },
@@ -1149,7 +1149,7 @@
         "cloudProvider": "hyperwhisper",
         "cloudTranscriptionModel": null,
         "cloudTranscriptionDomain": "medical",
-        "cloudAccuracyTier": "googleChirp3",
+        "cloudAccuracyTier": "geminiTranscribe",
         "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
       }
     },
@@ -2093,6 +2093,36 @@
         "cloudAccuracyTier": "elevenLabsScribeV2",
         "cloudPostProcessingModel": "groq:openai/gpt-oss-120b"
       }
+    },
+    {
+      "name": "tier alias: \"googlechirp3\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000133",
+        "name": "vec-133",
+        "cloudAccuracyTier": "googlechirp3"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "geminiTranscribe",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier alias: \"chirp_3\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000134",
+        "name": "vec-134",
+        "cloudAccuracyTier": "chirp_3"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "geminiTranscribe",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
     }
   ],
   "windowsSettings": [
@@ -2119,6 +2149,7 @@
         "StreamingProvider": "deepgram",
         "StreamingLanguage": "de",
         "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingCloudTier": "geminiTranscribe",
         "StreamingFastFormatting": false,
         "StreamingShortcut": "Ctrl+Alt+Shift+F9",
         "TypingSpeedWPM": 95,
@@ -2161,6 +2192,7 @@
           "provider": "deepgram",
           "language": "de",
           "deepgramModel": "nova-3-medical",
+          "cloudTier": "geminiTranscribe",
           "fastFormatting": false,
           "shortcut": "Ctrl+Alt+Shift+F9"
         },
@@ -2228,6 +2260,7 @@
         "StreamingProvider": "hyperwhisperCloud",
         "StreamingLanguage": "en",
         "StreamingDeepgramModel": "nova-3-general",
+        "StreamingCloudTier": "deepgramNova3",
         "StreamingFastFormatting": true,
         "StreamingShortcut": "Ctrl+Shift+Space",
         "TypingSpeedWPM": 40,
@@ -2270,6 +2303,7 @@
           "provider": "hyperwhisperCloud",
           "language": "en",
           "deepgramModel": "nova-3-general",
+          "cloudTier": "deepgramNova3",
           "fastFormatting": true,
           "shortcut": "Ctrl+Shift+Space"
         },
@@ -2337,6 +2371,7 @@
         "StreamingProvider": "hyperwhisperCloud",
         "StreamingLanguage": "en",
         "StreamingDeepgramModel": "nova-3-general",
+        "StreamingCloudTier": "deepgramNova3",
         "StreamingFastFormatting": true,
         "StreamingShortcut": "Ctrl+Shift+Space",
         "TypingSpeedWPM": 40,
@@ -2379,6 +2414,7 @@
           "provider": "deepgram",
           "language": "de",
           "deepgramModel": "nova-3-medical",
+          "cloudTier": "geminiTranscribe",
           "fastFormatting": false,
           "shortcut": "Ctrl+Alt+Shift+F9"
         },
@@ -2406,6 +2442,7 @@
         "StreamingProvider": "deepgram",
         "StreamingLanguage": "de",
         "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingCloudTier": "geminiTranscribe",
         "StreamingFastFormatting": false,
         "StreamingShortcut": "Ctrl+Alt+Shift+F9",
         "TypingSpeedWPM": 95,
@@ -2446,6 +2483,7 @@
         "StreamingProvider": "deepgram",
         "StreamingLanguage": "de",
         "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingCloudTier": "deepgramNova3",
         "StreamingFastFormatting": false,
         "StreamingShortcut": "Ctrl+Alt+Shift+F9",
         "TypingSpeedWPM": 95,
@@ -2482,6 +2520,7 @@
         "StreamingProvider": "deepgram",
         "StreamingLanguage": "de",
         "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingCloudTier": "deepgramNova3",
         "StreamingFastFormatting": false,
         "StreamingShortcut": "Ctrl+Alt+Shift+F9",
         "TypingSpeedWPM": 95,
@@ -2522,6 +2561,7 @@
         "StreamingProvider": "deepgram",
         "StreamingLanguage": "de",
         "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingCloudTier": "deepgramNova3",
         "StreamingFastFormatting": false,
         "StreamingShortcut": "Ctrl+Alt+Shift+F9",
         "TypingSpeedWPM": 95,
@@ -2564,6 +2604,7 @@
           "provider": null,
           "language": null,
           "deepgramModel": null,
+          "cloudTier": null,
           "fastFormatting": null,
           "shortcut": null
         },
@@ -2591,6 +2632,7 @@
         "StreamingProvider": "deepgram",
         "StreamingLanguage": "de",
         "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingCloudTier": "deepgramNova3",
         "StreamingFastFormatting": false,
         "StreamingShortcut": "Ctrl+Alt+Shift+F9",
         "TypingSpeedWPM": 95,
@@ -2637,6 +2679,7 @@
         "StreamingProvider": "deepgram",
         "StreamingLanguage": "de",
         "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingCloudTier": "deepgramNova3",
         "StreamingFastFormatting": false,
         "StreamingShortcut": "Ctrl+Alt+Shift+F9",
         "TypingSpeedWPM": 95,
@@ -2659,6 +2702,7 @@
           "provider": "",
           "language": "   ",
           "deepgramModel": "",
+          "cloudTier": "   ",
           "fastFormatting": false,
           "shortcut": "   "
         }
@@ -2682,6 +2726,7 @@
         "StreamingProvider": "deepgram",
         "StreamingLanguage": "de",
         "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingCloudTier": "deepgramNova3",
         "StreamingFastFormatting": false,
         "StreamingShortcut": "Ctrl+Alt+Shift+F9",
         "TypingSpeedWPM": 95,
@@ -2727,6 +2772,7 @@
         "StreamingProvider": "deepgram",
         "StreamingLanguage": "de",
         "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingCloudTier": "deepgramNova3",
         "StreamingFastFormatting": false,
         "StreamingShortcut": "Ctrl+Alt+Shift+F9",
         "TypingSpeedWPM": 95,
@@ -2770,6 +2816,7 @@
         "StreamingProvider": "hyperwhisperCloud",
         "StreamingLanguage": "ja",
         "StreamingDeepgramModel": "nova-3-general",
+        "StreamingCloudTier": "deepgramNova3",
         "StreamingFastFormatting": false,
         "StreamingShortcut": "Ctrl+Shift+F9",
         "TypingSpeedWPM": 95,
@@ -2810,6 +2857,7 @@
         "StreamingProvider": "deepgram",
         "StreamingLanguage": "de",
         "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingCloudTier": "deepgramNova3",
         "StreamingFastFormatting": false,
         "StreamingShortcut": "Ctrl+Alt+Shift+F9",
         "TypingSpeedWPM": 95,
@@ -2859,6 +2907,7 @@
         "StreamingProvider": "deepgram",
         "StreamingLanguage": "de",
         "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingCloudTier": "deepgramNova3",
         "StreamingFastFormatting": false,
         "StreamingShortcut": "Ctrl+Alt+Shift+F9",
         "TypingSpeedWPM": 55,
@@ -2935,6 +2984,7 @@
         "StreamingProvider": "deepgram",
         "StreamingLanguage": "de",
         "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingCloudTier": "deepgramNova3",
         "StreamingFastFormatting": false,
         "StreamingShortcut": "Ctrl+Alt+Shift+F9",
         "TypingSpeedWPM": 95,
@@ -2975,6 +3025,7 @@
         "StreamingProvider": "deepgram",
         "StreamingLanguage": "de",
         "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingCloudTier": "deepgramNova3",
         "StreamingFastFormatting": false,
         "StreamingShortcut": "Ctrl+Alt+Shift+F9",
         "TypingSpeedWPM": 95,
@@ -3015,6 +3066,7 @@
         "StreamingProvider": "deepgram",
         "StreamingLanguage": "de",
         "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingCloudTier": "deepgramNova3",
         "StreamingFastFormatting": false,
         "StreamingShortcut": "Ctrl+Alt+Shift+F9",
         "TypingSpeedWPM": 95,
@@ -3055,6 +3107,7 @@
         "StreamingProvider": "deepgram",
         "StreamingLanguage": "de",
         "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingCloudTier": "deepgramNova3",
         "StreamingFastFormatting": false,
         "StreamingShortcut": "Ctrl+Alt+Shift+F9",
         "TypingSpeedWPM": 95,
@@ -3095,6 +3148,7 @@
         "StreamingProvider": "deepgram",
         "StreamingLanguage": "de",
         "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingCloudTier": "deepgramNova3",
         "StreamingFastFormatting": false,
         "StreamingShortcut": "Ctrl+Alt+Shift+F9",
         "TypingSpeedWPM": 95,
@@ -3135,6 +3189,7 @@
         "StreamingProvider": "deepgram",
         "StreamingLanguage": "de",
         "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingCloudTier": "deepgramNova3",
         "StreamingFastFormatting": false,
         "StreamingShortcut": "Ctrl+Alt+Shift+F9",
         "TypingSpeedWPM": 95,
@@ -3175,6 +3230,7 @@
         "StreamingProvider": "deepgram",
         "StreamingLanguage": "de",
         "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingCloudTier": "deepgramNova3",
         "StreamingFastFormatting": false,
         "StreamingShortcut": "Ctrl+Alt+Shift+F9",
         "TypingSpeedWPM": 95,
@@ -3215,6 +3271,7 @@
         "StreamingProvider": "deepgram",
         "StreamingLanguage": "de",
         "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingCloudTier": "deepgramNova3",
         "StreamingFastFormatting": false,
         "StreamingShortcut": "Ctrl+Alt+Shift+F9",
         "TypingSpeedWPM": 95,
@@ -3266,6 +3323,7 @@
           "provider": null,
           "language": null,
           "deepgramModel": null,
+          "cloudTier": null,
           "fastFormatting": false,
           "shortcut": null
         },
@@ -3331,6 +3389,7 @@
           "provider": "assemblyai",
           "language": "de",
           "deepgramModel": "nova-2-general",
+          "cloudTier": null,
           "fastFormatting": true,
           "shortcut": "shift+CONTROL+f9"
         },

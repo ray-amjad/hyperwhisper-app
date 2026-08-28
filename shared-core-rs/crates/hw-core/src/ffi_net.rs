@@ -13,7 +13,7 @@ use hw_net::contract as c;
 // Contract types
 // ===========================================================================
 
-/// The 12 cloud speech-to-text providers. Mirrors `hw_net::Provider`.
+/// The 14 cloud speech-to-text providers. Mirrors `hw_net::Provider`.
 #[derive(uniffi::Enum)]
 pub enum HwProvider {
     HyperWhisperCloud,
@@ -28,6 +28,8 @@ pub enum HwProvider {
     Gemini,
     AzureMai,
     GoogleChirp,
+    GeminiTranscribe,
+    GeminiTranscribeLive,
 }
 
 impl From<HwProvider> for c::Provider {
@@ -45,6 +47,8 @@ impl From<HwProvider> for c::Provider {
             HwProvider::Gemini => c::Provider::Gemini,
             HwProvider::AzureMai => c::Provider::AzureMai,
             HwProvider::GoogleChirp => c::Provider::GoogleChirp,
+            HwProvider::GeminiTranscribe => c::Provider::GeminiTranscribe,
+            HwProvider::GeminiTranscribeLive => c::Provider::GeminiTranscribeLive,
         }
     }
 }
@@ -64,6 +68,8 @@ impl From<c::Provider> for HwProvider {
             c::Provider::Gemini => HwProvider::Gemini,
             c::Provider::AzureMai => HwProvider::AzureMai,
             c::Provider::GoogleChirp => HwProvider::GoogleChirp,
+            c::Provider::GeminiTranscribe => HwProvider::GeminiTranscribe,
+            c::Provider::GeminiTranscribeLive => HwProvider::GeminiTranscribeLive,
         }
     }
 }
@@ -193,6 +199,18 @@ pub enum Body {
         path: String,
         content_type: String,
     },
+    /// `prefix` ++ base64(bytes of the file at `path`) ++ `suffix`, written by
+    /// the platform with `Content-Type: application/json`. Rust never sees the
+    /// audio — only the path — but unlike `FileStream` the platform must
+    /// base64-encode as it writes (standard alphabet, padded, no line breaks).
+    ///
+    /// Used only by Gemini 3.5 Transcribe's `/v1beta/interactions`, which has no
+    /// file-reference form.
+    JsonWithBase64File {
+        prefix: Vec<u8>,
+        path: String,
+        suffix: Vec<u8>,
+    },
 }
 
 impl From<c::Body> for Body {
@@ -205,6 +223,15 @@ impl From<c::Body> for Body {
                 parts: parts.into_iter().map(Into::into).collect(),
             },
             c::Body::FileStream { path, content_type } => Body::FileStream { path, content_type },
+            c::Body::JsonWithBase64File {
+                prefix,
+                path,
+                suffix,
+            } => Body::JsonWithBase64File {
+                prefix,
+                path,
+                suffix,
+            },
         }
     }
 }
@@ -219,6 +246,15 @@ impl From<Body> for c::Body {
                 parts: parts.into_iter().map(Into::into).collect(),
             },
             Body::FileStream { path, content_type } => c::Body::FileStream { path, content_type },
+            Body::JsonWithBase64File {
+                prefix,
+                path,
+                suffix,
+            } => c::Body::JsonWithBase64File {
+                prefix,
+                path,
+                suffix,
+            },
         }
     }
 }
@@ -684,6 +720,15 @@ single_shot!(
     google_chirp_parse_transcribe_response,
     hw_net::providers::google_chirp
 );
+// Gemini 3.5 Transcribe is single-shot even though `gemini` is multi-step: the
+// interactions endpoint takes the audio inline, so there is no upload/poll
+// dance. Do NOT route this model through the `gemini_*` functions above — see
+// `hw_net::providers::gemini_transcribe`'s module docs (TRAP 1).
+single_shot!(
+    gemini_transcribe_build_transcribe_request,
+    gemini_transcribe_parse_transcribe_response,
+    hw_net::providers::gemini_transcribe
+);
 
 // ===========================================================================
 // HyperWhisper Cloud (single-shot + credit helpers)
@@ -1018,7 +1063,7 @@ mod tests {
     // helpers
     // -----------------------------------------------------------------------
 
-    const ALL_PROVIDERS: [HwProvider; 12] = [
+    const ALL_PROVIDERS: [HwProvider; 14] = [
         HwProvider::HyperWhisperCloud,
         HwProvider::Openai,
         HwProvider::Groq,
@@ -1031,6 +1076,8 @@ mod tests {
         HwProvider::Gemini,
         HwProvider::AzureMai,
         HwProvider::GoogleChirp,
+        HwProvider::GeminiTranscribe,
+        HwProvider::GeminiTranscribeLive,
     ];
 
     /// A distinct label per FFI provider arm, written independently of the
@@ -1050,6 +1097,8 @@ mod tests {
             HwProvider::Gemini => "gemini",
             HwProvider::AzureMai => "azure_mai",
             HwProvider::GoogleChirp => "google_chirp",
+            HwProvider::GeminiTranscribe => "gemini_transcribe",
+            HwProvider::GeminiTranscribeLive => "gemini_transcribe_live",
         }
     }
 
@@ -1069,6 +1118,8 @@ mod tests {
             c::Provider::Gemini => "gemini",
             c::Provider::AzureMai => "azure_mai",
             c::Provider::GoogleChirp => "google_chirp",
+            c::Provider::GeminiTranscribe => "gemini_transcribe",
+            c::Provider::GeminiTranscribeLive => "gemini_transcribe_live",
         }
     }
 

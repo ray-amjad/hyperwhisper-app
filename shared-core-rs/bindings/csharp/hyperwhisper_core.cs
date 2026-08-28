@@ -1178,6 +1178,20 @@ static class _UniFFILib {
     
     
     
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
 
     static _UniFFILib() {
         _UniFFILib.uniffiCheckContractApiVersion();
@@ -1455,6 +1469,14 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_cloud_stt_streaming_cloud_tier_entries(ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_cloud_stt_streaming_cloud_tier_entry_ids(ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern sbyte uniffi_hyperwhisper_core_fn_func_cloud_stt_supports_custom_vocabulary(RustBuffer @id,ref UniffiRustCallStatus _uniffi_out_err
     );
 
@@ -1552,6 +1574,14 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_gemini_parse_upload_start_response(RustBuffer @resp,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_gemini_transcribe_build_transcribe_request(RustBuffer @params,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_gemini_transcribe_parse_transcribe_response(RustBuffer @resp,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -1727,6 +1757,10 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern sbyte uniffi_hyperwhisper_core_fn_func_live_complete_ends_session_before_stop(RustBuffer @provider,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern sbyte uniffi_hyperwhisper_core_fn_func_live_is_terminal_close_code(ushort @code,ref UniffiRustCallStatus _uniffi_out_err
     );
 
@@ -1743,7 +1777,15 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern uint uniffi_hyperwhisper_core_fn_func_live_start_timeout_ms(RustBuffer @provider,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern sbyte uniffi_hyperwhisper_core_fn_func_live_supports_vocabulary(RustBuffer @provider,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern sbyte uniffi_hyperwhisper_core_fn_func_live_supports_vocabulary_without_language(RustBuffer @provider,RustBuffer @cloudTier,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -2463,6 +2505,14 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_cloud_stt_streaming_cloud_tier_entries(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_cloud_stt_streaming_cloud_tier_entry_ids(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_cloud_stt_supports_custom_vocabulary(
     );
 
@@ -2560,6 +2610,14 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_gemini_parse_upload_start_response(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_gemini_transcribe_build_transcribe_request(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_gemini_transcribe_parse_transcribe_response(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -2735,6 +2793,10 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_live_complete_ends_session_before_stop(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_live_is_terminal_close_code(
     );
 
@@ -2751,7 +2813,15 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_live_start_timeout_ms(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_live_supports_vocabulary(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_live_supports_vocabulary_without_language(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -3407,6 +3477,18 @@ static class _UniFFILib {
             }
         }
         {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_cloud_stt_streaming_cloud_tier_entries();
+            if (checksum != 54317) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_cloud_stt_streaming_cloud_tier_entries` checksum `54317`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_cloud_stt_streaming_cloud_tier_entry_ids();
+            if (checksum != 41165) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_cloud_stt_streaming_cloud_tier_entry_ids` checksum `41165`, library returned `{checksum}`");
+            }
+        }
+        {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_cloud_stt_supports_custom_vocabulary();
             if (checksum != 64386) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_cloud_stt_supports_custom_vocabulary` checksum `64386`, library returned `{checksum}`");
@@ -3554,6 +3636,18 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_gemini_parse_upload_start_response();
             if (checksum != 42591) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_gemini_parse_upload_start_response` checksum `42591`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_gemini_transcribe_build_transcribe_request();
+            if (checksum != 41571) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_gemini_transcribe_build_transcribe_request` checksum `41571`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_gemini_transcribe_parse_transcribe_response();
+            if (checksum != 16333) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_gemini_transcribe_parse_transcribe_response` checksum `16333`, library returned `{checksum}`");
             }
         }
         {
@@ -3815,6 +3909,12 @@ static class _UniFFILib {
             }
         }
         {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_live_complete_ends_session_before_stop();
+            if (checksum != 61878) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_live_complete_ends_session_before_stop` checksum `61878`, library returned `{checksum}`");
+            }
+        }
+        {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_live_is_terminal_close_code();
             if (checksum != 62063) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_live_is_terminal_close_code` checksum `62063`, library returned `{checksum}`");
@@ -3839,9 +3939,21 @@ static class _UniFFILib {
             }
         }
         {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_live_start_timeout_ms();
+            if (checksum != 1906) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_live_start_timeout_ms` checksum `1906`, library returned `{checksum}`");
+            }
+        }
+        {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_live_supports_vocabulary();
             if (checksum != 20813) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_live_supports_vocabulary` checksum `20813`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_live_supports_vocabulary_without_language();
+            if (checksum != 12079) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_live_supports_vocabulary_without_language` checksum `12079`, library returned `{checksum}`");
             }
         }
         {
@@ -5684,6 +5796,14 @@ class FfiConverterTypeHwLanguageSupport: FfiConverterRustBuffer<HwLanguageSuppor
 /// bill a developer's key against production. `None` means the production host,
 /// and every other provider ignores the field.
 /// </summary>
+/// <param name="cloud_tier">
+/// Which upstream vendor HyperWhisper Cloud should relay to: a
+/// `cloud-stt-catalog.json` entry id, which is what the app's global
+/// `streamingCloudTier` setting stores. A path selector, deliberately not a
+/// `HwLiveProvider` arm — the credit and entitlement wiring keys off "the
+/// provider is HyperWhisper Cloud" and must keep matching. `None` or an
+/// unknown id means the default tier. Ignored by every other provider.
+/// </param>
 internal record HwLiveConfig (
     HwLiveProvider @provider, 
     string? @apiKey, 
@@ -5693,7 +5813,16 @@ internal record HwLiveConfig (
     List<string> @vocabulary, 
     string? @model, 
     bool @fastFormatting, 
-    string? @baseUrl
+    string? @baseUrl, 
+    /// <summary>
+    /// Which upstream vendor HyperWhisper Cloud should relay to: a
+    /// `cloud-stt-catalog.json` entry id, which is what the app's global
+    /// `streamingCloudTier` setting stores. A path selector, deliberately not a
+    /// `HwLiveProvider` arm — the credit and entitlement wiring keys off "the
+    /// provider is HyperWhisper Cloud" and must keep matching. `None` or an
+    /// unknown id means the default tier. Ignored by every other provider.
+    /// </summary>
+    string? @cloudTier
 ) {
 }
 
@@ -5710,7 +5839,8 @@ class FfiConverterTypeHwLiveConfig: FfiConverterRustBuffer<HwLiveConfig> {
             @vocabulary: FfiConverterSequenceString.INSTANCE.Read(stream),
             @model: FfiConverterOptionalString.INSTANCE.Read(stream),
             @fastFormatting: FfiConverterBoolean.INSTANCE.Read(stream),
-            @baseUrl: FfiConverterOptionalString.INSTANCE.Read(stream)
+            @baseUrl: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @cloudTier: FfiConverterOptionalString.INSTANCE.Read(stream)
         );
     }
 
@@ -5724,7 +5854,8 @@ class FfiConverterTypeHwLiveConfig: FfiConverterRustBuffer<HwLiveConfig> {
             + FfiConverterSequenceString.INSTANCE.AllocationSize(value.@vocabulary)
             + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@model)
             + FfiConverterBoolean.INSTANCE.AllocationSize(value.@fastFormatting)
-            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@baseUrl);
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@baseUrl)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@cloudTier);
     }
 
     public override void Write(HwLiveConfig value, BigEndianStream stream) {
@@ -5737,6 +5868,7 @@ class FfiConverterTypeHwLiveConfig: FfiConverterRustBuffer<HwLiveConfig> {
             FfiConverterOptionalString.INSTANCE.Write(value.@model, stream);
             FfiConverterBoolean.INSTANCE.Write(value.@fastFormatting, stream);
             FfiConverterOptionalString.INSTANCE.Write(value.@baseUrl, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@cloudTier, stream);
     }
 }
 
@@ -7288,13 +7420,22 @@ class FfiConverterTypeSttLanguages: FfiConverterRustBuffer<SttLanguages> {
 /// <summary>
 /// A cloud STT model. Owned mirror of `hw_catalog::SttModel`.
 /// </summary>
+/// <param name="streaming">
+/// Whether HyperWhisper Cloud serves a live WebSocket route for this model
+/// (catalog v8). NOT the entry-level `features.streaming` vendor hint.
+/// </param>
 internal record SttModel (
     string @id, 
     string @displayName, 
     double? @creditsPerMinute, 
     bool? @isDefault, 
     bool? @previewStatus, 
-    bool? @supportsCustomVocabulary
+    bool? @supportsCustomVocabulary, 
+    /// <summary>
+    /// Whether HyperWhisper Cloud serves a live WebSocket route for this model
+    /// (catalog v8). NOT the entry-level `features.streaming` vendor hint.
+    /// </summary>
+    bool? @streaming
 ) {
 }
 
@@ -7308,7 +7449,8 @@ class FfiConverterTypeSttModel: FfiConverterRustBuffer<SttModel> {
             @creditsPerMinute: FfiConverterOptionalDouble.INSTANCE.Read(stream),
             @isDefault: FfiConverterOptionalBoolean.INSTANCE.Read(stream),
             @previewStatus: FfiConverterOptionalBoolean.INSTANCE.Read(stream),
-            @supportsCustomVocabulary: FfiConverterOptionalBoolean.INSTANCE.Read(stream)
+            @supportsCustomVocabulary: FfiConverterOptionalBoolean.INSTANCE.Read(stream),
+            @streaming: FfiConverterOptionalBoolean.INSTANCE.Read(stream)
         );
     }
 
@@ -7319,7 +7461,8 @@ class FfiConverterTypeSttModel: FfiConverterRustBuffer<SttModel> {
             + FfiConverterOptionalDouble.INSTANCE.AllocationSize(value.@creditsPerMinute)
             + FfiConverterOptionalBoolean.INSTANCE.AllocationSize(value.@isDefault)
             + FfiConverterOptionalBoolean.INSTANCE.AllocationSize(value.@previewStatus)
-            + FfiConverterOptionalBoolean.INSTANCE.AllocationSize(value.@supportsCustomVocabulary);
+            + FfiConverterOptionalBoolean.INSTANCE.AllocationSize(value.@supportsCustomVocabulary)
+            + FfiConverterOptionalBoolean.INSTANCE.AllocationSize(value.@streaming);
     }
 
     public override void Write(SttModel value, BigEndianStream stream) {
@@ -7329,6 +7472,7 @@ class FfiConverterTypeSttModel: FfiConverterRustBuffer<SttModel> {
             FfiConverterOptionalBoolean.INSTANCE.Write(value.@isDefault, stream);
             FfiConverterOptionalBoolean.INSTANCE.Write(value.@previewStatus, stream);
             FfiConverterOptionalBoolean.INSTANCE.Write(value.@supportsCustomVocabulary, stream);
+            FfiConverterOptionalBoolean.INSTANCE.Write(value.@streaming, stream);
     }
 }
 
@@ -7861,6 +8005,21 @@ internal record Body {
         string @contentType
     ) : Body {}
     
+    /// <summary>
+    /// `prefix` ++ base64(bytes of the file at `path`) ++ `suffix`, written by
+    /// the platform with `Content-Type: application/json`. Rust never sees the
+    /// audio — only the path — but unlike `FileStream` the platform must
+    /// base64-encode as it writes (standard alphabet, padded, no line breaks).
+    ///
+    /// Used only by Gemini 3.5 Transcribe's `/v1beta/interactions`, which has no
+    /// file-reference form.
+    /// </summary>
+    public record JsonWithBase64File (
+        byte[] @prefix,
+        string @path,
+        byte[] @suffix
+    ) : Body {}
+    
 
     
 }
@@ -7889,6 +8048,12 @@ class FfiConverterTypeBody : FfiConverterRustBuffer<Body>{
                     FfiConverterString.INSTANCE.Read(stream),
                     FfiConverterString.INSTANCE.Read(stream)
                 );
+            case 5:
+                return new Body.JsonWithBase64File(
+                    FfiConverterByteArray.INSTANCE.Read(stream),
+                    FfiConverterString.INSTANCE.Read(stream),
+                    FfiConverterByteArray.INSTANCE.Read(stream)
+                );
             default:
                 throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeBody.Read()", value));
         }
@@ -7910,6 +8075,11 @@ class FfiConverterTypeBody : FfiConverterRustBuffer<Body>{
                 return 4
                     + FfiConverterString.INSTANCE.AllocationSize(variant_value.@path)
                     + FfiConverterString.INSTANCE.AllocationSize(variant_value.@contentType);
+            case Body.JsonWithBase64File variant_value:
+                return 4
+                    + FfiConverterByteArray.INSTANCE.AllocationSize(variant_value.@prefix)
+                    + FfiConverterString.INSTANCE.AllocationSize(variant_value.@path)
+                    + FfiConverterByteArray.INSTANCE.AllocationSize(variant_value.@suffix);
             default:
                 throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeBody.AllocationSize()", value));
         }
@@ -7934,6 +8104,12 @@ class FfiConverterTypeBody : FfiConverterRustBuffer<Body>{
                 stream.WriteInt(4);
                 FfiConverterString.INSTANCE.Write(variant_value.@path, stream);
                 FfiConverterString.INSTANCE.Write(variant_value.@contentType, stream);
+                break;
+            case Body.JsonWithBase64File variant_value:
+                stream.WriteInt(5);
+                FfiConverterByteArray.INSTANCE.Write(variant_value.@prefix, stream);
+                FfiConverterString.INSTANCE.Write(variant_value.@path, stream);
+                FfiConverterByteArray.INSTANCE.Write(variant_value.@suffix, stream);
                 break;
             default:
                 throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeBody.Write()", value));
@@ -8937,11 +9113,15 @@ class FfiConverterTypeHwLiveEvent : FfiConverterRustBuffer<HwLiveEvent>{
 
 
 /// <summary>
-/// The five websocket transcription providers. Mirrors `lv::LiveProvider`.
+/// The six websocket transcription providers. Mirrors `lv::LiveProvider`.
 ///
 /// Local engines (Parakeet, Nemotron) are deliberately absent — they are not
 /// websocket protocols. Windows spells this vendor set with `Xai` where this
 /// enum says `Grok`; the head maps across at its boundary.
+///
+/// `GeminiTranscribe` is the BYOK Gemini 3.5 Transcribe Live socket, distinct
+/// from the same vendor reached through `HyperWhisperCloud`'s `geminiTranscribe`
+/// tier — only the latter bills credits.
 /// </summary>
 internal enum HwLiveProvider: int {
     
@@ -8949,6 +9129,7 @@ internal enum HwLiveProvider: int {
     ElevenLabs,
     OpenAi,
     Grok,
+    GeminiTranscribe,
     HyperWhisperCloud
 }
 
@@ -9479,7 +9660,7 @@ class FfiConverterTypeHwPart : FfiConverterRustBuffer<HwPart>{
 
 
 /// <summary>
-/// The 12 cloud speech-to-text providers. Mirrors `hw_net::Provider`.
+/// The 14 cloud speech-to-text providers. Mirrors `hw_net::Provider`.
 /// </summary>
 internal enum HwProvider: int {
     
@@ -9494,7 +9675,9 @@ internal enum HwProvider: int {
     Assemblyai,
     Gemini,
     AzureMai,
-    GoogleChirp
+    GoogleChirp,
+    GeminiTranscribe,
+    GeminiTranscribeLive
 }
 
 class FfiConverterTypeHwProvider: FfiConverterRustBuffer<HwProvider> {
@@ -12191,6 +12374,30 @@ internal static class HyperwhisperCoreMethods {
 
 
     /// <summary>
+    /// Same set as `cloud_stt_streaming_cloud_tier_entry_ids`, as full entries.
+    /// </summary>
+    public static List<SttEntry> CloudSttStreamingCloudTierEntries() {
+        return FfiConverterSequenceTypeSttEntry.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_cloud_stt_streaming_cloud_tier_entries( ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Cloud-tier provider ids HyperWhisper Cloud can also serve live, in catalog
+    /// order — `cloudTierEligible` AND at least one model with `streaming: true`.
+    /// The eligible set for the HW-Cloud live vendor picker.
+    /// </summary>
+    public static List<string> CloudSttStreamingCloudTierEntryIds() {
+        return FfiConverterSequenceString.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_cloud_stt_streaming_cloud_tier_entry_ids( ref _status)
+));
+    }
+
+
+    /// <summary>
     /// Whether the STT provider supports custom vocabulary.
     /// </summary>
     public static bool CloudSttSupportsCustomVocabulary(string @id) {
@@ -12449,6 +12656,24 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterString.INSTANCE.Lift(
     _UniffiHelpers.RustCallWithError(FfiConverterTypeHwTranscriptionError.INSTANCE, (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_gemini_parse_upload_start_response(FfiConverterTypeHttpResponse.INSTANCE.Lower(@resp), ref _status)
+));
+    }
+
+
+    /// <exception cref="HwTranscriptionException"></exception>
+    public static HttpRequest GeminiTranscribeBuildTranscribeRequest(TranscribeParams @params) {
+        return FfiConverterTypeHttpRequest.INSTANCE.Lift(
+    _UniffiHelpers.RustCallWithError(FfiConverterTypeHwTranscriptionError.INSTANCE, (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_gemini_transcribe_build_transcribe_request(FfiConverterTypeTranscribeParams.INSTANCE.Lower(@params), ref _status)
+));
+    }
+
+
+    /// <exception cref="HwTranscriptionException"></exception>
+    public static HwTranscript GeminiTranscribeParseTranscribeResponse(HttpResponse @resp) {
+        return FfiConverterTypeHwTranscript.INSTANCE.Lift(
+    _UniffiHelpers.RustCallWithError(FfiConverterTypeHwTranscriptionError.INSTANCE, (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_gemini_transcribe_parse_transcribe_response(FfiConverterTypeHttpResponse.INSTANCE.Lower(@resp), ref _status)
 ));
     }
 
@@ -12895,6 +13120,21 @@ internal static class HyperwhisperCoreMethods {
 
 
     /// <summary>
+    /// Whether a session-complete event ends the session even when the client has
+    /// not asked to stop yet.
+    ///
+    /// `false` for Gemini alone: `generationComplete` is a TURN boundary, so a
+    /// terminal reading silently ends a live dictation at the first pause in speech.
+    /// </summary>
+    public static bool LiveCompleteEndsSessionBeforeStop(HwLiveProvider @provider) {
+        return FfiConverterBoolean.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_live_complete_ends_session_before_stop(FfiConverterTypeHwLiveProvider.INSTANCE.Lower(@provider), ref _status)
+));
+    }
+
+
+    /// <summary>
     /// Whether a websocket close code is one of the RFC-6455 non-recoverable set
     /// (1002, 1003, 1007, 1008, 1009, 1011).
     ///
@@ -12949,6 +13189,21 @@ internal static class HyperwhisperCoreMethods {
 
 
     /// <summary>
+    /// How long to hold the audio pump waiting for the provider's session-started
+    /// frame, in milliseconds. `0` means send from the moment the socket opens.
+    ///
+    /// Non-zero for Gemini alone: audio sent before `setupComplete` is discarded by
+    /// the server, which costs the opening words of the dictation.
+    /// </summary>
+    public static uint LiveStartTimeoutMs(HwLiveProvider @provider) {
+        return FfiConverterUInt32.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_live_start_timeout_ms(FfiConverterTypeHwLiveProvider.INSTANCE.Lower(@provider), ref _status)
+));
+    }
+
+
+    /// <summary>
     /// Whether the provider's live API takes a custom-vocabulary parameter at all.
     /// `false` means the terms are dropped before the socket opens.
     /// </summary>
@@ -12956,6 +13211,23 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterBoolean.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_live_supports_vocabulary(FfiConverterTypeHwLiveProvider.INSTANCE.Lower(@provider), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Whether the provider honours custom vocabulary while the language is left on
+    /// auto-detect. A SECOND question from `live_supports_vocabulary`: Deepgram
+    /// Nova-3 accepts `keyterm` only in monolingual mode and silently ignores it
+    /// otherwise, while Gemini and xAI accept theirs either way.
+    ///
+    /// `cloud_tier` is read for `HyperWhisperCloud` only, where the answer belongs
+    /// to whichever vendor the relay will forward to. `None` means the default tier.
+    /// </summary>
+    public static bool LiveSupportsVocabularyWithoutLanguage(HwLiveProvider @provider, string? @cloudTier) {
+        return FfiConverterBoolean.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_live_supports_vocabulary_without_language(FfiConverterTypeHwLiveProvider.INSTANCE.Lower(@provider), FfiConverterOptionalString.INSTANCE.Lower(@cloudTier), ref _status)
 ));
     }
 

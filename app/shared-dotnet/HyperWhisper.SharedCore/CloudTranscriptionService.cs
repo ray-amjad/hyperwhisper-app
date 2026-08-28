@@ -28,6 +28,11 @@ public sealed class CloudTranscriptionService : IDisposable
             [CloudTranscriptionProvider.Mistral] = 100L * 1024 * 1024,
             [CloudTranscriptionProvider.Soniox] = 1L * 1024 * 1024 * 1024,
             [CloudTranscriptionProvider.Gemini] = 2L * 1024 * 1024 * 1024,
+            // The interactions endpoint takes the audio INLINE as base64, which
+            // inflates ~33%, so the raw-file cap is the request ceiling scaled
+            // down: 14 MB raw ≈ 19 MB on the wire. There is no Files-API
+            // overflow path for this model.
+            [CloudTranscriptionProvider.GeminiTranscribe] = 14L * 1024 * 1024,
             [CloudTranscriptionProvider.Grok] = 500L * 1024 * 1024,
             [CloudTranscriptionProvider.AzureMai] = 300L * 1024 * 1024,
             [CloudTranscriptionProvider.GoogleChirp] = 9_500_000L,
@@ -47,6 +52,7 @@ public sealed class CloudTranscriptionService : IDisposable
         new(CloudTranscriptionProvider.Mistral, "mistralVoxtral", "Mistral Voxtral", false, true),
         new(CloudTranscriptionProvider.Soniox, "soniox", "Soniox", true, true),
         new(CloudTranscriptionProvider.Gemini, "gemini", "Google Gemini", true, true),
+        new(CloudTranscriptionProvider.GeminiTranscribe, "geminiTranscribe", "Gemini 3.5 Transcribe", false, true),
         new(CloudTranscriptionProvider.HyperWhisperCloud, "hyperwhisperCloud", "HyperWhisper Cloud", false, true),
     ];
 
@@ -510,6 +516,9 @@ public sealed class CloudTranscriptionService : IDisposable
         CloudTranscriptionProvider.Deepgram => HyperwhisperCoreMethods.DeepgramBuildTranscribeRequest(parameters),
         CloudTranscriptionProvider.AzureMai => HyperwhisperCoreMethods.AzureMaiBuildTranscribeRequest(parameters),
         CloudTranscriptionProvider.GoogleChirp => HyperwhisperCoreMethods.GoogleChirpBuildTranscribeRequest(parameters),
+        // Single-shot despite Gemini being multi-step: the interactions endpoint
+        // takes the audio inline, so there is no upload/poll dance.
+        CloudTranscriptionProvider.GeminiTranscribe => HyperwhisperCoreMethods.GeminiTranscribeBuildTranscribeRequest(parameters),
         CloudTranscriptionProvider.HyperWhisperCloud => HyperwhisperCoreMethods.HyperwhisperCloudBuildTranscribeRequest(parameters),
         _ => throw new ArgumentOutOfRangeException(nameof(provider)),
     };
@@ -524,6 +533,7 @@ public sealed class CloudTranscriptionService : IDisposable
         CloudTranscriptionProvider.Deepgram => HyperwhisperCoreMethods.DeepgramParseTranscribeResponse(response),
         CloudTranscriptionProvider.AzureMai => HyperwhisperCoreMethods.AzureMaiParseTranscribeResponse(response),
         CloudTranscriptionProvider.GoogleChirp => HyperwhisperCoreMethods.GoogleChirpParseTranscribeResponse(response),
+        CloudTranscriptionProvider.GeminiTranscribe => HyperwhisperCoreMethods.GeminiTranscribeParseTranscribeResponse(response),
         CloudTranscriptionProvider.HyperWhisperCloud => HyperwhisperCoreMethods.HyperwhisperCloudParseTranscribeResponse(response),
         _ => throw new ArgumentOutOfRangeException(nameof(provider)),
     };

@@ -74,6 +74,7 @@ struct CatalogConformanceVectorTests {
         let isDefault: Bool?
         let previewStatus: Bool?
         let supportsCustomVocabulary: Bool?
+        let streaming: Bool?
     }
 
     struct VendorGroupVector: Decodable {
@@ -195,6 +196,7 @@ struct CatalogConformanceVectorTests {
                     gotModel.supportsCustomVocabulary == wantModel.supportsCustomVocabulary,
                     "\(label).supportsCustomVocabulary"
                 )
+                #expect(gotModel.streaming == wantModel.streaming, "\(label).streaming")
             }
         }
     }

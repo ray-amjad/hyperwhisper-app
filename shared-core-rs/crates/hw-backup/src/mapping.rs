@@ -709,7 +709,7 @@ pub struct WindowsSettings {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub keep_audio_files: Option<bool>,
 
-    // -- streaming -- SIX separately-named native properties, not four.
+    // -- streaming -- SEVEN separately-named native properties, not four.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub streaming_enabled: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -718,6 +718,8 @@ pub struct WindowsSettings {
     pub streaming_language: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub streaming_deepgram_model: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub streaming_cloud_tier: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub streaming_fast_formatting: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -794,6 +796,11 @@ pub const WINDOWS_STREAMING_PAIRS: &[(&str, &str)] = &[
     ("StreamingProvider", "provider"),
     ("StreamingLanguage", "language"),
     ("StreamingDeepgramModel", "deepgramModel"),
+    // Live cloud tier for streaming dictation. The native side hands us the
+    // SettingsService getter's answer, which is already clamped to the
+    // live-eligible catalog set, so an unset install exports `deepgramNova3`
+    // rather than a null.
+    ("StreamingCloudTier", "cloudTier"),
     ("StreamingFastFormatting", "fastFormatting"),
     // Persisted-string form; KeyboardShortcut conversion stays native.
     ("StreamingShortcut", "shortcut"),
@@ -1044,11 +1051,17 @@ pub const LINUX_STORAGE_PAIRS: &[LinuxSettingPair] = &[
 
 pub const LINUX_STREAMING_PAIRS: &[LinuxSettingPair] = &[
     ("streaming.enabled", "enabled", B(false)),
-    // The four string keys default to an explicit JSON null, not to a value and
+    // The five string keys default to an explicit JSON null, not to a value and
     // not to omission — a Linux→Linux round trip depends on the null surviving.
+    //
+    // `cloudTier` defaults to null here and to `deepgramNova3` on Windows on
+    // PURPOSE: Linux reads the raw stored key, while the Windows property clamps
+    // on read. Both reproduce their own shipping head, which is what the vectors
+    // pin. Do not "harmonise" these two defaults.
     ("streaming.provider", "provider", N),
     ("streaming.language", "language", N),
     ("streaming.deepgramModel", "deepgramModel", N),
+    ("streaming.cloudTier", "cloudTier", N),
     ("streaming.fastFormatting", "fastFormatting", B(false)),
     ("streaming.shortcut", "shortcut", N),
 ];
@@ -1206,6 +1219,7 @@ mod windows_linux_settings_tests {
             streaming_provider: Some("p".into()),
             streaming_language: Some("l".into()),
             streaming_deepgram_model: Some("m".into()),
+            streaming_cloud_tier: Some("t".into()),
             streaming_fast_formatting: Some(true),
             streaming_shortcut: Some("s".into()),
             typing_speed_wpm: Some(77),
@@ -1228,8 +1242,9 @@ mod windows_linux_settings_tests {
         );
         assert_eq!(
             struct_keys.len(),
-            22,
-            "Windows promotes 22 keys since phase 3a (20 + KeepAudioFiles + MaxRecordingDuration)"
+            23,
+            "Windows promotes 23 keys: 20, + KeepAudioFiles and MaxRecordingDuration from \
+             phase 3a, + StreamingCloudTier from the catalog-v8 live tier picker"
         );
     }
 
@@ -1406,7 +1421,10 @@ mod windows_linux_settings_tests {
             }
         }
         let count: usize = LINUX_SECTIONS.iter().map(|(_, p)| p.len()).sum();
-        assert_eq!(count, 23, "Linux carries 23 shared keys today");
+        assert_eq!(
+            count, 24,
+            "Linux carries 24 shared keys today (23 + streaming.cloudTier)"
+        );
     }
 
     #[test]
@@ -1429,7 +1447,8 @@ mod windows_linux_settings_tests {
                 "storage": { "keepAudioFiles": true, "storeAsM4A": false },
                 "streaming": {
                     "enabled": false, "provider": null, "language": null,
-                    "deepgramModel": null, "fastFormatting": false, "shortcut": null
+                    "deepgramModel": null, "cloudTier": null,
+                    "fastFormatting": false, "shortcut": null
                 },
                 "advanced": { "maxRecordingDuration": 3600, "typingSpeedWPM": 40 }
             })

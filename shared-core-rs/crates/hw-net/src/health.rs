@@ -17,6 +17,8 @@
 //! | Soniox            | GET    | `https://api.soniox.com/v1/models`                 | `Authorization: Bearer`       |
 //! | Gemini            | GET    | `https://generativelanguage.googleapis.com/v1beta/models?key=<key>` | query `key` |
 //! | Grok              | GET    | `https://api.x.ai/v1/models`                       | `Authorization: Bearer`       |
+//! | GeminiTranscribe  | GET    | `https://generativelanguage.googleapis.com/v1beta/models` | `x-goog-api-key: <key>` |
+//! | GeminiTranscribeLive | GET | (same as GeminiTranscribe — one vendor, one key)   | `x-goog-api-key: <key>`       |
 //! | HyperWhisperCloud | GET    | HW Cloud `/health` (base_url)                       | none (always reachable)       |
 //! | AzureMai          | GET    | HW Cloud `/health` (routed)                         | none                          |
 //! | GoogleChirp       | GET    | HW Cloud `/health` (routed)                         | none                          |
@@ -34,9 +36,12 @@
 //!   can reach STT is rejected for the *body* (400/422, "bad request"), which we
 //!   treat as **healthy**; 401/403 mean the key is unauthorized. See
 //!   [`parse_health_response`]'s ElevenLabs branch.
-//! - **Gemini & Grok treat HTTP 400 as unauthorized.** Both vendors return 400 for
-//!   an invalid key on the models endpoint (macOS + Windows both special-case
-//!   this). [`parse_health_response`] folds 400 into "not healthy" for these two.
+//! - **Gemini, Gemini 3.5 Transcribe & Grok treat HTTP 400 as unauthorized.**
+//!   These vendors return 400 for an invalid key on the models endpoint (macOS +
+//!   Windows both special-case this). [`parse_health_response`] folds 400 into
+//!   "not healthy" for them; the *reason* mapping (400 ⇒ unauthorized rather than
+//!   unreachable) lives on the hosts, which must list the Gemini-Transcribe
+//!   provider alongside `gemini`/`grok` or a bad key reads as "unreachable".
 //! - **Routed/HW-Cloud providers** (`HyperWhisperCloud`, `AzureMai`,
 //!   `GoogleChirp`) need no API key and are treated as always reachable on both
 //!   platforms (`performHealthCheck` returns `.healthy` immediately). We still
@@ -72,6 +77,12 @@ enum HealthAuth {
     XiApiKey,
     /// `?key=<key>` query param (Gemini).
     QueryKey,
+    /// `x-goog-api-key: <key>` header (Gemini 3.5 Transcribe). Google accepts
+    /// both forms on `/v1beta/models`; the header matches the auth the
+    /// `/v1beta/interactions` transcription requests use, so the probe exercises
+    /// the same code path the real call does. Verified live: 200 for a valid
+    /// key, 400 for an invalid one.
+    GoogApiKeyHeader,
 }
 
 /// Resolve the vendor health endpoint for a direct provider. Routed providers
@@ -109,6 +120,13 @@ fn endpoint(provider: Provider) -> Option<HealthEndpoint> {
             HealthAuth::QueryKey,
         ),
         Provider::Grok => e("https://api.x.ai/v1/models", HealthAuth::Bearer),
+        // Gemini 3.5 Transcribe (pre-recorded and live) share one BYOK key slot
+        // and one vendor. Both probe the models list with the header auth their
+        // real requests use.
+        Provider::GeminiTranscribe | Provider::GeminiTranscribeLive => e(
+            "https://generativelanguage.googleapis.com/v1beta/models",
+            HealthAuth::GoogApiKeyHeader,
+        ),
         // Routed / HW Cloud: no vendor endpoint — handled by the base-URL path.
         Provider::HyperWhisperCloud | Provider::AzureMai | Provider::GoogleChirp => None,
     }
@@ -155,6 +173,9 @@ fn build_direct(ep: HealthEndpoint, api_key: &str) -> HttpRequest {
         }
         HealthAuth::XiApiKey => {
             headers.push(Header::new("xi-api-key", api_key.to_string()));
+        }
+        HealthAuth::GoogApiKeyHeader => {
+            headers.push(Header::new("x-goog-api-key", api_key.to_string()));
         }
         HealthAuth::QueryKey => {
             // Append `key=<api_key>` to the query (the endpoint has no existing
@@ -308,6 +329,21 @@ mod tests {
             "https://generativelanguage.googleapis.com/v1beta/models?key=g-test"
         );
         assert_eq!(header(&req, "Authorization"), None);
+    }
+
+    #[test]
+    fn gemini_transcribe_uses_the_goog_header_not_the_query_key() {
+        // The interactions endpoint authenticates by header; the probe uses the
+        // same scheme so a key that works for one works for the other.
+        for p in [Provider::GeminiTranscribe, Provider::GeminiTranscribeLive] {
+            let req = build_health_request(p, "gt-test");
+            assert_eq!(
+                req.url,
+                "https://generativelanguage.googleapis.com/v1beta/models"
+            );
+            assert_eq!(header(&req, "x-goog-api-key"), Some("gt-test"));
+            assert!(!req.url.contains("key="), "provider={p:?}");
+        }
     }
 
     #[test]

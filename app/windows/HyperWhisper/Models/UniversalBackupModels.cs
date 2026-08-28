@@ -191,6 +191,14 @@ public class UniversalStreamingSettings
     [JsonPropertyName("deepgramModel")]
     public string? DeepgramModel { get; set; }
 
+    /// <summary>
+    /// Which vendor HyperWhisper Cloud's live route uses, as a cloud-stt-catalog
+    /// entry id. Absent or null means the default, deepgramNova3 - which is what
+    /// every backup written before this key existed carries.
+    /// </summary>
+    [JsonPropertyName("cloudTier")]
+    public string? CloudTier { get; set; }
+
     [JsonPropertyName("fastFormatting")]
     public bool? FastFormatting { get; set; }
 
@@ -369,6 +377,25 @@ public class UniversalApiKeys
 
     [JsonPropertyName("grok")]
     public string? Grok { get; set; }
+
+    /// <summary>
+    /// Google Gemini 3.5 Transcribe (<c>TranscriptionApiKeyType.GeminiTranscribe</c>).
+    /// A SEPARATE slot from <see cref="Gemini"/>, which is the legacy Gemini
+    /// post-processing key: same "AIza" shape, different API, and users may hold
+    /// different keys for them. Because the legacy key does round-trip, a missing
+    /// field here fails silently - the restored machine looks configured for
+    /// Gemini and is not configured for Gemini 3.5 Transcribe.
+    ///
+    /// Squashed lowercase like every other multi-word provider key here
+    /// (<c>assemblyai</c>, <c>elevenlabs</c>) - shared-backup/AGENTS.md pins the
+    /// apiKeys object to "lowercase provider-name keys". The camelCase catalog id
+    /// (<c>geminiTranscribe</c>) is accepted too on IMPORT, via
+    /// <see cref="AdditionalKeys"/>, so a backup written by a platform that
+    /// spelled it that way still restores - see
+    /// <c>UniversalBackupMapper.ApplyApiKeys</c>.
+    /// </summary>
+    [JsonPropertyName("geminitranscribe")]
+    public string? GeminiTranscribe { get; set; }
 
     /// <summary>Captures unknown provider keys for round-trip preservation.</summary>
     [JsonExtensionData]

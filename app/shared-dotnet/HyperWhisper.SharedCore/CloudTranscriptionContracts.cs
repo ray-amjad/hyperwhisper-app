@@ -11,6 +11,13 @@ public enum CloudTranscriptionProvider
     AssemblyAi,
     Soniox,
     Gemini,
+    /// <summary>
+    /// Gemini 3.5 Transcribe via Google's dedicated speech API
+    /// (POST /v1beta/interactions). Same vendor as <see cref="Gemini"/> but a
+    /// different endpoint, a different key slot and different eligibility — the
+    /// two are not interchangeable.
+    /// </summary>
+    GeminiTranscribe,
     AzureMai,
     GoogleChirp,
     HyperWhisperCloud,

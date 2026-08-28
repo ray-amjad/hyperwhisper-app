@@ -42,6 +42,8 @@
 "streaming.enable.title" = "Povolit streamovani";
 "streaming.provider.picker.title" = "Poskytovatel";
 "streaming.model.title" = "Model";
+"streaming.cloudTier.title" = "Živý engine";
+"streaming.cloudTier.description" = "Který hlasový engine používá HyperWhisper Cloud pro živý přepis";
 "streaming.model.nova3general" = "Nova 3 General";
 "streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Rychle formatovani";
@@ -767,8 +769,8 @@ Upravte tyto režimy a vyberte jiný model před jeho odebráním.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ kreditů/min";
 "modes.cloudAccuracy.grokStt.label" = "Nejvyssi (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Nejvyssi presnost s pomalejsim zpracovanim. Nejlepsi pro dulezite prepisy.";
-"modes.cloudAccuracy.googleChirp3.label" = "Vysoká (Google Chirp 3)";
-"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 s Chirp 3. Vícejazyčné s přizpůsobením frází.";
+"modes.cloudAccuracy.geminiTranscribe.label" = "Vysoká (Google Gemini 3.5 Transcribe)";
+"modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Vícejazyčný, s podporou vlastního slovníku.";
 "modes.cloudAccuracy.azureMaiTranscribe.label" = "Vysoká (Microsoft MAI-Transcribe 1.5)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 přes Azure Speech. 43 jazyků s kontextovým přizpůsobením.";
 

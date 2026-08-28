@@ -135,6 +135,49 @@ try
         && credentialStore.Text("GroqApiKey") == "groq-before-failure",
         "failed secure-store import did not roll back previously written API keys");
 
+    // The Gemini 3.5 Transcribe key is a SEPARATE credential from the legacy
+    // "gemini" post-processing key: same "AIza" shape, different API. Before
+    // this was wired up, a user who held only the Transcribe key exported a
+    // backup that restored a machine with the provider silently unconfigured —
+    // and the legacy key restoring fine is exactly what masked it. The provider
+    // id is squashed lowercase, matching the Windows [JsonPropertyName] and the
+    // macOS member, so one file round-trips across all three platforms.
+    var geminiStore = new MemoryCredentialStore();
+    geminiStore.Seed("GeminiTranscribeApiKey", "aiza-transcribe-only-secret");
+    var geminiService = new ApplicationBackupService(database, settings, geminiStore);
+    var geminiExport = JsonNode.Parse(await geminiService.ExportAsync(new BackupExportSelection(
+        IncludeSettings: false, IncludeModes: false, IncludeVocabulary: false, IncludeCredentials: true)))!.AsObject();
+    Assert(geminiExport["apiKeys"] is JsonObject geminiKeys
+        && geminiKeys.Count == 1
+        && geminiKeys["geminitranscribe"]!.GetValue<string>() == "aiza-transcribe-only-secret"
+        && !geminiKeys.ContainsKey("gemini"),
+        "the Gemini 3.5 Transcribe key was not exported under its own provider id");
+    var geminiRestore = new MemoryCredentialStore();
+    var geminiImport = await new ApplicationBackupService(database, settings, geminiRestore)
+        .ImportAsync(geminiExport.ToJsonString(), credentialSelection);
+    Assert(geminiImport.IsSuccess && geminiImport.Value!.CredentialsImported == 1
+        && geminiRestore.Text("GeminiTranscribeApiKey") == "aiza-transcribe-only-secret"
+        && !geminiRestore.Contains("GeminiApiKey"),
+        "the Gemini 3.5 Transcribe key did not survive a backup round trip");
+
+    // A Windows or macOS backup spells this id in camelCase. Before the id
+    // charset accepted capitals, one such member failed the WHOLE restore —
+    // modes, vocabulary and settings with it, not just the keys — while the
+    // sibling platforms read the same file fine.
+    var camelCaseExport = geminiExport.DeepClone().AsObject();
+    camelCaseExport["apiKeys"] = new JsonObject { ["geminiTranscribe"] = "aiza-camel-case-secret" };
+    Assert(camelCaseExport.ToJsonString().Contains("geminiTranscribe", StringComparison.Ordinal),
+        "the camelCase fixture lost its capital letter before the assertion ran");
+    Assert(new ApplicationBackupService(database, settings, new MemoryCredentialStore())
+        .Inspect(camelCaseExport.ToJsonString()).Error is null,
+        "a camelCase API-key provider id failed the whole restore");
+    var camelCaseRestore = new MemoryCredentialStore();
+    var camelCaseImport = await new ApplicationBackupService(database, settings, camelCaseRestore)
+        .ImportAsync(camelCaseExport.ToJsonString(), credentialSelection);
+    Assert(camelCaseImport.IsSuccess && camelCaseImport.Value!.CredentialsImported == 1
+        && camelCaseRestore.Text("GeminiTranscribeApiKey") == "aiza-camel-case-secret",
+        "a camelCase provider id did not fold onto its canonical account");
+
     var invalidProvider = full.DeepClone().AsObject();
     invalidProvider["apiKeys"] = new JsonObject { [new string('p', 65)] = "value" };
     Assert(service.Inspect(invalidProvider.ToJsonString()).Error?.Code == "backup.invalid_credentials",
@@ -276,6 +319,49 @@ try
         && roundTrip["modes"]!.AsArray().Single(item => item!["id"]!.GetValue<string>() == first.Id.ToString("D"))!
             ["platformExtensions"]!["macos"]!["futureMac"]!.GetValue<string>() == "keep",
         "foreign platform extensions were not preserved across import/export");
+
+    // --- Catalog v8: a backup written by a pre-v8 client -------------------
+    //
+    // A backup file is the one input that is arbitrarily old, and it bypasses the
+    // one-shot EF migration entirely: that migration is already recorded as
+    // applied by the time a restore runs, so whatever the file says is what lands
+    // in the database. Every retired Chirp 3 spelling has to be canonicalised on
+    // the way in — and the failure is silent, because an unmigrated id resolves
+    // to Deepgram at read time with no error.
+    //
+    // Since #288 the canonicalisation happens inside the shared core, on the
+    // NormalizeCloudRouting hop every imported mode already takes — not in a
+    // private helper on this path. These assertions are what pins that the port
+    // kept the behaviour, so they are written against the observable restore.
+    foreach (var legacyTier in new[]
+    {
+        "googleChirp3", "googlechirp3", "GOOGLECHIRP3",
+        "googlechirp", "google-chirp", "chirp", "chirp_3", "googlespeech",
+    })
+    {
+        var legacyBackup = JsonNode.Parse(await service.ExportAsync(
+            BackupExportSelection.SelectedModes([second.Id])))!.AsObject();
+        legacyBackup["modes"]!.AsArray()[0]!["cloudAccuracyTier"] = legacyTier;
+        Assert((await service.ImportAsync(legacyBackup.ToJsonString())).IsSuccess,
+            $"a backup carrying the retired tier '{legacyTier}' failed to import");
+
+        var restored = (await modes.ListAsync()).Single(item => item.Id == second.Id);
+        Assert(restored.CloudAccuracyTier != "deepgramNova3",
+            $"a backup carrying '{legacyTier}' restored onto Deepgram — the documented silent "
+                + "failure: the user changes vendor, credits and X-STT-Provider with no error.");
+        Assert(restored.CloudAccuracyTier == "geminiTranscribe",
+            $"a backup carrying '{legacyTier}' restored as '{restored.CloudAccuracyTier}'; the "
+                + "portable import path must canonicalise through the shared core.");
+    }
+
+    // An absent tier keeps this path's own documented default rather than the
+    // core's empty-input answer (deepgramNova3).
+    var noTierBackup = JsonNode.Parse(await service.ExportAsync(
+        BackupExportSelection.SelectedModes([second.Id])))!.AsObject();
+    noTierBackup["modes"]!.AsArray()[0]!.AsObject().Remove("cloudAccuracyTier");
+    Assert((await service.ImportAsync(noTierBackup.ToJsonString())).IsSuccess, "tier-less backup failed to import");
+    Assert((await modes.ListAsync()).Single(item => item.Id == second.Id).CloudAccuracyTier == "elevenLabsScribeV2",
+        "a backup with no cloudAccuracyTier no longer falls back to elevenLabsScribeV2");
 
     // NATIVE CAPTURE (issue #277, phase 1a). Drives every
     // shared-conformance/backup-vectors.json modeNormalization row through the SHIPPING
@@ -605,7 +691,7 @@ try
     }
     Console.WriteLine($"Backup macos-settings vectors: {macosRows.Count}/{macosRows.Count} rows matched the shared core.");
 
-    Console.WriteLine("Backup application tests passed (38/38).");
+    Console.WriteLine("Backup application tests passed (42/42).");
 }
 finally
 {

@@ -85,6 +85,29 @@ Turn on **Remove filler words** to remove the speech fillers "uh", "um", and "er
   </Tab>
 </Tabs>
 
+## Spacing Between Transcriptions
+
+HyperWhisper adds one space to the end of each transcript before it delivers the text. The space keeps two recordings apart when you dictate one after the other. Without it, the two transcripts run together as "Hello world.How are you?".
+
+This behavior is automatic. There is no setting for it.
+
+HyperWhisper does not add the space in these three cases:
+
+- The transcript already ends with a space or a line break.
+- The transcript is empty.
+- The language of the mode is a language that writes no spaces between words.
+
+The languages that write no spaces are Japanese (`ja`), Chinese (`zh`, and the `zh-TW`, `zh-Hans`, and `zh-Hant` variants), Cantonese (`yue`), Korean (`ko`), and Thai (`th`). A regional variant such as `zh-CN` counts as Chinese.
+
+When the language of the mode is **Automatic**, HyperWhisper reads the transcript instead. If more than 30% of the characters are CJK characters — the punctuation and the spaces are not counted — HyperWhisper adds no space.
+
+### During streaming
+
+[Streaming](/streaming-settings) delivers the transcript in parts, so the rule applies to each part.
+
+- On **macOS** and **Windows**, HyperWhisper adds the trailing space to each part, with the rule above. The streaming language decides, and not the mode language.
+- On **Linux**, HyperWhisper puts a separator between the parts instead. The separator is empty for a no-space language, and one space for the other languages. When the streaming language is **Automatic**, Linux examines the text before the boundary and the next part. If one of them is written in a continuous script — the CJK scripts or Thai — the separator is empty.
+
 ## Clipboard Settings
 
 The **Clipboard** section controls the clipboard behavior before and after Auto Paste.

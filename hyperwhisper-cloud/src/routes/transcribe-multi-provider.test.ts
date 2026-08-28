@@ -10,6 +10,7 @@ mock.module('../lib/redis', () => ({
 }));
 
 const { transcribeRoute, estimateCreditsForProviderFallbacks } = await import('./transcribe');
+const { drainPendingDeductions } = await import('../middleware/credits');
 
 const originalFetch = globalThis.fetch;
 
@@ -675,6 +676,156 @@ describe('Gemini pre-buffer size gate (413 before any upstream call)', () => {
     expect(response.status).toBe(413);
     // The gate must fire before any buffering / upstream provider call.
     expect(fetchCalled).toBe(false);
+  });
+});
+
+describe('Gemini 3.5 Transcribe routing (X-STT-Provider: gemini-transcribe)', () => {
+  afterEach(() => { globalThis.fetch = originalFetch; });
+
+  test('routes to /v1beta/interactions and never to :generateContent (TRAP 1)', async () => {
+    const urls: string[] = [];
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      urls.push(url);
+      if (url.includes('/v1beta/interactions')) {
+        return Response.json({
+          id: 'interaction-1',
+          steps: [{ content: [{ text: 'routed ok' }] }],
+          usage: {
+            input_tokens_by_modality: [{ modality: 'audio', tokens: 236 }, { modality: 'text', tokens: 1 }],
+            total_output_tokens: 0,
+          },
+        });
+      }
+      if (url.includes('/api/license/credits')) return Response.json({ credits_remaining: 999 });
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    process.env.GEMINI_API_KEY = 'test';
+    const response = await buildApp().fetch(request({ 'X-STT-Provider': 'gemini-transcribe' }, '&language=en'));
+    const body = await response.json() as { text: string; metadata: { stt_provider: string } };
+
+    expect(response.status).toBe(200);
+    expect(body.text).toBe('routed ok');
+    expect(body.metadata.stt_provider).toContain('gemini-transcribe/gemini-3.5-transcribe');
+    expect(urls.some((u) => u.includes('/v1beta/interactions'))).toBe(true);
+    expect(urls.some((u) => u.includes('generateContent'))).toBe(false);
+  });
+
+  test('the WebSocket-only live model is rejected without reaching the upstream', async () => {
+    let interactionsCalled = false;
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('generativelanguage.googleapis.com')) {
+        interactionsCalled = true;
+        return Response.json({});
+      }
+      if (url.includes('/api/license/credits')) return Response.json({ credits_remaining: 999 });
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    process.env.GEMINI_API_KEY = 'test';
+    const response = await buildApp().fetch(request({
+      'X-STT-Provider': 'gemini-transcribe',
+      'X-STT-Model': 'gemini-3.5-transcribe-live',
+    }));
+
+    // Registered in the model registry (so the price is right) but served by the
+    // WebSocket route — /transcribe must say so rather than silently substituting
+    // the pre-recorded model.
+    expect(response.status).toBe(400);
+    expect(interactionsCalled).toBe(false);
+  });
+
+  test('rejects an oversized Content-Length with 413 before buffering or calling fetch', async () => {
+    let fetchCalled = false;
+    globalThis.fetch = mock(async () => { fetchCalled = true; return Response.json({}); }) as unknown as typeof fetch;
+
+    const body = new Uint8Array(8);
+    const req = new Request('http://localhost/transcribe?license_key=test-license', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'audio/wav',
+        'Content-Length': String(15 * 1024 * 1024),
+        'X-STT-Provider': 'gemini-transcribe',
+      },
+      body,
+    });
+
+    const response = await buildApp().fetch(req);
+    expect(response.status).toBe(413);
+    expect(fetchCalled).toBe(false);
+  });
+
+  test('a silent clip is reported as no_speech but STILL charged', async () => {
+    // Google bills 25 input tokens/sec whether or not a word comes back. Free
+    // no-speech here would let one balance fund unlimited paid upstream calls.
+    const charges: Array<{ amount: number }> = [];
+    globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes('/v1beta/interactions')) {
+        return Response.json({
+          id: 'interaction-silent',
+          steps: [{ content: [{ text: '   ' }] }],
+          usage: {
+            input_tokens_by_modality: [{ modality: 'audio', tokens: 236 }],
+            total_output_tokens: 0,
+          },
+        });
+      }
+      if (url.includes('/api/license/credits')) {
+        charges.push(JSON.parse(String(init?.body)) as { amount: number });
+        return Response.json({ credits_remaining: 999 });
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    process.env.GEMINI_API_KEY = 'test';
+    const response = await buildApp().fetch(request({ 'X-STT-Provider': 'gemini-transcribe' }));
+    const body = await response.json() as {
+      text: string;
+      duration: number;
+      no_speech_detected?: boolean;
+      cost: { usd: number; credits: number };
+    };
+    await drainPendingDeductions(2000);
+
+    expect(body.no_speech_detected).toBe(true);
+    expect(body.text).toBe('');
+    expect(body.duration).toBeCloseTo(9.44, 2);
+    expect(body.cost.usd).toBeCloseTo(236 * (2 / 1e6), 9);
+    expect(body.cost.credits).toBeGreaterThan(0);
+    expect(charges).toHaveLength(1);
+    expect(charges[0]!.amount).toBe(body.cost.credits);
+  });
+
+  test('a silent clip from a DURATION-billed provider is still free', async () => {
+    // The route gates on the adapter's own cost, so the goodwill the other
+    // adapters extend on a silent clip is untouched — no per-provider table.
+    const charges: unknown[] = [];
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('api.deepgram.com')) {
+        return Response.json({
+          results: { channels: [{ alternatives: [{ transcript: '  ' }] }] },
+          metadata: { duration: 4, request_id: 'dg-silent' },
+        });
+      }
+      if (url.includes('/api/license/credits')) {
+        charges.push(url);
+        return Response.json({ credits_remaining: 999 });
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    process.env.DEEPGRAM_API_KEY = 'test';
+    const response = await buildApp().fetch(request({ 'X-STT-Provider': 'deepgram' }));
+    const body = await response.json() as { no_speech_detected?: boolean; cost: { credits: number } };
+    await drainPendingDeductions(2000);
+
+    expect(body.no_speech_detected).toBe(true);
+    expect(body.cost.credits).toBe(0);
+    expect(charges).toHaveLength(0);
   });
 });
 

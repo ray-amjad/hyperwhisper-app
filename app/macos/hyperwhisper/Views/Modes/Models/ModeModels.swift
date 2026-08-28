@@ -217,7 +217,7 @@ struct ModeData {
         self.cloudProvider = mode.cloudProvider ?? "hyperwhisper"
         self.cloudTranscriptionModel = CloudTranscriptionModels.resolveModelAlias(
             mode.cloudTranscriptionModel ?? "whisper-1",
-            provider: CloudProvider(rawValue: self.cloudProvider)
+            provider: CloudProvider.parse(self.cloudProvider)
         )
         // Convert from Core Data Int16 to enum, default to cloud for backward compatibility
         let processingMode = isLegacyVoiceToText ? .off : (PostProcessingMode(rawValue: mode.postProcessingMode) ?? .cloud)
@@ -380,7 +380,15 @@ enum CloudAccuracyTier: String, CaseIterable, Identifiable {
     case deepgramNova3 = "deepgramNova3"
     case grokStt = "grokStt"
     case azureMaiTranscribe = "azureMaiTranscribe"
-    case googleChirp3 = "googleChirp3"
+    /// Google's cloud-tier slot. Catalog v8 replaced `googleChirp3` with this
+    /// entry at the same array index (so "Google" still defaults to the routed
+    /// speech model rather than the BYOK LLM row). `googleChirp3` and its
+    /// aliases live on in the entry's `migrateFrom`, and
+    /// `PersistenceController.migrateGoogleChirp3TierIfNeeded` converges the
+    /// persisted values — do NOT re-add the old case, or `fromStorageValue`'s
+    /// canonical match at the top would win over the catalog alias and strand
+    /// users on a tier with no catalog entry.
+    case geminiTranscribe = "geminiTranscribe"
     case elevenLabsScribeV2 = "elevenLabsScribeV2"
     case openaiWhisper = "openaiWhisper"
     case assemblyAI = "assemblyAI"
@@ -423,7 +431,7 @@ enum CloudAccuracyTier: String, CaseIterable, Identifiable {
     // MARK: - Vendor grouping (Provider dropdown)
 
     /// The catalog `vendor` key this tier belongs to — the Provider dropdown's
-    /// selection tag. Two tiers can share one (Chirp + Gemini are both
+    /// selection tag. Two tiers can share one (Transcribe + Gemini are both
     /// `google`), which is what collapses them into a single Provider row.
     var vendorKey: String {
         CloudSTTCatalog.shared.entry(byId: rawValue)?.vendor ?? rawValue
@@ -443,6 +451,24 @@ enum CloudAccuracyTier: String, CaseIterable, Identifiable {
         }
     }
 
+    /// The tiers offered by the STREAMING cloud-tier picker — the vendors
+    /// HyperWhisper Cloud serves a live WebSocket route for, in catalog order.
+    ///
+    /// A strict subset of `allCases`: the accuracy picker's tiers are about the
+    /// batch route, and most of them have no live route at all. The set is
+    /// single-sourced in Rust (`streaming_cloud_tier_entries`), so widening it is
+    /// a catalog change made in the same commit as the backend route. Anything
+    /// this list offers that the backend cannot serve is a 404 at dictation time,
+    /// and the catalog has no `enabled` gate to hide a half-finished vendor.
+    ///
+    /// Empty only if the shared core failed to load; the picker's own default
+    /// (`deepgramNova3`) still resolves, so the route never becomes underivable.
+    static var streamingEligibleTiers: [CloudAccuracyTier] {
+        CloudSTTCatalog.shared.streamingCloudTierEntries.compactMap {
+            CloudAccuracyTier(rawValue: $0.id)
+        }
+    }
+
     /// The tier a fresh Provider selection lands on: the vendor group's first
     /// entry in catalog order. With no catalog the row's key IS a tier raw
     /// value (see `pickerVendorGroups`), so fall back to parsing it — otherwise
@@ -459,7 +485,7 @@ enum CloudAccuracyTier: String, CaseIterable, Identifiable {
 
     /// The tier that owns `modelId` within this tier's vendor group. Selecting a
     /// Gemini model under the merged "Google" row has to move the tier from
-    /// `googleChirp3` to `gemini`, since the tier is what becomes the
+    /// `geminiTranscribe` to `gemini`, since the tier is what becomes the
     /// `X-STT-Provider` header. Falls back to `self` when nothing matches.
     func tierOwningModel(_ modelId: String) -> CloudAccuracyTier {
         guard let group = CloudSTTCatalog.shared.vendorGroup(forEntryId: rawValue) else { return self }
@@ -469,10 +495,26 @@ enum CloudAccuracyTier: String, CaseIterable, Identifiable {
     }
 
     /// Every model selectable under this tier's Provider row — the whole vendor
-    /// group, so the merged "Google" row lists Chirp and Gemini models together.
+    /// group, so the merged "Google" row lists both Google tiers models together.
     var vendorGroupModels: [CloudSTTCatalog.Model] {
         guard let group = CloudSTTCatalog.shared.vendorGroup(forEntryId: rawValue) else { return models }
         return group.models.map(\.model)
+    }
+
+    /// `vendorGroupModels` minus anything HyperWhisper Cloud serves only over
+    /// the live WebSocket route. This is what the mode editor's Model dropdown
+    /// offers: a live-only model reaches `/transcribe` as an HTTP 400, so every
+    /// dictation in a mode carrying one fails. See
+    /// `CloudSTTCatalog.liveOnlyModelIds` for why the per-model `streaming` flag
+    /// is not the right filter.
+    var vendorGroupDictationModels: [CloudSTTCatalog.Model] {
+        vendorGroupModels.filter { !CloudSTTCatalog.isLiveOnlyModel($0.id) }
+    }
+
+    /// This tier's own models, minus the live-only ones — the set the send path
+    /// validates a stored `cloudTranscriptionModel` against.
+    var dictationModels: [CloudSTTCatalog.Model] {
+        models.filter { !CloudSTTCatalog.isLiveOnlyModel($0.id) }
     }
 
     /// Whether this engine (provider/tier) is the recommended default for
@@ -494,8 +536,8 @@ enum CloudAccuracyTier: String, CaseIterable, Identifiable {
             return "modes.cloudAccuracy.grokStt.description".localized
         case .azureMaiTranscribe:
             return "modes.cloudAccuracy.azureMaiTranscribe.description".localized
-        case .googleChirp3:
-            return "modes.cloudAccuracy.googleChirp3.description".localized
+        case .geminiTranscribe:
+            return "modes.cloudAccuracy.geminiTranscribe.description".localized
         case .openaiWhisper, .assemblyAI, .mistralVoxtral, .soniox, .gemini:
             // No localized description string for the catalog-v6 additions —
             // fall back to the provider display name.
@@ -521,8 +563,8 @@ enum CloudAccuracyTier: String, CaseIterable, Identifiable {
             return "grok"
         case .azureMaiTranscribe:
             return "azure-mai"
-        case .googleChirp3:
-            return "google-chirp"
+        case .geminiTranscribe:
+            return "gemini-transcribe"
         case .openaiWhisper:
             return "openai"
         case .assemblyAI:

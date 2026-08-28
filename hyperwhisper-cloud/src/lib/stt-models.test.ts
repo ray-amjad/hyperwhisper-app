@@ -12,7 +12,7 @@ import {
 
 describe('isValidProviderId', () => {
   test('accepts known providers (legacy + new)', () => {
-    for (const id of ['deepgram', 'groq', 'openai', 'gemini', 'assemblyai', 'mistral', 'soniox']) {
+    for (const id of ['deepgram', 'groq', 'openai', 'gemini', 'gemini-transcribe', 'assemblyai', 'mistral', 'soniox']) {
       expect(isValidProviderId(id)).toBe(true);
     }
   });
@@ -91,6 +91,37 @@ describe('resolveModel', () => {
     if (slam.ok) expect(slam.model.id).toBe('universal-3-5-pro');
   });
 
+  test('gemini-transcribe resolves both speech models and defaults to the pre-recorded one', () => {
+    const defaulted = resolveModel('gemini-transcribe', undefined);
+    expect(defaulted.ok).toBe(true);
+    if (defaulted.ok) expect(defaulted.model.id).toBe('gemini-3.5-transcribe');
+
+    const live = resolveModel('gemini-transcribe', 'gemini-3.5-transcribe-live');
+    expect(live.ok).toBe(true);
+    if (live.ok) expect(live.model.id).toBe('gemini-3.5-transcribe-live');
+
+    // The LLM models belong to the `gemini` provider, not this one, and vice
+    // versa — the two are different upstream endpoints (see TRAP 1 in
+    // providers/gemini-transcribe.ts) and must not cross-resolve.
+    expect(resolveModel('gemini-transcribe', 'gemini-2.5-flash').ok).toBe(false);
+    expect(resolveModel('gemini', 'gemini-3.5-transcribe').ok).toBe(false);
+  });
+
+  test('gemini-transcribe advertises real vocabulary support, unlike the Gemini LLM entry', () => {
+    // `custom_vocabulary` is a first-class field on /v1beta/interactions; the
+    // LLM path can only ask nicely in the prompt.
+    for (const id of ['gemini-3.5-transcribe', 'gemini-3.5-transcribe-live']) {
+      const r = resolveModel('gemini-transcribe', id);
+      expect(r.ok).toBe(true);
+      if (r.ok) {
+        expect(r.model.supportsVocabulary).toBe(true);
+        expect(r.model.isPreview).toBe(true);
+      }
+    }
+    const llm = resolveModel('gemini', 'gemini-2.5-flash');
+    if (llm.ok) expect(llm.model.supportsVocabulary).toBe(false);
+  });
+
   test('Soniox stt-async-v5 resolves and is now the provider default', () => {
     const explicit = resolveModel('soniox', 'stt-async-v5');
     expect(explicit.ok).toBe(true);
@@ -166,7 +197,7 @@ describe('fallbackChainFor', () => {
   });
 
   test('every other provider is a chain of one — no silent substitution', () => {
-    for (const id of ['azure-mai', 'google-chirp', 'openai', 'gemini', 'assemblyai', 'mistral', 'soniox'] as SttProviderId[]) {
+    for (const id of ['azure-mai', 'google-chirp', 'openai', 'gemini', 'gemini-transcribe', 'assemblyai', 'mistral', 'soniox'] as SttProviderId[]) {
       expect(fallbackChainFor(id)).toEqual([id]);
     }
   });
@@ -201,7 +232,7 @@ describe('isSelfOnly', () => {
   // a provider to a cross-provider chain, or shortening one, has to be a
   // deliberate edit here too.
   const SELF_ONLY: SttProviderId[] = [
-    'azure-mai', 'google-chirp', 'openai', 'gemini', 'assemblyai', 'mistral', 'soniox',
+    'azure-mai', 'google-chirp', 'openai', 'gemini', 'gemini-transcribe', 'assemblyai', 'mistral', 'soniox',
   ];
 
   test('exactly the single-upstream providers are self-only', () => {

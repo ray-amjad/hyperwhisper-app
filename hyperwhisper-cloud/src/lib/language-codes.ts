@@ -291,8 +291,16 @@ const GOOGLE_CHIRP_LOCALE_BY_BASE: Readonly<Record<string, string>> = {
 };
 
 /**
- * Every locale Chirp 3 accepts, per the catalog, lowercased for lookup.
- * Mirrors `googleChirp3.languages.codes` in cloud-stt-catalog.json exactly.
+ * Every locale Chirp 3 accepts, lowercased for lookup.
+ *
+ * This list used to mirror `googleChirp3.languages.codes` in
+ * cloud-stt-catalog.json. Catalog v8 replaced that entry with
+ * `geminiTranscribe`, so this table is now the only copy and is maintained here.
+ * It is deliberately NOT deleted with the catalog entry: only Chirp's
+ * catalog-facing tier identity moved. Clients shipped before v8 still send
+ * `X-STT-Provider: google-chirp`, the provider registry is fail-closed, and
+ * `resolveProviderLanguage` returning null for a locale it used to accept would
+ * 400 those requests.
  */
 const GOOGLE_CHIRP_LOCALES: ReadonlySet<string> = new Set(
   [

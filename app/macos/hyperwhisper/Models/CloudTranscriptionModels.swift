@@ -18,8 +18,57 @@ enum CloudProvider: String, CaseIterable, Identifiable {
     // camelCase identifiers stay on the Swift case name for ergonomics.
     case microsoftAzureSpeech = "microsoftazurespeech"
     case googleSpeech = "googlespeech"
+    /// Google's dedicated speech API (`POST /v1beta/interactions`). Same vendor
+    /// as `.gemini` but a DIFFERENT API, key slot and eligibility — the
+    /// `:generateContent` path accepts `gemini-3.5-transcribe`, bills the audio
+    /// and returns empty text, so the two must never be merged.
+    case geminiTranscribe = "geminitranscribe"
 
     var id: String { rawValue }
+
+    // MARK: - Parsing persisted / imported values
+
+    /// Parse a `cloudProvider` value that crossed a persistence, backup or
+    /// Local API boundary, tolerating whitespace and CASE.
+    ///
+    /// The raw values above are all lowercase, but the cross-platform backup
+    /// format is not: Windows persists and exports camelCase ids
+    /// (`CloudTranscriptionProvider.cs` writes `geminiTranscribe`). A plain
+    /// `CloudProvider(rawValue:)` therefore returns nil for `"geminiTranscribe"`,
+    /// and every call site's `?? .hyperwhisper` fallback turns that miss into a
+    /// SILENT downgrade: a BYOK user restoring a Windows backup stops using
+    /// their own Google key and is billed HyperWhisper credits instead, with no
+    /// error and no visible change in the UI.
+    ///
+    /// The shared core's `normalize_cloud_provider` now lowercases the values it
+    /// passes through, so the import path arrives here already canonical — but
+    /// this parse is what covers every OTHER boundary (Core Data rows written by
+    /// an older build, the Local API, a hand-edited backup) and what keeps the
+    /// two halves independent.
+    ///
+    /// Use this instead of `init(rawValue:)` anywhere the string came from
+    /// storage. Unrecognised values still return nil, so a provider belonging to
+    /// another platform is not silently coerced onto one of ours.
+    static func parse(_ value: String?) -> CloudProvider? {
+        guard let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !trimmed.isEmpty else {
+            return nil
+        }
+        return CloudProvider(rawValue: trimmed.lowercased())
+    }
+
+    /// The canonical spelling to PERSIST for `value`: the matching case's raw
+    /// value when `parse` recognises it, otherwise the input verbatim.
+    ///
+    /// Applied on the write path so an imported camelCase id is stored in the
+    /// lowercase form every reader and every SwiftUI picker tag expects. An
+    /// unrecognised value passes through untouched — it may belong to a platform
+    /// this build does not model, and rewriting or dropping it would lose the
+    /// user's setting on the next export.
+    static func canonicalStorageValue(_ value: String?) -> String? {
+        guard let value else { return nil }
+        return parse(value)?.rawValue ?? value
+    }
 
     /// Display name for the provider
     var displayName: String {
@@ -48,6 +97,8 @@ enum CloudProvider: String, CaseIterable, Identifiable {
             return "Microsoft Azure Speech"
         case .googleSpeech:
             return "Google Cloud Speech"
+        case .geminiTranscribe:
+            return "Gemini 3.5 Transcribe"
         }
     }
 
@@ -78,6 +129,8 @@ enum CloudProvider: String, CaseIterable, Identifiable {
             return "Microsoft MAI-Transcribe 1.5 via Azure Speech (43 languages with contextual biasing)"
         case .googleSpeech:
             return "Google Cloud Speech-to-Text V2 with Chirp 3 (multilingual + phrase adaptation)"
+        case .geminiTranscribe:
+            return "Google's dedicated Gemini 3.5 speech-to-text API with native custom vocabulary"
         }
     }
 
@@ -100,7 +153,9 @@ enum CloudProvider: String, CaseIterable, Identifiable {
             return "https://console.mistral.ai/api-keys"
         case .soniox:
             return "https://console.soniox.com"
-        case .gemini:
+        case .gemini, .geminiTranscribe:
+            // Same vendor, same AI Studio key page — the two BYOK slots are
+            // separate but both keys are minted here.
             return "https://aistudio.google.com/apikey"
         case .grok:
             return "https://console.x.ai/"
@@ -166,6 +221,11 @@ enum CloudProvider: String, CaseIterable, Identifiable {
             // Inline V2 recognize caps near 10 MB (~1 min). GCS upload path is
             // out of scope for v1; cap matches the backend's 9.5 MB guard.
             return 9_500_000
+        case .geminiTranscribe:
+            // `/v1beta/interactions` has no file-reference form — the audio goes
+            // inline as base64, which inflates it by ~33%. 14 MB of raw audio
+            // stays under the endpoint's request ceiling once encoded.
+            return 14 * 1024 * 1024  // 14 MB
         }
     }
 
@@ -214,8 +274,9 @@ enum CloudProvider: String, CaseIterable, Identifiable {
             // Ref: https://soniox.com/docs/stt/async/async-transcription
             return ["aac", "aiff", "amr", "asf", "flac", "mp3", "ogg", "wav", "webm", "m4a", "mp4"]
 
-        case .gemini:
-            // Gemini multimodal audio support
+        case .gemini, .geminiTranscribe:
+            // Gemini multimodal audio support. `/v1beta/interactions` takes the
+            // same container set as `:generateContent` — one vendor, one decoder.
             // Ref: https://ai.google.dev/gemini-api/docs/audio
             return ["mp3", "mp4", "m4a", "wav", "webm", "flac", "ogg", "aac", "opus"]
 
@@ -535,6 +596,20 @@ struct CloudTranscriptionModels {
             pricePerSecond: nil
         ),
 
+        // Gemini 3.5 Transcribe — Google's dedicated speech API
+        // (POST /v1beta/interactions), a separate provider from the multimodal
+        // `.gemini` rows above. Only the pre-recorded model belongs here; the
+        // live variant (`gemini-3.5-transcribe-live`) is WebSocket-only and is
+        // never a batch transcription model.
+        CloudTranscriptionModel(
+            id: "gemini-3.5-transcribe",
+            displayName: "Gemini 3.5 Transcribe",
+            isAvailable: true,
+            description: "Google's dedicated speech-to-text model. Supports custom vocabulary for exact spellings of names and jargon.",
+            provider: .geminiTranscribe,
+            pricePerSecond: nil
+        ),
+
         // Microsoft Azure Speech (HyperWhisper Cloud only)
         CloudTranscriptionModel(
             id: "mai-transcribe-1.5",
@@ -776,6 +851,11 @@ struct CloudTranscriptionModels {
             return "mai-transcribe-1.5"
         case .googleSpeech:
             return "chirp_3"
+        case .geminiTranscribe:
+            // Matches hw-net `gemini_transcribe::DEFAULT_MODEL`. The live variant
+            // (`gemini-3.5-transcribe-live`) is WebSocket-only and must never be
+            // offered here — the REST builder rejects it with a 400.
+            return "gemini-3.5-transcribe"
         }
     }
 }

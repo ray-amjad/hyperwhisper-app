@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { Hono } from 'hono';
+import { computeCerebrasChatCost, computeGroqChatCost, creditsForCost } from '../lib/cost-calculator';
 
 // A valid, well-funded licensed user so auth + credit checks pass entirely
 // in-memory (no network) and the route reaches the LLM provider chain.
@@ -9,6 +10,10 @@ let cachedLicense: { isValid: boolean; credits: number; cachedAt: string } | nul
   cachedAt: 'cached',
 };
 
+// The abuse gate. Default off so every existing suite reaches the LLM chain;
+// the one suite that exercises the block flips it and resets it afterwards.
+let ipBlocked = false;
+
 mock.module('../lib/redis', () => ({
   // mock.module is process-wide in bun, so an incomplete redis mock here breaks
   // any OTHER suite in the run whose module graph reaches lib/google-auth's
@@ -16,7 +21,7 @@ mock.module('../lib/redis', () => ({
   // silently, for exactly this reason. Keep the export even though nothing here
   // uses it.
   redis: {},
-  isIPBlocked: async () => false,
+  isIPBlocked: async () => ipBlocked,
   getCachedLicense: async () => cachedLicense,
   cacheLicense: async () => {},
 }));
@@ -53,13 +58,15 @@ function postProcessRequest(body: Record<string, unknown>, headers: Record<strin
 // Default fetch mock: any request to the license credits-recording endpoint
 // (fired-and-forgotten by deductCredits) succeeds quietly so it doesn't spam
 // "Unexpected fetch" noise across tests that don't care about billing.
-function withProviders(handlers: Record<string, () => Response | Promise<Response>>) {
-  globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+// A handler may take the outgoing RequestInit when it needs to assert on the
+// body we sent (the billing suite reads the credit-deduction payload).
+function withProviders(handlers: Record<string, (init: RequestInit) => Response | Promise<Response>>) {
+  globalThis.fetch = mock(async (input: RequestInfo | URL, init: RequestInit = {}) => {
     const url = String(input);
 
     for (const [match, handler] of Object.entries(handlers)) {
       if (url.includes(match)) {
-        return handler();
+        return handler(init);
       }
     }
 
@@ -299,5 +306,257 @@ describe('postProcessRoute completion evaluation', () => {
 
     expect(response.status).toBe(200);
     expect(body.corrected).toBe('the original transcript');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// What we charge for a request whose output we cannot use.
+//
+// The LLM call is already paid for by the time the route decides the text is
+// unusable, so "the user got their raw transcript back" must not silently mean
+// "the call was free". These tests pin the amount, not just the status code:
+// each expected figure is recomputed from the same cost table the route bills
+// through, so a rate change moves both sides and a dropped charge moves only
+// one.
+// ---------------------------------------------------------------------------
+describe('postProcessRoute billing when the output is unusable', () => {
+  const LEAKED = '--TRANSCRIPT--\nleaked once\n--ENDTRANSCRIPT--';
+  const TRANSCRIPT = 'the original transcript';
+
+  function completion(content: string, promptTokens: number, completionTokens: number, finishReason = 'stop') {
+    return {
+      choices: [{ message: { content }, finish_reason: finishReason }],
+      usage: usage(promptTokens, completionTokens),
+    };
+  }
+
+  beforeEach(() => {
+    cachedLicense = { isValid: true, credits: 1000, cachedAt: 'cached' };
+    process.env.CEREBRAS_API_KEY = 'test-cerebras-key';
+    process.env.GROQ_API_KEY = 'test-groq-key';
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  test('bills the leakage retry as well as the primary when the retry comes back truncated', async () => {
+    // The retry is billed the moment it succeeds, before the route evaluates
+    // it — so a retry that is charged by the provider and then discarded here
+    // still reaches the invoice.
+    withProviders({
+      'api.cerebras.ai': () => Response.json(completion(LEAKED, 50, 20)),
+      'api.groq.com': () => Response.json(completion('cut off mid-sen', 400, 300, 'length')),
+    });
+
+    const response = await buildApp().fetch(
+      postProcessRequest({ text: TRANSCRIPT, prompt: 'fix grammar', account_key: 'lk' })
+    );
+    const body = await response.json() as { corrected: string; cost: { usd: number; credits: number } };
+
+    const expectedUsd = computeCerebrasChatCost(usage(50, 20)) + computeGroqChatCost(usage(400, 300));
+
+    expect(response.status).toBe(200);
+    expect(body.corrected).toBe(TRANSCRIPT);
+    expect(body.cost.usd).toBeCloseTo(expectedUsd, 9);
+    expect(body.cost.credits).toBe(creditsForCost(expectedUsd));
+    // providerUsed moves to the retry even though its text was discarded.
+    expect(response.headers.get('X-LLM-Provider')).toBe('groq-gpt-oss-120b');
+  });
+
+  test('bills only the primary when the leakage retry itself never succeeds', async () => {
+    let groqAttempts = 0;
+    withProviders({
+      'api.cerebras.ai': () => Response.json(completion(LEAKED, 50, 20)),
+      'api.groq.com': () => {
+        groqAttempts += 1;
+        return new Response('server error', { status: 500 });
+      },
+    });
+
+    const response = await buildApp().fetch(
+      postProcessRequest({ text: TRANSCRIPT, prompt: 'fix grammar', account_key: 'lk' })
+    );
+    const body = await response.json() as { corrected: string; cost: { usd: number } };
+
+    expect(response.status).toBe(200);
+    expect(body.corrected).toBe(TRANSCRIPT);
+    expect(body.cost.usd).toBeCloseTo(computeCerebrasChatCost(usage(50, 20)), 9);
+    // groq's retry budget is 3, so a failing retry is 1 attempt + 3 retries.
+    expect(groqAttempts).toBe(4);
+    // Nothing was served by groq, so the header must still name cerebras.
+    expect(response.headers.get('X-LLM-Provider')).toBe('cerebras-gpt-oss-120b');
+  }, 15000);
+
+  test('still charges the caller when the response carries no extractable text, then 500s', async () => {
+    let deduction: { license_key: string; amount: number; metadata: Record<string, unknown> } | null = null;
+    let onDeduction: () => void = () => {};
+    const deducted = new Promise<void>((resolve) => { onDeduction = resolve; });
+
+    withProviders({
+      // A well-formed, complete, already-paid-for response with no text field
+      // anywhere in it — extraction throws rather than returning empty.
+      'api.cerebras.ai': () => Response.json({
+        choices: [{ message: {}, finish_reason: 'stop' }],
+        usage: usage(120, 90),
+      }),
+      '/api/license/credits': (init: RequestInit) => {
+        deduction = JSON.parse(String(init.body)) as typeof deduction;
+        onDeduction();
+        return Response.json({ credits_remaining: 900 });
+      },
+    });
+
+    const response = await buildApp().fetch(
+      postProcessRequest({ text: TRANSCRIPT, prompt: 'fix grammar', account_key: 'lk' })
+    );
+    const body = await response.json() as { error: string };
+
+    expect(response.status).toBe(500);
+    expect(body.error).toBe('Post-processing failed');
+
+    // deductCredits is fired without being awaited, so wait for the write.
+    await deducted;
+    expect(deduction).not.toBeNull();
+    expect(deduction!.amount).toBe(creditsForCost(computeCerebrasChatCost(usage(120, 90))));
+    expect(deduction!.metadata.endpoint).toBe('/post-process');
+    expect(deduction!.metadata.llm_provider).toBe('cerebras');
+    expect(deduction!.metadata.input_length).toBe(TRANSCRIPT.length);
+    // Nothing usable was returned, so the output side of the record is zero.
+    expect(deduction!.metadata.output_length).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The per-provider retry budget bounds latency and spend before the route
+// gives up on a provider. It is only observable as a call count, so that is
+// what these assert.
+// ---------------------------------------------------------------------------
+describe('postProcessRoute per-provider retry budget', () => {
+  const originalOpenAIKey = process.env.OPENAI_API_KEY;
+  const originalAnthropicKey = process.env.ANTHROPIC_API_KEY;
+
+  beforeEach(() => {
+    cachedLicense = { isValid: true, credits: 1000, cachedAt: 'cached' };
+    process.env.CEREBRAS_API_KEY = 'test-cerebras-key';
+    process.env.GROQ_API_KEY = 'test-groq-key';
+    process.env.OPENAI_API_KEY = 'test-openai-key';
+    process.env.ANTHROPIC_API_KEY = 'test-anthropic-key';
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    // These two keys are not set by the other suites in this file — leaving
+    // them behind would change what an unrelated suite sees.
+    if (originalOpenAIKey === undefined) delete process.env.OPENAI_API_KEY;
+    else process.env.OPENAI_API_KEY = originalOpenAIKey;
+    if (originalAnthropicKey === undefined) delete process.env.ANTHROPIC_API_KEY;
+    else process.env.ANTHROPIC_API_KEY = originalAnthropicKey;
+  });
+
+  test('cerebras gets no retry — one attempt, then straight to the fallback', async () => {
+    let cerebrasAttempts = 0;
+    let groqAttempts = 0;
+    withProviders({
+      'api.cerebras.ai': () => {
+        cerebrasAttempts += 1;
+        return new Response('server error', { status: 500 });
+      },
+      'api.groq.com': () => {
+        groqAttempts += 1;
+        return Response.json(chatCompletion('Hello from groq.'));
+      },
+    });
+
+    const response = await buildApp().fetch(
+      postProcessRequest({ text: 'hello wrld', prompt: 'fix grammar', account_key: 'lk' })
+    );
+
+    expect(response.status).toBe(200);
+    expect(cerebrasAttempts).toBe(1);
+    expect(groqAttempts).toBe(1);
+  });
+
+  test('openai retries once and its anthropic fallback twice before the request fails', async () => {
+    let openaiAttempts = 0;
+    let anthropicAttempts = 0;
+    withProviders({
+      'api.openai.com': () => {
+        openaiAttempts += 1;
+        return new Response('server error', { status: 500 });
+      },
+      'api.anthropic.com': () => {
+        anthropicAttempts += 1;
+        return new Response('server error', { status: 500 });
+      },
+    });
+
+    const response = await buildApp().fetch(
+      postProcessRequest(
+        { text: 'hello wrld', prompt: 'fix grammar', account_key: 'lk' },
+        { 'X-LLM-Provider': 'openai' }
+      )
+    );
+
+    expect(response.status).toBe(500);
+    expect(openaiAttempts).toBe(2);      // 1 attempt + 1 retry
+    expect(anthropicAttempts).toBe(3);   // 1 attempt + 2 retries
+  }, 15000);
+});
+
+// ---------------------------------------------------------------------------
+// Gates that must fire before the route spends anything.
+// ---------------------------------------------------------------------------
+describe('postProcessRoute request gates', () => {
+  beforeEach(() => {
+    cachedLicense = { isValid: true, credits: 1000, cachedAt: 'cached' };
+    ipBlocked = false;
+    process.env.CEREBRAS_API_KEY = 'test-cerebras-key';
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    ipBlocked = false;
+  });
+
+  test('rejects a blocked IP with 403 before reading the body or calling a provider', async () => {
+    ipBlocked = true;
+    let providerCalled = false;
+    withProviders({
+      'api.cerebras.ai': () => {
+        providerCalled = true;
+        return Response.json(chatCompletion('should not be reached'));
+      },
+    });
+
+    const response = await buildApp().fetch(
+      postProcessRequest({ text: 'hello wrld', prompt: 'fix grammar', account_key: 'lk' })
+    );
+    const body = await response.json() as { error: string };
+
+    expect(response.status).toBe(403);
+    expect(body.error).toBe('Access denied');
+    expect(providerCalled).toBe(false);
+  });
+
+  test('rejects a malformed JSON body with 400 rather than a 500', async () => {
+    let providerCalled = false;
+    withProviders({
+      'api.cerebras.ai': () => {
+        providerCalled = true;
+        return Response.json(chatCompletion('should not be reached'));
+      },
+    });
+
+    const response = await buildApp().fetch(new Request('http://localhost/post-process', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{"text": "hello wrld", "prompt":',
+    }));
+    const body = await response.json() as { error: string };
+
+    expect(response.status).toBe(400);
+    expect(body.error).toBe('Invalid JSON');
+    expect(providerCalled).toBe(false);
   });
 });

@@ -7,6 +7,7 @@ export type TranscriptionSource =
   | 'google-chirp'
   | 'openai'
   | 'gemini'
+  | 'gemini-transcribe'
   | 'assemblyai'
   | 'mistral'
   | 'soniox'

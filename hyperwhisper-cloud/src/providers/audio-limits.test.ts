@@ -2,6 +2,7 @@ import { describe, expect, test, afterEach } from 'bun:test';
 import { preBufferMaxBytes } from './audio-limits';
 import {
   GEMINI_INLINE_MAX_BYTES,
+  GEMINI_TRANSCRIBE_INLINE_MAX_BYTES,
   GOOGLE_CHIRP_INLINE_MAX_BYTES,
   OPENAI_INLINE_MAX_BYTES,
 } from '../lib/constants';
@@ -24,13 +25,14 @@ describe('preBufferMaxBytes', () => {
     setBucket(undefined);
 
     expect(preBufferMaxBytes('gemini')).toBe(GEMINI_INLINE_MAX_BYTES);
+    expect(preBufferMaxBytes('gemini-transcribe')).toBe(GEMINI_TRANSCRIBE_INLINE_MAX_BYTES);
     expect(preBufferMaxBytes('openai')).toBe(OPENAI_INLINE_MAX_BYTES);
     expect(preBufferMaxBytes('google-chirp')).toBe(GOOGLE_CHIRP_INLINE_MAX_BYTES);
   });
 
   test('returns null for every provider without a cap of its own', () => {
     setBucket(undefined);
-    const capped = new Set<SttProviderId>(['gemini', 'openai', 'google-chirp']);
+    const capped = new Set<SttProviderId>(['gemini', 'gemini-transcribe', 'openai', 'google-chirp']);
 
     // Drives off the registry, so a provider added there is covered here
     // without anyone remembering to extend this list.
@@ -71,6 +73,7 @@ describe('preBufferMaxBytes', () => {
     // drifted above an adapter's own AudioTooLargeError threshold, the route
     // would admit a payload the provider is guaranteed to reject.
     expect(preBufferMaxBytes('gemini')).toBe(GEMINI_INLINE_MAX_BYTES);
+    expect(preBufferMaxBytes('gemini-transcribe')).toBe(GEMINI_TRANSCRIBE_INLINE_MAX_BYTES);
     expect(preBufferMaxBytes('openai')).toBe(OPENAI_INLINE_MAX_BYTES);
   });
 });

@@ -339,6 +339,7 @@ dependencies = [
 name = "hw-net"
 version = "0.1.0"
 dependencies = [
+ "hw-catalog",
  "hw-text",
  "serde",
  "serde_json",

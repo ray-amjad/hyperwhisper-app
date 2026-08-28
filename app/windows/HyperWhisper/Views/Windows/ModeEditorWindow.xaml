@@ -148,6 +148,10 @@
                                           ToolTip="{loc:Loc mode.editor.provider.soniox.tooltip}"/>
                             <ComboBoxItem Content="{loc:Loc provider.gemini}" Tag="gemini"
                                           ToolTip="{loc:Loc mode.editor.provider.gemini.tooltip}"/>
+                            <!-- Tag must be the exact CloudTranscriptionProvider identifier;
+                                 FromIdentifier lower-cases before matching. -->
+                            <ComboBoxItem Content="{loc:Loc provider.geminiTranscribe}" Tag="geminiTranscribe"
+                                          ToolTip="{loc:Loc mode.editor.provider.geminiTranscribe.tooltip}"/>
                             <ComboBoxItem Content="{loc:Loc provider.grok}" Tag="grok"
                                           ToolTip="{loc:Loc mode.editor.provider.grok.tooltip}"/>
                         </ComboBox>

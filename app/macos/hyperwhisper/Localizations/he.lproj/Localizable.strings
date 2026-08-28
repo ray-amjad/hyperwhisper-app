@@ -42,6 +42,8 @@
 "streaming.enable.title" = "הפעל סטרימינג";
 "streaming.provider.picker.title" = "ספק";
 "streaming.model.title" = "מודל";
+"streaming.cloudTier.title" = "מנוע בזמן אמת";
+"streaming.cloudTier.description" = "באיזה מנוע דיבור HyperWhisper Cloud משתמש לתמלול בזמן אמת";
 "streaming.model.nova3general" = "Nova 3 General";
 "streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "עיצוב מהיר";
@@ -767,8 +769,8 @@
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ קרדיטים/דק׳";
 "modes.cloudAccuracy.grokStt.label" = "הגבוה ביותר (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - הדיוק הגבוה ביותר עם עיבוד איטי יותר. הטוב ביותר לתמלולים חשובים.";
-"modes.cloudAccuracy.googleChirp3.label" = "גבוהה (Google Chirp 3)";
-"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 עם Chirp 3. רב-לשוני עם התאמת ביטויים.";
+"modes.cloudAccuracy.geminiTranscribe.label" = "גבוהה (Google Gemini 3.5 Transcribe)";
+"modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. רב-לשוני, עם תמיכה באוצר מילים מותאם אישית.";
 "modes.cloudAccuracy.azureMaiTranscribe.label" = "גבוהה (Microsoft MAI-Transcribe 1.5)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 דרך Azure Speech. 43 שפות עם הטיה לפי הקשר.";
 

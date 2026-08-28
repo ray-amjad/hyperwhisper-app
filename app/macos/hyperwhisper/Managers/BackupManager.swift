@@ -200,7 +200,8 @@ class BackupManager: ObservableObject {
                 assemblyai: emptyToNil(keychainManager.getAPIKey(for: .assemblyAI)),
                 elevenlabs: emptyToNil(keychainManager.getAPIKey(for: .elevenLabs)),
                 mistral: emptyToNil(keychainManager.getAPIKey(for: .mistral)),
-                grok: emptyToNil(keychainManager.getAPIKey(for: .grok))
+                grok: emptyToNil(keychainManager.getAPIKey(for: .grok)),
+                geminitranscribe: emptyToNil(keychainManager.getAPIKey(for: .geminiTranscribe))
             )
         }
 
@@ -447,19 +448,7 @@ class BackupManager: ObservableObject {
         // --- API keys: flat lowercase provider keys (same shape as the universal/Windows path) ---
         var apiKeys: [String: String]?
         if options.includeAPIKeys {
-            var map: [String: String] = [:]
-            func put(_ name: String, _ provider: KeychainManager.APIKeyType) {
-                if let k = emptyToNil(keychainManager.getAPIKey(for: provider)) { map[name] = k }
-            }
-            put("openai", .openAI)
-            put("groq", .groq)
-            put("anthropic", .anthropic)
-            put("gemini", .gemini)
-            put("deepgram", .deepgram)
-            put("assemblyai", .assemblyAI)
-            put("elevenlabs", .elevenLabs)
-            put("mistral", .mistral)
-            put("grok", .grok)
+            let map = BackupManager.universalAPIKeyMap { keychainManager.getAPIKey(for: $0) }
             apiKeys = map.isEmpty ? nil : map
         }
 
@@ -975,19 +964,85 @@ class BackupManager: ObservableObject {
     /// Reuses the same per-provider save calls as the v1 `importAPIKeys`; unknown keys are ignored.
     private func importUniversalAPIKeys(_ keys: [String: String]) {
         let keychainManager = KeychainManager.shared
-        func save(_ name: String, _ provider: KeychainManager.APIKeyType) {
-            if let k = keys[name], !k.isEmpty { try? keychainManager.saveAPIKey(k, for: provider) }
+        for (provider, key) in BackupManager.universalAPIKeyAssignments(from: keys) {
+            try? keychainManager.saveAPIKey(key, for: provider)
         }
-        save("openai", .openAI)
-        save("groq", .groq)
-        // "fireworks" intentionally ignored (provider removed).
-        save("anthropic", .anthropic)
-        save("gemini", .gemini)
-        save("deepgram", .deepgram)
-        save("assemblyai", .assemblyAI)
-        save("elevenlabs", .elevenLabs)
-        save("mistral", .mistral)
-        save("grok", .grok)
+    }
+
+    // MARK: - Universal (v2) API-key mapping
+
+    /// The `apiKeys` object member the Gemini 3.5 Transcribe key is EXPORTED
+    /// under. Lowercase, per the schema's "API keys by lowercase provider name",
+    /// and identical to `KeychainManager.APIKeyType.geminiTranscribe.rawValue`.
+    ///
+    /// A SEPARATE member from `gemini`: same vendor, different API
+    /// (`/v1beta/interactions`) and a different keychain slot. Omitting it
+    /// restores a Gemini 3.5 Transcribe user with no key at all — and the legacy
+    /// `gemini` key restoring fine is exactly what hides that.
+    static let geminiTranscribeBackupKey = "geminitranscribe"
+
+    /// NON-canonical spellings the IMPORT path also accepts for that key.
+    ///
+    /// The camelCase form is accepted because the mode-level `cloudProvider` id
+    /// for this provider IS camelCase on Windows and Linux, so a writer
+    /// mirroring that spelling is a live risk — and a silently dropped key is
+    /// unrecoverable for the user. Never written on export.
+    static let geminiTranscribeBackupKeyAliases = ["geminiTranscribe"]
+
+    /// Object-member name → keychain slot, in export order. The single source of
+    /// truth for both directions of the universal API-key section.
+    ///
+    /// `cerebras` and `soniox` have keychain slots but no entry here; that
+    /// predates this table and is tracked separately.
+    static let universalAPIKeyMembers: [(name: String, provider: KeychainManager.APIKeyType)] = [
+        ("openai", .openAI),
+        ("groq", .groq),
+        // "fireworks" is deliberately absent: the provider was removed, so the
+        // member is neither written nor read.
+        ("anthropic", .anthropic),
+        ("gemini", .gemini),
+        ("deepgram", .deepgram),
+        ("assemblyai", .assemblyAI),
+        ("elevenlabs", .elevenLabs),
+        ("mistral", .mistral),
+        ("grok", .grok),
+        // Literal rather than `geminiTranscribeBackupKey` so this table has no
+        // ordering dependency on another static; the test pins the two equal.
+        ("geminitranscribe", .geminiTranscribe),
+    ]
+
+    /// Build the exported `apiKeys` object. `read` returns the stored key for a
+    /// slot; empty and nil are both treated as "not configured" and omitted.
+    /// Pure, so the mapping is testable without touching the Keychain.
+    static func universalAPIKeyMap(
+        read: (KeychainManager.APIKeyType) -> String?
+    ) -> [String: String] {
+        var map: [String: String] = [:]
+        for member in universalAPIKeyMembers {
+            guard let key = read(member.provider), !key.isEmpty else { continue }
+            map[member.name] = key
+        }
+        return map
+    }
+
+    /// The keychain writes an imported `apiKeys` object implies, in order.
+    /// Unknown members are ignored, so a backup from a newer client restores the
+    /// parts this build understands. Pure, for the same reason as above.
+    static func universalAPIKeyAssignments(
+        from keys: [String: String]
+    ) -> [(provider: KeychainManager.APIKeyType, key: String)] {
+        var assignments: [(provider: KeychainManager.APIKeyType, key: String)] = []
+        // Non-canonical spellings FIRST, so a file carrying both ends on the
+        // value from the documented member below.
+        for alias in geminiTranscribeBackupKeyAliases {
+            guard let key = keys[alias], !key.isEmpty else { continue }
+            assignments.append((.geminiTranscribe, key))
+        }
+        for member in universalAPIKeyMembers {
+            guard let key = keys[member.name], !key.isEmpty else { continue }
+            assignments.append((member.provider, key))
+        }
+        return assignments
     }
 
     /// Pre-parses a chosen backup file to report which sections it contains, so the import UI can
@@ -1284,6 +1339,9 @@ class BackupManager: ObservableObject {
         }
         if let key = apiKeys.grok, !key.isEmpty {
             try? keychainManager.saveAPIKey(key, for: .grok)
+        }
+        if let key = apiKeys.geminitranscribe, !key.isEmpty {
+            try? keychainManager.saveAPIKey(key, for: .geminiTranscribe)
         }
     }
 

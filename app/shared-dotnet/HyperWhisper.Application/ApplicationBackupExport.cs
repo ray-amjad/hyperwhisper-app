@@ -266,6 +266,16 @@ public sealed partial class ApplicationBackupService(
     /// cloudProvider fold, no legacy model-alias resolution and no
     /// cloudTranscriptionDomain gate. Absent fields stay absent — the caller
     /// applies <see cref="ModeDefaults"/>.
+    ///
+    /// A backup file is the one input that is arbitrarily old: it can be written
+    /// by any past version, on any platform, and restored years later, and it
+    /// bypasses the one-shot EF migration entirely, because that migration is
+    /// already recorded as applied by the time a restore runs. So a v7-era
+    /// backup carrying the retired <c>googleChirp3</c> (or a v5-era <c>high</c>)
+    /// is canonicalised HERE or nowhere. The failure it prevents is silent — an
+    /// unmigrated tier id resolves to Deepgram at read time with no error, which
+    /// changes the user's vendor, credits and <c>X-STT-Provider</c> without
+    /// telling them.
     /// </summary>
     private static JsonObject NormalizeCloudRouting(JsonObject mode)
         => JsonNode.Parse(SharedCoreBridge.NormalizeUniversalMode(mode.ToJsonString()))

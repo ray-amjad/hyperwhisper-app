@@ -181,7 +181,8 @@ internal sealed class LinuxInteractionRecordingSession : IInteractionRecordingSe
             LinuxLiveStreamingSettingsMapper.ModelForProvider(
                 _viewModel.Settings.StreamingProvider, _viewModel.Settings.StreamingModel),
             _viewModel.Settings.StreamingFastFormatting,
-            identity.Value?.Id),
+            identity.Value?.Id,
+            _viewModel.Settings.StreamingCloudTier),
             _viewModel.Vocabulary.Items.Select(item => item.Word).ToArray(), cancellationToken);
         if (resolved.IsFailure) return PlatformResult.Failure(resolved.Error!.Code, resolved.Error.Message);
         var started = _services.LiveStreaming.Start(new LiveStreamingSessionRequest(

@@ -1,16 +1,28 @@
 // WEBSOCKET STREAMING ROUTE
 // GET /ws/streaming-deepgram - Deepgram Live proxy
+//
+// The session lifecycle lives in `ws-streaming-shared.ts`; this file is the
+// Deepgram vendor adapter plus the route's exports. The path is
+// `/ws/streaming-{sttProvider}` with `sttProvider: 'deepgram'` — the path every
+// installed client has hard-coded. Do not rename it.
 
-import type { Context, Next } from 'hono';
+import type { Context } from 'hono';
 import { upgradeWebSocket } from 'hono/bun';
-import type { WSMessageReceive } from 'hono/ws';
-import { generateRequestId, getClientIP } from '../lib/request-id';
-import { computeDeepgramTranscriptionCost, creditsForCost } from '../lib/cost-calculator';
-import { validateAuth, type AuthContext } from '../middleware/auth';
-import { deductCredits, validateCredits } from '../middleware/credits';
-import { isIPBlocked } from '../lib/redis';
-import { isRecord } from '../lib/utils';
+import { computeDeepgramTranscriptionCost } from '../lib/cost-calculator';
 import { isExplicitLanguage, splitVocabularyTerms } from '../providers/utils';
+import {
+  MAX_UPSTREAM_BUFFERED_BYTES,
+  createStreamingEventsFor,
+  durationSecondsForLinear16AudioBytes,
+  makeStreamingPreflight,
+  minimumCreditsFor,
+  type StreamingSession,
+  type StreamingVendor,
+  type UpstreamEvent,
+} from './ws-streaming-shared';
+
+// Re-exported because the suite (and the macOS strategy docs) reach for it here.
+export { durationSecondsForLinear16AudioBytes };
 
 // Deepgram `keyterm` limits — same values the REST adapter applies.
 const MAX_KEYTERMS = 100;
@@ -29,79 +41,6 @@ interface DeepgramLiveResponse {
 function isDeepgramLiveResponse(value: unknown): value is DeepgramLiveResponse {
   return typeof value === 'object' && value !== null
     && typeof (value as { type?: unknown }).type === 'string';
-}
-
-interface ReadyMessage {
-  type: 'ready';
-  sessionId: string;
-}
-
-interface TranscriptMessage {
-  type: 'transcript';
-  text: string;
-  is_final: boolean;
-  speech_final: boolean;
-}
-
-interface SessionCompleteMessage {
-  type: 'session_complete';
-  duration_seconds: number;
-  credits_used: number;
-}
-
-interface ErrorMessage {
-  type: 'error';
-  message: string;
-}
-
-type ServerMessage = ReadyMessage | TranscriptMessage | SessionCompleteMessage | ErrorMessage;
-
-const STREAMING_SAMPLE_RATE = 16000;
-const STREAMING_CHANNELS = 1;
-const LINEAR16_BYTES_PER_SAMPLE = 2;
-
-// Minimum balance required to open a streaming session (~30s of Deepgram Nova-3 audio).
-const STREAMING_MIN_BALANCE_SECONDS = 30;
-
-export function minimumStreamingCredits(): number {
-  return creditsForCost(computeDeepgramTranscriptionCost(STREAMING_MIN_BALANCE_SECONDS));
-}
-
-// Inbound audio limits — guard the Deepgram proxy against a misbehaving or
-// malicious client that pushes binary far faster (or larger) than the natural
-// 32 KB/s rate of 16 kHz mono linear16. Without these caps the client can grow
-// the outbound socket's buffer unbounded until the Fly machine OOMs.
-//
-// A single audio frame above 1 MB (~32 s of audio) is abnormal for streaming.
-const MAX_AUDIO_MESSAGE_BYTES = 1 * 1024 * 1024;
-// Cumulative per-session cap (~52 min of 16 kHz mono linear16), well above any
-// real dictation session. Exceeding it closes the socket with 1009.
-const MAX_SESSION_AUDIO_BYTES = 100 * 1024 * 1024;
-// If the upstream socket has more than this still buffered, the client is
-// outrunning Deepgram — drop the chunk instead of queueing more memory.
-const MAX_DEEPGRAM_BUFFERED_BYTES = 1 * 1024 * 1024;
-
-interface WSContext {
-  readyState: number;
-  send(data: string | ArrayBuffer | Uint8Array): void;
-  close(code?: number, reason?: string): void;
-}
-
-declare module 'hono' {
-  interface ContextVariableMap {
-    wsAuth: AuthContext;
-    wsClientIP: string;
-  }
-}
-
-function sendToClient(socket: WSContext, message: ServerMessage): void {
-  if (socket.readyState === 1) {
-    socket.send(JSON.stringify(message));
-  }
-}
-
-export function durationSecondsForLinear16AudioBytes(byteLength: number): number {
-  return byteLength / (STREAMING_SAMPLE_RATE * STREAMING_CHANNELS * LINEAR16_BYTES_PER_SAMPLE);
 }
 
 function buildDeepgramUrl(language?: string, vocabulary?: string): string {
@@ -139,270 +78,55 @@ function buildDeepgramUrl(language?: string, vocabulary?: string): string {
   return `wss://api.deepgram.com/v1/listen?${params.toString()}`;
 }
 
-export async function wsStreamingPreflight(c: Context, next: Next) {
-  const upgradeHeader = c.req.header('Upgrade');
-  if (!upgradeHeader || upgradeHeader.toLowerCase() !== 'websocket') {
-    return c.text('Expected WebSocket upgrade', 426);
-  }
+/**
+ * Deepgram Live.
+ *
+ * Raw linear16 in, JSON `Results` frames out, and no setup handshake: the socket
+ * accepts audio the moment it opens, and Deepgram closes it itself when the
+ * stream ends — so there are no open frames, no stop frames, and `ready` goes
+ * out on `open`.
+ *
+ * Its interim results are cumulative WITHIN the current segment and its finals
+ * are per-segment deltas, which is exactly the client contract documented in
+ * `ws-streaming-shared.ts`, so the finality flags pass straight through.
+ */
+export const DEEPGRAM_VENDOR: StreamingVendor = {
+  id: 'deepgram',
+  label: 'Deepgram',
+  billingProvider: 'deepgram-nova3-live',
+  apiKey: () => process.env.DEEPGRAM_API_KEY || '',
+  buildUpstreamUrl: (session: StreamingSession) =>
+    buildDeepgramUrl(session.language, session.vocabulary),
+  upstreamProtocols: (session: StreamingSession) => ['token', session.apiKey],
+  readyOnOpen: true,
+  encodeAudio: (pcm: ArrayBuffer) => pcm,
+  maxUpstreamBufferedBytes: MAX_UPSTREAM_BUFFERED_BYTES,
+  parseUpstream(raw: string): UpstreamEvent[] {
+    const parsed: unknown = JSON.parse(raw);
+    if (!isDeepgramLiveResponse(parsed) || parsed.type !== 'Results') return [];
+    return [{
+      kind: 'transcript',
+      text: parsed.channel?.alternatives?.[0]?.transcript || '',
+      isFinal: parsed.is_final ?? false,
+      speechFinal: parsed.speech_final ?? false,
+    }];
+  },
+  costForSeconds: (seconds: number) => computeDeepgramTranscriptionCost(seconds),
+};
 
-  const clientIP = getClientIP(c);
-  if (await isIPBlocked(clientIP)) {
-    return c.text('Access denied', 403);
-  }
-
-  const url = new URL(c.req.url);
-  // `account_key` is the canonical param; `license_key` is the legacy alias that
-  // installed native apps still send, so we accept either.
-  const licenseKey =
-    url.searchParams.get('account_key') ||
-    url.searchParams.get('license_key') ||
-    undefined;
-
-  if (!licenseKey) {
-    return c.text('Missing account_key', 401);
-  }
-
-  const authResult = await validateAuth({ licenseKey });
-  if (!authResult.ok) {
-    return c.text('Unauthorized', 401);
-  }
-
-  const creditCheck = await validateCredits(authResult.value, minimumStreamingCredits(), clientIP);
-  if (!creditCheck.ok) {
-    return creditCheck.response;
-  }
-
-  c.set('wsAuth', authResult.value);
-  c.set('wsClientIP', clientIP);
-
-  return next();
+/** Minimum balance required to open a streaming session (~30s of Nova-3 audio). */
+export function minimumStreamingCredits(): number {
+  return minimumCreditsFor(DEEPGRAM_VENDOR);
 }
+
+export const wsStreamingPreflight = makeStreamingPreflight(minimumStreamingCredits);
 
 // Exported so the socket lifecycle (audio caps, upstream backpressure, the
 // mid-session credit cutoff, end-of-session billing) is unit-testable without
 // standing up a real WebSocket upgrade. `wsStreamingRoute` below is the only
 // production caller.
 export function createStreamingEvents(c: Context) {
-  const requestId = generateRequestId();
-  const auth = c.get('wsAuth');
-  const clientIP = c.get('wsClientIP');
-  const url = new URL(c.req.url);
-  const language = url.searchParams.get('language') || undefined;
-  const vocabulary = url.searchParams.get('vocabulary') || undefined;
-  const apiKey = process.env.DEEPGRAM_API_KEY || '';
-
-  let totalDurationSeconds = 0;
-  let bytesReceived = 0;
-  let deepgramWs: WebSocket | null = null;
-  let sessionEnded = false;
-  let clientSocket: WSContext | null = null;
-  let pingInterval: ReturnType<typeof setInterval> | null = null;
-
-  const dgUrl = buildDeepgramUrl(language, vocabulary);
-
-  async function endSession(): Promise<void> {
-    if (sessionEnded) return;
-    sessionEnded = true;
-
-    if (pingInterval) {
-      clearInterval(pingInterval);
-      pingInterval = null;
-    }
-
-    const costUsd = computeDeepgramTranscriptionCost(totalDurationSeconds);
-    const creditsUsed = creditsForCost(costUsd);
-
-    if (clientSocket) {
-      sendToClient(clientSocket, {
-        type: 'session_complete',
-        duration_seconds: totalDurationSeconds,
-        credits_used: creditsUsed,
-      });
-    }
-
-    if (creditsUsed > 0) {
-      deductCredits(
-        auth,
-        costUsd,
-        {
-          audio_duration_seconds: totalDurationSeconds,
-          transcription_cost_usd: costUsd,
-          language: language || 'auto',
-          endpoint: '/ws/streaming-deepgram',
-          stt_provider: 'deepgram-nova3-live',
-        },
-        clientIP
-      ).catch(console.error);
-    }
-  }
-
-  function closeUpstream(): void {
-    // readyState 0 = CONNECTING, 1 = OPEN — close both so a client that
-    // disconnects mid-handshake doesn't leave the upstream socket open until
-    // Deepgram's idle timeout. close() during CONNECTING aborts the handshake
-    // once it completes; CLOSING/CLOSED need no action.
-    if (deepgramWs && deepgramWs.readyState <= WebSocket.OPEN) {
-      deepgramWs.close(1000, 'Client disconnected');
-    }
-  }
-
-  return {
-    onOpen: (_evt: Event, ws: WSContext) => {
-      clientSocket = ws;
-
-      if (!apiKey) {
-        sendToClient(ws, { type: 'error', message: 'Deepgram API key not configured' });
-        ws.close(1011, 'Configuration error');
-        return;
-      }
-
-      deepgramWs = new WebSocket(dgUrl, ['token', apiKey]);
-
-      deepgramWs.addEventListener('open', () => {
-        // If the client already disconnected while we were still handshaking,
-        // tear down the upstream socket instead of leaving it orphaned.
-        if (ws.readyState !== 1) {
-          closeUpstream();
-          return;
-        }
-        sendToClient(ws, { type: 'ready', sessionId: requestId });
-      });
-
-      deepgramWs.addEventListener('message', (event) => {
-        try {
-          // `event.data` is typed `any` by the WebSocket lib and Deepgram can
-          // deliver a frame as a string or as binary. Coerce explicitly rather
-          // than asserting `string`, then validate the parsed shape instead of
-          // asserting it — an unexpected frame is ignored, not trusted.
-          const raw: unknown = event.data;
-          const text = typeof raw === 'string'
-            ? raw
-            : (raw instanceof ArrayBuffer || ArrayBuffer.isView(raw))
-              ? new TextDecoder().decode(raw)
-              : String(raw);
-          const parsed: unknown = JSON.parse(text);
-          if (!isDeepgramLiveResponse(parsed)) return;
-          const data = parsed;
-          if (data.type === 'Results') {
-            const transcript = data.channel?.alternatives?.[0]?.transcript || '';
-            if (transcript || data.is_final) {
-              sendToClient(ws, {
-                type: 'transcript',
-                text: transcript,
-                is_final: data.is_final ?? false,
-                speech_final: data.speech_final ?? false,
-              });
-            }
-          }
-        } catch (error) {
-          console.warn('Failed to parse Deepgram message', error);
-        }
-      });
-
-      deepgramWs.addEventListener('error', () => {
-        sendToClient(ws, { type: 'error', message: 'Transcription service error' });
-      });
-
-      deepgramWs.addEventListener('close', async () => {
-        await endSession();
-        if (ws.readyState === 1) {
-          ws.close(1000, 'Session ended');
-        }
-      });
-
-      // Send ping every 30s to prevent Fly.io's 60s idle timeout from killing the connection
-      pingInterval = setInterval(() => {
-        if (clientSocket && clientSocket.readyState === 1) {
-          clientSocket.send(JSON.stringify({ type: 'ping' }));
-        }
-      }, 30000);
-    },
-    onMessage: (event: MessageEvent<WSMessageReceive>) => {
-      if (!deepgramWs || deepgramWs.readyState !== WebSocket.OPEN) {
-        return;
-      }
-
-      const data = event.data;
-      if (data instanceof ArrayBuffer) {
-        // Count every inbound frame toward the session total first — even ones
-        // we reject below — so a flood of oversized frames still trips the
-        // cumulative cap and closes the socket instead of looping forever.
-        bytesReceived += data.byteLength;
-
-        // Bound total inbound volume so a flood can't OOM the worker. Checked
-        // before the per-frame size guard so oversized frames also count here
-        // and a sustained flood reliably closes the connection.
-        if (bytesReceived > MAX_SESSION_AUDIO_BYTES) {
-          if (clientSocket) {
-            sendToClient(clientSocket, { type: 'error', message: 'Audio stream too large' });
-            clientSocket.close(1009, 'Message too big');
-          }
-          return;
-        }
-
-        // Reject an abnormally large single frame outright — never forward it.
-        if (data.byteLength > MAX_AUDIO_MESSAGE_BYTES) {
-          if (clientSocket) {
-            sendToClient(clientSocket, { type: 'error', message: 'Audio chunk too large' });
-          }
-          return;
-        }
-
-        // Backpressure: if the upstream socket is already congested, drop this
-        // chunk instead of queueing more memory into the outbound buffer.
-        if (deepgramWs.bufferedAmount > MAX_DEEPGRAM_BUFFERED_BYTES) {
-          if (clientSocket) {
-            sendToClient(clientSocket, { type: 'error', message: 'Transcription service busy, audio dropped' });
-          }
-          return;
-        }
-
-        deepgramWs.send(data);
-        totalDurationSeconds += durationSecondsForLinear16AudioBytes(data.byteLength);
-
-        // End the session once the running cost reaches the balance seen at auth,
-        // so a low-balance user can't stream indefinitely on end-of-session billing.
-        const creditsUsed = creditsForCost(computeDeepgramTranscriptionCost(totalDurationSeconds));
-        if (creditsUsed >= auth.credits) {
-          if (clientSocket) {
-            sendToClient(clientSocket, { type: 'error', message: 'Credit balance exhausted' });
-          }
-          deepgramWs.close(1000, 'Credits exhausted');
-        }
-        return;
-      }
-
-      if (typeof data === 'string') {
-        try {
-          // Client-controlled frame: read `type` through a guard rather than
-          // asserting a shape onto it.
-          const msg: unknown = JSON.parse(data);
-          const msgType = isRecord(msg) ? msg.type : undefined;
-          if (msgType === 'stop') {
-            deepgramWs.close(1000, 'Client requested stop');
-            return;
-          }
-          if (msgType === 'pong') {
-            // Client pong response — ignore
-            return;
-          }
-        } catch {
-          // ignore non-JSON text messages
-        }
-      }
-    },
-    onClose: async () => {
-      await endSession();
-      closeUpstream();
-    },
-    onError: async () => {
-      if (clientSocket) {
-        sendToClient(clientSocket, { type: 'error', message: 'WebSocket error' });
-      }
-      await endSession();
-      closeUpstream();
-    },
-  };
+  return createStreamingEventsFor(DEEPGRAM_VENDOR, c);
 }
 
 export const wsStreamingRoute = upgradeWebSocket(createStreamingEvents);

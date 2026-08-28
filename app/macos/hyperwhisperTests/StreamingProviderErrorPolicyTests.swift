@@ -218,6 +218,56 @@ struct StreamingProviderErrorPolicyTests {
         #expect(outcome == .transient)
     }
 
+    @Test func geminiStrategyFallbackWordingIsTransient() {
+        // GeminiStreamingStrategy's fallback when the error frame carries no
+        // message. It names no account state, so it keeps its reconnect.
+        let outcome = StreamingProviderErrorPolicy.outcome(
+            forProviderMessage: "Gemini streaming transcription failed"
+        )
+
+        #expect(outcome == .transient)
+    }
+
+    @Test func geminiRejectedSetupIsTerminal() {
+        // The backend's wording for a Gemini live socket that closed 1007 on the
+        // setup handshake (ws-streaming-gemini-transcribe.ts, parseGeminiLiveClose).
+        // The setup frame is byte-identical on every attempt, so a reconnect can
+        // only reproduce the rejection — this was a guaranteed retry loop before
+        // the marker existed.
+        let outcome = StreamingProviderErrorPolicy.outcome(
+            forProviderMessage: "Transcription service rejected the session setup"
+        )
+
+        #expect(outcome == .terminal)
+    }
+
+    @Test func geminiRejectedCredentialsIsTerminal() {
+        // Google never returns 401 on the live socket; a bad key arrives as text.
+        // Phase 4 chose this wording so it matches the `api key not valid` marker.
+        let outcome = StreamingProviderErrorPolicy.outcome(
+            forProviderMessage: "Transcription service rejected the credentials: API key not valid"
+        )
+
+        #expect(outcome == .terminal)
+    }
+
+    @Test func standardFatalCloseCodesAreTerminalAndTransientOnesAreNot() {
+        // Parity with .NET's IStreamingProviderStrategy.IsTerminalCloseCode. The
+        // exclusions matter more than the inclusions: 1006 is the ordinary
+        // dropped connection, and marking it terminal would delete auto-reconnect
+        // for every flaky-network user.
+        for fatal in [1002, 1003, 1007, 1008, 1009, 1011] {
+            #expect(StreamingProviderErrorPolicy.isTerminalCloseCode(fatal))
+        }
+        for transient in [1000, 1001, 1006, 1012, 1013] {
+            #expect(!StreamingProviderErrorPolicy.isTerminalCloseCode(transient))
+        }
+        // HyperWhisper's own codes stay out: the client handles them by name, and
+        // 4001 has to report itself rather than only stop retrying.
+        #expect(!StreamingProviderErrorPolicy.isTerminalCloseCode(4001))
+        #expect(!StreamingProviderErrorPolicy.isTerminalCloseCode(4002))
+    }
+
     @Test func hyperWhisperCloudStrategyFallbackWordingIsTransient() {
         // HyperWhisperCloudStrategy's fallback for an error frame with no
         // message body.

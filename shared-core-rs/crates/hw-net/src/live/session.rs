@@ -13,7 +13,7 @@
 
 use super::config::{LiveConfig, LiveConnect, LiveError, LiveEvent, LiveFrame, StopStep};
 use super::LiveProvider;
-use super::{deepgram, elevenlabs, hw_cloud, openai, xai};
+use super::{deepgram, elevenlabs, gemini, hw_cloud, openai, xai};
 
 /// Everything a protocol remembers between frames.
 ///
@@ -105,6 +105,7 @@ impl LiveSession {
             LiveProvider::ElevenLabs => elevenlabs::connect(&self.config),
             LiveProvider::OpenAi => openai::connect(&self.config),
             LiveProvider::Grok => xai::connect(&self.config),
+            LiveProvider::GeminiTranscribe => gemini::connect(&self.config),
             LiveProvider::HyperWhisperCloud => hw_cloud::connect(&self.config),
         }
     }
@@ -128,9 +129,10 @@ impl LiveSession {
         match self.config.provider {
             LiveProvider::Deepgram => deepgram::control_frames(&mut self.state, now_ms),
             LiveProvider::OpenAi => openai::control_frames(&mut self.state, now_ms),
-            LiveProvider::ElevenLabs | LiveProvider::Grok | LiveProvider::HyperWhisperCloud => {
-                Vec::new()
-            }
+            LiveProvider::ElevenLabs
+            | LiveProvider::Grok
+            | LiveProvider::GeminiTranscribe
+            | LiveProvider::HyperWhisperCloud => Vec::new(),
         }
     }
 
@@ -152,6 +154,7 @@ impl LiveSession {
             LiveProvider::ElevenLabs => elevenlabs::parse(&root),
             LiveProvider::OpenAi => openai::parse(&mut self.state, &root),
             LiveProvider::Grok => xai::parse(&mut self.state, &root),
+            LiveProvider::GeminiTranscribe => gemini::parse(&root, text),
             LiveProvider::HyperWhisperCloud => hw_cloud::parse(&root),
         }
     }
@@ -168,6 +171,7 @@ impl LiveSession {
             LiveProvider::ElevenLabs => elevenlabs::stop_sequence(),
             LiveProvider::OpenAi => openai::stop_sequence(&mut self.state, now_ms),
             LiveProvider::Grok => xai::stop_sequence(),
+            LiveProvider::GeminiTranscribe => gemini::stop_sequence(),
             LiveProvider::HyperWhisperCloud => hw_cloud::stop_sequence(),
         }
     }

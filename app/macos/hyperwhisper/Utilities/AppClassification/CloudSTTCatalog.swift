@@ -56,11 +56,23 @@ struct CloudSTTCatalog {
         providers.filter { $0.access?.cloudTierEligible == true }
     }
 
+    /// The cloud-tier entries HyperWhisper Cloud can also serve LIVE, in catalog
+    /// order — the eligible set for the streaming cloud-tier picker.
+    ///
+    /// Catalog-derived in Rust (`cloudTierEligible` AND some model with
+    /// `streaming: true`), never a hand-kept list here. Deliberately NOT the
+    /// entry-level `features.streaming` hint, which is true for six vendors we
+    /// serve no WebSocket route for; offering one of those would ship a 404 at
+    /// dictation time, and the STT catalog has no `enabled` gate to hide it.
+    var streamingCloudTierEntries: [Entry] {
+        cloudSttStreamingCloudTierEntries()
+    }
+
     // MARK: - Vendor groups (catalog v7+)
 
     /// The Provider dropdown's rows: cloud-tier entries grouped by `vendor` and
     /// sorted by company name, so the list reads alphabetically and each company
-    /// appears exactly once. Google owns two entries (Chirp + Gemini) and so
+    /// appears exactly once. Google owns two entries (Gemini 3.5 Transcribe + Gemini) and so
     /// contributes one row whose model list spans both.
     var cloudTierVendorGroups: [VendorGroup] {
         cloudSttCloudTierVendorGroups()
@@ -133,6 +145,49 @@ struct CloudSTTCatalog {
     func normalizeCloudProvider(_ value: String?) -> (provider: String?, accuracyTier: String?) {
         let normalized = cloudSttNormalizeCloudProvider(value: value)
         return (provider: normalized.provider, accuracyTier: normalized.accuracyTier)
+    }
+
+    // MARK: - Live-only models
+
+    /// Cloud model ids HyperWhisper Cloud serves ONLY over the live WebSocket
+    /// route. They must never be offered as — or accepted as — a mode's
+    /// dictation model: `/transcribe` answers one with a 400, so every
+    /// dictation in such a mode fails.
+    ///
+    /// NOT derivable from the per-model `streaming` flag, despite how that reads.
+    /// `streaming: true` means "HyperWhisper Cloud routes this model live", and
+    /// `deepgramNova3` carries it on BOTH `nova-3-general` and `nova-3-medical`
+    /// — which are the DEFAULT pre-recorded models. Filtering the dictation
+    /// picker on `streaming == true` would delete the default dictation model
+    /// from it. The catalog has no "live-only" field to key off, so this list is
+    /// the macOS mirror of the same fact the other heads state literally:
+    /// `GEMINI_TRANSCRIBE_LIVE_MODEL` in
+    /// `hyperwhisper-cloud/src/providers/gemini-transcribe.ts` (which raises the
+    /// 400), `LIVE_MODEL` in `hw-net`'s `gemini_transcribe.rs`, and the
+    /// deliberate omission from `CloudTranscriptionModel.GeminiTranscribe` on
+    /// Windows. Adding a catalog field would let all four derive it — see the
+    /// note in this PR's review.
+    ///
+    /// `gpt-live-transcribe` is here for the same reason and is the WORSE of the
+    /// two: unlike Gemini, nothing on the backend rejects it, so it is forwarded
+    /// to OpenAI's realtime-only model and 400s there — at 17 credits/min
+    /// against the tier default's 6, on a model the picker used to list.
+    ///
+    /// The list is the same on all three heads and is pinned by
+    /// `shared-conformance/live-only-models.json`.
+    static let liveOnlyModelIds: Set<String> = [
+        "gemini-3.5-transcribe-live",
+        "gpt-live-transcribe",
+    ]
+
+    /// Whether `modelId` is one of `liveOnlyModelIds` (case-insensitive, trimmed,
+    /// matching the rest of the catalog's model lookups).
+    static func isLiveOnlyModel(_ modelId: String?) -> Bool {
+        guard let trimmed = modelId?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !trimmed.isEmpty else {
+            return false
+        }
+        return liveOnlyModelIds.contains(trimmed.lowercased())
     }
 }
 

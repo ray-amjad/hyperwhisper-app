@@ -50,6 +50,37 @@ jobs:
           fetch-depth: 0
 
       # ----------------------------------------------------------------
+      # 1b. Verify the R2 credentials before anything expensive runs
+      # ----------------------------------------------------------------
+      - name: Verify Cloudflare R2 credentials
+        if: ${{ inputs.skip_upload != true }}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+        run: |
+          ENDPOINT="https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com"
+          BUCKET="${{ secrets.R2_BUCKET_NAME }}"
+          PROBE="_ci-preflight/macos-${{ github.run_id }}-${{ github.run_attempt }}.txt"
+
+          which aws || brew install awscli
+
+          # Round-trip a throwaway object rather than calling head-bucket: an
+          # expired or read-only token still passes a read probe and then fails
+          # the real upload after the archive, notarization and stapling have
+          # already burned ~13 minutes. Fail here instead, at ~40 seconds.
+          echo "r2-preflight" > "$RUNNER_TEMP/r2-preflight.txt"
+          if ! aws s3 cp "$RUNNER_TEMP/r2-preflight.txt" "s3://$BUCKET/$PROBE" --endpoint-url "$ENDPOINT"; then
+            echo "::error::Cloudflare R2 rejected the upload credentials. Create a new R2 API token with Object Read & Write on the builds bucket, write CLOUDFLARE_R2_ACCESS_KEY_ID and CLOUDFLARE_R2_SECRET_ACCESS_KEY to Infisical (--env=prod), wait for the sync, then re-run. Never edit the GitHub secret directly: the next sync overwrites it."
+            exit 1
+          fi
+
+          # Best-effort tidy-up. A token with write but not delete is still fine
+          # for a release, so a failure here must not fail the run.
+          aws s3 rm "s3://$BUCKET/$PROBE" --endpoint-url "$ENDPOINT" || true
+          echo "R2 credentials accepted."
+
+      # ----------------------------------------------------------------
       # 2. Select Xcode version
       # ----------------------------------------------------------------
       - name: Select Xcode 26.3

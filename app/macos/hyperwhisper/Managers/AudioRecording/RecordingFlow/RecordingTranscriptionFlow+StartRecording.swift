@@ -226,11 +226,20 @@ extension RecordingTranscriptionFlow {
             let streamingLanguage = settingsManager?.streamingLanguageEffective ?? LanguageData.automaticCode
             let streamingProvider = settingsManager?.streamingProvider ?? "hyperwhisperCloud"
             let streamingModel: String?
-            switch StreamingTranscriptionProvider(rawValue: streamingProvider) {
+            switch StreamingTranscriptionProvider.fromStorageValue(streamingProvider) {
             case .parakeetLocal:
                 streamingModel = settingsManager?.streamingLocalParakeetVersion
             case .nemotronLocal:
                 streamingModel = settingsManager?.streamingLocalNemotronVariant
+            case .gemini:
+                // MUST NOT fall through to the `default:` arm below. Only two
+                // strategies read `config.model` — Deepgram's and Gemini's — and
+                // Gemini prefixes whatever arrives with `models/`, so the shared
+                // Deepgram setting would reach Google as `models/nova-3-general`
+                // and the socket would close on the setup frame. nil selects the
+                // strategy's own `gemini-3.5-transcribe-live` default, which is
+                // the only live model this provider has.
+                streamingModel = nil
             default:
                 streamingModel = settingsManager?.streamingDeepgramModel
             }

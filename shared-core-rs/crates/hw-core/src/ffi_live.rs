@@ -16,17 +16,22 @@ use hw_net::live as lv;
 // Types
 // ===========================================================================
 
-/// The five websocket transcription providers. Mirrors `lv::LiveProvider`.
+/// The six websocket transcription providers. Mirrors `lv::LiveProvider`.
 ///
 /// Local engines (Parakeet, Nemotron) are deliberately absent — they are not
 /// websocket protocols. Windows spells this vendor set with `Xai` where this
 /// enum says `Grok`; the head maps across at its boundary.
+///
+/// `GeminiTranscribe` is the BYOK Gemini 3.5 Transcribe Live socket, distinct
+/// from the same vendor reached through `HyperWhisperCloud`'s `geminiTranscribe`
+/// tier — only the latter bills credits.
 #[derive(uniffi::Enum)]
 pub enum HwLiveProvider {
     Deepgram,
     ElevenLabs,
     OpenAi,
     Grok,
+    GeminiTranscribe,
     HyperWhisperCloud,
 }
 
@@ -37,6 +42,7 @@ impl From<HwLiveProvider> for lv::LiveProvider {
             HwLiveProvider::ElevenLabs => lv::LiveProvider::ElevenLabs,
             HwLiveProvider::OpenAi => lv::LiveProvider::OpenAi,
             HwLiveProvider::Grok => lv::LiveProvider::Grok,
+            HwLiveProvider::GeminiTranscribe => lv::LiveProvider::GeminiTranscribe,
             HwLiveProvider::HyperWhisperCloud => lv::LiveProvider::HyperWhisperCloud,
         }
     }
@@ -49,6 +55,7 @@ impl From<lv::LiveProvider> for HwLiveProvider {
             lv::LiveProvider::ElevenLabs => HwLiveProvider::ElevenLabs,
             lv::LiveProvider::OpenAi => HwLiveProvider::OpenAi,
             lv::LiveProvider::Grok => HwLiveProvider::Grok,
+            lv::LiveProvider::GeminiTranscribe => HwLiveProvider::GeminiTranscribe,
             lv::LiveProvider::HyperWhisperCloud => HwLiveProvider::HyperWhisperCloud,
         }
     }
@@ -219,6 +226,41 @@ pub fn live_supports_vocabulary(provider: HwLiveProvider) -> bool {
     lv::supports_vocabulary(provider.into())
 }
 
+/// Whether the provider honours custom vocabulary while the language is left on
+/// auto-detect. A SECOND question from `live_supports_vocabulary`: Deepgram
+/// Nova-3 accepts `keyterm` only in monolingual mode and silently ignores it
+/// otherwise, while Gemini and xAI accept theirs either way.
+///
+/// `cloud_tier` is read for `HyperWhisperCloud` only, where the answer belongs
+/// to whichever vendor the relay will forward to. `None` means the default tier.
+#[uniffi::export]
+pub fn live_supports_vocabulary_without_language(
+    provider: HwLiveProvider,
+    cloud_tier: Option<String>,
+) -> bool {
+    lv::supports_vocabulary_without_language(provider.into(), cloud_tier.as_deref())
+}
+
+/// Whether a session-complete event ends the session even when the client has
+/// not asked to stop yet.
+///
+/// `false` for Gemini alone: `generationComplete` is a TURN boundary, so a
+/// terminal reading silently ends a live dictation at the first pause in speech.
+#[uniffi::export]
+pub fn live_complete_ends_session_before_stop(provider: HwLiveProvider) -> bool {
+    lv::complete_ends_session_before_stop(provider.into())
+}
+
+/// How long to hold the audio pump waiting for the provider's session-started
+/// frame, in milliseconds. `0` means send from the moment the socket opens.
+///
+/// Non-zero for Gemini alone: audio sent before `setupComplete` is discarded by
+/// the server, which costs the opening words of the dictation.
+#[uniffi::export]
+pub fn live_start_timeout_ms(provider: HwLiveProvider) -> u32 {
+    lv::start_timeout_ms(provider.into())
+}
+
 /// The human-readable provider label stored on a history entry. The
 /// " (Streaming)" suffix is what distinguishes a live session from the same
 /// vendor's batch transcription.
@@ -264,6 +306,14 @@ pub struct HwLiveConfig {
     pub model: Option<String>,
     pub fast_formatting: bool,
     pub base_url: Option<String>,
+
+    /// Which upstream vendor HyperWhisper Cloud should relay to: a
+    /// `cloud-stt-catalog.json` entry id, which is what the app's global
+    /// `streamingCloudTier` setting stores. A path selector, deliberately not a
+    /// `HwLiveProvider` arm — the credit and entitlement wiring keys off "the
+    /// provider is HyperWhisper Cloud" and must keep matching. `None` or an
+    /// unknown id means the default tier. Ignored by every other provider.
+    pub cloud_tier: Option<String>,
 }
 
 impl From<HwLiveConfig> for lv::LiveConfig {
@@ -278,6 +328,7 @@ impl From<HwLiveConfig> for lv::LiveConfig {
             model: c.model,
             fast_formatting: c.fast_formatting,
             base_url: c.base_url,
+            cloud_tier: c.cloud_tier,
         }
     }
 }
@@ -621,7 +672,7 @@ impl HwLiveSession {
 mod tests {
     use super::*;
 
-    const ALL: [lv::LiveProvider; 5] = lv::LiveProvider::ALL;
+    const ALL: [lv::LiveProvider; 6] = lv::LiveProvider::ALL;
 
     fn hw_tag(p: &HwLiveProvider) -> &'static str {
         match p {
@@ -629,6 +680,7 @@ mod tests {
             HwLiveProvider::ElevenLabs => "elevenlabs",
             HwLiveProvider::OpenAi => "openai",
             HwLiveProvider::Grok => "grok",
+            HwLiveProvider::GeminiTranscribe => "gemini_transcribe",
             HwLiveProvider::HyperWhisperCloud => "hyperwhisper_cloud",
         }
     }
@@ -639,6 +691,7 @@ mod tests {
             lv::LiveProvider::ElevenLabs => "elevenlabs",
             lv::LiveProvider::OpenAi => "openai",
             lv::LiveProvider::Grok => "grok",
+            lv::LiveProvider::GeminiTranscribe => "gemini_transcribe",
             lv::LiveProvider::HyperWhisperCloud => "hyperwhisper_cloud",
         }
     }
@@ -669,7 +722,7 @@ mod tests {
     #[test]
     fn each_provider_arm_carries_its_own_capability_row() {
         let hw = |p: lv::LiveProvider| -> HwLiveProvider { p.into() };
-        let cases: [(lv::LiveProvider, u32, bool, &str); 5] = [
+        let cases: [(lv::LiveProvider, u32, bool, &str); 6] = [
             (
                 lv::LiveProvider::Deepgram,
                 16_000,
@@ -682,8 +735,19 @@ mod tests {
                 false,
                 "ElevenLabs (Streaming)",
             ),
-            (lv::LiveProvider::OpenAi, 24_000, false, "OpenAI (Streaming)"),
+            (
+                lv::LiveProvider::OpenAi,
+                24_000,
+                false,
+                "OpenAI (Streaming)",
+            ),
             (lv::LiveProvider::Grok, 16_000, true, "xAI (Streaming)"),
+            (
+                lv::LiveProvider::GeminiTranscribe,
+                16_000,
+                true,
+                "Gemini 3.5 Transcribe (Streaming)",
+            ),
             (
                 lv::LiveProvider::HyperWhisperCloud,
                 16_000,
@@ -816,6 +880,7 @@ mod tests {
             model: None,
             fast_formatting: false,
             base_url: None,
+            cloud_tier: None,
         })
     }
 
@@ -1236,7 +1301,11 @@ mod tests {
         // the byte floor, without a clock read and without a sleep.
         assert!(session.control_frames(0).is_empty());
         session.note_audio(4_800);
-        assert_eq!(session.control_frames(2_000).len(), 1, "the periodic commit");
+        assert_eq!(
+            session.control_frames(2_000).len(),
+            1,
+            "the periodic commit"
+        );
 
         session.note_audio(4_799);
         assert!(
@@ -1287,6 +1356,7 @@ mod tests {
             model: None,
             fast_formatting: false,
             base_url: None,
+            cloud_tier: None,
         });
         // `Result::expect_err` needs `T: Debug`, which the UniFFI records here
         // deliberately do not derive — the same reason `ffi_net`'s tests unwrap

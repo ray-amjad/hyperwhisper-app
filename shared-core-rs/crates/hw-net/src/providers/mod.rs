@@ -10,6 +10,7 @@ pub(crate) mod common;
 pub mod deepgram;
 pub mod elevenlabs;
 pub mod gemini;
+pub mod gemini_transcribe;
 pub mod google_chirp;
 pub mod groq;
 pub mod grok;

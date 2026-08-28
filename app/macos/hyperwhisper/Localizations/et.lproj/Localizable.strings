@@ -42,6 +42,8 @@
 "streaming.enable.title" = "Luba voogedastus";
 "streaming.provider.picker.title" = "Teenusepakkuja";
 "streaming.model.title" = "Mudel";
+"streaming.cloudTier.title" = "Reaalajamootor";
+"streaming.cloudTier.description" = "Millist kõnemootorit kasutab HyperWhisper Cloud reaalajas transkribeerimiseks";
 "streaming.model.nova3general" = "Nova 3 General";
 "streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Kiire vormindus";
@@ -767,8 +769,8 @@ Muuda neid režiime, et valida enne eemaldamist mõni muu mudel.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ krediiti/min";
 "modes.cloudAccuracy.grokStt.label" = "Kõrgeim (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Kõrgeim täpsus aeglasema töötlemisega. Parim tähtsate transkriptsioonide jaoks.";
-"modes.cloudAccuracy.googleChirp3.label" = "Kõrge (Google Chirp 3)";
-"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 mudeliga Chirp 3. Mitmekeelne, fraasikohandusega.";
+"modes.cloudAccuracy.geminiTranscribe.label" = "Kõrge (Google Gemini 3.5 Transcribe)";
+"modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Mitmekeelne, kohandatud sõnavara toega.";
 "modes.cloudAccuracy.azureMaiTranscribe.label" = "Kõrge (Microsoft MAI-Transcribe 1.5)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 Azure Speech kaudu. 43 keelt koos kontekstipõhise kohandusega.";
 

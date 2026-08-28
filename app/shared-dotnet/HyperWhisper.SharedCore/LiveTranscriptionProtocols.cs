@@ -141,6 +141,43 @@ internal interface ILiveTranscriptionProtocol : IDisposable
     /// </summary>
     IReadOnlyList<LiveStopStep> StopSequence(long nowMs);
 
+    /// <summary>
+    /// Whether a <see cref="LiveProtocolEventKind.Complete"/> event ends the
+    /// session even when the client has NOT asked to stop yet.
+    ///
+    /// True for a vendor whose "complete" signal is emitted once, at the end of
+    /// the session: Grok's <c>transcript.done</c> and HyperWhisper Cloud's
+    /// <c>session_complete</c> (the backend only forwards it once the client
+    /// stopped). Deepgram, ElevenLabs and OpenAI map nothing to Complete at all,
+    /// so this flag cannot reach them.
+    ///
+    /// FALSE for a vendor that emits it at every TURN boundary — Gemini's
+    /// <c>generationComplete</c> fires at each pause in speech, and a terminal
+    /// reading silently ends a live dictation at the first one. The backend
+    /// models exactly this rule in
+    /// <c>hyperwhisper-cloud/src/routes/ws-streaming-shared.ts</c>: a 'complete'
+    /// upstream event closes the session only once <c>stopRequested</c>.
+    ///
+    /// The per-provider answer lives in the shared core
+    /// (<c>hw_net::live::complete_ends_session_before_stop</c>), so this head,
+    /// Windows and macOS cannot drift on it.
+    /// </summary>
+    bool CompleteEndsSessionBeforeStop { get; }
+
+    /// <summary>
+    /// How long to wait for <see cref="LiveProtocolEventKind.Started"/> before
+    /// the first audio frame is sent. <see cref="TimeSpan.Zero"/> — the default —
+    /// means the vendor accepts audio from the moment the socket opens, so the
+    /// pump must not wait (Deepgram's <c>Metadata</c> frame, for instance, is not
+    /// a readiness signal).
+    ///
+    /// A positive value means audio sent before the handshake completes is
+    /// DISCARDED by the vendor, which costs the opening words of the dictation.
+    /// Gemini is the one such provider today: audio sent before
+    /// <c>setupComplete</c> is dropped on the floor.
+    /// </summary>
+    TimeSpan StartTimeout => TimeSpan.Zero;
+
     LiveProtocolEvent Parse(ReadOnlyMemory<byte> message);
 }
 
@@ -202,7 +239,11 @@ internal sealed class RustLiveProtocol : ILiveTranscriptionProtocol
             // No base URL: this head has no custom-backend setting, so the core
             // uses the production relay. macOS's `#if DEBUG` staging host is what
             // the field exists for.
-            null));
+            null,
+            // Which vendor the HyperWhisper Cloud relay forwards to. The core
+            // derives the route (`/ws/streaming-{sttProvider}`) and the
+            // vocabulary gate from it; every other provider ignores it.
+            config.CloudTier));
 
         HwLiveConnect connect;
         try
@@ -245,6 +286,22 @@ internal sealed class RustLiveProtocol : ILiveTranscriptionProtocol
     public bool SessionStartsOnOpen { get; }
     public StreamingWebSocketConnectOptions ConnectOptions { get; }
     public IReadOnlyList<LiveProtocolFrame> StartFrames { get; }
+
+    /// <summary>
+    /// From the core's capability table, never a second provider list here.
+    /// </summary>
+    public bool CompleteEndsSessionBeforeStop =>
+        SharedCoreBridge.LiveCompleteEndsSessionBeforeStop(Provider);
+
+    /// <summary>
+    /// From the core's capability table. NOT derived from
+    /// <see cref="SessionStartsOnOpen"/>: four providers answer <c>false</c>
+    /// there and none of them has ever made this head wait, so deriving it would
+    /// silently add a handshake wait to OpenAI, xAI, ElevenLabs and HyperWhisper
+    /// Cloud. Only Gemini discards audio sent before its setup completes.
+    /// </summary>
+    public TimeSpan StartTimeout =>
+        TimeSpan.FromMilliseconds(SharedCoreBridge.LiveStartTimeoutMs(Provider));
 
     /// <summary>
     /// Wrap one PCM chunk, and tell the core how much audio went out.

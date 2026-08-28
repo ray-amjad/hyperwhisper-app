@@ -8,16 +8,23 @@
 //
 // This executor takes a binding `HttpRequest`, performs the I/O with `HttpClient`
 // (+ `StreamContent`/`FileStream`), and returns a binding `HttpResponse`. It is
-// reused by EVERY cloud STT provider, so the four `Body` cases below must be
+// reused by EVERY cloud STT provider, so the five `Body` cases below must be
 // exactly right — every later provider inherits any bug here. It mirrors the
 // already-shipped macOS `RustHTTPExecutor.swift` 1:1.
+//
+// The one exception to "audio never crosses the boundary" is
+// `Body.JsonWithBase64File` (Gemini 3.5 Transcribe): that vendor demands the
+// audio inline in the JSON, so the PLATFORM reads and base64-encodes it here.
+// Rust still only ever sees the path.
 //
 // TODO-verify (Windows/CI): Rust shared-core swap — compile-only on macOS; not
 // built against the C# binding here. Verify under `dotnet build` in CI.
 
 using System.IO;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Security.Cryptography;
 using HyperWhisper.Models;
 
 // Binding types (`HttpRequest`, `HttpResponse`, `Header`, `Body`, `HwPart`,
@@ -96,9 +103,16 @@ internal static class RustHttpExecutor
 
     /// <summary>
     /// Build the <see cref="HttpRequestMessage"/>: URL, method, all core headers,
-    /// and the body (dispatched by the four <see cref="Body"/> cases).
+    /// and the body (dispatched by the five <see cref="Body"/> cases).
     /// </summary>
-    private static HttpRequestMessage BuildRequestMessage(HttpRequest request)
+    /// <remarks>
+    /// internal (not private): test seam for HyperWhisper.SmokeTests via
+    /// InternalsVisibleTo (see HyperWhisper.csproj). The inline-base64 body is
+    /// produced lazily as it is written to the socket, so the only way to prove
+    /// the bytes are what the vendor expects is to build the message and read its
+    /// content back.
+    /// </remarks>
+    internal static HttpRequestMessage BuildRequestMessage(HttpRequest request)
     {
         var message = new HttpRequestMessage(MapMethod(request.@method), request.@url);
 
@@ -130,6 +144,35 @@ internal static class RustHttpExecutor
                 break;
             }
 
+            case Body.JsonWithBase64File json:
+            {
+                // === INLINE BASE64 JSON PATH (Gemini 3.5 Transcribe) ===
+                // The vendor's /v1beta/interactions endpoint has no file-reference
+                // form, so the audio must sit inside the JSON. The core hands us
+                // two literal JSON fragments and a path; the body is
+                // prefix ++ base64(file) ++ suffix.
+                //
+                // STREAMED, not buffered. The obvious version — ReadAllBytes, then
+                // ToBase64String, then a concatenated array — holds the file, its
+                // base64, and the joined result live at once: measured 88.7 MB of
+                // large-object heap for a 14 MB recording, which is the provider's
+                // own cap, and paid again on every RustRetry attempt (up to 8).
+                // JsonWithBase64FileContent encodes as it writes to the socket
+                // instead, matching the shared-.NET twin (RustHttpTransport) and
+                // macOS's chunked RustHTTPExecutor. The file read is async there
+                // and runs under SendAsync, so it also honours the attempt's
+                // cancellation token, which File.ReadAllBytes on this thread did
+                // not.
+                //
+                // C# `switch` over the binding's Body records is NOT exhaustive:
+                // omitting this case would send a body-less POST and the vendor
+                // would 400. There is no compiler check here — see the default arm.
+                var content = new JsonWithBase64FileContent(json.@prefix, json.@path, json.@suffix);
+                TrySetContentType(content, "application/json");
+                message.Content = content;
+                break;
+            }
+
             case Body.Multipart multipart:
             {
                 var rawFile = RawStreamFileRef(multipart.@parts);
@@ -155,6 +198,17 @@ internal static class RustHttpExecutor
                 }
                 break;
             }
+
+            default:
+                // This switch IS the request body. C# switches over the binding's
+                // Body records are not exhaustive, so a variant added to the core
+                // and not handled here would fall straight through and send a
+                // BODY-LESS request — a bare 400 from the vendor with nothing
+                // naming the cause. This repo has been bitten by that shape
+                // before. Fail loudly instead; the shared-.NET twin
+                // (HyperWhisper.SharedCore/RustHttpTransport) has the same arm.
+                throw new NotSupportedException(
+                    $"Unhandled Rust request body variant: {request.@body.GetType().Name}");
         }
 
         // Apply every core-provided header verbatim, in order. Headers that belong
@@ -217,6 +271,86 @@ internal static class RustHttpExecutor
             }
         }
         return content;
+    }
+
+    /// <summary>
+    /// A <see cref="Body.JsonWithBase64File"/> body written as
+    /// <c>prefix ++ base64(file) ++ suffix</c>, encoded straight onto the request
+    /// stream instead of assembled in memory.
+    ///
+    /// The prefix/suffix are already valid JSON fragments emitted by the core;
+    /// base64 is ASCII by construction, so a byte-level splice cannot corrupt
+    /// either side's escaping. <see cref="ToBase64Transform"/> emits the standard
+    /// padded, non-URL-safe alphabet with no line breaks — exactly what
+    /// <see cref="Convert.ToBase64String"/> produced before, and what the core's
+    /// fragments assume.
+    ///
+    /// Mirrors <c>JsonWithBase64FileContent</c> in
+    /// <c>app/shared-dotnet/HyperWhisper.SharedCore/RustHttpTransport.cs</c>.
+    /// </summary>
+    private sealed class JsonWithBase64FileContent : HttpContent
+    {
+        private readonly byte[] _prefix;
+        private readonly string _path;
+        private readonly byte[] _suffix;
+
+        internal JsonWithBase64FileContent(byte[] prefix, string path, byte[] suffix)
+        {
+            _prefix = prefix;
+            _path = path;
+            _suffix = suffix;
+        }
+
+        // HttpClient calls the cancellable overload, so the token that reaches
+        // here is the one ExecuteAsync was given — which is how the file read
+        // finally honours a cancelled retry attempt.
+        protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context) =>
+            WriteAsync(stream, CancellationToken.None);
+
+        protected override Task SerializeToStreamAsync(
+            Stream stream,
+            TransportContext? context,
+            CancellationToken cancellationToken) => WriteAsync(stream, cancellationToken);
+
+        private async Task WriteAsync(Stream stream, CancellationToken cancellationToken)
+        {
+            await stream.WriteAsync(_prefix, cancellationToken).ConfigureAwait(false);
+
+            await using (var file = OpenFileForStreaming(_path))
+            {
+                var encoder = new CryptoStream(stream, new ToBase64Transform(), CryptoStreamMode.Write, leaveOpen: true);
+                await using (encoder.ConfigureAwait(false))
+                {
+                    await file.CopyToAsync(encoder, cancellationToken).ConfigureAwait(false);
+                    // Emits the padding for a trailing partial group. Explicit
+                    // rather than left to Dispose so it provably happens before
+                    // the suffix is written.
+                    await encoder.FlushFinalBlockAsync(cancellationToken).ConfigureAwait(false);
+                }
+            }
+
+            await stream.WriteAsync(_suffix, cancellationToken).ConfigureAwait(false);
+        }
+
+        protected override bool TryComputeLength(out long length)
+        {
+            length = 0;
+            long fileBytes;
+            try
+            {
+                fileBytes = new FileInfo(_path).Length;
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                // Fall back to chunked transfer rather than failing here; the send
+                // itself will surface a real error if the file is gone.
+                return false;
+            }
+
+            // Base64 is 4 output bytes per 3 input bytes, padded up.
+            length = _prefix.LongLength + ((fileBytes + 2) / 3) * 4 + _suffix.LongLength;
+            return true;
+        }
     }
 
     /// <summary>
