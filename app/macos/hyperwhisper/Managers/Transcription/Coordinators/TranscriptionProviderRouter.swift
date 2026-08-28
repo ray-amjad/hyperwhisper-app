@@ -65,6 +65,9 @@ class TranscriptionProviderRouter {
     private let sonioxProvider = SonioxProvider()
     private let geminiTranscriptionProvider = GeminiTranscriptionProvider()
     private let grokSTTProvider = GrokSTTProvider()
+    /// Gemini 3.5 Transcribe. A separate instance from
+    /// `geminiTranscriptionProvider`: different endpoint, different key slot.
+    private let geminiTranscribeProvider = GeminiTranscribeProvider()
 
     /// HyperWhisper-Cloud-routed providers (no BYOK). Constructed lazily when
     /// the HW Cloud managers are available, mirroring `hyperwhisperCloudProvider`.
@@ -196,7 +199,11 @@ class TranscriptionProviderRouter {
         }
 
         // CLOUD PROVIDER SELECTION
-        let cloudProviderType = mode?.cloudProvider.flatMap { CloudProvider(rawValue: $0) } ?? .hyperwhisper
+        // `parse`, not `init(rawValue:)`: the `?? .hyperwhisper` fallback below
+        // is a BILLING decision. A camelCase id restored from a Windows/Linux
+        // backup would miss the case-sensitive lookup and silently move a BYOK
+        // user onto paid credits.
+        let cloudProviderType = CloudProvider.parse(mode?.cloudProvider) ?? .hyperwhisper
 
         // Validate API key (except for HyperWhisper Cloud which uses license/device ID)
         guard let settings = settingsManager else {
@@ -234,6 +241,8 @@ class TranscriptionProviderRouter {
                 geminiTranscriptionProvider.configure(apiKey: apiKey)
             case .grok:
                 grokSTTProvider.configure(apiKey: apiKey)
+            case .geminiTranscribe:
+                geminiTranscribeProvider.configure(apiKey: apiKey)
             }
         }
 
@@ -294,6 +303,8 @@ class TranscriptionProviderRouter {
                 throw TranscriptionError.providerNotAvailable(provider: "Google Chirp 3", reason: "Failed to initialize provider")
             }
             provider = google
+        case .geminiTranscribe:
+            provider = geminiTranscribeProvider
         }
 
         // Check provider health before use
@@ -413,7 +424,8 @@ class TranscriptionProviderRouter {
     /// - Local: `whisperLocal`, `whisper`, `parakeet`, `qwen3Asr`, `appleSpeech`.
     /// - Cloud: the CloudProvider rawValue (`openai`, `groq`, `deepgram`,
     ///   `assemblyai`, `elevenlabs`, `mistral`, `soniox`, `gemini`, `grok`,
-    ///   `hyperwhisper`, `microsoftazurespeech`, `googlespeech`).
+    ///   `hyperwhisper`, `microsoftazurespeech`, `googlespeech`,
+    ///   `geminitranscribe`).
     ///   `cloud` is an alias for `hyperwhisper`. All identifiers are matched
     ///   case-insensitively via `engine.lowercased()`.
     ///
@@ -501,6 +513,8 @@ class TranscriptionProviderRouter {
                 geminiTranscriptionProvider.configure(apiKey: apiKey)
             case .grok:
                 grokSTTProvider.configure(apiKey: apiKey)
+            case .geminiTranscribe:
+                geminiTranscribeProvider.configure(apiKey: apiKey)
             }
         }
 
@@ -540,6 +554,8 @@ class TranscriptionProviderRouter {
                 throw TranscriptionError.providerNotAvailable(provider: "Google Chirp 3", reason: "Failed to initialize provider")
             }
             provider = google
+        case .geminiTranscribe:
+            provider = geminiTranscribeProvider
         }
 
         if let healthManager = providerHealthManager {
@@ -569,7 +585,7 @@ class TranscriptionProviderRouter {
     func isHyperWhisperCloudActive(model: String?, cloudProvider: String?) -> Bool {
         let modelString = (model ?? "base").lowercased()
         guard modelString == "cloud" else { return false }
-        let resolved = cloudProvider.flatMap { CloudProvider(rawValue: $0) } ?? .hyperwhisper
+        let resolved = CloudProvider.parse(cloudProvider) ?? .hyperwhisper
         return resolved.routesViaHyperWhisperCloud
     }
 

@@ -392,12 +392,67 @@ public static class SharedCoreBridge
     public static string? CloudSttProvider(string tierId) =>
         HyperwhisperCoreMethods.CloudSttProvider(tierId);
 
+    /// <summary>
+    /// Cloud-tier entry ids HyperWhisper Cloud can also serve LIVE, in catalog
+    /// order — the eligible set for the streaming cloud-tier picker.
+    ///
+    /// Catalog-derived (<c>cloudTierEligible</c> AND some model with
+    /// <c>streaming: true</c>), never a hand-kept list. Note this is NOT the
+    /// entry-level <c>features.streaming</c> hint, which is true for six vendors
+    /// we serve no WebSocket route for.
+    /// </summary>
+    public static IReadOnlyList<string> StreamingCloudSttTiers() =>
+        HyperwhisperCoreMethods.CloudSttStreamingCloudTierEntryIds();
+
     public static string? CloudSttDefaultModel(string tierId) =>
         HyperwhisperCoreMethods.CloudSttDefaultModelId(tierId);
 
     public static bool CloudSttContainsModel(string tierId, string modelId) =>
         HyperwhisperCoreMethods.CloudSttModels(tierId)
             .Any(model => string.Equals(model.id, modelId, StringComparison.Ordinal));
+
+    /// <summary>
+    /// Model ids HyperWhisper Cloud serves ONLY over its live WebSocket route.
+    /// A pre-recorded POST carrying one of these is an HTTP 400 from the
+    /// upstream vendor, on every dictation, for as long as the mode keeps it.
+    ///
+    /// NOT derivable from the per-model <c>streaming</c> flag, despite how that
+    /// reads. <c>streaming: true</c> means "HyperWhisper Cloud routes this model
+    /// live", and <c>deepgramNova3</c> carries it on BOTH <c>nova-3-general</c>
+    /// and <c>nova-3-medical</c> — the default pre-recorded models. Filtering on
+    /// that flag would delete Deepgram's default dictation model.
+    ///
+    /// The catalog has no live-only field, so this is the shared-.NET mirror of
+    /// the same literal the other heads keep:
+    /// <c>CloudSttCatalog.LiveOnlyModelIds</c> (Windows),
+    /// <c>CloudSTTCatalog.liveOnlyModelIds</c> (macOS). All three are pinned
+    /// against <c>shared-conformance/live-only-models.json</c> so they cannot
+    /// drift apart.
+    /// </summary>
+    public static IReadOnlySet<string> LiveOnlyCloudSttModelIds { get; } =
+        new HashSet<string>(
+            ["gemini-3.5-transcribe-live", "gpt-live-transcribe"],
+            StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Whether <paramref name="modelId"/> is one of
+    /// <see cref="LiveOnlyCloudSttModelIds"/> (trimmed, case-insensitive).
+    /// False for null/blank — "no model chosen" resolves to the tier default,
+    /// which is never live-only.
+    /// </summary>
+    public static bool IsLiveOnlyCloudSttModel(string? modelId) =>
+        !string.IsNullOrWhiteSpace(modelId) && LiveOnlyCloudSttModelIds.Contains(modelId.Trim());
+
+    /// <summary>
+    /// Tier membership for a PRE-RECORDED request: the model must be in the
+    /// tier AND not live-only. Plain <see cref="CloudSttContainsModel"/> accepts
+    /// a live-only id, because it genuinely IS a model of the tier — the Linux
+    /// model box is a bare text field, and a backup restore or a Local API write
+    /// can put one there on any platform. Callers that route a file or a
+    /// dictation must use this one and fall back to the tier default.
+    /// </summary>
+    public static bool CloudSttContainsDictationModel(string tierId, string modelId) =>
+        !IsLiveOnlyCloudSttModel(modelId) && CloudSttContainsModel(tierId, modelId);
 
     // -----------------------------------------------------------------------
     // Live streaming (issue #281)
@@ -522,6 +577,46 @@ public static class SharedCoreBridge
         HyperwhisperCoreMethods.LiveSupportsVocabulary(CoreLiveProvider(provider));
 
     /// <summary>
+    /// Whether the provider honours custom vocabulary while the language is left
+    /// on auto-detect. A SECOND question from
+    /// <see cref="LiveSupportsVocabulary"/>: Deepgram Nova-3 accepts
+    /// <c>keyterm</c> only in monolingual mode and silently ignores it
+    /// otherwise, so its settings surfaces warn — while Gemini and xAI accept
+    /// theirs either way, and warning about those would be wrong.
+    /// </summary>
+    /// <param name="cloudTier">
+    /// Read for <see cref="LiveTranscriptionProvider.HyperWhisperCloud"/> only,
+    /// where the answer belongs to whichever vendor the relay will forward to.
+    /// <c>null</c> means the default tier.
+    /// </param>
+    public static bool LiveSupportsVocabularyWithoutLanguage(
+        LiveTranscriptionProvider provider,
+        string? cloudTier = null) =>
+        HyperwhisperCoreMethods.LiveSupportsVocabularyWithoutLanguage(
+            CoreLiveProvider(provider), cloudTier);
+
+    /// <summary>
+    /// Whether a session-complete event ends the session even when the client
+    /// has NOT asked to stop yet.
+    ///
+    /// <c>false</c> for Gemini alone: <c>generationComplete</c> is a TURN
+    /// boundary, fired at each pause in speech, so a terminal reading silently
+    /// ends a live dictation at the first one and the last utterance's final
+    /// never arrives.
+    /// </summary>
+    public static bool LiveCompleteEndsSessionBeforeStop(LiveTranscriptionProvider provider) =>
+        HyperwhisperCoreMethods.LiveCompleteEndsSessionBeforeStop(CoreLiveProvider(provider));
+
+    /// <summary>
+    /// How long to hold the audio pump waiting for the provider's
+    /// session-started frame, in milliseconds. <c>0</c> means send from the
+    /// moment the socket opens, which is every provider but Gemini — whose
+    /// server discards audio that arrives before <c>setupComplete</c>.
+    /// </summary>
+    public static int LiveStartTimeoutMs(LiveTranscriptionProvider provider) =>
+        (int)HyperwhisperCoreMethods.LiveStartTimeoutMs(CoreLiveProvider(provider));
+
+    /// <summary>
     /// The human-readable provider label stored on a history entry. The
     /// " (Streaming)" suffix is what distinguishes a live session from the same
     /// vendor's batch transcription.
@@ -545,6 +640,7 @@ public static class SharedCoreBridge
         LiveTranscriptionProvider.ElevenLabs => HwLiveProvider.ElevenLabs,
         LiveTranscriptionProvider.OpenAi => HwLiveProvider.OpenAi,
         LiveTranscriptionProvider.Grok => HwLiveProvider.Grok,
+        LiveTranscriptionProvider.GeminiTranscribe => HwLiveProvider.GeminiTranscribe,
         LiveTranscriptionProvider.HyperWhisperCloud => HwLiveProvider.HyperWhisperCloud,
         _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, "not a WebSocket streaming provider"),
     };

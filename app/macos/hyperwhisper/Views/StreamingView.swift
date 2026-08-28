@@ -59,7 +59,7 @@ struct StreamingView: View {
     /// The currently selected streaming provider, derived from settings.
     /// Falls back to HyperWhisper Cloud if the stored value is invalid.
     private var selectedProvider: StreamingTranscriptionProvider {
-        StreamingTranscriptionProvider(rawValue: settingsManager.streamingProvider) ?? .hyperwhisperCloud
+        StreamingTranscriptionProvider.fromStorageValue(settingsManager.streamingProvider) ?? .hyperwhisperCloud
     }
 
     /// API key value for the currently selected direct streaming provider.
@@ -74,6 +74,8 @@ struct StreamingView: View {
             return settingsManager.openAIAPIKey
         case .xai:
             return settingsManager.grokAPIKey
+        case .gemini:
+            return settingsManager.geminiTranscribeAPIKey
         case .hyperwhisperCloud, .parakeetLocal, .nemotronLocal:
             return ""
         }
@@ -96,6 +98,8 @@ struct StreamingView: View {
             return .openai
         case .xai:
             return .grok
+        case .gemini:
+            return .geminiTranscribe
         case .hyperwhisperCloud, .parakeetLocal, .nemotronLocal:
             return nil
         }
@@ -128,6 +132,8 @@ struct StreamingView: View {
             && selectedProvider != .elevenLabs
             && selectedProvider != .openAI
             && selectedProvider != .xai
+            && selectedProvider != .gemini
+            && !(selectedProvider == .hyperwhisperCloud && !cloudTierRequiresLanguageForVocabulary)
     }
 
     private func normalizeStreamingLanguageForCurrentProvider() {
@@ -219,6 +225,11 @@ struct StreamingView: View {
                 refreshSelectedProviderHealth(force: true)
             }
         }
+        .onChange(of: settingsManager.geminiTranscribeAPIKey) { _, _ in
+            if selectedProvider == .gemini {
+                refreshSelectedProviderHealth(force: true)
+            }
+        }
     }
 
     // MARK: - Header Section
@@ -262,6 +273,11 @@ struct StreamingView: View {
                     groupTitle("Engine")
                     streamingCard {
                         providerSection
+
+                        if selectedProvider == .hyperwhisperCloud {
+                            Divider()
+                            cloudTierSection
+                        }
 
                         if selectedProvider == .deepgram {
                             Divider()
@@ -380,7 +396,7 @@ struct StreamingView: View {
             Spacer()
 
             // Provider picker using StreamingTranscriptionProvider enum for type-safe selection
-            Picker("", selection: $settingsManager.streamingProvider) {
+            Picker("", selection: normalizedProviderBinding) {
                 ForEach(StreamingTranscriptionProvider.allCases) { provider in
                     Text(provider.displayName).tag(provider.rawValue)
                 }
@@ -438,6 +454,156 @@ struct StreamingView: View {
             .frame(width: 200, alignment: .trailing)
             .frame(maxWidth: .infinity, alignment: .trailing)
         }
+    }
+
+    // MARK: - Cloud Tier Section (HyperWhisper Cloud Only)
+
+    /// Which vendor HyperWhisper Cloud's live route uses.
+    ///
+    /// The eligible set is catalog-driven and single-sourced in Rust
+    /// (`cloudTierEligible` AND some model with `streaming: true`), so a future
+    /// third live vendor is a catalog change and no edit here. Deliberately NOT
+    /// the entry-level `features.streaming` hint, which is true for six vendors
+    /// we serve no WebSocket route for — offering one of those would ship a 404
+    /// at dictation time, and the STT catalog has no `enabled` gate to hide it.
+    ///
+    /// Row labels are the EXISTING per-tier strings the Mode editor already
+    /// ships (`modes.cloudAccuracy.<id>.label`). Reusing `CloudAccuracyTier`'s
+    /// value space is exactly what buys that, so this picker adds one new
+    /// localized string — its own heading — and not 40 files of vendor names.
+    private var cloudTierSection: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "cpu")
+                .font(.title2)
+                .foregroundColor(.secondary)
+                .frame(width: 30)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("streaming.cloudTier.title".localized)
+                    .font(.headline)
+
+                Text("streaming.cloudTier.description".localized)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            Spacer()
+
+            Picker("", selection: normalizedCloudTierBinding) {
+                ForEach(CloudAccuracyTier.streamingEligibleTiers) { tier in
+                    Text("modes.cloudAccuracy.\(tier.rawValue).label".localized).tag(tier.rawValue)
+                }
+            }
+            .labelsHidden()
+            .frame(width: 200, alignment: .trailing)
+            .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+    }
+
+    /// Reads the stored provider through the same tolerant parse the recording
+    /// flow uses, for the same reason as `normalizedCloudTierBinding` below: the
+    /// rows are tagged with `StreamingTranscriptionProvider.rawValue`, so a
+    /// stored value that is a legacy alias rather than a current id — `gemini`
+    /// for what now ships as `geminiTranscribe` — would render a BLANK selection
+    /// even though the session itself routes correctly. Writes pass straight
+    /// through: the picker can only produce a current id.
+    ///
+    /// `objectWillChange.send()` is NOT optional here, and is the whole reason
+    /// this binding is written out rather than closed over in one line. The
+    /// backing property is `@AppStorage`, not `@Published`: `@AppStorage` does
+    /// not implement the enclosing-instance subscript, so assigning to it from
+    /// outside a View writes UserDefaults and publishes NOTHING. The projected
+    /// binding this replaced (`$settingsManager.streamingProvider`) published on
+    /// every write for free, so dropping it silently froze the whole section —
+    /// no body re-evaluation means `.onChange(of: settingsManager.streamingProvider)`
+    /// never fires either, and picking a provider that needs a key never reveals
+    /// the key field. Send BEFORE the write, the way `willSet` would.
+    ///
+    /// Built by a static so the tests can exercise this exact binding without
+    /// standing up a SwiftUI environment (`StreamingSettingsBindingTests`).
+    static func providerBinding(for settings: SettingsManager) -> Binding<String> {
+        providerBinding(
+            read: { settings.streamingProvider },
+            write: { settings.streamingProvider = $0 },
+            publish: { settings.objectWillChange.send() }
+        )
+    }
+
+    /// The same binding over plain closures, and the one the tests drive.
+    ///
+    /// The tests must NOT reach it through a `SettingsManager`. The backing
+    /// property is `@AppStorage`, so any write lands in `UserDefaults.standard`,
+    /// and the macOS test host IS the running app: that write invalidates every
+    /// `@AppStorage` in the live view tree, the home window re-lays out, and its
+    /// `@FetchRequest` aborts the whole process — reported by `xcodebuild` as
+    /// dozens of unrelated tests "failing" in 0.000 seconds. Driving closures
+    /// over a local variable touches no global state and cannot do that.
+    static func providerBinding(
+        read: @escaping () -> String,
+        write: @escaping (String) -> Void,
+        publish: @escaping () -> Void
+    ) -> Binding<String> {
+        Binding(
+            get: {
+                (StreamingTranscriptionProvider.fromStorageValue(read())
+                    ?? .hyperwhisperCloud).rawValue
+            },
+            set: {
+                publish()
+                write($0)
+            }
+        )
+    }
+
+    private var normalizedProviderBinding: Binding<String> {
+        Self.providerBinding(for: settingsManager)
+    }
+
+    /// Reads the stored tier through the same clamp the route derivation uses, so
+    /// a value the picker never wrote — a backup restore or a Local API call can
+    /// both set it — shows the row the session will actually use instead of an
+    /// empty selection. Writes pass straight through: every value the picker can
+    /// produce is already in the eligible set.
+    ///
+    /// Publishes before the write for the same reason as
+    /// `normalizedProviderBinding` above — `streamingCloudTier` is `@AppStorage`
+    /// too, so without this, changing the live tier leaves the vocabulary
+    /// language warning (`cloudTierRequiresLanguageForVocabulary`) showing the
+    /// previous tier's answer.
+    static func cloudTierBinding(for settings: SettingsManager) -> Binding<String> {
+        cloudTierBinding(
+            read: { settings.streamingCloudTier },
+            write: { settings.streamingCloudTier = $0 },
+            publish: { settings.objectWillChange.send() }
+        )
+    }
+
+    /// Closure form, for the same reason as `providerBinding(read:write:publish:)`.
+    static func cloudTierBinding(
+        read: @escaping () -> String,
+        write: @escaping (String) -> Void,
+        publish: @escaping () -> Void
+    ) -> Binding<String> {
+        Binding(
+            get: { HyperWhisperCloudStrategy.normalizedCloudTier(read()) },
+            set: {
+                publish()
+                write($0)
+            }
+        )
+    }
+
+    private var normalizedCloudTierBinding: Binding<String> {
+        Self.cloudTierBinding(for: settingsManager)
+    }
+
+    /// Whether the selected cloud live tier needs an explicit language before it
+    /// honours vocabulary terms. True for Deepgram Nova-3, which silently drops
+    /// `keyterm` in auto-detect; false for Gemini, which accepts
+    /// `custom_vocabulary` there. Applying Deepgram's rule to every tier would
+    /// warn wrongly — and, worse, the strategy would withhold the terms.
+    private var cloudTierRequiresLanguageForVocabulary: Bool {
+        HyperWhisperCloudStrategy.tierRequiresLanguageForVocabulary(settingsManager.streamingCloudTier)
     }
 
     // MARK: - Fast Formatting Section (Deepgram Only)

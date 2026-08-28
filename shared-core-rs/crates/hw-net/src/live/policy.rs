@@ -42,7 +42,14 @@ pub enum LiveUpgradeRefusal {
 /// provider — sends exactly `{"type":"error","message":"Credit balance
 /// exhausted"}` when a session outruns the account's balance. Without it the
 /// default path produced the whole fan-out this policy exists to stop.
-pub const TERMINAL_ERROR_MARKERS: [&str; 20] = [
+/// The last entry is the odd one out and is deliberate: it names OUR bug rather
+/// than the user's account. Gemini 3.5 Transcribe Live needs a setup frame
+/// before it will take audio and answers a malformed one by closing with 1007;
+/// `hyperwhisper-cloud`'s `ws-streaming-gemini-transcribe.ts` translates that
+/// close into "…rejected the session setup". It is terminal for the same reason
+/// as the rest — the setup frame is byte-identical on every attempt, so a
+/// reconnect is a retry storm that can only reproduce the rejection.
+pub const TERMINAL_ERROR_MARKERS: [&str; 21] = [
     "credit balance exhausted",
     "no credits remaining",
     "insufficient credits",
@@ -63,6 +70,7 @@ pub const TERMINAL_ERROR_MARKERS: [&str; 20] = [
     "billing",
     "payment required",
     "account is not active",
+    "rejected the session setup",
 ];
 
 /// Classifies the `message` payload of a provider error frame as either a

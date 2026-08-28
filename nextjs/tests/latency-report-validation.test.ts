@@ -191,20 +191,25 @@ test("a provider row is named after a vendor, never after one of its models", as
   }
 });
 
-test("Chirp and Gemini share one row, the way the app's Provider menu shows them", async () => {
+test("Google's two entries share one row, the way the app's Provider menu shows them", async () => {
   const { STT_CATALOG, vendorDisplayName } = await loadProviders();
 
   // The merge is the catalog's, not this app's: both entries carry
   // vendor "google", which is what macOS's cloudTierVendorGroups collapses on.
   // Splitting them here would put two rows on the page that the app never names
-  // separately.
+  // separately. Which two entries they are comes from the catalog, so retiring
+  // one (google-chirp → gemini-transcribe) cannot leave this assertion behind.
   const google = (STT_CATALOG as CatalogFile["providers"]).filter(
     (entry) => entry.vendor === "google",
   );
   assert.deepEqual(
     google.map((entry) => entry.sttProvider).sort(),
-    ["gemini", "google-chirp"],
+    readCatalog()
+      .providers.filter((entry) => entry.vendor === "google")
+      .map((entry) => entry.sttProvider)
+      .sort(),
   );
+  assert.equal(google.length, 2);
   assert.equal(vendorDisplayName("google"), "Google");
 });
 
@@ -240,9 +245,9 @@ test("exactly one model per vendor is badged as the default", async () => {
 
   // A row on the page is a vendor, so "default" has to mean what the app means
   // by it: what picking that vendor and touching nothing else gives you. Google
-  // marks a default inside BOTH its entries (chirp_3 and gemini-2.5-flash), but
-  // selecting Google lands on the first entry in catalog order and then on that
-  // entry's default — one model, not two.
+  // marks a default inside BOTH its entries (gemini-3.5-transcribe and
+  // gemini-2.5-flash), but selecting Google lands on the first entry in catalog
+  // order and then on that entry's default — one model, not two.
   const badged = new Map<string, string[]>();
   for (const entry of STT_CATALOG as CatalogFile["providers"]) {
     for (const model of entry.models) {
@@ -258,7 +263,12 @@ test("exactly one model per vendor is badged as the default", async () => {
       `${entry.vendor}: ${JSON.stringify(badged.get(entry.vendor))}`,
     );
   }
-  assert.deepEqual(badged.get("google"), ["Chirp 3"]);
+  // Named from the catalog, not from the mirror: the badge must follow the
+  // first Google entry in catalog order whichever entry that is.
+  const firstGoogle = readCatalog().providers.find((entry) => entry.vendor === "google");
+  const expectedDefault = firstGoogle?.models.find((model) => model.isDefault === true);
+  assert.deepEqual(badged.get("google"), [expectedDefault?.displayName]);
+  assert.equal(expectedDefault?.displayName, "Gemini 3.5 Transcribe");
 });
 
 test("rejects a failure sample with no failure kind", async () => {

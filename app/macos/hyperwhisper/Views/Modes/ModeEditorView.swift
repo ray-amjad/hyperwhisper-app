@@ -150,7 +150,7 @@ struct ModeEditorView: View {
             // single implicit model has the empty-string id, so "whisper-1" would
             // match no picker tag and render the Model row as a blank menu button.
             // Only fall back to "whisper-1" when the provider itself is unknown.
-            let savedCloudProviderEnum = CloudProvider(rawValue: mode.cloudProvider ?? "")
+            let savedCloudProviderEnum = CloudProvider.parse(mode.cloudProvider)
             let savedCloudModel = mode.cloudTranscriptionModel?
                 .trimmingCharacters(in: .whitespacesAndNewlines)
             let seededCloudModel: String = {
@@ -171,12 +171,16 @@ struct ModeEditorView: View {
             let normalizedCloudProvider = CloudSTTCatalog.shared.normalizeCloudProvider(savedCloudProvider)
             let legacyProviderTier: CloudAccuracyTier? = normalizedCloudProvider.accuracyTier
                 .flatMap { CloudAccuracyTier(rawValue: $0) }
+            // Canonicalised, because this value is seeded straight into
+            // `_cloudProvider` and the provider Picker tags its rows with
+            // `CloudProvider.rawValue`. A camelCase id restored from a
+            // Windows/Linux backup matches no tag and renders a BLANK menu.
             let migratedCloudProviderRaw = legacyProviderTier != nil
                 ? CloudProvider.hyperwhisper.rawValue
-                : (savedCloudProvider ?? "hyperwhisper")
+                : (CloudProvider.canonicalStorageValue(savedCloudProvider) ?? "hyperwhisper")
             let migratedAccuracyTierRaw = legacyProviderTier?.rawValue
                 ?? CloudAccuracyTier.fromStorageValue(mode.cloudAccuracyTier).rawValue
-            let initialCloudProvider = CloudProvider(rawValue: migratedCloudProviderRaw) ?? .hyperwhisper
+            let initialCloudProvider = CloudProvider.parse(migratedCloudProviderRaw) ?? .hyperwhisper
 
             // Resolve post-processing provider — compute against the migrated
             // cloudProvider so legacy Azure/Google modes get the HW Cloud
@@ -289,7 +293,7 @@ struct ModeEditorView: View {
 
     /// Current cloud provider enum
     private var currentCloudProvider: CloudProvider {
-        CloudProvider(rawValue: cloudProvider) ?? .hyperwhisper
+        CloudProvider.parse(cloudProvider) ?? .hyperwhisper
     }
 
     /// Cloud transcription providers shown in the picker. Always
@@ -362,7 +366,7 @@ struct ModeEditorView: View {
                     // This keeps a saved Deepgram/Groq/etc. choice intact across a
                     // harmless Source toggle away and back.
                     if let savedProviderRaw = lastDirectCloudProvider,
-                       let savedProvider = CloudProvider(rawValue: savedProviderRaw),
+                       let savedProvider = CloudProvider.parse(savedProviderRaw),
                        availableDirectCloudProviders.contains(savedProvider) {
                         cloudProvider = savedProviderRaw
                         cloudTranscriptionModel = lastDirectCloudTranscriptionModel
@@ -507,7 +511,7 @@ struct ModeEditorView: View {
     /// outer `cloudProvider` is "hyperwhisper" — which only registers nova-3 — so we
     /// resolve the SELECTED accuracy tier's routed upstream provider id instead (the
     /// same value sent in the X-STT-Provider header). Tiers whose upstream provider
-    /// isn't in `STTCapabilities` (azure-mai / google-chirp / gemini) yield an empty
+    /// isn't in `STTCapabilities` (azure-mai / gemini-transcribe / gemini) yield an empty
     /// spec list, which falls back to the full language list.
     private var languageFilterCloudProviderId: String {
         currentCloudProvider == .hyperwhisper ? selectedCloudTier.sttProvider : cloudProvider
@@ -531,10 +535,36 @@ struct ModeEditorView: View {
     }
 
     /// Models offered by the selected Provider row. That row is a *company*, so
-    /// the list spans every tier the company owns — "Google" lists Chirp and
+    /// the list spans every tier the company owns — "Google" lists Transcribe and
     /// Gemini models together.
+    ///
+    /// Live-only models are excluded: this dropdown picks a DICTATION model, and
+    /// `gemini-3.5-transcribe-live` is served by the WebSocket route alone, so
+    /// choosing it here makes every dictation in the mode fail with an HTTP 400.
+    /// The live picker lives in Streaming settings and is fed separately from
+    /// `CloudAccuracyTier.streamingEligibleTiers`.
     private var hyperwhisperCloudModels: [CloudSTTCatalog.Model] {
-        selectedCloudTier.vendorGroupModels
+        selectedCloudTier.vendorGroupDictationModels
+    }
+
+    /// What the Model dropdown must be showing for a stored (tier, model) pair —
+    /// the stored id when the dropdown offers it, the tier default otherwise.
+    ///
+    /// Reads the same list the picker is built from (`vendorGroupDictationModels`,
+    /// via `hyperwhisperCloudModels`). A clamp keyed on `tier.models` instead
+    /// disagreed with the picker in both directions: it reset a perfectly valid
+    /// model belonging to a sibling tier of the same company row, and it ACCEPTED
+    /// a live-only id the picker refuses to list — leaving a blank menu button on
+    /// a mode whose every dictation fails with HTTP 400.
+    ///
+    /// Static and pure so the repair is testable without a SwiftUI environment.
+    static func clampedCloudTranscriptionModel(
+        tier: CloudAccuracyTier,
+        storedModelId: String
+    ) -> String {
+        tier.vendorGroupDictationModels.contains { $0.id == storedModelId }
+            ? storedModelId
+            : tier.defaultModelId
     }
 
     /// Provider dropdown selection — the catalog `vendor` key rather than the
@@ -626,10 +656,19 @@ struct ModeEditorView: View {
             // a valid selection (avoids a SwiftUI Picker selection warning).
             if currentCloudProvider == .hyperwhisper {
                 let tier = selectedCloudTier
-                let modelIds = tier.models.map { $0.id }
-                if !modelIds.contains(cloudTranscriptionModel) {
-                    cloudTranscriptionModel = tier.defaultModelId
-                }
+                // Validate against exactly what the Model dropdown OFFERS
+                // (`hyperwhisperCloudModels`), not against `tier.models`. The two
+                // disagreed in both directions: the dropdown spans the whole
+                // vendor group, so a valid sibling-tier model was being reset to
+                // the tier default, and it excludes the live-only ids, so
+                // `gemini-3.5-transcribe-live` passed the clamp and then matched
+                // no tag — a blank menu button on a mode whose every dictation
+                // 400s. A clamp that accepts what the picker refuses to show is
+                // not a clamp.
+                cloudTranscriptionModel = Self.clampedCloudTranscriptionModel(
+                    tier: tier,
+                    storedModelId: cloudTranscriptionModel
+                )
                 // A domain only makes sense for assemblyAI; clear stale values.
                 if !showsMedicalDomainToggle {
                     cloudTranscriptionDomain = nil
@@ -915,7 +954,7 @@ struct ModeEditorView: View {
                 .pickerStyle(.menu)
                 .labelsHidden()
                 .onChange(of: cloudProvider) { _, newProvider in
-                    guard let provider = CloudProvider(rawValue: newProvider) else { return }
+                    guard let provider = CloudProvider.parse(newProvider) else { return }
                     showAllCloudTranscriptionModels = false
                     cloudTranscriptionModel = CloudTranscriptionModels.defaultModel(for: provider)
                     cloudTranscriptionDomain = nil
@@ -1108,7 +1147,7 @@ struct ModeEditorView: View {
     private var hyperwhisperCloudProviderModelPicker: some View {
         VStack(alignment: .leading, spacing: 10) {
             // Level 1 — Provider, i.e. the company. One row per vendor, so the
-            // two Google tiers (Chirp + Gemini) share a row. The selection is
+            // two Google tiers (Transcribe + Gemini) share a row. The selection is
             // the vendor key; the binding maps it back to a tier for storage.
             HStack {
                 Text(localized: "modes.field.provider")

@@ -2086,10 +2086,27 @@ public struct HwLiveConfig {
     public var model: String?
     public var fastFormatting: Bool
     public var baseUrl: String?
+    /**
+     * Which upstream vendor HyperWhisper Cloud should relay to: a
+     * `cloud-stt-catalog.json` entry id, which is what the app's global
+     * `streamingCloudTier` setting stores. A path selector, deliberately not a
+     * `HwLiveProvider` arm — the credit and entitlement wiring keys off "the
+     * provider is HyperWhisper Cloud" and must keep matching. `None` or an
+     * unknown id means the default tier. Ignored by every other provider.
+     */
+    public var cloudTier: String?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(provider: HwLiveProvider, apiKey: String?, licenseKey: String?, deviceId: String?, language: String?, vocabulary: [String], model: String?, fastFormatting: Bool, baseUrl: String?) {
+    public init(provider: HwLiveProvider, apiKey: String?, licenseKey: String?, deviceId: String?, language: String?, vocabulary: [String], model: String?, fastFormatting: Bool, baseUrl: String?, 
+        /**
+         * Which upstream vendor HyperWhisper Cloud should relay to: a
+         * `cloud-stt-catalog.json` entry id, which is what the app's global
+         * `streamingCloudTier` setting stores. A path selector, deliberately not a
+         * `HwLiveProvider` arm — the credit and entitlement wiring keys off "the
+         * provider is HyperWhisper Cloud" and must keep matching. `None` or an
+         * unknown id means the default tier. Ignored by every other provider.
+         */cloudTier: String?) {
         self.provider = provider
         self.apiKey = apiKey
         self.licenseKey = licenseKey
@@ -2099,6 +2116,7 @@ public struct HwLiveConfig {
         self.model = model
         self.fastFormatting = fastFormatting
         self.baseUrl = baseUrl
+        self.cloudTier = cloudTier
     }
 }
 
@@ -2133,6 +2151,9 @@ extension HwLiveConfig: Equatable, Hashable {
         if lhs.baseUrl != rhs.baseUrl {
             return false
         }
+        if lhs.cloudTier != rhs.cloudTier {
+            return false
+        }
         return true
     }
 
@@ -2146,6 +2167,7 @@ extension HwLiveConfig: Equatable, Hashable {
         hasher.combine(model)
         hasher.combine(fastFormatting)
         hasher.combine(baseUrl)
+        hasher.combine(cloudTier)
     }
 }
 
@@ -2165,7 +2187,8 @@ public struct FfiConverterTypeHwLiveConfig: FfiConverterRustBuffer {
                 vocabulary: FfiConverterSequenceString.read(from: &buf), 
                 model: FfiConverterOptionString.read(from: &buf), 
                 fastFormatting: FfiConverterBool.read(from: &buf), 
-                baseUrl: FfiConverterOptionString.read(from: &buf)
+                baseUrl: FfiConverterOptionString.read(from: &buf), 
+                cloudTier: FfiConverterOptionString.read(from: &buf)
         )
     }
 
@@ -2179,6 +2202,7 @@ public struct FfiConverterTypeHwLiveConfig: FfiConverterRustBuffer {
         FfiConverterOptionString.write(value.model, into: &buf)
         FfiConverterBool.write(value.fastFormatting, into: &buf)
         FfiConverterOptionString.write(value.baseUrl, into: &buf)
+        FfiConverterOptionString.write(value.cloudTier, into: &buf)
     }
 }
 
@@ -5127,16 +5151,26 @@ public struct SttModel {
     public var isDefault: Bool?
     public var previewStatus: Bool?
     public var supportsCustomVocabulary: Bool?
+    /**
+     * Whether HyperWhisper Cloud serves a live WebSocket route for this model
+     * (catalog v8). NOT the entry-level `features.streaming` vendor hint.
+     */
+    public var streaming: Bool?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(id: String, displayName: String, creditsPerMinute: Double?, isDefault: Bool?, previewStatus: Bool?, supportsCustomVocabulary: Bool?) {
+    public init(id: String, displayName: String, creditsPerMinute: Double?, isDefault: Bool?, previewStatus: Bool?, supportsCustomVocabulary: Bool?, 
+        /**
+         * Whether HyperWhisper Cloud serves a live WebSocket route for this model
+         * (catalog v8). NOT the entry-level `features.streaming` vendor hint.
+         */streaming: Bool?) {
         self.id = id
         self.displayName = displayName
         self.creditsPerMinute = creditsPerMinute
         self.isDefault = isDefault
         self.previewStatus = previewStatus
         self.supportsCustomVocabulary = supportsCustomVocabulary
+        self.streaming = streaming
     }
 }
 
@@ -5162,6 +5196,9 @@ extension SttModel: Equatable, Hashable {
         if lhs.supportsCustomVocabulary != rhs.supportsCustomVocabulary {
             return false
         }
+        if lhs.streaming != rhs.streaming {
+            return false
+        }
         return true
     }
 
@@ -5172,6 +5209,7 @@ extension SttModel: Equatable, Hashable {
         hasher.combine(isDefault)
         hasher.combine(previewStatus)
         hasher.combine(supportsCustomVocabulary)
+        hasher.combine(streaming)
     }
 }
 
@@ -5188,7 +5226,8 @@ public struct FfiConverterTypeSttModel: FfiConverterRustBuffer {
                 creditsPerMinute: FfiConverterOptionDouble.read(from: &buf), 
                 isDefault: FfiConverterOptionBool.read(from: &buf), 
                 previewStatus: FfiConverterOptionBool.read(from: &buf), 
-                supportsCustomVocabulary: FfiConverterOptionBool.read(from: &buf)
+                supportsCustomVocabulary: FfiConverterOptionBool.read(from: &buf), 
+                streaming: FfiConverterOptionBool.read(from: &buf)
         )
     }
 
@@ -5199,6 +5238,7 @@ public struct FfiConverterTypeSttModel: FfiConverterRustBuffer {
         FfiConverterOptionBool.write(value.isDefault, into: &buf)
         FfiConverterOptionBool.write(value.previewStatus, into: &buf)
         FfiConverterOptionBool.write(value.supportsCustomVocabulary, into: &buf)
+        FfiConverterOptionBool.write(value.streaming, into: &buf)
     }
 }
 
@@ -6005,6 +6045,17 @@ public enum Body {
     )
     case fileStream(path: String, contentType: String
     )
+    /**
+     * `prefix` ++ base64(bytes of the file at `path`) ++ `suffix`, written by
+     * the platform with `Content-Type: application/json`. Rust never sees the
+     * audio — only the path — but unlike `FileStream` the platform must
+     * base64-encode as it writes (standard alphabet, padded, no line breaks).
+     *
+     * Used only by Gemini 3.5 Transcribe's `/v1beta/interactions`, which has no
+     * file-reference form.
+     */
+    case jsonWithBase64File(prefix: Data, path: String, suffix: Data
+    )
 }
 
 
@@ -6027,6 +6078,9 @@ public struct FfiConverterTypeBody: FfiConverterRustBuffer {
         )
         
         case 4: return .fileStream(path: try FfiConverterString.read(from: &buf), contentType: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 5: return .jsonWithBase64File(prefix: try FfiConverterData.read(from: &buf), path: try FfiConverterString.read(from: &buf), suffix: try FfiConverterData.read(from: &buf)
         )
         
         default: throw UniffiInternalError.unexpectedEnumCase
@@ -6057,6 +6111,13 @@ public struct FfiConverterTypeBody: FfiConverterRustBuffer {
             writeInt(&buf, Int32(4))
             FfiConverterString.write(path, into: &buf)
             FfiConverterString.write(contentType, into: &buf)
+            
+        
+        case let .jsonWithBase64File(prefix,path,suffix):
+            writeInt(&buf, Int32(5))
+            FfiConverterData.write(prefix, into: &buf)
+            FfiConverterString.write(path, into: &buf)
+            FfiConverterData.write(suffix, into: &buf)
             
         }
     }
@@ -7692,11 +7753,15 @@ extension HwLiveEvent: Equatable, Hashable {}
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
- * The five websocket transcription providers. Mirrors `lv::LiveProvider`.
+ * The six websocket transcription providers. Mirrors `lv::LiveProvider`.
  *
  * Local engines (Parakeet, Nemotron) are deliberately absent — they are not
  * websocket protocols. Windows spells this vendor set with `Xai` where this
  * enum says `Grok`; the head maps across at its boundary.
+ *
+ * `GeminiTranscribe` is the BYOK Gemini 3.5 Transcribe Live socket, distinct
+ * from the same vendor reached through `HyperWhisperCloud`'s `geminiTranscribe`
+ * tier — only the latter bills credits.
  */
 
 public enum HwLiveProvider {
@@ -7705,6 +7770,7 @@ public enum HwLiveProvider {
     case elevenLabs
     case openAi
     case grok
+    case geminiTranscribe
     case hyperWhisperCloud
 }
 
@@ -7727,7 +7793,9 @@ public struct FfiConverterTypeHwLiveProvider: FfiConverterRustBuffer {
         
         case 4: return .grok
         
-        case 5: return .hyperWhisperCloud
+        case 5: return .geminiTranscribe
+        
+        case 6: return .hyperWhisperCloud
         
         default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -7753,8 +7821,12 @@ public struct FfiConverterTypeHwLiveProvider: FfiConverterRustBuffer {
             writeInt(&buf, Int32(4))
         
         
-        case .hyperWhisperCloud:
+        case .geminiTranscribe:
             writeInt(&buf, Int32(5))
+        
+        
+        case .hyperWhisperCloud:
+            writeInt(&buf, Int32(6))
         
         }
     }
@@ -8403,7 +8475,7 @@ extension HwPart: Equatable, Hashable {}
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
- * The 12 cloud speech-to-text providers. Mirrors `hw_net::Provider`.
+ * The 14 cloud speech-to-text providers. Mirrors `hw_net::Provider`.
  */
 
 public enum HwProvider {
@@ -8420,6 +8492,8 @@ public enum HwProvider {
     case gemini
     case azureMai
     case googleChirp
+    case geminiTranscribe
+    case geminiTranscribeLive
 }
 
 
@@ -8456,6 +8530,10 @@ public struct FfiConverterTypeHwProvider: FfiConverterRustBuffer {
         case 11: return .azureMai
         
         case 12: return .googleChirp
+        
+        case 13: return .geminiTranscribe
+        
+        case 14: return .geminiTranscribeLive
         
         default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -8511,6 +8589,14 @@ public struct FfiConverterTypeHwProvider: FfiConverterRustBuffer {
         
         case .googleChirp:
             writeInt(&buf, Int32(12))
+        
+        
+        case .geminiTranscribe:
+            writeInt(&buf, Int32(13))
+        
+        
+        case .geminiTranscribeLive:
+            writeInt(&buf, Int32(14))
         
         }
     }
@@ -11119,6 +11205,26 @@ public func cloudSttProvider(id: String) -> String? {
 })
 }
 /**
+ * Same set as `cloud_stt_streaming_cloud_tier_entry_ids`, as full entries.
+ */
+public func cloudSttStreamingCloudTierEntries() -> [SttEntry] {
+    return try!  FfiConverterSequenceTypeSttEntry.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_cloud_stt_streaming_cloud_tier_entries($0
+    )
+})
+}
+/**
+ * Cloud-tier provider ids HyperWhisper Cloud can also serve live, in catalog
+ * order — `cloudTierEligible` AND at least one model with `streaming: true`.
+ * The eligible set for the HW-Cloud live vendor picker.
+ */
+public func cloudSttStreamingCloudTierEntryIds() -> [String] {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_cloud_stt_streaming_cloud_tier_entry_ids($0
+    )
+})
+}
+/**
  * Whether the STT provider supports custom vocabulary.
  */
 public func cloudSttSupportsCustomVocabulary(id: String) -> Bool {
@@ -11347,6 +11453,20 @@ public func geminiParseUploadBytesResponse(resp: HttpResponse)throws  -> GeminiF
 public func geminiParseUploadStartResponse(resp: HttpResponse)throws  -> String {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeHwTranscriptionError.lift) {
     uniffi_hyperwhisper_core_fn_func_gemini_parse_upload_start_response(
+        FfiConverterTypeHttpResponse.lower(resp),$0
+    )
+})
+}
+public func geminiTranscribeBuildTranscribeRequest(params: TranscribeParams)throws  -> HttpRequest {
+    return try  FfiConverterTypeHttpRequest.lift(try rustCallWithError(FfiConverterTypeHwTranscriptionError.lift) {
+    uniffi_hyperwhisper_core_fn_func_gemini_transcribe_build_transcribe_request(
+        FfiConverterTypeTranscribeParams.lower(params),$0
+    )
+})
+}
+public func geminiTranscribeParseTranscribeResponse(resp: HttpResponse)throws  -> HwTranscript {
+    return try  FfiConverterTypeHwTranscript.lift(try rustCallWithError(FfiConverterTypeHwTranscriptionError.lift) {
+    uniffi_hyperwhisper_core_fn_func_gemini_transcribe_parse_transcribe_response(
         FfiConverterTypeHttpResponse.lower(resp),$0
     )
 })
@@ -11733,6 +11853,20 @@ public func liveClassifyErrorMessage(message: String) -> HwLiveErrorOutcome {
 })
 }
 /**
+ * Whether a session-complete event ends the session even when the client has
+ * not asked to stop yet.
+ *
+ * `false` for Gemini alone: `generationComplete` is a TURN boundary, so a
+ * terminal reading silently ends a live dictation at the first pause in speech.
+ */
+public func liveCompleteEndsSessionBeforeStop(provider: HwLiveProvider) -> Bool {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_live_complete_ends_session_before_stop(
+        FfiConverterTypeHwLiveProvider.lower(provider),$0
+    )
+})
+}
+/**
  * Whether a websocket close code is one of the RFC-6455 non-recoverable set
  * (1002, 1003, 1007, 1008, 1009, 1011).
  *
@@ -11783,6 +11917,20 @@ public func liveRequiredSampleRate(provider: HwLiveProvider) -> UInt32 {
 })
 }
 /**
+ * How long to hold the audio pump waiting for the provider's session-started
+ * frame, in milliseconds. `0` means send from the moment the socket opens.
+ *
+ * Non-zero for Gemini alone: audio sent before `setupComplete` is discarded by
+ * the server, which costs the opening words of the dictation.
+ */
+public func liveStartTimeoutMs(provider: HwLiveProvider) -> UInt32 {
+    return try!  FfiConverterUInt32.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_live_start_timeout_ms(
+        FfiConverterTypeHwLiveProvider.lower(provider),$0
+    )
+})
+}
+/**
  * Whether the provider's live API takes a custom-vocabulary parameter at all.
  * `false` means the terms are dropped before the socket opens.
  */
@@ -11790,6 +11938,23 @@ public func liveSupportsVocabulary(provider: HwLiveProvider) -> Bool {
     return try!  FfiConverterBool.lift(try! rustCall() {
     uniffi_hyperwhisper_core_fn_func_live_supports_vocabulary(
         FfiConverterTypeHwLiveProvider.lower(provider),$0
+    )
+})
+}
+/**
+ * Whether the provider honours custom vocabulary while the language is left on
+ * auto-detect. A SECOND question from `live_supports_vocabulary`: Deepgram
+ * Nova-3 accepts `keyterm` only in monolingual mode and silently ignores it
+ * otherwise, while Gemini and xAI accept theirs either way.
+ *
+ * `cloud_tier` is read for `HyperWhisperCloud` only, where the answer belongs
+ * to whichever vendor the relay will forward to. `None` means the default tier.
+ */
+public func liveSupportsVocabularyWithoutLanguage(provider: HwLiveProvider, cloudTier: String?) -> Bool {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_live_supports_vocabulary_without_language(
+        FfiConverterTypeHwLiveProvider.lower(provider),
+        FfiConverterOptionString.lower(cloudTier),$0
     )
 })
 }
@@ -12681,6 +12846,12 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_cloud_stt_provider() != 52282) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_hyperwhisper_core_checksum_func_cloud_stt_streaming_cloud_tier_entries() != 54317) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_cloud_stt_streaming_cloud_tier_entry_ids() != 41165) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_hyperwhisper_core_checksum_func_cloud_stt_supports_custom_vocabulary() != 64386) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -12754,6 +12925,12 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_gemini_parse_upload_start_response() != 42591) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_gemini_transcribe_build_transcribe_request() != 41571) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_gemini_transcribe_parse_transcribe_response() != 16333) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_google_chirp_build_transcribe_request() != 44911) {
@@ -12882,6 +13059,9 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_live_classify_error_message() != 33535) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_hyperwhisper_core_checksum_func_live_complete_ends_session_before_stop() != 61878) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_hyperwhisper_core_checksum_func_live_is_terminal_close_code() != 62063) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -12894,7 +13074,13 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_live_required_sample_rate() != 26616) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_hyperwhisper_core_checksum_func_live_start_timeout_ms() != 1906) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_hyperwhisper_core_checksum_func_live_supports_vocabulary() != 20813) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_live_supports_vocabulary_without_language() != 12079) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_live_upgrade_refusal() != 28164) {

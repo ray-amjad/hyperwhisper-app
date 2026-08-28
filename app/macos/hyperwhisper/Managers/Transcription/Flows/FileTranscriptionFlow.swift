@@ -521,7 +521,7 @@ class FileTranscriptionFlow {
         if isCloudMode {
             // Cloud mode: check provider-specific limit
             guard let providerRaw = mode.cloudProvider,
-                  let provider = CloudProvider(rawValue: providerRaw) else {
+                  let provider = CloudProvider.parse(providerRaw) else {
                 // If no provider specified, assume default (OpenAI with 25MB limit)
                 let defaultLimit: Int64 = 25 * 1024 * 1024
                 if fileSize > defaultLimit {
@@ -584,7 +584,7 @@ class FileTranscriptionFlow {
         // STEP 2: Get the cloud provider
         // If no provider specified, skip validation (will use default provider settings)
         guard let providerRaw = mode.cloudProvider,
-              let provider = CloudProvider(rawValue: providerRaw) else {
+              let provider = CloudProvider.parse(providerRaw) else {
             AppLogger.transcription.info("📄 Format validation skipped (no provider specified)")
             return
         }

@@ -316,6 +316,17 @@
     },
 
     {
+      "provider": "geminiTranscribe",
+      "id": "gemini-3.5-transcribe",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": true,
+      "platforms": ["macos", "windows"],
+      "supportsAllLanguages": true,
+      "notes": "Google's dedicated speech API (POST /v1beta/interactions), NOT the multimodal :generateContent path the \"gemini\" rows use — that endpoint accepts this model, bills the audio and returns empty text. Separate BYOK key slot from \"gemini\". availableViaHyperWhisperCloud is true from catalog v8, where geminiTranscribe replaced googleChirp3 as the Google HyperWhisper Cloud tier and hyperwhisper-cloud serves X-STT-Provider: gemini-transcribe. The live variant gemini-3.5-transcribe-live is WebSocket-only and is not a Model Library row."
+    },
+
+    {
       "provider": "grok",
       "id": "",
       "kind": "voice",
@@ -515,10 +526,10 @@
       "id": "chirp_3",
       "kind": "voice",
       "supportsCustomVocabulary": true,
-      "availableViaHyperWhisperCloud": true,
+      "availableViaHyperWhisperCloud": false,
       "platforms": ["macos", "windows"],
       "supportedLanguages": ["af", "am", "ar", "as", "az", "bg", "bn", "ca", "cs", "cy", "da", "de", "el", "en", "es", "et", "eu", "fa", "fi", "fr", "gl", "gu", "ha", "he", "hi", "hr", "hu", "hy", "id", "is", "it", "ja", "jw", "ka", "kk", "km", "kn", "ko", "lb", "lo", "lt", "lv", "mi", "mk", "ml", "mn", "mr", "ms", "mt", "my", "ne", "nl", "no", "pa", "pl", "pt", "ro", "ru", "sk", "sl", "sq", "sr", "sv", "sw", "ta", "te", "th", "tl", "tr", "uk", "uz", "vi", "yo", "yue", "zh"],
-      "notes": "Google Cloud Speech-to-Text V2 Chirp 3. HyperWhisper Cloud only (X-STT-Provider: google-chirp). Languages from shared-app-classification/cloud-stt-catalog.json (googleChirp3), vendor codes aliased (cmn->zh, fil->tl, iw->he, jv->jw) and base-normalized; not in macOS STTCapabilities so the macOS Mode Editor currently shows all languages."
+      "notes": "Retired: Google Cloud Speech-to-Text V2 Chirp 3. Was the Google HyperWhisper Cloud tier until catalog v8 (2026-08-27), when geminiTranscribe replaced it; the googleChirp3 entry no longer exists in shared-app-classification/cloud-stt-catalog.json, so no client can select this tier and availableViaHyperWhisperCloud is false. hyperwhisper-cloud still answers X-STT-Provider: google-chirp so already-shipped clients keep working, and saved modes migrate onto geminiTranscribe via that entry's migrateFrom list. The language list is the frozen snapshot of the removed googleChirp3 entry, vendor codes aliased (cmn->zh, fil->tl, iw->he, jv->jw) and base-normalized; kept so a mode still pinned to chirp_3 resolves its languages."
     }
   ]
 }

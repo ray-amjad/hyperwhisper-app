@@ -755,6 +755,7 @@ public static class LoggingService
         CloudTranscriptionProvider.ElevenLabs => apiKeys.HasApiKey(TranscriptionApiKeyType.ElevenLabs),
         CloudTranscriptionProvider.Mistral => apiKeys.HasApiKey(TranscriptionApiKeyType.Mistral),
         CloudTranscriptionProvider.Soniox => apiKeys.HasApiKey(TranscriptionApiKeyType.Soniox),
+        CloudTranscriptionProvider.GeminiTranscribe => apiKeys.HasApiKey(TranscriptionApiKeyType.GeminiTranscribe),
         CloudTranscriptionProvider.HyperWhisperCloud => true,
         CloudTranscriptionProvider.MicrosoftAzureSpeech => true,
         CloudTranscriptionProvider.GoogleSpeech => true,

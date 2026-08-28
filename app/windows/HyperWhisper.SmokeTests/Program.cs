@@ -34,6 +34,9 @@ using HyperWhisper.Services.Transcription;
 using HyperWhisper.Utilities;
 using HyperWhisper.ViewModels;
 using HyperWhisper.Views.Pages.Settings;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using uniffi.hyperwhisper_core;
 using PlatformContracts = HyperWhisper.Platform.Abstractions;
 // Aliased, not imported: HyperWhisper.SharedCore also declares
@@ -2196,6 +2199,176 @@ internal static class Program
                 Assert(client.State == StreamingConnectionState.Disconnecting, $"expected State to remain Disconnecting, got {client.State}");
             });
 
+            Run("every StreamingTranscriptionProvider round-trips through its storage value", () =>
+            {
+                // The enum has SIX hand-maintained switches and not one of them is
+                // compiler-enforced - every arm ends in `_ =>`. The quiet one is
+                // IsValidStorageValue: SettingsService.StreamingProvider's setter
+                // resets anything it rejects to hyperwhisperCloud, so a member
+                // missing from it makes the user's selection silently revert on the
+                // next save. Nothing tested this before; walk the whole enum.
+                foreach (var provider in Enum.GetValues<StreamingTranscriptionProvider>())
+                {
+                    var storage = provider.StorageValue();
+                    Assert(!string.IsNullOrWhiteSpace(storage), $"{provider}: empty storage value");
+                    Assert(StreamingTranscriptionProviderExtensions.IsValidStorageValue(storage),
+                        $"{provider}: storage value '{storage}' is rejected by IsValidStorageValue, so the setting would silently revert");
+                    Assert(StreamingTranscriptionProviderExtensions.FromStorageValue(storage) == provider,
+                        $"{provider}: '{storage}' round-trips to {StreamingTranscriptionProviderExtensions.FromStorageValue(storage)}");
+                    Assert(!string.IsNullOrWhiteSpace(provider.DisplayName()), $"{provider}: empty display name");
+                }
+                Assert(!StreamingTranscriptionProviderExtensions.IsValidStorageValue("noSuchProvider"),
+                    "an unknown storage value must stay invalid");
+            });
+
+            Run("the Gemini live setup frame puts the config at setup.input_audio_transcription", () =>
+            {
+                // TRAP: the LIVE model takes its transcription config here, while the
+                // PRE-RECORDED model takes the same object at
+                // setup.generation_config.transcription_config. Sending the
+                // pre-recorded shape to the live socket closes it with 1007. Pinned
+                // against shared-conformance/live-frame-vectors.json.
+                // Asserted by PATH, not as raw text: the frame is built by the
+                // shared core now (issue #281), and serde_json sorts object keys
+                // where the old hand-written builder emitted them in declaration
+                // order. Google's protobuf-JSON reader is order-insensitive, so
+                // pinning the literal string would pin the serializer rather
+                // than the contract. The contract is WHERE each value sits.
+                static JsonElement Setup(StreamingSessionConfig config)
+                {
+                    using var strategy = LiveStrategy(
+                        StreamingTranscriptionProvider.GeminiTranscribe, config);
+                    Assert(strategy.BuildWebSocketUri(config) is not null,
+                        "Gemini must build a connect URL from an API key");
+                    var frames = strategy.GetStartMessages(config);
+                    Assert(frames.Count == 1, $"expected one setup frame, got {frames.Count}");
+                    return JsonDocument.Parse(frames[0].Data).RootElement.Clone();
+                }
+
+                var config = new StreamingSessionConfig(
+                    null, null, "en-US", ["HyperWhisper"], "AIza-test", null, false, false);
+                var setup = Setup(config).GetProperty("setup");
+                Assert(setup.GetProperty("model").GetString() == "models/gemini-3.5-transcribe-live",
+                    "unexpected live model");
+                var transcription = setup.GetProperty("input_audio_transcription");
+                Assert(transcription.GetProperty("language_codes")[0].GetString() == "en-US",
+                    "language_codes must carry the selected tag");
+                Assert(transcription.GetProperty("custom_vocabulary")[0].GetString() == "HyperWhisper",
+                    "custom_vocabulary must carry the terms");
+                // The wrong-but-plausible position must be ABSENT, not merely unused.
+                Assert(!setup.TryGetProperty("generation_config", out _),
+                    "the pre-recorded config position must stay empty on the live socket");
+
+                // Auto-detect drops language_codes but KEEPS custom_vocabulary. The
+                // "no vocabulary without a language" rule is Deepgram's, not Google's,
+                // and vocabulary is the headline reason to pick this provider.
+                var auto = new StreamingSessionConfig(
+                    null, null, "auto", ["Kalamazoo"], "AIza-test", null, false, false);
+                var autoTranscription = Setup(auto)
+                    .GetProperty("setup").GetProperty("input_audio_transcription");
+                Assert(!autoTranscription.TryGetProperty("language_codes", out _),
+                    "auto means send no language at all");
+                Assert(autoTranscription.GetProperty("custom_vocabulary")[0].GetString() == "Kalamazoo",
+                    "Gemini takes custom_vocabulary under auto-detect");
+
+                // Region preserved, unlike the primary-subtag providers.
+                var region = new StreamingSessionConfig(
+                    null, null, "en-GB", null, "AIza-test", null, false, false);
+                Assert(Setup(region).GetProperty("setup")
+                        .GetProperty("input_audio_transcription")
+                        .GetProperty("language_codes")[0].GetString() == "en-GB",
+                    "en-GB must not be flattened to en");
+            });
+
+            Run("Gemini maps interim to partial and inputTranscription to final without diffing", () =>
+            {
+                // NOT xAI-shaped. interimInputTranscription is cumulative only WITHIN
+                // a turn and restarts after each final; inputTranscription carries
+                // only that turn's committed text. Prefix-diffing would emit nothing
+                // for a second turn whose text repeats the first.
+                using var strategy = LiveStrategy(StreamingTranscriptionProvider.GeminiTranscribe);
+                Assert(strategy.ParseMessage("{\"setupComplete\":{}}") is StreamingProviderEvent.SessionStarted,
+                    "setupComplete must start the session");
+                Assert(strategy.ParseMessage("{\"serverContent\":{\"interimInputTranscription\":{\"text\":\"hel\"}}}")
+                    is StreamingProviderEvent.PartialTranscript { Text: "hel" }, "interim must be a partial");
+                Assert(strategy.ParseMessage("{\"serverContent\":{\"inputTranscription\":{\"text\":\"again.\"}}}")
+                    is StreamingProviderEvent.FinalTranscript { Text: "again." }, "inputTranscription must be a final");
+                Assert(strategy.ParseMessage("{\"serverContent\":{\"inputTranscription\":{\"text\":\"again.\"}}}")
+                    is StreamingProviderEvent.FinalTranscript { Text: "again." },
+                    "a repeated turn must be emitted whole - diffing would swallow it");
+                // Maps to SessionComplete, but whether that is TERMINAL is decided
+                // by CompleteEndsSessionBeforeStop - see the turn-boundary test.
+                Assert(strategy.ParseMessage("{\"serverContent\":{\"generationComplete\":true}}")
+                    is StreamingProviderEvent.SessionComplete, "generationComplete must map to the completion event");
+                Assert(strategy.ParseMessage("{\"usageMetadata\":{\"totalTokenCount\":3}}") == null,
+                    "an unmodelled frame must be ignored, not an error");
+                Assert(strategy.ParseMessage("{\"error\":{\"code\":1007,\"message\":\"invalid setup\"}}")
+                    is StreamingProviderEvent.Error { Message: "invalid setup" }, "error frame must surface its message");
+            });
+
+            Run("the HyperWhisper Cloud route is derived from the selected cloud tier", () =>
+            {
+                // /ws/streaming-{sttProvider}, derived by the shared core from the
+                // catalog entry the tier names. deepgramNova3 must stay
+                // byte-identical to the literal it replaced, because every installed
+                // client sends no tier at all; an unknown tier must fall back rather
+                // than derive a path the backend will 404.
+                static Uri Route(string? tier, string language, IReadOnlyList<string>? vocabulary = null)
+                {
+                    var config = new StreamingSessionConfig(
+                        "lic", null, language, vocabulary, null, null, false, false, tier);
+                    using var strategy = LiveStrategy(
+                        StreamingTranscriptionProvider.HyperWhisperCloud, config);
+                    var uri = strategy.BuildWebSocketUri(config);
+                    Assert(uri is not null, $"tier '{tier}' must build a connect URL");
+                    return uri!;
+                }
+
+                Assert(Route("deepgramNova3", "en").AbsolutePath == "/ws/streaming-deepgram",
+                    "deepgramNova3 must derive /ws/streaming-deepgram");
+                Assert(Route("geminiTranscribe", "en").AbsolutePath == "/ws/streaming-gemini-transcribe",
+                    "geminiTranscribe must derive /ws/streaming-gemini-transcribe");
+                foreach (var bogus in new string?[] { null, "", "   ", "notATier", "groqWhisper" })
+                {
+                    Assert(Route(bogus, "en").AbsolutePath == "/ws/streaming-deepgram",
+                        $"tier '{bogus}' must fall back to Deepgram");
+                }
+
+                // The auto-detect vocabulary gate is Deepgram's constraint, so it must
+                // NOT be applied to the Gemini tier.
+                Assert(!Route("deepgramNova3", "auto", ["Kalamazoo"]).Query.Contains("vocabulary="),
+                    "Deepgram must withhold vocabulary in auto-detect");
+                Assert(Route("geminiTranscribe", "auto", ["Kalamazoo"]).Query.Contains("vocabulary=Kalamazoo"),
+                    "Gemini must send vocabulary in auto-detect");
+            });
+
+            Run("the live cloud tier picker offers exactly the vendors we serve a WS route for", () =>
+            {
+                // The STT catalog has no `enabled` gate, and the client derives its
+                // route with no allow-list of its own, so this list IS the guard
+                // against shipping a picker row that 404s at dictation time.
+                var ids = CloudSttCatalog.Shared.StreamingCloudTierEntries().Select(e => e.Id).ToArray();
+                Assert(ids.SequenceEqual(new[] { "deepgramNova3", "geminiTranscribe" }),
+                    $"unexpected live tier set: {string.Join(", ", ids)}");
+
+                // The settings ComboBox binds SelectedValue to the stored id with
+                // SelectedValuePath="Id", and WPF matches that case-SENSITIVELY. A
+                // hand-edited settings.json or a retired tier therefore has to come
+                // back in the catalog's own casing, or the row renders blank while
+                // the session quietly runs on the fallback.
+                Assert(SettingsService.NormalizeStreamingCloudTier(" geminiTranscribe ") == "geminiTranscribe",
+                    "a padded id must normalize");
+                Assert(SettingsService.NormalizeStreamingCloudTier("GEMINITRANSCRIBE") == "geminiTranscribe",
+                    "a case variant must come back in the catalog's casing, not the caller's");
+                foreach (var bogus in new string?[] { null, "", "   ", "notATier", "googleChirp3" })
+                {
+                    Assert(SettingsService.NormalizeStreamingCloudTier(bogus) == "deepgramNova3",
+                        $"tier '{bogus}' must clamp to the default");
+                }
+                Assert(ids.Contains(LiveProtocolStreamingStrategy.DefaultCloudTier),
+                    "the fallback tier must itself be offered, or the picker is blank by default");
+            });
+
             Run("IStreamingProviderStrategy.IsTerminalCloseCode default covers the standard fatal WebSocket protocol codes", () =>
             {
                 // The terminal-code allowlist moved from a StreamingTranscriptionClient-private,
@@ -3614,7 +3787,7 @@ internal static class Program
                 // shared-app-classification/AGENTS.md documents catalog edits as
                 // data-only, but the Provider dropdown is built straight from the
                 // catalog while persistence funnels through the CloudAccuracyTier
-                // enum, whose FromString fallback is DeepgramNova3. A 12th
+                // enum, whose FromString fallback is DeepgramNova3. A new
                 // cloudTierEligible entry with no enum case would therefore be a
                 // selectable row that transcribes and bills as Deepgram. Fail here
                 // instead, on the PR that adds the entry.
@@ -3632,6 +3805,39 @@ internal static class Program
                             + "Add the case to Models/CloudAccuracyTier.cs (and the macOS CloudAccuracyTier enum) "
                             + "in the same change as the catalog entry.");
                 }
+            });
+
+            Run("A persisted googleChirp3 tier migrates onto geminiTranscribe", () =>
+            {
+                // Catalog v8 retired googleChirp3 in favour of geminiTranscribe.
+                // FromString's fallback is DeepgramNova3, so every legacy spelling
+                // that misses would silently move a Google user to Deepgram —
+                // wrong X-STT-Provider, wrong credits, wrong vendor row.
+                // The stored data is converged by the EF migration
+                // 20260827090000_MigrateGoogleChirp3TierToGeminiTranscribe; this
+                // guards the read path that has to hold until it runs (and for
+                // any value arriving over the Local API or a backup restore).
+                foreach (var legacy in new[]
+                {
+                    "googleChirp3", "googlechirp3", "GOOGLECHIRP3",
+                    "googlespeech", "googleSpeech", "google-chirp", "googlechirp",
+                    "chirp", "chirp_3",
+                })
+                {
+                    var resolved = CloudAccuracyTierExtensions.FromString(legacy).ToStorageValue();
+                    Assert(
+                        resolved == "geminiTranscribe",
+                        $"legacy tier '{legacy}' resolved to '{resolved}', not 'geminiTranscribe' — "
+                            + "a Chirp 3 user would be silently moved to another vendor.");
+                }
+
+                // And the retired id must not come back as an enum member: the
+                // canonical loop in FromString runs before the catalog aliases,
+                // so a GoogleChirp3 member would win and strand the user on a
+                // tier with no catalog entry.
+                Assert(
+                    !Enum.GetNames<CloudAccuracyTier>().Contains("GoogleChirp3"),
+                    "CloudAccuracyTier.GoogleChirp3 is back; it would shadow the catalog migrateFrom alias.");
             });
 
             Run("Grok's empty model id resolves through a provider-scoped lookup", () =>
@@ -3908,6 +4114,353 @@ internal static class Program
                     "expected null - a 5xx never reaches this predicate as a terminal result, and even if it did, only 400 is the documented verdict status");
                 Assert(LicenseNetworkService.LicenseVerdictReason(401, verdictBody) == null, "expected null at 401");
                 Assert(LicenseNetworkService.LicenseVerdictReason(200, verdictBody) == null, "expected null at 200");
+            });
+
+            RunAsync("a mid-session generationComplete keeps BOTH utterances and still sends audio_stream_end", async () =>
+            {
+                // Google emits serverContent.generationComplete at EVERY turn
+                // boundary. Mapping it to SessionComplete completed
+                // _sessionCompletedTcs at the first pause, so the stop sequence's
+                // WaitForSessionComplete returned immediately, the socket closed
+                // right after audio_stream_end, and the LAST utterance's final never
+                // landed. Backend semantics: terminal only once the client asked to
+                // stop (ws-streaming-shared.ts, the 'complete' arm).
+                var config = new StreamingSessionConfig(null, null, "en", null, "AIza-test", null, false, false);
+                using var strategy = LiveStrategy(StreamingTranscriptionProvider.GeminiTranscribe, config);
+
+                Assert(!strategy.CompleteEndsSessionBeforeStop,
+                    "Gemini must declare its completion frame as a turn boundary before stop");
+                // Every other provider keeps the unconditional reading - a vendor
+                // whose 'complete' really is once-per-session must not be changed.
+                // The answer comes from the shared core (issue #281), so this walks
+                // the real provider enum rather than a hand-kept strategy list.
+                foreach (var provider in Enum.GetValues<StreamingTranscriptionProvider>())
+                {
+                    if (provider == StreamingTranscriptionProvider.GeminiTranscribe)
+                    {
+                        continue;
+                    }
+
+                    using var other = LiveStrategy(provider, config);
+                    Assert(other.CompleteEndsSessionBeforeStop,
+                        $"{other.TranscriptionProviderLabel} must keep the pre-existing terminal reading of SessionComplete");
+                }
+
+                var client = new StreamingTranscriptionClient(strategy, config);
+                client.SetStateForTesting(StreamingConnectionState.Streaming);
+
+                var sessionCompletedCount = 0;
+                client.SessionCompleted += (_, _) => sessionCompletedCount++;
+
+                // Utterance 1, turn boundary, utterance 2 - the exact live shape
+                // pinned by the backend's two-utterance relay test.
+                client.HandleProviderEvent(strategy.ParseMessage(
+                    "{\"serverContent\":{\"inputTranscription\":{\"text\":\"Hello, this is a test.\"}}}"));
+                client.HandleProviderEvent(strategy.ParseMessage(
+                    "{\"serverContent\":{\"generationComplete\":true}}"));
+                client.HandleProviderEvent(strategy.ParseMessage(
+                    "{\"serverContent\":{\"inputTranscription\":{\"text\":\"Let us meet on Wednesday.\"}}}"));
+
+                Assert(client.State == StreamingConnectionState.Streaming,
+                    $"the session must stay open across a turn boundary, State was {client.State}");
+                Assert(sessionCompletedCount == 0,
+                    "a mid-session turn boundary must not raise SessionCompleted - subscribers treat that as end-of-session");
+
+                // The stop sequence still runs in full. No socket is connected, so
+                // the sends are no-ops, but the steps - and the text they are there
+                // to protect - are what this pins.
+                var steps = strategy.GetStopSequence();
+                Assert(steps.Count > 0 && steps[0].Action == StreamingStopAction.SendMessage &&
+                       System.Text.Encoding.UTF8.GetString(steps[0].Payload!) ==
+                           "{\"realtime_input\":{\"audio_stream_end\":true}}",
+                    "the stop sequence must still open with audio_stream_end");
+                Assert(steps.Any(step => step.Action == StreamingStopAction.WaitForSessionComplete),
+                    "the stop sequence must still wait for the trailing final");
+
+                var finalText = await client.StopAsync();
+                Assert(finalText.Contains("Hello, this is a test.") && finalText.Contains("Let us meet on Wednesday."),
+                    $"both utterances must survive the turn boundary, got '{finalText}'");
+
+                // ...and the SAME frame after the client asked to stop IS the
+                // end-of-session signal the stop sequence is waiting for.
+                var stopping = new StreamingTranscriptionClient(strategy, config);
+                stopping.SetStateForTesting(StreamingConnectionState.Disconnecting);
+                var completedAfterStop = 0;
+                stopping.SessionCompleted += (_, _) => completedAfterStop++;
+                stopping.HandleProviderEvent(strategy.ParseMessage(
+                    "{\"serverContent\":{\"generationComplete\":true}}"));
+                Assert(completedAfterStop == 1,
+                    "a post-stop generationComplete must complete the session exactly once");
+            });
+
+            Run("the HyperWhisper Cloud dictation model picker never offers a streaming-only model", () =>
+            {
+                // gemini-3.5-transcribe-live is WebSocket-only - it has no
+                // pre-recorded endpoint, so every dictation on it 400s. The catalog
+                // already carries `"streaming": true` on that model; the Mode
+                // editor's Model dropdown flat-mapped every model and ignored it.
+                var catalog = CloudSttCatalog.Shared;
+
+                var live = catalog.GetModel("geminiTranscribe", "gemini-3.5-transcribe-live");
+                Assert(live != null, "the catalog no longer carries gemini-3.5-transcribe-live");
+
+                var offered = catalog.ModelsForVendorKey("google").Select(entry => entry.Model.Id).ToArray();
+                Assert(!offered.Contains("gemini-3.5-transcribe-live"),
+                    $"a live-only model reached the dictation picker: {string.Join(", ", offered)}");
+                Assert(offered.Contains("gemini-3.5-transcribe"),
+                    $"the pre-recorded Google model must still be offered, got: {string.Join(", ", offered)}");
+
+                // REGRESSION GUARD (mirrors macOS's deepgramNova3StaysSelectableForDictation).
+                // The per-model `streaming` flag is NOT the filter, however much it
+                // reads like one: it means "HW Cloud routes this model live", and
+                // Deepgram carries it on nova-3-general and nova-3-medical, which
+                // are the DEFAULT pre-recorded dictation models. Filtering on it
+                // deletes the default dictation model from the picker - a worse bug
+                // than the one this test exists for. Both facts are pinned here so
+                // the flag cannot quietly become the filter again.
+                Assert(catalog.GetModel("deepgramNova3", "nova-3-general")!.Streaming,
+                    "nova-3-general lost its `streaming` flag - this guard no longer guards anything");
+                var deepgram = catalog.ModelsForVendorKey("deepgram").Select(entry => entry.Model.Id).ToArray();
+                Assert(deepgram.Contains("nova-3-general") && deepgram.Contains("nova-3-medical"),
+                    $"Deepgram's pre-recorded models must stay selectable for dictation, got: {string.Join(", ", deepgram)}");
+                Assert(deepgram.Length == catalog.ModelsForId("deepgramNova3").Count,
+                    "the dictation picker dropped a Deepgram model - only live-only ids may be filtered");
+
+                Assert(CloudSttCatalog.IsLiveOnlyModel("  GEMINI-3.5-TRANSCRIBE-LIVE  "),
+                    "live-only matching must be trimmed and case-insensitive, like every other catalog model lookup");
+                foreach (var notLiveOnly in new string?[] { null, "", "   ", "gemini-3.5-transcribe", "nova-3-general" })
+                {
+                    Assert(!CloudSttCatalog.IsLiveOnlyModel(notLiveOnly),
+                        $"'{notLiveOnly}' must not be treated as live-only");
+                }
+
+                // The SEND path has to reject it too: the picker no longer offers
+                // one, but a backup restore or a Local API write can still store it,
+                // and it IS a member of the tier so plain membership accepts it.
+                //
+                // Assert on HyperWhisperCloudService.ResolveDictationModelId - the
+                // method that actually produces the X-STT-Model header. The earlier
+                // version of this check called CloudSttCatalog.DictationModelsForId,
+                // which has NO production caller, so it passed whether or not the
+                // send path guarded anything.
+                var geminiDefault = catalog.DefaultModelIdForId("geminiTranscribe");
+                Assert(geminiDefault == "gemini-3.5-transcribe",
+                    $"the geminiTranscribe tier default moved, this check needs updating - got '{geminiDefault}'");
+                Assert(HyperWhisperCloudService.ResolveDictationModelId("geminiTranscribe", "gemini-3.5-transcribe-live") == geminiDefault,
+                    "the send path still sends the live-only id as X-STT-Model - every dictation would 400");
+                Assert(HyperWhisperCloudService.ResolveDictationModelId("geminiTranscribe", "  GEMINI-3.5-TRANSCRIBE-LIVE  ") == geminiDefault,
+                    "the send path let a padded/upper-cased live-only id through");
+
+                // ...and it must NOT punt a legitimate model back to the default.
+                Assert(HyperWhisperCloudService.ResolveDictationModelId("geminiTranscribe", "gemini-3.5-transcribe") == "gemini-3.5-transcribe",
+                    "the send path replaced a valid Gemini dictation model with the tier default");
+                foreach (var deepgramModel in catalog.ModelsForId("deepgramNova3"))
+                {
+                    Assert(HyperWhisperCloudService.ResolveDictationModelId("deepgramNova3", deepgramModel.Id) == deepgramModel.Id,
+                        $"the send path dropped Deepgram's '{deepgramModel.Id}' - only live-only ids may be filtered");
+                }
+            });
+
+            Run("the Gemini 3.5 Transcribe API key survives a backup export/restore round trip", () =>
+            {
+                // Configure ONLY the new key. The LEGACY `gemini` post-processing
+                // key restores fine, which is what masked this: a user with both
+                // sees Google "configured" and Gemini 3.5 Transcribe silently unset.
+                var stored = new Dictionary<TranscriptionApiKeyType, string?>
+                {
+                    [TranscriptionApiKeyType.GeminiTranscribe] = "AIza-gemini-transcribe-key",
+                };
+
+                var exported = UniversalBackupMapper.MapApiKeys(
+                    _ => null,
+                    type => stored.TryGetValue(type, out var value) ? value : null);
+                Assert(exported.GeminiTranscribe == "AIza-gemini-transcribe-key",
+                    "the export dropped the Gemini 3.5 Transcribe key");
+                Assert(exported.Gemini == null,
+                    "the export must not fold the new key into the legacy `gemini` slot");
+
+                // Through the wire format, under the name the schema declares.
+                var json = JsonSerializer.Serialize(exported);
+                Assert(json.Contains("\"geminitranscribe\""),
+                    $"expected the schema's lowercase apiKeys name in the export, got: {json}");
+
+                var restored = new Dictionary<TranscriptionApiKeyType, string?>();
+                UniversalBackupMapper.ApplyApiKeys(
+                    JsonSerializer.Deserialize<UniversalApiKeys>(json)!,
+                    (_, _) => { },
+                    (type, value) => restored[type] = value);
+                Assert(restored.TryGetValue(TranscriptionApiKeyType.GeminiTranscribe, out var roundTripped) &&
+                       roundTripped == "AIza-gemini-transcribe-key",
+                    "the restore left Gemini 3.5 Transcribe unconfigured - the reported repro");
+
+                // A backup written with the camelCase catalog spelling still
+                // restores; it lands in the JsonExtensionData bag, not the field.
+                var camelCase = JsonSerializer.Deserialize<UniversalApiKeys>(
+                    "{\"geminiTranscribe\":\"AIza-from-another-platform\"}")!;
+                Assert(camelCase.GeminiTranscribe == null,
+                    "the camelCase spelling is deliberately NOT the declared field name");
+                var tolerated = new Dictionary<TranscriptionApiKeyType, string?>();
+                UniversalBackupMapper.ApplyApiKeys(camelCase, (_, _) => { }, (type, value) => tolerated[type] = value);
+                Assert(tolerated.TryGetValue(TranscriptionApiKeyType.GeminiTranscribe, out var fromCamel) &&
+                       fromCamel == "AIza-from-another-platform",
+                    "a camelCase `geminiTranscribe` key must still restore");
+            });
+
+            RunAsync("the Chirp 3 tier migration leaves a BYOK mode alone", async () =>
+            {
+                // The migration keys on CloudAccuracyTier. That column is left
+                // behind verbatim when a mode is switched to BYOK, so an unscoped
+                // UPDATE rewrites a BYOK Grok mode's `''` sentinel model id to
+                // gemini-3.5-transcribe and the next dictation posts a Google model
+                // to xAI. Precedent for the scoping:
+                // 20260508120000_MigrateRemovedDeepgramModels.
+                const string PreviousMigration = "20260823180000_AddWordTimestamps";
+                const string ThisMigration = "20260827090000_MigrateGoogleChirp3TierToGeminiTranscribe";
+
+                var databasePath = Path.Combine(
+                    Path.GetTempPath(), "HyperWhisper.SmokeTests", Guid.NewGuid().ToString("N"), "chirp3.db");
+
+                try
+                {
+                    using (var context = new HyperWhisperDbContext(databasePath))
+                    {
+                        await context.Database
+                            .GetService<Microsoft.EntityFrameworkCore.Migrations.IMigrator>()
+                            .MigrateAsync(PreviousMigration);
+                        var applied = await context.Database.GetAppliedMigrationsAsync();
+                        Assert(!applied.Contains(ThisMigration),
+                            "the migration under test already ran - this test would prove nothing");
+
+                        // The row the migration DOES own.
+                        context.Modes.Add(new Mode
+                        {
+                            Name = "cloud-chirp",
+                            ProviderType = "cloud",
+                            CloudProvider = "hyperwhisper",
+                            CloudAccuracyTier = "googleChirp3",
+                            CloudTranscriptionModel = "chirp_3",
+                        });
+                        // Switched to BYOK Grok and never re-saved: the stale tier
+                        // is still there, and Grok's model id is the empty sentinel
+                        // the CASE arm would rewrite.
+                        context.Modes.Add(new Mode
+                        {
+                            Name = "byok-grok",
+                            ProviderType = "cloud",
+                            CloudProvider = "grok",
+                            CloudAccuracyTier = "googleChirp3",
+                            CloudTranscriptionModel = "",
+                        });
+                        // Same shape, a BYOK vendor with a real model id.
+                        context.Modes.Add(new Mode
+                        {
+                            Name = "byok-deepgram",
+                            ProviderType = "cloud",
+                            CloudProvider = "deepgram",
+                            CloudAccuracyTier = "chirp_3",
+                            CloudTranscriptionModel = "nova-3-general",
+                        });
+                        await context.SaveChangesAsync();
+                    }
+
+                    using (var context = new HyperWhisperDbContext(databasePath))
+                    {
+                        await context.Database.MigrateAsync();
+                    }
+
+                    using (var verify = new HyperWhisperDbContext(databasePath))
+                    {
+                        var cloud = verify.Modes.Single(mode => mode.Name == "cloud-chirp");
+                        Assert(cloud.CloudAccuracyTier == "geminiTranscribe" &&
+                               cloud.CloudTranscriptionModel == "gemini-3.5-transcribe",
+                            $"the HW-Cloud Chirp row did not migrate: '{cloud.CloudAccuracyTier}' / '{cloud.CloudTranscriptionModel}'");
+
+                        var grok = verify.Modes.Single(mode => mode.Name == "byok-grok");
+                        Assert(grok.CloudProvider == "grok" && grok.CloudTranscriptionModel == "",
+                            $"the BYOK Grok mode was rewritten to '{grok.CloudTranscriptionModel}' - it would post a Google model to xAI");
+
+                        var deepgram = verify.Modes.Single(mode => mode.Name == "byok-deepgram");
+                        Assert(deepgram.CloudTranscriptionModel == "nova-3-general" &&
+                               deepgram.CloudAccuracyTier == "chirp_3",
+                            $"the BYOK Deepgram mode was rewritten: '{deepgram.CloudAccuracyTier}' / '{deepgram.CloudTranscriptionModel}'");
+                    }
+                }
+                finally
+                {
+                    try
+                    {
+                        var directory = Path.GetDirectoryName(databasePath);
+                        if (directory != null && Directory.Exists(directory))
+                            Directory.Delete(directory, recursive: true);
+                    }
+                    catch (IOException)
+                    {
+                    }
+                }
+            });
+
+            RunAsync("the inline-base64 body streams bytes identical to the buffered build it replaced", async () =>
+            {
+                // RustHttpExecutor used to hold the file, its base64 AND the joined
+                // array live at once - 88.7 MB of LOH for a 14 MB recording, on
+                // every one of up to 8 retry attempts. It now encodes onto the
+                // socket. The bytes must not have moved an inch: same padded,
+                // non-URL-safe alphabet, no line breaks.
+                var path = Path.Combine(
+                    Path.GetTempPath(), "HyperWhisper.SmokeTests", Guid.NewGuid().ToString("N") + ".wav");
+                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+
+                try
+                {
+                    // Deliberately NOT a multiple of 3, so the trailing partial
+                    // group exercises the encoder's final-block padding.
+                    var audio = new byte[(5 * 1024 * 1024) + 2];
+                    new Random(20260827).NextBytes(audio);
+                    await File.WriteAllBytesAsync(path, audio);
+
+                    var prefix = System.Text.Encoding.UTF8.GetBytes("{\"audio\":{\"data\":\"");
+                    var suffix = System.Text.Encoding.UTF8.GetBytes("\"}}");
+
+                    using var message = RustHttpExecutor.BuildRequestMessage(new HttpRequest(
+                        @method: uniffi.hyperwhisper_core.HttpMethod.Post,
+                        @url: "https://generativelanguage.googleapis.com/v1beta/interactions",
+                        @headers: new List<Header>(),
+                        @body: new Body.JsonWithBase64File(prefix, path, suffix)));
+
+                    Assert(message.Content != null, "the inline-base64 body produced no content at all");
+                    var produced = await message.Content!.ReadAsByteArrayAsync();
+
+                    // The exact previous implementation, verbatim.
+                    var base64 = Convert.ToBase64String(File.ReadAllBytes(path));
+                    var expected = new byte[prefix.Length + base64.Length + suffix.Length];
+                    Buffer.BlockCopy(prefix, 0, expected, 0, prefix.Length);
+                    Buffer.BlockCopy(System.Text.Encoding.ASCII.GetBytes(base64), 0, expected, prefix.Length, base64.Length);
+                    Buffer.BlockCopy(suffix, 0, expected, prefix.Length + base64.Length, suffix.Length);
+
+                    Assert(produced.Length == expected.Length,
+                        $"streamed body is {produced.Length} bytes, buffered build was {expected.Length}");
+                    Assert(produced.AsSpan().SequenceEqual(expected),
+                        "the streamed inline-base64 body is not byte-identical to the buffered build it replaced");
+
+                    // Content-Length must be declared, not chunked: the vendor
+                    // rejects a chunked upload on this endpoint.
+                    Assert(message.Content.Headers.ContentLength == expected.Length,
+                        $"declared Content-Length {message.Content.Headers.ContentLength}, body is {expected.Length}");
+                    Assert(message.Content.Headers.ContentType?.MediaType == "application/json",
+                        "the inline-base64 body must be sent as application/json");
+                }
+                finally
+                {
+                    try
+                    {
+                        var directory = Path.GetDirectoryName(path);
+                        if (directory != null && Directory.Exists(directory))
+                            Directory.Delete(directory, recursive: true);
+                    }
+                    catch (IOException)
+                    {
+                    }
+                }
             });
 
             Console.WriteLine(_failures == 0

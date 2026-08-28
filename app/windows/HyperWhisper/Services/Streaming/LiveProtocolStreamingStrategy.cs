@@ -121,12 +121,35 @@ internal sealed class LiveProtocolStreamingStrategy : IStreamingProviderStrategy
     /// <summary>The shared core's name for the provider this session speaks.</summary>
     internal LiveTranscriptionProvider Provider { get; }
 
+    /// <summary>
+    /// The HyperWhisper Cloud live tier whose route reproduces the endpoint this
+    /// app hardcoded before the tier picker existed
+    /// (<c>/ws/streaming-deepgram</c>). Anything unrecognised resolves back to
+    /// it, so an installed client with a stale setting keeps working.
+    ///
+    /// Mirrors <c>DEFAULT_CLOUD_TIER</c> in
+    /// <c>hw_net::live::hw_cloud</c>, which applies the same fallback when it
+    /// derives the route. Kept here as well because the settings ComboBox needs
+    /// the catalog's own CASING to select a row, which the core does not carry -
+    /// <c>SmokeTests</c> pins that this id is in the live-eligible set.
+    /// </summary>
+    public const string DefaultCloudTier = "deepgramNova3";
+
     // All three answer from the shared capability table (issue #281, phase 1) and
     // need no credential and no session - which is what lets the settings page
     // read SupportsVocabulary with neither.
     public string TranscriptionProviderLabel => SharedCoreBridge.LiveProviderLabel(Provider);
     public bool SupportsVocabulary => SharedCoreBridge.LiveSupportsVocabulary(Provider);
     public int AudioSampleRate => SharedCoreBridge.LiveRequiredSampleRate(Provider);
+
+    /// <summary>
+    /// From the same capability table, so this head cannot drift from the Linux
+    /// head or (once issue #326 lands) macOS. False for Gemini alone, whose
+    /// <c>generationComplete</c> is a turn boundary rather than the end of the
+    /// session - see the interface member for what reading it wrong costs.
+    /// </summary>
+    public bool CompleteEndsSessionBeforeStop =>
+        SharedCoreBridge.LiveCompleteEndsSessionBeforeStop(Provider);
 
     /// <summary>
     /// Deepgram only. See <see cref="ILiveTranscriptionProtocol.SessionStartsOnOpen"/>
@@ -335,7 +358,11 @@ internal sealed class LiveProtocolStreamingStrategy : IStreamingProviderStrategy
         Language: config.Language,
         Vocabulary: config.Vocabulary,
         Model: config.Model,
-        FastFormatting: config.FastFormatting
+        FastFormatting: config.FastFormatting,
+        // HyperWhisper Cloud only: the core derives the relay route
+        // (/ws/streaming-{sttProvider}) and the auto-detect vocabulary gate
+        // from it. Every other provider ignores it.
+        CloudTier: config.CloudTier
     );
 
     private static StreamingStopAction Action(LiveStopAction action) => action switch
@@ -415,6 +442,7 @@ internal sealed class LiveProtocolStreamingStrategy : IStreamingProviderStrategy
         StreamingTranscriptionProvider.ElevenLabs => LiveTranscriptionProvider.ElevenLabs,
         StreamingTranscriptionProvider.OpenAI => LiveTranscriptionProvider.OpenAi,
         StreamingTranscriptionProvider.Xai => LiveTranscriptionProvider.Grok,
+        StreamingTranscriptionProvider.GeminiTranscribe => LiveTranscriptionProvider.GeminiTranscribe,
         _ => LiveTranscriptionProvider.HyperWhisperCloud
     };
 }

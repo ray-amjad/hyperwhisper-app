@@ -20,6 +20,14 @@ export const GOOGLE_CHIRP_INLINE_MAX_BYTES = 9_500_000;
 // rather than after buffering up to MAX_AUDIO_SIZE_BYTES on the Fly machine.
 export const GEMINI_INLINE_MAX_BYTES = 14 * 1024 * 1024;
 
+// Gemini 3.5 Transcribe inline-audio cap. The `/v1beta/interactions` endpoint
+// has NO file-reference form at all (unlike `:generateContent`, which can point
+// at a Files-API upload), so the audio is always inline base64 under the same
+// 20 MB request ceiling — raw audio caps at ~14 MB. Deliberately a separate
+// constant from GEMINI_INLINE_MAX_BYTES: the two endpoints are different
+// products and either ceiling can move without the other.
+export const GEMINI_TRANSCRIBE_INLINE_MAX_BYTES = 14 * 1024 * 1024;
+
 // OpenAI hard-rejects audio over 25 MB with a 400. Gate on Content-Length
 // BEFORE buffering so an oversized upload is rejected early as a 413 rather
 // than after allocating the buffer. Shared with the adapter (defense-in-depth).

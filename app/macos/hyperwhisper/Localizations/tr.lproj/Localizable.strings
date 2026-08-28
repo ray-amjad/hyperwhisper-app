@@ -42,6 +42,8 @@
 "streaming.enable.title" = "Akışı Etkinleştir";
 "streaming.provider.picker.title" = "Sağlayıcı";
 "streaming.model.title" = "Model";
+"streaming.cloudTier.title" = "Canlı Motor";
+"streaming.cloudTier.description" = "HyperWhisper Cloud'un canlı transkripsiyon için kullandığı konuşma motoru";
 "streaming.model.nova3general" = "Nova 3 Genel";
 "streaming.model.nova3medical" = "Nova 3 Tıbbi";
 "streaming.fastFormatting.title" = "Hızlı Biçimlendirme";
@@ -767,8 +769,8 @@ Kaldırmadan önce farklı bir model seçmek için o modları düzenleyin.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ kredi/dk";
 "modes.cloudAccuracy.grokStt.label" = "En Yüksek (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Daha yavaş işlenmeyle birlikte en yüksek doğruluk. Önemli transkripsiyon'lar için en iyisi.";
-"modes.cloudAccuracy.googleChirp3.label" = "Yüksek (Google Chirp 3)";
-"modes.cloudAccuracy.googleChirp3.description" = "Chirp 3 ile Google Cloud Speech-to-Text V2. İfade uyarlamalı, çok dilli.";
+"modes.cloudAccuracy.geminiTranscribe.label" = "Yüksek (Google Gemini 3.5 Transcribe)";
+"modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Çok dilli, özel sözcük dağarcığı desteğiyle.";
 "modes.cloudAccuracy.azureMaiTranscribe.label" = "Yüksek (Microsoft MAI-Transcribe 1.5)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Azure Speech üzerinden Microsoft MAI-Transcribe 1.5. Bağlamsal yönlendirme ile 43 dil.";
 

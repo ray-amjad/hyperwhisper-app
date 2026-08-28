@@ -146,6 +146,18 @@ pub struct SttModel {
     pub preview_status: Option<bool>,
     #[serde(default)]
     pub supports_custom_vocabulary: Option<bool>,
+    /// Whether HyperWhisper Cloud serves a **live WebSocket route** for this
+    /// specific model.
+    ///
+    /// Deliberately narrower than the entry-level `features.streaming` hint,
+    /// which merely records that the *vendor* offers streaming — it is `true`
+    /// for six vendors we have no backend WS route for, so using it to build a
+    /// picker would ship a 404 at dictation time. This flag means "we route it".
+    ///
+    /// `#[serde(default)]`, so today's catalog file (which has no `streaming`
+    /// key on any model) still decodes unchanged and every model reads `false`.
+    #[serde(default)]
+    pub streaming: Option<bool>,
 }
 
 impl SttModel {
@@ -153,6 +165,12 @@ impl SttModel {
     /// false on a missing flag — matches Windows `ModelSupportsCustomVocabulary`.
     pub fn supports_custom_vocabulary(&self) -> bool {
         self.supports_custom_vocabulary.unwrap_or(false)
+    }
+
+    /// Whether HyperWhisper Cloud serves a live WebSocket route for this model.
+    /// Missing flag ⇒ false.
+    pub fn streaming(&self) -> bool {
+        self.streaming.unwrap_or(false)
     }
 }
 
@@ -526,6 +544,19 @@ impl CloudSttCatalog {
             .filter(|e| e.access.map(|a| a.cloud_tier_eligible).unwrap_or(false))
     }
 
+    /// Cloud-tier providers that HyperWhisper Cloud can also serve **live**, in
+    /// catalog order: `access.cloudTierEligible` *and* at least one model with
+    /// `streaming: true`.
+    ///
+    /// This is the eligible set for the HyperWhisper-Cloud live vendor picker.
+    /// It keys off the per-model [`SttModel::streaming`] flag, never the
+    /// entry-level `features.streaming` vendor hint — see that field's docs for
+    /// why the two are not interchangeable.
+    pub fn streaming_cloud_tier_entries(&self) -> impl Iterator<Item = &SttEntry> {
+        self.cloud_tier_entries()
+            .filter(|e| e.models.iter().any(|m| m.streaming()))
+    }
+
     /// The `X-STT-Provider` header value for a provider id, or `None`.
     pub fn stt_provider(&self, id: &str) -> Option<&str> {
         self.entry(id).and_then(|e| e.stt_provider.as_deref())
@@ -667,10 +698,39 @@ impl CloudSttCatalog {
     /// Normalize a persisted `cloudProvider` storage value. If `value` is a
     /// legacy standalone-provider alias for a provider now surfaced as a cloud
     /// tier (e.g. `microsoftazurespeech` → `azureMaiTranscribe`), returns
-    /// `(Some("hyperwhisper"), Some(<tier id>))`. Otherwise returns the input
-    /// unchanged with `accuracy_tier == None`. Critically, BYOK provider names
-    /// (`"deepgram"`, `"groq"`) pass through untouched even though they appear in
-    /// `migrateFrom`. Mirrors macOS/Windows `normalizeCloudProvider`.
+    /// `(Some("hyperwhisper"), Some(<tier id>))`. Otherwise the value passes
+    /// through — **ASCII-lowercased** — with `accuracy_tier == None`. Critically,
+    /// BYOK provider names (`"deepgram"`, `"groq"`) pass through rather than
+    /// folding onto the cloud tier, even though they appear in `migrateFrom`.
+    /// Mirrors macOS/Windows `normalizeCloudProvider`.
+    ///
+    /// ## Why the pass-through is lowercased
+    ///
+    /// `cloudProvider` is a cross-platform storage value, and the two platforms
+    /// do NOT write it the same way. Windows' `GetIdentifier` emits camelCase
+    /// (`geminiTranscribe`, `googleSpeech`, `microsoftAzureSpeech`); macOS'
+    /// `CloudProvider` enum raw values are ALL lowercase and are parsed with a
+    /// case-SENSITIVE `CloudProvider(rawValue:)` whose miss silently falls back
+    /// to `.hyperwhisper`. So a Windows→macOS restore of a camelCase id used to
+    /// land the user on HyperWhisper Cloud — billed credits — with no error and
+    /// no visible UI change.
+    ///
+    /// That asymmetry was latent until catalog v8: the only camelCase ids
+    /// Windows could write were `googleSpeech` and `microsoftAzureSpeech`, and
+    /// both are `legacyCloudProviderAliases`, so they were rewritten to
+    /// `"hyperwhisper"` by the branch above and never reached the pass-through.
+    /// `geminiTranscribe` is the first camelCase id that is `byokEligible` and
+    /// is NOT a legacy alias, so it is the first one the pass-through has to
+    /// carry — and the first that can silently move a BYOK user onto paid
+    /// credits. Lowercasing here fixes the whole class, not just that one id:
+    /// every value either platform can persist is a lowercase enum raw value on
+    /// macOS, and Windows' `FromIdentifier` matches on `ToLowerInvariant()`, so
+    /// the lowercase spelling is the one form BOTH parsers accept.
+    ///
+    /// An id this catalog does not know is lowercased too. It fails to parse on
+    /// either platform whichever way it is spelled, so nothing is lost, and
+    /// keeping the rule unconditional means a future camelCase provider id
+    /// cannot reintroduce the bug by simply not being in a table yet.
     pub fn normalize_cloud_provider(&self, value: Option<&str>) -> NormalizedCloudProvider {
         let Some(value) = value.filter(|v| !v.is_empty()) else {
             return NormalizedCloudProvider {
@@ -685,7 +745,7 @@ impl CloudSttCatalog {
             };
         }
         NormalizedCloudProvider {
-            provider: Some(value.to_string()),
+            provider: Some(value.to_ascii_lowercase()),
             accuracy_tier: None,
         }
     }
@@ -826,7 +886,7 @@ mod tests {
     #[test]
     fn embedded_catalog_parses() {
         let c = catalog();
-        assert_eq!(c.version(), 7);
+        assert_eq!(c.version(), 8);
         assert!(c.providers().len() >= 10);
     }
 
@@ -886,16 +946,61 @@ mod tests {
         );
     }
 
-    // --- Golden: unverified tri-state (googleChirp3) ------------------------
+    // --- Golden: unverified tri-state ---------------------------------------
 
     #[test]
-    fn google_chirp_vocab_is_true_languages_present() {
+    fn azure_vocab_is_true_languages_present() {
         let c = catalog();
-        // googleChirp3 customVocabulary.supported == true (inline phrase set).
-        assert!(c.supports_custom_vocabulary("googleChirp3"));
-        // languages.codes IS a real array (count 111).
-        let codes = c.language_codes("googleChirp3").expect("codes present");
-        assert!(codes.contains(&"en-US".to_string()));
+        // Was googleChirp3 until catalog v8 replaced it with geminiTranscribe,
+        // whose language set is "unverified"; azureMaiTranscribe is the
+        // remaining cloud-only entry with a real locale array.
+        assert!(c.supports_custom_vocabulary("azureMaiTranscribe"));
+        let codes = c.language_codes("azureMaiTranscribe").expect("codes present");
+        assert!(codes.contains(&"en".to_string()));
+    }
+
+    #[test]
+    fn gemini_transcribe_vocab_is_true_languages_unverified() {
+        let c = catalog();
+        // The structured `custom_vocabulary` field, unlike the `gemini` entry's
+        // system-prompt encoding.
+        assert!(c.supports_custom_vocabulary("geminiTranscribe"));
+        assert_eq!(
+            c.custom_vocabulary_field_name("geminiTranscribe"),
+            Some("generation_config.transcription_config.custom_vocabulary")
+        );
+        // Google publishes "85+" but no per-code list for /v1beta/interactions.
+        assert_eq!(c.language_codes("geminiTranscribe"), None);
+        // It replaced googleChirp3 as the Google cloud tier, and that id must
+        // survive only as a migration alias — never as an entry.
+        assert!(c.entry("googleChirp3").is_none());
+        for alias in ["googleChirp3", "chirp_3", "google-chirp", "chirp", "googlechirp"] {
+            assert_eq!(
+                c.entry_by_migrate_from(alias).map(|e| e.id.as_str()),
+                Some("geminiTranscribe"),
+                "{alias} must migrate onto the Google cloud tier, not fall back to Deepgram"
+            );
+        }
+    }
+
+    #[test]
+    fn streaming_cloud_tier_entries_are_exactly_the_routed_vendors() {
+        let c = catalog();
+        let ids: Vec<&str> = c
+            .streaming_cloud_tier_entries()
+            .map(|e| e.id.as_str())
+            .collect();
+        assert_eq!(
+            ids,
+            vec!["deepgramNova3", "geminiTranscribe"],
+            "models[].streaming gates the HW-Cloud live picker and the catalog has no \
+             `enabled` gate — flipping it on a vendor with no /ws/streaming-* route \
+             ships a 404 at dictation time"
+        );
+        // The entry-level `features.streaming` hint is NOT the same set: it is
+        // true for vendors we serve no WS route for.
+        assert!(c.entry("soniox").unwrap().features.streaming);
+        assert!(!c.entry("soniox").unwrap().models.iter().any(|m| m.streaming()));
     }
 
     #[test]
@@ -970,7 +1075,7 @@ mod tests {
         // Legacy standalone provider folds onto hyperwhisper + tier.
         let n = c.normalize_cloud_provider(Some("googlespeech"));
         assert_eq!(n.provider.as_deref(), Some("hyperwhisper"));
-        assert_eq!(n.accuracy_tier.as_deref(), Some("googleChirp3"));
+        assert_eq!(n.accuracy_tier.as_deref(), Some("geminiTranscribe"));
         // BYOK provider name passes through untouched (CRITICAL — must not
         // silently disable a user's BYOK setup).
         let byok = c.normalize_cloud_provider(Some("deepgram"));
@@ -985,6 +1090,69 @@ mod tests {
             c.normalize_cloud_provider(None),
             NormalizedCloudProvider { provider: None, accuracy_tier: None }
         );
+    }
+
+    /// A Windows→macOS restore must keep a BYOK user on their own Google key.
+    ///
+    /// Windows persists `geminiTranscribe`; macOS' `CloudProvider` raw value is
+    /// `geminitranscribe` and is parsed case-sensitively with a silent
+    /// `?? .hyperwhisper` fallback. Passing the camelCase spelling through
+    /// verbatim therefore moved the user onto paid credits with no error. It is
+    /// the first `byokEligible` camelCase id that is not also a legacy alias, so
+    /// it is the first id the pass-through branch has to get right.
+    #[test]
+    fn normalize_cloud_provider_folds_case_on_byok_ids() {
+        let c = catalog();
+        for spelling in [
+            "geminiTranscribe",
+            "geminitranscribe",
+            "GEMINITRANSCRIBE",
+            "GeminiTranscribe",
+            "gEmInItRaNsCrIbE",
+        ] {
+            let n = c.normalize_cloud_provider(Some(spelling));
+            assert_eq!(
+                n.provider.as_deref(),
+                Some("geminitranscribe"),
+                "`{spelling}` must normalize to the lowercase storage spelling \
+                 both platforms parse, NOT fold onto hyperwhisper"
+            );
+            assert_eq!(
+                n.accuracy_tier, None,
+                "`{spelling}` is a BYOK provider, not a cloud tier"
+            );
+        }
+    }
+
+    /// The same class of bug for every other id either platform can persist:
+    /// the pass-through must always be the lowercase spelling. The two camelCase
+    /// ids Windows wrote before catalog v8 still fold onto the cloud tier,
+    /// because they are `legacyCloudProviderAliases` — that branch runs first
+    /// and is unaffected by the lowercasing.
+    #[test]
+    fn normalize_cloud_provider_pass_through_is_always_lowercase() {
+        let c = catalog();
+        for (input, expected) in [
+            ("OpenAI", "openai"),
+            ("Deepgram", "deepgram"),
+            ("AssemblyAI", "assemblyai"),
+            ("ElevenLabs", "elevenlabs"),
+            ("HyperWhisper", "hyperwhisper"),
+            ("Grok", "grok"),
+            // Unknown ids are lowercased too, so a future camelCase provider id
+            // cannot reintroduce the bug by not being in a table yet.
+            ("someFutureProvider", "somefutureprovider"),
+        ] {
+            let n = c.normalize_cloud_provider(Some(input));
+            assert_eq!(n.provider.as_deref(), Some(expected), "input `{input}`");
+            assert_eq!(n.accuracy_tier, None, "input `{input}`");
+        }
+        // Legacy aliases still win over the pass-through, in either spelling.
+        for alias in ["googleSpeech", "googlespeech", "microsoftAzureSpeech"] {
+            let n = c.normalize_cloud_provider(Some(alias));
+            assert_eq!(n.provider.as_deref(), Some("hyperwhisper"), "alias `{alias}`");
+            assert!(n.accuracy_tier.is_some(), "alias `{alias}` must carry a tier");
+        }
     }
 
     // --- Misses --------------------------------------------------------------
@@ -1057,10 +1225,25 @@ mod tests {
         let gemini = c.entry("gemini").unwrap();
         assert_eq!(gemini.languages.count, None);
         assert_eq!(gemini.language_codes(), None);
-        // deepgramNova3 declares a real duration cap; a fractional size cap
-        // must not truncate to an integer.
+        // deepgramNova3 declares a real duration cap.
         assert_eq!(c.entry("deepgramNova3").unwrap().max_duration_minutes, Some(10));
-        assert_eq!(c.entry("googleChirp3").unwrap().max_file_size_mb, Some(9.5));
+        assert_eq!(c.entry("geminiTranscribe").unwrap().max_file_size_mb, Some(14.0));
+    }
+
+    #[test]
+    fn fractional_max_file_size_mb_does_not_truncate_to_an_integer() {
+        // googleChirp3's 9.5 MB inline cap was the embedded catalog's only
+        // fractional `maxFileSizeMb` until catalog v8 removed the entry. The
+        // decoder branch still has to survive one, so pin it synthetically.
+        let json = r#"{
+            "version": 8, "updated": "x",
+            "providers": [
+                {"id":"a","displayName":"Acme","vendor":"acme","maxFileSizeMb":9.5,
+                 "access":{"cloudTierEligible":true,"byokEligible":false}}
+            ]
+        }"#;
+        let c = CloudSttCatalog::parse(json).unwrap();
+        assert_eq!(c.entry("a").unwrap().max_file_size_mb, Some(9.5));
     }
 
     #[test]
@@ -1100,13 +1283,18 @@ mod tests {
         // Google owns two entries and contributes ONE row spanning both.
         let google = groups.iter().find(|g| g.vendor_key == "google").unwrap();
         let ids: Vec<&str> = google.entries.iter().map(|e| e.id.as_str()).collect();
-        assert_eq!(ids, vec!["googleChirp3", "gemini"], "catalog order inside a group");
-        assert_eq!(google.default_entry().map(|e| e.id.as_str()), Some("googleChirp3"));
+        assert_eq!(ids, vec!["geminiTranscribe", "gemini"], "catalog order inside a group");
+        assert_eq!(
+            google.default_entry().map(|e| e.id.as_str()),
+            Some("geminiTranscribe"),
+            "geminiTranscribe must sit at the departed googleChirp3's array index, \
+             or the Google row defaults to the BYOK LLM entry"
+        );
         // Its model list spans both entries, each tagged with its owning tier.
         let owners: BTreeSet<&str> = google.models().iter().map(|(id, _)| *id).collect();
         assert_eq!(
             owners.into_iter().collect::<Vec<_>>(),
-            vec!["gemini", "googleChirp3"]
+            vec!["gemini", "geminiTranscribe"]
         );
     }
 
@@ -1190,12 +1378,26 @@ mod tests {
                 "{dropped} must not reach the picker"
             );
         }
-        // Azure declares `nb`; Chirp declares `iw-IL`/`jv-ID`.
+        // Azure declares `nb`.
         let azure = c.picker_language_codes("azureMaiTranscribe").unwrap();
         assert!(azure.contains(&"no".to_string()) && !azure.contains(&"nb".to_string()));
-        let chirp = c.picker_language_codes("googleChirp3").unwrap();
-        assert!(chirp.contains(&"he".to_string()) && !chirp.contains(&"iw".to_string()));
-        assert!(chirp.contains(&"jw".to_string()) && !chirp.contains(&"jv".to_string()));
+        // googleChirp3 was the only entry declaring the deprecated `iw-IL` /
+        // `jv-ID` tags; catalog v8 replaced it, so pin that fold synthetically
+        // rather than losing the coverage.
+        let json = r#"{
+            "version": 8, "updated": "x",
+            "providers": [
+                {"id":"legacyTags","displayName":"Legacy","vendor":"legacy",
+                 "access":{"cloudTierEligible":true,"byokEligible":false},
+                 "languages":{"count":2,"autoDetect":false,"codes":["iw-IL","jv-ID"]}}
+            ]
+        }"#;
+        let legacy = CloudSttCatalog::parse(json)
+            .unwrap()
+            .picker_language_codes("legacyTags")
+            .unwrap();
+        assert!(legacy.contains(&"he".to_string()) && !legacy.contains(&"iw".to_string()));
+        assert!(legacy.contains(&"jw".to_string()) && !legacy.contains(&"jv".to_string()));
     }
 
     #[test]

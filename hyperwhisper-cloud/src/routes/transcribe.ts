@@ -11,6 +11,7 @@ import { transcribeWithAzureMai } from '../providers/azure-mai';
 import { transcribeWithGoogleChirp } from '../providers/google-chirp';
 import { transcribeWithOpenAI } from '../providers/openai';
 import { transcribeWithGemini } from '../providers/gemini';
+import { transcribeWithGeminiTranscribe } from '../providers/gemini-transcribe';
 import {
   transcribeWithAssemblyAI,
   hasExplicitLanguage as hasExplicitAssemblyAILanguage,
@@ -86,6 +87,7 @@ const PROVIDER_NAMES: Record<Provider, string> = {
   'google-chirp': 'google-chirp',
   openai: 'openai',
   gemini: 'gemini',
+  'gemini-transcribe': 'gemini-transcribe',
   assemblyai: 'assemblyai',
   mistral: 'mistral',
   soniox: 'soniox',
@@ -111,6 +113,7 @@ const PROVIDER_FN: Record<Provider, (
   'google-chirp': transcribeWithGoogleChirp,
   openai: transcribeWithOpenAI,
   gemini: transcribeWithGemini,
+  'gemini-transcribe': transcribeWithGeminiTranscribe,
   assemblyai: transcribeWithAssemblyAI,
   mistral: transcribeWithMistral,
   soniox: transcribeWithSoniox,
@@ -827,9 +830,17 @@ export async function transcribeRoute(c: Context) {
     : actualProvider;
 
   const noSpeech = result.source === 'no_speech';
-  const creditsUsed = noSpeech ? 0 : creditsForCost(result.costUsd);
+  // A no-speech result is free — EXCEPT where the upstream still billed us for
+  // the audio and the adapter says so by returning a cost with it. Every
+  // duration-billed provider here returns `costUsd: 0` for no_speech and is
+  // unaffected; `gemini-transcribe` is token-billed on its audio input whether
+  // or not a word comes back, and charging $0 there turns silent audio into an
+  // unmetered channel to a paid upstream. The adapter's cost is the gate, so
+  // this route never needs a per-provider table.
+  const billable = !noSpeech || result.costUsd > 0;
+  const creditsUsed = billable ? creditsForCost(result.costUsd) : 0;
 
-  if (!noSpeech) {
+  if (billable) {
     deductCredits(
       authResult.value,
       result.costUsd,

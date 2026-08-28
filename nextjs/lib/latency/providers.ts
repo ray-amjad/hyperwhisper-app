@@ -88,10 +88,13 @@ export const STT_CATALOG: readonly CatalogEntry[] = [
     models: [{ id: "mai-transcribe-1.5", displayName: "MAI-Transcribe 1.5", isDefault: true }],
   },
   {
-    sttProvider: "google-chirp",
+    sttProvider: "gemini-transcribe",
     vendor: "google",
     vendorDisplayName: "Google",
-    models: [{ id: "chirp_3", displayName: "Chirp 3", isDefault: true }],
+    models: [
+      { id: "gemini-3.5-transcribe", displayName: "Gemini 3.5 Transcribe", isDefault: true },
+      { id: "gemini-3.5-transcribe-live", displayName: "Gemini 3.5 Transcribe Live" },
+    ],
   },
   {
     sttProvider: "elevenlabs",
@@ -194,8 +197,9 @@ export function modelDisplayName(providerId: string, modelId: string | null): st
  * Whether a stored row's model is the one a fresh pick of its VENDOR lands on.
  *
  * Scoped to the vendor, not the entry, because a row on the page is a vendor.
- * Google owns two entries and each marks a default of its own — chirp_3 and
- * gemini-2.5-flash — but selecting Google in the app lands on the vendor group's
+ * Google owns two entries and each marks a default of its own —
+ * gemini-3.5-transcribe and gemini-2.5-flash — but selecting Google in the app
+ * lands on the vendor group's
  * first entry in catalog order and then on that entry's default
  * (`VendorGroup.defaultEntry` / `CloudSTTCatalog.defaultModel`), so exactly one
  * of the two is what a visitor would actually get. Badging both would tell them

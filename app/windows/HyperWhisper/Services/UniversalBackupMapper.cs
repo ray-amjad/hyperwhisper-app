@@ -95,6 +95,7 @@ public static class UniversalBackupMapper
                 Provider = settings.StreamingProvider,
                 Language = settings.StreamingLanguage,
                 DeepgramModel = settings.StreamingDeepgramModel,
+                CloudTier = settings.StreamingCloudTier,
                 FastFormatting = settings.StreamingFastFormatting,
                 Shortcut = settings.StreamingShortcut.ToPersistedString()
             },
@@ -213,21 +214,41 @@ public static class UniversalBackupMapper
     /// Reads all API keys from ApiKeyService and maps to universal format.
     /// </summary>
     public static UniversalApiKeys MapApiKeys(ApiKeyService apiKeyService)
+        => MapApiKeys(apiKeyService.GetApiKey, apiKeyService.GetApiKey);
+
+    /// <summary>
+    /// The export mapping itself, over two key readers rather than
+    /// <see cref="ApiKeyService"/>.
+    /// </summary>
+    /// <remarks>
+    /// internal (not private): test seam for HyperWhisper.SmokeTests via
+    /// InternalsVisibleTo. ApiKeyService is a singleton over the Windows
+    /// PasswordVault, so the only alternative way to pin this mapping is to write
+    /// real credentials into the machine's credential store from a test.
+    /// </remarks>
+    internal static UniversalApiKeys MapApiKeys(
+        Func<PostProcessingProvider, string?> readPostProcessingKey,
+        Func<TranscriptionApiKeyType, string?> readTranscriptionKey)
     {
         return new UniversalApiKeys
         {
-            OpenAI = apiKeyService.GetApiKey(PostProcessingProvider.OpenAI),
-            Anthropic = apiKeyService.GetApiKey(PostProcessingProvider.Anthropic),
-            Groq = apiKeyService.GetApiKey(PostProcessingProvider.Groq),
-            Gemini = apiKeyService.GetApiKey(PostProcessingProvider.Gemini),
-            Cerebras = apiKeyService.GetApiKey(PostProcessingProvider.Cerebras),
+            OpenAI = readPostProcessingKey(PostProcessingProvider.OpenAI),
+            Anthropic = readPostProcessingKey(PostProcessingProvider.Anthropic),
+            Groq = readPostProcessingKey(PostProcessingProvider.Groq),
+            Gemini = readPostProcessingKey(PostProcessingProvider.Gemini),
+            Cerebras = readPostProcessingKey(PostProcessingProvider.Cerebras),
             // Fireworks removed — deprecated no-op backup field, never populated.
-            Deepgram = apiKeyService.GetApiKey(TranscriptionApiKeyType.Deepgram),
-            AssemblyAI = apiKeyService.GetApiKey(TranscriptionApiKeyType.AssemblyAI),
-            ElevenLabs = apiKeyService.GetApiKey(TranscriptionApiKeyType.ElevenLabs),
-            Mistral = apiKeyService.GetApiKey(TranscriptionApiKeyType.Mistral),
-            Soniox = apiKeyService.GetApiKey(TranscriptionApiKeyType.Soniox),
-            Grok = apiKeyService.GetApiKey(PostProcessingProvider.Grok)
+            Deepgram = readTranscriptionKey(TranscriptionApiKeyType.Deepgram),
+            AssemblyAI = readTranscriptionKey(TranscriptionApiKeyType.AssemblyAI),
+            ElevenLabs = readTranscriptionKey(TranscriptionApiKeyType.ElevenLabs),
+            Mistral = readTranscriptionKey(TranscriptionApiKeyType.Mistral),
+            Soniox = readTranscriptionKey(TranscriptionApiKeyType.Soniox),
+            Grok = readPostProcessingKey(PostProcessingProvider.Grok),
+            // Its OWN slot, not the legacy Gemini post-processing key above. The
+            // two are different APIs behind the same "AIza" key shape, so leaving
+            // this out restores a machine that looks configured for Google and has
+            // no Gemini 3.5 Transcribe key at all.
+            GeminiTranscribe = readTranscriptionKey(TranscriptionApiKeyType.GeminiTranscribe)
         };
     }
 
@@ -319,6 +340,10 @@ public static class UniversalBackupMapper
             if (!string.IsNullOrWhiteSpace(s.Provider)) settings.StreamingProvider = s.Provider;
             if (!string.IsNullOrWhiteSpace(s.Language)) settings.StreamingLanguage = s.Language;
             if (!string.IsNullOrWhiteSpace(s.DeepgramModel)) settings.StreamingDeepgramModel = s.DeepgramModel;
+            // An unknown or non-live tier is rejected back to deepgramNova3 by the
+            // setter, so a backup from a newer build cannot import a route we
+            // would 404 on.
+            if (!string.IsNullOrWhiteSpace(s.CloudTier)) settings.StreamingCloudTier = s.CloudTier;
             if (s.FastFormatting.HasValue) settings.StreamingFastFormatting = s.FastFormatting.Value;
             if (!string.IsNullOrWhiteSpace(s.Shortcut))
                 settings.StreamingShortcut = KeyboardShortcut.FromPersistedString(s.Shortcut);
@@ -584,18 +609,61 @@ public static class UniversalBackupMapper
     /// Only writes non-null keys; does not clear existing keys that aren't in the backup.
     /// </summary>
     public static void ApplyApiKeys(UniversalApiKeys apiKeys, ApiKeyService apiKeyService)
+        => ApplyApiKeys(apiKeys, apiKeyService.SetApiKey, apiKeyService.SetApiKey);
+
+    /// <summary>
+    /// The import mapping itself, over two key writers rather than
+    /// <see cref="ApiKeyService"/>. Test seam — see the
+    /// <see cref="MapApiKeys(Func{PostProcessingProvider, string}, Func{TranscriptionApiKeyType, string})"/>
+    /// export half for why.
+    /// </summary>
+    internal static void ApplyApiKeys(
+        UniversalApiKeys apiKeys,
+        Action<PostProcessingProvider, string?> writePostProcessingKey,
+        Action<TranscriptionApiKeyType, string?> writeTranscriptionKey)
     {
-        if (!string.IsNullOrEmpty(apiKeys.OpenAI)) apiKeyService.SetApiKey(PostProcessingProvider.OpenAI, apiKeys.OpenAI);
-        if (!string.IsNullOrEmpty(apiKeys.Anthropic)) apiKeyService.SetApiKey(PostProcessingProvider.Anthropic, apiKeys.Anthropic);
-        if (!string.IsNullOrEmpty(apiKeys.Groq)) apiKeyService.SetApiKey(PostProcessingProvider.Groq, apiKeys.Groq);
-        if (!string.IsNullOrEmpty(apiKeys.Gemini)) apiKeyService.SetApiKey(PostProcessingProvider.Gemini, apiKeys.Gemini);
-        if (!string.IsNullOrEmpty(apiKeys.Cerebras)) apiKeyService.SetApiKey(PostProcessingProvider.Cerebras, apiKeys.Cerebras);
+        if (!string.IsNullOrEmpty(apiKeys.OpenAI)) writePostProcessingKey(PostProcessingProvider.OpenAI, apiKeys.OpenAI);
+        if (!string.IsNullOrEmpty(apiKeys.Anthropic)) writePostProcessingKey(PostProcessingProvider.Anthropic, apiKeys.Anthropic);
+        if (!string.IsNullOrEmpty(apiKeys.Groq)) writePostProcessingKey(PostProcessingProvider.Groq, apiKeys.Groq);
+        if (!string.IsNullOrEmpty(apiKeys.Gemini)) writePostProcessingKey(PostProcessingProvider.Gemini, apiKeys.Gemini);
+        if (!string.IsNullOrEmpty(apiKeys.Cerebras)) writePostProcessingKey(PostProcessingProvider.Cerebras, apiKeys.Cerebras);
         // Fireworks removed — deprecated no-op backup field, never applied on restore.
-        if (!string.IsNullOrEmpty(apiKeys.Deepgram)) apiKeyService.SetApiKey(TranscriptionApiKeyType.Deepgram, apiKeys.Deepgram);
-        if (!string.IsNullOrEmpty(apiKeys.AssemblyAI)) apiKeyService.SetApiKey(TranscriptionApiKeyType.AssemblyAI, apiKeys.AssemblyAI);
-        if (!string.IsNullOrEmpty(apiKeys.ElevenLabs)) apiKeyService.SetApiKey(TranscriptionApiKeyType.ElevenLabs, apiKeys.ElevenLabs);
-        if (!string.IsNullOrEmpty(apiKeys.Mistral)) apiKeyService.SetApiKey(TranscriptionApiKeyType.Mistral, apiKeys.Mistral);
-        if (!string.IsNullOrEmpty(apiKeys.Soniox)) apiKeyService.SetApiKey(TranscriptionApiKeyType.Soniox, apiKeys.Soniox);
-        if (!string.IsNullOrEmpty(apiKeys.Grok)) apiKeyService.SetApiKey(PostProcessingProvider.Grok, apiKeys.Grok);
+        if (!string.IsNullOrEmpty(apiKeys.Deepgram)) writeTranscriptionKey(TranscriptionApiKeyType.Deepgram, apiKeys.Deepgram);
+        if (!string.IsNullOrEmpty(apiKeys.AssemblyAI)) writeTranscriptionKey(TranscriptionApiKeyType.AssemblyAI, apiKeys.AssemblyAI);
+        if (!string.IsNullOrEmpty(apiKeys.ElevenLabs)) writeTranscriptionKey(TranscriptionApiKeyType.ElevenLabs, apiKeys.ElevenLabs);
+        if (!string.IsNullOrEmpty(apiKeys.Mistral)) writeTranscriptionKey(TranscriptionApiKeyType.Mistral, apiKeys.Mistral);
+        if (!string.IsNullOrEmpty(apiKeys.Soniox)) writeTranscriptionKey(TranscriptionApiKeyType.Soniox, apiKeys.Soniox);
+        if (!string.IsNullOrEmpty(apiKeys.Grok)) writePostProcessingKey(PostProcessingProvider.Grok, apiKeys.Grok);
+
+        // Own slot, not the legacy `gemini` post-processing key. The fallback
+        // covers a backup written with the camelCase catalog spelling
+        // (`geminiTranscribe`) instead of the squashed-lowercase apiKeys
+        // convention: that lands in AdditionalKeys, and silently dropping it would
+        // reproduce exactly the bug this field exists to fix.
+        var geminiTranscribe = !string.IsNullOrEmpty(apiKeys.GeminiTranscribe)
+            ? apiKeys.GeminiTranscribe
+            : ExtraApiKey(apiKeys, "geminiTranscribe");
+        if (!string.IsNullOrEmpty(geminiTranscribe))
+            writeTranscriptionKey(TranscriptionApiKeyType.GeminiTranscribe, geminiTranscribe);
+    }
+
+    /// <summary>
+    /// A string value from <see cref="UniversalApiKeys.AdditionalKeys"/> — the
+    /// JsonExtensionData bag that holds every provider key this build has no
+    /// declared field for. Case-insensitive, and null for a non-string value.
+    /// </summary>
+    internal static string? ExtraApiKey(UniversalApiKeys apiKeys, string name)
+    {
+        if (apiKeys.AdditionalKeys == null) return null;
+
+        foreach (var kvp in apiKeys.AdditionalKeys)
+        {
+            if (string.Equals(kvp.Key, name, StringComparison.OrdinalIgnoreCase) &&
+                kvp.Value.ValueKind == JsonValueKind.String)
+            {
+                return kvp.Value.GetString();
+            }
+        }
+        return null;
     }
 }

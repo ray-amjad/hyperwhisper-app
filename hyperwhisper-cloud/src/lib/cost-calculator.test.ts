@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import {
   ASSEMBLYAI_SYNC_COST_PER_AUDIO_MINUTE,
+  GEMINI_TRANSCRIBE_AUDIO_TOKENS_PER_SECOND,
   computeAnthropicCost,
   computeAssemblyAISyncTranscriptionCost,
   computeAssemblyAITranscriptionCost,
@@ -9,6 +10,8 @@ import {
   computeDeepgramTranscriptionCost,
   computeElevenLabsTranscriptionCost,
   computeGeminiChatCost,
+  computeGeminiTranscribeCost,
+  computeGeminiTranscribeLiveCost,
   computeGeminiTranscriptionCost,
   computeGoogleChirpTranscriptionCost,
   computeGroqChatCost,
@@ -20,13 +23,16 @@ import {
   computeSonioxTranscriptionCost,
   computeXaiGrokFastChatCost,
   computeXaiTranscriptionCost,
+  countCjkChars,
   creditsForCost,
+  estimateGeminiTranscribeOutputTokens,
   estimatePromptInputReservationUsd,
   estimateSonioxContextTokens,
   estimateUsageFromChars,
   formatUsd,
   isGroqUsage,
   roundUsd,
+  usdForCredits,
   usdToCredits,
   type GroqUsage,
 } from './cost-calculator';
@@ -201,6 +207,193 @@ describe('new STT provider cost functions', () => {
       audioInputTokens: 1920, outputTokens: 0,
     });
     expect(withOutput).toBeGreaterThan(withoutOutput);
+  });
+
+  // ── Gemini 3.5 Transcribe (the dedicated speech models) ───────────────────
+  // These numbers come from live calls to /v1beta/interactions with the sample
+  // clip: 236 audio tokens + 1 text token for 9.456 s of speech, and
+  // total_output_tokens: 0 on every response.
+
+  test('Gemini 3.5 Transcribe bills audio at 25 tok/s — NOT the LLM path 32 tok/s', () => {
+    // A minute of audio is 1,500 tokens here, 1,920 on :generateContent. Billing
+    // this model with the LLM constant would over-charge by 28%.
+    expect(GEMINI_TRANSCRIBE_AUDIO_TOKENS_PER_SECOND).toBe(25);
+    const oneMinuteAudioOnly = computeGeminiTranscribeCost('gemini-3.5-transcribe', {
+      audioInputTokens: 60 * GEMINI_TRANSCRIBE_AUDIO_TOKENS_PER_SECOND,
+      outputTokens: 0,
+    });
+    expect(oneMinuteAudioOnly).toBeCloseTo(1500 * (2.00 / 1e6), 9); // $0.0030
+  });
+
+  test('the measured live response bills to ~5.3 credits/min, matching the catalog 5.5', () => {
+    // Exactly what the API returned for the 9.456 s sample: 236 audio + 1 text
+    // input tokens, no output tokens reported, 119-character transcript.
+    const transcript = 'Hello, this is a test of HyperWhisper transcription. Let us meet on Tuesday, no, Wednesday, um, at the Kalamazoo office.';
+    const outputTokens = estimateGeminiTranscribeOutputTokens(transcript);
+    const costUsd = computeGeminiTranscribeCost('gemini-3.5-transcribe', {
+      audioInputTokens: 236, textInputTokens: 1, outputTokens,
+    });
+
+    const perMinute = costUsd * (60 / (236 / GEMINI_TRANSCRIBE_AUDIO_TOKENS_PER_SECOND));
+    // cloud-stt-catalog.json's cloudTier.creditsPerMinute is 5.5 (USD/min ×
+    // 1000); shared-app-classification/AGENTS.md allows ≤10% drift from what
+    // this file actually bills.
+    expect(perMinute * 1000).toBeGreaterThan(5.5 * 0.9);
+    expect(perMinute * 1000).toBeLessThan(5.5 * 1.1);
+  });
+
+  test('output tokens are estimated from the transcript, because the API reports 0', () => {
+    // ~4 chars/token, the same heuristic as the reservation/fallback estimates.
+    expect(estimateGeminiTranscribeOutputTokens('')).toBe(0);
+    expect(estimateGeminiTranscribeOutputTokens('a'.repeat(400))).toBe(100);
+
+    // Billing audio alone (what reading total_output_tokens would give) is far
+    // cheaper than the truth — the estimate is what stops the under-charge.
+    const audioOnly = computeGeminiTranscribeCost('gemini-3.5-transcribe', {
+      audioInputTokens: 1500, outputTokens: 0,
+    });
+    const withOutput = computeGeminiTranscribeCost('gemini-3.5-transcribe', {
+      audioInputTokens: 1500, outputTokens: 188,
+    });
+    expect(withOutput).toBeGreaterThan(audioOnly);
+    expect(withOutput - audioOnly).toBeCloseTo(188 * (12.00 / 1e6), 9);
+  });
+
+  test('text-input tokens bill at the same rate as audio on this endpoint', () => {
+    const withText = computeGeminiTranscribeCost('gemini-3.5-transcribe', {
+      audioInputTokens: 1000, textInputTokens: 500, outputTokens: 0,
+    });
+    expect(withText).toBeCloseTo(1500 * (2.00 / 1e6), 9);
+  });
+
+  test('a missing usage object falls back to a duration estimate rather than $0', () => {
+    const failClosed = computeGeminiTranscribeCost('gemini-3.5-transcribe', {
+      audioInputTokens: 0, outputTokens: 0, fallbackDurationSeconds: 60,
+    });
+    expect(failClosed).toBeGreaterThan(0);
+    // Same ~$0.0053/min the token path produces for a minute of speech.
+    expect(failClosed).toBeCloseTo(0.0053, 4);
+  });
+
+  test('a PARTIAL usage object falls back too — a missing AUDIO count, not a zero total', () => {
+    // The shape the production caller actually produces: output tokens are
+    // ESTIMATED from the transcript, so they are >= 1 on every real response and
+    // the total is never zero. Keying the fallback on the total made it dead
+    // code and billed a minute of speech at 24x under.
+    const estimatedOutputOnly = computeGeminiTranscribeCost('gemini-3.5-transcribe', {
+      audioInputTokens: 0, textInputTokens: 1, outputTokens: 188, fallbackDurationSeconds: 60,
+    });
+    expect(estimatedOutputOnly).toBeCloseTo(0.0053, 4);
+
+    // The fallback is a FLOOR, never a discount: a usage object that reports
+    // more than the estimate keeps its own figure.
+    const talkative = computeGeminiTranscribeCost('gemini-3.5-transcribe', {
+      audioInputTokens: 0, outputTokens: 5000, fallbackDurationSeconds: 60,
+    });
+    expect(talkative).toBeCloseTo(5000 * (12.00 / 1e6), 9);
+  });
+
+  test('a reported audio-token count is trusted verbatim — the fallback stays out of it', () => {
+    // A real 1-second clip must not be inflated to a 10-minute size estimate.
+    const measured = computeGeminiTranscribeCost('gemini-3.5-transcribe', {
+      audioInputTokens: 25, outputTokens: 4, fallbackDurationSeconds: 600,
+    });
+    expect(measured).toBeCloseTo(25 * (2.00 / 1e6) + 4 * (12.00 / 1e6), 9);
+  });
+
+  test('CJK output tokens are estimated denser than the Latin 4 chars/token', () => {
+    // Gemini's tokenizer spends ~1 token per 1-1.5 Han/Kana characters. Pricing
+    // Japanese at 4 chars/token under-bills the output half several times over;
+    // the estimate below is a deliberate floor at 2 chars/token.
+    const japanese = 'これはハイパーウィスパーの書き起こしのテストです。';
+    expect(countCjkChars(japanese)).toBe(japanese.length);
+    expect(estimateGeminiTranscribeOutputTokens(japanese))
+      .toBe(Math.ceil(japanese.length / 2));
+    expect(estimateGeminiTranscribeOutputTokens(japanese))
+      .toBeGreaterThan(Math.ceil(japanese.length / 4));
+
+    // Latin text is unchanged, and accented Latin / Cyrillic is NOT counted as
+    // CJK — those tokenize close enough to the 4 chars/token figure.
+    expect(estimateGeminiTranscribeOutputTokens('a'.repeat(400))).toBe(100);
+    expect(countCjkChars('déjà vu, привет')).toBe(0);
+
+    // A mixed transcript charges each script at its own ratio.
+    expect(estimateGeminiTranscribeOutputTokens(`${'a'.repeat(400)}${japanese}`))
+      .toBe(Math.ceil(100 + japanese.length / 2));
+  });
+
+  test('an unknown model falls back to the pre-recorded rate, never $0', () => {
+    const known = computeGeminiTranscribeCost('gemini-3.5-transcribe', {
+      audioInputTokens: 1500, outputTokens: 188,
+    });
+    expect(computeGeminiTranscribeCost('gemini-3.5-transcribe-vnext', {
+      audioInputTokens: 1500, outputTokens: 188,
+    })).toBe(known);
+  });
+
+  test('the live model is billed at its own higher rate (~1.75x)', () => {
+    const live = computeGeminiTranscribeLiveCost(60);
+    const prerecorded = computeGeminiTranscribeCost('gemini-3.5-transcribe', {
+      audioInputTokens: 1500, outputTokens: 188,
+    });
+    expect(live).toBeGreaterThan(prerecorded);
+    // 1,500 audio tokens at $3.50/1M + ~188 output tokens at $21.00/1M.
+    expect(live).toBeCloseTo(1500 * (3.50 / 1e6) + 187.5 * (21.00 / 1e6), 6);
+    // Catalog figure for the live entry is 9.6 credits/min (≤10% drift rule).
+    expect(live * 1000).toBeGreaterThan(9.6 * 0.9);
+    expect(live * 1000).toBeLessThan(9.6 * 1.1);
+  });
+
+  test('the live cost prefers a real transcript length when the session provides one', () => {
+    const estimated = computeGeminiTranscribeLiveCost(60);
+    // A near-silent minute produced almost no text — billing the per-second
+    // output estimate anyway would over-charge.
+    expect(computeGeminiTranscribeLiveCost(60, 8)).toBeLessThan(estimated);
+    // A very talkative minute costs more than the estimate.
+    expect(computeGeminiTranscribeLiveCost(60, 2000)).toBeGreaterThan(estimated);
+  });
+
+  test('the live cost never decreases as the transcript grows, and silence is the floor', () => {
+    // Regression guard. Treating 0 chars as "unknown" and pricing it at the
+    // ~150 wpm per-second estimate made the curve fall off a cliff at 1
+    // character: 60 s billed 9.2 credits for silence and 5.3 for one letter, so
+    // every session below 150 wpm cost less than saying nothing, and a stuck
+    // push-to-talk minute over-billed by 74%.
+    const audioOnly = 60 * 25 * (3.50 / 1e6);
+    expect(computeGeminiTranscribeLiveCost(60, 0)).toBeCloseTo(audioOnly, 9);
+
+    let previous = computeGeminiTranscribeLiveCost(60, 0);
+    for (const chars of [1, 2, 3, 4, 5, 8, 40, 100, 748, 749, 750, 1000, 2000, 10_000]) {
+      const cost = computeGeminiTranscribeLiveCost(60, chars);
+      expect(cost).toBeGreaterThanOrEqual(previous);
+      previous = cost;
+    }
+
+    // Silence is the cheapest a 60 s session can be, and specifically cheaper
+    // than the same minute spoken at a normal 150 wpm.
+    const spokenMinute = computeGeminiTranscribeLiveCost(60, 749);
+    expect(computeGeminiTranscribeLiveCost(60, 0)).toBeLessThan(spokenMinute);
+    // The omitted-argument form is the reservation estimate, and is unchanged:
+    // it means "no transcript figure exists yet", not "zero characters".
+    expect(computeGeminiTranscribeLiveCost(60)).toBeGreaterThan(computeGeminiTranscribeLiveCost(60, 0));
+    expect(computeGeminiTranscribeLiveCost(60)).toBeCloseTo(spokenMinute, 4);
+  });
+
+  test('usdForCredits inverts usdToCredits, so a balance can clamp a charge', () => {
+    expect(usdForCredits(4.6)).toBeCloseTo(0.0046, 9);
+    expect(creditsForCost(usdForCredits(4.6))).toBe(4.6);
+    expect(usdForCredits(0)).toBe(0);
+    expect(usdForCredits(-5)).toBe(0);
+    expect(usdForCredits(Number.NaN)).toBe(0);
+  });
+
+  test('gemini-transcribe reserves vocabulary tokens at the input rate', () => {
+    const prompt = 'x'.repeat(400); // 100 tokens at 4 chars/token
+    expect(estimatePromptInputReservationUsd('gemini-transcribe', 'gemini-3.5-transcribe', prompt))
+      .toBeCloseTo(100 * (2.00 / 1e6), 9);
+    expect(estimatePromptInputReservationUsd('gemini-transcribe', 'gemini-3.5-transcribe-live', prompt))
+      .toBeCloseTo(100 * (3.50 / 1e6), 9);
+    expect(estimatePromptInputReservationUsd('gemini-transcribe', 'gemini-3.5-transcribe', undefined)).toBe(0);
   });
 
   test('Groq turbo is billed at $0.04/hr, large-v3 at $0.111/hr', () => {

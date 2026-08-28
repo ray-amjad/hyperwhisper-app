@@ -1,0 +1,22 @@
+{
+  "$schemaDoc": "Cloud STT model ids that are WEBSOCKET-ONLY: they exist in a tier's model list, but the pre-recorded /transcribe endpoint cannot serve them and returns HTTP 400. Every head keeps its own literal copy of this set because the catalog has no live-only field; this file is the single source those copies are tested against, so they cannot drift apart.",
+  "version": 1,
+  "updated": "2026-08-27",
+  "whyNotTheStreamingFlag": "The per-model `streaming` flag in cloud-stt-catalog.json is NOT this set and must never be used as the filter. `streaming: true` means 'HyperWhisper Cloud routes this model live', and deepgramNova3 carries it on BOTH nova-3-general and nova-3-medical — its DEFAULT pre-recorded models. Filtering the dictation picker on that flag deletes Deepgram's default dictation model.",
+  "mirrors": [
+    "app/windows/HyperWhisper/Services/AppClassification/CloudSttCatalog.cs — LiveOnlyModelIds",
+    "app/macos/hyperwhisper/Utilities/AppClassification/CloudSTTCatalog.swift — liveOnlyModelIds",
+    "app/shared-dotnet/HyperWhisper.SharedCore/SharedCoreBridge.cs — LiveOnlyCloudSttModelIds"
+  ],
+  "liveOnlyModelIds": [
+    "gemini-3.5-transcribe-live",
+    "gpt-live-transcribe"
+  ],
+  "notLiveOnly": [
+    "gemini-3.5-transcribe",
+    "nova-3-general",
+    "nova-3-medical",
+    "whisper-large-v3",
+    "scribe-v2"
+  ]
+}

@@ -65,6 +65,10 @@ class KeychainManager {
         case soniox = "soniox"
         case cerebras = "cerebras"
         case grok = "grok"
+        /// Gemini 3.5 Transcribe (`/v1beta/interactions`). A SEPARATE slot from
+        /// `.gemini`: same vendor, different API and different eligibility, so
+        /// the two keys must not overwrite each other.
+        case geminiTranscribe = "geminitranscribe"
 
         /// User-friendly display name
         var displayName: String {
@@ -80,6 +84,7 @@ class KeychainManager {
             case .soniox: return "Soniox"
             case .cerebras: return "Cerebras"
             case .grok: return "Grok"
+            case .geminiTranscribe: return "Gemini 3.5 Transcribe"
             }
         }
 
@@ -97,6 +102,9 @@ class KeychainManager {
             case .soniox: return "sonioxAPIKey"
             case .cerebras: return "cerebrasAPIKey"
             case .grok: return "grokAPIKey"
+            // Never lived in UserDefaults (the provider postdates the Keychain
+            // migration); the arm exists so the switch stays exhaustive.
+            case .geminiTranscribe: return "geminiTranscribeAPIKey"
             }
         }
     }

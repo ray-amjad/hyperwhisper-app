@@ -53,6 +53,7 @@ static async Task ModeRouterProviders()
         ["ElevenLabsApiKey"] = "el",
         ["OpenAIApiKey"] = "oa",
         ["GrokApiKey"] = "xai",
+        ["GeminiTranscribeApiKey"] = "AIza",
         ["LicenseKey"] = "license",
     });
     var router = new LiveStreamingModeRouter(credentials);
@@ -62,6 +63,10 @@ static async Task ModeRouterProviders()
         ("elevenLabs", LiveTranscriptionProvider.ElevenLabs, "ElevenLabsApiKey", false),
         ("openAI", LiveTranscriptionProvider.OpenAi, "OpenAIApiKey", false),
         ("xai", LiveTranscriptionProvider.Grok, "GrokApiKey", false),
+        // Both spellings must resolve: SettingsViewModel persists "geminiTranscribe",
+        // but the wire/settings history also carries the hyphenated catalog id.
+        ("geminiTranscribe", LiveTranscriptionProvider.GeminiTranscribe, "GeminiTranscribeApiKey", false),
+        ("gemini-transcribe", LiveTranscriptionProvider.GeminiTranscribe, "GeminiTranscribeApiKey", false),
         ("hyperwhisperCloud", LiveTranscriptionProvider.HyperWhisperCloud, "LicenseKey", true),
     };
     foreach (var value in cases)
@@ -86,6 +91,21 @@ static async Task ModeRouterProviders()
         Equal(value.License ? null : credentials.Values[value.Account], result.Value.Config.ApiKey);
         True(result.Value.Config.FastFormatting);
     }
+
+    // The cloud tier rides through the router untouched — it is a catalog entry
+    // id, not a provider id, and the protocol turns it into the WS route. It has
+    // to survive Normalize() (which trims) and must default to null, because null
+    // is what every already-installed client sends and null means Deepgram.
+    var tiered = await router.ResolveAsync(
+        new("mode", true, "hyperwhisperCloud", DeviceId: "mic", Language: "en",
+            CloudTier: " geminiTranscribe "),
+        []);
+    True(tiered.IsSuccess);
+    Equal("geminiTranscribe", tiered.Value!.Config.CloudTier);
+    var untiered = await router.ResolveAsync(
+        new("mode", true, "hyperwhisperCloud", DeviceId: "mic", Language: "en"), []);
+    True(untiered.IsSuccess);
+    Equal(null, untiered.Value!.Config.CloudTier);
 
     // The 100-term cap is this router's own and must survive the move into the
     // shared core: 150 distinct terms in, 100 out, in submission order.

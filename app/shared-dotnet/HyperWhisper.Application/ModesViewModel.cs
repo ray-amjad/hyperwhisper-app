@@ -6,6 +6,7 @@ using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.ModelManagement;
+using HyperWhisper.SharedCore;
 
 namespace HyperWhisper.PortableApplication.ViewModels;
 
@@ -91,7 +92,12 @@ public sealed class ModesViewModel : ViewModelBase
             LocalEngine = value.LocalEngine;
             TranscriptionModel = value.ProviderType == "cloud" ? value.CloudTranscriptionModel ?? string.Empty : value.LocalEngine == "parakeet" ? value.LocalParakeetModel ?? "parakeet-v3" : value.ModelType ?? value.Model ?? "base";
             CloudProvider = value.CloudProvider ?? "elevenlabs";
-            CloudAccuracyTier = value.CloudAccuracyTier;
+            // Canonicalise on load, not just on save: a mode persisted by an older
+            // build (or restored from a backup) can carry a retired tier id such as
+            // `googleChirp3`. The shared core resolves it through the catalog's
+            // `migrateFrom` list, so the editor opens on the tier the user actually
+            // has (geminiTranscribe) instead of an id that is no longer offered.
+            CloudAccuracyTier = SharedCoreBridge.CanonicalCloudSttTier(value.CloudAccuracyTier);
             CloudDomain = value.CloudTranscriptionDomain ?? string.Empty;
             GeminiPrompt = value.GeminiCustomPrompt ?? string.Empty;
             CustomVocabulary = string.Join(", ", value.CustomVocabulary ?? []);
@@ -174,8 +180,11 @@ public sealed class ModesViewModel : ViewModelBase
     public string CustomEndpointApiKey { get => _customEndpointApiKey; set => Set(ref _customEndpointApiKey, value ?? string.Empty); }
     public IReadOnlyList<string> PostProcessingModes { get; } = ["off", "cloud", "local"];
     public IReadOnlyList<string> PostProcessingProviders { get; } = ["hyperwhispercloud", "openai", "anthropic", "groq", "grok", "gemini", "cerebras", "mistral", "custom"];
-    public IReadOnlyList<string> CloudProviders { get; } = ["openai", "groq", "elevenlabs", "mistral", "grok", "deepgram", "assemblyai", "soniox", "gemini", "microsoftazurespeech", "googlespeech", "hyperwhisper"];
-    public IReadOnlyList<string> CloudAccuracyTiers { get; } = ["groqWhisper", "deepgramNova3", "grokStt", "azureMaiTranscribe", "googleChirp3", "elevenLabsScribeV2", "openaiWhisper", "gemini", "mistralVoxtral", "assemblyAI", "soniox"];
+    // Lowercase ids, matched ordinally on save. `geminitranscribe` is the BYOK
+    // Gemini 3.5 Transcribe provider, distinct from `gemini` (the multimodal
+    // model) and from the `geminiTranscribe` HyperWhisper Cloud accuracy TIER.
+    public IReadOnlyList<string> CloudProviders { get; } = ["openai", "groq", "elevenlabs", "mistral", "grok", "deepgram", "assemblyai", "soniox", "gemini", "geminitranscribe", "microsoftazurespeech", "googlespeech", "hyperwhisper"];
+    public IReadOnlyList<string> CloudAccuracyTiers { get; } = ["groqWhisper", "deepgramNova3", "grokStt", "azureMaiTranscribe", "geminiTranscribe", "elevenLabsScribeV2", "openaiWhisper", "gemini", "mistralVoxtral", "assemblyAI", "soniox"];
     public IReadOnlyList<string> CloudDomains { get; } = ["", "medical"];
     public UiStatus Status { get; } = new();
     public ICommand SaveCommand { get; }
@@ -248,7 +257,13 @@ public sealed class ModesViewModel : ViewModelBase
         {
             mode.CloudProvider = CloudProvider;
             mode.CloudTranscriptionModel = string.IsNullOrWhiteSpace(TranscriptionModel) ? null : TranscriptionModel.Trim();
-            mode.CloudAccuracyTier = CloudAccuracyTiers.Contains(CloudAccuracyTier, StringComparer.Ordinal) ? CloudAccuracyTier : "elevenLabsScribeV2";
+            // Canonicalise BEFORE the allow-list check. The list holds catalog ids
+            // only, and the comparison is ordinal, so a legacy alias (`googleChirp3`,
+            // `chirp_3`, `high`, …) would otherwise miss every entry and be silently
+            // rewritten to elevenLabsScribeV2 — a different vendor at different
+            // credits, with no error shown.
+            var canonicalTier = SharedCoreBridge.CanonicalCloudSttTier(CloudAccuracyTier);
+            mode.CloudAccuracyTier = CloudAccuracyTiers.Contains(canonicalTier, StringComparer.Ordinal) ? canonicalTier : "elevenLabsScribeV2";
             mode.CloudTranscriptionDomain = CloudDomain == "medical" ? "medical" : null;
             mode.GeminiCustomPrompt = string.IsNullOrWhiteSpace(GeminiPrompt) ? null : GeminiPrompt.Trim();
         }

@@ -128,7 +128,16 @@ public static class UnifiedModelCatalog
             var sttProvider = Required(provider.@sttProvider, "sttProvider");
             if (provider.@models.Count == 0)
                 throw new InvalidDataException($"Streaming provider '{sttProvider}' lists no models.");
-            AddStreamingRow(result, emitted, sttProvider, provider.@models[0].@id,
+            // Prefer the model the catalog marks `streaming: true` over models[0]:
+            // geminiTranscribe lists the BATCH row first (gemini-3.5-transcribe) and
+            // the live one second (gemini-3.5-transcribe-live), so models[0] would
+            // publish a streaming capability under a model that has no live route.
+            // For every pre-existing streaming vendor models[0] is either already the
+            // streaming row (deepgram) or has no `streaming: true` row at all, so this
+            // falls back to exactly today's behaviour.
+            var liveModel = provider.@models.FirstOrDefault(model => model.@streaming == true)
+                ?? provider.@models[0];
+            AddStreamingRow(result, emitted, sttProvider, liveModel.@id,
                 Required(provider.@displayName, "displayName"), LanguageCodes(provider.@id),
                 ProviderSupportsVocabulary(provider));
         }
@@ -251,6 +260,7 @@ public static class UnifiedModelCatalog
         "mistral" => "MistralApiKey",
         "soniox" => "SonioxApiKey",
         "gemini" => "GeminiApiKey",
+        "geminitranscribe" or "gemini-transcribe" => "GeminiTranscribeApiKey",
         "grok" or "xai" => "GrokApiKey",
         "azure-mai" or "microsoftazurespeech" => "LicenseKey",
         "google-chirp" or "googlespeech" => "LicenseKey",

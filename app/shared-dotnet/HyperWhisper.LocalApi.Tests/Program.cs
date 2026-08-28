@@ -557,9 +557,16 @@ static async Task ApplicationBackendModeValidation()
     var history = new HistoryRepository(database);
     using var workflow = new TranscriptionWorkflow(new NoRecorder(), new NoDevices(), new UnavailableTranscriber(), history);
     var backend = new ApplicationLocalApiBackend(modes, history, workflow, new FullCatalog(), new DiskPrivateFiles(), paths, "1.0");
-    string[] providers = ["openai", "groq", "deepgram", "assemblyai", "elevenlabs", "mistral", "soniox", "hyperwhisper", "gemini", "grok", "microsoftAzureSpeech", "googleSpeech"];
-    foreach (var provider in providers)
-        _ = await backend.CreateModeAsync(Json($$"""{"name":"{{provider}}","providerType":"cloud","cloudProvider":"{{provider}}"}"""), CancellationToken.None);
+    // Both Gemini ids: `gemini` (multimodal) and `geminiTranscribe` (BYOK Gemini
+    // 3.5 Transcribe). The camelCase spelling is what Windows persists, so the
+    // allow-list must accept it as well as the lowercase one macOS writes.
+    string[] providers = ["openai", "groq", "deepgram", "assemblyai", "elevenlabs", "mistral", "soniox", "hyperwhisper", "gemini", "geminiTranscribe", "geminitranscribe", "grok", "microsoftAzureSpeech", "googleSpeech"];
+    // Mode names are unique case-insensitively, so index them: two spellings of
+    // the same provider id are a legitimate pair of cases to accept.
+    for (var index = 0; index < providers.Length; index++)
+        _ = await backend.CreateModeAsync(
+            Json($$"""{"name":"cloud-{{index}}-{{providers[index]}}","providerType":"cloud","cloudProvider":"{{providers[index]}}"}"""),
+            CancellationToken.None);
     await AssertThrowsAsync<ArgumentException>(() => backend.CreateModeAsync(Json("""{"name":"Unknown cloud","providerType":"cloud","cloudProvider":"azure"}"""), CancellationToken.None).AsTask());
     await AssertThrowsAsync<ArgumentException>(() => backend.CreateModeAsync(Json("""{"name":"Unknown engine","providerType":"local","localEngine":"vosk","model":"base"}"""), CancellationToken.None).AsTask());
     await AssertThrowsAsync<ArgumentException>(() => backend.CreateModeAsync(Json("""{"name":"Wrong whisper","providerType":"local","localEngine":"whisper","model":"parakeet-v3"}"""), CancellationToken.None).AsTask());

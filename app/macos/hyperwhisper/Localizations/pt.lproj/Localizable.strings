@@ -42,6 +42,8 @@
 "streaming.enable.title" = "Ativar Streaming";
 "streaming.provider.picker.title" = "Provedor";
 "streaming.model.title" = "Modelo";
+"streaming.cloudTier.title" = "Motor ao vivo";
+"streaming.cloudTier.description" = "Que motor de voz o HyperWhisper Cloud usa para transcrição ao vivo";
 "streaming.model.nova3general" = "Nova 3 Geral";
 "streaming.model.nova3medical" = "Nova 3 Médico";
 "streaming.fastFormatting.title" = "Formatação Rápida";
@@ -767,8 +769,8 @@ Edite esses modos para selecionar um modelo diferente antes de removê-lo.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ créditos/min";
 "modes.cloudAccuracy.grokStt.label" = "Mais Alto (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Maior precisão com processamento mais lento. Melhor para transcrições importantes.";
-"modes.cloudAccuracy.googleChirp3.label" = "Alta (Google Chirp 3)";
-"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 com Chirp 3. Multilingue com adaptação de frases.";
+"modes.cloudAccuracy.geminiTranscribe.label" = "Alta (Google Gemini 3.5 Transcribe)";
+"modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Multilingue, com suporte a vocabulário personalizado.";
 "modes.cloudAccuracy.azureMaiTranscribe.label" = "Alta (Microsoft MAI-Transcribe 1.5)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 através do Azure Speech. 43 idiomas com adaptação contextual.";
 

@@ -641,6 +641,38 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
                     didInitiateClose = true
                 }
 
+                // PROTOCOL-LEVEL TERMINAL CLOSE (1002/1003/1007/1008/1009/1011):
+                // A provider that closes a doomed session WITHOUT first sending a
+                // matching error frame used to fall straight through to the
+                // reconnect path below and retry into the same refusal. The
+                // forcing case is Gemini 3.5 Transcribe Live, which answers a
+                // malformed setup frame with 1007: the frame is identical on
+                // every attempt, so every reconnect is guaranteed to reproduce
+                // it. 1006 is deliberately NOT in this set — that is the ordinary
+                // dropped connection auto-reconnect exists for.
+                //
+                // Reported, not merely suppressed, for the same reason 4001 is
+                // below: setting `didInitiateClose` alone would end the session
+                // in silence with the microphone still live and the flow still
+                // believing it was recording. `handleTerminalCondition` is
+                // idempotent, so when a provider sends BOTH an error frame and
+                // this close — the HyperWhisper Cloud route does, closing 1011
+                // after a terminal upstream fault — whichever arrives first wins
+                // and the message the user reads is that frame's own wording.
+                //
+                // A `serverError` rather than one of the two dedicated cases: the
+                // close code alone identifies no account state, and it must stay
+                // Sentry-reportable, because in every case listed here the bug is
+                // ours or the service's and nobody would otherwise hear about it.
+                if StreamingProviderErrorPolicy.isTerminalCloseCode(rawCloseCode) {
+                    handleTerminalCondition(
+                        .serverError("The transcription service ended the session (code \(rawCloseCode))"),
+                        detail: "terminal close code \(rawCloseCode)",
+                        cancelReceiveTask: false
+                    )
+                    break
+                }
+
                 // 4001 IS AN OUT-OF-CREDITS STOP, AND HAS TO SAY SO.
                 // Suppressing the reconnect above is only half of it: the branch
                 // as it stood then fell through to `break` and the session ended
@@ -1538,6 +1570,23 @@ extension StreamingTranscriptionClient: URLSessionWebSocketDelegate {
             let rawCode = closeCode.rawValue
             if rawCode == 4001 || rawCode == 4002 {
                 didInitiateClose = true
+            }
+
+            // The other door onto the same decision as receiveLoop's catch: a
+            // protocol-level terminal close must not start a reconnect cycle
+            // that can only reproduce it, and must not end the session in
+            // silence either. URLSession gives no ordering guarantee between
+            // this delegate and that catch, so both have to check;
+            // handleTerminalCondition drops whichever arrives second. Here the
+            // receive task IS a different task, so cancelling it is both safe
+            // and what actually stops the loop.
+            if StreamingProviderErrorPolicy.isTerminalCloseCode(rawCode) {
+                handleTerminalCondition(
+                    .serverError("The transcription service ended the session (code \(rawCode))"),
+                    detail: "terminal close code \(rawCode) (delegate)",
+                    cancelReceiveTask: true
+                )
+                return
             }
 
             // Whichever of this delegate and receiveLoop's catch sees the 4001

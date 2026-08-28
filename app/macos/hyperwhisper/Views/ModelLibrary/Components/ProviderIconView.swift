@@ -129,6 +129,7 @@ struct ProviderIconView: View {
             case .grok: return Brand.grok
             case .microsoftAzureSpeech: return .blue
             case .googleSpeech: return .red
+            case .geminiTranscribe: return Brand.gemini
             }
         case .postProcessing(let provider):
             switch provider {

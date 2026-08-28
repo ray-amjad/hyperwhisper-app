@@ -42,6 +42,8 @@
 "streaming.enable.title" = "Bật Luồng phát";
 "streaming.provider.picker.title" = "Nhà cung cấp";
 "streaming.model.title" = "Mô hình";
+"streaming.cloudTier.title" = "Công cụ trực tiếp";
+"streaming.cloudTier.description" = "Công cụ giọng nói mà HyperWhisper Cloud dùng cho phiên âm trực tiếp";
 "streaming.model.nova3general" = "Nova 3 General";
 "streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Định dạng nhanh";
@@ -767,8 +769,8 @@ Chỉnh sửa các chế độ đó để chọn mô hình khác trước khi x�
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ tín dụng/phút";
 "modes.cloudAccuracy.grokStt.label" = "Cao nhất (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Độ chính xác cao nhất với xử lý chậm hơn. Tốt nhất cho chuyển đổi quan trọng.";
-"modes.cloudAccuracy.googleChirp3.label" = "Cao (Google Chirp 3)";
-"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 với Chirp 3. Đa ngôn ngữ, có thích ứng cụm từ.";
+"modes.cloudAccuracy.geminiTranscribe.label" = "Cao (Google Gemini 3.5 Transcribe)";
+"modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Đa ngôn ngữ, hỗ trợ từ vựng tùy chỉnh.";
 "modes.cloudAccuracy.azureMaiTranscribe.label" = "Cao (Microsoft MAI-Transcribe 1.5)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 qua Azure Speech. 43 ngôn ngữ, có điều chỉnh theo ngữ cảnh.";
 

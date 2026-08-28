@@ -162,6 +162,7 @@ public sealed partial class ApplicationBackupService(
             ["provider"] = _settings.Get<string?>("streaming.provider"),
             ["language"] = _settings.Get<string?>("streaming.language"),
             ["deepgramModel"] = _settings.Get<string?>("streaming.deepgramModel"),
+            ["cloudTier"] = _settings.Get<string?>("streaming.cloudTier"),
             ["fastFormatting"] = _settings.Get("streaming.fastFormatting", false),
             ["shortcut"] = _settings.Get<string?>("streaming.shortcut"),
         },
@@ -177,7 +178,7 @@ public sealed partial class ApplicationBackupService(
         CopyCategory(settings, "general", ["launchMinimized", "showRecordingWindow", "checkForUpdatesAutomatically", "enableErrorLogging", "shareAnonymousSpeedData", "enableSoundEffects"]);
         CopyCategory(settings, "textOutput", ["pasteResultText", "removeFillerWords", "restoreClipboardAfterPaste", "hideFromClipboardHistory", "clipboardRestoreDelaySeconds", "autocapitalizeInsert", "storeWordTimestamps"]);
         CopyCategory(settings, "storage", ["keepAudioFiles", "storeAsM4A"]);
-        CopyCategory(settings, "streaming", ["enabled", "provider", "language", "deepgramModel", "fastFormatting", "shortcut"]);
+        CopyCategory(settings, "streaming", ["enabled", "provider", "language", "deepgramModel", "cloudTier", "fastFormatting", "shortcut"]);
         CopyCategory(settings, "advanced", ["maxRecordingDuration", "typingSpeedWPM"]);
     }
 
@@ -241,7 +242,7 @@ public sealed partial class ApplicationBackupService(
             PostProcessingMode = Int(value, "postProcessingMode"), PostProcessingProvider = String(value, "postProcessingProvider"),
             LanguageModel = String(value, "languageModel"), LocalPostProcessingModel = String(value, "localPostProcessingModel"),
             UserSystemPrompt = String(value, "userSystemPrompt"), CustomInstructions = String(value, "customInstructions"),
-            GeminiCustomPrompt = String(value, "geminiCustomPrompt"), CloudAccuracyTier = String(value, "cloudAccuracyTier") ?? "elevenLabsScribeV2",
+            GeminiCustomPrompt = String(value, "geminiCustomPrompt"), CloudAccuracyTier = RestoredCloudAccuracyTier(value),
             CloudPostProcessingModel = String(value, "cloudPostProcessingModel") ?? "anthropic:claude-haiku-4-5",
             LocalEngine = String(linux, "localEngine") ?? "whisper", LocalParakeetModel = String(linux, "localParakeetModel"),
             ProviderType = String(linux, "providerType") ?? (String(value, "cloudProvider") is null ? "local" : "cloud"),
@@ -251,6 +252,30 @@ public sealed partial class ApplicationBackupService(
             CreatedDate = Date(linux, "createdDate") ?? DateTime.UtcNow,
             ModifiedDate = Date(linux, "modifiedDate") ?? DateTime.UtcNow,
         };
+    }
+
+    /// <summary>
+    /// The restored accuracy tier, canonicalised through the shared core's
+    /// <c>migrate_cloud_accuracy_tier</c>.
+    ///
+    /// A backup file is the one input that is arbitrarily old — it can be written
+    /// by any past version, on any platform, and restored years later. The
+    /// Windows <c>UniversalBackupMapper</c> has always run this value through the
+    /// core; this portable path did not, so a v7-era backup carrying the retired
+    /// <c>googleChirp3</c> (or a v5-era <c>high</c>) landed in the database
+    /// verbatim, after the one-shot EF migration that would have fixed it had
+    /// already been recorded as applied.
+    ///
+    /// Migrated ONLY when the key is present and non-empty: absent means the
+    /// backup never had a tier, and the core answers <c>deepgramNova3</c> for an
+    /// empty input, which is not this path's documented default.
+    /// </summary>
+    private static string RestoredCloudAccuracyTier(JsonObject value)
+    {
+        var stored = String(value, "cloudAccuracyTier");
+        return string.IsNullOrWhiteSpace(stored)
+            ? "elevenLabsScribeV2"
+            : SharedCoreBridge.CanonicalCloudSttTier(stored);
     }
 
     private static List<string>? StringList(JsonObject? value, string key)

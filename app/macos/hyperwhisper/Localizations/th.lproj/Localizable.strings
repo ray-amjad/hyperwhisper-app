@@ -42,6 +42,8 @@
 "streaming.enable.title" = "เปิดใช้สตรีมมิง";
 "streaming.provider.picker.title" = "ผู้ให้บริการ";
 "streaming.model.title" = "โมเดล";
+"streaming.cloudTier.title" = "เอนจินสด";
+"streaming.cloudTier.description" = "เอนจินเสียงพูดที่ HyperWhisper Cloud ใช้สำหรับการถอดเสียงแบบสด";
 "streaming.model.nova3general" = "Nova 3 ทั่วไป";
 "streaming.model.nova3medical" = "Nova 3 ทางการแพทย์";
 "streaming.fastFormatting.title" = "การจัดรูปแบบแบบรวดเร็ว";
@@ -767,8 +769,8 @@
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ เครดิต/นาที";
 "modes.cloudAccuracy.grokStt.label" = "สูงสุด (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - ความแม่นยำสูงสุดพร้อมการประมวลผลที่ช้าลง ดีที่สุดสำหรับการสัญลักษณ์ที่สำคัญ";
-"modes.cloudAccuracy.googleChirp3.label" = "สูง (Google Chirp 3)";
-"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 พร้อม Chirp 3 รองรับหลายภาษา พร้อมการปรับตามวลี";
+"modes.cloudAccuracy.geminiTranscribe.label" = "สูง (Google Gemini 3.5 Transcribe)";
+"modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe รองรับหลายภาษา พร้อมคำศัพท์ที่กำหนดเอง";
 "modes.cloudAccuracy.azureMaiTranscribe.label" = "สูง (Microsoft MAI-Transcribe 1.5)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5 ผ่าน Azure Speech รองรับ 43 ภาษา พร้อมการปรับตามบริบท";
 

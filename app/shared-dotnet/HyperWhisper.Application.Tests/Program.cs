@@ -5,6 +5,10 @@ using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Platform.Abstractions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+// Aliased, not imported: the Migrations namespace also declares a
+// `HistoryRepository`, which would collide with the app's own.
+using IMigrator = Microsoft.EntityFrameworkCore.Migrations.IMigrator;
 using HyperWhisper.PortableApplication.Transcription;
 using HyperWhisper.AudioNormalization;
 using HyperWhisper.SpeechOutput;
@@ -49,9 +53,11 @@ try
     await using (var context = database.CreateContext())
     {
         var applied = await context.Database.GetAppliedMigrationsAsync();
-        Assert(applied.Count() == 15, $"expected all 15 EF migrations, got {applied.Count()}");
+        Assert(applied.Count() == 16, $"expected all 16 EF migrations, got {applied.Count()}");
         Assert(await context.Database.CanConnectAsync(), "SQLite database is not connectable");
     }
+
+    await RunChirp3TierMigrationTestsAsync(Path.Combine(root, "chirp3-tier-migration"));
 
     var history = new HistoryRepository(database);
     var transcript = new Transcript
@@ -743,6 +749,174 @@ finally
 {
     try { Directory.Delete(root, recursive: true); }
     catch (IOException) { }
+}
+
+/// <summary>
+/// Catalog v8 migration proof for the EF path: a database written by a pre-v8
+/// build carries <c>CloudAccuracyTier = 'googleChirp3'</c>, and
+/// <c>20260827090000_MigrateGoogleChirp3TierToGeminiTranscribe</c> has to converge
+/// it. This runs the migrator for real — up to the migration BEFORE it, writes
+/// the legacy rows, then migrates the rest of the way — so it proves the SQL,
+/// not a restatement of the alias table.
+///
+/// One EF migration covers Windows AND Linux: both heads compile
+/// <c>app/windows/HyperWhisper/Migrations/*.cs</c> through
+/// <c>HyperWhisper.Application.csproj</c>'s source glob, which is also why this
+/// assertion lives in the portable suite rather than a Windows-only one.
+/// </summary>
+static async Task RunChirp3TierMigrationTestsAsync(string root)
+{
+    // The migration immediately before the one under test. Migrating to it
+    // reproduces a pre-v8 database with the final schema but none of the v8 data
+    // fixes — the exact state an upgrading user's file is in.
+    const string PreviousMigration = "20260823180000_AddWordTimestamps";
+
+    Directory.CreateDirectory(root);
+    var database = new ApplicationDb(new TestPaths(root));
+
+    await using (var context = database.CreateContext())
+    {
+        await context.Database.GetService<IMigrator>().MigrateAsync(PreviousMigration);
+        var applied = await context.Database.GetAppliedMigrationsAsync();
+        Assert(!applied.Contains("20260827090000_MigrateGoogleChirp3TierToGeminiTranscribe"),
+            "the Chirp 3 tier migration ran before the legacy rows were written — this test proves nothing");
+    }
+
+    // Every spelling the catalog's `migrateFrom` list carries, plus a control row
+    // that must NOT be touched.
+    string[] legacyTiers =
+    [
+        "googleChirp3", "googlechirp3", "GOOGLECHIRP3",
+        "googlechirp", "google-chirp", "chirp", "chirp_3", "googlespeech",
+    ];
+    var controlId = Guid.NewGuid();
+    var byokId = Guid.NewGuid();
+    var localId = Guid.NewGuid();
+    var unsetId = Guid.NewGuid();
+    await using (var context = database.CreateContext())
+    {
+        foreach (var tier in legacyTiers)
+        {
+            context.Modes.Add(new Mode
+            {
+                Name = $"legacy-{tier}",
+                ProviderType = "cloud",
+                CloudProvider = "hyperwhisper",
+                CloudAccuracyTier = tier,
+                CloudTranscriptionModel = "chirp_3",
+            });
+        }
+        // A user who deliberately chose ElevenLabs. The UPDATE's WHERE clause has
+        // to leave them alone; a missing clause would move the whole table.
+        context.Modes.Add(new Mode
+        {
+            Id = controlId,
+            Name = "control",
+            ProviderType = "cloud",
+            CloudProvider = "hyperwhisper",
+            CloudAccuracyTier = "elevenLabsScribeV2",
+            CloudTranscriptionModel = "scribe-v2",
+        });
+        // BYOK Grok. `CloudAccuracyTier` is only read for HyperWhisper Cloud
+        // modes and is left behind verbatim when a mode is switched to BYOK, so
+        // this row genuinely carries 'googleChirp3' next to Grok's empty-string
+        // sentinel model id. Every row above is HW-Cloud, so without this one the
+        // suite cannot see a tier-only WHERE clause stamping a Google model onto
+        // a BYOK mode — the next dictation would post gemini-3.5-transcribe to
+        // api.x.ai.
+        context.Modes.Add(new Mode
+        {
+            Id = byokId,
+            Name = "byok-grok",
+            ProviderType = "cloud",
+            CloudProvider = "grok",
+            CloudAccuracyTier = "googleChirp3",
+            CloudTranscriptionModel = string.Empty,
+        });
+        // An explicitly local mode carrying the same stale tier.
+        context.Modes.Add(new Mode
+        {
+            Id = localId,
+            Name = "local-whisper",
+            ProviderType = "local",
+            CloudAccuracyTier = "googleChirp3",
+            CloudTranscriptionModel = string.Empty,
+        });
+        // The other side of the same clause: an older build wrote a genuine
+        // HyperWhisper Cloud mode with ProviderType/CloudProvider still unset.
+        // Requiring `= 'cloud'` / `= 'hyperwhisper'` would skip exactly these
+        // users and leave them on a tier with no catalog entry.
+        context.Modes.Add(new Mode
+        {
+            Id = unsetId,
+            Name = "unset-cloud",
+            ProviderType = null,
+            CloudProvider = null,
+            CloudAccuracyTier = "googleChirp3",
+            CloudTranscriptionModel = null,
+        });
+        await context.SaveChangesAsync();
+    }
+
+    await database.MigrateAsync();
+
+    await using (var verify = database.CreateContext())
+    {
+        foreach (var tier in legacyTiers)
+        {
+            var migrated = await verify.Modes.SingleAsync(mode => mode.Name == $"legacy-{tier}");
+            Assert(migrated.CloudAccuracyTier != "deepgramNova3",
+                $"stored tier '{tier}' was migrated to Deepgram — the documented silent failure: "
+                    + "a Google user moves vendor, credits and X-STT-Provider with no error shown.");
+            Assert(migrated.CloudAccuracyTier == "geminiTranscribe",
+                $"stored tier '{tier}' is now '{migrated.CloudAccuracyTier}', not 'geminiTranscribe'. "
+                    + "Add the spelling to the UPDATE's WHERE clause in "
+                    + "20260827090000_MigrateGoogleChirp3TierToGeminiTranscribe and to the "
+                    + "geminiTranscribe entry's `migrateFrom` list.");
+            Assert(migrated.CloudTranscriptionModel == "gemini-3.5-transcribe",
+                $"stored tier '{tier}' kept model '{migrated.CloudTranscriptionModel}'; chirp_3 is not a "
+                    + "model of geminiTranscribe, so the row would route on a model the backend rejects.");
+        }
+
+        var control = await verify.Modes.SingleAsync(mode => mode.Id == controlId);
+        Assert(control.CloudAccuracyTier == "elevenLabsScribeV2" && control.CloudTranscriptionModel == "scribe-v2",
+            "the Chirp 3 migration rewrote a mode on a different tier — its WHERE clause is too broad");
+
+        var byok = await verify.Modes.SingleAsync(mode => mode.Id == byokId);
+        Assert(byok.CloudAccuracyTier == "googleChirp3" && byok.CloudTranscriptionModel == string.Empty,
+            "the Chirp 3 migration touched a BYOK Grok mode that merely carried the stale tier: it is now "
+                + $"'{byok.CloudAccuracyTier}'/'{byok.CloudTranscriptionModel}'. The WHERE clause must also "
+                + "guard on CloudProvider, or the next Grok dictation posts a Google model id to xAI.");
+
+        var local = await verify.Modes.SingleAsync(mode => mode.Id == localId);
+        Assert(local.CloudAccuracyTier == "googleChirp3" && local.CloudTranscriptionModel == string.Empty,
+            "the Chirp 3 migration rewrote an explicitly local mode — its WHERE clause must guard on ProviderType");
+
+        // The widened guard, from the other side: NULL is not "not a cloud mode".
+        var unset = await verify.Modes.SingleAsync(mode => mode.Id == unsetId);
+        Assert(unset.CloudAccuracyTier == "geminiTranscribe" && unset.CloudTranscriptionModel == "gemini-3.5-transcribe",
+            "a genuine HyperWhisper Cloud mode written by an older build (ProviderType/CloudProvider still "
+                + $"NULL) was skipped: it is on '{unset.CloudAccuracyTier}'. Plain equality on those two "
+                + "columns silently strands exactly those users on a tier with no catalog entry.");
+
+        // The read path has to agree with what the migration just wrote, or a row
+        // the one-shot missed (Local API write, restored backup) still breaks.
+        Assert(SharedCoreBridge.CanonicalCloudSttTier("googleChirp3") == "geminiTranscribe",
+            "the shared core no longer canonicalises googleChirp3 onto geminiTranscribe");
+    }
+
+    // Re-running must be a no-op, not a second rewrite: EF records the migration,
+    // and the UPDATE no longer matches anything.
+    await database.MigrateAsync();
+    await using (var again = database.CreateContext())
+    {
+        // One row per legacy spelling, plus the `unset-cloud` row the widened
+        // ProviderType/CloudProvider guard also owns. The BYOK, local and
+        // ElevenLabs controls stay out of this count.
+        Assert(await again.Modes.CountAsync(mode => mode.CloudAccuracyTier == "geminiTranscribe")
+            == legacyTiers.Length + 1,
+            "re-running the migration changed the migrated row count");
+    }
 }
 
 static async Task RunHistoryExperienceTestsAsync(string root)

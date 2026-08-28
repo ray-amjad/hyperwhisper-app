@@ -19,6 +19,20 @@ namespace HyperWhisper.Models;
 /// confirmed deltas by <c>StreamingTranscriptionClient.AppendFinalTranscript</c>
 /// after the fact, and never reaches the wire.
 /// </param>
+/// <param name="CloudTier">
+/// Which vendor HyperWhisper Cloud's live route should relay to, as a
+/// <c>cloud-stt-catalog.json</c> entry id (<c>deepgramNova3</c>,
+/// <c>geminiTranscribe</c>, …). Meaningful only when the provider is
+/// HyperWhisper Cloud; every other provider ignores it.
+///
+/// A path selector, deliberately NOT a
+/// <c>StreamingTranscriptionProvider</c> case: the credit and entitlement wiring
+/// keys off provider == hyperwhisperCloud and must keep matching whichever
+/// vendor is behind the relay. The shared core derives the route
+/// (<c>/ws/streaming-{sttProvider}</c>) and the auto-detect vocabulary gate from
+/// it. Null means the catalog default, which reproduces the endpoint this path
+/// hardcoded before the tier picker existed.
+/// </param>
 public sealed record StreamingSessionConfig(
     string? LicenseKey,
     string? DeviceId,
@@ -27,5 +41,6 @@ public sealed record StreamingSessionConfig(
     string? ApiKey,
     string? Model,
     bool FastFormatting,
-    bool RemoveFillerWords
+    bool RemoveFillerWords,
+    string? CloudTier = null
 );

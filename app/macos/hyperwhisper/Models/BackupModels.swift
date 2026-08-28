@@ -647,10 +647,17 @@ struct BackupAPIKeys: Codable {
     let elevenlabs: String?
     let mistral: String?
     let grok: String?
+    /// Gemini 3.5 Transcribe (`/v1beta/interactions`). A SEPARATE slot from
+    /// `gemini`: same vendor, different API and a different keychain entry, so a
+    /// backup carrying only `gemini` restores a Transcribe user with no key —
+    /// and the legacy key coming back fine is what hides it. Optional, so
+    /// backups written before this field decode unchanged.
+    let geminitranscribe: String?
 
     /// Returns true if any API key is present
     var hasAnyKey: Bool {
-        [openai, groq, fireworks, anthropic, gemini, deepgram, assemblyai, elevenlabs, mistral, grok]
+        [openai, groq, fireworks, anthropic, gemini, deepgram, assemblyai, elevenlabs, mistral, grok,
+         geminitranscribe]
             .compactMap { $0 }
             .contains { !$0.isEmpty }
     }

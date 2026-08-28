@@ -142,7 +142,7 @@ struct ModeCard: View {
                                         if provider == "hyperwhisper" {
                                             return "HyperWhisper"  // Shortened name for HyperWhisper Cloud
                                         }
-                                        return CloudProvider(rawValue: provider)?.displayName ?? provider.capitalized
+                                        return CloudProvider.parse(provider)?.displayName ?? provider.capitalized
                                     }()
 
                                     // Show provider name
@@ -157,7 +157,7 @@ struct ModeCard: View {
                                     // a dangling separator with no model name.
                                     if let cloudModel = mode.cloudTranscriptionModel,
                                        provider != "hyperwhisper" {
-                                        let modelName = CloudProvider(rawValue: provider).map {
+                                        let modelName = CloudProvider.parse(provider).map {
                                             CloudTranscriptionModels.displayName(for: cloudModel, provider: $0)
                                         } ?? CloudTranscriptionModels.displayName(for: cloudModel)
                                         if !modelName.isEmpty {

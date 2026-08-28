@@ -42,6 +42,8 @@
 "streaming.enable.title" = "Iespējot straumēšanu";
 "streaming.provider.picker.title" = "Sniedzējs";
 "streaming.model.title" = "Modelis";
+"streaming.cloudTier.title" = "Tiešraides dzinējs";
+"streaming.cloudTier.description" = "Kuru runas dzinēju HyperWhisper Cloud izmanto tiešraides transkripcijai";
 "streaming.model.nova3general" = "Nova 3 General";
 "streaming.model.nova3medical" = "Nova 3 Medical";
 "streaming.fastFormatting.title" = "Ātra formatēšana";
@@ -767,8 +769,8 @@ Rediģē šos režīmus, lai pirms noņemšanas atlasītu citu modeli.";
 "modes.cloudAccuracy.creditsPerMinute" = "~%@ kredīti/min";
 "modes.cloudAccuracy.grokStt.label" = "Augstākā (Grok SST)";
 "modes.cloudAccuracy.grokStt.description" = "xAI Grok STT - Augstākā precizitāte ar lēnāku apstrādi. Labākais svarīgajiem transkripcijām.";
-"modes.cloudAccuracy.googleChirp3.label" = "Augsta (Google Chirp 3)";
-"modes.cloudAccuracy.googleChirp3.description" = "Google Cloud Speech-to-Text V2 ar Chirp 3. Daudzvalodu atpazīšana ar frāžu pielāgošanu.";
+"modes.cloudAccuracy.geminiTranscribe.label" = "Augsta (Google Gemini 3.5 Transcribe)";
+"modes.cloudAccuracy.geminiTranscribe.description" = "Google Gemini 3.5 Transcribe. Daudzvalodu, ar pielāgota vārdu krājuma atbalstu.";
 "modes.cloudAccuracy.azureMaiTranscribe.label" = "Augsta (Microsoft MAI-Transcribe 1.5)";
 "modes.cloudAccuracy.azureMaiTranscribe.description" = "Microsoft MAI-Transcribe 1.5, izmantojot Azure Speech. 43 valodas ar konteksta pielāgošanu.";
 

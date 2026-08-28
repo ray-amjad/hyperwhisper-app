@@ -30,7 +30,14 @@ public enum TranscriptionApiKeyType
     Soniox,
 
     /// <summary>Grok (xAI) - speech-to-text. Stored under the shared GrokApiKey for compatibility.</summary>
-    Grok
+    Grok,
+
+    /// <summary>
+    /// Google Gemini 3.5 Transcribe. Same "AIza" key shape as the Gemini
+    /// post-processing key but a SEPARATE slot — the two are different APIs and
+    /// users may hold different keys for them.
+    /// </summary>
+    GeminiTranscribe
 }
 
 /// <summary>
@@ -51,6 +58,7 @@ public static class TranscriptionApiKeyTypeExtensions
         TranscriptionApiKeyType.Mistral => "MistralApiKey",
         TranscriptionApiKeyType.Soniox => "SonioxApiKey",
         TranscriptionApiKeyType.Grok => "GrokApiKey",
+        TranscriptionApiKeyType.GeminiTranscribe => "GeminiTranscribeApiKey",
         _ => ""
     };
 
@@ -66,6 +74,7 @@ public static class TranscriptionApiKeyTypeExtensions
         TranscriptionApiKeyType.Mistral => "Mistral",
         TranscriptionApiKeyType.Soniox => "Soniox",
         TranscriptionApiKeyType.Grok => "Grok",
+        TranscriptionApiKeyType.GeminiTranscribe => "Gemini 3.5 Transcribe",
         _ => type.ToString()
     };
 
@@ -76,6 +85,7 @@ public static class TranscriptionApiKeyTypeExtensions
     public static string? GetKeyPrefix(this TranscriptionApiKeyType type) => type switch
     {
         TranscriptionApiKeyType.Grok => "xai-",
+        TranscriptionApiKeyType.GeminiTranscribe => "AIza",
         // Deepgram, AssemblyAI, ElevenLabs, and Mistral have no specific prefix
         _ => null
     };
@@ -92,6 +102,9 @@ public static class TranscriptionApiKeyTypeExtensions
         TranscriptionApiKeyType.Mistral => 20,
         TranscriptionApiKeyType.Soniox => 10,
         TranscriptionApiKeyType.Grok => 20,
+        // Matches ApiKeyService.IsValidKeyFormat(PostProcessingProvider.Gemini):
+        // "AIza" + length >= 30. Same key shape, so keep the same rule.
+        TranscriptionApiKeyType.GeminiTranscribe => 30,
         _ => 10
     };
 
@@ -107,6 +120,7 @@ public static class TranscriptionApiKeyTypeExtensions
         TranscriptionApiKeyType.Mistral => "https://console.mistral.ai/api-keys/",
         TranscriptionApiKeyType.Soniox => "https://console.soniox.com",
         TranscriptionApiKeyType.Grok => "https://console.x.ai/",
+        TranscriptionApiKeyType.GeminiTranscribe => "https://aistudio.google.com/apikey",
         _ => ""
     };
 
@@ -121,6 +135,7 @@ public static class TranscriptionApiKeyTypeExtensions
         TranscriptionApiKeyType.ElevenLabs,
         TranscriptionApiKeyType.Mistral,
         TranscriptionApiKeyType.Soniox,
-        TranscriptionApiKeyType.Grok
+        TranscriptionApiKeyType.Grok,
+        TranscriptionApiKeyType.GeminiTranscribe
     };
 }

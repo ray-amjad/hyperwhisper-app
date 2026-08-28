@@ -12,7 +12,8 @@ public sealed record LiveStreamingModeSettings(
     IReadOnlyList<string>? Vocabulary = null,
     string? Model = null,
     bool FastFormatting = false,
-    string? ClientDeviceId = null);
+    string? ClientDeviceId = null,
+    string? CloudTier = null);
 
 public sealed record ResolvedLiveStreamingMode(
     LiveTranscriptionConfig Config,
@@ -75,7 +76,8 @@ public sealed class LiveStreamingModeRouter(ILiveStreamingCredentialSource crede
             Language: Normalize(mode.Language),
             Vocabulary: vocabulary,
             Model: Normalize(mode.Model),
-            FastFormatting: mode.FastFormatting);
+            FastFormatting: mode.FastFormatting,
+            CloudTier: Normalize(mode.CloudTier));
         return PlatformResult<ResolvedLiveStreamingMode>.Success(
             new ResolvedLiveStreamingMode(config, Normalize(mode.DeviceId) ?? "default"));
     }
@@ -107,6 +109,12 @@ public sealed class LiveStreamingModeRouter(ILiveStreamingCredentialSource crede
             case "grok":
                 provider = LiveTranscriptionProvider.Grok;
                 credentialAccount = "GrokApiKey";
+                return true;
+            case "geminitranscribe":
+            case "gemini-transcribe":
+            case "gemini_transcribe":
+                provider = LiveTranscriptionProvider.GeminiTranscribe;
+                credentialAccount = "GeminiTranscribeApiKey";
                 return true;
             case "hyperwhisper":
             case "hyperwhispercloud":

@@ -21,6 +21,7 @@ use crate::contract::Header;
 ///   hardcoded production host in the core would silently re-point it at
 ///   production. `None` means the production host. Every other provider ignores
 ///   it: their endpoints are the vendor's and are not ours to move.
+/// - `cloud_tier` is HyperWhisper Cloud's only. See the field.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LiveConfig {
     pub provider: super::LiveProvider,
@@ -32,6 +33,19 @@ pub struct LiveConfig {
     pub model: Option<String>,
     pub fast_formatting: bool,
     pub base_url: Option<String>,
+
+    /// Which upstream vendor HyperWhisper Cloud should relay this session to:
+    /// a `shared-app-classification/cloud-stt-catalog.json` entry id, which is
+    /// what the app's global `streamingCloudTier` setting stores.
+    ///
+    /// A **path selector**, deliberately not a [`super::LiveProvider`] arm: the
+    /// credit and entitlement wiring keys off "the provider is HyperWhisper
+    /// Cloud" and has to keep matching whichever vendor is behind the relay.
+    ///
+    /// `None`, blank, or an id the catalog does not list all mean the default
+    /// tier, which reproduces the endpoint this path hardcoded before the tier
+    /// picker existed. Ignored by every other provider.
+    pub cloud_tier: Option<String>,
 }
 
 impl LiveConfig {
@@ -47,6 +61,7 @@ impl LiveConfig {
             model: None,
             fast_formatting: false,
             base_url: None,
+            cloud_tier: None,
         }
     }
 }
@@ -345,7 +360,9 @@ pub(super) fn bool_field(root: &serde_json::Value, name: &str) -> Option<bool> {
 /// A numeric property as `f64`, defaulting to `0.0`. Matches the `?? 0` every
 /// shipped parser applies to `duration_seconds` / `credits_used`.
 pub(super) fn num_field(root: &serde_json::Value, name: &str) -> f64 {
-    root.get(name).and_then(serde_json::Value::as_f64).unwrap_or(0.0)
+    root.get(name)
+        .and_then(serde_json::Value::as_f64)
+        .unwrap_or(0.0)
 }
 
 /// A non-empty, trimmed string property, or `None`.
@@ -419,7 +436,11 @@ pub(super) fn commit_delta(previous: &mut String, next: &str) -> Option<String> 
         .map(|suffix| suffix.trim().to_string());
     if let Some(suffix) = extended {
         *previous = normalized.to_string();
-        return if suffix.is_empty() { None } else { Some(suffix) };
+        return if suffix.is_empty() {
+            None
+        } else {
+            Some(suffix)
+        };
     }
     if previous.starts_with(normalized) {
         return None;

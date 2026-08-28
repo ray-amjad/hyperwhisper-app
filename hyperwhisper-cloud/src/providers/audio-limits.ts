@@ -26,6 +26,7 @@
 
 import {
   GEMINI_INLINE_MAX_BYTES,
+  GEMINI_TRANSCRIBE_INLINE_MAX_BYTES,
   GOOGLE_CHIRP_INLINE_MAX_BYTES,
   OPENAI_INLINE_MAX_BYTES,
 } from '../lib/constants';
@@ -50,6 +51,10 @@ const PRE_BUFFER_LIMITS: Partial<Record<SttProviderId, PreBufferLimitResolver>> 
   // Gemini sends audio inline as base64. The total request must stay under
   // 20 MB and base64 inflates ~33%, so raw audio caps at ~14 MB.
   gemini: () => GEMINI_INLINE_MAX_BYTES,
+  // Gemini 3.5 Transcribe's /v1beta/interactions endpoint has no file-reference
+  // form at all, so the base64 inline cap is unconditional — there is no
+  // GCS-style overflow path that could lift it.
+  'gemini-transcribe': () => GEMINI_TRANSCRIBE_INLINE_MAX_BYTES,
   // OpenAI hard-rejects audio over 25 MB with a 400.
   openai: () => OPENAI_INLINE_MAX_BYTES,
 };

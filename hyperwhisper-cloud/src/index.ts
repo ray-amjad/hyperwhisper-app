@@ -10,6 +10,10 @@ import { postProcessRoute } from './routes/post-process';
 import { assistantRoute } from './routes/assistant';
 import { usageRoute } from './routes/usage';
 import { wsStreamingPreflight, wsStreamingRoute } from './routes/ws-streaming-deepgram';
+import {
+  wsStreamingGeminiTranscribePreflight,
+  wsStreamingGeminiTranscribeRoute,
+} from './routes/ws-streaming-gemini-transcribe';
 import { CLIENT_PLATFORM_HEADER, CLIENT_VERSION_HEADER } from './lib/client-info';
 import { drainPendingDeductions } from './middleware/credits';
 import { drainPendingLatencyReports } from './lib/latency-report';
@@ -64,8 +68,15 @@ app.post('/assistant', assistantRoute);
 // Usage endpoint
 app.get('/usage', usageRoute);
 
-// WebSocket streaming endpoint
+// WebSocket streaming endpoints. One route per live vendor, named
+// `/ws/streaming-{sttProvider}` after the `cloud-stt-catalog.json` entry so the
+// clients derive the path instead of carrying a table on three platforms.
 app.get('/ws/streaming-deepgram', wsStreamingPreflight, wsStreamingRoute);
+app.get(
+  '/ws/streaming-gemini-transcribe',
+  wsStreamingGeminiTranscribePreflight,
+  wsStreamingGeminiTranscribeRoute,
+);
 
 // Fallback - match Cloudflare (405, plain text)
 app.notFound((c) => {
