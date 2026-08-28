@@ -24,6 +24,17 @@ function alwaysMissCache(): GoogleTokenCache {
 }
 
 describe('createGoogleAuth single-flight minting', () => {
+  // Kept from #341, which met this as a red CI run reading
+  // "'createGoogleAuth' is undefined" inside the single-flight test — a message
+  // pointing nowhere near google-chirp.test.ts, the suite whose lossy
+  // `mock.module` factory actually caused it. Importing lib/google-auth-core
+  // takes this file off every mocked path, so the guard should never fire. If a
+  // future suite mocks this module too, it fails as a named test that says so
+  // rather than as a defect in the code under test.
+  test('the module under test is the real one, not a mock.module replacement', () => {
+    expect(typeof createGoogleAuth).toBe('function');
+  });
+
   test('a cold-cache burst mints exactly one token and shares it', async () => {
     let authorizeCalls = 0;
     let releaseMint: (credentials: { access_token: string; expiry_date: number }) => void = () => {};
