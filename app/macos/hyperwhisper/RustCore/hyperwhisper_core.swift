@@ -3425,6 +3425,100 @@ public func FfiConverterTypeHwPttTransition_lower(_ value: HwPttTransition) -> R
 
 
 /**
+ * A stretch of release-notes text that shares one style and, if it sits inside
+ * an `<a href>`, one destination. Mirrors `hw_releasenotes::Run`.
+ */
+public struct HwRun {
+    public var text: String
+    public var bold: Bool
+    public var italic: Bool
+    /**
+     * The feed's href verbatim, entity-decoded and trimmed, already checked
+     * against the scheme allowlist. `None` when the anchor had no usable href.
+     */
+    public var link: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(text: String, bold: Bool, italic: Bool, 
+        /**
+         * The feed's href verbatim, entity-decoded and trimmed, already checked
+         * against the scheme allowlist. `None` when the anchor had no usable href.
+         */link: String?) {
+        self.text = text
+        self.bold = bold
+        self.italic = italic
+        self.link = link
+    }
+}
+
+
+
+extension HwRun: Equatable, Hashable {
+    public static func ==(lhs: HwRun, rhs: HwRun) -> Bool {
+        if lhs.text != rhs.text {
+            return false
+        }
+        if lhs.bold != rhs.bold {
+            return false
+        }
+        if lhs.italic != rhs.italic {
+            return false
+        }
+        if lhs.link != rhs.link {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(text)
+        hasher.combine(bold)
+        hasher.combine(italic)
+        hasher.combine(link)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwRun: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwRun {
+        return
+            try HwRun(
+                text: FfiConverterString.read(from: &buf), 
+                bold: FfiConverterBool.read(from: &buf), 
+                italic: FfiConverterBool.read(from: &buf), 
+                link: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwRun, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.text, into: &buf)
+        FfiConverterBool.write(value.bold, into: &buf)
+        FfiConverterBool.write(value.italic, into: &buf)
+        FfiConverterOptionString.write(value.link, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwRun_lift(_ buf: RustBuffer) throws -> HwRun {
+    return try FfiConverterTypeHwRun.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwRun_lower(_ value: HwRun) -> RustBuffer {
+    return FfiConverterTypeHwRun.lower(value)
+}
+
+
+/**
  * What the head's decode loop counted. Mirrors `no_speech::SignalAccumulation`.
  *
  * `sum_squares` and `peak` are over the absolute amplitude, so both are
@@ -10469,6 +10563,31 @@ fileprivate struct FfiConverterSequenceTypeHwPttTimerCommand: FfiConverterRustBu
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeHwRun: FfiConverterRustBuffer {
+    typealias SwiftType = [HwRun]
+
+    public static func write(_ value: [HwRun], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeHwRun.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [HwRun] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [HwRun]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeHwRun.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeHwValidationError: FfiConverterRustBuffer {
     typealias SwiftType = [HwValidationError]
 
@@ -12587,6 +12706,33 @@ public func pttStep(state: HwPttMachineState, event: HwPttEvent, nowMs: UInt64, 
 })
 }
 /**
+ * Split a release-notes fragment into styled runs.
+ *
+ * `collapse_whitespace` false keeps the fragment's own line breaks, for callers
+ * that split the result into lines; it preserves the optional parameter on
+ * `InlineHtml.Parse` / `InlineHtml.PlainText`. macOS always passes `true`.
+ */
+public func releaseNotesParseInline(html: String, collapseWhitespace: Bool) -> [HwRun] {
+    return try!  FfiConverterSequenceTypeHwRun.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_release_notes_parse_inline(
+        FfiConverterString.lower(html),
+        FfiConverterBool.lower(collapseWhitespace),$0
+    )
+})
+}
+/**
+ * Tag-free, entity-decoded text for a release-notes fragment — for titles,
+ * glyph selection, logging and tests.
+ */
+public func releaseNotesPlainText(html: String, collapseWhitespace: Bool) -> String {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_release_notes_plain_text(
+        FfiConverterString.lower(html),
+        FfiConverterBool.lower(collapseWhitespace),$0
+    )
+})
+}
+/**
  * Remove English filler words ("uh", "um", "er"); other languages untouched.
  */
 public func removeFillerWords(text: String, language: String?) -> String {
@@ -13369,6 +13515,12 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_ptt_step() != 64268) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_release_notes_parse_inline() != 37012) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_release_notes_plain_text() != 10264) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_remove_filler_words() != 28431) {

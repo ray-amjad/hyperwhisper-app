@@ -1192,6 +1192,10 @@ static class _UniFFILib {
     
     
     
+    
+    
+    
+    
 
     static _UniFFILib() {
         _UniFFILib.uniffiCheckContractApiVersion();
@@ -1986,6 +1990,14 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_ptt_step(RustBuffer @state,RustBuffer @event,ulong @nowMs,RustBuffer @config,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_release_notes_parse_inline(RustBuffer @html,sbyte @collapseWhitespace,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_release_notes_plain_text(RustBuffer @html,sbyte @collapseWhitespace,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -3022,6 +3034,14 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_ptt_step(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_release_notes_parse_inline(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_release_notes_plain_text(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -4254,6 +4274,18 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_ptt_step();
             if (checksum != 64268) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_ptt_step` checksum `64268`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_release_notes_parse_inline();
+            if (checksum != 37012) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_release_notes_parse_inline` checksum `37012`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_release_notes_plain_text();
+            if (checksum != 10264) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_release_notes_plain_text` checksum `10264`, library returned `{checksum}`");
             }
         }
         {
@@ -6527,6 +6559,56 @@ class FfiConverterTypeHwPttTransition: FfiConverterRustBuffer<HwPttTransition> {
             FfiConverterTypeHwPttState.INSTANCE.Write(value.@to, stream);
             FfiConverterTypeHwPttReason.INSTANCE.Write(value.@reason, stream);
             FfiConverterOptionalUInt64.INSTANCE.Write(value.@elapsedMs, stream);
+    }
+}
+
+
+
+/// <summary>
+/// A stretch of release-notes text that shares one style and, if it sits inside
+/// an `<a href>`, one destination. Mirrors `hw_releasenotes::Run`.
+/// </summary>
+/// <param name="link">
+/// The feed's href verbatim, entity-decoded and trimmed, already checked
+/// against the scheme allowlist. `None` when the anchor had no usable href.
+/// </param>
+internal record HwRun (
+    string @text, 
+    bool @bold, 
+    bool @italic, 
+    /// <summary>
+    /// The feed's href verbatim, entity-decoded and trimmed, already checked
+    /// against the scheme allowlist. `None` when the anchor had no usable href.
+    /// </summary>
+    string? @link
+) {
+}
+
+class FfiConverterTypeHwRun: FfiConverterRustBuffer<HwRun> {
+    public static FfiConverterTypeHwRun INSTANCE = new FfiConverterTypeHwRun();
+
+    public override HwRun Read(BigEndianStream stream) {
+        return new HwRun(
+            @text: FfiConverterString.INSTANCE.Read(stream),
+            @bold: FfiConverterBoolean.INSTANCE.Read(stream),
+            @italic: FfiConverterBoolean.INSTANCE.Read(stream),
+            @link: FfiConverterOptionalString.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwRun value) {
+        return 0
+            + FfiConverterString.INSTANCE.AllocationSize(value.@text)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@bold)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@italic)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@link);
+    }
+
+    public override void Write(HwRun value, BigEndianStream stream) {
+            FfiConverterString.INSTANCE.Write(value.@text, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@bold, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@italic, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@link, stream);
     }
 }
 
@@ -11411,6 +11493,48 @@ class FfiConverterSequenceTypeHwPttTimerCommand: FfiConverterRustBuffer<List<HwP
 
 
 
+class FfiConverterSequenceTypeHwRun: FfiConverterRustBuffer<List<HwRun>> {
+    public static FfiConverterSequenceTypeHwRun INSTANCE = new FfiConverterSequenceTypeHwRun();
+
+    public override List<HwRun> Read(BigEndianStream stream) {
+        var length = stream.ReadInt();
+        var result = new List<HwRun>(length);
+        var readFn = FfiConverterTypeHwRun.INSTANCE.Read;
+        for (int i = 0; i < length; i++) {
+            result.Add(readFn(stream));
+        }
+        return result;
+    }
+
+    public override int AllocationSize(List<HwRun> value) {
+        var sizeForLength = 4;
+
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            return sizeForLength;
+        }
+
+        var allocationSizeFn = FfiConverterTypeHwRun.INSTANCE.AllocationSize;
+        var sizeForItems = value.Sum(item => allocationSizeFn(item));
+        return sizeForLength + sizeForItems;
+    }
+
+    public override void Write(List<HwRun> value, BigEndianStream stream) {
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            stream.WriteInt(0);
+            return;
+        }
+
+        stream.WriteInt(value.Count);
+        var writerFn = FfiConverterTypeHwRun.INSTANCE.Write;
+        value.ForEach(item => writerFn(item, stream));
+    }
+}
+
+
+
+
 class FfiConverterSequenceTypeHwValidationError: FfiConverterRustBuffer<List<HwValidationError>> {
     public static FfiConverterSequenceTypeHwValidationError INSTANCE = new FfiConverterSequenceTypeHwValidationError();
 
@@ -13865,6 +13989,33 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterTypeHwPttStepResult.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_ptt_step(FfiConverterTypeHwPttMachineState.INSTANCE.Lower(@state), FfiConverterTypeHwPttEvent.INSTANCE.Lower(@event), FfiConverterUInt64.INSTANCE.Lower(@nowMs), FfiConverterTypeHwPttConfig.INSTANCE.Lower(@config), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Split a release-notes fragment into styled runs.
+    ///
+    /// `collapse_whitespace` false keeps the fragment's own line breaks, for callers
+    /// that split the result into lines; it preserves the optional parameter on
+    /// `InlineHtml.Parse` / `InlineHtml.PlainText`. macOS always passes `true`.
+    /// </summary>
+    public static List<HwRun> ReleaseNotesParseInline(string @html, bool @collapseWhitespace) {
+        return FfiConverterSequenceTypeHwRun.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_release_notes_parse_inline(FfiConverterString.INSTANCE.Lower(@html), FfiConverterBoolean.INSTANCE.Lower(@collapseWhitespace), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Tag-free, entity-decoded text for a release-notes fragment — for titles,
+    /// glyph selection, logging and tests.
+    /// </summary>
+    public static string ReleaseNotesPlainText(string @html, bool @collapseWhitespace) {
+        return FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_release_notes_plain_text(FfiConverterString.INSTANCE.Lower(@html), FfiConverterBoolean.INSTANCE.Lower(@collapseWhitespace), ref _status)
 ));
     }
 

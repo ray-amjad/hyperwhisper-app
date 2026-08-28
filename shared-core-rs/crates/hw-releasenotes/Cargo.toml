@@ -1,0 +1,38 @@
+[package]
+name = "hw-releasenotes"
+version = "0.1.0"
+edition = "2021"
+description = "Cross-platform release-notes HTML core: inline tokenizer, entity decoder and href scheme allowlist for the appcast feeds. Plain Rust, zero dependencies; hw-core mirrors its types for UniFFI."
+publish = false
+
+[lib]
+crate-type = ["lib"]
+
+# No dependencies, by design. This crate parses REMOTE, ATTACKER-INFLUENCED
+# input (the appcast feed) and the workspace release profile sets
+# `panic = "abort"`, so every added dependency is another crate that can abort
+# the app from a malformed feed.
+[dependencies]
+
+# ---------------------------------------------------------------------------
+# Panic-free-by-construction lints.
+#
+# THESE THREE ARE `clippy::restriction` LINTS. Restriction lints are
+# allow-by-default and are NOT part of `clippy::all`, so the workflows' plain
+# `cargo clippy --all-targets -- -D warnings` does NOT enable them: this table
+# is the only thing that turns them on. Cargo `[lints]` is stable since 1.74
+# (the workspace pins 1.86) and applies to EVERY target of the package, so
+# `--all-targets` picks it up with no workflow edit.
+#
+# Unit tests live inside the lib behind `#[cfg(test)]`, and the crate root
+# re-allows all three under `cfg(test)` — test code legitimately unwraps, and a
+# `tests/` integration file would be a separate crate that never sees that
+# attribute.
+#
+# This is the pattern for any future crate that parses untrusted input; copy the
+# table and the crate-root `cfg_attr` together.
+# ---------------------------------------------------------------------------
+[lints.clippy]
+indexing_slicing = "deny"
+unwrap_used = "deny"
+expect_used = "deny"
