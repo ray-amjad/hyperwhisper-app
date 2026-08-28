@@ -46,7 +46,9 @@ X-HyperWhisper-Platform: macos
 X-HyperWhisper-Version: 2.41.0
 ```
 
-The platform is `macos` or `windows`. The version is the app version you run. HyperWhisper writes both to the server log for the request, so a fault can be traced to one platform and one app version. Neither header names you, your device, or your account.
+The platform is `macos`, `windows`, or `ios`. The version is the app version you run. HyperWhisper writes both to the server log for the request, so a fault can be traced to one platform and one app version. Neither header names you, your device, or your account.
+
+The Linux app does not send these two headers. Its requests show as `unknown` in the server log.
 
 ### Timing measurements
 

@@ -360,22 +360,27 @@ export async function assistantRoute(c: Context) {
   const { stream, costPromise } = streamAnthropicChat(finalSystemPrompt, messages, requestId);
 
   // Deduct credits after stream completes (fire-and-forget)
-  costPromise.then((costUsd) => {
-    if (costUsd > 0) {
-      deductCredits(
-        authResult.value,
-        costUsd,
-        {
-          assistant_cost_usd: costUsd,
-          message_count: messages.length,
-          has_image: !!imageBase64,
-          endpoint: '/assistant',
-          llm_provider: 'anthropic',
-        },
-        clientIP
-      ).catch(console.error);
+  void (async () => {
+    try {
+      const costUsd = await costPromise;
+      if (costUsd > 0) {
+        await deductCredits(
+          authResult.value,
+          costUsd,
+          {
+            assistant_cost_usd: costUsd,
+            message_count: messages.length,
+            has_image: !!imageBase64,
+            endpoint: '/assistant',
+            llm_provider: 'anthropic',
+          },
+          clientIP
+        );
+      }
+    } catch (error) {
+      console.error(error);
     }
-  }).catch(console.error);
+  })();
 
   return new Response(stream, {
     headers: {
