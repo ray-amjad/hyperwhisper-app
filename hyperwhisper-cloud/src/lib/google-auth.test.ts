@@ -40,6 +40,17 @@ afterEach(() => {
 });
 
 describe('createGoogleAuth single-flight minting', () => {
+  // Guard, not a behaviour test. `mock.module` is process-wide in bun, so a
+  // factory in an earlier suite that replaces `lib/google-auth` without
+  // forwarding `createGoogleAuth` leaves this whole file calling `undefined`.
+  // Without this the run fails as "'createGoogleAuth' is undefined" inside the
+  // single-flight test, which reads as a race in the code under test rather
+  // than as a mock leak from another file.
+  test('the module under test is the real one, not a mock.module replacement', () => {
+    expect(typeof createGoogleAuth).toBe('function');
+  });
+
+
   test('a cold-cache burst mints exactly one token and shares it', async () => {
     let authorizeCalls = 0;
     let releaseMint: (credentials: { access_token: string; expiry_date: number }) => void = () => {};

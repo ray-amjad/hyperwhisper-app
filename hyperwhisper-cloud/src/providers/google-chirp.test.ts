@@ -31,11 +31,26 @@ mock.module('../lib/gcs-storage', () => ({
 
 // ---------------------------------------------------------------------------
 // Mock the Google OAuth helper — no real service-account JSON or Redis.
+//
+// The factory MUST forward every export this module does not override.
+// `mock.module` is process-wide in bun and replaces the whole namespace, so an
+// export left out here is `undefined` for every suite that loads
+// `lib/google-auth` later in the same run — and `bun test` does not fix the
+// file order, so which suites those are changes between runs. That is exactly
+// how `google-auth.test.ts` started failing with "'createGoogleAuth' is
+// undefined" on some runs and passing on others: it ran at position 33 here,
+// long after this file at position 4.
+//
+// Add a forward line for any new export rather than trimming this factory to
+// "what google-chirp.ts happens to use".
 // ---------------------------------------------------------------------------
+const { createGoogleAuth } = await import('../lib/google-auth');
+
 let accessToken = 'test-access-token';
 let invalidateCalls = 0;
 
 mock.module('../lib/google-auth', () => ({
+  createGoogleAuth,
   getGoogleAccessToken: async () => accessToken,
   invalidateGoogleAccessToken: async () => { invalidateCalls += 1; },
 }));
