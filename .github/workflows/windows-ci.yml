@@ -207,3 +207,20 @@ jobs:
       # zone, and rounding moves from banker's to half away from zero.
       - name: Run home statistics conformance vectors
         run: dotnet run --project app/shared-dotnet/HyperWhisper.StatsConformance.Tests -c Release
+
+      # ----------------------------------------------------------------
+      # 11. Language catalog conformance vectors
+      # ----------------------------------------------------------------
+      # shared-conformance/language-vectors.json, the same three-platform shape.
+      # Issue #285 left exactly one language catalog and exactly one
+      # canonicalization rule, so these vectors prove the Windows binding reads
+      # the same rows the Swift and Rust heads do. Every catalog row carries a
+      # `decision` field naming where the unified row came from, and Windows is
+      # the head that changes: it deletes a hand-written 102-row table and GAINS
+      # the 24 region and script variants only macOS listed (en-GB, pt-BR,
+      # zh-Hant and the rest), plus canonicalization — a stored `en_GB` or
+      # `zh-hant` used to match no row at all and the picker printed the raw
+      # tag. One row is renamed: zh-TW now reads "Chinese (Traditional,
+      # Taiwan)", so it is distinguishable from the zh-Hant row beside it.
+      - name: Run language catalog conformance vectors
+        run: dotnet run --project app/shared-dotnet/HyperWhisper.LanguageConformance.Tests -c Release
