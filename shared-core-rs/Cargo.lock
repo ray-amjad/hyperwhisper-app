@@ -318,6 +318,7 @@ dependencies = [
  "hw-net",
  "hw-phonetic",
  "hw-releasenotes",
+ "hw-stats",
  "hw-text",
  "serde",
  "serde_json",
@@ -363,6 +364,10 @@ dependencies = [
 
 [[package]]
 name = "hw-releasenotes"
+version = "0.1.0"
+
+[[package]]
+name = "hw-stats"
 version = "0.1.0"
 
 [[package]]

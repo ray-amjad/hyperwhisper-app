@@ -1,0 +1,880 @@
+{
+  "description": "Golden home-statistics vectors (issue #285). Generated from hw-stats by `cargo test -p hw-core --test stats_vectors -- --ignored regenerate`. Every case carries a `decision` field naming which native copy the unified answer came from: agreed / macos / dotnet / neither / new. Every instant is LOCAL epoch seconds — the host shifts each row into the calendar time zone before it calls. A `durationSeconds` of null means the store held a non-finite value.",
+  "cases": [
+    {
+      "name": "no transcripts is every figure at zero",
+      "decision": "agreed",
+      "was": "",
+      "typingSpeedWordsPerMinute": 40,
+      "nowLocalEpochSeconds": 1787961600,
+      "transcripts": [],
+      "expected": {
+        "thisWeek": {
+          "wordCount": 0,
+          "durationSeconds": 0.0,
+          "averageWordsPerMinute": 0,
+          "estimatedTypingMinutes": 0.0,
+          "estimatedTimeSavedMinutes": 0.0
+        },
+        "thisMonth": {
+          "wordCount": 0,
+          "durationSeconds": 0.0,
+          "averageWordsPerMinute": 0,
+          "estimatedTypingMinutes": 0.0,
+          "estimatedTimeSavedMinutes": 0.0
+        },
+        "thisYear": {
+          "wordCount": 0,
+          "durationSeconds": 0.0,
+          "averageWordsPerMinute": 0,
+          "estimatedTypingMinutes": 0.0,
+          "estimatedTimeSavedMinutes": 0.0
+        },
+        "allTime": {
+          "wordCount": 0,
+          "durationSeconds": 0.0,
+          "averageWordsPerMinute": 0,
+          "estimatedTypingMinutes": 0.0,
+          "estimatedTimeSavedMinutes": 0.0
+        },
+        "typingSpeedWordsPerMinute": 40,
+        "averageWordsPerMinute": 0,
+        "savedThisWeekMinutes": 0
+      }
+    },
+    {
+      "name": "average WPM is the all-time words over the all-time minutes",
+      "decision": "agreed",
+      "was": "",
+      "typingSpeedWordsPerMinute": 40,
+      "nowLocalEpochSeconds": 1787961600,
+      "transcripts": [
+        {
+          "createdAtLocalEpochSeconds": 1787961600,
+          "wordCount": 150,
+          "durationSeconds": 60.0,
+          "status": "completed"
+        },
+        {
+          "createdAtLocalEpochSeconds": 1770681600,
+          "wordCount": 150,
+          "durationSeconds": 60.0,
+          "status": "completed"
+        }
+      ],
+      "expected": {
+        "thisWeek": {
+          "wordCount": 150,
+          "durationSeconds": 60.0,
+          "averageWordsPerMinute": 150,
+          "estimatedTypingMinutes": 3.75,
+          "estimatedTimeSavedMinutes": 2.75
+        },
+        "thisMonth": {
+          "wordCount": 150,
+          "durationSeconds": 60.0,
+          "averageWordsPerMinute": 150,
+          "estimatedTypingMinutes": 3.75,
+          "estimatedTimeSavedMinutes": 2.75
+        },
+        "thisYear": {
+          "wordCount": 300,
+          "durationSeconds": 120.0,
+          "averageWordsPerMinute": 150,
+          "estimatedTypingMinutes": 7.5,
+          "estimatedTimeSavedMinutes": 5.5
+        },
+        "allTime": {
+          "wordCount": 300,
+          "durationSeconds": 120.0,
+          "averageWordsPerMinute": 150,
+          "estimatedTypingMinutes": 7.5,
+          "estimatedTimeSavedMinutes": 5.5
+        },
+        "typingSpeedWordsPerMinute": 40,
+        "averageWordsPerMinute": 150,
+        "savedThisWeekMinutes": 3
+      }
+    },
+    {
+      "name": "a period with words but no spoken time reports 0 WPM, not a division",
+      "decision": "agreed",
+      "was": "",
+      "typingSpeedWordsPerMinute": 40,
+      "nowLocalEpochSeconds": 1787961600,
+      "transcripts": [
+        {
+          "createdAtLocalEpochSeconds": 1787961600,
+          "wordCount": 120,
+          "durationSeconds": 0.0,
+          "status": "completed"
+        }
+      ],
+      "expected": {
+        "thisWeek": {
+          "wordCount": 120,
+          "durationSeconds": 0.0,
+          "averageWordsPerMinute": 0,
+          "estimatedTypingMinutes": 3.0,
+          "estimatedTimeSavedMinutes": 3.0
+        },
+        "thisMonth": {
+          "wordCount": 120,
+          "durationSeconds": 0.0,
+          "averageWordsPerMinute": 0,
+          "estimatedTypingMinutes": 3.0,
+          "estimatedTimeSavedMinutes": 3.0
+        },
+        "thisYear": {
+          "wordCount": 120,
+          "durationSeconds": 0.0,
+          "averageWordsPerMinute": 0,
+          "estimatedTypingMinutes": 3.0,
+          "estimatedTimeSavedMinutes": 3.0
+        },
+        "allTime": {
+          "wordCount": 120,
+          "durationSeconds": 0.0,
+          "averageWordsPerMinute": 0,
+          "estimatedTypingMinutes": 3.0,
+          "estimatedTimeSavedMinutes": 3.0
+        },
+        "typingSpeedWordsPerMinute": 40,
+        "averageWordsPerMinute": 0,
+        "savedThisWeekMinutes": 3
+      }
+    },
+    {
+      "name": "saved minutes are floored at zero when speaking was slower than typing",
+      "decision": "agreed",
+      "was": "",
+      "typingSpeedWordsPerMinute": 40,
+      "nowLocalEpochSeconds": 1787961600,
+      "transcripts": [
+        {
+          "createdAtLocalEpochSeconds": 1787961600,
+          "wordCount": 40,
+          "durationSeconds": 120.0,
+          "status": "completed"
+        }
+      ],
+      "expected": {
+        "thisWeek": {
+          "wordCount": 40,
+          "durationSeconds": 120.0,
+          "averageWordsPerMinute": 20,
+          "estimatedTypingMinutes": 1.0,
+          "estimatedTimeSavedMinutes": 0.0
+        },
+        "thisMonth": {
+          "wordCount": 40,
+          "durationSeconds": 120.0,
+          "averageWordsPerMinute": 20,
+          "estimatedTypingMinutes": 1.0,
+          "estimatedTimeSavedMinutes": 0.0
+        },
+        "thisYear": {
+          "wordCount": 40,
+          "durationSeconds": 120.0,
+          "averageWordsPerMinute": 20,
+          "estimatedTypingMinutes": 1.0,
+          "estimatedTimeSavedMinutes": 0.0
+        },
+        "allTime": {
+          "wordCount": 40,
+          "durationSeconds": 120.0,
+          "averageWordsPerMinute": 20,
+          "estimatedTypingMinutes": 1.0,
+          "estimatedTimeSavedMinutes": 0.0
+        },
+        "typingSpeedWordsPerMinute": 40,
+        "averageWordsPerMinute": 20,
+        "savedThisWeekMinutes": 0
+      }
+    },
+    {
+      "name": "a typing speed of zero zeroes the savings but not the speed figures",
+      "decision": "agreed",
+      "was": "",
+      "typingSpeedWordsPerMinute": 0,
+      "nowLocalEpochSeconds": 1787961600,
+      "transcripts": [
+        {
+          "createdAtLocalEpochSeconds": 1787961600,
+          "wordCount": 300,
+          "durationSeconds": 60.0,
+          "status": "completed"
+        }
+      ],
+      "expected": {
+        "thisWeek": {
+          "wordCount": 300,
+          "durationSeconds": 60.0,
+          "averageWordsPerMinute": 300,
+          "estimatedTypingMinutes": 0.0,
+          "estimatedTimeSavedMinutes": 0.0
+        },
+        "thisMonth": {
+          "wordCount": 300,
+          "durationSeconds": 60.0,
+          "averageWordsPerMinute": 300,
+          "estimatedTypingMinutes": 0.0,
+          "estimatedTimeSavedMinutes": 0.0
+        },
+        "thisYear": {
+          "wordCount": 300,
+          "durationSeconds": 60.0,
+          "averageWordsPerMinute": 300,
+          "estimatedTypingMinutes": 0.0,
+          "estimatedTimeSavedMinutes": 0.0
+        },
+        "allTime": {
+          "wordCount": 300,
+          "durationSeconds": 60.0,
+          "averageWordsPerMinute": 300,
+          "estimatedTypingMinutes": 0.0,
+          "estimatedTimeSavedMinutes": 0.0
+        },
+        "typingSpeedWordsPerMinute": 0,
+        "averageWordsPerMinute": 300,
+        "savedThisWeekMinutes": 0
+      }
+    },
+    {
+      "name": "only completed rows count",
+      "decision": "agreed",
+      "was": "macOS applied this in the @FetchRequest predicate rather than in the calculation, so the rule lived in a SwiftUI property wrapper on one head and in the calculator on the other two. It is one rule now.",
+      "typingSpeedWordsPerMinute": 40,
+      "nowLocalEpochSeconds": 1787961600,
+      "transcripts": [
+        {
+          "createdAtLocalEpochSeconds": 1787961600,
+          "wordCount": 100,
+          "durationSeconds": 60.0,
+          "status": "completed"
+        },
+        {
+          "createdAtLocalEpochSeconds": 1787961600,
+          "wordCount": 500,
+          "durationSeconds": 60.0,
+          "status": "processing"
+        },
+        {
+          "createdAtLocalEpochSeconds": 1787961600,
+          "wordCount": 900,
+          "durationSeconds": 60.0,
+          "status": "failed"
+        }
+      ],
+      "expected": {
+        "thisWeek": {
+          "wordCount": 100,
+          "durationSeconds": 60.0,
+          "averageWordsPerMinute": 100,
+          "estimatedTypingMinutes": 2.5,
+          "estimatedTimeSavedMinutes": 1.5
+        },
+        "thisMonth": {
+          "wordCount": 100,
+          "durationSeconds": 60.0,
+          "averageWordsPerMinute": 100,
+          "estimatedTypingMinutes": 2.5,
+          "estimatedTimeSavedMinutes": 1.5
+        },
+        "thisYear": {
+          "wordCount": 100,
+          "durationSeconds": 60.0,
+          "averageWordsPerMinute": 100,
+          "estimatedTypingMinutes": 2.5,
+          "estimatedTimeSavedMinutes": 1.5
+        },
+        "allTime": {
+          "wordCount": 100,
+          "durationSeconds": 60.0,
+          "averageWordsPerMinute": 100,
+          "estimatedTypingMinutes": 2.5,
+          "estimatedTimeSavedMinutes": 1.5
+        },
+        "typingSpeedWordsPerMinute": 40,
+        "averageWordsPerMinute": 100,
+        "savedThisWeekMinutes": 2
+      }
+    },
+    {
+      "name": "2.5 saved minutes rounds up to 3, not down to 2",
+      "decision": "macos",
+      "was": "Swift .rounded() is half away from zero; C# Math.Round(double) is banker's rounding, so the same week showed 3 minutes saved on macOS and 2 on Windows and Linux. 200 words at 40 WPM is 5 typed minutes against 2.5 spoken.",
+      "typingSpeedWordsPerMinute": 40,
+      "nowLocalEpochSeconds": 1787961600,
+      "transcripts": [
+        {
+          "createdAtLocalEpochSeconds": 1787961600,
+          "wordCount": 200,
+          "durationSeconds": 150.0,
+          "status": "completed"
+        }
+      ],
+      "expected": {
+        "thisWeek": {
+          "wordCount": 200,
+          "durationSeconds": 150.0,
+          "averageWordsPerMinute": 80,
+          "estimatedTypingMinutes": 5.0,
+          "estimatedTimeSavedMinutes": 2.5
+        },
+        "thisMonth": {
+          "wordCount": 200,
+          "durationSeconds": 150.0,
+          "averageWordsPerMinute": 80,
+          "estimatedTypingMinutes": 5.0,
+          "estimatedTimeSavedMinutes": 2.5
+        },
+        "thisYear": {
+          "wordCount": 200,
+          "durationSeconds": 150.0,
+          "averageWordsPerMinute": 80,
+          "estimatedTypingMinutes": 5.0,
+          "estimatedTimeSavedMinutes": 2.5
+        },
+        "allTime": {
+          "wordCount": 200,
+          "durationSeconds": 150.0,
+          "averageWordsPerMinute": 80,
+          "estimatedTypingMinutes": 5.0,
+          "estimatedTimeSavedMinutes": 2.5
+        },
+        "typingSpeedWordsPerMinute": 40,
+        "averageWordsPerMinute": 80,
+        "savedThisWeekMinutes": 3
+      }
+    },
+    {
+      "name": "a words-without-duration row is clamped to one week of minutes",
+      "decision": "dotnet",
+      "was": "HomeStatsBarViewModel.cs:30 and HomeStatistics.cs:67 clamp to 7*24*60 and the Windows comment says why; macOS had no ceiling, so one such row put a five-figure number in the home strip.",
+      "typingSpeedWordsPerMinute": 40,
+      "nowLocalEpochSeconds": 1787961600,
+      "transcripts": [
+        {
+          "createdAtLocalEpochSeconds": 1787961600,
+          "wordCount": 4000000,
+          "durationSeconds": 0.0,
+          "status": "completed"
+        }
+      ],
+      "expected": {
+        "thisWeek": {
+          "wordCount": 4000000,
+          "durationSeconds": 0.0,
+          "averageWordsPerMinute": 0,
+          "estimatedTypingMinutes": 100000.0,
+          "estimatedTimeSavedMinutes": 100000.0
+        },
+        "thisMonth": {
+          "wordCount": 4000000,
+          "durationSeconds": 0.0,
+          "averageWordsPerMinute": 0,
+          "estimatedTypingMinutes": 100000.0,
+          "estimatedTimeSavedMinutes": 100000.0
+        },
+        "thisYear": {
+          "wordCount": 4000000,
+          "durationSeconds": 0.0,
+          "averageWordsPerMinute": 0,
+          "estimatedTypingMinutes": 100000.0,
+          "estimatedTimeSavedMinutes": 100000.0
+        },
+        "allTime": {
+          "wordCount": 4000000,
+          "durationSeconds": 0.0,
+          "averageWordsPerMinute": 0,
+          "estimatedTypingMinutes": 100000.0,
+          "estimatedTimeSavedMinutes": 100000.0
+        },
+        "typingSpeedWordsPerMinute": 40,
+        "averageWordsPerMinute": 0,
+        "savedThisWeekMinutes": 10080
+      }
+    },
+    {
+      "name": "a non-finite duration contributes zero seconds instead of poisoning the sum",
+      "decision": "dotnet",
+      "was": "Only HomeStatistics.cs:128-129 guarded IsFinite && > 0. macOS summed the raw value and then called Int(saved.rounded()), which TRAPS on NaN — one corrupt row crashed the home view at HomeStatsBar.swift:168.",
+      "typingSpeedWordsPerMinute": 40,
+      "nowLocalEpochSeconds": 1787961600,
+      "transcripts": [
+        {
+          "createdAtLocalEpochSeconds": 1787961600,
+          "wordCount": 100,
+          "durationSeconds": null,
+          "status": "completed"
+        },
+        {
+          "createdAtLocalEpochSeconds": 1787961600,
+          "wordCount": 50,
+          "durationSeconds": 60.0,
+          "status": "completed"
+        }
+      ],
+      "expected": {
+        "thisWeek": {
+          "wordCount": 150,
+          "durationSeconds": 60.0,
+          "averageWordsPerMinute": 150,
+          "estimatedTypingMinutes": 3.75,
+          "estimatedTimeSavedMinutes": 2.75
+        },
+        "thisMonth": {
+          "wordCount": 150,
+          "durationSeconds": 60.0,
+          "averageWordsPerMinute": 150,
+          "estimatedTypingMinutes": 3.75,
+          "estimatedTimeSavedMinutes": 2.75
+        },
+        "thisYear": {
+          "wordCount": 150,
+          "durationSeconds": 60.0,
+          "averageWordsPerMinute": 150,
+          "estimatedTypingMinutes": 3.75,
+          "estimatedTimeSavedMinutes": 2.75
+        },
+        "allTime": {
+          "wordCount": 150,
+          "durationSeconds": 60.0,
+          "averageWordsPerMinute": 150,
+          "estimatedTypingMinutes": 3.75,
+          "estimatedTimeSavedMinutes": 2.75
+        },
+        "typingSpeedWordsPerMinute": 40,
+        "averageWordsPerMinute": 150,
+        "savedThisWeekMinutes": 3
+      }
+    },
+    {
+      "name": "a negative duration contributes zero seconds",
+      "decision": "dotnet",
+      "was": "Same guard, the representable half of it.",
+      "typingSpeedWordsPerMinute": 40,
+      "nowLocalEpochSeconds": 1787961600,
+      "transcripts": [
+        {
+          "createdAtLocalEpochSeconds": 1787961600,
+          "wordCount": 10,
+          "durationSeconds": -5.0,
+          "status": "completed"
+        },
+        {
+          "createdAtLocalEpochSeconds": 1787961600,
+          "wordCount": 50,
+          "durationSeconds": 60.0,
+          "status": "completed"
+        }
+      ],
+      "expected": {
+        "thisWeek": {
+          "wordCount": 60,
+          "durationSeconds": 60.0,
+          "averageWordsPerMinute": 60,
+          "estimatedTypingMinutes": 1.5,
+          "estimatedTimeSavedMinutes": 0.5
+        },
+        "thisMonth": {
+          "wordCount": 60,
+          "durationSeconds": 60.0,
+          "averageWordsPerMinute": 60,
+          "estimatedTypingMinutes": 1.5,
+          "estimatedTimeSavedMinutes": 0.5
+        },
+        "thisYear": {
+          "wordCount": 60,
+          "durationSeconds": 60.0,
+          "averageWordsPerMinute": 60,
+          "estimatedTypingMinutes": 1.5,
+          "estimatedTimeSavedMinutes": 0.5
+        },
+        "allTime": {
+          "wordCount": 60,
+          "durationSeconds": 60.0,
+          "averageWordsPerMinute": 60,
+          "estimatedTypingMinutes": 1.5,
+          "estimatedTimeSavedMinutes": 0.5
+        },
+        "typingSpeedWordsPerMinute": 40,
+        "averageWordsPerMinute": 60,
+        "savedThisWeekMinutes": 1
+      }
+    },
+    {
+      "name": "the week starts on Monday, so the Sunday that closes it is still inside",
+      "decision": "dotnet",
+      "was": "HomeStatistics.cs:122-126 used the local-time-zone Monday and StatisticsService.cs:109-113 used a UTC-forced Monday; macOS asked Calendar.current for .weekOfYear, which starts on Sunday in en-US. So this row counted towards NEXT week on macOS and this week elsewhere.",
+      "typingSpeedWordsPerMinute": 40,
+      "nowLocalEpochSeconds": 1787961600,
+      "transcripts": [
+        {
+          "createdAtLocalEpochSeconds": 1788048000,
+          "wordCount": 60,
+          "durationSeconds": 60.0,
+          "status": "completed"
+        }
+      ],
+      "expected": {
+        "thisWeek": {
+          "wordCount": 60,
+          "durationSeconds": 60.0,
+          "averageWordsPerMinute": 60,
+          "estimatedTypingMinutes": 1.5,
+          "estimatedTimeSavedMinutes": 0.5
+        },
+        "thisMonth": {
+          "wordCount": 60,
+          "durationSeconds": 60.0,
+          "averageWordsPerMinute": 60,
+          "estimatedTypingMinutes": 1.5,
+          "estimatedTimeSavedMinutes": 0.5
+        },
+        "thisYear": {
+          "wordCount": 60,
+          "durationSeconds": 60.0,
+          "averageWordsPerMinute": 60,
+          "estimatedTypingMinutes": 1.5,
+          "estimatedTimeSavedMinutes": 0.5
+        },
+        "allTime": {
+          "wordCount": 60,
+          "durationSeconds": 60.0,
+          "averageWordsPerMinute": 60,
+          "estimatedTypingMinutes": 1.5,
+          "estimatedTimeSavedMinutes": 0.5
+        },
+        "typingSpeedWordsPerMinute": 40,
+        "averageWordsPerMinute": 60,
+        "savedThisWeekMinutes": 1
+      }
+    },
+    {
+      "name": "the Sunday before the Monday is last week, and still this month",
+      "decision": "dotnet",
+      "was": "The other side of the same boundary: on macOS's Sunday-start week this row was inside the current week.",
+      "typingSpeedWordsPerMinute": 40,
+      "nowLocalEpochSeconds": 1787961600,
+      "transcripts": [
+        {
+          "createdAtLocalEpochSeconds": 1787529600,
+          "wordCount": 60,
+          "durationSeconds": 60.0,
+          "status": "completed"
+        },
+        {
+          "createdAtLocalEpochSeconds": 1787443200,
+          "wordCount": 70,
+          "durationSeconds": 60.0,
+          "status": "completed"
+        }
+      ],
+      "expected": {
+        "thisWeek": {
+          "wordCount": 60,
+          "durationSeconds": 60.0,
+          "averageWordsPerMinute": 60,
+          "estimatedTypingMinutes": 1.5,
+          "estimatedTimeSavedMinutes": 0.5
+        },
+        "thisMonth": {
+          "wordCount": 130,
+          "durationSeconds": 120.0,
+          "averageWordsPerMinute": 65,
+          "estimatedTypingMinutes": 3.25,
+          "estimatedTimeSavedMinutes": 1.25
+        },
+        "thisYear": {
+          "wordCount": 130,
+          "durationSeconds": 120.0,
+          "averageWordsPerMinute": 65,
+          "estimatedTypingMinutes": 3.25,
+          "estimatedTimeSavedMinutes": 1.25
+        },
+        "allTime": {
+          "wordCount": 130,
+          "durationSeconds": 120.0,
+          "averageWordsPerMinute": 65,
+          "estimatedTypingMinutes": 3.25,
+          "estimatedTimeSavedMinutes": 1.25
+        },
+        "typingSpeedWordsPerMinute": 40,
+        "averageWordsPerMinute": 65,
+        "savedThisWeekMinutes": 1
+      }
+    },
+    {
+      "name": "an absurd word total saturates instead of trapping",
+      "decision": "neither",
+      "was": "HomeStatistics.cs:148 summed with `checked`, which THROWS on overflow, and Swift's += traps. Both turn a corrupt store into a crash on the home view's render path. A saturated total is a wrong number the user can see and report.",
+      "typingSpeedWordsPerMinute": 40,
+      "nowLocalEpochSeconds": 1787961600,
+      "transcripts": [
+        {
+          "createdAtLocalEpochSeconds": 1787961600,
+          "wordCount": 4294967295,
+          "durationSeconds": 60.0,
+          "status": "completed"
+        },
+        {
+          "createdAtLocalEpochSeconds": 1787961600,
+          "wordCount": 10,
+          "durationSeconds": 60.0,
+          "status": "completed"
+        }
+      ],
+      "expected": {
+        "thisWeek": {
+          "wordCount": 4294967295,
+          "durationSeconds": 120.0,
+          "averageWordsPerMinute": 2147483647,
+          "estimatedTypingMinutes": 107374182.375,
+          "estimatedTimeSavedMinutes": 107374180.375
+        },
+        "thisMonth": {
+          "wordCount": 4294967295,
+          "durationSeconds": 120.0,
+          "averageWordsPerMinute": 2147483647,
+          "estimatedTypingMinutes": 107374182.375,
+          "estimatedTimeSavedMinutes": 107374180.375
+        },
+        "thisYear": {
+          "wordCount": 4294967295,
+          "durationSeconds": 120.0,
+          "averageWordsPerMinute": 2147483647,
+          "estimatedTypingMinutes": 107374182.375,
+          "estimatedTimeSavedMinutes": 107374180.375
+        },
+        "allTime": {
+          "wordCount": 4294967295,
+          "durationSeconds": 120.0,
+          "averageWordsPerMinute": 2147483647,
+          "estimatedTypingMinutes": 107374182.375,
+          "estimatedTimeSavedMinutes": 107374180.375
+        },
+        "typingSpeedWordsPerMinute": 40,
+        "averageWordsPerMinute": 2147483647,
+        "savedThisWeekMinutes": 10080
+      }
+    },
+    {
+      "name": "the four periods nest without leaking into one another",
+      "decision": "new",
+      "was": "No copy produced all four periods: macOS computed week, month, year and all-time in the view; the .NET calculator computed week, month and all-time and had no year. Every head gets every period now, and which columns it shows stays a layout decision.",
+      "typingSpeedWordsPerMinute": 40,
+      "nowLocalEpochSeconds": 1787961600,
+      "transcripts": [
+        {
+          "createdAtLocalEpochSeconds": 1787961600,
+          "wordCount": 10,
+          "durationSeconds": 60.0,
+          "status": "completed"
+        },
+        {
+          "createdAtLocalEpochSeconds": 1787097600,
+          "wordCount": 20,
+          "durationSeconds": 60.0,
+          "status": "completed"
+        },
+        {
+          "createdAtLocalEpochSeconds": 1782777600,
+          "wordCount": 40,
+          "durationSeconds": 60.0,
+          "status": "completed"
+        },
+        {
+          "createdAtLocalEpochSeconds": 1762041600,
+          "wordCount": 80,
+          "durationSeconds": 60.0,
+          "status": "completed"
+        }
+      ],
+      "expected": {
+        "thisWeek": {
+          "wordCount": 10,
+          "durationSeconds": 60.0,
+          "averageWordsPerMinute": 10,
+          "estimatedTypingMinutes": 0.25,
+          "estimatedTimeSavedMinutes": 0.0
+        },
+        "thisMonth": {
+          "wordCount": 30,
+          "durationSeconds": 120.0,
+          "averageWordsPerMinute": 15,
+          "estimatedTypingMinutes": 0.75,
+          "estimatedTimeSavedMinutes": 0.0
+        },
+        "thisYear": {
+          "wordCount": 70,
+          "durationSeconds": 180.0,
+          "averageWordsPerMinute": 23,
+          "estimatedTypingMinutes": 1.75,
+          "estimatedTimeSavedMinutes": 0.0
+        },
+        "allTime": {
+          "wordCount": 150,
+          "durationSeconds": 240.0,
+          "averageWordsPerMinute": 38,
+          "estimatedTypingMinutes": 3.75,
+          "estimatedTimeSavedMinutes": 0.0
+        },
+        "typingSpeedWordsPerMinute": 40,
+        "averageWordsPerMinute": 38,
+        "savedThisWeekMinutes": 0
+      }
+    },
+    {
+      "name": "the per-period saving is not clamped, only the displayed week figure is",
+      "decision": "new",
+      "was": "Neither .NET copy exposed both numbers, so nothing pinned the difference. The ceiling is a display rule for the home strip; the statistics page's per-period estimate keeps the raw figure.",
+      "typingSpeedWordsPerMinute": 40,
+      "nowLocalEpochSeconds": 1787961600,
+      "transcripts": [
+        {
+          "createdAtLocalEpochSeconds": 1787961600,
+          "wordCount": 500000,
+          "durationSeconds": 0.0,
+          "status": "completed"
+        }
+      ],
+      "expected": {
+        "thisWeek": {
+          "wordCount": 500000,
+          "durationSeconds": 0.0,
+          "averageWordsPerMinute": 0,
+          "estimatedTypingMinutes": 12500.0,
+          "estimatedTimeSavedMinutes": 12500.0
+        },
+        "thisMonth": {
+          "wordCount": 500000,
+          "durationSeconds": 0.0,
+          "averageWordsPerMinute": 0,
+          "estimatedTypingMinutes": 12500.0,
+          "estimatedTimeSavedMinutes": 12500.0
+        },
+        "thisYear": {
+          "wordCount": 500000,
+          "durationSeconds": 0.0,
+          "averageWordsPerMinute": 0,
+          "estimatedTypingMinutes": 12500.0,
+          "estimatedTimeSavedMinutes": 12500.0
+        },
+        "allTime": {
+          "wordCount": 500000,
+          "durationSeconds": 0.0,
+          "averageWordsPerMinute": 0,
+          "estimatedTypingMinutes": 12500.0,
+          "estimatedTimeSavedMinutes": 12500.0
+        },
+        "typingSpeedWordsPerMinute": 40,
+        "averageWordsPerMinute": 0,
+        "savedThisWeekMinutes": 10080
+      }
+    },
+    {
+      "name": "a row dated in the future is bucketed by its own date, not dropped",
+      "decision": "new",
+      "was": "No copy had a rule. A clock change or an imported backup can date a row ahead of now; it is a real transcript, so it counts, but it lands in September, outside this week and this month.",
+      "typingSpeedWordsPerMinute": 40,
+      "nowLocalEpochSeconds": 1787961600,
+      "transcripts": [
+        {
+          "createdAtLocalEpochSeconds": 1788739200,
+          "wordCount": 90,
+          "durationSeconds": 60.0,
+          "status": "completed"
+        },
+        {
+          "createdAtLocalEpochSeconds": 1787961600,
+          "wordCount": 10,
+          "durationSeconds": 60.0,
+          "status": "completed"
+        }
+      ],
+      "expected": {
+        "thisWeek": {
+          "wordCount": 10,
+          "durationSeconds": 60.0,
+          "averageWordsPerMinute": 10,
+          "estimatedTypingMinutes": 0.25,
+          "estimatedTimeSavedMinutes": 0.0
+        },
+        "thisMonth": {
+          "wordCount": 10,
+          "durationSeconds": 60.0,
+          "averageWordsPerMinute": 10,
+          "estimatedTypingMinutes": 0.25,
+          "estimatedTimeSavedMinutes": 0.0
+        },
+        "thisYear": {
+          "wordCount": 100,
+          "durationSeconds": 120.0,
+          "averageWordsPerMinute": 50,
+          "estimatedTypingMinutes": 2.5,
+          "estimatedTimeSavedMinutes": 0.5
+        },
+        "allTime": {
+          "wordCount": 100,
+          "durationSeconds": 120.0,
+          "averageWordsPerMinute": 50,
+          "estimatedTypingMinutes": 2.5,
+          "estimatedTimeSavedMinutes": 0.5
+        },
+        "typingSpeedWordsPerMinute": 40,
+        "averageWordsPerMinute": 50,
+        "savedThisWeekMinutes": 0
+      }
+    },
+    {
+      "name": "a row from before the epoch is bucketed by its own calendar day",
+      "decision": "new",
+      "was": "No copy had a rule, and a naive integer division would have floored a negative timestamp towards zero and moved the row a day.",
+      "typingSpeedWordsPerMinute": 40,
+      "nowLocalEpochSeconds": 1787961600,
+      "transcripts": [
+        {
+          "createdAtLocalEpochSeconds": -1,
+          "wordCount": 25,
+          "durationSeconds": 60.0,
+          "status": "completed"
+        }
+      ],
+      "expected": {
+        "thisWeek": {
+          "wordCount": 0,
+          "durationSeconds": 0.0,
+          "averageWordsPerMinute": 0,
+          "estimatedTypingMinutes": 0.0,
+          "estimatedTimeSavedMinutes": 0.0
+        },
+        "thisMonth": {
+          "wordCount": 0,
+          "durationSeconds": 0.0,
+          "averageWordsPerMinute": 0,
+          "estimatedTypingMinutes": 0.0,
+          "estimatedTimeSavedMinutes": 0.0
+        },
+        "thisYear": {
+          "wordCount": 0,
+          "durationSeconds": 0.0,
+          "averageWordsPerMinute": 0,
+          "estimatedTypingMinutes": 0.0,
+          "estimatedTimeSavedMinutes": 0.0
+        },
+        "allTime": {
+          "wordCount": 25,
+          "durationSeconds": 60.0,
+          "averageWordsPerMinute": 25,
+          "estimatedTypingMinutes": 0.625,
+          "estimatedTimeSavedMinutes": 0.0
+        },
+        "typingSpeedWordsPerMinute": 40,
+        "averageWordsPerMinute": 25,
+        "savedThisWeekMinutes": 0
+      }
+    }
+  ]
+}

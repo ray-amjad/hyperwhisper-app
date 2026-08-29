@@ -1232,6 +1232,10 @@ static class _UniFFILib {
     
     
     
+    
+    
+    
+    
 
     static _UniFFILib() {
         _UniFFILib.uniffiCheckContractApiVersion();
@@ -2170,6 +2174,14 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_soniox_parse_upload_response(RustBuffer @resp,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_stats_calculate_home(RustBuffer @transcripts,int @typingSpeedWordsPerMinute,long @nowLocalEpochSeconds,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern int uniffi_hyperwhisper_core_fn_func_stats_saved_minutes_ceiling(ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -3286,6 +3298,14 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_soniox_parse_upload_response(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_stats_calculate_home(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_stats_saved_minutes_ceiling(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -4673,6 +4693,18 @@ static class _UniFFILib {
             }
         }
         {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_stats_calculate_home();
+            if (checksum != 7331) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_stats_calculate_home` checksum `7331`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_stats_saved_minutes_ceiling();
+            if (checksum != 6847) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_stats_saved_minutes_ceiling` checksum `6847`, library returned `{checksum}`");
+            }
+        }
+        {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_strip_wrapper_markers();
             if (checksum != 55122) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_strip_wrapper_markers` checksum `55122`, library returned `{checksum}`");
@@ -4831,6 +4863,32 @@ class FfiConverterUInt32: FfiConverter<uint, uint> {
 
     public override void Write(uint value, BigEndianStream stream) {
         stream.WriteUInt(value);
+    }
+}
+
+
+
+class FfiConverterInt32: FfiConverter<int, int> {
+    public static FfiConverterInt32 INSTANCE = new FfiConverterInt32();
+
+    public override int Lift(int value) {
+        return value;
+    }
+
+    public override int Read(BigEndianStream stream) {
+        return stream.ReadInt();
+    }
+
+    public override int Lower(int value) {
+        return value;
+    }
+
+    public override int AllocationSize(int value) {
+        return 4;
+    }
+
+    public override void Write(int value, BigEndianStream stream) {
+        stream.WriteInt(value);
     }
 }
 
@@ -6108,6 +6166,82 @@ class FfiConverterTypeHwEndpointVerdict: FfiConverterRustBuffer<HwEndpointVerdic
 
 
 /// <summary>
+/// Everything the three home strips render, plus the periods the statistics
+/// pages use. Mirrors `hw_stats::HomeStatsSnapshot`.
+/// </summary>
+/// <param name="typing_speed_words_per_minute">
+/// Echoed back so a head can render the gear menu without reading settings
+/// twice.
+/// </param>
+/// <param name="average_words_per_minute">
+/// The "avg WPM" column: the all-time figure, on all three heads.
+/// </param>
+/// <param name="saved_this_week_minutes">
+/// The "saved this week" column: rounded half away from zero, floored at 0,
+/// clamped to [`stats_saved_minutes_ceiling`].
+/// </param>
+internal record HwHomeStatsSnapshot (
+    HwPeriodStats @thisWeek, 
+    HwPeriodStats @thisMonth, 
+    HwPeriodStats @thisYear, 
+    HwPeriodStats @allTime, 
+    /// <summary>
+    /// Echoed back so a head can render the gear menu without reading settings
+    /// twice.
+    /// </summary>
+    int @typingSpeedWordsPerMinute, 
+    /// <summary>
+    /// The "avg WPM" column: the all-time figure, on all three heads.
+    /// </summary>
+    int @averageWordsPerMinute, 
+    /// <summary>
+    /// The "saved this week" column: rounded half away from zero, floored at 0,
+    /// clamped to [`stats_saved_minutes_ceiling`].
+    /// </summary>
+    int @savedThisWeekMinutes
+) {
+}
+
+class FfiConverterTypeHwHomeStatsSnapshot: FfiConverterRustBuffer<HwHomeStatsSnapshot> {
+    public static FfiConverterTypeHwHomeStatsSnapshot INSTANCE = new FfiConverterTypeHwHomeStatsSnapshot();
+
+    public override HwHomeStatsSnapshot Read(BigEndianStream stream) {
+        return new HwHomeStatsSnapshot(
+            @thisWeek: FfiConverterTypeHwPeriodStats.INSTANCE.Read(stream),
+            @thisMonth: FfiConverterTypeHwPeriodStats.INSTANCE.Read(stream),
+            @thisYear: FfiConverterTypeHwPeriodStats.INSTANCE.Read(stream),
+            @allTime: FfiConverterTypeHwPeriodStats.INSTANCE.Read(stream),
+            @typingSpeedWordsPerMinute: FfiConverterInt32.INSTANCE.Read(stream),
+            @averageWordsPerMinute: FfiConverterInt32.INSTANCE.Read(stream),
+            @savedThisWeekMinutes: FfiConverterInt32.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwHomeStatsSnapshot value) {
+        return 0
+            + FfiConverterTypeHwPeriodStats.INSTANCE.AllocationSize(value.@thisWeek)
+            + FfiConverterTypeHwPeriodStats.INSTANCE.AllocationSize(value.@thisMonth)
+            + FfiConverterTypeHwPeriodStats.INSTANCE.AllocationSize(value.@thisYear)
+            + FfiConverterTypeHwPeriodStats.INSTANCE.AllocationSize(value.@allTime)
+            + FfiConverterInt32.INSTANCE.AllocationSize(value.@typingSpeedWordsPerMinute)
+            + FfiConverterInt32.INSTANCE.AllocationSize(value.@averageWordsPerMinute)
+            + FfiConverterInt32.INSTANCE.AllocationSize(value.@savedThisWeekMinutes);
+    }
+
+    public override void Write(HwHomeStatsSnapshot value, BigEndianStream stream) {
+            FfiConverterTypeHwPeriodStats.INSTANCE.Write(value.@thisWeek, stream);
+            FfiConverterTypeHwPeriodStats.INSTANCE.Write(value.@thisMonth, stream);
+            FfiConverterTypeHwPeriodStats.INSTANCE.Write(value.@thisYear, stream);
+            FfiConverterTypeHwPeriodStats.INSTANCE.Write(value.@allTime, stream);
+            FfiConverterInt32.INSTANCE.Write(value.@typingSpeedWordsPerMinute, stream);
+            FfiConverterInt32.INSTANCE.Write(value.@averageWordsPerMinute, stream);
+            FfiConverterInt32.INSTANCE.Write(value.@savedThisWeekMinutes, stream);
+    }
+}
+
+
+
+/// <summary>
 /// Language support for a model. Mirrors `hw_catalog::LanguageSupport` with the
 /// `BTreeSet` flattened to a sorted `Vec`.
 /// </summary>
@@ -6680,6 +6814,65 @@ class FfiConverterTypeHwNoSpeechInput: FfiConverterRustBuffer<HwNoSpeechInput> {
             FfiConverterDouble.INSTANCE.Write(value.@peakDbfs, stream);
             FfiConverterDouble.INSTANCE.Write(value.@rmsDbfs, stream);
             FfiConverterDouble.INSTANCE.Write(value.@nonSilentRatio, stream);
+    }
+}
+
+
+
+/// <summary>
+/// One period's totals and derived figures. Mirrors `hw_stats::PeriodStats`.
+/// </summary>
+/// <param name="word_count">
+/// Saturating sum of the rows' word counts.
+/// </param>
+/// <param name="estimated_time_saved_minutes">
+/// Floored at 0 but NOT clamped — the one-week ceiling applies to
+/// [`HwHomeStatsSnapshot::saved_this_week_minutes`] only.
+/// </param>
+internal record HwPeriodStats (
+    /// <summary>
+    /// Saturating sum of the rows' word counts.
+    /// </summary>
+    uint @wordCount, 
+    double @durationSeconds, 
+    int @averageWordsPerMinute, 
+    double @estimatedTypingMinutes, 
+    /// <summary>
+    /// Floored at 0 but NOT clamped — the one-week ceiling applies to
+    /// [`HwHomeStatsSnapshot::saved_this_week_minutes`] only.
+    /// </summary>
+    double @estimatedTimeSavedMinutes
+) {
+}
+
+class FfiConverterTypeHwPeriodStats: FfiConverterRustBuffer<HwPeriodStats> {
+    public static FfiConverterTypeHwPeriodStats INSTANCE = new FfiConverterTypeHwPeriodStats();
+
+    public override HwPeriodStats Read(BigEndianStream stream) {
+        return new HwPeriodStats(
+            @wordCount: FfiConverterUInt32.INSTANCE.Read(stream),
+            @durationSeconds: FfiConverterDouble.INSTANCE.Read(stream),
+            @averageWordsPerMinute: FfiConverterInt32.INSTANCE.Read(stream),
+            @estimatedTypingMinutes: FfiConverterDouble.INSTANCE.Read(stream),
+            @estimatedTimeSavedMinutes: FfiConverterDouble.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwPeriodStats value) {
+        return 0
+            + FfiConverterUInt32.INSTANCE.AllocationSize(value.@wordCount)
+            + FfiConverterDouble.INSTANCE.AllocationSize(value.@durationSeconds)
+            + FfiConverterInt32.INSTANCE.AllocationSize(value.@averageWordsPerMinute)
+            + FfiConverterDouble.INSTANCE.AllocationSize(value.@estimatedTypingMinutes)
+            + FfiConverterDouble.INSTANCE.AllocationSize(value.@estimatedTimeSavedMinutes);
+    }
+
+    public override void Write(HwPeriodStats value, BigEndianStream stream) {
+            FfiConverterUInt32.INSTANCE.Write(value.@wordCount, stream);
+            FfiConverterDouble.INSTANCE.Write(value.@durationSeconds, stream);
+            FfiConverterInt32.INSTANCE.Write(value.@averageWordsPerMinute, stream);
+            FfiConverterDouble.INSTANCE.Write(value.@estimatedTypingMinutes, stream);
+            FfiConverterDouble.INSTANCE.Write(value.@estimatedTimeSavedMinutes, stream);
     }
 }
 
@@ -7300,6 +7493,85 @@ class FfiConverterTypeHwSignalAccumulation: FfiConverterRustBuffer<HwSignalAccum
             FfiConverterUInt64.INSTANCE.Write(value.@nonSilentCount, stream);
             FfiConverterDouble.INSTANCE.Write(value.@sumSquares, stream);
             FfiConverterDouble.INSTANCE.Write(value.@peak, stream);
+    }
+}
+
+
+
+/// <summary>
+/// One persisted transcript, projected down to what the statistics need.
+/// </summary>
+/// <param name="created_at_local_epoch_seconds">
+/// The row's instant **already shifted into the calendar time zone**,
+/// as seconds since the Unix epoch.
+/// 
+/// The host owns this conversion because the host owns the time-zone
+/// database: `TimeZoneInfo.ConvertTime(row.CreatedAt, tz)` on .NET,
+/// `date.timeIntervalSince1970 + TimeZone.current.secondsFromGMT(for: date)`
+/// on Swift. Doing it per row is what keeps DST correct. Every calendar
+/// boundary above it — Monday, the 1st, January 1st — is computed in Rust.
+/// </param>
+/// <param name="word_count">
+/// Counted by the host from the full text. Word counting stays native:
+/// there is no persisted count on any of the three stores, and the two
+/// native implementations already agree (#285).
+/// </param>
+/// <param name="duration_seconds">
+/// Spoken seconds, as stored. Not trusted — a non-finite or negative value
+/// is normalised to 0 rather than rejected.
+/// </param>
+internal record HwStatsTranscript (
+    /// <summary>
+    /// The row's instant **already shifted into the calendar time zone**,
+    /// as seconds since the Unix epoch.
+    ///
+    /// The host owns this conversion because the host owns the time-zone
+    /// database: `TimeZoneInfo.ConvertTime(row.CreatedAt, tz)` on .NET,
+    /// `date.timeIntervalSince1970 + TimeZone.current.secondsFromGMT(for: date)`
+    /// on Swift. Doing it per row is what keeps DST correct. Every calendar
+    /// boundary above it — Monday, the 1st, January 1st — is computed in Rust.
+    /// </summary>
+    long @createdAtLocalEpochSeconds, 
+    /// <summary>
+    /// Counted by the host from the full text. Word counting stays native:
+    /// there is no persisted count on any of the three stores, and the two
+    /// native implementations already agree (#285).
+    /// </summary>
+    uint @wordCount, 
+    /// <summary>
+    /// Spoken seconds, as stored. Not trusted — a non-finite or negative value
+    /// is normalised to 0 rather than rejected.
+    /// </summary>
+    double @durationSeconds, 
+    HwTranscriptStatus @status
+) {
+}
+
+class FfiConverterTypeHwStatsTranscript: FfiConverterRustBuffer<HwStatsTranscript> {
+    public static FfiConverterTypeHwStatsTranscript INSTANCE = new FfiConverterTypeHwStatsTranscript();
+
+    public override HwStatsTranscript Read(BigEndianStream stream) {
+        return new HwStatsTranscript(
+            @createdAtLocalEpochSeconds: FfiConverterInt64.INSTANCE.Read(stream),
+            @wordCount: FfiConverterUInt32.INSTANCE.Read(stream),
+            @durationSeconds: FfiConverterDouble.INSTANCE.Read(stream),
+            @status: FfiConverterTypeHwTranscriptStatus.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwStatsTranscript value) {
+        return 0
+            + FfiConverterInt64.INSTANCE.AllocationSize(value.@createdAtLocalEpochSeconds)
+            + FfiConverterUInt32.INSTANCE.AllocationSize(value.@wordCount)
+            + FfiConverterDouble.INSTANCE.AllocationSize(value.@durationSeconds)
+            + FfiConverterTypeHwTranscriptStatus.INSTANCE.AllocationSize(value.@status);
+    }
+
+    public override void Write(HwStatsTranscript value, BigEndianStream stream) {
+            FfiConverterInt64.INSTANCE.Write(value.@createdAtLocalEpochSeconds, stream);
+            FfiConverterUInt32.INSTANCE.Write(value.@wordCount, stream);
+            FfiConverterDouble.INSTANCE.Write(value.@durationSeconds, stream);
+            FfiConverterTypeHwTranscriptStatus.INSTANCE.Write(value.@status, stream);
     }
 }
 
@@ -11117,6 +11389,47 @@ class FfiConverterTypeHwPttTimerAction: FfiConverterRustBuffer<HwPttTimerAction>
 
 
 /// <summary>
+/// The persisted status of a transcript row. Mirrors
+/// `hw_stats::TranscriptStatus`.
+///
+/// The host maps its own status column onto this and hands over everything;
+/// the completed-only filter is applied on this side, once.
+/// </summary>
+internal enum HwTranscriptStatus: int {
+    
+    Processing,
+    Completed,
+    Failed
+}
+
+class FfiConverterTypeHwTranscriptStatus: FfiConverterRustBuffer<HwTranscriptStatus> {
+    public static FfiConverterTypeHwTranscriptStatus INSTANCE = new FfiConverterTypeHwTranscriptStatus();
+
+    public override HwTranscriptStatus Read(BigEndianStream stream) {
+        var value = stream.ReadInt() - 1;
+        if (Enum.IsDefined(typeof(HwTranscriptStatus), value)) {
+            return (HwTranscriptStatus)value;
+        } else {
+            throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwTranscriptStatus.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(HwTranscriptStatus value) {
+        return 4;
+    }
+
+    public override void Write(HwTranscriptStatus value, BigEndianStream stream) {
+        stream.WriteInt((int)value + 1);
+    }
+}
+
+
+
+
+
+
+
+/// <summary>
 /// Normalized transcription failures. Mirrors `hw_net::TranscriptionError` as a
 /// UniFFI error enum. `Display` is implemented by hand (matching the leaf's
 /// `thiserror` messages) so hw-core needs no extra dependency.
@@ -12572,6 +12885,48 @@ class FfiConverterSequenceTypeHwRun: FfiConverterRustBuffer<List<HwRun>> {
 
         stream.WriteInt(value.Count);
         var writerFn = FfiConverterTypeHwRun.INSTANCE.Write;
+        value.ForEach(item => writerFn(item, stream));
+    }
+}
+
+
+
+
+class FfiConverterSequenceTypeHwStatsTranscript: FfiConverterRustBuffer<List<HwStatsTranscript>> {
+    public static FfiConverterSequenceTypeHwStatsTranscript INSTANCE = new FfiConverterSequenceTypeHwStatsTranscript();
+
+    public override List<HwStatsTranscript> Read(BigEndianStream stream) {
+        var length = stream.ReadInt();
+        var result = new List<HwStatsTranscript>(length);
+        var readFn = FfiConverterTypeHwStatsTranscript.INSTANCE.Read;
+        for (int i = 0; i < length; i++) {
+            result.Add(readFn(stream));
+        }
+        return result;
+    }
+
+    public override int AllocationSize(List<HwStatsTranscript> value) {
+        var sizeForLength = 4;
+
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            return sizeForLength;
+        }
+
+        var allocationSizeFn = FfiConverterTypeHwStatsTranscript.INSTANCE.AllocationSize;
+        var sizeForItems = value.Sum(item => allocationSizeFn(item));
+        return sizeForLength + sizeForItems;
+    }
+
+    public override void Write(List<HwStatsTranscript> value, BigEndianStream stream) {
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            stream.WriteInt(0);
+            return;
+        }
+
+        stream.WriteInt(value.Count);
+        var writerFn = FfiConverterTypeHwStatsTranscript.INSTANCE.Write;
         value.ForEach(item => writerFn(item, stream));
     }
 }
@@ -15568,6 +15923,39 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterString.INSTANCE.Lift(
     _UniffiHelpers.RustCallWithError(FfiConverterTypeHwTranscriptionError.INSTANCE, (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_soniox_parse_upload_response(FfiConverterTypeHttpResponse.INSTANCE.Lower(@resp), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Calculate every home statistic from the host's transcript rows.
+    ///
+    /// `now_local_epoch_seconds` is "now" in the same shifted coordinate as the
+    /// rows. A `typing_speed_words_per_minute` of 0 or less zeroes the saving
+    /// figures instead of failing — an unset setting is not an error.
+    ///
+    /// This call is total: there is no error case, and no input can panic.
+    /// </summary>
+    public static HwHomeStatsSnapshot StatsCalculateHome(List<HwStatsTranscript> @transcripts, int @typingSpeedWordsPerMinute, long @nowLocalEpochSeconds) {
+        return FfiConverterTypeHwHomeStatsSnapshot.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_stats_calculate_home(FfiConverterSequenceTypeHwStatsTranscript.INSTANCE.Lower(@transcripts), FfiConverterInt32.INSTANCE.Lower(@typingSpeedWordsPerMinute), FfiConverterInt64.INSTANCE.Lower(@nowLocalEpochSeconds), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The ceiling the displayed "saved this week" figure is clamped to: one week
+    /// of minutes.
+    ///
+    /// Exported so a head can assert against it rather than restate `7 * 24 * 60`,
+    /// which is exactly how the constant drifted onto two platforms and off the
+    /// third.
+    /// </summary>
+    public static int StatsSavedMinutesCeiling() {
+        return FfiConverterInt32.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_stats_saved_minutes_ceiling( ref _status)
 ));
     }
 

@@ -17,6 +17,7 @@ members = [
     "crates/hw-catalog",
     "crates/hw-releasenotes",
     "crates/hw-localapi",
+    "crates/hw-stats",
 ]
 # The cargo-fuzz crate is a separate, nightly-only package: `libfuzzer-sys` and
 # `arbitrary` are network dependencies that must never enter this workspace's
