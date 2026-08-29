@@ -4,12 +4,12 @@
 //! truth for the catalog issue #285 moved into `hw-catalog`. Two things live in
 //! it:
 //!
-//! * `catalog` — every row, in picker order, each carrying a `decision` field:
-//!     - `both` — `LanguageData.swift` and `LanguageInfo.cs` both had this row.
-//!     - `macos` — only macOS had it. Windows GAINS it, and its picker grows.
-//!     - `renamed` — both had the row, and the display name changes.
-//!   This list IS the review surface. A row appearing, disappearing or being
-//!   renamed is a visible change to every language picker on every platform.
+//! * `catalog` — every row, in picker order, each carrying a `decision` field.
+//!   `both` means `LanguageData.swift` and `LanguageInfo.cs` both had the row;
+//!   `macos` means only macOS had it, so the Windows picker GAINS it; `renamed`
+//!   means both had it and the display name changes. This list IS the review
+//!   surface. A row appearing, disappearing or being renamed is a visible
+//!   change to every language picker on every platform.
 //! * `canonicalCases`, `lookupCases` and `scalarCases` — the canonicalizer, the
 //!   alias map and the scalar helpers. Windows had none of these: its lookup
 //!   was `Code == code`, so a stored `en_GB` matched nothing and the picker
