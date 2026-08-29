@@ -1236,6 +1236,24 @@ static class _UniFFILib {
     
     
     
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
 
     static _UniFFILib() {
         _UniFFILib.uniffiCheckContractApiVersion();
@@ -1686,6 +1704,42 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern sbyte uniffi_hyperwhisper_core_fn_func_is_retryable(ushort @status,RustBuffer @body,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_language_all(ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_language_canonical_code(RustBuffer @code,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_language_canonicalize(RustBuffer @code,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_language_info(RustBuffer @code,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern sbyte uniffi_hyperwhisper_core_fn_func_language_is_english(RustBuffer @code,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_language_normalize(RustBuffer @code,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_language_popular_codes(ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_language_prioritize_automatic(RustBuffer @languages,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_language_resolve(RustBuffer @codes,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -2810,6 +2864,42 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_is_retryable(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_language_all(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_language_canonical_code(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_language_canonicalize(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_language_info(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_language_is_english(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_language_normalize(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_language_popular_codes(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_language_prioritize_automatic(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_language_resolve(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -3958,6 +4048,60 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_is_retryable();
             if (checksum != 28969) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_is_retryable` checksum `28969`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_language_all();
+            if (checksum != 11935) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_language_all` checksum `11935`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_language_canonical_code();
+            if (checksum != 39544) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_language_canonical_code` checksum `39544`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_language_canonicalize();
+            if (checksum != 34787) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_language_canonicalize` checksum `34787`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_language_info();
+            if (checksum != 36720) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_language_info` checksum `36720`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_language_is_english();
+            if (checksum != 14929) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_language_is_english` checksum `14929`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_language_normalize();
+            if (checksum != 42903) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_language_normalize` checksum `42903`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_language_popular_codes();
+            if (checksum != 52908) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_language_popular_codes` checksum `52908`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_language_prioritize_automatic();
+            if (checksum != 29793) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_language_prioritize_automatic` checksum `29793`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_language_resolve();
+            if (checksum != 14175) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_language_resolve` checksum `14175`, library returned `{checksum}`");
             }
         }
         {
@@ -6236,6 +6380,56 @@ class FfiConverterTypeHwHomeStatsSnapshot: FfiConverterRustBuffer<HwHomeStatsSna
             FfiConverterInt32.INSTANCE.Write(value.@typingSpeedWordsPerMinute, stream);
             FfiConverterInt32.INSTANCE.Write(value.@averageWordsPerMinute, stream);
             FfiConverterInt32.INSTANCE.Write(value.@savedThisWeekMinutes, stream);
+    }
+}
+
+
+
+/// <summary>
+/// One catalog row. `Hw`-prefixed for the usual reason: an unprefixed
+/// `Language` would land one namespace import away from the heads' own
+/// language types, and `LanguageInfo` is literally the name of the Windows
+/// class this replaces.
+/// </summary>
+/// <param name="code">
+/// The canonical BCP-47 tag.
+/// </param>
+/// <param name="display_name">
+/// The English display name, or `None` when the catalog does not know the
+/// code and the host has to localize it.
+/// </param>
+internal record HwLanguage (
+    /// <summary>
+    /// The canonical BCP-47 tag.
+    /// </summary>
+    string @code, 
+    /// <summary>
+    /// The English display name, or `None` when the catalog does not know the
+    /// code and the host has to localize it.
+    /// </summary>
+    string? @displayName
+) {
+}
+
+class FfiConverterTypeHwLanguage: FfiConverterRustBuffer<HwLanguage> {
+    public static FfiConverterTypeHwLanguage INSTANCE = new FfiConverterTypeHwLanguage();
+
+    public override HwLanguage Read(BigEndianStream stream) {
+        return new HwLanguage(
+            @code: FfiConverterString.INSTANCE.Read(stream),
+            @displayName: FfiConverterOptionalString.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwLanguage value) {
+        return 0
+            + FfiConverterString.INSTANCE.AllocationSize(value.@code)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@displayName);
+    }
+
+    public override void Write(HwLanguage value, BigEndianStream stream) {
+            FfiConverterString.INSTANCE.Write(value.@code, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@displayName, stream);
     }
 }
 
@@ -12102,6 +12296,37 @@ class FfiConverterOptionalTypeHwBlock: FfiConverterRustBuffer<HwBlock?> {
 
 
 
+class FfiConverterOptionalTypeHwLanguage: FfiConverterRustBuffer<HwLanguage?> {
+    public static FfiConverterOptionalTypeHwLanguage INSTANCE = new FfiConverterOptionalTypeHwLanguage();
+
+    public override HwLanguage? Read(BigEndianStream stream) {
+        if (stream.ReadByte() == 0) {
+            return null;
+        }
+        return FfiConverterTypeHwLanguage.INSTANCE.Read(stream);
+    }
+
+    public override int AllocationSize(HwLanguage? value) {
+        if (value == null) {
+            return 1;
+        } else {
+            return 1 + FfiConverterTypeHwLanguage.INSTANCE.AllocationSize((HwLanguage)value);
+        }
+    }
+
+    public override void Write(HwLanguage? value, BigEndianStream stream) {
+        if (value == null) {
+            stream.WriteByte(0);
+        } else {
+            stream.WriteByte(1);
+            FfiConverterTypeHwLanguage.INSTANCE.Write((HwLanguage)value, stream);
+        }
+    }
+}
+
+
+
+
 class FfiConverterOptionalTypeHwModeIdentity: FfiConverterRustBuffer<HwModeIdentity?> {
     public static FfiConverterOptionalTypeHwModeIdentity INSTANCE = new FfiConverterOptionalTypeHwModeIdentity();
 
@@ -12717,6 +12942,48 @@ class FfiConverterSequenceTypeHwBlock: FfiConverterRustBuffer<List<HwBlock>> {
 
         stream.WriteInt(value.Count);
         var writerFn = FfiConverterTypeHwBlock.INSTANCE.Write;
+        value.ForEach(item => writerFn(item, stream));
+    }
+}
+
+
+
+
+class FfiConverterSequenceTypeHwLanguage: FfiConverterRustBuffer<List<HwLanguage>> {
+    public static FfiConverterSequenceTypeHwLanguage INSTANCE = new FfiConverterSequenceTypeHwLanguage();
+
+    public override List<HwLanguage> Read(BigEndianStream stream) {
+        var length = stream.ReadInt();
+        var result = new List<HwLanguage>(length);
+        var readFn = FfiConverterTypeHwLanguage.INSTANCE.Read;
+        for (int i = 0; i < length; i++) {
+            result.Add(readFn(stream));
+        }
+        return result;
+    }
+
+    public override int AllocationSize(List<HwLanguage> value) {
+        var sizeForLength = 4;
+
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            return sizeForLength;
+        }
+
+        var allocationSizeFn = FfiConverterTypeHwLanguage.INSTANCE.AllocationSize;
+        var sizeForItems = value.Sum(item => allocationSizeFn(item));
+        return sizeForLength + sizeForItems;
+    }
+
+    public override void Write(List<HwLanguage> value, BigEndianStream stream) {
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            stream.WriteInt(0);
+            return;
+        }
+
+        stream.WriteInt(value.Count);
+        var writerFn = FfiConverterTypeHwLanguage.INSTANCE.Write;
         value.ForEach(item => writerFn(item, stream));
     }
 }
@@ -14448,6 +14715,111 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterBoolean.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_is_retryable(FfiConverterUInt16.INSTANCE.Lower(@status), FfiConverterString.INSTANCE.Lower(@body), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The whole catalog in picker order: `auto`, then the popular rows in their
+    /// declared order, then everything else alphabetically by display name.
+    /// </summary>
+    public static List<HwLanguage> LanguageAll() {
+        return FfiConverterSequenceTypeHwLanguage.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_language_all( ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The canonical tag to persist. A missing or empty code becomes `en`.
+    /// </summary>
+    public static string LanguageCanonicalCode(string? @code) {
+        return FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_language_canonical_code(FfiConverterOptionalString.INSTANCE.Lower(@code), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Canonicalize a BCP-47 tag: `en_gb` becomes `en-GB`, `ZH-HANT` becomes
+    /// `zh-Hant`, an empty tag becomes `auto`.
+    /// </summary>
+    public static string LanguageCanonicalize(string @code) {
+        return FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_language_canonicalize(FfiConverterString.INSTANCE.Lower(@code), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Look one code up. `None` means the catalog does not know it — canonicalize
+    /// it with [`language_canonicalize`] and localize it natively.
+    /// </summary>
+    public static HwLanguage? LanguageInfo(string @code) {
+        return FfiConverterOptionalTypeHwLanguage.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_language_info(FfiConverterString.INSTANCE.Lower(@code), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Whether a code means English. A missing code counts as English.
+    /// </summary>
+    public static bool LanguageIsEnglish(string? @code) {
+        return FfiConverterBoolean.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_language_is_english(FfiConverterOptionalString.INSTANCE.Lower(@code), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The 2-letter ISO 639 code, for the frameworks that refuse anything longer.
+    /// `auto` survives; a missing code becomes `en`.
+    /// </summary>
+    public static string LanguageNormalize(string? @code) {
+        return FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_language_normalize(FfiConverterOptionalString.INSTANCE.Lower(@code), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The codes the pickers float to the top, in the order they appear there.
+    /// </summary>
+    public static List<string> LanguagePopularCodes() {
+        return FfiConverterSequenceString.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_language_popular_codes( ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Move `auto` to the front of a list if it is present and not already there.
+    /// </summary>
+    public static List<HwLanguage> LanguagePrioritizeAutomatic(List<HwLanguage> @languages) {
+        return FfiConverterSequenceTypeHwLanguage.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_language_prioritize_automatic(FfiConverterSequenceTypeHwLanguage.INSTANCE.Lower(@languages), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Canonical rows for a provider's advertised code list, deduplicated, in the
+    /// order given. An unknown code keeps its canonical form and comes back with no
+    /// display name.
+    /// </summary>
+    public static List<HwLanguage> LanguageResolve(List<string> @codes) {
+        return FfiConverterSequenceTypeHwLanguage.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_language_resolve(FfiConverterSequenceString.INSTANCE.Lower(@codes), ref _status)
 ));
     }
 

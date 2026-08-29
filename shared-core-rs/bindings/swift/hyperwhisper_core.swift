@@ -2216,6 +2216,92 @@ public func FfiConverterTypeHwHomeStatsSnapshot_lower(_ value: HwHomeStatsSnapsh
 
 
 /**
+ * One catalog row. `Hw`-prefixed for the usual reason: an unprefixed
+ * `Language` would land one namespace import away from the heads' own
+ * language types, and `LanguageInfo` is literally the name of the Windows
+ * class this replaces.
+ */
+public struct HwLanguage {
+    /**
+     * The canonical BCP-47 tag.
+     */
+    public var code: String
+    /**
+     * The English display name, or `None` when the catalog does not know the
+     * code and the host has to localize it.
+     */
+    public var displayName: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The canonical BCP-47 tag.
+         */code: String, 
+        /**
+         * The English display name, or `None` when the catalog does not know the
+         * code and the host has to localize it.
+         */displayName: String?) {
+        self.code = code
+        self.displayName = displayName
+    }
+}
+
+
+
+extension HwLanguage: Equatable, Hashable {
+    public static func ==(lhs: HwLanguage, rhs: HwLanguage) -> Bool {
+        if lhs.code != rhs.code {
+            return false
+        }
+        if lhs.displayName != rhs.displayName {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(code)
+        hasher.combine(displayName)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwLanguage: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwLanguage {
+        return
+            try HwLanguage(
+                code: FfiConverterString.read(from: &buf), 
+                displayName: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwLanguage, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.code, into: &buf)
+        FfiConverterOptionString.write(value.displayName, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLanguage_lift(_ buf: RustBuffer) throws -> HwLanguage {
+    return try FfiConverterTypeHwLanguage.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLanguage_lower(_ value: HwLanguage) -> RustBuffer {
+    return FfiConverterTypeHwLanguage.lower(value)
+}
+
+
+/**
  * Language support for a model. Mirrors `hw_catalog::LanguageSupport` with the
  * `BTreeSet` flattened to a sorted `Vec`.
  */
@@ -11650,6 +11736,30 @@ fileprivate struct FfiConverterOptionTypeHwBlock: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeHwLanguage: FfiConverterRustBuffer {
+    typealias SwiftType = HwLanguage?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeHwLanguage.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeHwLanguage.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeHwModeIdentity: FfiConverterRustBuffer {
     typealias SwiftType = HwModeIdentity?
 
@@ -12101,6 +12211,31 @@ fileprivate struct FfiConverterSequenceTypeHwBlock: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeHwBlock.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeHwLanguage: FfiConverterRustBuffer {
+    typealias SwiftType = [HwLanguage]
+
+    public static func write(_ value: [HwLanguage], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeHwLanguage.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [HwLanguage] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [HwLanguage]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeHwLanguage.read(from: &buf))
         }
         return seq
     }
@@ -13445,6 +13580,100 @@ public func isRetryable(status: UInt16, body: String) -> Bool {
     uniffi_hyperwhisper_core_fn_func_is_retryable(
         FfiConverterUInt16.lower(status),
         FfiConverterString.lower(body),$0
+    )
+})
+}
+/**
+ * The whole catalog in picker order: `auto`, then the popular rows in their
+ * declared order, then everything else alphabetically by display name.
+ */
+public func languageAll() -> [HwLanguage] {
+    return try!  FfiConverterSequenceTypeHwLanguage.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_language_all($0
+    )
+})
+}
+/**
+ * The canonical tag to persist. A missing or empty code becomes `en`.
+ */
+public func languageCanonicalCode(code: String?) -> String {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_language_canonical_code(
+        FfiConverterOptionString.lower(code),$0
+    )
+})
+}
+/**
+ * Canonicalize a BCP-47 tag: `en_gb` becomes `en-GB`, `ZH-HANT` becomes
+ * `zh-Hant`, an empty tag becomes `auto`.
+ */
+public func languageCanonicalize(code: String) -> String {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_language_canonicalize(
+        FfiConverterString.lower(code),$0
+    )
+})
+}
+/**
+ * Look one code up. `None` means the catalog does not know it — canonicalize
+ * it with [`language_canonicalize`] and localize it natively.
+ */
+public func languageInfo(code: String) -> HwLanguage? {
+    return try!  FfiConverterOptionTypeHwLanguage.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_language_info(
+        FfiConverterString.lower(code),$0
+    )
+})
+}
+/**
+ * Whether a code means English. A missing code counts as English.
+ */
+public func languageIsEnglish(code: String?) -> Bool {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_language_is_english(
+        FfiConverterOptionString.lower(code),$0
+    )
+})
+}
+/**
+ * The 2-letter ISO 639 code, for the frameworks that refuse anything longer.
+ * `auto` survives; a missing code becomes `en`.
+ */
+public func languageNormalize(code: String?) -> String {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_language_normalize(
+        FfiConverterOptionString.lower(code),$0
+    )
+})
+}
+/**
+ * The codes the pickers float to the top, in the order they appear there.
+ */
+public func languagePopularCodes() -> [String] {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_language_popular_codes($0
+    )
+})
+}
+/**
+ * Move `auto` to the front of a list if it is present and not already there.
+ */
+public func languagePrioritizeAutomatic(languages: [HwLanguage]) -> [HwLanguage] {
+    return try!  FfiConverterSequenceTypeHwLanguage.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_language_prioritize_automatic(
+        FfiConverterSequenceTypeHwLanguage.lower(languages),$0
+    )
+})
+}
+/**
+ * Canonical rows for a provider's advertised code list, deduplicated, in the
+ * order given. An unknown code keeps its canonical form and comes back with no
+ * display name.
+ */
+public func languageResolve(codes: [String]) -> [HwLanguage] {
+    return try!  FfiConverterSequenceTypeHwLanguage.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_language_resolve(
+        FfiConverterSequenceString.lower(codes),$0
     )
 })
 }
@@ -15240,6 +15469,33 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_is_retryable() != 28969) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_language_all() != 11935) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_language_canonical_code() != 39544) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_language_canonicalize() != 34787) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_language_info() != 36720) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_language_is_english() != 14929) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_language_normalize() != 42903) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_language_popular_codes() != 52908) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_language_prioritize_automatic() != 29793) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_language_resolve() != 14175) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_license_build_validate_request() != 43498) {
