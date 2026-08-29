@@ -5,6 +5,7 @@
 
 import Foundation
 import Testing
+import os
 @testable import HyperWhisper
 
 // MARK: - Test doubles
@@ -28,20 +29,20 @@ private final class TestClock {
 /// A `HealthCheckHTTPClient` that never touches the network and counts the
 /// probes the manager sends. The count is what separates a cache hit (no probe)
 /// from a cache miss (one more probe).
+///
+/// `send` is an `async` requirement, so the counter uses
+/// `OSAllocatedUnfairLock` rather than `NSLock`: `NSLock.lock()` is marked
+/// unavailable from an asynchronous context and warns today, then fails to
+/// compile under the Swift 6 language mode.
 private final class CountingHealthCheckClient: HealthCheckHTTPClient {
-    private let lock = NSLock()
-    private var count = 0
+    private let count = OSAllocatedUnfairLock(initialState: 0)
 
     var sendCount: Int {
-        lock.lock()
-        defer { lock.unlock() }
-        return count
+        count.withLock { $0 }
     }
 
     func send(_ request: URLRequest) async throws -> (Data, URLResponse) {
-        lock.lock()
-        count += 1
-        lock.unlock()
+        count.withLock { $0 += 1 }
 
         let response = HTTPURLResponse(
             url: request.url ?? URL(string: "https://api.anthropic.com/v1/models")!,
@@ -59,13 +60,10 @@ private final class CountingHealthCheckClient: HealthCheckHTTPClient {
 /// The manager holds `apiKeyProvider` weakly, so each test keeps its own
 /// instance alive for the whole test body.
 private final class FixedKeyProvider: CloudProviderAPIKeyProviding {
-    private let lock = NSLock()
-    private var postProcessingReads = 0
+    private let postProcessingReads = OSAllocatedUnfairLock(initialState: 0)
 
     var postProcessingReadCount: Int {
-        lock.lock()
-        defer { lock.unlock() }
-        return postProcessingReads
+        postProcessingReads.withLock { $0 }
     }
 
     func apiKey(for provider: CloudProvider) -> String {
@@ -73,9 +71,7 @@ private final class FixedKeyProvider: CloudProviderAPIKeyProviding {
     }
 
     func postProcessingAPIKey(for provider: PostProcessingProvider) -> String {
-        lock.lock()
-        postProcessingReads += 1
-        lock.unlock()
+        postProcessingReads.withLock { $0 += 1 }
         return "sk-test-key-0123456789"
     }
 }
