@@ -288,7 +288,7 @@ final class CloudProviderHealthManager: ObservableObject {
 
         if !force,
            let record = postProcessingCache[provider],
-           Date().timeIntervalSince(record.timestamp) < cacheTTL,
+           now().timeIntervalSince(record.timestamp) < cacheTTL,
            record.status != .unknown {
             postProcessingStatuses[provider] = record.status
             return
