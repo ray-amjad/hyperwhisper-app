@@ -2,8 +2,35 @@
 //  LanguageData.swift
 //  hyperwhisper
 //
-//  Centralized language data for speech-to-text providers
-//  Defines supported language codes, display names, and helper APIs
+//  The macOS facade over the shared language catalog (issue #285).
+//
+//  The 126-row table, the BCP-47 canonicalizer and the alias map that used to
+//  live here are gone. They now live once, in Rust, at
+//  `shared-core-rs/crates/hw-catalog/src/language.rs`, reached through the
+//  UniFFI binding (`languageAll`, `languageInfo`, `languageCanonicalize`,
+//  `languageCanonicalCode`, `languageNormalize`, `languageIsEnglish`,
+//  `languageResolve`, `languagePopularCodes`, `languagePrioritizeAutomatic`).
+//  Windows reads the same rows, so a code stored by one platform now resolves
+//  on the other. `shared-conformance/language-vectors.json` pins the answers;
+//  `LanguageConformanceVectorTests` runs them through this type.
+//
+//  Every member below keeps the name, shape and behaviour its call sites
+//  already depend on. Two things did change for the user:
+//
+//  - `zh-TW` reads "Chinese (Traditional, Taiwan)" instead of "Chinese
+//    (Traditional)", which `zh-Hant` also said. The picker showed the same
+//    words twice and the tail of `allLanguages` is sorted by display name, so
+//    the duplicate also made that order depend on a hash map.
+//  - Lookups are canonical-then-case-insensitive for every code, so a stored
+//    `en_GB` or `zh-hant` resolves rather than falling through to the native
+//    fallback.
+//
+//  # What stays native
+//
+//  `fallbackDisplayName(for:)` only. A code the catalog does not know gets its
+//  name from `Locale.localizedString`, a system database the shared crate has
+//  no business carrying: the core returns `displayName == nil` and this file
+//  fills it in. That is the whole of the deliberate split.
 //
 
 import Foundation
@@ -19,195 +46,55 @@ struct LanguageData {
 
     static let automaticCode = "auto"
 
-    private static let baseLanguageTuples: [(code: String, name: String)] = [
-        // Popular languages (most commonly used)
-        ("en", "English"),
-        ("ja", "Japanese"),
-        ("es", "Spanish"),
-        ("zh", "Chinese"),
-        ("zh-TW", "Chinese (Traditional)"),
-        ("nl", "Dutch"),
-        ("hi", "Hindi"),
-        ("ru", "Russian"),
-        ("ko", "Korean"),
-        ("it", "Italian"),
-        ("uk", "Ukrainian"),
-        ("pl", "Polish"),
-        ("pt", "Portuguese"),
-        ("el", "Greek"),
-        ("cs", "Czech"),
-        ("sv", "Swedish"),
-        ("no", "Norwegian"),
-        ("da", "Danish"),
-        ("id", "Indonesian"),
+    /// All supported languages with display names in canonical order
+    ///
+    /// Cached: the order and the rows are fixed for the life of the process,
+    /// and SwiftUI re-reads this on every body evaluation of a language picker.
+    /// One crossing at first use, none after.
+    static let allLanguages: [LanguageInfo] = languageAll().map { info(from: $0) }
 
-        // Alphabetical list of ALL other Whisper-supported languages
-        ("af", "Afrikaans"),
-        ("sq", "Albanian"),
-        ("am", "Amharic"),
-        ("ar", "Arabic"),
-        ("hy", "Armenian"),
-        ("as", "Assamese"),
-        ("az", "Azerbaijani"),
-        ("ba", "Bashkir"),
-        ("eu", "Basque"),
-        ("be", "Belarusian"),
-        ("bn", "Bengali"),
-        ("bs", "Bosnian"),
-        ("br", "Breton"),
-        ("bg", "Bulgarian"),
-        ("yue", "Cantonese"),
-        ("ca", "Catalan"),
-        ("hr", "Croatian"),
-        ("et", "Estonian"),
-        ("fo", "Faroese"),
-        ("fi", "Finnish"),
-        ("fr", "French"),
-        ("gl", "Galician"),
-        ("ka", "Georgian"),
-        ("de", "German"),
-        ("gu", "Gujarati"),
-        ("ht", "Haitian"),
-        ("ha", "Hausa"),
-        ("haw", "Hawaiian"),
-        ("he", "Hebrew"),
-        ("hu", "Hungarian"),
-        ("is", "Icelandic"),
-        ("jw", "Javanese"),
-        ("kn", "Kannada"),
-        ("kk", "Kazakh"),
-        ("km", "Khmer"),
-        ("lo", "Lao"),
-        ("la", "Latin"),
-        ("lv", "Latvian"),
-        ("ln", "Lingala"),
-        ("lt", "Lithuanian"),
-        ("lb", "Luxembourgish"),
-        ("mk", "Macedonian"),
-        ("mg", "Malagasy"),
-        ("ms", "Malay"),
-        ("ml", "Malayalam"),
-        ("mt", "Maltese"),
-        ("mi", "Maori"),
-        ("mr", "Marathi"),
-        ("mn", "Mongolian"),
-        ("my", "Myanmar"),
-        ("ne", "Nepali"),
-        ("nn", "Nynorsk"),
-        ("oc", "Occitan"),
-        ("ps", "Pashto"),
-        ("fa", "Persian"),
-        ("pa", "Punjabi"),
-        ("ro", "Romanian"),
-        ("sa", "Sanskrit"),
-        ("sr", "Serbian"),
-        ("sn", "Shona"),
-        ("sd", "Sindhi"),
-        ("si", "Sinhala"),
-        ("sk", "Slovak"),
-        ("sl", "Slovenian"),
-        ("so", "Somali"),
-        ("su", "Sundanese"),
-        ("sw", "Swahili"),
-        ("tl", "Tagalog"),
-        ("tg", "Tajik"),
-        ("ta", "Tamil"),
-        ("tt", "Tatar"),
-        ("te", "Telugu"),
-        ("th", "Thai"),
-        ("bo", "Tibetan"),
-        ("tr", "Turkish"),
-        ("tk", "Turkmen"),
-        ("ur", "Urdu"),
-        ("uz", "Uzbek"),
-        ("vi", "Vietnamese"),
-        ("cy", "Welsh"),
-        ("yi", "Yiddish"),
-        ("yo", "Yoruba")
+    /// Popular languages that appear at the top of the list
+    static let popularLanguageCodes: [String] = languagePopularCodes()
+
+    /// The region and script variants that are in the catalog but not in the
+    /// Whisper universal set: `whisperUniversalCodes` is the catalog minus
+    /// these, which is exactly the row set both native lists carried before
+    /// #285 (`shared-conformance/language-vectors.json` marks them
+    /// `decision: "macos"`, and `LanguageConformanceVectorTests` asserts this
+    /// set still matches that bucket).
+    ///
+    /// `zh-TW` is deliberately absent: it is a variant tag, but Whisper has
+    /// always advertised it and it is one of the popular picker rows.
+    private static let regionalVariantCodes: Set<String> = [
+        "en-US", "en-GB", "en-AU", "en-IN", "en-NZ", "en-CA", "en-IE",
+        "es-419", "es-latam",
+        "pt-BR", "pt-PT",
+        "fr-CA", "da-DK", "sv-SE", "nl-BE", "de-CH", "ko-KR", "th-TH",
+        "zh-CN", "zh-Hans", "zh-Hant", "zh-HK",
+        "hi-Latn", "taq",
     ]
-
-    private static let baseLanguages: [LanguageInfo] = baseLanguageTuples.map { LanguageInfo(code: canonicalize($0.code), displayName: $0.name) }
 
     /// Language codes that Whisper and most providers support (includes "auto")
-    static let whisperUniversalCodes: [String] = [automaticCode] + baseLanguages.map { $0.code }
+    ///
+    /// Derived from the shared catalog rather than re-listed, and cached for
+    /// the same reason `allLanguages` is: it backs `STTLanguageTemplates`
+    /// and `LibraryLanguageFilter.allCodes`, both read per picker row.
+    static let whisperUniversalCodes: [String] = allLanguages
+        .map { $0.code }
+        .filter { !regionalVariantCodes.contains($0) }
 
-    /// Preferred display names for locale variants not covered in the base list
-    private static let preferredDisplayNames: [String: String] = [
-        automaticCode: "Automatic",
-        "en-US": "English (United States)",
-        "en-GB": "English (United Kingdom)",
-        "en-AU": "English (Australia)",
-        "en-IN": "English (India)",
-        "en-NZ": "English (New Zealand)",
-        "en-CA": "English (Canada)",
-        "en-IE": "English (Ireland)",
-        "es-419": "Spanish (Latin America)",
-        "es-LATAM": "Spanish (LatAm)",
-        "pt-BR": "Portuguese (Brazil)",
-        "pt-PT": "Portuguese (Portugal)",
-        "fr-CA": "French (Canada)",
-        "da-DK": "Danish (Denmark)",
-        "sv-SE": "Swedish (Sweden)",
-        "nl-BE": "Dutch (Belgium)",
-        "de-CH": "German (Switzerland)",
-        "ko-KR": "Korean (South Korea)",
-        "th-TH": "Thai (Thailand)",
-        "zh-CN": "Chinese (Simplified, China)",
-        "zh-Hans": "Chinese (Simplified)",
-        "zh-Hant": "Chinese (Traditional)",
-        "zh-HK": "Chinese (Hong Kong)",
-        "hi-Latn": "Hindi (Latin)",
-        "taq": "Tamasheq"
-    ]
-
-    private static let canonicalLanguageMap: [String: LanguageInfo] = {
-        var map: [String: LanguageInfo] = [:]
-
-        func insert(_ code: String, name: String) {
-            let canonical = canonicalize(code)
-            map[canonical] = LanguageInfo(code: canonical, displayName: name)
-        }
-
-        insert(automaticCode, name: "Automatic")
-        baseLanguages.forEach { map[$0.code] = $0 }
-        for (code, name) in preferredDisplayNames {
-            insert(code, name: name)
-        }
-        return map
-    }()
-
-    private static let aliasToCanonical: [String: String] = {
-        var map: [String: String] = [:]
-        for key in canonicalLanguageMap.keys {
-            map[key] = key
-            map[key.lowercased()] = key
-        }
-        return map
-    }()
-
-    /// All supported languages with display names in canonical order
-    static let allLanguages: [LanguageInfo] = {
-        var ordered: [LanguageInfo] = []
-
-        if let automatic = info(for: automaticCode) {
-            ordered.append(automatic)
-        }
-
-        var seen = Set(ordered.map { $0.code })
-        for popular in popularLanguageCodes {
-            if let info = info(for: popular), !seen.contains(info.code) {
-                ordered.append(info)
-                seen.insert(info.code)
-            }
-        }
-
-        // Append remaining languages alphabetically by display name
-        let remaining = canonicalLanguageMap.values.filter { !seen.contains($0.code) }
-            .sorted { $0.displayName < $1.displayName }
-        ordered.append(contentsOf: remaining)
-
-        return ordered
-    }()
+    /// Catalog rows by canonical code, for the per-row lookups the pickers do.
+    ///
+    /// `info(for:)` and `displayName(for:)` are called once per row while a
+    /// picker builds, so the common case — a code that is already canonical —
+    /// answers from this map with no FFI crossing at all. Anything else
+    /// (`en_GB`, `EN-GB`, a padded tag, a code outside the catalog) falls
+    /// through to `languageInfo(code:)`, which canonicalizes and does the
+    /// case-insensitive second pass in the core. The two paths cannot
+    /// disagree: the map is built from `languageAll()`, keyed by the codes the
+    /// core itself considers canonical.
+    private static let catalogByCode: [String: LanguageInfo] = Dictionary(
+        uniqueKeysWithValues: allLanguages.map { ($0.code, $0) })
 
     /// Get display name for a language code
     static func displayName(for code: String) -> String {
@@ -217,105 +104,54 @@ struct LanguageData {
 
         return fallbackDisplayName(for: code)
     }
-    
+
     /// Check if a language code represents English
     static func isEnglish(_ code: String?) -> Bool {
-        guard let code = code else { return true } // Default to English if nil
-        // Handle various English locale codes
-        return code == "en" || code == "en-US" || code == "en-GB" || code.hasPrefix("en-")
+        languageIsEnglish(code: code)
     }
-    
+
     /// Normalize a language code to 2-letter ISO 639 format
     /// This helps prevent issues with Apple frameworks that expect 2-letter codes
     /// - Parameter code: The language code to normalize (e.g., "en-GB", "en-US")
     /// - Returns: The normalized 2-letter code (e.g., "en")
     static func normalizeLanguageCode(_ code: String?) -> String {
-        guard let code = code else { return "en" }
-
-        // Handle special case for automatic detection
-        if canonicalize(code) == automaticCode { return automaticCode }
-        
-        // Extract the 2-letter language code from locale codes like "en-GB"
-        if code.contains("-") || code.contains("_") {
-            let components = canonicalize(code).split(separator: "-").map(String.init)
-            if let firstComponent = components.first {
-                return firstComponent.lowercased()
-            }
-        }
-
-        return code.lowercased()
-    }
-
-    /// Popular languages that appear at the top of the list
-    static let popularLanguageCodes = ["en", "ja", "es", "zh", "zh-TW", "nl", "hi", "ru", "ko", "it", "uk", "pl", "pt", "el", "cs", "sv", "no", "da", "id"]
-
-    /// Helper to canonicalize BCP-47 language tags (replace underscores, enforce casing)
-    private static func canonicalize(_ code: String) -> String {
-        let trimmed = code.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return automaticCode }
-
-        let normalized = trimmed.replacingOccurrences(of: "_", with: "-")
-        let parts = normalized.split(separator: "-")
-        guard !parts.isEmpty else { return normalized.lowercased() }
-
-        var canonicalParts: [String] = []
-        for (index, part) in parts.enumerated() {
-            if index == 0 {
-                canonicalParts.append(part.lowercased())
-            } else if part.count == 2 {
-                canonicalParts.append(part.uppercased())
-            } else if part.count == 4 {
-                canonicalParts.append(part.capitalized)
-            } else {
-                canonicalParts.append(part.lowercased())
-            }
-        }
-
-        return canonicalParts.joined(separator: "-")
+        languageNormalize(code: code)
     }
 
     /// Lookup canonical language info (if available)
     static func info(for code: String) -> LanguageInfo? {
-        let canonical = canonicalize(code)
-        if let key = aliasToCanonical[canonical] ?? aliasToCanonical[canonical.lowercased()] {
-            return canonicalLanguageMap[key]
+        if let cached = catalogByCode[code] {
+            return cached
         }
-        return nil
+        return languageInfo(code: code).map { info(from: $0) }
     }
 
     /// Return canonical codes + display names for a given list (deduplicated)
     static func languages(for codes: [String], context: String? = nil) -> [LanguageInfo] {
-        var seen = Set<String>()
-        return codes.compactMap { code in
-            let canonical = canonicalize(code)
-            guard !seen.contains(canonical) else { return nil }
-            seen.insert(canonical)
-
-            if let info = info(for: canonical) {
-                return info
+        languageResolve(codes: codes).map { language in
+            if let displayName = language.displayName {
+                return LanguageInfo(code: language.code, displayName: displayName)
             }
 
-            assertionFailure("Unknown language code \(canonical) encountered\(context.map { " in \($0)" } ?? "")")
-            return LanguageInfo(code: canonical, displayName: fallbackDisplayName(for: canonical))
+            // The core does not know the code, so there is no shared answer to
+            // read: name it from the system database and say so.
+            assertionFailure(
+                "Unknown language code \(language.code) encountered\(context.map { " in \($0)" } ?? "")")
+            return LanguageInfo(
+                code: language.code, displayName: fallbackDisplayName(for: language.code))
         }
     }
 
     /// Ensure "Automatic" stays at the top of picker lists
     static func prioritizeAutomatic(_ languages: [LanguageInfo]) -> [LanguageInfo] {
-        guard let index = languages.firstIndex(where: { $0.code == automaticCode }), index != 0 else {
-            return languages
-        }
-
-        var reordered = languages
-        let automatic = reordered.remove(at: index)
-        reordered.insert(automatic, at: 0)
-        return reordered
+        let ordered = languagePrioritizeAutomatic(
+            languages: languages.map { HwLanguage(code: $0.code, displayName: $0.displayName) })
+        return ordered.map { info(from: $0) }
     }
 
     /// Canonical BCP-47 language code for storage
     static func canonicalLanguageCode(_ code: String?) -> String {
-        guard let code = code, !code.isEmpty else { return "en" }
-        return canonicalize(code)
+        languageCanonicalCode(code: code)
     }
 
     /// Display tuple helper for pickers that still expect (code, name)
@@ -323,8 +159,16 @@ struct LanguageData {
         languages.map { ($0.code, $0.displayName) }
     }
 
+    /// A core row as the view-facing struct. A `nil` display name means the
+    /// catalog does not know the code; that is the native fallback's job.
+    private static func info(from language: HwLanguage) -> LanguageInfo {
+        LanguageInfo(
+            code: language.code,
+            displayName: language.displayName ?? fallbackDisplayName(for: language.code))
+    }
+
     private static func fallbackDisplayName(for code: String) -> String {
-        let canonical = canonicalize(code)
+        let canonical = languageCanonicalize(code: code)
 
         let locale = Locale(identifier: "en")
         if let localized = locale.localizedString(forIdentifier: canonical), !localized.isEmpty {

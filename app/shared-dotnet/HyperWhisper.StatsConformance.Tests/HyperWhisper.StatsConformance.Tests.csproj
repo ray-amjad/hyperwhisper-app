@@ -5,14 +5,12 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <IsPackable>false</IsPackable>
   </PropertyGroup>
 
-  <!-- HomeStatisticsCalculator calls the shared core now (issue #285), so this
-       harness P/Invokes the native library and has to have it next to the test
-       assembly. Linux CI's shared-dotnet sweep runs the harness without any
-       LD_LIBRARY_PATH, so the Content copy below is what makes it load. Same
-       resolution as HyperWhisper.PhoneticConformance.Tests. -->
+  <!-- This harness runs on two CI hosts (Linux CI's shared-dotnet sweep and
+       Windows CI), so the native library it loads has a different name and a
+       different cargo target directory on each. Same resolution as
+       HyperWhisper.PhoneticConformance.Tests. -->
   <PropertyGroup>
     <SharedCoreRoot>$(MSBuildThisFileDirectory)../../../shared-core-rs/target</SharedCoreRoot>
     <SharedCoreNativeLibrary Condition="$([MSBuild]::IsOSPlatform('Windows'))">$(SharedCoreRoot)/x86_64-pc-windows-msvc/release/hyperwhisper_core.dll</SharedCoreNativeLibrary>
@@ -21,7 +19,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../HyperWhisper.Statistics/HyperWhisper.Statistics.csproj" />
+    <ProjectReference Include="../HyperWhisper.SharedCore/HyperWhisper.SharedCore.csproj" />
+    <!-- The vectors are the cross-platform contract, not a fixture of this
+         project: Rust and Swift run the same file. -->
+    <Content Include="../../../shared-conformance/stats-vectors.json"
+             Link="stats-vectors.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="$(SharedCoreNativeLibrary)" Condition="Exists('$(SharedCoreNativeLibrary)')">
       <Link>%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -30,6 +32,6 @@
 
   <Target Name="EnsureSharedCoreNativeLibrary" BeforeTargets="Build">
     <Error Condition="!Exists('$(SharedCoreNativeLibrary)')"
-           Text="Build shared-core-rs in release mode before running the home statistics tests — expected $(SharedCoreNativeLibrary)." />
+           Text="Build shared-core-rs in release mode before running the home statistics conformance vectors — expected $(SharedCoreNativeLibrary)." />
   </Target>
 </Project>

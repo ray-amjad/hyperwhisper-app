@@ -431,6 +431,22 @@ fileprivate struct FfiConverterUInt32: FfiConverterPrimitive {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterInt32: FfiConverterPrimitive {
+    typealias FfiType = Int32
+    typealias SwiftType = Int32
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Int32 {
+        return try lift(readInt(&buf))
+    }
+
+    public static func write(_ value: Int32, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterUInt64: FfiConverterPrimitive {
     typealias FfiType = UInt64
     typealias SwiftType = UInt64
@@ -2068,6 +2084,224 @@ public func FfiConverterTypeHwEndpointVerdict_lower(_ value: HwEndpointVerdict) 
 
 
 /**
+ * Everything the three home strips render, plus the periods the statistics
+ * pages use. Mirrors `hw_stats::HomeStatsSnapshot`.
+ */
+public struct HwHomeStatsSnapshot {
+    public var thisWeek: HwPeriodStats
+    public var thisMonth: HwPeriodStats
+    public var thisYear: HwPeriodStats
+    public var allTime: HwPeriodStats
+    /**
+     * Echoed back so a head can render the gear menu without reading settings
+     * twice.
+     */
+    public var typingSpeedWordsPerMinute: Int32
+    /**
+     * The "avg WPM" column: the all-time figure, on all three heads.
+     */
+    public var averageWordsPerMinute: Int32
+    /**
+     * The "saved this week" column: rounded half away from zero, floored at 0,
+     * clamped to [`stats_saved_minutes_ceiling`].
+     */
+    public var savedThisWeekMinutes: Int32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(thisWeek: HwPeriodStats, thisMonth: HwPeriodStats, thisYear: HwPeriodStats, allTime: HwPeriodStats, 
+        /**
+         * Echoed back so a head can render the gear menu without reading settings
+         * twice.
+         */typingSpeedWordsPerMinute: Int32, 
+        /**
+         * The "avg WPM" column: the all-time figure, on all three heads.
+         */averageWordsPerMinute: Int32, 
+        /**
+         * The "saved this week" column: rounded half away from zero, floored at 0,
+         * clamped to [`stats_saved_minutes_ceiling`].
+         */savedThisWeekMinutes: Int32) {
+        self.thisWeek = thisWeek
+        self.thisMonth = thisMonth
+        self.thisYear = thisYear
+        self.allTime = allTime
+        self.typingSpeedWordsPerMinute = typingSpeedWordsPerMinute
+        self.averageWordsPerMinute = averageWordsPerMinute
+        self.savedThisWeekMinutes = savedThisWeekMinutes
+    }
+}
+
+
+
+extension HwHomeStatsSnapshot: Equatable, Hashable {
+    public static func ==(lhs: HwHomeStatsSnapshot, rhs: HwHomeStatsSnapshot) -> Bool {
+        if lhs.thisWeek != rhs.thisWeek {
+            return false
+        }
+        if lhs.thisMonth != rhs.thisMonth {
+            return false
+        }
+        if lhs.thisYear != rhs.thisYear {
+            return false
+        }
+        if lhs.allTime != rhs.allTime {
+            return false
+        }
+        if lhs.typingSpeedWordsPerMinute != rhs.typingSpeedWordsPerMinute {
+            return false
+        }
+        if lhs.averageWordsPerMinute != rhs.averageWordsPerMinute {
+            return false
+        }
+        if lhs.savedThisWeekMinutes != rhs.savedThisWeekMinutes {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(thisWeek)
+        hasher.combine(thisMonth)
+        hasher.combine(thisYear)
+        hasher.combine(allTime)
+        hasher.combine(typingSpeedWordsPerMinute)
+        hasher.combine(averageWordsPerMinute)
+        hasher.combine(savedThisWeekMinutes)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwHomeStatsSnapshot: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwHomeStatsSnapshot {
+        return
+            try HwHomeStatsSnapshot(
+                thisWeek: FfiConverterTypeHwPeriodStats.read(from: &buf), 
+                thisMonth: FfiConverterTypeHwPeriodStats.read(from: &buf), 
+                thisYear: FfiConverterTypeHwPeriodStats.read(from: &buf), 
+                allTime: FfiConverterTypeHwPeriodStats.read(from: &buf), 
+                typingSpeedWordsPerMinute: FfiConverterInt32.read(from: &buf), 
+                averageWordsPerMinute: FfiConverterInt32.read(from: &buf), 
+                savedThisWeekMinutes: FfiConverterInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwHomeStatsSnapshot, into buf: inout [UInt8]) {
+        FfiConverterTypeHwPeriodStats.write(value.thisWeek, into: &buf)
+        FfiConverterTypeHwPeriodStats.write(value.thisMonth, into: &buf)
+        FfiConverterTypeHwPeriodStats.write(value.thisYear, into: &buf)
+        FfiConverterTypeHwPeriodStats.write(value.allTime, into: &buf)
+        FfiConverterInt32.write(value.typingSpeedWordsPerMinute, into: &buf)
+        FfiConverterInt32.write(value.averageWordsPerMinute, into: &buf)
+        FfiConverterInt32.write(value.savedThisWeekMinutes, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwHomeStatsSnapshot_lift(_ buf: RustBuffer) throws -> HwHomeStatsSnapshot {
+    return try FfiConverterTypeHwHomeStatsSnapshot.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwHomeStatsSnapshot_lower(_ value: HwHomeStatsSnapshot) -> RustBuffer {
+    return FfiConverterTypeHwHomeStatsSnapshot.lower(value)
+}
+
+
+/**
+ * One catalog row. `Hw`-prefixed for the usual reason: an unprefixed
+ * `Language` would land one namespace import away from the heads' own
+ * language types, and `LanguageInfo` is literally the name of the Windows
+ * class this replaces.
+ */
+public struct HwLanguage {
+    /**
+     * The canonical BCP-47 tag.
+     */
+    public var code: String
+    /**
+     * The English display name, or `None` when the catalog does not know the
+     * code and the host has to localize it.
+     */
+    public var displayName: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The canonical BCP-47 tag.
+         */code: String, 
+        /**
+         * The English display name, or `None` when the catalog does not know the
+         * code and the host has to localize it.
+         */displayName: String?) {
+        self.code = code
+        self.displayName = displayName
+    }
+}
+
+
+
+extension HwLanguage: Equatable, Hashable {
+    public static func ==(lhs: HwLanguage, rhs: HwLanguage) -> Bool {
+        if lhs.code != rhs.code {
+            return false
+        }
+        if lhs.displayName != rhs.displayName {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(code)
+        hasher.combine(displayName)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwLanguage: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwLanguage {
+        return
+            try HwLanguage(
+                code: FfiConverterString.read(from: &buf), 
+                displayName: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwLanguage, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.code, into: &buf)
+        FfiConverterOptionString.write(value.displayName, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLanguage_lift(_ buf: RustBuffer) throws -> HwLanguage {
+    return try FfiConverterTypeHwLanguage.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLanguage_lower(_ value: HwLanguage) -> RustBuffer {
+    return FfiConverterTypeHwLanguage.lower(value)
+}
+
+
+/**
  * Language support for a model. Mirrors `hw_catalog::LanguageSupport` with the
  * `BTreeSet` flattened to a sorted `Vec`.
  */
@@ -3106,6 +3340,113 @@ public func FfiConverterTypeHwNoSpeechInput_lift(_ buf: RustBuffer) throws -> Hw
 #endif
 public func FfiConverterTypeHwNoSpeechInput_lower(_ value: HwNoSpeechInput) -> RustBuffer {
     return FfiConverterTypeHwNoSpeechInput.lower(value)
+}
+
+
+/**
+ * One period's totals and derived figures. Mirrors `hw_stats::PeriodStats`.
+ */
+public struct HwPeriodStats {
+    /**
+     * Saturating sum of the rows' word counts.
+     */
+    public var wordCount: UInt32
+    public var durationSeconds: Double
+    public var averageWordsPerMinute: Int32
+    public var estimatedTypingMinutes: Double
+    /**
+     * Floored at 0 but NOT clamped — the one-week ceiling applies to
+     * [`HwHomeStatsSnapshot::saved_this_week_minutes`] only.
+     */
+    public var estimatedTimeSavedMinutes: Double
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Saturating sum of the rows' word counts.
+         */wordCount: UInt32, durationSeconds: Double, averageWordsPerMinute: Int32, estimatedTypingMinutes: Double, 
+        /**
+         * Floored at 0 but NOT clamped — the one-week ceiling applies to
+         * [`HwHomeStatsSnapshot::saved_this_week_minutes`] only.
+         */estimatedTimeSavedMinutes: Double) {
+        self.wordCount = wordCount
+        self.durationSeconds = durationSeconds
+        self.averageWordsPerMinute = averageWordsPerMinute
+        self.estimatedTypingMinutes = estimatedTypingMinutes
+        self.estimatedTimeSavedMinutes = estimatedTimeSavedMinutes
+    }
+}
+
+
+
+extension HwPeriodStats: Equatable, Hashable {
+    public static func ==(lhs: HwPeriodStats, rhs: HwPeriodStats) -> Bool {
+        if lhs.wordCount != rhs.wordCount {
+            return false
+        }
+        if lhs.durationSeconds != rhs.durationSeconds {
+            return false
+        }
+        if lhs.averageWordsPerMinute != rhs.averageWordsPerMinute {
+            return false
+        }
+        if lhs.estimatedTypingMinutes != rhs.estimatedTypingMinutes {
+            return false
+        }
+        if lhs.estimatedTimeSavedMinutes != rhs.estimatedTimeSavedMinutes {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(wordCount)
+        hasher.combine(durationSeconds)
+        hasher.combine(averageWordsPerMinute)
+        hasher.combine(estimatedTypingMinutes)
+        hasher.combine(estimatedTimeSavedMinutes)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwPeriodStats: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwPeriodStats {
+        return
+            try HwPeriodStats(
+                wordCount: FfiConverterUInt32.read(from: &buf), 
+                durationSeconds: FfiConverterDouble.read(from: &buf), 
+                averageWordsPerMinute: FfiConverterInt32.read(from: &buf), 
+                estimatedTypingMinutes: FfiConverterDouble.read(from: &buf), 
+                estimatedTimeSavedMinutes: FfiConverterDouble.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwPeriodStats, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.wordCount, into: &buf)
+        FfiConverterDouble.write(value.durationSeconds, into: &buf)
+        FfiConverterInt32.write(value.averageWordsPerMinute, into: &buf)
+        FfiConverterDouble.write(value.estimatedTypingMinutes, into: &buf)
+        FfiConverterDouble.write(value.estimatedTimeSavedMinutes, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwPeriodStats_lift(_ buf: RustBuffer) throws -> HwPeriodStats {
+    return try FfiConverterTypeHwPeriodStats.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwPeriodStats_lower(_ value: HwPeriodStats) -> RustBuffer {
+    return FfiConverterTypeHwPeriodStats.lower(value)
 }
 
 
@@ -4198,6 +4539,129 @@ public func FfiConverterTypeHwSignalAccumulation_lift(_ buf: RustBuffer) throws 
 #endif
 public func FfiConverterTypeHwSignalAccumulation_lower(_ value: HwSignalAccumulation) -> RustBuffer {
     return FfiConverterTypeHwSignalAccumulation.lower(value)
+}
+
+
+/**
+ * One persisted transcript, projected down to what the statistics need.
+ */
+public struct HwStatsTranscript {
+    /**
+     * The row's instant **already shifted into the calendar time zone**,
+     * as seconds since the Unix epoch.
+     *
+     * The host owns this conversion because the host owns the time-zone
+     * database: `TimeZoneInfo.ConvertTime(row.CreatedAt, tz)` on .NET,
+     * `date.timeIntervalSince1970 + TimeZone.current.secondsFromGMT(for: date)`
+     * on Swift. Doing it per row is what keeps DST correct. Every calendar
+     * boundary above it — Monday, the 1st, January 1st — is computed in Rust.
+     */
+    public var createdAtLocalEpochSeconds: Int64
+    /**
+     * Counted by the host from the full text. Word counting stays native:
+     * there is no persisted count on any of the three stores, and the two
+     * native implementations already agree (#285).
+     */
+    public var wordCount: UInt32
+    /**
+     * Spoken seconds, as stored. Not trusted — a non-finite or negative value
+     * is normalised to 0 rather than rejected.
+     */
+    public var durationSeconds: Double
+    public var status: HwTranscriptStatus
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The row's instant **already shifted into the calendar time zone**,
+         * as seconds since the Unix epoch.
+         *
+         * The host owns this conversion because the host owns the time-zone
+         * database: `TimeZoneInfo.ConvertTime(row.CreatedAt, tz)` on .NET,
+         * `date.timeIntervalSince1970 + TimeZone.current.secondsFromGMT(for: date)`
+         * on Swift. Doing it per row is what keeps DST correct. Every calendar
+         * boundary above it — Monday, the 1st, January 1st — is computed in Rust.
+         */createdAtLocalEpochSeconds: Int64, 
+        /**
+         * Counted by the host from the full text. Word counting stays native:
+         * there is no persisted count on any of the three stores, and the two
+         * native implementations already agree (#285).
+         */wordCount: UInt32, 
+        /**
+         * Spoken seconds, as stored. Not trusted — a non-finite or negative value
+         * is normalised to 0 rather than rejected.
+         */durationSeconds: Double, status: HwTranscriptStatus) {
+        self.createdAtLocalEpochSeconds = createdAtLocalEpochSeconds
+        self.wordCount = wordCount
+        self.durationSeconds = durationSeconds
+        self.status = status
+    }
+}
+
+
+
+extension HwStatsTranscript: Equatable, Hashable {
+    public static func ==(lhs: HwStatsTranscript, rhs: HwStatsTranscript) -> Bool {
+        if lhs.createdAtLocalEpochSeconds != rhs.createdAtLocalEpochSeconds {
+            return false
+        }
+        if lhs.wordCount != rhs.wordCount {
+            return false
+        }
+        if lhs.durationSeconds != rhs.durationSeconds {
+            return false
+        }
+        if lhs.status != rhs.status {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(createdAtLocalEpochSeconds)
+        hasher.combine(wordCount)
+        hasher.combine(durationSeconds)
+        hasher.combine(status)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwStatsTranscript: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwStatsTranscript {
+        return
+            try HwStatsTranscript(
+                createdAtLocalEpochSeconds: FfiConverterInt64.read(from: &buf), 
+                wordCount: FfiConverterUInt32.read(from: &buf), 
+                durationSeconds: FfiConverterDouble.read(from: &buf), 
+                status: FfiConverterTypeHwTranscriptStatus.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwStatsTranscript, into buf: inout [UInt8]) {
+        FfiConverterInt64.write(value.createdAtLocalEpochSeconds, into: &buf)
+        FfiConverterUInt32.write(value.wordCount, into: &buf)
+        FfiConverterDouble.write(value.durationSeconds, into: &buf)
+        FfiConverterTypeHwTranscriptStatus.write(value.status, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwStatsTranscript_lift(_ buf: RustBuffer) throws -> HwStatsTranscript {
+    return try FfiConverterTypeHwStatsTranscript.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwStatsTranscript_lower(_ value: HwStatsTranscript) -> RustBuffer {
+    return FfiConverterTypeHwStatsTranscript.lower(value)
 }
 
 
@@ -10493,6 +10957,84 @@ extension HwPttTimerAction: Equatable, Hashable {}
 
 
 
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * The persisted status of a transcript row. Mirrors
+ * `hw_stats::TranscriptStatus`.
+ *
+ * The host maps its own status column onto this and hands over everything;
+ * the completed-only filter is applied on this side, once.
+ */
+
+public enum HwTranscriptStatus {
+    
+    case processing
+    case completed
+    case failed
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwTranscriptStatus: FfiConverterRustBuffer {
+    typealias SwiftType = HwTranscriptStatus
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwTranscriptStatus {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .processing
+        
+        case 2: return .completed
+        
+        case 3: return .failed
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: HwTranscriptStatus, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .processing:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .completed:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .failed:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwTranscriptStatus_lift(_ buf: RustBuffer) throws -> HwTranscriptStatus {
+    return try FfiConverterTypeHwTranscriptStatus.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwTranscriptStatus_lower(_ value: HwTranscriptStatus) -> RustBuffer {
+    return FfiConverterTypeHwTranscriptStatus.lower(value)
+}
+
+
+
+extension HwTranscriptStatus: Equatable, Hashable {}
+
+
+
 
 /**
  * Normalized transcription failures. Mirrors `hw_net::TranscriptionError` as a
@@ -11194,6 +11736,30 @@ fileprivate struct FfiConverterOptionTypeHwBlock: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeHwLanguage: FfiConverterRustBuffer {
+    typealias SwiftType = HwLanguage?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeHwLanguage.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeHwLanguage.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeHwModeIdentity: FfiConverterRustBuffer {
     typealias SwiftType = HwModeIdentity?
 
@@ -11653,6 +12219,31 @@ fileprivate struct FfiConverterSequenceTypeHwBlock: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeHwLanguage: FfiConverterRustBuffer {
+    typealias SwiftType = [HwLanguage]
+
+    public static func write(_ value: [HwLanguage], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeHwLanguage.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [HwLanguage] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [HwLanguage]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeHwLanguage.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeHwLiveFrame: FfiConverterRustBuffer {
     typealias SwiftType = [HwLiveFrame]
 
@@ -11745,6 +12336,31 @@ fileprivate struct FfiConverterSequenceTypeHwRun: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeHwRun.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeHwStatsTranscript: FfiConverterRustBuffer {
+    typealias SwiftType = [HwStatsTranscript]
+
+    public static func write(_ value: [HwStatsTranscript], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeHwStatsTranscript.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [HwStatsTranscript] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [HwStatsTranscript]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeHwStatsTranscript.read(from: &buf))
         }
         return seq
     }
@@ -12964,6 +13580,100 @@ public func isRetryable(status: UInt16, body: String) -> Bool {
     uniffi_hyperwhisper_core_fn_func_is_retryable(
         FfiConverterUInt16.lower(status),
         FfiConverterString.lower(body),$0
+    )
+})
+}
+/**
+ * The whole catalog in picker order: `auto`, then the popular rows in their
+ * declared order, then everything else alphabetically by display name.
+ */
+public func languageAll() -> [HwLanguage] {
+    return try!  FfiConverterSequenceTypeHwLanguage.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_language_all($0
+    )
+})
+}
+/**
+ * The canonical tag to persist. A missing or empty code becomes `en`.
+ */
+public func languageCanonicalCode(code: String?) -> String {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_language_canonical_code(
+        FfiConverterOptionString.lower(code),$0
+    )
+})
+}
+/**
+ * Canonicalize a BCP-47 tag: `en_gb` becomes `en-GB`, `ZH-HANT` becomes
+ * `zh-Hant`, an empty tag becomes `auto`.
+ */
+public func languageCanonicalize(code: String) -> String {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_language_canonicalize(
+        FfiConverterString.lower(code),$0
+    )
+})
+}
+/**
+ * Look one code up. `None` means the catalog does not know it — canonicalize
+ * it with [`language_canonicalize`] and localize it natively.
+ */
+public func languageInfo(code: String) -> HwLanguage? {
+    return try!  FfiConverterOptionTypeHwLanguage.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_language_info(
+        FfiConverterString.lower(code),$0
+    )
+})
+}
+/**
+ * Whether a code means English. A missing code counts as English.
+ */
+public func languageIsEnglish(code: String?) -> Bool {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_language_is_english(
+        FfiConverterOptionString.lower(code),$0
+    )
+})
+}
+/**
+ * The 2-letter ISO 639 code, for the frameworks that refuse anything longer.
+ * `auto` survives; a missing code becomes `en`.
+ */
+public func languageNormalize(code: String?) -> String {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_language_normalize(
+        FfiConverterOptionString.lower(code),$0
+    )
+})
+}
+/**
+ * The codes the pickers float to the top, in the order they appear there.
+ */
+public func languagePopularCodes() -> [String] {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_language_popular_codes($0
+    )
+})
+}
+/**
+ * Move `auto` to the front of a list if it is present and not already there.
+ */
+public func languagePrioritizeAutomatic(languages: [HwLanguage]) -> [HwLanguage] {
+    return try!  FfiConverterSequenceTypeHwLanguage.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_language_prioritize_automatic(
+        FfiConverterSequenceTypeHwLanguage.lower(languages),$0
+    )
+})
+}
+/**
+ * Canonical rows for a provider's advertised code list, deduplicated, in the
+ * order given. An unknown code keeps its canonical form and comes back with no
+ * display name.
+ */
+public func languageResolve(codes: [String]) -> [HwLanguage] {
+    return try!  FfiConverterSequenceTypeHwLanguage.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_language_resolve(
+        FfiConverterSequenceString.lower(codes),$0
     )
 })
 }
@@ -14337,6 +15047,38 @@ public func sonioxParseUploadResponse(resp: HttpResponse)throws  -> String {
 })
 }
 /**
+ * Calculate every home statistic from the host's transcript rows.
+ *
+ * `now_local_epoch_seconds` is "now" in the same shifted coordinate as the
+ * rows. A `typing_speed_words_per_minute` of 0 or less zeroes the saving
+ * figures instead of failing — an unset setting is not an error.
+ *
+ * This call is total: there is no error case, and no input can panic.
+ */
+public func statsCalculateHome(transcripts: [HwStatsTranscript], typingSpeedWordsPerMinute: Int32, nowLocalEpochSeconds: Int64) -> HwHomeStatsSnapshot {
+    return try!  FfiConverterTypeHwHomeStatsSnapshot.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_stats_calculate_home(
+        FfiConverterSequenceTypeHwStatsTranscript.lower(transcripts),
+        FfiConverterInt32.lower(typingSpeedWordsPerMinute),
+        FfiConverterInt64.lower(nowLocalEpochSeconds),$0
+    )
+})
+}
+/**
+ * The ceiling the displayed "saved this week" figure is clamped to: one week
+ * of minutes.
+ *
+ * Exported so a head can assert against it rather than restate `7 * 24 * 60`,
+ * which is exactly how the constant drifted onto two platforms and off the
+ * third.
+ */
+public func statsSavedMinutesCeiling() -> Int32 {
+    return try!  FfiConverterInt32.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_stats_saved_minutes_ceiling($0
+    )
+})
+}
+/**
  * Lenient wrapper handling for plain transcription text: extract wrapped content
  * if present, else return the text (stray end-tags stripped). For raw-transcript
  * sites where the strict `extract_cleaned_from_wrapped` would wipe a valid result.
@@ -14729,6 +15471,33 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_is_retryable() != 28969) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_hyperwhisper_core_checksum_func_language_all() != 11935) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_language_canonical_code() != 39544) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_language_canonicalize() != 34787) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_language_info() != 36720) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_language_is_english() != 14929) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_language_normalize() != 42903) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_language_popular_codes() != 52908) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_language_prioritize_automatic() != 29793) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_language_resolve() != 14175) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_hyperwhisper_core_checksum_func_license_build_validate_request() != 43498) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -15093,6 +15862,12 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_soniox_parse_upload_response() != 49331) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_stats_calculate_home() != 7331) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_stats_saved_minutes_ceiling() != 6847) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_strip_wrapper_markers() != 55122) {

@@ -48,6 +48,10 @@ pub mod ffi_phonetic;
 mod ffi_prompt;
 // The appcast release-notes HTML parser, shared by macOS and Windows (#284).
 mod ffi_releasenotes;
+// The home statistics formulas, shared by all three heads (#285). Public for
+// the same reason as `ffi_catalog`: `tests/stats_vectors.rs` drives these
+// functions directly.
+pub mod ffi_stats;
 
 // ===========================================================================
 // hw-text (Milestone 1): pure text logic. Thin wrappers over the dep-free

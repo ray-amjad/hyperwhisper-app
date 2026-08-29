@@ -220,13 +220,20 @@ public sealed class CloudSttCatalog
         => string.IsNullOrEmpty(id) ? null : HyperwhisperCoreMethods.CloudSttLanguageCodes(id)?.ToArray();
 
     /// <summary>
-    /// The tier's supported languages normalized to the two-letter base codes the
-    /// language picker (<c>LanguageInfo.AllLanguages</c>) uses, or null when the
-    /// catalog leaves the set unspecified (<c>"unverified"</c>) so the caller falls
-    /// back to the full list. The fold itself — primary subtag, the ISO-639-2/3
-    /// map, the <c>nb</c>/<c>iw</c>/<c>jv</c> picker aliases, dedup, and the
-    /// always-present <c>"auto"</c> — lives in the Rust core, so macOS and Windows
-    /// cannot answer differently.
+    /// The tier's supported languages normalized to two-letter base codes, or
+    /// null when the catalog leaves the set unspecified (<c>"unverified"</c>) so
+    /// the caller falls back to the full list. The fold itself — primary subtag,
+    /// the ISO-639-2/3 map, the <c>nb</c>/<c>iw</c>/<c>jv</c> picker aliases,
+    /// dedup, and the always-present <c>"auto"</c> — lives in the Rust core, so
+    /// macOS and Windows cannot answer differently.
+    ///
+    /// <para>Note that this stayed two-letter-only while the picker
+    /// (<c>LanguageInfo.AllLanguages</c>) did not: since issue #285 the picker
+    /// also carries region and script rows (<c>en-GB</c>, <c>pt-BR</c>,
+    /// <c>zh-Hant</c>), and none of them is in this set. Intersecting against it
+    /// therefore hides every variant row on a tier with a verified language set.
+    /// That errs safe — it never offers a language the tier cannot do — but it
+    /// is why a HW Cloud tier shows fewer languages than a BYOK one.</para>
     /// </summary>
     public HashSet<string>? PickerLanguageCodesForId(string? id)
     {

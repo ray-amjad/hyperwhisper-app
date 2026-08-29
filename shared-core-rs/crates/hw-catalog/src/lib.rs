@@ -11,6 +11,21 @@ mod cloud_pp;
 mod cloud_stt;
 // Legacy cloud-STT model-id aliases (ported from the Windows dictionaries).
 mod model_alias;
+// The language catalog: BCP-47 canonicalization, the alias map and the one
+// reconciled row set (#285).
+//
+// The three panic-free lints are applied HERE rather than in the package's
+// Cargo.toml, because a package-level table would also cover the four older
+// modules above and this change is not the place to audit them. The reason they
+// apply to this module: it is on the picker's build path on every head, and the
+// workspace release profile sets `panic = "abort"`, so an out-of-range index
+// here is the settings window failing to open rather than a wrong list.
+#[deny(
+    clippy::indexing_slicing,
+    clippy::unwrap_used,
+    clippy::expect_used
+)]
+mod language;
 
 pub use models::{CatalogError, Entry, Kind, LanguageSupport, ModelsCatalog};
 
@@ -28,6 +43,12 @@ pub use model_alias::{
 
 pub use app_type::{
     is_webmail, AppClassification, AppType, AppTypeClassifier, AppTypeError, ClassifyRequest,
+};
+
+pub use language::{
+    all_languages, canonical_language_code, canonicalize as canonicalize_language_code, info,
+    is_english, normalize_language_code, prioritize_automatic, resolve as resolve_languages,
+    Language, AUTOMATIC_CODE, POPULAR_CODES,
 };
 
 /// Per-model metadata catalog, from `shared-models/models-catalog.json`.

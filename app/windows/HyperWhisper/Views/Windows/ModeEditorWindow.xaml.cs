@@ -2462,7 +2462,7 @@ public partial class ModeEditorWindow : Window
     /// <summary>
     /// Filters the language dropdown based on the selected model.
     /// Parakeet v3 shows only its supported languages + Automatic.
-    /// Whisper / Cloud restores the full 101-language list.
+    /// Whisper / Cloud restores the full 126-language list.
     /// English-only models are handled separately by AutoSelectEnglishForModel.
     /// </summary>
     private void UpdateLanguagesForSelectedModel()

@@ -1,0 +1,839 @@
+{
+  "description": "Golden language-catalog vectors (issue #285). Generated from hw-catalog by `cargo test -p hw-core --test language_vectors -- --ignored regenerate`. `catalog` is every row in picker order with a `decision` field: both / macos / renamed — `macos` rows are the ones the Windows picker GAINS, `renamed` rows change what the user reads. A null `displayName` in `lookupCases` means the catalog does not know the code and the host localizes it with its own system database.",
+  "popularCodes": [
+    "en",
+    "ja",
+    "es",
+    "zh",
+    "zh-TW",
+    "nl",
+    "hi",
+    "ru",
+    "ko",
+    "it",
+    "uk",
+    "pl",
+    "pt",
+    "el",
+    "cs",
+    "sv",
+    "no",
+    "da",
+    "id"
+  ],
+  "catalog": [
+    {
+      "code": "auto",
+      "displayName": "Automatic",
+      "decision": "both"
+    },
+    {
+      "code": "en",
+      "displayName": "English",
+      "decision": "both"
+    },
+    {
+      "code": "ja",
+      "displayName": "Japanese",
+      "decision": "both"
+    },
+    {
+      "code": "es",
+      "displayName": "Spanish",
+      "decision": "both"
+    },
+    {
+      "code": "zh",
+      "displayName": "Chinese",
+      "decision": "both"
+    },
+    {
+      "code": "zh-TW",
+      "displayName": "Chinese (Traditional, Taiwan)",
+      "decision": "renamed"
+    },
+    {
+      "code": "nl",
+      "displayName": "Dutch",
+      "decision": "both"
+    },
+    {
+      "code": "hi",
+      "displayName": "Hindi",
+      "decision": "both"
+    },
+    {
+      "code": "ru",
+      "displayName": "Russian",
+      "decision": "both"
+    },
+    {
+      "code": "ko",
+      "displayName": "Korean",
+      "decision": "both"
+    },
+    {
+      "code": "it",
+      "displayName": "Italian",
+      "decision": "both"
+    },
+    {
+      "code": "uk",
+      "displayName": "Ukrainian",
+      "decision": "both"
+    },
+    {
+      "code": "pl",
+      "displayName": "Polish",
+      "decision": "both"
+    },
+    {
+      "code": "pt",
+      "displayName": "Portuguese",
+      "decision": "both"
+    },
+    {
+      "code": "el",
+      "displayName": "Greek",
+      "decision": "both"
+    },
+    {
+      "code": "cs",
+      "displayName": "Czech",
+      "decision": "both"
+    },
+    {
+      "code": "sv",
+      "displayName": "Swedish",
+      "decision": "both"
+    },
+    {
+      "code": "no",
+      "displayName": "Norwegian",
+      "decision": "both"
+    },
+    {
+      "code": "da",
+      "displayName": "Danish",
+      "decision": "both"
+    },
+    {
+      "code": "id",
+      "displayName": "Indonesian",
+      "decision": "both"
+    },
+    {
+      "code": "af",
+      "displayName": "Afrikaans",
+      "decision": "both"
+    },
+    {
+      "code": "sq",
+      "displayName": "Albanian",
+      "decision": "both"
+    },
+    {
+      "code": "am",
+      "displayName": "Amharic",
+      "decision": "both"
+    },
+    {
+      "code": "ar",
+      "displayName": "Arabic",
+      "decision": "both"
+    },
+    {
+      "code": "hy",
+      "displayName": "Armenian",
+      "decision": "both"
+    },
+    {
+      "code": "as",
+      "displayName": "Assamese",
+      "decision": "both"
+    },
+    {
+      "code": "az",
+      "displayName": "Azerbaijani",
+      "decision": "both"
+    },
+    {
+      "code": "ba",
+      "displayName": "Bashkir",
+      "decision": "both"
+    },
+    {
+      "code": "eu",
+      "displayName": "Basque",
+      "decision": "both"
+    },
+    {
+      "code": "be",
+      "displayName": "Belarusian",
+      "decision": "both"
+    },
+    {
+      "code": "bn",
+      "displayName": "Bengali",
+      "decision": "both"
+    },
+    {
+      "code": "bs",
+      "displayName": "Bosnian",
+      "decision": "both"
+    },
+    {
+      "code": "br",
+      "displayName": "Breton",
+      "decision": "both"
+    },
+    {
+      "code": "bg",
+      "displayName": "Bulgarian",
+      "decision": "both"
+    },
+    {
+      "code": "yue",
+      "displayName": "Cantonese",
+      "decision": "both"
+    },
+    {
+      "code": "ca",
+      "displayName": "Catalan",
+      "decision": "both"
+    },
+    {
+      "code": "zh-HK",
+      "displayName": "Chinese (Hong Kong)",
+      "decision": "macos"
+    },
+    {
+      "code": "zh-Hans",
+      "displayName": "Chinese (Simplified)",
+      "decision": "macos"
+    },
+    {
+      "code": "zh-CN",
+      "displayName": "Chinese (Simplified, China)",
+      "decision": "macos"
+    },
+    {
+      "code": "zh-Hant",
+      "displayName": "Chinese (Traditional)",
+      "decision": "macos"
+    },
+    {
+      "code": "hr",
+      "displayName": "Croatian",
+      "decision": "both"
+    },
+    {
+      "code": "da-DK",
+      "displayName": "Danish (Denmark)",
+      "decision": "macos"
+    },
+    {
+      "code": "nl-BE",
+      "displayName": "Dutch (Belgium)",
+      "decision": "macos"
+    },
+    {
+      "code": "en-AU",
+      "displayName": "English (Australia)",
+      "decision": "macos"
+    },
+    {
+      "code": "en-CA",
+      "displayName": "English (Canada)",
+      "decision": "macos"
+    },
+    {
+      "code": "en-IN",
+      "displayName": "English (India)",
+      "decision": "macos"
+    },
+    {
+      "code": "en-IE",
+      "displayName": "English (Ireland)",
+      "decision": "macos"
+    },
+    {
+      "code": "en-NZ",
+      "displayName": "English (New Zealand)",
+      "decision": "macos"
+    },
+    {
+      "code": "en-GB",
+      "displayName": "English (United Kingdom)",
+      "decision": "macos"
+    },
+    {
+      "code": "en-US",
+      "displayName": "English (United States)",
+      "decision": "macos"
+    },
+    {
+      "code": "et",
+      "displayName": "Estonian",
+      "decision": "both"
+    },
+    {
+      "code": "fo",
+      "displayName": "Faroese",
+      "decision": "both"
+    },
+    {
+      "code": "fi",
+      "displayName": "Finnish",
+      "decision": "both"
+    },
+    {
+      "code": "fr",
+      "displayName": "French",
+      "decision": "both"
+    },
+    {
+      "code": "fr-CA",
+      "displayName": "French (Canada)",
+      "decision": "macos"
+    },
+    {
+      "code": "gl",
+      "displayName": "Galician",
+      "decision": "both"
+    },
+    {
+      "code": "ka",
+      "displayName": "Georgian",
+      "decision": "both"
+    },
+    {
+      "code": "de",
+      "displayName": "German",
+      "decision": "both"
+    },
+    {
+      "code": "de-CH",
+      "displayName": "German (Switzerland)",
+      "decision": "macos"
+    },
+    {
+      "code": "gu",
+      "displayName": "Gujarati",
+      "decision": "both"
+    },
+    {
+      "code": "ht",
+      "displayName": "Haitian",
+      "decision": "both"
+    },
+    {
+      "code": "ha",
+      "displayName": "Hausa",
+      "decision": "both"
+    },
+    {
+      "code": "haw",
+      "displayName": "Hawaiian",
+      "decision": "both"
+    },
+    {
+      "code": "he",
+      "displayName": "Hebrew",
+      "decision": "both"
+    },
+    {
+      "code": "hi-Latn",
+      "displayName": "Hindi (Latin)",
+      "decision": "macos"
+    },
+    {
+      "code": "hu",
+      "displayName": "Hungarian",
+      "decision": "both"
+    },
+    {
+      "code": "is",
+      "displayName": "Icelandic",
+      "decision": "both"
+    },
+    {
+      "code": "jw",
+      "displayName": "Javanese",
+      "decision": "both"
+    },
+    {
+      "code": "kn",
+      "displayName": "Kannada",
+      "decision": "both"
+    },
+    {
+      "code": "kk",
+      "displayName": "Kazakh",
+      "decision": "both"
+    },
+    {
+      "code": "km",
+      "displayName": "Khmer",
+      "decision": "both"
+    },
+    {
+      "code": "ko-KR",
+      "displayName": "Korean (South Korea)",
+      "decision": "macos"
+    },
+    {
+      "code": "lo",
+      "displayName": "Lao",
+      "decision": "both"
+    },
+    {
+      "code": "la",
+      "displayName": "Latin",
+      "decision": "both"
+    },
+    {
+      "code": "lv",
+      "displayName": "Latvian",
+      "decision": "both"
+    },
+    {
+      "code": "ln",
+      "displayName": "Lingala",
+      "decision": "both"
+    },
+    {
+      "code": "lt",
+      "displayName": "Lithuanian",
+      "decision": "both"
+    },
+    {
+      "code": "lb",
+      "displayName": "Luxembourgish",
+      "decision": "both"
+    },
+    {
+      "code": "mk",
+      "displayName": "Macedonian",
+      "decision": "both"
+    },
+    {
+      "code": "mg",
+      "displayName": "Malagasy",
+      "decision": "both"
+    },
+    {
+      "code": "ms",
+      "displayName": "Malay",
+      "decision": "both"
+    },
+    {
+      "code": "ml",
+      "displayName": "Malayalam",
+      "decision": "both"
+    },
+    {
+      "code": "mt",
+      "displayName": "Maltese",
+      "decision": "both"
+    },
+    {
+      "code": "mi",
+      "displayName": "Maori",
+      "decision": "both"
+    },
+    {
+      "code": "mr",
+      "displayName": "Marathi",
+      "decision": "both"
+    },
+    {
+      "code": "mn",
+      "displayName": "Mongolian",
+      "decision": "both"
+    },
+    {
+      "code": "my",
+      "displayName": "Myanmar",
+      "decision": "both"
+    },
+    {
+      "code": "ne",
+      "displayName": "Nepali",
+      "decision": "both"
+    },
+    {
+      "code": "nn",
+      "displayName": "Nynorsk",
+      "decision": "both"
+    },
+    {
+      "code": "oc",
+      "displayName": "Occitan",
+      "decision": "both"
+    },
+    {
+      "code": "ps",
+      "displayName": "Pashto",
+      "decision": "both"
+    },
+    {
+      "code": "fa",
+      "displayName": "Persian",
+      "decision": "both"
+    },
+    {
+      "code": "pt-BR",
+      "displayName": "Portuguese (Brazil)",
+      "decision": "macos"
+    },
+    {
+      "code": "pt-PT",
+      "displayName": "Portuguese (Portugal)",
+      "decision": "macos"
+    },
+    {
+      "code": "pa",
+      "displayName": "Punjabi",
+      "decision": "both"
+    },
+    {
+      "code": "ro",
+      "displayName": "Romanian",
+      "decision": "both"
+    },
+    {
+      "code": "sa",
+      "displayName": "Sanskrit",
+      "decision": "both"
+    },
+    {
+      "code": "sr",
+      "displayName": "Serbian",
+      "decision": "both"
+    },
+    {
+      "code": "sn",
+      "displayName": "Shona",
+      "decision": "both"
+    },
+    {
+      "code": "sd",
+      "displayName": "Sindhi",
+      "decision": "both"
+    },
+    {
+      "code": "si",
+      "displayName": "Sinhala",
+      "decision": "both"
+    },
+    {
+      "code": "sk",
+      "displayName": "Slovak",
+      "decision": "both"
+    },
+    {
+      "code": "sl",
+      "displayName": "Slovenian",
+      "decision": "both"
+    },
+    {
+      "code": "so",
+      "displayName": "Somali",
+      "decision": "both"
+    },
+    {
+      "code": "es-latam",
+      "displayName": "Spanish (LatAm)",
+      "decision": "macos"
+    },
+    {
+      "code": "es-419",
+      "displayName": "Spanish (Latin America)",
+      "decision": "macos"
+    },
+    {
+      "code": "su",
+      "displayName": "Sundanese",
+      "decision": "both"
+    },
+    {
+      "code": "sw",
+      "displayName": "Swahili",
+      "decision": "both"
+    },
+    {
+      "code": "sv-SE",
+      "displayName": "Swedish (Sweden)",
+      "decision": "macos"
+    },
+    {
+      "code": "tl",
+      "displayName": "Tagalog",
+      "decision": "both"
+    },
+    {
+      "code": "tg",
+      "displayName": "Tajik",
+      "decision": "both"
+    },
+    {
+      "code": "taq",
+      "displayName": "Tamasheq",
+      "decision": "macos"
+    },
+    {
+      "code": "ta",
+      "displayName": "Tamil",
+      "decision": "both"
+    },
+    {
+      "code": "tt",
+      "displayName": "Tatar",
+      "decision": "both"
+    },
+    {
+      "code": "te",
+      "displayName": "Telugu",
+      "decision": "both"
+    },
+    {
+      "code": "th",
+      "displayName": "Thai",
+      "decision": "both"
+    },
+    {
+      "code": "th-TH",
+      "displayName": "Thai (Thailand)",
+      "decision": "macos"
+    },
+    {
+      "code": "bo",
+      "displayName": "Tibetan",
+      "decision": "both"
+    },
+    {
+      "code": "tr",
+      "displayName": "Turkish",
+      "decision": "both"
+    },
+    {
+      "code": "tk",
+      "displayName": "Turkmen",
+      "decision": "both"
+    },
+    {
+      "code": "ur",
+      "displayName": "Urdu",
+      "decision": "both"
+    },
+    {
+      "code": "uz",
+      "displayName": "Uzbek",
+      "decision": "both"
+    },
+    {
+      "code": "vi",
+      "displayName": "Vietnamese",
+      "decision": "both"
+    },
+    {
+      "code": "cy",
+      "displayName": "Welsh",
+      "decision": "both"
+    },
+    {
+      "code": "yi",
+      "displayName": "Yiddish",
+      "decision": "both"
+    },
+    {
+      "code": "yo",
+      "displayName": "Yoruba",
+      "decision": "both"
+    }
+  ],
+  "canonicalCases": [
+    {
+      "name": "a bare primary subtag lowercases",
+      "input": "EN",
+      "canonical": "en"
+    },
+    {
+      "name": "an underscore is a separator",
+      "input": "en_gb",
+      "canonical": "en-GB"
+    },
+    {
+      "name": "a two-character subtag uppercases",
+      "input": "en-gb",
+      "canonical": "en-GB"
+    },
+    {
+      "name": "a four-character script subtag title-cases",
+      "input": "ZH-HANT",
+      "canonical": "zh-Hant"
+    },
+    {
+      "name": "surrounding whitespace is trimmed",
+      "input": "  zh-hant  ",
+      "canonical": "zh-Hant"
+    },
+    {
+      "name": "a three-character subtag lowercases",
+      "input": "es-419",
+      "canonical": "es-419"
+    },
+    {
+      "name": "so does a five-character one, which is why the key is es-latam",
+      "input": "es-LATAM",
+      "canonical": "es-latam"
+    },
+    {
+      "name": "an empty tag means automatic",
+      "input": "",
+      "canonical": "auto"
+    },
+    {
+      "name": "whitespace only means automatic",
+      "input": "   ",
+      "canonical": "auto"
+    },
+    {
+      "name": "separators with no subtags are not automatic",
+      "input": "-",
+      "canonical": "-"
+    },
+    {
+      "name": "a three-part tag canonicalizes every subtag",
+      "input": "zh_hant_hk",
+      "canonical": "zh-Hant-HK"
+    }
+  ],
+  "lookupCases": [
+    {
+      "name": "automatic resolves without a catalog row",
+      "input": "auto",
+      "code": "auto",
+      "displayName": "Automatic"
+    },
+    {
+      "name": "a plain primary subtag",
+      "input": "en",
+      "code": "en",
+      "displayName": "English"
+    },
+    {
+      "name": "a stored Windows-style tag that used to match nothing",
+      "input": "en_GB",
+      "code": "en-GB",
+      "displayName": "English (United Kingdom)"
+    },
+    {
+      "name": "an all-caps tag",
+      "input": "EN-GB",
+      "code": "en-GB",
+      "displayName": "English (United Kingdom)"
+    },
+    {
+      "name": "an all-lowercase script tag",
+      "input": "zh-hant",
+      "code": "zh-Hant",
+      "displayName": "Chinese (Traditional)"
+    },
+    {
+      "name": "the row Windows never had",
+      "input": "pt-BR",
+      "code": "pt-BR",
+      "displayName": "Portuguese (Brazil)"
+    },
+    {
+      "name": "the renamed Traditional Chinese row",
+      "input": "zh-TW",
+      "code": "zh-TW",
+      "displayName": "Chinese (Traditional, Taiwan)"
+    },
+    {
+      "name": "the other Traditional Chinese row",
+      "input": "zh-Hant",
+      "code": "zh-Hant",
+      "displayName": "Chinese (Traditional)"
+    },
+    {
+      "name": "the LatAm Spanish row keeps its lowercased key",
+      "input": "es-LATAM",
+      "code": "es-latam",
+      "displayName": "Spanish (LatAm)"
+    },
+    {
+      "name": "an unknown code is handed back for the host to localize",
+      "input": "xx_yy",
+      "code": "xx-YY",
+      "displayName": null
+    },
+    {
+      "name": "so is a plausible but uncatalogued primary subtag",
+      "input": "zz",
+      "code": "zz",
+      "displayName": null
+    }
+  ],
+  "scalarCases": [
+    {
+      "name": "an absent code defaults to English",
+      "input": null,
+      "normalized": "en",
+      "canonicalCode": "en",
+      "isEnglish": true
+    },
+    {
+      "name": "an empty code is automatic to normalize and English to store",
+      "input": "",
+      "normalized": "auto",
+      "canonicalCode": "en",
+      "isEnglish": false
+    },
+    {
+      "name": "a regional English tag",
+      "input": "en-GB",
+      "normalized": "en",
+      "canonicalCode": "en-GB",
+      "isEnglish": true
+    },
+    {
+      "name": "an underscored regional English tag",
+      "input": "en_gb",
+      "normalized": "en",
+      "canonicalCode": "en-GB",
+      "isEnglish": true
+    },
+    {
+      "name": "a script-qualified Chinese tag",
+      "input": "zh_Hant",
+      "normalized": "zh",
+      "canonicalCode": "zh-Hant",
+      "isEnglish": false
+    },
+    {
+      "name": "automatic is not English",
+      "input": "auto",
+      "normalized": "auto",
+      "canonicalCode": "auto",
+      "isEnglish": false
+    },
+    {
+      "name": "a three-letter code is not English",
+      "input": "eng",
+      "normalized": "eng",
+      "canonicalCode": "eng",
+      "isEnglish": false
+    },
+    {
+      "name": "Brazilian Portuguese",
+      "input": "pt_br",
+      "normalized": "pt",
+      "canonicalCode": "pt-BR",
+      "isEnglish": false
+    }
+  ]
+}
