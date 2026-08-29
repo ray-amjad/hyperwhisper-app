@@ -120,6 +120,14 @@ final class CloudProviderHealthManager: ObservableObject {
     private let mistralProvider: MistralProvider
     private let httpClient: HealthCheckHTTPClient
 
+    /// Clock, injectable so tests can drive the `cacheTTL` window without
+    /// sleeping for a real minute. Every read of "now" in this type goes
+    /// through it: the two cache-hit gates in `refresh(_:force:)`, the two
+    /// `StatusRecord` stamps in `scheduleHealthCheck(for:force:)`, and the
+    /// `healthSnapshot()` timestamp. Those five reads are one clock, so a test
+    /// that moves it moves the whole TTL together.
+    private let now: () -> Date
+
     /// Dedicated ephemeral session for the Rust-core STT health probes
     /// (`performRustHealthCheck`). Kept separate from the injectable
     /// `httpClient` (still used by the post-processing probes) so health checks
@@ -156,14 +164,19 @@ final class CloudProviderHealthManager: ObservableObject {
         let timestamp: Date
     }
 
+    /// - Parameter now: Clock, injectable so tests can cross the 60 s `cacheTTL`
+    ///   boundary without a wall-clock wait. Defaults to `Date()`, so every
+    ///   existing call site keeps the behaviour it has today.
     init(
         sharedCloudProvider: CloudWhisperProvider = CloudWhisperProvider(),
         mistralProvider: MistralProvider = MistralProvider(),
-        httpClient: HealthCheckHTTPClient = URLSessionHealthCheckClient()
+        httpClient: HealthCheckHTTPClient = URLSessionHealthCheckClient(),
+        now: @escaping () -> Date = { Date() }
     ) {
         self.sharedCloudProvider = sharedCloudProvider
         self.mistralProvider = mistralProvider
         self.httpClient = httpClient
+        self.now = now
 
         var initialStatuses: [CloudProvider: ProviderHealth] = [:]
         CloudProvider.allCases.forEach { initialStatuses[$0] = .unknown }
@@ -202,7 +215,7 @@ final class CloudProviderHealthManager: ObservableObject {
         for (provider, health) in postProcessingStatuses {
             post[provider.rawValue] = Self.healthRawString(health)
         }
-        return HealthSnapshot(cloud: cloud, postProcessing: post, timestamp: Date())
+        return HealthSnapshot(cloud: cloud, postProcessing: post, timestamp: now())
     }
 
     /// Stable raw strings for `ProviderHealth`, intentionally separate from the
@@ -248,7 +261,7 @@ final class CloudProviderHealthManager: ObservableObject {
     func refresh(_ provider: CloudProvider, force: Bool = false) {
         if !force,
            let record = cache[provider],
-           Date().timeIntervalSince(record.timestamp) < cacheTTL,
+           now().timeIntervalSince(record.timestamp) < cacheTTL,
            record.status != .unknown {
             statuses[provider] = record.status
             return
@@ -407,7 +420,7 @@ final class CloudProviderHealthManager: ObservableObject {
             let result = await self.performHealthCheck(for: provider, force: force)
             await MainActor.run {
                 self.statuses[provider] = result
-                self.cache[provider] = StatusRecord(status: result, timestamp: Date())
+                self.cache[provider] = StatusRecord(status: result, timestamp: self.now())
                 self.pendingChecks[provider] = nil
             }
             return result
@@ -423,7 +436,7 @@ final class CloudProviderHealthManager: ObservableObject {
             let result = await self.performHealthCheck(for: provider, force: force)
             await MainActor.run {
                 self.postProcessingStatuses[provider] = result
-                self.postProcessingCache[provider] = StatusRecord(status: result, timestamp: Date())
+                self.postProcessingCache[provider] = StatusRecord(status: result, timestamp: self.now())
                 self.pendingPostProcessingChecks[provider] = nil
             }
             return result
