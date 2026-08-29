@@ -65,7 +65,7 @@ Each provider uses these entries differently:
 - **Soniox** — HyperWhisper sends them as context vocabulary, in one comma-separated string.
 - **AssemblyAI** — HyperWhisper sends them as key-term context.
 - **Microsoft MAI-Transcribe** (via HyperWhisper Cloud) — HyperWhisper sends them as phrase-list biasing.
-- **Google Chirp 3** (via HyperWhisper Cloud) — HyperWhisper sends them as phrase-list biasing. The app sends at most the first 100 terms. Google recommends a short list, because a long list can make the words that are not in the list less accurate.
+- **Google Gemini 3.5 Transcribe** — HyperWhisper sends them in the `custom_vocabulary` field of the request. This is a real field of the API, and not text in a prompt. The limit is 100 terms, and the app cuts each term to 80 characters. The same limits apply through HyperWhisper Cloud and with your own Google key.
 - **Grok STT** (xAI) — HyperWhisper sends them as `keyterm` hints, to a maximum of 100 terms. It removes terms of more than 50 characters.
 - **Mistral Voxtral** — HyperWhisper sends them as a structured `context_bias` list, to a maximum of 100 terms. This applies both through HyperWhisper Cloud and with your own Mistral key.
 - **Local models on both platforms (Parakeet on macOS and Windows, Nemotron on macOS and Windows)** — HyperWhisper matches the terms by sound with the Beider-Morse algorithm. It excludes terms of two characters or less, because these cause false matches.

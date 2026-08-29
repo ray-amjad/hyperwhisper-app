@@ -22,7 +22,7 @@ For zero risk of model training on your audio, use **local transcription**. Loca
 HyperWhisper Cloud sends your audio to a backing speech-to-text provider. It also sends your transcribed text to a backing LLM for post-processing. HyperWhisper does not store your audio on its own servers. The edge servers process the audio in memory, then delete it after they return the response.
 
 <Note>
-  **Google Chirp 3** is one exception. Audio larger than ~9.5 MB, or longer than ~55 seconds, is too large to send inline. HyperWhisper uploads this audio to a scratch bucket for the batch transcription API of Google. HyperWhisper always deletes the scratch object immediately after the transcription completes, and also after an error. This audio touches disk storage for a short time. It does not stay in memory only.
+  Every HyperWhisper Cloud engine that you can select sends your audio in the request. No such engine writes your audio to a temporary bucket. The **Google Gemini 3.5 Transcribe** engine has the smallest limit: audio of more than 14 MB gets a "file too large" error. For the limits of each engine, see [File Transcription](/file-transcription).
 </Note>
 
 **HyperWhisper applies the strongest data-protection control that each provider gives.** As a result, providers do not use your audio to train their models:

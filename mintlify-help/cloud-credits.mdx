@@ -36,7 +36,7 @@ Each HyperWhisper Cloud provider has a different cost per minute. The backend se
 | Grok STT | ~1.67 |
 | Microsoft MAI-Transcribe 1.5 | ~6.0 |
 | ElevenLabs Scribe v2 (default) | ~9.83 |
-| Google Chirp 3 | ~16.0 |
+| Google Gemini 3.5 Transcribe | ~5.5 |
 | OpenAI | ~6.0 |
 | AssemblyAI | ~3.5 |
 | Mistral Voxtral | ~3.0 |
@@ -44,6 +44,8 @@ Each HyperWhisper Cloud provider has a different cost per minute. The backend se
 | Google Gemini | ~2.4 |
 
 The rates follow the current prices of the backend and can change. Settings always shows the live rate for your active provider.
+
+[Streaming transcription](/streaming-settings) has its own rate. With HyperWhisper Cloud as the streaming provider, the live engine is Deepgram Nova 3 at approximately 5.5 credits for each minute, or Google Gemini 3.5 Transcribe Live at approximately 9.6 credits for each minute.
 
 ### What changes your rate
 
@@ -61,7 +63,7 @@ Every other provider charges the same rate with vocabulary and without it.
 **The Medical control.** The **Medical** control in the mode editor applies to AssemblyAI only. It adds approximately 2.5 credits per minute. The Deepgram medical models are models and not a domain, so they cost the standard Deepgram rate.
 
 <Note>
-  Two providers bill on **tokens** and not on minutes: **Google Gemini** (all models) and **OpenAI GPT-4o Transcribe** and **GPT-4o Mini Transcribe**. For these models, the rate in the table is an estimate for one minute of speech. The true cost follows the length of your transcript, so speech that is fast or dense costs more than the estimate, and a quiet minute costs less. The other providers bill on the length of the audio, and the rate is exact.
+  Three providers bill on **tokens** and not on minutes: **Google Gemini** (all models), **Google Gemini 3.5 Transcribe** (both the pre-recorded model and the live model), and **OpenAI GPT-4o Transcribe** and **GPT-4o Mini Transcribe**. For these models, the rate in the table is an estimate for one minute of speech. The true cost follows the length of your transcript, so speech that is fast or dense costs more than the estimate, and a quiet minute costs less. The other providers bill on the length of the audio, and the rate is exact.
 </Note>
 
 ## See your balance

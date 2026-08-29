@@ -51,15 +51,18 @@ The **Engine** section is visible only after you turn on streaming. Open this se
 
 | Provider | API key required | Vocabulary boosting | Model selection |
 |---|---|---|---|
-| HyperWhisper Cloud | No | Yes (explicit language only) | No |
+| HyperWhisper Cloud | No | Yes (the rule follows the live engine) | Yes — the live engine |
 | Deepgram | Yes | Yes (explicit language only) | Yes — Nova 3 |
 | ElevenLabs | Yes | No | No |
 | OpenAI | Yes | No | No |
 | xAI | Yes | Yes | No |
+| Gemini 3.5 Transcribe | Yes | Yes | No |
 | Parakeet (On-Device) | No | No | V3 (Multilingual) / V2 (English) |
 | Nemotron 3.5 (On-Device) | No | No | Multilingual / Latin |
 
 **HyperWhisper Cloud** is the default provider on macOS and Windows. It needs no provider API key — only your [HyperWhisper Cloud account key](/licensing) and a credit balance. For each other cloud provider, you must add an API key in **Model Library → API Keys**. The provider does not operate without this key. If a key is missing or not valid, a warning appears below the provider picker.
+
+**Gemini 3.5 Transcribe** uses its own key slot, and not the **Google Gemini** slot. The two are different Google products. Put your Google key in the **Gemini 3.5 Transcribe** slot in **Model Library → API Keys**. See [API Keys](/api-keys).
 
 **Parakeet** and **Nemotron 3.5** run fully on your device. After the model download is complete, they need no network connection.
 
@@ -67,21 +70,50 @@ The provider list is not the same on each platform:
 
 | Platform | Providers |
 | --- | --- |
-| macOS | All seven |
-| Windows | HyperWhisper Cloud, Deepgram, ElevenLabs, OpenAI, xAI |
-| Linux | All seven |
+| macOS | All eight |
+| Windows | HyperWhisper Cloud, Deepgram, ElevenLabs, OpenAI, xAI, Gemini 3.5 Transcribe |
+| Linux | All eight |
 
 On Linux, the two on-device providers run through the same Parakeet engine process that Linux uses for batch transcription.
 
 <Note>
-  On Linux, the provider picker shows the internal identifiers, not the display names: `deepgram`, `elevenlabs`, `openai`, `grok` (xAI), `hyperwhisper` (HyperWhisper Cloud), `parakeetLocal`, and `nemotronLocal`. The default is `deepgram`, and not HyperWhisper Cloud. Linux reads the provider key from the **Credentials** page and never keeps it in the settings file.
+  On Linux, the provider picker shows the internal identifiers, not the display names: `deepgram`, `elevenlabs`, `openai`, `grok` (xAI), `geminiTranscribe` (Gemini 3.5 Transcribe), `hyperwhisper` (HyperWhisper Cloud), `parakeetLocal`, and `nemotronLocal`. The default is `deepgram`, and not HyperWhisper Cloud. Linux reads the provider key from the **Credentials** page and never keeps it in the settings file.
 
   You can also select a local model in the **Unified model library**. Select an installed streaming model, then click **Use for live transcription**. HyperWhisper turns on streaming and sets the provider and the model for you.
 </Note>
 
 <Note>
-  HyperWhisper sends the entries from the [Vocabulary](/vocabulary) section to HyperWhisper Cloud, Deepgram and xAI. For HyperWhisper Cloud and Deepgram you must set an explicit language; xAI accepts the terms with any language, including Automatic. ElevenLabs and OpenAI do not support vocabulary boosting in their streaming API. If you have vocabulary entries and select one of those two providers, a warning appears. [Text replacements](/vocabulary#text-replacements) apply during streaming only on macOS with an on-device provider (Parakeet or Nemotron 3.5). Cloud streaming providers receive only the vocabulary entries that have no replacement, as boosting hints. This is the same rule on macOS and Windows. Linux sends every vocabulary word as a boosting hint, and it does not remove a word that has a replacement.
+  HyperWhisper sends the entries from the [Vocabulary](/vocabulary) section to HyperWhisper Cloud, Deepgram, xAI and Gemini 3.5 Transcribe. For Deepgram you must set an explicit language; xAI and Gemini 3.5 Transcribe accept the terms with any language, including Automatic. For HyperWhisper Cloud the rule follows the live engine: Deepgram Nova 3 needs an explicit language, and Gemini 3.5 Transcribe does not. ElevenLabs and OpenAI do not support vocabulary boosting in their streaming API. If you have vocabulary entries and select one of those two providers, a warning appears. [Text replacements](/vocabulary#text-replacements) apply during streaming only on macOS with an on-device provider (Parakeet or Nemotron 3.5). Cloud streaming providers receive only the vocabulary entries that have no replacement, as boosting hints. This is the same rule on macOS and Windows. Linux sends every vocabulary word as a boosting hint, and it does not remove a word that has a replacement.
 </Note>
+
+## HyperWhisper Cloud Live Engine
+
+HyperWhisper Cloud sends your live audio to one of two engines. A second picker appears below the provider picker when the provider is **HyperWhisper Cloud**. It is hidden for every other provider.
+
+| Live engine | Credits for each minute | Vocabulary with the language set to Automatic |
+| --- | --- | --- |
+| Deepgram Nova 3 (the default) | ~5.5 | No |
+| Google Gemini 3.5 Transcribe | ~9.6 | Yes |
+
+The picker changes the engine only. It does not change your account key, and it does not change the [Language](#language) setting. The engine that you select sets the credit rate. For the rates of the batch engines, see [Cloud Credits](/cloud-credits).
+
+<Tabs>
+  <Tab title="macOS">
+    Open the **Streaming** section in the sidebar. The engine picker is below the provider picker.
+  </Tab>
+  <Tab title="Windows">
+    Click **Streaming** in the main sidebar. The engine picker is in the **Engine** section, below the provider picker.
+  </Tab>
+  <Tab title="Linux">
+    The engine picker is the second list in the **Live transcription** section. It shows the internal identifiers: `deepgramNova3` and `geminiTranscribe`. The setting key in the settings file is `streaming.cloudTier`.
+  </Tab>
+</Tabs>
+
+## Gemini 3.5 Transcribe Options
+
+Gemini 3.5 Transcribe has one live model, thus there is no model picker. HyperWhisper sends your vocabulary entries with any language, and also with the language set to **Automatic**.
+
+Google keeps the socket open after your last word. HyperWhisper waits 5 seconds for the last part of the text, then it closes the session.
 
 ## Deepgram Options
 
@@ -164,7 +196,7 @@ A streaming session uses one WebSocket connection to the provider. If that conne
 Some faults cannot improve with another attempt. If the provider reports an exhausted credit balance, a key that is not valid, or a permission error, HyperWhisper stops immediately and shows that message. It makes no attempt to connect again, because the same fault occurs each time. Correct the condition, then start the session again.
 
 <Note>
-  To start a streaming session with HyperWhisper Cloud, you need a credit balance of approximately 30 seconds of audio. Below that balance, the server refuses the session before it starts, and the app tells you that credits are exhausted. Read [HyperWhisper Cloud Credits](/cloud-credits) to add credits.
+  To start a streaming session with HyperWhisper Cloud, you need a credit balance of approximately 30 seconds of audio. The server calculates this balance with the rate of the [live engine](#hyperwhisper-cloud-live-engine) that you selected, thus Gemini 3.5 Transcribe needs more credits than Deepgram Nova 3. Below that balance, the server refuses the session before it starts, and the app tells you that credits are exhausted. Read [HyperWhisper Cloud Credits](/cloud-credits) to add credits.
 </Note>
 
 ## How Streaming Differs from Modes
