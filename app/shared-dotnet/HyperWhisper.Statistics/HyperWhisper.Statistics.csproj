@@ -5,4 +5,12 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
+
+  <!-- The home-statistics formulas live in the hw-stats crate (issue #285), so
+       this project is now a seam onto the shared core rather than a leaf. It
+       uses only the public Portable* surface in SharedCoreBridge, so it needs no
+       InternalsVisibleTo entry. Every consumer already referenced SharedCore. -->
+  <ItemGroup>
+    <ProjectReference Include="../HyperWhisper.SharedCore/HyperWhisper.SharedCore.csproj" />
+  </ItemGroup>
 </Project>

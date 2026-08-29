@@ -6,11 +6,30 @@
 //
 //    [ avg WPM ] | [ words this month ] | [ words this year ] | [ minutes saved ⚙ ]
 //
-//  All numbers are derived from existing Transcript data:
+//  All numbers still come from existing Transcript data, but the arithmetic no
+//  longer lives here: issue #285 moved it into the `hw-stats` crate, so macOS,
+//  Windows and Linux all read the same answer. This view now counts words,
+//  shifts each row's date into the local calendar, and hands the rows to
+//  `statsCalculateHome`.
+//
 //  - Average WPM     : total transcript words / total speaking minutes (all time)
 //  - Words / month   : sum of words for transcripts in the current calendar month
 //  - Words / year    : sum of words for transcripts in the current calendar year
 //  - Saved / week    : (words / typingSpeedWPM) - actualSpeakingMinutes, floored at 0
+//
+//  Three things a macOS user will notice, all deliberate:
+//
+//  1. The week now starts on MONDAY. `Calendar.current.dateInterval(of:
+//     .weekOfYear:)` starts it on Sunday in en-US, so a Sunday's dictation used
+//     to open a fresh "saved this week" figure; it now closes the week it
+//     belongs to.
+//  2. "Saved this week" is clamped to one week of minutes
+//     (`statsSavedMinutesCeiling()`). A long transcript with a zero duration
+//     used to be able to claim months of saved time.
+//  3. A corrupt duration no longer crashes the home view. The old
+//     `Int(saved.rounded())` trapped on NaN — one non-finite `duration` column
+//     took the whole strip down. The core normalises non-finite and negative
+//     seconds to 0.
 //
 //  The gear menu next to "Saved this week" lets the user tune the assumed
 //  typing speed (default 40 WPM) so the savings figure means something to them.
@@ -34,13 +53,15 @@ struct HomeStatsBar: View {
     @AppStorage("homeStats.typingSpeedWPM") private var typingSpeedWPM: Int = 40
 
     // MARK: - Cached aggregates (computed off the main thread)
+    //
+    // Only the four displayed figures are kept. Everything they used to be
+    // derived from — all-time words, all-time seconds, this week's words and
+    // seconds — now stays inside the shared core.
 
-    @State private var allTimeWords: Int = 0
-    @State private var allTimeDurationSeconds: Double = 0
-    @State private var weekWords: Int = 0
-    @State private var weekDurationSeconds: Double = 0
+    @State private var averageWPM: Int = 0
     @State private var monthWords: Int = 0
     @State private var yearWords: Int = 0
+    @State private var savedThisWeekMinutes: Int = 0
 
     // MARK: - Body
 
@@ -86,7 +107,9 @@ struct HomeStatsBar: View {
         )
         .onAppear { recomputeAsync() }
         .onChange(of: transcripts.count) { _ in recomputeAsync() }
-        .onChange(of: typingSpeedWPM) { _ in /* re-render only */ }
+        // The typing speed is an input to the core now, not a divisor applied
+        // at render time, so changing it has to re-run the calculation.
+        .onChange(of: typingSpeedWPM) { _ in recomputeAsync() }
     }
 
     // MARK: - Subviews
@@ -152,83 +175,84 @@ struct HomeStatsBar: View {
 
     // MARK: - Derived values
 
-    private var averageWPM: Int {
-        let minutes = allTimeDurationSeconds / 60.0
-        guard minutes > 0 else { return 0 }
-        return Int((Double(allTimeWords) / minutes).rounded())
-    }
-
-    /// Estimated minutes saved this week vs. typing at the configured speed.
-    /// = (wordsThisWeek / typingSpeedWPM) - actualSpeakingMinutes, floored at 0.
-    private var savedThisWeekMinutes: Int {
-        guard typingSpeedWPM > 0 else { return 0 }
-        let typingMinutes = Double(weekWords) / Double(typingSpeedWPM)
-        let spokenMinutes = weekDurationSeconds / 60.0
-        let saved = typingMinutes - spokenMinutes
-        return max(0, Int(saved.rounded()))
-    }
-
     private var savedThisWeekDisplay: String {
         "home.stats.minutes.value".localized(arguments: savedThisWeekMinutes)
     }
 
     // MARK: - Computation
 
-    /// Crunch words/durations off the main thread so we don't stutter the
-    /// recording-dialog waveform animation.
+    /// Count the words off the main thread — as before, so we don't stutter the
+    /// recording-dialog waveform animation — then let the shared core do the
+    /// bucketing and the arithmetic.
     private func recomputeAsync() {
-        let snapshot: [(date: Date?, text: String?, duration: Double)] = transcripts.map {
-            (date: $0.date, text: $0.text, duration: $0.duration)
-        }
+        let snapshot: [(date: Date?, text: String?, duration: Double, status: String?)] =
+            transcripts.map {
+                (date: $0.date, text: $0.text, duration: $0.duration, status: $0.status)
+            }
+        let typingSpeed = Int32(clamping: typingSpeedWPM)
 
         Task.detached(priority: .userInitiated) {
-            let calendar = Calendar.current
-            let weekInterval = calendar.dateInterval(of: .weekOfYear, for: Date())
-            let monthInterval = calendar.dateInterval(of: .month, for: Date())
-            let yearInterval = calendar.dateInterval(of: .year, for: Date())
-
-            var totalWords = 0
-            var totalDuration: Double = 0
-            var wordsWeek = 0
-            var durationWeek: Double = 0
-            var wordsMonth = 0
-            var wordsYear = 0
-
-            for item in snapshot {
-                let words = countWordsInText(item.text ?? "")
-                totalWords += words
-                totalDuration += item.duration
-
-                if let date = item.date {
-                    if weekInterval?.contains(date) == true {
-                        wordsWeek += words
-                        durationWeek += item.duration
-                    }
-                    if monthInterval?.contains(date) == true {
-                        wordsMonth += words
-                    }
-                    if yearInterval?.contains(date) == true {
-                        wordsYear += words
-                    }
-                }
+            let rows: [HwStatsTranscript] = snapshot.map { item in
+                HwStatsTranscript(
+                    // A row with no date can't be placed on the calendar. Stamp
+                    // it at the epoch so it still counts toward the all-time
+                    // average — exactly as it always did — without landing in
+                    // the current week, month or year.
+                    createdAtLocalEpochSeconds: item.date.map { localEpochSeconds(for: $0) } ?? 0,
+                    wordCount: UInt32(clamping: countWordsInText(item.text ?? "")),
+                    // Handed over raw. The core normalises a non-finite or
+                    // negative value to 0 rather than trapping on it.
+                    durationSeconds: item.duration,
+                    status: statsStatus(for: item.status)
+                )
             }
 
+            let stats = statsCalculateHome(
+                transcripts: rows,
+                typingSpeedWordsPerMinute: typingSpeed,
+                nowLocalEpochSeconds: localEpochSeconds(for: Date())
+            )
+
+            // Only the four displayed integers cross back to the main actor.
+            let speed = Int(stats.averageWordsPerMinute)
+            let month = Int(stats.thisMonth.wordCount)
+            let year = Int(stats.thisYear.wordCount)
+            let saved = Int(stats.savedThisWeekMinutes)
+
             await MainActor.run {
-                allTimeWords = totalWords
-                allTimeDurationSeconds = totalDuration
-                weekWords = wordsWeek
-                weekDurationSeconds = durationWeek
-                monthWords = wordsMonth
-                yearWords = wordsYear
+                averageWPM = speed
+                monthWords = month
+                yearWords = year
+                savedThisWeekMinutes = saved
             }
         }
     }
 }
 
-// MARK: - Word counting (file-level so Task.detached can capture it)
+// MARK: - Core hand-off (file-level so Task.detached can capture it)
 
 private func countWordsInText(_ text: String) -> Int {
     text.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }.count
+}
+
+/// The core takes instants that are *already shifted* into the calendar time
+/// zone, because the host owns the time-zone database. Doing the shift per row
+/// rather than once for the whole set is what keeps DST correct.
+private func localEpochSeconds(for date: Date) -> Int64 {
+    Int64(
+        (date.timeIntervalSince1970 + Double(TimeZone.current.secondsFromGMT(for: date)))
+            .rounded(.down))
+}
+
+/// The `@FetchRequest` predicate already asks for completed rows only, and the
+/// core filters again. Map the column through rather than assuming, so the two
+/// filters can never disagree about what a row is.
+private func statsStatus(for status: String?) -> HwTranscriptStatus {
+    switch status {
+    case "completed": return .completed
+    case "failed": return .failed
+    default: return .processing
+    }
 }
 
 // MARK: - Preview

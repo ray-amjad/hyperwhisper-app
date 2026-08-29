@@ -609,19 +609,25 @@
     {
       "name": "an absurd word total saturates instead of trapping",
       "decision": "neither",
-      "was": "HomeStatistics.cs:148 summed with `checked`, which THROWS on overflow, and Swift's += traps. Both turn a corrupt store into a crash on the home view's render path. A saturated total is a wrong number the user can see and report.",
+      "was": "HomeStatistics.cs:148 summed with `checked`, which THROWS on overflow, and Swift's += traps. Both turn a corrupt store into a crash on the home view's render path. A saturated total is a wrong number the user can see and report. Three rows rather than one huge one: every row count here has to stay inside a 32-bit SIGNED integer so the .NET head can replay this case, and only their sum overflows.",
       "typingSpeedWordsPerMinute": 40,
       "nowLocalEpochSeconds": 1787961600,
       "transcripts": [
         {
           "createdAtLocalEpochSeconds": 1787961600,
-          "wordCount": 4294967295,
+          "wordCount": 2000000000,
           "durationSeconds": 60.0,
           "status": "completed"
         },
         {
           "createdAtLocalEpochSeconds": 1787961600,
-          "wordCount": 10,
+          "wordCount": 2000000000,
+          "durationSeconds": 60.0,
+          "status": "completed"
+        },
+        {
+          "createdAtLocalEpochSeconds": 1787961600,
+          "wordCount": 2000000000,
           "durationSeconds": 60.0,
           "status": "completed"
         }
@@ -629,34 +635,34 @@
       "expected": {
         "thisWeek": {
           "wordCount": 4294967295,
-          "durationSeconds": 120.0,
-          "averageWordsPerMinute": 2147483647,
+          "durationSeconds": 180.0,
+          "averageWordsPerMinute": 1431655765,
           "estimatedTypingMinutes": 107374182.375,
-          "estimatedTimeSavedMinutes": 107374180.375
+          "estimatedTimeSavedMinutes": 107374179.375
         },
         "thisMonth": {
           "wordCount": 4294967295,
-          "durationSeconds": 120.0,
-          "averageWordsPerMinute": 2147483647,
+          "durationSeconds": 180.0,
+          "averageWordsPerMinute": 1431655765,
           "estimatedTypingMinutes": 107374182.375,
-          "estimatedTimeSavedMinutes": 107374180.375
+          "estimatedTimeSavedMinutes": 107374179.375
         },
         "thisYear": {
           "wordCount": 4294967295,
-          "durationSeconds": 120.0,
-          "averageWordsPerMinute": 2147483647,
+          "durationSeconds": 180.0,
+          "averageWordsPerMinute": 1431655765,
           "estimatedTypingMinutes": 107374182.375,
-          "estimatedTimeSavedMinutes": 107374180.375
+          "estimatedTimeSavedMinutes": 107374179.375
         },
         "allTime": {
           "wordCount": 4294967295,
-          "durationSeconds": 120.0,
-          "averageWordsPerMinute": 2147483647,
+          "durationSeconds": 180.0,
+          "averageWordsPerMinute": 1431655765,
           "estimatedTypingMinutes": 107374182.375,
-          "estimatedTimeSavedMinutes": 107374180.375
+          "estimatedTimeSavedMinutes": 107374179.375
         },
         "typingSpeedWordsPerMinute": 40,
-        "averageWordsPerMinute": 2147483647,
+        "averageWordsPerMinute": 1431655765,
         "savedThisWeekMinutes": 10080
       }
     },

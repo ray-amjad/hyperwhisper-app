@@ -288,9 +288,15 @@ fn cases() -> Vec<Case> {
             was: "HomeStatistics.cs:148 summed with `checked`, which THROWS on overflow, \
                   and Swift's += traps. Both turn a corrupt store into a crash on the \
                   home view's render path. A saturated total is a wrong number the user \
-                  can see and report.",
+                  can see and report. Three rows rather than one huge one: every row \
+                  count here has to stay inside a 32-bit SIGNED integer so the .NET \
+                  head can replay this case, and only their sum overflows.",
             typing_speed: 40,
-            transcripts: vec![completed(0, u32::MAX, 60.0), completed(0, 10, 60.0)],
+            transcripts: vec![
+                completed(0, 2_000_000_000, 60.0),
+                completed(0, 2_000_000_000, 60.0),
+                completed(0, 2_000_000_000, 60.0),
+            ],
         },
         // --- Rows no copy had --------------------------------------------
         Case {

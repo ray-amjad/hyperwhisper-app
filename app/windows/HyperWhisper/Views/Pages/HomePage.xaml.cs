@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using HyperWhisper.Services;
+using HyperWhisper.Statistics;
 using HyperWhisper.ViewModels;
 using HyperWhisper.Views.Windows;
 
@@ -29,7 +30,9 @@ public partial class HomePage : Page
             // view-model so we don't leak HistoryService event subscriptions.
             _statsViewModel?.Detach();
 
-            _statsViewModel = new HomeStatsBarViewModel(StatisticsService.Instance, SettingsService.Instance);
+            _statsViewModel = new HomeStatsBarViewModel(
+                new HomeStatisticsService(new WindowsStatisticsTranscriptProvider()),
+                SettingsService.Instance);
             StatsBar.DataContext = _statsViewModel;
             await _statsViewModel.RecomputeAsync();
         }

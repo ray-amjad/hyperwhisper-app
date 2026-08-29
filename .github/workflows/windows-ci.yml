@@ -193,3 +193,17 @@ jobs:
       # two natives disagreed.
       - name: Run phonetic conformance vectors
         run: dotnet run --project app/shared-dotnet/HyperWhisper.PhoneticConformance.Tests -c Release
+
+      # ----------------------------------------------------------------
+      # 10. Home statistics conformance vectors
+      # ----------------------------------------------------------------
+      # shared-conformance/stats-vectors.json, the same three-platform shape.
+      # Issue #285 left exactly one set of home-statistics formulas, so these
+      # vectors prove the Windows binding reads the same answers the Swift and
+      # Rust heads do. Each case carries a `decision` field naming which of the
+      # three native copies the unified answer came from — the file is the
+      # record of where they disagreed, and Windows changes on four of them:
+      # the week and month boundaries move from UTC to the user's own time
+      # zone, and rounding moves from banker's to half away from zero.
+      - name: Run home statistics conformance vectors
+        run: dotnet run --project app/shared-dotnet/HyperWhisper.StatsConformance.Tests -c Release
