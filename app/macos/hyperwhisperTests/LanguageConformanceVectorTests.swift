@@ -113,7 +113,13 @@ struct LanguageConformanceVectorTests {
     @Test("canonicalization matches the shared vectors")
     func canonicalizationMatchesVectors() {
         for vector in document.canonicalCases {
-            let storable = vector.input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            // The `en` rule is keyed on an EMPTY string, not on a blank one:
+            // `canonicalLanguageCode` guards with `!code.isEmpty`, so a
+            // whitespace-only tag goes through the canonicalizer like any other
+            // and comes back `auto`. That is what the member did before #285 and
+            // what the core does now, and the two blank rows in `canonicalCases`
+            // are there to hold that line apart.
+            let storable = vector.input.isEmpty
             let expected = storable ? "en" : vector.canonical
             #expect(
                 LanguageData.canonicalLanguageCode(vector.input) == expected, "\(vector.name)")
