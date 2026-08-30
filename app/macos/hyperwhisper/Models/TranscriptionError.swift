@@ -18,7 +18,15 @@ enum TranscriptionError: LocalizedError {
     case invalidResponse(details: String? = nil)
     case apiKeyMissing(provider: String? = nil)
     case maxRetriesExceeded
-    case unauthorized(provider: String? = nil)
+    /// Provider refused the request as unauthenticated or forbidden.
+    ///
+    /// - Parameter statusCode: the HTTP status the provider actually returned
+    ///   (401 or 403), when the throw site knew it. Diagnostic only — nothing
+    ///   branches on it. HYPERWHISPER-T2 groups every unauthorized refusal into
+    ///   one issue, and without this the report cannot tell a missing/expired
+    ///   credential (401) from a credential the server knows but refuses (403),
+    ///   which are different faults with different fixes.
+    case unauthorized(provider: String? = nil, statusCode: Int? = nil)
     case invalidRequest
     case streamingInterrupted
     case busy
@@ -93,7 +101,7 @@ enum TranscriptionError: LocalizedError {
             return "transcription.error.apiKeyMissing.generic".localized
         case .maxRetriesExceeded:
             return "transcription.error.maxRetriesExceeded".localized
-        case .unauthorized(let provider):
+        case .unauthorized(let provider, _):
             if let provider = provider {
                 return "transcription.error.unauthorized.provider".localized(arguments: provider)
             }
@@ -158,7 +166,7 @@ enum TranscriptionError: LocalizedError {
         // `.localSpeechModelEvicted` is NOT retryable: the pass already reloaded
         // the model once and lost it again, so the pressure is sustained and an
         // automatic retry would reload and lose it over and over.
-        case .audioFileNotFound, .apiKeyMissing(_), .modelNotDownloaded, .modelProtected, .maxRetriesExceeded, .unauthorized(_), .invalidRequest, .busy, .invalidAudioFormat, .audioConversionFailed, .audioFileTooLarge(_, _, _), .insufficientCredits(_, _), .quotaExceeded(_, _), .noSpeechDetected, .localRuntimeUnavailable(_), .cloudAccountRequired(_), .localSpeechModelEvicted(_):
+        case .audioFileNotFound, .apiKeyMissing(_), .modelNotDownloaded, .modelProtected, .maxRetriesExceeded, .unauthorized, .invalidRequest, .busy, .invalidAudioFormat, .audioConversionFailed, .audioFileTooLarge(_, _, _), .insufficientCredits(_, _), .quotaExceeded(_, _), .noSpeechDetected, .localRuntimeUnavailable(_), .cloudAccountRequired(_), .localSpeechModelEvicted(_):
             return false
         }
     }

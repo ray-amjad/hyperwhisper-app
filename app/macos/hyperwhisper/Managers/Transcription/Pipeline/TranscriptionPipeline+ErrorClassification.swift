@@ -83,8 +83,12 @@ extension TranscriptionPipeline {
             return TranscriptionErrorClassification(category: "auth", kind: "api_key_missing", retryable: retryable, httpStatus: nil)
         case .maxRetriesExceeded:
             return TranscriptionErrorClassification(category: "retry", kind: "max_retries_exceeded", retryable: retryable, httpStatus: nil)
-        case .unauthorized:
-            return TranscriptionErrorClassification(category: "auth", kind: "unauthorized", retryable: retryable, httpStatus: nil)
+        case .unauthorized(_, let statusCode):
+            // The status is what separates a 401 (credential missing or expired)
+            // from a 403 (credential known, request refused) inside the single
+            // HYPERWHISPER-T2 group. It stays out of `kind`, so the fingerprint
+            // below is unchanged and the issue does not split in two.
+            return TranscriptionErrorClassification(category: "auth", kind: "unauthorized", retryable: retryable, httpStatus: statusCode)
         case .invalidRequest:
             return TranscriptionErrorClassification(category: "request", kind: "invalid_request", retryable: retryable, httpStatus: nil)
         case .streamingInterrupted:

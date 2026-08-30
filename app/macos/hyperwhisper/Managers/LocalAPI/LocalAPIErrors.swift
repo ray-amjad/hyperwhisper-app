@@ -137,7 +137,7 @@ enum LocalAPIResponder {
             case .apiKeyMissing(let provider):
                 let prov = provider ?? "this provider"
                 return (.missingAPIKey, "API key for \(prov) is missing.", "Add the API key in Settings → API Keys.")
-            case .unauthorized(let provider):
+            case .unauthorized(let provider, _):
                 let prov = provider ?? "this provider"
                 return (.missingAPIKey, "API key for \(prov) is invalid or expired.", "Update the API key in Settings → API Keys.")
             case .audioFileNotFound:
