@@ -88,6 +88,122 @@ struct TranscriptionErrorClassificationTests {
         )
     }
 
+    // MARK: - HYPERWHISPER-T2: the refusal status has to survive the boundary
+
+    /// The core classifies a 401 and a 403 into the same `.Unauthorized` and
+    /// keeps neither code, so the mapper is the only place the status can be
+    /// preserved. Every HYPERWHISPER-T2 event was statusless because this hop
+    /// dropped it.
+    @Test func unauthorizedMappingKeepsTheHttpStatusItWasGiven() {
+        for status in [401, 403] {
+            let mapped = RustCoreMapping.mapTranscriptionError(
+                .Unauthorized,
+                providerName: "HyperWhisper Cloud",
+                httpStatus: status
+            )
+            guard case .unauthorized(let provider, let statusCode) = mapped else {
+                Issue.record("HwTranscriptionError.Unauthorized no longer maps to .unauthorized")
+                return
+            }
+            #expect(provider == "HyperWhisper Cloud")
+            #expect(statusCode == status)
+        }
+    }
+
+    /// A caller with no response to read leaves the status absent rather than
+    /// inventing one. `nil` and "401" must stay tellable apart in the report.
+    @Test func unauthorizedMappingLeavesTheStatusAbsentWhenTheCallerHasNone() {
+        let mapped = RustCoreMapping.mapTranscriptionError(
+            .Unauthorized,
+            providerName: "HyperWhisper Cloud"
+        )
+        guard case .unauthorized(_, let statusCode) = mapped else {
+            Issue.record("HwTranscriptionError.Unauthorized no longer maps to .unauthorized")
+            return
+        }
+        #expect(statusCode == nil)
+    }
+
+    /// The status is diagnostic only. Nothing branches on it, so a 401 and a 403
+    /// must still behave identically for the user.
+    @Test func theUnauthorizedStatusChangesNoUserFacingBehaviour() {
+        let bare = TranscriptionError.unauthorized(provider: "HyperWhisper Cloud")
+        let with401 = TranscriptionError.unauthorized(provider: "HyperWhisper Cloud", statusCode: 401)
+        let with403 = TranscriptionError.unauthorized(provider: "HyperWhisper Cloud", statusCode: 403)
+
+        for error in [bare, with401, with403] {
+            #expect(error.isRetryable == bare.isRetryable)
+            #expect(error.showSettingsButton == bare.showSettingsButton)
+            #expect(error.errorDescription == bare.errorDescription)
+        }
+    }
+
+    /// The fingerprint is built from `category` / `kind` / `stage` and must NOT
+    /// read the status — otherwise carrying it would split HYPERWHISPER-T2 into
+    /// a 401 issue and a 403 issue, losing the history the field exists to
+    /// explain.
+    @Test func carryingTheStatusDoesNotSplitTheTranscriptionFailureFingerprint() {
+        func fingerprint(status: Int?) -> [String] {
+            TranscriptionPipeline.sentryFingerprintForTranscriptionFailure(
+                classification: TranscriptionPipeline.TranscriptionErrorClassification(
+                    category: "auth",
+                    kind: "unauthorized",
+                    retryable: false,
+                    httpStatus: status
+                ),
+                stage: "transcribe"
+            )
+        }
+
+        #expect(fingerprint(status: 401) == fingerprint(status: nil))
+        #expect(fingerprint(status: 403) == fingerprint(status: 401))
+    }
+
+    /// The outcome slugs are a reporting contract — a Sentry search saved
+    /// against one has to keep matching. A duplicate raw value would silently
+    /// merge two different give-up branches into one bucket, which is exactly
+    /// the ambiguity the trace exists to remove.
+    @Test func cloudAuthRecoveryOutcomeSlugsAreDistinct() {
+        let slugs = Self.recoveryOutcomes.map(\.rawValue)
+
+        #expect(Set(slugs).count == Self.recoveryOutcomes.count)
+        #expect(slugs.allSatisfy { !$0.isEmpty && $0 != CloudAuthRecoveryTrace.slugNone })
+    }
+
+    /// Sentry's stock `@password:filter` scrubber matches the VALUE of an extra,
+    /// not only its key: on a live HYPERWHISPER-T2 event the `errorCategory`
+    /// extra (value "auth") and `errorKind` (value "unauthorized") both arrive
+    /// as "[Filtered]" with `_meta.rule_id = "@password:filter"`, while the
+    /// `error_class` TAG holding the same string survives.
+    ///
+    /// So a slug or an extra key that says "auth" here is scrubbed away in
+    /// production while the event still arrives looking fine — the failure is
+    /// silent, which is why it is worth a test rather than a comment.
+    @Test func recoveryTraceNamesAvoidTheSentryPasswordScrubber() {
+        let scrubbed = ["auth", "unauthorized", "password", "secret", "token", "credential"]
+
+        for slug in Self.recoveryOutcomes.map(\.rawValue) {
+            #expect(
+                scrubbed.allSatisfy { !slug.contains($0) },
+                "outcome slug \(slug) contains a term @password:filter redacts"
+            )
+        }
+        for key in [CloudAuthRecoveryTrace.extraPrefix, CloudAuthRecoveryTrace.outcomeTagKey] {
+            #expect(
+                scrubbed.allSatisfy { !key.contains($0) },
+                "key \(key) contains a term @password:filter redacts"
+            )
+        }
+    }
+
+    /// Every case, listed so a new one added without a slug review breaks here.
+    private static let recoveryOutcomes: [CloudAuthRecoveryTrace.Outcome] = [
+        .succeededFirstSend, .otherErrorFirstSend, .notLicensedNoRetry,
+        .revalidationInvalid, .reresolvedIdentityUnlicensed,
+        .serverCacheRefreshFailed, .retrySendRefusedAgain,
+        .retrySendFailedOther, .succeededAfterRepair, .cancelled
+    ]
+
     // MARK: - Cases under test
 
     /// One value per `TranscriptionError` case + expected Sentry-capture decision.

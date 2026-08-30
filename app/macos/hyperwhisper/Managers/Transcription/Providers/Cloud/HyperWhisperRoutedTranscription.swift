@@ -161,7 +161,11 @@ enum HyperWhisperRoutedTranscription {
                             creditsRemaining: creditDenial.remaining,
                             creditsRequired: creditDenial.required,
                             fileTooLargeBytes: tooBigBytes,
-                            fileTooLargeLimit: tooBigLimit
+                            fileTooLargeLimit: tooBigLimit,
+                            // Same backend as the HW Cloud provider, so the same
+                            // 401/403 reaches HYPERWHISPER-T2 from here. Carry
+                            // the status rather than dropping it.
+                            httpStatus: Int(resp.status)
                         )
                     } catch {
                         return TranscriptionError.invalidResponse(details: error.localizedDescription)

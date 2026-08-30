@@ -167,7 +167,9 @@ final class Qwen3AsrProvider: TranscriptionProvider {
                 level: .error,
                 data: [
                     "errorDescription": errorDescription,
-                    "audioFile": audioURL.lastPathComponent,
+                    // Not the file NAME: the import flow makes it the user's
+                    // own document name. The extension is the diagnostic part.
+                    "audioFileExtension": audioURL.pathExtension,
                     "language": langHint ?? "auto"
                 ]
             )

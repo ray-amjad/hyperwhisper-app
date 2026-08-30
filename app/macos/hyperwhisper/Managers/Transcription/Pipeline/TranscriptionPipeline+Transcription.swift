@@ -434,7 +434,13 @@ extension TranscriptionPipeline {
                         "postProcessingProvider": capturedPostProcessingProvider,
                         "shouldRunPostProcessing": capturedShouldRunPostProcessing,
                         "isHyperwhisperTranscription": capturedIsHyperwhisperTranscription,
-                        "audioFilePath": audioURL.path,
+                        // The recording path is deliberately absent. It is
+                        // `~/Documents/hyperwhisper/recordings/...`, so it
+                        // carries the account name — HYPERWHISPER-T2 events
+                        // shipped real user names in this extra for months.
+                        // `fileExists` / `fileReadable` / `fileSizeBytes` /
+                        // `fileExtension` below answer every question the path
+                        // was there to answer.
                         "fileExists": fileExists,
                         "fileReadable": fileReadable,
                         "fileSizeBytes": fileSize,
@@ -457,16 +463,29 @@ extension TranscriptionPipeline {
                         extras["errorHttpStatus"] = httpStatus
                     }
 
+                    // The status also goes on a TAG, not just an extra. Sentry's
+                    // server-side scrubbing turns the `errorCategory` /
+                    // `errorKind` extras into "[Filtered]" on exactly the auth
+                    // events HYPERWHISPER-T2 is made of, while the `error_class`
+                    // tag carrying the same value survives. A tag is also the
+                    // only form you can search and group by, which is the whole
+                    // point of separating the 401s from the 403s. Low
+                    // cardinality: an HTTP status, or absent.
+                    var errorTags: [String: String] = [
+                        "component": "transcription",
+                        "error_class": classification.category,
+                        "error_stage": stage
+                    ]
+                    if let httpStatus = classification.httpStatus {
+                        errorTags["error_http_status"] = String(httpStatus)
+                    }
+
                     if shouldCaptureTranscriptionErrorInSentry(error) {
                         SentryService.capture(
                             error: error,
                             message: "TranscriptionPipeline.transcribeWithDetails failed",
                             extras: extras,
-                            tags: [
-                                "component": "transcription",
-                                "error_class": classification.category,
-                                "error_stage": stage
-                            ],
+                            tags: errorTags,
                             fingerprint: Self.sentryFingerprintForTranscriptionFailure(
                                 classification: classification,
                                 stage: stage

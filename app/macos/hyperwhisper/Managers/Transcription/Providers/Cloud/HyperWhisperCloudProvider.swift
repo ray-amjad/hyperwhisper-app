@@ -228,7 +228,11 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
     // MARK: - TranscriptionProvider Protocol
 
     func transcribe(audioURL: URL, language: String?, mode: Mode?, vocabulary: [Vocabulary]) async throws -> String {
-        AppLogger.network.info("HyperWhisper Cloud transcription started (streaming v2) · file=\(audioURL.lastPathComponent, privacy: .public)")
+        // The file NAME is not logged. `transcribe` also serves the file-import
+        // flow, where the name is a document the user chose and is user content.
+        // The extension is what the 415 format recovery below turns on, so that
+        // is what a diagnosis needs.
+        AppLogger.network.info("HyperWhisper Cloud transcription started (streaming v2) · fileExtension=\(audioURL.pathExtension, privacy: .public)")
 
         // Reset cached corrected text and detected language at the start of each request
         aiEnhancedText = nil
@@ -416,7 +420,11 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
                             creditsRemaining: creditDenial.remaining,
                             creditsRequired: creditDenial.required,
                             fileTooLargeBytes: tooBigBytes,
-                            fileTooLargeLimit: tooBigLimit
+                            fileTooLargeLimit: tooBigLimit,
+                            // The 401/403 that HYPERWHISPER-T2 reports arrives
+                            // here. The core drops the code when it classifies
+                            // the body, so read it off the response instead.
+                            httpStatus: Int(resp.status)
                         )
                     } catch {
                         return TranscriptionError.invalidResponse(details: error.localizedDescription)
@@ -468,6 +476,13 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
         var attemptIdentifier = identifier
         var attemptIsLicensed = isLicensed
 
+        // ONE trace across BOTH format attempts. The 415 path re-enters the
+        // licence recovery, and a trace built inside it would let the WAV
+        // attempt's defaults overwrite the original attempt's 401 and licence
+        // repair on the same Sentry scope keys — losing exactly the evidence
+        // HYPERWHISPER-T2 needs.
+        let authRecoveryTrace = CloudAuthRecoveryTrace()
+
         let requestResult = try await CloudAudioFormatRecovery.withUnsupportedFormatRecovery(
             sourceURL: audioURL,
             reencode: { source, destination in
@@ -499,7 +514,8 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
                     onLicenseRepaired: { repairedIdentifier, repairedIsLicensed in
                         attemptIdentifier = repairedIdentifier
                         attemptIsLicensed = repairedIsLicensed
-                    }
+                    },
+                    trace: authRecoveryTrace
                 )
             }
         )
@@ -658,40 +674,80 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
         revalidate: (String) async -> LicenseValidationResult,
         currentIdentifier: () async -> (identifier: String, isLicensed: Bool),
         refreshServerAuthCache: (String) async throws -> Void,
-        onLicenseRepaired: (String, Bool) -> Void = { _, _ in }
+        onLicenseRepaired: (String, Bool) -> Void = { _, _ in },
+        trace: CloudAuthRecoveryTrace = CloudAuthRecoveryTrace()
     ) async throws -> TranscribeRequestResult {
+        trace.beginAttempt(licensedAtSend: isLicensed)
         do {
             let response = try await send(identifier, isLicensed)
+            trace.finish(.succeededFirstSend)
             return TranscribeRequestResult(
                 response: response,
                 identifier: identifier,
                 isLicensed: isLicensed
             )
         } catch let requestError as TranscriptionError {
+            // Record the status the first send was refused with BEFORE the guard,
+            // so a report still carries it when the guard sends us straight out.
+            if case .unauthorized(_, let status) = requestError {
+                trace.recordFirstStatus(status)
+            }
             guard case .unauthorized = requestError, isLicensed else {
+                // Two distinct give-up reasons shared one silent `throw`: the
+                // error was not an auth refusal at all, or it was but the client
+                // never believed it held a licence, so no repair was attempted.
+                if case .unauthorized = requestError {
+                    trace.finish(.notLicensedNoRetry)
+                    AppLogger.network.warning("HyperWhisper Cloud transcribe refused · unlicensed identity, no licence repair attempted")
+                } else {
+                    trace.finish(.otherErrorFirstSend)
+                }
                 throw requestError
             }
 
-            AppLogger.network.warning("HyperWhisper Cloud transcribe unauthorized · forcing license revalidation and retrying once")
+            AppLogger.network.warning("HyperWhisper Cloud transcribe refused · status=\(trace.firstStatusForLog, privacy: .public) · forcing license revalidation and retrying once")
             let revalidation = await revalidate(identifier)
-            try Task.checkCancellation()
+            do {
+                // Logging only — the same `CancellationError` leaves by the same
+                // path. Without it a cancellation here is the one exit that
+                // stamps no outcome, and the scope keeps `state=running` with a
+                // real status on it until some later transcription overwrites it.
+                try Task.checkCancellation()
+            } catch {
+                trace.finish(.cancelled)
+                throw error
+            }
+            trace.recordRevalidation(isValid: revalidation.isValid)
             guard revalidation.isValid else {
+                trace.finish(.revalidationInvalid)
+                AppLogger.network.warning("HyperWhisper Cloud licence revalidation rejected the identity · preserving unauthorized response")
                 throw requestError
             }
 
             let refreshed = await currentIdentifier()
+            // The identifier itself is a licence key — only ever record whether
+            // it CHANGED, never the value.
+            trace.recordReresolvedIdentity(
+                isLicensed: refreshed.isLicensed,
+                changed: refreshed.identifier != identifier
+            )
             guard refreshed.isLicensed else {
+                trace.finish(.reresolvedIdentityUnlicensed)
+                AppLogger.network.warning("HyperWhisper Cloud re-resolved identity is no longer licensed · preserving unauthorized response")
                 throw requestError
             }
 
             do {
                 try await refreshServerAuthCache(refreshed.identifier)
             } catch is CancellationError {
+                trace.finish(.cancelled)
                 throw CancellationError()
             } catch {
                 if HyperWhisperCloudManager.isCancellationError(error) {
+                    trace.finish(.cancelled)
                     throw CancellationError()
                 }
+                trace.finish(.serverCacheRefreshFailed)
                 AppLogger.network.warning("HyperWhisper Cloud server license-cache refresh failed · preserving unauthorized response")
                 throw requestError
             }
@@ -702,12 +758,46 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
             // just produced.
             onLicenseRepaired(refreshed.identifier, refreshed.isLicensed)
 
-            let response = try await send(refreshed.identifier, refreshed.isLicensed)
+            let response: HttpResponse
+            do {
+                response = try await send(refreshed.identifier, refreshed.isLicensed)
+            } catch {
+                // Logging only — the same error leaves by the same path. Without
+                // this, a licence repair that worked and a retry that was refused
+                // again are indistinguishable in the report.
+                if error is CancellationError || HyperWhisperCloudManager.isCancellationError(error) {
+                    // Must be tested FIRST. `RustRetry.perform` normalises a
+                    // cancelled upload into `CancellationError`, and letting one
+                    // fall through would file a user pressing stop as a retry
+                    // failure — poisoning the bucket that decides whether the
+                    // server or the client is at fault.
+                    trace.finish(.cancelled)
+                } else if let retryError = error as? TranscriptionError,
+                          case .unauthorized(_, let status) = retryError {
+                    trace.recordRetryStatus(status)
+                    trace.finish(.retrySendRefusedAgain)
+                    AppLogger.network.error("HyperWhisper Cloud retry after licence repair was refused again · status=\(trace.retryStatusForLog, privacy: .public)")
+                } else {
+                    trace.finish(.retrySendFailedOther)
+                }
+                throw error
+            }
+            trace.finish(.succeededAfterRepair)
             return TranscribeRequestResult(
                 response: response,
                 identifier: refreshed.identifier,
                 isLicensed: refreshed.isLicensed
             )
+        } catch {
+            // The typed `catch` above only sees `TranscriptionError`, so a
+            // cancelled first send used to leave without stamping any outcome at
+            // all. Logging only — the same error leaves by the same path.
+            if error is CancellationError || HyperWhisperCloudManager.isCancellationError(error) {
+                trace.finish(.cancelled)
+            } else {
+                trace.finish(.otherErrorFirstSend)
+            }
+            throw error
         }
     }
 
@@ -953,8 +1043,23 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
     /// Handles HTTP error responses and throws appropriate TranscriptionError
     private func handleHTTPError(statusCode: Int, data: Data, httpResponse: HTTPURLResponse) throws {
         let responseString = String(data: data, encoding: .utf8) ?? "No response body"
-        let headerDump = httpResponse.allHeaderFields
-            .map { "\($0.key): \($0.value)" }
+        // A full header dump is not safe to print: `allHeaderFields` carries
+        // whatever the server sent, `Set-Cookie` and credential echoes included.
+        // Take a fixed allowlist of the diagnostic ones instead.
+        //
+        // NOTE ON REACH: this is the POST-PROCESS path only. Its one caller is
+        // `performPostProcess` below. The /transcribe refusals that make up
+        // HYPERWHISPER-T2 do NOT come through here — they are classified by the
+        // Rust core and mapped in the `parseError` closure above, which is where
+        // the status is now read off the response. Do not instrument this frame
+        // expecting to see a transcribe failure.
+        let diagnosticHeaderNames = [
+            "x-request-id", "fly-request-id", "retry-after", "content-type", "x-stt-provider"
+        ]
+        let headerDump = diagnosticHeaderNames
+            .compactMap { name in
+                httpResponse.value(forHTTPHeaderField: name).map { "\(name): \($0)" }
+            }
             .joined(separator: ", ")
         AppLogger.network.error("HyperWhisper Cloud error · status=\(statusCode, privacy: .public) · headers=\(headerDump, privacy: .public)")
 
@@ -980,7 +1085,7 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
                 let retryAfter = httpResponse.value(forHTTPHeaderField: "Retry-After").flatMap { Int($0) }
                 throw TranscriptionError.rateLimited(retryAfter: retryAfter)
             case 401, 403:
-                throw TranscriptionError.unauthorized(provider: "HyperWhisper Cloud")
+                throw TranscriptionError.unauthorized(provider: "HyperWhisper Cloud", statusCode: statusCode)
             case 400:
                 throw TranscriptionError.serverError(statusCode: statusCode, message: errorMessage)
             case 500...599:
@@ -1001,7 +1106,7 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
         case 402:
             throw TranscriptionError.insufficientCredits(remaining: 0, required: 0)
         case 401, 403:
-            throw TranscriptionError.unauthorized(provider: "HyperWhisper Cloud")
+            throw TranscriptionError.unauthorized(provider: "HyperWhisper Cloud", statusCode: statusCode)
         case 408, 504:
             throw TranscriptionError.timeout(operation: "transcription")
         case 500...599:
@@ -1027,7 +1132,10 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
             AppLogger.transcription.info("Bundle ID: \(appContext.bundleId, privacy: .public)")
             AppLogger.transcription.info("Category: \(appContext.category, privacy: .public)")
             AppLogger.transcription.info("Text Input Format: \(appContext.textInputFormat, privacy: .public)")
-            AppLogger.transcription.info("Browser Tab Title: \(appContext.browserTabTitle ?? "None", privacy: .public)")
+            // The tab title is the name of the page the user is reading. It is
+            // user content and must never reach a log; only whether one was
+            // resolved, which is all the prompt builder branches on.
+            AppLogger.transcription.info("Browser Tab Title present: \(appContext.browserTabTitle != nil, privacy: .public)")
             AppLogger.transcription.info("=== END CONTEXT ===")
 
             // Concatenate static prompt + dynamic info for HW Cloud backend
