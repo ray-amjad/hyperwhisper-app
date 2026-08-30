@@ -231,8 +231,7 @@ final class NemotronProvider: TranscriptionProvider {
             await manager.cleanup()
 
             if !vocabulary.isEmpty {
-                let phoneticMatcher = PhoneticVocabularyMatcher(vocabulary: vocabulary)
-                text = phoneticMatcher.apply(to: text)
+                text = VocabularyProcessor.applyPhoneticVocabulary(to: text, vocabulary: vocabulary)
                 text = VocabularyProcessor.applySubstringVocabulary(to: text, vocabulary: vocabulary)
             }
             return text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -268,7 +267,9 @@ final class NemotronProvider: TranscriptionProvider {
                 "errorDescription": errorDescription,
                 "variant": variant.rawValue,
                 "modelId": modelId,
-                "audioFile": audioURL.lastPathComponent
+                // Not the file NAME: the import flow makes it the user's own
+                // document name. The extension is the diagnostic part.
+                "audioFileExtension": audioURL.pathExtension
             ]
             if let attrs = try? fm.attributesOfItem(atPath: audioURL.path),
                let size = attrs[.size] as? Int64 {

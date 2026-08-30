@@ -202,7 +202,11 @@ enum RustCoreMapping {
                 try parse(resp)
                 return TranscriptionError.invalidResponse(details: "unexpected non-error response")
             } catch let err as HwTranscriptionError {
-                return RustCoreMapping.mapTranscriptionError(err, providerName: providerName)
+                return RustCoreMapping.mapTranscriptionError(
+                    err,
+                    providerName: providerName,
+                    httpStatus: Int(resp.status)
+                )
             } catch {
                 return TranscriptionError.invalidResponse(details: error.localizedDescription)
             }
@@ -217,6 +221,10 @@ enum RustCoreMapping {
     /// `fileTooLargeBytes` / `fileTooLargeLimit` carry the real audio/limit sizes
     /// for `.audioFileTooLarge` (HW Cloud / routed 413), when the platform parsed
     /// `actual_size_mb` / `max_size_mb` from the response body. Default 0 = absent.
+    /// `httpStatus` carries the response status for `.Unauthorized`, which the
+    /// core classifies without keeping the code. Diagnostic only, and the reason
+    /// HYPERWHISPER-T2 can finally separate a 401 from a 403; `nil` = the caller
+    /// had no response to read it from.
     static func mapTranscriptionError(
         _ error: HwTranscriptionError,
         providerName: String,
@@ -224,11 +232,12 @@ enum RustCoreMapping {
         creditsRemaining: Int = 0,
         creditsRequired: Int = 0,
         fileTooLargeBytes: Int64 = 0,
-        fileTooLargeLimit: Int64 = 0
+        fileTooLargeLimit: Int64 = 0,
+        httpStatus: Int? = nil
     ) -> TranscriptionError {
         switch error {
         case .Unauthorized:
-            return .unauthorized(provider: providerName)
+            return .unauthorized(provider: providerName, statusCode: httpStatus)
         case .QuotaExceeded:
             // HW Cloud / routed: a 402 is "out of credits". Prefer the richer
             // .insufficientCredits when the caller pulled the credit context.

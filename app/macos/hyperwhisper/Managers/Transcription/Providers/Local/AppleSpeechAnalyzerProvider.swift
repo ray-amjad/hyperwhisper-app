@@ -170,7 +170,9 @@ final class AppleSpeechAnalyzerProvider: TranscriptionProvider {
                     "errorType": String(describing: type(of: error)),
                     "errorDescription": error.localizedDescription,
                     "locale": locale.identifier,
-                    "audioFile": audioURL.lastPathComponent,
+                    // Not the file NAME: the import flow makes it the user's
+                    // own document name. The extension is the diagnostic part.
+                    "audioFileExtension": audioURL.pathExtension,
                     "vocabularyCount": vocabulary.count,
                     "analyzerSelfCancelled": didSelfCancelAnalyzer
                 ]

@@ -19,7 +19,10 @@ uniffi::setup_scaffolding!("hyperwhisper_core");
 //
 // The no-speech audio diagnostic, shared by Windows and macOS (#291).
 mod ffi_audio;
-mod ffi_backup;
+// Public for the same reason as `ffi_catalog` below: the backup conformance
+// vectors (`shared-conformance/backup-vectors.json`) are driven from these
+// functions by an integration test.
+pub mod ffi_backup;
 // Public so `tests/catalog_vectors.rs` can build the golden conformance vectors
 // from the same functions the bindings export. The FFI items are `pub` either
 // way (UniFFI requires it); this only makes the module path reachable in-crate.
@@ -34,17 +37,21 @@ mod ffi_license;
 mod ffi_llm;
 // Live-streaming websocket policy and capabilities (#281).
 mod ffi_live;
+// The Local API wire contract — origin guard, bearer token, failure envelope
+// (#289). Shared by all three heads.
+mod ffi_localapi;
 mod ffi_net;
+// The Beider-Morse encoder and the vocabulary matcher above it (#283). Public
+// for the same reason as `ffi_catalog`: `tests/golden_phonetic.rs` and
+// `tests/phonetic_vectors.rs` drive these functions directly.
+pub mod ffi_phonetic;
 mod ffi_prompt;
-
-/// Encode a word with the Beider-Morse phonetic algorithm.
-///
-/// Replaces the old C-ABI `bm_encode` (pipe-separated `char*` + manual
-/// `bm_free`). Returns the phonetic codes directly; empty input -> empty list.
-#[uniffi::export]
-pub fn phonetic_encode(word: String) -> Vec<String> {
-    hw_phonetic::encode(&word)
-}
+// The appcast release-notes HTML parser, shared by macOS and Windows (#284).
+mod ffi_releasenotes;
+// The home statistics formulas, shared by all three heads (#285). Public for
+// the same reason as `ffi_catalog`: `tests/stats_vectors.rs` drives these
+// functions directly.
+pub mod ffi_stats;
 
 // ===========================================================================
 // hw-text (Milestone 1): pure text logic. Thin wrappers over the dep-free

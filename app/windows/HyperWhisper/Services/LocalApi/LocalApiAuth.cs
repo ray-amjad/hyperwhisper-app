@@ -1,6 +1,7 @@
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
+using uniffi.hyperwhisper_core;
 
 namespace HyperWhisper.Services.LocalApi;
 
@@ -65,25 +66,37 @@ internal static class LocalApiAuth
     }
 
     /// <summary>
-    /// Length-stable byte comparison; required because the bearer check is the
-    /// only thing standing between a local-network attacker and arbitrary
-    /// transcription/post-processing on the user's API keys.
+    /// Whether an <c>Authorization</c> header presents the stored token.
+    ///
+    /// THE PARSE AND THE COMPARE LIVE IN RUST (issue #289). All three platforms
+    /// did this differently. This one compared UTF-8 bytes directly, and
+    /// <c>FixedTimeEquals</c> returns false immediately on a length mismatch,
+    /// so the length of the stored token leaked through timing. The shared
+    /// version hashes both sides to a fixed 32 bytes first, so the compare runs
+    /// the same number of iterations for every request whatever the caller
+    /// sent. It also owns the header parse, which is what stops the three from
+    /// disagreeing about a trailing space again.
+    ///
+    /// An empty stored token denies everything, so a credential store that came
+    /// back empty cannot be authorized against.
     /// </summary>
-    public static bool ConstantTimeEquals(string a, string b)
-    {
-        var aBytes = Encoding.UTF8.GetBytes(a ?? "");
-        var bBytes = Encoding.UTF8.GetBytes(b ?? "");
-        return CryptographicOperations.FixedTimeEquals(aBytes, bBytes);
-    }
+    public static bool Authorize(string? authorizationHeader, string expectedToken) =>
+        HyperwhisperCoreMethods.LocalApiAuthorize(authorizationHeader, expectedToken ?? "");
 
-    // 32 random bytes → base64-url. Strips `=` padding and swaps `+/` for `-_`.
+    /// <summary>
+    /// 32 random bytes → base64-url, the encoding all three platforms wrote out
+    /// separately.
+    ///
+    /// THE ENTROPY STAYS HERE AND THE ENCODING MOVED (issue #289). The shared
+    /// core builds with <c>panic = "abort"</c>, so a random-number failure
+    /// inside Rust would abort the whole app; keeping
+    /// <c>RandomNumberGenerator</c> on this side is why <c>hw-localapi</c> has
+    /// no <c>rand</c> dependency.
+    /// </summary>
     private static string GenerateToken()
     {
-        var bytes = RandomNumberGenerator.GetBytes(32);
-        return Convert.ToBase64String(bytes)
-            .Replace("=", "", StringComparison.Ordinal)
-            .Replace("+", "-", StringComparison.Ordinal)
-            .Replace("/", "_", StringComparison.Ordinal);
+        var bytes = RandomNumberGenerator.GetBytes((int)HyperwhisperCoreMethods.LocalApiTokenEntropyBytes());
+        return HyperwhisperCoreMethods.LocalApiGenerateToken(bytes);
     }
 
     private static void TryStoreToken(string token)

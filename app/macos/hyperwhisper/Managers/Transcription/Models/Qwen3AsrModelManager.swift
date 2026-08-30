@@ -56,14 +56,6 @@ final class Qwen3AsrModelManager: ObservableObject {
         }
     }
 
-    var isModelInstalled: Bool {
-        isDownloaded
-    }
-
-    func isModelInstalled(_ modelId: String) -> Bool {
-        modelId == Constants.modelId && isDownloaded
-    }
-
     @MainActor
     func refreshState() {
         guard #available(macOS 15.0, *) else {

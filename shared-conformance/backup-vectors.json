@@ -1,0 +1,4236 @@
+{
+  "description": "Cross-platform golden vectors for the universal-v2 backup adapters (issue #277). The modeNormalization rows were hand-authored in commit 1a against the SHIPPING native code — Windows UniversalBackupMapper.MapToMode (+ CloudTranscriptionModels.ResolveModelAlias and CloudSttCatalog.NormalizeCloudProvider) and Linux ApplicationBackupService.ParseMode — so the Rust port in commit 1b can be diffed against them on the same inputs. A row with a single \"expected\" is one where the two heads AGREE today. A row carrying \"expectedWindows\" and \"expectedLinux\" records a drift that ships right now: Linux runs no cloud-routing migration, no catalog provider normalization, no model-alias resolution and no domain gate at all. Those rows collapse to a single \"expected\" in 1b; rows with one \"expected\" must not move. The windowsSettings / linuxSettings / macosSettings rows were added in commit 2a against the SHIPPING settings adapters: Windows UniversalBackupMapper.MapSettings / BuildPlatformExtensions / ApplySettings driven over a temp-rooted SettingsService, Linux ApplicationBackupService export/import over PortableSettingsService, and the macOS pair already in hw-backup mapping.rs. Native key names are written exactly as each head stores them — PascalCase for the Windows settings.json, the dotted universal keys for Linux, and the seven macOS categories. absentUniversalKeys / ignoredUniversalKeys record, per head, the universal keys that head does NOT carry today; those are the gaps phase 3 closes. Phase 3 CHANGES BEHAVIOUR on purpose, so the windowsSettings rows moved: storage.keepAudioFiles and advanced.maxRecordingDuration became real Windows settings (3a), the maxRecordingDuration rows pin the 20-minute ceiling and the two macOS sentinels, and unknownKeyRoundTrip was populated for the first time (3b/3c). The modeNormalization rows are FROZEN and did not move in phase 3. They moved ONCE afterwards, when main merged catalog v8 (#331): that retired googleChirp3 in favour of geminiTranscribe, so the seven rows whose answer was googleChirp3 were RE-DERIVED against the shipping core by the same 1a method — no row was loosened, and only cloudAccuracyTier moved on any of them. Catalog v8 also ADDED two tier aliases (googlechirp3, chirp_3), so the frozen count grew deliberately from 132 to 134; the count is asserted in two suites and both were updated with it. Phase 4 wired the file into all three stacks and all three CIs, the way catalog-vectors.json already was: shared-core-rs/crates/hw-core/tests/backup_vectors.rs (the only head that calls the core with no app around it), app/macos/hyperwhisperTests/BackupConformanceVectorTests.swift, app/shared-dotnet/HyperWhisper.Backup.Application.Tests (now built on Windows CI as well as Linux CI) and app/windows/HyperWhisper.SmokeTests. It added exactly one field, setterRewrittenNativeKeys: it names the windowsSettings import keys whose FINAL value belongs to the SettingsService setters (the streaming-provider fallback, the deepgram-model collapse, the shortcut re-canonicalisation) rather than to the core, so a core-only head can pin every other key of expectedNative exactly instead of skipping the whole row. The key must still be EMITTED by the core; only its value is exempt.",
+  "modeNormalization": [
+    {
+      "name": "absent: a mode carrying no cloud-routing keys at all",
+      "note": "Trap #4. Every absent field must come out at the CALLER's own default (Mode.cs field initialisers), never at the core default (deepgramNova3 / grok:grok-4.3).",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000001",
+        "name": "vec-001"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "absent: every cloud-routing key present but explicitly JSON null",
+      "note": "JSON null must behave exactly like an absent key on both heads.",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000002",
+        "name": "vec-002",
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": null,
+        "cloudPostProcessingModel": null
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier alias: \"medium\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000003",
+        "name": "vec-003",
+        "cloudAccuracyTier": "medium"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "groqWhisper",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier alias: \"groq\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000004",
+        "name": "vec-004",
+        "cloudAccuracyTier": "groq"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "groqWhisper",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier alias: \"fireworks\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000005",
+        "name": "vec-005",
+        "cloudAccuracyTier": "fireworks"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "groqWhisper",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier alias: \"high\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000006",
+        "name": "vec-006",
+        "cloudAccuracyTier": "high"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "deepgramNova3",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier alias: \"deepgram\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000007",
+        "name": "vec-007",
+        "cloudAccuracyTier": "deepgram"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "deepgramNova3",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier alias: \"grok\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000008",
+        "name": "vec-008",
+        "cloudAccuracyTier": "grok"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "grokStt",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier alias: \"microsoftazurespeech\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000009",
+        "name": "vec-009",
+        "cloudAccuracyTier": "microsoftazurespeech"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "azureMaiTranscribe",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier alias: \"azure\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000010",
+        "name": "vec-010",
+        "cloudAccuracyTier": "azure"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "azureMaiTranscribe",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier alias: \"azure-mai\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000011",
+        "name": "vec-011",
+        "cloudAccuracyTier": "azure-mai"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "azureMaiTranscribe",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier alias: \"azuremai\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000012",
+        "name": "vec-012",
+        "cloudAccuracyTier": "azuremai"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "azureMaiTranscribe",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier alias: \"googlespeech\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000013",
+        "name": "vec-013",
+        "cloudAccuracyTier": "googlespeech"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "geminiTranscribe",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier alias: \"chirp\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000014",
+        "name": "vec-014",
+        "cloudAccuracyTier": "chirp"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "geminiTranscribe",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier alias: \"google-chirp\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000015",
+        "name": "vec-015",
+        "cloudAccuracyTier": "google-chirp"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "geminiTranscribe",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier alias: \"googlechirp\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000016",
+        "name": "vec-016",
+        "cloudAccuracyTier": "googlechirp"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "geminiTranscribe",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier alias: \"highest\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000017",
+        "name": "vec-017",
+        "cloudAccuracyTier": "highest"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier alias: \"elevenlabs\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000018",
+        "name": "vec-018",
+        "cloudAccuracyTier": "elevenlabs"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier canonical id passes through unchanged",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000019",
+        "name": "vec-019",
+        "cloudAccuracyTier": "grokStt"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "grokStt",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier canonical id, exact casing",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000020",
+        "name": "vec-020",
+        "cloudAccuracyTier": "elevenLabsScribeV2"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier canonical id is matched case-insensitively",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000021",
+        "name": "vec-021",
+        "cloudAccuracyTier": "GROKSTT"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "grokStt",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier alias is matched case-insensitively",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000022",
+        "name": "vec-022",
+        "cloudAccuracyTier": "MicrosoftAzureSpeech"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "azureMaiTranscribe",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier unknown value falls back to the core default",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000023",
+        "name": "vec-023",
+        "cloudAccuracyTier": "not-a-real-tier"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "deepgramNova3",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier is surrounded by whitespace (Rust trims, C# present-guard does not)",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000024",
+        "name": "vec-024",
+        "cloudAccuracyTier": "  high  "
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "deepgramNova3",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier is whitespace only",
+      "note": "Windows' MigrateCloudAccuracyTierPresent treats whitespace as absent and keeps the entity default; Linux stores the whitespace verbatim.",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000025",
+        "name": "vec-025",
+        "cloudAccuracyTier": "   "
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier is the empty string",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000026",
+        "name": "vec-026",
+        "cloudAccuracyTier": ""
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token: \"cerebras\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000027",
+        "name": "vec-027",
+        "cloudPostProcessingModel": "cerebras"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "cerebras:gpt-oss-120b"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token: \"cerebras-gpt-oss-120b\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000028",
+        "name": "vec-028",
+        "cloudPostProcessingModel": "cerebras-gpt-oss-120b"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "cerebras:gpt-oss-120b"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token: \"cerebrasgptoss120b\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000029",
+        "name": "vec-029",
+        "cloudPostProcessingModel": "cerebrasgptoss120b"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "cerebras:gpt-oss-120b"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token: \"gpt-oss-120b\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000030",
+        "name": "vec-030",
+        "cloudPostProcessingModel": "gpt-oss-120b"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "cerebras:gpt-oss-120b"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token: \"default\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000031",
+        "name": "vec-031",
+        "cloudPostProcessingModel": "default"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "cerebras:gpt-oss-120b"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token: \"groq\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000032",
+        "name": "vec-032",
+        "cloudPostProcessingModel": "groq"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "groq:openai/gpt-oss-120b"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token: \"groq-gpt-oss-120b\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000033",
+        "name": "vec-033",
+        "cloudPostProcessingModel": "groq-gpt-oss-120b"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "groq:openai/gpt-oss-120b"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token: \"groqgptoss120b\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000034",
+        "name": "vec-034",
+        "cloudPostProcessingModel": "groqgptoss120b"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "groq:openai/gpt-oss-120b"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token: \"openai/gpt-oss-120b\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000035",
+        "name": "vec-035",
+        "cloudPostProcessingModel": "openai/gpt-oss-120b"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "groq:openai/gpt-oss-120b"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token: \"anthropic\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000036",
+        "name": "vec-036",
+        "cloudPostProcessingModel": "anthropic"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token: \"claude-haiku-4-5\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000037",
+        "name": "vec-037",
+        "cloudPostProcessingModel": "claude-haiku-4-5"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token: \"claude-haiku-4.5\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000038",
+        "name": "vec-038",
+        "cloudPostProcessingModel": "claude-haiku-4.5"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token: \"claudehaiku\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000039",
+        "name": "vec-039",
+        "cloudPostProcessingModel": "claudehaiku"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token: \"grok\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000040",
+        "name": "vec-040",
+        "cloudPostProcessingModel": "grok"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "grok:grok-4.3"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token: \"grok-4.3\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000041",
+        "name": "vec-041",
+        "cloudPostProcessingModel": "grok-4.3"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "grok:grok-4.3"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token: \"grokfast\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000042",
+        "name": "vec-042",
+        "cloudPostProcessingModel": "grokfast"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "grok:grok-4.3"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token: \"grok-4-1-fast-non-reasoning\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000043",
+        "name": "vec-043",
+        "cloudPostProcessingModel": "grok-4-1-fast-non-reasoning"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "grok:grok-4.3"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token: \"grok-4.1-fast-non-reasoning\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000044",
+        "name": "vec-044",
+        "cloudPostProcessingModel": "grok-4.1-fast-non-reasoning"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "grok:grok-4.3"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token: \"grok-4-fast-non-reasoning\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000045",
+        "name": "vec-045",
+        "cloudPostProcessingModel": "grok-4-fast-non-reasoning"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "grok:grok-4.3"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token: \"grok-4-1-fast-reasoning\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000046",
+        "name": "vec-046",
+        "cloudPostProcessingModel": "grok-4-1-fast-reasoning"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "grok:grok-4.3"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token: \"grok-4-fast-reasoning\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000047",
+        "name": "vec-047",
+        "cloudPostProcessingModel": "grok-4-fast-reasoning"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "grok:grok-4.3"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token, mixed casing",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000048",
+        "name": "vec-048",
+        "cloudPostProcessingModel": "cerebrasGptOss120B"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "cerebras:gpt-oss-120b"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token, mixed casing (grok)",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000049",
+        "name": "vec-049",
+        "cloudPostProcessingModel": "grokFast"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "grok:grok-4.3"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel legacy token, mixed casing (anthropic)",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000050",
+        "name": "vec-050",
+        "cloudPostProcessingModel": "claudeHaiku"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel unknown single token falls back",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000051",
+        "name": "vec-051",
+        "cloudPostProcessingModel": "not-a-real-model"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "grok:grok-4.3"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel surrounded by whitespace",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000052",
+        "name": "vec-052",
+        "cloudPostProcessingModel": "  claudeHaiku  "
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel is whitespace only",
+      "note": "Present-only guard on Windows keeps the entity default rather than forcing the core fallback.",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000053",
+        "name": "vec-053",
+        "cloudPostProcessingModel": "   "
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "cloudPostProcessingModel is the empty string",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000054",
+        "name": "vec-054",
+        "cloudPostProcessingModel": ""
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "qualified pp model: engine casing is canonicalised",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000055",
+        "name": "vec-055",
+        "cloudPostProcessingModel": "GROK:grok-4.3"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "grok:grok-4.3"
+      }
+    },
+    {
+      "name": "qualified pp model: engine casing is canonicalised (anthropic)",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000056",
+        "name": "vec-056",
+        "cloudPostProcessingModel": "Anthropic:claude-haiku-4-5"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "qualified pp model: engine casing is canonicalised (cerebras)",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000057",
+        "name": "vec-057",
+        "cloudPostProcessingModel": "CEREBRAS:gpt-oss-120b"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "cerebras:gpt-oss-120b"
+      }
+    },
+    {
+      "name": "qualified pp model: already-canonical engine passes through verbatim",
+      "note": "The model id is NOT validated against the catalog — a known engine passes the whole value through.",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000058",
+        "name": "vec-058",
+        "cloudPostProcessingModel": "openai:gpt-5.6-luna"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "openai:gpt-5.6-luna"
+      }
+    },
+    {
+      "name": "qualified pp model: unknown model id under a known engine is still kept",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000059",
+        "name": "vec-059",
+        "cloudPostProcessingModel": "mistral:some-future-model"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "mistral:some-future-model"
+      }
+    },
+    {
+      "name": "qualified pp model: UNKNOWN engine falls through to the legacy switch and hits the fallback",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000060",
+        "name": "vec-060",
+        "cloudPostProcessingModel": "notanengine:some-model"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "grok:grok-4.3"
+      }
+    },
+    {
+      "name": "qualified pp model: unknown engine whose suffix IS a legacy token still hits the fallback",
+      "note": "The legacy switch matches the WHOLE trimmed string, not the part after the colon.",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000061",
+        "name": "vec-061",
+        "cloudPostProcessingModel": "notanengine:claudeHaiku"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "grok:grok-4.3"
+      }
+    },
+    {
+      "name": "cloudProvider legacy alias \"microsoftazurespeech\" folds onto hyperwhisper + azureMaiTranscribe",
+      "note": "The folded tier lands on the mode ONLY because this mode carries no cloudAccuracyTier of its own — see vec-066 for the case where it does, and loses. This applies to the other plain-fold rows too (vec-063/064/065/067/075).",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000062",
+        "name": "vec-062",
+        "cloudProvider": "microsoftazurespeech",
+        "cloudTranscriptionDomain": "medical"
+      },
+      "expected": {
+        "cloudProvider": "hyperwhisper",
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": "medical",
+        "cloudAccuracyTier": "azureMaiTranscribe",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "cloudProvider legacy alias \"microsoftAzureSpeech\" folds onto hyperwhisper + azureMaiTranscribe",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000063",
+        "name": "vec-063",
+        "cloudProvider": "microsoftAzureSpeech",
+        "cloudTranscriptionDomain": "medical"
+      },
+      "expected": {
+        "cloudProvider": "hyperwhisper",
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": "medical",
+        "cloudAccuracyTier": "azureMaiTranscribe",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "cloudProvider legacy alias \"googlespeech\" folds onto hyperwhisper + geminiTranscribe",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000064",
+        "name": "vec-064",
+        "cloudProvider": "googlespeech",
+        "cloudTranscriptionDomain": "medical"
+      },
+      "expected": {
+        "cloudProvider": "hyperwhisper",
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": "medical",
+        "cloudAccuracyTier": "geminiTranscribe",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "cloudProvider legacy alias \"googleSpeech\" folds onto hyperwhisper + geminiTranscribe",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000065",
+        "name": "vec-065",
+        "cloudProvider": "googleSpeech",
+        "cloudTranscriptionDomain": "medical"
+      },
+      "expected": {
+        "cloudProvider": "hyperwhisper",
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": "medical",
+        "cloudAccuracyTier": "geminiTranscribe",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "cloudProvider fold: the mode's OWN cloudAccuracyTier BEATS the folded provider tier",
+      "note": "The object initializer really is `normalizedCloudProvider.AccuracyTier ?? migrated(universal) ?? Mode default`, so the fold wins THERE — but MapToMode then assigns CloudAccuracyTier a second time, unconditionally, from whichever post-initializer arm it takes. With no platformExtensions.windows it takes the else arm, `migrated(universal.CloudAccuracyTier) ?? mode.CloudAccuracyTier`, and MigrateCloudAccuracyTierPresent returns null ONLY for a null/blank input (an unknown value falls back to deepgramNova3, never to null). So any present tier overwrites the fold. Here 'high' is a real migrateFrom alias of deepgramNova3, so azureMaiTranscribe is discarded. The fold survives only when the arm's own tier source is absent or blank.",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000066",
+        "name": "vec-066",
+        "cloudProvider": "microsoftazurespeech",
+        "cloudAccuracyTier": "high"
+      },
+      "expected": {
+        "cloudProvider": "hyperwhisper",
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "deepgramNova3",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "cloudProvider fold: a legacy model id is NOT aliased, because ResolveModelAlias sees the RAW provider",
+      "note": "MapToMode passes universal.CloudProvider (raw), not the normalized provider, to FromIdentifier — so the azure branch hits the passthrough arm.",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000067",
+        "name": "vec-067",
+        "cloudProvider": "microsoftazurespeech",
+        "cloudTranscriptionModel": "nova-3"
+      },
+      "expected": {
+        "cloudProvider": "hyperwhisper",
+        "cloudTranscriptionModel": "nova-3",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "azureMaiTranscribe",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "BYOK passthrough: \"deepgram\" is a tier alias but NOT a provider alias — it must not fold",
+      "note": "deepgram appears in TIER_ALIASES for accuracy-tier migration; legacyCloudProviderAliases is kept separate exactly so BYOK provider names survive.",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000068",
+        "name": "vec-068",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general"
+      },
+      "expected": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "BYOK passthrough: \"groq\" is a tier alias but NOT a provider alias",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000069",
+        "name": "vec-069",
+        "cloudProvider": "groq",
+        "cloudTranscriptionModel": "whisper-large-v3-turbo"
+      },
+      "expected": {
+        "cloudProvider": "groq",
+        "cloudTranscriptionModel": "whisper-large-v3-turbo",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "BYOK passthrough: \"elevenlabs\" is a tier alias but NOT a provider alias",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000070",
+        "name": "vec-070",
+        "cloudProvider": "elevenlabs",
+        "cloudTranscriptionModel": "scribe_v2"
+      },
+      "expected": {
+        "cloudProvider": "elevenlabs",
+        "cloudTranscriptionModel": "scribe_v2",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "BYOK passthrough: a deepgram mode with a legacy model id still resolves the model",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000071",
+        "name": "vec-071",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-2",
+        "cloudTranscriptionDomain": "medical"
+      },
+      "expected": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-2-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "domain gate: hyperwhisper keeps the domain",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000072",
+        "name": "vec-072",
+        "cloudProvider": "hyperwhisper",
+        "cloudTranscriptionDomain": "medical"
+      },
+      "expected": {
+        "cloudProvider": "hyperwhisper",
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": "medical",
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "domain gate: a BYOK provider DROPS the domain on Windows",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000073",
+        "name": "vec-073",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionDomain": "medical"
+      },
+      "expected": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "domain gate: an absent provider DROPS the domain on Windows",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000074",
+        "name": "vec-074",
+        "cloudTranscriptionDomain": "medical"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "domain gate: a folded provider keeps the domain, because the fold happens first",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000075",
+        "name": "vec-075",
+        "cloudProvider": "googlespeech",
+        "cloudTranscriptionDomain": "medical"
+      },
+      "expected": {
+        "cloudProvider": "hyperwhisper",
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": "medical",
+        "cloudAccuracyTier": "geminiTranscribe",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "domain gate: hyperwhisper with no domain stays absent",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000076",
+        "name": "vec-076",
+        "cloudProvider": "hyperwhisper"
+      },
+      "expected": {
+        "cloudProvider": "hyperwhisper",
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "assemblyai model alias: \"universal\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000077",
+        "name": "vec-077",
+        "cloudProvider": "assemblyai",
+        "cloudTranscriptionModel": "universal"
+      },
+      "expected": {
+        "cloudProvider": "assemblyai",
+        "cloudTranscriptionModel": "universal-2",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "assemblyai model alias: \"slam-1\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000078",
+        "name": "vec-078",
+        "cloudProvider": "assemblyai",
+        "cloudTranscriptionModel": "slam-1"
+      },
+      "expected": {
+        "cloudProvider": "assemblyai",
+        "cloudTranscriptionModel": "universal-3-5-pro",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "assemblyai model alias: \"universal-3-pro\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000079",
+        "name": "vec-079",
+        "cloudProvider": "assemblyai",
+        "cloudTranscriptionModel": "universal-3-pro"
+      },
+      "expected": {
+        "cloudProvider": "assemblyai",
+        "cloudTranscriptionModel": "universal-3-5-pro",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "assemblyai model alias: \"universal-3-pro-medical\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000080",
+        "name": "vec-080",
+        "cloudProvider": "assemblyai",
+        "cloudTranscriptionModel": "universal-3-pro-medical"
+      },
+      "expected": {
+        "cloudProvider": "assemblyai",
+        "cloudTranscriptionModel": "universal-3-5-pro-medical",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "elevenlabs model alias: \"scribe_v1\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000081",
+        "name": "vec-081",
+        "cloudProvider": "elevenlabs",
+        "cloudTranscriptionModel": "scribe_v1"
+      },
+      "expected": {
+        "cloudProvider": "elevenlabs",
+        "cloudTranscriptionModel": "scribe_v2",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "soniox model alias: \"stt-async-v4\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000082",
+        "name": "vec-082",
+        "cloudProvider": "soniox",
+        "cloudTranscriptionModel": "stt-async-v4"
+      },
+      "expected": {
+        "cloudProvider": "soniox",
+        "cloudTranscriptionModel": "stt-async-v5",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "gemini model alias: \"gemini-3.1-flash-lite-preview\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000083",
+        "name": "vec-083",
+        "cloudProvider": "gemini",
+        "cloudTranscriptionModel": "gemini-3.1-flash-lite-preview"
+      },
+      "expected": {
+        "cloudProvider": "gemini",
+        "cloudTranscriptionModel": "gemini-3.1-flash-lite",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "gemini model alias: \"gemini-2.0-flash\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000084",
+        "name": "vec-084",
+        "cloudProvider": "gemini",
+        "cloudTranscriptionModel": "gemini-2.0-flash"
+      },
+      "expected": {
+        "cloudProvider": "gemini",
+        "cloudTranscriptionModel": "gemini-3.6-flash",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"nova-3\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000085",
+        "name": "vec-085",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3"
+      },
+      "expected": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"nova-2\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000086",
+        "name": "vec-086",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-2"
+      },
+      "expected": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-2-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"enhanced\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000087",
+        "name": "vec-087",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "enhanced"
+      },
+      "expected": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"base\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000088",
+        "name": "vec-088",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "base"
+      },
+      "expected": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"nova-2-meeting\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000089",
+        "name": "vec-089",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-2-meeting"
+      },
+      "expected": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"nova-2-phonecall\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000090",
+        "name": "vec-090",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-2-phonecall"
+      },
+      "expected": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"nova-2-voicemail\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000091",
+        "name": "vec-091",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-2-voicemail"
+      },
+      "expected": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"nova-2-finance\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000092",
+        "name": "vec-092",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-2-finance"
+      },
+      "expected": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"nova-2-conversationalai\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000093",
+        "name": "vec-093",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-2-conversationalai"
+      },
+      "expected": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"nova-2-automotive\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000094",
+        "name": "vec-094",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-2-automotive"
+      },
+      "expected": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"nova-2-video\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000095",
+        "name": "vec-095",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-2-video"
+      },
+      "expected": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"nova\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000096",
+        "name": "vec-096",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova"
+      },
+      "expected": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"nova-phonecall\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000097",
+        "name": "vec-097",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-phonecall"
+      },
+      "expected": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"enhanced-general\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000098",
+        "name": "vec-098",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "enhanced-general"
+      },
+      "expected": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"enhanced-meeting\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000099",
+        "name": "vec-099",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "enhanced-meeting"
+      },
+      "expected": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"enhanced-phonecall\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000100",
+        "name": "vec-100",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "enhanced-phonecall"
+      },
+      "expected": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"enhanced-finance\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000101",
+        "name": "vec-101",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "enhanced-finance"
+      },
+      "expected": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"base-general\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000102",
+        "name": "vec-102",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "base-general"
+      },
+      "expected": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"base-meeting\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000103",
+        "name": "vec-103",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "base-meeting"
+      },
+      "expected": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"base-phonecall\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000104",
+        "name": "vec-104",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "base-phonecall"
+      },
+      "expected": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"base-voicemail\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000105",
+        "name": "vec-105",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "base-voicemail"
+      },
+      "expected": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"base-finance\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000106",
+        "name": "vec-106",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "base-finance"
+      },
+      "expected": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"base-conversationalai\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000107",
+        "name": "vec-107",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "base-conversationalai"
+      },
+      "expected": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"base-video\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000108",
+        "name": "vec-108",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "base-video"
+      },
+      "expected": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"whisper-tiny\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000109",
+        "name": "vec-109",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "whisper-tiny"
+      },
+      "expected": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"whisper-base\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000110",
+        "name": "vec-110",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "whisper-base"
+      },
+      "expected": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"whisper-small\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000111",
+        "name": "vec-111",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "whisper-small"
+      },
+      "expected": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"whisper-medium\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000112",
+        "name": "vec-112",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "whisper-medium"
+      },
+      "expected": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "deepgram model alias: \"whisper-large\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000113",
+        "name": "vec-113",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "whisper-large"
+      },
+      "expected": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "model alias table is matched case-insensitively",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000114",
+        "name": "vec-114",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "NOVA-3"
+      },
+      "expected": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "model alias: a current id passes through unchanged",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000115",
+        "name": "vec-115",
+        "cloudProvider": "assemblyai",
+        "cloudTranscriptionModel": "universal-3-5-pro"
+      },
+      "expected": {
+        "cloudProvider": "assemblyai",
+        "cloudTranscriptionModel": "universal-3-5-pro",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "model alias: a provider with no alias table passes the model through",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000116",
+        "name": "vec-116",
+        "cloudProvider": "openai",
+        "cloudTranscriptionModel": "whisper-1"
+      },
+      "expected": {
+        "cloudProvider": "openai",
+        "cloudTranscriptionModel": "whisper-1",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "model alias: hyperwhisper is NOT one of the five tables, so a legacy id is kept",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000117",
+        "name": "vec-117",
+        "cloudProvider": "hyperwhisper",
+        "cloudTranscriptionModel": "nova-3"
+      },
+      "expected": {
+        "cloudProvider": "hyperwhisper",
+        "cloudTranscriptionModel": "nova-3",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "model alias: the empty model id survives as the empty string",
+      "note": "Grok registers its single entry under id \"\" — ResolveModelAlias short-circuits on IsNullOrEmpty.",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000118",
+        "name": "vec-118",
+        "cloudProvider": "grok",
+        "cloudTranscriptionModel": ""
+      },
+      "expected": {
+        "cloudProvider": "grok",
+        "cloudTranscriptionModel": "",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "unknown provider: FromIdentifier returns None, so ALL FIVE tables are chained (elevenlabs)",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000119",
+        "name": "vec-119",
+        "cloudTranscriptionModel": "scribe_v1"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": "scribe_v2",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "unknown provider: chain resolves an assemblyai id",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000120",
+        "name": "vec-120",
+        "cloudTranscriptionModel": "universal"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": "universal-2",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "unknown provider: chain resolves a deepgram id",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000121",
+        "name": "vec-121",
+        "cloudTranscriptionModel": "nova-3"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "unknown provider: chain resolves a soniox id",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000122",
+        "name": "vec-122",
+        "cloudTranscriptionModel": "stt-async-v4"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": "stt-async-v5",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "unknown provider: chain resolves a gemini id",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000123",
+        "name": "vec-123",
+        "cloudTranscriptionModel": "gemini-2.0-flash"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": "gemini-3.6-flash",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "unrecognised provider string: kept verbatim, but the model still goes through the chain",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000124",
+        "name": "vec-124",
+        "cloudProvider": "some-future-vendor",
+        "cloudTranscriptionModel": "nova-3"
+      },
+      "expected": {
+        "cloudProvider": "some-future-vendor",
+        "cloudTranscriptionModel": "nova-3-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "empty provider string: echoed back as the empty string, not null",
+      "note": "normalize_cloud_provider filters on !is_empty and returns the ORIGINAL Option, so \"\" round-trips as \"\".",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000125",
+        "name": "vec-125",
+        "cloudProvider": "",
+        "cloudTranscriptionModel": "",
+        "cloudTranscriptionDomain": "medical"
+      },
+      "expected": {
+        "cloudProvider": "",
+        "cloudTranscriptionModel": "",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "platformExtensions.windows.cloudAccuracyTier overrides the universal value",
+      "note": "Windows re-applies the extension value AFTER the universal one; Linux reads platformExtensions.linux and never sees this slice.",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000126",
+        "name": "vec-126",
+        "cloudAccuracyTier": "high",
+        "cloudPostProcessingModel": "grok",
+        "platformExtensions": {
+          "windows": {
+            "cloudAccuracyTier": "highest",
+            "cloudPostProcessingModel": "claudeHaiku"
+          }
+        }
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "platformExtensions.windows present but carrying no tier: the universal value survives",
+      "note": "Present-only again — an extension slice without the key must not overwrite with a default.",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000127",
+        "name": "vec-127",
+        "cloudAccuracyTier": "high",
+        "platformExtensions": {
+          "windows": {
+            "localEngine": "parakeet"
+          }
+        }
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "deepgramNova3",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "platformExtensions.windows tier BEATS the folded tier; the fold still owns cloudProvider",
+      "note": "The winExt arm of MapToMode. cloudProvider stays folded to hyperwhisper — nothing in platformExtensions can undo that — but the tier does not stay folded: `migrated(winExt.CloudAccuracyTier) ?? mode.CloudAccuracyTier` migrates 'medium' to groqWhisper and discards azureMaiTranscribe. Note this arm does NOT re-read universal.CloudAccuracyTier, so when winExt carries no tier the folded tier is what survives — that is the one place the initializer's `normalizedCloudProvider.AccuracyTier ??` is load-bearing.",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000128",
+        "name": "vec-128",
+        "cloudProvider": "microsoftazurespeech",
+        "platformExtensions": {
+          "windows": {
+            "cloudAccuracyTier": "medium"
+          }
+        }
+      },
+      "expected": {
+        "cloudProvider": "hyperwhisper",
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "groqWhisper",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "a foreign (macos) per-mode slice does not affect cloud routing",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000129",
+        "name": "vec-129",
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-2",
+        "platformExtensions": {
+          "macos": {
+            "someMacKey": true
+          }
+        }
+      },
+      "expected": {
+        "cloudProvider": "deepgram",
+        "cloudTranscriptionModel": "nova-2-general",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "legacy macOS-authored HyperWhisper Cloud mode",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000130",
+        "name": "vec-130",
+        "cloudProvider": "hyperwhisper",
+        "cloudTranscriptionModel": "nova-3",
+        "cloudTranscriptionDomain": "medical",
+        "cloudAccuracyTier": "high",
+        "cloudPostProcessingModel": "claudeHaiku"
+      },
+      "expected": {
+        "cloudProvider": "hyperwhisper",
+        "cloudTranscriptionModel": "nova-3",
+        "cloudTranscriptionDomain": "medical",
+        "cloudAccuracyTier": "deepgramNova3",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "legacy azure standalone mode: provider and domain fold, but its own cloudAccuracyTier survives",
+      "note": "Same rule as vec-066, on a fully-populated legacy mode. The provider folds to hyperwhisper (which in turn opens the domain gate, so 'medical' is kept), but the mode's own 'medium' is migrated to groqWhisper and overwrites the folded azureMaiTranscribe in the post-initializer else arm. This is NOT the 'full fold' the old label claimed: a legacy azure mode that carries any tier of its own lands on that tier, not on azureMaiTranscribe.",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000131",
+        "name": "vec-131",
+        "cloudProvider": "microsoftAzureSpeech",
+        "cloudTranscriptionModel": "mai-transcribe-1.5",
+        "cloudTranscriptionDomain": "medical",
+        "cloudAccuracyTier": "medium",
+        "cloudPostProcessingModel": "default"
+      },
+      "expected": {
+        "cloudProvider": "hyperwhisper",
+        "cloudTranscriptionModel": "mai-transcribe-1.5",
+        "cloudTranscriptionDomain": "medical",
+        "cloudAccuracyTier": "groqWhisper",
+        "cloudPostProcessingModel": "cerebras:gpt-oss-120b"
+      }
+    },
+    {
+      "name": "legacy BYOK assemblyai medical mode",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000132",
+        "name": "vec-132",
+        "cloudProvider": "assemblyai",
+        "cloudTranscriptionModel": "universal-3-pro-medical",
+        "cloudTranscriptionDomain": "medical",
+        "cloudAccuracyTier": "highest",
+        "cloudPostProcessingModel": "groq-gpt-oss-120b"
+      },
+      "expected": {
+        "cloudProvider": "assemblyai",
+        "cloudTranscriptionModel": "universal-3-5-pro-medical",
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "elevenLabsScribeV2",
+        "cloudPostProcessingModel": "groq:openai/gpt-oss-120b"
+      }
+    },
+    {
+      "name": "tier alias: \"googlechirp3\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000133",
+        "name": "vec-133",
+        "cloudAccuracyTier": "googlechirp3"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "geminiTranscribe",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    },
+    {
+      "name": "tier alias: \"chirp_3\"",
+      "mode": {
+        "id": "00000000-0000-4000-8000-000000000134",
+        "name": "vec-134",
+        "cloudAccuracyTier": "chirp_3"
+      },
+      "expected": {
+        "cloudProvider": null,
+        "cloudTranscriptionModel": null,
+        "cloudTranscriptionDomain": null,
+        "cloudAccuracyTier": "geminiTranscribe",
+        "cloudPostProcessingModel": "anthropic:claude-haiku-4-5"
+      }
+    }
+  ],
+  "windowsSettings": [
+    {
+      "name": "export: every promoted key, PascalCase native -> camelCase universal",
+      "note": "Pins the (native, universal) renames: textOutput.pasteResultText <- AutoPasteEnabled, and the SIX streaming keys (enabled/provider/language/deepgramModel/fastFormatting/shortcut) whose native names are all StreamingX. StreamingShortcut is not a scalar — export calls KeyboardShortcut.ToPersistedString(). Phase 3a added storage.keepAudioFiles and advanced.maxRecordingDuration, so only textOutput.storeWordTimestamps is still absent from the typed export — it round-trips through the unknown-key store instead (see unknownKeyRoundTrip).",
+      "direction": "export",
+      "native": {
+        "LaunchMinimized": true,
+        "ShowRecordingWindow": false,
+        "CheckForUpdatesAutomatically": false,
+        "EnableErrorLogging": false,
+        "ShareAnonymousSpeedData": false,
+        "EnableSoundEffects": false,
+        "AutoPasteEnabled": false,
+        "RemoveFillerWords": false,
+        "RestoreClipboardAfterPaste": false,
+        "HideFromClipboardHistory": false,
+        "ClipboardRestoreDelaySeconds": 2.5,
+        "AutocapitalizeInsert": false,
+        "StoreAsM4A": true,
+        "KeepAudioFiles": false,
+        "StreamingEnabled": true,
+        "StreamingProvider": "deepgram",
+        "StreamingLanguage": "de",
+        "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingCloudTier": "geminiTranscribe",
+        "StreamingFastFormatting": false,
+        "StreamingShortcut": "Ctrl+Alt+Shift+F9",
+        "TypingSpeedWPM": 95,
+        "MaxRecordingDuration": 600,
+        "MinimizeToTray": false,
+        "ThemeMode": 2,
+        "AutoDeleteEnabled": true,
+        "AutoDeleteDaysOld": 7,
+        "ParakeetEnabled": false,
+        "KeepMicrophoneWarm": true,
+        "MediaControlMode": "muteAudio",
+        "ToggleShortcut": "Ctrl+Alt+D",
+        "CancelShortcut": "Esc",
+        "ChangeModeShortcut": "Ctrl+Shift+.",
+        "AutoIncreaseMicVolume": false
+      },
+      "expectedUniversal": {
+        "general": {
+          "launchMinimized": true,
+          "showRecordingWindow": false,
+          "checkForUpdatesAutomatically": false,
+          "enableErrorLogging": false,
+          "shareAnonymousSpeedData": false,
+          "enableSoundEffects": false
+        },
+        "textOutput": {
+          "pasteResultText": false,
+          "removeFillerWords": false,
+          "restoreClipboardAfterPaste": false,
+          "hideFromClipboardHistory": false,
+          "clipboardRestoreDelaySeconds": 2.5,
+          "autocapitalizeInsert": false
+        },
+        "storage": {
+          "storeAsM4A": true,
+          "keepAudioFiles": false
+        },
+        "streaming": {
+          "enabled": true,
+          "provider": "deepgram",
+          "language": "de",
+          "deepgramModel": "nova-3-medical",
+          "cloudTier": "geminiTranscribe",
+          "fastFormatting": false,
+          "shortcut": "Ctrl+Alt+Shift+F9"
+        },
+        "advanced": {
+          "typingSpeedWPM": 95,
+          "maxRecordingDuration": 600
+        }
+      },
+      "expectedPlatformExtensions": {
+        "minimizeToTray": false,
+        "hideFromClipboardHistory": false,
+        "themeMode": 2,
+        "autoDeleteEnabled": true,
+        "autoDeleteDaysOld": 7,
+        "parakeetEnabled": false,
+        "keepMicrophoneWarm": true,
+        "mediaControlMode": "muteAudio",
+        "toggleShortcut": "Ctrl+Alt+D",
+        "cancelShortcut": "Esc",
+        "changeModeShortcut": "Ctrl+Shift+.",
+        "streamingShortcut": "Ctrl+Alt+Shift+F9",
+        "streamingEnabled": true,
+        "streamingProvider": "deepgram",
+        "streamingLanguage": "de",
+        "streamingDeepgramModel": "nova-3-medical",
+        "streamingFastFormatting": false,
+        "autoIncreaseMicVolume": false,
+        "autocapitalizeInsert": false,
+        "customEndpoints": []
+      },
+      "absentUniversalKeys": [
+        "textOutput.storeWordTimestamps"
+      ],
+      "forbiddenPlatformExtensionKeys": [
+        "recordingsFolder",
+        "lastSelectedMicrophone",
+        "lastSelectedModel",
+        "gettingStartedCompletedSteps",
+        "localApiServerPersistedPort",
+        "localApiServerEnabled",
+        "selectedModeId",
+        "recordingOverlayXRatio",
+        "recordingOverlayYRatio"
+      ]
+    },
+    {
+      "name": "export: the mirrored native state, so no expectation can be right by coincidence",
+      "direction": "export",
+      "native": {
+        "LaunchMinimized": false,
+        "ShowRecordingWindow": true,
+        "CheckForUpdatesAutomatically": true,
+        "EnableErrorLogging": true,
+        "ShareAnonymousSpeedData": true,
+        "EnableSoundEffects": true,
+        "AutoPasteEnabled": true,
+        "RemoveFillerWords": true,
+        "RestoreClipboardAfterPaste": true,
+        "HideFromClipboardHistory": true,
+        "ClipboardRestoreDelaySeconds": 10,
+        "AutocapitalizeInsert": true,
+        "StoreAsM4A": false,
+        "KeepAudioFiles": true,
+        "StreamingEnabled": false,
+        "StreamingProvider": "hyperwhisperCloud",
+        "StreamingLanguage": "en",
+        "StreamingDeepgramModel": "nova-3-general",
+        "StreamingCloudTier": "deepgramNova3",
+        "StreamingFastFormatting": true,
+        "StreamingShortcut": "Ctrl+Shift+Space",
+        "TypingSpeedWPM": 40,
+        "MaxRecordingDuration": 1200,
+        "MinimizeToTray": true,
+        "ThemeMode": 0,
+        "AutoDeleteEnabled": false,
+        "AutoDeleteDaysOld": 30,
+        "ParakeetEnabled": true,
+        "KeepMicrophoneWarm": false,
+        "MediaControlMode": "off",
+        "ToggleShortcut": "Ctrl+Alt",
+        "CancelShortcut": "Esc",
+        "ChangeModeShortcut": "Ctrl+Shift+.",
+        "AutoIncreaseMicVolume": true
+      },
+      "expectedUniversal": {
+        "general": {
+          "launchMinimized": false,
+          "showRecordingWindow": true,
+          "checkForUpdatesAutomatically": true,
+          "enableErrorLogging": true,
+          "shareAnonymousSpeedData": true,
+          "enableSoundEffects": true
+        },
+        "textOutput": {
+          "pasteResultText": true,
+          "removeFillerWords": true,
+          "restoreClipboardAfterPaste": true,
+          "hideFromClipboardHistory": true,
+          "clipboardRestoreDelaySeconds": 10,
+          "autocapitalizeInsert": true
+        },
+        "storage": {
+          "storeAsM4A": false,
+          "keepAudioFiles": true
+        },
+        "streaming": {
+          "enabled": false,
+          "provider": "hyperwhisperCloud",
+          "language": "en",
+          "deepgramModel": "nova-3-general",
+          "cloudTier": "deepgramNova3",
+          "fastFormatting": true,
+          "shortcut": "Ctrl+Shift+Space"
+        },
+        "advanced": {
+          "typingSpeedWPM": 40,
+          "maxRecordingDuration": 1200
+        }
+      },
+      "expectedPlatformExtensions": {
+        "minimizeToTray": true,
+        "hideFromClipboardHistory": true,
+        "themeMode": 0,
+        "autoDeleteEnabled": false,
+        "autoDeleteDaysOld": 30,
+        "parakeetEnabled": true,
+        "keepMicrophoneWarm": false,
+        "mediaControlMode": "off",
+        "toggleShortcut": "Ctrl+Alt",
+        "cancelShortcut": "Esc",
+        "changeModeShortcut": "Ctrl+Shift+.",
+        "streamingShortcut": "Ctrl+Shift+Space",
+        "streamingEnabled": false,
+        "streamingProvider": "hyperwhisperCloud",
+        "streamingLanguage": "en",
+        "streamingDeepgramModel": "nova-3-general",
+        "streamingFastFormatting": true,
+        "autoIncreaseMicVolume": true,
+        "autocapitalizeInsert": true,
+        "customEndpoints": []
+      },
+      "absentUniversalKeys": [
+        "textOutput.storeWordTimestamps"
+      ],
+      "forbiddenPlatformExtensionKeys": [
+        "recordingsFolder",
+        "lastSelectedMicrophone",
+        "lastSelectedModel",
+        "gettingStartedCompletedSteps",
+        "localApiServerPersistedPort",
+        "localApiServerEnabled",
+        "selectedModeId",
+        "recordingOverlayXRatio",
+        "recordingOverlayYRatio"
+      ]
+    },
+    {
+      "name": "import: every promoted key applies, renames included",
+      "direction": "import",
+      "baselineNative": {
+        "LaunchMinimized": false,
+        "ShowRecordingWindow": true,
+        "CheckForUpdatesAutomatically": true,
+        "EnableErrorLogging": true,
+        "ShareAnonymousSpeedData": true,
+        "EnableSoundEffects": true,
+        "AutoPasteEnabled": true,
+        "RemoveFillerWords": true,
+        "RestoreClipboardAfterPaste": true,
+        "HideFromClipboardHistory": true,
+        "ClipboardRestoreDelaySeconds": 10,
+        "AutocapitalizeInsert": true,
+        "StoreAsM4A": false,
+        "KeepAudioFiles": true,
+        "StreamingEnabled": false,
+        "StreamingProvider": "hyperwhisperCloud",
+        "StreamingLanguage": "en",
+        "StreamingDeepgramModel": "nova-3-general",
+        "StreamingCloudTier": "deepgramNova3",
+        "StreamingFastFormatting": true,
+        "StreamingShortcut": "Ctrl+Shift+Space",
+        "TypingSpeedWPM": 40,
+        "MaxRecordingDuration": 1200,
+        "MinimizeToTray": true,
+        "ThemeMode": 0,
+        "AutoDeleteEnabled": false,
+        "AutoDeleteDaysOld": 30,
+        "ParakeetEnabled": true,
+        "KeepMicrophoneWarm": false,
+        "MediaControlMode": "off",
+        "ToggleShortcut": "Ctrl+Alt",
+        "CancelShortcut": "Esc",
+        "ChangeModeShortcut": "Ctrl+Shift+.",
+        "AutoIncreaseMicVolume": true
+      },
+      "universal": {
+        "general": {
+          "launchMinimized": true,
+          "showRecordingWindow": false,
+          "checkForUpdatesAutomatically": false,
+          "enableErrorLogging": false,
+          "shareAnonymousSpeedData": false,
+          "enableSoundEffects": false
+        },
+        "textOutput": {
+          "pasteResultText": false,
+          "removeFillerWords": false,
+          "restoreClipboardAfterPaste": false,
+          "hideFromClipboardHistory": false,
+          "clipboardRestoreDelaySeconds": 2.5,
+          "autocapitalizeInsert": false
+        },
+        "storage": {
+          "storeAsM4A": true,
+          "keepAudioFiles": false
+        },
+        "streaming": {
+          "enabled": true,
+          "provider": "deepgram",
+          "language": "de",
+          "deepgramModel": "nova-3-medical",
+          "cloudTier": "geminiTranscribe",
+          "fastFormatting": false,
+          "shortcut": "Ctrl+Alt+Shift+F9"
+        },
+        "advanced": {
+          "typingSpeedWPM": 95,
+          "maxRecordingDuration": 600
+        }
+      },
+      "expectedNative": {
+        "LaunchMinimized": true,
+        "ShowRecordingWindow": false,
+        "CheckForUpdatesAutomatically": false,
+        "EnableErrorLogging": false,
+        "ShareAnonymousSpeedData": false,
+        "EnableSoundEffects": false,
+        "AutoPasteEnabled": false,
+        "RemoveFillerWords": false,
+        "RestoreClipboardAfterPaste": false,
+        "HideFromClipboardHistory": false,
+        "ClipboardRestoreDelaySeconds": 2.5,
+        "AutocapitalizeInsert": false,
+        "StoreAsM4A": true,
+        "KeepAudioFiles": false,
+        "StreamingEnabled": true,
+        "StreamingProvider": "deepgram",
+        "StreamingLanguage": "de",
+        "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingCloudTier": "geminiTranscribe",
+        "StreamingFastFormatting": false,
+        "StreamingShortcut": "Ctrl+Alt+Shift+F9",
+        "TypingSpeedWPM": 95,
+        "MaxRecordingDuration": 600,
+        "MinimizeToTray": true,
+        "ThemeMode": 0,
+        "AutoDeleteEnabled": false,
+        "AutoDeleteDaysOld": 30,
+        "ParakeetEnabled": true,
+        "KeepMicrophoneWarm": false,
+        "MediaControlMode": "off",
+        "ToggleShortcut": "Ctrl+Alt",
+        "CancelShortcut": "Esc",
+        "ChangeModeShortcut": "Ctrl+Shift+.",
+        "AutoIncreaseMicVolume": true
+      }
+    },
+    {
+      "name": "import: an absent settings block leaves every live value alone",
+      "note": "ApplySettings is present-only at the SECTION level too — a null section is skipped whole.",
+      "direction": "import",
+      "baselineNative": {
+        "LaunchMinimized": true,
+        "ShowRecordingWindow": false,
+        "CheckForUpdatesAutomatically": false,
+        "EnableErrorLogging": false,
+        "ShareAnonymousSpeedData": false,
+        "EnableSoundEffects": false,
+        "AutoPasteEnabled": false,
+        "RemoveFillerWords": false,
+        "RestoreClipboardAfterPaste": false,
+        "HideFromClipboardHistory": false,
+        "ClipboardRestoreDelaySeconds": 2.5,
+        "AutocapitalizeInsert": false,
+        "StoreAsM4A": true,
+        "KeepAudioFiles": false,
+        "StreamingEnabled": true,
+        "StreamingProvider": "deepgram",
+        "StreamingLanguage": "de",
+        "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingCloudTier": "deepgramNova3",
+        "StreamingFastFormatting": false,
+        "StreamingShortcut": "Ctrl+Alt+Shift+F9",
+        "TypingSpeedWPM": 95,
+        "MaxRecordingDuration": 600,
+        "MinimizeToTray": false,
+        "ThemeMode": 2,
+        "AutoDeleteEnabled": true,
+        "AutoDeleteDaysOld": 7,
+        "ParakeetEnabled": false,
+        "KeepMicrophoneWarm": true,
+        "MediaControlMode": "muteAudio",
+        "ToggleShortcut": "Ctrl+Alt+D",
+        "CancelShortcut": "Esc",
+        "ChangeModeShortcut": "Ctrl+Shift+.",
+        "AutoIncreaseMicVolume": false
+      },
+      "universal": {},
+      "expectedNative": {
+        "LaunchMinimized": true,
+        "ShowRecordingWindow": false,
+        "CheckForUpdatesAutomatically": false,
+        "EnableErrorLogging": false,
+        "ShareAnonymousSpeedData": false,
+        "EnableSoundEffects": false,
+        "AutoPasteEnabled": false,
+        "RemoveFillerWords": false,
+        "RestoreClipboardAfterPaste": false,
+        "HideFromClipboardHistory": false,
+        "ClipboardRestoreDelaySeconds": 2.5,
+        "AutocapitalizeInsert": false,
+        "StoreAsM4A": true,
+        "KeepAudioFiles": false,
+        "StreamingEnabled": true,
+        "StreamingProvider": "deepgram",
+        "StreamingLanguage": "de",
+        "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingCloudTier": "deepgramNova3",
+        "StreamingFastFormatting": false,
+        "StreamingShortcut": "Ctrl+Alt+Shift+F9",
+        "TypingSpeedWPM": 95,
+        "MaxRecordingDuration": 600,
+        "MinimizeToTray": false,
+        "ThemeMode": 2,
+        "AutoDeleteEnabled": true,
+        "AutoDeleteDaysOld": 7,
+        "ParakeetEnabled": false,
+        "KeepMicrophoneWarm": true,
+        "MediaControlMode": "muteAudio",
+        "ToggleShortcut": "Ctrl+Alt+D",
+        "CancelShortcut": "Esc",
+        "ChangeModeShortcut": "Ctrl+Shift+.",
+        "AutoIncreaseMicVolume": false
+      }
+    },
+    {
+      "name": "import: explicit JSON null behaves exactly like an absent key",
+      "note": "Every UniversalSettings scalar is a Nullable<T> or string?, and every arm is HasValue- or IsNullOrWhiteSpace-gated, so a null never reaches a setter.",
+      "direction": "import",
+      "baselineNative": {
+        "LaunchMinimized": true,
+        "ShowRecordingWindow": false,
+        "CheckForUpdatesAutomatically": false,
+        "EnableErrorLogging": false,
+        "ShareAnonymousSpeedData": false,
+        "EnableSoundEffects": false,
+        "AutoPasteEnabled": false,
+        "RemoveFillerWords": false,
+        "RestoreClipboardAfterPaste": false,
+        "HideFromClipboardHistory": false,
+        "ClipboardRestoreDelaySeconds": 2.5,
+        "AutocapitalizeInsert": false,
+        "StoreAsM4A": true,
+        "KeepAudioFiles": false,
+        "StreamingEnabled": true,
+        "StreamingProvider": "deepgram",
+        "StreamingLanguage": "de",
+        "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingCloudTier": "deepgramNova3",
+        "StreamingFastFormatting": false,
+        "StreamingShortcut": "Ctrl+Alt+Shift+F9",
+        "TypingSpeedWPM": 95,
+        "MaxRecordingDuration": 600,
+        "MinimizeToTray": false,
+        "ThemeMode": 2,
+        "AutoDeleteEnabled": true,
+        "AutoDeleteDaysOld": 7,
+        "ParakeetEnabled": false,
+        "KeepMicrophoneWarm": true,
+        "MediaControlMode": "muteAudio",
+        "ToggleShortcut": "Ctrl+Alt+D",
+        "CancelShortcut": "Esc",
+        "ChangeModeShortcut": "Ctrl+Shift+.",
+        "AutoIncreaseMicVolume": false
+      },
+      "universal": {
+        "general": {
+          "launchMinimized": null,
+          "showRecordingWindow": null,
+          "checkForUpdatesAutomatically": null,
+          "enableErrorLogging": null,
+          "shareAnonymousSpeedData": null,
+          "enableSoundEffects": null
+        },
+        "textOutput": {
+          "pasteResultText": null,
+          "removeFillerWords": null,
+          "restoreClipboardAfterPaste": null,
+          "hideFromClipboardHistory": null,
+          "clipboardRestoreDelaySeconds": null,
+          "autocapitalizeInsert": null
+        },
+        "storage": {
+          "keepAudioFiles": null,
+          "storeAsM4A": null
+        },
+        "streaming": {
+          "enabled": null,
+          "provider": null,
+          "language": null,
+          "deepgramModel": null,
+          "cloudTier": null,
+          "fastFormatting": null,
+          "shortcut": null
+        },
+        "advanced": {
+          "maxRecordingDuration": null,
+          "typingSpeedWPM": null
+        }
+      },
+      "expectedNative": {
+        "LaunchMinimized": true,
+        "ShowRecordingWindow": false,
+        "CheckForUpdatesAutomatically": false,
+        "EnableErrorLogging": false,
+        "ShareAnonymousSpeedData": false,
+        "EnableSoundEffects": false,
+        "AutoPasteEnabled": false,
+        "RemoveFillerWords": false,
+        "RestoreClipboardAfterPaste": false,
+        "HideFromClipboardHistory": false,
+        "ClipboardRestoreDelaySeconds": 2.5,
+        "AutocapitalizeInsert": false,
+        "StoreAsM4A": true,
+        "KeepAudioFiles": false,
+        "StreamingEnabled": true,
+        "StreamingProvider": "deepgram",
+        "StreamingLanguage": "de",
+        "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingCloudTier": "deepgramNova3",
+        "StreamingFastFormatting": false,
+        "StreamingShortcut": "Ctrl+Alt+Shift+F9",
+        "TypingSpeedWPM": 95,
+        "MaxRecordingDuration": 600,
+        "MinimizeToTray": false,
+        "ThemeMode": 2,
+        "AutoDeleteEnabled": true,
+        "AutoDeleteDaysOld": 7,
+        "ParakeetEnabled": false,
+        "KeepMicrophoneWarm": true,
+        "MediaControlMode": "muteAudio",
+        "ToggleShortcut": "Ctrl+Alt+D",
+        "CancelShortcut": "Esc",
+        "ChangeModeShortcut": "Ctrl+Shift+.",
+        "AutoIncreaseMicVolume": false
+      }
+    },
+    {
+      "name": "import: a blank streaming string is ignored, not applied as blank",
+      "note": "The four string arms are IsNullOrWhiteSpace-gated; the two bool arms are not, so enabled and fastFormatting still apply.",
+      "direction": "import",
+      "setterRewrittenNativeKeys": [
+        "StreamingProvider",
+        "StreamingLanguage",
+        "StreamingDeepgramModel",
+        "StreamingShortcut",
+        "StreamingCloudTier"
+      ],
+      "baselineNative": {
+        "LaunchMinimized": true,
+        "ShowRecordingWindow": false,
+        "CheckForUpdatesAutomatically": false,
+        "EnableErrorLogging": false,
+        "ShareAnonymousSpeedData": false,
+        "EnableSoundEffects": false,
+        "AutoPasteEnabled": false,
+        "RemoveFillerWords": false,
+        "RestoreClipboardAfterPaste": false,
+        "HideFromClipboardHistory": false,
+        "ClipboardRestoreDelaySeconds": 2.5,
+        "AutocapitalizeInsert": false,
+        "StoreAsM4A": true,
+        "KeepAudioFiles": false,
+        "StreamingEnabled": true,
+        "StreamingProvider": "deepgram",
+        "StreamingLanguage": "de",
+        "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingCloudTier": "deepgramNova3",
+        "StreamingFastFormatting": false,
+        "StreamingShortcut": "Ctrl+Alt+Shift+F9",
+        "TypingSpeedWPM": 95,
+        "MaxRecordingDuration": 600,
+        "MinimizeToTray": false,
+        "ThemeMode": 2,
+        "AutoDeleteEnabled": true,
+        "AutoDeleteDaysOld": 7,
+        "ParakeetEnabled": false,
+        "KeepMicrophoneWarm": true,
+        "MediaControlMode": "muteAudio",
+        "ToggleShortcut": "Ctrl+Alt+D",
+        "CancelShortcut": "Esc",
+        "ChangeModeShortcut": "Ctrl+Shift+.",
+        "AutoIncreaseMicVolume": false
+      },
+      "universal": {
+        "streaming": {
+          "enabled": true,
+          "provider": "",
+          "language": "   ",
+          "deepgramModel": "",
+          "cloudTier": "   ",
+          "fastFormatting": false,
+          "shortcut": "   "
+        }
+      },
+      "expectedNative": {
+        "LaunchMinimized": true,
+        "ShowRecordingWindow": false,
+        "CheckForUpdatesAutomatically": false,
+        "EnableErrorLogging": false,
+        "ShareAnonymousSpeedData": false,
+        "EnableSoundEffects": false,
+        "AutoPasteEnabled": false,
+        "RemoveFillerWords": false,
+        "RestoreClipboardAfterPaste": false,
+        "HideFromClipboardHistory": false,
+        "ClipboardRestoreDelaySeconds": 2.5,
+        "AutocapitalizeInsert": false,
+        "StoreAsM4A": true,
+        "KeepAudioFiles": false,
+        "StreamingEnabled": true,
+        "StreamingProvider": "deepgram",
+        "StreamingLanguage": "de",
+        "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingCloudTier": "deepgramNova3",
+        "StreamingFastFormatting": false,
+        "StreamingShortcut": "Ctrl+Alt+Shift+F9",
+        "TypingSpeedWPM": 95,
+        "MaxRecordingDuration": 600,
+        "MinimizeToTray": false,
+        "ThemeMode": 2,
+        "AutoDeleteEnabled": true,
+        "AutoDeleteDaysOld": 7,
+        "ParakeetEnabled": false,
+        "KeepMicrophoneWarm": true,
+        "MediaControlMode": "muteAudio",
+        "ToggleShortcut": "Ctrl+Alt+D",
+        "CancelShortcut": "Esc",
+        "ChangeModeShortcut": "Ctrl+Shift+.",
+        "AutoIncreaseMicVolume": false
+      }
+    },
+    {
+      "name": "import: three streaming values are silently rewritten by the SettingsService setters",
+      "note": "DRIFT, recorded deliberately. StreamingProvider falls back to hyperwhisperCloud unless the value is one of the five valid storage values; StreamingDeepgramModel collapses to nova-3-general unless it is exactly nova-3-medical; StreamingShortcut is re-canonicalised through FromPersistedString/ToPersistedString. Linux stores all three verbatim, so these are per-head answers today.",
+      "direction": "import",
+      "setterRewrittenNativeKeys": [
+        "StreamingProvider",
+        "StreamingDeepgramModel",
+        "StreamingShortcut"
+      ],
+      "baselineNative": {
+        "LaunchMinimized": true,
+        "ShowRecordingWindow": false,
+        "CheckForUpdatesAutomatically": false,
+        "EnableErrorLogging": false,
+        "ShareAnonymousSpeedData": false,
+        "EnableSoundEffects": false,
+        "AutoPasteEnabled": false,
+        "RemoveFillerWords": false,
+        "RestoreClipboardAfterPaste": false,
+        "HideFromClipboardHistory": false,
+        "ClipboardRestoreDelaySeconds": 2.5,
+        "AutocapitalizeInsert": false,
+        "StoreAsM4A": true,
+        "KeepAudioFiles": false,
+        "StreamingEnabled": true,
+        "StreamingProvider": "deepgram",
+        "StreamingLanguage": "de",
+        "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingCloudTier": "deepgramNova3",
+        "StreamingFastFormatting": false,
+        "StreamingShortcut": "Ctrl+Alt+Shift+F9",
+        "TypingSpeedWPM": 95,
+        "MaxRecordingDuration": 600,
+        "MinimizeToTray": false,
+        "ThemeMode": 2,
+        "AutoDeleteEnabled": true,
+        "AutoDeleteDaysOld": 7,
+        "ParakeetEnabled": false,
+        "KeepMicrophoneWarm": true,
+        "MediaControlMode": "muteAudio",
+        "ToggleShortcut": "Ctrl+Alt+D",
+        "CancelShortcut": "Esc",
+        "ChangeModeShortcut": "Ctrl+Shift+.",
+        "AutoIncreaseMicVolume": false
+      },
+      "universal": {
+        "streaming": {
+          "provider": "assemblyai",
+          "language": "ja",
+          "deepgramModel": "nova-2-general",
+          "shortcut": "shift+CONTROL+f9"
+        }
+      },
+      "expectedNative": {
+        "LaunchMinimized": true,
+        "ShowRecordingWindow": false,
+        "CheckForUpdatesAutomatically": false,
+        "EnableErrorLogging": false,
+        "ShareAnonymousSpeedData": false,
+        "EnableSoundEffects": false,
+        "AutoPasteEnabled": false,
+        "RemoveFillerWords": false,
+        "RestoreClipboardAfterPaste": false,
+        "HideFromClipboardHistory": false,
+        "ClipboardRestoreDelaySeconds": 2.5,
+        "AutocapitalizeInsert": false,
+        "StoreAsM4A": true,
+        "KeepAudioFiles": false,
+        "StreamingEnabled": true,
+        "StreamingProvider": "hyperwhisperCloud",
+        "StreamingLanguage": "ja",
+        "StreamingDeepgramModel": "nova-3-general",
+        "StreamingCloudTier": "deepgramNova3",
+        "StreamingFastFormatting": false,
+        "StreamingShortcut": "Ctrl+Shift+F9",
+        "TypingSpeedWPM": 95,
+        "MaxRecordingDuration": 600,
+        "MinimizeToTray": false,
+        "ThemeMode": 2,
+        "AutoDeleteEnabled": true,
+        "AutoDeleteDaysOld": 7,
+        "ParakeetEnabled": false,
+        "KeepMicrophoneWarm": true,
+        "MediaControlMode": "muteAudio",
+        "ToggleShortcut": "Ctrl+Alt+D",
+        "CancelShortcut": "Esc",
+        "ChangeModeShortcut": "Ctrl+Shift+.",
+        "AutoIncreaseMicVolume": false
+      }
+    },
+    {
+      "name": "import: two of the three lost keys now apply; the third is preserved instead",
+      "note": "THE #288 GAP, now closed. keepAudioFiles and maxRecordingDuration are real Windows settings as of phase 3a, so they apply here. textOutput.storeWordTimestamps still has no Windows property and is not gaining one — it no longer dies at deserialize, it is captured into SettingsData.BackupUnknownSettings and re-emitted under textOutput on the next export (proved by the unknownKeyRoundTrip rows). maxRecordingDuration is 600 here, inside the 20-minute ceiling; the sentinel and clamp rows below cover the rest.",
+      "direction": "import",
+      "baselineNative": {
+        "LaunchMinimized": true,
+        "ShowRecordingWindow": false,
+        "CheckForUpdatesAutomatically": false,
+        "EnableErrorLogging": false,
+        "ShareAnonymousSpeedData": false,
+        "EnableSoundEffects": false,
+        "AutoPasteEnabled": false,
+        "RemoveFillerWords": false,
+        "RestoreClipboardAfterPaste": false,
+        "HideFromClipboardHistory": false,
+        "ClipboardRestoreDelaySeconds": 2.5,
+        "AutocapitalizeInsert": false,
+        "StoreAsM4A": true,
+        "KeepAudioFiles": true,
+        "StreamingEnabled": true,
+        "StreamingProvider": "deepgram",
+        "StreamingLanguage": "de",
+        "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingCloudTier": "deepgramNova3",
+        "StreamingFastFormatting": false,
+        "StreamingShortcut": "Ctrl+Alt+Shift+F9",
+        "TypingSpeedWPM": 95,
+        "MaxRecordingDuration": 1200,
+        "MinimizeToTray": false,
+        "ThemeMode": 2,
+        "AutoDeleteEnabled": true,
+        "AutoDeleteDaysOld": 7,
+        "ParakeetEnabled": false,
+        "KeepMicrophoneWarm": true,
+        "MediaControlMode": "muteAudio",
+        "ToggleShortcut": "Ctrl+Alt+D",
+        "CancelShortcut": "Esc",
+        "ChangeModeShortcut": "Ctrl+Shift+.",
+        "AutoIncreaseMicVolume": false
+      },
+      "universal": {
+        "textOutput": {
+          "pasteResultText": true,
+          "storeWordTimestamps": true
+        },
+        "storage": {
+          "storeAsM4A": false,
+          "keepAudioFiles": false
+        },
+        "advanced": {
+          "typingSpeedWPM": 55,
+          "maxRecordingDuration": 600
+        }
+      },
+      "expectedNative": {
+        "LaunchMinimized": true,
+        "ShowRecordingWindow": false,
+        "CheckForUpdatesAutomatically": false,
+        "EnableErrorLogging": false,
+        "ShareAnonymousSpeedData": false,
+        "EnableSoundEffects": false,
+        "AutoPasteEnabled": true,
+        "RemoveFillerWords": false,
+        "RestoreClipboardAfterPaste": false,
+        "HideFromClipboardHistory": false,
+        "ClipboardRestoreDelaySeconds": 2.5,
+        "AutocapitalizeInsert": false,
+        "StoreAsM4A": false,
+        "KeepAudioFiles": false,
+        "StreamingEnabled": true,
+        "StreamingProvider": "deepgram",
+        "StreamingLanguage": "de",
+        "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingCloudTier": "deepgramNova3",
+        "StreamingFastFormatting": false,
+        "StreamingShortcut": "Ctrl+Alt+Shift+F9",
+        "TypingSpeedWPM": 55,
+        "MaxRecordingDuration": 600,
+        "MinimizeToTray": false,
+        "ThemeMode": 2,
+        "AutoDeleteEnabled": true,
+        "AutoDeleteDaysOld": 7,
+        "ParakeetEnabled": false,
+        "KeepMicrophoneWarm": true,
+        "MediaControlMode": "muteAudio",
+        "ToggleShortcut": "Ctrl+Alt+D",
+        "CancelShortcut": "Esc",
+        "ChangeModeShortcut": "Ctrl+Shift+.",
+        "AutoIncreaseMicVolume": false
+      },
+      "reExportNote": "The re-export is the whole point of the row, so all THREE keys have to show up in it — that is what \"the third is preserved instead\" means. storage.keepAudioFiles and advanced.maxRecordingDuration come back because phase 3a gave them real Windows properties, so they are in BuildBackupSettingsSnapshot and therefore in the WINDOWS_STORAGE_PAIRS / WINDOWS_ADVANCED_PAIRS output of windows_settings_to_universal. textOutput.storeWordTimestamps comes back from SettingsData.BackupUnknownSettings, re-attached to UniversalTextOutputSettings' [JsonExtensionData] bag by UniversalBackupMapper.MergeUnknownSettings — under textOutput, never at the root. maxRecordingDuration re-exports as 600, the value that survived the import, NOT the 1200 baseline.",
+      "expectedUniversalAfterImport": {
+        "general": {
+          "launchMinimized": true,
+          "showRecordingWindow": false,
+          "checkForUpdatesAutomatically": false,
+          "enableErrorLogging": false,
+          "shareAnonymousSpeedData": false,
+          "enableSoundEffects": false
+        },
+        "textOutput": {
+          "pasteResultText": true,
+          "removeFillerWords": false,
+          "restoreClipboardAfterPaste": false,
+          "hideFromClipboardHistory": false,
+          "clipboardRestoreDelaySeconds": 2.5,
+          "autocapitalizeInsert": false,
+          "storeWordTimestamps": true
+        },
+        "storage": {
+          "storeAsM4A": false,
+          "keepAudioFiles": false
+        },
+        "streaming": {
+          "enabled": true,
+          "provider": "deepgram",
+          "language": "de",
+          "deepgramModel": "nova-3-medical",
+          "cloudTier": "deepgramNova3",
+          "fastFormatting": false,
+          "shortcut": "Ctrl+Alt+Shift+F9"
+        },
+        "advanced": {
+          "typingSpeedWPM": 55,
+          "maxRecordingDuration": 600
+        }
+      }
+    },
+    {
+      "name": "import: a backup may TIGHTEN the recording cap",
+      "note": "Seconds. 600 is inside the 20-minute ceiling, so it applies verbatim — a user who wants a shorter runaway guard keeps it across a restore.",
+      "direction": "import",
+      "baselineNative": {
+        "LaunchMinimized": true,
+        "ShowRecordingWindow": false,
+        "CheckForUpdatesAutomatically": false,
+        "EnableErrorLogging": false,
+        "ShareAnonymousSpeedData": false,
+        "EnableSoundEffects": false,
+        "AutoPasteEnabled": false,
+        "RemoveFillerWords": false,
+        "RestoreClipboardAfterPaste": false,
+        "HideFromClipboardHistory": false,
+        "ClipboardRestoreDelaySeconds": 2.5,
+        "AutocapitalizeInsert": false,
+        "StoreAsM4A": true,
+        "KeepAudioFiles": true,
+        "StreamingEnabled": true,
+        "StreamingProvider": "deepgram",
+        "StreamingLanguage": "de",
+        "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingCloudTier": "deepgramNova3",
+        "StreamingFastFormatting": false,
+        "StreamingShortcut": "Ctrl+Alt+Shift+F9",
+        "TypingSpeedWPM": 95,
+        "MaxRecordingDuration": 1200,
+        "MinimizeToTray": false,
+        "ThemeMode": 2,
+        "AutoDeleteEnabled": true,
+        "AutoDeleteDaysOld": 7,
+        "ParakeetEnabled": false,
+        "KeepMicrophoneWarm": true,
+        "MediaControlMode": "muteAudio",
+        "ToggleShortcut": "Ctrl+Alt+D",
+        "CancelShortcut": "Esc",
+        "ChangeModeShortcut": "Ctrl+Shift+.",
+        "AutoIncreaseMicVolume": false
+      },
+      "universal": {
+        "advanced": {
+          "maxRecordingDuration": 600
+        }
+      },
+      "expectedNative": {
+        "LaunchMinimized": true,
+        "ShowRecordingWindow": false,
+        "CheckForUpdatesAutomatically": false,
+        "EnableErrorLogging": false,
+        "ShareAnonymousSpeedData": false,
+        "EnableSoundEffects": false,
+        "AutoPasteEnabled": false,
+        "RemoveFillerWords": false,
+        "RestoreClipboardAfterPaste": false,
+        "HideFromClipboardHistory": false,
+        "ClipboardRestoreDelaySeconds": 2.5,
+        "AutocapitalizeInsert": false,
+        "StoreAsM4A": true,
+        "KeepAudioFiles": true,
+        "StreamingEnabled": true,
+        "StreamingProvider": "deepgram",
+        "StreamingLanguage": "de",
+        "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingCloudTier": "deepgramNova3",
+        "StreamingFastFormatting": false,
+        "StreamingShortcut": "Ctrl+Alt+Shift+F9",
+        "TypingSpeedWPM": 95,
+        "MaxRecordingDuration": 600,
+        "MinimizeToTray": false,
+        "ThemeMode": 2,
+        "AutoDeleteEnabled": true,
+        "AutoDeleteDaysOld": 7,
+        "ParakeetEnabled": false,
+        "KeepMicrophoneWarm": true,
+        "MediaControlMode": "muteAudio",
+        "ToggleShortcut": "Ctrl+Alt+D",
+        "CancelShortcut": "Esc",
+        "ChangeModeShortcut": "Ctrl+Shift+.",
+        "AutoIncreaseMicVolume": false
+      }
+    },
+    {
+      "name": "import: a backup may never LOOSEN the recording cap",
+      "note": "Linux's own export default is 3600 (one hour) and macOS's is the same, so this is the ordinary cross-platform restore, not a hostile file. Windows clamps to 1200 = 20 minutes. The clamp is applied in the shared core (universal_to_windows_settings) AND again in SettingsService.MaxRecordingDurationSeconds, so no writer can raise the ceiling.",
+      "direction": "import",
+      "baselineNative": {
+        "LaunchMinimized": true,
+        "ShowRecordingWindow": false,
+        "CheckForUpdatesAutomatically": false,
+        "EnableErrorLogging": false,
+        "ShareAnonymousSpeedData": false,
+        "EnableSoundEffects": false,
+        "AutoPasteEnabled": false,
+        "RemoveFillerWords": false,
+        "RestoreClipboardAfterPaste": false,
+        "HideFromClipboardHistory": false,
+        "ClipboardRestoreDelaySeconds": 2.5,
+        "AutocapitalizeInsert": false,
+        "StoreAsM4A": true,
+        "KeepAudioFiles": true,
+        "StreamingEnabled": true,
+        "StreamingProvider": "deepgram",
+        "StreamingLanguage": "de",
+        "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingCloudTier": "deepgramNova3",
+        "StreamingFastFormatting": false,
+        "StreamingShortcut": "Ctrl+Alt+Shift+F9",
+        "TypingSpeedWPM": 95,
+        "MaxRecordingDuration": 1200,
+        "MinimizeToTray": false,
+        "ThemeMode": 2,
+        "AutoDeleteEnabled": true,
+        "AutoDeleteDaysOld": 7,
+        "ParakeetEnabled": false,
+        "KeepMicrophoneWarm": true,
+        "MediaControlMode": "muteAudio",
+        "ToggleShortcut": "Ctrl+Alt+D",
+        "CancelShortcut": "Esc",
+        "ChangeModeShortcut": "Ctrl+Shift+.",
+        "AutoIncreaseMicVolume": false
+      },
+      "universal": {
+        "advanced": {
+          "maxRecordingDuration": 3600
+        }
+      },
+      "expectedNative": {
+        "LaunchMinimized": true,
+        "ShowRecordingWindow": false,
+        "CheckForUpdatesAutomatically": false,
+        "EnableErrorLogging": false,
+        "ShareAnonymousSpeedData": false,
+        "EnableSoundEffects": false,
+        "AutoPasteEnabled": false,
+        "RemoveFillerWords": false,
+        "RestoreClipboardAfterPaste": false,
+        "HideFromClipboardHistory": false,
+        "ClipboardRestoreDelaySeconds": 2.5,
+        "AutocapitalizeInsert": false,
+        "StoreAsM4A": true,
+        "KeepAudioFiles": true,
+        "StreamingEnabled": true,
+        "StreamingProvider": "deepgram",
+        "StreamingLanguage": "de",
+        "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingCloudTier": "deepgramNova3",
+        "StreamingFastFormatting": false,
+        "StreamingShortcut": "Ctrl+Alt+Shift+F9",
+        "TypingSpeedWPM": 95,
+        "MaxRecordingDuration": 1200,
+        "MinimizeToTray": false,
+        "ThemeMode": 2,
+        "AutoDeleteEnabled": true,
+        "AutoDeleteDaysOld": 7,
+        "ParakeetEnabled": false,
+        "KeepMicrophoneWarm": true,
+        "MediaControlMode": "muteAudio",
+        "ToggleShortcut": "Ctrl+Alt+D",
+        "CancelShortcut": "Esc",
+        "ChangeModeShortcut": "Ctrl+Shift+.",
+        "AutoIncreaseMicVolume": false
+      }
+    },
+    {
+      "name": "import: macOS's 0 (\"no limit\") reads as unset, it does not disable the guard",
+      "note": "Windows has no \"off\" for the runaway guard: an unlimited recording is the failure mode the guard exists for. 0 is dropped as absent, so the live value stands.",
+      "direction": "import",
+      "baselineNative": {
+        "LaunchMinimized": true,
+        "ShowRecordingWindow": false,
+        "CheckForUpdatesAutomatically": false,
+        "EnableErrorLogging": false,
+        "ShareAnonymousSpeedData": false,
+        "EnableSoundEffects": false,
+        "AutoPasteEnabled": false,
+        "RemoveFillerWords": false,
+        "RestoreClipboardAfterPaste": false,
+        "HideFromClipboardHistory": false,
+        "ClipboardRestoreDelaySeconds": 2.5,
+        "AutocapitalizeInsert": false,
+        "StoreAsM4A": true,
+        "KeepAudioFiles": true,
+        "StreamingEnabled": true,
+        "StreamingProvider": "deepgram",
+        "StreamingLanguage": "de",
+        "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingCloudTier": "deepgramNova3",
+        "StreamingFastFormatting": false,
+        "StreamingShortcut": "Ctrl+Alt+Shift+F9",
+        "TypingSpeedWPM": 95,
+        "MaxRecordingDuration": 1200,
+        "MinimizeToTray": false,
+        "ThemeMode": 2,
+        "AutoDeleteEnabled": true,
+        "AutoDeleteDaysOld": 7,
+        "ParakeetEnabled": false,
+        "KeepMicrophoneWarm": true,
+        "MediaControlMode": "muteAudio",
+        "ToggleShortcut": "Ctrl+Alt+D",
+        "CancelShortcut": "Esc",
+        "ChangeModeShortcut": "Ctrl+Shift+.",
+        "AutoIncreaseMicVolume": false
+      },
+      "universal": {
+        "advanced": {
+          "maxRecordingDuration": 0
+        }
+      },
+      "expectedNative": {
+        "LaunchMinimized": true,
+        "ShowRecordingWindow": false,
+        "CheckForUpdatesAutomatically": false,
+        "EnableErrorLogging": false,
+        "ShareAnonymousSpeedData": false,
+        "EnableSoundEffects": false,
+        "AutoPasteEnabled": false,
+        "RemoveFillerWords": false,
+        "RestoreClipboardAfterPaste": false,
+        "HideFromClipboardHistory": false,
+        "ClipboardRestoreDelaySeconds": 2.5,
+        "AutocapitalizeInsert": false,
+        "StoreAsM4A": true,
+        "KeepAudioFiles": true,
+        "StreamingEnabled": true,
+        "StreamingProvider": "deepgram",
+        "StreamingLanguage": "de",
+        "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingCloudTier": "deepgramNova3",
+        "StreamingFastFormatting": false,
+        "StreamingShortcut": "Ctrl+Alt+Shift+F9",
+        "TypingSpeedWPM": 95,
+        "MaxRecordingDuration": 1200,
+        "MinimizeToTray": false,
+        "ThemeMode": 2,
+        "AutoDeleteEnabled": true,
+        "AutoDeleteDaysOld": 7,
+        "ParakeetEnabled": false,
+        "KeepMicrophoneWarm": true,
+        "MediaControlMode": "muteAudio",
+        "ToggleShortcut": "Ctrl+Alt+D",
+        "CancelShortcut": "Esc",
+        "ChangeModeShortcut": "Ctrl+Shift+.",
+        "AutoIncreaseMicVolume": false
+      }
+    },
+    {
+      "name": "import: macOS's legacy 300 reads as unset, not as a 5-minute cap",
+      "note": "THE QUIRK, mirrored on purpose. 300 was macOS's never-exposed default and macOS itself ignores it on import (BackupManager.swift). Reading it literally would silently cap a Windows user at 5 minutes because of a value nobody chose. shared-backup/examples/windows-export.hwbackup.json used to declare exactly 300; phase 3 changed it to 1200, which is what Windows actually exports.",
+      "direction": "import",
+      "baselineNative": {
+        "LaunchMinimized": true,
+        "ShowRecordingWindow": false,
+        "CheckForUpdatesAutomatically": false,
+        "EnableErrorLogging": false,
+        "ShareAnonymousSpeedData": false,
+        "EnableSoundEffects": false,
+        "AutoPasteEnabled": false,
+        "RemoveFillerWords": false,
+        "RestoreClipboardAfterPaste": false,
+        "HideFromClipboardHistory": false,
+        "ClipboardRestoreDelaySeconds": 2.5,
+        "AutocapitalizeInsert": false,
+        "StoreAsM4A": true,
+        "KeepAudioFiles": true,
+        "StreamingEnabled": true,
+        "StreamingProvider": "deepgram",
+        "StreamingLanguage": "de",
+        "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingCloudTier": "deepgramNova3",
+        "StreamingFastFormatting": false,
+        "StreamingShortcut": "Ctrl+Alt+Shift+F9",
+        "TypingSpeedWPM": 95,
+        "MaxRecordingDuration": 1200,
+        "MinimizeToTray": false,
+        "ThemeMode": 2,
+        "AutoDeleteEnabled": true,
+        "AutoDeleteDaysOld": 7,
+        "ParakeetEnabled": false,
+        "KeepMicrophoneWarm": true,
+        "MediaControlMode": "muteAudio",
+        "ToggleShortcut": "Ctrl+Alt+D",
+        "CancelShortcut": "Esc",
+        "ChangeModeShortcut": "Ctrl+Shift+.",
+        "AutoIncreaseMicVolume": false
+      },
+      "universal": {
+        "advanced": {
+          "maxRecordingDuration": 300
+        }
+      },
+      "expectedNative": {
+        "LaunchMinimized": true,
+        "ShowRecordingWindow": false,
+        "CheckForUpdatesAutomatically": false,
+        "EnableErrorLogging": false,
+        "ShareAnonymousSpeedData": false,
+        "EnableSoundEffects": false,
+        "AutoPasteEnabled": false,
+        "RemoveFillerWords": false,
+        "RestoreClipboardAfterPaste": false,
+        "HideFromClipboardHistory": false,
+        "ClipboardRestoreDelaySeconds": 2.5,
+        "AutocapitalizeInsert": false,
+        "StoreAsM4A": true,
+        "KeepAudioFiles": true,
+        "StreamingEnabled": true,
+        "StreamingProvider": "deepgram",
+        "StreamingLanguage": "de",
+        "StreamingDeepgramModel": "nova-3-medical",
+        "StreamingCloudTier": "deepgramNova3",
+        "StreamingFastFormatting": false,
+        "StreamingShortcut": "Ctrl+Alt+Shift+F9",
+        "TypingSpeedWPM": 95,
+        "MaxRecordingDuration": 1200,
+        "MinimizeToTray": false,
+        "ThemeMode": 2,
+        "AutoDeleteEnabled": true,
+        "AutoDeleteDaysOld": 7,
+        "ParakeetEnabled": false,
+        "KeepMicrophoneWarm": true,
+        "MediaControlMode": "muteAudio",
+        "ToggleShortcut": "Ctrl+Alt+D",
+        "CancelShortcut": "Esc",
+        "ChangeModeShortcut": "Ctrl+Shift+.",
+        "AutoIncreaseMicVolume": false
+      }
+    }
+  ],
+  "linuxSettings": [
+    {
+      "name": "export: an untouched profile exports the Linux defaults, all 23 keys present",
+      "note": "BuildSharedSettings has no present-only rule — every key is emitted with its default, so a Linux settings block is always complete. Windows emits only 20 of these 23: keepAudioFiles, maxRecordingDuration and storeWordTimestamps have no Windows property.",
+      "direction": "export",
+      "native": {},
+      "expectedUniversal": {
+        "general": {
+          "launchMinimized": false,
+          "showRecordingWindow": true,
+          "checkForUpdatesAutomatically": true,
+          "enableErrorLogging": true,
+          "shareAnonymousSpeedData": true,
+          "enableSoundEffects": true
+        },
+        "textOutput": {
+          "pasteResultText": true,
+          "removeFillerWords": true,
+          "restoreClipboardAfterPaste": true,
+          "hideFromClipboardHistory": true,
+          "clipboardRestoreDelaySeconds": 10,
+          "autocapitalizeInsert": true,
+          "storeWordTimestamps": true
+        },
+        "storage": {
+          "keepAudioFiles": true,
+          "storeAsM4A": false
+        },
+        "streaming": {
+          "enabled": false,
+          "provider": null,
+          "language": null,
+          "deepgramModel": null,
+          "cloudTier": null,
+          "fastFormatting": false,
+          "shortcut": null
+        },
+        "advanced": {
+          "maxRecordingDuration": 3600,
+          "typingSpeedWPM": 40
+        }
+      }
+    },
+    {
+      "name": "export: seeded storage keys pass through verbatim — the map is near-identity",
+      "note": "The PortableSettingsService keys ARE the universal dotted keys. Nothing is renamed and nothing is validated: streaming.provider \"assemblyai\", streaming.deepgramModel \"nova-2-general\" and the un-canonicalised shortcut all survive, where the three Windows setters rewrite all three.",
+      "direction": "export",
+      "native": {
+        "general.launchMinimized": true,
+        "general.showRecordingWindow": false,
+        "general.checkForUpdatesAutomatically": false,
+        "general.enableErrorLogging": false,
+        "general.shareAnonymousSpeedData": false,
+        "general.enableSoundEffects": false,
+        "textOutput.pasteResultText": false,
+        "textOutput.removeFillerWords": false,
+        "textOutput.restoreClipboardAfterPaste": false,
+        "textOutput.hideFromClipboardHistory": false,
+        "textOutput.clipboardRestoreDelaySeconds": 2.5,
+        "textOutput.autocapitalizeInsert": false,
+        "textOutput.storeWordTimestamps": false,
+        "storage.keepAudioFiles": false,
+        "storage.storeAsM4A": true,
+        "streaming.enabled": true,
+        "streaming.provider": "assemblyai",
+        "streaming.language": "de",
+        "streaming.deepgramModel": "nova-2-general",
+        "streaming.fastFormatting": true,
+        "streaming.shortcut": "shift+CONTROL+f9",
+        "advanced.maxRecordingDuration": 300,
+        "advanced.typingSpeedWPM": 95
+      },
+      "expectedUniversal": {
+        "general": {
+          "launchMinimized": true,
+          "showRecordingWindow": false,
+          "checkForUpdatesAutomatically": false,
+          "enableErrorLogging": false,
+          "shareAnonymousSpeedData": false,
+          "enableSoundEffects": false
+        },
+        "textOutput": {
+          "pasteResultText": false,
+          "removeFillerWords": false,
+          "restoreClipboardAfterPaste": false,
+          "hideFromClipboardHistory": false,
+          "clipboardRestoreDelaySeconds": 2.5,
+          "autocapitalizeInsert": false,
+          "storeWordTimestamps": false
+        },
+        "storage": {
+          "keepAudioFiles": false,
+          "storeAsM4A": true
+        },
+        "streaming": {
+          "enabled": true,
+          "provider": "assemblyai",
+          "language": "de",
+          "deepgramModel": "nova-2-general",
+          "cloudTier": null,
+          "fastFormatting": true,
+          "shortcut": "shift+CONTROL+f9"
+        },
+        "advanced": {
+          "maxRecordingDuration": 300,
+          "typingSpeedWPM": 95
+        }
+      }
+    },
+    {
+      "name": "import: every shared key applies verbatim",
+      "direction": "import",
+      "baselineNative": {},
+      "universal": {
+        "general": {
+          "launchMinimized": true,
+          "showRecordingWindow": false,
+          "checkForUpdatesAutomatically": false,
+          "enableErrorLogging": false,
+          "shareAnonymousSpeedData": false,
+          "enableSoundEffects": false
+        },
+        "textOutput": {
+          "pasteResultText": false,
+          "removeFillerWords": false,
+          "restoreClipboardAfterPaste": false,
+          "hideFromClipboardHistory": false,
+          "clipboardRestoreDelaySeconds": 2.5,
+          "autocapitalizeInsert": false,
+          "storeWordTimestamps": false
+        },
+        "storage": {
+          "keepAudioFiles": false,
+          "storeAsM4A": true
+        },
+        "streaming": {
+          "enabled": true,
+          "provider": "assemblyai",
+          "language": "de",
+          "deepgramModel": "nova-2-general",
+          "fastFormatting": true,
+          "shortcut": "shift+CONTROL+f9"
+        },
+        "advanced": {
+          "maxRecordingDuration": 300,
+          "typingSpeedWPM": 95
+        }
+      },
+      "expectedNative": {
+        "general.launchMinimized": true,
+        "general.showRecordingWindow": false,
+        "general.checkForUpdatesAutomatically": false,
+        "general.enableErrorLogging": false,
+        "general.shareAnonymousSpeedData": false,
+        "general.enableSoundEffects": false,
+        "textOutput.pasteResultText": false,
+        "textOutput.removeFillerWords": false,
+        "textOutput.restoreClipboardAfterPaste": false,
+        "textOutput.hideFromClipboardHistory": false,
+        "textOutput.clipboardRestoreDelaySeconds": 2.5,
+        "textOutput.autocapitalizeInsert": false,
+        "textOutput.storeWordTimestamps": false,
+        "storage.keepAudioFiles": false,
+        "storage.storeAsM4A": true,
+        "streaming.enabled": true,
+        "streaming.provider": "assemblyai",
+        "streaming.language": "de",
+        "streaming.deepgramModel": "nova-2-general",
+        "streaming.fastFormatting": true,
+        "streaming.shortcut": "shift+CONTROL+f9",
+        "advanced.maxRecordingDuration": 300,
+        "advanced.typingSpeedWPM": 95
+      }
+    },
+    {
+      "name": "import: an absent settings category leaves its keys untouched",
+      "direction": "import",
+      "baselineNative": {
+        "general.launchMinimized": true,
+        "general.showRecordingWindow": false,
+        "general.checkForUpdatesAutomatically": false,
+        "general.enableErrorLogging": false,
+        "general.shareAnonymousSpeedData": false,
+        "general.enableSoundEffects": false,
+        "textOutput.pasteResultText": false,
+        "textOutput.removeFillerWords": false,
+        "textOutput.restoreClipboardAfterPaste": false,
+        "textOutput.hideFromClipboardHistory": false,
+        "textOutput.clipboardRestoreDelaySeconds": 2.5,
+        "textOutput.autocapitalizeInsert": false,
+        "textOutput.storeWordTimestamps": false,
+        "storage.keepAudioFiles": false,
+        "storage.storeAsM4A": true,
+        "streaming.enabled": true,
+        "streaming.provider": "assemblyai",
+        "streaming.language": "de",
+        "streaming.deepgramModel": "nova-2-general",
+        "streaming.fastFormatting": true,
+        "streaming.shortcut": "shift+CONTROL+f9",
+        "advanced.maxRecordingDuration": 300,
+        "advanced.typingSpeedWPM": 95
+      },
+      "universal": {
+        "general": {
+          "launchMinimized": false
+        }
+      },
+      "expectedNative": {
+        "general.launchMinimized": false,
+        "general.showRecordingWindow": false,
+        "general.checkForUpdatesAutomatically": false,
+        "general.enableErrorLogging": false,
+        "general.shareAnonymousSpeedData": false,
+        "general.enableSoundEffects": false,
+        "textOutput.pasteResultText": false,
+        "textOutput.removeFillerWords": false,
+        "textOutput.restoreClipboardAfterPaste": false,
+        "textOutput.hideFromClipboardHistory": false,
+        "textOutput.clipboardRestoreDelaySeconds": 2.5,
+        "textOutput.autocapitalizeInsert": false,
+        "textOutput.storeWordTimestamps": false,
+        "storage.keepAudioFiles": false,
+        "storage.storeAsM4A": true,
+        "streaming.enabled": true,
+        "streaming.provider": "assemblyai",
+        "streaming.language": "de",
+        "streaming.deepgramModel": "nova-2-general",
+        "streaming.fastFormatting": true,
+        "streaming.shortcut": "shift+CONTROL+f9",
+        "advanced.maxRecordingDuration": 300,
+        "advanced.typingSpeedWPM": 95
+      }
+    },
+    {
+      "name": "import: CopyCategory is a per-category ALLOWLIST, so unknown keys are dropped",
+      "note": "The Linux half of the unknown-key gap #288 names. An unrecognised key inside a known category, and a whole unrecognised category, both vanish. Recorded here, not fixed — phase 3 documents it as a known asymmetry.",
+      "direction": "import",
+      "baselineNative": {
+        "general.launchMinimized": true,
+        "general.showRecordingWindow": false,
+        "general.checkForUpdatesAutomatically": false,
+        "general.enableErrorLogging": false,
+        "general.shareAnonymousSpeedData": false,
+        "general.enableSoundEffects": false,
+        "textOutput.pasteResultText": false,
+        "textOutput.removeFillerWords": false,
+        "textOutput.restoreClipboardAfterPaste": false,
+        "textOutput.hideFromClipboardHistory": false,
+        "textOutput.clipboardRestoreDelaySeconds": 2.5,
+        "textOutput.autocapitalizeInsert": false,
+        "textOutput.storeWordTimestamps": false,
+        "storage.keepAudioFiles": false,
+        "storage.storeAsM4A": true,
+        "streaming.enabled": true,
+        "streaming.provider": "assemblyai",
+        "streaming.language": "de",
+        "streaming.deepgramModel": "nova-2-general",
+        "streaming.fastFormatting": true,
+        "streaming.shortcut": "shift+CONTROL+f9",
+        "advanced.maxRecordingDuration": 300,
+        "advanced.typingSpeedWPM": 95
+      },
+      "universal": {
+        "general": {
+          "launchMinimized": true,
+          "futureGeneralKey": 41
+        },
+        "textOutput": {
+          "storeWordTimestamps": false,
+          "futureTextKey": "x"
+        },
+        "futureSection": {
+          "a": 1
+        }
+      },
+      "expectedNative": {
+        "general.launchMinimized": true,
+        "general.showRecordingWindow": false,
+        "general.checkForUpdatesAutomatically": false,
+        "general.enableErrorLogging": false,
+        "general.shareAnonymousSpeedData": false,
+        "general.enableSoundEffects": false,
+        "textOutput.pasteResultText": false,
+        "textOutput.removeFillerWords": false,
+        "textOutput.restoreClipboardAfterPaste": false,
+        "textOutput.hideFromClipboardHistory": false,
+        "textOutput.clipboardRestoreDelaySeconds": 2.5,
+        "textOutput.autocapitalizeInsert": false,
+        "textOutput.storeWordTimestamps": false,
+        "storage.keepAudioFiles": false,
+        "storage.storeAsM4A": true,
+        "streaming.enabled": true,
+        "streaming.provider": "assemblyai",
+        "streaming.language": "de",
+        "streaming.deepgramModel": "nova-2-general",
+        "streaming.fastFormatting": true,
+        "streaming.shortcut": "shift+CONTROL+f9",
+        "advanced.maxRecordingDuration": 300,
+        "advanced.typingSpeedWPM": 95
+      },
+      "ignoredUniversalKeys": [
+        "general.futureGeneralKey",
+        "textOutput.futureTextKey",
+        "futureSection.a"
+      ]
+    },
+    {
+      "name": "import: an explicit JSON null keeps the live value",
+      "note": "Linux own export writes null for the four unset streaming strings, so a Linux -> Linux round trip depends on this.",
+      "direction": "import",
+      "baselineNative": {
+        "general.launchMinimized": true,
+        "general.showRecordingWindow": false,
+        "general.checkForUpdatesAutomatically": false,
+        "general.enableErrorLogging": false,
+        "general.shareAnonymousSpeedData": false,
+        "general.enableSoundEffects": false,
+        "textOutput.pasteResultText": false,
+        "textOutput.removeFillerWords": false,
+        "textOutput.restoreClipboardAfterPaste": false,
+        "textOutput.hideFromClipboardHistory": false,
+        "textOutput.clipboardRestoreDelaySeconds": 2.5,
+        "textOutput.autocapitalizeInsert": false,
+        "textOutput.storeWordTimestamps": false,
+        "storage.keepAudioFiles": false,
+        "storage.storeAsM4A": true,
+        "streaming.enabled": true,
+        "streaming.provider": "assemblyai",
+        "streaming.language": "de",
+        "streaming.deepgramModel": "nova-2-general",
+        "streaming.fastFormatting": true,
+        "streaming.shortcut": "shift+CONTROL+f9",
+        "advanced.maxRecordingDuration": 300,
+        "advanced.typingSpeedWPM": 95
+      },
+      "universal": {
+        "streaming": {
+          "enabled": false,
+          "provider": null,
+          "language": null,
+          "deepgramModel": null,
+          "fastFormatting": null,
+          "shortcut": null
+        }
+      },
+      "expectedNative": {
+        "general.launchMinimized": true,
+        "general.showRecordingWindow": false,
+        "general.checkForUpdatesAutomatically": false,
+        "general.enableErrorLogging": false,
+        "general.shareAnonymousSpeedData": false,
+        "general.enableSoundEffects": false,
+        "textOutput.pasteResultText": false,
+        "textOutput.removeFillerWords": false,
+        "textOutput.restoreClipboardAfterPaste": false,
+        "textOutput.hideFromClipboardHistory": false,
+        "textOutput.clipboardRestoreDelaySeconds": 2.5,
+        "textOutput.autocapitalizeInsert": false,
+        "textOutput.storeWordTimestamps": false,
+        "storage.keepAudioFiles": false,
+        "storage.storeAsM4A": true,
+        "streaming.enabled": false,
+        "streaming.provider": "assemblyai",
+        "streaming.language": "de",
+        "streaming.deepgramModel": "nova-2-general",
+        "streaming.fastFormatting": true,
+        "streaming.shortcut": "shift+CONTROL+f9",
+        "advanced.maxRecordingDuration": 300,
+        "advanced.typingSpeedWPM": 95
+      }
+    }
+  ],
+  "macosSettings": [
+    {
+      "name": "toUniversal: the promotions, and every macOS-only key parked under its own category",
+      "note": "macOS native key names already EQUAL the universal ones, which is why MACOS_*_KEYS is a bare key list while the Windows table has to be (native, universal) pairs. Note the two cross-category promotions — general.enableSoundEffects <- audio, storage.keepAudioFiles <- advanced — and that streaming is absent: macOS does not export the universal streaming block today.",
+      "direction": "toUniversal",
+      "macos": {
+        "general": {
+          "launchMinimized": true,
+          "showRecordingWindow": false,
+          "checkForUpdatesAutomatically": true,
+          "enableErrorLogging": false,
+          "shareAnonymousSpeedData": true,
+          "launchAtLogin": true,
+          "showInDock": false
+        },
+        "audio": {
+          "enableSoundEffects": false,
+          "autoIncreaseMicVolume": true,
+          "soundEffectsVolume": 0.5
+        },
+        "storage": {
+          "storeAsM4A": true,
+          "filesyncEnabled": false
+        },
+        "textOutput": {
+          "pasteResultText": true,
+          "removeFillerWords": false,
+          "restoreClipboardAfterPaste": true,
+          "hideFromClipboardHistory": false,
+          "clipboardRestoreDelaySeconds": 7.5,
+          "autocapitalizeInsert": true,
+          "storeWordTimestamps": true
+        },
+        "shortcuts": {
+          "pushToTalkMode": "hold",
+          "pushToTalkDoublePressEnabled": true,
+          "quickCaptureEnabled": false,
+          "quickCaptureModeId": ""
+        },
+        "aiModel": {
+          "localPostProcessingModel": "gemma-3-4b"
+        },
+        "advanced": {
+          "keepAudioFiles": false,
+          "maxRecordingDuration": 300,
+          "audioSampleRate": 16000,
+          "historyRetentionDays": 30
+        }
+      },
+      "expectedUniversal": {
+        "general": {
+          "launchMinimized": true,
+          "showRecordingWindow": false,
+          "checkForUpdatesAutomatically": true,
+          "enableErrorLogging": false,
+          "shareAnonymousSpeedData": true,
+          "enableSoundEffects": false
+        },
+        "textOutput": {
+          "pasteResultText": true,
+          "removeFillerWords": false,
+          "restoreClipboardAfterPaste": true,
+          "hideFromClipboardHistory": false,
+          "clipboardRestoreDelaySeconds": 7.5,
+          "autocapitalizeInsert": true,
+          "storeWordTimestamps": true
+        },
+        "storage": {
+          "storeAsM4A": true,
+          "keepAudioFiles": false
+        },
+        "advanced": {
+          "maxRecordingDuration": 300
+        },
+        "platformExtensions": {
+          "macos": {
+            "settings": {
+              "audio": {
+                "autoIncreaseMicVolume": true,
+                "soundEffectsVolume": 0.5
+              },
+              "general": {
+                "launchAtLogin": true,
+                "showInDock": false
+              },
+              "storage": {
+                "filesyncEnabled": false
+              },
+              "advanced": {
+                "audioSampleRate": 16000,
+                "historyRetentionDays": 30
+              },
+              "shortcuts": {
+                "pushToTalkMode": "hold",
+                "pushToTalkDoublePressEnabled": true,
+                "quickCaptureEnabled": false,
+                "quickCaptureModeId": ""
+              },
+              "aiModel": {
+                "localPostProcessingModel": "gemma-3-4b"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "toUniversal: empty categories produce an empty extension blob and no universal sections",
+      "note": "non_empty() drops a category that promoted nothing and insert_category omits an empty macOS-only sub-object, but platformExtensions.macos.settings itself is always written.",
+      "direction": "toUniversal",
+      "macos": {
+        "general": {},
+        "audio": {},
+        "storage": {},
+        "textOutput": {},
+        "shortcuts": {},
+        "aiModel": {},
+        "advanced": {}
+      },
+      "expectedUniversal": {
+        "platformExtensions": {
+          "macos": {
+            "settings": {}
+          }
+        }
+      }
+    },
+    {
+      "name": "toUniversal: an existing platformExtensions.macos blob is folded, not replaced",
+      "direction": "toUniversal",
+      "macos": {
+        "general": {
+          "launchMinimized": true
+        },
+        "audio": {},
+        "storage": {},
+        "textOutput": {},
+        "shortcuts": {},
+        "aiModel": {},
+        "advanced": {}
+      },
+      "existingMacosExtension": {
+        "modes": [
+          {
+            "id": "keep-me"
+          }
+        ]
+      },
+      "expectedUniversal": {
+        "general": {
+          "launchMinimized": true
+        },
+        "platformExtensions": {
+          "macos": {
+            "modes": [
+              {
+                "id": "keep-me"
+              }
+            ],
+            "settings": {}
+          }
+        }
+      }
+    },
+    {
+      "name": "toMacos: the inverse is exact — every promoted key routes home by category",
+      "direction": "toMacos",
+      "universal": {
+        "general": {
+          "launchMinimized": true,
+          "showRecordingWindow": false,
+          "checkForUpdatesAutomatically": true,
+          "enableErrorLogging": false,
+          "shareAnonymousSpeedData": true,
+          "enableSoundEffects": false
+        },
+        "textOutput": {
+          "pasteResultText": true,
+          "removeFillerWords": false,
+          "restoreClipboardAfterPaste": true,
+          "hideFromClipboardHistory": false,
+          "clipboardRestoreDelaySeconds": 7.5,
+          "autocapitalizeInsert": true,
+          "storeWordTimestamps": true
+        },
+        "storage": {
+          "storeAsM4A": true,
+          "keepAudioFiles": false
+        },
+        "advanced": {
+          "maxRecordingDuration": 300
+        },
+        "platformExtensions": {
+          "macos": {
+            "settings": {
+              "audio": {
+                "autoIncreaseMicVolume": true,
+                "soundEffectsVolume": 0.5
+              },
+              "general": {
+                "launchAtLogin": true,
+                "showInDock": false
+              },
+              "storage": {
+                "filesyncEnabled": false
+              },
+              "advanced": {
+                "audioSampleRate": 16000,
+                "historyRetentionDays": 30
+              },
+              "shortcuts": {
+                "pushToTalkMode": "hold",
+                "pushToTalkDoublePressEnabled": true,
+                "quickCaptureEnabled": false,
+                "quickCaptureModeId": ""
+              },
+              "aiModel": {
+                "localPostProcessingModel": "gemma-3-4b"
+              }
+            }
+          }
+        }
+      },
+      "expectedMacos": {
+        "general": {
+          "launchMinimized": true,
+          "showRecordingWindow": false,
+          "checkForUpdatesAutomatically": true,
+          "enableErrorLogging": false,
+          "shareAnonymousSpeedData": true,
+          "launchAtLogin": true,
+          "showInDock": false
+        },
+        "audio": {
+          "enableSoundEffects": false,
+          "autoIncreaseMicVolume": true,
+          "soundEffectsVolume": 0.5
+        },
+        "storage": {
+          "storeAsM4A": true,
+          "filesyncEnabled": false
+        },
+        "textOutput": {
+          "pasteResultText": true,
+          "removeFillerWords": false,
+          "restoreClipboardAfterPaste": true,
+          "hideFromClipboardHistory": false,
+          "clipboardRestoreDelaySeconds": 7.5,
+          "autocapitalizeInsert": true,
+          "storeWordTimestamps": true
+        },
+        "shortcuts": {
+          "pushToTalkMode": "hold",
+          "pushToTalkDoublePressEnabled": true,
+          "quickCaptureEnabled": false,
+          "quickCaptureModeId": ""
+        },
+        "aiModel": {
+          "localPostProcessingModel": "gemma-3-4b"
+        },
+        "advanced": {
+          "keepAudioFiles": false,
+          "maxRecordingDuration": 300,
+          "audioSampleRate": 16000,
+          "historyRetentionDays": 30
+        }
+      }
+    },
+    {
+      "name": "toMacos: a LEGACY FLAT extension blob is routed home by the per-key owning-category map",
+      "note": "The Wave-2 export wrote macOS-only keys flat. Unknown flat keys fall into aiModel, matching the legacy catch-all so an old round trip stays exact.",
+      "direction": "toMacos",
+      "universal": {
+        "platformExtensions": {
+          "macos": {
+            "settings": {
+              "autoIncreaseMicVolume": true,
+              "launchAtLogin": false,
+              "filesyncEnabled": true,
+              "audioSampleRate": 48000,
+              "historyRetentionDays": 7,
+              "pushToTalkMode": "toggle",
+              "someFutureKey": "catch-all"
+            }
+          }
+        }
+      },
+      "expectedMacos": {
+        "general": {
+          "launchAtLogin": false
+        },
+        "audio": {
+          "autoIncreaseMicVolume": true
+        },
+        "storage": {
+          "filesyncEnabled": true
+        },
+        "textOutput": {},
+        "shortcuts": {
+          "pushToTalkMode": "toggle"
+        },
+        "aiModel": {
+          "someFutureKey": "catch-all"
+        },
+        "advanced": {
+          "audioSampleRate": 48000,
+          "historyRetentionDays": 7
+        }
+      }
+    },
+    {
+      "name": "toMacos: a nested category entry wins over a flat sibling of the same name",
+      "direction": "toMacos",
+      "universal": {
+        "platformExtensions": {
+          "macos": {
+            "settings": {
+              "audio": {
+                "autoIncreaseMicVolume": true
+              },
+              "autoIncreaseMicVolume": false
+            }
+          }
+        }
+      },
+      "expectedMacos": {
+        "general": {},
+        "audio": {
+          "autoIncreaseMicVolume": true
+        },
+        "storage": {},
+        "textOutput": {},
+        "shortcuts": {},
+        "aiModel": {},
+        "advanced": {}
+      }
+    }
+  ],
+  "unknownKeyRoundTrip": [
+    {
+      "name": "settings: an unknown key comes back under ITS OWN SECTION, never at the root",
+      "note": "THE NAMED VICTIM (#288). textOutput.storeWordTimestamps exists on macOS and on Linux; Windows has no property for it and is not gaining one, so before phase 3b it died at deserialize and a mac -> Windows -> mac trip lost it for good. It is now captured into SettingsData.BackupUnknownSettings as a section-keyed MIRROR of the universal settings tree and re-attached to the typed DTO's [JsonExtensionData] bag on export, so System.Text.Json emits it at exactly its original nesting level with no manual path arithmetic. The root-level check is the point of the row: re-emitting it at the document root would be a schema violation.",
+      "kind": "settingsUnknownKey",
+      "heads": [
+        "windows"
+      ],
+      "importedSettings": {
+        "textOutput": {
+          "pasteResultText": true,
+          "storeWordTimestamps": true
+        },
+        "storage": {
+          "storeAsM4A": true
+        }
+      },
+      "expectedStored": {
+        "textOutput": {
+          "storeWordTimestamps": true
+        }
+      },
+      "expectedReExportedPaths": {
+        "textOutput.storeWordTimestamps": true
+      },
+      "forbiddenReExportedPaths": [
+        "storeWordTimestamps"
+      ]
+    },
+    {
+      "name": "settings: a whole unknown SECTION survives at the settings root",
+      "note": "A future category cannot collide with one of the five known section names, because those five are declared properties and therefore never reach UniversalSettings.Additional. That is what makes one flat store unambiguous for both nesting levels.",
+      "kind": "settingsUnknownKey",
+      "heads": [
+        "windows"
+      ],
+      "importedSettings": {
+        "storage": {
+          "storeAsM4A": true
+        },
+        "someFutureSection": {
+          "a": 1
+        }
+      },
+      "expectedStored": {
+        "someFutureSection": {
+          "a": 1
+        }
+      },
+      "expectedReExportedPaths": {
+        "someFutureSection.a": 1
+      },
+      "forbiddenReExportedPaths": [
+        "a"
+      ]
+    },
+    {
+      "name": "settings: a REPLACE, not a merge — a second import does not resurrect the first file's keys",
+      "note": "The blob describes the LAST IMPORTED backup. Merging would re-publish a key from an unrelated file under a different user's export.",
+      "kind": "settingsUnknownKey",
+      "heads": [
+        "windows"
+      ],
+      "importedSettings": {
+        "textOutput": {
+          "storeWordTimestamps": true
+        }
+      },
+      "thenImportedSettings": {
+        "storage": {
+          "storeAsM4A": true
+        }
+      },
+      "expectedStored": null,
+      "expectedReExportedPaths": {},
+      "forbiddenReExportedPaths": [
+        "textOutput.storeWordTimestamps"
+      ]
+    },
+    {
+      "name": "platformExtensions: a foreign TOP-LEVEL slice survives a round trip, and the own slice wins",
+      "note": "Until #288 this worked on Linux only. Windows' BuildPlatformExtensions returned {\"windows\": ...} and nothing else; macOS's encodeBackupV2 built the map purely from the core record, which only ever holds \"macos\". Both now preserve the foreign slices and re-emit them.",
+      "storageNote": "THE TWO STRATEGIES ARE DIFFERENT AND THAT IS FINE — expectedStoredByHead records what each head actually keeps. Windows (SettingsData.BackupForeignPlatformExtensions) and macOS (UserDefaults backup.foreignPlatformExtensions) store ONLY the foreign slices and add their own at export. Linux (the backup.platformExtensions setting) stores the WHOLE imported map and OVERWRITES its own \"linux\" slice at export (ApplicationBackupExport). The observable contract below is identical either way: every foreign slice survives, and the head's own slice is always rebuilt from live state.",
+      "kind": "topLevelPlatformExtensions",
+      "heads": [
+        "windows",
+        "macos",
+        "linux"
+      ],
+      "imported": {
+        "macos": {
+          "settings": {
+            "shortcuts": {
+              "pushToTalkMode": "disabled"
+            }
+          }
+        },
+        "windows": {
+          "settings": {
+            "minimizeToTray": false
+          }
+        },
+        "linux": {
+          "settings": {
+            "autostartEnabled": true
+          }
+        }
+      },
+      "expectedStoredByHead": {
+        "windows": {
+          "macos": {
+            "settings": {
+              "shortcuts": {
+                "pushToTalkMode": "disabled"
+              }
+            }
+          },
+          "linux": {
+            "settings": {
+              "autostartEnabled": true
+            }
+          }
+        },
+        "macos": {
+          "windows": {
+            "settings": {
+              "minimizeToTray": false
+            }
+          },
+          "linux": {
+            "settings": {
+              "autostartEnabled": true
+            }
+          }
+        },
+        "linux": {
+          "macos": {
+            "settings": {
+              "shortcuts": {
+                "pushToTalkMode": "disabled"
+              }
+            }
+          },
+          "windows": {
+            "settings": {
+              "minimizeToTray": false
+            }
+          },
+          "linux": {
+            "settings": {
+              "autostartEnabled": true
+            }
+          }
+        }
+      },
+      "expectedReExportedKeysByHead": {
+        "windows": [
+          "linux",
+          "macos",
+          "windows"
+        ],
+        "macos": [
+          "linux",
+          "macos",
+          "windows"
+        ],
+        "linux": [
+          "linux",
+          "macos",
+          "windows"
+        ]
+      },
+      "ownSliceKeyByHead": {
+        "windows": "windows",
+        "macos": "macos",
+        "linux": "linux"
+      }
+    },
+    {
+      "name": "platformExtensions: a backup with no foreign slice CLEARS the preserved store",
+      "note": "REPLACE, not merge, and for the same reason as the settings blob: a preserved macos slice from one file must not ride along on the export of a machine that has since restored a different one.",
+      "kind": "topLevelPlatformExtensions",
+      "heads": [
+        "windows",
+        "macos",
+        "linux"
+      ],
+      "imported": {
+        "windows": {
+          "settings": {
+            "minimizeToTray": false
+          }
+        }
+      },
+      "expectedStoredByHead": {
+        "windows": null,
+        "macos": {
+          "windows": {
+            "settings": {
+              "minimizeToTray": false
+            }
+          }
+        },
+        "linux": {
+          "windows": {
+            "settings": {
+              "minimizeToTray": false
+            }
+          }
+        }
+      },
+      "expectedReExportedKeysByHead": {
+        "windows": [
+          "windows"
+        ],
+        "macos": [
+          "macos",
+          "windows"
+        ],
+        "linux": [
+          "linux",
+          "windows"
+        ]
+      },
+      "ownSliceKeyByHead": {
+        "windows": "windows",
+        "macos": "macos",
+        "linux": "linux"
+      }
+    }
+  ]
+}

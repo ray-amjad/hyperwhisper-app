@@ -10,6 +10,9 @@ var tests = new (string Name, Func<Task> Run)[]
     ("blank completed transcripts retain dictated duration", BlankCompletedTranscriptRetainsDuration),
     ("zero and invalid durations are safe", ZeroAndInvalidDurationsAreSafe),
     ("typing speed controls estimates and weekly ceiling", TypingSpeedAndCeiling),
+    ("rounding is half away from zero, not banker's", RoundingIsHalfAwayFromZero),
+    ("the snapshot carries the year period", TheYearPeriodIsCarried),
+    ("displayed saved minutes match a full calculation", DisplayedSavedMinutesMatchesAFullCalculation),
     ("word counting follows whitespace semantics", WordCounting),
     ("service uses immutable provider snapshot", ServiceUsesProvider),
     ("service observes cancellation", ServiceObservesCancellation),
@@ -151,6 +154,61 @@ static Task TypingSpeedAndCeiling()
     var invalid = Calculate(now, 0, Completed(now, "one two", 0));
     Equal(0, invalid.SavedThisWeekMinutes, "invalid speed display");
     Equal(0d, invalid.AllTime.EstimatedTypingMinutes, "invalid speed estimate");
+    return Task.CompletedTask;
+}
+
+// Issue #285: C# Math.Round(double) is banker's rounding, so a saving of
+// exactly 2.5 minutes used to display as 2 here and as 3 on macOS. The shared
+// core rounds half away from zero, so both now say 3.
+static Task RoundingIsHalfAwayFromZero()
+{
+    var now = Utc(2026, 8, 19, 12);
+    // 200 words at 40 WPM is 5 typed minutes against 2.5 spoken ones.
+    var half = Calculate(now, 40,
+        Completed(now, string.Join(' ', Enumerable.Repeat("word", 200)), 150));
+    Equal(3, half.SavedThisWeekMinutes, "2.5 saved minutes rounds up");
+
+    // And the same rule on the speed figure: 145 words in 1.5 minutes is 96.66.
+    var speed = Calculate(now, 40,
+        Completed(now, string.Join(' ', Enumerable.Repeat("word", 145)), 90));
+    Equal(97, speed.AverageWordsPerMinute, "average WPM rounds away from zero");
+    return Task.CompletedTask;
+}
+
+// Issue #285: the snapshot carries every period, so the three heads differ in
+// which columns they show rather than in what they can show. macOS renders the
+// year column; the .NET heads render week and month.
+static Task TheYearPeriodIsCarried()
+{
+    var now = Utc(2026, 8, 19, 12);
+    var result = Calculate(now, 40,
+        Completed(Utc(2026, 8, 19, 0), "this week", 1),
+        Completed(Utc(2026, 3, 1, 0), "earlier this year", 1),
+        Completed(Utc(2025, 12, 31, 0), "last year", 1));
+    Equal(2, result.ThisWeek.WordCount, "week");
+    Equal(2, result.ThisMonth.WordCount, "month");
+    Equal(5, result.ThisYear.WordCount, "year");
+    Equal(7, result.AllTime.WordCount, "all time");
+    return Task.CompletedTask;
+}
+
+// The typing-speed menu recomputes the displayed figure from totals it already
+// holds, without re-reading the store. It must agree with a full calculation.
+static Task DisplayedSavedMinutesMatchesAFullCalculation()
+{
+    var now = Utc(2026, 8, 19, 12);
+    var full = Calculate(now, 40,
+        Completed(now, string.Join(' ', Enumerable.Repeat("word", 400)), 60));
+    Equal(
+        full.SavedThisWeekMinutes,
+        HomeStatisticsCalculator.DisplayedSavedMinutes(400, 60, 40),
+        "same answer from the totals alone");
+
+    Equal(0, HomeStatisticsCalculator.DisplayedSavedMinutes(400, 60, 0), "no typing speed");
+    Equal(
+        HomeStatisticsCalculator.SavedThisWeekMinutesCeiling,
+        HomeStatisticsCalculator.DisplayedSavedMinutes(4_000_000, 0, 40),
+        "still clamped");
     return Task.CompletedTask;
 }
 

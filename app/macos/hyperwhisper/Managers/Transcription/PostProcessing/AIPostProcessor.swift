@@ -326,10 +326,15 @@ class AIPostProcessor: ObservableObject {
         AppLogger.transcription.info("Bundle ID: \(appContext.bundleId, privacy: .public)")
         AppLogger.transcription.info("Category: \(appContext.category, privacy: .public)")
         AppLogger.transcription.info("Description: \(appContext.description, privacy: .public)")
-        AppLogger.transcription.info("Browser Tab Title: \(appContext.browserTabTitle ?? "None", privacy: .public)")
+        // The tab title is the name of the page the user is reading, and the
+        // focused-element title is the name of the field or document they are
+        // typing into. Both are user content and must never reach a log — os.log
+        // lines are attached to Sentry captures as the `recent_logs` extra. Log
+        // only whether each was resolved, which is all the prompt branches on.
+        AppLogger.transcription.info("Browser Tab Title present: \(appContext.browserTabTitle != nil, privacy: .public)")
         AppLogger.transcription.info("Context Quality: \(appContext.contextQuality, privacy: .public)")
         AppLogger.transcription.info("Focused Element Role: \(appContext.focusedElement.role ?? "None", privacy: .public)")
-        AppLogger.transcription.info("Focused Element Title: \(appContext.focusedElement.title ?? "None", privacy: .public)")
+        AppLogger.transcription.info("Focused Element Title present: \(appContext.focusedElement.title != nil, privacy: .public)")
         AppLogger.transcription.info("Text Input Format: \(appContext.textInputFormat, privacy: .public)")
         AppLogger.transcription.info("=== END CONTEXT ===")
 
@@ -676,10 +681,15 @@ class AIPostProcessor: ObservableObject {
         AppLogger.transcription.info("Bundle ID: \(appContext.bundleId, privacy: .public)")
         AppLogger.transcription.info("Category: \(appContext.category, privacy: .public)")
         AppLogger.transcription.info("Description: \(appContext.description, privacy: .public)")
-        AppLogger.transcription.info("Browser Tab Title: \(appContext.browserTabTitle ?? "None", privacy: .public)")
+        // The tab title is the name of the page the user is reading, and the
+        // focused-element title is the name of the field or document they are
+        // typing into. Both are user content and must never reach a log — os.log
+        // lines are attached to Sentry captures as the `recent_logs` extra. Log
+        // only whether each was resolved, which is all the prompt branches on.
+        AppLogger.transcription.info("Browser Tab Title present: \(appContext.browserTabTitle != nil, privacy: .public)")
         AppLogger.transcription.info("Context Quality: \(appContext.contextQuality, privacy: .public)")
         AppLogger.transcription.info("Focused Element Role: \(appContext.focusedElement.role ?? "None", privacy: .public)")
-        AppLogger.transcription.info("Focused Element Title: \(appContext.focusedElement.title ?? "None", privacy: .public)")
+        AppLogger.transcription.info("Focused Element Title present: \(appContext.focusedElement.title != nil, privacy: .public)")
         AppLogger.transcription.info("Text Input Format: \(appContext.textInputFormat, privacy: .public)")
         AppLogger.transcription.info("=== END CONTEXT ===")
 

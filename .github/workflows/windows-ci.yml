@@ -35,8 +35,8 @@ on:
       - "shared-app-classification/**"
       - "shared-models/**"
       - "shared-prompts/**"
-      # The golden catalog vectors (issue #277), run by the conformance step
-      # below.
+      # The golden catalog, app-type and backup vectors (issues #277, #279,
+      # #280), run by the conformance steps below.
       - "shared-conformance/**"
       - ".github/workflows/windows-ci.yml"
   push:
@@ -162,3 +162,65 @@ jobs:
       # heads do.
       - name: Run app-type conformance vectors
         run: dotnet run --project app/shared-dotnet/HyperWhisper.AppTypeConformance.Tests -c Release
+
+      # ----------------------------------------------------------------
+      # 8. Backup conformance vectors
+      # ----------------------------------------------------------------
+      # shared-conformance/backup-vectors.json, the same three-platform shape
+      # (issues #277 and #288). The smoke suite above already runs the rows
+      # Windows OWNS — modeNormalization, windowsSettings and the
+      # unknown-key/foreign-slice round trips through the real SettingsService.
+      # This harness runs the rest of the file: the Linux settings adapters and
+      # the macOS settings adapter, the latter straight off the binding.
+      #
+      # It is the same portable project Linux CI's shared-dotnet sweep runs, so
+      # this step is a SECOND HOST for it. That is the point: the settings
+      # mapping is one Rust implementation now, and this is what proves the
+      # Windows binding reads its answers unchanged rather than only the
+      # Linux one.
+      - name: Run backup conformance vectors
+        run: dotnet run --project app/shared-dotnet/HyperWhisper.Backup.Application.Tests -c Release
+
+      # ----------------------------------------------------------------
+      # 9. Phonetic conformance vectors
+      # ----------------------------------------------------------------
+      # shared-conformance/phonetic-vectors.json, the same three-platform
+      # shape. Issue #283 left exactly one phonetic matcher and exactly one
+      # diacritic-insensitive substring pass, so these vectors prove the
+      # Windows binding reads the same answers the Swift and Rust heads do.
+      # The matcher rows carry a `decision` field naming which native matcher
+      # each unified answer came from — the file is the record of where the
+      # two natives disagreed.
+      - name: Run phonetic conformance vectors
+        run: dotnet run --project app/shared-dotnet/HyperWhisper.PhoneticConformance.Tests -c Release
+
+      # ----------------------------------------------------------------
+      # 10. Home statistics conformance vectors
+      # ----------------------------------------------------------------
+      # shared-conformance/stats-vectors.json, the same three-platform shape.
+      # Issue #285 left exactly one set of home-statistics formulas, so these
+      # vectors prove the Windows binding reads the same answers the Swift and
+      # Rust heads do. Each case carries a `decision` field naming which of the
+      # three native copies the unified answer came from — the file is the
+      # record of where they disagreed, and Windows changes on four of them:
+      # the week and month boundaries move from UTC to the user's own time
+      # zone, and rounding moves from banker's to half away from zero.
+      - name: Run home statistics conformance vectors
+        run: dotnet run --project app/shared-dotnet/HyperWhisper.StatsConformance.Tests -c Release
+
+      # ----------------------------------------------------------------
+      # 11. Language catalog conformance vectors
+      # ----------------------------------------------------------------
+      # shared-conformance/language-vectors.json, the same three-platform shape.
+      # Issue #285 left exactly one language catalog and exactly one
+      # canonicalization rule, so these vectors prove the Windows binding reads
+      # the same rows the Swift and Rust heads do. Every catalog row carries a
+      # `decision` field naming where the unified row came from, and Windows is
+      # the head that changes: it deletes a hand-written 102-row table and GAINS
+      # the 24 region and script variants only macOS listed (en-GB, pt-BR,
+      # zh-Hant and the rest), plus canonicalization — a stored `en_GB` or
+      # `zh-hant` used to match no row at all and the picker printed the raw
+      # tag. One row is renamed: zh-TW now reads "Chinese (Traditional,
+      # Taiwan)", so it is distinguishable from the zh-Hant row beside it.
+      - name: Run language catalog conformance vectors
+        run: dotnet run --project app/shared-dotnet/HyperWhisper.LanguageConformance.Tests -c Release

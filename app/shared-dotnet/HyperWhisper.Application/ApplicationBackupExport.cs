@@ -130,63 +130,92 @@ public sealed partial class ApplicationBackupService(
         if (source[key] is not null) _settings.Set(key, source[key]!.GetValue<T>());
     }
 
-    private JsonObject BuildSharedSettings() => new()
+    /// <summary>
+    /// Builds the universal-v2 shared <c>settings</c> block from the live settings
+    /// store, through the shared core's Linux settings adapter
+    /// (<c>hw-backup mapping.rs: linux_settings_to_universal</c>).
+    /// </summary>
+    /// <remarks>
+    /// The WHOLE store is handed to the core, which promotes only the keys that
+    /// have a row in its <c>LINUX_*_PAIRS</c> tables — so nothing Linux-only and
+    /// nothing device-local (<c>selectedModeId</c>, model paths) can reach the
+    /// exported file through this path. The Linux half of the map is near-identity:
+    /// <c>PortableSettingsService</c>'s dotted keys ARE the universal keys. The
+    /// export defaults live in the same tables, which is what keeps an untouched
+    /// profile exporting all 23 shared keys. <see cref="ApplyLinuxSettings"/>
+    /// stays native on purpose — its defaults are already duplicated against the
+    /// live UI defaults, and a Rust copy would be a third home.
+    /// </remarks>
+    private JsonObject BuildSharedSettings()
     {
-        ["general"] = new JsonObject
-        {
-            ["launchMinimized"] = _settings.Get("general.launchMinimized", false),
-            ["showRecordingWindow"] = _settings.Get("general.showRecordingWindow", true),
-            ["checkForUpdatesAutomatically"] = _settings.Get("general.checkForUpdatesAutomatically", true),
-            ["enableErrorLogging"] = _settings.Get("general.enableErrorLogging", true),
-            ["shareAnonymousSpeedData"] = _settings.Get("general.shareAnonymousSpeedData", true),
-            ["enableSoundEffects"] = _settings.Get("general.enableSoundEffects", true),
-        },
-        ["textOutput"] = new JsonObject
-        {
-            ["pasteResultText"] = _settings.Get("textOutput.pasteResultText", true),
-            ["removeFillerWords"] = _settings.Get("textOutput.removeFillerWords", true),
-            ["restoreClipboardAfterPaste"] = _settings.Get("textOutput.restoreClipboardAfterPaste", true),
-            ["hideFromClipboardHistory"] = _settings.Get("textOutput.hideFromClipboardHistory", true),
-            ["clipboardRestoreDelaySeconds"] = _settings.Get("textOutput.clipboardRestoreDelaySeconds", 10d),
-            ["autocapitalizeInsert"] = _settings.Get("textOutput.autocapitalizeInsert", true),
-            ["storeWordTimestamps"] = _settings.Get("textOutput.storeWordTimestamps", true),
-        },
-        ["storage"] = new JsonObject
-        {
-            ["keepAudioFiles"] = _settings.Get("storage.keepAudioFiles", true),
-            ["storeAsM4A"] = _settings.Get("storage.storeAsM4A", false),
-        },
-        ["streaming"] = new JsonObject
-        {
-            ["enabled"] = _settings.Get("streaming.enabled", false),
-            ["provider"] = _settings.Get<string?>("streaming.provider"),
-            ["language"] = _settings.Get<string?>("streaming.language"),
-            ["deepgramModel"] = _settings.Get<string?>("streaming.deepgramModel"),
-            ["cloudTier"] = _settings.Get<string?>("streaming.cloudTier"),
-            ["fastFormatting"] = _settings.Get("streaming.fastFormatting", false),
-            ["shortcut"] = _settings.Get<string?>("streaming.shortcut"),
-        },
-        ["advanced"] = new JsonObject
-        {
-            ["maxRecordingDuration"] = _settings.Get("advanced.maxRecordingDuration", 3600),
-            ["typingSpeedWPM"] = _settings.Get("advanced.typingSpeedWPM", 40),
-        },
-    };
-
-    private void ApplySharedSettings(JsonObject settings)
-    {
-        CopyCategory(settings, "general", ["launchMinimized", "showRecordingWindow", "checkForUpdatesAutomatically", "enableErrorLogging", "shareAnonymousSpeedData", "enableSoundEffects"]);
-        CopyCategory(settings, "textOutput", ["pasteResultText", "removeFillerWords", "restoreClipboardAfterPaste", "hideFromClipboardHistory", "clipboardRestoreDelaySeconds", "autocapitalizeInsert", "storeWordTimestamps"]);
-        CopyCategory(settings, "storage", ["keepAudioFiles", "storeAsM4A"]);
-        CopyCategory(settings, "streaming", ["enabled", "provider", "language", "deepgramModel", "cloudTier", "fastFormatting", "shortcut"]);
-        CopyCategory(settings, "advanced", ["maxRecordingDuration", "typingSpeedWPM"]);
+        var nativeJson = JsonSerializer.Serialize(_settings.Snapshot(), SerializerOptions);
+        return JsonNode.Parse(SharedCoreBridge.LinuxSettingsToUniversal(nativeJson)) as JsonObject
+            ?? new JsonObject();
     }
 
-    private void CopyCategory(JsonObject settings, string category, IReadOnlyList<string> keys)
+    /// <summary>
+    /// Applies an imported universal-v2 shared <c>settings</c> block to the live
+    /// settings store, through the shared core's Linux settings adapter
+    /// (<c>hw-backup mapping.rs: universal_to_linux_settings</c>).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The core reproduces <c>CopyCategory</c>'s rules exactly: the pairs tables
+    /// are a per-category ALLOWLIST, so an unknown key inside a known category and
+    /// a whole unknown category are both dropped, and an explicit JSON <c>null</c>
+    /// leaves the live value alone. That drop is the Linux half of the unknown-key
+    /// gap issue #288 names; it is reproduced here, not fixed.
+    /// </para>
+    /// <para>
+    /// The core's answer is DEEP-MERGED over a baseline snapshot of the live store
+    /// before it is written back, mirroring <c>BackupManager.swift</c>'s
+    /// <c>currentSettingsBaseline()</c> → <c>deepMerged(over:)</c> → apply. The
+    /// merge is inert today — the core is present-only, so every key it omits is
+    /// simply carried over from the baseline unchanged, which is exactly what the
+    /// old per-key <c>Set</c> loop did. It is wired anyway because it is the
+    /// defence the day the core returns a COMPLETE native blob. Note the baseline
+    /// is snapshotted HERE, not at the start of the import, so the
+    /// <c>platformExtensions.linux</c> writes that <c>ApplySelectedSettings</c>
+    /// performs first are inside it and survive.
+    /// </para>
+    /// </remarks>
+    private void ApplySharedSettings(JsonObject settings)
     {
-        if (settings[category] is not JsonObject source) return;
-        foreach (var key in keys)
-            if (source[key] is { } value) _settings.Set($"{category}.{key}", JsonSerializer.SerializeToElement(value, SerializerOptions));
+        var fromCore = JsonNode.Parse(
+            SharedCoreBridge.UniversalSettingsToLinuxSettings(settings.ToJsonString())) as JsonObject
+            ?? new JsonObject();
+
+        var baseline = new JsonObject();
+        foreach (var entry in _settings.Snapshot())
+            baseline[entry.Key] = JsonNode.Parse(entry.Value.GetRawText());
+
+        var merged = DeepMerge(baseline, fromCore);
+        _settings.Replace(merged.ToDictionary(
+            entry => entry.Key,
+            entry => JsonSerializer.SerializeToElement(entry.Value, SerializerOptions),
+            StringComparer.Ordinal));
+    }
+
+    /// <summary>
+    /// <paramref name="overlay"/> deep-merged over <paramref name="baseline"/>:
+    /// overlay wins per key, nested objects merge recursively, and a key only in
+    /// the baseline survives. Mirrors <c>BackupManager.swift</c>'s
+    /// <c>deepMerged(over:)</c>. Both blobs are flat maps of dotted keys today, so
+    /// the recursion never fires; it is kept so the semantics stay macOS's.
+    /// </summary>
+    private static JsonObject DeepMerge(JsonObject baseline, JsonObject overlay)
+    {
+        var merged = baseline.DeepClone().AsObject();
+        foreach (var entry in overlay)
+        {
+            if (entry.Value is JsonObject nestedOverlay && merged[entry.Key] is JsonObject nestedBaseline)
+            {
+                merged[entry.Key] = DeepMerge(nestedBaseline, nestedOverlay);
+                continue;
+            }
+            merged[entry.Key] = entry.Value?.DeepClone();
+        }
+        return merged;
     }
 
     private static JsonObject ToUniversalMode(Mode mode)
@@ -223,9 +252,40 @@ public sealed partial class ApplicationBackupService(
         };
     }
 
+    // Entity-side defaults for a cloud-routing field the backup does not supply.
+    // Read from the Mode entity so the canonical default lives in exactly one
+    // place — the literals that used to sit inline here were a THIRD copy of the
+    // pair, and drifting from Mode.cs would have gone unnoticed.
+    private static readonly Mode ModeDefaults = new();
+
+    /// <summary>
+    /// Canonicalize a universal mode's five cloud-routing fields in the Rust
+    /// shared core. The same <c>normalize_universal_mode_json</c> call the Windows
+    /// importer makes, so the two heads now agree: before this, Linux ran no
+    /// cloudAccuracyTier / cloudPostProcessingModel migration, no catalog
+    /// cloudProvider fold, no legacy model-alias resolution and no
+    /// cloudTranscriptionDomain gate. Absent fields stay absent — the caller
+    /// applies <see cref="ModeDefaults"/>.
+    ///
+    /// A backup file is the one input that is arbitrarily old: it can be written
+    /// by any past version, on any platform, and restored years later, and it
+    /// bypasses the one-shot EF migration entirely, because that migration is
+    /// already recorded as applied by the time a restore runs. So a v7-era
+    /// backup carrying the retired <c>googleChirp3</c> (or a v5-era <c>high</c>)
+    /// is canonicalised HERE or nowhere. The failure it prevents is silent — an
+    /// unmigrated tier id resolves to Deepgram at read time with no error, which
+    /// changes the user's vendor, credits and <c>X-STT-Provider</c> without
+    /// telling them.
+    /// </summary>
+    private static JsonObject NormalizeCloudRouting(JsonObject mode)
+        => JsonNode.Parse(SharedCoreBridge.NormalizeUniversalMode(mode.ToJsonString()))
+            as JsonObject
+            ?? throw new JsonException("Mode normalization did not return an object.");
+
     private static Mode ParseMode(JsonNode? node)
     {
         var value = node as JsonObject ?? throw new JsonException("Mode must be an object.");
+        var normalized = NormalizeCloudRouting(value);
         var extensions = value["platformExtensions"] as JsonObject;
         var linux = extensions?["linux"] as JsonObject;
         var preservedExtensions = extensions?.DeepClone() as JsonObject;
@@ -237,13 +297,14 @@ public sealed partial class ApplicationBackupService(
             IsDefault = Bool(value, "isDefault"), SortOrder = Int(value, "sortOrder"),
             Punctuation = Bool(value, "punctuation", true), Capitalization = Bool(value, "capitalization", true),
             ProfanityFilter = Bool(value, "profanityFilter"), RemoveTrailingPeriod = Bool(value, "removeTrailingPeriod"),
-            EnglishSpelling = String(value, "englishSpelling"), CloudProvider = String(value, "cloudProvider"),
-            CloudTranscriptionModel = String(value, "cloudTranscriptionModel"), CloudTranscriptionDomain = String(value, "cloudTranscriptionDomain"),
+            EnglishSpelling = String(value, "englishSpelling"), CloudProvider = String(normalized, "cloudProvider"),
+            CloudTranscriptionModel = String(normalized, "cloudTranscriptionModel"), CloudTranscriptionDomain = String(normalized, "cloudTranscriptionDomain"),
             PostProcessingMode = Int(value, "postProcessingMode"), PostProcessingProvider = String(value, "postProcessingProvider"),
             LanguageModel = String(value, "languageModel"), LocalPostProcessingModel = String(value, "localPostProcessingModel"),
             UserSystemPrompt = String(value, "userSystemPrompt"), CustomInstructions = String(value, "customInstructions"),
-            GeminiCustomPrompt = String(value, "geminiCustomPrompt"), CloudAccuracyTier = RestoredCloudAccuracyTier(value),
-            CloudPostProcessingModel = String(value, "cloudPostProcessingModel") ?? "anthropic:claude-haiku-4-5",
+            GeminiCustomPrompt = String(value, "geminiCustomPrompt"),
+            CloudAccuracyTier = String(normalized, "cloudAccuracyTier") ?? ModeDefaults.CloudAccuracyTier,
+            CloudPostProcessingModel = String(normalized, "cloudPostProcessingModel") ?? ModeDefaults.CloudPostProcessingModel,
             LocalEngine = String(linux, "localEngine") ?? "whisper", LocalParakeetModel = String(linux, "localParakeetModel"),
             ProviderType = String(linux, "providerType") ?? (String(value, "cloudProvider") is null ? "local" : "cloud"),
             EnableScreenOCR = Bool(linux, "enableScreenOCR"), CustomVocabulary = StringList(linux, "customVocabulary"),
@@ -252,30 +313,6 @@ public sealed partial class ApplicationBackupService(
             CreatedDate = Date(linux, "createdDate") ?? DateTime.UtcNow,
             ModifiedDate = Date(linux, "modifiedDate") ?? DateTime.UtcNow,
         };
-    }
-
-    /// <summary>
-    /// The restored accuracy tier, canonicalised through the shared core's
-    /// <c>migrate_cloud_accuracy_tier</c>.
-    ///
-    /// A backup file is the one input that is arbitrarily old — it can be written
-    /// by any past version, on any platform, and restored years later. The
-    /// Windows <c>UniversalBackupMapper</c> has always run this value through the
-    /// core; this portable path did not, so a v7-era backup carrying the retired
-    /// <c>googleChirp3</c> (or a v5-era <c>high</c>) landed in the database
-    /// verbatim, after the one-shot EF migration that would have fixed it had
-    /// already been recorded as applied.
-    ///
-    /// Migrated ONLY when the key is present and non-empty: absent means the
-    /// backup never had a tier, and the core answers <c>deepgramNova3</c> for an
-    /// empty input, which is not this path's documented default.
-    /// </summary>
-    private static string RestoredCloudAccuracyTier(JsonObject value)
-    {
-        var stored = String(value, "cloudAccuracyTier");
-        return string.IsNullOrWhiteSpace(stored)
-            ? "elevenLabsScribeV2"
-            : SharedCoreBridge.CanonicalCloudSttTier(stored);
     }
 
     private static List<string>? StringList(JsonObject? value, string key)

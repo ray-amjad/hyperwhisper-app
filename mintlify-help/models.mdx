@@ -132,7 +132,7 @@ HyperWhisper Cloud is built into the app. You need no API key and no separate ac
 | Tier | Powered by | Best for |
 | --- | --- | --- |
 | **Highest** | ElevenLabs Scribe v2 | Accents, noisy audio, technical vocabulary |
-| **High** | Grok STT (xAI), Microsoft MAI-Transcribe, Google Chirp 3 | Good multilingual accuracy at low cost |
+| **High** | Grok STT (xAI), Microsoft MAI-Transcribe, Google Gemini 3.5 Transcribe | Good multilingual accuracy at low cost |
 | **Medium** | Deepgram Nova-3, Groq Whisper Large v3 Turbo | Strong English accuracy. Groq adds sub-second latency |
 
 HyperWhisper Cloud gives you all 11 supported providers with no key. The other providers are Soniox, OpenAI, AssemblyAI, Mistral Voxtral, and Gemini. Only ElevenLabs, Grok, Deepgram, and Groq have automatic failover to a backup provider. The other providers have no automatic failover. For pricing, cost examples, and language guidance, see [Providers](/choosing-a-provider).
@@ -143,7 +143,11 @@ You can use your own key if you hold API credits, if you want the free tier of a
 
 Supported providers for bring-your-own-key transcription:
 
-**OpenAI · Groq · Deepgram · AssemblyAI · ElevenLabs · Mistral · Soniox · Google Gemini · xAI (Grok)**
+**OpenAI · Groq · Deepgram · AssemblyAI · ElevenLabs · Mistral · Soniox · Google Gemini · Google Gemini 3.5 Transcribe · xAI (Grok)**
+
+<Note>
+  **Google Gemini** and **Google Gemini 3.5 Transcribe** are two different products of Google, on two different endpoints. Each has its own key slot in **Model Library → API Keys**. Gemini 3.5 Transcribe is a dedicated speech model, and it does not do post-processing. See [API Keys](/api-keys).
+</Note>
 
 <Note>
   When you use your own key, you are responsible to opt your audio out of model training. Each provider has its own setting. [Data Privacy](/data-privacy) gives a prompt that you can copy to find the current opt-out for any provider.
@@ -170,8 +174,11 @@ A provider can retire a speech model. HyperWhisper then removes the model from t
 | Gemini 3.1 Flash Lite Preview | Gemini 3.1 Flash Lite |
 | Gemini 2.0 Flash (Windows) | Gemini 3.6 Flash |
 | Deepgram Nova, Nova-2 domain models, and all Enhanced, Base, and Whisper models | Nova 3 General |
+| Google Chirp 3 | Google Gemini 3.5 Transcribe |
 
 The Deepgram row covers the domain-tuned Nova-2 models (Meeting, Phone Call, Voicemail, Finance, Conversational AI, Automotive, Video) and every Enhanced, Base, and Whisper model. Nova 2 General and Nova 2 Medical are not retired.
+
+The Google Chirp 3 row is different from the other rows. Chirp 3 was the Google engine of HyperWhisper Cloud, and Google Gemini 3.5 Transcribe replaced it. The app changes each saved mode one time, at the first start after the update. A mode that used Chirp 3 then uses Gemini 3.5 Transcribe, and it bills the rate of Gemini 3.5 Transcribe. Your imported backups get the same change.
 
 <Note>
   HyperWhisper Cloud applies the same map on the server. If a request gives a retired AssemblyAI or Soniox model, the server transcribes with the replacement model and bills the rate of the replacement model.

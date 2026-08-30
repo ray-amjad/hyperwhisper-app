@@ -179,6 +179,56 @@ fn macos_top_level_extensions_preserved() {
     assert_eq!(macos["settings"]["general"]["launchAtLogin"], Value::Bool(true));
 }
 
+/// The Windows half of top-level foreign-slice retention (#288).
+///
+/// Until phase 3, `UniversalBackupMapper.BuildPlatformExtensions` returned
+/// `{"windows": …}` and nothing else, so a macOS or Linux TOP-LEVEL slice died on
+/// a Windows round-trip even though the per-mode slices survived. The fixture now
+/// carries a preserved `macos` slice alongside `windows`, exactly as a Windows
+/// export written after importing a macOS backup does — and both must reach the
+/// records unchanged.
+#[test]
+fn windows_top_level_extensions_preserved() {
+    let backup = parse_backup(WINDOWS_EXPORT).unwrap();
+    let records = to_records(&backup);
+
+    let windows = records
+        .platform_extensions
+        .get("windows")
+        .expect("windows top-level extension present");
+    assert_eq!(windows["settings"]["minimizeToTray"], Value::Bool(true));
+
+    let macos = records
+        .platform_extensions
+        .get("macos")
+        .expect("a preserved FOREIGN top-level slice must survive a Windows export");
+    assert_eq!(
+        macos["settings"]["shortcuts"]["pushToTalkMode"],
+        Value::String("disabled".into())
+    );
+}
+
+/// The three settings keys a mac→Windows→mac trip used to lose (#288). The
+/// Windows fixture is what a Windows export looks like AFTER the phase-3 fixes,
+/// so all three must be present and none may have been reinterpreted.
+#[test]
+fn windows_export_carries_the_three_restored_settings_keys() {
+    let backup = parse_backup(WINDOWS_EXPORT).unwrap();
+    let settings = backup.settings.as_ref().expect("settings present");
+    let value = serde_json::to_value(settings).unwrap();
+
+    // Was dropped because Windows had no native property at all.
+    assert_eq!(value["storage"]["keepAudioFiles"], Value::Bool(false));
+    // Was dropped for the same reason; 1200s = the 20-minute ceiling, which is
+    // also the Windows default. It is deliberately NOT 300 — that value is
+    // macOS's never-exposed legacy default and both heads read it as "unset".
+    assert_eq!(value["advanced"]["maxRecordingDuration"], Value::from(1200));
+    // Has no Windows property and is not gaining one: it survives through the
+    // native unknown-key store and is re-emitted under `textOutput`, never at the
+    // document root.
+    assert_eq!(value["textOutput"]["storeWordTimestamps"], Value::Bool(true));
+}
+
 #[test]
 fn linux_extensions_preserved() {
     let backup = parse_backup(LINUX_EXPORT).unwrap();
@@ -699,4 +749,169 @@ fn macos_adapter_matches_fixture_universal_settings() {
         record.advanced.as_ref().unwrap(),
         &fixture_settings["advanced"]
     );
+}
+
+// ---------------------------------------------------------------------------
+// normalize_universal_mode_value — the wire-shaped, present-only normalization
+// both non-macOS importers now route through (#288, phase 1b).
+//
+// Only the tier / post-processing half lives in `hw-backup`: the `cloudProvider`
+// fold and the model-alias tables need the catalog, so they are composed in
+// `hw-core::ffi_backup::normalize_universal_mode_json`. `folded_accuracy_tier`
+// here stands in for what that composition passes down.
+// ---------------------------------------------------------------------------
+
+/// Run the normalizer over a mode object literal and return the result.
+fn normalized(mut mode: Value, folded_tier: Option<&str>) -> Value {
+    hw_backup::normalize_universal_mode_value(&mut mode, folded_tier);
+    mode
+}
+
+#[test]
+fn absent_cloud_routing_stays_absent() {
+    // Trap #4: stamping the core defaults here would regress BOTH .NET heads,
+    // whose shared native pair is elevenLabsScribeV2 / anthropic:claude-haiku-4-5.
+    let out = normalized(serde_json::json!({ "id": "m", "name": "n" }), None);
+    assert!(!out.as_object().unwrap().contains_key("cloudAccuracyTier"));
+    assert!(!out
+        .as_object()
+        .unwrap()
+        .contains_key("cloudPostProcessingModel"));
+    // Nothing else was invented either.
+    assert_eq!(out, serde_json::json!({ "id": "m", "name": "n" }));
+}
+
+#[test]
+fn explicit_null_is_treated_as_absent() {
+    let out = normalized(
+        serde_json::json!({
+            "cloudAccuracyTier": Value::Null,
+            "cloudPostProcessingModel": Value::Null
+        }),
+        None,
+    );
+    assert_eq!(out, serde_json::json!({}));
+}
+
+#[test]
+fn blank_string_is_treated_as_absent() {
+    // MigrateCloudAccuracyTierPresent guards with IsNullOrWhiteSpace, not just null.
+    let out = normalized(
+        serde_json::json!({ "cloudAccuracyTier": "   ", "cloudPostProcessingModel": "" }),
+        None,
+    );
+    assert_eq!(out, serde_json::json!({}));
+}
+
+#[test]
+fn present_values_are_migrated() {
+    let out = normalized(
+        serde_json::json!({ "cloudAccuracyTier": "highest", "cloudPostProcessingModel": "claudeHaiku" }),
+        None,
+    );
+    assert_eq!(out["cloudAccuracyTier"], "elevenLabsScribeV2");
+    assert_eq!(out["cloudPostProcessingModel"], "anthropic:claude-haiku-4-5");
+}
+
+#[test]
+fn folded_tier_applies_only_when_the_universal_value_is_absent() {
+    // No platformExtensions.windows → `universal ?? folded`.
+    let with_universal = normalized(
+        serde_json::json!({ "cloudAccuracyTier": "medium" }),
+        Some("azureMaiTranscribe"),
+    );
+    assert_eq!(
+        with_universal["cloudAccuracyTier"], "groqWhisper",
+        "a present universal tier must overwrite the folded one"
+    );
+
+    let without_universal = normalized(serde_json::json!({}), Some("azureMaiTranscribe"));
+    assert_eq!(without_universal["cloudAccuracyTier"], "azureMaiTranscribe");
+}
+
+#[test]
+fn windows_extension_tier_wins_over_both() {
+    // platformExtensions.windows present → `winExt ?? folded ?? universal`.
+    let out = normalized(
+        serde_json::json!({
+            "cloudAccuracyTier": "medium",
+            "platformExtensions": { "windows": { "cloudAccuracyTier": "grok" } }
+        }),
+        Some("azureMaiTranscribe"),
+    );
+    assert_eq!(out["cloudAccuracyTier"], "grokStt");
+}
+
+#[test]
+fn windows_extension_present_but_blank_falls_back_to_the_folded_tier() {
+    // The winExt arm's source is absent, so the folded tier survives — and, note,
+    // it beats the present universal value in THIS branch. That asymmetry is real
+    // Windows behaviour (MapToMode assigns CloudAccuracyTier twice), not a bug.
+    let out = normalized(
+        serde_json::json!({
+            "cloudAccuracyTier": "medium",
+            "platformExtensions": { "windows": { "localEngine": "whisper" } }
+        }),
+        Some("azureMaiTranscribe"),
+    );
+    assert_eq!(out["cloudAccuracyTier"], "azureMaiTranscribe");
+}
+
+#[test]
+fn windows_extension_pp_model_wins_but_is_never_folded() {
+    let out = normalized(
+        serde_json::json!({
+            "cloudPostProcessingModel": "claudeHaiku",
+            "platformExtensions": { "windows": { "cloudPostProcessingModel": "groqGptOss120B" } }
+        }),
+        Some("azureMaiTranscribe"),
+    );
+    assert_eq!(out["cloudPostProcessingModel"], "groq:openai/gpt-oss-120b");
+    // The fold never supplies a post-processing model.
+    let no_pp = normalized(serde_json::json!({}), Some("azureMaiTranscribe"));
+    assert!(!no_pp
+        .as_object()
+        .unwrap()
+        .contains_key("cloudPostProcessingModel"));
+}
+
+#[test]
+fn a_non_object_windows_slice_is_not_treated_as_present() {
+    // Windows decides `winExt != null` by whether the slice DESERIALIZES; a JSON
+    // null or a scalar throws and leaves it null, so the universal arm runs.
+    for slice in [Value::Null, serde_json::json!("nope"), serde_json::json!(7)] {
+        let out = normalized(
+            serde_json::json!({
+                "cloudAccuracyTier": "medium",
+                "platformExtensions": { "windows": slice }
+            }),
+            Some("azureMaiTranscribe"),
+        );
+        assert_eq!(out["cloudAccuracyTier"], "groqWhisper");
+    }
+}
+
+#[test]
+fn unrelated_keys_and_foreign_extensions_survive() {
+    let out = normalized(
+        serde_json::json!({
+            "id": "abc",
+            "name": "Hyper",
+            "language": "en",
+            "cloudAccuracyTier": "high",
+            "platformExtensions": { "macos": { "futureMac": "keep" } }
+        }),
+        None,
+    );
+    assert_eq!(out["id"], "abc");
+    assert_eq!(out["name"], "Hyper");
+    assert_eq!(out["language"], "en");
+    assert_eq!(out["platformExtensions"]["macos"]["futureMac"], "keep");
+    assert_eq!(out["cloudAccuracyTier"], "deepgramNova3");
+}
+
+#[test]
+fn a_non_object_mode_is_left_untouched() {
+    let out = normalized(serde_json::json!("not a mode"), Some("grokStt"));
+    assert_eq!(out, serde_json::json!("not a mode"));
 }

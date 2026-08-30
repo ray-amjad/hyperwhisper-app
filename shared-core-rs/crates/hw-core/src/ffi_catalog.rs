@@ -21,7 +21,9 @@ fn models() -> &'static hw_catalog::ModelsCatalog {
     })
 }
 
-fn cloud_stt() -> &'static hw_catalog::CloudSttCatalog {
+/// `pub(crate)` so `ffi_backup::normalize_universal_mode_json` can compose the
+/// `cloudProvider` fold with the `hw-backup` tier/pp migration.
+pub(crate) fn cloud_stt() -> &'static hw_catalog::CloudSttCatalog {
     static C: OnceLock<hw_catalog::CloudSttCatalog> = OnceLock::new();
     C.get_or_init(|| {
         hw_catalog::CloudSttCatalog::embedded().expect("embedded cloud-stt-catalog.json must parse")
@@ -708,6 +710,18 @@ pub fn cloud_stt_normalize_cloud_provider(value: Option<String>) -> NormalizedCl
     cloud_stt()
         .normalize_cloud_provider(value.as_deref())
         .into()
+}
+
+/// Resolve a legacy cloud-STT model id onto its current catalog id.
+///
+/// `provider` is the persisted `cloudProvider` identifier (`"deepgram"`,
+/// `"assemblyai"`, …). `None`, an empty string, or an identifier the provider
+/// enum does not know chains every alias table — the behaviour Windows'
+/// `CloudTranscriptionModels.ResolveModelAlias` gives its
+/// `null or CloudTranscriptionProvider.None` arm.
+#[uniffi::export]
+pub fn cloud_stt_resolve_model_alias(model_id: String, provider: Option<String>) -> String {
+    hw_catalog::resolve_model_alias(&model_id, provider.as_deref())
 }
 
 // ---------------------------------------------------------------------------
@@ -1412,5 +1426,183 @@ mod tests {
             vec!["gpt-5-mini".to_string(), "gpt-5-nano".to_string()]
         );
         assert!(cloud_pp_models("noSuchEngine".to_string()).is_empty());
+    }
+}
+
+// ===========================================================================
+// The language catalog (#285).
+//
+// Two native lists became one: `LanguageData.swift` carried 126 rows plus the
+// canonicalizer and the alias map, `LanguageInfo.cs` carried 102 of those rows
+// with a plain `Code == code` scan and no canonicalization at all. Both are
+// deleted; this is the whole surface the pickers now build from.
+//
+// The `Locale.localizedString` fallback deliberately stays native. A code the
+// catalog does not know comes back with `display_name: None`, and the host asks
+// its own system database for a name.
+// ===========================================================================
+
+/// One catalog row. `Hw`-prefixed for the usual reason: an unprefixed
+/// `Language` would land one namespace import away from the heads' own
+/// language types, and `LanguageInfo` is literally the name of the Windows
+/// class this replaces.
+#[derive(uniffi::Record)]
+pub struct HwLanguage {
+    /// The canonical BCP-47 tag.
+    pub code: String,
+    /// The English display name, or `None` when the catalog does not know the
+    /// code and the host has to localize it.
+    pub display_name: Option<String>,
+}
+
+impl From<hw_catalog::Language> for HwLanguage {
+    fn from(language: hw_catalog::Language) -> Self {
+        HwLanguage {
+            code: language.code,
+            display_name: language.display_name,
+        }
+    }
+}
+
+impl From<&HwLanguage> for hw_catalog::Language {
+    fn from(language: &HwLanguage) -> Self {
+        hw_catalog::Language {
+            code: language.code.clone(),
+            display_name: language.display_name.clone(),
+        }
+    }
+}
+
+/// Canonicalize a BCP-47 tag: `en_gb` becomes `en-GB`, `ZH-HANT` becomes
+/// `zh-Hant`, an empty tag becomes `auto`.
+#[uniffi::export]
+pub fn language_canonicalize(code: String) -> String {
+    hw_catalog::canonicalize_language_code(&code)
+}
+
+/// The canonical tag to persist. A missing or empty code becomes `en`.
+#[uniffi::export]
+pub fn language_canonical_code(code: Option<String>) -> String {
+    hw_catalog::canonical_language_code(code.as_deref())
+}
+
+/// The 2-letter ISO 639 code, for the frameworks that refuse anything longer.
+/// `auto` survives; a missing code becomes `en`.
+#[uniffi::export]
+pub fn language_normalize(code: Option<String>) -> String {
+    hw_catalog::normalize_language_code(code.as_deref())
+}
+
+/// Whether a code means English. A missing code counts as English.
+#[uniffi::export]
+pub fn language_is_english(code: Option<String>) -> bool {
+    hw_catalog::is_english(code.as_deref())
+}
+
+/// Look one code up. `None` means the catalog does not know it — canonicalize
+/// it with [`language_canonicalize`] and localize it natively.
+#[uniffi::export]
+pub fn language_info(code: String) -> Option<HwLanguage> {
+    hw_catalog::info(&code).map(HwLanguage::from)
+}
+
+/// The whole catalog in picker order: `auto`, then the popular rows in their
+/// declared order, then everything else alphabetically by display name.
+#[uniffi::export]
+pub fn language_all() -> Vec<HwLanguage> {
+    hw_catalog::all_languages()
+        .into_iter()
+        .map(HwLanguage::from)
+        .collect()
+}
+
+/// The codes the pickers float to the top, in the order they appear there.
+#[uniffi::export]
+pub fn language_popular_codes() -> Vec<String> {
+    hw_catalog::POPULAR_CODES
+        .iter()
+        .map(|code| (*code).to_string())
+        .collect()
+}
+
+/// Canonical rows for a provider's advertised code list, deduplicated, in the
+/// order given. An unknown code keeps its canonical form and comes back with no
+/// display name.
+#[uniffi::export]
+pub fn language_resolve(codes: Vec<String>) -> Vec<HwLanguage> {
+    hw_catalog::resolve_languages(&codes)
+        .into_iter()
+        .map(HwLanguage::from)
+        .collect()
+}
+
+/// Move `auto` to the front of a list if it is present and not already there.
+#[uniffi::export]
+pub fn language_prioritize_automatic(languages: Vec<HwLanguage>) -> Vec<HwLanguage> {
+    let languages: Vec<hw_catalog::Language> = languages
+        .iter()
+        .map(hw_catalog::Language::from)
+        .collect();
+    hw_catalog::prioritize_automatic(languages)
+        .into_iter()
+        .map(HwLanguage::from)
+        .collect()
+}
+
+#[cfg(test)]
+mod language_tests {
+    use super::*;
+
+    #[test]
+    fn the_catalog_crosses_the_boundary_whole() {
+        let all = language_all();
+        assert_eq!(all.len(), 126);
+        assert_eq!(all.first().map(|first| first.code.as_str()), Some("auto"));
+        assert!(all.iter().all(|row| row.display_name.is_some()));
+    }
+
+    #[test]
+    fn a_stored_windows_style_code_now_resolves() {
+        // `LanguageInfo.GetDisplayName("en_GB")` returned the string "en_GB".
+        assert_eq!(language_canonicalize("en_GB".to_string()), "en-GB");
+        assert_eq!(
+            language_info("en_GB".to_string()).and_then(|row| row.display_name),
+            Some("English (United Kingdom)".to_string())
+        );
+    }
+
+    #[test]
+    fn an_unknown_code_is_handed_back_for_the_host_to_localize() {
+        let resolved = language_resolve(vec!["xx".to_string()]);
+        assert_eq!(resolved.len(), 1);
+        assert!(language_info("xx".to_string()).is_none());
+        assert_eq!(
+            resolved.first().and_then(|row| row.display_name.clone()),
+            None
+        );
+    }
+
+    #[test]
+    fn the_scalar_helpers_agree_with_the_catalog() {
+        assert_eq!(language_normalize(Some("zh_Hant".to_string())), "zh");
+        assert_eq!(language_canonical_code(None), "en");
+        assert!(language_is_english(None));
+        assert!(!language_is_english(Some("auto".to_string())));
+        assert_eq!(language_popular_codes().len(), 19);
+    }
+
+    #[test]
+    fn prioritize_automatic_round_trips_the_records() {
+        let ordered = language_prioritize_automatic(language_resolve(vec![
+            "fr".to_string(),
+            "auto".to_string(),
+        ]));
+        assert_eq!(
+            ordered
+                .iter()
+                .map(|row| row.code.as_str())
+                .collect::<Vec<&str>>(),
+            vec!["auto", "fr"]
+        );
     }
 }

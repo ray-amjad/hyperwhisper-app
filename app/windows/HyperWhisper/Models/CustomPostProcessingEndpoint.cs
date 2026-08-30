@@ -89,9 +89,6 @@ public class CustomPostProcessingEndpoint
         }
     }
 
-    /// <summary>Whether the endpoint has been tested and passed.</summary>
-    public bool IsVerified => LastTestSuccess == true;
-
     // =========================================================================
     // STATIC HELPERS
     // =========================================================================

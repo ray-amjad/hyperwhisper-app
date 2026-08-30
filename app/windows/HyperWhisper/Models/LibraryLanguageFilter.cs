@@ -37,6 +37,14 @@ public static class LibraryLanguageFilter
     /// </summary>
     public static readonly IReadOnlyList<LanguageInfo> Languages = BuildLanguages();
 
+    // This dedup is FIRST-WINS, so it depends on every base row preceding its own
+    // variants in LanguageInfo.AllLanguages — which since issue #285 is the
+    // shared catalog's order, not this file's. It holds there: a base language is
+    // either popular (and so above the alphabetical remainder entirely) or sorts
+    // directly above its variants, because "French" is a prefix of "French
+    // (Canada)". If a future catalog row is renamed so a variant sorts first,
+    // this relabels a base language with the variant's name — "Spanish" would
+    // read "Spanish (LatAm)" — rather than duplicating or dropping it.
     private static IReadOnlyList<LanguageInfo> BuildLanguages()
     {
         var seen = new HashSet<string>(StringComparer.Ordinal);

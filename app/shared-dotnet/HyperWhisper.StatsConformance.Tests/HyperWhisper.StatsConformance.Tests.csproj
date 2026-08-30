@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <!-- This harness runs on two CI hosts (Linux CI's shared-dotnet sweep and
+       Windows CI), so the native library it loads has a different name and a
+       different cargo target directory on each. Same resolution as
+       HyperWhisper.PhoneticConformance.Tests. -->
+  <PropertyGroup>
+    <SharedCoreRoot>$(MSBuildThisFileDirectory)../../../shared-core-rs/target</SharedCoreRoot>
+    <SharedCoreNativeLibrary Condition="$([MSBuild]::IsOSPlatform('Windows'))">$(SharedCoreRoot)/x86_64-pc-windows-msvc/release/hyperwhisper_core.dll</SharedCoreNativeLibrary>
+    <SharedCoreNativeLibrary Condition="$([MSBuild]::IsOSPlatform('OSX'))">$(SharedCoreRoot)/release/libhyperwhisper_core.dylib</SharedCoreNativeLibrary>
+    <SharedCoreNativeLibrary Condition="'$(SharedCoreNativeLibrary)' == ''">$(SharedCoreRoot)/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so</SharedCoreNativeLibrary>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../HyperWhisper.SharedCore/HyperWhisper.SharedCore.csproj" />
+    <!-- The vectors are the cross-platform contract, not a fixture of this
+         project: Rust and Swift run the same file. -->
+    <Content Include="../../../shared-conformance/stats-vectors.json"
+             Link="stats-vectors.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="$(SharedCoreNativeLibrary)" Condition="Exists('$(SharedCoreNativeLibrary)')">
+      <Link>%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <Target Name="EnsureSharedCoreNativeLibrary" BeforeTargets="Build">
+    <Error Condition="!Exists('$(SharedCoreNativeLibrary)')"
+           Text="Build shared-core-rs in release mode before running the home statistics conformance vectors — expected $(SharedCoreNativeLibrary)." />
+  </Target>
+</Project>

@@ -2,6 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Localization;
 using HyperWhisper.Services;
+using HyperWhisper.Statistics;
 
 namespace HyperWhisper.ViewModels;
 
@@ -9,10 +10,21 @@ namespace HyperWhisper.ViewModels;
 /// Backs the four-column stats strip at the top of HomePage.
 /// Mirrors the macOS HomeStatsBar:
 ///   [ avg WPM ] | [ words this week ] | [ words this month ] | [ minutes saved ⚙ ]
+///
+/// Every number comes from <see cref="HomeStatisticsService"/>, which calls the
+/// shared Rust core (issue #285). This class used to carry its own average-WPM
+/// and saved-minutes formulas over a StatisticsService whose week and month
+/// boundaries were UTC. Three things changed for a Windows user:
+///
+///   - the week and the month now start in the user's own time zone, not UTC;
+///   - 2.5 saved minutes displays as 3, not 2 (half away from zero, not
+///     banker's rounding);
+///   - a transcript row with a non-finite or negative duration contributes zero
+///     seconds instead of poisoning the totals.
 /// </summary>
 public partial class HomeStatsBarViewModel : ObservableObject
 {
-    private readonly StatisticsService _statisticsService;
+    private readonly HomeStatisticsService _statisticsService;
     private readonly SettingsService _settingsService;
 
     [ObservableProperty] private int _averageWpm;
@@ -25,15 +37,11 @@ public partial class HomeStatsBarViewModel : ObservableObject
 
     partial void OnSavedThisWeekMinutesChanged(int value) => OnPropertyChanged(nameof(SavedThisWeekDisplay));
 
-    // Saved-minutes ceiling — one week of minutes. A row with Words>0 and
-    // Duration≈0 can otherwise produce an absurd savings figure.
-    private const int SavedMinutesCeiling = 7 * 24 * 60;
-
     private System.Timers.Timer? _debounceTimer;
     private int _recomputeGeneration;
     private bool _firstRecomputeApplied;
 
-    public HomeStatsBarViewModel(StatisticsService statisticsService, SettingsService settingsService)
+    public HomeStatsBarViewModel(HomeStatisticsService statisticsService, SettingsService settingsService)
     {
         _statisticsService = statisticsService;
         _settingsService = settingsService;
@@ -59,7 +67,8 @@ public partial class HomeStatsBarViewModel : ObservableObject
             return;
         }
 
-        SavedThisWeekMinutes = ComputeSavedMinutes(_lastWeekWords, _lastWeekDurationSeconds, wpm);
+        SavedThisWeekMinutes = HomeStatisticsCalculator.DisplayedSavedMinutes(
+            _lastWeekWords, _lastWeekDurationSeconds, wpm);
     }
 
     public void Detach()
@@ -110,66 +119,41 @@ public partial class HomeStatsBarViewModel : ObservableObject
     {
         var generation = System.Threading.Interlocked.Increment(ref _recomputeGeneration);
 
-        StatisticsSummary? weekly = null;
-        StatisticsSummary? monthly = null;
-        StatisticsSummary? allTime = null;
+        HomeStatisticsSnapshot? snapshot = null;
 
-        await Task.Run(() =>
+        try
         {
-            try
-            {
-                weekly = _statisticsService.GetStatistics(TimePeriod.Week);
-                monthly = _statisticsService.GetStatistics(TimePeriod.Month);
-                allTime = _statisticsService.GetStatistics(TimePeriod.AllTime);
-            }
-            catch (Exception ex)
-            {
-                LoggingService.Warn($"HomeStatsBarViewModel: RecomputeAsync failed: {ex.Message}");
-                weekly = null;
-                monthly = null;
-                allTime = null;
-            }
-        });
-
-        if (weekly == null || monthly == null || allTime == null) return;
+            // One call now, not three: the shared core buckets every period in a
+            // single pass over the rows.
+            snapshot = await _statisticsService
+                .GetAsync(TypingSpeedWpm, DateTimeOffset.UtcNow, TimeZoneInfo.Local)
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Warn($"HomeStatsBarViewModel: RecomputeAsync failed: {ex.Message}");
+            return;
+        }
 
         var dispatcher = WpfApplication.Current?.Dispatcher;
         if (dispatcher == null || dispatcher.HasShutdownStarted) return;
 
-        var weeklySnapshot = weekly;
-        var monthlySnapshot = monthly;
-        var allTimeSnapshot = allTime;
+        var applied = snapshot;
 
         dispatcher.Invoke(() =>
         {
             // Drop stale snapshots — only the latest generation may write.
             if (generation != System.Threading.Volatile.Read(ref _recomputeGeneration)) return;
 
-            _lastWeekWords = weeklySnapshot.TotalWords;
-            _lastWeekDurationSeconds = weeklySnapshot.TotalDuration;
+            _lastWeekWords = applied.ThisWeek.WordCount;
+            _lastWeekDurationSeconds = applied.ThisWeek.DictatedDurationSeconds;
 
-            AverageWpm = ComputeAverageWpm(allTimeSnapshot.TotalWords, allTimeSnapshot.TotalDuration);
-            WordsThisWeek = weeklySnapshot.TotalWords;
-            WordsThisMonth = monthlySnapshot.TotalWords;
-            SavedThisWeekMinutes = ComputeSavedMinutes(weeklySnapshot.TotalWords, weeklySnapshot.TotalDuration, TypingSpeedWpm);
+            AverageWpm = applied.AverageWordsPerMinute;
+            WordsThisWeek = applied.ThisWeek.WordCount;
+            WordsThisMonth = applied.ThisMonth.WordCount;
+            SavedThisWeekMinutes = applied.SavedThisWeekMinutes;
 
             _firstRecomputeApplied = true;
         });
-    }
-
-    private static int ComputeAverageWpm(int totalWords, double totalDurationSeconds)
-    {
-        var minutes = totalDurationSeconds / 60.0;
-        if (minutes <= 0) return 0;
-        return (int)Math.Round(totalWords / minutes);
-    }
-
-    private static int ComputeSavedMinutes(int weekWords, double weekDurationSeconds, int typingWpm)
-    {
-        if (typingWpm <= 0) return 0;
-        var typingMinutes = (double)weekWords / typingWpm;
-        var spokenMinutes = weekDurationSeconds / 60.0;
-        var saved = typingMinutes - spokenMinutes;
-        return Math.Min(SavedMinutesCeiling, Math.Max(0, (int)Math.Round(saved)));
     }
 }

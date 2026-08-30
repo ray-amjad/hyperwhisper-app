@@ -1180,6 +1180,80 @@ static class _UniFFILib {
     
     
     
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
 
     static _UniFFILib() {
         _UniFFILib.uniffiCheckContractApiVersion();
@@ -1278,6 +1352,10 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_apply_hardened_replacement(RustBuffer @text,RustBuffer @word,RustBuffer @replacement,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_apply_substring_vocabulary(RustBuffer @text,RustBuffer @entries,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -1453,6 +1531,10 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_cloud_stt_resolve_model_alias(RustBuffer @modelId,RustBuffer @provider,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_cloud_stt_streaming_cloud_tier_entries(ref UniffiRustCallStatus _uniffi_out_err
     );
 
@@ -1625,6 +1707,42 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_language_all(ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_language_canonical_code(RustBuffer @code,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_language_canonicalize(RustBuffer @code,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_language_info(RustBuffer @code,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern sbyte uniffi_hyperwhisper_core_fn_func_language_is_english(RustBuffer @code,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_language_normalize(RustBuffer @code,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_language_popular_codes(ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_language_prioritize_automatic(RustBuffer @languages,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_language_resolve(RustBuffer @codes,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_license_build_validate_request(RustBuffer @licenseKey,RustBuffer @deviceId,RustBuffer @deviceName,ref UniffiRustCallStatus _uniffi_out_err
     );
 
@@ -1730,6 +1848,10 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern long uniffi_hyperwhisper_core_fn_func_license_validation_cache_secs(ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_linux_settings_to_universal_settings_json(RustBuffer @linuxJson,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -1845,6 +1967,62 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_local_api_all_error_codes(ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern sbyte uniffi_hyperwhisper_core_fn_func_local_api_authorize(RustBuffer @authorizationHeader,RustBuffer @expectedToken,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_local_api_bad_request_failure(RustBuffer @message,RustBuffer @hint,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_local_api_business_failure(RustBuffer @code,RustBuffer @message,RustBuffer @hint,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_local_api_check_origin(RustBuffer @headers,ushort @port,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_local_api_error_code_from_wire_value(RustBuffer @value,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_local_api_error_code_wire_value(RustBuffer @code,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_local_api_forbidden_origin_failure(ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_local_api_generate_token(RustBuffer @entropy,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern sbyte uniffi_hyperwhisper_core_fn_func_local_api_is_well_formed_token(RustBuffer @token,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern sbyte uniffi_hyperwhisper_core_fn_func_local_api_origin_decision_is_allowed(RustBuffer @decision,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern uint uniffi_hyperwhisper_core_fn_func_local_api_token_entropy_bytes(ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_local_api_token_fingerprint(RustBuffer @token,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_local_api_unauthorized_failure(RustBuffer @hint,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_macos_settings_to_universal_settings_json(RustBuffer @macosJson,RustBuffer @existingMacosExtJson,ref UniffiRustCallStatus _uniffi_out_err
     );
 
@@ -1925,6 +2103,10 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_normalize_universal_mode_json(RustBuffer @json,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_normalize_vocabulary_terms(RustBuffer @words,RustBuffer @limit,ref UniffiRustCallStatus _uniffi_out_err
     );
 
@@ -1938,6 +2120,10 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_parse_health_response(RustBuffer @provider,RustBuffer @resp,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_phonetic_apply_vocabulary(RustBuffer @text,RustBuffer @entries,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -1962,6 +2148,22 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_ptt_step(RustBuffer @state,RustBuffer @event,ulong @nowMs,RustBuffer @config,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_release_notes_parse(RustBuffer @html,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_release_notes_parse_inline(RustBuffer @html,sbyte @collapseWhitespace,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_release_notes_plain_text(RustBuffer @html,sbyte @collapseWhitespace,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_release_notes_split_blocks(RustBuffer @html,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -2029,7 +2231,19 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_stats_calculate_home(RustBuffer @transcripts,int @typingSpeedWordsPerMinute,long @nowLocalEpochSeconds,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern int uniffi_hyperwhisper_core_fn_func_stats_saved_minutes_ceiling(ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_strip_wrapper_markers(RustBuffer @text,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_universal_settings_to_linux_settings_json(RustBuffer @universalJson,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -2037,7 +2251,15 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_universal_settings_to_windows_settings_json(RustBuffer @universalJson,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_validate_backup_json(RustBuffer @json,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_windows_settings_to_universal_settings_json(RustBuffer @windowsJson,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -2293,6 +2515,10 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_apply_substring_vocabulary(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_assemblyai_build_create_request(
     );
 
@@ -2462,6 +2688,10 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_cloud_stt_provider(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_cloud_stt_resolve_model_alias(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -2637,6 +2867,42 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_language_all(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_language_canonical_code(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_language_canonicalize(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_language_info(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_language_is_english(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_language_normalize(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_language_popular_codes(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_language_prioritize_automatic(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_language_resolve(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_license_build_validate_request(
     );
 
@@ -2742,6 +3008,10 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_license_validation_cache_secs(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_linux_settings_to_universal_settings_json(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -2857,6 +3127,62 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_all_error_codes(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_authorize(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_bad_request_failure(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_business_failure(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_check_origin(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_error_code_from_wire_value(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_error_code_wire_value(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_forbidden_origin_failure(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_generate_token(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_is_well_formed_token(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_origin_decision_is_allowed(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_token_entropy_bytes(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_token_fingerprint(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_local_api_unauthorized_failure(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_macos_settings_to_universal_settings_json(
     );
 
@@ -2937,6 +3263,10 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_normalize_universal_mode_json(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_normalize_vocabulary_terms(
     );
 
@@ -2950,6 +3280,10 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_parse_health_response(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_phonetic_apply_vocabulary(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -2974,6 +3308,22 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_ptt_step(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_release_notes_parse(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_release_notes_parse_inline(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_release_notes_plain_text(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_release_notes_split_blocks(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -3041,7 +3391,19 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_stats_calculate_home(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_stats_saved_minutes_ceiling(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_strip_wrapper_markers(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_universal_settings_to_linux_settings_json(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -3049,7 +3411,15 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_universal_settings_to_windows_settings_json(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_validate_backup_json(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_windows_settings_to_universal_settings_json(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -3150,6 +3520,12 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_apply_hardened_replacement();
             if (checksum != 32134) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_apply_hardened_replacement` checksum `32134`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_apply_substring_vocabulary();
+            if (checksum != 17401) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_apply_substring_vocabulary` checksum `17401`, library returned `{checksum}`");
             }
         }
         {
@@ -3411,6 +3787,12 @@ static class _UniFFILib {
             }
         }
         {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_cloud_stt_resolve_model_alias();
+            if (checksum != 64463) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_cloud_stt_resolve_model_alias` checksum `64463`, library returned `{checksum}`");
+            }
+        }
+        {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_cloud_stt_streaming_cloud_tier_entries();
             if (checksum != 54317) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_cloud_stt_streaming_cloud_tier_entries` checksum `54317`, library returned `{checksum}`");
@@ -3669,6 +4051,60 @@ static class _UniFFILib {
             }
         }
         {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_language_all();
+            if (checksum != 11935) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_language_all` checksum `11935`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_language_canonical_code();
+            if (checksum != 39544) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_language_canonical_code` checksum `39544`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_language_canonicalize();
+            if (checksum != 34787) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_language_canonicalize` checksum `34787`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_language_info();
+            if (checksum != 36720) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_language_info` checksum `36720`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_language_is_english();
+            if (checksum != 14929) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_language_is_english` checksum `14929`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_language_normalize();
+            if (checksum != 42903) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_language_normalize` checksum `42903`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_language_popular_codes();
+            if (checksum != 52908) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_language_popular_codes` checksum `52908`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_language_prioritize_automatic();
+            if (checksum != 29793) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_language_prioritize_automatic` checksum `29793`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_language_resolve();
+            if (checksum != 14175) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_language_resolve` checksum `14175`, library returned `{checksum}`");
+            }
+        }
+        {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_license_build_validate_request();
             if (checksum != 43498) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_license_build_validate_request` checksum `43498`, library returned `{checksum}`");
@@ -3828,6 +4264,12 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_license_validation_cache_secs();
             if (checksum != 34885) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_license_validation_cache_secs` checksum `34885`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_linux_settings_to_universal_settings_json();
+            if (checksum != 10501) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_linux_settings_to_universal_settings_json` checksum `10501`, library returned `{checksum}`");
             }
         }
         {
@@ -3999,6 +4441,90 @@ static class _UniFFILib {
             }
         }
         {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_all_error_codes();
+            if (checksum != 35889) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_all_error_codes` checksum `35889`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_authorize();
+            if (checksum != 35162) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_authorize` checksum `35162`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_bad_request_failure();
+            if (checksum != 17270) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_bad_request_failure` checksum `17270`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_business_failure();
+            if (checksum != 57466) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_business_failure` checksum `57466`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_check_origin();
+            if (checksum != 60178) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_check_origin` checksum `60178`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_error_code_from_wire_value();
+            if (checksum != 15511) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_error_code_from_wire_value` checksum `15511`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_error_code_wire_value();
+            if (checksum != 39716) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_error_code_wire_value` checksum `39716`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_forbidden_origin_failure();
+            if (checksum != 49772) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_forbidden_origin_failure` checksum `49772`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_generate_token();
+            if (checksum != 22924) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_generate_token` checksum `22924`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_is_well_formed_token();
+            if (checksum != 22695) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_is_well_formed_token` checksum `22695`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_origin_decision_is_allowed();
+            if (checksum != 27804) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_origin_decision_is_allowed` checksum `27804`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_token_entropy_bytes();
+            if (checksum != 13421) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_token_entropy_bytes` checksum `13421`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_token_fingerprint();
+            if (checksum != 55514) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_token_fingerprint` checksum `55514`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_local_api_unauthorized_failure();
+            if (checksum != 22025) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_local_api_unauthorized_failure` checksum `22025`, library returned `{checksum}`");
+            }
+        }
+        {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_macos_settings_to_universal_settings_json();
             if (checksum != 44899) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_macos_settings_to_universal_settings_json` checksum `44899`, library returned `{checksum}`");
@@ -4119,6 +4645,12 @@ static class _UniFFILib {
             }
         }
         {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_normalize_universal_mode_json();
+            if (checksum != 52698) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_normalize_universal_mode_json` checksum `52698`, library returned `{checksum}`");
+            }
+        }
+        {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_normalize_vocabulary_terms();
             if (checksum != 61974) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_normalize_vocabulary_terms` checksum `61974`, library returned `{checksum}`");
@@ -4143,9 +4675,15 @@ static class _UniFFILib {
             }
         }
         {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_phonetic_apply_vocabulary();
+            if (checksum != 45602) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_phonetic_apply_vocabulary` checksum `45602`, library returned `{checksum}`");
+            }
+        }
+        {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_phonetic_encode();
-            if (checksum != 15256) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_phonetic_encode` checksum `15256`, library returned `{checksum}`");
+            if (checksum != 39783) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_phonetic_encode` checksum `39783`, library returned `{checksum}`");
             }
         }
         {
@@ -4176,6 +4714,30 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_ptt_step();
             if (checksum != 64268) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_ptt_step` checksum `64268`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_release_notes_parse();
+            if (checksum != 11115) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_release_notes_parse` checksum `11115`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_release_notes_parse_inline();
+            if (checksum != 37012) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_release_notes_parse_inline` checksum `37012`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_release_notes_plain_text();
+            if (checksum != 10264) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_release_notes_plain_text` checksum `10264`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_release_notes_split_blocks();
+            if (checksum != 45325) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_release_notes_split_blocks` checksum `45325`, library returned `{checksum}`");
             }
         }
         {
@@ -4275,9 +4837,27 @@ static class _UniFFILib {
             }
         }
         {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_stats_calculate_home();
+            if (checksum != 7331) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_stats_calculate_home` checksum `7331`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_stats_saved_minutes_ceiling();
+            if (checksum != 6847) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_stats_saved_minutes_ceiling` checksum `6847`, library returned `{checksum}`");
+            }
+        }
+        {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_strip_wrapper_markers();
             if (checksum != 55122) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_strip_wrapper_markers` checksum `55122`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_universal_settings_to_linux_settings_json();
+            if (checksum != 46044) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_universal_settings_to_linux_settings_json` checksum `46044`, library returned `{checksum}`");
             }
         }
         {
@@ -4287,9 +4867,21 @@ static class _UniFFILib {
             }
         }
         {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_universal_settings_to_windows_settings_json();
+            if (checksum != 27733) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_universal_settings_to_windows_settings_json` checksum `27733`, library returned `{checksum}`");
+            }
+        }
+        {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_validate_backup_json();
             if (checksum != 15252) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_validate_backup_json` checksum `15252`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_windows_settings_to_universal_settings_json();
+            if (checksum != 59780) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_windows_settings_to_universal_settings_json` checksum `59780`, library returned `{checksum}`");
             }
         }
         {
@@ -4415,6 +5007,32 @@ class FfiConverterUInt32: FfiConverter<uint, uint> {
 
     public override void Write(uint value, BigEndianStream stream) {
         stream.WriteUInt(value);
+    }
+}
+
+
+
+class FfiConverterInt32: FfiConverter<int, int> {
+    public static FfiConverterInt32 INSTANCE = new FfiConverterInt32();
+
+    public override int Lift(int value) {
+        return value;
+    }
+
+    public override int Read(BigEndianStream stream) {
+        return stream.ReadInt();
+    }
+
+    public override int Lower(int value) {
+        return value;
+    }
+
+    public override int AllocationSize(int value) {
+        return 4;
+    }
+
+    public override void Write(int value, BigEndianStream stream) {
+        stream.WriteInt(value);
     }
 }
 
@@ -5600,6 +6218,45 @@ class FfiConverterTypeHwAudioSignalSummary: FfiConverterRustBuffer<HwAudioSignal
 
 
 /// <summary>
+/// One block-level element of a release note, already split into styled runs.
+/// Mirrors `hw_releasenotes::Block`.
+///
+/// The runs sit inside the block rather than in a parallel sequence: issue #284
+/// names `Vec<Vec<Run>>` as the shape to avoid, because nothing in it says which
+/// inner sequence is the heading, and both heads had to re-derive that from
+/// position.
+/// </summary>
+internal record HwBlock (
+    HwBlockKind @kind, 
+    List<HwRun> @runs
+) {
+}
+
+class FfiConverterTypeHwBlock: FfiConverterRustBuffer<HwBlock> {
+    public static FfiConverterTypeHwBlock INSTANCE = new FfiConverterTypeHwBlock();
+
+    public override HwBlock Read(BigEndianStream stream) {
+        return new HwBlock(
+            @kind: FfiConverterTypeHwBlockKind.INSTANCE.Read(stream),
+            @runs: FfiConverterSequenceTypeHwRun.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwBlock value) {
+        return 0
+            + FfiConverterTypeHwBlockKind.INSTANCE.AllocationSize(value.@kind)
+            + FfiConverterSequenceTypeHwRun.INSTANCE.AllocationSize(value.@runs);
+    }
+
+    public override void Write(HwBlock value, BigEndianStream stream) {
+            FfiConverterTypeHwBlockKind.INSTANCE.Write(value.@kind, stream);
+            FfiConverterSequenceTypeHwRun.INSTANCE.Write(value.@runs, stream);
+    }
+}
+
+
+
+/// <summary>
 /// The verdict on one custom endpoint. Mirrors `l::EndpointVerdict`.
 ///
 /// `url` is the single check a runtime caller needs: **empty means do not call
@@ -5647,6 +6304,132 @@ class FfiConverterTypeHwEndpointVerdict: FfiConverterRustBuffer<HwEndpointVerdic
             FfiConverterOptionalTypeHwEndpointIssue.INSTANCE.Write(value.@issue, stream);
             FfiConverterOptionalString.INSTANCE.Write(value.@message, stream);
             FfiConverterOptionalString.INSTANCE.Write(value.@suggestion, stream);
+    }
+}
+
+
+
+/// <summary>
+/// Everything the three home strips render, plus the periods the statistics
+/// pages use. Mirrors `hw_stats::HomeStatsSnapshot`.
+/// </summary>
+/// <param name="typing_speed_words_per_minute">
+/// Echoed back so a head can render the gear menu without reading settings
+/// twice.
+/// </param>
+/// <param name="average_words_per_minute">
+/// The "avg WPM" column: the all-time figure, on all three heads.
+/// </param>
+/// <param name="saved_this_week_minutes">
+/// The "saved this week" column: rounded half away from zero, floored at 0,
+/// clamped to [`stats_saved_minutes_ceiling`].
+/// </param>
+internal record HwHomeStatsSnapshot (
+    HwPeriodStats @thisWeek, 
+    HwPeriodStats @thisMonth, 
+    HwPeriodStats @thisYear, 
+    HwPeriodStats @allTime, 
+    /// <summary>
+    /// Echoed back so a head can render the gear menu without reading settings
+    /// twice.
+    /// </summary>
+    int @typingSpeedWordsPerMinute, 
+    /// <summary>
+    /// The "avg WPM" column: the all-time figure, on all three heads.
+    /// </summary>
+    int @averageWordsPerMinute, 
+    /// <summary>
+    /// The "saved this week" column: rounded half away from zero, floored at 0,
+    /// clamped to [`stats_saved_minutes_ceiling`].
+    /// </summary>
+    int @savedThisWeekMinutes
+) {
+}
+
+class FfiConverterTypeHwHomeStatsSnapshot: FfiConverterRustBuffer<HwHomeStatsSnapshot> {
+    public static FfiConverterTypeHwHomeStatsSnapshot INSTANCE = new FfiConverterTypeHwHomeStatsSnapshot();
+
+    public override HwHomeStatsSnapshot Read(BigEndianStream stream) {
+        return new HwHomeStatsSnapshot(
+            @thisWeek: FfiConverterTypeHwPeriodStats.INSTANCE.Read(stream),
+            @thisMonth: FfiConverterTypeHwPeriodStats.INSTANCE.Read(stream),
+            @thisYear: FfiConverterTypeHwPeriodStats.INSTANCE.Read(stream),
+            @allTime: FfiConverterTypeHwPeriodStats.INSTANCE.Read(stream),
+            @typingSpeedWordsPerMinute: FfiConverterInt32.INSTANCE.Read(stream),
+            @averageWordsPerMinute: FfiConverterInt32.INSTANCE.Read(stream),
+            @savedThisWeekMinutes: FfiConverterInt32.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwHomeStatsSnapshot value) {
+        return 0
+            + FfiConverterTypeHwPeriodStats.INSTANCE.AllocationSize(value.@thisWeek)
+            + FfiConverterTypeHwPeriodStats.INSTANCE.AllocationSize(value.@thisMonth)
+            + FfiConverterTypeHwPeriodStats.INSTANCE.AllocationSize(value.@thisYear)
+            + FfiConverterTypeHwPeriodStats.INSTANCE.AllocationSize(value.@allTime)
+            + FfiConverterInt32.INSTANCE.AllocationSize(value.@typingSpeedWordsPerMinute)
+            + FfiConverterInt32.INSTANCE.AllocationSize(value.@averageWordsPerMinute)
+            + FfiConverterInt32.INSTANCE.AllocationSize(value.@savedThisWeekMinutes);
+    }
+
+    public override void Write(HwHomeStatsSnapshot value, BigEndianStream stream) {
+            FfiConverterTypeHwPeriodStats.INSTANCE.Write(value.@thisWeek, stream);
+            FfiConverterTypeHwPeriodStats.INSTANCE.Write(value.@thisMonth, stream);
+            FfiConverterTypeHwPeriodStats.INSTANCE.Write(value.@thisYear, stream);
+            FfiConverterTypeHwPeriodStats.INSTANCE.Write(value.@allTime, stream);
+            FfiConverterInt32.INSTANCE.Write(value.@typingSpeedWordsPerMinute, stream);
+            FfiConverterInt32.INSTANCE.Write(value.@averageWordsPerMinute, stream);
+            FfiConverterInt32.INSTANCE.Write(value.@savedThisWeekMinutes, stream);
+    }
+}
+
+
+
+/// <summary>
+/// One catalog row. `Hw`-prefixed for the usual reason: an unprefixed
+/// `Language` would land one namespace import away from the heads' own
+/// language types, and `LanguageInfo` is literally the name of the Windows
+/// class this replaces.
+/// </summary>
+/// <param name="code">
+/// The canonical BCP-47 tag.
+/// </param>
+/// <param name="display_name">
+/// The English display name, or `None` when the catalog does not know the
+/// code and the host has to localize it.
+/// </param>
+internal record HwLanguage (
+    /// <summary>
+    /// The canonical BCP-47 tag.
+    /// </summary>
+    string @code, 
+    /// <summary>
+    /// The English display name, or `None` when the catalog does not know the
+    /// code and the host has to localize it.
+    /// </summary>
+    string? @displayName
+) {
+}
+
+class FfiConverterTypeHwLanguage: FfiConverterRustBuffer<HwLanguage> {
+    public static FfiConverterTypeHwLanguage INSTANCE = new FfiConverterTypeHwLanguage();
+
+    public override HwLanguage Read(BigEndianStream stream) {
+        return new HwLanguage(
+            @code: FfiConverterString.INSTANCE.Read(stream),
+            @displayName: FfiConverterOptionalString.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwLanguage value) {
+        return 0
+            + FfiConverterString.INSTANCE.AllocationSize(value.@code)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@displayName);
+    }
+
+    public override void Write(HwLanguage value, BigEndianStream stream) {
+            FfiConverterString.INSTANCE.Write(value.@code, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@displayName, stream);
     }
 }
 
@@ -5958,6 +6741,152 @@ class FfiConverterTypeHwLlmParams: FfiConverterRustBuffer<HwLlmParams> {
 
 
 /// <summary>
+/// A complete failure response. Mirrors `hw_localapi::Failure`.
+///
+/// The head serializes the envelope with its own encoder, so this record does
+/// not dictate key order or how an absent hint is elided. What it does dictate
+/// is `http_status`, which is the half of #289 Linux got wrong.
+/// </summary>
+/// <param name="http_status">
+/// The status to send. 200 for a business failure; 400/401/403 for the
+/// three protocol cases.
+/// </param>
+/// <param name="code">
+/// The wire code, always one of the 14.
+/// </param>
+/// <param name="message">
+/// Human-readable, shown to the agent by an MCP wrapper.
+/// </param>
+/// <param name="hint">
+/// What to do about it, when there is something to say.
+/// </param>
+/// <param name="json">
+/// The whole envelope as JSON, for a head with no typed model to hand.
+/// `{"ok":false,"error":{"code":…,"message":…[,"hint":…]}}`.
+/// </param>
+internal record HwLocalApiFailure (
+    /// <summary>
+    /// The status to send. 200 for a business failure; 400/401/403 for the
+    /// three protocol cases.
+    /// </summary>
+    ushort @httpStatus, 
+    /// <summary>
+    /// The wire code, always one of the 14.
+    /// </summary>
+    HwLocalApiErrorCode @code, 
+    /// <summary>
+    /// Human-readable, shown to the agent by an MCP wrapper.
+    /// </summary>
+    string @message, 
+    /// <summary>
+    /// What to do about it, when there is something to say.
+    /// </summary>
+    string? @hint, 
+    /// <summary>
+    /// The whole envelope as JSON, for a head with no typed model to hand.
+    /// `{"ok":false,"error":{"code":…,"message":…[,"hint":…]}}`.
+    /// </summary>
+    string @json
+) {
+}
+
+class FfiConverterTypeHwLocalApiFailure: FfiConverterRustBuffer<HwLocalApiFailure> {
+    public static FfiConverterTypeHwLocalApiFailure INSTANCE = new FfiConverterTypeHwLocalApiFailure();
+
+    public override HwLocalApiFailure Read(BigEndianStream stream) {
+        return new HwLocalApiFailure(
+            @httpStatus: FfiConverterUInt16.INSTANCE.Read(stream),
+            @code: FfiConverterTypeHwLocalApiErrorCode.INSTANCE.Read(stream),
+            @message: FfiConverterString.INSTANCE.Read(stream),
+            @hint: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @json: FfiConverterString.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwLocalApiFailure value) {
+        return 0
+            + FfiConverterUInt16.INSTANCE.AllocationSize(value.@httpStatus)
+            + FfiConverterTypeHwLocalApiErrorCode.INSTANCE.AllocationSize(value.@code)
+            + FfiConverterString.INSTANCE.AllocationSize(value.@message)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@hint)
+            + FfiConverterString.INSTANCE.AllocationSize(value.@json);
+    }
+
+    public override void Write(HwLocalApiFailure value, BigEndianStream stream) {
+            FfiConverterUInt16.INSTANCE.Write(value.@httpStatus, stream);
+            FfiConverterTypeHwLocalApiErrorCode.INSTANCE.Write(value.@code, stream);
+            FfiConverterString.INSTANCE.Write(value.@message, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@hint, stream);
+            FfiConverterString.INSTANCE.Write(value.@json, stream);
+    }
+}
+
+
+
+/// <summary>
+/// The three request headers the DNS-rebind guard reads. Mirrors
+/// `hw_localapi::OriginHeaders`.
+///
+/// The head does the lookup, and the lookup must be case-insensitive (RFC 7230
+/// §3.2). Every head already has a case-insensitive header map — FlyingFox's
+/// `HTTPHeader`, ASP.NET Core's `IHeaderDictionary` — so this record carries
+/// values, never names.
+/// </summary>
+/// <param name="host">
+/// `Host`. `None` means the request carried no `Host` header at all, which
+/// is itself a denial.
+/// </param>
+/// <param name="origin">
+/// `Origin`. `None` or empty is fine; a non-loopback value is a denial.
+/// </param>
+/// <param name="sec_fetch_site">
+/// `Sec-Fetch-Site`. `None` is fine — curl and the MCP wrapper omit it.
+/// </param>
+internal record HwLocalApiOriginHeaders (
+    /// <summary>
+    /// `Host`. `None` means the request carried no `Host` header at all, which
+    /// is itself a denial.
+    /// </summary>
+    string? @host, 
+    /// <summary>
+    /// `Origin`. `None` or empty is fine; a non-loopback value is a denial.
+    /// </summary>
+    string? @origin, 
+    /// <summary>
+    /// `Sec-Fetch-Site`. `None` is fine — curl and the MCP wrapper omit it.
+    /// </summary>
+    string? @secFetchSite
+) {
+}
+
+class FfiConverterTypeHwLocalApiOriginHeaders: FfiConverterRustBuffer<HwLocalApiOriginHeaders> {
+    public static FfiConverterTypeHwLocalApiOriginHeaders INSTANCE = new FfiConverterTypeHwLocalApiOriginHeaders();
+
+    public override HwLocalApiOriginHeaders Read(BigEndianStream stream) {
+        return new HwLocalApiOriginHeaders(
+            @host: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @origin: FfiConverterOptionalString.INSTANCE.Read(stream),
+            @secFetchSite: FfiConverterOptionalString.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwLocalApiOriginHeaders value) {
+        return 0
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@host)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@origin)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@secFetchSite);
+    }
+
+    public override void Write(HwLocalApiOriginHeaders value, BigEndianStream stream) {
+            FfiConverterOptionalString.INSTANCE.Write(value.@host, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@origin, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@secFetchSite, stream);
+    }
+}
+
+
+
+/// <summary>
 /// The three persisted mode fields the diagnostic groups and facets on. Mirrors
 /// `no_speech::ModeIdentity`.
 ///
@@ -6079,6 +7008,175 @@ class FfiConverterTypeHwNoSpeechInput: FfiConverterRustBuffer<HwNoSpeechInput> {
             FfiConverterDouble.INSTANCE.Write(value.@peakDbfs, stream);
             FfiConverterDouble.INSTANCE.Write(value.@rmsDbfs, stream);
             FfiConverterDouble.INSTANCE.Write(value.@nonSilentRatio, stream);
+    }
+}
+
+
+
+/// <summary>
+/// One period's totals and derived figures. Mirrors `hw_stats::PeriodStats`.
+/// </summary>
+/// <param name="word_count">
+/// Saturating sum of the rows' word counts.
+/// </param>
+/// <param name="estimated_time_saved_minutes">
+/// Floored at 0 but NOT clamped — the one-week ceiling applies to
+/// [`HwHomeStatsSnapshot::saved_this_week_minutes`] only.
+/// </param>
+internal record HwPeriodStats (
+    /// <summary>
+    /// Saturating sum of the rows' word counts.
+    /// </summary>
+    uint @wordCount, 
+    double @durationSeconds, 
+    int @averageWordsPerMinute, 
+    double @estimatedTypingMinutes, 
+    /// <summary>
+    /// Floored at 0 but NOT clamped — the one-week ceiling applies to
+    /// [`HwHomeStatsSnapshot::saved_this_week_minutes`] only.
+    /// </summary>
+    double @estimatedTimeSavedMinutes
+) {
+}
+
+class FfiConverterTypeHwPeriodStats: FfiConverterRustBuffer<HwPeriodStats> {
+    public static FfiConverterTypeHwPeriodStats INSTANCE = new FfiConverterTypeHwPeriodStats();
+
+    public override HwPeriodStats Read(BigEndianStream stream) {
+        return new HwPeriodStats(
+            @wordCount: FfiConverterUInt32.INSTANCE.Read(stream),
+            @durationSeconds: FfiConverterDouble.INSTANCE.Read(stream),
+            @averageWordsPerMinute: FfiConverterInt32.INSTANCE.Read(stream),
+            @estimatedTypingMinutes: FfiConverterDouble.INSTANCE.Read(stream),
+            @estimatedTimeSavedMinutes: FfiConverterDouble.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwPeriodStats value) {
+        return 0
+            + FfiConverterUInt32.INSTANCE.AllocationSize(value.@wordCount)
+            + FfiConverterDouble.INSTANCE.AllocationSize(value.@durationSeconds)
+            + FfiConverterInt32.INSTANCE.AllocationSize(value.@averageWordsPerMinute)
+            + FfiConverterDouble.INSTANCE.AllocationSize(value.@estimatedTypingMinutes)
+            + FfiConverterDouble.INSTANCE.AllocationSize(value.@estimatedTimeSavedMinutes);
+    }
+
+    public override void Write(HwPeriodStats value, BigEndianStream stream) {
+            FfiConverterUInt32.INSTANCE.Write(value.@wordCount, stream);
+            FfiConverterDouble.INSTANCE.Write(value.@durationSeconds, stream);
+            FfiConverterInt32.INSTANCE.Write(value.@averageWordsPerMinute, stream);
+            FfiConverterDouble.INSTANCE.Write(value.@estimatedTypingMinutes, stream);
+            FfiConverterDouble.INSTANCE.Write(value.@estimatedTimeSavedMinutes, stream);
+    }
+}
+
+
+
+/// <summary>
+/// The whole answer for one transcription.
+/// </summary>
+/// <param name="text">
+/// The corrected transcript, NFC-normalized.
+/// </param>
+/// <param name="matches">
+/// Every correction, in the order they were applied.
+/// </param>
+/// <param name="entry_count">
+/// How many vocabulary rows survived the build filters and were matched
+/// against — the number behind both platforms' "Phonetic matcher
+/// initialized with N vocabulary entries" log line, which would otherwise
+/// have no home once the matcher stopped being an object the host builds.
+/// </param>
+internal record HwPhoneticApplyResult (
+    /// <summary>
+    /// The corrected transcript, NFC-normalized.
+    /// </summary>
+    string @text, 
+    /// <summary>
+    /// Every correction, in the order they were applied.
+    /// </summary>
+    List<HwPhoneticMatch> @matches, 
+    /// <summary>
+    /// How many vocabulary rows survived the build filters and were matched
+    /// against — the number behind both platforms' "Phonetic matcher
+    /// initialized with N vocabulary entries" log line, which would otherwise
+    /// have no home once the matcher stopped being an object the host builds.
+    /// </summary>
+    uint @entryCount
+) {
+}
+
+class FfiConverterTypeHwPhoneticApplyResult: FfiConverterRustBuffer<HwPhoneticApplyResult> {
+    public static FfiConverterTypeHwPhoneticApplyResult INSTANCE = new FfiConverterTypeHwPhoneticApplyResult();
+
+    public override HwPhoneticApplyResult Read(BigEndianStream stream) {
+        return new HwPhoneticApplyResult(
+            @text: FfiConverterString.INSTANCE.Read(stream),
+            @matches: FfiConverterSequenceTypeHwPhoneticMatch.INSTANCE.Read(stream),
+            @entryCount: FfiConverterUInt32.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwPhoneticApplyResult value) {
+        return 0
+            + FfiConverterString.INSTANCE.AllocationSize(value.@text)
+            + FfiConverterSequenceTypeHwPhoneticMatch.INSTANCE.AllocationSize(value.@matches)
+            + FfiConverterUInt32.INSTANCE.AllocationSize(value.@entryCount);
+    }
+
+    public override void Write(HwPhoneticApplyResult value, BigEndianStream stream) {
+            FfiConverterString.INSTANCE.Write(value.@text, stream);
+            FfiConverterSequenceTypeHwPhoneticMatch.INSTANCE.Write(value.@matches, stream);
+            FfiConverterUInt32.INSTANCE.Write(value.@entryCount, stream);
+    }
+}
+
+
+
+/// <summary>
+/// One correction the matcher made.
+///
+/// The result carries these instead of Rust logging them, so each head keeps its
+/// own logger — `os.Logger` on macOS, `LoggingService` on Windows, `ILogger` on
+/// Linux — and its own privacy annotations.
+/// </summary>
+/// <param name="token">
+/// The transcript token as it appeared, trailing punctuation included.
+/// </param>
+/// <param name="replacement">
+/// The vocabulary spelling it was replaced with.
+/// </param>
+internal record HwPhoneticMatch (
+    /// <summary>
+    /// The transcript token as it appeared, trailing punctuation included.
+    /// </summary>
+    string @token, 
+    /// <summary>
+    /// The vocabulary spelling it was replaced with.
+    /// </summary>
+    string @replacement
+) {
+}
+
+class FfiConverterTypeHwPhoneticMatch: FfiConverterRustBuffer<HwPhoneticMatch> {
+    public static FfiConverterTypeHwPhoneticMatch INSTANCE = new FfiConverterTypeHwPhoneticMatch();
+
+    public override HwPhoneticMatch Read(BigEndianStream stream) {
+        return new HwPhoneticMatch(
+            @token: FfiConverterString.INSTANCE.Read(stream),
+            @replacement: FfiConverterString.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwPhoneticMatch value) {
+        return 0
+            + FfiConverterString.INSTANCE.AllocationSize(value.@token)
+            + FfiConverterString.INSTANCE.AllocationSize(value.@replacement);
+    }
+
+    public override void Write(HwPhoneticMatch value, BigEndianStream stream) {
+            FfiConverterString.INSTANCE.Write(value.@token, stream);
+            FfiConverterString.INSTANCE.Write(value.@replacement, stream);
     }
 }
 
@@ -6437,6 +7535,96 @@ class FfiConverterTypeHwPttTransition: FfiConverterRustBuffer<HwPttTransition> {
 
 
 /// <summary>
+/// A release note as the update cards render it. Mirrors
+/// `hw_releasenotes::ReleaseNote`.
+/// </summary>
+/// <param name="title">
+/// The heading above the bullet list, or `None` when the note has none.
+/// </param>
+internal record HwReleaseNote (
+    /// <summary>
+    /// The heading above the bullet list, or `None` when the note has none.
+    /// </summary>
+    HwBlock? @title, 
+    List<HwBlock> @bullets
+) {
+}
+
+class FfiConverterTypeHwReleaseNote: FfiConverterRustBuffer<HwReleaseNote> {
+    public static FfiConverterTypeHwReleaseNote INSTANCE = new FfiConverterTypeHwReleaseNote();
+
+    public override HwReleaseNote Read(BigEndianStream stream) {
+        return new HwReleaseNote(
+            @title: FfiConverterOptionalTypeHwBlock.INSTANCE.Read(stream),
+            @bullets: FfiConverterSequenceTypeHwBlock.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwReleaseNote value) {
+        return 0
+            + FfiConverterOptionalTypeHwBlock.INSTANCE.AllocationSize(value.@title)
+            + FfiConverterSequenceTypeHwBlock.INSTANCE.AllocationSize(value.@bullets);
+    }
+
+    public override void Write(HwReleaseNote value, BigEndianStream stream) {
+            FfiConverterOptionalTypeHwBlock.INSTANCE.Write(value.@title, stream);
+            FfiConverterSequenceTypeHwBlock.INSTANCE.Write(value.@bullets, stream);
+    }
+}
+
+
+
+/// <summary>
+/// A stretch of release-notes text that shares one style and, if it sits inside
+/// an `<a href>`, one destination. Mirrors `hw_releasenotes::Run`.
+/// </summary>
+/// <param name="link">
+/// The feed's href verbatim, entity-decoded and trimmed, already checked
+/// against the scheme allowlist. `None` when the anchor had no usable href.
+/// </param>
+internal record HwRun (
+    string @text, 
+    bool @bold, 
+    bool @italic, 
+    /// <summary>
+    /// The feed's href verbatim, entity-decoded and trimmed, already checked
+    /// against the scheme allowlist. `None` when the anchor had no usable href.
+    /// </summary>
+    string? @link
+) {
+}
+
+class FfiConverterTypeHwRun: FfiConverterRustBuffer<HwRun> {
+    public static FfiConverterTypeHwRun INSTANCE = new FfiConverterTypeHwRun();
+
+    public override HwRun Read(BigEndianStream stream) {
+        return new HwRun(
+            @text: FfiConverterString.INSTANCE.Read(stream),
+            @bold: FfiConverterBoolean.INSTANCE.Read(stream),
+            @italic: FfiConverterBoolean.INSTANCE.Read(stream),
+            @link: FfiConverterOptionalString.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwRun value) {
+        return 0
+            + FfiConverterString.INSTANCE.AllocationSize(value.@text)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@bold)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@italic)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@link);
+    }
+
+    public override void Write(HwRun value, BigEndianStream stream) {
+            FfiConverterString.INSTANCE.Write(value.@text, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@bold, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@italic, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@link, stream);
+    }
+}
+
+
+
+/// <summary>
 /// What the head's decode loop counted. Mirrors `no_speech::SignalAccumulation`.
 ///
 /// `sum_squares` and `peak` are over the absolute amplitude, so both are
@@ -6499,6 +7687,85 @@ class FfiConverterTypeHwSignalAccumulation: FfiConverterRustBuffer<HwSignalAccum
             FfiConverterUInt64.INSTANCE.Write(value.@nonSilentCount, stream);
             FfiConverterDouble.INSTANCE.Write(value.@sumSquares, stream);
             FfiConverterDouble.INSTANCE.Write(value.@peak, stream);
+    }
+}
+
+
+
+/// <summary>
+/// One persisted transcript, projected down to what the statistics need.
+/// </summary>
+/// <param name="created_at_local_epoch_seconds">
+/// The row's instant **already shifted into the calendar time zone**,
+/// as seconds since the Unix epoch.
+/// 
+/// The host owns this conversion because the host owns the time-zone
+/// database: `TimeZoneInfo.ConvertTime(row.CreatedAt, tz)` on .NET,
+/// `date.timeIntervalSince1970 + TimeZone.current.secondsFromGMT(for: date)`
+/// on Swift. Doing it per row is what keeps DST correct. Every calendar
+/// boundary above it — Monday, the 1st, January 1st — is computed in Rust.
+/// </param>
+/// <param name="word_count">
+/// Counted by the host from the full text. Word counting stays native:
+/// there is no persisted count on any of the three stores, and the two
+/// native implementations already agree (#285).
+/// </param>
+/// <param name="duration_seconds">
+/// Spoken seconds, as stored. Not trusted — a non-finite or negative value
+/// is normalised to 0 rather than rejected.
+/// </param>
+internal record HwStatsTranscript (
+    /// <summary>
+    /// The row's instant **already shifted into the calendar time zone**,
+    /// as seconds since the Unix epoch.
+    ///
+    /// The host owns this conversion because the host owns the time-zone
+    /// database: `TimeZoneInfo.ConvertTime(row.CreatedAt, tz)` on .NET,
+    /// `date.timeIntervalSince1970 + TimeZone.current.secondsFromGMT(for: date)`
+    /// on Swift. Doing it per row is what keeps DST correct. Every calendar
+    /// boundary above it — Monday, the 1st, January 1st — is computed in Rust.
+    /// </summary>
+    long @createdAtLocalEpochSeconds, 
+    /// <summary>
+    /// Counted by the host from the full text. Word counting stays native:
+    /// there is no persisted count on any of the three stores, and the two
+    /// native implementations already agree (#285).
+    /// </summary>
+    uint @wordCount, 
+    /// <summary>
+    /// Spoken seconds, as stored. Not trusted — a non-finite or negative value
+    /// is normalised to 0 rather than rejected.
+    /// </summary>
+    double @durationSeconds, 
+    HwTranscriptStatus @status
+) {
+}
+
+class FfiConverterTypeHwStatsTranscript: FfiConverterRustBuffer<HwStatsTranscript> {
+    public static FfiConverterTypeHwStatsTranscript INSTANCE = new FfiConverterTypeHwStatsTranscript();
+
+    public override HwStatsTranscript Read(BigEndianStream stream) {
+        return new HwStatsTranscript(
+            @createdAtLocalEpochSeconds: FfiConverterInt64.INSTANCE.Read(stream),
+            @wordCount: FfiConverterUInt32.INSTANCE.Read(stream),
+            @durationSeconds: FfiConverterDouble.INSTANCE.Read(stream),
+            @status: FfiConverterTypeHwTranscriptStatus.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwStatsTranscript value) {
+        return 0
+            + FfiConverterInt64.INSTANCE.AllocationSize(value.@createdAtLocalEpochSeconds)
+            + FfiConverterUInt32.INSTANCE.AllocationSize(value.@wordCount)
+            + FfiConverterDouble.INSTANCE.AllocationSize(value.@durationSeconds)
+            + FfiConverterTypeHwTranscriptStatus.INSTANCE.AllocationSize(value.@status);
+    }
+
+    public override void Write(HwStatsTranscript value, BigEndianStream stream) {
+            FfiConverterInt64.INSTANCE.Write(value.@createdAtLocalEpochSeconds, stream);
+            FfiConverterUInt32.INSTANCE.Write(value.@wordCount, stream);
+            FfiConverterDouble.INSTANCE.Write(value.@durationSeconds, stream);
+            FfiConverterTypeHwTranscriptStatus.INSTANCE.Write(value.@status, stream);
     }
 }
 
@@ -6573,6 +7840,45 @@ class FfiConverterTypeHwValidationError: FfiConverterRustBuffer<HwValidationErro
     public override void Write(HwValidationError value, BigEndianStream stream) {
             FfiConverterString.INSTANCE.Write(value.@path, stream);
             FfiConverterString.INSTANCE.Write(value.@message, stream);
+    }
+}
+
+
+
+/// <summary>
+/// One row of the user's vocabulary, as the host stores it.
+///
+/// `replacement` is `null` (or empty) for a spelling-hint row — those are what
+/// [`phonetic_apply_vocabulary`] corrects towards. A row that carries a
+/// replacement is skipped by the phonetic pass and handled by
+/// [`apply_substring_vocabulary`] / `apply_hardened_replacement` instead, which
+/// is exactly what both native matchers did.
+/// </summary>
+internal record HwVocabularyEntry (
+    string @word, 
+    string? @replacement
+) {
+}
+
+class FfiConverterTypeHwVocabularyEntry: FfiConverterRustBuffer<HwVocabularyEntry> {
+    public static FfiConverterTypeHwVocabularyEntry INSTANCE = new FfiConverterTypeHwVocabularyEntry();
+
+    public override HwVocabularyEntry Read(BigEndianStream stream) {
+        return new HwVocabularyEntry(
+            @word: FfiConverterString.INSTANCE.Read(stream),
+            @replacement: FfiConverterOptionalString.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(HwVocabularyEntry value) {
+        return 0
+            + FfiConverterString.INSTANCE.AllocationSize(value.@word)
+            + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@replacement);
+    }
+
+    public override void Write(HwVocabularyEntry value, BigEndianStream stream) {
+            FfiConverterString.INSTANCE.Write(value.@word, stream);
+            FfiConverterOptionalString.INSTANCE.Write(value.@replacement, stream);
     }
 }
 
@@ -8424,6 +9730,43 @@ class FfiConverterTypeHwAudioFraming : FfiConverterRustBuffer<HwAudioFraming>{
 
 
 /// <summary>
+/// What a block is for. Mirrors `hw_releasenotes::BlockKind`.
+/// </summary>
+internal enum HwBlockKind: int {
+    
+    Heading,
+    Bullet,
+    Paragraph
+}
+
+class FfiConverterTypeHwBlockKind: FfiConverterRustBuffer<HwBlockKind> {
+    public static FfiConverterTypeHwBlockKind INSTANCE = new FfiConverterTypeHwBlockKind();
+
+    public override HwBlockKind Read(BigEndianStream stream) {
+        var value = stream.ReadInt() - 1;
+        if (Enum.IsDefined(typeof(HwBlockKind), value)) {
+            return (HwBlockKind)value;
+        } else {
+            throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwBlockKind.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(HwBlockKind value) {
+        return 4;
+    }
+
+    public override void Write(HwBlockKind value, BigEndianStream stream) {
+        stream.WriteInt((int)value + 1);
+    }
+}
+
+
+
+
+
+
+
+/// <summary>
 /// The rule that failed. Mirrors `l::EndpointIssue`.
 /// </summary>
 internal enum HwEndpointIssue: int {
@@ -9429,6 +10772,205 @@ class FfiConverterTypeHwLlmWireProtocol: FfiConverterRustBuffer<HwLlmWireProtoco
 
 
 /// <summary>
+/// The closed set of Local API error codes. Mirrors
+/// `hw_localapi::LocalApiErrorCode`.
+///
+/// Closed is the property that matters: the macOS decoder is a Swift `Codable`
+/// enum, so a client sharing it fails to decode the whole envelope on a
+/// fifteenth code rather than seeing an unknown one. There is no `Other`
+/// variant here for the same reason.
+/// </summary>
+internal enum HwLocalApiErrorCode: int {
+    
+    ModelNotInstalled,
+    ModelNotFound,
+    EngineUnavailable,
+    MissingApiKey,
+    FileNotFound,
+    FileAccessDenied,
+    FileNotAllowed,
+    AudioDecodeFailed,
+    TranscriptionFailed,
+    ModeNotFound,
+    ModeNameTaken,
+    InvalidRequest,
+    RateLimited,
+    Timeout
+}
+
+class FfiConverterTypeHwLocalApiErrorCode: FfiConverterRustBuffer<HwLocalApiErrorCode> {
+    public static FfiConverterTypeHwLocalApiErrorCode INSTANCE = new FfiConverterTypeHwLocalApiErrorCode();
+
+    public override HwLocalApiErrorCode Read(BigEndianStream stream) {
+        var value = stream.ReadInt() - 1;
+        if (Enum.IsDefined(typeof(HwLocalApiErrorCode), value)) {
+            return (HwLocalApiErrorCode)value;
+        } else {
+            throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwLocalApiErrorCode.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(HwLocalApiErrorCode value) {
+        return 4;
+    }
+
+    public override void Write(HwLocalApiErrorCode value, BigEndianStream stream) {
+        stream.WriteInt((int)value + 1);
+    }
+}
+
+
+
+
+
+
+
+/// <summary>
+/// Why the guard let a request through, or why it did not. Mirrors
+/// `hw_localapi::OriginDecision`.
+///
+/// A head only needs the allow/deny bit — the wire response is the same 403
+/// whichever denial fired, and no reason ever reaches a client. The reasons
+/// cross the boundary anyway so a head can log which check rejected a request,
+/// which is the difference between "someone is probing us" and "the MCP wrapper
+/// is sending the wrong `Host`".
+/// </summary>
+internal enum HwLocalApiOriginDecision: int {
+    
+    /// <summary>
+    /// Safe to dispatch.
+    /// </summary>
+    Allow,
+    /// <summary>
+    /// The server is not bound yet, so no `Host` can be checked against a port.
+    /// </summary>
+    DeniedPortUnknown,
+    /// <summary>
+    /// No `Host` header, or one that is empty after trimming.
+    /// </summary>
+    DeniedMissingHost,
+    /// <summary>
+    /// The `Host` header does not name loopback on the bound port.
+    /// </summary>
+    DeniedHost,
+    /// <summary>
+    /// `Sec-Fetch-Site` was present and was neither `same-origin` nor `none`.
+    /// </summary>
+    DeniedFetchSite,
+    /// <summary>
+    /// `Origin` was present, non-empty, and did not name loopback on the bound
+    /// port.
+    /// </summary>
+    DeniedOrigin
+}
+
+class FfiConverterTypeHwLocalApiOriginDecision: FfiConverterRustBuffer<HwLocalApiOriginDecision> {
+    public static FfiConverterTypeHwLocalApiOriginDecision INSTANCE = new FfiConverterTypeHwLocalApiOriginDecision();
+
+    public override HwLocalApiOriginDecision Read(BigEndianStream stream) {
+        var value = stream.ReadInt() - 1;
+        if (Enum.IsDefined(typeof(HwLocalApiOriginDecision), value)) {
+            return (HwLocalApiOriginDecision)value;
+        } else {
+            throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwLocalApiOriginDecision.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(HwLocalApiOriginDecision value) {
+        return 4;
+    }
+
+    public override void Write(HwLocalApiOriginDecision value, BigEndianStream stream) {
+        stream.WriteInt((int)value + 1);
+    }
+}
+
+
+
+
+
+
+
+/// <summary>
+/// Why [`local_api_generate_token`] refused. Mirrors `hw_localapi::TokenError`.
+/// </summary>
+internal class HwLocalApiTokenException: UniffiException {
+    HwLocalApiTokenException() : base() {}
+    HwLocalApiTokenException(String @Message) : base(@Message) {}
+
+    // Each variant is a nested class
+    
+    /// <summary>
+    /// The host passed something other than 32 bytes.
+    /// </summary>
+    
+    public class WrongEntropyLength : HwLocalApiTokenException {
+        // Members
+        public uint @expected;
+        public uint @actual;
+
+        // Constructor
+        public WrongEntropyLength(
+                uint @expected, 
+                uint @actual) : base(
+                "@expected" + "=" + @expected+ ", " +
+                "@actual" + "=" + @actual) {
+
+            this.@expected = @expected;
+
+            this.@actual = @actual;
+        }
+    }
+    
+
+    
+}
+
+class FfiConverterTypeHwLocalApiTokenError : FfiConverterRustBuffer<HwLocalApiTokenException>, CallStatusErrorHandler<HwLocalApiTokenException> {
+    public static FfiConverterTypeHwLocalApiTokenError INSTANCE = new FfiConverterTypeHwLocalApiTokenError();
+
+    public override HwLocalApiTokenException Read(BigEndianStream stream) {
+        var value = stream.ReadInt();
+        switch (value) {
+            case 1:
+                return new HwLocalApiTokenException.WrongEntropyLength(
+                    FfiConverterUInt32.INSTANCE.Read(stream),
+                    FfiConverterUInt32.INSTANCE.Read(stream));
+            default:
+                throw new InternalException(String.Format("invalid error value '{0}' in FfiConverterTypeHwLocalApiTokenError.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(HwLocalApiTokenException value) {
+        switch (value) {
+
+            case HwLocalApiTokenException.WrongEntropyLength variant_value:
+                return 4
+                    + FfiConverterUInt32.INSTANCE.AllocationSize(variant_value.@expected)
+                    + FfiConverterUInt32.INSTANCE.AllocationSize(variant_value.@actual);
+            default:
+                throw new InternalException(String.Format("invalid error value '{0}' in FfiConverterTypeHwLocalApiTokenError.AllocationSize()", value));
+        }
+    }
+
+    public override void Write(HwLocalApiTokenException value, BigEndianStream stream) {
+        switch (value) {
+            case HwLocalApiTokenException.WrongEntropyLength variant_value:
+                stream.WriteInt(1);
+                FfiConverterUInt32.INSTANCE.Write(variant_value.@expected, stream);
+                FfiConverterUInt32.INSTANCE.Write(variant_value.@actual, stream);
+                break;
+            default:
+                throw new InternalException(String.Format("invalid error value '{0}' in FfiConverterTypeHwLocalApiTokenError.Write()", value));
+        }
+    }
+}
+
+
+
+
+
+/// <summary>
 /// What a no-speech failure is reported as, if anything. Mirrors
 /// `no_speech::NoSpeechOutcome`; variant order matches the Windows enum.
 /// </summary>
@@ -10030,6 +11572,47 @@ class FfiConverterTypeHwPttTimerAction: FfiConverterRustBuffer<HwPttTimerAction>
     }
 
     public override void Write(HwPttTimerAction value, BigEndianStream stream) {
+        stream.WriteInt((int)value + 1);
+    }
+}
+
+
+
+
+
+
+
+/// <summary>
+/// The persisted status of a transcript row. Mirrors
+/// `hw_stats::TranscriptStatus`.
+///
+/// The host maps its own status column onto this and hands over everything;
+/// the completed-only filter is applied on this side, once.
+/// </summary>
+internal enum HwTranscriptStatus: int {
+    
+    Processing,
+    Completed,
+    Failed
+}
+
+class FfiConverterTypeHwTranscriptStatus: FfiConverterRustBuffer<HwTranscriptStatus> {
+    public static FfiConverterTypeHwTranscriptStatus INSTANCE = new FfiConverterTypeHwTranscriptStatus();
+
+    public override HwTranscriptStatus Read(BigEndianStream stream) {
+        var value = stream.ReadInt() - 1;
+        if (Enum.IsDefined(typeof(HwTranscriptStatus), value)) {
+            return (HwTranscriptStatus)value;
+        } else {
+            throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwTranscriptStatus.Read()", value));
+        }
+    }
+
+    public override int AllocationSize(HwTranscriptStatus value) {
+        return 4;
+    }
+
+    public override void Write(HwTranscriptStatus value, BigEndianStream stream) {
         stream.WriteInt((int)value + 1);
     }
 }
@@ -10682,6 +12265,68 @@ class FfiConverterOptionalString: FfiConverterRustBuffer<string?> {
 
 
 
+class FfiConverterOptionalTypeHwBlock: FfiConverterRustBuffer<HwBlock?> {
+    public static FfiConverterOptionalTypeHwBlock INSTANCE = new FfiConverterOptionalTypeHwBlock();
+
+    public override HwBlock? Read(BigEndianStream stream) {
+        if (stream.ReadByte() == 0) {
+            return null;
+        }
+        return FfiConverterTypeHwBlock.INSTANCE.Read(stream);
+    }
+
+    public override int AllocationSize(HwBlock? value) {
+        if (value == null) {
+            return 1;
+        } else {
+            return 1 + FfiConverterTypeHwBlock.INSTANCE.AllocationSize((HwBlock)value);
+        }
+    }
+
+    public override void Write(HwBlock? value, BigEndianStream stream) {
+        if (value == null) {
+            stream.WriteByte(0);
+        } else {
+            stream.WriteByte(1);
+            FfiConverterTypeHwBlock.INSTANCE.Write((HwBlock)value, stream);
+        }
+    }
+}
+
+
+
+
+class FfiConverterOptionalTypeHwLanguage: FfiConverterRustBuffer<HwLanguage?> {
+    public static FfiConverterOptionalTypeHwLanguage INSTANCE = new FfiConverterOptionalTypeHwLanguage();
+
+    public override HwLanguage? Read(BigEndianStream stream) {
+        if (stream.ReadByte() == 0) {
+            return null;
+        }
+        return FfiConverterTypeHwLanguage.INSTANCE.Read(stream);
+    }
+
+    public override int AllocationSize(HwLanguage? value) {
+        if (value == null) {
+            return 1;
+        } else {
+            return 1 + FfiConverterTypeHwLanguage.INSTANCE.AllocationSize((HwLanguage)value);
+        }
+    }
+
+    public override void Write(HwLanguage? value, BigEndianStream stream) {
+        if (value == null) {
+            stream.WriteByte(0);
+        } else {
+            stream.WriteByte(1);
+            FfiConverterTypeHwLanguage.INSTANCE.Write((HwLanguage)value, stream);
+        }
+    }
+}
+
+
+
+
 class FfiConverterOptionalTypeHwModeIdentity: FfiConverterRustBuffer<HwModeIdentity?> {
     public static FfiConverterOptionalTypeHwModeIdentity INSTANCE = new FfiConverterOptionalTypeHwModeIdentity();
 
@@ -11085,6 +12730,37 @@ class FfiConverterOptionalTypeHwLiveUpgradeRefusal: FfiConverterRustBuffer<HwLiv
 
 
 
+class FfiConverterOptionalTypeHwLocalApiErrorCode: FfiConverterRustBuffer<HwLocalApiErrorCode?> {
+    public static FfiConverterOptionalTypeHwLocalApiErrorCode INSTANCE = new FfiConverterOptionalTypeHwLocalApiErrorCode();
+
+    public override HwLocalApiErrorCode? Read(BigEndianStream stream) {
+        if (stream.ReadByte() == 0) {
+            return null;
+        }
+        return FfiConverterTypeHwLocalApiErrorCode.INSTANCE.Read(stream);
+    }
+
+    public override int AllocationSize(HwLocalApiErrorCode? value) {
+        if (value == null) {
+            return 1;
+        } else {
+            return 1 + FfiConverterTypeHwLocalApiErrorCode.INSTANCE.AllocationSize((HwLocalApiErrorCode)value);
+        }
+    }
+
+    public override void Write(HwLocalApiErrorCode? value, BigEndianStream stream) {
+        if (value == null) {
+            stream.WriteByte(0);
+        } else {
+            stream.WriteByte(1);
+            FfiConverterTypeHwLocalApiErrorCode.INSTANCE.Write((HwLocalApiErrorCode)value, stream);
+        }
+    }
+}
+
+
+
+
 class FfiConverterOptionalTypeHwPttSignal: FfiConverterRustBuffer<HwPttSignal?> {
     public static FfiConverterOptionalTypeHwPttSignal INSTANCE = new FfiConverterOptionalTypeHwPttSignal();
 
@@ -11231,6 +12907,90 @@ class FfiConverterSequenceTypeHeader: FfiConverterRustBuffer<List<Header>> {
 
 
 
+class FfiConverterSequenceTypeHwBlock: FfiConverterRustBuffer<List<HwBlock>> {
+    public static FfiConverterSequenceTypeHwBlock INSTANCE = new FfiConverterSequenceTypeHwBlock();
+
+    public override List<HwBlock> Read(BigEndianStream stream) {
+        var length = stream.ReadInt();
+        var result = new List<HwBlock>(length);
+        var readFn = FfiConverterTypeHwBlock.INSTANCE.Read;
+        for (int i = 0; i < length; i++) {
+            result.Add(readFn(stream));
+        }
+        return result;
+    }
+
+    public override int AllocationSize(List<HwBlock> value) {
+        var sizeForLength = 4;
+
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            return sizeForLength;
+        }
+
+        var allocationSizeFn = FfiConverterTypeHwBlock.INSTANCE.AllocationSize;
+        var sizeForItems = value.Sum(item => allocationSizeFn(item));
+        return sizeForLength + sizeForItems;
+    }
+
+    public override void Write(List<HwBlock> value, BigEndianStream stream) {
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            stream.WriteInt(0);
+            return;
+        }
+
+        stream.WriteInt(value.Count);
+        var writerFn = FfiConverterTypeHwBlock.INSTANCE.Write;
+        value.ForEach(item => writerFn(item, stream));
+    }
+}
+
+
+
+
+class FfiConverterSequenceTypeHwLanguage: FfiConverterRustBuffer<List<HwLanguage>> {
+    public static FfiConverterSequenceTypeHwLanguage INSTANCE = new FfiConverterSequenceTypeHwLanguage();
+
+    public override List<HwLanguage> Read(BigEndianStream stream) {
+        var length = stream.ReadInt();
+        var result = new List<HwLanguage>(length);
+        var readFn = FfiConverterTypeHwLanguage.INSTANCE.Read;
+        for (int i = 0; i < length; i++) {
+            result.Add(readFn(stream));
+        }
+        return result;
+    }
+
+    public override int AllocationSize(List<HwLanguage> value) {
+        var sizeForLength = 4;
+
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            return sizeForLength;
+        }
+
+        var allocationSizeFn = FfiConverterTypeHwLanguage.INSTANCE.AllocationSize;
+        var sizeForItems = value.Sum(item => allocationSizeFn(item));
+        return sizeForLength + sizeForItems;
+    }
+
+    public override void Write(List<HwLanguage> value, BigEndianStream stream) {
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            stream.WriteInt(0);
+            return;
+        }
+
+        stream.WriteInt(value.Count);
+        var writerFn = FfiConverterTypeHwLanguage.INSTANCE.Write;
+        value.ForEach(item => writerFn(item, stream));
+    }
+}
+
+
+
+
 class FfiConverterSequenceTypeHwLiveFrame: FfiConverterRustBuffer<List<HwLiveFrame>> {
     public static FfiConverterSequenceTypeHwLiveFrame INSTANCE = new FfiConverterSequenceTypeHwLiveFrame();
 
@@ -11266,6 +13026,48 @@ class FfiConverterSequenceTypeHwLiveFrame: FfiConverterRustBuffer<List<HwLiveFra
 
         stream.WriteInt(value.Count);
         var writerFn = FfiConverterTypeHwLiveFrame.INSTANCE.Write;
+        value.ForEach(item => writerFn(item, stream));
+    }
+}
+
+
+
+
+class FfiConverterSequenceTypeHwPhoneticMatch: FfiConverterRustBuffer<List<HwPhoneticMatch>> {
+    public static FfiConverterSequenceTypeHwPhoneticMatch INSTANCE = new FfiConverterSequenceTypeHwPhoneticMatch();
+
+    public override List<HwPhoneticMatch> Read(BigEndianStream stream) {
+        var length = stream.ReadInt();
+        var result = new List<HwPhoneticMatch>(length);
+        var readFn = FfiConverterTypeHwPhoneticMatch.INSTANCE.Read;
+        for (int i = 0; i < length; i++) {
+            result.Add(readFn(stream));
+        }
+        return result;
+    }
+
+    public override int AllocationSize(List<HwPhoneticMatch> value) {
+        var sizeForLength = 4;
+
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            return sizeForLength;
+        }
+
+        var allocationSizeFn = FfiConverterTypeHwPhoneticMatch.INSTANCE.AllocationSize;
+        var sizeForItems = value.Sum(item => allocationSizeFn(item));
+        return sizeForLength + sizeForItems;
+    }
+
+    public override void Write(List<HwPhoneticMatch> value, BigEndianStream stream) {
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            stream.WriteInt(0);
+            return;
+        }
+
+        stream.WriteInt(value.Count);
+        var writerFn = FfiConverterTypeHwPhoneticMatch.INSTANCE.Write;
         value.ForEach(item => writerFn(item, stream));
     }
 }
@@ -11315,6 +13117,90 @@ class FfiConverterSequenceTypeHwPttTimerCommand: FfiConverterRustBuffer<List<HwP
 
 
 
+class FfiConverterSequenceTypeHwRun: FfiConverterRustBuffer<List<HwRun>> {
+    public static FfiConverterSequenceTypeHwRun INSTANCE = new FfiConverterSequenceTypeHwRun();
+
+    public override List<HwRun> Read(BigEndianStream stream) {
+        var length = stream.ReadInt();
+        var result = new List<HwRun>(length);
+        var readFn = FfiConverterTypeHwRun.INSTANCE.Read;
+        for (int i = 0; i < length; i++) {
+            result.Add(readFn(stream));
+        }
+        return result;
+    }
+
+    public override int AllocationSize(List<HwRun> value) {
+        var sizeForLength = 4;
+
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            return sizeForLength;
+        }
+
+        var allocationSizeFn = FfiConverterTypeHwRun.INSTANCE.AllocationSize;
+        var sizeForItems = value.Sum(item => allocationSizeFn(item));
+        return sizeForLength + sizeForItems;
+    }
+
+    public override void Write(List<HwRun> value, BigEndianStream stream) {
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            stream.WriteInt(0);
+            return;
+        }
+
+        stream.WriteInt(value.Count);
+        var writerFn = FfiConverterTypeHwRun.INSTANCE.Write;
+        value.ForEach(item => writerFn(item, stream));
+    }
+}
+
+
+
+
+class FfiConverterSequenceTypeHwStatsTranscript: FfiConverterRustBuffer<List<HwStatsTranscript>> {
+    public static FfiConverterSequenceTypeHwStatsTranscript INSTANCE = new FfiConverterSequenceTypeHwStatsTranscript();
+
+    public override List<HwStatsTranscript> Read(BigEndianStream stream) {
+        var length = stream.ReadInt();
+        var result = new List<HwStatsTranscript>(length);
+        var readFn = FfiConverterTypeHwStatsTranscript.INSTANCE.Read;
+        for (int i = 0; i < length; i++) {
+            result.Add(readFn(stream));
+        }
+        return result;
+    }
+
+    public override int AllocationSize(List<HwStatsTranscript> value) {
+        var sizeForLength = 4;
+
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            return sizeForLength;
+        }
+
+        var allocationSizeFn = FfiConverterTypeHwStatsTranscript.INSTANCE.AllocationSize;
+        var sizeForItems = value.Sum(item => allocationSizeFn(item));
+        return sizeForLength + sizeForItems;
+    }
+
+    public override void Write(List<HwStatsTranscript> value, BigEndianStream stream) {
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            stream.WriteInt(0);
+            return;
+        }
+
+        stream.WriteInt(value.Count);
+        var writerFn = FfiConverterTypeHwStatsTranscript.INSTANCE.Write;
+        value.ForEach(item => writerFn(item, stream));
+    }
+}
+
+
+
+
 class FfiConverterSequenceTypeHwValidationError: FfiConverterRustBuffer<List<HwValidationError>> {
     public static FfiConverterSequenceTypeHwValidationError INSTANCE = new FfiConverterSequenceTypeHwValidationError();
 
@@ -11350,6 +13236,48 @@ class FfiConverterSequenceTypeHwValidationError: FfiConverterRustBuffer<List<HwV
 
         stream.WriteInt(value.Count);
         var writerFn = FfiConverterTypeHwValidationError.INSTANCE.Write;
+        value.ForEach(item => writerFn(item, stream));
+    }
+}
+
+
+
+
+class FfiConverterSequenceTypeHwVocabularyEntry: FfiConverterRustBuffer<List<HwVocabularyEntry>> {
+    public static FfiConverterSequenceTypeHwVocabularyEntry INSTANCE = new FfiConverterSequenceTypeHwVocabularyEntry();
+
+    public override List<HwVocabularyEntry> Read(BigEndianStream stream) {
+        var length = stream.ReadInt();
+        var result = new List<HwVocabularyEntry>(length);
+        var readFn = FfiConverterTypeHwVocabularyEntry.INSTANCE.Read;
+        for (int i = 0; i < length; i++) {
+            result.Add(readFn(stream));
+        }
+        return result;
+    }
+
+    public override int AllocationSize(List<HwVocabularyEntry> value) {
+        var sizeForLength = 4;
+
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            return sizeForLength;
+        }
+
+        var allocationSizeFn = FfiConverterTypeHwVocabularyEntry.INSTANCE.AllocationSize;
+        var sizeForItems = value.Sum(item => allocationSizeFn(item));
+        return sizeForLength + sizeForItems;
+    }
+
+    public override void Write(List<HwVocabularyEntry> value, BigEndianStream stream) {
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            stream.WriteInt(0);
+            return;
+        }
+
+        stream.WriteInt(value.Count);
+        var writerFn = FfiConverterTypeHwVocabularyEntry.INSTANCE.Write;
         value.ForEach(item => writerFn(item, stream));
     }
 }
@@ -11651,6 +13579,48 @@ class FfiConverterSequenceTypeHwLiveStopStep: FfiConverterRustBuffer<List<HwLive
 
 
 
+class FfiConverterSequenceTypeHwLocalApiErrorCode: FfiConverterRustBuffer<List<HwLocalApiErrorCode>> {
+    public static FfiConverterSequenceTypeHwLocalApiErrorCode INSTANCE = new FfiConverterSequenceTypeHwLocalApiErrorCode();
+
+    public override List<HwLocalApiErrorCode> Read(BigEndianStream stream) {
+        var length = stream.ReadInt();
+        var result = new List<HwLocalApiErrorCode>(length);
+        var readFn = FfiConverterTypeHwLocalApiErrorCode.INSTANCE.Read;
+        for (int i = 0; i < length; i++) {
+            result.Add(readFn(stream));
+        }
+        return result;
+    }
+
+    public override int AllocationSize(List<HwLocalApiErrorCode> value) {
+        var sizeForLength = 4;
+
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            return sizeForLength;
+        }
+
+        var allocationSizeFn = FfiConverterTypeHwLocalApiErrorCode.INSTANCE.AllocationSize;
+        var sizeForItems = value.Sum(item => allocationSizeFn(item));
+        return sizeForLength + sizeForItems;
+    }
+
+    public override void Write(List<HwLocalApiErrorCode> value, BigEndianStream stream) {
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            stream.WriteInt(0);
+            return;
+        }
+
+        stream.WriteInt(value.Count);
+        var writerFn = FfiConverterTypeHwLocalApiErrorCode.INSTANCE.Write;
+        value.ForEach(item => writerFn(item, stream));
+    }
+}
+
+
+
+
 class FfiConverterSequenceTypeHwPart: FfiConverterRustBuffer<List<HwPart>> {
     public static FfiConverterSequenceTypeHwPart INSTANCE = new FfiConverterSequenceTypeHwPart();
 
@@ -11772,6 +13742,29 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterString.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_apply_hardened_replacement(FfiConverterString.INSTANCE.Lower(@text), FfiConverterString.INSTANCE.Lower(@word), FfiConverterString.INSTANCE.Lower(@replacement), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The on-device providers' vocabulary pass: unanchored substring replacement,
+    /// case-insensitive AND diacritic-insensitive, over the rows that DO carry a
+    /// replacement, in list order.
+    ///
+    /// This is deliberately NOT `apply_hardened_replacement`. That one anchors on
+    /// `\b…\b` and is diacritic-SENSITIVE, and it runs later over the pipeline's own
+    /// vocabulary list. This one runs first, inside the provider, over its own raw
+    /// output — the split macOS made explicit in `VocabularyProcessor.swift` (commit
+    /// 136071d) after finding four byte-identical copies of it.
+    ///
+    /// Text outside a match comes back byte-identical: its case, its accents and its
+    /// normalization form are untouched, matching Foundation's
+    /// `replacingOccurrences(options: [.caseInsensitive, .diacriticInsensitive])`.
+    /// </summary>
+    public static string ApplySubstringVocabulary(string @text, List<HwVocabularyEntry> @entries) {
+        return FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_apply_substring_vocabulary(FfiConverterString.INSTANCE.Lower(@text), FfiConverterSequenceTypeHwVocabularyEntry.INSTANCE.Lower(@entries), ref _status)
 ));
     }
 
@@ -12261,6 +14254,23 @@ internal static class HyperwhisperCoreMethods {
 
 
     /// <summary>
+    /// Resolve a legacy cloud-STT model id onto its current catalog id.
+    ///
+    /// `provider` is the persisted `cloudProvider` identifier (`"deepgram"`,
+    /// `"assemblyai"`, …). `None`, an empty string, or an identifier the provider
+    /// enum does not know chains every alias table — the behaviour Windows'
+    /// `CloudTranscriptionModels.ResolveModelAlias` gives its
+    /// `null or CloudTranscriptionProvider.None` arm.
+    /// </summary>
+    public static string CloudSttResolveModelAlias(string @modelId, string? @provider) {
+        return FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_cloud_stt_resolve_model_alias(FfiConverterString.INSTANCE.Lower(@modelId), FfiConverterOptionalString.INSTANCE.Lower(@provider), ref _status)
+));
+    }
+
+
+    /// <summary>
     /// Same set as `cloud_stt_streaming_cloud_tier_entry_ids`, as full entries.
     /// </summary>
     public static List<SttEntry> CloudSttStreamingCloudTierEntries() {
@@ -12710,6 +14720,111 @@ internal static class HyperwhisperCoreMethods {
 
 
     /// <summary>
+    /// The whole catalog in picker order: `auto`, then the popular rows in their
+    /// declared order, then everything else alphabetically by display name.
+    /// </summary>
+    public static List<HwLanguage> LanguageAll() {
+        return FfiConverterSequenceTypeHwLanguage.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_language_all( ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The canonical tag to persist. A missing or empty code becomes `en`.
+    /// </summary>
+    public static string LanguageCanonicalCode(string? @code) {
+        return FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_language_canonical_code(FfiConverterOptionalString.INSTANCE.Lower(@code), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Canonicalize a BCP-47 tag: `en_gb` becomes `en-GB`, `ZH-HANT` becomes
+    /// `zh-Hant`, an empty tag becomes `auto`.
+    /// </summary>
+    public static string LanguageCanonicalize(string @code) {
+        return FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_language_canonicalize(FfiConverterString.INSTANCE.Lower(@code), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Look one code up. `None` means the catalog does not know it — canonicalize
+    /// it with [`language_canonicalize`] and localize it natively.
+    /// </summary>
+    public static HwLanguage? LanguageInfo(string @code) {
+        return FfiConverterOptionalTypeHwLanguage.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_language_info(FfiConverterString.INSTANCE.Lower(@code), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Whether a code means English. A missing code counts as English.
+    /// </summary>
+    public static bool LanguageIsEnglish(string? @code) {
+        return FfiConverterBoolean.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_language_is_english(FfiConverterOptionalString.INSTANCE.Lower(@code), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The 2-letter ISO 639 code, for the frameworks that refuse anything longer.
+    /// `auto` survives; a missing code becomes `en`.
+    /// </summary>
+    public static string LanguageNormalize(string? @code) {
+        return FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_language_normalize(FfiConverterOptionalString.INSTANCE.Lower(@code), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The codes the pickers float to the top, in the order they appear there.
+    /// </summary>
+    public static List<string> LanguagePopularCodes() {
+        return FfiConverterSequenceString.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_language_popular_codes( ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Move `auto` to the front of a list if it is present and not already there.
+    /// </summary>
+    public static List<HwLanguage> LanguagePrioritizeAutomatic(List<HwLanguage> @languages) {
+        return FfiConverterSequenceTypeHwLanguage.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_language_prioritize_automatic(FfiConverterSequenceTypeHwLanguage.INSTANCE.Lower(@languages), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Canonical rows for a provider's advertised code list, deduplicated, in the
+    /// order given. An unknown code keeps its canonical form and comes back with no
+    /// display name.
+    /// </summary>
+    public static List<HwLanguage> LanguageResolve(List<string> @codes) {
+        return FfiConverterSequenceTypeHwLanguage.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_language_resolve(FfiConverterSequenceString.INSTANCE.Lower(@codes), ref _status)
+));
+    }
+
+
+    /// <summary>
     /// Build the POST `/api/license/validate` request.
     /// </summary>
     public static ValidateRequest LicenseBuildValidateRequest(string @licenseKey, string @deviceId, string @deviceName) {
@@ -12965,6 +15080,26 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterInt64.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_license_validation_cache_secs( ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Map LINUX native settings JSON (the flat dotted `PortableSettingsService`
+    /// store) into the universal-v2 `settings` block.
+    ///
+    /// The whole store may be passed in: every key without a pairs row is ignored,
+    /// so Linux-only and device-local keys cannot reach the export through here.
+    /// Always COMPLETE — an absent key is emitted with the backup path's own
+    /// default, which is what makes an untouched Linux profile export all 23 shared
+    /// keys. `platformExtensions.linux.settings` is built natively and is not
+    /// modelled by the core on purpose.
+    /// </summary>
+    /// <exception cref="BackupException"></exception>
+    public static string LinuxSettingsToUniversalSettingsJson(string @linuxJson) {
+        return FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCallWithError(FfiConverterTypeBackupError.INSTANCE, (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_linux_settings_to_universal_settings_json(FfiConverterString.INSTANCE.Lower(@linuxJson), ref _status)
 ));
     }
 
@@ -13337,6 +15472,205 @@ internal static class HyperwhisperCoreMethods {
 
 
     /// <summary>
+    /// Every code, in the order the docs and the macOS enum list them.
+    /// </summary>
+    public static List<HwLocalApiErrorCode> LocalApiAllErrorCodes() {
+        return FfiConverterSequenceTypeHwLocalApiErrorCode.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_all_error_codes( ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Whether an `Authorization` header presents the expected token.
+    ///
+    /// One constant-time compare of SHA-256 digests, replacing three divergent
+    /// native behaviours. `authorization_header` is the raw header value, or `None`
+    /// when the request carried none. An empty `expected_token` always denies.
+    /// </summary>
+    public static bool LocalApiAuthorize(string? @authorizationHeader, string @expectedToken) {
+        return FfiConverterBoolean.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_authorize(FfiConverterOptionalString.INSTANCE.Lower(@authorizationHeader), FfiConverterString.INSTANCE.Lower(@expectedToken), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// A malformed request — HTTP 400, always `INVALID_REQUEST`.
+    /// </summary>
+    public static HwLocalApiFailure LocalApiBadRequestFailure(string @message, string? @hint) {
+        return FfiConverterTypeHwLocalApiFailure.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_bad_request_failure(FfiConverterString.INSTANCE.Lower(@message), FfiConverterOptionalString.INSTANCE.Lower(@hint), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The HTTP status a business failure travels on: 200, on every platform.
+    ///
+    /// Exported as a function rather than left to each head, because "each head
+    /// decides" is how Linux ended up returning 404/413/503/408 for outcomes the
+    /// docs mandate 200 for.
+    /// </summary>
+    public static HwLocalApiFailure LocalApiBusinessFailure(HwLocalApiErrorCode @code, string @message, string? @hint) {
+        return FfiConverterTypeHwLocalApiFailure.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_business_failure(FfiConverterTypeHwLocalApiErrorCode.INSTANCE.Lower(@code), FfiConverterString.INSTANCE.Lower(@message), FfiConverterOptionalString.INSTANCE.Lower(@hint), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Decide whether a request is safe to dispatch.
+    ///
+    /// Call this on EVERY route, including the unauthenticated `GET /health`,
+    /// before the bearer check and before any dispatch. Pass the port the server is
+    /// really bound to — a fallback bind lands somewhere other than the configured
+    /// preference, and the `Host` header names where the client actually connected.
+    /// </summary>
+    public static HwLocalApiOriginDecision LocalApiCheckOrigin(HwLocalApiOriginHeaders @headers, ushort @port) {
+        return FfiConverterTypeHwLocalApiOriginDecision.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_check_origin(FfiConverterTypeHwLocalApiOriginHeaders.INSTANCE.Lower(@headers), FfiConverterUInt16.INSTANCE.Lower(@port), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Parse a wire string back into the closed set, or `None` when it is not one
+    /// of the 14.
+    ///
+    /// This is the conformance check a head runs over the codes it emits: a `None`
+    /// names a code that would break the macOS decoder.
+    /// </summary>
+    public static HwLocalApiErrorCode? LocalApiErrorCodeFromWireValue(string @value) {
+        return FfiConverterOptionalTypeHwLocalApiErrorCode.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_error_code_from_wire_value(FfiConverterString.INSTANCE.Lower(@value), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The wire string for a code — what goes in `error.code`.
+    /// </summary>
+    public static string LocalApiErrorCodeWireValue(HwLocalApiErrorCode @code) {
+        return FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_error_code_wire_value(FfiConverterTypeHwLocalApiErrorCode.INSTANCE.Lower(@code), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The response the origin guard returns — HTTP 403 carrying `INVALID_REQUEST`,
+    /// exactly what macOS already sends (`LocalAPIServer.swift:311-316`).
+    ///
+    /// Not a new `FORBIDDEN` code. Issue #289 is explicit that inventing one would
+    /// itself be a contract change on the one platform that ships the guard.
+    /// </summary>
+    public static HwLocalApiFailure LocalApiForbiddenOriginFailure() {
+        return FfiConverterTypeHwLocalApiFailure.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_forbidden_origin_failure( ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Encode 32 host-supplied CSPRNG bytes as a Local API bearer token: unpadded
+    /// base64url, always 43 characters.
+    ///
+    /// The host draws the bytes from its own platform CSPRNG and decides what to do
+    /// if that fails. See the module docs for why the entropy does not come from
+    /// Rust.
+    /// </summary>
+    /// <exception cref="HwLocalApiTokenException"></exception>
+    public static string LocalApiGenerateToken(byte[] @entropy) {
+        return FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCallWithError(FfiConverterTypeHwLocalApiTokenError.INSTANCE, (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_generate_token(FfiConverterByteArray.INSTANCE.Lower(@entropy), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Whether a stored credential still has the shape
+    /// [`local_api_generate_token`] produces.
+    ///
+    /// A *shape* check, for a head deciding whether to regenerate. Never use it in
+    /// place of [`local_api_authorize`]: it looks only at the presented value and
+    /// compares nothing.
+    /// </summary>
+    public static bool LocalApiIsWellFormedToken(string @token) {
+        return FfiConverterBoolean.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_is_well_formed_token(FfiConverterString.INSTANCE.Lower(@token), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Whether a decision means "dispatch it".
+    ///
+    /// A head can match the enum instead. This exists so the common case is one
+    /// call and cannot get the polarity wrong.
+    /// </summary>
+    public static bool LocalApiOriginDecisionIsAllowed(HwLocalApiOriginDecision @decision) {
+        return FfiConverterBoolean.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_origin_decision_is_allowed(FfiConverterTypeHwLocalApiOriginDecision.INSTANCE.Lower(@decision), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// How many entropy bytes [`local_api_generate_token`] requires.
+    ///
+    /// A constant rather than a magic 32 in three heads. `SecRandomCopyBytes` and
+    /// `RandomNumberGenerator.GetBytes` both take a count; this is that count.
+    /// </summary>
+    public static uint LocalApiTokenEntropyBytes() {
+        return FfiConverterUInt32.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_token_entropy_bytes( ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The SHA-256 fingerprint of a token, hex-encoded — for a log line that has to
+    /// identify a credential without carrying it.
+    /// </summary>
+    public static string LocalApiTokenFingerprint(string @token) {
+        return FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_token_fingerprint(FfiConverterString.INSTANCE.Lower(@token), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The response a failed bearer check returns — HTTP 401 carrying
+    /// `INVALID_REQUEST`, matching `LocalAPIServer.swift:344-353`.
+    ///
+    /// `hint` names the platform's own discovery-file path, which is the one part
+    /// of this response that legitimately differs per head. The caller must still
+    /// send `WWW-Authenticate: Bearer realm="hyperwhisper"`; a header is not part
+    /// of the envelope.
+    /// </summary>
+    public static HwLocalApiFailure LocalApiUnauthorizedFailure(string? @hint) {
+        return FfiConverterTypeHwLocalApiFailure.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_local_api_unauthorized_failure(FfiConverterOptionalString.INSTANCE.Lower(@hint), ref _status)
+));
+    }
+
+
+    /// <summary>
     /// Map a macOS 7-category native settings JSON into a universal-v2 5-category
     /// `SettingsRecord` JSON (macOS-only keys parked under `platformExtensions.macos`).
     /// `existing_macos_ext_json`, when present, is the existing
@@ -13575,6 +15909,47 @@ internal static class HyperwhisperCoreMethods {
 
 
     /// <summary>
+    /// Canonicalize ONE wire-shaped universal-v2 mode object, returning the same
+    /// object with its five cloud-routing fields normalized and every other key
+    /// untouched. This is the single entry point both non-macOS mode-import paths
+    /// call (`UniversalBackupMapper.MapToMode`, `ApplicationBackupExport.ParseMode`).
+    ///
+    /// It is the COMPOSITION POINT: `hw_backup` owns the present-only
+    /// tier/post-processing-model migration, `hw_catalog` owns the `cloudProvider`
+    /// fold and the legacy model-alias tables, and the `cloudTranscriptionDomain`
+    /// gate lives here. `hw-backup` must not depend on `hw-catalog`
+    /// (`shared-core-rs/README.md`), which is why the seam is in this crate.
+    ///
+    /// What it does, in the order Windows does it:
+    ///
+    /// 1. `cloudProvider` is folded through the catalog — a legacy standalone-provider
+    /// alias such as `microsoftazurespeech` becomes `hyperwhisper` plus an accuracy
+    /// tier. BYOK names (`deepgram`, `groq`) pass through untouched.
+    /// 2. `cloudTranscriptionModel` is alias-resolved against the **RAW** (pre-fold)
+    /// provider. Windows passes `universal.CloudProvider` — not the folded value —
+    /// to `ResolveModelAlias`, so a folded azure mode resolves under
+    /// `MicrosoftAzureSpeech` (the passthrough arm) even though its stored provider
+    /// became `hyperwhisper`. Reproduced deliberately.
+    /// 3. `cloudAccuracyTier` / `cloudPostProcessingModel` follow the two-assignment
+    /// precedence documented on [`hw_backup::normalize_universal_mode_value`].
+    /// 4. `cloudTranscriptionDomain` (the `X-STT-Domain` header) only applies to
+    /// HyperWhisper Cloud modes, so it is DROPPED unless the folded provider is
+    /// `hyperwhisper` — a stale domain on a BYOK mode must not import.
+    ///
+    /// Absent fields stay absent: the caller applies its own entity default (both
+    /// heads share `elevenLabsScribeV2` / `anthropic:claude-haiku-4-5` from `Mode`'s
+    /// field initialisers). Errors only on JSON that is not an object.
+    /// </summary>
+    /// <exception cref="BackupException"></exception>
+    public static string NormalizeUniversalModeJson(string @json) {
+        return FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCallWithError(FfiConverterTypeBackupError.INSTANCE, (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_normalize_universal_mode_json(FfiConverterString.INSTANCE.Lower(@json), ref _status)
+));
+    }
+
+
+    /// <summary>
     /// Canonical vocabulary normalization for every egress path: sanitize each
     /// term, drop the ones that sanitize to empty, de-duplicate case-insensitively
     /// keeping first-seen casing and order, and stop at `limit`.
@@ -13621,10 +15996,29 @@ internal static class HyperwhisperCoreMethods {
 
 
     /// <summary>
+    /// Correct a whole transcript against a whole vocabulary, in one call.
+    ///
+    /// Whole-word, `\b`-anchored, case-insensitive, literal replacement. Rows that
+    /// carry a replacement, and words of 2 Unicode scalars or fewer, are skipped. A
+    /// token that already equals ANY vocabulary word is left alone.
+    /// </summary>
+    public static HwPhoneticApplyResult PhoneticApplyVocabulary(string @text, List<HwVocabularyEntry> @entries) {
+        return FfiConverterTypeHwPhoneticApplyResult.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_phonetic_apply_vocabulary(FfiConverterString.INSTANCE.Lower(@text), FfiConverterSequenceTypeHwVocabularyEntry.INSTANCE.Lower(@entries), ref _status)
+));
+    }
+
+
+    /// <summary>
     /// Encode a word with the Beider-Morse phonetic algorithm.
     ///
     /// Replaces the old C-ABI `bm_encode` (pipe-separated `char*` + manual
     /// `bm_free`). Returns the phonetic codes directly; empty input -> empty list.
+    ///
+    /// Kept for the golden fixture test and for any host that wants the raw codes.
+    /// A host correcting a transcript should call [`phonetic_apply_vocabulary`]
+    /// instead — one call rather than one per word.
     /// </summary>
     public static List<string> PhoneticEncode(string @word) {
         return FfiConverterSequenceString.INSTANCE.Lift(
@@ -13691,6 +16085,62 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterTypeHwPttStepResult.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_ptt_step(FfiConverterTypeHwPttMachineState.INSTANCE.Lower(@state), FfiConverterTypeHwPttEvent.INSTANCE.Lower(@event), FfiConverterUInt64.INSTANCE.Lower(@nowMs), FfiConverterTypeHwPttConfig.INSTANCE.Lower(@config), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// A release note split into its heading and its bullets — the release-notes
+    /// cards' view, and the single source of truth for the title rule (decision (c)
+    /// of #284: the first `<h2>` case-insensitively, else the content before the
+    /// list).
+    /// </summary>
+    public static HwReleaseNote ReleaseNotesParse(string @html) {
+        return FfiConverterTypeHwReleaseNote.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_release_notes_parse(FfiConverterString.INSTANCE.Lower(@html), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Split a release-notes fragment into styled runs.
+    ///
+    /// `collapse_whitespace` false keeps the fragment's own line breaks, for callers
+    /// that split the result into lines; it preserves the optional parameter on
+    /// `InlineHtml.Parse` / `InlineHtml.PlainText`. macOS always passes `true`.
+    /// </summary>
+    public static List<HwRun> ReleaseNotesParseInline(string @html, bool @collapseWhitespace) {
+        return FfiConverterSequenceTypeHwRun.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_release_notes_parse_inline(FfiConverterString.INSTANCE.Lower(@html), FfiConverterBoolean.INSTANCE.Lower(@collapseWhitespace), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Tag-free, entity-decoded text for a release-notes fragment — for titles,
+    /// glyph selection, logging and tests.
+    /// </summary>
+    public static string ReleaseNotesPlainText(string @html, bool @collapseWhitespace) {
+        return FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_release_notes_plain_text(FfiConverterString.INSTANCE.Lower(@html), FfiConverterBoolean.INSTANCE.Lower(@collapseWhitespace), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Every block of a release note, in document order — the update dialog's view.
+    ///
+    /// A note with no block markup at all falls back to one block per line, so a
+    /// plain-text changelog still renders as a list. Each line keeps its own markup
+    /// and is parsed exactly once here; see `hw_releasenotes::split_blocks`.
+    /// </summary>
+    public static List<HwBlock> ReleaseNotesSplitBlocks(string @html) {
+        return FfiConverterSequenceTypeHwBlock.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_release_notes_split_blocks(FfiConverterString.INSTANCE.Lower(@html), ref _status)
 ));
     }
 
@@ -13850,6 +16300,39 @@ internal static class HyperwhisperCoreMethods {
 
 
     /// <summary>
+    /// Calculate every home statistic from the host's transcript rows.
+    ///
+    /// `now_local_epoch_seconds` is "now" in the same shifted coordinate as the
+    /// rows. A `typing_speed_words_per_minute` of 0 or less zeroes the saving
+    /// figures instead of failing — an unset setting is not an error.
+    ///
+    /// This call is total: there is no error case, and no input can panic.
+    /// </summary>
+    public static HwHomeStatsSnapshot StatsCalculateHome(List<HwStatsTranscript> @transcripts, int @typingSpeedWordsPerMinute, long @nowLocalEpochSeconds) {
+        return FfiConverterTypeHwHomeStatsSnapshot.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_stats_calculate_home(FfiConverterSequenceTypeHwStatsTranscript.INSTANCE.Lower(@transcripts), FfiConverterInt32.INSTANCE.Lower(@typingSpeedWordsPerMinute), FfiConverterInt64.INSTANCE.Lower(@nowLocalEpochSeconds), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// The ceiling the displayed "saved this week" figure is clamped to: one week
+    /// of minutes.
+    ///
+    /// Exported so a head can assert against it rather than restate `7 * 24 * 60`,
+    /// which is exactly how the constant drifted onto two platforms and off the
+    /// third.
+    /// </summary>
+    public static int StatsSavedMinutesCeiling() {
+        return FfiConverterInt32.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_stats_saved_minutes_ceiling( ref _status)
+));
+    }
+
+
+    /// <summary>
     /// Lenient wrapper handling for plain transcription text: extract wrapped content
     /// if present, else return the text (stray end-tags stripped). For raw-transcript
     /// sites where the strict `extract_cleaned_from_wrapped` would wipe a valid result.
@@ -13858,6 +16341,24 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterString.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_strip_wrapper_markers(FfiConverterString.INSTANCE.Lower(@text), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Inverse of [`linux_settings_to_universal_settings_json`]: the universal-v2
+    /// `settings` block → the flat dotted keys `PortableSettingsService` stores.
+    ///
+    /// PRESENT-ONLY and null-dropping, reproducing `ApplySharedSettings`/`CopyCategory`:
+    /// the tables are a per-category allowlist, so unknown keys and unknown
+    /// categories are dropped. The caller deep-merges the result over its baseline
+    /// snapshot before writing it back.
+    /// </summary>
+    /// <exception cref="BackupException"></exception>
+    public static string UniversalSettingsToLinuxSettingsJson(string @universalJson) {
+        return FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCallWithError(FfiConverterTypeBackupError.INSTANCE, (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_universal_settings_to_linux_settings_json(FfiConverterString.INSTANCE.Lower(@universalJson), ref _status)
 ));
     }
 
@@ -13876,6 +16377,29 @@ internal static class HyperwhisperCoreMethods {
 
 
     /// <summary>
+    /// Inverse of [`windows_settings_to_universal_settings_json`]: the universal-v2
+    /// `settings` block → Windows native settings JSON.
+    ///
+    /// PRESENT-ONLY, and an explicit JSON `null` counts as absent. The caller must
+    /// deep-merge the result over its own baseline snapshot before applying, so that
+    /// the day this returns a COMPLETE blob an absent backup key still cannot
+    /// clobber a live setting (the obligation `BackupManager.swift`'s
+    /// `currentSettingsBaseline()` → `deepMerged(over:)` already carries on macOS).
+    ///
+    /// No value interpretation happens here: the `SettingsService` setters own the
+    /// streaming-provider fallback, the deepgram-model collapse, the shortcut
+    /// re-canonicalisation and the clipboard-delay clamp.
+    /// </summary>
+    /// <exception cref="BackupException"></exception>
+    public static string UniversalSettingsToWindowsSettingsJson(string @universalJson) {
+        return FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCallWithError(FfiConverterTypeBackupError.INSTANCE, (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_universal_settings_to_windows_settings_json(FfiConverterString.INSTANCE.Lower(@universalJson), ref _status)
+));
+    }
+
+
+    /// <summary>
     /// Validate a backup JSON document against the embedded universal-v2 schema's
     /// structural invariants. Returns every error found (empty = valid).
     /// </summary>
@@ -13883,6 +16407,29 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterSequenceTypeHwValidationError.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_validate_backup_json(FfiConverterString.INSTANCE.Lower(@json), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Map WINDOWS native settings JSON (flat, PascalCase — `settings.json`'s own
+    /// casing) into the universal-v2 `settings` block.
+    ///
+    /// The input is the snapshot `SettingsService.BuildBackupSettingsSnapshot()`
+    /// produces: only the keys that are promoted to the universal block, never a
+    /// filesystem path or a device name. The output is the five universal categories
+    /// and NOTHING else — this function cannot emit a `platformExtensions` slice, so
+    /// the curated `platformExtensions.windows.settings` list that
+    /// `UniversalBackupMapper.BuildPlatformExtensions` builds natively stays the only
+    /// way a Windows-only setting reaches a backup file.
+    ///
+    /// Present-only: a native key that is absent produces no universal key.
+    /// </summary>
+    /// <exception cref="BackupException"></exception>
+    public static string WindowsSettingsToUniversalSettingsJson(string @windowsJson) {
+        return FfiConverterString.INSTANCE.Lift(
+    _UniffiHelpers.RustCallWithError(FfiConverterTypeBackupError.INSTANCE, (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_windows_settings_to_universal_settings_json(FfiConverterString.INSTANCE.Lower(@windowsJson), ref _status)
 ));
     }
 

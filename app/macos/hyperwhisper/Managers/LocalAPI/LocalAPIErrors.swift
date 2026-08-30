@@ -65,6 +65,51 @@ enum LocalAPIResponder {
         }
     }
 
+    /// Render a shared-core failure as an `HTTPResponse` (issue #289).
+    ///
+    /// The status code comes from Rust rather than from this file. That is the
+    /// point of the envelope half of #289: Linux returned 404/413/503/408 for
+    /// business outcomes the docs mandate 200 for, and it did so because each
+    /// platform decided the status itself.
+    ///
+    /// The JSON is still encoded here, through the same `JSONEncoder` every
+    /// other response uses, so key order and escaping do not change on the
+    /// wire. `extraHeaders` carries the pieces that are not part of the
+    /// envelope — `WWW-Authenticate` on a 401.
+    static func response(
+        for failure: HwLocalApiFailure,
+        extraHeaders: [HTTPHeader: String] = [:]
+    ) -> HTTPResponse {
+        let envelope = APIFailureEnvelope(
+            code: LocalAPIErrorCode(shared: failure.code),
+            message: failure.message,
+            hint: failure.hint
+        )
+        var headers: [HTTPHeader: String] = [.contentType: "application/json; charset=utf-8"]
+        headers.merge(extraHeaders) { _, extra in extra }
+        return HTTPResponse(
+            statusCode: statusCode(failure.httpStatus),
+            headers: headers,
+            body: (try? encoder.encode(envelope)) ?? Data()
+        )
+    }
+
+    /// The four statuses `hw_localapi` can ask for, as FlyingFox constants.
+    ///
+    /// `FailureKind` has exactly four cases and this switch covers all four;
+    /// the default exists because the value crosses an FFI boundary as a
+    /// `UInt16` and Swift cannot see that it is closed. A fifth status would
+    /// be a contract change that needs this arm updated, not a 500.
+    private static func statusCode(_ status: UInt16) -> HTTPStatusCode {
+        switch status {
+        case 200: return .ok
+        case 400: return .badRequest
+        case 401: return .unauthorized
+        case 403: return .forbidden
+        default: return .internalServerError
+        }
+    }
+
     /// Reserved for genuine protocol failures (malformed JSON body, etc.).
     /// Per the design, we keep these as HTTP 400 to distinguish from
     /// successful-but-unsuccessful business outcomes.
@@ -92,7 +137,7 @@ enum LocalAPIResponder {
             case .apiKeyMissing(let provider):
                 let prov = provider ?? "this provider"
                 return (.missingAPIKey, "API key for \(prov) is missing.", "Add the API key in Settings → API Keys.")
-            case .unauthorized(let provider):
+            case .unauthorized(let provider, _):
                 let prov = provider ?? "this provider"
                 return (.missingAPIKey, "API key for \(prov) is invalid or expired.", "Update the API key in Settings → API Keys.")
             case .audioFileNotFound:

@@ -24,7 +24,7 @@ fn main() {
         .iter()
         .map(|w| PhoneticCase {
             word: (*w).to_string(),
-            codes: hyperwhisper_core::phonetic_encode((*w).to_string()),
+            codes: hyperwhisper_core::ffi_phonetic::phonetic_encode((*w).to_string()),
         })
         .collect();
     println!("{}", serde_json::to_string_pretty(&cases).unwrap());

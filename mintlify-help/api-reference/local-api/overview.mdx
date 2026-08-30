@@ -68,12 +68,12 @@ The server uses HTTP 4xx for protocol failures only:
 
 - 400 for malformed JSON
 - 401 for a missing or invalid bearer token
-- 403 for a rejected Host/Origin header (macOS only). This is a
-  DNS-rebinding guard on every route.
+- 403 for a rejected Host/Origin header. This is a DNS-rebinding guard on every
+  route, including `/health`.
 
-All other errors arrive as `ok:false` with a machine-readable code. Examples
-are a transcription engine error, a missing API key, and a file that the
-server cannot find.
+All other errors arrive as `ok:false` with a machine-readable code, and with
+HTTP 200. Examples are a transcription engine error, a missing API key, and a
+file that the server cannot find. Read the `code`, not the status.
 
 ## Endpoints
 

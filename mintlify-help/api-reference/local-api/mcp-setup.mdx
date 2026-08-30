@@ -113,4 +113,5 @@ If the file exists, the tool fails by default. The agent can pass `if_exists: "o
 
 **`npx` hangs on first run** — `npx -y` downloads the package on the first run. Later runs start immediately. If your network blocks the npm registry, install the package one time with `npm i -g @hyperwhisper/mcp`. Then replace `npx -y @hyperwhisper/mcp` with `hyperwhisper-mcp` in the configuration examples in this page.
 
-**Other app-level error codes** — the app returns a fixed set of error codes for tool calls: `MODEL_NOT_INSTALLED`, `MODEL_NOT_FOUND`, `ENGINE_UNAVAILABLE`, `MISSING_API_KEY`, `FILE_NOT_FOUND`, `FILE_ACCESS_DENIED`, `FILE_NOT_ALLOWED`, `AUDIO_DECODE_FAILED`, `TRANSCRIPTION_FAILED`, `MODE_NOT_FOUND`, `MODE_NAME_TAKEN`, `RATE_LIMITED`, and `TIMEOUT`. Each code comes with a message in clear language that the agent can give to you.
+**Other app-level error codes** — the app returns a fixed set of error codes for tool calls: `MODEL_NOT_INSTALLED`, `MODEL_NOT_FOUND`, `ENGINE_UNAVAILABLE`, `MISSING_API_KEY`, `FILE_NOT_FOUND`, `FILE_ACCESS_DENIED`, `FILE_NOT_ALLOWED`, `AUDIO_DECODE_FAILED`, `TRANSCRIPTION_FAILED`, `MODE_NOT_FOUND`, `MODE_NAME_TAKEN`, `INVALID_REQUEST`, `RATE_LIMITED`, and
+`TIMEOUT`. Each code comes with a message in clear language that the agent can give to you.

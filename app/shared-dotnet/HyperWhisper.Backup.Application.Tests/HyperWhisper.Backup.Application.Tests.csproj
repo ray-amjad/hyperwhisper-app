@@ -6,16 +6,35 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
+
+  <!-- This harness runs on two CI hosts (Linux CI's shared-dotnet sweep and
+       Windows CI), so the native library it loads has a different name and a
+       different cargo target directory on each. Resolved exactly the way
+       HyperWhisper.CatalogConformance.Tests resolves it, rather than
+       hard-coding the Linux triple. -->
+  <PropertyGroup>
+    <SharedCoreRoot>$(MSBuildThisFileDirectory)../../../shared-core-rs/target</SharedCoreRoot>
+    <SharedCoreNativeLibrary Condition="$([MSBuild]::IsOSPlatform('Windows'))">$(SharedCoreRoot)/x86_64-pc-windows-msvc/release/hyperwhisper_core.dll</SharedCoreNativeLibrary>
+    <SharedCoreNativeLibrary Condition="$([MSBuild]::IsOSPlatform('OSX'))">$(SharedCoreRoot)/release/libhyperwhisper_core.dylib</SharedCoreNativeLibrary>
+    <SharedCoreNativeLibrary Condition="'$(SharedCoreNativeLibrary)' == ''">$(SharedCoreRoot)/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so</SharedCoreNativeLibrary>
+  </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\HyperWhisper.Application\HyperWhisper.Application.csproj" />
-    <Content Include="../../../shared-core-rs/target/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so"
-             Condition="Exists('../../../shared-core-rs/target/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so')">
-      <Link>libhyperwhisper_core.so</Link>
+    <!-- The vectors are the cross-platform contract, not a fixture of this
+         project. app/windows/HyperWhisper.SmokeTests,
+         app/macos/hyperwhisperTests/BackupConformanceVectorTests.swift and
+         shared-core-rs/crates/hw-core/tests/backup_vectors.rs read the same file. -->
+    <Content Include="../../../shared-conformance/backup-vectors.json"
+             Link="backup-vectors.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="$(SharedCoreNativeLibrary)" Condition="Exists('$(SharedCoreNativeLibrary)')">
+      <Link>%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
+
   <Target Name="EnsureSharedCoreNativeLibrary" BeforeTargets="Build">
-    <Error Condition="!Exists('../../../shared-core-rs/target/x86_64-unknown-linux-gnu/release/libhyperwhisper_core.so')"
-           Text="Build shared-core-rs in release mode before running the backup tests." />
+    <Error Condition="!Exists('$(SharedCoreNativeLibrary)')"
+           Text="Build shared-core-rs in release mode before running the backup tests — expected $(SharedCoreNativeLibrary)." />
   </Target>
 </Project>

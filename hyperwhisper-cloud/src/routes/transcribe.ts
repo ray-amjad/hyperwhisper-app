@@ -50,11 +50,12 @@ import { estimateAudioSeconds, runProviderAttempt, type ProviderAttemptNetwork }
 // handed", so the route never needs a provider's byte caps or the environment
 // that lifts them. See providers/audio-limits.ts.
 import { preBufferMaxBytes } from '../providers/audio-limits';
+// The providers layer's own answer to "can this Fly region reach this provider",
+// so the route never needs a provider's blocked-region list, its replay region,
+// or its id in a filter. See providers/geo-availability.ts.
+import { planGeoRouting, reachableFromRegion } from '../providers/geo-availability';
 import { rawQuery } from '../lib/query';
-import {
-  FLY_REPLAY_MAX_BODY_BYTES,
-  MAX_AUDIO_SIZE_BYTES,
-} from '../lib/constants';
+import { MAX_AUDIO_SIZE_BYTES } from '../lib/constants';
 import { isIPBlocked } from '../lib/redis';
 import {
   errorResponse,
@@ -68,12 +69,6 @@ import { flyProxyOverheadMs, logEvent, machineUptimeMs } from '../lib/logging';
 
 // Supported providers (mirror the server-side registry in lib/stt-models.ts).
 export type Provider = SttProviderId;
-
-// Fly regions where ElevenLabs serves a text/html FAQ page instead of JSON
-// (geo-block on Japan + India confirmed via per-region smoke 2026-06-07).
-// Requests landing here are replayed to `iad` before any work happens.
-const ELEVENLABS_BLOCKED_FLY_REGIONS = new Set(['nrt', 'bom', 'maa']);
-const ELEVENLABS_REPLAY_REGION = 'iad';
 
 // Human-readable base label per provider. The model is appended at runtime via
 // formatProviderName() so the response header / metering reflects exactly which
@@ -368,38 +363,33 @@ export async function transcribeRoute(c: Context) {
   const initialPrompt = rawQuery(c.req.url, 'initial_prompt');
   const mode = rawQuery(c.req.url, 'mode');
 
-  // ElevenLabs blocks API access from certain countries — the block surfaces
-  // as a 200 OK with a text/html FAQ page ("Do you restrict access ... for any
-  // specific countries?") instead of JSON. When the request lands on a Fly
-  // machine in one of those countries, replay it via Fly's edge to `iad`
-  // before doing any auth/credit work. Adds ~50-80ms vs ~6s of failure.
-  // Verified blocked regions (2026-06-07): nrt (JP), bom (IN), maa (IN).
-  //
-  // Fly only honours `fly-replay` for request bodies ≤ 1 MB; larger requests
-  // are silently executed in the original region. For oversized uploads from
-  // a blocked region we skip the replay header and let the chain fall back
-  // to the next provider instead of letting ElevenLabs return its HTML 200.
-  let elevenlabsGeoBlocked = false;
-  if (provider === 'elevenlabs' && ELEVENLABS_BLOCKED_FLY_REGIONS.has(process.env.FLY_REGION || '')) {
-    if (contentLength <= FLY_REPLAY_MAX_BODY_BYTES) {
-      logEvent(requestId, startTime, 'transcribe.fly_replay', {
-        flyRequestId,
-        provider,
-        fromRegion: process.env.FLY_REGION,
-        toRegion: ELEVENLABS_REPLAY_REGION,
-        reason: 'elevenlabs_geo_block',
-      });
-      c.header('fly-replay', `region=${ELEVENLABS_REPLAY_REGION}`);
-      return c.body(null, 200);
-    }
-
-    elevenlabsGeoBlocked = true;
+  // Some providers are unreachable from the region this machine runs in. The
+  // providers layer owns which ones, from where, and where to send the request
+  // instead — the route only carries out the plan it is handed, before doing
+  // any auth/credit work. A replay adds ~50-80ms vs ~6s of certain failure.
+  // See providers/geo-availability.ts.
+  const geoPlan = planGeoRouting(provider, contentLength);
+  if (geoPlan.action === 'replay') {
+    logEvent(requestId, startTime, 'transcribe.fly_replay', {
+      flyRequestId,
+      provider,
+      fromRegion: geoPlan.fromRegion,
+      toRegion: geoPlan.toRegion,
+      reason: geoPlan.reason,
+    });
+    c.header('fly-replay', `region=${geoPlan.toRegion}`);
+    return c.body(null, 200);
+  }
+  // The body was too large for Fly to replay, so the request stays in this
+  // region and the unreachable provider comes out of the chain below.
+  const geoDegraded = geoPlan.action === 'drop_from_chain';
+  if (geoPlan.action === 'drop_from_chain') {
     logEvent(requestId, startTime, 'transcribe.fly_replay_skipped_oversized', {
       flyRequestId,
       provider,
-      flyRegion: process.env.FLY_REGION,
+      flyRegion: geoPlan.fromRegion,
       contentLength,
-      replayMaxBytes: FLY_REPLAY_MAX_BODY_BYTES,
+      replayMaxBytes: geoPlan.replayMaxBytes,
     });
   }
 
@@ -496,12 +486,12 @@ export async function transcribeRoute(c: Context) {
   // model; on a cross-provider fallback it becomes that sibling's default model.
   let usedModel = model;
 
-  // When the request landed in a region where ElevenLabs is geo-blocked AND
-  // the payload was too large to fly-replay, drop ElevenLabs from the chain
-  // so we fall through to the next provider instead of failing the chain on
-  // ElevenLabs's HTML-200 geo-block response.
-  const chain = elevenlabsGeoBlocked
-    ? fallbackChainFor(provider).filter(p => p !== 'elevenlabs')
+  // The request stayed in a region that cannot reach the requested provider, so
+  // keep only the chain members this region can reach. We fall through to the
+  // next provider instead of failing the chain on a geo-block response the
+  // adapter cannot tell apart from a real answer.
+  const chain = geoDegraded
+    ? reachableFromRegion(fallbackChainFor(provider))
     : fallbackChainFor(provider);
   let lastError: Error | undefined;
   let lastInputError: ProviderInputError | undefined;

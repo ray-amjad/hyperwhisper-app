@@ -157,19 +157,6 @@ enum SentryService {
         #endif
     }
 
-    /// Track a user action as a breadcrumb.
-    /// Use this for key user interactions to understand the flow before an error.
-    /// Examples: "started_recording", "transcription_complete", "mode_selected"
-    static func trackUserAction(_ action: String, data: [String: Any] = [:]) {
-        #if canImport(Sentry)
-        let crumb = Breadcrumb(level: .info, category: "user_action")
-        crumb.message = action
-        crumb.data = data
-        crumb.timestamp = Date()
-        SentrySDK.addBreadcrumb(crumb)
-        #endif
-    }
-
     // MARK: - Error Capture
 
     /// Capture an error with optional message and extra context.
@@ -303,50 +290,6 @@ enum SentryService {
             for (key, value) in extras {
                 scope.setExtra(value: value, key: key)
             }
-        }
-        #endif
-    }
-
-    /// Set multiple tags at once for efficiency.
-    static func setTags(_ tags: [String: String]) {
-        #if canImport(Sentry)
-        SentrySDK.configureScope { scope in
-            for (key, value) in tags {
-                scope.setTag(value: value, key: key)
-            }
-        }
-        #endif
-    }
-
-    // MARK: - Transcription Context
-
-    /// Set transcription-specific context for better error filtering.
-    /// Call this before starting a transcription to tag all subsequent events.
-    /// - Parameters:
-    ///   - provider: The transcription provider ("local", "hyperwhisper_cloud", "openai")
-    ///   - mode: The transcription mode name (e.g., "Default", "Meeting Notes")
-    ///   - audioLengthSeconds: Duration of the audio being transcribed
-    static func setTranscriptionContext(provider: String, mode: String, audioLengthSeconds: TimeInterval? = nil) {
-        #if canImport(Sentry)
-        SentrySDK.configureScope { scope in
-            scope.setTag(value: provider, key: "transcription_provider")
-            scope.setTag(value: mode, key: "transcription_mode")
-            if let audioLengthSeconds {
-                // Round to nearest second for cleaner grouping
-                scope.setExtra(value: Int(audioLengthSeconds), key: "audio_length_seconds")
-            }
-        }
-        #endif
-    }
-
-    /// Clear transcription context after transcription completes.
-    /// Prevents stale context from appearing on unrelated errors.
-    static func clearTranscriptionContext() {
-        #if canImport(Sentry)
-        SentrySDK.configureScope { scope in
-            scope.removeTag(key: "transcription_provider")
-            scope.removeTag(key: "transcription_mode")
-            scope.removeExtra(key: "audio_length_seconds")
         }
         #endif
     }

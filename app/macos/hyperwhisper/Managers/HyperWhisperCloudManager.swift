@@ -280,21 +280,6 @@ class HyperWhisperCloudManager: ObservableObject {
         }
     }
 
-    /// Checks if user has sufficient credits for estimated audio duration
-    ///
-    /// - Parameter estimatedMinutes: Estimated audio duration in minutes
-    /// - Returns: True if sufficient credits, false otherwise
-    func hasSufficientCredits(for estimatedMinutes: Int) -> Bool {
-        guard let credits = credits else {
-            // If we don't have credit info yet, assume sufficient
-            // The actual check will happen on the server
-            return true
-        }
-
-        let requiredCredits = Double(estimatedMinutes) * 10.0
-        return credits.creditsRemaining >= requiredCredits
-    }
-
     /// Invalidates the credit cache (forces next fetch to retrieve fresh data)
     func invalidateCache() {
         lastFetchTime = nil

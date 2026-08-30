@@ -19,7 +19,9 @@ using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Net.WebSockets;
+using System.Reflection;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Windows;
 using System.Windows.Input;
 using HyperWhisper.Data;
@@ -28,6 +30,7 @@ using HyperWhisper.Models;
 using HyperWhisper.Services;
 using HyperWhisper.AppClassification;
 using HyperWhisper.Services.AppClassification;
+using HyperWhisper.Services.LocalApi;
 using HyperWhisper.Services.Platform;
 using HyperWhisper.Services.Streaming;
 using HyperWhisper.Services.Transcription;
@@ -435,14 +438,34 @@ internal static class Program
                 Assert(codes.Count > 0, "expected non-empty phonetic codes");
             });
 
-            Run("PhoneticVocabularyMatcher corrects a misrecognition", () =>
+            // The matcher itself now lives in hw-phonetic (#283); this drives the
+            // bridge the local provider calls, so the entry mapping and the
+            // match list are covered too, not just the raw FFI.
+            Run("ApplyPhoneticVocabulary corrects a misrecognition", () =>
             {
-                var matcher = new PhoneticVocabularyMatcher(new[]
-                {
-                    new VocabularyItem { Word = "Whisper", Replacement = null }
-                });
-                var corrected = matcher.Apply("hyper wisper");
-                Assert(corrected == "hyper Whisper", $"got '{corrected}'");
+                var result = HyperWhisper.SharedCore.SharedCoreBridge.ApplyPhoneticVocabulary(
+                    "hyper wisper",
+                    [new HyperWhisper.SharedCore.PortableVocabularyEntry("Whisper", null)]);
+                Assert(result.Text == "hyper Whisper", $"got '{result.Text}'");
+                Assert(result.EntryCount == 1, $"got entry count {result.EntryCount}");
+                Assert(result.Matches.Count == 1, $"got {result.Matches.Count} matches");
+                Assert(result.Matches[0].Token == "wisper", $"got token '{result.Matches[0].Token}'");
+            });
+
+            // NEW ON WINDOWS (#283): the unanchored, diacritic-insensitive pass
+            // the four macOS local providers have always run. The search word is
+            // unaccented and the text is decomposed, and the "Zo\u00EB" that is
+            // NOT matched keeps its diaeresis and its capital. That is the whole
+            // reason the core maps folded byte offsets back to the original
+            // instead of returning the folded string.
+            Run("ApplySubstringVocabulary matches through an accent", () =>
+            {
+                var result = HyperWhisper.SharedCore.SharedCoreBridge.ApplySubstringVocabulary(
+                    "Zo\u00EB went to the Cafe\u0301 today",
+                    [new HyperWhisper.SharedCore.PortableVocabularyEntry("cafe", "Coffee House")]);
+                Assert(
+                    result == "Zo\u00EB went to the Coffee House today",
+                    $"got '{result}'");
             });
 
             Run("IsNoSpaceLanguage / NormalizeLanguage truth tables", () =>
@@ -560,6 +583,365 @@ internal static class Program
                 }
             });
 
+            // NATIVE CAPTURE (issue #277, phase 1a). Drives every
+            // shared-conformance/backup-vectors.json modeNormalization row through the
+            // SHIPPING Windows mode-import path — UniversalBackupMapper.MapToMode, which
+            // composes CloudSttCatalog.NormalizeCloudProvider, the core's
+            // MigrateCloudAccuracyTier / MigrateCloudPpModel, CloudTranscriptionModels
+            // .ResolveModelAlias and the cloudTranscriptionDomain gate — and pins the
+            // answer this build produces. It changes no behavior; it records it, so the
+            // Rust port can be diffed on the same inputs before the native copies go.
+            //
+            // A row carries "expected" when Windows and Linux already agree, and
+            // "expectedWindows"/"expectedLinux" when they do not. The same file is read
+            // by app/shared-dotnet/HyperWhisper.Backup.Application.Tests.
+            Run("backup mode-normalization vectors — native capture", () =>
+            {
+                var vectorsPath = Path.Combine(AppContext.BaseDirectory, "backup-vectors.json");
+                Assert(File.Exists(vectorsPath), $"backup-vectors.json not found at {vectorsPath}");
+
+                using var vectors = JsonDocument.Parse(File.ReadAllText(vectorsPath));
+                var rows = vectors.RootElement.GetProperty("modeNormalization");
+                Assert(rows.GetArrayLength() > 0, "backup-vectors.json has no modeNormalization rows");
+
+                foreach (var row in rows.EnumerateArray())
+                {
+                    var label = row.GetProperty("name").GetString()
+                        ?? throw new InvalidOperationException("a vector row has no name");
+                    var expected = row.TryGetProperty("expected", out var shared)
+                        ? shared
+                        : row.GetProperty("expectedWindows");
+
+                    var universal = JsonSerializer.Deserialize<UniversalMode>(
+                        row.GetProperty("mode").GetRawText())
+                        ?? throw new InvalidOperationException($"vector '{label}' did not deserialize");
+
+                    var mode = UniversalBackupMapper.MapToMode(universal);
+
+                    AssertModeVectorField(label, "cloudProvider", expected, mode.CloudProvider);
+                    AssertModeVectorField(label, "cloudTranscriptionModel", expected, mode.CloudTranscriptionModel);
+                    AssertModeVectorField(label, "cloudTranscriptionDomain", expected, mode.CloudTranscriptionDomain);
+                    AssertModeVectorField(label, "cloudAccuracyTier", expected, mode.CloudAccuracyTier);
+                    AssertModeVectorField(label, "cloudPostProcessingModel", expected, mode.CloudPostProcessingModel);
+                }
+            });
+
+            // NATIVE CAPTURE (issue #277, phase 2a). Drives every
+            // shared-conformance/backup-vectors.json windowsSettings row through the
+            // SHIPPING Windows settings adapters — UniversalBackupMapper.MapSettings and
+            // BuildPlatformExtensions on the way out, ApplySettings on the way in — over
+            // the real SettingsService, which Program.Main has already re-rooted at a
+            // temp AppData directory. It changes no behavior; it records it, so the Rust
+            // pairs table written in 2b can be diffed on the same inputs while the native
+            // mapper still exists. This is the ONLY observation of the Windows answer:
+            // net10.0-windows/WPF cannot run in the authoring sandbox, so windows-ci is
+            // the instrument.
+            //
+            // What the rows pin:
+            //   * the (native, universal) RENAMES. Windows' settings.json is PascalCase
+            //     (SettingsService.Save uses a plain JsonSerializerOptions
+            //     { WriteIndented = true } — no camelCase policy), and the native names
+            //     diverge from the universal ones where macOS's do not:
+            //     textOutput.pasteResultText <- AutoPasteEnabled, plus all seven streaming
+            //     keys, whose native properties are StreamingEnabled / StreamingProvider /
+            //     StreamingLanguage / StreamingDeepgramModel / StreamingCloudTier /
+            //     StreamingFastFormatting / StreamingShortcut.
+            //   * StreamingCloudTier reads through a CLAMPING getter: unset answers
+            //     deepgramNova3, so the export never carries a null tier, and an id
+            //     outside the live-eligible set is rejected back to that default.
+            //   * StreamingShortcut is NOT a scalar: export calls ToPersistedString() and
+            //     import calls KeyboardShortcut.FromPersistedString(), so the persisted
+            //     string form is what crosses the wire — and the setter re-canonicalises it.
+            //   * platformExtensions.windows.settings is a CURATED list
+            //     (WindowsSettingsExtensions), not everything-else. The forbidden-key
+            //     assertion is the guard against a 2b port that copies the macOS adapter's
+            //     "park every unpromoted key" rule into a PUBLIC backup file.
+            //   * the three universal keys this build does NOT carry at all
+            //     (storage.keepAudioFiles, advanced.maxRecordingDuration,
+            //     textOutput.storeWordTimestamps) are asserted ABSENT, so phase 3 has a
+            //     failing-to-passing record of the gap it closes.
+            Run("backup windows-settings vectors — native capture", () =>
+            {
+                var vectorsPath = Path.Combine(AppContext.BaseDirectory, "backup-vectors.json");
+                Assert(File.Exists(vectorsPath), $"backup-vectors.json not found at {vectorsPath}");
+
+                var document = JsonNode.Parse(File.ReadAllText(vectorsPath))!.AsObject();
+                var rows = document["windowsSettings"]!.AsArray();
+                Assert(rows.Count > 0, "backup-vectors.json has no windowsSettings rows");
+
+                var settings = SettingsService.Instance;
+
+                foreach (var rowNode in rows)
+                {
+                    var row = rowNode!.AsObject();
+                    var label = row["name"]!.GetValue<string>();
+                    var direction = row["direction"]!.GetValue<string>();
+
+                    if (direction == "export")
+                    {
+                        SeedWindowsSettings(settings, row["native"]!.AsObject(), label);
+
+                        var exported = JsonSerializer.SerializeToNode(
+                            UniversalBackupMapper.MapSettings(settings), UniversalCaptureOptions);
+                        AssertVectorJson(label, "settings", row["expectedUniversal"], exported);
+
+                        foreach (var absent in row["absentUniversalKeys"]!.AsArray())
+                        {
+                            var path = absent!.GetValue<string>().Split('.');
+                            Assert(exported![path[0]]?[path[1]] is null,
+                                $"vector '{label}': this build is not supposed to export '{absent}' — "
+                                + "if that changed, the vectors are stale, not the code");
+                        }
+
+                        var extensions = UniversalBackupMapper.BuildPlatformExtensions(settings);
+                        Assert(extensions.Count == 1 && extensions.ContainsKey("windows"),
+                            $"vector '{label}': BuildPlatformExtensions emitted "
+                            + $"{extensions.Count} top-level slices; today it emits only \"windows\"");
+
+                        var windowsSlice = JsonNode.Parse(extensions["windows"].GetRawText())!.AsObject();
+                        var extensionSettings = windowsSlice["settings"];
+                        AssertVectorJson(label, "platformExtensions.windows.settings",
+                            row["expectedPlatformExtensions"], extensionSettings);
+
+                        foreach (var forbidden in row["forbiddenPlatformExtensionKeys"]!.AsArray())
+                            Assert(extensionSettings![forbidden!.GetValue<string>()] is null,
+                                $"vector '{label}': platformExtensions.windows.settings leaked "
+                                + $"'{forbidden}'. That slice is a CURATED list; parking every "
+                                + "unpromoted setting there would publish user paths and device names.");
+
+                        continue;
+                    }
+
+                    Assert(direction == "import", $"vector '{label}': unknown direction '{direction}'");
+                    SeedWindowsSettings(settings, row["baselineNative"]!.AsObject(), label);
+
+                    var universal = JsonSerializer.Deserialize<UniversalSettings>(
+                        row["universal"]!.ToJsonString(), UniversalCaptureOptions)
+                        ?? throw new InvalidOperationException($"vector '{label}' did not deserialize");
+                    UniversalBackupMapper.ApplySettings(universal, settings);
+
+                    AssertVectorJson(label, "native settings",
+                        row["expectedNative"], ReadWindowsSettings(settings));
+
+                    if (row["expectedUniversalAfterImport"] is { } reExported)
+                        AssertVectorJson(label, "re-export after import", reExported,
+                            JsonSerializer.SerializeToNode(
+                                UniversalBackupMapper.MapSettings(settings), UniversalCaptureOptions));
+                }
+            });
+
+            // PHASE 3b / 3c — the unknownKeyRoundTrip vectors, driven through the real
+            // Windows import + export glue.
+            //
+            // These are the assertions no core-only harness can make: the storage is
+            // native (SettingsData.BackupUnknownSettings, .BackupForeignPlatformExtensions)
+            // and the re-emit runs through UniversalBackupMapper, which a
+            // HyperWhisper.SharedCore-only project cannot even reference.
+            //
+            // What each kind proves:
+            //   * settingsUnknownKey — textOutput.storeWordTimestamps has no Windows
+            //     property and is not gaining one. Before 3b it died at deserialize, so
+            //     a mac -> Windows -> mac trip lost it. It must now come back at its
+            //     ORIGINAL PATH: under textOutput, never at the settings root.
+            //   * topLevelPlatformExtensions — until #288 BuildPlatformExtensions
+            //     returned {"windows": ...} and nothing else, so a macOS or Linux
+            //     top-level slice died even though the per-mode slices survived. Our
+            //     own "windows" slice must still WIN over a stale preserved copy.
+            Run("backup unknown-key and foreign-slice round trip vectors", () =>
+            {
+                var vectorsPath = Path.Combine(AppContext.BaseDirectory, "backup-vectors.json");
+                Assert(File.Exists(vectorsPath), $"backup-vectors.json not found at {vectorsPath}");
+
+                var document = JsonNode.Parse(File.ReadAllText(vectorsPath))!.AsObject();
+                var rows = document["unknownKeyRoundTrip"]!.AsArray();
+                Assert(rows.Count > 0, "backup-vectors.json has no unknownKeyRoundTrip rows");
+
+                var settings = SettingsService.Instance;
+                var ran = 0;
+
+                foreach (var rowNode in rows)
+                {
+                    var row = rowNode!.AsObject();
+                    var label = row["name"]!.GetValue<string>();
+                    if (!row["heads"]!.AsArray().Any(h => h!.GetValue<string>() == "windows"))
+                        continue;
+                    ran++;
+
+                    switch (row["kind"]!.GetValue<string>())
+                    {
+                        case "settingsUnknownKey":
+                            RunSettingsUnknownKeyRow(settings, row, label);
+                            break;
+                        case "topLevelPlatformExtensions":
+                            RunForeignSliceRow(settings, row, label);
+                            break;
+                        default:
+                            throw new InvalidOperationException(
+                                $"vector '{label}': unknown kind '{row["kind"]}'");
+                    }
+                }
+
+                Assert(ran > 0, "no unknownKeyRoundTrip row names the windows head");
+            });
+
+            // PHASE 3a — the mac -> Windows -> mac trip for the two settings Windows
+            // gained. Both must survive AND the safety ceiling must hold: a backup can
+            // tighten the recording cap and can never loosen it.
+            Run("backup mac->Windows->mac keeps keepAudioFiles and clamps maxRecordingDuration", () =>
+            {
+                var settings = SettingsService.Instance;
+                SeedWindowsSettings(settings, new JsonObject
+                {
+                    ["KeepAudioFiles"] = true,
+                    ["MaxRecordingDuration"] = 1200,
+                }, "mac-trip");
+
+                // A macOS/Linux-shaped settings block: keepAudioFiles off, and the
+                // one-hour cap both of those platforms default to.
+                UniversalBackupMapper.ApplySettings(new UniversalSettings
+                {
+                    Storage = new UniversalStorageSettings { KeepAudioFiles = false },
+                    Advanced = new UniversalAdvancedSettings { MaxRecordingDuration = 3600 },
+                }, settings);
+
+                Assert(!settings.KeepAudioFiles,
+                    "keepAudioFiles must survive the import; discarding it is the #288 bug");
+                Assert(settings.MaxRecordingDurationSeconds == 1200,
+                    "a 3600s cap must be clamped to the 20-minute ceiling, got "
+                    + settings.MaxRecordingDurationSeconds);
+
+                // And back out again, at the right universal paths.
+                var exported = JsonSerializer.SerializeToNode(
+                    UniversalBackupMapper.MapSettings(settings), UniversalCaptureOptions)!;
+                Assert(exported["storage"]!["keepAudioFiles"]!.GetValue<bool>() == false,
+                    "the restored keepAudioFiles must come back out under storage");
+                Assert(exported["advanced"]!["maxRecordingDuration"]!.GetValue<int>() == 1200,
+                    "the clamped cap must come back out under advanced");
+
+                // A shorter cap is a user choice and must be kept verbatim.
+                UniversalBackupMapper.ApplySettings(new UniversalSettings
+                {
+                    Advanced = new UniversalAdvancedSettings { MaxRecordingDuration = 600 },
+                }, settings);
+                Assert(settings.MaxRecordingDurationSeconds == 600,
+                    "a backup must be able to TIGHTEN the recording cap");
+
+                // macOS's two sentinels must not rewrite it.
+                foreach (var sentinel in new[] { 300, 0 })
+                {
+                    UniversalBackupMapper.ApplySettings(new UniversalSettings
+                    {
+                        Advanced = new UniversalAdvancedSettings { MaxRecordingDuration = sentinel },
+                    }, settings);
+                    Assert(settings.MaxRecordingDurationSeconds == 600,
+                        $"the sentinel {sentinel} must read as unset, leaving the live 600s cap; got "
+                        + settings.MaxRecordingDurationSeconds);
+                }
+            });
+
+            // PHASE 2b — the new SettingsService.BuildBackupSettingsSnapshot() accessor
+            // is the ONLY thing that decides which native settings reach the shared
+            // core, on export AND as the import baseline. SettingsData is private and
+            // holds RecordingsFolder (a real user filesystem path),
+            // LastSelectedMicrophone (a device name), GettingStartedCompletedSteps and
+            // LocalApiServerPersistedPort. A .hwbackup.json is a file users share, and
+            // this repo is public. Pin the key set exactly: growing it is a decision,
+            // never an accident.
+            Run("backup settings snapshot carries exactly the promoted keys", () =>
+            {
+                var settings = SettingsService.Instance;
+                var snapshot = JsonNode.Parse(settings.BuildBackupSettingsSnapshot())!.AsObject();
+
+                string[] expected =
+                [
+                    "LaunchMinimized", "ShowRecordingWindow", "CheckForUpdatesAutomatically",
+                    "EnableErrorLogging", "ShareAnonymousSpeedData", "EnableSoundEffects",
+                    "AutoPasteEnabled", "RemoveFillerWords", "RestoreClipboardAfterPaste",
+                    "HideFromClipboardHistory", "ClipboardRestoreDelaySeconds", "AutocapitalizeInsert",
+                    // KeepAudioFiles and MaxRecordingDuration joined in phase 3a. Both
+                    // are plain cross-platform settings values — neither is a path nor
+                    // a device name — so the privacy rule below is unaffected.
+                    "StoreAsM4A", "KeepAudioFiles",
+                    "StreamingEnabled", "StreamingProvider", "StreamingLanguage",
+                    // StreamingCloudTier joined with the catalog-v8 live tier picker.
+                    // It reads through a clamping getter, so it is always present and
+                    // never null — a tier id, not a path or a device name.
+                    "StreamingDeepgramModel", "StreamingCloudTier",
+                    "StreamingFastFormatting", "StreamingShortcut",
+                    "TypingSpeedWPM", "MaxRecordingDuration",
+                ];
+
+                var actual = snapshot.Select(entry => entry.Key).OrderBy(key => key, StringComparer.Ordinal).ToArray();
+                var want = expected.OrderBy(key => key, StringComparer.Ordinal).ToArray();
+                Assert(actual.SequenceEqual(want, StringComparer.Ordinal),
+                    "the backup settings snapshot key set changed. Expected "
+                    + $"[{string.Join(", ", want)}], got [{string.Join(", ", actual)}]");
+
+                foreach (var forbidden in new[]
+                {
+                    "RecordingsFolder", "LastSelectedMicrophone", "LastSelectedModel",
+                    "GettingStartedCompletedSteps", "LocalApiServerPersistedPort",
+                    "LocalApiServerEnabled", "SelectedModeId", "RecordingOverlayXRatio",
+                    "RecordingOverlayYRatio", "PushToTalk",
+                    // Phase 3 bookkeeping. Raw preserved JSON, not settings: each has
+                    // its own merge point, and running them through the pairs tables
+                    // would re-emit them at the wrong path.
+                    "BackupUnknownSettings", "BackupForeignPlatformExtensions",
+                    "BackupUnknownRootKeys",
+                })
+                    Assert(snapshot[forbidden] is null,
+                        $"the backup settings snapshot leaked '{forbidden}'. That value is "
+                        + "device-local or a user path and must never reach a shared backup file.");
+
+                // StreamingShortcut is a KeyboardShortcut, not a scalar: it must cross
+                // as the persisted string, never as an object.
+                Assert(snapshot["StreamingShortcut"] is JsonValue
+                    && snapshot["StreamingShortcut"]!.GetValue<string>() == settings.StreamingShortcut.ToPersistedString(),
+                    "StreamingShortcut must be serialised via ToPersistedString()");
+            });
+
+            // PHASE 2b — the deep-merge on the Windows import half.
+            //
+            // ApplySettings now converts in the shared core and deep-merges the core's
+            // native-shaped answer over a baseline snapshot before running the setter
+            // chain. The merge is INERT today: the core is present-only, so a key it
+            // omits is filled from the baseline and its setter's dirty-check does
+            // nothing. Asserting the no-op is the point — the day the core returns a
+            // COMPLETE native blob, this is what stops an absent backup key arriving as
+            // a core default and clobbering a live setting.
+            Run("backup settings import deep-merges over the live baseline", () =>
+            {
+                var settings = SettingsService.Instance;
+                var seed = new JsonObject
+                {
+                    ["LaunchMinimized"] = false,
+                    ["TypingSpeedWPM"] = 95,
+                    ["StreamingProvider"] = "deepgram",
+                    ["StreamingLanguage"] = "de",
+                    ["StreamingDeepgramModel"] = "nova-3-medical",
+                    ["ClipboardRestoreDelaySeconds"] = 2.5,
+                    ["StoreAsM4A"] = true,
+                };
+                SeedWindowsSettings(settings, seed, "deep-merge");
+                var before = ReadWindowsSettings(settings);
+
+                // (1) An empty universal block must change NOTHING at all.
+                UniversalBackupMapper.ApplySettings(new UniversalSettings(), settings);
+                AssertVectorJson("deep-merge", "native settings after an empty import",
+                    before, ReadWindowsSettings(settings));
+
+                // (2) A block carrying ONE key must change exactly that key. Every
+                // other native value has to come from the baseline, not from a default.
+                UniversalBackupMapper.ApplySettings(
+                    new UniversalSettings { General = new UniversalGeneralSettings { LaunchMinimized = true } },
+                    settings);
+
+                var expected = before.DeepClone().AsObject();
+                expected["LaunchMinimized"] = true;
+                AssertVectorJson("deep-merge", "native settings after a one-key import",
+                    expected, ReadWindowsSettings(settings));
+            });
+
             Run("Groq post-processing sends an explicit output-token cap", () =>
             {
                 using var body = ReadLlmBody(PortableLlmProvider.Groq, "openai/gpt-oss-20b");
@@ -597,6 +979,58 @@ internal static class Program
                 Assert(LlmPostProcessing.NormalizeCustomEndpoint("not a url", "m").Status
                         != PortableEndpointStatus.Valid,
                     "an unparsable URL should not be accepted at all");
+            });
+
+            // Only possible since CustomEndpointManager took its HttpClient as a
+            // constructor parameter: the singleton built its own, so the "Test"
+            // button's response handling needed a live provider and a live key.
+            RunAsync("Custom endpoint test maps every upstream reply", async () =>
+            {
+                const string Url = "http://localhost:1234/v1/chat/completions";
+                const string Model = "llama3.2";
+
+                var handler = new CapturingHandler();
+                using var client = new HttpClient(handler);
+                using var manager = new CustomEndpointManager(client);
+
+                // An upstream error body carries the reason the key was refused.
+                // Reporting "HTTP 401" instead loses it.
+                handler.Next = () => Respond(HttpStatusCode.Unauthorized,
+                    """{"error":{"message":"Incorrect API key provided"}}""");
+                var refused = await manager.TestEndpointAsync(Url, Model, "sk-wrong");
+                Assert(!refused.success, "a 401 should not report success");
+                Assert(refused.message == "Incorrect API key provided",
+                    $"401 body should be parsed, got '{refused.message}'");
+
+                // An error body with no "error" object has nothing to quote, so
+                // the status line is the fallback — not an empty message.
+                handler.Next = () => Respond(HttpStatusCode.ServiceUnavailable, """{"detail":"busy"}""");
+                var unparsable = await manager.TestEndpointAsync(Url, Model, "sk-test");
+                Assert(!unparsable.success, "a 503 should not report success");
+                Assert(unparsable.message == "HTTP 503", $"expected the status fallback, got '{unparsable.message}'");
+
+                // The happy path returns the completion text itself.
+                handler.Next = () => Respond(HttpStatusCode.OK,
+                    """{"choices":[{"message":{"content":"Hello World"}}]}""");
+                var ok = await manager.TestEndpointAsync(Url, Model, "sk-test");
+                Assert(ok.success, $"a valid completion should succeed, got '{ok.message}'");
+                Assert(ok.message == "Hello World", $"expected the completion text, got '{ok.message}'");
+
+                // A 200 that is not an OpenAI completion is the shape a wrong
+                // base URL produces — a proxy's HTML, say. It must not throw.
+                handler.Next = () => Respond(HttpStatusCode.OK, "<html>not json</html>");
+                var garbage = await manager.TestEndpointAsync(Url, Model, "sk-test");
+                Assert(!garbage.success, "a non-JSON 200 should not report success");
+                Assert(garbage.message == "Invalid response format - expected OpenAI-compatible response",
+                    $"expected the shape error, got '{garbage.message}'");
+
+                // Every reply above came from exactly one probe, and the probe
+                // went to the endpoint the user configured.
+                Assert(handler.Sends == 4, $"expected 4 upstream calls, saw {handler.Sends}");
+                Assert(handler.LastRequestUri?.Host == "localhost"
+                        && handler.LastRequestUri?.Port == 1234
+                        && handler.LastRequestUri?.AbsolutePath == "/v1/chat/completions",
+                    $"probe went to '{handler.LastRequestUri}'");
             });
 
             Run("Deepgram parses every message shape of its \"channel\" field", () =>
@@ -3571,12 +4005,24 @@ internal static class Program
                 // nothing ever popped and emboldened everything after it.
                 Assert(InlineHtml.Parse("before <b/> after").TrueForAll(run => !run.Bold),
                     $"'<b/>' bolded the rest: '{string.Join(", ", InlineHtml.Parse("before <b/> after"))}'");
+                // Each TrueForAll is paired with the text it should have
+                // produced. TrueForAll is vacuously true on an empty or
+                // truncated list, so on its own it also passes for a parser
+                // that aborted on the self-closing tag and lost the rest.
+                Assert(InlineHtml.PlainText("before <b/> after") == "before after",
+                    $"'<b/>' lost text: '{InlineHtml.PlainText("before <b/> after")}'");
                 Assert(InlineHtml.Parse("before <i/> after").TrueForAll(run => !run.Italic),
                     $"'<i/>' italicised the rest: '{string.Join(", ", InlineHtml.Parse("before <i/> after"))}'");
+                Assert(InlineHtml.PlainText("before <i/> after") == "before after",
+                    $"'<i/>' lost text: '{InlineHtml.PlainText("before <i/> after")}'");
                 Assert(InlineHtml.Parse("x<strong />y").TrueForAll(run => !run.Bold),
                     "'<strong />' bolded the rest");
+                Assert(InlineHtml.PlainText("x<strong />y") == "xy",
+                    $"'<strong />' lost text: '{InlineHtml.PlainText("x<strong />y")}'");
                 Assert(InlineHtml.Parse("x<em />y").TrueForAll(run => !run.Italic),
                     "'<em />' italicised the rest");
+                Assert(InlineHtml.PlainText("x<em />y") == "xy",
+                    $"'<em />' lost text: '{InlineHtml.PlainText("x<em />y")}'");
 
                 // The paired forms still style what they wrap.
                 Assert(InlineHtml.Parse("<b>still bold</b>")[0].Bold, "a real <b> stopped working");
@@ -3728,14 +4174,62 @@ internal static class Program
 
             Run("InlineHtml collapses a CRLF and leaves a non-breaking space alone", () =>
             {
-                // macOS reads text by grapheme, where "\r\n" is one Character
-                // equal to neither "\r" nor "\n". Both mirrors must agree here.
+                // Whitespace is collapsed one Unicode SCALAR VALUE at a time:
+                // the unit hw-releasenotes pins for every index, scan limit and
+                // whitespace predicate on all three heads (#284, decision (b)).
+                // A CRLF is two scalars — "\r" and "\n", each of them
+                // collapsible — so it collapses like any other run of
+                // whitespace and the expectations below are the same
+                // everywhere.
+                //
+                // This file used to walk UTF-16 code units, and macOS walked
+                // graphemes, where "\r\n" is one Character equal to neither
+                // "\r" nor "\n" and had to be named outright to collapse at
+                // all. Both are gone. A non-breaking space is not collapsible
+                // whitespace on any of them.
                 Assert(InlineHtml.PlainText("line one\r\nline two") == "line one line two",
                     $"got '{InlineHtml.PlainText("line one\r\nline two")}'");
                 Assert(InlineHtml.PlainText("a\r\n\r\n  b") == "a b",
                     "a run of CRLFs should collapse to one space");
                 Assert(InlineHtml.PlainText("a&nbsp;b") == "a\u00A0b",
                     $"a non-breaking space is not collapsible: '{InlineHtml.PlainText("a&nbsp;b")}'");
+            });
+
+            Run("InlineHtml leaves a numeric entity with a signed body literal", () =>
+            {
+                // The other half of decision (a) (#284), pinned in the
+                // direction this head already took: "&#+65;" and "&#x+41;"
+                // never decoded here — NumberStyles.None rejects a sign — and
+                // decoded to "A" on macOS, where UInt32(_:radix:) accepts one.
+                // The shared decoder keeps all three literal, so this cannot
+                // regress into a decode.
+                foreach (var literal in new[] { "&#+65;", "&#-65;", "&#x+41;" })
+                {
+                    Assert(InlineHtml.PlainText(literal) == literal,
+                        $"'{literal}' should stay literal, got '{InlineHtml.PlainText(literal)}'");
+                }
+
+                // The well-formed spellings still decode.
+                Assert(InlineHtml.PlainText("&#65;") == "A", "'&#65;' stopped decoding");
+                Assert(InlineHtml.PlainText("&#x41;") == "A", "'&#x41;' stopped decoding");
+            });
+
+            Run("InlineHtml leaves a numeric entity with whitespace in its body literal", () =>
+            {
+                // A DELIBERATE strictness change (#284, decision (a)).
+                // "&#x 41;" used to decode to "A" HERE, because
+                // NumberStyles.HexNumber allows leading white, and stayed
+                // literal on macOS. Nothing pinned it, no feed carries it, and
+                // this is remote input — so the shared decoder now requires the
+                // body after '#' (and after an 'x'/'X') to be nothing but
+                // digits of the radix, on both heads. ("&# 65;" and "&#65 ;"
+                // never decoded on either; they are pinned so they cannot
+                // start to.)
+                foreach (var literal in new[] { "&#x 41;", "&# 65;", "&#65 ;" })
+                {
+                    Assert(InlineHtml.PlainText(literal) == literal,
+                        $"'{literal}' should stay literal, got '{InlineHtml.PlainText(literal)}'");
+                }
             });
 
             Run("InlineHtmlText renders an anchor containing emphasis as one link", () =>
@@ -3767,7 +4261,111 @@ internal static class Program
                     "emphasis inside the link was lost");
             });
 
-            Run("AppcastItem.BulletPoints keeps inline emphasis and drops empty items", () =>
+            Run("InlineHtmlText.Runs renders already-parsed runs and rebuilds on rebind", () =>
+            {
+                // The counterpart to Source, for callers that hold runs rather
+                // than a fragment. HomePage binds this so the Recent Updates
+                // list renders what AppcastItem parsed once, instead of
+                // re-parsing every bullet on every layout pass (#284).
+                const string html = "before <a href=\"https://x.com\">see <b>this</b> page</a> after";
+                var textBlock = new System.Windows.Controls.TextBlock();
+                InlineHtmlText.SetRuns(textBlock, InlineHtml.Parse(html));
+
+                // Identical rendering to the Source case above: one Hyperlink
+                // across the whole anchor, not three siblings.
+                var inlines = textBlock.Inlines.ToList();
+                Assert(inlines.Count == 3, $"expected 3 inlines, got {inlines.Count}");
+                Assert(inlines[1] is System.Windows.Documents.Hyperlink hyperlink
+                        && hyperlink.NavigateUri?.AbsoluteUri == "https://x.com/"
+                        && hyperlink.Inlines.Count == 3,
+                    "the anchor should render as one Hyperlink holding its three runs");
+
+                // An ItemsControl recycles containers, so a rebind must REPLACE
+                // the previous item's runs rather than append to them.
+                InlineHtmlText.SetRuns(textBlock, InlineHtml.Parse("just text"));
+                Assert(textBlock.Inlines.Count == 1,
+                    $"rebinding should rebuild the TextBlock, got {textBlock.Inlines.Count} inlines");
+
+                InlineHtmlText.SetRuns(textBlock, null);
+                Assert(textBlock.Inlines.Count == 0, "binding null should clear the TextBlock");
+            });
+
+            Run("InlineHtml.SplitBlocks replaces the update dialog's <li> walker", () =>
+            {
+                // UpdateAvailableWindow held the THIRD copy of the <li>
+                // extractor: a "<(h[23]|li|p)[^>]*>(.*?)</\1>" walker. #284
+                // collapsed all three into hw-releasenotes, keeping the most
+                // forgiving reading of each disagreement.
+                var blocks = InlineHtml.SplitBlocks(
+                    "<h2>Title</h2><p>Intro</p><ul><li>a</li></ul><h3>More</h3><p>Outro</p>");
+
+                Assert(blocks.Select(block => block.Kind).SequenceEqual(new[]
+                    {
+                        HtmlBlockKind.Heading, HtmlBlockKind.Paragraph, HtmlBlockKind.Bullet,
+                        HtmlBlockKind.Heading, HtmlBlockKind.Paragraph
+                    }),
+                    $"wrong kinds: {string.Join(", ", blocks.Select(block => block.Kind))}");
+                Assert(blocks.Select(block => RunText(block.Runs))
+                        .SequenceEqual(["Title", "Intro", "a", "More", "Outro"]),
+                    $"wrong text: {string.Join(" | ", blocks.Select(block => RunText(block.Runs)))}");
+
+                // The backreference "</\1>" needed those exact characters, so a
+                // feed writing "</li >" lost the bullet here while macOS kept
+                // it; and "[^>]*" ended the open tag at a ">" inside a quoted
+                // attribute value, leaking 'b">' into the bullet's text.
+                Assert(InlineHtml.SplitBlocks("<ul><li>one</li ><li>two</li></ul>")
+                        .Select(block => RunText(block.Runs)).SequenceEqual(["one", "two"]),
+                    "a closing tag with whitespace before its > should still close the item");
+                Assert(InlineHtml.SplitBlocks("<ul><li class=\"a>b\">kept</li></ul>")
+                        .Select(block => RunText(block.Runs)).SequenceEqual(["kept"]),
+                    "a > inside a quoted attribute should stay an attribute");
+
+                // A note that is one textless block renders nothing, rather than
+                // falling through and printing its own markup as text.
+                Assert(InlineHtml.SplitBlocks("<p>   </p>").Count == 0,
+                    "an empty block element should not trigger the line fallback");
+                Assert(InlineHtml.SplitBlocks(null).Count == 0, "null should split into no blocks");
+            });
+
+            Run("InlineHtml.SplitBlocks keeps the fallback's parse-exactly-once guard", () =>
+            {
+                // A note with no block markup is still one block per line, split
+                // on <br> and on newlines, with "-"/"*" opening a bullet.
+                var blocks = InlineHtml.SplitBlocks("Heading line<br>- first\n* second\n   \n-  spaced");
+                Assert(blocks.Select(block => RunText(block.Runs))
+                        .SequenceEqual(["Heading line", "first", "second", "spaced"]),
+                    $"wrong fallback lines: {string.Join(" | ", blocks.Select(block => RunText(block.Runs)))}");
+                Assert(blocks.Select(block => block.Kind).SequenceEqual(new[]
+                    {
+                        HtmlBlockKind.Paragraph, HtmlBlockKind.Bullet,
+                        HtmlBlockKind.Bullet, HtmlBlockKind.Bullet
+                    }),
+                    "a leading - or * should open a bullet and a plain line a paragraph");
+
+                // THE GUARD. Each fallback line keeps its own markup and is
+                // parsed exactly ONCE. Flattening the note to text and parsing
+                // the result again decoded the entities on the first pass and
+                // read the decoded result as a tag on the second — turning
+                // markup the feed ESCAPED so it would show into a live link.
+                var escaped = InlineHtml.SplitBlocks(
+                    "Write &lt;a href=\"https://evil.example\"&gt;x&lt;/a&gt; to link.");
+                Assert(escaped.Count == 1 && RunText(escaped[0].Runs)
+                        == "Write <a href=\"https://evil.example\">x</a> to link.",
+                    "escaped markup was re-read as markup instead of staying text: "
+                        + string.Join(" | ", escaped.Select(block => RunText(block.Runs))));
+                Assert(escaped.All(block => block.Runs.All(run => run.Link is null)),
+                    "escaped markup was decoded and then re-read as a live link");
+
+                // And the other half of the same guard: a REAL anchor on a
+                // fallback line still reaches the renderer as a link, which the
+                // flattening pass used to drop.
+                var anchored = InlineHtml.SplitBlocks("see <a href=\"https://example.com/x\">the page</a>");
+                Assert(anchored.SelectMany(block => block.Runs)
+                        .Any(run => run.Link?.AbsoluteUri == "https://example.com/x"),
+                    "a real anchor in the fallback lost its link");
+            });
+
+            Run("AppcastItem.BulletPoints are parsed runs, keeping emphasis and dropping empty items", () =>
             {
                 var item = new AppcastItem
                 {
@@ -3775,11 +4373,191 @@ internal static class Program
                                  + "<li>Plain bullet.</li></ul>"
                 };
 
+                // THIS ASSERTION CHANGED IN #284, and it is the only one in this
+                // block that may. BulletPoints was a List<string> of raw <li>
+                // inner HTML that the renderer re-parsed per bullet, per layout
+                // pass; the <li> extraction and the inline parse now happen
+                // once, together, in the shared core. The input and the answer
+                // it stands for are unchanged.
                 Assert(item.BulletPoints.Count == 2, $"expected 2 bullets, got {item.BulletPoints.Count}");
-                Assert(InlineHtml.Parse(item.BulletPoints[0])[0].Bold,
-                    "first bullet should start with a bold run");
-                Assert(InlineHtml.PlainText(item.BulletPoints[1]) == "Plain bullet.",
-                    $"got '{InlineHtml.PlainText(item.BulletPoints[1])}'");
+                Assert(item.BulletPoints[0].Count == 2,
+                    $"expected the first bullet to split into 2 runs, got {item.BulletPoints[0].Count}");
+                Assert(item.BulletPoints[0][0] == new HtmlRun("Bold lead", Bold: true, Italic: false),
+                    $"expected a bold lead-in, got '{item.BulletPoints[0][0]}'");
+                Assert(item.BulletPoints[0][1] == new HtmlRun(" — detail.", Bold: false, Italic: false),
+                    $"expected the plain remainder, got '{item.BulletPoints[0][1]}'");
+                Assert(RunText(item.BulletPoints[1]) == "Plain bullet.",
+                    $"got '{RunText(item.BulletPoints[1])}'");
+
+                // A note that opens with the list has no title: a <b> inside the
+                // first bullet emphasises that bullet, it is not a heading.
+                Assert(!item.HasReleaseTitle && item.ReleaseTitle.Count == 0,
+                    $"a note opening with <ul> should have no title, got '{RunText(item.ReleaseTitle)}'");
+            });
+
+            Run("AppcastItem takes the first <h2> as the release title — #284 decision (c)", () =>
+            {
+                // The Windows feed's shape, unchanged: appcast-windows.xml opens
+                // every entry with "<h2>What's New in X</h2>". All 30 live
+                // entries were replayed through the shared core and produced the
+                // same title and bullets this head renders today.
+                var item = new AppcastItem
+                {
+                    ReleaseNotes = "<h2>What's New in 1.11.0</h2>\n<ul>\n"
+                                 + "<li>Links are now clickable.</li>\n</ul>"
+                };
+
+                Assert(RunText(item.ReleaseTitle) == "What's New in 1.11.0",
+                    $"got '{RunText(item.ReleaseTitle)}'");
+                Assert(item.HasReleaseTitle, "HasReleaseTitle should be true when there is a title");
+                Assert(item.BulletPoints.Select(RunText).SequenceEqual(["Links are now clickable."]),
+                    $"wrong bullets: {string.Join(" | ", item.BulletPoints.Select(RunText))}");
+            });
+
+            Run("AppcastItem matches the title heading case-insensitively and with attributes", () =>
+            {
+                // The half of decision (c) this head did not have: the old regex
+                // was "<h2>(.*?)</h2>" — case-SENSITIVE, and no attributes
+                // allowed — so "<H2>" or '<h2 id="x">' showed no title at all.
+                var item = new AppcastItem
+                {
+                    ReleaseNotes = "<H2 id=\"whats-new\">Title</H2><ul><li>x</li></ul>"
+                };
+
+                Assert(RunText(item.ReleaseTitle) == "Title", $"got '{RunText(item.ReleaseTitle)}'");
+            });
+
+            Run("AppcastItem takes only an <h2> by name, never an <h3>", () =>
+            {
+                // An <h2> anywhere in the note wins, which is what the old regex
+                // did. An <h3> is a sub-heading in the body and never becomes a
+                // title on its own — the update dialog still renders it as a
+                // heading block.
+                var withH3 = new AppcastItem { ReleaseNotes = "<ul><li>x</li></ul><h3>Details</h3>" };
+                Assert(!withH3.HasReleaseTitle,
+                    $"an <h3> should not become the title, got '{RunText(withH3.ReleaseTitle)}'");
+
+                var withH2 = new AppcastItem { ReleaseNotes = "<ul><li>x</li></ul><h2>Late heading</h2>" };
+                Assert(RunText(withH2.ReleaseTitle) == "Late heading",
+                    $"got '{RunText(withH2.ReleaseTitle)}'");
+            });
+
+            Run("AppcastItem gains the pre-list title branch, with its emphasis", () =>
+            {
+                // The other half of decision (c), which this head gains: with no
+                // <h2>, the title is the content before the first <ul> (or the
+                // first <li> when there is no <ul>). That is the macOS feed's
+                // shape, where the heading is a bare <b>…</b> — so the title
+                // carries emphasis and ReleaseTitle is runs, not a string.
+                var item = new AppcastItem
+                {
+                    ReleaseNotes = "<b>Enhanced Audio Recording</b>\n<ul>\n<li>Improved stability</li>\n</ul>"
+                };
+
+                Assert(RunText(item.ReleaseTitle) == "Enhanced Audio Recording",
+                    $"got '{RunText(item.ReleaseTitle)}'");
+                Assert(item.ReleaseTitle.All(run => run.Bold),
+                    "the title's emphasis should survive — this is why it is runs and not a string");
+                Assert(item.BulletPoints.Select(RunText).SequenceEqual(["Improved stability"]),
+                    "the pre-list heading must not be read as a bullet");
+
+                // A note with no notes at all has neither, and an empty <h2>
+                // falls through to this branch instead of hiding a real title.
+                var empty = new AppcastItem { ReleaseNotes = "" };
+                Assert(!empty.HasReleaseTitle && empty.BulletPoints.Count == 0 && !empty.HasReleaseNotes,
+                    "an empty note should have no title and no bullets");
+                var emptyHeading = new AppcastItem
+                {
+                    ReleaseNotes = "<h2>  </h2>Real title<ul><li>x</li></ul>"
+                };
+                Assert(RunText(emptyHeading.ReleaseTitle) == "Real title",
+                    $"a textless <h2> should not suppress the title, got '{RunText(emptyHeading.ReleaseTitle)}'");
+            });
+
+            Run("AppcastItem keeps a bullet whose closing tag carries whitespace", () =>
+            {
+                // The "</li >" disagreement, resolved macOS's way. This head's
+                // "</li>" regex did not match at all, so the run of bullets
+                // collapsed into one item carrying raw markup; macOS searched
+                // for the prefix "</li" and closed the item. Dropping a bullet
+                // the feed wrote is the worse failure, so the tokenizer wins.
+                var item = new AppcastItem { ReleaseNotes = "<ul><li>one</li ><li>two</li></ul>" };
+
+                Assert(item.BulletPoints.Select(RunText).SequenceEqual(["one", "two"]),
+                    $"got: {string.Join(" | ", item.BulletPoints.Select(RunText))}");
+            });
+
+            Run("AppcastItem parses the release notes ONCE, at construction", () =>
+            {
+                // STRUCTURAL, and the point of the phase. ReleaseTitle and
+                // BulletPoints were getters that re-ran a Regex — and then a
+                // second parse per bullet in the renderer — on every read, and
+                // WPF reads a bound property on every layout pass of every card
+                // in the Recent Updates list. They are cached fields now, filled
+                // by the ReleaseNotes init accessor.
+                //
+                // Reference equality is what proves it: a getter that re-parsed
+                // would hand back a fresh list every time. macOS pins the same
+                // property with Mirror, which reports stored properties only.
+                var item = new AppcastItem { ReleaseNotes = "<b>Title</b><ul><li>one</li></ul>" };
+
+                Assert(ReferenceEquals(item.ReleaseTitle, item.ReleaseTitle),
+                    "ReleaseTitle re-parses on every read");
+                Assert(ReferenceEquals(item.BulletPoints, item.BulletPoints),
+                    "BulletPoints re-parses on every read");
+                Assert(ReferenceEquals(item.BulletPoints[0], item.BulletPoints[0]),
+                    "each bullet's runs re-parse on every read");
+
+                // And the cached values are the parsed ones, not empty defaults.
+                Assert(RunText(item.ReleaseTitle) == "Title" && item.ReleaseTitle[0].Bold,
+                    $"got '{RunText(item.ReleaseTitle)}'");
+                Assert(item.BulletPoints.Select(RunText).SequenceEqual(["one"]),
+                    $"got: {string.Join(" | ", item.BulletPoints.Select(RunText))}");
+
+                // An item built without ReleaseNotes never runs the accessor, so
+                // the defaults must still be usable rather than null.
+                var bare = new AppcastItem { Version = "1.0.0" };
+                Assert(!bare.HasReleaseTitle && bare.BulletPoints.Count == 0,
+                    "an item with no ReleaseNotes should have empty title and bullets");
+            });
+
+            Run("AppcastItem's cached lists are read-only for real, not just in the declared type", () =>
+            {
+                // Copy() shares these lists by reference with every copy, and
+                // its remarks call that safe. It is only safe if the lists
+                // cannot be written through: an IReadOnlyList<T> whose runtime
+                // type is a List<T> downcasts, and one caller doing that would
+                // mutate the note every other copy is rendering. The old
+                // getters handed back a fresh list per read and could not be
+                // corrupted that way, so this is a guarantee the parse-once
+                // change has to replace rather than drop.
+                //
+                // A wrapper, not a copy — the point of the change is to parse
+                // once, not to clone per read, so reference identity per read
+                // (asserted above) still has to hold.
+                var item = new AppcastItem { ReleaseNotes = "<b>Title</b><ul><li>one</li><li>two</li></ul>" };
+
+                foreach (var (name, list) in new (string, object)[]
+                {
+                    ("ReleaseTitle", item.ReleaseTitle),
+                    ("BulletPoints", item.BulletPoints),
+                    ("BulletPoints[0]", item.BulletPoints[0]),
+                    ("BulletPoints[1]", item.BulletPoints[1]),
+                    ("a bare item's ReleaseTitle", new AppcastItem().ReleaseTitle),
+                    ("a bare item's BulletPoints", new AppcastItem().BulletPoints),
+                })
+                {
+                    Assert(list is not List<HtmlRun> && list is not List<IReadOnlyList<HtmlRun>>,
+                        $"{name} downcasts to a writable List<T> ({list.GetType().Name})");
+                    Assert(list is System.Collections.IList { IsReadOnly: true },
+                        $"{name} is writable through IList ({list.GetType().Name})");
+                }
+
+                // The copy shares the very same lists, so the guarantee travels
+                // with it rather than being re-established per copy.
+                var copy = item.Copy();
+                Assert(ReferenceEquals(copy.BulletPoints, item.BulletPoints),
+                    "Copy() no longer shares the parsed bullets");
             });
 
             Run("Every cloudTierEligible catalog id has a CloudAccuracyTier case", () =>
@@ -4463,6 +5241,133 @@ internal static class Program
                 }
             });
 
+            // =================================================================
+            // Local API wire contract (issue #289)
+            //
+            // #289 observed that `find app/macos app/windows -ipath '*test*'
+            // -iname '*localapi*'` was empty: of the three implementations of
+            // one documented contract, only the most-drifted had any tests.
+            // These are the Windows half.
+            //
+            // They test the SEAM, not the logic. The decision table, the
+            // encoder and the constant-time compare are pinned by the Rust
+            // crate's own suite, where they can be fuzzed. What can still go
+            // wrong here is the bridge — a header that never reaches the guard,
+            // a status the middleware overrides, a token the DPAPI store would
+            // reject.
+            // =================================================================
+
+            Run("the origin guard allows a loopback client and denies DNS rebinding", () =>
+            {
+                static bool Allowed(string? host, string? origin, string? fetchSite, int port)
+                {
+                    // Fully qualified: `Microsoft.AspNetCore.Http` cannot be
+                    // imported here, because its `HttpRequest` collides with
+                    // the UniFFI binding's own `HttpRequest` record.
+                    var context = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+                    if (host != null) context.Request.Headers["Host"] = host;
+                    if (origin != null) context.Request.Headers["Origin"] = origin;
+                    if (fetchSite != null) context.Request.Headers["Sec-Fetch-Site"] = fetchSite;
+                    return LocalApiOriginGuard.IsAllowed(context, port);
+                }
+
+                Assert(Allowed("127.0.0.1:51671", null, null, 51671), "a loopback curl client must be served");
+                Assert(Allowed("localhost:51671", null, null, 51671), "the localhost spelling must be served");
+                Assert(Allowed("LocalHost:51671", null, null, 51671), "Host is case-insensitive");
+                Assert(Allowed("127.0.0.1:51671", "http://127.0.0.1:51671", "same-origin", 51671),
+                    "a same-origin browser fetch must be served");
+
+                // The attack. A rebound page still sends the attacker's Host.
+                Assert(!Allowed("attacker.com:51671", "http://attacker.com:51671", "cross-site", 51671),
+                    "a DNS-rebound request must be rejected");
+                Assert(!Allowed("127.0.0.1:51671", "http://attacker.com", null, 51671),
+                    "a cross-origin Origin must be rejected");
+                Assert(!Allowed("127.0.0.1:51671", null, "cross-site", 51671),
+                    "cross-site fetch metadata must be rejected");
+                Assert(!Allowed(null, null, null, 51671), "a request with no Host header must be rejected");
+                Assert(!Allowed("127.0.0.1:51672", null, null, 51671), "the wrong port must be rejected");
+                Assert(!Allowed("127.0.0.1:51671", null, null, 0), "an unbound server must serve nothing");
+            });
+
+            Run("the bearer check accepts only the real token", () =>
+            {
+                var token = HyperwhisperCoreMethods.LocalApiGenerateToken(new byte[32]);
+                Assert(token.Length == 43, $"expected a 43-character token, got {token.Length}");
+                Assert(HyperwhisperCoreMethods.LocalApiIsWellFormedToken(token),
+                    "the generated token is not in the base64url alphabet the DPAPI store expects");
+
+                Assert(LocalApiAuth.Authorize($"Bearer {token}", token), "the real token must authorize");
+                Assert(LocalApiAuth.Authorize($"bearer {token}", token), "the scheme is case-insensitive");
+                Assert(LocalApiAuth.Authorize($"  Bearer {token}  ", token), "the header is trimmed");
+
+                Assert(!LocalApiAuth.Authorize("", token), "an absent header must not authorize");
+                Assert(!LocalApiAuth.Authorize(token, token), "a bare token with no scheme must not authorize");
+                Assert(!LocalApiAuth.Authorize($"Basic {token}", token), "another scheme must not authorize");
+                Assert(!LocalApiAuth.Authorize($"Bearer {token}x", token), "a longer token must not authorize");
+                for (var length = 0; length < token.Length; length++)
+                {
+                    Assert(!LocalApiAuth.Authorize($"Bearer {token[..length]}", token),
+                        $"a {length}-character prefix of the token must not authorize");
+                }
+                // The gap #289 closed on every platform at once.
+                Assert(!LocalApiAuth.Authorize($"Bearer {token}", ""),
+                    "an empty stored credential must authorize nothing");
+            });
+
+            Run("the error-code constants are the shared closed set of 14", () =>
+            {
+                // A Swift `Codable` enum is closed, so a client sharing the
+                // macOS decoder fails to decode the ENTIRE envelope on a
+                // fifteenth code. These constants must not grow one.
+                var shared = HyperwhisperCoreMethods.LocalApiAllErrorCodes()
+                    .Select(HyperwhisperCoreMethods.LocalApiErrorCodeWireValue)
+                    .ToHashSet(StringComparer.Ordinal);
+                Assert(shared.Count == 14, $"expected 14 shared codes, got {shared.Count}");
+
+                var windows = typeof(LocalApiErrorCode)
+                    .GetFields(BindingFlags.Public | BindingFlags.Static)
+                    .Where(field => field.IsLiteral && field.FieldType == typeof(string))
+                    .Select(field => (string)field.GetRawConstantValue()!)
+                    .ToHashSet(StringComparer.Ordinal);
+                Assert(windows.SetEquals(shared),
+                    $"the Windows constants and the shared set disagree: [{string.Join(", ", windows.Except(shared))}] / [{string.Join(", ", shared.Except(windows))}]");
+
+                // The four Linux emitted outside the set, plus the declared and
+                // never-used one.
+                foreach (var outside in new[] { "PAYLOAD_TOO_LARGE", "CANCELLED", "UNAUTHORIZED", "RECORDING_NOT_FOUND", "INTERNAL_ERROR" })
+                {
+                    Assert(HyperwhisperCoreMethods.LocalApiErrorCodeFromWireValue(outside) is null,
+                        $"{outside} must not be in the closed set");
+                }
+            });
+
+            Run("a business failure is HTTP 200 and the guard's 403 is macOS's response", () =>
+            {
+                foreach (var code in HyperwhisperCoreMethods.LocalApiAllErrorCodes())
+                {
+                    var business = HyperwhisperCoreMethods.LocalApiBusinessFailure(code, "x", null);
+                    Assert(business.httpStatus == 200,
+                        $"{code} came back as {business.httpStatus}, not the documented 200");
+                }
+                Assert(HyperwhisperCoreMethods.LocalApiBadRequestFailure("x", null).httpStatus == 400,
+                    "a malformed request is still 400");
+
+                var forbidden = HyperwhisperCoreMethods.LocalApiForbiddenOriginFailure();
+                Assert(forbidden.httpStatus == 403, "the origin guard responds 403");
+                Assert(HyperwhisperCoreMethods.LocalApiErrorCodeWireValue(forbidden.code) == "INVALID_REQUEST",
+                    "the guard must NOT invent a FORBIDDEN code - that would be a contract change on macOS");
+                Assert(forbidden.message == "Request rejected: Host/Origin not permitted.",
+                    "the guard's message is macOS's, verbatim");
+
+                // The 401 body must stay byte-identical to what Windows sent
+                // before #289 — no hint, because the hint names the platform's
+                // own discovery file and Windows never sent one.
+                var unauthorized = HyperwhisperCoreMethods.LocalApiUnauthorizedFailure(null);
+                Assert(unauthorized.httpStatus == 401, "a credential failure is still 401");
+                Assert(unauthorized.json == "{\"ok\":false,\"error\":{\"code\":\"INVALID_REQUEST\",\"message\":\"Missing or invalid bearer token\"}}",
+                    $"the 401 envelope changed shape: {unauthorized.json}");
+            });
+
             Console.WriteLine(_failures == 0
                 ? "All smoke tests passed."
                 : $"{_failures} smoke test(s) FAILED.");
@@ -4511,6 +5416,344 @@ internal static class Program
         if (!condition)
             throw new InvalidOperationException(message);
     }
+
+    /// <summary>
+    /// The tag-free text of a run sequence — what the old assertions got by
+    /// calling <c>InlineHtml.PlainText</c> on a block's inner HTML, now that the
+    /// blocks arrive already parsed (#284).
+    /// </summary>
+    private static string RunText(IReadOnlyList<HtmlRun> runs)
+        => string.Concat(runs.Select(run => run.Text));
+
+    /// <summary>
+    /// Compares one field of a backup-vectors.json expectation against the value the
+    /// native mapper produced. JSON <c>null</c> means the field must come out null —
+    /// the absent-stays-absent rule the vectors exist to pin.
+    /// </summary>
+    private static void AssertModeVectorField(
+        string label,
+        string field,
+        JsonElement expected,
+        string? actual)
+    {
+        Assert(expected.TryGetProperty(field, out var element),
+            $"vector '{label}' is missing the expected field '{field}'");
+
+        var want = element.ValueKind == JsonValueKind.Null ? null : element.GetString();
+        Assert(want == actual,
+            $"vector '{label}': {field} expected {Quote(want)}, got {Quote(actual)}");
+
+        static string Quote(string? value) => value is null ? "null" : $"'{value}'";
+    }
+
+    /// <summary>
+    /// The serializer BackupService writes the universal document with
+    /// (<c>BackupService.UniversalJsonOptions</c>, minus <c>WriteIndented</c>) and the
+    /// one <c>UniversalBackupMapper</c> uses internally. Only
+    /// <see cref="JsonIgnoreCondition.WhenWritingNull"/> is load-bearing here — every
+    /// Universal* property carries an explicit <c>[JsonPropertyName]</c>, so the naming
+    /// policy never decides a key — but it is kept identical so the captured shape is
+    /// the shape that reaches a user's .hwbackup.json.
+    /// </summary>
+    private static readonly JsonSerializerOptions UniversalCaptureOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+    };
+
+    /// <summary>
+    /// Compares a backup-vectors.json settings expectation against what the native
+    /// adapter produced. <see cref="JsonNode.DeepEquals"/> is insensitive to key order
+    /// and to number representation, so a row pins VALUES, never formatting — and it
+    /// compares whole objects, so an unexpected EXTRA key fails just as loudly as a
+    /// missing one.
+    /// </summary>
+    /// <remarks>
+    /// The message names the OFFENDING KEYS on its FIRST LINE, the way
+    /// <see cref="AssertModeVectorField"/> does — <c>advanced.maxRecordingDuration
+    /// expected absent, got 600</c> — because windows-ci is the only instrument that
+    /// can run this file and a round trip costs ~12 minutes. A bare "mismatch"
+    /// followed by two whole settings blobs to eyeball-diff spends that round trip
+    /// without saying what differed. The full blobs are still printed underneath, so
+    /// nothing that used to be in the log is lost.
+    /// </remarks>
+    private static void AssertVectorJson(string label, string what, JsonNode? expected, JsonNode? actual)
+    {
+        if (JsonNode.DeepEquals(expected, actual)) return;
+
+        var differences = new List<string>();
+        Describe(differences, path: "", expected, actual);
+        if (differences.Count == 0)
+            differences.Add($"whole value expected {Render(expected)}, got {Render(actual)}");
+
+        // Cap the first line: a wholesale shape change must not bury the log.
+        const int shown = 8;
+        var head = string.Join("; ", differences.Take(shown));
+        if (differences.Count > shown)
+            head += $"; (+{differences.Count - shown} more)";
+
+        throw new InvalidOperationException(
+            $"vector '{label}': {what} mismatch — {head}{Environment.NewLine}"
+            + $"  expected {Render(expected)}{Environment.NewLine}"
+            + $"  actual   {Render(actual)}");
+
+        // Walks both trees together and records one entry per differing LEAF, so the
+        // message reports the dotted key plus both values rather than the whole
+        // section. An absent key and an explicit JSON null read differently on
+        // purpose: that distinction is exactly what several rows exist to pin.
+        static void Describe(List<string> into, string path, JsonNode? expected, JsonNode? actual)
+        {
+            if (JsonNode.DeepEquals(expected, actual)) return;
+
+            if (expected is JsonObject wantObject && actual is JsonObject gotObject)
+            {
+                var keys = wantObject.Select(p => p.Key)
+                    .Concat(gotObject.Select(p => p.Key))
+                    .Distinct(StringComparer.Ordinal)
+                    .OrderBy(key => key, StringComparer.Ordinal);
+
+                foreach (var key in keys)
+                {
+                    var child = path.Length == 0 ? key : $"{path}.{key}";
+                    var hasWant = wantObject.TryGetPropertyValue(key, out var want);
+                    var hasGot = gotObject.TryGetPropertyValue(key, out var got);
+
+                    if (!hasWant) into.Add($"{child} expected absent, got {Render(got)}");
+                    else if (!hasGot) into.Add($"{child} expected {Render(want)}, got absent");
+                    else Describe(into, child, want, got);
+                }
+                return;
+            }
+
+            if (expected is JsonArray wantArray && actual is JsonArray gotArray
+                && wantArray.Count == gotArray.Count)
+            {
+                for (var i = 0; i < wantArray.Count; i++)
+                    Describe(into, $"{path}[{i}]", wantArray[i], gotArray[i]);
+                return;
+            }
+
+            into.Add($"{(path.Length == 0 ? "<root>" : path)} expected "
+                + $"{Render(expected)}, got {Render(actual)}");
+        }
+
+        static string Render(JsonNode? node) => node?.ToJsonString() ?? "null";
+    }
+
+    /// <summary>
+    /// Writes a backup-vectors.json <c>native</c> block onto the live SettingsService.
+    /// Keys are the NATIVE names — settings.json is PascalCase — and every one of them
+    /// goes through the real public setter, so the row is seeded through exactly the
+    /// path a restore uses, dirty-check, Save() and all. An unrecognized key throws:
+    /// a typo in the vectors must fail, not silently seed nothing.
+    /// </summary>
+    private static void SeedWindowsSettings(SettingsService settings, JsonObject native, string label)
+    {
+        foreach (var entry in native)
+        {
+            var value = entry.Value
+                ?? throw new InvalidOperationException(
+                    $"vector '{label}': native settings key '{entry.Key}' is null; "
+                    + "a seed must be an explicit value");
+
+            switch (entry.Key)
+            {
+                case "LaunchMinimized": settings.LaunchMinimized = value.GetValue<bool>(); break;
+                case "ShowRecordingWindow": settings.ShowRecordingWindow = value.GetValue<bool>(); break;
+                case "CheckForUpdatesAutomatically": settings.CheckForUpdatesAutomatically = value.GetValue<bool>(); break;
+                case "EnableErrorLogging": settings.EnableErrorLogging = value.GetValue<bool>(); break;
+                case "ShareAnonymousSpeedData": settings.ShareAnonymousSpeedData = value.GetValue<bool>(); break;
+                case "EnableSoundEffects": settings.EnableSoundEffects = value.GetValue<bool>(); break;
+                case "AutoPasteEnabled": settings.AutoPasteEnabled = value.GetValue<bool>(); break;
+                case "RemoveFillerWords": settings.RemoveFillerWords = value.GetValue<bool>(); break;
+                case "RestoreClipboardAfterPaste": settings.RestoreClipboardAfterPaste = value.GetValue<bool>(); break;
+                case "HideFromClipboardHistory": settings.HideFromClipboardHistory = value.GetValue<bool>(); break;
+                case "ClipboardRestoreDelaySeconds": settings.ClipboardRestoreDelaySeconds = value.GetValue<double>(); break;
+                case "AutocapitalizeInsert": settings.AutocapitalizeInsert = value.GetValue<bool>(); break;
+                case "StoreAsM4A": settings.StoreAsM4A = value.GetValue<bool>(); break;
+                case "KeepAudioFiles": settings.KeepAudioFiles = value.GetValue<bool>(); break;
+                case "MaxRecordingDuration": settings.MaxRecordingDurationSeconds = value.GetValue<int>(); break;
+                case "StreamingEnabled": settings.StreamingEnabled = value.GetValue<bool>(); break;
+                case "StreamingProvider": settings.StreamingProvider = value.GetValue<string>(); break;
+                case "StreamingLanguage": settings.StreamingLanguage = value.GetValue<string>(); break;
+                case "StreamingDeepgramModel": settings.StreamingDeepgramModel = value.GetValue<string>(); break;
+                case "StreamingCloudTier": settings.StreamingCloudTier = value.GetValue<string>(); break;
+                case "StreamingFastFormatting": settings.StreamingFastFormatting = value.GetValue<bool>(); break;
+                case "StreamingShortcut": settings.StreamingShortcut = KeyboardShortcut.FromPersistedString(value.GetValue<string>()); break;
+                case "TypingSpeedWPM": settings.TypingSpeedWPM = value.GetValue<int>(); break;
+                case "MinimizeToTray": settings.MinimizeToTray = value.GetValue<bool>(); break;
+                case "ThemeMode": settings.ThemeMode = (HyperWhisper.Models.ThemeMode)value.GetValue<int>(); break;
+                case "AutoDeleteEnabled": settings.AutoDeleteEnabled = value.GetValue<bool>(); break;
+                case "AutoDeleteDaysOld": settings.AutoDeleteDaysOld = value.GetValue<int>(); break;
+                case "ParakeetEnabled": settings.ParakeetEnabled = value.GetValue<bool>(); break;
+                case "KeepMicrophoneWarm": settings.KeepMicrophoneWarm = value.GetValue<bool>(); break;
+                case "MediaControlMode": settings.MediaControlMode = value.GetValue<string>(); break;
+                case "ToggleShortcut": settings.ToggleShortcut = KeyboardShortcut.FromPersistedString(value.GetValue<string>()); break;
+                case "CancelShortcut": settings.CancelShortcut = KeyboardShortcut.FromPersistedString(value.GetValue<string>()); break;
+                case "ChangeModeShortcut": settings.ChangeModeShortcut = KeyboardShortcut.FromPersistedString(value.GetValue<string>()); break;
+                case "AutoIncreaseMicVolume": settings.AutoIncreaseMicVolume = value.GetValue<bool>(); break;
+                default:
+                    throw new InvalidOperationException(
+                        $"vector '{label}': unknown Windows native settings key '{entry.Key}'");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Drives one <c>unknownKeyRoundTrip</c> row of kind <c>settingsUnknownKey</c>:
+    /// import the row's settings block, check what was persisted, then re-export and
+    /// check the captured key comes back at its ORIGINAL PATH.
+    /// </summary>
+    private static void RunSettingsUnknownKeyRow(
+        SettingsService settings, JsonObject row, string label)
+    {
+        ImportSettingsJson(settings, row["importedSettings"]!);
+        if (row["thenImportedSettings"] is { } second) ImportSettingsJson(settings, second);
+
+        var expectedStored = row["expectedStored"];
+        var actualStored = settings.BackupUnknownSettings is null
+            ? null
+            : JsonNode.Parse(settings.BackupUnknownSettings);
+        AssertVectorJson(label, "SettingsData.BackupUnknownSettings", expectedStored, actualStored);
+
+        var exported = JsonSerializer.SerializeToNode(
+            UniversalBackupMapper.MapSettings(settings), UniversalCaptureOptions)!.AsObject();
+
+        foreach (var expected in row["expectedReExportedPaths"]!.AsObject())
+        {
+            var actual = ResolvePath(exported, expected.Key);
+            Assert(actual is not null,
+                $"vector '{label}': re-export lost '{expected.Key}'. That is the #288 bug.");
+            AssertVectorJson(label, $"re-export at '{expected.Key}'", expected.Value, actual);
+        }
+
+        foreach (var forbidden in row["forbiddenReExportedPaths"]!.AsArray())
+        {
+            var path = forbidden!.GetValue<string>();
+            Assert(ResolvePath(exported, path) is null,
+                $"vector '{label}': re-export put a preserved key at '{path}'. A captured "
+                + "settings key must come back under its own SECTION, never at the root — "
+                + "the root is a schema violation.");
+        }
+
+        static JsonNode? ResolvePath(JsonObject root, string dotted)
+        {
+            JsonNode? node = root;
+            foreach (var segment in dotted.Split('.'))
+            {
+                if (node is not JsonObject obj || !obj.TryGetPropertyValue(segment, out node))
+                    return null;
+            }
+            return node;
+        }
+    }
+
+    /// <summary>
+    /// Deserializes a vector settings block exactly as BackupService would (so the
+    /// <c>[JsonExtensionData]</c> bags fill), then applies it.
+    /// </summary>
+    private static void ImportSettingsJson(SettingsService settings, JsonNode block)
+    {
+        var universal = JsonSerializer.Deserialize<UniversalSettings>(
+            block.ToJsonString(), UniversalCaptureOptions)
+            ?? throw new InvalidOperationException("settings block did not deserialize");
+        UniversalBackupMapper.ApplySettings(universal, settings);
+    }
+
+    /// <summary>
+    /// Drives one <c>unknownKeyRoundTrip</c> row of kind
+    /// <c>topLevelPlatformExtensions</c> for the Windows head.
+    /// </summary>
+    private static void RunForeignSliceRow(SettingsService settings, JsonObject row, string label)
+    {
+        var imported = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(
+            row["imported"]!.ToJsonString())
+            ?? throw new InvalidOperationException($"vector '{label}': imported did not deserialize");
+
+        UniversalBackupMapper.ApplyWindowsPlatformSettings(imported, settings);
+
+        // Windows stores ONLY the foreign slices and adds its own at export time.
+        // Linux stores the whole imported map instead and overwrites its own slice on
+        // the way out; the row records both, because the observable contract below is
+        // what has to match, not the storage strategy.
+        var expectedStored = row["expectedStoredByHead"]!["windows"];
+        var actualStored = settings.BackupForeignPlatformExtensions is null
+            ? null
+            : JsonNode.Parse(settings.BackupForeignPlatformExtensions);
+        AssertVectorJson(label, "SettingsData.BackupForeignPlatformExtensions",
+            expectedStored, actualStored);
+
+        // Our own slice must be REBUILT from live settings on every export, not
+        // replayed from anything preserved. Flip a live Windows-only value after the
+        // import: if the export still shows the imported value, the own slice lost to
+        // a stale copy — the exact failure MapMode's per-mode rule already prevents.
+        settings.MinimizeToTray = !settings.MinimizeToTray;
+
+        var reExported = UniversalBackupMapper.BuildPlatformExtensions(settings);
+        var actualKeys = reExported.Keys.OrderBy(k => k, StringComparer.Ordinal).ToArray();
+        var wantKeys = row["expectedReExportedKeysByHead"]!["windows"]!.AsArray()
+            .Select(k => k!.GetValue<string>())
+            .OrderBy(k => k, StringComparer.Ordinal).ToArray();
+        Assert(actualKeys.SequenceEqual(wantKeys, StringComparer.Ordinal),
+            $"vector '{label}': re-exported top-level platformExtensions keys were "
+            + $"[{string.Join(", ", actualKeys)}], expected [{string.Join(", ", wantKeys)}]");
+
+        var windowsSlice = JsonNode.Parse(reExported["windows"].GetRawText())!.AsObject();
+        Assert(windowsSlice["settings"]!["minimizeToTray"]!.GetValue<bool>() == settings.MinimizeToTray,
+            $"vector '{label}': the \"windows\" slice must be rebuilt from live settings and "
+            + "overwrite any preserved copy of itself.");
+
+        // And the foreign slices must have come through verbatim.
+        foreach (var expected in row["expectedStoredByHead"]!["windows"] as JsonObject ?? [])
+        {
+            Assert(reExported.ContainsKey(expected.Key),
+                $"vector '{label}': the preserved '{expected.Key}' slice was not re-emitted");
+            AssertVectorJson(label, $"re-emitted '{expected.Key}' slice", expected.Value,
+                JsonNode.Parse(reExported[expected.Key].GetRawText()));
+        }
+    }
+
+    /// <summary>
+    /// Reads back the same native key set <see cref="SeedWindowsSettings"/> writes, as
+    /// JSON, so an import row can be compared whole rather than field by field.
+    /// </summary>
+    private static JsonObject ReadWindowsSettings(SettingsService settings) => new()
+    {
+        ["LaunchMinimized"] = settings.LaunchMinimized,
+        ["ShowRecordingWindow"] = settings.ShowRecordingWindow,
+        ["CheckForUpdatesAutomatically"] = settings.CheckForUpdatesAutomatically,
+        ["EnableErrorLogging"] = settings.EnableErrorLogging,
+        ["ShareAnonymousSpeedData"] = settings.ShareAnonymousSpeedData,
+        ["EnableSoundEffects"] = settings.EnableSoundEffects,
+        ["AutoPasteEnabled"] = settings.AutoPasteEnabled,
+        ["RemoveFillerWords"] = settings.RemoveFillerWords,
+        ["RestoreClipboardAfterPaste"] = settings.RestoreClipboardAfterPaste,
+        ["HideFromClipboardHistory"] = settings.HideFromClipboardHistory,
+        ["ClipboardRestoreDelaySeconds"] = settings.ClipboardRestoreDelaySeconds,
+        ["AutocapitalizeInsert"] = settings.AutocapitalizeInsert,
+        ["StoreAsM4A"] = settings.StoreAsM4A,
+        ["KeepAudioFiles"] = settings.KeepAudioFiles,
+        ["StreamingEnabled"] = settings.StreamingEnabled,
+        ["StreamingProvider"] = settings.StreamingProvider,
+        ["StreamingLanguage"] = settings.StreamingLanguage,
+        ["StreamingDeepgramModel"] = settings.StreamingDeepgramModel,
+        ["StreamingCloudTier"] = settings.StreamingCloudTier,
+        ["StreamingFastFormatting"] = settings.StreamingFastFormatting,
+        ["StreamingShortcut"] = settings.StreamingShortcut.ToPersistedString(),
+        ["TypingSpeedWPM"] = settings.TypingSpeedWPM,
+        ["MaxRecordingDuration"] = settings.MaxRecordingDurationSeconds,
+        ["MinimizeToTray"] = settings.MinimizeToTray,
+        ["ThemeMode"] = (int)settings.ThemeMode,
+        ["AutoDeleteEnabled"] = settings.AutoDeleteEnabled,
+        ["AutoDeleteDaysOld"] = settings.AutoDeleteDaysOld,
+        ["ParakeetEnabled"] = settings.ParakeetEnabled,
+        ["KeepMicrophoneWarm"] = settings.KeepMicrophoneWarm,
+        ["MediaControlMode"] = settings.MediaControlMode,
+        ["ToggleShortcut"] = settings.ToggleShortcut.ToPersistedString(),
+        ["CancelShortcut"] = settings.CancelShortcut.ToPersistedString(),
+        ["ChangeModeShortcut"] = settings.ChangeModeShortcut.ToPersistedString(),
+        ["AutoIncreaseMicVolume"] = settings.AutoIncreaseMicVolume,
+    };
 
     private static async Task<T> ExpectAsync<T>(Func<Task> action) where T : Exception
     {
@@ -4611,6 +5854,30 @@ internal static class Program
             "http://127.0.0.1:9/smoke",
             new List<Header>(),
             new Body.Empty());
+
+    /// <summary>
+    /// Scripted HttpMessageHandler that also records where the call went.
+    /// Set <see cref="Next"/> before each send. Used by the custom-endpoint test
+    /// checks, which assert on the request as well as on the reply.
+    /// </summary>
+    private sealed class CapturingHandler : HttpMessageHandler
+    {
+        public Func<HttpResponseMessage>? Next;
+        public int Sends;
+        public Uri? LastRequestUri;
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Sends++;
+            LastRequestUri = request.RequestUri;
+            if (Next is null)
+                throw new InvalidOperationException("CapturingHandler.Next was not set");
+            return Task.FromResult(Next());
+        }
+    }
+
+    private static HttpResponseMessage Respond(HttpStatusCode status, string body)
+        => new(status) { Content = new StringContent(body) };
 
     /// <summary>
     /// Scripted HttpMessageHandler: counts sends and delegates each attempt to

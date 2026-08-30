@@ -34,6 +34,35 @@ public sealed record PortablePromptContext(
 
 public sealed record PortablePostProcessingPrompt(string SystemPrompt, string SystemInfo);
 
+/// <summary>
+/// One row of the user's vocabulary, as the two vocabulary passes below want it.
+/// <paramref name="Replacement"/> is null (or empty) for a spelling-hint row —
+/// only those are corrected towards by
+/// <see cref="SharedCoreBridge.ApplyPhoneticVocabulary"/>. A row that carries a
+/// replacement belongs to
+/// <see cref="SharedCoreBridge.ApplySubstringVocabulary"/> instead.
+///
+/// Deliberately NOT <c>PortableVocabularyReplacement</c> (HyperWhisper.SpeechOutput):
+/// that record requires a non-null replacement, and the whole point of the
+/// phonetic pass is the rows that have none.
+/// </summary>
+public sealed record PortableVocabularyEntry(string Word, string? Replacement);
+
+/// <summary>One phonetic correction, for the caller to log.</summary>
+public sealed record PortablePhoneticMatch(string Token, string Replacement);
+
+/// <summary>
+/// The phonetic pass's answer for one transcription:
+/// <paramref name="Text"/> is the corrected transcript,
+/// <paramref name="Matches"/> is every correction in order, and
+/// <paramref name="EntryCount"/> is how many vocabulary rows survived the core's
+/// build filters and were actually matched against.
+/// </summary>
+public sealed record PortablePhoneticResult(
+    string Text,
+    IReadOnlyList<PortablePhoneticMatch> Matches,
+    uint EntryCount);
+
 public enum PortableLlmWireProtocol
 {
     OpenAiChat,
@@ -81,6 +110,78 @@ public enum PortableLiveUpgradeRefusal
     /// <summary>HTTP 401 / 403 — the key is missing, wrong, revoked or not permitted.</summary>
     Unauthorized,
 }
+
+/// <summary>
+/// The persisted status of a transcript row, as the home statistics see it.
+/// Mirrors the core's <c>HwTranscriptStatus</c>.
+/// </summary>
+public enum PortableStatsTranscriptStatus
+{
+    Processing,
+    Completed,
+    Failed,
+}
+
+/// <summary>
+/// One persisted transcript, projected down to what the home statistics need
+/// (issue #285).
+///
+/// <para><c>CreatedAtLocalEpochSeconds</c> is the row's instant ALREADY SHIFTED
+/// into the calendar time zone. The host owns that conversion because the host
+/// owns the time-zone database, and doing it per row is what keeps DST correct.
+/// Every calendar boundary above it — Monday, the 1st, January 1st — is
+/// computed in the core.</para>
+///
+/// <para><c>WordCount</c> is counted by the host from the full text. There is
+/// no persisted word count on any of the three stores, so word counting stays
+/// native.</para>
+/// </summary>
+public sealed record PortableStatsTranscript(
+    long CreatedAtLocalEpochSeconds,
+    int WordCount,
+    double DurationSeconds,
+    PortableStatsTranscriptStatus Status);
+
+/// <summary>One period's totals and derived figures. Mirrors <c>HwPeriodStats</c>.</summary>
+public sealed record PortablePeriodStats(
+    int WordCount,
+    double DurationSeconds,
+    int AverageWordsPerMinute,
+    double EstimatedTypingMinutes,
+    double EstimatedTimeSavedMinutes);
+
+/// <summary>
+/// Everything the three home strips render, plus the periods the statistics
+/// pages use. Mirrors <c>HwHomeStatsSnapshot</c>.
+/// </summary>
+public sealed record PortableHomeStats(
+    PortablePeriodStats ThisWeek,
+    PortablePeriodStats ThisMonth,
+    PortablePeriodStats ThisYear,
+    PortablePeriodStats AllTime,
+    int TypingSpeedWordsPerMinute,
+    int AverageWordsPerMinute,
+    int SavedThisWeekMinutes);
+
+/// <summary>
+/// One language the pickers can offer, as the shared catalog knows it (issue
+/// #285). Mirrors the core's <c>HwLanguage</c>.
+///
+/// <para><c>Code</c> is always the canonical BCP-47 tag — <c>en-GB</c>, not
+/// <c>en_gb</c> — so it is safe to persist and to compare against another
+/// canonical code.</para>
+///
+/// <para>A null <c>DisplayName</c> means the catalog does not know the code,
+/// and the host must localize it with its own system database. That split is
+/// deliberate rather than a gap: the catalog carries English names for the
+/// codes the app itself offers, and everything else — a code a provider
+/// advertised that we have never listed — is exactly the case the platform
+/// frameworks answer better than a table would. It is where
+/// <c>Locale.localizedString(forIdentifier:)</c> lives on macOS, and
+/// <c>CultureInfo</c> on the .NET heads. Fall back to <c>Code</c> when there is
+/// no system name either; a raw tag reads better than an empty row.</para>
+/// </summary>
+public sealed record PortableLanguage(string Code, string? DisplayName);
 
 /// <summary>
 /// Stable public surface over the generated UniFFI binding. Platform projects
@@ -268,6 +369,61 @@ public static class SharedCoreBridge
             .ToArray();
     }
 
+    /// <summary>
+    /// Canonicalize ONE universal-v2 mode object's five cloud-routing fields:
+    /// the cloudProvider catalog fold, the legacy model-alias tables, the
+    /// present-only cloudAccuracyTier / cloudPostProcessingModel migration
+    /// (including the platformExtensions.windows override) and the
+    /// cloudTranscriptionDomain gate. Windows' UniversalBackupMapper calls the
+    /// same core function, so both non-macOS importers agree.
+    /// </summary>
+    /// <remarks>
+    /// A field no source supplied comes back ABSENT, not defaulted — the caller
+    /// applies its own Mode entity default. Stamping the core's own defaults here
+    /// would regress both heads, whose shared native pair is elevenLabsScribeV2 /
+    /// anthropic:claude-haiku-4-5.
+    /// </remarks>
+    public static string NormalizeUniversalMode(string json)
+    {
+        ArgumentNullException.ThrowIfNull(json);
+        return HyperwhisperCoreMethods.NormalizeUniversalModeJson(json);
+    }
+
+    /// <summary>
+    /// Map the Linux settings store (flat, dotted keys) into the universal-v2
+    /// shared <c>settings</c> block.
+    /// </summary>
+    /// <remarks>
+    /// The whole store may be passed in: only keys with a row in the core's
+    /// <c>LINUX_*_PAIRS</c> tables are promoted, so Linux-only and device-local
+    /// keys cannot reach an exported backup through here. The result is always
+    /// COMPLETE — an absent key is emitted with the backup path's own default,
+    /// which is what makes an untouched profile export all 23 shared keys.
+    /// </remarks>
+    public static string LinuxSettingsToUniversal(string linuxJson)
+    {
+        ArgumentNullException.ThrowIfNull(linuxJson);
+        return HyperwhisperCoreMethods.LinuxSettingsToUniversalSettingsJson(linuxJson);
+    }
+
+    /// <summary>
+    /// Inverse of <see cref="LinuxSettingsToUniversal"/>: the universal-v2 shared
+    /// <c>settings</c> block into the flat dotted keys the Linux settings store
+    /// holds.
+    /// </summary>
+    /// <remarks>
+    /// PRESENT-ONLY and null-dropping, reproducing the shipping
+    /// <c>ApplySharedSettings</c>/<c>CopyCategory</c> allowlist: unknown keys and
+    /// unknown categories are dropped, and an explicit JSON <c>null</c> leaves the
+    /// live value alone. The caller deep-merges this over its own baseline
+    /// snapshot before writing it back.
+    /// </remarks>
+    public static string UniversalSettingsToLinuxSettings(string universalJson)
+    {
+        ArgumentNullException.ThrowIfNull(universalJson);
+        return HyperwhisperCoreMethods.UniversalSettingsToLinuxSettingsJson(universalJson);
+    }
+
     public static PortablePostProcessingPrompt BuildPostProcessingPrompt(PortablePromptContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -370,6 +526,67 @@ public static class SharedCoreBridge
         ArgumentNullException.ThrowIfNull(replacement);
         return HyperwhisperCoreMethods.ApplyHardenedReplacement(text, word, replacement);
     }
+
+    /// <summary>
+    /// Beider-Morse phonetic vocabulary matching over a WHOLE transcript, in one
+    /// call. Whole-word (<c>\b</c>-anchored), case-insensitive, literal
+    /// replacement, diacritic-SENSITIVE.
+    ///
+    /// Rows that carry a replacement, and words of 2 Unicode scalars or fewer,
+    /// are skipped; a token that already equals ANY vocabulary word is left
+    /// alone. The core returns every correction rather than logging it, so each
+    /// head logs through its own logger (issue #283).
+    ///
+    /// One call, not one per word. The retired native matchers encoded a single
+    /// word per call — ~340 round trips for a 40-entry vocabulary over a
+    /// 300-word transcript — which is why Windows carried both a cached matcher
+    /// object and a per-call token memo. Neither is needed now.
+    /// </summary>
+    public static PortablePhoneticResult ApplyPhoneticVocabulary(
+        string text,
+        IReadOnlyList<PortableVocabularyEntry>? entries)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        var result = HyperwhisperCoreMethods.PhoneticApplyVocabulary(text, ToNativeEntries(entries));
+        return new PortablePhoneticResult(
+            result.text,
+            result.matches
+                .Select(match => new PortablePhoneticMatch(match.token, match.replacement))
+                .ToList(),
+            result.entryCount);
+    }
+
+    /// <summary>
+    /// The on-device providers' vocabulary pass: unanchored substring
+    /// replacement, case-insensitive AND diacritic-insensitive, over the rows
+    /// that DO carry a replacement, in list order.
+    ///
+    /// Deliberately NOT <see cref="ApplyHardenedReplacement"/>. That one anchors
+    /// on <c>\b…\b</c> and is diacritic-sensitive, and it runs later over the
+    /// pipeline's own vocabulary list. This one runs first, inside the provider,
+    /// over its raw output — the split macOS made explicit in
+    /// <c>VocabularyProcessor.swift</c> after finding four identical copies of
+    /// it. Windows and Linux never had it; issue #283 gives it to them.
+    ///
+    /// Text outside a match comes back byte-identical: its case, its accents and
+    /// its normalization form are untouched.
+    /// </summary>
+    public static string ApplySubstringVocabulary(
+        string text,
+        IReadOnlyList<PortableVocabularyEntry>? entries)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        return HyperwhisperCoreMethods.ApplySubstringVocabulary(text, ToNativeEntries(entries));
+    }
+
+    private static List<HwVocabularyEntry> ToNativeEntries(
+        IReadOnlyList<PortableVocabularyEntry>? entries)
+        => entries?
+            // A null row cannot cross the FFI, and the core would drop it anyway
+            // once its word sanitized to nothing.
+            .Where(entry => entry is not null)
+            .Select(entry => new HwVocabularyEntry(entry.Word ?? string.Empty, entry.Replacement))
+            .ToList() ?? [];
 
     /// <summary>
     /// The <c>Mode.EnglishSpelling</c> token to SEED into a brand-new mode, from
@@ -658,6 +875,200 @@ public static class SharedCoreBridge
 
     private static HwAppType AppTypeFromRaw(string? value) =>
         HyperwhisperCoreMethods.AppTypeFromRaw(value ?? string.Empty);
+
+    /// <summary>
+    /// The home statistics for a whole transcript history, in one call (issue
+    /// #285). Weekly, monthly, yearly and all-time totals, the average speaking
+    /// speed, and the clamped "saved this week" figure the home strip renders.
+    ///
+    /// <para>The core filters to <see cref="PortableStatsTranscriptStatus.Completed"/>
+    /// itself, normalises every non-finite or negative duration to zero, starts
+    /// the week on the local-time-zone Monday, rounds half away from zero, and
+    /// clamps <c>SavedThisWeekMinutes</c> to
+    /// <see cref="SavedThisWeekMinutesCeiling"/>. There is no error case: a
+    /// typing speed of zero or less zeroes the saving figures rather than
+    /// failing.</para>
+    ///
+    /// <para>One call per recompute, not one per row. Every head already
+    /// materialises the whole row set to do this.</para>
+    /// </summary>
+    public static PortableHomeStats CalculateHomeStatistics(
+        IReadOnlyList<PortableStatsTranscript>? transcripts,
+        int typingSpeedWordsPerMinute,
+        long nowLocalEpochSeconds)
+    {
+        var snapshot = HyperwhisperCoreMethods.StatsCalculateHome(
+            ToNativeTranscripts(transcripts), typingSpeedWordsPerMinute, nowLocalEpochSeconds);
+        return new PortableHomeStats(
+            ToPortablePeriod(snapshot.thisWeek),
+            ToPortablePeriod(snapshot.thisMonth),
+            ToPortablePeriod(snapshot.thisYear),
+            ToPortablePeriod(snapshot.allTime),
+            snapshot.typingSpeedWordsPerMinute,
+            snapshot.averageWordsPerMinute,
+            snapshot.savedThisWeekMinutes);
+    }
+
+    /// <summary>
+    /// The ceiling the displayed "saved this week" figure is clamped to: one
+    /// week of minutes. Read it rather than restating <c>7 * 24 * 60</c>, which
+    /// is exactly how the constant drifted onto two platforms and off the third.
+    /// </summary>
+    public static int SavedThisWeekMinutesCeiling => HyperwhisperCoreMethods.StatsSavedMinutesCeiling();
+
+    private static List<HwStatsTranscript> ToNativeTranscripts(
+        IReadOnlyList<PortableStatsTranscript>? transcripts)
+        => transcripts?
+            // A null row cannot cross the FFI, and a row the store never
+            // completed would be filtered out on the far side anyway.
+            .Where(transcript => transcript is not null)
+            .Select(transcript => new HwStatsTranscript(
+                transcript.CreatedAtLocalEpochSeconds,
+                // A negative count is not representable across the FFI. It is
+                // not reachable from a real store either — clamp rather than
+                // throw, because this runs on the home view's render path.
+                (uint)Math.Max(0, transcript.WordCount),
+                transcript.DurationSeconds,
+                transcript.Status switch
+                {
+                    PortableStatsTranscriptStatus.Completed => HwTranscriptStatus.Completed,
+                    PortableStatsTranscriptStatus.Failed => HwTranscriptStatus.Failed,
+                    PortableStatsTranscriptStatus.Processing => HwTranscriptStatus.Processing,
+                    _ => throw new ArgumentOutOfRangeException(
+                        nameof(transcripts), transcript.Status, null),
+                }))
+            .ToList() ?? [];
+
+    private static PortablePeriodStats ToPortablePeriod(HwPeriodStats stats) =>
+        new(
+            // The core saturates its word total at uint.MaxValue rather than
+            // trapping; saturate again on the way down to int for the same
+            // reason. Both are wrong numbers, and both beat a crash on the home
+            // view.
+            (int)Math.Min(stats.wordCount, int.MaxValue),
+            stats.durationSeconds,
+            stats.averageWordsPerMinute,
+            stats.estimatedTypingMinutes,
+            stats.estimatedTimeSavedMinutes);
+
+    /// <summary>
+    /// Canonicalize a BCP-47 tag (issue #285): <c>en_gb</c> becomes
+    /// <c>en-GB</c>, <c>ZH-HANT</c> becomes <c>zh-Hant</c>, surrounding
+    /// whitespace is trimmed, and an empty or whitespace-only tag becomes
+    /// <c>auto</c>.
+    ///
+    /// <para>The one spelling rule for every code the app stores or compares.
+    /// Canonicalizing before a lookup is what makes a stored <c>en_GB</c> —
+    /// which the Windows picker used to match against nothing and render as the
+    /// raw tag — resolve to a real row.</para>
+    ///
+    /// <para>Note that a five-character subtag lowercases, which is why the
+    /// LatAm Spanish key is <c>es-latam</c> and not <c>es-LATAM</c>.</para>
+    /// </summary>
+    public static string CanonicalizeLanguageCode(string code)
+    {
+        ArgumentNullException.ThrowIfNull(code);
+        return HyperwhisperCoreMethods.LanguageCanonicalize(code);
+    }
+
+    /// <summary>
+    /// The canonical tag to persist. Differs from
+    /// <see cref="CanonicalizeLanguageCode"/> in exactly one place: a null,
+    /// empty or whitespace-only code becomes <c>en</c> rather than <c>auto</c>,
+    /// because a mode with no stored language transcribes as English.
+    /// </summary>
+    public static string CanonicalLanguageCode(string? code) =>
+        HyperwhisperCoreMethods.LanguageCanonicalCode(code);
+
+    /// <summary>
+    /// The 2-letter ISO 639 code, for the APIs that refuse anything longer.
+    /// <c>auto</c> survives as itself; a null code becomes <c>en</c>; a code
+    /// that is not two letters to begin with (<c>eng</c>, <c>yue</c>) is handed
+    /// back unchanged rather than truncated.
+    /// </summary>
+    public static string NormalizeLanguageCode(string? code) =>
+        HyperwhisperCoreMethods.LanguageNormalize(code);
+
+    /// <summary>
+    /// Whether a code means English, region and script variants included
+    /// (<c>en-GB</c>, <c>en_us</c>). A null or absent code counts as English,
+    /// matching <see cref="CanonicalLanguageCode"/>'s default; an empty string
+    /// does not, because an empty stored value is an explicit "automatic".
+    /// </summary>
+    public static bool IsEnglishLanguage(string? code) =>
+        HyperwhisperCoreMethods.LanguageIsEnglish(code);
+
+    /// <summary>
+    /// Look one code up, canonicalizing it first. Null means the catalog does
+    /// not know it — use <see cref="CanonicalizeLanguageCode"/> for the tag and
+    /// localize the name natively. See <see cref="PortableLanguage"/> for why
+    /// that half stays on the host.
+    ///
+    /// <para>Named for the core function rather than for the .NET type of the
+    /// same name in the Windows head (<c>HyperWhisper.Models.LanguageInfo</c>).
+    /// That type is in a different assembly and a different namespace, so there
+    /// is no ambiguity — and it is now a facade over this call, so the shared
+    /// name is the accurate one.</para>
+    /// </summary>
+    public static PortableLanguage? LanguageInfo(string code)
+    {
+        ArgumentNullException.ThrowIfNull(code);
+        var native = HyperwhisperCoreMethods.LanguageInfo(code);
+        return native is null ? null : ToPortableLanguage(native);
+    }
+
+    /// <summary>
+    /// Every language the pickers offer, in picker order: <c>auto</c> first,
+    /// then the popular codes in <see cref="PopularLanguageCodes"/> order, then
+    /// the rest alphabetically by display name.
+    ///
+    /// <para>One FFI call returns the whole list, so bind it once into a static
+    /// rather than calling it per row.</para>
+    /// </summary>
+    public static IReadOnlyList<PortableLanguage> AllLanguages() =>
+        // A UniFFI sequence return is never null, but the generated signature
+        // does not say so; `?? []` keeps a picker binding off a null reference.
+        HyperwhisperCoreMethods.LanguageAll()?.Select(ToPortableLanguage).ToList() ?? [];
+
+    /// <summary>
+    /// The codes the pickers float to the top, in the order they appear there.
+    /// Does not include <c>auto</c>, which sorts above them all.
+    /// </summary>
+    public static IReadOnlyList<string> PopularLanguageCodes() =>
+        // As with AllLanguages: never null in practice, defended anyway.
+        HyperwhisperCoreMethods.LanguagePopularCodes() ?? [];
+
+    /// <summary>
+    /// Canonical rows for a provider's advertised code list, deduplicated, in
+    /// the order given. An unknown code keeps its canonical form and comes back
+    /// with a null <see cref="PortableLanguage.DisplayName"/> — it is still a
+    /// row, so a provider that advertises something we have never listed shows
+    /// up in the picker instead of vanishing from it.
+    /// </summary>
+    public static IReadOnlyList<PortableLanguage> ResolveLanguages(IEnumerable<string>? codes) =>
+        HyperwhisperCoreMethods.LanguageResolve(
+            // A null code cannot cross the FFI, and neither can a null list.
+            codes?.Where(code => code is not null).ToList() ?? [])
+            ?.Select(ToPortableLanguage).ToList() ?? [];
+
+    /// <summary>
+    /// Move <c>auto</c> to the front of a list if it is present and not already
+    /// there, leaving every other row in its given order. What a
+    /// provider-filtered picker calls after <see cref="ResolveLanguages"/>, so
+    /// "Automatic" stays the first entry however the provider ordered its list.
+    /// </summary>
+    public static IReadOnlyList<PortableLanguage> PrioritizeAutomaticLanguage(
+        IEnumerable<PortableLanguage>? languages) =>
+        HyperwhisperCoreMethods.LanguagePrioritizeAutomatic(
+            languages?
+                // A null row cannot cross the FFI.
+                .Where(language => language is not null)
+                .Select(language => new HwLanguage(language.Code, language.DisplayName))
+                .ToList() ?? [])
+            ?.Select(ToPortableLanguage).ToList() ?? [];
+
+    private static PortableLanguage ToPortableLanguage(HwLanguage language) =>
+        new(language.code, language.displayName);
 
     private static string Bound(string? value, int maxCharacters, string fallback = "")
     {

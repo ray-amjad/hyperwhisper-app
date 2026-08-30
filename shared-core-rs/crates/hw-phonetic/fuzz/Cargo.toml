@@ -1,0 +1,47 @@
+# cargo-fuzz target for hw-phonetic (#283).
+#
+# THIS PACKAGE IS DELIBERATELY OUTSIDE THE SHARED-CORE WORKSPACE.
+#
+# `libfuzzer-sys` and `arbitrary` are network dependencies with their own lock
+# graph. The shared core must keep building with `cargo build --offline`
+# (linux-ci.yml) and `cargo test --locked` / `cargo clippy --locked`, so they
+# must never enter that resolve or that Cargo.lock. Two things keep them out and
+# BOTH are required:
+#
+#   1. `exclude = ["crates/hw-phonetic/fuzz"]` in shared-core-rs/Cargo.toml
+#      — stops the parent workspace from globbing this package in.
+#   2. the empty `[workspace]` table below — stops a `cargo` invocation run from
+#      INSIDE this directory from walking up and joining the parent workspace.
+#
+# CI never runs this target. It is run by hand, on nightly:
+#
+#   cd shared-core-rs/crates/hw-phonetic/fuzz
+#   cargo +nightly fuzz run vocab -- -max_total_time=300
+#
+# The `+nightly` is required: the ancestor `shared-core-rs/rust-toolchain.toml`
+# pins 1.86 even down here, and cargo-fuzz needs nightly's `-Z` sanitizer flags.
+
+[workspace]
+
+[package]
+name = "hw-phonetic-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+unicode-normalization = "0.1"
+
+[dependencies.hw-phonetic]
+path = ".."
+
+[[bin]]
+name = "vocab"
+path = "fuzz_targets/vocab.rs"
+test = false
+doc = false
+bench = false

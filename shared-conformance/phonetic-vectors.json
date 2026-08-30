@@ -1,0 +1,493 @@
+{
+  "description": "Golden phonetic vocabulary-matcher vectors (issue #283). Generated from hw-phonetic by `cargo test -p hw-core --test phonetic_vectors -- --ignored regenerate`. `matcherCases` carries a `decision` field naming which native matcher each unified answer came from: agreed / windows / macos / neither / new. `substringCases` has no such field — only macOS ever had that pass, so every row is the macOS behaviour and Windows and Linux gain it whole.",
+  "matcherCases": [
+    {
+      "name": "corrects a misrecognized token towards the vocabulary spelling",
+      "decision": "agreed",
+      "was": "",
+      "text": "hyper wisper",
+      "entries": [
+        {
+          "word": "Whisper",
+          "replacement": null
+        }
+      ],
+      "expected": {
+        "text": "hyper Whisper",
+        "matches": [
+          {
+            "token": "wisper",
+            "replacement": "Whisper"
+          }
+        ],
+        "entryCount": 1
+      }
+    },
+    {
+      "name": "an empty vocabulary leaves the transcript alone",
+      "decision": "agreed",
+      "was": "",
+      "text": "nothing to correct here",
+      "entries": [],
+      "expected": {
+        "text": "nothing to correct here",
+        "matches": [],
+        "entryCount": 0
+      }
+    },
+    {
+      "name": "trailing punctuation survives the replacement",
+      "decision": "agreed",
+      "was": "",
+      "text": "about wisper.",
+      "entries": [
+        {
+          "word": "Whisper",
+          "replacement": null
+        }
+      ],
+      "expected": {
+        "text": "about Whisper.",
+        "matches": [
+          {
+            "token": "wisper.",
+            "replacement": "Whisper"
+          }
+        ],
+        "entryCount": 1
+      }
+    },
+    {
+      "name": "a vocabulary word of two characters never encodes",
+      "decision": "agreed",
+      "was": "",
+      "text": "some text about it",
+      "entries": [
+        {
+          "word": "Go",
+          "replacement": null
+        }
+      ],
+      "expected": {
+        "text": "some text about it",
+        "matches": [],
+        "entryCount": 0
+      }
+    },
+    {
+      "name": "a row that carries a replacement is left to the substring path",
+      "decision": "agreed",
+      "was": "",
+      "text": "hyper wisper",
+      "entries": [
+        {
+          "word": "wisper",
+          "replacement": "Whisper"
+        }
+      ],
+      "expected": {
+        "text": "hyper wisper",
+        "matches": [],
+        "entryCount": 0
+      }
+    },
+    {
+      "name": "a whitespace-only vocabulary row is dropped",
+      "decision": "agreed",
+      "was": "",
+      "text": "hyper wisper",
+      "entries": [
+        {
+          "word": "   ",
+          "replacement": null
+        },
+        {
+          "word": "\n\t",
+          "replacement": null
+        }
+      ],
+      "expected": {
+        "text": "hyper wisper",
+        "matches": [],
+        "entryCount": 0
+      }
+    },
+    {
+      "name": "a token of two characters or fewer is never matched",
+      "decision": "agreed",
+      "was": "",
+      "text": "an apple a day",
+      "entries": [
+        {
+          "word": "Ann",
+          "replacement": null
+        }
+      ],
+      "expected": {
+        "text": "an apple a day",
+        "matches": [],
+        "entryCount": 1
+      }
+    },
+    {
+      "name": "an exact hit on the FIRST entry is left alone",
+      "decision": "agreed",
+      "was": "",
+      "text": "I met Smith today",
+      "entries": [
+        {
+          "word": "Smith",
+          "replacement": null
+        },
+        {
+          "word": "Smyth",
+          "replacement": null
+        }
+      ],
+      "expected": {
+        "text": "I met Smith today",
+        "matches": [],
+        "entryCount": 2
+      }
+    },
+    {
+      "name": "a newline separates tokens, so a correction on line 2 still lands",
+      "decision": "windows",
+      "was": "macOS split on CharacterSet.whitespaces, which EXCLUDES newlines, so every correction after the first line of a multi-line transcript was silently lost. Windows split on all whitespace.",
+      "text": "first line\nhyper wisper",
+      "entries": [
+        {
+          "word": "Whisper",
+          "replacement": null
+        }
+      ],
+      "expected": {
+        "text": "first line\nhyper Whisper",
+        "matches": [
+          {
+            "token": "wisper",
+            "replacement": "Whisper"
+          }
+        ],
+        "entryCount": 1
+      }
+    },
+    {
+      "name": "a repeated token is corrected everywhere but reported once",
+      "decision": "windows",
+      "was": "Windows carried a per-call memo of processed tokens; macOS re-encoded and re-logged every occurrence. The text is identical either way — the \\b-anchored pass already rewrote every occurrence on the first hit — so the quieter side wins.",
+      "text": "wisper and wisper",
+      "entries": [
+        {
+          "word": "Whisper",
+          "replacement": null
+        }
+      ],
+      "expected": {
+        "text": "Whisper and Whisper",
+        "matches": [
+          {
+            "token": "wisper",
+            "replacement": "Whisper"
+          }
+        ],
+        "entryCount": 1
+      }
+    },
+    {
+      "name": "a $-token in the vocabulary spelling is inserted literally",
+      "decision": "macos",
+      "was": "macOS used NSRegularExpression.escapedTemplate, so every template token was literal. Windows hand-escaped only `$`, leaving $&, $`, $' and ${name} expandable.",
+      "text": "the kost of it",
+      "entries": [
+        {
+          "word": "$& cost",
+          "replacement": null
+        }
+      ],
+      "expected": {
+        "text": "the $& cost of it",
+        "matches": [
+          {
+            "token": "kost",
+            "replacement": "$& cost"
+          }
+        ],
+        "entryCount": 1
+      }
+    },
+    {
+      "name": "an exact hit on a LATER entry is protected too",
+      "decision": "neither",
+      "was": "Both copies checked the exact hit inside the entry loop and broke out of it, so the guard only fired when the exact entry came first: a token that was already the correct spelling of entry 2 was still rewritten by a phonetic hit on entry 1.",
+      "text": "I met Smith today",
+      "entries": [
+        {
+          "word": "Smyth",
+          "replacement": null
+        },
+        {
+          "word": "Smith",
+          "replacement": null
+        }
+      ],
+      "expected": {
+        "text": "I met Smith today",
+        "matches": [],
+        "entryCount": 2
+      }
+    },
+    {
+      "name": "an exact hit is protected even when an earlier entry also matches it",
+      "decision": "neither",
+      "was": "The same bug, with three entries — the protection has to survive every entry ahead of the exact one, not just the first.",
+      "text": "I met Smith today",
+      "entries": [
+        {
+          "word": "Smyth",
+          "replacement": null
+        },
+        {
+          "word": "Smoth",
+          "replacement": null
+        },
+        {
+          "word": "Smith",
+          "replacement": null
+        }
+      ],
+      "expected": {
+        "text": "I met Smith today",
+        "matches": [],
+        "entryCount": 3
+      }
+    },
+    {
+      "name": "the <=2-character gate counts Unicode scalars, not graphemes or UTF-16 units",
+      "decision": "new",
+      "was": "macOS counted graphemes (word.count) and Windows counted UTF-16 code units (word.Length). Two astral characters are 2 scalars, 2 graphemes and 4 UTF-16 units, so Windows let this token through and macOS did not. Scalars is the unit hw-releasenotes pinned, and it is under the gate.",
+      "text": "😀😀",
+      "entries": [
+        {
+          "word": "Whisper",
+          "replacement": null
+        }
+      ],
+      "expected": {
+        "text": "😀😀",
+        "matches": [],
+        "entryCount": 1
+      }
+    },
+    {
+      "name": "a decomposed transcript token equals a precomposed vocabulary word",
+      "decision": "new",
+      "was": "Neither matcher normalized, though VocabularyProcessor.swift:48-54 and VocabularyProcessor.cs:44 both do on the regex path that runs right after, with a comment explaining why. Un-normalized, the decomposed token here does not compare equal to the precomposed vocabulary word, the exact-hit guard misses, the phonetic codes match anyway and the user's own lowercase spelling is rewritten to the vocabulary's capital. NFC first, and it is left alone.",
+      "text": "at the café today",
+      "entries": [
+        {
+          "word": "Café",
+          "replacement": null
+        }
+      ],
+      "expected": {
+        "text": "at the café today",
+        "matches": [],
+        "entryCount": 1
+      }
+    },
+    {
+      "name": "case folding has no locale in it",
+      "decision": "new",
+      "was": "Windows added RegexOptions.CultureInvariant with a Turkish-dotless-i comment; macOS used caseInsensitiveCompare with no such note. str::to_lowercase is the Unicode default mapping, which is invariant under every host locale.",
+      "text": "I met İSTANBUL today",
+      "entries": [
+        {
+          "word": "Istanbul",
+          "replacement": null
+        }
+      ],
+      "expected": {
+        "text": "I met Istanbul today",
+        "matches": [
+          {
+            "token": "İSTANBUL",
+            "replacement": "Istanbul"
+          }
+        ],
+        "entryCount": 1
+      }
+    }
+  ],
+  "substringCases": [
+    {
+      "name": "replaces a plain substring",
+      "text": "say hyperwisper now",
+      "entries": [
+        {
+          "word": "hyperwisper",
+          "replacement": "HyperWhisper"
+        }
+      ],
+      "expected": "say HyperWhisper now"
+    },
+    {
+      "name": "is unanchored, unlike the hardened pass",
+      "text": "category",
+      "entries": [
+        {
+          "word": "cat",
+          "replacement": "dog"
+        }
+      ],
+      "expected": "dogegory"
+    },
+    {
+      "name": "is case-insensitive",
+      "text": "HYPERWISPER",
+      "entries": [
+        {
+          "word": "hyperwisper",
+          "replacement": "HyperWhisper"
+        }
+      ],
+      "expected": "HyperWhisper"
+    },
+    {
+      "name": "matches through an accent and leaves the rest of the text alone",
+      "text": "Zoë went to the Café today",
+      "entries": [
+        {
+          "word": "cafe",
+          "replacement": "Coffee House"
+        }
+      ],
+      "expected": "Zoë went to the Coffee House today"
+    },
+    {
+      "name": "an accented search word matches unaccented text",
+      "text": "the cafe",
+      "entries": [
+        {
+          "word": "Café",
+          "replacement": "Diner"
+        }
+      ],
+      "expected": "the Diner"
+    },
+    {
+      "name": "no match returns the original bytes, unnormalized and unfolded",
+      "text": "Zoë and café and İ",
+      "entries": [
+        {
+          "word": "nothing here",
+          "replacement": "X"
+        }
+      ],
+      "expected": "Zoë and café and İ"
+    },
+    {
+      "name": "the replacement is never rescanned",
+      "text": "aaaa",
+      "entries": [
+        {
+          "word": "aa",
+          "replacement": "aaa"
+        }
+      ],
+      "expected": "aaaaaa"
+    },
+    {
+      "name": "overlapping candidates are taken left to right",
+      "text": "aaa",
+      "entries": [
+        {
+          "word": "aa",
+          "replacement": "X"
+        }
+      ],
+      "expected": "Xa"
+    },
+    {
+      "name": "entries apply in list order, each over the result of the last",
+      "text": "cat",
+      "entries": [
+        {
+          "word": "cat",
+          "replacement": "dog"
+        },
+        {
+          "word": "dog",
+          "replacement": "fox"
+        }
+      ],
+      "expected": "fox"
+    },
+    {
+      "name": "a row with no replacement is skipped",
+      "text": "cat",
+      "entries": [
+        {
+          "word": "cat",
+          "replacement": null
+        }
+      ],
+      "expected": "cat"
+    },
+    {
+      "name": "a blank replacement is a no-op",
+      "text": "unchanged",
+      "entries": [
+        {
+          "word": "unchanged",
+          "replacement": "   "
+        }
+      ],
+      "expected": "unchanged"
+    },
+    {
+      "name": "a word that folds away to nothing is a no-op",
+      "text": "unchanged",
+      "entries": [
+        {
+          "word": "́",
+          "replacement": "X"
+        }
+      ],
+      "expected": "unchanged"
+    },
+    {
+      "name": "a match that would end part-way through one character is refused",
+      "text": "가",
+      "entries": [
+        {
+          "word": "ᄀ",
+          "replacement": "X"
+        }
+      ],
+      "expected": "가"
+    },
+    {
+      "name": "the same syllable still matches whole",
+      "text": "가",
+      "entries": [
+        {
+          "word": "가",
+          "replacement": "X"
+        }
+      ],
+      "expected": "X"
+    },
+    {
+      "name": "both sides are trimmed",
+      "text": "say cat now",
+      "entries": [
+        {
+          "word": "  cat  ",
+          "replacement": "  dog  "
+        }
+      ],
+      "expected": "say dog now"
+    }
+  ]
+}

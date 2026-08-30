@@ -431,6 +431,22 @@ fileprivate struct FfiConverterUInt32: FfiConverterPrimitive {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterInt32: FfiConverterPrimitive {
+    typealias FfiType = Int32
+    typealias SwiftType = Int32
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Int32 {
+        return try lift(readInt(&buf))
+    }
+
+    public static func write(_ value: Int32, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterUInt64: FfiConverterPrimitive {
     typealias FfiType = UInt64
     typealias SwiftType = UInt64
@@ -1888,6 +1904,81 @@ public func FfiConverterTypeHwAudioSignalSummary_lower(_ value: HwAudioSignalSum
 
 
 /**
+ * One block-level element of a release note, already split into styled runs.
+ * Mirrors `hw_releasenotes::Block`.
+ *
+ * The runs sit inside the block rather than in a parallel sequence: issue #284
+ * names `Vec<Vec<Run>>` as the shape to avoid, because nothing in it says which
+ * inner sequence is the heading, and both heads had to re-derive that from
+ * position.
+ */
+public struct HwBlock {
+    public var kind: HwBlockKind
+    public var runs: [HwRun]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(kind: HwBlockKind, runs: [HwRun]) {
+        self.kind = kind
+        self.runs = runs
+    }
+}
+
+
+
+extension HwBlock: Equatable, Hashable {
+    public static func ==(lhs: HwBlock, rhs: HwBlock) -> Bool {
+        if lhs.kind != rhs.kind {
+            return false
+        }
+        if lhs.runs != rhs.runs {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(kind)
+        hasher.combine(runs)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwBlock: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwBlock {
+        return
+            try HwBlock(
+                kind: FfiConverterTypeHwBlockKind.read(from: &buf), 
+                runs: FfiConverterSequenceTypeHwRun.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwBlock, into buf: inout [UInt8]) {
+        FfiConverterTypeHwBlockKind.write(value.kind, into: &buf)
+        FfiConverterSequenceTypeHwRun.write(value.runs, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwBlock_lift(_ buf: RustBuffer) throws -> HwBlock {
+    return try FfiConverterTypeHwBlock.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwBlock_lower(_ value: HwBlock) -> RustBuffer {
+    return FfiConverterTypeHwBlock.lower(value)
+}
+
+
+/**
  * The verdict on one custom endpoint. Mirrors `l::EndpointVerdict`.
  *
  * `url` is the single check a runtime caller needs: **empty means do not call
@@ -1989,6 +2080,224 @@ public func FfiConverterTypeHwEndpointVerdict_lift(_ buf: RustBuffer) throws -> 
 #endif
 public func FfiConverterTypeHwEndpointVerdict_lower(_ value: HwEndpointVerdict) -> RustBuffer {
     return FfiConverterTypeHwEndpointVerdict.lower(value)
+}
+
+
+/**
+ * Everything the three home strips render, plus the periods the statistics
+ * pages use. Mirrors `hw_stats::HomeStatsSnapshot`.
+ */
+public struct HwHomeStatsSnapshot {
+    public var thisWeek: HwPeriodStats
+    public var thisMonth: HwPeriodStats
+    public var thisYear: HwPeriodStats
+    public var allTime: HwPeriodStats
+    /**
+     * Echoed back so a head can render the gear menu without reading settings
+     * twice.
+     */
+    public var typingSpeedWordsPerMinute: Int32
+    /**
+     * The "avg WPM" column: the all-time figure, on all three heads.
+     */
+    public var averageWordsPerMinute: Int32
+    /**
+     * The "saved this week" column: rounded half away from zero, floored at 0,
+     * clamped to [`stats_saved_minutes_ceiling`].
+     */
+    public var savedThisWeekMinutes: Int32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(thisWeek: HwPeriodStats, thisMonth: HwPeriodStats, thisYear: HwPeriodStats, allTime: HwPeriodStats, 
+        /**
+         * Echoed back so a head can render the gear menu without reading settings
+         * twice.
+         */typingSpeedWordsPerMinute: Int32, 
+        /**
+         * The "avg WPM" column: the all-time figure, on all three heads.
+         */averageWordsPerMinute: Int32, 
+        /**
+         * The "saved this week" column: rounded half away from zero, floored at 0,
+         * clamped to [`stats_saved_minutes_ceiling`].
+         */savedThisWeekMinutes: Int32) {
+        self.thisWeek = thisWeek
+        self.thisMonth = thisMonth
+        self.thisYear = thisYear
+        self.allTime = allTime
+        self.typingSpeedWordsPerMinute = typingSpeedWordsPerMinute
+        self.averageWordsPerMinute = averageWordsPerMinute
+        self.savedThisWeekMinutes = savedThisWeekMinutes
+    }
+}
+
+
+
+extension HwHomeStatsSnapshot: Equatable, Hashable {
+    public static func ==(lhs: HwHomeStatsSnapshot, rhs: HwHomeStatsSnapshot) -> Bool {
+        if lhs.thisWeek != rhs.thisWeek {
+            return false
+        }
+        if lhs.thisMonth != rhs.thisMonth {
+            return false
+        }
+        if lhs.thisYear != rhs.thisYear {
+            return false
+        }
+        if lhs.allTime != rhs.allTime {
+            return false
+        }
+        if lhs.typingSpeedWordsPerMinute != rhs.typingSpeedWordsPerMinute {
+            return false
+        }
+        if lhs.averageWordsPerMinute != rhs.averageWordsPerMinute {
+            return false
+        }
+        if lhs.savedThisWeekMinutes != rhs.savedThisWeekMinutes {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(thisWeek)
+        hasher.combine(thisMonth)
+        hasher.combine(thisYear)
+        hasher.combine(allTime)
+        hasher.combine(typingSpeedWordsPerMinute)
+        hasher.combine(averageWordsPerMinute)
+        hasher.combine(savedThisWeekMinutes)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwHomeStatsSnapshot: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwHomeStatsSnapshot {
+        return
+            try HwHomeStatsSnapshot(
+                thisWeek: FfiConverterTypeHwPeriodStats.read(from: &buf), 
+                thisMonth: FfiConverterTypeHwPeriodStats.read(from: &buf), 
+                thisYear: FfiConverterTypeHwPeriodStats.read(from: &buf), 
+                allTime: FfiConverterTypeHwPeriodStats.read(from: &buf), 
+                typingSpeedWordsPerMinute: FfiConverterInt32.read(from: &buf), 
+                averageWordsPerMinute: FfiConverterInt32.read(from: &buf), 
+                savedThisWeekMinutes: FfiConverterInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwHomeStatsSnapshot, into buf: inout [UInt8]) {
+        FfiConverterTypeHwPeriodStats.write(value.thisWeek, into: &buf)
+        FfiConverterTypeHwPeriodStats.write(value.thisMonth, into: &buf)
+        FfiConverterTypeHwPeriodStats.write(value.thisYear, into: &buf)
+        FfiConverterTypeHwPeriodStats.write(value.allTime, into: &buf)
+        FfiConverterInt32.write(value.typingSpeedWordsPerMinute, into: &buf)
+        FfiConverterInt32.write(value.averageWordsPerMinute, into: &buf)
+        FfiConverterInt32.write(value.savedThisWeekMinutes, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwHomeStatsSnapshot_lift(_ buf: RustBuffer) throws -> HwHomeStatsSnapshot {
+    return try FfiConverterTypeHwHomeStatsSnapshot.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwHomeStatsSnapshot_lower(_ value: HwHomeStatsSnapshot) -> RustBuffer {
+    return FfiConverterTypeHwHomeStatsSnapshot.lower(value)
+}
+
+
+/**
+ * One catalog row. `Hw`-prefixed for the usual reason: an unprefixed
+ * `Language` would land one namespace import away from the heads' own
+ * language types, and `LanguageInfo` is literally the name of the Windows
+ * class this replaces.
+ */
+public struct HwLanguage {
+    /**
+     * The canonical BCP-47 tag.
+     */
+    public var code: String
+    /**
+     * The English display name, or `None` when the catalog does not know the
+     * code and the host has to localize it.
+     */
+    public var displayName: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The canonical BCP-47 tag.
+         */code: String, 
+        /**
+         * The English display name, or `None` when the catalog does not know the
+         * code and the host has to localize it.
+         */displayName: String?) {
+        self.code = code
+        self.displayName = displayName
+    }
+}
+
+
+
+extension HwLanguage: Equatable, Hashable {
+    public static func ==(lhs: HwLanguage, rhs: HwLanguage) -> Bool {
+        if lhs.code != rhs.code {
+            return false
+        }
+        if lhs.displayName != rhs.displayName {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(code)
+        hasher.combine(displayName)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwLanguage: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwLanguage {
+        return
+            try HwLanguage(
+                code: FfiConverterString.read(from: &buf), 
+                displayName: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwLanguage, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.code, into: &buf)
+        FfiConverterOptionString.write(value.displayName, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLanguage_lift(_ buf: RustBuffer) throws -> HwLanguage {
+    return try FfiConverterTypeHwLanguage.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLanguage_lower(_ value: HwLanguage) -> RustBuffer {
+    return FfiConverterTypeHwLanguage.lower(value)
 }
 
 
@@ -2578,6 +2887,240 @@ public func FfiConverterTypeHwLlmParams_lower(_ value: HwLlmParams) -> RustBuffe
 
 
 /**
+ * A complete failure response. Mirrors `hw_localapi::Failure`.
+ *
+ * The head serializes the envelope with its own encoder, so this record does
+ * not dictate key order or how an absent hint is elided. What it does dictate
+ * is `http_status`, which is the half of #289 Linux got wrong.
+ */
+public struct HwLocalApiFailure {
+    /**
+     * The status to send. 200 for a business failure; 400/401/403 for the
+     * three protocol cases.
+     */
+    public var httpStatus: UInt16
+    /**
+     * The wire code, always one of the 14.
+     */
+    public var code: HwLocalApiErrorCode
+    /**
+     * Human-readable, shown to the agent by an MCP wrapper.
+     */
+    public var message: String
+    /**
+     * What to do about it, when there is something to say.
+     */
+    public var hint: String?
+    /**
+     * The whole envelope as JSON, for a head with no typed model to hand.
+     * `{"ok":false,"error":{"code":…,"message":…[,"hint":…]}}`.
+     */
+    public var json: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The status to send. 200 for a business failure; 400/401/403 for the
+         * three protocol cases.
+         */httpStatus: UInt16, 
+        /**
+         * The wire code, always one of the 14.
+         */code: HwLocalApiErrorCode, 
+        /**
+         * Human-readable, shown to the agent by an MCP wrapper.
+         */message: String, 
+        /**
+         * What to do about it, when there is something to say.
+         */hint: String?, 
+        /**
+         * The whole envelope as JSON, for a head with no typed model to hand.
+         * `{"ok":false,"error":{"code":…,"message":…[,"hint":…]}}`.
+         */json: String) {
+        self.httpStatus = httpStatus
+        self.code = code
+        self.message = message
+        self.hint = hint
+        self.json = json
+    }
+}
+
+
+
+extension HwLocalApiFailure: Equatable, Hashable {
+    public static func ==(lhs: HwLocalApiFailure, rhs: HwLocalApiFailure) -> Bool {
+        if lhs.httpStatus != rhs.httpStatus {
+            return false
+        }
+        if lhs.code != rhs.code {
+            return false
+        }
+        if lhs.message != rhs.message {
+            return false
+        }
+        if lhs.hint != rhs.hint {
+            return false
+        }
+        if lhs.json != rhs.json {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(httpStatus)
+        hasher.combine(code)
+        hasher.combine(message)
+        hasher.combine(hint)
+        hasher.combine(json)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwLocalApiFailure: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwLocalApiFailure {
+        return
+            try HwLocalApiFailure(
+                httpStatus: FfiConverterUInt16.read(from: &buf), 
+                code: FfiConverterTypeHwLocalApiErrorCode.read(from: &buf), 
+                message: FfiConverterString.read(from: &buf), 
+                hint: FfiConverterOptionString.read(from: &buf), 
+                json: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwLocalApiFailure, into buf: inout [UInt8]) {
+        FfiConverterUInt16.write(value.httpStatus, into: &buf)
+        FfiConverterTypeHwLocalApiErrorCode.write(value.code, into: &buf)
+        FfiConverterString.write(value.message, into: &buf)
+        FfiConverterOptionString.write(value.hint, into: &buf)
+        FfiConverterString.write(value.json, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLocalApiFailure_lift(_ buf: RustBuffer) throws -> HwLocalApiFailure {
+    return try FfiConverterTypeHwLocalApiFailure.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLocalApiFailure_lower(_ value: HwLocalApiFailure) -> RustBuffer {
+    return FfiConverterTypeHwLocalApiFailure.lower(value)
+}
+
+
+/**
+ * The three request headers the DNS-rebind guard reads. Mirrors
+ * `hw_localapi::OriginHeaders`.
+ *
+ * The head does the lookup, and the lookup must be case-insensitive (RFC 7230
+ * §3.2). Every head already has a case-insensitive header map — FlyingFox's
+ * `HTTPHeader`, ASP.NET Core's `IHeaderDictionary` — so this record carries
+ * values, never names.
+ */
+public struct HwLocalApiOriginHeaders {
+    /**
+     * `Host`. `None` means the request carried no `Host` header at all, which
+     * is itself a denial.
+     */
+    public var host: String?
+    /**
+     * `Origin`. `None` or empty is fine; a non-loopback value is a denial.
+     */
+    public var origin: String?
+    /**
+     * `Sec-Fetch-Site`. `None` is fine — curl and the MCP wrapper omit it.
+     */
+    public var secFetchSite: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * `Host`. `None` means the request carried no `Host` header at all, which
+         * is itself a denial.
+         */host: String?, 
+        /**
+         * `Origin`. `None` or empty is fine; a non-loopback value is a denial.
+         */origin: String?, 
+        /**
+         * `Sec-Fetch-Site`. `None` is fine — curl and the MCP wrapper omit it.
+         */secFetchSite: String?) {
+        self.host = host
+        self.origin = origin
+        self.secFetchSite = secFetchSite
+    }
+}
+
+
+
+extension HwLocalApiOriginHeaders: Equatable, Hashable {
+    public static func ==(lhs: HwLocalApiOriginHeaders, rhs: HwLocalApiOriginHeaders) -> Bool {
+        if lhs.host != rhs.host {
+            return false
+        }
+        if lhs.origin != rhs.origin {
+            return false
+        }
+        if lhs.secFetchSite != rhs.secFetchSite {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(host)
+        hasher.combine(origin)
+        hasher.combine(secFetchSite)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwLocalApiOriginHeaders: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwLocalApiOriginHeaders {
+        return
+            try HwLocalApiOriginHeaders(
+                host: FfiConverterOptionString.read(from: &buf), 
+                origin: FfiConverterOptionString.read(from: &buf), 
+                secFetchSite: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwLocalApiOriginHeaders, into buf: inout [UInt8]) {
+        FfiConverterOptionString.write(value.host, into: &buf)
+        FfiConverterOptionString.write(value.origin, into: &buf)
+        FfiConverterOptionString.write(value.secFetchSite, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLocalApiOriginHeaders_lift(_ buf: RustBuffer) throws -> HwLocalApiOriginHeaders {
+    return try FfiConverterTypeHwLocalApiOriginHeaders.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLocalApiOriginHeaders_lower(_ value: HwLocalApiOriginHeaders) -> RustBuffer {
+    return FfiConverterTypeHwLocalApiOriginHeaders.lower(value)
+}
+
+
+/**
  * The three persisted mode fields the diagnostic groups and facets on. Mirrors
  * `no_speech::ModeIdentity`.
  *
@@ -2797,6 +3340,299 @@ public func FfiConverterTypeHwNoSpeechInput_lift(_ buf: RustBuffer) throws -> Hw
 #endif
 public func FfiConverterTypeHwNoSpeechInput_lower(_ value: HwNoSpeechInput) -> RustBuffer {
     return FfiConverterTypeHwNoSpeechInput.lower(value)
+}
+
+
+/**
+ * One period's totals and derived figures. Mirrors `hw_stats::PeriodStats`.
+ */
+public struct HwPeriodStats {
+    /**
+     * Saturating sum of the rows' word counts.
+     */
+    public var wordCount: UInt32
+    public var durationSeconds: Double
+    public var averageWordsPerMinute: Int32
+    public var estimatedTypingMinutes: Double
+    /**
+     * Floored at 0 but NOT clamped — the one-week ceiling applies to
+     * [`HwHomeStatsSnapshot::saved_this_week_minutes`] only.
+     */
+    public var estimatedTimeSavedMinutes: Double
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Saturating sum of the rows' word counts.
+         */wordCount: UInt32, durationSeconds: Double, averageWordsPerMinute: Int32, estimatedTypingMinutes: Double, 
+        /**
+         * Floored at 0 but NOT clamped — the one-week ceiling applies to
+         * [`HwHomeStatsSnapshot::saved_this_week_minutes`] only.
+         */estimatedTimeSavedMinutes: Double) {
+        self.wordCount = wordCount
+        self.durationSeconds = durationSeconds
+        self.averageWordsPerMinute = averageWordsPerMinute
+        self.estimatedTypingMinutes = estimatedTypingMinutes
+        self.estimatedTimeSavedMinutes = estimatedTimeSavedMinutes
+    }
+}
+
+
+
+extension HwPeriodStats: Equatable, Hashable {
+    public static func ==(lhs: HwPeriodStats, rhs: HwPeriodStats) -> Bool {
+        if lhs.wordCount != rhs.wordCount {
+            return false
+        }
+        if lhs.durationSeconds != rhs.durationSeconds {
+            return false
+        }
+        if lhs.averageWordsPerMinute != rhs.averageWordsPerMinute {
+            return false
+        }
+        if lhs.estimatedTypingMinutes != rhs.estimatedTypingMinutes {
+            return false
+        }
+        if lhs.estimatedTimeSavedMinutes != rhs.estimatedTimeSavedMinutes {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(wordCount)
+        hasher.combine(durationSeconds)
+        hasher.combine(averageWordsPerMinute)
+        hasher.combine(estimatedTypingMinutes)
+        hasher.combine(estimatedTimeSavedMinutes)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwPeriodStats: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwPeriodStats {
+        return
+            try HwPeriodStats(
+                wordCount: FfiConverterUInt32.read(from: &buf), 
+                durationSeconds: FfiConverterDouble.read(from: &buf), 
+                averageWordsPerMinute: FfiConverterInt32.read(from: &buf), 
+                estimatedTypingMinutes: FfiConverterDouble.read(from: &buf), 
+                estimatedTimeSavedMinutes: FfiConverterDouble.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwPeriodStats, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.wordCount, into: &buf)
+        FfiConverterDouble.write(value.durationSeconds, into: &buf)
+        FfiConverterInt32.write(value.averageWordsPerMinute, into: &buf)
+        FfiConverterDouble.write(value.estimatedTypingMinutes, into: &buf)
+        FfiConverterDouble.write(value.estimatedTimeSavedMinutes, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwPeriodStats_lift(_ buf: RustBuffer) throws -> HwPeriodStats {
+    return try FfiConverterTypeHwPeriodStats.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwPeriodStats_lower(_ value: HwPeriodStats) -> RustBuffer {
+    return FfiConverterTypeHwPeriodStats.lower(value)
+}
+
+
+/**
+ * The whole answer for one transcription.
+ */
+public struct HwPhoneticApplyResult {
+    /**
+     * The corrected transcript, NFC-normalized.
+     */
+    public var text: String
+    /**
+     * Every correction, in the order they were applied.
+     */
+    public var matches: [HwPhoneticMatch]
+    /**
+     * How many vocabulary rows survived the build filters and were matched
+     * against — the number behind both platforms' "Phonetic matcher
+     * initialized with N vocabulary entries" log line, which would otherwise
+     * have no home once the matcher stopped being an object the host builds.
+     */
+    public var entryCount: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The corrected transcript, NFC-normalized.
+         */text: String, 
+        /**
+         * Every correction, in the order they were applied.
+         */matches: [HwPhoneticMatch], 
+        /**
+         * How many vocabulary rows survived the build filters and were matched
+         * against — the number behind both platforms' "Phonetic matcher
+         * initialized with N vocabulary entries" log line, which would otherwise
+         * have no home once the matcher stopped being an object the host builds.
+         */entryCount: UInt32) {
+        self.text = text
+        self.matches = matches
+        self.entryCount = entryCount
+    }
+}
+
+
+
+extension HwPhoneticApplyResult: Equatable, Hashable {
+    public static func ==(lhs: HwPhoneticApplyResult, rhs: HwPhoneticApplyResult) -> Bool {
+        if lhs.text != rhs.text {
+            return false
+        }
+        if lhs.matches != rhs.matches {
+            return false
+        }
+        if lhs.entryCount != rhs.entryCount {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(text)
+        hasher.combine(matches)
+        hasher.combine(entryCount)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwPhoneticApplyResult: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwPhoneticApplyResult {
+        return
+            try HwPhoneticApplyResult(
+                text: FfiConverterString.read(from: &buf), 
+                matches: FfiConverterSequenceTypeHwPhoneticMatch.read(from: &buf), 
+                entryCount: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwPhoneticApplyResult, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.text, into: &buf)
+        FfiConverterSequenceTypeHwPhoneticMatch.write(value.matches, into: &buf)
+        FfiConverterUInt32.write(value.entryCount, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwPhoneticApplyResult_lift(_ buf: RustBuffer) throws -> HwPhoneticApplyResult {
+    return try FfiConverterTypeHwPhoneticApplyResult.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwPhoneticApplyResult_lower(_ value: HwPhoneticApplyResult) -> RustBuffer {
+    return FfiConverterTypeHwPhoneticApplyResult.lower(value)
+}
+
+
+/**
+ * One correction the matcher made.
+ *
+ * The result carries these instead of Rust logging them, so each head keeps its
+ * own logger — `os.Logger` on macOS, `LoggingService` on Windows, `ILogger` on
+ * Linux — and its own privacy annotations.
+ */
+public struct HwPhoneticMatch {
+    /**
+     * The transcript token as it appeared, trailing punctuation included.
+     */
+    public var token: String
+    /**
+     * The vocabulary spelling it was replaced with.
+     */
+    public var replacement: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The transcript token as it appeared, trailing punctuation included.
+         */token: String, 
+        /**
+         * The vocabulary spelling it was replaced with.
+         */replacement: String) {
+        self.token = token
+        self.replacement = replacement
+    }
+}
+
+
+
+extension HwPhoneticMatch: Equatable, Hashable {
+    public static func ==(lhs: HwPhoneticMatch, rhs: HwPhoneticMatch) -> Bool {
+        if lhs.token != rhs.token {
+            return false
+        }
+        if lhs.replacement != rhs.replacement {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(token)
+        hasher.combine(replacement)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwPhoneticMatch: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwPhoneticMatch {
+        return
+            try HwPhoneticMatch(
+                token: FfiConverterString.read(from: &buf), 
+                replacement: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwPhoneticMatch, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.token, into: &buf)
+        FfiConverterString.write(value.replacement, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwPhoneticMatch_lift(_ buf: RustBuffer) throws -> HwPhoneticMatch {
+    return try FfiConverterTypeHwPhoneticMatch.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwPhoneticMatch_lower(_ value: HwPhoneticMatch) -> RustBuffer {
+    return FfiConverterTypeHwPhoneticMatch.lower(value)
 }
 
 
@@ -3425,6 +4261,176 @@ public func FfiConverterTypeHwPttTransition_lower(_ value: HwPttTransition) -> R
 
 
 /**
+ * A release note as the update cards render it. Mirrors
+ * `hw_releasenotes::ReleaseNote`.
+ */
+public struct HwReleaseNote {
+    /**
+     * The heading above the bullet list, or `None` when the note has none.
+     */
+    public var title: HwBlock?
+    public var bullets: [HwBlock]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The heading above the bullet list, or `None` when the note has none.
+         */title: HwBlock?, bullets: [HwBlock]) {
+        self.title = title
+        self.bullets = bullets
+    }
+}
+
+
+
+extension HwReleaseNote: Equatable, Hashable {
+    public static func ==(lhs: HwReleaseNote, rhs: HwReleaseNote) -> Bool {
+        if lhs.title != rhs.title {
+            return false
+        }
+        if lhs.bullets != rhs.bullets {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(title)
+        hasher.combine(bullets)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwReleaseNote: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwReleaseNote {
+        return
+            try HwReleaseNote(
+                title: FfiConverterOptionTypeHwBlock.read(from: &buf), 
+                bullets: FfiConverterSequenceTypeHwBlock.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwReleaseNote, into buf: inout [UInt8]) {
+        FfiConverterOptionTypeHwBlock.write(value.title, into: &buf)
+        FfiConverterSequenceTypeHwBlock.write(value.bullets, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwReleaseNote_lift(_ buf: RustBuffer) throws -> HwReleaseNote {
+    return try FfiConverterTypeHwReleaseNote.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwReleaseNote_lower(_ value: HwReleaseNote) -> RustBuffer {
+    return FfiConverterTypeHwReleaseNote.lower(value)
+}
+
+
+/**
+ * A stretch of release-notes text that shares one style and, if it sits inside
+ * an `<a href>`, one destination. Mirrors `hw_releasenotes::Run`.
+ */
+public struct HwRun {
+    public var text: String
+    public var bold: Bool
+    public var italic: Bool
+    /**
+     * The feed's href verbatim, entity-decoded and trimmed, already checked
+     * against the scheme allowlist. `None` when the anchor had no usable href.
+     */
+    public var link: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(text: String, bold: Bool, italic: Bool, 
+        /**
+         * The feed's href verbatim, entity-decoded and trimmed, already checked
+         * against the scheme allowlist. `None` when the anchor had no usable href.
+         */link: String?) {
+        self.text = text
+        self.bold = bold
+        self.italic = italic
+        self.link = link
+    }
+}
+
+
+
+extension HwRun: Equatable, Hashable {
+    public static func ==(lhs: HwRun, rhs: HwRun) -> Bool {
+        if lhs.text != rhs.text {
+            return false
+        }
+        if lhs.bold != rhs.bold {
+            return false
+        }
+        if lhs.italic != rhs.italic {
+            return false
+        }
+        if lhs.link != rhs.link {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(text)
+        hasher.combine(bold)
+        hasher.combine(italic)
+        hasher.combine(link)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwRun: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwRun {
+        return
+            try HwRun(
+                text: FfiConverterString.read(from: &buf), 
+                bold: FfiConverterBool.read(from: &buf), 
+                italic: FfiConverterBool.read(from: &buf), 
+                link: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwRun, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.text, into: &buf)
+        FfiConverterBool.write(value.bold, into: &buf)
+        FfiConverterBool.write(value.italic, into: &buf)
+        FfiConverterOptionString.write(value.link, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwRun_lift(_ buf: RustBuffer) throws -> HwRun {
+    return try FfiConverterTypeHwRun.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwRun_lower(_ value: HwRun) -> RustBuffer {
+    return FfiConverterTypeHwRun.lower(value)
+}
+
+
+/**
  * What the head's decode loop counted. Mirrors `no_speech::SignalAccumulation`.
  *
  * `sum_squares` and `peak` are over the absolute amplitude, so both are
@@ -3533,6 +4539,129 @@ public func FfiConverterTypeHwSignalAccumulation_lift(_ buf: RustBuffer) throws 
 #endif
 public func FfiConverterTypeHwSignalAccumulation_lower(_ value: HwSignalAccumulation) -> RustBuffer {
     return FfiConverterTypeHwSignalAccumulation.lower(value)
+}
+
+
+/**
+ * One persisted transcript, projected down to what the statistics need.
+ */
+public struct HwStatsTranscript {
+    /**
+     * The row's instant **already shifted into the calendar time zone**,
+     * as seconds since the Unix epoch.
+     *
+     * The host owns this conversion because the host owns the time-zone
+     * database: `TimeZoneInfo.ConvertTime(row.CreatedAt, tz)` on .NET,
+     * `date.timeIntervalSince1970 + TimeZone.current.secondsFromGMT(for: date)`
+     * on Swift. Doing it per row is what keeps DST correct. Every calendar
+     * boundary above it — Monday, the 1st, January 1st — is computed in Rust.
+     */
+    public var createdAtLocalEpochSeconds: Int64
+    /**
+     * Counted by the host from the full text. Word counting stays native:
+     * there is no persisted count on any of the three stores, and the two
+     * native implementations already agree (#285).
+     */
+    public var wordCount: UInt32
+    /**
+     * Spoken seconds, as stored. Not trusted — a non-finite or negative value
+     * is normalised to 0 rather than rejected.
+     */
+    public var durationSeconds: Double
+    public var status: HwTranscriptStatus
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The row's instant **already shifted into the calendar time zone**,
+         * as seconds since the Unix epoch.
+         *
+         * The host owns this conversion because the host owns the time-zone
+         * database: `TimeZoneInfo.ConvertTime(row.CreatedAt, tz)` on .NET,
+         * `date.timeIntervalSince1970 + TimeZone.current.secondsFromGMT(for: date)`
+         * on Swift. Doing it per row is what keeps DST correct. Every calendar
+         * boundary above it — Monday, the 1st, January 1st — is computed in Rust.
+         */createdAtLocalEpochSeconds: Int64, 
+        /**
+         * Counted by the host from the full text. Word counting stays native:
+         * there is no persisted count on any of the three stores, and the two
+         * native implementations already agree (#285).
+         */wordCount: UInt32, 
+        /**
+         * Spoken seconds, as stored. Not trusted — a non-finite or negative value
+         * is normalised to 0 rather than rejected.
+         */durationSeconds: Double, status: HwTranscriptStatus) {
+        self.createdAtLocalEpochSeconds = createdAtLocalEpochSeconds
+        self.wordCount = wordCount
+        self.durationSeconds = durationSeconds
+        self.status = status
+    }
+}
+
+
+
+extension HwStatsTranscript: Equatable, Hashable {
+    public static func ==(lhs: HwStatsTranscript, rhs: HwStatsTranscript) -> Bool {
+        if lhs.createdAtLocalEpochSeconds != rhs.createdAtLocalEpochSeconds {
+            return false
+        }
+        if lhs.wordCount != rhs.wordCount {
+            return false
+        }
+        if lhs.durationSeconds != rhs.durationSeconds {
+            return false
+        }
+        if lhs.status != rhs.status {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(createdAtLocalEpochSeconds)
+        hasher.combine(wordCount)
+        hasher.combine(durationSeconds)
+        hasher.combine(status)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwStatsTranscript: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwStatsTranscript {
+        return
+            try HwStatsTranscript(
+                createdAtLocalEpochSeconds: FfiConverterInt64.read(from: &buf), 
+                wordCount: FfiConverterUInt32.read(from: &buf), 
+                durationSeconds: FfiConverterDouble.read(from: &buf), 
+                status: FfiConverterTypeHwTranscriptStatus.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwStatsTranscript, into buf: inout [UInt8]) {
+        FfiConverterInt64.write(value.createdAtLocalEpochSeconds, into: &buf)
+        FfiConverterUInt32.write(value.wordCount, into: &buf)
+        FfiConverterDouble.write(value.durationSeconds, into: &buf)
+        FfiConverterTypeHwTranscriptStatus.write(value.status, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwStatsTranscript_lift(_ buf: RustBuffer) throws -> HwStatsTranscript {
+    return try FfiConverterTypeHwStatsTranscript.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwStatsTranscript_lower(_ value: HwStatsTranscript) -> RustBuffer {
+    return FfiConverterTypeHwStatsTranscript.lower(value)
 }
 
 
@@ -3687,6 +4816,81 @@ public func FfiConverterTypeHwValidationError_lift(_ buf: RustBuffer) throws -> 
 #endif
 public func FfiConverterTypeHwValidationError_lower(_ value: HwValidationError) -> RustBuffer {
     return FfiConverterTypeHwValidationError.lower(value)
+}
+
+
+/**
+ * One row of the user's vocabulary, as the host stores it.
+ *
+ * `replacement` is `null` (or empty) for a spelling-hint row — those are what
+ * [`phonetic_apply_vocabulary`] corrects towards. A row that carries a
+ * replacement is skipped by the phonetic pass and handled by
+ * [`apply_substring_vocabulary`] / `apply_hardened_replacement` instead, which
+ * is exactly what both native matchers did.
+ */
+public struct HwVocabularyEntry {
+    public var word: String
+    public var replacement: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(word: String, replacement: String?) {
+        self.word = word
+        self.replacement = replacement
+    }
+}
+
+
+
+extension HwVocabularyEntry: Equatable, Hashable {
+    public static func ==(lhs: HwVocabularyEntry, rhs: HwVocabularyEntry) -> Bool {
+        if lhs.word != rhs.word {
+            return false
+        }
+        if lhs.replacement != rhs.replacement {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(word)
+        hasher.combine(replacement)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwVocabularyEntry: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwVocabularyEntry {
+        return
+            try HwVocabularyEntry(
+                word: FfiConverterString.read(from: &buf), 
+                replacement: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HwVocabularyEntry, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.word, into: &buf)
+        FfiConverterOptionString.write(value.replacement, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwVocabularyEntry_lift(_ buf: RustBuffer) throws -> HwVocabularyEntry {
+    return try FfiConverterTypeHwVocabularyEntry.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwVocabularyEntry_lower(_ value: HwVocabularyEntry) -> RustBuffer {
+    return FfiConverterTypeHwVocabularyEntry.lower(value)
 }
 
 
@@ -6876,6 +8080,80 @@ extension HwAudioFraming: Equatable, Hashable {}
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
+ * What a block is for. Mirrors `hw_releasenotes::BlockKind`.
+ */
+
+public enum HwBlockKind {
+    
+    case heading
+    case bullet
+    case paragraph
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwBlockKind: FfiConverterRustBuffer {
+    typealias SwiftType = HwBlockKind
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwBlockKind {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .heading
+        
+        case 2: return .bullet
+        
+        case 3: return .paragraph
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: HwBlockKind, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .heading:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .bullet:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .paragraph:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwBlockKind_lift(_ buf: RustBuffer) throws -> HwBlockKind {
+    return try FfiConverterTypeHwBlockKind.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwBlockKind_lower(_ value: HwBlockKind) -> RustBuffer {
+    return FfiConverterTypeHwBlockKind.lower(value)
+}
+
+
+
+extension HwBlockKind: Equatable, Hashable {}
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
  * The rule that failed. Mirrors `l::EndpointIssue`.
  */
 
@@ -8313,6 +9591,353 @@ extension HwLlmWireProtocol: Equatable, Hashable {}
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
+ * The closed set of Local API error codes. Mirrors
+ * `hw_localapi::LocalApiErrorCode`.
+ *
+ * Closed is the property that matters: the macOS decoder is a Swift `Codable`
+ * enum, so a client sharing it fails to decode the whole envelope on a
+ * fifteenth code rather than seeing an unknown one. There is no `Other`
+ * variant here for the same reason.
+ */
+
+public enum HwLocalApiErrorCode {
+    
+    case modelNotInstalled
+    case modelNotFound
+    case engineUnavailable
+    case missingApiKey
+    case fileNotFound
+    case fileAccessDenied
+    case fileNotAllowed
+    case audioDecodeFailed
+    case transcriptionFailed
+    case modeNotFound
+    case modeNameTaken
+    case invalidRequest
+    case rateLimited
+    case timeout
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwLocalApiErrorCode: FfiConverterRustBuffer {
+    typealias SwiftType = HwLocalApiErrorCode
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwLocalApiErrorCode {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .modelNotInstalled
+        
+        case 2: return .modelNotFound
+        
+        case 3: return .engineUnavailable
+        
+        case 4: return .missingApiKey
+        
+        case 5: return .fileNotFound
+        
+        case 6: return .fileAccessDenied
+        
+        case 7: return .fileNotAllowed
+        
+        case 8: return .audioDecodeFailed
+        
+        case 9: return .transcriptionFailed
+        
+        case 10: return .modeNotFound
+        
+        case 11: return .modeNameTaken
+        
+        case 12: return .invalidRequest
+        
+        case 13: return .rateLimited
+        
+        case 14: return .timeout
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: HwLocalApiErrorCode, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .modelNotInstalled:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .modelNotFound:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .engineUnavailable:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .missingApiKey:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .fileNotFound:
+            writeInt(&buf, Int32(5))
+        
+        
+        case .fileAccessDenied:
+            writeInt(&buf, Int32(6))
+        
+        
+        case .fileNotAllowed:
+            writeInt(&buf, Int32(7))
+        
+        
+        case .audioDecodeFailed:
+            writeInt(&buf, Int32(8))
+        
+        
+        case .transcriptionFailed:
+            writeInt(&buf, Int32(9))
+        
+        
+        case .modeNotFound:
+            writeInt(&buf, Int32(10))
+        
+        
+        case .modeNameTaken:
+            writeInt(&buf, Int32(11))
+        
+        
+        case .invalidRequest:
+            writeInt(&buf, Int32(12))
+        
+        
+        case .rateLimited:
+            writeInt(&buf, Int32(13))
+        
+        
+        case .timeout:
+            writeInt(&buf, Int32(14))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLocalApiErrorCode_lift(_ buf: RustBuffer) throws -> HwLocalApiErrorCode {
+    return try FfiConverterTypeHwLocalApiErrorCode.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLocalApiErrorCode_lower(_ value: HwLocalApiErrorCode) -> RustBuffer {
+    return FfiConverterTypeHwLocalApiErrorCode.lower(value)
+}
+
+
+
+extension HwLocalApiErrorCode: Equatable, Hashable {}
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * Why the guard let a request through, or why it did not. Mirrors
+ * `hw_localapi::OriginDecision`.
+ *
+ * A head only needs the allow/deny bit — the wire response is the same 403
+ * whichever denial fired, and no reason ever reaches a client. The reasons
+ * cross the boundary anyway so a head can log which check rejected a request,
+ * which is the difference between "someone is probing us" and "the MCP wrapper
+ * is sending the wrong `Host`".
+ */
+
+public enum HwLocalApiOriginDecision {
+    
+    /**
+     * Safe to dispatch.
+     */
+    case allow
+    /**
+     * The server is not bound yet, so no `Host` can be checked against a port.
+     */
+    case deniedPortUnknown
+    /**
+     * No `Host` header, or one that is empty after trimming.
+     */
+    case deniedMissingHost
+    /**
+     * The `Host` header does not name loopback on the bound port.
+     */
+    case deniedHost
+    /**
+     * `Sec-Fetch-Site` was present and was neither `same-origin` nor `none`.
+     */
+    case deniedFetchSite
+    /**
+     * `Origin` was present, non-empty, and did not name loopback on the bound
+     * port.
+     */
+    case deniedOrigin
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwLocalApiOriginDecision: FfiConverterRustBuffer {
+    typealias SwiftType = HwLocalApiOriginDecision
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwLocalApiOriginDecision {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .allow
+        
+        case 2: return .deniedPortUnknown
+        
+        case 3: return .deniedMissingHost
+        
+        case 4: return .deniedHost
+        
+        case 5: return .deniedFetchSite
+        
+        case 6: return .deniedOrigin
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: HwLocalApiOriginDecision, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .allow:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .deniedPortUnknown:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .deniedMissingHost:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .deniedHost:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .deniedFetchSite:
+            writeInt(&buf, Int32(5))
+        
+        
+        case .deniedOrigin:
+            writeInt(&buf, Int32(6))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLocalApiOriginDecision_lift(_ buf: RustBuffer) throws -> HwLocalApiOriginDecision {
+    return try FfiConverterTypeHwLocalApiOriginDecision.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwLocalApiOriginDecision_lower(_ value: HwLocalApiOriginDecision) -> RustBuffer {
+    return FfiConverterTypeHwLocalApiOriginDecision.lower(value)
+}
+
+
+
+extension HwLocalApiOriginDecision: Equatable, Hashable {}
+
+
+
+
+/**
+ * Why [`local_api_generate_token`] refused. Mirrors `hw_localapi::TokenError`.
+ */
+public enum HwLocalApiTokenError {
+
+    
+    
+    /**
+     * The host passed something other than 32 bytes.
+     */
+    case WrongEntropyLength(
+        /**
+         * Always 32.
+         */expected: UInt32, 
+        /**
+         * What the caller actually passed.
+         */actual: UInt32
+    )
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwLocalApiTokenError: FfiConverterRustBuffer {
+    typealias SwiftType = HwLocalApiTokenError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwLocalApiTokenError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .WrongEntropyLength(
+            expected: try FfiConverterUInt32.read(from: &buf), 
+            actual: try FfiConverterUInt32.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: HwLocalApiTokenError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .WrongEntropyLength(expected,actual):
+            writeInt(&buf, Int32(1))
+            FfiConverterUInt32.write(expected, into: &buf)
+            FfiConverterUInt32.write(actual, into: &buf)
+            
+        }
+    }
+}
+
+
+extension HwLocalApiTokenError: Equatable, Hashable {}
+
+extension HwLocalApiTokenError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
  * What a no-speech failure is reported as, if anything. Mirrors
  * `no_speech::NoSpeechOutcome`; variant order matches the Windows enum.
  */
@@ -9332,6 +10957,84 @@ extension HwPttTimerAction: Equatable, Hashable {}
 
 
 
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * The persisted status of a transcript row. Mirrors
+ * `hw_stats::TranscriptStatus`.
+ *
+ * The host maps its own status column onto this and hands over everything;
+ * the completed-only filter is applied on this side, once.
+ */
+
+public enum HwTranscriptStatus {
+    
+    case processing
+    case completed
+    case failed
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHwTranscriptStatus: FfiConverterRustBuffer {
+    typealias SwiftType = HwTranscriptStatus
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HwTranscriptStatus {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .processing
+        
+        case 2: return .completed
+        
+        case 3: return .failed
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: HwTranscriptStatus, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .processing:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .completed:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .failed:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwTranscriptStatus_lift(_ buf: RustBuffer) throws -> HwTranscriptStatus {
+    return try FfiConverterTypeHwTranscriptStatus.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHwTranscriptStatus_lower(_ value: HwTranscriptStatus) -> RustBuffer {
+    return FfiConverterTypeHwTranscriptStatus.lower(value)
+}
+
+
+
+extension HwTranscriptStatus: Equatable, Hashable {}
+
+
+
 
 /**
  * Normalized transcription failures. Mirrors `hw_net::TranscriptionError` as a
@@ -10009,6 +11712,54 @@ fileprivate struct FfiConverterOptionString: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeHwBlock: FfiConverterRustBuffer {
+    typealias SwiftType = HwBlock?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeHwBlock.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeHwBlock.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeHwLanguage: FfiConverterRustBuffer {
+    typealias SwiftType = HwLanguage?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeHwLanguage.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeHwLanguage.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeHwModeIdentity: FfiConverterRustBuffer {
     typealias SwiftType = HwModeIdentity?
 
@@ -10321,6 +12072,30 @@ fileprivate struct FfiConverterOptionTypeHwLiveUpgradeRefusal: FfiConverterRustB
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeHwLocalApiErrorCode: FfiConverterRustBuffer {
+    typealias SwiftType = HwLocalApiErrorCode?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeHwLocalApiErrorCode.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeHwLocalApiErrorCode.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeHwPttSignal: FfiConverterRustBuffer {
     typealias SwiftType = HwPttSignal?
 
@@ -10419,6 +12194,56 @@ fileprivate struct FfiConverterSequenceTypeHeader: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeHwBlock: FfiConverterRustBuffer {
+    typealias SwiftType = [HwBlock]
+
+    public static func write(_ value: [HwBlock], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeHwBlock.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [HwBlock] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [HwBlock]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeHwBlock.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeHwLanguage: FfiConverterRustBuffer {
+    typealias SwiftType = [HwLanguage]
+
+    public static func write(_ value: [HwLanguage], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeHwLanguage.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [HwLanguage] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [HwLanguage]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeHwLanguage.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeHwLiveFrame: FfiConverterRustBuffer {
     typealias SwiftType = [HwLiveFrame]
 
@@ -10436,6 +12261,31 @@ fileprivate struct FfiConverterSequenceTypeHwLiveFrame: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeHwLiveFrame.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeHwPhoneticMatch: FfiConverterRustBuffer {
+    typealias SwiftType = [HwPhoneticMatch]
+
+    public static func write(_ value: [HwPhoneticMatch], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeHwPhoneticMatch.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [HwPhoneticMatch] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [HwPhoneticMatch]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeHwPhoneticMatch.read(from: &buf))
         }
         return seq
     }
@@ -10469,6 +12319,56 @@ fileprivate struct FfiConverterSequenceTypeHwPttTimerCommand: FfiConverterRustBu
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeHwRun: FfiConverterRustBuffer {
+    typealias SwiftType = [HwRun]
+
+    public static func write(_ value: [HwRun], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeHwRun.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [HwRun] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [HwRun]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeHwRun.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeHwStatsTranscript: FfiConverterRustBuffer {
+    typealias SwiftType = [HwStatsTranscript]
+
+    public static func write(_ value: [HwStatsTranscript], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeHwStatsTranscript.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [HwStatsTranscript] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [HwStatsTranscript]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeHwStatsTranscript.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeHwValidationError: FfiConverterRustBuffer {
     typealias SwiftType = [HwValidationError]
 
@@ -10486,6 +12386,31 @@ fileprivate struct FfiConverterSequenceTypeHwValidationError: FfiConverterRustBu
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeHwValidationError.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeHwVocabularyEntry: FfiConverterRustBuffer {
+    typealias SwiftType = [HwVocabularyEntry]
+
+    public static func write(_ value: [HwVocabularyEntry], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeHwVocabularyEntry.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [HwVocabularyEntry] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [HwVocabularyEntry]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeHwVocabularyEntry.read(from: &buf))
         }
         return seq
     }
@@ -10669,6 +12594,31 @@ fileprivate struct FfiConverterSequenceTypeHwLiveStopStep: FfiConverterRustBuffe
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeHwLocalApiErrorCode: FfiConverterRustBuffer {
+    typealias SwiftType = [HwLocalApiErrorCode]
+
+    public static func write(_ value: [HwLocalApiErrorCode], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeHwLocalApiErrorCode.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [HwLocalApiErrorCode] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [HwLocalApiErrorCode]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeHwLocalApiErrorCode.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeHwPart: FfiConverterRustBuffer {
     typealias SwiftType = [HwPart]
 
@@ -10769,6 +12719,29 @@ public func applyHardenedReplacement(text: String, word: String, replacement: St
         FfiConverterString.lower(text),
         FfiConverterString.lower(word),
         FfiConverterString.lower(replacement),$0
+    )
+})
+}
+/**
+ * The on-device providers' vocabulary pass: unanchored substring replacement,
+ * case-insensitive AND diacritic-insensitive, over the rows that DO carry a
+ * replacement, in list order.
+ *
+ * This is deliberately NOT `apply_hardened_replacement`. That one anchors on
+ * `\b…\b` and is diacritic-SENSITIVE, and it runs later over the pipeline's own
+ * vocabulary list. This one runs first, inside the provider, over its own raw
+ * output — the split macOS made explicit in `VocabularyProcessor.swift` (commit
+ * 136071d) after finding four byte-identical copies of it.
+ *
+ * Text outside a match comes back byte-identical: its case, its accents and its
+ * normalization form are untouched, matching Foundation's
+ * `replacingOccurrences(options: [.caseInsensitive, .diacriticInsensitive])`.
+ */
+public func applySubstringVocabulary(text: String, entries: [HwVocabularyEntry]) -> String {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_apply_substring_vocabulary(
+        FfiConverterString.lower(text),
+        FfiConverterSequenceTypeHwVocabularyEntry.lower(entries),$0
     )
 })
 }
@@ -11205,6 +13178,23 @@ public func cloudSttProvider(id: String) -> String? {
 })
 }
 /**
+ * Resolve a legacy cloud-STT model id onto its current catalog id.
+ *
+ * `provider` is the persisted `cloudProvider` identifier (`"deepgram"`,
+ * `"assemblyai"`, …). `None`, an empty string, or an identifier the provider
+ * enum does not know chains every alias table — the behaviour Windows'
+ * `CloudTranscriptionModels.ResolveModelAlias` gives its
+ * `null or CloudTranscriptionProvider.None` arm.
+ */
+public func cloudSttResolveModelAlias(modelId: String, provider: String?) -> String {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_cloud_stt_resolve_model_alias(
+        FfiConverterString.lower(modelId),
+        FfiConverterOptionString.lower(provider),$0
+    )
+})
+}
+/**
  * Same set as `cloud_stt_streaming_cloud_tier_entry_ids`, as full entries.
  */
 public func cloudSttStreamingCloudTierEntries() -> [SttEntry] {
@@ -11594,6 +13584,100 @@ public func isRetryable(status: UInt16, body: String) -> Bool {
 })
 }
 /**
+ * The whole catalog in picker order: `auto`, then the popular rows in their
+ * declared order, then everything else alphabetically by display name.
+ */
+public func languageAll() -> [HwLanguage] {
+    return try!  FfiConverterSequenceTypeHwLanguage.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_language_all($0
+    )
+})
+}
+/**
+ * The canonical tag to persist. A missing or empty code becomes `en`.
+ */
+public func languageCanonicalCode(code: String?) -> String {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_language_canonical_code(
+        FfiConverterOptionString.lower(code),$0
+    )
+})
+}
+/**
+ * Canonicalize a BCP-47 tag: `en_gb` becomes `en-GB`, `ZH-HANT` becomes
+ * `zh-Hant`, an empty tag becomes `auto`.
+ */
+public func languageCanonicalize(code: String) -> String {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_language_canonicalize(
+        FfiConverterString.lower(code),$0
+    )
+})
+}
+/**
+ * Look one code up. `None` means the catalog does not know it — canonicalize
+ * it with [`language_canonicalize`] and localize it natively.
+ */
+public func languageInfo(code: String) -> HwLanguage? {
+    return try!  FfiConverterOptionTypeHwLanguage.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_language_info(
+        FfiConverterString.lower(code),$0
+    )
+})
+}
+/**
+ * Whether a code means English. A missing code counts as English.
+ */
+public func languageIsEnglish(code: String?) -> Bool {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_language_is_english(
+        FfiConverterOptionString.lower(code),$0
+    )
+})
+}
+/**
+ * The 2-letter ISO 639 code, for the frameworks that refuse anything longer.
+ * `auto` survives; a missing code becomes `en`.
+ */
+public func languageNormalize(code: String?) -> String {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_language_normalize(
+        FfiConverterOptionString.lower(code),$0
+    )
+})
+}
+/**
+ * The codes the pickers float to the top, in the order they appear there.
+ */
+public func languagePopularCodes() -> [String] {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_language_popular_codes($0
+    )
+})
+}
+/**
+ * Move `auto` to the front of a list if it is present and not already there.
+ */
+public func languagePrioritizeAutomatic(languages: [HwLanguage]) -> [HwLanguage] {
+    return try!  FfiConverterSequenceTypeHwLanguage.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_language_prioritize_automatic(
+        FfiConverterSequenceTypeHwLanguage.lower(languages),$0
+    )
+})
+}
+/**
+ * Canonical rows for a provider's advertised code list, deduplicated, in the
+ * order given. An unknown code keeps its canonical form and comes back with no
+ * display name.
+ */
+public func languageResolve(codes: [String]) -> [HwLanguage] {
+    return try!  FfiConverterSequenceTypeHwLanguage.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_language_resolve(
+        FfiConverterSequenceString.lower(codes),$0
+    )
+})
+}
+/**
  * Build the POST `/api/license/validate` request.
  */
 public func licenseBuildValidateRequest(licenseKey: String, deviceId: String, deviceName: String) -> ValidateRequest {
@@ -11833,6 +13917,24 @@ public func licenseValidateUrl() -> String {
 public func licenseValidationCacheSecs() -> Int64 {
     return try!  FfiConverterInt64.lift(try! rustCall() {
     uniffi_hyperwhisper_core_fn_func_license_validation_cache_secs($0
+    )
+})
+}
+/**
+ * Map LINUX native settings JSON (the flat dotted `PortableSettingsService`
+ * store) into the universal-v2 `settings` block.
+ *
+ * The whole store may be passed in: every key without a pairs row is ignored,
+ * so Linux-only and device-local keys cannot reach the export through here.
+ * Always COMPLETE — an absent key is emitted with the backup path's own
+ * default, which is what makes an untouched Linux profile export all 23 shared
+ * keys. `platformExtensions.linux.settings` is built natively and is not
+ * modelled by the core on purpose.
+ */
+public func linuxSettingsToUniversalSettingsJson(linuxJson: String)throws  -> String {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeBackupError.lift) {
+    uniffi_hyperwhisper_core_fn_func_linux_settings_to_universal_settings_json(
+        FfiConverterString.lower(linuxJson),$0
     )
 })
 }
@@ -12172,6 +14274,192 @@ public func llmWrapTranscript(systemInfo: String, transcript: String) -> String 
 })
 }
 /**
+ * Every code, in the order the docs and the macOS enum list them.
+ */
+public func localApiAllErrorCodes() -> [HwLocalApiErrorCode] {
+    return try!  FfiConverterSequenceTypeHwLocalApiErrorCode.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_local_api_all_error_codes($0
+    )
+})
+}
+/**
+ * Whether an `Authorization` header presents the expected token.
+ *
+ * One constant-time compare of SHA-256 digests, replacing three divergent
+ * native behaviours. `authorization_header` is the raw header value, or `None`
+ * when the request carried none. An empty `expected_token` always denies.
+ */
+public func localApiAuthorize(authorizationHeader: String?, expectedToken: String) -> Bool {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_local_api_authorize(
+        FfiConverterOptionString.lower(authorizationHeader),
+        FfiConverterString.lower(expectedToken),$0
+    )
+})
+}
+/**
+ * A malformed request — HTTP 400, always `INVALID_REQUEST`.
+ */
+public func localApiBadRequestFailure(message: String, hint: String?) -> HwLocalApiFailure {
+    return try!  FfiConverterTypeHwLocalApiFailure.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_local_api_bad_request_failure(
+        FfiConverterString.lower(message),
+        FfiConverterOptionString.lower(hint),$0
+    )
+})
+}
+/**
+ * The HTTP status a business failure travels on: 200, on every platform.
+ *
+ * Exported as a function rather than left to each head, because "each head
+ * decides" is how Linux ended up returning 404/413/503/408 for outcomes the
+ * docs mandate 200 for.
+ */
+public func localApiBusinessFailure(code: HwLocalApiErrorCode, message: String, hint: String?) -> HwLocalApiFailure {
+    return try!  FfiConverterTypeHwLocalApiFailure.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_local_api_business_failure(
+        FfiConverterTypeHwLocalApiErrorCode.lower(code),
+        FfiConverterString.lower(message),
+        FfiConverterOptionString.lower(hint),$0
+    )
+})
+}
+/**
+ * Decide whether a request is safe to dispatch.
+ *
+ * Call this on EVERY route, including the unauthenticated `GET /health`,
+ * before the bearer check and before any dispatch. Pass the port the server is
+ * really bound to — a fallback bind lands somewhere other than the configured
+ * preference, and the `Host` header names where the client actually connected.
+ */
+public func localApiCheckOrigin(headers: HwLocalApiOriginHeaders, port: UInt16) -> HwLocalApiOriginDecision {
+    return try!  FfiConverterTypeHwLocalApiOriginDecision.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_local_api_check_origin(
+        FfiConverterTypeHwLocalApiOriginHeaders.lower(headers),
+        FfiConverterUInt16.lower(port),$0
+    )
+})
+}
+/**
+ * Parse a wire string back into the closed set, or `None` when it is not one
+ * of the 14.
+ *
+ * This is the conformance check a head runs over the codes it emits: a `None`
+ * names a code that would break the macOS decoder.
+ */
+public func localApiErrorCodeFromWireValue(value: String) -> HwLocalApiErrorCode? {
+    return try!  FfiConverterOptionTypeHwLocalApiErrorCode.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_local_api_error_code_from_wire_value(
+        FfiConverterString.lower(value),$0
+    )
+})
+}
+/**
+ * The wire string for a code — what goes in `error.code`.
+ */
+public func localApiErrorCodeWireValue(code: HwLocalApiErrorCode) -> String {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_local_api_error_code_wire_value(
+        FfiConverterTypeHwLocalApiErrorCode.lower(code),$0
+    )
+})
+}
+/**
+ * The response the origin guard returns — HTTP 403 carrying `INVALID_REQUEST`,
+ * exactly what macOS already sends (`LocalAPIServer.swift:311-316`).
+ *
+ * Not a new `FORBIDDEN` code. Issue #289 is explicit that inventing one would
+ * itself be a contract change on the one platform that ships the guard.
+ */
+public func localApiForbiddenOriginFailure() -> HwLocalApiFailure {
+    return try!  FfiConverterTypeHwLocalApiFailure.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_local_api_forbidden_origin_failure($0
+    )
+})
+}
+/**
+ * Encode 32 host-supplied CSPRNG bytes as a Local API bearer token: unpadded
+ * base64url, always 43 characters.
+ *
+ * The host draws the bytes from its own platform CSPRNG and decides what to do
+ * if that fails. See the module docs for why the entropy does not come from
+ * Rust.
+ */
+public func localApiGenerateToken(entropy: Data)throws  -> String {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeHwLocalApiTokenError.lift) {
+    uniffi_hyperwhisper_core_fn_func_local_api_generate_token(
+        FfiConverterData.lower(entropy),$0
+    )
+})
+}
+/**
+ * Whether a stored credential still has the shape
+ * [`local_api_generate_token`] produces.
+ *
+ * A *shape* check, for a head deciding whether to regenerate. Never use it in
+ * place of [`local_api_authorize`]: it looks only at the presented value and
+ * compares nothing.
+ */
+public func localApiIsWellFormedToken(token: String) -> Bool {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_local_api_is_well_formed_token(
+        FfiConverterString.lower(token),$0
+    )
+})
+}
+/**
+ * Whether a decision means "dispatch it".
+ *
+ * A head can match the enum instead. This exists so the common case is one
+ * call and cannot get the polarity wrong.
+ */
+public func localApiOriginDecisionIsAllowed(decision: HwLocalApiOriginDecision) -> Bool {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_local_api_origin_decision_is_allowed(
+        FfiConverterTypeHwLocalApiOriginDecision.lower(decision),$0
+    )
+})
+}
+/**
+ * How many entropy bytes [`local_api_generate_token`] requires.
+ *
+ * A constant rather than a magic 32 in three heads. `SecRandomCopyBytes` and
+ * `RandomNumberGenerator.GetBytes` both take a count; this is that count.
+ */
+public func localApiTokenEntropyBytes() -> UInt32 {
+    return try!  FfiConverterUInt32.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_local_api_token_entropy_bytes($0
+    )
+})
+}
+/**
+ * The SHA-256 fingerprint of a token, hex-encoded — for a log line that has to
+ * identify a credential without carrying it.
+ */
+public func localApiTokenFingerprint(token: String) -> String {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_local_api_token_fingerprint(
+        FfiConverterString.lower(token),$0
+    )
+})
+}
+/**
+ * The response a failed bearer check returns — HTTP 401 carrying
+ * `INVALID_REQUEST`, matching `LocalAPIServer.swift:344-353`.
+ *
+ * `hint` names the platform's own discovery-file path, which is the one part
+ * of this response that legitimately differs per head. The caller must still
+ * send `WWW-Authenticate: Bearer realm="hyperwhisper"`; a header is not part
+ * of the envelope.
+ */
+public func localApiUnauthorizedFailure(hint: String?) -> HwLocalApiFailure {
+    return try!  FfiConverterTypeHwLocalApiFailure.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_local_api_unauthorized_failure(
+        FfiConverterOptionString.lower(hint),$0
+    )
+})
+}
+/**
  * Map a macOS 7-category native settings JSON into a universal-v2 5-category
  * `SettingsRecord` JSON (macOS-only keys parked under `platformExtensions.macos`).
  * `existing_macos_ext_json`, when present, is the existing
@@ -12398,6 +14686,45 @@ public func normalizeTermination(wireProtocol: WireProtocol, reason: String?) ->
 })
 }
 /**
+ * Canonicalize ONE wire-shaped universal-v2 mode object, returning the same
+ * object with its five cloud-routing fields normalized and every other key
+ * untouched. This is the single entry point both non-macOS mode-import paths
+ * call (`UniversalBackupMapper.MapToMode`, `ApplicationBackupExport.ParseMode`).
+ *
+ * It is the COMPOSITION POINT: `hw_backup` owns the present-only
+ * tier/post-processing-model migration, `hw_catalog` owns the `cloudProvider`
+ * fold and the legacy model-alias tables, and the `cloudTranscriptionDomain`
+ * gate lives here. `hw-backup` must not depend on `hw-catalog`
+ * (`shared-core-rs/README.md`), which is why the seam is in this crate.
+ *
+ * What it does, in the order Windows does it:
+ *
+ * 1. `cloudProvider` is folded through the catalog — a legacy standalone-provider
+ * alias such as `microsoftazurespeech` becomes `hyperwhisper` plus an accuracy
+ * tier. BYOK names (`deepgram`, `groq`) pass through untouched.
+ * 2. `cloudTranscriptionModel` is alias-resolved against the **RAW** (pre-fold)
+ * provider. Windows passes `universal.CloudProvider` — not the folded value —
+ * to `ResolveModelAlias`, so a folded azure mode resolves under
+ * `MicrosoftAzureSpeech` (the passthrough arm) even though its stored provider
+ * became `hyperwhisper`. Reproduced deliberately.
+ * 3. `cloudAccuracyTier` / `cloudPostProcessingModel` follow the two-assignment
+ * precedence documented on [`hw_backup::normalize_universal_mode_value`].
+ * 4. `cloudTranscriptionDomain` (the `X-STT-Domain` header) only applies to
+ * HyperWhisper Cloud modes, so it is DROPPED unless the folded provider is
+ * `hyperwhisper` — a stale domain on a BYOK mode must not import.
+ *
+ * Absent fields stay absent: the caller applies its own entity default (both
+ * heads share `elevenLabsScribeV2` / `anthropic:claude-haiku-4-5` from `Mode`'s
+ * field initialisers). Errors only on JSON that is not an object.
+ */
+public func normalizeUniversalModeJson(json: String)throws  -> String {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeBackupError.lift) {
+    uniffi_hyperwhisper_core_fn_func_normalize_universal_mode_json(
+        FfiConverterString.lower(json),$0
+    )
+})
+}
+/**
  * Canonical vocabulary normalization for every egress path: sanitize each
  * term, drop the ones that sanitize to empty, de-duplicate case-insensitively
  * keeping first-seen casing and order, and stop at `limit`.
@@ -12440,10 +14767,29 @@ public func parseHealthResponse(provider: HwProvider, resp: HttpResponse) -> HwP
 })
 }
 /**
+ * Correct a whole transcript against a whole vocabulary, in one call.
+ *
+ * Whole-word, `\b`-anchored, case-insensitive, literal replacement. Rows that
+ * carry a replacement, and words of 2 Unicode scalars or fewer, are skipped. A
+ * token that already equals ANY vocabulary word is left alone.
+ */
+public func phoneticApplyVocabulary(text: String, entries: [HwVocabularyEntry]) -> HwPhoneticApplyResult {
+    return try!  FfiConverterTypeHwPhoneticApplyResult.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_phonetic_apply_vocabulary(
+        FfiConverterString.lower(text),
+        FfiConverterSequenceTypeHwVocabularyEntry.lower(entries),$0
+    )
+})
+}
+/**
  * Encode a word with the Beider-Morse phonetic algorithm.
  *
  * Replaces the old C-ABI `bm_encode` (pipe-separated `char*` + manual
  * `bm_free`). Returns the phonetic codes directly; empty input -> empty list.
+ *
+ * Kept for the golden fixture test and for any host that wants the raw codes.
+ * A host correcting a transcript should call [`phonetic_apply_vocabulary`]
+ * instead — one call rather than one per word.
  */
 public func phoneticEncode(word: String) -> [String] {
     return try!  FfiConverterSequenceString.lift(try! rustCall() {
@@ -12509,6 +14855,60 @@ public func pttStep(state: HwPttMachineState, event: HwPttEvent, nowMs: UInt64, 
         FfiConverterTypeHwPttEvent.lower(event),
         FfiConverterUInt64.lower(nowMs),
         FfiConverterTypeHwPttConfig.lower(config),$0
+    )
+})
+}
+/**
+ * A release note split into its heading and its bullets — the release-notes
+ * cards' view, and the single source of truth for the title rule (decision (c)
+ * of #284: the first `<h2>` case-insensitively, else the content before the
+ * list).
+ */
+public func releaseNotesParse(html: String) -> HwReleaseNote {
+    return try!  FfiConverterTypeHwReleaseNote.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_release_notes_parse(
+        FfiConverterString.lower(html),$0
+    )
+})
+}
+/**
+ * Split a release-notes fragment into styled runs.
+ *
+ * `collapse_whitespace` false keeps the fragment's own line breaks, for callers
+ * that split the result into lines; it preserves the optional parameter on
+ * `InlineHtml.Parse` / `InlineHtml.PlainText`. macOS always passes `true`.
+ */
+public func releaseNotesParseInline(html: String, collapseWhitespace: Bool) -> [HwRun] {
+    return try!  FfiConverterSequenceTypeHwRun.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_release_notes_parse_inline(
+        FfiConverterString.lower(html),
+        FfiConverterBool.lower(collapseWhitespace),$0
+    )
+})
+}
+/**
+ * Tag-free, entity-decoded text for a release-notes fragment — for titles,
+ * glyph selection, logging and tests.
+ */
+public func releaseNotesPlainText(html: String, collapseWhitespace: Bool) -> String {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_release_notes_plain_text(
+        FfiConverterString.lower(html),
+        FfiConverterBool.lower(collapseWhitespace),$0
+    )
+})
+}
+/**
+ * Every block of a release note, in document order — the update dialog's view.
+ *
+ * A note with no block markup at all falls back to one block per line, so a
+ * plain-text changelog still renders as a list. Each line keeps its own markup
+ * and is parsed exactly once here; see `hw_releasenotes::split_blocks`.
+ */
+public func releaseNotesSplitBlocks(html: String) -> [HwBlock] {
+    return try!  FfiConverterSequenceTypeHwBlock.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_release_notes_split_blocks(
+        FfiConverterString.lower(html),$0
     )
 })
 }
@@ -12647,6 +15047,38 @@ public func sonioxParseUploadResponse(resp: HttpResponse)throws  -> String {
 })
 }
 /**
+ * Calculate every home statistic from the host's transcript rows.
+ *
+ * `now_local_epoch_seconds` is "now" in the same shifted coordinate as the
+ * rows. A `typing_speed_words_per_minute` of 0 or less zeroes the saving
+ * figures instead of failing — an unset setting is not an error.
+ *
+ * This call is total: there is no error case, and no input can panic.
+ */
+public func statsCalculateHome(transcripts: [HwStatsTranscript], typingSpeedWordsPerMinute: Int32, nowLocalEpochSeconds: Int64) -> HwHomeStatsSnapshot {
+    return try!  FfiConverterTypeHwHomeStatsSnapshot.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_stats_calculate_home(
+        FfiConverterSequenceTypeHwStatsTranscript.lower(transcripts),
+        FfiConverterInt32.lower(typingSpeedWordsPerMinute),
+        FfiConverterInt64.lower(nowLocalEpochSeconds),$0
+    )
+})
+}
+/**
+ * The ceiling the displayed "saved this week" figure is clamped to: one week
+ * of minutes.
+ *
+ * Exported so a head can assert against it rather than restate `7 * 24 * 60`,
+ * which is exactly how the constant drifted onto two platforms and off the
+ * third.
+ */
+public func statsSavedMinutesCeiling() -> Int32 {
+    return try!  FfiConverterInt32.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_stats_saved_minutes_ceiling($0
+    )
+})
+}
+/**
  * Lenient wrapper handling for plain transcription text: extract wrapped content
  * if present, else return the text (stray end-tags stripped). For raw-transcript
  * sites where the strict `extract_cleaned_from_wrapped` would wipe a valid result.
@@ -12655,6 +15087,22 @@ public func stripWrapperMarkers(text: String) -> String {
     return try!  FfiConverterString.lift(try! rustCall() {
     uniffi_hyperwhisper_core_fn_func_strip_wrapper_markers(
         FfiConverterString.lower(text),$0
+    )
+})
+}
+/**
+ * Inverse of [`linux_settings_to_universal_settings_json`]: the universal-v2
+ * `settings` block → the flat dotted keys `PortableSettingsService` stores.
+ *
+ * PRESENT-ONLY and null-dropping, reproducing `ApplySharedSettings`/`CopyCategory`:
+ * the tables are a per-category allowlist, so unknown keys and unknown
+ * categories are dropped. The caller deep-merges the result over its baseline
+ * snapshot before writing it back.
+ */
+public func universalSettingsToLinuxSettingsJson(universalJson: String)throws  -> String {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeBackupError.lift) {
+    uniffi_hyperwhisper_core_fn_func_universal_settings_to_linux_settings_json(
+        FfiConverterString.lower(universalJson),$0
     )
 })
 }
@@ -12670,6 +15118,27 @@ public func universalSettingsToMacosSettingsJson(recordJson: String)throws  -> S
 })
 }
 /**
+ * Inverse of [`windows_settings_to_universal_settings_json`]: the universal-v2
+ * `settings` block → Windows native settings JSON.
+ *
+ * PRESENT-ONLY, and an explicit JSON `null` counts as absent. The caller must
+ * deep-merge the result over its own baseline snapshot before applying, so that
+ * the day this returns a COMPLETE blob an absent backup key still cannot
+ * clobber a live setting (the obligation `BackupManager.swift`'s
+ * `currentSettingsBaseline()` → `deepMerged(over:)` already carries on macOS).
+ *
+ * No value interpretation happens here: the `SettingsService` setters own the
+ * streaming-provider fallback, the deepgram-model collapse, the shortcut
+ * re-canonicalisation and the clipboard-delay clamp.
+ */
+public func universalSettingsToWindowsSettingsJson(universalJson: String)throws  -> String {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeBackupError.lift) {
+    uniffi_hyperwhisper_core_fn_func_universal_settings_to_windows_settings_json(
+        FfiConverterString.lower(universalJson),$0
+    )
+})
+}
+/**
  * Validate a backup JSON document against the embedded universal-v2 schema's
  * structural invariants. Returns every error found (empty = valid).
  */
@@ -12677,6 +15146,27 @@ public func validateBackupJson(json: String) -> [HwValidationError] {
     return try!  FfiConverterSequenceTypeHwValidationError.lift(try! rustCall() {
     uniffi_hyperwhisper_core_fn_func_validate_backup_json(
         FfiConverterString.lower(json),$0
+    )
+})
+}
+/**
+ * Map WINDOWS native settings JSON (flat, PascalCase — `settings.json`'s own
+ * casing) into the universal-v2 `settings` block.
+ *
+ * The input is the snapshot `SettingsService.BuildBackupSettingsSnapshot()`
+ * produces: only the keys that are promoted to the universal block, never a
+ * filesystem path or a device name. The output is the five universal categories
+ * and NOTHING else — this function cannot emit a `platformExtensions` slice, so
+ * the curated `platformExtensions.windows.settings` list that
+ * `UniversalBackupMapper.BuildPlatformExtensions` builds natively stays the only
+ * way a Windows-only setting reaches a backup file.
+ *
+ * Present-only: a native key that is absent produces no universal key.
+ */
+public func windowsSettingsToUniversalSettingsJson(windowsJson: String)throws  -> String {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeBackupError.lift) {
+    uniffi_hyperwhisper_core_fn_func_windows_settings_to_universal_settings_json(
+        FfiConverterString.lower(windowsJson),$0
     )
 })
 }
@@ -12715,6 +15205,9 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_apply_hardened_replacement() != 32134) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_apply_substring_vocabulary() != 17401) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_assemblyai_build_create_request() != 60524) {
@@ -12846,6 +15339,9 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_cloud_stt_provider() != 52282) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_hyperwhisper_core_checksum_func_cloud_stt_resolve_model_alias() != 64463) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_hyperwhisper_core_checksum_func_cloud_stt_streaming_cloud_tier_entries() != 54317) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -12975,6 +15471,33 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_is_retryable() != 28969) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_hyperwhisper_core_checksum_func_language_all() != 11935) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_language_canonical_code() != 39544) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_language_canonicalize() != 34787) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_language_info() != 36720) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_language_is_english() != 14929) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_language_normalize() != 42903) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_language_popular_codes() != 52908) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_language_prioritize_automatic() != 29793) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_language_resolve() != 14175) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_hyperwhisper_core_checksum_func_license_build_validate_request() != 43498) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -13054,6 +15577,9 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_license_validation_cache_secs() != 34885) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_linux_settings_to_universal_settings_json() != 10501) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_live_classify_error_message() != 33535) {
@@ -13140,6 +15666,48 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_llm_wrap_transcript() != 44003) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_hyperwhisper_core_checksum_func_local_api_all_error_codes() != 35889) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_local_api_authorize() != 35162) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_local_api_bad_request_failure() != 17270) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_local_api_business_failure() != 57466) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_local_api_check_origin() != 60178) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_local_api_error_code_from_wire_value() != 15511) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_local_api_error_code_wire_value() != 39716) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_local_api_forbidden_origin_failure() != 49772) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_local_api_generate_token() != 22924) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_local_api_is_well_formed_token() != 22695) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_local_api_origin_decision_is_allowed() != 27804) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_local_api_token_entropy_bytes() != 13421) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_local_api_token_fingerprint() != 55514) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_local_api_unauthorized_failure() != 22025) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_hyperwhisper_core_checksum_func_macos_settings_to_universal_settings_json() != 44899) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -13200,6 +15768,9 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_normalize_termination() != 6367) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_hyperwhisper_core_checksum_func_normalize_universal_mode_json() != 52698) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_hyperwhisper_core_checksum_func_normalize_vocabulary_terms() != 61974) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -13212,7 +15783,10 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_parse_health_response() != 7345) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_hyperwhisper_core_checksum_func_phonetic_encode() != 15256) {
+    if (uniffi_hyperwhisper_core_checksum_func_phonetic_apply_vocabulary() != 45602) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_phonetic_encode() != 39783) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_preset_from_raw() != 65395) {
@@ -13228,6 +15802,18 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_ptt_step() != 64268) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_release_notes_parse() != 11115) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_release_notes_parse_inline() != 37012) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_release_notes_plain_text() != 10264) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_release_notes_split_blocks() != 45325) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_remove_filler_words() != 28431) {
@@ -13278,13 +15864,28 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_soniox_parse_upload_response() != 49331) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_hyperwhisper_core_checksum_func_stats_calculate_home() != 7331) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_stats_saved_minutes_ceiling() != 6847) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_hyperwhisper_core_checksum_func_strip_wrapper_markers() != 55122) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_universal_settings_to_linux_settings_json() != 46044) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_universal_settings_to_macos_settings_json() != 34732) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_hyperwhisper_core_checksum_func_universal_settings_to_windows_settings_json() != 27733) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_hyperwhisper_core_checksum_func_validate_backup_json() != 15252) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_windows_settings_to_universal_settings_json() != 59780) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_method_hwlivesession_connect() != 14844) {

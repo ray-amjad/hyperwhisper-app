@@ -39,13 +39,6 @@ public static class LlmPostProcessing
         HyperwhisperCoreMethods.LlmHwCloudProdBase();
 #endif
 
-    /// <summary>Whether this build targets a non-production cloud endpoint.</summary>
-    public static bool IsDevelopmentCloudEndpoint =>
-        !string.Equals(
-            DefaultHyperWhisperCloudBaseUrl,
-            HyperwhisperCoreMethods.LlmHwCloudProdBase(),
-            StringComparison.Ordinal);
-
     /// <summary>Max output tokens requested from any post-processing LLM.</summary>
     public static uint MaxOutputTokens => HyperwhisperCoreMethods.LlmMaxOutputTokens();
 
@@ -123,16 +116,6 @@ public static class LlmPostProcessing
             HwLlmWireProtocol.AnthropicMessages => PortableLlmWireProtocol.AnthropicMessages,
             _ => PortableLlmWireProtocol.OpenAiChat,
         };
-
-    /// <summary>
-    /// Whether this provider answers the hosted <c>/post-process</c> contract
-    /// rather than a provider-native one. Such a response is already validated
-    /// and unwrapped server-side and must NOT go through the wrapper contract a
-    /// second time.
-    /// </summary>
-    public static bool UsesHyperWhisperCloudProtocol(PortableLlmProvider provider) =>
-        HyperwhisperCoreMethods.LlmWireProtocolFor(MapProvider(provider))
-            == HwLlmWireProtocol.HyperWhisperCloud;
 
     /// <summary>
     /// Read the hosted <c>/post-process</c> 200 body.

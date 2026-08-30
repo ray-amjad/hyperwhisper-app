@@ -360,8 +360,7 @@ final class ParakeetProvider: TranscriptionProvider {
             // STEP 4a: Phonetic vocabulary matching (Beider-Morse)
             // Catches phonetically similar misrecognitions before exact matching
             if !vocabulary.isEmpty {
-                let phoneticMatcher = PhoneticVocabularyMatcher(vocabulary: vocabulary)
-                text = phoneticMatcher.apply(to: text)
+                text = VocabularyProcessor.applyPhoneticVocabulary(to: text, vocabulary: vocabulary)
             }
 
             // STEP 4b: Exact vocabulary replacements (case-insensitive string match)
@@ -413,8 +412,11 @@ final class ParakeetProvider: TranscriptionProvider {
                 "errorDescription": errorDescription,
                 "modelVersion": String(describing: targetVersion),
                 "modelId": modelId,
-                "audioFile": audioURL.lastPathComponent,
-                "audioPath": audioURL.path
+                // Neither the file NAME nor the PATH. The path is under
+                // ~/Documents and carries the account name; the name is the
+                // user's own document name on the import flow. The extension is
+                // the diagnostic part, and the size below is the rest.
+                "audioFileExtension": audioURL.pathExtension
             ]
 
             // Audio file metadata

@@ -15,6 +15,19 @@ members = [
     "crates/hw-license",
     "crates/hw-backup",
     "crates/hw-catalog",
+    "crates/hw-releasenotes",
+    "crates/hw-localapi",
+    "crates/hw-stats",
+]
+# The cargo-fuzz crate is a separate, nightly-only package: `libfuzzer-sys` and
+# `arbitrary` are network dependencies that must never enter this workspace's
+# offline resolve (`cargo build --offline`) or its Cargo.lock. It also carries
+# its own empty `[workspace]` table — both halves are required, because `exclude`
+# alone still lets a `cargo` invocation run from inside `fuzz/` walk up to here.
+exclude = [
+    "crates/hw-releasenotes/fuzz",
+    "crates/hw-localapi/fuzz",
+    "crates/hw-phonetic/fuzz",
 ]
 
 # Shared release profile for every crate's artifacts. Matches the tuning the

@@ -191,12 +191,12 @@ Ref: https://learn.microsoft.com/en-us/azure/ai-services/speech-service/mai-tran
 
 <important if="you are touching the ElevenLabs provider, the fly-replay logic, or a provider's `fallbackChain`">
 
-ElevenLabs is geo-blocked from `nrt` (JP), `bom` (IN), `maa` (IN) — the block surfaces as a 200 OK with a text/html FAQ page, NOT a JSON error. `transcribe.ts` sets a `fly-replay` header to `iad` when these regions handle an `elevenlabs` request.
+ElevenLabs is geo-blocked from `nrt` (JP), `bom` (IN), `maa` (IN) — the block surfaces as a 200 OK with a text/html FAQ page, NOT a JSON error. The blocked-region list, the `iad` replay region and the replay body cap all live in `src/providers/geo-availability.ts`, not in the route. Add a geo-blocked provider as a row in its `GEO_BLOCKS` table. `transcribe.ts` only carries out the plan: it asks `planGeoRouting(provider, contentLength)` and sets the `fly-replay` header the plan names.
 
-Fly only honours replay for bodies ≤ 1 MB (we gate at 900 KB / `FLY_REPLAY_MAX_BODY_BYTES` for safety). Oversized uploads from a blocked region:
-- log `transcribe.fly_replay_skipped_oversized`
-- drop ElevenLabs from the active fallback chain
-- execute the next provider (Deepgram → Groq) in-region
+Fly only honours replay for bodies ≤ 1 MB (we gate at 900 KB / `FLY_REPLAY_MAX_BODY_BYTES` for safety). Oversized uploads from a blocked region get `action: 'drop_from_chain'`, and the route then:
+- logs `transcribe.fly_replay_skipped_oversized`
+- narrows the fallback chain with `reachableFromRegion()` — never by naming a provider id in a filter
+- executes the next provider (Deepgram → Groq) in-region
 
 `google-chirp` and `azure-mai` are self-only chains; editing a `fallbackChain` in `src/lib/stt-models.ts` can break the "no silent substitution" contract. That field is the only place a chain is authored — the route asks for it via `fallbackChainFor()` and asks `isSelfOnly()` whether a provider has siblings. Never re-derive either in a caller.
 </important>

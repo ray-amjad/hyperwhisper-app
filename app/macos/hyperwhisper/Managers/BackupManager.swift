@@ -307,6 +307,59 @@ class BackupManager: ObservableObject {
         UserDefaults.standard.bool(forKey: useUniversalV2ExportDefaultsKey)
     }
 
+    // MARK: - Top-level platformExtensions foreign-slice passthrough (#288)
+
+    /// UserDefaults key holding the NON-`macos` TOP-LEVEL `platformExtensions`
+    /// slices of the last imported v2 backup, as raw JSON — `{"windows":{…},"linux":{…}}`.
+    ///
+    /// The per-MODE equivalent has always worked (`Mode.foreignPlatformExtensions`,
+    /// Core Data). The TOP-LEVEL map did not: `encodeBackupV2` built it purely
+    /// from the core record, which only ever holds `macos`, so a Windows or Linux
+    /// top-level slice died on a macOS round-trip (#288).
+    ///
+    /// This is separate state from the settings blob and must NOT go through
+    /// `currentSettingsBaseline()` / `deepMerged(over:)` — that is a whole-blob
+    /// apply of the 7 macOS settings categories and knows nothing about this.
+    static let foreignTopLevelExtensionsDefaultsKey = "backup.foreignPlatformExtensions"
+
+    /// The non-`macos` slices of an imported backup's TOP-LEVEL
+    /// `platformExtensions`, as raw JSON, or `nil` when there are none.
+    ///
+    /// Pure and `nonisolated` so the tests can reach it: `encodeBackupV2` and the
+    /// v2 import path are `private`, so `@testable import` cannot. Same seam shape
+    /// as `mergeDefaultModelByMode` / `remapDefaultModelByMode`.
+    nonisolated static func foreignTopLevelExtensions(from platformExtensions: JSONValue?) -> String? {
+        guard let object = platformExtensions?.objectValue else { return nil }
+        let foreign = object.filter { $0.key != "macos" }
+        guard !foreign.isEmpty else { return nil }
+        guard let data = try? JSONEncoder().encode(JSONValue.object(foreign)),
+              let json = String(data: data, encoding: .utf8) else { return nil }
+        return json
+    }
+
+    /// Merges preserved foreign slices under this platform's own `macos` slice.
+    ///
+    /// OUR OWN SLICE ALWAYS WINS over a stale preserved copy — the same rule the
+    /// per-mode passthrough already follows.
+    nonisolated static func mergingForeignTopLevelExtensions(
+        into own: JSONValue?,
+        stored: String?
+    ) -> JSONValue? {
+        guard let stored,
+              let data = stored.data(using: .utf8),
+              let decoded = try? JSONDecoder().decode(JSONValue.self, from: data),
+              let foreign = decoded.objectValue,
+              !foreign.isEmpty
+        else { return own }
+
+        var merged = foreign
+        merged.removeValue(forKey: "macos")
+        for (key, value) in own?.objectValue ?? [:] {
+            merged[key] = value
+        }
+        return merged.isEmpty ? own : .object(merged)
+    }
+
     /// Builds a full universal-v2 `.hwbackup.json` payload for the selected sections, in parallel
     /// to the v1 `encodeBackup`. Settings flow through the Rust core's macOS↔universal mapping;
     /// modes/vocab/keys/license are mapped in Swift. Self-validates with the core before returning;
@@ -364,6 +417,13 @@ class BackupManager: ObservableObject {
             if let ext = recordObj["platformExtensions"] {
                 topLevelPlatformExtensions = ext
             }
+            // Re-attach the windows / linux top-level slices preserved from the last
+            // import, so they survive a macOS round-trip the way the per-mode slices
+            // already do. Our own `macos` slice wins.
+            topLevelPlatformExtensions = Self.mergingForeignTopLevelExtensions(
+                into: topLevelPlatformExtensions,
+                stored: UserDefaults.standard.string(forKey: Self.foreignTopLevelExtensionsDefaultsKey)
+            )
         }
 
         // --- modes (only if selected): BackupMode (as v1) -> UniversalModeDTO; NO FFI for modes ---
@@ -667,6 +727,17 @@ class BackupManager: ObservableObject {
         // DEFENSE IN DEPTH: the entire settings step is wrapped in do/catch. A Windows backup (or any
         // file) that can't produce a complete macOS-settings object must NOT abort the import — we log
         // and continue to modes/vocab/keys. `settingsApplied` records whether settings actually applied.
+        // Preserve the foreign TOP-LEVEL platformExtensions slices before anything
+        // else touches them, so the next export re-emits them (#288). Gated on
+        // importSettings for symmetry with the export, which only writes the
+        // top-level map when settings are included — and so a vocabulary-only
+        // interchange file cannot wipe the store.
+        if options.importSettings {
+            let foreign = Self.foreignTopLevelExtensions(from: dto.platformExtensions)
+            // REPLACE, not merge: the store describes the LAST IMPORTED file.
+            UserDefaults.standard.set(foreign, forKey: Self.foreignTopLevelExtensionsDefaultsKey)
+        }
+
         if options.importSettings, let settingsValue = dto.settings {
             do {
                 // Reconstruct the SettingsRecord JSON: the 5 universal categories from the top-level

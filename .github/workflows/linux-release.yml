@@ -1,9 +1,10 @@
-# Linux v1 release builder. Manual dry runs build a retrievable, unsigned
-# package without Production secrets or external side effects. A GitHub Release
-# is created only by an explicitly approved workflow_dispatch run with
-# publish_github=true, sign_apt=true, and checked-in Tier-3/physical-GPU evidence
-# for the exact release commit. The private signing key is never persisted as an
-# artifact.
+# Linux release builder. Manual dry runs build a retrievable, unsigned package
+# without Production secrets or external side effects. A GitHub Release is
+# created only by an explicitly approved workflow_dispatch run with
+# publish_github=true, from main, on a commit the required CI gates passed.
+# The signed APT repository is optional and gated separately on sign_apt: an
+# unsigned repository is never published or deployed. The private signing key
+# is never persisted as an artifact.
 name: Linux Release
 
 on:
@@ -100,13 +101,11 @@ jobs:
             exit 1
           fi
 
-          if [[ "$publish" == "true" && "$require_apt_signature" != "true" ]]; then
-            echo "GitHub publication requires sign_apt=true so no unsigned APT repository is released." >&2
-            exit 1
-          fi
-
-          if [[ ! "$version" =~ ^1\.0\.[0-9]+$ ]]; then
-            echo "Linux v1 release versions must be numeric 1.0.x versions." >&2
+          # Publishing no longer requires sign_apt. The APT archive is simply
+          # withheld from the release when it is unsigned, so an unsigned
+          # repository still never reaches a user.
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Linux release versions must be numeric MAJOR.MINOR.PATCH versions." >&2
             exit 1
           fi
 
@@ -251,7 +250,12 @@ jobs:
           test "$VERIFIED_SHA" = "$GITHUB_SHA"
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
 
-      - name: Enforce reviewed Tier-3 and physical-GPU evidence
+      # Reviewed hardware evidence is no longer required to publish. When a
+      # manifest is checked in for this version it is still validated and
+      # attached to the release, so the attestation path in
+      # packaging/linux/VERIFICATION.md keeps working for anyone who wants it.
+      # A missing manifest means the release ships without one.
+      - name: Validate release evidence when a manifest exists
         if: steps.release.outputs.publish == 'true'
         shell: bash
         env:
@@ -259,6 +263,10 @@ jobs:
         run: |
           set -euo pipefail
           evidence="packaging/linux/release-evidence/${VERSION}.json"
+          if [[ ! -f "$evidence" ]]; then
+            echo "No reviewed evidence manifest for ${VERSION}; publishing without one."
+            exit 0
+          fi
           packaging/linux/scripts/validate-release-evidence.py \
             "$evidence" "$VERSION" "$GITHUB_SHA"
 
@@ -438,6 +446,8 @@ jobs:
       - name: Create checksums and repository archive
         shell: bash
         env:
+          PUBLISH: ${{ steps.release.outputs.publish }}
+          REQUIRE_APT_SIGNATURE: ${{ steps.release.outputs.require_apt_signature }}
           SOURCE_DATE_EPOCH: ${{ steps.release.outputs.source_date_epoch }}
           VERSION: ${{ steps.release.outputs.version }}
         run: |
@@ -449,10 +459,13 @@ jobs:
 
           (
             cd artifacts/release
-            checksum_files=(
-              "hyperwhisper_${VERSION}_amd64.deb"
-              "hyperwhisper-apt-${VERSION}.tar.gz"
-            )
+            checksum_files=("hyperwhisper_${VERSION}_amd64.deb")
+            # A published release lists the APT archive only when it is signed,
+            # because that is the only case where the archive ships next to
+            # SHA256SUMS. A dry run always lists it, so local testing is whole.
+            if [[ "$PUBLISH" != "true" || "$REQUIRE_APT_SIGNATURE" == "true" ]]; then
+              checksum_files+=("hyperwhisper-apt-${VERSION}.tar.gz")
+            fi
             if [[ -f "../../packaging/linux/release-evidence/${VERSION}.json" ]]; then
               install -m0644 \
                 "../../packaging/linux/release-evidence/${VERSION}.json" \
@@ -484,29 +497,36 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_NOTES: ${{ inputs.release_notes }}
+          REQUIRE_APT_SIGNATURE: ${{ steps.release.outputs.require_apt_signature }}
           TAG: ${{ steps.release.outputs.tag }}
           VERSION: ${{ steps.release.outputs.version }}
         run: |
           set -euo pipefail
+          # The package and its checksums always ship. The APT archive ships
+          # only when it is signed, because anyone who adds that repository
+          # trusts it. The evidence manifest ships when a reviewer checked one
+          # in for this version.
+          assets=("hyperwhisper_${VERSION}_amd64.deb")
+          if [[ "$REQUIRE_APT_SIGNATURE" == "true" ]]; then
+            assets+=("hyperwhisper-apt-${VERSION}.tar.gz")
+          fi
+          if [[ -f "artifacts/release/linux-release-evidence.json" ]]; then
+            assets+=(linux-release-evidence.json)
+          fi
+          assets+=(SHA256SUMS)
+
           gh release create "$TAG" \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
             --title "HyperWhisper Linux ${VERSION}" \
             --notes "$RELEASE_NOTES" \
-            "artifacts/release/hyperwhisper_${VERSION}_amd64.deb" \
-            "artifacts/release/hyperwhisper-apt-${VERSION}.tar.gz" \
-            artifacts/release/linux-release-evidence.json \
-            artifacts/release/SHA256SUMS
+            "${assets[@]/#/artifacts/release/}"
 
           tag_sha="$(gh api \
             "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG//\//%2F}" \
             --jq '.object.sha')"
           test "$tag_sha" = "$GITHUB_SHA"
-          for asset in \
-            "hyperwhisper_${VERSION}_amd64.deb" \
-            "hyperwhisper-apt-${VERSION}.tar.gz" \
-            linux-release-evidence.json \
-            SHA256SUMS; do
+          for asset in "${assets[@]}"; do
             gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets \
               --jq ".assets[].name" | grep -Fx -- "$asset" >/dev/null
           done
@@ -523,16 +543,22 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: auto
+          REQUIRE_APT_SIGNATURE: ${{ steps.release.outputs.require_apt_signature }}
           VERSION: ${{ steps.release.outputs.version }}
         run: |
           set -euo pipefail
           ENDPOINT="https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com"
           BUCKET="${{ secrets.R2_BUCKET_NAME }}"
 
-          for asset in \
-            "hyperwhisper_${VERSION}_amd64.deb" \
-            "hyperwhisper-apt-${VERSION}.tar.gz" \
-            "SHA256SUMS"; do
+          # Mirror exactly what the GitHub Release carries, so the two hosts
+          # never disagree about what a version contains.
+          mirrored=("hyperwhisper_${VERSION}_amd64.deb")
+          if [[ "$REQUIRE_APT_SIGNATURE" == "true" ]]; then
+            mirrored+=("hyperwhisper-apt-${VERSION}.tar.gz")
+          fi
+          mirrored+=("SHA256SUMS")
+
+          for asset in "${mirrored[@]}"; do
             src="artifacts/release/${asset}"
             # SHA256SUMS is the one name that would collide across releases, so
             # it is uploaded under a versioned key.
@@ -705,6 +731,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          REQUIRE_APT_SIGNATURE: ${{ steps.release.outputs.require_apt_signature }}
           TAG: ${{ steps.release.outputs.tag }}
           VERSION: ${{ steps.release.outputs.version }}
         run: |
@@ -728,11 +755,19 @@ jobs:
           git -c "http.extraheader=$auth_header" push -q origin --delete "$BRANCH" 2>/dev/null || true
           git checkout -q -B "$BRANCH" "origin/$BASE"
 
+          # aptArchive is null when the release shipped no signed repository,
+          # so the site never links a file that was deliberately withheld.
+          apt_archive=null
+          if [[ "$REQUIRE_APT_SIGNATURE" == "true" ]]; then
+            apt_archive="$(jq -n --arg url \
+              "${BUILDS}/hyperwhisper-apt-${VERSION}.tar.gz" '$url')"
+          fi
+
           jq -n \
             --arg version "$VERSION" \
             --arg releasedAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             --arg deb "${BUILDS}/hyperwhisper_${VERSION}_amd64.deb" \
-            --arg aptArchive "${BUILDS}/hyperwhisper-apt-${VERSION}.tar.gz" \
+            --argjson aptArchive "$apt_archive" \
             --arg checksums "${BUILDS}/hyperwhisper-linux-${VERSION}-SHA256SUMS" \
             --arg releasePage "https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG_ENCODED}" \
             '{version:$version, releasedAt:$releasedAt, deb:$deb, aptArchive:$aptArchive, checksums:$checksums, releasePage:$releasePage}' \

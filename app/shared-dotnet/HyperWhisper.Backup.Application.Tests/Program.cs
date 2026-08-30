@@ -1,10 +1,13 @@
 using System.Collections.Immutable;
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using HyperWhisper.Data.Entities;
+using Microsoft.Data.Sqlite;
 using HyperWhisper.Platform.Abstractions;
 using HyperWhisper.PortableApplication.Persistence;
 using HyperWhisper.PortableApplication.ViewModels;
+using uniffi.hyperwhisper_core;
 
 var root = Path.Combine(Path.GetTempPath(), "HyperWhisper.Backup.Application.Tests", Guid.NewGuid().ToString("N"));
 Directory.CreateDirectory(root);
@@ -325,6 +328,11 @@ try
     // in the database. Every retired Chirp 3 spelling has to be canonicalised on
     // the way in — and the failure is silent, because an unmigrated id resolves
     // to Deepgram at read time with no error.
+    //
+    // Since #288 the canonicalisation happens inside the shared core, on the
+    // NormalizeCloudRouting hop every imported mode already takes — not in a
+    // private helper on this path. These assertions are what pins that the port
+    // kept the behaviour, so they are written against the observable restore.
     foreach (var legacyTier in new[]
     {
         "googleChirp3", "googlechirp3", "GOOGLECHIRP3",
@@ -355,16 +363,399 @@ try
     Assert((await modes.ListAsync()).Single(item => item.Id == second.Id).CloudAccuracyTier == "elevenLabsScribeV2",
         "a backup with no cloudAccuracyTier no longer falls back to elevenLabsScribeV2");
 
-    Console.WriteLine("Backup application tests passed (41/41).");
+    // NATIVE CAPTURE (issue #277, phase 1a). Drives every
+    // shared-conformance/backup-vectors.json modeNormalization row through the SHIPPING
+    // Linux mode-import path (ApplicationBackupService.ImportAsync -> ParseMode) and pins
+    // the answer this build produces. It changes no behavior; it records it, so the Rust
+    // port can be diffed on the same inputs before the native copies go.
+    //
+    // A row carries "expected" when Windows and Linux already agree, and
+    // "expectedWindows"/"expectedLinux" when they do not — Linux runs no cloud-routing
+    // migration, no catalog provider normalization, no model-alias resolution and no
+    // cloudTranscriptionDomain gate, so most rows differ today. That recorded
+    // disagreement IS the drift #277 asked to be documented; 1b collapses it.
+    // The same file is read by app/windows/HyperWhisper.SmokeTests.
+    var vectorsPath = Path.Combine(AppContext.BaseDirectory, "backup-vectors.json");
+    Assert(File.Exists(vectorsPath), $"backup-vectors.json not found at {vectorsPath}");
+    var vectorRows = JsonNode.Parse(await File.ReadAllTextAsync(vectorsPath))!
+        .AsObject()["modeNormalization"]!.AsArray();
+    Assert(vectorRows.Count > 0, "backup-vectors.json has no modeNormalization rows");
+
+    // A dedicated database so the vector modes cannot perturb the assertions above
+    // (BackupImportSelection.All replaces every existing mode).
+    var vectorRoot = Path.Combine(root, "mode-normalization-vectors");
+    Directory.CreateDirectory(vectorRoot);
+    var vectorPaths = new TestPaths(vectorRoot);
+    var vectorSettings = new PortableSettingsService(new MemoryPrivateFileService(), vectorPaths);
+    Assert(vectorSettings.Load().IsSuccess, "vector settings did not initialize");
+    var vectorDatabase = new ApplicationDb(vectorPaths);
+    await vectorDatabase.MigrateAsync();
+    var vectorService = new ApplicationBackupService(vectorDatabase, vectorSettings);
+
+    var vectorBackup = new JsonObject
+    {
+        ["schemaVersion"] = 2,
+        ["exportDate"] = DateTimeOffset.UtcNow.ToString("O"),
+        ["appVersion"] = "1.0.0",
+        ["platform"] = "linux",
+        ["modes"] = new JsonArray(vectorRows.Select(item => item!["mode"]!.DeepClone()).ToArray()),
+    };
+    var vectorImport = await vectorService.ImportAsync(vectorBackup.ToJsonString());
+    Assert(vectorImport.IsSuccess, $"vector import failed: {vectorImport.Error?.Message}");
+
+    var importedModes = (await new ModeRepository(vectorDatabase).ListAsync())
+        .ToDictionary(item => item.Id);
+    foreach (var vectorRow in vectorRows)
+    {
+        var vector = vectorRow!.AsObject();
+        var label = vector["name"]!.GetValue<string>();
+        var expected = (vector["expected"] ?? vector["expectedLinux"]) as JsonObject
+            ?? throw new InvalidOperationException(
+                $"vector '{label}' declares neither 'expected' nor 'expectedLinux'");
+        var id = Guid.Parse(vector["mode"]!["id"]!.GetValue<string>());
+        Assert(importedModes.TryGetValue(id, out var imported), $"vector '{label}' was not imported");
+
+        AssertModeVectorField(label, "cloudProvider", expected, imported!.CloudProvider);
+        AssertModeVectorField(label, "cloudTranscriptionModel", expected, imported.CloudTranscriptionModel);
+        AssertModeVectorField(label, "cloudTranscriptionDomain", expected, imported.CloudTranscriptionDomain);
+        AssertModeVectorField(label, "cloudAccuracyTier", expected, imported.CloudAccuracyTier);
+        AssertModeVectorField(label, "cloudPostProcessingModel", expected, imported.CloudPostProcessingModel);
+    }
+
+    Console.WriteLine($"Backup mode-normalization vectors: {vectorRows.Count}/{vectorRows.Count} rows matched the Linux import.");
+
+    // NATIVE CAPTURE (issue #277, phase 2a) — the SETTINGS halves.
+    //
+    // linuxSettings rows run through the SHIPPING Linux settings adapters:
+    // ApplicationBackupService.ExportAsync -> BuildSharedSettings for the export
+    // direction, and ImportAsync -> ApplySharedSettings/CopyCategory for the
+    // import direction. Both are PRIVATE, so the public service is the only way
+    // in — which is also the honest capture, since it is what a user's backup
+    // actually traverses. Native keys in the vectors are the dotted
+    // PortableSettingsService storage keys, which on Linux ARE the universal
+    // keys: this half of the map is near-identity and renames nothing.
+    //
+    // macosSettings rows run through the core adapter the macOS app already
+    // uses (hw-backup mapping.rs macos_settings_to_universal /
+    // universal_to_macos_settings, reached over the same UniFFI binding macOS
+    // uses). Capturing it here means a 2b regression in the shared mapping is
+    // visible on linux-ci, and phase 4's vectors already cover all three heads.
+    //
+    // Nothing in this block changes behavior; it records it.
+    var settingsDocument = JsonNode.Parse(await File.ReadAllTextAsync(vectorsPath))!.AsObject();
+
+    var linuxRows = settingsDocument["linuxSettings"]!.AsArray();
+    Assert(linuxRows.Count > 0, "backup-vectors.json has no linuxSettings rows");
+    var linuxCase = 0;
+    foreach (var linuxRowNode in linuxRows)
+    {
+        var row = linuxRowNode!.AsObject();
+        var label = row["name"]!.GetValue<string>();
+        var direction = row["direction"]!.GetValue<string>();
+        linuxCase++;
+
+        // One profile per row so a row can never observe the previous row's state.
+        var caseRoot = Path.Combine(root, $"linux-settings-{linuxCase:D2}");
+        Directory.CreateDirectory(caseRoot);
+        var casePaths = new TestPaths(caseRoot);
+        var caseSettings = new PortableSettingsService(new MemoryPrivateFileService(), casePaths);
+        Assert(caseSettings.Load().IsSuccess, $"linuxSettings '{label}': settings did not initialize");
+        var caseDatabase = new ApplicationDb(casePaths);
+        await caseDatabase.MigrateAsync();
+        var caseService = new ApplicationBackupService(caseDatabase, caseSettings);
+
+        var seed = row[direction == "export" ? "native" : "baselineNative"]!.AsObject();
+        foreach (var entry in seed)
+            caseSettings.Set(entry.Key, entry.Value!.DeepClone());
+        Assert(caseSettings.Save().IsSuccess, $"linuxSettings '{label}': seed did not save");
+
+        if (direction == "export")
+        {
+            var exported = JsonNode.Parse(await caseService.ExportAsync(new BackupExportSelection(
+                IncludeSettings: true, IncludeModes: false, IncludeVocabulary: false)))!.AsObject();
+            AssertVectorJson(label, "settings", row["expectedUniversal"], exported["settings"]);
+            continue;
+        }
+
+        Assert(direction == "import", $"linuxSettings '{label}': unknown direction '{direction}'");
+        var importJsonForRow = new JsonObject
+        {
+            ["schemaVersion"] = 2,
+            ["exportDate"] = DateTimeOffset.UtcNow.ToString("O"),
+            ["appVersion"] = "1.0.0",
+            ["platform"] = "linux",
+            ["settings"] = row["universal"]!.DeepClone(),
+        }.ToJsonString();
+        var imported = await caseService.ImportAsync(importJsonForRow, new BackupImportSelection(
+            ImportSettings: true, ImportModes: false, ImportVocabulary: false));
+        Assert(imported.IsSuccess, $"linuxSettings '{label}': import failed: {imported.Error?.Message}");
+
+        foreach (var expected in row["expectedNative"]!.AsObject())
+        {
+            var stored = caseSettings.Get<JsonElement?>(expected.Key);
+            Assert(stored.HasValue, $"linuxSettings '{label}': storage key '{expected.Key}' is missing");
+            AssertVectorJson(label, expected.Key, expected.Value,
+                JsonNode.Parse(stored!.Value.GetRawText()));
+        }
+        foreach (var ignored in row["ignoredUniversalKeys"]?.AsArray() ?? [])
+            Assert(caseSettings.Get<JsonElement?>(ignored!.GetValue<string>()) is null,
+                $"linuxSettings '{label}': '{ignored}' reached storage — CopyCategory is supposed to drop it");
+    }
+    Console.WriteLine($"Backup linux-settings vectors: {linuxRows.Count}/{linuxRows.Count} rows matched the Linux adapters.");
+
+    // PHASE 2b — the deep-merge on the Linux import half, asserted to be a NO-OP.
+    //
+    // ApplySharedSettings now converts in the shared core and then deep-merges the
+    // core's answer over a baseline snapshot before _settings.Replace(). Two things
+    // have to hold, and neither is covered by the vector rows above:
+    //
+    //   1. Replace() must not WIPE the store. The old code Set() one key at a time,
+    //      so Linux-only keys, backup.platformExtensions and anything else outside
+    //      the 23 shared keys were never at risk. They are now only safe because the
+    //      baseline is the merge's floor.
+    //   2. A universal block that carries ONE key must change exactly that key. The
+    //      core is present-only today, so the merge is inert — but the day it returns
+    //      a COMPLETE native blob, this is the assertion that stops an absent backup
+    //      key arriving as a core default and clobbering a live setting.
+    {
+        var mergeRoot = Path.Combine(root, "linux-settings-deep-merge");
+        Directory.CreateDirectory(mergeRoot);
+        var mergePaths = new TestPaths(mergeRoot);
+        var mergeSettings = new PortableSettingsService(new MemoryPrivateFileService(), mergePaths);
+        Assert(mergeSettings.Load().IsSuccess, "deep-merge: settings did not initialize");
+
+        // A shared key the import will touch, a shared key it will not, and three
+        // keys with no pairs row at all — one of them device-local.
+        mergeSettings.Set("general.launchMinimized", false);
+        mergeSettings.Set("advanced.typingSpeedWPM", 95);
+        mergeSettings.Set("localWhisperBackend", "cuda12");
+        mergeSettings.Set("selectedModeId", "device-local-value");
+        mergeSettings.Set("backup.platformExtensions",
+            JsonSerializer.SerializeToElement(new JsonObject { ["macos"] = new JsonObject() }));
+        Assert(mergeSettings.Save().IsSuccess, "deep-merge: seed did not save");
+
+        var mergeDatabase = new ApplicationDb(mergePaths);
+        await mergeDatabase.MigrateAsync();
+        var mergeService = new ApplicationBackupService(mergeDatabase, mergeSettings);
+
+        var oneKey = new JsonObject
+        {
+            ["schemaVersion"] = 2,
+            ["exportDate"] = DateTimeOffset.UtcNow.ToString("O"),
+            ["appVersion"] = "1.0.0",
+            ["platform"] = "linux",
+            ["settings"] = new JsonObject { ["general"] = new JsonObject { ["launchMinimized"] = true } },
+        }.ToJsonString();
+        var mergeImport = await mergeService.ImportAsync(oneKey, new BackupImportSelection(
+            ImportSettings: true, ImportModes: false, ImportVocabulary: false));
+        Assert(mergeImport.IsSuccess, $"deep-merge: import failed: {mergeImport.Error?.Message}");
+
+        Assert(mergeSettings.Get<bool>("general.launchMinimized"),
+            "deep-merge: the one key the backup carried should have been applied");
+        Assert(mergeSettings.Get<int>("advanced.typingSpeedWPM") == 95,
+            "deep-merge: a shared key the backup did NOT carry was clobbered — the "
+            + "baseline is supposed to be the merge's floor, not a core default");
+        Assert(mergeSettings.Get<string>("localWhisperBackend") == "cuda12",
+            "deep-merge: Replace() wiped a Linux-only key that has no pairs row");
+        Assert(mergeSettings.Get<string>("selectedModeId") == "device-local-value",
+            "deep-merge: Replace() wiped a device-local key");
+        Assert(mergeSettings.Get<JsonElement?>("backup.platformExtensions") is not null,
+            "deep-merge: Replace() wiped the preserved foreign platformExtensions");
+
+        // And the export half must never promote a key without a pairs row.
+        var mergeExport = JsonNode.Parse(await mergeService.ExportAsync(new BackupExportSelection(
+            IncludeSettings: true, IncludeModes: false, IncludeVocabulary: false)))!.AsObject();
+        var sharedBlock = mergeExport["settings"]!.ToJsonString();
+        foreach (var leaked in new[] { "localWhisperBackend", "cuda12", "selectedModeId", "device-local-value" })
+            Assert(!sharedBlock.Contains(leaked, StringComparison.Ordinal),
+                $"deep-merge: '{leaked}' reached the shared settings block; the whole store "
+                + "is handed to the core, so only keys with a pairs row may come back out");
+    }
+    Console.WriteLine("Backup linux-settings deep-merge: baseline preserved, no key leaked.");
+
+    // PHASE 3c — the Linux half of the unknownKeyRoundTrip vectors.
+    //
+    // Top-level foreign-slice retention already worked here before #288; Windows and
+    // macOS were the broken heads. This block exists so the SAME rows are asserted on
+    // all three, and so a future Linux refactor cannot quietly drop what Windows and
+    // macOS were just fixed to keep.
+    //
+    // Linux's STORAGE STRATEGY differs on purpose and the vector records it: Linux
+    // persists the WHOLE imported map in the backup.platformExtensions setting and
+    // OVERWRITES its own "linux" slice at export time (ApplicationBackupExport), where
+    // Windows and macOS store only the foreign slices and add their own on the way
+    // out. The observable contract is identical either way, and that is what the
+    // expectedReExportedKeysByHead / own-slice assertions check.
+    {
+        var extensionRows = settingsDocument["unknownKeyRoundTrip"]!.AsArray()
+            .Select(node => node!.AsObject())
+            .Where(row => row["kind"]!.GetValue<string>() == "topLevelPlatformExtensions"
+                && row["heads"]!.AsArray().Any(head => head!.GetValue<string>() == "linux"))
+            .ToList();
+        Assert(extensionRows.Count > 0,
+            "backup-vectors.json has no topLevelPlatformExtensions row naming the linux head");
+
+        var caseIndex = 0;
+        foreach (var row in extensionRows)
+        {
+            var label = row["name"]!.GetValue<string>();
+            var caseRoot = Path.Combine(root, $"linux-foreign-extensions-{caseIndex++}");
+            Directory.CreateDirectory(caseRoot);
+            var casePaths = new TestPaths(caseRoot);
+            var caseSettings = new PortableSettingsService(new MemoryPrivateFileService(), casePaths);
+            Assert(caseSettings.Load().IsSuccess, $"'{label}': settings did not initialize");
+            // A live Linux-only value the export must rebuild its own slice from, so a
+            // stale preserved "linux" slice cannot win.
+            caseSettings.Set("autostartEnabled", false);
+            Assert(caseSettings.Save().IsSuccess, $"'{label}': seed did not save");
+
+            var caseDatabase = new ApplicationDb(casePaths);
+            await caseDatabase.MigrateAsync();
+            var caseService = new ApplicationBackupService(caseDatabase, caseSettings);
+
+            var file = new JsonObject
+            {
+                ["schemaVersion"] = 2,
+                ["exportDate"] = DateTimeOffset.UtcNow.ToString("O"),
+                ["appVersion"] = "1.0.0",
+                ["platform"] = "linux",
+                ["settings"] = new JsonObject(),
+                ["platformExtensions"] = row["imported"]!.DeepClone(),
+            }.ToJsonString();
+
+            var import = await caseService.ImportAsync(file, new BackupImportSelection(
+                ImportSettings: true, ImportModes: false, ImportVocabulary: false));
+            Assert(import.IsSuccess, $"'{label}': import failed: {import.Error?.Message}");
+
+            var stored = caseSettings.Get<JsonElement?>("backup.platformExtensions");
+            Assert(stored is not null, $"'{label}': Linux did not persist the imported map at all");
+            AssertVectorJson(label, "backup.platformExtensions",
+                row["expectedStoredByHead"]!["linux"],
+                JsonNode.Parse(stored!.Value.GetRawText()));
+
+            // Flip a live Linux-only value AFTER the import (the import may legitimately
+            // have applied the file's own "linux" slice). If the export still shows the
+            // imported value, the own slice lost to a stale preserved copy.
+            var flipped = !caseSettings.Get<bool>("autostartEnabled");
+            caseSettings.Set("autostartEnabled", flipped);
+            Assert(caseSettings.Save().IsSuccess, $"'{label}': flip did not save");
+
+            var exported = JsonNode.Parse(await caseService.ExportAsync(new BackupExportSelection(
+                IncludeSettings: true, IncludeModes: false, IncludeVocabulary: false)))!.AsObject();
+            var reExported = exported["platformExtensions"]!.AsObject();
+
+            var actualKeys = reExported.Select(entry => entry.Key)
+                .OrderBy(key => key, StringComparer.Ordinal).ToArray();
+            var wantKeys = row["expectedReExportedKeysByHead"]!["linux"]!.AsArray()
+                .Select(key => key!.GetValue<string>())
+                .OrderBy(key => key, StringComparer.Ordinal).ToArray();
+            Assert(actualKeys.SequenceEqual(wantKeys, StringComparer.Ordinal),
+                $"'{label}': re-exported top-level platformExtensions keys were "
+                + $"[{string.Join(", ", actualKeys)}], expected [{string.Join(", ", wantKeys)}]");
+
+            Assert(reExported["linux"]!["settings"]!["autostartEnabled"]!.GetValue<bool>() == flipped,
+                $"'{label}': the \"linux\" slice must be rebuilt from live settings and "
+                + "overwrite any preserved copy of itself");
+
+            // Every foreign slice comes back verbatim.
+            foreach (var expected in row["expectedStoredByHead"]!["linux"]!.AsObject())
+            {
+                if (expected.Key == "linux") continue;
+                AssertVectorJson(label, $"re-emitted '{expected.Key}' slice",
+                    expected.Value, reExported[expected.Key]);
+            }
+        }
+        Console.WriteLine(
+            $"Backup linux top-level platformExtensions: {extensionRows.Count} vector rows preserved.");
+    }
+
+    var macosRows = settingsDocument["macosSettings"]!.AsArray();
+    Assert(macosRows.Count > 0, "backup-vectors.json has no macosSettings rows");
+    foreach (var macosRowNode in macosRows)
+    {
+        var row = macosRowNode!.AsObject();
+        var label = row["name"]!.GetValue<string>();
+        var direction = row["direction"]!.GetValue<string>();
+        if (direction == "toUniversal")
+        {
+            AssertVectorJson(label, "universal settings record", row["expectedUniversal"],
+                JsonNode.Parse(HyperwhisperCoreMethods.MacosSettingsToUniversalSettingsJson(
+                    row["macos"]!.ToJsonString(),
+                    row["existingMacosExtension"]?.ToJsonString())));
+            continue;
+        }
+        Assert(direction == "toMacos", $"macosSettings '{label}': unknown direction '{direction}'");
+        AssertVectorJson(label, "macOS 7-category settings", row["expectedMacos"],
+            JsonNode.Parse(HyperwhisperCoreMethods.UniversalSettingsToMacosSettingsJson(
+                row["universal"]!.ToJsonString())));
+    }
+    Console.WriteLine($"Backup macos-settings vectors: {macosRows.Count}/{macosRows.Count} rows matched the shared core.");
+
+    Console.WriteLine("Backup application tests passed (42/42).");
 }
 finally
 {
-    Directory.Delete(root, recursive: true);
+    // Every assertion has already run by here, so this is cleanup and not a
+    // test. It still has to work on BOTH hosts: this harness runs on Windows CI
+    // as well as Linux CI since the backup vectors were wired into all three
+    // stacks.
+    //
+    // Windows holds each SQLite file open in Microsoft.Data.Sqlite's CONNECTION
+    // POOL after the last DbContext is disposed, so a recursive delete of the
+    // temp root fails with "the process cannot access the file
+    // 'hyperwhisper.db'". Linux lets the unlink through regardless. Draining the
+    // pool releases the handles; the retry covers a handle the OS has not
+    // finished closing yet, which is timing and not a leak.
+    SqliteConnection.ClearAllPools();
+    for (var attempt = 1; ; attempt++)
+    {
+        try
+        {
+            Directory.Delete(root, recursive: true);
+            break;
+        }
+        catch (IOException) when (attempt < 5)
+        {
+            Thread.Sleep(200);
+        }
+        catch (IOException error)
+        {
+            // A temp directory left on a CI runner is noise; the exit code of
+            // this harness means "the vectors matched", so do not overwrite a
+            // pass with a cleanup failure. Say what was left behind instead.
+            Console.Error.WriteLine($"warning: could not remove {root}: {error.Message}");
+            break;
+        }
+    }
 }
 
 static void Assert(bool condition, string message)
 {
     if (!condition) throw new InvalidOperationException(message);
+}
+
+// Compares one field of a backup-vectors.json expectation against the value the native
+// importer produced. JSON null means the field must come out null — the
+// absent-stays-absent rule the vectors exist to pin.
+static void AssertModeVectorField(string label, string field, JsonObject expected, string? actual)
+{
+    Assert(expected.ContainsKey(field), $"vector '{label}' is missing the expected field '{field}'");
+    var want = expected[field]?.GetValue<string>();
+    Assert(want == actual,
+        $"vector '{label}': {field} expected {Quote(want)}, got {Quote(actual)}");
+
+    static string Quote(string? value) => value is null ? "null" : $"'{value}'";
+}
+
+// Compares a backup-vectors.json settings expectation against what the native
+// adapter produced. JsonNode.DeepEquals is order-insensitive over object keys and
+// number-representation-insensitive, so a row pins VALUES, never formatting.
+static void AssertVectorJson(string label, string what, JsonNode? expected, JsonNode? actual)
+{
+    Assert(JsonNode.DeepEquals(expected, actual),
+        $"vector '{label}': {what} mismatch{Environment.NewLine}  expected {Render(expected)}{Environment.NewLine}  actual   {Render(actual)}");
+
+    static string Render(JsonNode? node) => node?.ToJsonString() ?? "null";
 }
 
 static async Task AssertThrowsAsync<TException>(Func<Task> action, string message) where TException : Exception

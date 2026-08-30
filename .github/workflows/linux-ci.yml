@@ -19,8 +19,10 @@ on:
       - "app/linux/**"
       - "shared-core-rs/**"
       - "shared-backup/**"
-      # HyperWhisper.CatalogConformance.Tests runs these vectors as part of the
-      # shared-dotnet sweep below.
+      # HyperWhisper.CatalogConformance.Tests and
+      # HyperWhisper.Backup.Application.Tests run these vectors as part of the
+      # shared-dotnet sweep below, and the shared Rust core's own
+      # tests/backup_vectors.rs runs them in the cargo step above it.
       - "shared-conformance/**"
       # The Linux head classifies the foreground app through the shared
       # classifier since issue #279, so a catalog edit changes its behaviour.
@@ -305,14 +307,36 @@ jobs:
           python3 .github/scripts/test-dotnet-coverage-policy.py
           app/linux/scripts/run-dotnet-coverage.sh
 
+      # The model is immutable and its digest is pinned below, so a cache hit is
+      # always the same bytes. Caching matters because linux-release.yml gates
+      # on this job: a Hugging Face rate limit on one anonymous download used to
+      # fail a release with nothing wrong in the tree.
+      - name: Restore the end-to-end Whisper model
+        id: whisper-model
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/ggml-tiny.en.bin
+          key: whisper-ggml-tiny-en-921e4cf8686fdd993dcd081a5da5b6c365bfde1162e72b08d75ac75289920b1f
+
+      - name: Download the end-to-end Whisper model
+        if: steps.whisper-model.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Hugging Face answers 429 to anonymous downloads under load, and curl
+          # treats that code as retryable once --retry is set.
+          curl --fail --silent --show-error --location \
+            --retry 5 --retry-delay 10 \
+            https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin \
+            --output "${RUNNER_TEMP}/ggml-tiny.en.bin"
+
       - name: Verify live PipeWire microphone transcription
         shell: bash
         run: |
           set -euo pipefail
           model_path="${RUNNER_TEMP}/ggml-tiny.en.bin"
-          curl --fail --silent --show-error --location \
-            https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin \
-            --output "$model_path"
+          # Checked on every run, not only after a download, so a truncated or
+          # corrupt cache entry fails here instead of as a transcription bug.
           echo "921e4cf8686fdd993dcd081a5da5b6c365bfde1162e72b08d75ac75289920b1f  $model_path" \
             | sha256sum --check --strict
           HW_E2E_WHISPER_MODEL="$model_path" \
@@ -377,16 +401,24 @@ jobs:
             packaging/linux/debian/postrm
           desktop-file-validate packaging/linux/debian/hyperwhisper.desktop
 
+          # Build at the project's real version, not a fixed one, so the
+          # package version and the Debian changelog never disagree after a
+          # version bump.
+          version="$(sed -n 's:.*<Version>\([^<]*\)</Version>.*:\1:p' \
+            app/linux/HyperWhisper.Linux/HyperWhisper.Linux.csproj)"
+          test -n "$version"
+
           package_path="$(
             packaging/linux/scripts/build-deb.sh \
               --publish-dir artifacts/hyperwhisper-linux \
               --output-dir artifacts/debian \
-              --version 1.0.0 \
+              --version "$version" \
               --architecture amd64
           )"
 
           test -s "$package_path"
-          packaging/linux/scripts/test-package.sh "$package_path"
+          HYPERWHISPER_PACKAGE_VERSION="$version" \
+            packaging/linux/scripts/test-package.sh "$package_path"
           packaging/linux/scripts/test-apt-repository.sh "$package_path"
           lintian --fail-on warning "$package_path"
           dpkg-deb --info "$package_path"

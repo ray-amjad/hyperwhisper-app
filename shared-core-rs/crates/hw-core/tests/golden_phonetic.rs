@@ -29,7 +29,7 @@ fn phonetic_encode_matches_golden_fixtures() {
     assert!(!cases.is_empty(), "fixtures must not be empty");
 
     for case in &cases {
-        let got = hyperwhisper_core::phonetic_encode(case.word.clone());
+        let got = hyperwhisper_core::ffi_phonetic::phonetic_encode(case.word.clone());
         assert_eq!(
             got, case.codes,
             "phonetic_encode({:?}) drifted from golden output",

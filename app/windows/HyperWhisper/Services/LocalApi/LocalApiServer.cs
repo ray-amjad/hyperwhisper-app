@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using uniffi.hyperwhisper_core;
 
 namespace HyperWhisper.Services.LocalApi;
 
@@ -291,8 +292,31 @@ public sealed class LocalApiServer : INotifyPropertyChanged
 
         var app = builder.Build();
 
-        // Auth middleware — runs before any route except /health. Compares
-        // the bearer token using FixedTimeEquals to avoid timing leaks.
+        // DNS-rebind guard — runs before EVERY route, including the
+        // unauthenticated /health, and before the bearer check. Windows had no
+        // such guard until issue #289; this is macOS's, shared through
+        // hw-localapi rather than transliterated a second time. The guard runs
+        // first on purpose: checking the token first would tell an
+        // unauthenticated rebound page whether its guess was right.
+        app.Use(async (ctx, next) =>
+        {
+            // `Connection.LocalPort` is the port this connection actually
+            // arrived on, so it is right even in the window between the bind
+            // and `ListeningPort` being published. macOS needs the same
+            // fallback and reads it off the live FlyingFox socket.
+            var boundPort = ctx.Connection.LocalPort > 0 ? ctx.Connection.LocalPort : ListeningPort;
+            var decision = LocalApiOriginGuard.Decide(ctx, boundPort);
+            if (!HyperwhisperCoreMethods.LocalApiOriginDecisionIsAllowed(decision))
+            {
+                LoggingService.Warn($"LocalApiServer: rejected request with disallowed Host/Origin (possible DNS-rebinding) — {decision}");
+                await WriteFailureAsync(ctx, HyperwhisperCoreMethods.LocalApiForbiddenOriginFailure());
+                return;
+            }
+
+            await next();
+        });
+
+        // Auth middleware — runs before any route except /health.
         app.Use(async (ctx, next) =>
         {
             if (string.Equals(ctx.Request.Path, "/health", StringComparison.OrdinalIgnoreCase))
@@ -301,17 +325,7 @@ public sealed class LocalApiServer : INotifyPropertyChanged
                 return;
             }
 
-            var header = ctx.Request.Headers["Authorization"].ToString();
-            const string prefix = "Bearer ";
-            if (string.IsNullOrEmpty(header) ||
-                !header.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-            {
-                await WriteUnauthorizedAsync(ctx);
-                return;
-            }
-
-            var provided = header.Substring(prefix.Length).Trim();
-            if (!LocalApiAuth.ConstantTimeEquals(provided, BearerToken))
+            if (!LocalApiAuth.Authorize(ctx.Request.Headers["Authorization"].ToString(), BearerToken))
             {
                 await WriteUnauthorizedAsync(ctx);
                 return;
@@ -334,10 +348,28 @@ public sealed class LocalApiServer : INotifyPropertyChanged
 
     private static async Task WriteUnauthorizedAsync(HttpContext ctx)
     {
-        ctx.Response.StatusCode = 401;
-        ctx.Response.ContentType = "application/json; charset=utf-8";
+        // `hint: null` keeps this response byte-identical to what Windows sent
+        // before #289 — macOS's 401 carries a hint naming its own discovery
+        // file, and that is the one part of the envelope that legitimately
+        // differs per platform.
         ctx.Response.Headers["WWW-Authenticate"] = "Bearer realm=\"hyperwhisper\"";
-        await ctx.Response.WriteAsync("{\"ok\":false,\"error\":{\"code\":\"INVALID_REQUEST\",\"message\":\"Missing or invalid bearer token\"}}");
+        await WriteFailureAsync(ctx, HyperwhisperCoreMethods.LocalApiUnauthorizedFailure(null));
+    }
+
+    /// <summary>
+    /// Write a shared-core failure verbatim: its status, and its already-encoded
+    /// envelope.
+    ///
+    /// The status comes from Rust rather than from this file, which is the
+    /// point of the envelope half of issue #289 — Linux returned 404/413/503/408
+    /// for business outcomes the docs mandate 200 for, because each platform
+    /// decided the status itself.
+    /// </summary>
+    private static async Task WriteFailureAsync(HttpContext ctx, HwLocalApiFailure failure)
+    {
+        ctx.Response.StatusCode = failure.httpStatus;
+        ctx.Response.ContentType = "application/json; charset=utf-8";
+        await ctx.Response.WriteAsync(failure.json);
     }
 
     private static int ExtractPort(WebApplication app)

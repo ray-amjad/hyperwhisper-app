@@ -1,0 +1,11 @@
+target
+Cargo.lock
+artifacts
+
+# cargo-fuzz's generated .gitignore excludes `corpus/` wholesale. The seed
+# corpus for this target is DELIBERATELY committed: it is transliterated from
+# the two native oracle suites plus the live appcast feeds, and CI never runs
+# the fuzzer, so an uncommitted corpus would mean every local run starts from
+# nothing. Machine-found additions are not committed.
+corpus/*
+!corpus/parse/

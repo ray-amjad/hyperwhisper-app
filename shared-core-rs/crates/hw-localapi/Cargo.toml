@@ -1,0 +1,55 @@
+[package]
+name = "hw-localapi"
+version = "0.1.0"
+edition = "2021"
+description = "Cross-platform Local API wire contract: the DNS-rebind origin guard, bearer-token encoding and comparison, and the closed failure envelope. Plain Rust, zero dependencies; hw-core mirrors its types for UniFFI."
+publish = false
+
+[lib]
+crate-type = ["lib"]
+
+# No dependencies, by design — the same rule `hw-releasenotes` sets.
+#
+# This crate sits in front of a NETWORK-FACING surface. The loopback HTTP
+# server hands it a `Host` header, an `Origin` header and an `Authorization`
+# header, all of which an attacker on the machine (or a rebound web page)
+# chooses. The workspace release profile sets `panic = "abort"`, so every added
+# dependency is another crate that can abort the whole app from one malformed
+# header.
+#
+# That rule is why SHA-256 (`sha256.rs`), the constant-time compare (`auth.rs`)
+# and the base64url encoder (`token.rs`) are written out here instead of pulling
+# `sha2`, `subtle` and `base64`. Issue #289 notes that `rand` and `base64`
+# appear nowhere in the workspace today; this crate keeps it that way. It also
+# keeps `cargo build --offline` (linux-ci.yml) resolvable with no new registry
+# fetch.
+#
+# Entropy is NOT generated here. `generate_token` takes the 32 bytes from the
+# host's own CSPRNG (`SecRandomCopyBytes` / `RandomNumberGenerator.GetBytes`),
+# so an entropy failure stays a recoverable host-side error instead of a panic
+# that `panic = "abort"` turns into a process abort.
+[dependencies]
+
+# ---------------------------------------------------------------------------
+# Panic-free-by-construction lints.
+#
+# THESE THREE ARE `clippy::restriction` LINTS. Restriction lints are
+# allow-by-default and are NOT part of `clippy::all`, so the workflows' plain
+# `cargo clippy --all-targets -- -D warnings` does NOT enable them: this table
+# is the only thing that turns them on. Cargo `[lints]` is stable since 1.74
+# (the workspace pins 1.86) and applies to EVERY target of the package, so
+# `--all-targets` picks it up with no workflow edit.
+#
+# Unit tests live inside the lib behind `#[cfg(test)]`, and the crate root
+# re-allows all three under `cfg(test)` — test code legitimately unwraps, and a
+# `tests/` integration file would be a separate crate that never sees that
+# attribute.
+#
+# Copied verbatim from `hw-releasenotes` (#284). This is the pattern for any
+# crate that parses untrusted input; copy the table and the crate-root
+# `cfg_attr` together.
+# ---------------------------------------------------------------------------
+[lints.clippy]
+indexing_slicing = "deny"
+unwrap_used = "deny"
+expect_used = "deny"

@@ -5,6 +5,12 @@
 # tests and the cloud backend's bun tests) would be honor-system: the macOS and
 # Windows release workflows only BUILD the core, they never run its tests.
 #
+# The same argument now covers the catalog, app-type and backup vectors: this
+# is where tests/catalog_vectors.rs, tests/app_type_vectors.rs and
+# tests/backup_vectors.rs run, and each is the ONLY head that calls the core
+# with no app around it. Linux CI runs `cargo test` too, but its path filter is
+# narrower than this one's.
+#
 # Deliberately a plain `cargo test` (not --release): the workspace release
 # profile pins lto=true / codegen-units=1 for the shipped artifacts, which is
 # brutally slow for a PR check and buys nothing here.

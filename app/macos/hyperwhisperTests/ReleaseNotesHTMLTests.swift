@@ -227,9 +227,18 @@ struct ReleaseNotesHTMLTests {
         #expect(ReleaseNotesHTML.runs(in: "before <b/> after").allSatisfy { !$0.style.contains(.bold) })
         #expect(ReleaseNotesHTML.plainText("before <b/> after") == "before after")
 
+        // Each allSatisfy is paired with the text it should have produced.
+        // allSatisfy is vacuously true on empty or truncated output, so on its
+        // own it also passes for a parser that aborted on the self-closing tag
+        // and lost the rest of the note.
         #expect(ReleaseNotesHTML.runs(in: "before <i/> after").allSatisfy { !$0.style.contains(.italic) })
+        #expect(ReleaseNotesHTML.plainText("before <i/> after") == "before after")
+
         #expect(ReleaseNotesHTML.runs(in: "x<strong />y").allSatisfy { !$0.style.contains(.bold) })
+        #expect(ReleaseNotesHTML.plainText("x<strong />y") == "xy")
+
         #expect(ReleaseNotesHTML.runs(in: "x<em />y").allSatisfy { !$0.style.contains(.italic) })
+        #expect(ReleaseNotesHTML.plainText("x<em />y") == "xy")
 
         // The paired forms still style what they wrap.
         #expect(ReleaseNotesHTML.runs(in: "<b>still bold</b>").first?.style.contains(.bold) == true)
@@ -323,9 +332,16 @@ struct ReleaseNotesHTMLTests {
         #expect(ReleaseNotesHTML.plainText(#"a<br = "unterminated>b"#) == "a\nb")
     }
 
-    /// "\r\n" is one Character, equal to neither "\r" nor "\n", so a CRLF used
-    /// to be appended literally where the C# mirror — which walks UTF-16 units
-    /// — collapsed it. A non-breaking space is not collapsible on either.
+    /// Whitespace is collapsed one Unicode SCALAR VALUE at a time: the unit
+    /// `hw-releasenotes` pins for every index, scan limit and whitespace
+    /// predicate on all three heads. A CRLF is two scalars — "\r" and "\n",
+    /// each of them collapsible — so it collapses like any other run of
+    /// whitespace, and the expectations below are the same on every head.
+    ///
+    /// This file used to read text by GRAPHEME, where "\r\n" is one Character
+    /// equal to neither "\r" nor "\n", so the CRLF had to be named outright to
+    /// collapse at all; the C# mirror walked UTF-16 units. Both are gone.
+    /// A non-breaking space is not collapsible whitespace on any of them.
     @Test func aCarriageReturnLineFeedCollapsesLikeAnyOtherWhitespace() {
         #expect(ReleaseNotesHTML.plainText("line one\r\nline two") == "line one line two")
         #expect(ReleaseNotesHTML.plainText("a\r\n\r\n  b") == "a b")
@@ -369,6 +385,33 @@ struct ReleaseNotesHTMLTests {
         #expect(ReleaseNotesHTML.plainText("a &amp; b &mdash; c &#8212; d &#x2014; e") == "a & b — c — d — e")
         #expect(ReleaseNotesHTML.plainText("&bogus; stays") == "&bogus; stays")
         #expect(ReleaseNotesHTML.plainText("&lt;b&gt;not a tag&lt;/b&gt;") == "<b>not a tag</b>")
+    }
+
+    /// A DELIBERATE strictness change (#284, decision (a)). "&#+65;" and
+    /// "&#x+41;" used to decode to "A" here and stayed literal on Windows,
+    /// because `UInt32(_:radix:)` accepts a leading sign and
+    /// `NumberStyles.None` does not. Nothing pinned either, no feed carries
+    /// them, and this is remote input — so the shared decoder rejects a signed
+    /// body on both heads and the "&" stays literal text. ("&#-65;" never
+    /// decoded on either; it is pinned so it cannot start to.)
+    @Test func aNumericEntityWithASignedBodyStaysLiteral() {
+        #expect(ReleaseNotesHTML.plainText("&#+65;") == "&#+65;")
+        #expect(ReleaseNotesHTML.plainText("&#-65;") == "&#-65;")
+        #expect(ReleaseNotesHTML.plainText("&#x+41;") == "&#x+41;")
+
+        // The well-formed spellings still decode.
+        #expect(ReleaseNotesHTML.plainText("&#65;") == "A")
+        #expect(ReleaseNotesHTML.plainText("&#x41;") == "A")
+    }
+
+    /// The other half of decision (a), pinned in the direction this head
+    /// already took: "&#x 41;" never decoded here, and decoded to "A" on
+    /// Windows, where `NumberStyles.HexNumber` allows leading white. The
+    /// shared decoder keeps it literal, so this cannot regress into a decode.
+    @Test func aNumericEntityWithWhitespaceInItsBodyStaysLiteral() {
+        #expect(ReleaseNotesHTML.plainText("&#x 41;") == "&#x 41;")
+        #expect(ReleaseNotesHTML.plainText("&# 65;") == "&# 65;")
+        #expect(ReleaseNotesHTML.plainText("&#65 ;") == "&#65 ;")
     }
 
     @Test func feedIndentationCollapsesToSingleSpaces() {
@@ -446,5 +489,103 @@ struct ReleaseNotesHTMLTests {
         #expect(item.releaseTitle == nil)
         #expect(item.bulletPoints.isEmpty)
         #expect(!item.hasReleaseNotes)
+    }
+
+    // MARK: - Decision (c): one title rule on both heads (#284)
+
+    /// The Windows feed's shape, which this head could not read before: it took
+    /// "everything before the list" and so made the whole `<h2>` element the
+    /// title only by accident of its text. The rule is now explicit and shared.
+    @Test func anH2BeforeTheListBecomesTheTitle() {
+        let item = AppcastItem(
+            version: "1.11.0",
+            buildNumber: "1",
+            pubDate: Date(),
+            releaseNotes: "<h2>What's New in 1.11.0</h2>\n<ul>\n<li>Links are now clickable.</li>\n</ul>"
+        )
+
+        #expect(item.releaseTitle.map { String($0.characters) } == "What's New in 1.11.0")
+        #expect(item.bulletPoints.map { String($0.characters) } == ["Links are now clickable."])
+    }
+
+    /// The half of decision (c) Windows did not have either: its `<h2>` regex
+    /// was case-sensitive and allowed no attributes.
+    @Test func theTitleHeadingMatchIsCaseInsensitiveAndAllowsAttributes() {
+        let item = AppcastItem(
+            version: "1.0.0",
+            buildNumber: "1",
+            pubDate: Date(),
+            releaseNotes: #"<H2 id="whats-new">Title</H2><ul><li>x</li></ul>"#
+        )
+
+        #expect(item.releaseTitle.map { String($0.characters) } == "Title")
+    }
+
+    /// An `<h2>` anywhere wins over the pre-list content — the Windows rule —
+    /// but an `<h3>` is a sub-heading and never becomes a title on its own.
+    @Test func onlyAnH2IsMatchedByName() {
+        let withH3 = AppcastItem(
+            version: "1.0.0", buildNumber: "1", pubDate: Date(),
+            releaseNotes: "<ul><li>x</li></ul><h3>Details</h3>"
+        )
+        #expect(withH3.releaseTitle == nil)
+
+        let withH2 = AppcastItem(
+            version: "1.0.0", buildNumber: "1", pubDate: Date(),
+            releaseNotes: "<ul><li>x</li></ul><h2>Late heading</h2>"
+        )
+        #expect(withH2.releaseTitle.map { String($0.characters) } == "Late heading")
+    }
+
+    /// A closing tag with whitespace before its `>` still closes the item. This
+    /// head already behaved this way — it searched for the prefix `</li` — and
+    /// the shared core keeps that behaviour rather than the Windows regex's,
+    /// which dropped the bullet entirely.
+    @Test func aClosingListTagWithWhitespaceStillClosesTheItem() {
+        let item = AppcastItem(
+            version: "1.0.0", buildNumber: "1", pubDate: Date(),
+            releaseNotes: "<ul><li>one</li ><li>two</li></ul>"
+        )
+
+        #expect(item.bulletPoints.map { String($0.characters) } == ["one", "two"])
+    }
+
+    // MARK: - Parse once, at construction (#284)
+
+    /// STRUCTURAL: `releaseTitle` and `bulletPoints` must be STORED properties.
+    ///
+    /// They were computed, so every SwiftUI `body` pass of every
+    /// `ReleaseNotesCard` re-ran the whole HTML parse — for every release in the
+    /// list, on every redraw. `Mirror` reports stored properties only, so a
+    /// regression back to `var releaseTitle: AttributedString? { ... }` fails
+    /// here rather than silently costing a parse per frame.
+    @Test func theTitleAndBulletsAreStoredNotRecomputed() {
+        let item = AppcastItem(
+            version: "2.5.3", buildNumber: "32", pubDate: Date(),
+            releaseNotes: "<b>Title</b><ul><li>one</li></ul>"
+        )
+
+        let stored = Mirror(reflecting: item).children.compactMap(\.label)
+        #expect(stored.contains("releaseTitle"))
+        #expect(stored.contains("bulletPoints"))
+
+        // And the stored values are the parsed ones, not empty defaults.
+        #expect(item.releaseTitle.map { String($0.characters) } == "Title")
+        #expect(item.bulletPoints.map { String($0.characters) } == ["one"])
+    }
+
+    /// Equatable still holds over the added stored properties: two items built
+    /// from the same feed entry compare equal, and a different note does not.
+    @Test func equalityStillFollowsTheFeedEntry() {
+        let date = Date()
+        let notes = "<b>Title</b><ul><li>one</li></ul>"
+
+        let first = AppcastItem(version: "1.0.0", buildNumber: "1", pubDate: date, releaseNotes: notes)
+        let second = AppcastItem(version: "1.0.0", buildNumber: "1", pubDate: date, releaseNotes: notes)
+        let other = AppcastItem(version: "1.0.0", buildNumber: "1", pubDate: date,
+                                releaseNotes: "<b>Other</b><ul><li>two</li></ul>")
+
+        #expect(first == second)
+        #expect(first != other)
     }
 }
