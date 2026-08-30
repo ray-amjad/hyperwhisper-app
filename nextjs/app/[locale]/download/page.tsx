@@ -90,14 +90,19 @@ export default function DownloadPage() {
 
     let cancelled = false;
 
-    fetch("/linux-latest.json")
-      .then((response) => (response.ok ? response.json() : null))
-      .then((data: LinuxLatest | null) => {
+    const fetchLinuxLatest = async () => {
+      try {
+        const response = await fetch("/linux-latest.json");
+        const data: LinuxLatest | null = response.ok
+          ? await response.json()
+          : null;
         if (!cancelled && data?.version && data?.deb) setLinuxLatest(data);
-      })
-      .catch(() => {
+      } catch {
         // Fall back to LINUX_RELEASES_URL below.
-      });
+      }
+    };
+
+    fetchLinuxLatest();
 
     return () => {
       cancelled = true;
