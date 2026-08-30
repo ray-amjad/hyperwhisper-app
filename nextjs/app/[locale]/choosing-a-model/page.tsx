@@ -75,11 +75,16 @@ export default async function ChoosingAModelPage({ params }: Props) {
         </h1>
         {/*
           "across macOS and Windows" is load-bearing, not padding.
-          DEVICE_MODELS.length is the union over both platforms (19), while the
-          ranked list below shows only the selected platform's on-device rows
-          (17 on macOS). Without the qualifier the sentence reads as a count of
-          what is on screen and visibly disagrees with the table's own
-          "26 cloud · 17 on-device" caption.
+          DEVICE_MODELS is the union over both platforms, while the ranked list
+          below shows only the on-device rows for the platform the reader has
+          selected — always the smaller set. Without the qualifier the sentence
+          reads as a count of what is on screen, and then visibly disagrees with
+          the table's own "N cloud · N on-device" caption a scroll later.
+
+          Deliberately no numbers here. Every count on this page is derived from
+          the catalog at render time, so writing one into a comment only creates
+          a second place to be wrong the next time a model ships — which is how
+          this comment came to quote a cloud count that was already stale.
         */}
         <p className="mx-auto mt-6 text-lg text-gray-400">
           Tell us what matters and we will rank the {CLOUD_MODELS.length} cloud
