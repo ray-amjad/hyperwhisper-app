@@ -37,10 +37,11 @@ If you use **HyperWhisper Cloud** (the default transcription service in the app)
 - `https://transcribe-prod-v2.hyperwhisper.com/usage` - Credit balance queries
 - `https://transcribe-prod-v2.hyperwhisper.com/post-process` - Standalone text post-processing (used when a mode's post-processing provider is HyperWhisper Cloud)
 - `https://transcribe-prod-v2.hyperwhisper.com/warmup` - `HEAD` keepalive that opens the connection before you record. The app sends it at intervals while it is active
-- `wss://transcribe-prod-v2.hyperwhisper.com/ws/streaming-deepgram` - [Streaming transcription](/streaming-settings) with HyperWhisper Cloud as the streaming provider
+- `wss://transcribe-prod-v2.hyperwhisper.com/ws/streaming-deepgram` - [Streaming transcription](/streaming-settings) with HyperWhisper Cloud as the streaming provider, and the live engine set to Deepgram Nova 3 (the default)
+- `wss://transcribe-prod-v2.hyperwhisper.com/ws/streaming-gemini-transcribe` - streaming transcription with HyperWhisper Cloud as the streaming provider, and the live engine set to Google Gemini 3.5 Transcribe
 
 <Note>
-  The streaming endpoint is a WebSocket. If your firewall permits HTTPS but stops the WebSocket upgrade, batch transcription operates correctly and streaming transcription does not connect.
+  The streaming endpoints are WebSockets. If your firewall permits HTTPS but stops the WebSocket upgrade, batch transcription operates correctly and streaming transcription does not connect.
 </Note>
 
 <Tip>
@@ -181,6 +182,20 @@ HyperWhisper uses these endpoints:
 - `https://generativelanguage.googleapis.com/upload/v1beta/files` - starts a resumable upload of the audio file
 - `https://generativelanguage.googleapis.com/v1beta/{file.name}` - polls until the uploaded file is active, then deletes it afterward
 - `https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent` - produces the transcript from the uploaded file
+- `https://generativelanguage.googleapis.com/v1beta/models` - model availability checks
+
+### Google Gemini 3.5 Transcribe
+
+**Gemini 3.5 Transcribe** is a different Google product from **Google Gemini**, on a different endpoint. It has its own key slot in Model Library → API Keys. If you configured it, whitelist these domains:
+
+| Domain | Purpose |
+|--------|---------|
+| `generativelanguage.googleapis.com` | The dedicated speech endpoint, the live WebSocket, and model availability checks |
+| `aistudio.google.com` | API key management page (informational) |
+
+HyperWhisper uses these endpoints:
+- `https://generativelanguage.googleapis.com/v1beta/interactions` - produces the transcript from inline audio. HyperWhisper sends no file upload for this engine
+- `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent` - [streaming transcription](/streaming-settings) with Gemini 3.5 Transcribe as the streaming provider
 - `https://generativelanguage.googleapis.com/v1beta/models` - model availability checks
 
 ### Mistral Voxtral
@@ -370,7 +385,7 @@ If the `curl` commands work but HyperWhisper does not, the probable cause is SSL
 1. **API Keys**: HyperWhisper stores them in the macOS Keychain. It never sends them to the HyperWhisper servers
 2. **License Keys**: HyperWhisper sends them only to `hyperwhisper.com` for validation. HTTPS encrypts the data
 3. **Audio Data**:
-   - **HyperWhisper Cloud**: HyperWhisper sends the audio to `transcribe-prod-v2.hyperwhisper.com` on the Fly.io edge network. The service processes the audio in memory and writes no audio to disk. There is one exception: large Google Chirp 3 requests go through a temporary bucket, and the service deletes that data immediately. For more information, see [Data Privacy](/data-privacy)
+   - **HyperWhisper Cloud**: HyperWhisper sends the audio to `transcribe-prod-v2.hyperwhisper.com` on the Fly.io edge network. The service processes the audio in memory and writes no audio to disk. For more information, see [Data Privacy](/data-privacy)
    - **Third-party providers**: HyperWhisper sends the audio directly to the API of the provider, for example xAI Grok, OpenAI, Groq, or Deepgram. The privacy policy of the provider applies
    - **Local models**: The audio stays on your device. The transcription is fully offline and private
 

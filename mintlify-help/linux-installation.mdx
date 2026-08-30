@@ -19,8 +19,10 @@ matrix.
 ## Install the Debian package
 
 <Info>
-  Linux v1.0.0 passed the automated build, package, UI-smoke, and integration
-  gates. The expanded physical GNOME, KDE, and GPU matrix is planned for v1.1.0.
+  The current Linux release is v1.1.0. Each Linux release passes the automated
+  build, package, UI-smoke, and integration gates. The physical GNOME, KDE, and
+  GPU matrix is a recommended checklist, and the release does not stop when the
+  matrix is absent.
 </Info>
 
 Download `hyperwhisper_VERSION_amd64.deb` from the
@@ -106,9 +108,15 @@ window title. They do not accept document text or key events.
 
 ## Self-host the APT repository
 
-Linux releases include `hyperwhisper-apt-VERSION.tar.gz`, a static APT
+A Linux release can include `hyperwhisper-apt-VERSION.tar.gz`, a static APT
 repository archive for organizations that want to host updates themselves.
 HyperWhisper does not currently operate a public APT endpoint.
+
+The release includes this archive only when the build signed the repository. A
+release that has no signed repository does not list the archive, and the
+download page does not link it. The `.deb` package always ships. If a release
+has no `hyperwhisper-apt-VERSION.tar.gz` file, use the `.deb` package, or take
+the archive from an earlier release.
 
 Extract the archive at the root of an HTTPS origin. Before configuring clients,
 confirm that the hosted repository contains signed metadata and its public key:

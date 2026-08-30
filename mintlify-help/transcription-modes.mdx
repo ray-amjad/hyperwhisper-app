@@ -63,18 +63,22 @@ The Provider row shows ten companies, in alphabetical order:
 | AssemblyAI | Universal-3.5 Pro, Universal-2 |
 | Deepgram | Nova 3 General, Nova 3 Medical, Nova 2 General, Nova 2 Medical |
 | ElevenLabs | Scribe v2 |
-| Google | Chirp 3, Gemini 2.5 Flash, Gemini 2.5 Flash Lite, Gemini 2.5 Pro, Gemini 3 Flash, Gemini 3.1 Pro |
+| Google | Gemini 3.5 Transcribe, Gemini 2.5 Flash, Gemini 2.5 Flash Lite, Gemini 2.5 Pro, Gemini 3 Flash, Gemini 3.1 Pro |
 | Groq | Whisper Large v3 Turbo, Whisper Large v3 |
 | Microsoft | MAI-Transcribe 1.5 |
 | Mistral | Voxtral Mini |
-| OpenAI | GPT-4o Transcribe, GPT-4o Mini Transcribe, Whisper, GPT Transcribe, GPT Live Transcribe |
+| OpenAI | GPT-4o Transcribe, GPT-4o Mini Transcribe, Whisper, GPT Transcribe |
 | Soniox | Async v5 |
 | xAI | Grok Speech-to-Text |
 
 The Provider row shows **(Recommended)** on the ElevenLabs row only. ElevenLabs Scribe v2 is the recommended engine. The Model row shows no **(Recommended)** tag.
 
 <Note>
-  Google is one row, but two engines are behind it: Chirp 3 and Gemini. The Model row lists the models of both engines together. The model that you select sets the engine that HyperWhisper Cloud uses, and thus also the credit rate. Chirp 3 and MAI-Transcribe 1.5 are available through HyperWhisper Cloud only. You cannot use them with your own key.
+  Google is one row, but two engines are behind it: Gemini 3.5 Transcribe and Gemini. The Model row lists the models of both engines together. The model that you select sets the engine that HyperWhisper Cloud uses, and thus also the credit rate. MAI-Transcribe 1.5 is available through HyperWhisper Cloud only. You cannot use it with your own key.
+</Note>
+
+<Note>
+  The Model row does not show **Gemini 3.5 Transcribe Live** or **GPT Live Transcribe**. HyperWhisper Cloud serves these two models on a WebSocket only, and the batch transcription endpoint refuses them. HyperWhisper Cloud uses Gemini 3.5 Transcribe Live for [streaming transcription](/streaming-settings). You cannot select GPT Live Transcribe anywhere in the app.
 </Note>
 
 Below the two rows, HyperWhisper shows the approximate credit cost for each minute of the model that you selected. A badge also appears there when the model is a **Preview** model, or when the model does not support custom vocabulary. Today every HyperWhisper Cloud model supports custom vocabulary, thus only the **Preview** badge appears. For your own provider (BYOK), some models still have no vocabulary support, and the mode editor shows a notice for them.
