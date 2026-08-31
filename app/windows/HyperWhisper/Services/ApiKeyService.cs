@@ -259,14 +259,6 @@ public class ApiKeyService
         }
     }
 
-    /// <summary>
-    /// Checks if an API key is configured for a custom endpoint.
-    /// </summary>
-    public bool HasCustomEndpointApiKey(Guid endpointId)
-    {
-        return !string.IsNullOrEmpty(GetCustomEndpointApiKey(endpointId));
-    }
-
     // =========================================================================
     // HELPER METHODS
     // =========================================================================

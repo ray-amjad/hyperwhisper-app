@@ -33,12 +33,6 @@ public static class NetworkConfig
 #endif
 
     /// <summary>
-    /// Full transcription endpoint URL.
-    /// POST /transcribe - Binary audio streaming with query params.
-    /// </summary>
-    public static string TranscribeEndpoint => $"{HyperWhisperCloudBaseUrl}/transcribe";
-
-    /// <summary>
     /// Usage/credits endpoint URL.
     /// GET /usage - Fetch credit balance.
     /// </summary>
