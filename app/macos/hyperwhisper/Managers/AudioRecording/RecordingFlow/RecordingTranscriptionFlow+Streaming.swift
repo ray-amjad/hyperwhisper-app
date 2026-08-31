@@ -622,12 +622,15 @@ extension RecordingTranscriptionFlow {
             //
             // This decides what is *reported*, never what is *shown*: the toast
             // below is unchanged.
-            if StreamingErrorReportingPolicy.shouldCaptureInSentry(error) {
+            if StreamingErrorReportingPolicy.shouldCaptureInSentry(error), AppLogger.isErrorLoggingEnabled {
+                let nsError = error as NSError
                 SentryService.capture(
-                    error: error,
+                    error: StreamingErrorReportingPolicy.sentrySafeError(error),
                     message: "Streaming WebSocket error",
                     extras: [
-                        "attemptId": self.currentRecordingAttemptId ?? "none"
+                        "attemptId": self.currentRecordingAttemptId ?? "none",
+                        "error_domain": nsError.domain,
+                        "error_code": nsError.code
                     ],
                     tags: [
                         "component": "StreamingTranscription",
@@ -763,6 +766,44 @@ extension RecordingTranscriptionFlow {
             }
         } catch {
             AppLogger.audio.error("❌ Failed to start streaming session: \(error.localizedDescription, privacy: .public)")
+
+            // A START THAT NEVER HAPPENED REPORTED NOTHING.
+            //
+            // `onError` above captures a session that broke, and the client
+            // captures the faults it can classify, but a `startSession()` that
+            // threw left one os.log line and no event at all: the user presses
+            // the shortcut, reads "Failed to start streaming", and the only
+            // record is on their machine. That is every refused upgrade and
+            // every 10-second `connectionTimeout` on the streaming path.
+            //
+            // Same policy filter as `onError`, so an exhausted balance still
+            // does not raise an outage-shaped issue, and the same shape of
+            // payload. The streaming client's scope extras ride along and say
+            // which stage the start got to.
+            if StreamingErrorReportingPolicy.shouldCaptureInSentry(error), AppLogger.isErrorLoggingEnabled {
+                let nsError = error as NSError
+                SentryService.capture(
+                    error: StreamingErrorReportingPolicy.sentrySafeError(error),
+                    message: "Streaming session failed to start",
+                    extras: [
+                        "attemptId": currentRecordingAttemptId ?? "none",
+                        "error_domain": nsError.domain,
+                        "error_code": nsError.code
+                    ],
+                    tags: [
+                        "component": "StreamingTranscription",
+                        "provider": provider,
+                        "operation": "startSession",
+                        "errorCode": "\(nsError.code)"
+                    ],
+                    // The user is waiting on a toast. `getRecentLogs` shells out
+                    // to `log show` and blocks the main thread until it returns
+                    // (HYPERWHISPER-F7), and this catch is on the main actor.
+                    // The fields above are what this report needs.
+                    includeRecentLogs: false
+                )
+            }
+
             isStreamingActive = false
             streamingService = nil
             streamingPreviewTextSnapshot = ""
