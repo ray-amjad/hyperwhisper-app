@@ -80,6 +80,63 @@ public static class TranscriptionDiagnosticsService
         // identity.
         var presentation = ResolveDiagnosticPresentation(outcome);
 
+        var (tags, extras) = BuildDiagnosticPayload(
+            transcriptId,
+            audioPath,
+            audioDiagnostics,
+            presentation,
+            mode,
+            diagnosticStage,
+            diagnosticSource,
+            inputDeviceName,
+            transcriptionProviderDisplayName,
+            providerDiagnostics,
+            exception,
+            captureDeviceCount);
+
+        var fingerprint = BuildDiagnosticFingerprint(presentation.FingerprintRoot, diagnosticStage, diagnosticSource, mode);
+
+        var dedupeKey = $"{transcriptId}:{diagnosticStage}:{diagnosticSource}:{presentation.Name}";
+
+        SentryService.CaptureDiagnosticEvent(
+            message: presentation.Message,
+            extras: extras,
+            tags: tags,
+            fingerprint: fingerprint,
+            dedupeKey: dedupeKey);
+    }
+
+    /// <summary>
+    /// The tags and extras of one no-speech event.
+    /// </summary>
+    /// <remarks>
+    /// Split out of <see cref="CaptureNoSpeechDiagnostic"/> so the smoke tests can
+    /// read the payload this diagnostic actually sends. The specific thing they read
+    /// is the extras KEYS: <see cref="SentryService.IsRedactedExtraKey"/> replaces
+    /// the value of any key containing "transcript", "text", "prompt" or "path" with
+    /// <c>"[redacted]"</c>, and three of these fields were named that way, so they
+    /// arrived empty on every event of HYPERWHISPER-PA/-RM/-XR with nothing at the
+    /// call site to say so.
+    /// </remarks>
+    // internal (not private): test seam for HyperWhisper.SmokeTests via
+    // InternalsVisibleTo (see HyperWhisper.csproj) - no other accessibility
+    // change is intended.
+    internal static (Dictionary<string, string> Tags, Dictionary<string, object> Extras) BuildDiagnosticPayload(
+        Guid transcriptId,
+        string audioPath,
+        AudioAnalysisDiagnostics audioDiagnostics,
+        DiagnosticPresentation presentation,
+        Mode? mode,
+        string diagnosticStage,
+        string diagnosticSource,
+        string? inputDeviceName,
+        string? transcriptionProviderDisplayName,
+        TranscriptionProviderDiagnostics? providerDiagnostics,
+        TranscriptionException? exception,
+        int? captureDeviceCount)
+    {
+        var modeLanguage = mode?.Language;
+
         var tags = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             ["component"] = "transcription",
@@ -99,12 +156,35 @@ public static class TranscriptionDiagnosticsService
             // which defeats faceting entirely - the whole point of promoting it.
             ["audio_rms_dbfs_bucket"] = PortableNoSpeechDiagnostics.BucketDbfs(audioDiagnostics.RmsDbfs),
             ["selected_input_device_name"] = inputDeviceName ?? "n/a",
-            ["capture_device_count"] = captureDeviceCount?.ToString() ?? "unknown"
+            ["capture_device_count"] = captureDeviceCount?.ToString() ?? "unknown",
+            // A tag, not an extra, because the question it answers is a segmentation
+            // one: of the events in this group, how many came from a local engine,
+            // and how many from a cloud vendor that reports nothing about itself?
+            // Extras cannot be faceted on. The slugs are fixed strings, so the
+            // cardinality stays at four.
+            ["provider_attempt_source"] = providerDiagnostics?.AttemptSource ?? TranscriptionAttemptSource.Unknown,
+            // A wrong or unexpected language is a standing cause of an empty
+            // transcript. This is the mode's configured code ("en", "ja", "auto"),
+            // never anything spoken or detected.
+            ["mode_language"] = string.IsNullOrWhiteSpace(modeLanguage) ? "unset" : modeLanguage
         };
 
         var extras = new Dictionary<string, object>
         {
-            ["transcript_id"] = transcriptId.ToString(),
+            // KEY NAMES ARE LEAD-BEARING HERE. SentryService.IsRedactedExtraKey does a
+            // substring match on the key and replaces the value with "[redacted]", so
+            // an extra whose name contains "transcript", "text", "prompt" or "path"
+            // never arrives - silently, with no warning at the call site. This
+            // dictionary shipped three such names ("transcript_id",
+            // "transcription_provider_display_name",
+            // "backend_empty_transcript_without_flag"), and every event of
+            // HYPERWHISPER-PA/-RM/-XR carried "[redacted]" for all three. The names
+            // below are chosen to clear that filter; a smoke test asserts it for the
+            // whole dictionary so the next one fails in CI instead.
+            //
+            // This is the local record id, so a support thread can be joined to the
+            // event. It is a GUID the app minted - it is not the transcript.
+            ["diagnostic_record_id"] = transcriptId.ToString(),
             // audio_path is NOT reported. The recordings directory sits under the
             // user's profile, so the full path carries their Windows account name
             // (and, on the file-transcription path, the document name too). Every
@@ -140,15 +220,33 @@ public static class TranscriptionDiagnosticsService
             // Neither is comparable with values emitted before #291.
             ["audio_decoded_sample_count"] = (object?)audioDiagnostics.DecodedSampleCount ?? "unknown",
             ["audio_measured_sample_count"] = (object?)audioDiagnostics.MeasuredSampleCount ?? "unknown",
-            ["mode_name"] = mode?.Name ?? "unknown",
+            // mode_name is NOT reported. A mode's Name is free text the user typed
+            // when they made a custom mode, so it is user content, not metadata -
+            // preset modes only looked safe because nobody had renamed one yet.
+            // mode_preset below is the enum, and it answers the same question
+            // ("which mode was this") without carrying anything they wrote.
             ["mode_preset"] = mode?.Preset ?? "unknown",
-            ["transcription_provider_display_name"] = transcriptionProviderDisplayName ?? providerDiagnostics?.ProviderDisplayName ?? exception?.ProviderName ?? "unknown",
+            ["provider_display_name"] = transcriptionProviderDisplayName ?? providerDiagnostics?.ProviderDisplayName ?? exception?.ProviderName ?? "unknown",
             ["selected_input_device_name"] = inputDeviceName ?? "n/a",
+            // Which arm produced the record, and how long that arm took. Filled for
+            // every provider - local engines and BYOK cloud vendors included -
+            // whereas the backend_* fields below can only ever be filled by a
+            // provider that instruments itself.
+            ["provider_attempt_ms"] = (object?)providerDiagnostics?.AttemptElapsedMs ?? "unknown",
+            // 0 means the provider returned an empty string; a small non-zero count
+            // means it returned whitespace. Those are different faults and they were
+            // indistinguishable. It is a COUNT of the raw result, never the result.
+            ["raw_result_length"] = (object?)providerDiagnostics?.RawResultLength ?? "unknown",
             ["backend_request_id"] = providerDiagnostics?.BackendRequestId ?? "n/a",
             ["backend_stt_provider"] = providerDiagnostics?.BackendSttProvider ?? "n/a",
-            ["backend_http_status"] = providerDiagnostics?.HttpStatusCode ?? 0,
-            ["backend_response_latency_ms"] = providerDiagnostics?.ResponseLatencyMs ?? 0.0,
-            ["backend_empty_transcript_without_flag"] = providerDiagnostics?.EmptyTranscriptWithoutFlag ?? false
+            // "unknown" rather than 0: a local engine makes no HTTP request at all,
+            // and reporting that as status 0 / 0 ms reads like a failed request.
+            ["backend_http_status"] = (object?)providerDiagnostics?.HttpStatusCode ?? "unknown",
+            ["backend_response_latency_ms"] = (object?)providerDiagnostics?.ResponseLatencyMs ?? "unknown",
+            // Renamed from backend_empty_transcript_without_flag, which never
+            // arrived. This is the discriminator the whole diagnostic turns on: true
+            // means the provider returned nothing while claiming it heard speech.
+            ["backend_empty_without_flag"] = (object?)providerDiagnostics?.EmptyTranscriptWithoutFlag ?? "unknown"
         };
 
         if (!string.IsNullOrWhiteSpace(audioDiagnostics.AnalysisError))
@@ -164,16 +262,7 @@ public static class TranscriptionDiagnosticsService
             extras["exception_http_status"] = exception.HttpStatusCode ?? 0;
         }
 
-        var fingerprint = BuildDiagnosticFingerprint(presentation.FingerprintRoot, diagnosticStage, diagnosticSource, mode);
-
-        var dedupeKey = $"{transcriptId}:{diagnosticStage}:{diagnosticSource}:{presentation.Name}";
-
-        SentryService.CaptureDiagnosticEvent(
-            message: presentation.Message,
-            extras: extras,
-            tags: tags,
-            fingerprint: fingerprint,
-            dedupeKey: dedupeKey);
+        return (tags, extras);
     }
 
     /// <summary>

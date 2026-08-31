@@ -525,7 +525,13 @@ public class HyperWhisperCloudService : ITranscriptionProvider, ITranscriptionDi
             var diagnostics = new TranscriptionProviderDiagnostics(
                 Name, requestId, sttProvider,
                 BackendNoSpeechDetected: ex is HwTranscriptionException.NoSpeech,
-                (int)response.@status, totalSw.ElapsedMilliseconds, false);
+                (int)response.@status, totalSw.ElapsedMilliseconds, false,
+                // Stamped here, not in TranscriptionOrchestrator: this throw unwinds
+                // past the orchestrator's enrichment, so a record that did not carry
+                // its own source would reach Sentry tagged "unknown" - and this is
+                // the exact path HYPERWHISPER-PA arrives on.
+                AttemptSource: TranscriptionAttemptSource.CloudInstrumented,
+                AttemptElapsedMs: totalSw.Elapsed.TotalMilliseconds);
             LastDiagnostics = diagnostics;
             // Attach the diagnostics we just captured (real HTTP status + latency)
             // to the thrown exception itself, not just the LastDiagnostics property -
@@ -542,7 +548,10 @@ public class HyperWhisperCloudService : ITranscriptionProvider, ITranscriptionDi
         LastDiagnostics = new TranscriptionProviderDiagnostics(
             Name, requestId, sttProvider, false, (int)response.@status,
             totalSw.ElapsedMilliseconds,
-            string.IsNullOrWhiteSpace(transcript.@text));
+            string.IsNullOrWhiteSpace(transcript.@text),
+            AttemptSource: TranscriptionAttemptSource.CloudInstrumented,
+            AttemptElapsedMs: totalSw.Elapsed.TotalMilliseconds,
+            RawResultLength: transcript.@text.Length);
 
         LoggingService.Info("========== HYPERWHISPER CLOUD COMPLETE ==========");
         LoggingService.Info($"  Characters: {transcript.@text.Length}");
