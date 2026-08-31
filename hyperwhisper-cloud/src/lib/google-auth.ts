@@ -54,9 +54,21 @@ function getJwtClient(): JWT {
   return _jwtClient;
 }
 
-/** The production minter: the lazy, env-backed service-account JWT client. */
+/**
+ * The production minter: the lazy, env-backed service-account JWT client.
+ *
+ * `async` is load-bearing, not style. `getJwtClient()` throws SYNCHRONOUSLY on
+ * every credential-config fault (missing, malformed, or incomplete
+ * GOOGLE_SERVICE_ACCOUNT_JSON), and `GoogleTokenMinter.authorize` is declared
+ * to return a Promise. Without `async` that sync throw ran the core's
+ * `inflight = null` clear BEFORE `inflight = mintAndCacheToken()` assigned to
+ * it, so the rejected promise stayed published and every later caller on this
+ * machine got the same stale rejection back — for the machine's whole life,
+ * even after Infisical synced a correct secret. `async` turns it into a
+ * rejection, which is what the core's retry path is written against.
+ */
 const jwtTokenMinter: GoogleTokenMinter = {
-  authorize: () => getJwtClient().authorize(),
+  authorize: async () => getJwtClient().authorize(),
 };
 
 /** The production cache: one Upstash key, shared by every machine in a region. */
