@@ -65,6 +65,76 @@ pub fn encode(word: &str) -> Vec<String> {
 /// costs on the order of a few hundred kilobytes.
 const CODE_CACHE_CAPACITY: usize = 4096;
 
+/// A bounded, thread-safe memo over an encoder.
+///
+/// This is the cache [`encode_cached`] uses, with its two hardcoded
+/// dependencies — the capacity and the encoder — taken as parameters instead.
+/// The production instance is the `static` inside [`encode_cached`], built with
+/// [`CODE_CACHE_CAPACITY`] and [`encode`], so nothing about the shipped
+/// behaviour moves.
+///
+/// It is a type rather than a free function because the rules worth pinning are
+/// the ones that only show up ACROSS calls: that a repeat costs no second
+/// encode, and that the cap stops insertion without breaking lookups. A
+/// process-wide `static` sized at 4096 can express neither — a test cannot own
+/// one, cannot reset one, and cannot fill one without encoding 4096 words into
+/// state every other test in the binary then shares.
+pub(crate) struct CodeCache {
+    /// How many distinct words this cache holds before it stops inserting.
+    capacity: usize,
+    entries: Mutex<HashMap<String, Vec<String>>>,
+}
+
+impl CodeCache {
+    /// An empty cache that stops inserting once it holds `capacity` words.
+    pub(crate) fn new(capacity: usize) -> Self {
+        Self {
+            capacity,
+            entries: Mutex::new(HashMap::new()),
+        }
+    }
+
+    /// The cached codes for `word`, or `encode_word(word)` — inserted only while
+    /// the cache is below [`Self::capacity`].
+    ///
+    /// The lock is released before `encode_word` runs, so a slow encode never
+    /// blocks another thread's cache hit. That is the order the `static` version
+    /// used, and it is the reason the length check happens after the encode
+    /// rather than before it.
+    pub(crate) fn get_or_encode(
+        &self,
+        word: &str,
+        encode_word: impl FnOnce(&str) -> Vec<String>,
+    ) -> Vec<String> {
+        {
+            let map = self.lock();
+            if let Some(codes) = map.get(word) {
+                return codes.clone();
+            }
+        }
+
+        let codes = encode_word(word);
+
+        let mut map = self.lock();
+        if map.len() < self.capacity {
+            map.insert(word.to_string(), codes.clone());
+        }
+        codes
+    }
+
+    /// A poisoned mutex means some other thread panicked while holding it. The
+    /// map is still structurally sound (nothing here can leave it half-written),
+    /// and `panic = "abort"` means a panic in release never gets here at all —
+    /// so recover the guard rather than propagate a panic into a transcription.
+    /// `unwrap()`/`expect()` are denied in this crate for the same reason.
+    fn lock(&self) -> std::sync::MutexGuard<'_, HashMap<String, Vec<String>>> {
+        match self.entries.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        }
+    }
+}
+
 /// [`encode`], memoised process-wide.
 ///
 /// Same contract as [`encode`] — this is purely a speed win, and the matcher is
@@ -76,34 +146,10 @@ pub(crate) fn encode_cached(word: &str) -> Vec<String> {
         return Vec::new();
     }
 
-    static CACHE: OnceLock<Mutex<HashMap<String, Vec<String>>>> = OnceLock::new();
-    let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
-
-    // A poisoned mutex means some other thread panicked while holding it. The
-    // map is still structurally sound (nothing here can leave it half-written),
-    // and `panic = "abort"` means a panic in release never gets here at all —
-    // so recover the guard rather than propagate a panic into a transcription.
-    // `unwrap()`/`expect()` are denied in this crate for the same reason.
-    {
-        let map = match cache.lock() {
-            Ok(guard) => guard,
-            Err(poisoned) => poisoned.into_inner(),
-        };
-        if let Some(codes) = map.get(word) {
-            return codes.clone();
-        }
-    }
-
-    let codes = encode(word);
-
-    let mut map = match cache.lock() {
-        Ok(guard) => guard,
-        Err(poisoned) => poisoned.into_inner(),
-    };
-    if map.len() < CODE_CACHE_CAPACITY {
-        map.insert(word.to_string(), codes.clone());
-    }
-    codes
+    static CACHE: OnceLock<CodeCache> = OnceLock::new();
+    CACHE
+        .get_or_init(|| CodeCache::new(CODE_CACHE_CAPACITY))
+        .get_or_encode(word, encode)
 }
 
 /// Split a pipe-separated Beider-Morse encoding into individual codes, dropping
@@ -153,5 +199,111 @@ mod tests {
             assert_eq!(encode_cached(word), encode(word));
         }
         assert!(encode_cached("").is_empty());
+    }
+
+    /// An encoder that records every word it is asked for. Counting its calls is
+    /// the only way to tell a cache hit from a cache miss: both return the same
+    /// codes, so the return value alone cannot distinguish them.
+    #[derive(Default)]
+    struct CountingEncoder {
+        calls: Mutex<Vec<String>>,
+    }
+
+    impl CountingEncoder {
+        fn encode(&self, word: &str) -> Vec<String> {
+            self.calls.lock().unwrap().push(word.to_string());
+            vec![format!("{word}-code")]
+        }
+
+        fn calls(&self) -> Vec<String> {
+            self.calls.lock().unwrap().clone()
+        }
+    }
+
+    #[test]
+    fn a_repeated_word_is_encoded_once() {
+        let encoder = CountingEncoder::default();
+        let cache = CodeCache::new(CODE_CACHE_CAPACITY);
+
+        let first = cache.get_or_encode("smith", |word| encoder.encode(word));
+        let second = cache.get_or_encode("smith", |word| encoder.encode(word));
+
+        assert_eq!(first, second);
+        assert_eq!(
+            encoder.calls(),
+            vec!["smith".to_string()],
+            "the second call must be served from the memo"
+        );
+    }
+
+    #[test]
+    fn a_full_cache_stops_inserting_but_still_returns_codes() {
+        let encoder = CountingEncoder::default();
+        let cache = CodeCache::new(2);
+
+        cache.get_or_encode("one", |word| encoder.encode(word));
+        cache.get_or_encode("two", |word| encoder.encode(word));
+
+        // The cache is full. A third word is still encoded correctly...
+        let codes = cache.get_or_encode("three", |word| encoder.encode(word));
+        assert_eq!(codes, vec!["three-code".to_string()]);
+
+        // ...but it is not kept, so a repeat pays for a fresh encode. That is the
+        // documented trade: a miss costs what the un-cached matcher always paid.
+        assert_eq!(
+            cache.get_or_encode("three", |word| encoder.encode(word)),
+            codes
+        );
+        assert_eq!(
+            encoder.calls(),
+            vec![
+                "one".to_string(),
+                "two".to_string(),
+                "three".to_string(),
+                "three".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn words_cached_before_the_cap_still_hit_after_it_is_full() {
+        let encoder = CountingEncoder::default();
+        let cache = CodeCache::new(2);
+
+        cache.get_or_encode("one", |word| encoder.encode(word));
+        cache.get_or_encode("two", |word| encoder.encode(word));
+        cache.get_or_encode("three", |word| encoder.encode(word));
+
+        let hit = cache.get_or_encode("one", |word| encoder.encode(word));
+
+        assert_eq!(hit, vec!["one-code".to_string()]);
+        assert_eq!(
+            encoder.calls().len(),
+            3,
+            "a full cache must stop inserting, not start evicting"
+        );
+    }
+
+    #[test]
+    fn a_poisoned_lock_still_serves_the_cache() {
+        let encoder = CountingEncoder::default();
+        let cache = CodeCache::new(CODE_CACHE_CAPACITY);
+        cache.get_or_encode("smith", |word| encoder.encode(word));
+
+        // Panic while holding the lock. The guard's `Drop` poisons the mutex.
+        let died = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _guard = cache.entries.lock().unwrap();
+            panic!("a thread died holding the code cache lock");
+        }));
+        assert!(died.is_err());
+        assert!(cache.entries.is_poisoned());
+
+        // A poisoned lock must not take a transcription down with it: the cache
+        // still answers, and still from the memo.
+        assert_eq!(
+            cache.get_or_encode("smith", |word| encoder.encode(word)),
+            vec!["smith-code".to_string()]
+        );
+        assert_eq!(encoder.calls(), vec!["smith".to_string()]);
     }
 }
