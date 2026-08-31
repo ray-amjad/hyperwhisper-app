@@ -57,12 +57,10 @@ public static class ModelReadinessComposition
         PortableModelManager manager,
         ICredentialStore credentials,
         IProviderHealthProbe metadataOnlyProbe,
-        TimeSpan? timeout = null,
-        TimeProvider? timeProvider = null)
+        TimeSpan? timeout = null)
         => new(
             new SecureStoreProviderCredentialSource(credentials),
             metadataOnlyProbe ?? throw new ArgumentNullException(nameof(metadataOnlyProbe)),
             new PortableLocalModelReadinessSource(manager),
-            timeout,
-            timeProvider);
+            timeout);
 }
