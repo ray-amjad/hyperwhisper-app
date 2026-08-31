@@ -6,8 +6,8 @@ HyperWhisper Cloud — Bun + Hono transcription service on Fly.io. Routes audio 
 
 - `src/routes/transcribe.ts` — main `/transcribe` route, header gates, walks the chain the registry gives it
 - `src/routes/ws-streaming-shared.ts` — vendor-neutral live-transcription shell (upgrade preflight, client protocol, audio caps, backpressure, credit cutoff, billing); `ws-streaming-deepgram.ts` and `ws-streaming-gemini-transcribe.ts` are just vendor adapters over it
-- `src/lib/stt-models.ts` — STT registry: routable (provider, model) pairs, preflight rates, and each provider's `fallbackChain` (`selfOnly` is derived from it)
-- `src/providers/` — per-upstream clients (`deepgram.ts`, `groq.ts`, `elevenlabs.ts`, `xai-stt.ts`, `azure-mai.ts`, `google-chirp.ts`, `gemini.ts`, `gemini-transcribe.ts`) plus shared `types.ts`, `utils.ts`, and `audio-limits.ts` (the pre-buffer size gate)
+- `src/lib/stt-models.ts` — STT registry: routable (provider, model) pairs, preflight rates, each provider's `fallbackChain` (`selfOnly` is derived from it), and its public label (`servedName` → `servedNameFor()` / `formatProviderName()`)
+- `src/providers/` — per-upstream clients (`deepgram.ts`, `groq.ts`, `elevenlabs.ts`, `xai-stt.ts`, `azure-mai.ts`, `google-chirp.ts`, `gemini.ts`, `gemini-transcribe.ts`) plus shared `types.ts`, `utils.ts`, `audio-limits.ts` (the pre-buffer size gate) and `dispatch.ts` (the id → adapter map behind `transcribeWithProvider()`)
 - `src/lib/` — `constants.ts` (size caps + replay limit), `gcs-storage.ts`, `google-auth.ts`, `cost-calculator.ts`, `redis.ts`, `responses.ts`, `logging.ts`
 - `src/middleware/` — `auth.ts`, `credits.ts`, `rate-limit.ts`
 - `references/custom-vocab.md` — Deepgram vocabulary boosting rules
@@ -199,6 +199,8 @@ Fly only honours replay for bodies ≤ 1 MB (we gate at 900 KB / `FLY_REPLAY_MAX
 - executes the next provider (Deepgram → Groq) in-region
 
 `google-chirp` and `azure-mai` are self-only chains; editing a `fallbackChain` in `src/lib/stt-models.ts` can break the "no silent substitution" contract. That field is the only place a chain is authored — the route asks for it via `fallbackChainFor()` and asks `isSelfOnly()` whether a provider has siblings. Never re-derive either in a caller.
+
+To add an STT provider: register it in `src/lib/stt-models.ts` (add `servedName` only if its public label differs from its id), then add its adapter row to `src/providers/dispatch.ts`. The route dispatches by id through `transcribeWithProvider()` and labels by `servedNameFor()`, so it needs no edit. The deploy smoke test reads the same label function — do not write a second label rule anywhere.
 </important>
 
 <important if="you are touching a provider's data retention / logging / training opt-out behaviour, or adding a new provider">

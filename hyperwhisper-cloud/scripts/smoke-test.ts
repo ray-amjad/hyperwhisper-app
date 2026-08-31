@@ -23,7 +23,7 @@
 // CI job and, for a prod push, blocks promotion past the preview smoke.
 
 import { readFile } from 'node:fs/promises';
-import { ALL_STT_PROVIDER_IDS, getProviderDef, type SttProviderId } from '../src/lib/stt-models';
+import { ALL_STT_PROVIDER_IDS, getProviderDef, servedNameFor, type SttProviderId } from '../src/lib/stt-models';
 import { LLM_PROVIDER_NAMES } from '../src/lib/llm-provider';
 
 const BASE_URL = (process.env.SMOKE_BASE_URL || '').replace(/\/$/, '');
@@ -85,13 +85,16 @@ const STT_CHECKS: SttCheck[] = [
 const LLM_CHECKS: Record<string, string> = LLM_PROVIDER_NAMES;
 
 // The X-STT-Provider response header echoes the served name as `base/model`
-// (e.g. "deepgram/nova-3-general", "openai/gpt-4o-transcribe"). The base equals
-// the provider id for every provider except grok, whose base label is
-// "xai-grok". We check the served name starts with the requested provider's base
-// so we can tell a model-name echo apart from a genuine fallback to another
-// provider.
+// (e.g. "deepgram/nova-3-general", "openai/gpt-4o-transcribe"). We check the
+// served name starts with the requested provider's base so we can tell a
+// model-name echo apart from a genuine fallback to another provider.
+//
+// The base comes from the registry (`servedNameFor`), which is the same
+// function the route labels the header with. This used to be a hand-written
+// copy of the one rule where the two differ (grok is served as "xai-grok"), so
+// a second such provider would have passed a smoke test that checked nothing.
 function expectedServedPrefix(provider: SttProviderId): string {
-  return provider === 'grok' ? 'xai-grok' : provider;
+  return servedNameFor(provider);
 }
 
 // Self-only providers never fall back to a sibling, so the served provider MUST

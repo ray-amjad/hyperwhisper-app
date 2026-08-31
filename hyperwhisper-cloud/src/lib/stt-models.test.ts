@@ -3,10 +3,12 @@ import {
   ALL_STT_PROVIDER_IDS,
   estimatedUsdPerMinute,
   fallbackChainFor,
+  formatProviderName,
   getProviderDef,
   isSelfOnly,
   isValidProviderId,
   resolveModel,
+  servedNameFor,
   type SttProviderId,
 } from './stt-models';
 
@@ -253,5 +255,63 @@ describe('isSelfOnly', () => {
     for (const id of ALL_STT_PROVIDER_IDS) {
       expect(typeof getProviderDef(id).selfOnly).toBe('boolean');
     }
+  });
+});
+
+describe('servedNameFor', () => {
+  // The label a caller sees in X-STT-Provider, in the metering row and in the
+  // 413 / 415 / 502 messages. Pinned as a table, not re-derived from the
+  // registry: `servedNameFor(id) === getProviderDef(id).servedName ?? id`
+  // restates the implementation and could not fail.
+  const SERVED_NAMES: Record<SttProviderId, string> = {
+    deepgram: 'deepgram',
+    elevenlabs: 'elevenlabs',
+    groq: 'groq',
+    grok: 'xai-grok',
+    'azure-mai': 'azure-mai',
+    'google-chirp': 'google-chirp',
+    openai: 'openai',
+    gemini: 'gemini',
+    'gemini-transcribe': 'gemini-transcribe',
+    assemblyai: 'assemblyai',
+    mistral: 'mistral',
+    soniox: 'soniox',
+  };
+
+  test('every registered provider serves the label the clients already see', () => {
+    for (const id of ALL_STT_PROVIDER_IDS) {
+      expect(servedNameFor(id)).toBe(SERVED_NAMES[id]);
+    }
+  });
+
+  // The route, the smoke test and the response header all read this one
+  // function now, so an empty label would ship a header of "/model".
+  test('never returns an empty label', () => {
+    for (const id of ALL_STT_PROVIDER_IDS) {
+      expect(servedNameFor(id).length).toBeGreaterThan(0);
+    }
+  });
+
+  test('grok is the only provider whose label differs from its id', () => {
+    const renamed = ALL_STT_PROVIDER_IDS.filter((id) => servedNameFor(id) !== id);
+    expect(renamed).toEqual(['grok']);
+  });
+});
+
+describe('formatProviderName', () => {
+  test('appends the model that actually ran', () => {
+    expect(formatProviderName('deepgram', 'nova-3-medical')).toBe('deepgram/nova-3-medical');
+    expect(formatProviderName('openai', 'gpt-4o-transcribe')).toBe('openai/gpt-4o-transcribe');
+  });
+
+  test('uses the served label, not the provider id', () => {
+    expect(formatProviderName('grok', 'grok-4')).toBe('xai-grok/grok-4');
+  });
+
+  // grok's registry model id is the empty string, so the label has to stand
+  // alone rather than trail a bare slash.
+  test('a provider with no model id serves the label alone', () => {
+    expect(formatProviderName('grok', '')).toBe('xai-grok');
+    expect(formatProviderName('deepgram', '')).toBe('deepgram');
   });
 });

@@ -3,32 +3,26 @@
 // Supports multiple STT providers with automatic fallback
 
 import type { Context } from 'hono';
-import { transcribeWithDeepgram } from '../providers/deepgram';
-import { transcribeWithGroq } from '../providers/groq';
-import { transcribeWithElevenLabs } from '../providers/elevenlabs';
-import { transcribeWithXaiGrok } from '../providers/xai-stt';
-import { transcribeWithAzureMai } from '../providers/azure-mai';
-import { transcribeWithGoogleChirp } from '../providers/google-chirp';
-import { transcribeWithOpenAI } from '../providers/openai';
-import { transcribeWithGemini } from '../providers/gemini';
-import { transcribeWithGeminiTranscribe } from '../providers/gemini-transcribe';
 import {
-  transcribeWithAssemblyAI,
   hasExplicitLanguage as hasExplicitAssemblyAILanguage,
   SYNC_ELIGIBLE_ESTIMATED_SECONDS as ASSEMBLYAI_SYNC_ELIGIBLE_ESTIMATED_SECONDS,
 } from '../providers/assemblyai';
-import { transcribeWithMistral } from '../providers/mistral';
-import { transcribeWithSoniox } from '../providers/soniox';
-import type { ProviderRequestContext, TranscriptionResult } from '../providers/types';
+import type { TranscriptionResult } from '../providers/types';
 import { AudioTooLargeError, ProviderInputError, ProviderUnavailableError, UnsupportedAudioFormatError } from '../providers/types';
+// The providers layer's own answer to "which adapter runs this provider id", so
+// the route never imports an adapter or keeps a dispatch table of its own. See
+// providers/dispatch.ts.
+import { transcribeWithProvider } from '../providers/dispatch';
 import { creditsForCost, estimatePromptInputReservationUsd, formatUsd } from '../lib/cost-calculator';
 import {
   estimatedUsdPerMinute,
   fallbackChainFor,
+  formatProviderName,
   getProviderDef,
   isSelfOnly,
   isValidProviderId,
   resolveModel,
+  servedNameFor,
   MEDICAL_DOMAIN,
   ASSEMBLYAI_SYNC_ESTIMATED_USD_PER_MINUTE,
   type SttProviderId,
@@ -69,50 +63,6 @@ import { flyProxyOverheadMs, logEvent, machineUptimeMs } from '../lib/logging';
 
 // Supported providers (mirror the server-side registry in lib/stt-models.ts).
 export type Provider = SttProviderId;
-
-// Human-readable base label per provider. The model is appended at runtime via
-// formatProviderName() so the response header / metering reflects exactly which
-// model ran (e.g. "deepgram/nova-3-medical", "openai/gpt-4o-transcribe").
-const PROVIDER_NAMES: Record<Provider, string> = {
-  deepgram: 'deepgram',
-  elevenlabs: 'elevenlabs',
-  groq: 'groq',
-  grok: 'xai-grok',
-  'azure-mai': 'azure-mai',
-  'google-chirp': 'google-chirp',
-  openai: 'openai',
-  gemini: 'gemini',
-  'gemini-transcribe': 'gemini-transcribe',
-  assemblyai: 'assemblyai',
-  mistral: 'mistral',
-  soniox: 'soniox',
-};
-
-function formatProviderName(provider: Provider, model: string): string {
-  const base = PROVIDER_NAMES[provider];
-  return model ? `${base}/${model}` : base;
-}
-
-const PROVIDER_FN: Record<Provider, (
-  audio: ArrayBuffer,
-  contentType: string,
-  language?: string,
-  initialPrompt?: string,
-  context?: ProviderRequestContext,
-) => Promise<TranscriptionResult>> = {
-  deepgram: transcribeWithDeepgram,
-  groq: transcribeWithGroq,
-  elevenlabs: transcribeWithElevenLabs,
-  grok: transcribeWithXaiGrok,
-  'azure-mai': transcribeWithAzureMai,
-  'google-chirp': transcribeWithGoogleChirp,
-  openai: transcribeWithOpenAI,
-  gemini: transcribeWithGemini,
-  'gemini-transcribe': transcribeWithGeminiTranscribe,
-  assemblyai: transcribeWithAssemblyAI,
-  mistral: transcribeWithMistral,
-  soniox: transcribeWithSoniox,
-};
 
 /**
  * Preflight credit reservation. For the primary provider we estimate against
@@ -594,7 +544,7 @@ export async function transcribeRoute(c: Context) {
       const network: ProviderAttemptNetwork = { reachedProvider: false };
 
       try {
-        result = await runProviderAttempt(network, () => PROVIDER_FN[current](audioBuffer, contentType, language, initialPrompt, {
+        result = await runProviderAttempt(network, () => transcribeWithProvider(current, audioBuffer, contentType, language, initialPrompt, {
           requestId,
           attempt: index + 1,
           model: attemptModel,
@@ -704,7 +654,7 @@ export async function transcribeRoute(c: Context) {
             maxBytes: error.maxBytes,
           });
           return errorResponse(413, 'Audio too large for provider',
-            `${PROVIDER_NAMES[current]} accepts at most ${Math.round(error.maxBytes / (1024 * 1024))} MB inline. Your audio is ${(error.actualBytes / (1024 * 1024)).toFixed(2)} MB.`,
+            `${servedNameFor(current)} accepts at most ${Math.round(error.maxBytes / (1024 * 1024))} MB inline. Your audio is ${(error.actualBytes / (1024 * 1024)).toFixed(2)} MB.`,
             { requestId, provider: current, max_size_mb: Math.round(error.maxBytes / (1024 * 1024)), actual_size_mb: parseFloat((error.actualBytes / (1024 * 1024)).toFixed(2)) },
           );
         }
@@ -718,7 +668,7 @@ export async function transcribeRoute(c: Context) {
             acceptedFormats: error.acceptedFormats,
           });
           return errorResponse(415, 'Unsupported audio format for provider',
-            `${PROVIDER_NAMES[current]} accepts only ${error.acceptedFormats.join(', ')}. Received Content-Type: ${error.contentType}.`,
+            `${servedNameFor(current)} accepts only ${error.acceptedFormats.join(', ')}. Received Content-Type: ${error.contentType}.`,
             {
               requestId,
               provider: current,
@@ -791,8 +741,8 @@ export async function transcribeRoute(c: Context) {
         attemptFailures,
         message: lastError?.message,
       });
-      return errorResponse(502, `${PROVIDER_NAMES[provider]} unavailable`,
-        lastError?.message ?? `${PROVIDER_NAMES[provider]} is currently unavailable. Please try again shortly.`,
+      return errorResponse(502, `${servedNameFor(provider)} unavailable`,
+        lastError?.message ?? `${servedNameFor(provider)} is currently unavailable. Please try again shortly.`,
         { requestId, provider },
       );
     }

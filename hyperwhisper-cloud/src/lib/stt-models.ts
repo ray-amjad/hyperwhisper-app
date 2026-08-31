@@ -44,6 +44,14 @@ export interface SttModelDef {
 
 export interface SttProviderDef {
   id: SttProviderId;
+  /**
+   * Public label for this provider in the `X-STT-Provider` response header, the
+   * deduction metadata and every user-facing error message. Present only where
+   * it differs from the id (`grok` is served as `xai-grok`); ask
+   * `servedNameFor()` rather than reading it, so a caller never has to know
+   * which providers have one.
+   */
+  servedName?: string;
   /** Model used when the caller omits an explicit model. */
   defaultModel: string;
   /**
@@ -142,6 +150,8 @@ const PROVIDER_SPECS: Record<SttProviderId, SttProviderSpec> = {
   // ── Single-model self-only providers ──
   grok: {
     id: 'grok',
+    // The only provider whose public label differs from its id.
+    servedName: 'xai-grok',
     defaultModel: '',
     // grok keeps its historical cross-provider fallback chain.
     fallbackChain: ['grok', 'deepgram', 'groq', 'elevenlabs'],
@@ -338,6 +348,30 @@ export function fallbackChainFor(provider: SttProviderId): SttProviderId[] {
  */
 export function isSelfOnly(provider: SttProviderId): boolean {
   return PROVIDERS[provider].selfOnly;
+}
+
+/**
+ * The public label for `provider` — what callers see in the `X-STT-Provider`
+ * header, the deduction metadata and the user-facing error messages. Equal to
+ * the provider id except where the registry authors a `servedName` (`grok` →
+ * `xai-grok`).
+ *
+ * Ask this rather than keeping a label table of your own. The route and the
+ * deploy smoke test each held one, so a provider whose label is not its id was
+ * a rule two files had to remember separately.
+ */
+export function servedNameFor(provider: SttProviderId): string {
+  return PROVIDERS[provider].servedName ?? provider;
+}
+
+/**
+ * The served `provider/model` pair for the response header and the metering
+ * row, e.g. `deepgram/nova-3-medical`, `xai-grok`. `model` is empty for the
+ * single-model providers, and then the label stands alone.
+ */
+export function formatProviderName(provider: SttProviderId, model: string): string {
+  const base = servedNameFor(provider);
+  return model ? `${base}/${model}` : base;
 }
 
 export type ModelResolution =
