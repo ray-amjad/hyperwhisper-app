@@ -308,7 +308,11 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
     public async Task InitializeAsync(string modelDirectory, string? language)
     {
         LoggingService.Info("========== INITIALIZING PARAKEET TRANSCRIPTION SERVICE ==========");
-        LoggingService.Info($"  Model Directory: {modelDirectory}");
+        // The model id, not the directory. Models live under
+        // %LOCALAPPDATA%\HyperWhisper\Models, so the directory carries the user's
+        // Windows account name; the leaf folder IS the model id and is the only part
+        // that answers "which model was this".
+        LoggingService.Info($"  Model: {Path.GetFileName(modelDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))}");
 
         // Dispose any existing daemon first
         DisposeModel();
@@ -319,27 +323,32 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
         // Guard: validate daemon binary exists
         if (!File.Exists(daemonPath))
         {
-            LoggingService.Error($"ParakeetTranscriptionService: Daemon binary not found at {daemonPath}");
+            LoggingService.Error("ParakeetTranscriptionService: Daemon binary not found in the app directory");
             throw new TranscriptionException(
                 TranscriptionErrorCode.DaemonStartFailed,
-                $"Parakeet engine not found at {daemonPath}",
+                // The path is out of the message too, not just the log line: this
+                // message travels one frame up and is logged again as ex.Message by
+                // TranscriptionRetryHandler and MainViewModel. GetUserMessage() is a
+                // fixed sentence for this code, so nothing the user sees changes.
+                "Parakeet engine binary not found in the app directory",
                 "Parakeet");
         }
 
         // Guard: validate model directory exists
         if (!Directory.Exists(modelDirectory))
         {
-            LoggingService.Error($"ParakeetTranscriptionService: Model directory not found at {modelDirectory}");
+            LoggingService.Error("ParakeetTranscriptionService: Model directory not found");
             throw new TranscriptionException(
                 TranscriptionErrorCode.OnnxModelFileMissing,
-                $"Model directory not found at {modelDirectory}",
+                // Same reason as above - GetUserMessage() covers this code too.
+                "Model directory not found",
                 "Parakeet");
         }
 
         // Guard: validate VAD model exists
         if (!File.Exists(vadModelPath))
         {
-            LoggingService.Warn($"ParakeetTranscriptionService: VAD model not found at {vadModelPath}, proceeding without VAD");
+            LoggingService.Warn("ParakeetTranscriptionService: VAD model not found in the app directory, proceeding without VAD");
         }
 
         try
@@ -418,7 +427,16 @@ public class ParakeetTranscriptionService : ITranscriptionProvider, IDisposable
             startInfo.ArgumentList.Add("--engine");
             startInfo.ArgumentList.Add(engineArg);
 
-            LoggingService.Debug($"ParakeetTranscriptionService: Command: {daemonPath} {string.Join(" ", startInfo.ArgumentList)}");
+            // The argument SHAPE, not the command line. ArgumentList holds the model
+            // directory and the VAD model path, both under the user's profile, so
+            // joining it printed their Windows account name into the log file. The
+            // engine, the language hint and the argument count are what a failed
+            // start actually needs.
+            LoggingService.Debug(
+                $"ParakeetTranscriptionService: Starting daemon (engine={engineArg}, " +
+                $"language_hint={(supportsLanguageHint ? daemonLanguage : "n/a")}, " +
+                $"join_language={(!supportsLanguageHint && !string.IsNullOrWhiteSpace(language) ? language : "n/a")}, " +
+                $"arg_count={startInfo.ArgumentList.Count})");
 
             _daemonProcess = new Process { StartInfo = startInfo, EnableRaisingEvents = true };
 

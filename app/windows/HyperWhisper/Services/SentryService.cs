@@ -167,24 +167,9 @@ public static class SentryService
                         var sanitizedExtras = new Dictionary<string, object?>();
                         foreach (var kvp in sentryEvent.Extra)
                         {
-                            var keyLower = kvp.Key.ToLowerInvariant();
-                            // "path" is here as a backstop, not as the fix. Recordings,
-                            // models and user-picked media all live under the user's
-                            // profile, so any full path carries their Windows account
-                            // name. A call site must still send a description of the
-                            // file rather than the file (LoggingService.DescribePath);
-                            // this only stops the next one that forgets.
-                            if (keyLower.Contains("transcript") ||
-                                keyLower.Contains("text") ||
-                                keyLower.Contains("prompt") ||
-                                keyLower.Contains("path"))
-                            {
-                                sanitizedExtras[kvp.Key] = "[redacted]";
-                            }
-                            else
-                            {
-                                sanitizedExtras[kvp.Key] = kvp.Value;
-                            }
+                            sanitizedExtras[kvp.Key] = IsRedactedExtraKey(kvp.Key)
+                                ? "[redacted]"
+                                : kvp.Value;
                         }
                         // Clear and re-add sanitized extras
                         foreach (var kvp in sanitizedExtras)
@@ -227,6 +212,45 @@ public static class SentryService
             LoggingService.Error("SentryService: Failed to initialize", ex);
             // Don't throw - Sentry failing shouldn't crash the app
         }
+    }
+
+    /// <summary>
+    /// Whether <c>beforeSend</c> replaces this extra's value with <c>"[redacted]"</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The match is on the KEY only, and it is a substring match, so it cannot tell a
+    /// transcript from a field that merely has "transcript" in its name. That is the
+    /// safe direction for a privacy filter and it stays exactly as it was — but it
+    /// also means a diagnostic field named <c>transcription_provider_display_name</c>
+    /// or <c>backend_empty_transcript_without_flag</c> arrives at Sentry as
+    /// <c>"[redacted]"</c>, and the call site gets no warning. Three fields of the
+    /// Windows no-speech diagnostic were lost that way for every event of
+    /// HYPERWHISPER-PA/-RM/-XR.
+    /// </para>
+    /// <para>
+    /// "path" is here as a backstop, not as the fix. Recordings, models and
+    /// user-picked media all live under the user's profile, so any full path carries
+    /// their Windows account name. A call site must still send a description of the
+    /// file rather than the file (<see cref="LoggingService.DescribePath"/>); this
+    /// only stops the next one that forgets.
+    /// </para>
+    /// <para>
+    /// Name a metadata field so it does not collide. The smoke tests assert this for
+    /// every key the no-speech diagnostic emits, so a colliding name fails in CI
+    /// rather than going quiet in production.
+    /// </para>
+    /// </remarks>
+    // internal (not private): test seam for HyperWhisper.SmokeTests via
+    // InternalsVisibleTo (see HyperWhisper.csproj) - no other accessibility
+    // change is intended.
+    internal static bool IsRedactedExtraKey(string key)
+    {
+        var keyLower = key.ToLowerInvariant();
+        return keyLower.Contains("transcript")
+            || keyLower.Contains("text")
+            || keyLower.Contains("prompt")
+            || keyLower.Contains("path");
     }
 
     /// <summary>

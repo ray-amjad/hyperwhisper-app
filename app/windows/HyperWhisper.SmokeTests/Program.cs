@@ -1802,6 +1802,144 @@ internal static class Program
                     "a failed audio analysis should always be captured");
             });
 
+            Run("TranscriptionDiagnosticsService payload: no extra key is silently redacted by SentryService.beforeSend", () =>
+            {
+                // The bug this guards. SentryService.IsRedactedExtraKey matches on the
+                // KEY, as a substring, and replaces the value with "[redacted]". Three
+                // fields of this diagnostic were named "transcript_id",
+                // "transcription_provider_display_name" and
+                // "backend_empty_transcript_without_flag", so every event of
+                // HYPERWHISPER-PA/-RM/-XR arrived with all three empty - including the
+                // empty-vs-flag discriminator the whole diagnostic turns on. Nothing at
+                // the call site said so, and nothing failed. The names are chosen to
+                // clear the filter now; this asserts the WHOLE payload does, so the next
+                // field named with one of those four words fails in CI instead.
+                var audio = new TranscriptionDiagnosticsService.AudioAnalysisDiagnostics(
+                    AnalysisSucceeded: true,
+                    DurationSeconds: 1.7,
+                    FileSizeBytes: 54446,
+                    SampleRate: 16000,
+                    Channels: 1,
+                    PeakDbfs: -18.47,
+                    RmsDbfs: -39.1,
+                    NonSilentRatio: 0.1072,
+                    DecodedSampleCount: 27200,
+                    MeasuredSampleCount: 27200);
+                var provider = new TranscriptionProviderDiagnostics(
+                    ProviderDisplayName: "HyperWhisper Cloud",
+                    BackendRequestId: "21944e5f-15d6-4e6f-8021-262d8fc7958b",
+                    BackendSttProvider: "elevenlabs/scribe_v2",
+                    BackendNoSpeechDetected: true,
+                    HttpStatusCode: 200,
+                    ResponseLatencyMs: 724,
+                    EmptyTranscriptWithoutFlag: false,
+                    AttemptSource: TranscriptionAttemptSource.CloudInstrumented,
+                    AttemptElapsedMs: 724,
+                    RawResultLength: 0);
+
+                var (tags, extras) = TranscriptionDiagnosticsService.BuildDiagnosticPayload(
+                    transcriptId: Guid.NewGuid(),
+                    audioPath: @"C:\does-not-exist\sample.wav",
+                    audioDiagnostics: audio,
+                    presentation: TranscriptionDiagnosticsService.ResolveDiagnosticPresentation(
+                        PortableNoSpeechOutcome.NoSpeech),
+                    mode: new Mode { Preset = "hyper", ProviderType = "cloud", Language = "en" },
+                    diagnosticStage: "live_recording",
+                    diagnosticSource: "provider_no_speech",
+                    inputDeviceName: "Microphone (USB Audio Device)",
+                    transcriptionProviderDisplayName: "HyperWhisper Cloud",
+                    providerDiagnostics: provider,
+                    exception: null,
+                    captureDeviceCount: 2);
+
+                foreach (var key in extras.Keys)
+                {
+                    Assert(!SentryService.IsRedactedExtraKey(key),
+                        $"extra '{key}' will arrive at Sentry as [redacted] - rename it");
+                }
+
+                // The three renamed fields must actually be present under their new
+                // names, or the rename above would "pass" by having deleted them.
+                Assert(extras.ContainsKey("diagnostic_record_id"), "diagnostic_record_id is missing");
+                Assert(extras.ContainsKey("provider_display_name"), "provider_display_name is missing");
+                Assert(extras.ContainsKey("backend_empty_without_flag"), "backend_empty_without_flag is missing");
+
+                // The attempt fields the local and BYOK-cloud arms exist to fill.
+                Assert(extras.ContainsKey("provider_attempt_ms"), "provider_attempt_ms is missing");
+                Assert(extras.ContainsKey("raw_result_length"), "raw_result_length is missing");
+                Assert(tags.ContainsKey("provider_attempt_source"), "provider_attempt_source tag is missing");
+                Assert(tags["provider_attempt_source"] == TranscriptionAttemptSource.CloudInstrumented,
+                    $"provider_attempt_source should carry the record's own source, got {tags["provider_attempt_source"]}");
+                Assert(tags["mode_language"] == "en", $"mode_language should be the mode's code, got {tags["mode_language"]}");
+
+                // mode_name carried whatever the user typed when they named a custom
+                // mode. It is user content and it is gone; mode_preset answers the same
+                // question without it.
+                Assert(!extras.ContainsKey("mode_name"), "mode_name is user-typed text and must not be reported");
+                Assert(extras.ContainsKey("mode_preset"), "mode_preset is missing");
+            });
+
+            Run("TranscriptionDiagnosticsService payload: a provider that reports nothing says unknown, never zero", () =>
+            {
+                // A local engine makes no HTTP request. Reporting status 0 and 0 ms for
+                // it reads like a request that failed instantly, which is how
+                // HYPERWHISPER-RM/-XR look today. Absent must be reported as absent.
+                var audio = new TranscriptionDiagnosticsService.AudioAnalysisDiagnostics(
+                    AnalysisSucceeded: true,
+                    DurationSeconds: 2.4,
+                    FileSizeBytes: 76846,
+                    PeakDbfs: -21.79,
+                    RmsDbfs: -39.48,
+                    NonSilentRatio: 0.1996,
+                    DecodedSampleCount: 38400,
+                    MeasuredSampleCount: 38400);
+
+                var (tags, extras) = TranscriptionDiagnosticsService.BuildDiagnosticPayload(
+                    transcriptId: Guid.NewGuid(),
+                    audioPath: @"C:\does-not-exist\sample.wav",
+                    audioDiagnostics: audio,
+                    presentation: TranscriptionDiagnosticsService.ResolveDiagnosticPresentation(
+                        PortableNoSpeechOutcome.NoSpeech),
+                    mode: new Mode { Preset = "custom", ProviderType = "local", Language = "auto" },
+                    diagnosticStage: "live_recording",
+                    diagnosticSource: "provider_no_speech",
+                    inputDeviceName: null,
+                    transcriptionProviderDisplayName: null,
+                    providerDiagnostics: null,
+                    exception: null,
+                    captureDeviceCount: null);
+
+                Assert((string)extras["backend_http_status"] == "unknown",
+                    $"backend_http_status should be unknown with no diagnostics, got {extras["backend_http_status"]}");
+                Assert((string)extras["backend_response_latency_ms"] == "unknown",
+                    $"backend_response_latency_ms should be unknown with no diagnostics, got {extras["backend_response_latency_ms"]}");
+                Assert((string)extras["backend_empty_without_flag"] == "unknown",
+                    $"backend_empty_without_flag should be unknown with no diagnostics, got {extras["backend_empty_without_flag"]}");
+                Assert((string)extras["provider_attempt_ms"] == "unknown",
+                    $"provider_attempt_ms should be unknown with no diagnostics, got {extras["provider_attempt_ms"]}");
+                Assert(tags["provider_attempt_source"] == TranscriptionAttemptSource.Unknown,
+                    $"provider_attempt_source should be unknown with no diagnostics, got {tags["provider_attempt_source"]}");
+
+                foreach (var key in extras.Keys)
+                {
+                    Assert(!SentryService.IsRedactedExtraKey(key),
+                        $"extra '{key}' will arrive at Sentry as [redacted] - rename it");
+                }
+            });
+
+            Run("SentryService.IsRedactedExtraKey keeps matching the four denied words", () =>
+            {
+                // The predicate was inlined in beforeSend and is now a named method the
+                // payload test can call. Nothing about WHAT it matches changed, and this
+                // pins that.
+                Assert(SentryService.IsRedactedExtraKey("transcript_id"), "transcript is no longer denied");
+                Assert(SentryService.IsRedactedExtraKey("raw_text"), "text is no longer denied");
+                Assert(SentryService.IsRedactedExtraKey("system_prompt"), "prompt is no longer denied");
+                Assert(SentryService.IsRedactedExtraKey("audio_path"), "path is no longer denied");
+                Assert(SentryService.IsRedactedExtraKey("AUDIO_PATH"), "the match should be case-insensitive");
+                Assert(!SentryService.IsRedactedExtraKey("audio_file_extension"), "a plain metadata key is denied");
+            });
+
             Run("TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic reclassifies a zero-frame recording as EmptyRecording, not no-speech", () =>
             {
                 // A header-only / zero-frame WAV means the recorder captured nothing at

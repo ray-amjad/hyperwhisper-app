@@ -220,13 +220,31 @@ public class TranscriptionOrchestrator : IDisposable
         }
         else
         {
-            (rawText, transcriptionProvider) = await TranscribeLocalAsync(audioPath, language, localTranscriptionProvider, cancellationToken);
+            (rawText, transcriptionProvider, diagnostics) = await TranscribeLocalAsync(audioPath, language, localTranscriptionProvider, cancellationToken);
         }
 
         // STEP 2: Check for empty result
         if (string.IsNullOrWhiteSpace(rawText))
         {
-            LoggingService.Warn("TranscriptionOrchestrator: Empty transcription result");
+            // This is the frame that first sees the failure, and until now it said
+            // only that there was one. Everything below is metadata about the
+            // attempt - never the result - and it is the same set the Sentry
+            // no-speech diagnostic reports, so the local log and the issue agree.
+            diagnostics ??= new TranscriptionProviderDiagnostics(
+                transcriptionProvider,
+                AttemptSource: TranscriptionAttemptSource.Unknown,
+                RawResultLength: rawText?.Length ?? 0);
+
+            LoggingService.Warn(
+                "TranscriptionOrchestrator: Empty transcription result " +
+                $"(provider={transcriptionProvider}, attempt_source={diagnostics.AttemptSource ?? TranscriptionAttemptSource.Unknown}, " +
+                $"provider_type={mode.ProviderType}, mode_preset={mode.Preset}, language={mode.Language ?? "unset"}, " +
+                $"attempt_ms={diagnostics.AttemptElapsedMs?.ToString("F0") ?? "unknown"}, " +
+                $"raw_length={diagnostics.RawResultLength?.ToString() ?? "unknown"}, " +
+                $"backend_status={diagnostics.HttpStatusCode?.ToString() ?? "n/a"}, " +
+                $"backend_stt_provider={diagnostics.BackendSttProvider ?? "n/a"}, " +
+                $"backend_no_speech={diagnostics.BackendNoSpeechDetected?.ToString() ?? "unknown"})");
+
             throw new TranscriptionException(
                 TranscriptionErrorCode.NoSpeechDetected,
                 "No speech detected in audio",
@@ -334,6 +352,13 @@ public class TranscriptionOrchestrator : IDisposable
         // Note: per-provider vocabulary field handling lives in each service
         var effectiveVocabulary = providerType.SupportsVocabulary() ? vocabulary : null;
 
+        // Measured around the provider call, and around every provider, because only
+        // HyperWhisper Cloud implements ITranscriptionDiagnosticsSource. A no-speech
+        // event from a BYOK vendor used to carry no timing at all, so "the vendor
+        // answered instantly with nothing" and "the vendor took 30s and gave up"
+        // reached Sentry as the same report.
+        var attemptSw = System.Diagnostics.Stopwatch.StartNew();
+
         string result;
         if (providerType == CloudTranscriptionProvider.HyperWhisperCloud && provider is HyperWhisperCloudService hwCloud)
         {
@@ -357,8 +382,25 @@ public class TranscriptionOrchestrator : IDisposable
             result = await provider.TranscribeAsync(audioPath, language, effectiveVocabulary, cancellationToken);
         }
 
+        attemptSw.Stop();
+
         var displayName = TranscriptionProviderFactory.GetProviderDisplayName(providerType, mode.CloudTranscriptionModel);
-        var diagnostics = (provider as ITranscriptionDiagnosticsSource)?.LastDiagnostics;
+
+        // A provider that reports nothing gets a record built here rather than a
+        // null one, so the no-speech diagnostic can still say WHICH provider and HOW
+        // LONG. The backend fields stay null - unknown is reported as unknown, never
+        // as zero. Note this line is not reached when the provider throws (e.g.
+        // HyperWhisper Cloud's 200-but-no-speech), which is why that path stamps its
+        // own AttemptSource onto the exception's diagnostics.
+        var reported = (provider as ITranscriptionDiagnosticsSource)?.LastDiagnostics;
+        var diagnostics = (reported ?? new TranscriptionProviderDiagnostics(
+            displayName,
+            AttemptSource: TranscriptionAttemptSource.CloudUninstrumented)) with
+        {
+            AttemptElapsedMs = attemptSw.Elapsed.TotalMilliseconds,
+            RawResultLength = result?.Length ?? 0
+        };
+
         return (result, displayName, diagnostics);
     }
 
@@ -366,7 +408,20 @@ public class TranscriptionOrchestrator : IDisposable
     // LOCAL TRANSCRIPTION
     // =========================================================================
 
-    private async Task<(string text, string provider)> TranscribeLocalAsync(
+    /// <summary>
+    /// Runs the local engine. Returns diagnostics like the cloud arm does — before,
+    /// this arm returned none, so every local no-speech event (HYPERWHISPER-RM,
+    /// -XR) reached Sentry with no engine timing and no result size.
+    /// </summary>
+    /// <remarks>
+    /// <c>BackendNoSpeechDetected</c> and <c>EmptyTranscriptWithoutFlag</c> are left
+    /// null on purpose. They are the two fields
+    /// <c>TranscriptionDiagnosticsService.ClassifyNoSpeechDiagnostic</c> reads, and
+    /// both already coalesce a null to false, so the classifier sees exactly what it
+    /// saw before this change: the Sentry arm and fingerprint for a local no-speech
+    /// event do not move, and the existing issues stay intact.
+    /// </remarks>
+    private async Task<(string text, string provider, TranscriptionProviderDiagnostics? diagnostics)> TranscribeLocalAsync(
         string audioPath,
         string? language,
         ITranscriptionProvider? provider,
@@ -375,12 +430,18 @@ public class TranscriptionOrchestrator : IDisposable
         // Validate local provider is provided and available
         if (provider == null)
         {
+            LoggingService.Error(
+                "TranscriptionOrchestrator: Local transcription requested with no provider instance");
             throw new InvalidOperationException(
                 "ITranscriptionProvider must be provided for local transcription");
         }
 
         if (!provider.IsAvailable)
         {
+            // Was a silent throw. The provider name says which engine reported
+            // itself unloaded, which is the first thing a report of this needs.
+            LoggingService.Error(
+                $"TranscriptionOrchestrator: Local engine is not available (provider={provider.Name})");
             throw new TranscriptionException(
                 TranscriptionErrorCode.ModelNotLoaded,
                 "Local transcription model not loaded",
@@ -389,8 +450,21 @@ public class TranscriptionOrchestrator : IDisposable
 
         LoggingService.LogPerformanceMarker("TranscriptionOrchestrator", "Local transcription");
 
+        var attemptSw = System.Diagnostics.Stopwatch.StartNew();
         var result = await provider.TranscribeAsync(audioPath, language, cancellationToken: cancellationToken);
-        return (result, provider.Name);
+        attemptSw.Stop();
+
+        // A local engine may expose its own record; take it when it does, so the
+        // arm keeps working if one starts to.
+        var reported = (provider as ITranscriptionDiagnosticsSource)?.LastDiagnostics;
+        var diagnostics = (reported ?? new TranscriptionProviderDiagnostics(provider.Name)) with
+        {
+            AttemptSource = TranscriptionAttemptSource.LocalEngine,
+            AttemptElapsedMs = attemptSw.Elapsed.TotalMilliseconds,
+            RawResultLength = result?.Length ?? 0
+        };
+
+        return (result, provider.Name, diagnostics);
     }
 
     // =========================================================================

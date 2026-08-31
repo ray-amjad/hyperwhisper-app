@@ -52,7 +52,9 @@ public class ParakeetModelService
     {
         if (!Directory.Exists(ModelsDirectory))
         {
-            LoggingService.Info($"ParakeetModelService: Creating models directory: {ModelsDirectory}");
+            // The root is %LOCALAPPDATA%\HyperWhisper\Models, so printing it printed
+            // the user's Windows account name.
+            LoggingService.Info("ParakeetModelService: Creating the models directory");
             Directory.CreateDirectory(ModelsDirectory);
         }
     }
@@ -241,7 +243,8 @@ public class ParakeetModelService
         {
             if (Directory.Exists(modelDir))
             {
-                LoggingService.Info($"ParakeetModelService: Deleting model at {modelDir}");
+                // The model id, not its directory - same account-name leak as above.
+                LoggingService.Info($"ParakeetModelService: Deleting model {model.Id}");
                 Directory.Delete(modelDir, true);
             }
 
