@@ -23,18 +23,6 @@ namespace HyperWhisper.Services;
 public class ModeService
 {
     // =========================================================================
-    // CONSTANTS
-    // =========================================================================
-
-    // Well-known mode IDs for default modes (matching macOS)
-    public static readonly Guid DefaultModeId = Guid.Parse("00000000-0000-0000-0000-000000000001");
-    public static readonly Guid VoiceToTextModeId = Guid.Parse("00000000-0000-0000-0000-000000000002");
-    public static readonly Guid MessageModeId = Guid.Parse("00000000-0000-0000-0000-000000000003");
-    public static readonly Guid MailModeId = Guid.Parse("00000000-0000-0000-0000-000000000004");
-    public static readonly Guid NoteModeId = Guid.Parse("00000000-0000-0000-0000-000000000005");
-    public static readonly Guid MeetingModeId = Guid.Parse("00000000-0000-0000-0000-000000000006");
-
-    // =========================================================================
     // SINGLETON
     // =========================================================================
 

@@ -1,5 +1,4 @@
 using System.Buffers;
-using System.Net.Http.Headers;
 using System.Security.Cryptography;
 
 namespace HyperWhisper.LocalPostProcessing;
@@ -28,70 +27,6 @@ public sealed record LocalLlmModelDownloadResult(
 public interface ILocalLlmModelSource
 {
     ValueTask<Stream> OpenReadAsync(Uri uri, CancellationToken cancellationToken = default);
-}
-
-public sealed class HttpLocalLlmModelSource(HttpClient httpClient) : ILocalLlmModelSource
-{
-    public async ValueTask<Stream> OpenReadAsync(
-        Uri uri,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(uri);
-        if (uri.Scheme != Uri.UriSchemeHttps)
-        {
-            throw new ArgumentException("Local LLM downloads require HTTPS.", nameof(uri));
-        }
-
-        using var request = new HttpRequestMessage(HttpMethod.Get, uri);
-        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/octet-stream"));
-        var response = await httpClient.SendAsync(
-            request,
-            HttpCompletionOption.ResponseHeadersRead,
-            cancellationToken).ConfigureAwait(false);
-        try
-        {
-            response.EnsureSuccessStatusCode();
-            return new ResponseOwnedStream(
-                await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false),
-                response);
-        }
-        catch
-        {
-            response.Dispose();
-            throw;
-        }
-    }
-
-    private sealed class ResponseOwnedStream(Stream inner, HttpResponseMessage response) : Stream
-    {
-        public override bool CanRead => inner.CanRead;
-        public override bool CanSeek => inner.CanSeek;
-        public override bool CanWrite => false;
-        public override long Length => inner.Length;
-        public override long Position { get => inner.Position; set => inner.Position = value; }
-        public override void Flush() => inner.Flush();
-        public override int Read(byte[] buffer, int offset, int count) => inner.Read(buffer, offset, count);
-        public override long Seek(long offset, SeekOrigin origin) => inner.Seek(offset, origin);
-        public override void SetLength(long value) => throw new NotSupportedException();
-        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
-        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default) =>
-            inner.ReadAsync(buffer, cancellationToken);
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                inner.Dispose();
-                response.Dispose();
-            }
-            base.Dispose(disposing);
-        }
-        public override async ValueTask DisposeAsync()
-        {
-            await inner.DisposeAsync().ConfigureAwait(false);
-            response.Dispose();
-            GC.SuppressFinalize(this);
-        }
-    }
 }
 
 public sealed class LocalLlmModelStore

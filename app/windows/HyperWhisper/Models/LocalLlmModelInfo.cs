@@ -112,8 +112,6 @@ public class LocalLlmModelInfo
             isRecommended: false)
     ];
 
-    public static LocalLlmModelInfo[] GetAll() => AllModels;
-
     public static LocalLlmModelInfo GetDefault() => AllModels.First(m => m.IsRecommended);
 
     public static LocalLlmModelInfo? GetById(string? id) =>

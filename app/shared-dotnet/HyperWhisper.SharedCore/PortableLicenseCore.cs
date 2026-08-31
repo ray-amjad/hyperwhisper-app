@@ -79,9 +79,6 @@ public sealed record PortableValidationOutcome(
 /// </summary>
 public static class PortableLicenseCore
 {
-    /// <summary>The production <c>/api/license/validate</c> endpoint.</summary>
-    public static string ValidateUrl() => HyperwhisperCoreMethods.LicenseValidateUrl();
-
     /// <summary>
     /// Builds the validate request. The core trims the license key and escapes
     /// the device fields.
@@ -97,10 +94,6 @@ public static class PortableLicenseCore
         var native = HyperwhisperCoreMethods.LicenseBuildValidateRequest(licenseKey, deviceId, deviceName);
         return new PortableValidateRequest(native.url, native.contentType, native.body);
     }
-
-    /// <summary>The verdict for an empty or whitespace-only license key.</summary>
-    public static PortableValidationOutcome EmptyKeyOutcome() =>
-        Convert(HyperwhisperCoreMethods.LicenseEmptyKeyOutcome());
 
     /// <summary>
     /// The verdict for a terminal non-200 validate response. The core prefers the

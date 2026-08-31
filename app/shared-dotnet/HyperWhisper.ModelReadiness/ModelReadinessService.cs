@@ -6,14 +6,12 @@ public sealed class ModelReadinessService
     private readonly IProviderHealthProbe _probe;
     private readonly ILocalModelReadinessSource _local;
     private readonly TimeSpan _timeout;
-    private readonly TimeProvider _timeProvider;
 
     public ModelReadinessService(
         IProviderCredentialSource credentials,
         IProviderHealthProbe probe,
         ILocalModelReadinessSource local,
-        TimeSpan? timeout = null,
-        TimeProvider? timeProvider = null)
+        TimeSpan? timeout = null)
     {
         _credentials = credentials ?? throw new ArgumentNullException(nameof(credentials));
         _probe = probe ?? throw new ArgumentNullException(nameof(probe));
@@ -21,7 +19,6 @@ public sealed class ModelReadinessService
         _timeout = timeout ?? TimeSpan.FromSeconds(5);
         if (_timeout <= TimeSpan.Zero || _timeout > TimeSpan.FromSeconds(30))
             throw new ArgumentOutOfRangeException(nameof(timeout), "Health timeout must be between zero and 30 seconds.");
-        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     public event EventHandler<ModelReadinessChangedEventArgs>? ReadinessChanged;
@@ -95,7 +92,7 @@ public sealed class ModelReadinessService
 
     private ModelReadiness Publish(string key, ReadinessState state, string? detail = null)
     {
-        var readiness = new ModelReadiness(key, state, detail, _timeProvider.GetUtcNow());
+        var readiness = new ModelReadiness(key, state, detail);
         ReadinessChanged?.Invoke(this, new ModelReadinessChangedEventArgs(readiness));
         return readiness;
     }

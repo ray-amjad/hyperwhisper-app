@@ -132,7 +132,7 @@ extension AccessibilityHelper {
     ///   - respectSettings: Optional SettingsManager to respect clipboard restoration settings
     ///
     /// NOTE: This method is deprecated for auto-paste operations.
-    /// Use performSmartPaste() instead which properly manages clipboard restoration
+    /// Use executePasteAsync() instead which properly manages clipboard restoration
     /// across multiple recordings. This method is only for manual copy operations.
     func copyToClipboard(_ text: String, respectSettings settings: SettingsManager?) {
         // For manual copy operations (not auto-paste), we still do simple restoration

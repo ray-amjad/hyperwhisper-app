@@ -97,8 +97,7 @@ public interface ILocalModelReadinessSource
 public sealed record ModelReadiness(
     string CapabilityKey,
     ReadinessState State,
-    string? Detail = null,
-    DateTimeOffset? CheckedAt = null);
+    string? Detail = null);
 
 public sealed class ModelReadinessChangedEventArgs : EventArgs
 {
