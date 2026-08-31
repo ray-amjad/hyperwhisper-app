@@ -55,6 +55,37 @@ enum StreamingErrorReportingPolicy {
         !isTerminalForUser(error)
     }
 
+    /// The error that is safe to hand to Sentry.
+    ///
+    /// ## Why an error cannot always be reported as it arrives
+    ///
+    /// A failure on the streaming socket is a `URLError`, and a `URLError`
+    /// carries the URL it failed on in its `userInfo`
+    /// (`NSURLErrorFailingURLStringErrorKey`, `NSURLErrorFailingURLErrorKey`).
+    /// For this socket that URL is
+    /// `wss://…/ws/streaming-deepgram?license_key=…` — the query string is the
+    /// credential itself, which is why
+    /// `StreamingTranscriptionClient.startSession` logs only the host and the
+    /// path and never the whole URL.
+    ///
+    /// `SentryService.beforeSend` cannot catch it. That hook redacts `event.extra`
+    /// entries whose KEY contains `transcript`, `text` or `prompt`; an NSError's
+    /// `userInfo` reaches the event through the exception mechanism, under keys
+    /// that match none of those words.
+    ///
+    /// Rebuilding the error from its domain and code keeps both values that
+    /// identify the fault — `NSURLErrorDomain` / `-1005` — and gives the licence
+    /// key no route out of the machine.
+    ///
+    /// - Note: Only `NSURLErrorDomain` is rebuilt. A `StreamingError` is a Swift
+    ///   enum with no `userInfo`, and its localized sentence is what makes the
+    ///   Sentry issue title readable, so it is passed through untouched.
+    static func sentrySafeError(_ error: Error) -> Error {
+        let nsError = error as NSError
+        guard nsError.domain == NSURLErrorDomain else { return error }
+        return NSError(domain: nsError.domain, code: nsError.code, userInfo: nil)
+    }
+
     /// The sentence to show the user.
     ///
     /// - Parameters:

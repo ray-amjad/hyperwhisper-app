@@ -243,6 +243,65 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
     /// Used by stop sequences that must wait for a completion event before closing.
     private var didReceiveSessionComplete = false
 
+    // MARK: - Session Diagnostics
+    //
+    // Every streaming fault this file reports used to arrive as a provider
+    // sentence and a stack trace, with nothing about what the client had
+    // actually done by then. "Error committing input audio buffer: buffer too
+    // small. Expected at least 100ms of audio, but buffer only has 85.00ms"
+    // (HYPERWHISPER-S8/-S9) is the shape of that: it names the server's
+    // complaint and says nothing about how long the microphone had been open,
+    // whether the stop flush was already running, or whether the user had been
+    // given any transcript at all. The fields below are what answers that, and
+    // they ride on every capture in this file plus, through the Sentry scope,
+    // on the mirror the recording flow raises for the same fault.
+    //
+    // All of them are measurements, fixed slugs, or identifiers of code and of
+    // a provider request. No transcript, audio, prompt or typed text is
+    // recorded here, and nothing derived from one.
+
+    /// When `startSession()` began, for `streaming_session_elapsed_ms`.
+    private var sessionStartedAt = Date()
+
+    /// When the microphone actually started delivering audio, or nil before
+    /// `capture.start()` returns. The elapsed time from here is how much audio
+    /// the client had sent when a provider complained about how little it had.
+    private var audioStartedAt: Date?
+
+    /// How many committed and interim transcript events the provider has
+    /// delivered this session.
+    ///
+    /// COUNTS ONLY, AND NAMED SO THEY SURVIVE. `SentryService.beforeSend`
+    /// redacts any extra whose KEY contains `transcript`, `text` or `prompt`
+    /// without warning the call site, which is how three Windows fields shipped
+    /// `[redacted]` for months (HYPERWHISPER-PA). `finals_delivered` arrives;
+    /// `final_transcripts` would not.
+    private var finalsDelivered = 0
+    private var partialsDelivered = 0
+
+    /// How many audio-chunk sends failed this session, and whether the first
+    /// one has been reported. See `noteAudioSendFailure(generation:domain:code:)`.
+    private var audioSendFailureCount = 0
+    private var didReportAudioSendFailure = false
+
+    /// Which session the audio callbacks belong to.
+    ///
+    /// Bumped once per `startSession()`. The audio-send completion handler hops
+    /// to the main actor to report a failure, and that hop can land after the
+    /// user has stopped and restarted: without a generation to compare, a chunk
+    /// refused by the PREVIOUS socket consumes the new session's one report slot
+    /// and is published under the new session's id, stage and elapsed times —
+    /// a report describing a session that never had the fault.
+    private var sessionGeneration = 0
+
+    /// The stage the session has reached, as a stable slug.
+    ///
+    /// This is the breadcrumb trail this file appeared to have and did not:
+    /// `beforeSend` sets `event.breadcrumbs = nil`, so the "Reconnect attempt"
+    /// and "Reconnect success" crumbs below never leave the machine. Scope
+    /// extras do, so the path taken is published there instead.
+    private var stage = "idle"
+
     // MARK: - Initialization
 
     /// Create a streaming transcription client with a specific provider strategy.
@@ -294,6 +353,19 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         reconnectCount = 0
         connectionEstablishedAt = Date()
         didReceiveSessionComplete = false
+
+        // Reset the diagnostics with the rest of the session state, so a report
+        // can never carry a count or an elapsed time belonging to the previous
+        // recording. `noteStage` republishes the whole set to the Sentry scope,
+        // which is what clears the previous session's values there too.
+        sessionStartedAt = Date()
+        audioStartedAt = nil
+        finalsDelivered = 0
+        partialsDelivered = 0
+        audioSendFailureCount = 0
+        didReportAudioSendFailure = false
+        sessionGeneration += 1
+        noteStage("starting")
 
         // MARK STARTUP AS PENDING BEFORE ANYTHING CAN PRODUCE AN EVENT.
         //
@@ -419,6 +491,7 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         // socket's startMessages configure the session. Binding to one socket
         // generation means a stale closure can only ever hit its own (dead) socket.
         let connectedSocket = webSocketTask
+        let generation = sessionGeneration
         capture.onAudioData = { [weak self] pcmData in
             guard let self = self, let ws = connectedSocket else { return }
 
@@ -427,12 +500,30 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
                 ws.send(msg) { _ in }
             }
 
-            // Encode and send the audio chunk
+            // Encode and send the audio chunk.
+            //
+            // The completion error is recorded, not acted on: no retry, no
+            // buffering, no change to what this callback does. A refused chunk
+            // is dropped exactly as it always was — the difference is that the
+            // session now says so once instead of never.
             let encoded = self.strategy.encodeAudioChunk(pcmData)
-            ws.send(encoded) { _ in }
+            ws.send(encoded) { [weak self] error in
+                guard let error else { return }
+                // Classified here, on URLSession's queue, so only two Sendable
+                // values cross to the main actor and the error's `userInfo` —
+                // which holds the failing URL, and therefore the licence key —
+                // is never carried anywhere.
+                let nsError = error as NSError
+                let domain = nsError.domain
+                let code = nsError.code
+                Task { @MainActor [weak self] in
+                    self?.noteAudioSendFailure(generation: generation, domain: domain, code: code)
+                }
+            }
         }
 
         try await capture.start()
+        audioStartedAt = Date()
 
         // DID A TERMINAL PROVIDER ERROR LAND WHILE capture.start() WAS AWAY?
         //
@@ -470,6 +561,7 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         isStreaming = true
         onConnectionStateChange?(.streaming)
         logger.info("Streaming session started successfully")
+        noteStage("streaming")
 
         // Log WebSocket connected for diagnostics
         SentryService.addBreadcrumb(
@@ -495,6 +587,13 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
 
         onConnectionStateChange?(.disconnecting)
         didInitiateClose = true
+
+        // Published before the flush starts, so an error raised DURING the stop
+        // is distinguishable from one raised mid-session. A provider that
+        // rejects the final commit for holding too little audio is complaining
+        // about this step and not about the recording, and the stage is what
+        // says which of the two a report is looking at.
+        noteStage("stopping")
 
         // STEP 0: Abort an in-flight reconnect.
         //
@@ -530,6 +629,10 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
                         logger.debug("Sent stop sequence message")
                     } catch {
                         logger.warning("Failed to send stop message: \(error.localizedDescription, privacy: .public)")
+                        // The provider never got the instruction to flush, so
+                        // whatever it is still holding is lost. Same outcome as
+                        // before — this only stops it happening in silence.
+                        reportStopFailure(error, step: "send_stop_message")
                     }
                 case .wait(let seconds):
                     try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
@@ -538,6 +641,11 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
                         try await waitForSessionComplete(timeout: seconds)
                     } catch {
                         logger.warning("Timed out waiting for session completion: \(error.localizedDescription, privacy: .public)")
+                        // The provider was asked to flush and never confirmed
+                        // it. `streaming_finals_delivered` is what then says
+                        // whether the user lost the tail of a transcript or the
+                        // whole thing.
+                        reportStopFailure(error, step: "wait_for_session_complete")
                     }
                 case .closeWebSocket:
                     webSocketTask?.cancel(with: .normalClosure, reason: nil)
@@ -561,6 +669,10 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
             try await Task.sleep(nanoseconds: UInt64(stopTimeout * 1_000_000_000))
             stopTask.cancel()
             logger.warning("Stop sequence timed out after \(stopTimeout, privacy: .public)s — force-closing WebSocket")
+            // A force-close is the flush being abandoned. It is the loudest
+            // thing that can happen to a user's last sentence and it reported
+            // nothing.
+            reportStopFailure(StreamingError.connectionTimeout, step: "stop_sequence_timeout")
             webSocketTask?.cancel(with: .abnormalClosure, reason: nil)
         }
 
@@ -583,6 +695,168 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         sessionId = nil
         onConnectionStateChange?(.idle)
         logger.info("Streaming session stopped")
+        noteStage("stopped")
+    }
+
+    // MARK: - Diagnostics
+
+    /// Whole milliseconds between two instants, for a log field.
+    private static func elapsedMs(since start: Date, to end: Date = Date()) -> Int {
+        Int((end.timeIntervalSince(start) * 1000).rounded())
+    }
+
+    /// The shape of the current streaming session, as metadata only.
+    ///
+    /// Attached to every capture this file makes, so a provider complaint, a
+    /// disconnect and a failed flush all answer the same questions: how long had
+    /// the session been up, how long had the microphone been open, had anything
+    /// been delivered to the user yet, which connection generation is this, and
+    /// what had already gone wrong quietly.
+    ///
+    /// PRIVACY: provider label, model name and stage are constants of the code
+    /// or of the model catalog; every other value is a count, a duration in ms,
+    /// a boolean, a close code, or the provider's own request id. Nothing here
+    /// is derived from what the user said, typed or pasted.
+    private func sessionDiagnostics() -> [String: Any] {
+        let now = Date()
+        return [
+            "streaming_provider": strategy.transcriptionProviderLabel,
+            // Double-unwrapped on purpose: `currentConfig` is optional AND its
+            // `model` is optional, so a single `??` leaves an `Optional<String>`
+            // boxed into `Any` and the field ships as null on every session that
+            // uses the provider's default model — which is most of them.
+            "streaming_model": (currentConfig?.model ?? nil) ?? "default",
+            "streaming_stage": stage,
+            "streaming_session_elapsed_ms": Self.elapsedMs(since: sessionStartedAt, to: now),
+            "streaming_connection_elapsed_ms": Self.elapsedMs(since: connectionEstablishedAt, to: now),
+            "streaming_audio_elapsed_ms": audioStartedAt.map { Self.elapsedMs(since: $0, to: now) } ?? 0,
+            "streaming_finals_delivered": finalsDelivered,
+            "streaming_partials_delivered": partialsDelivered,
+            "streaming_reconnect_count": reconnectCount,
+            "streaming_audio_send_failures": audioSendFailureCount,
+            "streaming_close_code": webSocketTask?.closeCode.rawValue ?? 0,
+            "streaming_session_complete_received": didReceiveSessionComplete,
+            "streaming_did_initiate_close": didInitiateClose,
+            "streaming_session_id": sessionId ?? "none"
+        ]
+    }
+
+    /// Record the stage the session has reached and republish the diagnostics to
+    /// the Sentry scope.
+    ///
+    /// Scope extras, not breadcrumbs, for the reason `stage` documents. They
+    /// survive `beforeSend`, so they also reach captures raised OUTSIDE this
+    /// class — `RecordingTranscriptionFlow`'s own mirror of the same fault
+    /// (HYPERWHISPER-S9) carries them without that file having to know about
+    /// any of this.
+    ///
+    /// THE WHOLE SET IS WRITTEN EVERY TIME. Scope extras are global and
+    /// `setExtras` never removes a key, so a partial write would leave an
+    /// earlier session's value in place to be read as this one's.
+    private func noteStage(_ newStage: String) {
+        stage = newStage
+        guard AppLogger.isErrorLoggingEnabled else { return }
+        SentryService.setExtras(sessionDiagnostics())
+    }
+
+    /// Report a failure inside the graceful stop sequence.
+    ///
+    /// Each of these sites was a `logger.warning` and nothing more, so a session
+    /// whose flush never reached the provider — or was never acknowledged —
+    /// reached Sentry only as an absent transcript with no event of its own. The
+    /// user loses the end of what they said, which is the visible fault; the
+    /// `stopStep` tag names which step dropped it.
+    ///
+    /// The fingerprint is fixed rather than stack-derived, so the three steps
+    /// stay one queryable issue split by step instead of three groups that
+    /// re-split on the next release.
+    ///
+    /// `includeRecentLogs: false`: this runs on the main actor while the user
+    /// waits for their text, and the log fetch shells out to `log show` and
+    /// blocks (HYPERWHISPER-F7). The fields above are what the report needs.
+    private func reportStopFailure(_ error: Error, step: String) {
+        guard AppLogger.isErrorLoggingEnabled else { return }
+        var extras = sessionDiagnostics()
+        extras["detail"] = step
+        SentryService.capture(
+            error: StreamingErrorReportingPolicy.sentrySafeError(error),
+            message: "Streaming stop sequence failed",
+            extras: extras,
+            tags: [
+                "component": "StreamingTranscriptionClient",
+                "provider": strategy.transcriptionProviderLabel,
+                "operation": "stopSequence",
+                "stopStep": step
+            ],
+            fingerprint: ["streaming-stop-sequence-failed", step],
+            includeRecentLogs: false
+        )
+    }
+
+    /// Note an audio chunk the socket refused.
+    ///
+    /// The send completion handler discarded its error outright, on both the
+    /// initial wiring and the reconnected one. A socket that opens and then
+    /// refuses every frame is exactly "the session ran, the provider heard
+    /// nothing" — the fault behind an empty result and behind a provider
+    /// complaining it was given 85 ms of audio — and it produced no line
+    /// anywhere.
+    ///
+    /// ONLY THE FIRST FAILURE OF A SESSION IS REPORTED. The callback fires once
+    /// per captured buffer, roughly 48 times a second, so reporting each one
+    /// would flood both the unified log and Sentry from a per-frame path. The
+    /// running count rides along on every later event through
+    /// `sessionDiagnostics()`, which is what says whether this was one blip or
+    /// the whole session.
+    ///
+    /// TAKES THE DOMAIN AND CODE, NOT THE ERROR. A `URLError` raised on this
+    /// socket carries `NSURLErrorFailingURLStringErrorKey` in its `userInfo` —
+    /// the whole `wss://` URL, whose query string is the licence key
+    /// (`HyperWhisperCloudStrategy.buildWebSocketURL`). Classifying at the call
+    /// site and rebuilding a bare `NSError` here means the credential has no
+    /// route into an event at all, and the two values that identify the fault
+    /// are kept.
+    ///
+    /// - Parameter generation: the session the failing chunk belonged to,
+    ///   captured by the callback when it was wired. A completion handler that
+    ///   lands after the next session has started is dropped rather than
+    ///   attributed to a session that never had the fault.
+    private func noteAudioSendFailure(generation: Int, domain: String, code: Int) {
+        // A CANCELLED SEND IS THE TEARDOWN, NOT A FAULT.
+        //
+        // `teardownSession` cancels the socket and invalidates the URLSession,
+        // which fails every send still queued with `NSURLErrorCancelled`. One
+        // 20 ms chunk is almost always in flight when a session ends, so
+        // without this every ordinary stop — and every session already reported
+        // through a terminal provider error — would raise a second, meaningless
+        // event and bury the real ones.
+        guard generation == sessionGeneration, !didInitiateClose, code != NSURLErrorCancelled else { return }
+
+        audioSendFailureCount += 1
+        guard !didReportAudioSendFailure else { return }
+        didReportAudioSendFailure = true
+
+        logger.error(
+            "Audio chunk send failed: domain=\(domain, privacy: .public) code=\(code, privacy: .public)"
+        )
+
+        guard AppLogger.isErrorLoggingEnabled else { return }
+        var extras = sessionDiagnostics()
+        extras["error_domain"] = domain
+        extras["error_code"] = code
+        SentryService.capture(
+            error: NSError(domain: domain, code: code, userInfo: nil),
+            message: "Streaming audio chunk send failed",
+            extras: extras,
+            tags: [
+                "component": "StreamingTranscriptionClient",
+                "provider": strategy.transcriptionProviderLabel,
+                "operation": "sendAudioChunk",
+                "errorCode": "\(code)"
+            ],
+            fingerprint: ["streaming-audio-chunk-send-failed", domain, "\(code)"],
+            includeRecentLogs: false
+        )
     }
 
     // MARK: - Private Methods
@@ -694,19 +968,50 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
 
                 if !didInitiateClose {
                     // UNEXPECTED DISCONNECT — attempt auto-reconnect
+                    //
+                    // The report used to be the error's own sentence and four
+                    // tags, which is why HYPERWHISPER-MH cannot say why any of
+                    // its sockets dropped. The two facts that separate the
+                    // causes are the close code the peer sent and the transport
+                    // error's own domain/code — offline (-1009), connection lost
+                    // (-1005) and timed out (-1001) are three different bugs
+                    // wearing one title. Both are read here rather than one
+                    // frame up, where `teardownSession` has already nil'd the
+                    // task that holds them.
+                    let nsError = error as NSError
+                    let errorDomain = nsError.domain
+                    let errorCode = nsError.code
                     await MainActor.run {
-                        self.logger.error("WebSocket receive error: \(error.localizedDescription, privacy: .public)")
+                        self.logger.error(
+                            "WebSocket receive error: \(error.localizedDescription, privacy: .public) domain=\(errorDomain, privacy: .public) code=\(errorCode, privacy: .public) closeCode=\(rawCloseCode, privacy: .public)"
+                        )
                     }
-                    SentryService.capture(
-                        error: error,
-                        message: "WebSocket unexpected disconnect",
-                        tags: [
-                            "component": "StreamingTranscriptionClient",
-                            "provider": strategy.transcriptionProviderLabel,
-                            "operation": "receiveLoop",
-                            "reconnectCount": "\(reconnectCount)"
-                        ]
-                    )
+                    noteStage("disconnected")
+                    if AppLogger.isErrorLoggingEnabled {
+                        var extras = sessionDiagnostics()
+                        extras["error_domain"] = errorDomain
+                        extras["error_code"] = errorCode
+                        SentryService.capture(
+                            // The transport error rebuilt from its domain and
+                            // code. A `URLError` on this socket carries the
+                            // failing URL — and therefore the licence key — in
+                            // its `userInfo`, which `beforeSend` does not look
+                            // at. The domain and the code are the two values
+                            // this report actually needs, and they are in the
+                            // extras below as well.
+                            error: StreamingErrorReportingPolicy.sentrySafeError(error),
+                            message: "WebSocket unexpected disconnect",
+                            extras: extras,
+                            tags: [
+                                "component": "StreamingTranscriptionClient",
+                                "provider": strategy.transcriptionProviderLabel,
+                                "operation": "receiveLoop",
+                                "reconnectCount": "\(reconnectCount)",
+                                "closeCode": "\(rawCloseCode)",
+                                "errorCode": "\(errorCode)"
+                            ]
+                        )
+                    }
                     await handleUnexpectedDisconnect()
                 }
                 break
@@ -828,19 +1133,24 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
 
         let description = error.localizedDescription
         logger.error("Terminal streaming condition (\(detail, privacy: .public)): \(description, privacy: .public)")
-        SentryService.capture(
-            error: error,
-            message: "Streaming session refused (terminal)",
-            extras: ["detail": detail],
-            tags: [
-                "component": "StreamingTranscriptionClient",
-                "provider": strategy.transcriptionProviderLabel,
-                "operation": "handleTerminalCondition",
-                // Same tag the provider-error path sets, so account-state noise
-                // can be filtered server-side in one rule rather than two.
-                "terminal": "true"
-            ]
-        )
+        noteStage("terminal")
+        if AppLogger.isErrorLoggingEnabled {
+            var extras = sessionDiagnostics()
+            extras["detail"] = detail
+            SentryService.capture(
+                error: error,
+                message: "Streaming session refused (terminal)",
+                extras: extras,
+                tags: [
+                    "component": "StreamingTranscriptionClient",
+                    "provider": strategy.transcriptionProviderLabel,
+                    "operation": "handleTerminalCondition",
+                    // Same tag the provider-error path sets, so account-state noise
+                    // can be filtered server-side in one rule rather than two.
+                    "terminal": "true"
+                ]
+            )
+        }
 
         teardownSession(cancelReceiveTask: cancelReceiveTask, cancelReconnect: true)
         onConnectionStateChange?(.error(description))
@@ -901,11 +1211,16 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
 
         case .finalTranscript(let text):
             await MainActor.run {
+                // The COUNT of committed segments, never one of them. This is
+                // what tells a later report whether the user had been given
+                // anything at all before the session broke.
+                self.finalsDelivered += 1
                 self.onTranscriptUpdate?(text, true)
             }
 
         case .finalTranscriptAndSessionComplete(let text, let duration, let credits):
             await MainActor.run {
+                self.finalsDelivered += 1
                 self.onTranscriptUpdate?(text, true)
                 self.didReceiveSessionComplete = true
                 self.logger.info("Session complete: \(duration, privacy: .public)s, \(credits, privacy: .public) credits")
@@ -914,6 +1229,7 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
 
         case .partialTranscript(let text):
             await MainActor.run {
+                self.partialsDelivered += 1
                 self.onTranscriptUpdate?(text, false)
             }
 
@@ -945,18 +1261,22 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
                 logger.error(
                     "Repeat provider error after a terminal one: \(message, privacy: .public) terminal=\(terminalTag, privacy: .public)"
                 )
-                SentryService.capture(
-                    error: repeatError,
-                    message: "WebSocket provider error (repeat after terminal)",
-                    extras: ["serverMessage": message],
-                    tags: [
-                        "component": "StreamingTranscriptionClient",
-                        "provider": strategy.transcriptionProviderLabel,
-                        "operation": "processServerMessage",
-                        "terminal": terminalTag,
-                        "repeatAfterTerminal": "true"
-                    ]
-                )
+                if AppLogger.isErrorLoggingEnabled {
+                    var extras = sessionDiagnostics()
+                    extras["serverMessage"] = message
+                    SentryService.capture(
+                        error: repeatError,
+                        message: "WebSocket provider error (repeat after terminal)",
+                        extras: extras,
+                        tags: [
+                            "component": "StreamingTranscriptionClient",
+                            "provider": strategy.transcriptionProviderLabel,
+                            "operation": "processServerMessage",
+                            "terminal": terminalTag,
+                            "repeatAfterTerminal": "true"
+                        ]
+                    )
+                }
                 return
             }
 
@@ -984,21 +1304,37 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
 
                 self.logger.error("Provider error: \(message, privacy: .public) terminal=\(terminalTag, privacy: .public)")
                 self.lastError = error
-                SentryService.capture(
-                    error: error,
-                    message: "WebSocket provider error",
-                    extras: ["serverMessage": message],
-                    tags: [
-                        "component": "StreamingTranscriptionClient",
-                        "provider": self.strategy.transcriptionProviderLabel,
-                        "operation": "processServerMessage",
-                        // Lets account-state noise (no credits, dead key) be
-                        // filtered server-side without shipping a release, while
-                        // the capture itself stays — a terminal error is still
-                        // worth seeing, just not worth alerting on.
-                        "terminal": terminalTag
-                    ]
-                )
+
+                // THE FAULT THIS WHOLE CHANGE SERVES.
+                //
+                // The report carried the provider's sentence and nothing about
+                // our side of it, so "buffer only has 85.00ms of audio"
+                // (HYPERWHISPER-S8) named a client-side condition that the
+                // client had recorded nowhere. `streaming_stage` says whether
+                // this arrived mid-session or during the stop flush,
+                // `streaming_audio_elapsed_ms` says how long the microphone had
+                // actually been open, and `streaming_audio_send_failures` says
+                // whether the audio was ever accepted.
+                self.noteStage("provider_error")
+                if AppLogger.isErrorLoggingEnabled {
+                    var extras = self.sessionDiagnostics()
+                    extras["serverMessage"] = message
+                    SentryService.capture(
+                        error: error,
+                        message: "WebSocket provider error",
+                        extras: extras,
+                        tags: [
+                            "component": "StreamingTranscriptionClient",
+                            "provider": self.strategy.transcriptionProviderLabel,
+                            "operation": "processServerMessage",
+                            // Lets account-state noise (no credits, dead key) be
+                            // filtered server-side without shipping a release, while
+                            // the capture itself stays — a terminal error is still
+                            // worth seeing, just not worth alerting on.
+                            "terminal": terminalTag
+                        ]
+                    )
+                }
 
                 if isTerminal {
                     // RELEASE THE MICROPHONE AND THE SOCKET BEFORE REPORTING.
@@ -1192,16 +1528,21 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         // After 3 failed reconnects, stop trying and surface the error.
         if reconnectCount > 3 {
             logger.error("Reconnect cycle limit reached (\(self.reconnectCount) attempts) — giving up")
-            SentryService.capture(
-                error: StreamingError.serverError("Reconnect cycle limit reached"),
-                message: "WebSocket reconnect cycle exhausted",
-                extras: ["reconnectCount": "\(reconnectCount)"],
-                tags: [
-                    "component": "StreamingTranscriptionClient",
-                    "provider": strategy.transcriptionProviderLabel,
-                    "operation": "handleUnexpectedDisconnect"
-                ]
-            )
+            noteStage("reconnect_exhausted")
+            if AppLogger.isErrorLoggingEnabled {
+                var extras = sessionDiagnostics()
+                extras["reconnectCount"] = "\(reconnectCount)"
+                SentryService.capture(
+                    error: StreamingError.serverError("Reconnect cycle limit reached"),
+                    message: "WebSocket reconnect cycle exhausted",
+                    extras: extras,
+                    tags: [
+                        "component": "StreamingTranscriptionClient",
+                        "provider": strategy.transcriptionProviderLabel,
+                        "operation": "handleUnexpectedDisconnect"
+                    ]
+                )
+            }
             didInitiateClose = true
             // Nothing has been handed over yet, so `receiveTask` is still the
             // task running this code and `reconnectOwnerTask` is the same task
@@ -1217,6 +1558,7 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
             self.isConnected = false
             self.onConnectionStateChange?(.reconnecting)
         }
+        noteStage("reconnecting")
 
         // Log reconnect attempt for diagnostics
         SentryService.addBreadcrumb(
@@ -1260,6 +1602,10 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         guard let config = currentConfig,
               let url = strategy.buildWebSocketURL(config: config) else {
             logger.error("Reconnect failed: no usable WebSocket URL for the saved config")
+            // This one reports through the flow's own `onError` capture rather
+            // than raising a second event here; the stage is what tells that
+            // event which of the reconnect's exits it came from.
+            noteStage("reconnect_no_url")
             teardownSession(cancelReceiveTask: false, cancelReconnect: false)
             onConnectionStateChange?(.error("Connection lost"))
             onError?(StreamingError.serverError("Connection lost and reconnect failed"))
@@ -1334,19 +1680,32 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
             // the audio tap thread can otherwise read the new socket and send
             // audio before startMessages/session.updated complete.
             let reconnectedSocket = webSocketTask
+            let generation = sessionGeneration
             audioCapture?.onAudioData = { [weak self] pcmData in
                 guard let self = self, let ws = reconnectedSocket else { return }
                 self.strategy.onAudioSendOpportunity { msg in
                     ws.send(msg) { _ in }
                 }
                 let encoded = self.strategy.encodeAudioChunk(pcmData)
-                ws.send(encoded) { _ in }
+                // Same recording as the initial wiring — a socket that comes
+                // back and then refuses every chunk is the worst version of
+                // this fault, because the UI says "streaming" throughout.
+                ws.send(encoded) { [weak self] error in
+                    guard let error else { return }
+                    let nsError = error as NSError
+                    let domain = nsError.domain
+                    let code = nsError.code
+                    Task { @MainActor [weak self] in
+                        self?.noteAudioSendFailure(generation: generation, domain: domain, code: code)
+                    }
+                }
             }
 
             await MainActor.run {
                 self.isConnected = true
                 self.onConnectionStateChange?(.streaming)
                 self.logger.info("Reconnect succeeded")
+                self.noteStage("streaming")
             }
 
             // Log reconnect success for diagnostics
@@ -1413,6 +1772,21 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
             // Computed out here: privacy-aware interpolation can't nest a ternary.
             let outcomeLabel = isDeliberateTeardown ? "cancelled-by-teardown" : "provider-failure"
 
+            // PUBLISH AND SNAPSHOT BEFORE THE TEARDOWN BELOW.
+            //
+            // `teardownSession` nils `webSocketTask` and `sessionId`, so a set
+            // gathered after it reports `streaming_close_code: 0` and
+            // `streaming_session_id: "none"` on every reconnect failure — two
+            // fields that read as "the socket carried no close code" when the
+            // truth is "nobody asked it in time". An empty measurement is worse
+            // than an absent one, because it looks like an answer.
+            //
+            // Both the scope copy and the event's own copy are taken here, from
+            // the same state, so the two can never disagree about a key they
+            // share.
+            noteStage(isDeliberateTeardown ? "reconnect_abandoned" : "reconnect_failed")
+            let failureDiagnostics = sessionDiagnostics()
+
             // Reconnect failed — prevent the leftover replacement listener from
             // triggering another cycle. `receiveTask` is that listener, not this
             // task (the hand-over above), so cancelling it here is correct;
@@ -1434,16 +1808,24 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
             // Same split for Sentry: a reconnect somebody deliberately aborted is
             // not a defect, and reporting one buries the real reconnect failures
             // it is grouped with (HYPERWHISPER-MG).
-            SentryService.capture(
-                error: error,
-                message: "WebSocket reconnect failed",
-                extras: ["reconnectCount": "\(reconnectCount)"],
-                tags: [
-                    "component": "StreamingTranscriptionClient",
-                    "provider": strategy.transcriptionProviderLabel,
-                    "operation": "reconnect"
-                ]
-            )
+            if AppLogger.isErrorLoggingEnabled {
+                let nsError = error as NSError
+                var extras = failureDiagnostics
+                extras["reconnectCount"] = "\(reconnectCount)"
+                extras["error_domain"] = nsError.domain
+                extras["error_code"] = nsError.code
+                SentryService.capture(
+                    error: StreamingErrorReportingPolicy.sentrySafeError(error),
+                    message: "WebSocket reconnect failed",
+                    extras: extras,
+                    tags: [
+                        "component": "StreamingTranscriptionClient",
+                        "provider": strategy.transcriptionProviderLabel,
+                        "operation": "reconnect",
+                        "errorCode": "\(nsError.code)"
+                    ]
+                )
+            }
         }
     }
 
