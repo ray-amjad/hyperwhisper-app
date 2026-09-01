@@ -18,6 +18,44 @@
 import CoreData
 import Foundation
 
+// MARK: - Mode Name Policy
+
+enum ModeNamePolicy {
+    static func normalized(_ name: String) -> String? {
+        let scalars = name.unicodeScalars
+        guard let first = scalars.firstIndex(where: { !isBoundaryIgnorable($0) }),
+              let last = scalars.lastIndex(where: { !isBoundaryIgnorable($0) }) else {
+            return nil
+        }
+
+        let normalized = String(scalars[first...last])
+        return normalized.unicodeScalars.contains(where: isMeaningful) ? normalized : nil
+    }
+
+    static func storageName(_ proposed: String, replacing existing: String?) -> String {
+        normalized(proposed) ?? existing.flatMap { normalized($0) } ?? "Untitled"
+    }
+
+    private static func isBoundaryIgnorable(_ scalar: Unicode.Scalar) -> Bool {
+        switch scalar.properties.generalCategory {
+        case .control, .format, .spaceSeparator, .lineSeparator, .paragraphSeparator:
+            return true
+        default:
+            return false
+        }
+    }
+
+    private static func isMeaningful(_ scalar: Unicode.Scalar) -> Bool {
+        switch scalar.properties.generalCategory {
+        case .control, .format, .spaceSeparator, .lineSeparator, .paragraphSeparator,
+             .nonspacingMark, .spacingMark, .enclosingMark, .unassigned:
+            return false
+        default:
+            return true
+        }
+    }
+}
+
 // MARK: - Mode Snapshot
 
 /// Thread-safe, value-type copy of the Mode properties needed for background
@@ -2052,7 +2090,7 @@ class PersistenceController: ObservableObject {
         }
         
         // Update mode properties
-        mode?.name = name
+        mode?.name = ModeNamePolicy.storageName(name, replacing: mode?.name)
         mode?.preset = preset
         mode?.language = LanguageData.canonicalLanguageCode(language)
         mode?.model = model

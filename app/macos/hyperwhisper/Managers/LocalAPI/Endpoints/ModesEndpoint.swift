@@ -230,8 +230,7 @@ enum ModesEndpoint {
     }
 
     static func normalizedName(_ name: String) -> String? {
-        let normalized = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        return normalized.isEmpty ? nil : normalized
+        ModeNamePolicy.normalized(name)
     }
 
     static func int16Value(_ value: Int) -> Int16? {

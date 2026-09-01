@@ -25,6 +25,16 @@ struct ModesEndpointTests {
         #expect(ModesEndpoint.normalizedName("  Work\n") == "Work")
     }
 
+    @Test func invisibleOnlyNamesAreRejected() {
+        #expect(ModesEndpoint.normalizedName("\u{200B}") == nil)
+        #expect(ModesEndpoint.normalizedName("\u{2060}\u{FEFF}") == nil)
+        #expect(ModesEndpoint.normalizedName("\u{0301}\u{FE0F}") == nil)
+    }
+
+    @Test func invisibleBoundaryCharactersAreTrimmed() {
+        #expect(ModesEndpoint.normalizedName("\u{200B}  Work \u{2060}") == "Work")
+    }
+
     @Test func modeIntegerFieldsUseExactInt16Conversion() {
         #expect(ModesEndpoint.int16Value(Int(Int16.min)) == Int16.min)
         #expect(ModesEndpoint.int16Value(Int(Int16.max)) == Int16.max)
@@ -89,9 +99,24 @@ struct ModesEndpointTests {
     }
 
     @MainActor
-    private func makeMode(in persistence: PersistenceController, persist: Bool = true) -> Mode {
+    @Test func persistenceNormalizesNamesOutsideTheLocalAPI() {
+        let persistence = PersistenceController(inMemory: true)
+
+        let padded = makeMode(in: persistence, name: "  Stored name\n")
+        let invisible = makeMode(in: persistence, name: "\u{200B}")
+
+        #expect(padded.name == "Stored name")
+        #expect(invisible.name == "Untitled")
+    }
+
+    @MainActor
+    private func makeMode(
+        in persistence: PersistenceController,
+        name: String = "Stored name",
+        persist: Bool = true
+    ) -> Mode {
         persistence.createOrUpdateMode(
-            name: "Stored name",
+            name: name,
             preset: "hyper",
             language: "en",
             model: "base",
