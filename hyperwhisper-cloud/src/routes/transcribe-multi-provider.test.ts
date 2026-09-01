@@ -113,8 +113,14 @@ describe('Meta Muse batch routing and billing', () => {
   });
 
   test('reserves at the registered 3-credit-per-minute rate', () => {
-    const oneEstimatedMinute = 480_000;
-    expect(estimateCreditsForProviderFallbacks(oneEstimatedMinute, 'meta', 'muse-voice-transcribe-1.0')).toBe(3);
+    const oneMinuteCanonicalMuseWav = 44 + (16_000 * 2 * 60);
+    expect(estimateCreditsForProviderFallbacks(oneMinuteCanonicalMuseWav, 'meta', 'muse-voice-transcribe-1.0')).toBe(3);
+  });
+
+  test('does not apply the generic 64 kbps estimate to canonical Muse WAV', () => {
+    const oneMinuteCanonicalMuseWav = 44 + (16_000 * 2 * 60);
+    expect(oneMinuteCanonicalMuseWav).toBeGreaterThan(480_000);
+    expect(estimateCreditsForProviderFallbacks(oneMinuteCanonicalMuseWav, 'meta', 'muse-voice-transcribe-1.0')).toBe(3);
   });
 
   test('rejects malformed WAV before an upstream request or credit deduction', async () => {

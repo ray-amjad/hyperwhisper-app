@@ -80,7 +80,15 @@ export function estimateCreditsForProviderFallbacks(
   language?: string,
 ): number {
   const chain = fallbackChainFor(provider);
-  const estimatedSeconds = estimateAudioSecondsFromSize(sizeBytes);
+  // Muse requests are canonical mono PCM16 WAV. The desktop normalizers emit
+  // 16 kHz, or 32,000 payload bytes per second. The generic estimator assumes
+  // 64 kbps encoded audio and inflated a real one-minute Muse upload to four
+  // minutes, rejecting users who had the 3 credits the request actually needs.
+  // Subtract the canonical 44-byte WAV header; malformed/noncanonical files are
+  // still rejected by the adapter before any upstream call.
+  const estimatedSeconds = provider === 'meta'
+    ? Math.max(10, Math.max(0, sizeBytes - 44) / (16_000 * 2))
+    : estimateAudioSecondsFromSize(sizeBytes);
   const hasInitialPrompt = Boolean(initialPrompt);
   const rates = chain.map((p) => estimatedUsdPerMinute(
     p,
