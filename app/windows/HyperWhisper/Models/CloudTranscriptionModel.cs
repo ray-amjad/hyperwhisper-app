@@ -506,6 +506,19 @@ public static class CloudTranscriptionModels
         }
     };
 
+    /// <summary>Meta Muse Voice Transcribe through HyperWhisper Cloud only.</summary>
+    public static readonly CloudTranscriptionModel[] Meta = new[]
+    {
+        new CloudTranscriptionModel
+        {
+            Id = "muse-voice-transcribe-1.0",
+            DisplayName = "Muse Voice Transcribe 1.0",
+            Description = "Meta's multilingual transcription model with diarization and turn timestamps",
+            Provider = CloudTranscriptionProvider.Meta,
+            PricePerMinute = 0.003m
+        }
+    };
+
     // =========================================================================
     // ALL MODELS
     // =========================================================================
@@ -526,6 +539,7 @@ public static class CloudTranscriptionModels
             .Concat(Grok)
             .Concat(MicrosoftAzureSpeech)
             .Concat(GoogleSpeech)
+            .Concat(Meta)
             .ToArray();
 
     /// <summary>
@@ -547,6 +561,7 @@ public static class CloudTranscriptionModels
             CloudTranscriptionProvider.Grok => Grok,
             CloudTranscriptionProvider.MicrosoftAzureSpeech => MicrosoftAzureSpeech,
             CloudTranscriptionProvider.GoogleSpeech => GoogleSpeech,
+            CloudTranscriptionProvider.Meta => Meta,
             _ => Array.Empty<CloudTranscriptionModel>()
         };
 
@@ -692,6 +707,7 @@ public static class CloudTranscriptionModels
             CloudTranscriptionProvider.Grok => "",
             CloudTranscriptionProvider.MicrosoftAzureSpeech => "mai-transcribe-1.5",
             CloudTranscriptionProvider.GoogleSpeech => "chirp_3",
+            CloudTranscriptionProvider.Meta => "muse-voice-transcribe-1.0",
             _ => null
         };
 

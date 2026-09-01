@@ -4771,6 +4771,36 @@ internal static class Program
                     "CloudAccuracyTier.GoogleChirp3 is back; it would shadow the catalog migrateFrom alias.");
             });
 
+            Run("Meta Muse tier and native model registry stay aligned", () =>
+            {
+                var tier = CloudAccuracyTierExtensions.FromString("  METAMUSE  ");
+                Assert(tier == CloudAccuracyTier.MetaMuse, "Meta Muse persistence did not round-trip");
+                Assert(tier.ToStorageValue() == "metaMuse" && tier.ToSttProvider() == "meta",
+                    "Meta Muse tier did not resolve its canonical id and provider");
+
+                var entry = HyperWhisper.Services.AppClassification.CloudSttCatalog.Shared.GetById("metaMuse");
+                Assert(entry is { SttProvider: "meta", MaxFileSizeMb: 32, MaxDurationMinutes: 10 },
+                    "Meta Muse catalog limits or provider changed");
+                Assert(entry!.Models.Count == 1
+                    && entry.Models[0].Id == "muse-voice-transcribe-1.0"
+                    && !entry.Models[0].Streaming,
+                    "Meta Muse batch model registry changed or became live-selectable");
+
+                var native = CloudTranscriptionModels.GetById(
+                    "muse-voice-transcribe-1.0", CloudTranscriptionProvider.Meta);
+                Assert(native is { Provider: CloudTranscriptionProvider.Meta }
+                    && CloudTranscriptionModels.GetDefault(CloudTranscriptionProvider.Meta)?.Id
+                        == "muse-voice-transcribe-1.0"
+                    && !CloudTranscriptionProvider.Meta.RequiresApiKey(),
+                    "Meta Muse native registry or no-BYOK behavior changed");
+
+                var caps = HyperWhisper.Services.SharedModelsCatalog.VoiceCapabilities(
+                    "meta", "muse-voice-transcribe-1.0");
+                Assert(caps is { CodeSwitching: true, Endpointing: true, ContextBias: true,
+                    LanguageBias: true, TurnTimestamps: true, Diarization: true, WordTimestamps: false },
+                    "Meta Muse shared-model capabilities drifted");
+            });
+
             Run("Grok's empty model id resolves through a provider-scoped lookup", () =>
             {
                 // Grok's API takes no `model` parameter, so its single registry

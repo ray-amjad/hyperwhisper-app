@@ -1,4 +1,5 @@
 using System.Net;
+using System.Buffers.Binary;
 using HyperWhisper.AudioNormalization;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.FileTranscription;
@@ -16,6 +17,10 @@ try
     var tests = new (string Name, Func<Task> Run)[]
     {
         ("cloud import preserves private provider-native bytes", CloudPreservesOriginal),
+        ("Meta Muse converts MP3 and M4A to canonical WAV", MetaMuseNormalizesPortableSources),
+        ("Meta Muse preserves a compatible WAV", MetaMusePreservesCompatibleWave),
+        ("Meta Muse rejects and cleans an oversized normalized WAV", MetaMuseRejectsNormalizedOverflow),
+        ("Meta Muse reports a stable conversion failure", MetaMuseConversionFailure),
         ("local import normalizes to canonical WAV", LocalNormalizes),
         ("import snapshots mode before asynchronous preflight", ModeSnapshot),
         ("readiness failure prevents expensive import", EarlyReadinessFailure),
@@ -50,6 +55,59 @@ async Task CloudPreservesOriginal()
         "cloud import changed provider-native bytes");
     Assert(IsOwnerOnly(transcriber.Path!), "cloud owned artifact was not private");
     Assert(File.Exists(source), "cloud import deleted the user's original");
+}
+
+async Task MetaMuseNormalizesPortableSources()
+{
+    foreach (var extension in new[] { "mp3", "m4a" })
+    {
+        var source = Source($"muse-source.{extension}", [1, 2, 3, 4]);
+        var normalizer = new FakeNormalizer();
+        var transcriber = new CapturingTranscriber(PortableTranscriptionResult.Success("muse", "Meta"));
+        using var fixture = Fixture(source, MetaMuseMode(), transcriber, normalizer);
+        await fixture.ViewModel.TranscribeFileAsync();
+        Assert(normalizer.Calls == 1 && transcriber.Path is not null
+            && string.Equals(Path.GetExtension(transcriber.Path), ".wav", StringComparison.OrdinalIgnoreCase)
+            && fixture.ViewModel.ErrorCode is null,
+            $"Meta Muse did not normalize {extension} to a valid WAV");
+    }
+}
+
+async Task MetaMusePreservesCompatibleWave()
+{
+    var source = Source("muse-compatible.wav", WaveFixture.Canonical(16_000, 32));
+    var normalizer = new FakeNormalizer();
+    var transcriber = new CapturingTranscriber(PortableTranscriptionResult.Success("muse", "Meta"));
+    using var fixture = Fixture(source, MetaMuseMode(), transcriber, normalizer);
+    await fixture.ViewModel.TranscribeFileAsync();
+    Assert(normalizer.Calls == 0 && transcriber.Path is not null
+        && File.ReadAllBytes(transcriber.Path).SequenceEqual(File.ReadAllBytes(source)),
+        "Meta Muse changed a compatible 16 kHz mono PCM16 WAV");
+}
+
+async Task MetaMuseRejectsNormalizedOverflow()
+{
+    var source = Source("muse-overflow.mp3", [1, 2, 3]);
+    var normalizer = new FakeNormalizer { OutputDataBytes = 32L * 1024 * 1024 + 1 };
+    var transcriber = new CapturingTranscriber(PortableTranscriptionResult.Success("unused", "Meta"));
+    using var fixture = Fixture(source, MetaMuseMode(), transcriber, normalizer);
+    await fixture.ViewModel.TranscribeFileAsync();
+    Assert(fixture.ViewModel.ErrorCode == "file_preflight.file_too_large"
+        && transcriber.Path is null
+        && !Directory.EnumerateFiles(fixture.Paths.RecordingsDirectory).Any(),
+        "Meta Muse retained or uploaded an oversized normalized WAV");
+}
+
+async Task MetaMuseConversionFailure()
+{
+    var source = Source("muse-failure.mp3", [1, 2, 3]);
+    var normalizer = new FakeNormalizer { Fail = true };
+    var transcriber = new CapturingTranscriber(PortableTranscriptionResult.Success("unused", "Meta"));
+    using var fixture = Fixture(source, MetaMuseMode(), transcriber, normalizer);
+    await fixture.ViewModel.TranscribeFileAsync();
+    Assert(fixture.ViewModel.ErrorCode == "audio_normalization.failed"
+        && transcriber.Path is null && File.Exists(source),
+        "Meta Muse conversion failure was not stable or deleted the source");
 }
 
 async Task LocalNormalizes()
@@ -189,6 +247,13 @@ static Mode LocalMode() => new()
     Model = "base", ModelType = "base", Language = "en",
 };
 
+static Mode MetaMuseMode() => new()
+{
+    Name = "Meta Muse", ProviderType = "cloud", CloudProvider = "hyperwhisper",
+    CloudAccuracyTier = "metaMuse", CloudTranscriptionModel = "muse-voice-transcribe-1.0",
+    Language = "auto",
+};
+
 static bool IsOwnerOnly(string path) => OperatingSystem.IsWindows()
     || (File.GetUnixFileMode(path) & (UnixFileMode.GroupRead | UnixFileMode.GroupWrite | UnixFileMode.GroupExecute
         | UnixFileMode.OtherRead | UnixFileMode.OtherWrite | UnixFileMode.OtherExecute)) == 0;
@@ -219,14 +284,22 @@ sealed class TestPaths(string root) : IAppPaths
 sealed class FakeNormalizer : IAudioNormalizationService
 {
     public int Calls { get; private set; }
+    public long OutputDataBytes { get; init; } = 4;
+    public bool Fail { get; init; }
     public async Task<PlatformResult<string>> NormalizeAsync(
         string sourcePath, string destinationDirectory,
         IProgress<AudioNormalizationProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
         Calls++;
+        if (Fail) return PlatformResult<string>.Failure(
+            "audio_normalization.failed", "Audio conversion failed.");
         var path = Path.Combine(destinationDirectory, $"normalized-{Guid.NewGuid():N}.wav");
-        await File.WriteAllBytesAsync(path, new byte[48], cancellationToken);
+        await using (var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+        {
+            await stream.WriteAsync(WaveFixture.Canonical(16_000, checked((uint)OutputDataBytes)), cancellationToken);
+            stream.SetLength(44 + OutputDataBytes);
+        }
         if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite);
         return PlatformResult<string>.Success(path);
     }
@@ -236,6 +309,24 @@ sealed class StaticMetadata(long length) : IFileAudioMetadataSource
 {
     public ValueTask<FileAudioMetadata?> ReadAsync(string path, CancellationToken cancellationToken = default)
     { cancellationToken.ThrowIfCancellationRequested(); return ValueTask.FromResult<FileAudioMetadata?>(new(length, null)); }
+}
+
+static class WaveFixture
+{
+    public static byte[] Canonical(uint sampleRate, uint dataBytes)
+    {
+        var value = new byte[checked((int)dataBytes + 44)];
+        "RIFF"u8.CopyTo(value); BinaryPrimitives.WriteUInt32LittleEndian(value.AsSpan(4), dataBytes + 36);
+        "WAVEfmt "u8.CopyTo(value.AsSpan(8)); BinaryPrimitives.WriteUInt32LittleEndian(value.AsSpan(16), 16);
+        BinaryPrimitives.WriteUInt16LittleEndian(value.AsSpan(20), 1);
+        BinaryPrimitives.WriteUInt16LittleEndian(value.AsSpan(22), 1);
+        BinaryPrimitives.WriteUInt32LittleEndian(value.AsSpan(24), sampleRate);
+        BinaryPrimitives.WriteUInt32LittleEndian(value.AsSpan(28), sampleRate * 2);
+        BinaryPrimitives.WriteUInt16LittleEndian(value.AsSpan(32), 2);
+        BinaryPrimitives.WriteUInt16LittleEndian(value.AsSpan(34), 16);
+        "data"u8.CopyTo(value.AsSpan(36)); BinaryPrimitives.WriteUInt32LittleEndian(value.AsSpan(40), dataBytes);
+        return value;
+    }
 }
 
 sealed class BlockingMetadata(long length) : IFileAudioMetadataSource

@@ -4987,6 +4987,7 @@ public struct ModelsEntry {
     public var supportedLanguages: [String]
     public var isEnglishOnly: Bool?
     public var supportsAllLanguages: Bool?
+    public var voiceCapabilities: ModelsVoiceCapabilities?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -4999,7 +5000,7 @@ public struct ModelsEntry {
          * Base ISO codes, empty on rows that carry none. Prefer
          * `models_language_support`, which resolves the wildcard fallback and the
          * "uncatalogued ⇒ every language" rule.
-         */supportedLanguages: [String], isEnglishOnly: Bool?, supportsAllLanguages: Bool?) {
+         */supportedLanguages: [String], isEnglishOnly: Bool?, supportsAllLanguages: Bool?, voiceCapabilities: ModelsVoiceCapabilities?) {
         self.provider = provider
         self.id = id
         self.kind = kind
@@ -5011,6 +5012,7 @@ public struct ModelsEntry {
         self.supportedLanguages = supportedLanguages
         self.isEnglishOnly = isEnglishOnly
         self.supportsAllLanguages = supportsAllLanguages
+        self.voiceCapabilities = voiceCapabilities
     }
 }
 
@@ -5051,6 +5053,9 @@ extension ModelsEntry: Equatable, Hashable {
         if lhs.supportsAllLanguages != rhs.supportsAllLanguages {
             return false
         }
+        if lhs.voiceCapabilities != rhs.voiceCapabilities {
+            return false
+        }
         return true
     }
 
@@ -5066,6 +5071,7 @@ extension ModelsEntry: Equatable, Hashable {
         hasher.combine(supportedLanguages)
         hasher.combine(isEnglishOnly)
         hasher.combine(supportsAllLanguages)
+        hasher.combine(voiceCapabilities)
     }
 }
 
@@ -5087,7 +5093,8 @@ public struct FfiConverterTypeModelsEntry: FfiConverterRustBuffer {
                 notes: FfiConverterOptionString.read(from: &buf), 
                 supportedLanguages: FfiConverterSequenceString.read(from: &buf), 
                 isEnglishOnly: FfiConverterOptionBool.read(from: &buf), 
-                supportsAllLanguages: FfiConverterOptionBool.read(from: &buf)
+                supportsAllLanguages: FfiConverterOptionBool.read(from: &buf),
+                voiceCapabilities: FfiConverterOptionTypeModelsVoiceCapabilities.read(from: &buf)
         )
     }
 
@@ -5103,6 +5110,7 @@ public struct FfiConverterTypeModelsEntry: FfiConverterRustBuffer {
         FfiConverterSequenceString.write(value.supportedLanguages, into: &buf)
         FfiConverterOptionBool.write(value.isEnglishOnly, into: &buf)
         FfiConverterOptionBool.write(value.supportsAllLanguages, into: &buf)
+        FfiConverterOptionTypeModelsVoiceCapabilities.write(value.voiceCapabilities, into: &buf)
     }
 }
 
@@ -5119,6 +5127,115 @@ public func FfiConverterTypeModelsEntry_lift(_ buf: RustBuffer) throws -> Models
 #endif
 public func FfiConverterTypeModelsEntry_lower(_ value: ModelsEntry) -> RustBuffer {
     return FfiConverterTypeModelsEntry.lower(value)
+}
+
+
+/**
+ * Structured voice-model capabilities from `models-catalog.json`.
+ */
+public struct ModelsVoiceCapabilities {
+    public var codeSwitching: Bool
+    public var endpointing: Bool
+    public var contextBias: Bool
+    public var languageBias: Bool
+    public var turnTimestamps: Bool
+    public var diarization: Bool
+    public var wordTimestamps: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(codeSwitching: Bool, endpointing: Bool, contextBias: Bool, languageBias: Bool, turnTimestamps: Bool, diarization: Bool, wordTimestamps: Bool) {
+        self.codeSwitching = codeSwitching
+        self.endpointing = endpointing
+        self.contextBias = contextBias
+        self.languageBias = languageBias
+        self.turnTimestamps = turnTimestamps
+        self.diarization = diarization
+        self.wordTimestamps = wordTimestamps
+    }
+}
+
+
+
+extension ModelsVoiceCapabilities: Equatable, Hashable {
+    public static func ==(lhs: ModelsVoiceCapabilities, rhs: ModelsVoiceCapabilities) -> Bool {
+        if lhs.codeSwitching != rhs.codeSwitching {
+            return false
+        }
+        if lhs.endpointing != rhs.endpointing {
+            return false
+        }
+        if lhs.contextBias != rhs.contextBias {
+            return false
+        }
+        if lhs.languageBias != rhs.languageBias {
+            return false
+        }
+        if lhs.turnTimestamps != rhs.turnTimestamps {
+            return false
+        }
+        if lhs.diarization != rhs.diarization {
+            return false
+        }
+        if lhs.wordTimestamps != rhs.wordTimestamps {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(codeSwitching)
+        hasher.combine(endpointing)
+        hasher.combine(contextBias)
+        hasher.combine(languageBias)
+        hasher.combine(turnTimestamps)
+        hasher.combine(diarization)
+        hasher.combine(wordTimestamps)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeModelsVoiceCapabilities: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ModelsVoiceCapabilities {
+        return
+            try ModelsVoiceCapabilities(
+                codeSwitching: FfiConverterBool.read(from: &buf),
+                endpointing: FfiConverterBool.read(from: &buf),
+                contextBias: FfiConverterBool.read(from: &buf),
+                languageBias: FfiConverterBool.read(from: &buf),
+                turnTimestamps: FfiConverterBool.read(from: &buf),
+                diarization: FfiConverterBool.read(from: &buf),
+                wordTimestamps: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ModelsVoiceCapabilities, into buf: inout [UInt8]) {
+        FfiConverterBool.write(value.codeSwitching, into: &buf)
+        FfiConverterBool.write(value.endpointing, into: &buf)
+        FfiConverterBool.write(value.contextBias, into: &buf)
+        FfiConverterBool.write(value.languageBias, into: &buf)
+        FfiConverterBool.write(value.turnTimestamps, into: &buf)
+        FfiConverterBool.write(value.diarization, into: &buf)
+        FfiConverterBool.write(value.wordTimestamps, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeModelsVoiceCapabilities_lift(_ buf: RustBuffer) throws -> ModelsVoiceCapabilities {
+    return try FfiConverterTypeModelsVoiceCapabilities.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeModelsVoiceCapabilities_lower(_ value: ModelsVoiceCapabilities) -> RustBuffer {
+    return FfiConverterTypeModelsVoiceCapabilities.lower(value)
 }
 
 
@@ -6159,13 +6276,23 @@ public struct SttFeatures {
     public var wordTimestamps: Bool
     public var diarization: Bool
     public var streaming: Bool
+    public var codeSwitching: Bool
+    public var endpointing: Bool
+    public var contextBias: Bool
+    public var languageBias: Bool
+    public var turnTimestamps: Bool
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(wordTimestamps: Bool, diarization: Bool, streaming: Bool) {
+    public init(wordTimestamps: Bool, diarization: Bool, streaming: Bool, codeSwitching: Bool, endpointing: Bool, contextBias: Bool, languageBias: Bool, turnTimestamps: Bool) {
         self.wordTimestamps = wordTimestamps
         self.diarization = diarization
         self.streaming = streaming
+        self.codeSwitching = codeSwitching
+        self.endpointing = endpointing
+        self.contextBias = contextBias
+        self.languageBias = languageBias
+        self.turnTimestamps = turnTimestamps
     }
 }
 
@@ -6182,6 +6309,21 @@ extension SttFeatures: Equatable, Hashable {
         if lhs.streaming != rhs.streaming {
             return false
         }
+        if lhs.codeSwitching != rhs.codeSwitching {
+            return false
+        }
+        if lhs.endpointing != rhs.endpointing {
+            return false
+        }
+        if lhs.contextBias != rhs.contextBias {
+            return false
+        }
+        if lhs.languageBias != rhs.languageBias {
+            return false
+        }
+        if lhs.turnTimestamps != rhs.turnTimestamps {
+            return false
+        }
         return true
     }
 
@@ -6189,6 +6331,11 @@ extension SttFeatures: Equatable, Hashable {
         hasher.combine(wordTimestamps)
         hasher.combine(diarization)
         hasher.combine(streaming)
+        hasher.combine(codeSwitching)
+        hasher.combine(endpointing)
+        hasher.combine(contextBias)
+        hasher.combine(languageBias)
+        hasher.combine(turnTimestamps)
     }
 }
 
@@ -6202,7 +6349,12 @@ public struct FfiConverterTypeSttFeatures: FfiConverterRustBuffer {
             try SttFeatures(
                 wordTimestamps: FfiConverterBool.read(from: &buf), 
                 diarization: FfiConverterBool.read(from: &buf), 
-                streaming: FfiConverterBool.read(from: &buf)
+                streaming: FfiConverterBool.read(from: &buf),
+                codeSwitching: FfiConverterBool.read(from: &buf),
+                endpointing: FfiConverterBool.read(from: &buf),
+                contextBias: FfiConverterBool.read(from: &buf),
+                languageBias: FfiConverterBool.read(from: &buf),
+                turnTimestamps: FfiConverterBool.read(from: &buf)
         )
     }
 
@@ -6210,6 +6362,11 @@ public struct FfiConverterTypeSttFeatures: FfiConverterRustBuffer {
         FfiConverterBool.write(value.wordTimestamps, into: &buf)
         FfiConverterBool.write(value.diarization, into: &buf)
         FfiConverterBool.write(value.streaming, into: &buf)
+        FfiConverterBool.write(value.codeSwitching, into: &buf)
+        FfiConverterBool.write(value.endpointing, into: &buf)
+        FfiConverterBool.write(value.contextBias, into: &buf)
+        FfiConverterBool.write(value.languageBias, into: &buf)
+        FfiConverterBool.write(value.turnTimestamps, into: &buf)
     }
 }
 
@@ -11800,6 +11957,30 @@ fileprivate struct FfiConverterOptionTypeModelsEntry: FfiConverterRustBuffer {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeModelsEntry.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeModelsVoiceCapabilities: FfiConverterRustBuffer {
+    typealias SwiftType = ModelsVoiceCapabilities?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeModelsVoiceCapabilities.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeModelsVoiceCapabilities.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }

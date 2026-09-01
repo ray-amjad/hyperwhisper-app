@@ -70,7 +70,10 @@ public enum CloudTranscriptionProvider
     /// endpoint. Same vendor as <see cref="Gemini"/> but a different API and its
     /// OWN key slot; the two are never interchangeable.
     /// </summary>
-    GeminiTranscribe = 14
+    GeminiTranscribe = 14,
+
+    /// <summary>Meta Muse Voice Transcribe through HyperWhisper Cloud only.</summary>
+    Meta = 15
 }
 
 /// <summary>
@@ -96,6 +99,7 @@ public static class CloudTranscriptionProviderExtensions
         CloudTranscriptionProvider.MicrosoftAzureSpeech => Loc.S("provider.microsoftAzureSpeech"),
         CloudTranscriptionProvider.GoogleSpeech => Loc.S("provider.googleSpeech"),
         CloudTranscriptionProvider.GeminiTranscribe => Loc.S("provider.geminiTranscribe"),
+        CloudTranscriptionProvider.Meta => "Meta",
         _ => Loc.S("provider.none")
     };
 
@@ -118,6 +122,7 @@ public static class CloudTranscriptionProviderExtensions
         CloudTranscriptionProvider.MicrosoftAzureSpeech => "microsoftAzureSpeech",
         CloudTranscriptionProvider.GoogleSpeech => "googleSpeech",
         CloudTranscriptionProvider.GeminiTranscribe => "geminiTranscribe",
+        CloudTranscriptionProvider.Meta => "meta",
         _ => ""
     };
 
@@ -141,6 +146,7 @@ public static class CloudTranscriptionProviderExtensions
         // Lower-cased form of the "geminiTranscribe" identifier — the switch runs
         // on ToLowerInvariant(), so the camelCase spelling would never match.
         "geminitranscribe" => CloudTranscriptionProvider.GeminiTranscribe,
+        "meta" => CloudTranscriptionProvider.Meta,
         _ => CloudTranscriptionProvider.None
     };
 
@@ -173,6 +179,7 @@ public static class CloudTranscriptionProviderExtensions
         CloudTranscriptionProvider.HyperWhisperCloud => false,
         CloudTranscriptionProvider.MicrosoftAzureSpeech => false,
         CloudTranscriptionProvider.GoogleSpeech => false,
+        CloudTranscriptionProvider.Meta => false,
         _ => true
     };
 
@@ -195,6 +202,7 @@ public static class CloudTranscriptionProviderExtensions
         CloudTranscriptionProvider.Grok => "https://console.x.ai/",
         CloudTranscriptionProvider.MicrosoftAzureSpeech => "",
         CloudTranscriptionProvider.GoogleSpeech => "",
+        CloudTranscriptionProvider.Meta => "",
         _ => ""
     };
 
@@ -218,6 +226,7 @@ public static class CloudTranscriptionProviderExtensions
         // Google Speech V2 inline `content` caps near 10 MB. Matches the
         // backend's 9.5 MB AudioTooLargeError guard.
         CloudTranscriptionProvider.GoogleSpeech => 9_500_000L,
+        CloudTranscriptionProvider.Meta => 32L * 1024 * 1024,
         _ => 25L * 1024 * 1024 // 25 MB (OpenAI, Groq)
     };
 
@@ -238,6 +247,7 @@ public static class CloudTranscriptionProviderExtensions
         // listed here only so an audit grep for the provider finds this site.
         CloudTranscriptionProvider.MicrosoftAzureSpeech => false,
         CloudTranscriptionProvider.GoogleSpeech => false,
+        CloudTranscriptionProvider.Meta => false,
         CloudTranscriptionProvider.None => false,
         _ => true
     };

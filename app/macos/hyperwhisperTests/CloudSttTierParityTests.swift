@@ -131,6 +131,33 @@ struct CloudSttTierParityTests {
         )
     }
 
+    @Test("Meta Muse tier, provider, model, persistence, and capabilities stay aligned")
+    func metaMuseTierParity() {
+        let tier = CloudAccuracyTier.fromStorageValue("  METAMUSE  ")
+        #expect(tier == .metaMuse)
+        #expect(tier.rawValue == "metaMuse")
+        #expect(tier.sttProvider == "meta")
+        #expect(tier.defaultModelId == "muse-voice-transcribe-1.0")
+        #expect(CloudAccuracyTier.defaultTier(forVendorKey: "meta") == .metaMuse)
+        #expect(!CloudAccuracyTier.streamingEligibleTiers.contains(.metaMuse))
+
+        let model = CloudTranscriptionModels.model(
+            withId: "muse-voice-transcribe-1.0", provider: .meta)
+        #expect(model?.provider == .meta)
+        #expect(CloudTranscriptionModels.defaultModel(for: .meta) == model?.id)
+        #expect(CloudProvider.meta.routesViaHyperWhisperCloud)
+        #expect(!CloudProvider.meta.requiresAPIKey)
+        #expect(CloudProvider.meta.supportedAudioExtensions == ["wav"])
+
+        let shared = SharedModelsCatalog.entry(
+            provider: "meta", kind: .voice, id: "muse-voice-transcribe-1.0")
+        #expect(shared?.availableViaHyperWhisperCloud == true)
+        #expect(shared?.supportsCustomVocabulary == true)
+        #expect(shared?.voiceCapabilities?.codeSwitching == true)
+        #expect(shared?.voiceCapabilities?.turnTimestamps == true)
+        #expect(shared?.voiceCapabilities?.wordTimestamps == false)
+    }
+
     /// Catalog v8 retired `googleChirp3` and put `geminiTranscribe` in its array
     /// slot as Google's cloud tier. Every persisted Chirp value in the wild has
     /// to land there — and the failure mode is silent: `fromStorageValue`'s

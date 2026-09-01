@@ -4,6 +4,10 @@ namespace HyperWhisper.SharedCore;
 
 public static partial class SharedCoreBridge
 {
+    public sealed record CloudSttFileConstraints(
+        long? MaximumBytes,
+        TimeSpan? MaximumDuration,
+        IReadOnlyList<string> AcceptedFormats);
     public static string CanonicalCloudSttTier(string? value) =>
         HyperwhisperCoreMethods.MigrateCloudAccuracyTier(value);
 
@@ -24,6 +28,19 @@ public static partial class SharedCoreBridge
 
     public static string? CloudSttDefaultModel(string tierId) =>
         HyperwhisperCoreMethods.CloudSttDefaultModelId(tierId);
+
+    public static CloudSttFileConstraints? CloudSttFileLimits(string tierId)
+    {
+        var entry = HyperwhisperCoreMethods.CloudSttEntry(tierId);
+        if (entry is null) return null;
+        var maximumBytes = entry.@maxFileSizeMb is { } mb
+            ? checked((long)Math.Round(mb * 1024 * 1024, MidpointRounding.AwayFromZero))
+            : (long?)null;
+        var maximumDuration = entry.@maxDurationMinutes is { } minutes
+            ? TimeSpan.FromMinutes(minutes)
+            : (TimeSpan?)null;
+        return new(maximumBytes, maximumDuration, entry.@acceptedFormats);
+    }
 
     public static bool CloudSttContainsModel(string tierId, string modelId) =>
         HyperwhisperCoreMethods.CloudSttModels(tierId)

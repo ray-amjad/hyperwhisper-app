@@ -23,6 +23,9 @@ enum CloudProvider: String, CaseIterable, Identifiable {
     /// `:generateContent` path accepts `gemini-3.5-transcribe`, bills the audio
     /// and returns empty text, so the two must never be merged.
     case geminiTranscribe = "geminitranscribe"
+    /// Meta Muse is exposed through HyperWhisper Cloud only. No user API key
+    /// or direct Meta request service is registered in the client.
+    case meta = "meta"
 
     var id: String { rawValue }
 
@@ -99,6 +102,8 @@ enum CloudProvider: String, CaseIterable, Identifiable {
             return "Google Cloud Speech"
         case .geminiTranscribe:
             return "Gemini 3.5 Transcribe"
+        case .meta:
+            return "Meta"
         }
     }
 
@@ -131,6 +136,8 @@ enum CloudProvider: String, CaseIterable, Identifiable {
             return "Google Cloud Speech-to-Text V2 with Chirp 3 (multilingual + phrase adaptation)"
         case .geminiTranscribe:
             return "Google's dedicated Gemini 3.5 speech-to-text API with native custom vocabulary"
+        case .meta:
+            return "Meta Muse Voice Transcribe through HyperWhisper Cloud"
         }
     }
 
@@ -159,7 +166,7 @@ enum CloudProvider: String, CaseIterable, Identifiable {
             return "https://aistudio.google.com/apikey"
         case .grok:
             return "https://console.x.ai/"
-        case .microsoftAzureSpeech, .googleSpeech:
+        case .microsoftAzureSpeech, .googleSpeech, .meta:
             // HyperWhisper Cloud only — no BYOK in v1.
             return "https://www.hyperwhisper.com"
         }
@@ -168,7 +175,7 @@ enum CloudProvider: String, CaseIterable, Identifiable {
     /// Whether this provider requires an API key
     var requiresAPIKey: Bool {
         switch self {
-        case .hyperwhisper, .microsoftAzureSpeech, .googleSpeech:
+        case .hyperwhisper, .microsoftAzureSpeech, .googleSpeech, .meta:
             return false  // Credit-based via HyperWhisper Cloud, no API key needed
         default:
             return true
@@ -183,7 +190,7 @@ enum CloudProvider: String, CaseIterable, Identifiable {
     /// connections to the same host.
     var routesViaHyperWhisperCloud: Bool {
         switch self {
-        case .hyperwhisper, .microsoftAzureSpeech, .googleSpeech:
+        case .hyperwhisper, .microsoftAzureSpeech, .googleSpeech, .meta:
             return true
         default:
             return false
@@ -226,6 +233,8 @@ enum CloudProvider: String, CaseIterable, Identifiable {
             // inline as base64, which inflates it by ~33%. 14 MB of raw audio
             // stays under the endpoint's request ceiling once encoded.
             return 14 * 1024 * 1024  // 14 MB
+        case .meta:
+            return 32 * 1024 * 1024
         }
     }
 
@@ -292,6 +301,8 @@ enum CloudProvider: String, CaseIterable, Identifiable {
         case .googleSpeech:
             // Google Speech V2 autoDecodingConfig handles common containers
             return ["wav", "mp3", "mp4", "m4a", "ogg", "flac", "webm"]
+        case .meta:
+            return ["wav"]
         }
     }
 }
@@ -645,6 +656,18 @@ struct CloudTranscriptionModels {
             isPopular: true,
             pricePerSecond: nil
         ),
+
+        // Meta Muse Voice Transcribe (HyperWhisper Cloud only). The upstream
+        // streaming capability does not make this model live-selectable because
+        // HyperWhisper Cloud has no Meta WebSocket relay.
+        CloudTranscriptionModel(
+            id: "muse-voice-transcribe-1.0",
+            displayName: "Muse Voice Transcribe 1.0",
+            isAvailable: true,
+            description: "Meta's multilingual transcription model with diarization and turn timestamps.",
+            provider: .meta,
+            pricePerSecond: 0.003 / 60.0
+        ),
     ]
     
     /// Legacy AssemblyAI model IDs that have been retired. Resolved transparently to their
@@ -856,6 +879,8 @@ struct CloudTranscriptionModels {
             // (`gemini-3.5-transcribe-live`) is WebSocket-only and must never be
             // offered here — the REST builder rejects it with a 400.
             return "gemini-3.5-transcribe"
+        case .meta:
+            return "muse-voice-transcribe-1.0"
         }
     }
 }

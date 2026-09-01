@@ -184,7 +184,7 @@ public sealed class ModesViewModel : ViewModelBase
     // Gemini 3.5 Transcribe provider, distinct from `gemini` (the multimodal
     // model) and from the `geminiTranscribe` HyperWhisper Cloud accuracy TIER.
     public IReadOnlyList<string> CloudProviders { get; } = ["openai", "groq", "elevenlabs", "mistral", "grok", "deepgram", "assemblyai", "soniox", "gemini", "geminitranscribe", "microsoftazurespeech", "googlespeech", "hyperwhisper"];
-    public IReadOnlyList<string> CloudAccuracyTiers { get; } = ["groqWhisper", "deepgramNova3", "grokStt", "azureMaiTranscribe", "geminiTranscribe", "elevenLabsScribeV2", "openaiWhisper", "gemini", "mistralVoxtral", "assemblyAI", "soniox"];
+    public IReadOnlyList<string> CloudAccuracyTiers { get; } = ["groqWhisper", "deepgramNova3", "grokStt", "azureMaiTranscribe", "geminiTranscribe", "elevenLabsScribeV2", "openaiWhisper", "gemini", "mistralVoxtral", "assemblyAI", "soniox", "metaMuse"];
     public IReadOnlyList<string> CloudDomains { get; } = ["", "medical"];
     public UiStatus Status { get; } = new();
     public ICommand SaveCommand { get; }

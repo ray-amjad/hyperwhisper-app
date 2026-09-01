@@ -63,6 +63,7 @@ const CANONICAL_TIERS: &[&str] = &[
     "mistralVoxtral",
     "soniox",
     "gemini",
+    "metaMuse",
 ];
 
 /// Legacy `(alias, canonical_id)` pairs from each tier's `migrateFrom` list.
@@ -95,6 +96,11 @@ const TIER_ALIASES: &[(&str, &str)] = &[
     // elevenLabsScribeV2
     ("highest", "elevenLabsScribeV2"),
     ("elevenlabs", "elevenLabsScribeV2"),
+    // metaMuse
+    ("meta", "metaMuse"),
+    ("metamuse", "metaMuse"),
+    ("muse", "metaMuse"),
+    ("musevoicetranscribe", "metaMuse"),
 ];
 
 /// Default cloud post-processing key when the stored value is empty/unknown.
@@ -178,6 +184,7 @@ mod tests {
             migrate_cloud_accuracy_tier(Some("azureMaiTranscribe")),
             "azureMaiTranscribe"
         );
+        assert_eq!(migrate_cloud_accuracy_tier(Some("METAMUSE")), "metaMuse");
     }
 
     #[test]
@@ -187,6 +194,8 @@ mod tests {
         assert_eq!(migrate_cloud_accuracy_tier(Some("medium")), "groqWhisper");
         assert_eq!(migrate_cloud_accuracy_tier(Some("grok")), "grokStt");
         assert_eq!(migrate_cloud_accuracy_tier(Some("azure")), "azureMaiTranscribe");
+        assert_eq!(migrate_cloud_accuracy_tier(Some("muse")), "metaMuse");
+        assert_eq!(migrate_cloud_accuracy_tier(Some("museVoiceTranscribe")), "metaMuse");
     }
 
     #[test]

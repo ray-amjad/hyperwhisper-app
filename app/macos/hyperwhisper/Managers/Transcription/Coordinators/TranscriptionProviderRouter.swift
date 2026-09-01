@@ -218,7 +218,7 @@ class TranscriptionProviderRouter {
 
             // Configure selected cloud provider
             switch cloudProviderType {
-            case .hyperwhisper, .microsoftAzureSpeech, .googleSpeech:
+            case .hyperwhisper, .microsoftAzureSpeech, .googleSpeech, .meta:
                 // Unreachable: these providers return `false` from `requiresAPIKey`
                 // and are filtered by the outer guard. Kept explicit so the switch
                 // stays exhaustive without a `default` arm that would silently
@@ -249,7 +249,7 @@ class TranscriptionProviderRouter {
         // Select cloud provider instance
         let provider: TranscriptionProvider
         switch cloudProviderType {
-        case .hyperwhisper:
+        case .hyperwhisper, .meta:
             // Initialize HyperWhisper Cloud provider if needed
             if hyperwhisperCloudProvider == nil,
                let licenseManager = licenseManager,
@@ -493,7 +493,7 @@ class TranscriptionProviderRouter {
                 throw TranscriptionError.apiKeyMissing(provider: cloudProviderType.displayName)
             }
             switch cloudProviderType {
-            case .hyperwhisper, .microsoftAzureSpeech, .googleSpeech:
+            case .hyperwhisper, .microsoftAzureSpeech, .googleSpeech, .meta:
                 // Unreachable: filtered by the outer `requiresAPIKey` guard.
                 // Mirrors the same dead-arm pattern in `selectProvider(for:vocabulary:)`.
                 assertionFailure("BYOK-free providers should not enter the API-key configuration switch")
@@ -520,7 +520,7 @@ class TranscriptionProviderRouter {
 
         let provider: TranscriptionProvider
         switch cloudProviderType {
-        case .hyperwhisper:
+        case .hyperwhisper, .meta:
             ensureHyperWhisperCloudProvider()
             guard let hw = hyperwhisperCloudProvider else {
                 throw TranscriptionError.providerNotAvailable(provider: "HyperWhisper Cloud", reason: "Failed to initialize provider")

@@ -16,6 +16,11 @@
       "wordTimestamps": true,
       "diarization": false,
       "streaming": false,
+      "codeSwitching": false,
+      "endpointing": false,
+      "contextBias": false,
+      "languageBias": false,
+      "turnTimestamps": false,
       "customVocabularySupported": "yes",
       "customVocabularyFieldName": "prompt",
       "languagesCount": 100,
@@ -81,6 +86,11 @@
       "wordTimestamps": true,
       "diarization": true,
       "streaming": true,
+      "codeSwitching": false,
+      "endpointing": false,
+      "contextBias": false,
+      "languageBias": false,
+      "turnTimestamps": false,
       "customVocabularySupported": "yes",
       "customVocabularyFieldName": "keyterm",
       "languagesCount": 64,
@@ -165,6 +175,11 @@
       "wordTimestamps": true,
       "diarization": true,
       "streaming": true,
+      "codeSwitching": false,
+      "endpointing": false,
+      "contextBias": false,
+      "languageBias": false,
+      "turnTimestamps": false,
       "customVocabularySupported": "yes",
       "customVocabularyFieldName": "keyterm",
       "languagesCount": 25,
@@ -219,6 +234,11 @@
       "wordTimestamps": false,
       "diarization": false,
       "streaming": false,
+      "codeSwitching": false,
+      "endpointing": false,
+      "contextBias": false,
+      "languageBias": false,
+      "turnTimestamps": false,
       "customVocabularySupported": "yes",
       "customVocabularyFieldName": "definition.phraseList.phrases",
       "languagesCount": 42,
@@ -274,6 +294,11 @@
       "wordTimestamps": false,
       "diarization": false,
       "streaming": true,
+      "codeSwitching": false,
+      "endpointing": false,
+      "contextBias": false,
+      "languageBias": false,
+      "turnTimestamps": false,
       "customVocabularySupported": "yes",
       "customVocabularyFieldName": "generation_config.transcription_config.custom_vocabulary",
       "languagesCount": null,
@@ -339,6 +364,11 @@
       "wordTimestamps": true,
       "diarization": true,
       "streaming": false,
+      "codeSwitching": false,
+      "endpointing": false,
+      "contextBias": false,
+      "languageBias": false,
+      "turnTimestamps": false,
       "customVocabularySupported": "yes",
       "customVocabularyFieldName": "keyterms",
       "languagesCount": 99,
@@ -402,6 +432,11 @@
       "wordTimestamps": true,
       "diarization": false,
       "streaming": false,
+      "codeSwitching": false,
+      "endpointing": false,
+      "contextBias": false,
+      "languageBias": false,
+      "turnTimestamps": false,
       "customVocabularySupported": "yes",
       "customVocabularyFieldName": "prompt",
       "languagesCount": 100,
@@ -489,6 +524,11 @@
       "wordTimestamps": true,
       "diarization": true,
       "streaming": true,
+      "codeSwitching": false,
+      "endpointing": false,
+      "contextBias": false,
+      "languageBias": false,
+      "turnTimestamps": false,
       "customVocabularySupported": "yes",
       "customVocabularyFieldName": "keyterms_prompt",
       "languagesCount": 98,
@@ -578,6 +618,11 @@
       "wordTimestamps": true,
       "diarization": true,
       "streaming": true,
+      "codeSwitching": false,
+      "endpointing": false,
+      "contextBias": false,
+      "languageBias": false,
+      "turnTimestamps": false,
       "customVocabularySupported": "yes",
       "customVocabularyFieldName": "context_bias",
       "languagesCount": 13,
@@ -625,6 +670,11 @@
       "wordTimestamps": true,
       "diarization": true,
       "streaming": true,
+      "codeSwitching": false,
+      "endpointing": false,
+      "contextBias": false,
+      "languageBias": false,
+      "turnTimestamps": false,
       "customVocabularySupported": "yes",
       "customVocabularyFieldName": "context.terms",
       "languagesCount": 60,
@@ -678,6 +728,11 @@
       "wordTimestamps": false,
       "diarization": false,
       "streaming": false,
+      "codeSwitching": false,
+      "endpointing": false,
+      "contextBias": false,
+      "languageBias": false,
+      "turnTimestamps": false,
       "customVocabularySupported": "yes",
       "customVocabularyFieldName": "systemInstruction",
       "languagesCount": null,
@@ -746,6 +801,59 @@
           "streaming": null
         }
       ]
+    },
+    {
+      "id": "metaMuse",
+      "displayName": "Meta Muse Voice Transcribe",
+      "displayModel": "muse-voice-transcribe-1.0",
+      "vendor": "meta",
+      "vendorDisplayName": "Meta",
+      "vendorLabel": "Meta",
+      "sttProvider": "meta",
+      "cloudTierEligible": true,
+      "byokEligible": false,
+      "cloudTierAccuracy": "high",
+      "cloudTierCreditsPerMinute": 3.0,
+      "wordTimestamps": false,
+      "diarization": true,
+      "streaming": true,
+      "codeSwitching": true,
+      "endpointing": true,
+      "contextBias": true,
+      "languageBias": true,
+      "turnTimestamps": true,
+      "customVocabularySupported": "yes",
+      "customVocabularyFieldName": "keywords",
+      "languagesCount": 25,
+      "languagesAutoDetect": true,
+      "languagesCodeFormat": "unverified",
+      "languagesHasCodes": false,
+      "languagesRawCodeCount": 0,
+      "maxFileSizeMb": 32.0,
+      "maxDurationMinutes": 10,
+      "acceptedFormats": [
+        "wav"
+      ],
+      "previewStatus": false,
+      "migrateFrom": [
+        "meta",
+        "metamuse",
+        "muse",
+        "musevoicetranscribe"
+      ],
+      "legacyCloudProviderAliases": [],
+      "defaultModelId": "muse-voice-transcribe-1.0",
+      "models": [
+        {
+          "id": "muse-voice-transcribe-1.0",
+          "displayName": "Muse Voice Transcribe 1.0",
+          "creditsPerMinute": 3.0,
+          "isDefault": true,
+          "previewStatus": false,
+          "supportsCustomVocabulary": true,
+          "streaming": false
+        }
+      ]
     }
   ],
   "vendorGroups": [
@@ -809,6 +917,16 @@
       "models": [
         "groqWhisper/whisper-large-v3-turbo",
         "groqWhisper/whisper-large-v3"
+      ]
+    },
+    {
+      "vendorKey": "meta",
+      "displayName": "Meta",
+      "entryIds": [
+        "metaMuse"
+      ],
+      "models": [
+        "metaMuse/muse-voice-transcribe-1.0"
       ]
     },
     {
@@ -1496,6 +1614,10 @@
     {
       "id": "gemini",
       "codes": null
+    },
+    {
+      "id": "metaMuse",
+      "codes": null
     }
   ],
   "modelsEntries": [
@@ -1506,7 +1628,8 @@
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": true,
       "supportsAllLanguages": true,
-      "languageCodes": []
+      "languageCodes": [],
+      "voiceCapabilities": null
     },
     {
       "provider": "anthropic",
@@ -1515,7 +1638,8 @@
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": false,
       "supportsAllLanguages": true,
-      "languageCodes": []
+      "languageCodes": [],
+      "voiceCapabilities": null
     },
     {
       "provider": "appleSpeech",
@@ -1524,7 +1648,8 @@
       "supportsCustomVocabulary": true,
       "availableViaHyperWhisperCloud": false,
       "supportsAllLanguages": true,
-      "languageCodes": []
+      "languageCodes": [],
+      "voiceCapabilities": null
     },
     {
       "provider": "assemblyAI",
@@ -1633,7 +1758,8 @@
         "yi",
         "yo",
         "zh"
-      ]
+      ],
+      "voiceCapabilities": null
     },
     {
       "provider": "assemblyAI",
@@ -1647,7 +1773,8 @@
         "en",
         "es",
         "fr"
-      ]
+      ],
+      "voiceCapabilities": null
     },
     {
       "provider": "assemblyAI",
@@ -1675,7 +1802,8 @@
         "tr",
         "vi",
         "zh"
-      ]
+      ],
+      "voiceCapabilities": null
     },
     {
       "provider": "assemblyAI",
@@ -1689,7 +1817,8 @@
         "en",
         "es",
         "fr"
-      ]
+      ],
+      "voiceCapabilities": null
     },
     {
       "provider": "cerebras",
@@ -1698,7 +1827,8 @@
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": false,
       "supportsAllLanguages": true,
-      "languageCodes": []
+      "languageCodes": [],
+      "voiceCapabilities": null
     },
     {
       "provider": "cerebras",
@@ -1707,7 +1837,8 @@
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": true,
       "supportsAllLanguages": true,
-      "languageCodes": []
+      "languageCodes": [],
+      "voiceCapabilities": null
     },
     {
       "provider": "deepgram",
@@ -1750,7 +1881,8 @@
         "uk",
         "vi",
         "zh"
-      ]
+      ],
+      "voiceCapabilities": null
     },
     {
       "provider": "deepgram",
@@ -1761,7 +1893,8 @@
       "supportsAllLanguages": false,
       "languageCodes": [
         "en"
-      ]
+      ],
+      "voiceCapabilities": null
     },
     {
       "provider": "deepgram",
@@ -1818,7 +1951,8 @@
         "uk",
         "ur",
         "vi"
-      ]
+      ],
+      "voiceCapabilities": null
     },
     {
       "provider": "deepgram",
@@ -1829,7 +1963,8 @@
       "supportsAllLanguages": false,
       "languageCodes": [
         "en"
-      ]
+      ],
+      "voiceCapabilities": null
     },
     {
       "provider": "elevenLabs",
@@ -1838,7 +1973,8 @@
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": false,
       "supportsAllLanguages": true,
-      "languageCodes": []
+      "languageCodes": [],
+      "voiceCapabilities": null
     },
     {
       "provider": "elevenLabs",
@@ -1931,7 +2067,8 @@
         "yo",
         "yue",
         "zh"
-      ]
+      ],
+      "voiceCapabilities": null
     },
     {
       "provider": "gemini",
@@ -1940,7 +2077,8 @@
       "supportsCustomVocabulary": true,
       "availableViaHyperWhisperCloud": true,
       "supportsAllLanguages": true,
-      "languageCodes": []
+      "languageCodes": [],
+      "voiceCapabilities": null
     },
     {
       "provider": "gemini",
@@ -1949,7 +2087,8 @@
       "supportsCustomVocabulary": true,
       "availableViaHyperWhisperCloud": true,
       "supportsAllLanguages": true,
-      "languageCodes": []
+      "languageCodes": [],
+      "voiceCapabilities": null
     },
     {
       "provider": "gemini",
@@ -1958,7 +2097,8 @@
       "supportsCustomVocabulary": true,
       "availableViaHyperWhisperCloud": true,
       "supportsAllLanguages": true,
-      "languageCodes": []
+      "languageCodes": [],
+      "voiceCapabilities": null
     },
     {
       "provider": "gemini",
@@ -1967,7 +2107,8 @@
       "supportsCustomVocabulary": true,
       "availableViaHyperWhisperCloud": true,
       "supportsAllLanguages": true,
-      "languageCodes": []
+      "languageCodes": [],
+      "voiceCapabilities": null
     },
     {
       "provider": "gemini",
@@ -1976,7 +2117,8 @@
       "supportsCustomVocabulary": true,
       "availableViaHyperWhisperCloud": false,
       "supportsAllLanguages": true,
-      "languageCodes": []
+      "languageCodes": [],
+      "voiceCapabilities": null
     },
     {
       "provider": "gemini",
@@ -1985,7 +2127,8 @@
       "supportsCustomVocabulary": true,
       "availableViaHyperWhisperCloud": true,
       "supportsAllLanguages": true,
-      "languageCodes": []
+      "languageCodes": [],
+      "voiceCapabilities": null
     },
     {
       "provider": "gemini",
@@ -1994,7 +2137,8 @@
       "supportsCustomVocabulary": true,
       "availableViaHyperWhisperCloud": false,
       "supportsAllLanguages": true,
-      "languageCodes": []
+      "languageCodes": [],
+      "voiceCapabilities": null
     },
     {
       "provider": "gemini",
@@ -2003,7 +2147,8 @@
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": false,
       "supportsAllLanguages": true,
-      "languageCodes": []
+      "languageCodes": [],
+      "voiceCapabilities": null
     },
     {
       "provider": "gemini",
@@ -2012,7 +2157,8 @@
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": false,
       "supportsAllLanguages": true,
-      "languageCodes": []
+      "languageCodes": [],
+      "voiceCapabilities": null
     },
     {
       "provider": "gemini",
@@ -2021,7 +2167,8 @@
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": false,
       "supportsAllLanguages": true,
-      "languageCodes": []
+      "languageCodes": [],
+      "voiceCapabilities": null
     },
     {
       "provider": "gemini",
@@ -2030,7 +2177,8 @@
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": false,
       "supportsAllLanguages": true,
-      "languageCodes": []
+      "languageCodes": [],
+      "voiceCapabilities": null
     },
     {
       "provider": "gemini",
@@ -2039,7 +2187,8 @@
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": false,
       "supportsAllLanguages": true,
-      "languageCodes": []
+      "languageCodes": [],
+      "voiceCapabilities": null
     },
     {
       "provider": "geminiTranscribe",
@@ -2048,7 +2197,8 @@
       "supportsCustomVocabulary": true,
       "availableViaHyperWhisperCloud": true,
       "supportsAllLanguages": true,
-      "languageCodes": []
+      "languageCodes": [],
+      "voiceCapabilities": null
     },
     {
       "provider": "googleSpeech",
@@ -2133,7 +2283,8 @@
         "yo",
         "yue",
         "zh"
-      ]
+      ],
+      "voiceCapabilities": null
     },
     {
       "provider": "grok",
@@ -2142,7 +2293,8 @@
       "supportsCustomVocabulary": true,
       "availableViaHyperWhisperCloud": true,
       "supportsAllLanguages": true,
-      "languageCodes": []
+      "languageCodes": [],
+      "voiceCapabilities": null
     },
     {
       "provider": "grok",
@@ -2151,7 +2303,8 @@
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": true,
       "supportsAllLanguages": true,
-      "languageCodes": []
+      "languageCodes": [],
+      "voiceCapabilities": null
     },
     {
       "provider": "grok",
@@ -2160,7 +2313,8 @@
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": false,
       "supportsAllLanguages": true,
-      "languageCodes": []
+      "languageCodes": [],
+      "voiceCapabilities": null
     },
     {
       "provider": "grok",
@@ -2169,7 +2323,8 @@
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": false,
       "supportsAllLanguages": true,
-      "languageCodes": []
+      "languageCodes": [],
+      "voiceCapabilities": null
     },
     {
       "provider": "groq",
@@ -2178,7 +2333,8 @@
       "supportsCustomVocabulary": true,
       "availableViaHyperWhisperCloud": true,
       "supportsAllLanguages": true,
-      "languageCodes": []
+      "languageCodes": [],
+      "voiceCapabilities": null
     },
     {
       "provider": "groq",
@@ -2187,7 +2343,8 @@
       "supportsCustomVocabulary": true,
       "availableViaHyperWhisperCloud": true,
       "supportsAllLanguages": true,
-      "languageCodes": []
+      "languageCodes": [],
+      "voiceCapabilities": null
     },
     {
       "provider": "groq",
@@ -2196,7 +2353,8 @@
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": true,
       "supportsAllLanguages": true,
-      "languageCodes": []
+      "languageCodes": [],
+      "voiceCapabilities": null
     },
     {
       "provider": "groq",
@@ -2205,7 +2363,8 @@
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": false,
       "supportsAllLanguages": true,
-      "languageCodes": []
+      "languageCodes": [],
+      "voiceCapabilities": null
     },
     {
       "provider": "hyperwhisper",
@@ -2214,7 +2373,8 @@
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": true,
       "supportsAllLanguages": true,
-      "languageCodes": []
+      "languageCodes": [],
+      "voiceCapabilities": null
     },
     {
       "provider": "localLLM",
@@ -2223,7 +2383,8 @@
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": false,
       "supportsAllLanguages": true,
-      "languageCodes": []
+      "languageCodes": [],
+      "voiceCapabilities": null
     },
     {
       "provider": "localWhisper",
@@ -2232,7 +2393,26 @@
       "supportsCustomVocabulary": true,
       "availableViaHyperWhisperCloud": false,
       "supportsAllLanguages": true,
-      "languageCodes": []
+      "languageCodes": [],
+      "voiceCapabilities": null
+    },
+    {
+      "provider": "meta",
+      "id": "muse-voice-transcribe-1.0",
+      "kind": "voice",
+      "supportsCustomVocabulary": true,
+      "availableViaHyperWhisperCloud": true,
+      "supportsAllLanguages": true,
+      "languageCodes": [],
+      "voiceCapabilities": {
+        "codeSwitching": true,
+        "endpointing": true,
+        "contextBias": true,
+        "languageBias": true,
+        "turnTimestamps": true,
+        "diarization": true,
+        "wordTimestamps": false
+      }
     },
     {
       "provider": "microsoftAzureSpeech",
@@ -2283,7 +2463,8 @@
         "tr",
         "uk",
         "vi"
-      ]
+      ],
+      "voiceCapabilities": null
     },
     {
       "provider": "mistral",
@@ -2306,7 +2487,8 @@
         "pt",
         "ru",
         "zh"
-      ]
+      ],
+      "voiceCapabilities": null
     },
     {
       "provider": "mistral",
@@ -2315,7 +2497,8 @@
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": false,
       "supportsAllLanguages": true,
-      "languageCodes": []
+      "languageCodes": [],
+      "voiceCapabilities": null
     },
     {
       "provider": "mistral",
@@ -2324,7 +2507,8 @@
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": true,
       "supportsAllLanguages": true,
-      "languageCodes": []
+      "languageCodes": [],
+      "voiceCapabilities": null
     },
     {
       "provider": "mistral",
@@ -2333,7 +2517,8 @@
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": false,
       "supportsAllLanguages": true,
-      "languageCodes": []
+      "languageCodes": [],
+      "voiceCapabilities": null
     },
     {
       "provider": "nemotron",
@@ -2342,7 +2527,8 @@
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": false,
       "supportsAllLanguages": true,
-      "languageCodes": []
+      "languageCodes": [],
+      "voiceCapabilities": null
     },
     {
       "provider": "openai",
@@ -2351,7 +2537,8 @@
       "supportsCustomVocabulary": true,
       "availableViaHyperWhisperCloud": true,
       "supportsAllLanguages": true,
-      "languageCodes": []
+      "languageCodes": [],
+      "voiceCapabilities": null
     },
     {
       "provider": "openai",
@@ -2360,7 +2547,8 @@
       "supportsCustomVocabulary": true,
       "availableViaHyperWhisperCloud": false,
       "supportsAllLanguages": true,
-      "languageCodes": []
+      "languageCodes": [],
+      "voiceCapabilities": null
     },
     {
       "provider": "openai",
@@ -2369,7 +2557,8 @@
       "supportsCustomVocabulary": true,
       "availableViaHyperWhisperCloud": true,
       "supportsAllLanguages": true,
-      "languageCodes": []
+      "languageCodes": [],
+      "voiceCapabilities": null
     },
     {
       "provider": "openai",
@@ -2378,7 +2567,8 @@
       "supportsCustomVocabulary": true,
       "availableViaHyperWhisperCloud": false,
       "supportsAllLanguages": true,
-      "languageCodes": []
+      "languageCodes": [],
+      "voiceCapabilities": null
     },
     {
       "provider": "openai",
@@ -2387,7 +2577,8 @@
       "supportsCustomVocabulary": true,
       "availableViaHyperWhisperCloud": true,
       "supportsAllLanguages": true,
-      "languageCodes": []
+      "languageCodes": [],
+      "voiceCapabilities": null
     },
     {
       "provider": "openai",
@@ -2396,7 +2587,8 @@
       "supportsCustomVocabulary": true,
       "availableViaHyperWhisperCloud": true,
       "supportsAllLanguages": true,
-      "languageCodes": []
+      "languageCodes": [],
+      "voiceCapabilities": null
     },
     {
       "provider": "openai",
@@ -2405,7 +2597,8 @@
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": false,
       "supportsAllLanguages": true,
-      "languageCodes": []
+      "languageCodes": [],
+      "voiceCapabilities": null
     },
     {
       "provider": "parakeet",
@@ -2414,7 +2607,8 @@
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": false,
       "supportsAllLanguages": true,
-      "languageCodes": []
+      "languageCodes": [],
+      "voiceCapabilities": null
     },
     {
       "provider": "qwen3ASR",
@@ -2423,7 +2617,8 @@
       "supportsCustomVocabulary": false,
       "availableViaHyperWhisperCloud": false,
       "supportsAllLanguages": true,
-      "languageCodes": []
+      "languageCodes": [],
+      "voiceCapabilities": null
     },
     {
       "provider": "soniox",
@@ -2493,7 +2688,8 @@
         "ur",
         "vi",
         "zh"
-      ]
+      ],
+      "voiceCapabilities": null
     }
   ]
 }

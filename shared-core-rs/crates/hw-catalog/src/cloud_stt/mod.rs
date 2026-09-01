@@ -226,7 +226,7 @@ mod tests {
     #[test]
     fn embedded_catalog_parses() {
         let c = catalog();
-        assert_eq!(c.version(), 8);
+        assert_eq!(c.version(), 9);
         assert!(c.providers().len() >= 10);
     }
 
@@ -614,8 +614,8 @@ mod tests {
         assert_eq!(
             names,
             vec![
-                "AssemblyAI", "Deepgram", "ElevenLabs", "Google", "Groq", "Microsoft",
-                "Mistral", "OpenAI", "Soniox", "xAI",
+                "AssemblyAI", "Deepgram", "ElevenLabs", "Google", "Groq", "Meta",
+                "Microsoft", "Mistral", "OpenAI", "Soniox", "xAI",
             ],
             "the Provider dropdown reads alphabetically, case-insensitively \
              (xAI sorts last only under a case-insensitive compare)"
@@ -779,5 +779,33 @@ mod tests {
                 "{present} is in the catalog and must reach the picker"
             );
         }
+    }
+
+    #[test]
+    fn new_feature_fields_default_false_and_meta_sets_verified_values() {
+        let old = CloudSttCatalog::parse(r#"{
+            "version":8,"providers":[{"id":"old","displayName":"Old","vendor":"old",
+            "features":{"wordTimestamps":true}}]
+        }"#).unwrap();
+        let old_features = old.entry("old").unwrap().features;
+        assert!(old_features.word_timestamps);
+        assert!(!old_features.code_switching);
+        assert!(!old_features.endpointing);
+        assert!(!old_features.context_bias);
+        assert!(!old_features.language_bias);
+        assert!(!old_features.turn_timestamps);
+
+        let catalog = catalog();
+        let meta = catalog.entry("metaMuse").expect("Meta Muse catalog row");
+        assert_eq!(meta.stt_provider.as_deref(), Some("meta"));
+        assert_eq!(meta.default_model_id(), Some("muse-voice-transcribe-1.0"));
+        assert!(meta.features.code_switching);
+        assert!(meta.features.endpointing);
+        assert!(meta.features.context_bias);
+        assert!(meta.features.language_bias);
+        assert!(meta.features.turn_timestamps);
+        assert!(meta.features.diarization);
+        assert!(!meta.features.word_timestamps);
+        assert!(!meta.default_model().unwrap().streaming());
     }
 }

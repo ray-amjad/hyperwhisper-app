@@ -10,6 +10,9 @@ var tests = new (string Name, Func<Task> Run)[]
     ("invalid duration is rejected before downstream work", InvalidDurationGate),
     ("cloud credentials and models fail before metadata", CloudReadinessPrecedesMetadata),
     ("HyperWhisper guest device readiness and model fallback match routing", HyperWhisperGuestReadiness),
+    ("Meta Muse accepts canonical WAV without conversion", MetaMuseCanonicalWave),
+    ("Meta Muse converts portable non-WAV and incompatible WAV inputs", MetaMuseNormalization),
+    ("Meta Muse enforces limits on the normalized WAV", MetaMuseNormalizedLimits),
     ("local backend model and install state fail before metadata", LocalReadinessPrecedesMetadata),
     ("local import has no provider byte or duration cap", LocalHasNoProviderLimit),
     ("unsupported format and missing file are stable", FileValidation),
@@ -88,6 +91,72 @@ static async Task HyperWhisperGuestReadiness()
         CloudCatalogTier: "deepgramNova3"));
     Assert(result.IsSuccess && result.ResolvedModel == "nova-3-general",
         "device-only HyperWhisper guest routing was rejected or failed model fallback");
+}
+
+static async Task MetaMuseCanonicalWave()
+{
+    foreach (var sampleRate in new uint[] { 16_000, 24_000 })
+    {
+        var metadata = new FakeMetadata
+        {
+            Value = new(1024, TimeSpan.FromMinutes(1), 1, 1, sampleRate, 16),
+        };
+        var result = await Service(metadata, account: true).ValidateAsync(
+            "recording.wav", MetaMuseTarget());
+        Assert(result.IsSuccess && !result.RequiresNormalization
+            && result.ResolvedModel == "muse-voice-transcribe-1.0"
+            && result.Constraints is
+            {
+                MaximumBytes: 32L * ByteSizes.MiB,
+                MaximumDuration: var duration,
+                RequiresMuseWave: true,
+            }
+            && duration == TimeSpan.FromMinutes(10),
+            $"Meta Muse rejected canonical {sampleRate} Hz PCM WAV");
+    }
+}
+
+static async Task MetaMuseNormalization()
+{
+    foreach (var file in new[] { "recording.mp3", "recording.m4a" })
+    {
+        var result = await Service(new FakeMetadata
+        {
+            // The source may exceed the upload cap. The normalized artifact is
+            // authoritative because conversion can reduce its byte size.
+            Value = new(40L * ByteSizes.MiB, null),
+        }, account: true).ValidateAsync(file, MetaMuseTarget());
+        Assert(result.IsSuccess && result.RequiresNormalization,
+            $"Meta Muse did not request conversion for {Path.GetExtension(file)}");
+    }
+
+    foreach (var value in new[]
+    {
+        new FileAudioMetadata(1024, TimeSpan.FromMinutes(1), 1, 2, 16_000, 16),
+        new FileAudioMetadata(1024, TimeSpan.FromMinutes(1), 1, 1, 48_000, 16),
+        new FileAudioMetadata(1024, TimeSpan.FromMinutes(1), 3, 1, 16_000, 32),
+    })
+    {
+        var result = await Service(new FakeMetadata { Value = value }, account: true)
+            .ValidateAsync("recording.wav", MetaMuseTarget());
+        Assert(result.IsSuccess && result.RequiresNormalization,
+            "Meta Muse did not normalize an incompatible WAV");
+    }
+}
+
+static async Task MetaMuseNormalizedLimits()
+{
+    var metadata = new FakeMetadata
+    {
+        Value = new(32L * ByteSizes.MiB + 1, TimeSpan.FromMinutes(1), 1, 1, 16_000, 16),
+    };
+    AssertCode(await Service(metadata, account: true).ValidateAsync(
+        "normalized.wav", MetaMuseTarget()), "file_preflight.file_too_large");
+
+    metadata.Value = new(1024, TimeSpan.FromMinutes(10) + TimeSpan.FromMilliseconds(1),
+        1, 1, 16_000, 16);
+    AssertCode(await Service(metadata, account: true).ValidateAsync(
+        "normalized.wav", MetaMuseTarget()), "file_preflight.duration_too_long");
 }
 
 static async Task InvalidDurationGate()
@@ -246,6 +315,12 @@ static byte[] WaveHeader(uint dataBytes, uint bytesPerSecond)
 
 static PortableFileTranscriptionPreflight Service(FakeMetadata metadata, bool account = false) =>
     new(metadata, new FakeLocalReadiness(), new FakeCredentials(api: !account, account: account));
+
+static FileTranscriptionTarget MetaMuseTarget() => new(
+    FileTranscriptionRoute.Cloud,
+    "muse-voice-transcribe-1.0",
+    CloudProvider: CloudTranscriptionProvider.HyperWhisperCloud,
+    CloudCatalogTier: "metaMuse");
 
 static void AssertCode(FileTranscriptionPreflightResult result, string code) =>
     Assert(result.Failure?.Code == code, $"expected {code}, got {result.Failure?.Code ?? "success"}");

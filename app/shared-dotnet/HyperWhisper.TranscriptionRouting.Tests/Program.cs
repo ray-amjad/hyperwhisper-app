@@ -201,6 +201,20 @@ static async Task TestRouterAsync(string root)
     Assert(SharedCoreBridge.CloudSttProvider("googleChirp3") is null,
         "googleChirp3 is a catalog entry again; it would shadow the geminiTranscribe migrateFrom alias.");
 
+    var metaMode = new Mode
+    {
+        ProviderType = "cloud",
+        CloudProvider = "hyperwhisper",
+        CloudAccuracyTier = "metaMuse",
+        CloudTranscriptionModel = "muse-voice-transcribe-1.0",
+    };
+    await router.TranscribeAsync(audio, new TranscriptionWorkflowRequest(SelectedMode: metaMode));
+    Assert(cloud.LastRequest is
+        {
+            RoutedProvider: "meta",
+            RoutedModel: "muse-voice-transcribe-1.0",
+        }, "Meta Muse tier did not route through the Meta provider and exact model id");
+
     // This route's own 1000-term cap, kept out of the shared core deliberately:
     // the live-streaming router caps at 100 and neither may drift onto the other.
     var cappedMode = new Mode

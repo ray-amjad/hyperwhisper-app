@@ -14,12 +14,23 @@ public sealed record FileTranscriptionTarget(
     CloudTranscriptionProvider? CloudProvider = null,
     string? CloudCatalogTier = null);
 
-public sealed record FileAudioMetadata(long LengthBytes, TimeSpan? Duration);
+public sealed record FileAudioMetadata(
+    long LengthBytes,
+    TimeSpan? Duration,
+    ushort? WaveEncoding = null,
+    ushort? Channels = null,
+    uint? SampleRate = null,
+    ushort? BitsPerSample = null)
+{
+    public bool IsMuseCompatibleWave => WaveEncoding == 1 && Channels == 1
+        && BitsPerSample == 16 && SampleRate is 16_000 or 24_000;
+}
 
 public sealed record FileTranscriptionConstraints(
     long? MaximumBytes,
     TimeSpan? MaximumDuration,
-    IReadOnlySet<string> SupportedExtensions);
+    IReadOnlySet<string> SupportedExtensions,
+    bool RequiresMuseWave = false);
 
 public enum FileTranscriptionPreflightError
 {
@@ -50,15 +61,20 @@ public sealed record FileTranscriptionPreflightResult(
     FileAudioMetadata? Metadata,
     FileTranscriptionConstraints? Constraints,
     string? ResolvedModel,
+    bool RequiresNormalization,
     FileTranscriptionPreflightFailure? Failure)
 {
     public bool IsSuccess => Failure is null && Metadata is not null;
     public static FileTranscriptionPreflightResult Success(
         FileAudioMetadata metadata, FileTranscriptionConstraints constraints, string model) =>
-        new(metadata, constraints, model, null);
+        new(metadata, constraints, model, false, null);
+    public static FileTranscriptionPreflightResult Success(
+        FileAudioMetadata metadata, FileTranscriptionConstraints constraints, string model,
+        bool requiresNormalization) =>
+        new(metadata, constraints, model, requiresNormalization, null);
     public static FileTranscriptionPreflightResult Failed(
         FileTranscriptionPreflightError error, string code, string message) =>
-        new(null, null, null, new(error, code, message));
+        new(null, null, null, false, new(error, code, message));
 }
 
 public interface IFileAudioMetadataSource
@@ -136,14 +152,16 @@ public sealed class PortableFileTranscriptionPreflight
             if (metadata.LengthBytes <= 0) return Failure(
                 FileTranscriptionPreflightError.FileEmpty, "file_preflight.file_empty",
                 "The selected audio file is empty.");
-            if (resolved.Constraints.MaximumBytes is long bytes && metadata.LengthBytes > bytes) return Failure(
+            var requiresNormalization = resolved.Constraints.RequiresMuseWave
+                && !metadata.IsMuseCompatibleWave;
+            if (!requiresNormalization && resolved.Constraints.MaximumBytes is long bytes && metadata.LengthBytes > bytes) return Failure(
                 FileTranscriptionPreflightError.FileTooLarge, "file_preflight.file_too_large",
                 "The audio file exceeds the selected provider's upload limit.");
             if (metadata.Duration is { } duration &&
                 (duration <= TimeSpan.Zero || double.IsNaN(duration.TotalSeconds) || double.IsInfinity(duration.TotalSeconds)))
                 return Failure(FileTranscriptionPreflightError.DurationInvalid, "file_preflight.duration_invalid",
                     "The audio duration is invalid.");
-            if (resolved.Constraints.MaximumDuration is { } maximumDuration)
+            if (!requiresNormalization && resolved.Constraints.MaximumDuration is { } maximumDuration)
             {
                 if (metadata.Duration is null) return Failure(
                     FileTranscriptionPreflightError.DurationUnavailable, "file_preflight.duration_unavailable",
@@ -152,7 +170,8 @@ public sealed class PortableFileTranscriptionPreflight
                     FileTranscriptionPreflightError.DurationTooLong, "file_preflight.duration_too_long",
                     "The audio exceeds the selected provider's duration limit.");
             }
-            return FileTranscriptionPreflightResult.Success(metadata, resolved.Constraints, resolved.Model!);
+            return FileTranscriptionPreflightResult.Success(
+                metadata, resolved.Constraints, resolved.Model!, requiresNormalization);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -205,6 +224,21 @@ public sealed class PortableFileTranscriptionPreflight
             if (modelId.Length == 0)
                 return TargetFailure(FileTranscriptionPreflightError.ModelUnsupported,
                     "file_preflight.model_unsupported", "The selected transcription model is not supported by this provider.");
+            var tierLimits = SharedCoreBridge.CloudSttFileLimits(tier);
+            if (tierLimits is not null)
+            {
+                var supported = string.Equals(tier, "metaMuse", StringComparison.OrdinalIgnoreCase)
+                    ? PortableImportExtensions
+                    : new HashSet<string>(tierLimits.AcceptedFormats, StringComparer.OrdinalIgnoreCase);
+                descriptor = descriptor with
+                {
+                    Constraints = new FileTranscriptionConstraints(
+                        tierLimits.MaximumBytes,
+                        tierLimits.MaximumDuration,
+                        supported,
+                        RequiresMuseWave: string.Equals(tier, "metaMuse", StringComparison.OrdinalIgnoreCase))
+                };
+            }
         }
         else
         {
@@ -315,6 +349,10 @@ public sealed class StreamingFileAudioMetadataSource : IFileAudioMetadataSource
 
         uint? bytesPerSecond = null;
         uint? dataBytes = null;
+        ushort? waveEncoding = null;
+        ushort? channels = null;
+        uint? sampleRate = null;
+        ushort? bitsPerSample = null;
         var chunkHeader = new byte[8];
         for (var count = 0; count < MaximumChunks && stream.Position + 8 <= length; count++)
         {
@@ -327,6 +365,10 @@ public sealed class StreamingFileAudioMetadataSource : IFileAudioMetadataSource
                 var format = new byte[16];
                 if (!await TryReadExactlyAsync(stream, format, cancellationToken).ConfigureAwait(false)) break;
                 bytesPerSecond = BinaryPrimitives.ReadUInt32LittleEndian(format.AsSpan(8));
+                waveEncoding = BinaryPrimitives.ReadUInt16LittleEndian(format);
+                channels = BinaryPrimitives.ReadUInt16LittleEndian(format.AsSpan(2));
+                sampleRate = BinaryPrimitives.ReadUInt32LittleEndian(format.AsSpan(4));
+                bitsPerSample = BinaryPrimitives.ReadUInt16LittleEndian(format.AsSpan(14));
                 stream.Seek(size - 16, SeekOrigin.Current);
             }
             else if (chunkHeader.AsSpan(0, 4).SequenceEqual("data"u8))
@@ -340,7 +382,7 @@ public sealed class StreamingFileAudioMetadataSource : IFileAudioMetadataSource
         }
         TimeSpan? duration = bytesPerSecond is > 0 && dataBytes is { } data
             ? TimeSpan.FromSeconds((double)data / bytesPerSecond.Value) : null;
-        return new(length, duration);
+        return new(length, duration, waveEncoding, channels, sampleRate, bitsPerSample);
     }
 
     private static async ValueTask<bool> TryReadExactlyAsync(

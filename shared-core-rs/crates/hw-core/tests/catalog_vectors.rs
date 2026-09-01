@@ -75,6 +75,11 @@ struct EntryVector {
     word_timestamps: bool,
     diarization: bool,
     streaming: bool,
+    code_switching: bool,
+    endpointing: bool,
+    context_bias: bool,
+    language_bias: bool,
+    turn_timestamps: bool,
     /// `"yes"` / `"no"` / `"unverified"` / `null` when the block is absent —
     /// the tri-state the bool-or-string field decodes to.
     custom_vocabulary_supported: Option<String>,
@@ -150,6 +155,19 @@ struct ModelsEntryVector {
     /// fallback and the "uncatalogued ⇒ every language" rule too.
     supports_all_languages: bool,
     language_codes: Vec<String>,
+    voice_capabilities: Option<VoiceCapabilitiesVector>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(rename_all = "camelCase")]
+struct VoiceCapabilitiesVector {
+    code_switching: bool,
+    endpointing: bool,
+    context_bias: bool,
+    language_bias: bool,
+    turn_timestamps: bool,
+    diarization: bool,
+    word_timestamps: bool,
 }
 
 // ---------------------------------------------------------------------------
@@ -180,6 +198,11 @@ fn entry_vector(e: &SttEntry) -> EntryVector {
         word_timestamps: e.features.word_timestamps,
         diarization: e.features.diarization,
         streaming: e.features.streaming,
+        code_switching: e.features.code_switching,
+        endpointing: e.features.endpointing,
+        context_bias: e.features.context_bias,
+        language_bias: e.features.language_bias,
+        turn_timestamps: e.features.turn_timestamps,
         custom_vocabulary_supported: e
             .custom_vocabulary
             .as_ref()
@@ -272,6 +295,15 @@ fn build_document() -> Document {
                     available_via_hyper_whisper_cloud: e.available_via_hyper_whisper_cloud,
                     supports_all_languages: support.supports_all,
                     language_codes: support.codes,
+                    voice_capabilities: e.voice_capabilities.as_ref().map(|c| VoiceCapabilitiesVector {
+                        code_switching: c.code_switching,
+                        endpointing: c.endpointing,
+                        context_bias: c.context_bias,
+                        language_bias: c.language_bias,
+                        turn_timestamps: c.turn_timestamps,
+                        diarization: c.diarization,
+                        word_timestamps: c.word_timestamps,
+                    }),
                 }
             })
             .collect(),

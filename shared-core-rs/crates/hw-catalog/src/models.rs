@@ -24,6 +24,27 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::Deserialize;
 
+/// Optional capabilities for a voice model. Omitted fields and an omitted
+/// block both decode to false so older catalog rows remain conservative.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VoiceCapabilities {
+    #[serde(default)]
+    pub code_switching: bool,
+    #[serde(default)]
+    pub endpointing: bool,
+    #[serde(default)]
+    pub context_bias: bool,
+    #[serde(default)]
+    pub language_bias: bool,
+    #[serde(default)]
+    pub turn_timestamps: bool,
+    #[serde(default)]
+    pub diarization: bool,
+    #[serde(default)]
+    pub word_timestamps: bool,
+}
+
 /// Voice vs text. Disambiguates IDs that exist as both a transcription model
 /// and a post-processing LLM (the Gemini family is the canonical example).
 /// Lookups must pass the kind to avoid inheriting the wrong row's flags.
@@ -82,6 +103,9 @@ pub struct Entry {
     /// Google Chirp, Gemini, Grok).
     #[serde(default)]
     pub supports_all_languages: Option<bool>,
+    /// Structured voice-only capability metadata. Text and older rows omit it.
+    #[serde(default)]
+    pub voice_capabilities: Option<VoiceCapabilities>,
 }
 
 impl Entry {
@@ -455,5 +479,47 @@ mod tests {
         assert_eq!(c.all_entries().count(), 1);
         assert!(c.entry("keep", Kind::Voice, "m").is_some());
         assert!(c.entry("", Kind::Voice, "m").is_none());
+    }
+
+    #[test]
+    fn voice_capabilities_default_false_and_meta_retains_all_values() {
+        let old = ModelsCatalog::parse(r#"{
+            "schemaVersion":1,"models":[{"provider":"old","id":"m","kind":"voice",
+            "supportsCustomVocabulary":false,"availableViaHyperWhisperCloud":false,
+            "platforms":["macos"],"voiceCapabilities":{"diarization":true}}]
+        }"#).unwrap();
+        let old_caps = old.entry("old", Kind::Voice, "m").unwrap().voice_capabilities.unwrap();
+        assert!(old_caps.diarization);
+        assert!(!old_caps.code_switching);
+        assert!(!old_caps.word_timestamps);
+
+        let catalog = catalog();
+        let meta = catalog.entry("meta", Kind::Voice, "muse-voice-transcribe-1.0")
+            .expect("Meta Muse shared-model row");
+        let caps = meta.voice_capabilities.expect("Meta Muse voice capabilities");
+        assert!(caps.code_switching && caps.endpointing && caps.context_bias);
+        assert!(caps.language_bias && caps.turn_timestamps && caps.diarization);
+        assert!(!caps.word_timestamps);
+    }
+
+    #[test]
+    fn meta_voice_capabilities_match_cloud_stt_source_of_truth() {
+        let models = catalog();
+        let model = models
+            .entry("meta", Kind::Voice, "muse-voice-transcribe-1.0")
+            .expect("Meta Muse shared-model row");
+        let model_caps = model.voice_capabilities.expect("Meta Muse model capabilities");
+        let stt = crate::cloud_stt::CloudSttCatalog::embedded().unwrap();
+        let stt_caps = stt.entry("metaMuse").expect("Meta Muse STT row").features;
+
+        assert_eq!(model_caps.code_switching, stt_caps.code_switching);
+        assert_eq!(model_caps.endpointing, stt_caps.endpointing);
+        assert_eq!(model_caps.context_bias, stt_caps.context_bias);
+        assert_eq!(model_caps.language_bias, stt_caps.language_bias);
+        assert_eq!(model_caps.turn_timestamps, stt_caps.turn_timestamps);
+        assert_eq!(model_caps.diarization, stt_caps.diarization);
+        assert_eq!(model_caps.word_timestamps, stt_caps.word_timestamps);
+        assert_eq!(model.supports_custom_vocabulary,
+            stt.entry("metaMuse").unwrap().supports_custom_vocabulary());
     }
 }

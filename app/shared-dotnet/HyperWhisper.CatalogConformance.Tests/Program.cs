@@ -70,6 +70,11 @@ void CheckEntries()
         Equal(Bool(want, "wordTimestamps"), got.@features.@wordTimestamps, $"{id}.features.wordTimestamps");
         Equal(Bool(want, "diarization"), got.@features.@diarization, $"{id}.features.diarization");
         Equal(Bool(want, "streaming"), got.@features.@streaming, $"{id}.features.streaming");
+        Equal(Bool(want, "codeSwitching"), got.@features.@codeSwitching, $"{id}.features.codeSwitching");
+        Equal(Bool(want, "endpointing"), got.@features.@endpointing, $"{id}.features.endpointing");
+        Equal(Bool(want, "contextBias"), got.@features.@contextBias, $"{id}.features.contextBias");
+        Equal(Bool(want, "languageBias"), got.@features.@languageBias, $"{id}.features.languageBias");
+        Equal(Bool(want, "turnTimestamps"), got.@features.@turnTimestamps, $"{id}.features.turnTimestamps");
 
         // The tri-state the bool-or-string field decodes to.
         Equal(Str(want, "customVocabularySupported"), VocabName(got.@customVocabulary?.@supported),
@@ -221,6 +226,19 @@ void CheckModelsEntries()
             $"{label}.supportsCustomVocabulary");
         Equal(Bool(want, "availableViaHyperWhisperCloud"), got.@availableViaHyperWhisperCloud,
             $"{label}.availableViaHyperWhisperCloud");
+        var wantCaps = want.TryGetProperty("voiceCapabilities", out var capsElement)
+            && capsElement.ValueKind != JsonValueKind.Null ? capsElement : (JsonElement?)null;
+        Equal(wantCaps is null, got.@voiceCapabilities is null, $"{label}.voiceCapabilities presence");
+        if (wantCaps is { } wc && got.@voiceCapabilities is { } gc)
+        {
+            Equal(Bool(wc, "codeSwitching"), gc.@codeSwitching, $"{label}.voiceCapabilities.codeSwitching");
+            Equal(Bool(wc, "endpointing"), gc.@endpointing, $"{label}.voiceCapabilities.endpointing");
+            Equal(Bool(wc, "contextBias"), gc.@contextBias, $"{label}.voiceCapabilities.contextBias");
+            Equal(Bool(wc, "languageBias"), gc.@languageBias, $"{label}.voiceCapabilities.languageBias");
+            Equal(Bool(wc, "turnTimestamps"), gc.@turnTimestamps, $"{label}.voiceCapabilities.turnTimestamps");
+            Equal(Bool(wc, "diarization"), gc.@diarization, $"{label}.voiceCapabilities.diarization");
+            Equal(Bool(wc, "wordTimestamps"), gc.@wordTimestamps, $"{label}.voiceCapabilities.wordTimestamps");
+        }
 
         // Resolved support, not the raw column: this pins the wildcard fallback
         // and the "uncatalogued ⇒ every language" rule as well.

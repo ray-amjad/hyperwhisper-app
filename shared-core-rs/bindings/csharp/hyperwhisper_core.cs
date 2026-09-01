@@ -7949,7 +7949,8 @@ internal record ModelsEntry (
     /// </summary>
     List<string> @supportedLanguages, 
     bool? @isEnglishOnly, 
-    bool? @supportsAllLanguages
+    bool? @supportsAllLanguages,
+    ModelsVoiceCapabilities? @voiceCapabilities
 ) {
 }
 
@@ -7968,7 +7969,8 @@ class FfiConverterTypeModelsEntry: FfiConverterRustBuffer<ModelsEntry> {
             @notes: FfiConverterOptionalString.INSTANCE.Read(stream),
             @supportedLanguages: FfiConverterSequenceString.INSTANCE.Read(stream),
             @isEnglishOnly: FfiConverterOptionalBoolean.INSTANCE.Read(stream),
-            @supportsAllLanguages: FfiConverterOptionalBoolean.INSTANCE.Read(stream)
+            @supportsAllLanguages: FfiConverterOptionalBoolean.INSTANCE.Read(stream),
+            @voiceCapabilities: FfiConverterOptionalTypeModelsVoiceCapabilities.INSTANCE.Read(stream)
         );
     }
 
@@ -7984,7 +7986,8 @@ class FfiConverterTypeModelsEntry: FfiConverterRustBuffer<ModelsEntry> {
             + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@notes)
             + FfiConverterSequenceString.INSTANCE.AllocationSize(value.@supportedLanguages)
             + FfiConverterOptionalBoolean.INSTANCE.AllocationSize(value.@isEnglishOnly)
-            + FfiConverterOptionalBoolean.INSTANCE.AllocationSize(value.@supportsAllLanguages);
+            + FfiConverterOptionalBoolean.INSTANCE.AllocationSize(value.@supportsAllLanguages)
+            + FfiConverterOptionalTypeModelsVoiceCapabilities.INSTANCE.AllocationSize(value.@voiceCapabilities);
     }
 
     public override void Write(ModelsEntry value, BigEndianStream stream) {
@@ -7999,6 +8002,60 @@ class FfiConverterTypeModelsEntry: FfiConverterRustBuffer<ModelsEntry> {
             FfiConverterSequenceString.INSTANCE.Write(value.@supportedLanguages, stream);
             FfiConverterOptionalBoolean.INSTANCE.Write(value.@isEnglishOnly, stream);
             FfiConverterOptionalBoolean.INSTANCE.Write(value.@supportsAllLanguages, stream);
+            FfiConverterOptionalTypeModelsVoiceCapabilities.INSTANCE.Write(value.@voiceCapabilities, stream);
+    }
+}
+
+
+
+/// <summary>
+/// Structured voice-model capabilities from `models-catalog.json`.
+/// </summary>
+internal record ModelsVoiceCapabilities (
+    bool @codeSwitching,
+    bool @endpointing,
+    bool @contextBias,
+    bool @languageBias,
+    bool @turnTimestamps,
+    bool @diarization,
+    bool @wordTimestamps
+) {
+}
+
+class FfiConverterTypeModelsVoiceCapabilities: FfiConverterRustBuffer<ModelsVoiceCapabilities> {
+    public static FfiConverterTypeModelsVoiceCapabilities INSTANCE = new FfiConverterTypeModelsVoiceCapabilities();
+
+    public override ModelsVoiceCapabilities Read(BigEndianStream stream) {
+        return new ModelsVoiceCapabilities(
+            @codeSwitching: FfiConverterBoolean.INSTANCE.Read(stream),
+            @endpointing: FfiConverterBoolean.INSTANCE.Read(stream),
+            @contextBias: FfiConverterBoolean.INSTANCE.Read(stream),
+            @languageBias: FfiConverterBoolean.INSTANCE.Read(stream),
+            @turnTimestamps: FfiConverterBoolean.INSTANCE.Read(stream),
+            @diarization: FfiConverterBoolean.INSTANCE.Read(stream),
+            @wordTimestamps: FfiConverterBoolean.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(ModelsVoiceCapabilities value) {
+        return 0
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@codeSwitching)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@endpointing)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@contextBias)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@languageBias)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@turnTimestamps)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@diarization)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@wordTimestamps);
+    }
+
+    public override void Write(ModelsVoiceCapabilities value, BigEndianStream stream) {
+            FfiConverterBoolean.INSTANCE.Write(value.@codeSwitching, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@endpointing, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@contextBias, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@languageBias, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@turnTimestamps, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@diarization, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@wordTimestamps, stream);
     }
 }
 
@@ -8528,7 +8585,12 @@ class FfiConverterTypeSttEntry: FfiConverterRustBuffer<SttEntry> {
 internal record SttFeatures (
     bool @wordTimestamps, 
     bool @diarization, 
-    bool @streaming
+    bool @streaming,
+    bool @codeSwitching,
+    bool @endpointing,
+    bool @contextBias,
+    bool @languageBias,
+    bool @turnTimestamps
 ) {
 }
 
@@ -8539,7 +8601,12 @@ class FfiConverterTypeSttFeatures: FfiConverterRustBuffer<SttFeatures> {
         return new SttFeatures(
             @wordTimestamps: FfiConverterBoolean.INSTANCE.Read(stream),
             @diarization: FfiConverterBoolean.INSTANCE.Read(stream),
-            @streaming: FfiConverterBoolean.INSTANCE.Read(stream)
+            @streaming: FfiConverterBoolean.INSTANCE.Read(stream),
+            @codeSwitching: FfiConverterBoolean.INSTANCE.Read(stream),
+            @endpointing: FfiConverterBoolean.INSTANCE.Read(stream),
+            @contextBias: FfiConverterBoolean.INSTANCE.Read(stream),
+            @languageBias: FfiConverterBoolean.INSTANCE.Read(stream),
+            @turnTimestamps: FfiConverterBoolean.INSTANCE.Read(stream)
         );
     }
 
@@ -8547,13 +8614,23 @@ class FfiConverterTypeSttFeatures: FfiConverterRustBuffer<SttFeatures> {
         return 0
             + FfiConverterBoolean.INSTANCE.AllocationSize(value.@wordTimestamps)
             + FfiConverterBoolean.INSTANCE.AllocationSize(value.@diarization)
-            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@streaming);
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@streaming)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@codeSwitching)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@endpointing)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@contextBias)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@languageBias)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@turnTimestamps);
     }
 
     public override void Write(SttFeatures value, BigEndianStream stream) {
             FfiConverterBoolean.INSTANCE.Write(value.@wordTimestamps, stream);
             FfiConverterBoolean.INSTANCE.Write(value.@diarization, stream);
             FfiConverterBoolean.INSTANCE.Write(value.@streaming, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@codeSwitching, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@endpointing, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@contextBias, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@languageBias, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@turnTimestamps, stream);
     }
 }
 
@@ -12382,6 +12459,37 @@ class FfiConverterOptionalTypeModelsEntry: FfiConverterRustBuffer<ModelsEntry?> 
         } else {
             stream.WriteByte(1);
             FfiConverterTypeModelsEntry.INSTANCE.Write((ModelsEntry)value, stream);
+        }
+    }
+}
+
+
+
+
+class FfiConverterOptionalTypeModelsVoiceCapabilities: FfiConverterRustBuffer<ModelsVoiceCapabilities?> {
+    public static FfiConverterOptionalTypeModelsVoiceCapabilities INSTANCE = new FfiConverterOptionalTypeModelsVoiceCapabilities();
+
+    public override ModelsVoiceCapabilities? Read(BigEndianStream stream) {
+        if (stream.ReadByte() == 0) {
+            return null;
+        }
+        return FfiConverterTypeModelsVoiceCapabilities.INSTANCE.Read(stream);
+    }
+
+    public override int AllocationSize(ModelsVoiceCapabilities? value) {
+        if (value == null) {
+            return 1;
+        } else {
+            return 1 + FfiConverterTypeModelsVoiceCapabilities.INSTANCE.AllocationSize((ModelsVoiceCapabilities)value);
+        }
+    }
+
+    public override void Write(ModelsVoiceCapabilities? value, BigEndianStream stream) {
+        if (value == null) {
+            stream.WriteByte(0);
+        } else {
+            stream.WriteByte(1);
+            FfiConverterTypeModelsVoiceCapabilities.INSTANCE.Write((ModelsVoiceCapabilities)value, stream);
         }
     }
 }

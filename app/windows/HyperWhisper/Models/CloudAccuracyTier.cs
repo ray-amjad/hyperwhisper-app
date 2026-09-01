@@ -49,7 +49,10 @@ public enum CloudAccuracyTier
     AssemblyAI,
 
     /// <summary>Soniox async</summary>
-    Soniox
+    Soniox,
+
+    /// <summary>Meta Muse Voice Transcribe 1.0 — High tier (HW Cloud only)</summary>
+    MetaMuse
 }
 
 /// <summary>
@@ -83,6 +86,7 @@ public static class CloudAccuracyTierExtensions
             CloudAccuracyTier.MistralVoxtral => "mistral",
             CloudAccuracyTier.AssemblyAI => "assemblyai",
             CloudAccuracyTier.Soniox => "soniox",
+            CloudAccuracyTier.MetaMuse => "meta",
             _ => "deepgram"
         };
     }
@@ -104,6 +108,7 @@ public static class CloudAccuracyTierExtensions
         CloudAccuracyTier.MistralVoxtral => "mistralVoxtral",
         CloudAccuracyTier.AssemblyAI => "assemblyAI",
         CloudAccuracyTier.Soniox => "soniox",
+        CloudAccuracyTier.MetaMuse => "metaMuse",
         _ => "deepgramNova3"
     };
 

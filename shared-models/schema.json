@@ -50,6 +50,7 @@
             "cerebras",
             "microsoftAzureSpeech",
             "googleSpeech",
+            "meta",
             "appleSpeech",
             "localWhisper",
             "parakeet",
@@ -96,10 +97,27 @@
           "type": "boolean",
           "description": "True when this voice model is not language-limited for filtering — it passes every language filter. Set for models whose set covers all base languages (Whisper-family, Google Chirp) or that auto-detect with no closed list (Gemini, Grok). When true, `supportedLanguages` is omitted. This is a filtering convenience, NOT a user-facing guarantee of universal quality."
         },
+        "voiceCapabilities": {
+          "$ref": "#/$defs/voiceCapabilities",
+          "description": "Optional structured capabilities for a voice model. Omitted fields are false. Do not set this block on text models."
+        },
         "notes": {
           "type": "string",
           "description": "Optional free-form note (deprecation, alias, etc). Not consumed by code."
         }
+      }
+    },
+    "voiceCapabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "codeSwitching": { "type": "boolean", "default": false },
+        "endpointing": { "type": "boolean", "default": false },
+        "contextBias": { "type": "boolean", "default": false },
+        "languageBias": { "type": "boolean", "default": false },
+        "turnTimestamps": { "type": "boolean", "default": false },
+        "diarization": { "type": "boolean", "default": false },
+        "wordTimestamps": { "type": "boolean", "default": false }
       }
     }
   }
