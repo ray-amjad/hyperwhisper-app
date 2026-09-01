@@ -127,7 +127,13 @@ extension TranscriptionPipeline {
 
             // Select provider using the coordinator (local/cloud routing + health checks).
             markStage("select_provider")
-            let provider = try await providerCoordinator.selectProvider(for: mode, vocabulary: vocabulary)
+            let selection = try await providerCoordinator.selectProvider(for: mode, vocabulary: vocabulary)
+            let provider = selection.provider
+            // Health feedback (issue #379): the cloud identity comes out of the
+            // router's own resolution — never re-derived from the Mode here,
+            // because `CloudProvider.parse(...) ?? .hyperwhisper` is a billing
+            // decision with exactly one implementation. nil for local engines.
+            let cloudProviderType = selection.cloudProviderType
 
             capturedProviderName = provider.name
             capturedModelString = mode?.model ?? "base"
@@ -185,12 +191,36 @@ extension TranscriptionPipeline {
             }
 
             markStage("transcribe")
-            let text = try await provider.transcribe(
-                audioURL: audioURL,
-                language: languageArg,
-                mode: mode,
-                vocabulary: vocabulary
-            )
+            // HEALTH FEEDBACK (issue #379): report the real outcome of THIS call —
+            // and only this call — back to the health manager. The do/catch is
+            // deliberately wrapped around `transcribe(...)` alone rather than
+            // reusing the outer catch further down, which also sees
+            // post-processing, vocabulary and cache failures that say nothing
+            // about whether the cloud provider is up.
+            //
+            // `TranscriptionPipeline` is `@MainActor`, so this unstructured `Task`
+            // inherits main-actor isolation and the call below is a plain
+            // synchronous call — no hop that could be reordered after the next
+            // health probe.
+            let text: String
+            do {
+                text = try await provider.transcribe(
+                    audioURL: audioURL,
+                    language: languageArg,
+                    mode: mode,
+                    vocabulary: vocabulary
+                )
+                if let cloudProviderType {
+                    self.providerCoordinator.providerHealthManager?
+                        .recordTranscriptionOutcome(for: cloudProviderType, error: nil)
+                }
+            } catch {
+                if let cloudProviderType {
+                    self.providerCoordinator.providerHealthManager?
+                        .recordTranscriptionOutcome(for: cloudProviderType, error: error)
+                }
+                throw error
+            }
 
             // Read timestamps produced by the run (nil unless the engine produced
             // them). Same ordering guarantee as `detectedLanguage` below.

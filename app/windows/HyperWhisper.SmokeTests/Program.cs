@@ -5594,6 +5594,168 @@ internal static class Program
                     $"the 401 envelope changed shape: {unauthorized.json}");
             });
 
+            // =================================================================
+            // Issue #379 — real transcription outcomes feed the health cache.
+            //
+            // The reported defect: with a valid Cloud key, POST /transcribe
+            // {"engine":"googlespeech"} failed, and /health kept reporting that
+            // provider "status":"healthy","reachable":true throughout. The probe
+            // is not lying by accident — it hits the vendor's model-list endpoint
+            // (and for the HW-Cloud-routed providers it short-circuits with no
+            // network call at all), so it is genuinely green while transcription
+            // is failing. Only the real outcome can correct it.
+            //
+            // These mirror the macOS cases (a)-(e) in
+            // app/macos/hyperwhisperTests/CloudProviderHealthCacheTTLTests.swift.
+            // The clock is injected exactly as macOS injects `now: () -> Date`,
+            // so the 60 s window is crossed without a wall-clock wait.
+            // =================================================================
+
+            const CloudTranscriptionProvider healthProvider = CloudTranscriptionProvider.GoogleSpeech;
+
+            static TranscriptionException ProviderDown() => new(
+                TranscriptionErrorCode.ProviderUnavailable, "Google Chirp 3 unavailable", "Google Chirp 3", 503);
+
+            Run("issue #379 (a): a recorded provider-down failure outranks a healthy probe", () =>
+            {
+                var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                using var health = new CloudProviderHealthService(() => now);
+
+                // The state the issue reported: the probe says Healthy.
+                health.SetCachedTranscriptionStatusForTests(healthProvider, ProviderHealth.Healthy);
+                Assert(health.GetStatus(healthProvider) == ProviderHealth.Healthy, "probe should start Healthy");
+
+                health.RecordTranscriptionOutcome(healthProvider, ProviderDown());
+
+                Assert(health.GetStatus(healthProvider) == ProviderHealth.Unreachable,
+                    $"status {health.GetStatus(healthProvider)}");
+
+                // Even if the probe republishes Healthy underneath, the override wins.
+                health.SetCachedTranscriptionStatusForTests(healthProvider, ProviderHealth.Healthy);
+                Assert(health.GetStatus(healthProvider) == ProviderHealth.Unreachable,
+                    "a fresh healthy probe must not beat a real failure inside the window");
+
+                // /health derives `reachable` from exactly this value
+                // (HealthEndpoints.BuildTranscriptionProviders), so this is the
+                // reported symptom, asserted at its source.
+                Assert(health.GetStatus(healthProvider) != ProviderHealth.Healthy,
+                    "/health would still report reachable:true");
+            });
+
+            Run("issue #379 (b): the failure override expires after its 60s TTL", () =>
+            {
+                var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                using var health = new CloudProviderHealthService(() => now);
+
+                health.SetCachedTranscriptionStatusForTests(healthProvider, ProviderHealth.Healthy);
+                health.RecordTranscriptionOutcome(healthProvider, ProviderDown());
+
+                // AddMilliseconds, not AddSeconds(59.9): DateTime.AddSeconds rounds
+                // a fractional double to ticks, so 59.9 + 0.1 lands at 59.9999999s
+                // and never reaches the boundary. Verified, not assumed.
+                now = now.AddMilliseconds(59_900);
+
+                // Re-stamp the probe at 59.9s. This is what separates the two 60s
+                // windows: unlike macOS, whose `statuses` dictionary never expires,
+                // GetStatus reads the TTL'd cache, so a probe left at t=0 would go
+                // stale in the same instant the override does and the assertion
+                // below would be reading cache expiry rather than override expiry.
+                health.SetCachedTranscriptionStatusForTests(healthProvider, ProviderHealth.Healthy);
+                Assert(health.GetStatus(healthProvider) == ProviderHealth.Unreachable,
+                    "still inside the window at 59.9s");
+
+                // The gate is `>= TTL` -> expired, so exactly 60 s is already out.
+                now = now.AddMilliseconds(100);
+                Assert(health.GetStatus(healthProvider) == ProviderHealth.Healthy,
+                    $"status after expiry {health.GetStatus(healthProvider)}");
+            });
+
+            Run("issue #379 (c): a recorded success clears the override immediately", () =>
+            {
+                var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                using var health = new CloudProviderHealthService(() => now);
+
+                health.SetCachedTranscriptionStatusForTests(healthProvider, ProviderHealth.Healthy);
+                health.RecordTranscriptionOutcome(healthProvider, ProviderDown());
+                Assert(health.GetStatus(healthProvider) == ProviderHealth.Unreachable, "precondition");
+
+                // No clock movement at all - the success alone must clear it. A real
+                // transcription is stronger evidence than any probe, so a provider
+                // that recovered must not stay Unreachable for the remaining ~59s.
+                health.RecordTranscriptionOutcome(healthProvider, null);
+
+                Assert(health.GetStatus(healthProvider) == ProviderHealth.Healthy,
+                    $"status {health.GetStatus(healthProvider)}");
+            });
+
+            Run("issue #379 (d): only a definitive provider-down verdict sets the override", () =>
+            {
+                var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                using var health = new CloudProviderHealthService(() => now);
+
+                // Marking a provider unreachable because the user's Wi-Fi dropped,
+                // their card expired, or they recorded silence would be a worse bug
+                // than the stale verdict the override exists to fix.
+                var harmless = new Exception[]
+                {
+                    new TranscriptionException(TranscriptionErrorCode.Unauthorized, "bad key", "Google Chirp 3", 401),
+                    new TranscriptionException(TranscriptionErrorCode.QuotaExceeded, "quota", "Google Chirp 3", 429),
+                    new TranscriptionException(TranscriptionErrorCode.RateLimited, "slow down", "Google Chirp 3", 429),
+                    new TranscriptionException(TranscriptionErrorCode.NetworkError, "offline", "Google Chirp 3"),
+                    new TranscriptionException(TranscriptionErrorCode.NoSpeechDetected, "silence", "Google Chirp 3"),
+                    new TranscriptionException(TranscriptionErrorCode.InvalidRequest, "bad body", "Google Chirp 3", 400),
+                    new TranscriptionException(TranscriptionErrorCode.FileTooLarge, "too big", "Google Chirp 3", 413),
+                    new TranscriptionException(TranscriptionErrorCode.Cancelled, "cancelled", "Google Chirp 3"),
+                    new OperationCanceledException("cancelled"),
+                    new HttpRequestException("connection refused")
+                };
+
+                foreach (var error in harmless)
+                {
+                    health.SetCachedTranscriptionStatusForTests(healthProvider, ProviderHealth.Healthy);
+                    health.RecordTranscriptionOutcome(healthProvider, error);
+                    Assert(health.GetStatus(healthProvider) == ProviderHealth.Healthy,
+                        $"{error.GetType().Name} must not mark the provider unreachable");
+                    Assert(!CloudProviderHealthService.IsDefinitiveProviderDownVerdict(error),
+                        $"{error.GetType().Name} classified as provider-down");
+                }
+
+                Assert(CloudProviderHealthService.IsDefinitiveProviderDownVerdict(ProviderDown()),
+                    "a 5xx ProviderUnavailable IS a provider-down verdict");
+            });
+
+            Run("issue #379 (e): the override never leaks into the forced-refresh verdict", () =>
+            {
+                // THE NO-WEDGE GUARANTEE. On macOS this is load-bearing:
+                // ProviderHealth.unreachable.shouldBlockTranscription is true and
+                // TranscriptionProviderRouter throws on a non-healthy ensureHealthy
+                // verdict, so an override that leaked into the return value would
+                // lock the user out of the provider for 60s after one blip.
+                //
+                // Windows has no equivalent pre-flight gate (nothing calls GetStatus
+                // before transcribing), so there is nothing to wedge here. What is
+                // mirrored is the invariant that produces the guarantee: the
+                // override lives at the READ seam (GetStatus) only, and the
+                // "give me a fresh verdict" path still returns the RAW probe result.
+                var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                using var health = new CloudProviderHealthService(() => now);
+
+                health.SetCachedTranscriptionStatusForTests(healthProvider, ProviderHealth.Healthy);
+                health.RecordTranscriptionOutcome(healthProvider, ProviderDown());
+                Assert(health.GetStatus(healthProvider) == ProviderHealth.Unreachable, "precondition");
+
+                // GoogleSpeech is keyless, so RefreshAsync short-circuits to Unknown
+                // without any network I/O. The value that matters is that it is the
+                // probe's own verdict and NOT the override's Unreachable.
+                var refreshed = health.RefreshAsync(healthProvider, force: true).GetAwaiter().GetResult();
+                Assert(refreshed != ProviderHealth.Unreachable,
+                    $"forced refresh returned the override, not the probe: {refreshed}");
+
+                // …and reporting is unchanged by that refresh.
+                Assert(health.GetStatus(healthProvider) == ProviderHealth.Unreachable,
+                    "the override must survive a probe inside its window");
+            });
+
             Console.WriteLine(_failures == 0
                 ? "All smoke tests passed."
                 : $"{_failures} smoke test(s) FAILED.");
