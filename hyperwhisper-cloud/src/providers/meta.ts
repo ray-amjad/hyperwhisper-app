@@ -3,12 +3,12 @@
 
 import { META_MUSE_MAX_BYTES } from '../lib/constants';
 import { computeMetaMuseTranscriptionCost } from '../lib/cost-calculator';
+import { resolveProviderLanguage } from '../lib/language-codes';
 import { AudioTooLargeError, ProviderInputError, ProviderUnavailableError, UnsupportedAudioFormatError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
   computeUploadTimeoutMs,
   fetchWithTimeout,
-  isExplicitLanguage,
   logProviderEvent,
   providerHttpError,
   splitVocabularyTerms,
@@ -18,35 +18,6 @@ const META_TRANSCRIBE_URL = 'https://api.meta.ai/v1/asr/transcribe';
 const META_MODEL = 'muse-voice-transcribe-1.0';
 const META_MAX_DURATION_SECONDS = 10 * 60;
 const META_ACCEPTED_FORMATS = ['wav'] as const;
-
-const LANGUAGE_NAME_BY_CODE: Readonly<Record<string, string>> = {
-  ar: 'Arabic',
-  bn: 'Bengali',
-  nl: 'Dutch',
-  en: 'English',
-  fr: 'French',
-  de: 'German',
-  he: 'Hebrew',
-  hi: 'Hindi',
-  id: 'Indonesian',
-  it: 'Italian',
-  ja: 'Japanese',
-  kn: 'Kannada',
-  ko: 'Korean',
-  ms: 'Malay',
-  zh: 'Mandarin Chinese',
-  mr: 'Marathi',
-  pl: 'Polish',
-  pt: 'Portuguese',
-  es: 'Spanish',
-  fil: 'Tagalog',
-  tl: 'Tagalog',
-  ta: 'Tamil',
-  te: 'Telugu',
-  th: 'Thai',
-  tr: 'Turkish',
-  vi: 'Vietnamese',
-};
 
 interface ParsedWav {
   durationSeconds: number;
@@ -146,13 +117,6 @@ export function parseMetaWav(audio: ArrayBuffer, contentType: string): ParsedWav
   };
 }
 
-function languageBias(language: string | undefined): string[] | undefined {
-  if (!isExplicitLanguage(language)) return undefined;
-  const code = language.trim().toLowerCase().split(/[-_]/)[0] ?? '';
-  const name = LANGUAGE_NAME_BY_CODE[code];
-  return name ? [name] : undefined;
-}
-
 export async function transcribeWithMeta(
   audio: ArrayBuffer,
   contentType: string,
@@ -174,7 +138,13 @@ export async function transcribeWithMeta(
   const keywords = initialPrompt
     ? splitVocabularyTerms(initialPrompt, { maxTerms: 100, maxTermChars: 80 })
     : [];
-  const bias = languageBias(language);
+  const resolvedLanguage = resolveProviderLanguage({
+    provider,
+    model,
+    language,
+    context,
+  });
+  const bias = resolvedLanguage ? [resolvedLanguage] : undefined;
   const request: Record<string, unknown> = {
     model,
     audioEncoding: 'WAV',
