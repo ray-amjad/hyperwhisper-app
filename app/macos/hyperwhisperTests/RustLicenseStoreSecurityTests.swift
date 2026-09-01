@@ -575,23 +575,33 @@ struct BackupLicenseStorageTests {
         #expect(service.expectedKeys == ["stored-key"])
     }
 
+    /// Runs the two halves `BackupManager.importLicenseKeySecurely` runs —
+    /// `replaceStoredLicenseKeyFromBackup` then `validateImportedLicenseKey` —
+    /// but through Tasks this test owns, so each verdict can be awaited to
+    /// completion with `.value`.
+    ///
+    /// `BackupManager` starts the validation in a detached Task that nothing
+    /// can await. Resuming the spy's continuation and then yielding once does
+    /// NOT guarantee the manager has published, and that raced in CI.
+    /// `importRequestsRevalidationOnlyAfterSecureReplacement` above still
+    /// covers that `BackupManager` schedules the call at all.
     @Test func lateImportedValidationCannotOverrideNewerImportState() async {
         let service = ControlledBackupLicenseNetworkSpy()
         let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false, notificationCenter: NotificationCenter())
-        let backup = BackupManager()
-        backup.licenseManager = manager
 
-        #expect(backup.importLicenseKeySecurely("older-key"))
+        #expect(manager.replaceStoredLicenseKeyFromBackup("older-key"))
+        let olderValidation = Task { await manager.validateImportedLicenseKey("older-key") }
         await service.waitForValidationCount(1)
-        #expect(backup.importLicenseKeySecurely("newer-key"))
+        #expect(manager.replaceStoredLicenseKeyFromBackup("newer-key"))
+        let newerValidation = Task { await manager.validateImportedLicenseKey("newer-key") }
         await service.waitForValidationCount(2)
 
         service.completeValidation(for: "newer-key", status: .active)
-        await Task.yield()
+        await newerValidation.value
         #expect(manager.licenseStatus == .active)
 
         service.completeValidation(for: "older-key", status: .invalid)
-        await Task.yield()
+        await olderValidation.value
         #expect(manager.licenseStatus == .active)
         #expect(service.expectedKeys == ["older-key", "newer-key"])
     }
@@ -599,14 +609,13 @@ struct BackupLicenseStorageTests {
     @Test func lateImportedValidationCannotOverrideDeactivation() async {
         let service = ControlledBackupLicenseNetworkSpy()
         let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false, notificationCenter: NotificationCenter())
-        let backup = BackupManager()
-        backup.licenseManager = manager
 
-        #expect(backup.importLicenseKeySecurely("imported-key"))
+        #expect(manager.replaceStoredLicenseKeyFromBackup("imported-key"))
+        let importedValidation = Task { await manager.validateImportedLicenseKey("imported-key") }
         await service.waitForValidationCount(1)
         #expect(await manager.deactivateLicense())
         service.completeValidation(for: "imported-key", status: .active)
-        await Task.yield()
+        await importedValidation.value
 
         #expect(manager.licenseStatus == .trial)
         #expect(service.getStoredLicenseKey() == nil)
@@ -794,8 +803,11 @@ private final class ControlledBackupLicenseNetworkSpy: LicenseNetworkServing {
         }
     }
 
+    /// Yields until `count` validations are in flight. The bound only stops a
+    /// wedged test from hanging the whole run; 1 or 2 yields is the real cost,
+    /// because the validation Task runs on the same MainActor executor.
     func waitForValidationCount(_ count: Int) async {
-        for _ in 0..<20 where pending.count < count {
+        for _ in 0..<100 where pending.count < count {
             await Task.yield()
         }
     }
