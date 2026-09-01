@@ -859,7 +859,13 @@ export async function transcribeRoute(c: Context) {
   // `request_done`'s `finalProvider`. The fallback note goes for the same reason:
   // nothing fell back FROM anything when no transcript was produced. Which
   // providers were tried, and why each declined, is still on `attemptFailures`.
-  const reportedModel = noSpeech ? model : usedModel;
+  //
+  // Scoped to `fallbackFrom` — i.e. only when a SIBLING reported the no_speech —
+  // so the 8 self-only providers keep `usedModel` untouched. That is the field an
+  // adapter uses to report a model it silently substituted (AssemblyAI's
+  // universal-3-5-pro → universal-2), and overwriting it where no substitution of
+  // providers happened would mislabel a self-only outcome to fix a fallback one.
+  const reportedModel = noSpeech && fallbackFrom ? model : usedModel;
   const actualProvider = formatProviderName(resultProvider, reportedModel);
   const providerName = fallbackFrom && !noSpeech
     ? `${actualProvider} (fallback from ${formatProviderName(fallbackFrom, model)})`
