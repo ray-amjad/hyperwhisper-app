@@ -9,6 +9,8 @@
   This file contains all user-facing text that needs to be translated.
 */
 
+"transcription.error.forbidden.hyperWhisperCloud" = "HyperWhisper Cloud hylkäsi tämän pyynnön. Verkkosi on estetty väliaikaisesti.\n\nOdota muutama minuutti ja yritä uudelleen.";
+
 // MARK: - Application Navigation
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
@@ -926,6 +928,7 @@ Päivitä nämä tilat käyttämään eri mallia ennen poistamista.";
 "transcription.error.maxRetriesExceeded" = "Uudelleenyritysten enimmäismäärä ylitetty";
 "transcription.error.unauthorized.provider" = "Ei valtuutusta: virheellinen %@ API-avain tai käyttöoikeudet.\n\nAvaa Asetukset → API-avaimet vahvistaaksesi tunnistetietosi.";
 "transcription.error.unauthorized.generic" = "Ei valtuutusta: virheellinen API-avain tai käyttöoikeudet.\n\nAvaa Asetukset → API-avaimet vahvistaaksesi tunnistetietosi.";
+"transcription.error.unauthorized.hyperWhisperCloud" = "HyperWhisper Cloudin käyttöavain on virheellinen tai vanhentunut.\n\nPäivitä avaimesi kohdassa Asetukset → HyperWhisper Cloud.";
 "transcription.error.cloudAccountRequired" = "HyperWhisper Cloud vaatii tiliavaimen.\n\nAvaa Asetukset → HyperWhisper Cloud syöttääksesi avaimesi tai hankkiaksesi krediittejä.";
 "transcription.error.invalidRequest" = "Virheellinen pyyntö: tarkista äänitiedosto tai asetukset";
 "transcription.error.streamingInterrupted" = "Suoratoisto keskeytetty; osittainen teksti näytetään";

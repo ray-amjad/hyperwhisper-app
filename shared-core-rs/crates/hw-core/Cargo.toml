@@ -37,6 +37,9 @@ hw-stats = { path = "../hw-stats" }
 # JSON-string boundary marshalling for the backup surface (the record types are
 # serde_json::Value trees that can't cross UniFFI, so hw-core (de)serializes them).
 serde_json = { workspace = true }
+unicode-general-category = "1"
+unicode-normalization = "0.1"
+unicode-segmentation = "1"
 
 [features]
 # Pulls clap etc. into the bindgen binary only; kept out of the shipped lib.

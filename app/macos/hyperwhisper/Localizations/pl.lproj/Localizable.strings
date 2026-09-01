@@ -9,6 +9,8 @@
   This file contains all user-facing text that needs to be translated.
 */
 
+"transcription.error.forbidden.hyperWhisperCloud" = "HyperWhisper Cloud odrzucił to żądanie. Twoja sieć jest tymczasowo zablokowana.\n\nPoczekaj kilka minut i spróbuj ponownie.";
+
 // MARK: - Application Navigation
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
@@ -926,6 +928,7 @@ Przed usunięciem zaktualizuj te tryby, aby korzystały z innego modelu.";
 "transcription.error.maxRetriesExceeded" = "Maksymalna liczba prób powtórzenia przekroczona";
 "transcription.error.unauthorized.provider" = "Nieautoryzowany: nieprawidłowy klucz API %@ lub uprawnienia.\n\nOtwórz Ustawienia → Klucze API, aby sprawdzić poświadczenia.";
 "transcription.error.unauthorized.generic" = "Nieautoryzowany: nieprawidłowy klucz API lub uprawnienia.\n\nOtwórz Ustawienia → Klucze API, aby sprawdzić poświadczenia.";
+"transcription.error.unauthorized.hyperWhisperCloud" = "Klucz dostępu do HyperWhisper Cloud jest nieprawidłowy lub wygasł.\n\nOtwórz Ustawienia → HyperWhisper Cloud, aby zaktualizować klucz.";
 "transcription.error.cloudAccountRequired" = "HyperWhisper Cloud wymaga klucza konta.\n\nOtwórz Ustawienia → HyperWhisper Cloud, aby wprowadzić klucz lub kupić kredyty.";
 "transcription.error.invalidRequest" = "Nieprawidłowe żądanie: sprawdź plik audio lub ustawienia";
 "transcription.error.streamingInterrupted" = "Transmisja przerwana; pokazany tekst częściowy";

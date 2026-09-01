@@ -301,6 +301,10 @@ struct BackupSettingsSection: View {
                 result.modesImported,
                 result.vocabularyImported
             )
+        } else if result.partialSuccess {
+            resultIsSuccess = false
+            pendingLocalDownloadIds = result.pendingLocalDownloadModelIds
+            resultMessage = result.errorMessage ?? NSLocalizedString("settings.backup.import.error.unknown", value: "Import failed", comment: "")
         } else {
             resultIsSuccess = false
             resultMessage = result.errorMessage ?? NSLocalizedString("settings.backup.import.error.unknown", value: "Import failed", comment: "")

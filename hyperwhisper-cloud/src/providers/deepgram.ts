@@ -5,7 +5,7 @@ import { computeDeepgramTranscriptionCost } from '../lib/cost-calculator';
 import { ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import { resolveProviderLanguage } from '../lib/language-codes';
-import { fetchWithTimeout, logProviderEvent, providerHttpError, splitVocabularyTerms } from './utils';
+import { emptyTranscriptOutcome, fetchWithTimeout, logProviderEvent, providerHttpError, splitVocabularyTerms } from './utils';
 
 // Maximum keywords Deepgram accepts
 const MAX_KEYWORDS = 100;
@@ -166,18 +166,30 @@ export async function transcribeWithDeepgram(
   const duration = data.metadata?.duration || 0;
 
   if (!transcript || transcript.trim().length === 0) {
-    logProviderEvent(provider, 'no_speech', {
-      elapsedMs: Math.round(performance.now() - startedAt),
-      detectedLanguage: channel?.detected_language,
-    }, context);
-    return {
-      text: '',
-      language: channel?.detected_language,
-      durationSeconds: 0,
-      costUsd: 0,
-      source: 'no_speech',
-      requestId: data.metadata?.request_id,
-    };
+    // No text, but the upstream itself says it processed audio
+    // (`metadata.duration` is the length of the SUBMITTED audio, not of detected
+    // speech). That is worth one sibling call rather than a "No speech detected"
+    // the user has to redo — but only when the ROUTE says a sibling is there to
+    // take it. We never inspect `attempt` for that: the chain is the route's to
+    // read. One shared block for all three covered adapters. See
+    // emptyTranscriptOutcome in providers/utils.
+    // (issue ray-amjad/hyperwhisper-app#381)
+    return emptyTranscriptOutcome(provider, {
+      label: 'Deepgram',
+      startedAt,
+      context,
+      upstreamDuration: duration,
+      upstreamRequestId: data.metadata?.request_id,
+      logDetails: { detectedLanguage: channel?.detected_language },
+      noSpeechResult: {
+        text: '',
+        language: channel?.detected_language,
+        durationSeconds: 0,
+        costUsd: 0,
+        source: 'no_speech',
+        requestId: data.metadata?.request_id,
+      },
+    });
   }
 
   logProviderEvent(provider, 'success', {

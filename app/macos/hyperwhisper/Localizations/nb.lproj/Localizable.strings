@@ -9,6 +9,8 @@
   This file contains all user-facing text that needs to be translated.
 */
 
+"transcription.error.forbidden.hyperWhisperCloud" = "HyperWhisper Cloud avviste denne forespørselen. Nettverket ditt er midlertidig blokkert.\n\nVent noen minutter, og prøv på nytt.";
+
 // MARK: - Application Navigation
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
@@ -926,6 +928,7 @@ Oppdater disse modusene til å bruke en annen modell før du sletter.";
 "transcription.error.maxRetriesExceeded" = "Maksimalt antall gjenforsøk overskredet";
 "transcription.error.unauthorized.provider" = "Uautorisert: ugyldig %@ API-nøkkel eller tillatelser.\n\nÅpne Innstillinger → API-nøkler for å bekrefte legitimasjonen din.";
 "transcription.error.unauthorized.generic" = "Uautorisert: ugyldig API-nøkkel eller tillatelser.\n\nÅpne Innstillinger → API-nøkler for å bekrefte legitimasjonen din.";
+"transcription.error.unauthorized.hyperWhisperCloud" = "Tilgangsnøkkelen for HyperWhisper Cloud er ugyldig eller utløpt.\n\nÅpne Innstillinger → HyperWhisper Cloud for å oppdatere nøkkelen.";
 "transcription.error.cloudAccountRequired" = "HyperWhisper Cloud krever en kontonøkkel.\n\nÅpne Innstillinger → HyperWhisper Cloud for å skrive inn nøkkelen din eller kjøpe kreditter.";
 "transcription.error.invalidRequest" = "Ugyldig forespørsel: sjekk lydfil eller innstillinger";
 "transcription.error.streamingInterrupted" = "Strømming avbrutt; delvis tekst vist";

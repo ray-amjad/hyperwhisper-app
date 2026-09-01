@@ -78,6 +78,25 @@ function errorResponse(status: number, text = 'upstream said no') {
   globalThis.fetch = mock(async () => new Response(text, { status })) as unknown as typeof fetch;
 }
 
+/**
+ * Swaps `console.log` for the duration of `run` and returns the details object of
+ * the `provider.no_speech` event it logged. Same swap-the-global idiom as
+ * `utils.test.ts` — no spy library is used anywhere in this suite.
+ */
+async function captureNoSpeechEvent(run: () => Promise<unknown>): Promise<Record<string, unknown>> {
+  const logged: unknown[][] = [];
+  const originalLog = console.log;
+  console.log = ((...args: unknown[]) => { logged.push(args); }) as typeof console.log;
+  try {
+    await run();
+  } finally {
+    console.log = originalLog;
+  }
+  const event = logged.find((args) => args[0] === 'provider.no_speech');
+  if (!event) throw new Error('no provider.no_speech event was logged');
+  return event[1] as Record<string, unknown>;
+}
+
 describe('buildTranscriptionConfig — TRAP 2 (the mutual exclusion)', () => {
   // Verified live: sending both gets HTTP 400
   // "custom_vocabulary is incompatible with diarization." / "... with timestamps."
@@ -306,6 +325,22 @@ describe('transcribeWithGeminiTranscribe — response handling', () => {
     // 236 audio + 1 text input token at $2/1M, and no output tokens — there is
     // genuinely no transcript to bill for.
     expect(result.costUsd).toBeCloseTo(237 * (2 / 1e6), 9);
+  });
+
+  test('the no_speech log event derives the upstream duration from audio tokens, never the byte estimate', async () => {
+    captureRequest(sampleResponse('   '));
+    const reported = await captureNoSpeechEvent(() => transcribeWithGeminiTranscribe(audio(), 'audio/mp3'));
+    expect(reported.upstreamDurationSeconds as number).toBeCloseTo(9.44, 2);
+
+    // No usage at all: the BILLED `durationSeconds` falls back to a 10 s byte
+    // estimate, which the telemetry must not present as Google's own number.
+    captureRequest({ steps: [{ content: [{ text: '' }] }] });
+    const estimated = await captureNoSpeechEvent(
+      () => transcribeWithGeminiTranscribe(audio(320_000), 'audio/wav'),
+    );
+    expect(estimated.upstreamDurationSeconds).toBeNull();
+    // The pre-existing billed field is untouched by this telemetry addition.
+    expect(estimated.durationSeconds as number).toBeCloseTo(10, 3);
   });
 
   test('a silent clip with no usage object bills the duration estimate, not $0', async () => {

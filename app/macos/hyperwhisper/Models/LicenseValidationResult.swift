@@ -79,6 +79,12 @@ struct LicenseValidationResult {
     /// offline-fallback catch branch sets it `true`.
     let networkFailureFallback: Bool
 
+    /// `true` when the server returned a verdict but the secure store could not
+    /// commit it. `status` still carries that authoritative server verdict.
+    /// `LicenseManager` keeps an existing Active state only when the server also
+    /// returned Active; an Invalid or Expired verdict revokes it immediately.
+    let storagePersistenceFailed: Bool
+
     init(
         isValid: Bool,
         status: LicenseStatus,
@@ -86,7 +92,8 @@ struct LicenseValidationResult {
         customerEmail: String?,
         customerName: String?,
         errorMessage: String?,
-        networkFailureFallback: Bool = false
+        networkFailureFallback: Bool = false,
+        storagePersistenceFailed: Bool = false
     ) {
         self.isValid = isValid
         self.status = status
@@ -95,5 +102,6 @@ struct LicenseValidationResult {
         self.customerName = customerName
         self.errorMessage = errorMessage
         self.networkFailureFallback = networkFailureFallback
+        self.storagePersistenceFailed = storagePersistenceFailed
     }
 }

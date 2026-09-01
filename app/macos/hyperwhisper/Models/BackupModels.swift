@@ -837,6 +837,7 @@ struct BackupValidationResult {
 /// Contains statistics about what was imported
 struct ImportResult {
     let success: Bool
+    let partialSuccess: Bool
     let modesImported: Int
     let modesSkipped: Int
     let vocabularyImported: Int
@@ -861,6 +862,7 @@ struct ImportResult {
     ) -> ImportResult {
         ImportResult(
             success: true,
+            partialSuccess: false,
             modesImported: modesImported,
             modesSkipped: modesSkipped,
             vocabularyImported: vocabularyImported,
@@ -875,11 +877,35 @@ struct ImportResult {
     static func failure(_ message: String) -> ImportResult {
         ImportResult(
             success: false,
+            partialSuccess: false,
             modesImported: 0,
             modesSkipped: 0,
             vocabularyImported: 0,
             vocabularySkipped: 0,
             apiKeysImported: false,
+            licenseKeyImported: false,
+            errorMessage: message
+        )
+    }
+
+    /// Creates a result for a late section failure after earlier sections were
+    /// already applied and cannot be rolled back.
+    static func partialFailure(
+        _ message: String,
+        modesImported: Int,
+        modesSkipped: Int,
+        vocabularyImported: Int,
+        vocabularySkipped: Int,
+        apiKeysImported: Bool
+    ) -> ImportResult {
+        ImportResult(
+            success: false,
+            partialSuccess: true,
+            modesImported: modesImported,
+            modesSkipped: modesSkipped,
+            vocabularyImported: vocabularyImported,
+            vocabularySkipped: vocabularySkipped,
+            apiKeysImported: apiKeysImported,
             licenseKeyImported: false,
             errorMessage: message
         )

@@ -5,7 +5,7 @@
 
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { transcribeWithXaiGrok } from './xai-stt';
-import { ProviderInputError, ProviderUnavailableError } from './types';
+import { EmptyTranscriptError, ProviderInputError, ProviderUnavailableError } from './types';
 
 const originalFetch = globalThis.fetch;
 const ENV_KEYS = ['XAI_API_KEY', 'GROK_API_KEY'] as const;
@@ -40,6 +40,25 @@ function captureRequest(body: unknown) {
 
 function errorResponse(status: number, text = 'upstream said no') {
   globalThis.fetch = mock(async () => new Response(text, { status })) as unknown as typeof fetch;
+}
+
+/**
+ * Swaps `console.log` for the duration of `run` and returns the details object of
+ * the `provider.no_speech` event it logged. Same swap-the-global idiom as
+ * `utils.test.ts` — no spy library is used anywhere in this suite.
+ */
+async function captureNoSpeechEvent(run: () => Promise<unknown>): Promise<Record<string, unknown>> {
+  const logged: unknown[][] = [];
+  const originalLog = console.log;
+  console.log = ((...args: unknown[]) => { logged.push(args); }) as typeof console.log;
+  try {
+    await run();
+  } finally {
+    console.log = originalLog;
+  }
+  const event = logged.find((args) => args[0] === 'provider.no_speech');
+  if (!event) throw new Error('no provider.no_speech event was logged');
+  return event[1] as Record<string, unknown>;
 }
 
 describe('transcribeWithXaiGrok — credentials', () => {
@@ -231,5 +250,86 @@ describe('transcribeWithXaiGrok — transcript, duration and billing', () => {
       expect(result.language).toBe('ja');
       expect(result.requestId).toBe('req-empty');
     }
+  });
+
+  test('the no_speech log event records the upstream duration, and null when there is none', async () => {
+    // The incident shape from issue #381: 22.2 s of audio, no text.
+    captureRequest({ text: '', duration: 22.2, request_id: 'req-empty' });
+    const reported = await captureNoSpeechEvent(() => transcribeWithXaiGrok(audio(), 'audio/mp3', 'en'));
+    expect(reported.upstreamDurationSeconds).toBe(22.2);
+
+    captureRequest({ text: '', request_id: 'req-empty' });
+    const missing = await captureNoSpeechEvent(() => transcribeWithXaiGrok(audio(), 'audio/mp3', 'en'));
+    expect(missing.upstreamDurationSeconds).toBeNull();
+  });
+});
+
+describe('transcribeWithXaiGrok — empty-transcript failover (issue #381)', () => {
+  test('refuses when the ROUTE grants the failover, and carries the no_speech it would have returned', async () => {
+    // The incident shape: 22.2 s of audio submitted, no text returned.
+    captureRequest({ text: '', duration: 22.2, request_id: 'req-empty' });
+
+    let thrown: unknown;
+    try {
+      await transcribeWithXaiGrok(audio(), 'audio/mp3', 'en', undefined, { mayRefuseEmptyTranscript: true });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(EmptyTranscriptError);
+    const refusal = thrown as EmptyTranscriptError;
+    // Still a ProviderUnavailableError, so the route's chain walk, its
+    // attemptFailures and its /latency row are unchanged by construction.
+    expect(refusal).toBeInstanceOf(ProviderUnavailableError);
+    expect(refusal.kind).toBe('bad_response');
+    expect(refusal.message).toContain('22.2');
+    expect(refusal.upstreamDurationSeconds).toBe(22.2);
+    // The request's floor: exactly the result the caller would have got had the
+    // adapter not refused, so no sibling failure can turn it into an error.
+    expect(refusal.noSpeechResult).toMatchObject({
+      text: '',
+      source: 'no_speech',
+      costUsd: 0,
+      durationSeconds: 0,
+      requestId: 'req-empty',
+    });
+  });
+
+  test('a refusal still logs no_speech, with the duration, the upstream id and refused: true', async () => {
+    // Goal 4 of the spec is "the production rate of no_speech per provider becomes
+    // measurable". For the three covered providers the refusal path IS the common
+    // path, so an event that fires only when the adapter does NOT refuse counts
+    // nothing. Without this the field is dead by construction.
+    captureRequest({ text: '', duration: 22.2, request_id: 'req-empty' });
+
+    const reported = await captureNoSpeechEvent(async () => {
+      await transcribeWithXaiGrok(audio(), 'audio/mp3', 'en', undefined, { mayRefuseEmptyTranscript: true })
+        .catch(() => undefined);
+    });
+    expect(reported.upstreamDurationSeconds).toBe(22.2);
+    expect(reported.refused).toBe(true);
+    // #381 was filed about exactly this call. Without the id here an operator
+    // cannot hand xAI support the request that returned nothing.
+    expect(reported.upstreamRequestId).toBe('req-empty');
+  });
+
+  test('does NOT refuse without the grant, even on attempt 1 — a chain can filter down to one provider', async () => {
+    // The gate is "the route says a sibling is there", never `attempt === 1`.
+    // A geo-degraded chain's only provider is still its first attempt, and
+    // refusing there would return 429 for what is a benign no_speech.
+    captureRequest({ text: '', duration: 22.2, request_id: 'req-empty' });
+
+    const result = await transcribeWithXaiGrok(audio(), 'audio/mp3', 'en', undefined, { attempt: 1 });
+    expect(result.source).toBe('no_speech');
+    expect(result.costUsd).toBe(0);
+    expect(result.text).toBe('');
+  });
+
+  test('an empty transcript with no reported duration resolves as no_speech even with the grant', async () => {
+    captureRequest({ text: '', request_id: 'req-empty' });
+
+    const result = await transcribeWithXaiGrok(audio(), 'audio/mp3', 'en', undefined, { mayRefuseEmptyTranscript: true });
+    expect(result.source).toBe('no_speech');
+    expect(result.costUsd).toBe(0);
   });
 });

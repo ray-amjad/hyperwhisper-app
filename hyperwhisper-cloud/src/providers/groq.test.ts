@@ -5,7 +5,7 @@
 
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { transcribeWithGroq } from './groq';
-import { ProviderInputError, ProviderUnavailableError } from './types';
+import { EmptyTranscriptError, ProviderInputError, ProviderUnavailableError } from './types';
 
 const originalFetch = globalThis.fetch;
 let savedKey: string | undefined;
@@ -34,6 +34,22 @@ function captureRequest(body: unknown) {
   return captured;
 }
 
+/** Like `captureRequest`, but with response headers — Groq's request id is one. */
+function jsonWithHeaders(body: unknown, headers: Record<string, string>) {
+  globalThis.fetch = mock(async () => new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json', ...headers },
+  })) as unknown as typeof fetch;
+}
+
+/** A raw 200 body, so a JSON literal `JSON.stringify` cannot produce is testable. */
+function captureRequestRaw(body: string) {
+  globalThis.fetch = mock(async () => new Response(body, {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  })) as unknown as typeof fetch;
+}
+
 function errorResponse(status: number, text = 'upstream said no') {
   let called = false;
   globalThis.fetch = mock(async () => {
@@ -41,6 +57,25 @@ function errorResponse(status: number, text = 'upstream said no') {
     return new Response(text, { status });
   }) as unknown as typeof fetch;
   return () => called;
+}
+
+/**
+ * Swaps `console.log` for the duration of `run` and returns the details object of
+ * the `provider.no_speech` event it logged. Same swap-the-global idiom as
+ * `utils.test.ts` — no spy library is used anywhere in this suite.
+ */
+async function captureNoSpeechEvent(run: () => Promise<unknown>): Promise<Record<string, unknown>> {
+  const logged: unknown[][] = [];
+  const originalLog = console.log;
+  console.log = ((...args: unknown[]) => { logged.push(args); }) as typeof console.log;
+  try {
+    await run();
+  } finally {
+    console.log = originalLog;
+  }
+  const event = logged.find((args) => args[0] === 'provider.no_speech');
+  if (!event) throw new Error('no provider.no_speech event was logged');
+  return event[1] as Record<string, unknown>;
 }
 
 describe('transcribeWithGroq — multipart request shape', () => {
@@ -181,5 +216,119 @@ describe('transcribeWithGroq — transcript, duration and billing', () => {
       expect(result.costUsd).toBe(0);
       expect(result.language).toBe('en');
     }
+  });
+
+  test('the no_speech log event records the upstream duration, and null when there is none', async () => {
+    captureRequest({ text: '', language: 'en', duration: 30 });
+    const reported = await captureNoSpeechEvent(() => transcribeWithGroq(audio(), 'audio/wav'));
+    expect(reported.upstreamDurationSeconds).toBe(30);
+
+    captureRequest({ text: '', language: 'en' });
+    const missing = await captureNoSpeechEvent(() => transcribeWithGroq(audio(), 'audio/wav'));
+    expect(missing.upstreamDurationSeconds).toBeNull();
+  });
+});
+
+describe('transcribeWithGroq — empty-transcript failover (issue #381)', () => {
+  test('refuses when the ROUTE grants the failover, and carries the no_speech it would have returned', async () => {
+    captureRequest({ text: '', language: 'en', duration: 30 });
+
+    let thrown: unknown;
+    try {
+      await transcribeWithGroq(audio(), 'audio/wav', undefined, undefined, { mayRefuseEmptyTranscript: true });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(EmptyTranscriptError);
+    const refusal = thrown as EmptyTranscriptError;
+    // Still a ProviderUnavailableError, so the route's chain walk, its
+    // attemptFailures and its /latency row are unchanged by construction.
+    expect(refusal).toBeInstanceOf(ProviderUnavailableError);
+    expect(refusal.kind).toBe('bad_response');
+    expect(refusal.message).toContain('30');
+    expect(refusal.upstreamDurationSeconds).toBe(30);
+    // The request's floor: exactly the result the caller would have got had the
+    // adapter not refused, so no sibling failure can turn it into an error.
+    expect(refusal.noSpeechResult).toMatchObject({
+      text: '',
+      source: 'no_speech',
+      costUsd: 0,
+      durationSeconds: 0,
+    });
+  });
+
+  test('a refusal still logs no_speech, with the duration and refused: true', async () => {
+    // Goal 4 of the spec is "the production rate of no_speech per provider becomes
+    // measurable". For the three covered providers the refusal path IS the common
+    // path, so an event that fires only when the adapter does NOT refuse counts
+    // nothing. Without this the field is dead by construction.
+    captureRequest({ text: '', language: 'en', duration: 30 });
+
+    const reported = await captureNoSpeechEvent(async () => {
+      await transcribeWithGroq(audio(), 'audio/wav', undefined, undefined, { mayRefuseEmptyTranscript: true })
+        .catch(() => undefined);
+    });
+    expect(reported.upstreamDurationSeconds).toBe(30);
+    expect(reported.refused).toBe(true);
+  });
+
+  test('does NOT refuse without the grant, even on attempt 1 — a chain can filter down to one provider', async () => {
+    // The gate is "the route says a sibling is there", never `attempt === 1`.
+    // A geo-degraded chain's only provider is still its first attempt, and
+    // refusing there would return 429 for what is a benign no_speech.
+    captureRequest({ text: '', language: 'en', duration: 30 });
+
+    const result = await transcribeWithGroq(audio(), 'audio/wav', undefined, undefined, { attempt: 1 });
+    expect(result.source).toBe('no_speech');
+    expect(result.costUsd).toBe(0);
+    expect(result.text).toBe('');
+  });
+
+  test('an empty transcript with no reported duration resolves as no_speech even with the grant', async () => {
+    captureRequest({ text: '', language: 'en' });
+
+    const result = await transcribeWithGroq(audio(), 'audio/wav', undefined, undefined, { mayRefuseEmptyTranscript: true });
+    expect(result.source).toBe('no_speech');
+    expect(result.costUsd).toBe(0);
+  });
+
+  test('the upstream request id comes off the x-request-id RESPONSE HEADER, on both paths', async () => {
+    // Groq puts no id in the JSON body, so this adapter logged
+    // `upstreamRequestId: undefined` 100% of the time while deepgram.ts and
+    // xai-stt.ts logged a real one — the drift the shared block removes. #381 is
+    // about precisely the call an operator has to report to the vendor.
+    jsonWithHeaders({ text: '', language: 'en', duration: 30 }, { 'x-request-id': 'req_groq_abc' });
+    const reported = await captureNoSpeechEvent(() => transcribeWithGroq(audio(), 'audio/wav'));
+    expect(reported.upstreamRequestId).toBe('req_groq_abc');
+
+    jsonWithHeaders({ text: '', language: 'en', duration: 30 }, { 'x-request-id': 'req_groq_abc' });
+    const thrown = await transcribeWithGroq(audio(), 'audio/wav', undefined, undefined, { mayRefuseEmptyTranscript: true })
+      .catch((e: unknown) => e);
+    expect(thrown).toBeInstanceOf(EmptyTranscriptError);
+    // The route reads it off the floor result for `provider_attempt_fail`.
+    expect((thrown as EmptyTranscriptError).noSpeechResult.requestId).toBe('req_groq_abc');
+
+    // And no header means no id, not the string "null".
+    jsonWithHeaders({ text: '', language: 'en', duration: 30 }, {});
+    const headerless = await captureNoSpeechEvent(() => transcribeWithGroq(audio(), 'audio/wav'));
+    expect(headerless.upstreamRequestId).toBeUndefined();
+  });
+
+  test('an Infinity duration is not a duration: no refusal, and nothing logged as the upstream number', async () => {
+    // `JSON.parse('{"duration":1e999}')` is Infinity, which passes `> 0`. The
+    // hand-written guard produced "empty transcript for Infinitys of audio" and
+    // failed the request over on a number nobody reported.
+    captureRequestRaw('{"text":"","language":"en","duration":1e999}');
+
+    const reported = await captureNoSpeechEvent(
+      () => transcribeWithGroq(audio(), 'audio/wav', undefined, undefined, { mayRefuseEmptyTranscript: true }),
+    );
+    expect(reported.upstreamDurationSeconds).toBeNull();
+    expect(reported.refused).toBe(false);
+
+    captureRequestRaw('{"text":"","language":"en","duration":1e999}');
+    const result = await transcribeWithGroq(audio(), 'audio/wav', undefined, undefined, { mayRefuseEmptyTranscript: true });
+    expect(result.source).toBe('no_speech');
   });
 });

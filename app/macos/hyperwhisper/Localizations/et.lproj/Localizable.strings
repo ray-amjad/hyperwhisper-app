@@ -9,6 +9,8 @@
   This file contains all user-facing text that needs to be translated.
 */
 
+"transcription.error.forbidden.hyperWhisperCloud" = "HyperWhisper Cloud lükkas selle taotluse tagasi. Teie võrk on ajutiselt blokeeritud.\n\nOodake mõni minut ja proovige uuesti.";
+
 // MARK: - Application Navigation
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
@@ -926,6 +928,7 @@ Ennе kustutamist uuenda neid režiime teise mudeli kasutamiseks.";
 "transcription.error.maxRetriesExceeded" = "Maksimaalne uuesti proovimise katsed ületatud";
 "transcription.error.unauthorized.provider" = "Volitamata: vale %@ API võti või load.\n\nAvage Seaded → API võtmed oma mandaatide kontrollimiseks.";
 "transcription.error.unauthorized.generic" = "Volitamata: vale API võti või load.\n\nAvage Seaded → API võtmed oma mandaatide kontrollimiseks.";
+"transcription.error.unauthorized.hyperWhisperCloud" = "HyperWhisper Cloudi juurdepääsuvõti on vigane või aegunud.\n\nVõtme uuendamiseks avage Seaded → HyperWhisper Cloud.";
 "transcription.error.cloudAccountRequired" = "HyperWhisper Cloud nõuab kontovõtit.\n\nAvage Seaded → HyperWhisper Cloud, et sisestada oma võti või hankida krediiti.";
 "transcription.error.invalidRequest" = "Vale päring: kontrollige helifaili või seadeid";
 "transcription.error.streamingInterrupted" = "Voogedastus katkestatud; osaliselt tekst näidatud";

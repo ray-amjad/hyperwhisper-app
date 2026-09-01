@@ -360,6 +360,11 @@ export async function transcribeWithGeminiTranscribe(
       audioTokens,
       durationSeconds,
       costUsd: noSpeechCostUsd,
+      // NOT `durationSeconds`: that falls back to a byte estimate when the
+      // response carries no usage. Derive from the reported audio tokens alone.
+      upstreamDurationSeconds: audioTokens > 0
+        ? audioTokens / GEMINI_TRANSCRIBE_AUDIO_TOKENS_PER_SECOND
+        : null,
     }, context);
     return {
       text: '',

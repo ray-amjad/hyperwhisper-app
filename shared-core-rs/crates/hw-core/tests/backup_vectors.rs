@@ -256,7 +256,7 @@ fn mode_normalization_rows() {
             .as_object()
             .unwrap_or_else(|| panic!("vector '{label}': `mode` must be an object"));
         for (key, value) in mode_object {
-            if MODE_FIELDS.iter().any(|(pinned, _)| pinned == key) {
+            if key == "name" || MODE_FIELDS.iter().any(|(pinned, _)| pinned == key) {
                 continue;
             }
             assert_eq!(
@@ -268,6 +268,30 @@ fn mode_normalization_rows() {
     }
 
     println!("Backup mode-normalization vectors: {count}/{count} rows matched the shared core.");
+}
+
+#[test]
+fn mode_name_normalization_rows() {
+    let rows = rows("modeNameNormalization");
+    let count = rows.len();
+
+    for row in &rows {
+        let label = name(row);
+        let mode = field(row, "mode", label);
+        let expected = field(row, "expectedName", label)
+            .as_str()
+            .unwrap_or_else(|| panic!("vector '{label}': `expectedName` must be a string"));
+        let normalized = normalize_universal_mode_json(as_str(mode, label, "mode"))
+            .unwrap_or_else(|e| panic!("vector '{label}': the core rejected the mode: {e}"));
+        let normalized = parse(&normalized, label, "normalized mode");
+        assert_eq!(
+            normalized.get("name").and_then(Value::as_str),
+            Some(expected),
+            "vector '{label}': normalized name mismatch"
+        );
+    }
+
+    println!("Backup mode-name vectors: {count}/{count} rows matched the shared core.");
 }
 
 // ---------------------------------------------------------------------------
@@ -580,6 +604,7 @@ fn vector_groups_are_populated() {
 
     for group in [
         "modeNormalization",
+        "modeNameNormalization",
         "windowsSettings",
         "linuxSettings",
         "macosSettings",

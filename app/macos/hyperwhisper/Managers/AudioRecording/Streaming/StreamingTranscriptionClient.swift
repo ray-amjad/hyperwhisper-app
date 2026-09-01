@@ -1163,7 +1163,9 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         cancelReceiveTask: Bool
     ) -> StreamingError {
         let status = (task.response as? HTTPURLResponse)?.statusCode ?? 0
-        let error: StreamingError = refusal == .insufficientCredits ? .insufficientCredits : .unauthorized
+        let error: StreamingError = refusal == .insufficientCredits
+            ? .insufficientCredits
+            : .unauthorized(statusCode: status)
         handleTerminalCondition(error, detail: "HTTP \(status)", cancelReceiveTask: cancelReceiveTask)
         return error
     }
@@ -2112,8 +2114,9 @@ enum StreamingError: LocalizedError {
     /// "Server error: …" — the one description that is wrong here, because the
     /// server is working exactly as designed.
     case insufficientCredits
-    /// The key was refused — a 401/403 on the upgrade.
-    case unauthorized
+    /// The key or network was refused on the upgrade. Keep the response status
+    /// because HyperWhisper Cloud uses 403 for a temporary network block.
+    case unauthorized(statusCode: Int?)
 
     var errorDescription: String? {
         switch self {
@@ -2130,7 +2133,10 @@ enum StreamingError: LocalizedError {
             // (`TranscriptionError.insufficientCredits`). One condition, one
             // wording, whichever path the user hit it on.
             return "transcription.error.insufficientCredits".localized
-        case .unauthorized:
+        case .unauthorized(let statusCode):
+            if statusCode == 403 {
+                return "transcription.error.forbidden.hyperWhisperCloud".localized
+            }
             return "transcription.error.unauthorized.generic".localized
         }
     }

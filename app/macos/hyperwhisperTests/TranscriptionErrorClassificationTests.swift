@@ -124,18 +124,21 @@ struct TranscriptionErrorClassificationTests {
         #expect(statusCode == nil)
     }
 
-    /// The status is diagnostic only. Nothing branches on it, so a 401 and a 403
-    /// must still behave identically for the user.
-    @Test func theUnauthorizedStatusChangesNoUserFacingBehaviour() {
+    /// A Cloud 403 is a temporary network block. Retrying can work after the
+    /// block clears, while opening Settings cannot change the network state.
+    @Test func forbiddenStatusChangesGuidanceAndRecoveryActions() {
         let bare = TranscriptionError.unauthorized(provider: "HyperWhisper Cloud")
         let with401 = TranscriptionError.unauthorized(provider: "HyperWhisper Cloud", statusCode: 401)
         let with403 = TranscriptionError.unauthorized(provider: "HyperWhisper Cloud", statusCode: 403)
 
-        for error in [bare, with401, with403] {
-            #expect(error.isRetryable == bare.isRetryable)
-            #expect(error.showSettingsButton == bare.showSettingsButton)
-            #expect(error.errorDescription == bare.errorDescription)
-        }
+        #expect(with401.isRetryable == bare.isRetryable)
+        #expect(with401.showSettingsButton == bare.showSettingsButton)
+        #expect(with403.isRetryable)
+        #expect(!with403.showSettingsButton)
+        #expect(with403.shouldSurfaceInline)
+        #expect(with401.errorDescription == bare.errorDescription)
+        #expect(with403.errorDescription != bare.errorDescription)
+        #expect(with403.errorDescription?.localizedCaseInsensitiveContains("temporarily blocked") == true)
     }
 
     /// The fingerprint is built from `category` / `kind` / `stage` and must NOT

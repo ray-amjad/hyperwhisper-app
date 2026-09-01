@@ -9,6 +9,8 @@
   This file contains all user-facing text that needs to be translated.
 */
 
+"transcription.error.forbidden.hyperWhisperCloud" = "HyperWhisper Cloud tento požadavek zamítl. Vaše síť je dočasně blokována.\n\nPočkejte několik minut a zkuste to znovu.";
+
 // MARK: - Application Navigation
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
@@ -926,6 +928,7 @@ Před smazáním aktualizujte tyto režimy, aby používaly jiný model.";
 "transcription.error.maxRetriesExceeded" = "Prekrocen maximalni pocet pokusu o opakovani";
 "transcription.error.unauthorized.provider" = "Neautorizovano: neplatny API klic nebo opravneni %@.\n\nOtevrete Nastaveni → API klice pro overeni vasich prihalsovacich udaju.";
 "transcription.error.unauthorized.generic" = "Neautorizovano: neplatny API klic nebo opravneni.\n\nOtevrete Nastaveni → API klice pro overeni vasich prihalsovacich udaju.";
+"transcription.error.unauthorized.hyperWhisperCloud" = "Přístupový klíč HyperWhisper Cloud je neplatný nebo jeho platnost vypršela.\n\nOtevřete Nastavení → HyperWhisper Cloud a aktualizujte svůj klíč.";
 "transcription.error.cloudAccountRequired" = "HyperWhisper Cloud vyžaduje klíč účtu.\n\nOtevřete Nastavení → HyperWhisper Cloud pro zadání klíče nebo získání kreditů.";
 "transcription.error.invalidRequest" = "Neplatny pozadavek: zkontrolujte zvukovy soubor nebo nastaveni";
 "transcription.error.streamingInterrupted" = "Streamovani preruseno; zobrazen castecny text";

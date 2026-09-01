@@ -112,6 +112,32 @@ export function resolveAudioInputTokens(
   audioByteLength: number,
   promptTextTokens: number = 0,
 ): number {
+  const upstreamTokens = resolveUpstreamAudioInputTokens(usage, promptTextTokens);
+  if (upstreamTokens !== null) {
+    return upstreamTokens;
+  }
+
+  // Last resort (tier 4): no usage total at all — estimate audio seconds from payload size.
+  const estimatedSeconds = (audioByteLength / BYTES_PER_MINUTE_ESTIMATE) * 60;
+  return Math.round(estimatedSeconds * AUDIO_TOKENS_PER_SECOND);
+}
+
+/**
+ * Tiers 1-2 of `resolveAudioInputTokens` only — the audio-token count derivable
+ * ENTIRELY from Gemini's own modality breakdown, or `null`.
+ *
+ * This is the telemetry function, and the difference from
+ * {@link resolveUpstreamAudioInputTokens} is the whole point of it existing.
+ * Tier 3 subtracts `estimatePromptTextTokens()`, a local ~4-chars-per-token
+ * guess, from the prompt total — a perfectly good BILLING input, but the number
+ * it yields is part ours. Logging it as `upstreamDurationSeconds` would break
+ * the one invariant that log field was added to hold: our estimate is never
+ * recorded as the upstream's duration.
+ * (issue ray-amjad/hyperwhisper-app#381, review r2)
+ */
+export function resolveModalityAudioInputTokens(
+  usage: GeminiUsageMetadata | undefined,
+): number | null {
   const details = usage?.promptTokensDetails;
   const audioDetail = details?.find((d) => d.modality === 'AUDIO');
   if (audioDetail && typeof audioDetail.tokenCount === 'number') {
@@ -135,6 +161,28 @@ export function resolveAudioInputTokens(
     }
   }
 
+  return null;
+}
+
+/**
+ * Tiers 1-3 of `resolveAudioInputTokens` only — the audio-token count Gemini's own
+ * `usageMetadata` supports, or `null` when the response carries no usable total.
+ * Never falls back to the byte estimate.
+ *
+ * For BILLING. Tier 3 nets our own prompt-text estimate out of the documented
+ * prompt total, so the result is not purely upstream-derived — telemetry must ask
+ * {@link resolveModalityAudioInputTokens} instead.
+ */
+export function resolveUpstreamAudioInputTokens(
+  usage: GeminiUsageMetadata | undefined,
+  promptTextTokens: number = 0,
+): number | null {
+  const fromModality = resolveModalityAudioInputTokens(usage);
+  if (fromModality !== null) {
+    return fromModality;
+  }
+
+  const promptTokenCount = usage?.promptTokenCount ?? 0;
   // No trustworthy modality breakdown. Prefer the documented promptTokenCount
   // (input-token TOTAL) over a byte heuristic — for low-bitrate Opus/AAC the
   // byte estimate falls far below Gemini's flat 32 audio-tokens/sec and
@@ -147,9 +195,7 @@ export function resolveAudioInputTokens(
     }
   }
 
-  // Last resort: no usage total at all — estimate audio seconds from payload size.
-  const estimatedSeconds = (audioByteLength / BYTES_PER_MINUTE_ESTIMATE) * 60;
-  return Math.round(estimatedSeconds * AUDIO_TOKENS_PER_SECOND);
+  return null;
 }
 
 // Rough English-text token estimate (~4 chars/token) for the instruction+vocab
@@ -238,7 +284,13 @@ export async function transcribeWithGemini(
     .trim();
 
   const usage = data.usageMetadata;
-  const audioInputTokens = resolveAudioInputTokens(usage, audio.byteLength, estimatePromptTextTokens(promptText));
+  const promptTextTokens = estimatePromptTextTokens(promptText);
+  const audioInputTokens = resolveAudioInputTokens(usage, audio.byteLength, promptTextTokens);
+  // The audio token count Gemini's OWN modality breakdown gives, or null. Not the
+  // billing figure: that one nets our local prompt-text estimate out of the prompt
+  // total, and logging it as an upstream duration is exactly the confusion
+  // `upstreamDurationSeconds` exists to prevent. (review r2)
+  const upstreamAudioTokens = resolveModalityAudioInputTokens(usage);
   // The non-audio remainder of the documented prompt total is the text we sent
   // (instruction + vocab). Bill it at the text-input rate — not the audio rate,
   // and not $0. audio + text always sums to promptTokenCount, so there's no
@@ -254,6 +306,9 @@ export async function transcribeWithGemini(
   if (!transcript || transcript.length === 0) {
     logProviderEvent(provider, 'no_speech', {
       model, elapsedMs: Math.round(performance.now() - startedAt),
+      upstreamDurationSeconds: upstreamAudioTokens !== null && upstreamAudioTokens > 0
+        ? upstreamAudioTokens / AUDIO_TOKENS_PER_SECOND
+        : null,
     }, context);
     return { text: '', language, durationSeconds: 0, costUsd: 0, source: 'no_speech' };
   }

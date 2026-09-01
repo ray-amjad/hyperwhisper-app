@@ -138,7 +138,10 @@ struct ModesView: View {
                 availableModelIds: downloadedLocalModelIds,
                 onSave: { updatedModeData in
                     // Update the Core Data entity
-                    mode.name = updatedModeData.name
+                    mode.name = ModeNamePolicy.storageName(
+                        updatedModeData.name,
+                        replacing: mode.name
+                    )
                     mode.preset = updatedModeData.preset
                     mode.language = LanguageData.canonicalLanguageCode(updatedModeData.language)
                     mode.model = updatedModeData.model

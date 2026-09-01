@@ -21,7 +21,8 @@ struct LicenseProbeTests {
         )
         let manager = LicenseManager(
             networkService: service,
-            loadStoredLicenseOnInit: false
+            loadStoredLicenseOnInit: false,
+            notificationCenter: NotificationCenter()
         )
 
         let result = await manager.probeLicense("test-key")
@@ -90,5 +91,7 @@ private final class LicenseNetworkSpy: LicenseNetworkServing {
     func shouldRevalidateLicense() -> Bool { false }
     func getCachedLicenseStatus() -> LicenseStatus? { nil }
     func getStoredLicenseKey() -> String? { nil }
-    func clearStoredLicense() {}
+    func readStoredLicenseKey(retryAfterFailure: Bool) -> RustLicenseStore.StoredLicenseKeyRead { .missing }
+    func clearStoredLicense() -> Bool { true }
+    func replaceStoredLicenseKeyForImport(_ licenseKey: String) -> Bool { true }
 }

@@ -9,6 +9,8 @@
   This file contains all user-facing text that needs to be translated.
 */
 
+"transcription.error.forbidden.hyperWhisperCloud" = "HyperWhisper Cloud ปฏิเสธคำขอนี้ เครือข่ายของคุณถูกบล็อกชั่วคราว\n\nรอสักครู่ แล้วลองอีกครั้ง";
+
 // MARK: - Application Navigation
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
@@ -926,6 +928,7 @@
 "transcription.error.maxRetriesExceeded" = "เกินจำนวนการพยายามลองใหม่สูงสุด";
 "transcription.error.unauthorized.provider" = "ไม่ได้รับการยืนยัน: คีย์ API %@ ไม่ถูกต้องหรือสิทธิ์\n\nเปิดการตั้งค่า → คีย์ API เพื่อตรวจสอบข้อมูลประจำตัวของคุณ";
 "transcription.error.unauthorized.generic" = "ไม่ได้รับการยืนยัน: คีย์ API ไม่ถูกต้องหรือสิทธิ์\n\nเปิดการตั้งค่า → คีย์ API เพื่อตรวจสอบข้อมูลประจำตัวของคุณ";
+"transcription.error.unauthorized.hyperWhisperCloud" = "คีย์การเข้าถึง HyperWhisper Cloud ไม่ถูกต้องหรือหมดอายุแล้ว\n\nเปิด การตั้งค่า → HyperWhisper Cloud เพื่ออัปเดตคีย์ของคุณ";
 "transcription.error.cloudAccountRequired" = "HyperWhisper Cloud ต้องใช้คีย์บัญชี\n\nเปิดการตั้งค่า → HyperWhisper Cloud เพื่อป้อนคีย์ของคุณหรือซื้อเครดิต";
 "transcription.error.invalidRequest" = "คำขอไม่ถูกต้อง: ตรวจสอบไฟล์เสียงหรือการตั้งค่า";
 "transcription.error.streamingInterrupted" = "สตรีมถูกหลีกลี่ยง ข้อความบางส่วนแสดง";

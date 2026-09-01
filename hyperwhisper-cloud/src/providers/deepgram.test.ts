@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { transcribeWithDeepgram } from './deepgram';
-import { ProviderInputError, ProviderUnavailableError } from './types';
+import { EmptyTranscriptError, ProviderInputError, ProviderUnavailableError } from './types';
 
 const originalFetch = globalThis.fetch;
 
@@ -32,6 +32,25 @@ function mockFetchOnce(handler: (url: string, init?: RequestInit) => Response | 
     init: () => capturedInit,
     params: () => new URL(capturedUrl).searchParams,
   };
+}
+
+/**
+ * Swaps `console.log` for the duration of `run` and returns the details object of
+ * the `provider.no_speech` event it logged. Same swap-the-global idiom as
+ * `utils.test.ts` — no spy library is used anywhere in this suite.
+ */
+async function captureNoSpeechEvent(run: () => Promise<unknown>): Promise<Record<string, unknown>> {
+  const logged: unknown[][] = [];
+  const originalLog = console.log;
+  console.log = ((...args: unknown[]) => { logged.push(args); }) as typeof console.log;
+  try {
+    await run();
+  } finally {
+    console.log = originalLog;
+  }
+  const event = logged.find((args) => args[0] === 'provider.no_speech');
+  if (!event) throw new Error('no provider.no_speech event was logged');
+  return event[1] as Record<string, unknown>;
 }
 
 describe('transcribeWithDeepgram — configuration', () => {
@@ -182,6 +201,19 @@ describe('transcribeWithDeepgram — successful response handling', () => {
     expect(result.requestId).toBe('req-empty');
   });
 
+  test('the no_speech log event records the upstream duration, and null when there is none', async () => {
+    mockFetchOnce(() => jsonResponse({
+      results: { channels: [{ alternatives: [{ transcript: '   ' }] }] },
+      metadata: { duration: 45 },
+    }));
+    const reported = await captureNoSpeechEvent(() => transcribeWithDeepgram(AUDIO, 'audio/wav', 'en-US'));
+    expect(reported.upstreamDurationSeconds).toBe(45);
+
+    mockFetchOnce(() => jsonResponse({ results: { channels: [{ alternatives: [{ transcript: '' }] }] } }));
+    const missing = await captureNoSpeechEvent(() => transcribeWithDeepgram(AUDIO, 'audio/wav', 'en-US'));
+    expect(missing.upstreamDurationSeconds).toBeNull();
+  });
+
   test('a response missing results/channels entirely is treated as no_speech, not a crash', async () => {
     mockFetchOnce(() => jsonResponse({}));
     const result = await transcribeWithDeepgram(AUDIO, 'audio/wav', 'en-US');
@@ -245,5 +277,82 @@ describe('transcribeWithDeepgram — upstream error mapping', () => {
       if (originalTimeoutEnv === undefined) delete process.env.STT_PROVIDER_TIMEOUT_MS;
       else process.env.STT_PROVIDER_TIMEOUT_MS = originalTimeoutEnv;
     }
+  });
+});
+
+describe('transcribeWithDeepgram — empty-transcript failover (issue #381)', () => {
+  const emptyWithDuration = () => jsonResponse({
+    results: { channels: [{ alternatives: [{ transcript: '  ' }], detected_language: 'en' }] },
+    metadata: { duration: 4.5, request_id: 'req-empty' },
+  });
+
+  test('refuses when the ROUTE grants the failover, and carries the no_speech it would have returned', async () => {
+    mockFetchOnce(emptyWithDuration);
+
+    let thrown: unknown;
+    try {
+      await transcribeWithDeepgram(AUDIO, 'audio/wav', 'en-US', undefined, { mayRefuseEmptyTranscript: true });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(EmptyTranscriptError);
+    const refusal = thrown as EmptyTranscriptError;
+    // Still a ProviderUnavailableError, so the route's chain walk, its
+    // attemptFailures and its /latency row are unchanged by construction.
+    expect(refusal).toBeInstanceOf(ProviderUnavailableError);
+    expect(refusal.kind).toBe('bad_response');
+    expect(refusal.message).toContain('4.5');
+    expect(refusal.upstreamDurationSeconds).toBe(4.5);
+    // The request's floor: exactly the result the caller would have got had the
+    // adapter not refused, so no sibling failure can turn it into an error.
+    expect(refusal.noSpeechResult).toMatchObject({
+      text: '',
+      source: 'no_speech',
+      costUsd: 0,
+      durationSeconds: 0,
+      requestId: 'req-empty',
+    });
+  });
+
+  test('a refusal still logs no_speech, with the duration, the upstream id and refused: true', async () => {
+    // Goal 4 of the spec is "the production rate of no_speech per provider becomes
+    // measurable". For the three covered providers the refusal path IS the common
+    // path, so an event that fires only when the adapter does NOT refuse counts
+    // nothing. Without this the field is dead by construction.
+    mockFetchOnce(emptyWithDuration);
+
+    const reported = await captureNoSpeechEvent(async () => {
+      await transcribeWithDeepgram(AUDIO, 'audio/wav', 'en-US', undefined, { mayRefuseEmptyTranscript: true })
+        .catch(() => undefined);
+    });
+    expect(reported.upstreamDurationSeconds).toBe(4.5);
+    expect(reported.refused).toBe(true);
+    // #381 is about handing the vendor the id of the call that returned nothing.
+    // There is no result on this path for the route to read it off.
+    expect(reported.upstreamRequestId).toBe('req-empty');
+  });
+
+  test('does NOT refuse without the grant, even on attempt 1 — a chain can filter down to one provider', async () => {
+    // The gate is "the route says a sibling is there", never `attempt === 1`.
+    // A geo-degraded chain's only provider is still its first attempt, and
+    // refusing there would return 429 for what is a benign no_speech.
+    mockFetchOnce(emptyWithDuration);
+
+    const result = await transcribeWithDeepgram(AUDIO, 'audio/wav', 'en-US', undefined, { attempt: 1 });
+    expect(result.source).toBe('no_speech');
+    expect(result.costUsd).toBe(0);
+    expect(result.text).toBe('');
+  });
+
+  test('an empty transcript with no reported duration resolves as no_speech even with the grant', async () => {
+    mockFetchOnce(() => jsonResponse({
+      results: { channels: [{ alternatives: [{ transcript: '' }], detected_language: 'en' }] },
+      metadata: { request_id: 'req-empty' },
+    }));
+
+    const result = await transcribeWithDeepgram(AUDIO, 'audio/wav', 'en-US', undefined, { mayRefuseEmptyTranscript: true });
+    expect(result.source).toBe('no_speech');
+    expect(result.costUsd).toBe(0);
   });
 });

@@ -50,22 +50,29 @@ enum ModesEndpoint {
             )
         }
 
-        let trimmedName = dto.name.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmedName.isEmpty {
+        guard let normalizedName = Self.normalizedName(dto.name) else {
             return LocalAPIResponder.failure(code: .invalidRequest, message: "Mode 'name' cannot be empty")
         }
-        if PersistenceController.shared.fetchMode(byName: trimmedName) != nil {
+        guard let postProcessingMode = Self.postProcessingModeValue(dto.postProcessingMode ?? 1) else {
+            return LocalAPIResponder.failure(
+                code: .invalidRequest,
+                message: "Mode 'postProcessingMode' must be 0, 1, or 2"
+            )
+        }
+        let persistence = PersistenceController.shared
+        let context = Self.mutationContext(for: persistence)
+        if Self.fetchMode(byName: normalizedName, in: context) != nil {
             return LocalAPIResponder.failure(
                 code: .modeNameTaken,
-                message: "A mode named '\(trimmedName)' already exists",
+                message: "A mode named '\(normalizedName)' already exists",
                 hint: "Choose a different name or PATCH the existing mode instead."
             )
         }
 
         let normalized = CloudSTTCatalog.shared.normalizeCloudProvider(dto.cloudProvider)
-        let mode = PersistenceController.shared.createOrUpdateMode(
+        let mode = persistence.createOrUpdateMode(
             id: nil,
-            name: trimmedName,
+            name: normalizedName,
             preset: dto.preset,
             language: dto.language,
             model: dto.model,
@@ -76,7 +83,7 @@ enum ModesEndpoint {
             languageModel: dto.languageModel,
             cloudProvider: normalized.provider,
             cloudTranscriptionModel: dto.cloudTranscriptionModel,
-            postProcessingMode: Int16(dto.postProcessingMode ?? 1),
+            postProcessingMode: postProcessingMode,
             postProcessingProvider: dto.postProcessingProvider,
             englishSpelling: dto.englishSpelling,
             userSystemPrompt: dto.userSystemPrompt,
@@ -86,8 +93,18 @@ enum ModesEndpoint {
             enableScreenOCR: dto.enableScreenOCR ?? false,
             geminiCustomPrompt: dto.geminiCustomPrompt,
             cloudPostProcessingModel: dto.cloudPostProcessingModel,
-            cloudTranscriptionDomain: dto.cloudTranscriptionDomain
+            cloudTranscriptionDomain: dto.cloudTranscriptionDomain,
+            persist: false,
+            in: context
         )
+
+        do {
+            try context.save()
+        } catch {
+            context.rollback()
+            AppLogger.coreData.error("LocalAPI POST /modes: save failed · \(error.localizedDescription, privacy: .public)")
+            return LocalAPIResponder.failure(code: .transcriptionFailed, message: "Failed to save mode")
+        }
 
         return LocalAPIResponder.ok(ModeResponse(ok: true, mode: Self.toDTO(mode)))
     }
@@ -99,10 +116,12 @@ enum ModesEndpoint {
         guard let id = idParameter(from: request) else {
             return LocalAPIResponder.failure(code: .invalidRequest, message: "Missing :id path parameter")
         }
-        guard let mode = PersistenceController.shared.fetchMode(withId: id) else {
+        // Do not retain a view-context Mode across the body-data suspension point.
+        // A count fetch gives missing IDs their normal precedence while a DELETE
+        // racing the await is still handled by the isolated re-fetch below.
+        guard Self.modeExists(withId: id, in: PersistenceController.shared.container.viewContext) else {
             return LocalAPIResponder.failure(code: .modeNotFound, message: "No mode with id '\(id)'")
         }
-
         let body: Data
         do { body = try await request.bodyData } catch {
             return LocalAPIResponder.badRequest(message: "Could not read request body")
@@ -112,11 +131,54 @@ enum ModesEndpoint {
             return LocalAPIResponder.badRequest(message: "Invalid JSON body")
         }
 
+        let sortOrder: Int16?
+        if let value = patch.sortOrder {
+            guard let converted = Self.int16Value(value) else {
+                return LocalAPIResponder.failure(
+                    code: .invalidRequest,
+                    message: "Mode 'sortOrder' must be between \(Int16.min) and \(Int16.max)"
+                )
+            }
+            sortOrder = converted
+        } else {
+            sortOrder = nil
+        }
+
+        let postProcessingMode: Int16?
+        if let value = patch.postProcessingMode {
+            guard let converted = Self.postProcessingModeValue(value) else {
+                return LocalAPIResponder.failure(
+                    code: .invalidRequest,
+                    message: "Mode 'postProcessingMode' must be 0, 1, or 2"
+                )
+            }
+            postProcessingMode = converted
+        } else {
+            postProcessingMode = nil
+        }
+
+        let normalizedName: String?
+        if let name = patch.name {
+            guard let name = Self.normalizedName(name) else {
+                return LocalAPIResponder.failure(code: .invalidRequest, message: "Mode 'name' cannot be empty")
+            }
+            normalizedName = name
+        } else {
+            normalizedName = nil
+        }
+
+        // Fetch only after the request body await, in a context that owns only
+        // this API mutation. Its save or rollback cannot commit or discard
+        // unrelated pending UI edits in the shared view context.
+        let context = Self.mutationContext(for: PersistenceController.shared)
+        guard let mode = Self.fetchMode(withId: id, in: context) else {
+            return LocalAPIResponder.failure(code: .modeNotFound, message: "No mode with id '\(id)'")
+        }
+
         // Name uniqueness check — only when the caller is actually renaming.
-        if let newName = patch.name?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !newName.isEmpty,
+        if let newName = normalizedName,
            newName != mode.name,
-           let clash = PersistenceController.shared.fetchMode(byName: newName),
+           let clash = Self.fetchMode(byName: newName, in: context),
            clash.id != mode.id {
             return LocalAPIResponder.failure(
                 code: .modeNameTaken,
@@ -124,12 +186,19 @@ enum ModesEndpoint {
             )
         }
 
-        applyPatch(patch, to: mode)
+        applyPatch(
+            patch,
+            normalizedName: normalizedName,
+            sortOrder: sortOrder,
+            postProcessingMode: postProcessingMode,
+            to: mode
+        )
         mode.modifiedDate = Date()
 
         do {
-            try PersistenceController.shared.container.viewContext.save()
+            try context.save()
         } catch {
+            context.rollback()
             AppLogger.coreData.error("LocalAPI PATCH /modes: save failed · \(error.localizedDescription, privacy: .public)")
             return LocalAPIResponder.failure(code: .transcriptionFailed, message: "Failed to save mode")
         }
@@ -167,45 +236,116 @@ enum ModesEndpoint {
         request.routeParameters["id"]
     }
 
+    static func normalizedName(_ name: String) -> String? {
+        ModeNamePolicy.normalized(name)
+    }
+
+    static func int16Value(_ value: Int) -> Int16? {
+        Int16(exactly: value)
+    }
+
+    static func postProcessingModeValue(_ value: Int) -> Int16? {
+        guard let rawValue = Int16(exactly: value),
+              PostProcessingMode(rawValue: rawValue) != nil else {
+            return nil
+        }
+        return rawValue
+    }
+
+    @MainActor
+    static func mutationContext(for persistence: PersistenceController) -> NSManagedObjectContext {
+        let context = NSManagedObjectContext(concurrencyType: .mainQueueConcurrencyType)
+        context.persistentStoreCoordinator = persistence.container.persistentStoreCoordinator
+        context.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
+        context.undoManager = nil
+        return context
+    }
+
+    @MainActor
+    static func modeExists(withId id: String, in context: NSManagedObjectContext) -> Bool {
+        guard let uuid = UUID(uuidString: id) else { return false }
+        let request: NSFetchRequest<Mode> = Mode.fetchRequest()
+        request.predicate = NSPredicate(format: "id == %@", uuid as CVarArg)
+        request.fetchLimit = 1
+        request.includesPropertyValues = false
+        return (try? context.count(for: request)) == 1
+    }
+
+    @MainActor
+    private static func fetchMode(withId id: String, in context: NSManagedObjectContext) -> Mode? {
+        guard let uuid = UUID(uuidString: id) else { return nil }
+        let request: NSFetchRequest<Mode> = Mode.fetchRequest()
+        request.predicate = NSPredicate(format: "id == %@", uuid as CVarArg)
+        request.fetchLimit = 1
+        return try? context.fetch(request).first
+    }
+
+    @MainActor
+    private static func fetchMode(byName name: String, in context: NSManagedObjectContext) -> Mode? {
+        let request: NSFetchRequest<Mode> = Mode.fetchRequest()
+        request.predicate = NSPredicate(format: "name ==[c] %@", name)
+        request.fetchLimit = 1
+        return try? context.fetch(request).first
+    }
+
     /// Apply only the present keys of a `ModePatchDTO` onto an existing Mode.
     /// Absent (nil) keys are left untouched; the GUI doesn't validate combinations
     /// either, so we trust the caller.
     @MainActor
-    private static func applyPatch(_ patch: ModePatchDTO, to mode: Mode) {
-        if let v = patch.name { mode.name = v }
+    private static func applyPatch(
+        _ patch: ModePatchDTO,
+        normalizedName: String?,
+        sortOrder: Int16?,
+        postProcessingMode: Int16?,
+        to mode: Mode
+    ) {
+        if let normalizedName { mode.name = normalizedName }
         if let v = patch.preset { mode.preset = v }
         if let v = patch.language { mode.language = LanguageData.canonicalLanguageCode(v) }
         if let v = patch.model { mode.model = v }
         if let v = patch.punctuation { mode.punctuation = v }
         if let v = patch.capitalization { mode.capitalization = v }
         if let v = patch.profanityFilter { mode.profanityFilter = v }
-        if let v = patch.customInstructions { mode.customInstructions = v }
-        if let v = patch.userSystemPrompt { mode.userSystemPrompt = v.isEmpty ? nil : v }
-        if let v = patch.isDefault { mode.isDefault = v }
-        if let v = patch.sortOrder { mode.sortOrder = Int16(v) }
-        if let v = patch.languageModel { mode.languageModel = v }
-        if let v = patch.cloudTranscriptionModel { mode.cloudTranscriptionModel = v }
-        if let v = patch.cloudTranscriptionDomain { mode.cloudTranscriptionDomain = v }
-        var inferredAccuracyTier: String? = nil
-        if let v = patch.cloudProvider {
-            let normalized = CloudSTTCatalog.shared.normalizeCloudProvider(v)
-            mode.cloudProvider = normalized.provider
-            inferredAccuracyTier = normalized.accuracyTier
+        if case .value(let value) = patch.$customInstructions { mode.customInstructions = value }
+        if case .value(let value) = patch.$userSystemPrompt {
+            mode.userSystemPrompt = value.flatMap { $0.isEmpty ? nil : $0 }
         }
-        if let v = patch.postProcessingMode { mode.postProcessingMode = Int16(v) }
-        if let v = patch.postProcessingProvider { mode.postProcessingProvider = v }
-        if let v = patch.englishSpelling { mode.englishSpelling = v }
+        if let v = patch.isDefault { mode.isDefault = v }
+        if let sortOrder { mode.sortOrder = sortOrder }
+        if case .value(let value) = patch.$languageModel { mode.languageModel = value }
+        if case .value(let value) = patch.$cloudTranscriptionModel { mode.cloudTranscriptionModel = value }
+        if case .value(let value) = patch.$cloudTranscriptionDomain { mode.cloudTranscriptionDomain = value }
+        var inferredAccuracyTier: String? = nil
+        if case .value(let value) = patch.$cloudProvider {
+            if let value {
+                let normalized = CloudSTTCatalog.shared.normalizeCloudProvider(value)
+                mode.cloudProvider = normalized.provider
+                inferredAccuracyTier = normalized.accuracyTier
+            } else {
+                mode.cloudProvider = nil
+            }
+        }
+        if let postProcessingMode { mode.postProcessingMode = postProcessingMode }
+        if case .value(let value) = patch.$postProcessingProvider { mode.postProcessingProvider = value }
+        if case .value(let value) = patch.$englishSpelling { mode.englishSpelling = value }
         if let v = patch.useStreamingTranscription { mode.useStreamingTranscription = v }
         // Prefer an explicit patch over the migration's inferred tier so a
         // same-PATCH cloudProvider+cloudAccuracyTier pair lands as the caller
         // wrote it.
-        if let v = patch.cloudAccuracyTier ?? inferredAccuracyTier {
-            mode.cloudAccuracyTier = v
+        switch patch.$cloudAccuracyTier {
+        case .value(let value):
+            mode.cloudAccuracyTier = value
+        case .omitted:
+            if let inferredAccuracyTier { mode.cloudAccuracyTier = inferredAccuracyTier }
         }
         if let v = patch.removeTrailingPeriod { mode.removeTrailingPeriod = v }
         if let v = patch.enableScreenOCR { mode.enableScreenOCR = v }
-        if let v = patch.geminiCustomPrompt { mode.geminiCustomPrompt = v.isEmpty ? nil : v }
-        if let v = patch.cloudPostProcessingModel { mode.cloudPostProcessingModel = v }
+        if case .value(let value) = patch.$geminiCustomPrompt {
+            mode.geminiCustomPrompt = value.flatMap { $0.isEmpty ? nil : $0 }
+        }
+        if case .value(let value) = patch.$cloudPostProcessingModel {
+            mode.cloudPostProcessingModel = value
+        }
     }
 
     @MainActor

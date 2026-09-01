@@ -9,6 +9,8 @@
   This file contains all user-facing text that needs to be translated.
 */
 
+"transcription.error.forbidden.hyperWhisperCloud" = "HyperWhisper Cloud отклонил этот запрос. Ваша сеть временно заблокирована.\n\nПодождите несколько минут и повторите попытку.";
+
 // MARK: - Application Navigation
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
@@ -926,6 +928,7 @@
 "transcription.error.maxRetriesExceeded" = "Максимальное количество попыток повтора превышено";
 "transcription.error.unauthorized.provider" = "Не авторизовано: неверный ключ API или разрешения %@.\n\nОткройте параметры → Ключи API для проверки учетных данных.";
 "transcription.error.unauthorized.generic" = "Не авторизовано: неверный ключ API или разрешения.\n\nОткройте параметры → Ключи API для проверки учетных данных.";
+"transcription.error.unauthorized.hyperWhisperCloud" = "Ключ доступа к HyperWhisper Cloud недействителен или просрочен.\n\nОткройте Настройки → HyperWhisper Cloud, чтобы обновить ключ.";
 "transcription.error.cloudAccountRequired" = "HyperWhisper Cloud требует ключ учётной записи.\n\nОткройте параметры → HyperWhisper Cloud, чтобы ввести ключ или приобрести кредиты.";
 "transcription.error.invalidRequest" = "Неверный запрос: проверьте аудиофайл или параметры";
 "transcription.error.streamingInterrupted" = "Потоковая передача прервана; показан частичный текст";

@@ -9,6 +9,8 @@
   This file contains all user-facing text that needs to be translated.
 */
 
+"transcription.error.forbidden.hyperWhisperCloud" = "Το HyperWhisper Cloud απέρριψε αυτό το αίτημα. Το δίκτυό σας έχει αποκλειστεί προσωρινά.\n\nΠεριμένετε λίγα λεπτά και δοκιμάστε ξανά.";
+
 // MARK: - Application Navigation
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
@@ -926,6 +928,7 @@
 "transcription.error.maxRetriesExceeded" = "Υπερβολή μέγιστης προσπάθειας δοκιμής";
 "transcription.error.unauthorized.provider" = "Μη εξουσιοδοτημένο: μη έγκυρο κλειδί API %@ ή δικαιώματα.\n\nΑνοίξτε Ρυθμίσεις → Κλειδιά API για επαλήθευση των διαπιστευτηρίων σας.";
 "transcription.error.unauthorized.generic" = "Μη εξουσιοδοτημένο: μη έγκυρο κλειδί API ή δικαιώματα.\n\nΑνοίξτε Ρυθμίσεις → Κλειδιά API για επαλήθευση των διαπιστευτηρίων σας.";
+"transcription.error.unauthorized.hyperWhisperCloud" = "Το κλειδί πρόσβασης HyperWhisper Cloud δεν είναι έγκυρο ή έχει λήξει.\n\nΑνοίξτε Ρυθμίσεις → HyperWhisper Cloud για να ενημερώσετε το κλειδί σας.";
 "transcription.error.cloudAccountRequired" = "Το HyperWhisper Cloud απαιτεί κλειδί λογαριασμού.\n\nΑνοίξτε Ρυθμίσεις → HyperWhisper Cloud για να εισαγάγετε το κλειδί σας ή να αποκτήσετε μονάδες.";
 "transcription.error.invalidRequest" = "Μη έγκυρο αίτημα: ελέγξτε το αρχείο ήχου ή τις ρυθμίσεις";
 "transcription.error.streamingInterrupted" = "Ρευστοποίηση διακοπή; μερικό κείμενο που εμφανίζεται";

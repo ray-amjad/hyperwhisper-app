@@ -259,7 +259,7 @@ public sealed partial class ApplicationBackupService(
     private static readonly Mode ModeDefaults = new();
 
     /// <summary>
-    /// Canonicalize a universal mode's five cloud-routing fields in the Rust
+    /// Canonicalize a universal mode's name and five cloud-routing fields in the Rust
     /// shared core. The same <c>normalize_universal_mode_json</c> call the Windows
     /// importer makes, so the two heads now agree: before this, Linux ran no
     /// cloudAccuracyTier / cloudPostProcessingModel migration, no catalog
@@ -291,7 +291,7 @@ public sealed partial class ApplicationBackupService(
         var preservedExtensions = extensions?.DeepClone() as JsonObject;
         return new Mode
         {
-            Id = Guid.Parse(value["id"]!.GetValue<string>()), Name = value["name"]!.GetValue<string>(),
+            Id = Guid.Parse(value["id"]!.GetValue<string>()), Name = normalized["name"]!.GetValue<string>(),
             Preset = String(value, "preset") ?? "hyper", Language = String(value, "language") ?? "en",
             Model = String(value, "model") ?? "base", ModelType = String(linux, "modelType") ?? String(value, "model") ?? "base",
             IsDefault = Bool(value, "isDefault"), SortOrder = Int(value, "sortOrder"),

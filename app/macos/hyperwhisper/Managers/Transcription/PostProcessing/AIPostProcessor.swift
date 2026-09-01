@@ -425,7 +425,7 @@ class AIPostProcessor: ObservableObject {
                     let status = httpResponse.statusCode
                     switch status {
                     case 401, 403:
-                        throw TranscriptionError.unauthorized(provider: provider.displayName)
+                        throw TranscriptionError.unauthorized(provider: provider.displayName, statusCode: status)
                     case 400, 413, 415, 422:
                         throw TranscriptionError.invalidRequest
                     case 429:
@@ -821,7 +821,7 @@ class AIPostProcessor: ObservableObject {
                 // Map HTTP status codes to appropriate errors (matching non-streaming behavior)
                 switch httpResponse.statusCode {
                 case 401, 403:
-                    throw TranscriptionError.unauthorized(provider: provider.displayName)
+                    throw TranscriptionError.unauthorized(provider: provider.displayName, statusCode: httpResponse.statusCode)
                 case 400, 413, 415, 422:
                     throw TranscriptionError.invalidRequest
                 default:
@@ -1150,7 +1150,7 @@ class AIPostProcessor: ObservableObject {
             case 429:
                 throw TranscriptionError.rateLimited(retryAfter: nil)
             case 401, 403:
-                throw TranscriptionError.unauthorized(provider: "HyperWhisper Cloud")
+                throw TranscriptionError.unauthorized(provider: "HyperWhisper Cloud", statusCode: statusCode)
             case 400:
                 throw TranscriptionError.invalidRequest
             case 500...599:
@@ -1170,7 +1170,7 @@ class AIPostProcessor: ObservableObject {
         case 429:
             throw TranscriptionError.rateLimited(retryAfter: nil)
         case 401, 403:
-            throw TranscriptionError.unauthorized(provider: "HyperWhisper Cloud")
+            throw TranscriptionError.unauthorized(provider: "HyperWhisper Cloud", statusCode: statusCode)
         case 500...599:
             throw TranscriptionError.serverError(statusCode: statusCode, message: "HyperWhisper Cloud server error")
         default:
@@ -1325,7 +1325,7 @@ class AIPostProcessor: ObservableObject {
 
                 switch httpResponse.statusCode {
                 case 401, 403:
-                    throw TranscriptionError.unauthorized(provider: endpoint.name)
+                    throw TranscriptionError.unauthorized(provider: endpoint.name, statusCode: httpResponse.statusCode)
                 case 400, 413, 415, 422:
                     throw TranscriptionError.invalidRequest
                 case 429:

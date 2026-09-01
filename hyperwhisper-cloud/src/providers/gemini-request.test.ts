@@ -79,6 +79,25 @@ function generateContentResponse(text: string, usageMetadata?: Record<string, un
   };
 }
 
+/**
+ * Swaps `console.log` for the duration of `run` and returns the details object of
+ * the `provider.no_speech` event it logged. Same swap-the-global idiom as
+ * `utils.test.ts` — no spy library is used anywhere in this suite.
+ */
+async function captureNoSpeechEvent(run: () => Promise<unknown>): Promise<Record<string, unknown>> {
+  const logged: unknown[][] = [];
+  const originalLog = console.log;
+  console.log = ((...args: unknown[]) => { logged.push(args); }) as typeof console.log;
+  try {
+    await run();
+  } finally {
+    console.log = originalLog;
+  }
+  const event = logged.find((args) => args[0] === 'provider.no_speech');
+  if (!event) throw new Error('no provider.no_speech event was logged');
+  return event[1] as Record<string, unknown>;
+}
+
 function promptTextOf(captured: Captured): string {
   return captured.body!.contents[0].parts[0].text as string;
 }
@@ -379,6 +398,54 @@ describe('transcribeWithGemini — result and billing', () => {
     expect(result.text).toBe('');
     expect(result.costUsd).toBe(0);
     expect(result.durationSeconds).toBe(0);
+  });
+
+  test('the no_speech log event records the token-derived duration, and null when usage is absent', async () => {
+    globalThis.fetch = mock(async () => Response.json(generateContentResponse('   ', {
+      promptTokenCount: 2000,
+      promptTokensDetails: [{ modality: 'AUDIO', tokenCount: 1920 }],
+    }))) as unknown as typeof fetch;
+    const reported = await captureNoSpeechEvent(() => transcribeWithGemini(audio(), 'audio/wav', 'en-US'));
+    // 1920 audio tokens at 32 tok/s.
+    expect(reported.upstreamDurationSeconds as number).toBeCloseTo(60, 6);
+
+    // No usageMetadata at all: resolveAudioInputTokens falls through to a byte
+    // estimate, which must never be logged as Gemini's own number.
+    globalThis.fetch = mock(async () => Response.json(generateContentResponse('   '))) as unknown as typeof fetch;
+    const estimated = await captureNoSpeechEvent(
+      () => transcribeWithGemini(audio(480_000), 'audio/wav', 'en-US'),
+    );
+    expect(estimated.upstreamDurationSeconds).toBeNull();
+    expect(estimated.upstreamDurationSeconds).not.toBe(60);
+  });
+
+  test('a promptTokenCount with NO modality breakdown logs null, not the locally-estimated remainder', async () => {
+    // The billing tier subtracts `estimatePromptTextTokens()` — a local
+    // ~4-chars-per-token guess over the instruction + vocabulary we sent — from
+    // the prompt total. That is a fine billing input and a false upstream
+    // measurement: the remainder moves with OUR estimate, so logging it as
+    // `upstreamDurationSeconds` records our guess as Gemini's own number. That
+    // field exists to make exactly that impossible. (review r2)
+    globalThis.fetch = mock(async () => Response.json(generateContentResponse('   ', {
+      promptTokenCount: 2000,
+      // No promptTokensDetails: nothing here says how much of the 2000 is audio.
+    }))) as unknown as typeof fetch;
+
+    const reported = await captureNoSpeechEvent(
+      () => transcribeWithGemini(audio(), 'audio/wav', 'en-US'),
+    );
+    expect(reported.upstreamDurationSeconds).toBeNull();
+
+    // A partial breakdown that DOES account for the non-audio tokens is entirely
+    // upstream-derived, so it is still reported: (2000 - 80) / 32 = 60 s.
+    globalThis.fetch = mock(async () => Response.json(generateContentResponse('   ', {
+      promptTokenCount: 2000,
+      promptTokensDetails: [{ modality: 'TEXT', tokenCount: 80 }],
+    }))) as unknown as typeof fetch;
+    const fromBreakdown = await captureNoSpeechEvent(
+      () => transcribeWithGemini(audio(), 'audio/wav', 'en-US'),
+    );
+    expect(fromBreakdown.upstreamDurationSeconds as number).toBeCloseTo(60, 6);
   });
 
   test('a response with no candidates at all is no_speech rather than a crash', async () => {

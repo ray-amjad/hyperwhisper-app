@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { ProviderInputError, ProviderUnavailableError } from './types';
-import type { ProviderRequestContext, ProviderUnavailableKind } from './types';
+import { EmptyTranscriptError, ProviderInputError, ProviderUnavailableError } from './types';
+import type { ProviderRequestContext, ProviderUnavailableKind, TranscriptionResult } from './types';
 import { BYTES_PER_MINUTE_ESTIMATE } from '../lib/constants';
 
 const DEFAULT_PROVIDER_TIMEOUT_MS = 15_000;
@@ -468,6 +468,99 @@ export async function providerHttpError(
   // Other 4xx (e.g. 400 on an unaccepted language code/format) — a sibling
   // provider may accept this input, so let the chain fall through.
   return new ProviderInputError(label, status, errorText || `HTTP ${status}`);
+}
+
+/**
+ * The upstream's own reported audio length, or `null` when it did not report one
+ * we can use.
+ *
+ * `> 0` alone is not the test. `JSON.parse('{"duration":1e999}')` yields
+ * `Infinity`, which passes `> 0` and produced the log line — and the refusal
+ * message — `empty transcript for Infinitys of audio`. It is also the guard that
+ * keeps phase 1's invariant honest: `upstreamDurationSeconds` is the upstream's
+ * number or nothing, never a value we could not read.
+ * (issue ray-amjad/hyperwhisper-app#381)
+ */
+export function upstreamDurationOrNull(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
+}
+
+/**
+ * The empty-transcript outcome, for the three adapters the failover covers
+ * (grok, deepgram, groq): log the `no_speech`, then either refuse it — when the
+ * ROUTE granted this attempt the refusal — or return it.
+ *
+ * ```ts
+ * if (!transcript.trim()) {
+ *   return emptyTranscriptOutcome(provider, {
+ *     label: 'Deepgram', startedAt, context,
+ *     upstreamDuration: data.metadata?.duration,
+ *     upstreamRequestId: data.metadata?.request_id,
+ *     logDetails: { detectedLanguage: channel?.detected_language },
+ *     noSpeechResult,
+ *   });
+ * }
+ * ```
+ *
+ * One block, not three. `deepgram.ts`, `groq.ts` and `xai-stt.ts` carried
+ * 41/36/41-line copies differing in three tokens, and they had ALREADY drifted:
+ * two carried `upstreamRequestId` on the `no_speech` event and groq carried
+ * neither the field nor the comment claiming it, so #381's own telemetry was
+ * dead for one of the three providers it was written for. Same seam, same remedy
+ * as {@link providerHttpError} above.
+ *
+ * It returns on one path and throws on the other because the route's grant is
+ * the only thing that decides which — see
+ * `ProviderRequestContext.mayRefuseEmptyTranscript`. An adapter never re-derives
+ * it. (issue ray-amjad/hyperwhisper-app#381)
+ */
+export function emptyTranscriptOutcome(
+  provider: string,
+  opts: {
+    /** Name used in the thrown error message ('Grok', 'Deepgram', 'Groq'). */
+    label: string;
+    /** The adapter's `performance.now()` mark for this attempt. */
+    startedAt: number;
+    context: ProviderRequestContext;
+    /** The upstream's own reported audio length, unvalidated. */
+    upstreamDuration: unknown;
+    /**
+     * The upstream's own id for the call that returned nothing — what an operator
+     * hands vendor support. On the refusal path there is no result for the route
+     * to read it off, so it has to be on this event.
+     */
+    upstreamRequestId?: string;
+    /** Extra fields merged into the `no_speech` log line (language, …). */
+    logDetails?: Record<string, unknown>;
+    /** The `no_speech` result the adapter would have returned. */
+    noSpeechResult: TranscriptionResult;
+  },
+): TranscriptionResult {
+  const upstreamDurationSeconds = upstreamDurationOrNull(opts.upstreamDuration);
+  const refusing = upstreamDurationSeconds !== null && opts.context.mayRefuseEmptyTranscript === true;
+
+  // Logged on BOTH paths, refusal included. This event is the only per-provider
+  // count of "the upstream returned nothing", and suppressing it on the refusal
+  // path would zero it for exactly the providers and exactly the case the
+  // feature exists for. `refused` separates the two outcomes in one query.
+  logProviderEvent(provider, 'no_speech', {
+    elapsedMs: Math.round(performance.now() - opts.startedAt),
+    ...opts.logDetails,
+    upstreamDurationSeconds,
+    upstreamRequestId: opts.upstreamRequestId,
+    refused: refusing,
+  }, opts.context);
+
+  if (refusing) {
+    throw new EmptyTranscriptError(opts.label, {
+      upstreamDurationSeconds,
+      elapsedMs: Math.round(performance.now() - opts.startedAt),
+      // The route keeps this as the request's floor, so a sibling that never
+      // answers cannot turn a benign no_speech into an error.
+      noSpeechResult: opts.noSpeechResult,
+    });
+  }
+  return opts.noSpeechResult;
 }
 
 export async function readErrorBodyPreview(response: Response): Promise<string> {

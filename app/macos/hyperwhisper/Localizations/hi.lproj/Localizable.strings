@@ -9,6 +9,8 @@
   This file contains all user-facing text that needs to be translated.
 */
 
+"transcription.error.forbidden.hyperWhisperCloud" = "HyperWhisper Cloud ने इस अनुरोध को अस्वीकार कर दिया। आपका नेटवर्क अस्थायी रूप से ब्लॉक है।\n\nकुछ मिनट प्रतीक्षा करें, फिर दोबारा कोशिश करें।";
+
 // MARK: - Application Navigation
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
@@ -926,6 +928,7 @@
 "transcription.error.maxRetriesExceeded" = "अधिकतम पुनः प्रयास प्रयास अतिक्रमित";
 "transcription.error.unauthorized.provider" = "अनुमति नहीं: अमान्य %@ API कुंजी या अनुमति।\n\nसेटिंग्स → API कुंजियां खोलकर अपनी साख सत्यापित करें।";
 "transcription.error.unauthorized.generic" = "अनुमति नहीं: अमान्य API कुंजी या अनुमति।\n\nसेटिंग्स → API कुंजियां खोलकर अपनी साख सत्यापित करें।";
+"transcription.error.unauthorized.hyperWhisperCloud" = "HyperWhisper Cloud की एक्सेस कुंजी अमान्य है या उसकी समय-सीमा समाप्त हो गई है।\n\nअपनी कुंजी अपडेट करने के लिए सेटिंग्स → HyperWhisper Cloud खोलें।";
 "transcription.error.cloudAccountRequired" = "HyperWhisper Cloud के लिए खाता कुंजी आवश्यक है।\n\nसेटिंग्स → HyperWhisper Cloud खोलकर अपनी कुंजी दर्ज करें या क्रेडिट प्राप्त करें।";
 "transcription.error.invalidRequest" = "अमान्य अनुरोध: ऑडियो फ़ाइल या सेटिंग्स जांचें";
 "transcription.error.streamingInterrupted" = "स्ट्रीमिंग बाधित; आंशिक पाठ दिखाया गया";
