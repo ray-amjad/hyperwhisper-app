@@ -117,19 +117,33 @@ A transcription that finds no speech is usually correct: you said nothing, or th
 
 But an engine can also return an empty result for a recording that does contain speech. To find these faults, the app measures the audio after each **No speech detected** result. If the measurement contradicts the result, the app sends one error report. If the measurement agrees that the recording is silent or very quiet, the app sends nothing.
 
-The report holds measurements only. **It holds no audio and no text.** It holds:
+The report holds measurements and provider metadata only. **It holds no audio and no transcript text.** On both macOS and Windows, it can hold:
 
 - Whether the measurement worked, and the error if it did not
-- The length of the recording, in seconds, and the size of the file, in bytes
-- The file name extension, the sample rate, and the number of channels
+- The length of the recording, in seconds, and the size and extension of the file
+- The sample rate, the number of channels, and the decoded and measured sample counts
 - The peak level and the average level, in dBFS, and how much of the recording is above the silence threshold
-- The number of audio samples that the app decoded
-- The name of your mode, and the name of your selected input device
-- Whether the automatic microphone boost failed
+- The selected input device and whether the provider reported no speech
+- The provider type, the Cloud provider, or the local engine
 
-On **Windows**, the report also holds the preset of the mode, the name of the engine, the path of the audio file, and the identifier, the status code, and the answer time of the cloud request.
+On **macOS**, the report also holds the mode name and whether automatic microphone boost failed.
+
+On **Windows**, the report does not hold the mode name or the audio file path. It holds the mode preset, configured language, provider display name, capture-device count, and a local diagnostic record ID. It can also hold the provider-attempt source and time, the length of the raw result as a number, and available backend metadata such as a request ID, provider, HTTP status, and response time. A value of `0` for the raw-result length means that the provider returned an empty string. The report never includes the string itself.
 
 The app sends one report for each recording. To send none, turn the error-report setting off.
+
+### Streaming error diagnostics (macOS)
+
+When a streaming session fails on macOS, the error report includes the state of that session. The metadata can include:
+
+- The provider, model, and stage of the session
+- The elapsed time for the session, the current connection, and microphone audio
+- The number of final and partial results delivered
+- The reconnect count and audio-send failure count
+- The WebSocket close code, whether the session-complete message arrived, and whether the app started the close
+- The streaming session ID and, when available, the network error domain and code
+
+These fields contain counts, durations, fixed identifiers, and connection state. They contain no audio, transcript, prompt, or pasted text. HyperWhisper removes URL details from a macOS network error before it sends the error. This prevents the account key in the streaming WebSocket query from entering the report.
 
 ## Your own API keys (BYOK)
 
