@@ -445,7 +445,7 @@ struct StreamingErrorReportingPolicyTests {
         // `terminal`. The flow's own capture titled it "Streaming WebSocket
         // error" — an outage headline on a user who only has to top up.
         #expect(StreamingErrorReportingPolicy.shouldCaptureInSentry(StreamingError.insufficientCredits) == false)
-        #expect(StreamingErrorReportingPolicy.shouldCaptureInSentry(StreamingError.unauthorized) == false)
+        #expect(StreamingErrorReportingPolicy.shouldCaptureInSentry(StreamingError.unauthorized(nil)) == false)
     }
 
     @Test func aTerminalProviderFrameIsNotReportedTwice() {
