@@ -624,6 +624,21 @@ internal static class Program
                     AssertModeVectorField(label, "cloudAccuracyTier", expected, mode.CloudAccuracyTier);
                     AssertModeVectorField(label, "cloudPostProcessingModel", expected, mode.CloudPostProcessingModel);
                 }
+
+                var nameRows = vectors.RootElement.GetProperty("modeNameNormalization");
+                Assert(nameRows.GetArrayLength() > 0,
+                    "backup-vectors.json has no modeNameNormalization rows");
+                foreach (var row in nameRows.EnumerateArray())
+                {
+                    var label = row.GetProperty("name").GetString()
+                        ?? throw new InvalidOperationException("a mode-name vector row has no name");
+                    var universal = JsonSerializer.Deserialize<UniversalMode>(
+                        row.GetProperty("mode").GetRawText())
+                        ?? throw new InvalidOperationException($"vector '{label}' did not deserialize");
+                    var mode = UniversalBackupMapper.MapToMode(universal);
+                    Assert(mode.Name == row.GetProperty("expectedName").GetString(),
+                        $"vector '{label}': normalized mode name was '{mode.Name}'");
+                }
             });
 
             // NATIVE CAPTURE (issue #277, phase 2a). Drives every

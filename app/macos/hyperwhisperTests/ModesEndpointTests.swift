@@ -36,6 +36,12 @@ struct ModesEndpointTests {
         #expect(ModesEndpoint.normalizedName("\u{200B}  Work \u{2060}") == "Work")
     }
 
+    @Test func nameNormalizationIsCanonicalAndGraphemeSafe() {
+        #expect(ModesEndpoint.normalizedName("Cafe\u{301}") == "Café")
+        #expect(ModesEndpoint.normalizedName("\u{301}Work\u{200B}") == "Work")
+        #expect(ModesEndpoint.normalizedName("👩‍💻 Notes") == "👩‍💻 Notes")
+    }
+
     @Test func modeIntegerFieldsUseExactInt16Conversion() {
         #expect(ModesEndpoint.int16Value(Int(Int16.min)) == Int16.min)
         #expect(ModesEndpoint.int16Value(Int(Int16.max)) == Int16.max)
@@ -206,6 +212,53 @@ struct ModesEndpointTests {
     }
 
     @MainActor
+    @Test func storedNameRepairIsSafeAndIdempotent() {
+        let persistence = PersistenceController(inMemory: true)
+        let valid = makeMode(in: persistence, name: "Untitled")
+        let blank = makeMode(in: persistence, name: "Temporary")
+        let invisible = makeMode(in: persistence, name: "Invisible")
+        let padded = makeMode(in: persistence, name: "Padded")
+        blank.name = "   "
+        invisible.name = "\u{200B}\u{301}"
+        padded.name = "\u{200B} Work \u{2060}"
+        persistence.save()
+
+        #expect(persistence.repairModeNames() == 3)
+        #expect(valid.name == "Untitled")
+        #expect(blank.name == "Untitled 2")
+        #expect(invisible.name == "Untitled 3")
+        #expect(padded.name == "Work")
+        #expect(persistence.repairModeNames() == 0)
+    }
+
+    @MainActor
+    @Test func backupConflictsUseTheFinalNormalizedNameForEveryResolution() {
+        let skipStore = PersistenceController(inMemory: true)
+        _ = makeMode(in: skipStore, name: "Work")
+        let skipBackup = makeBackupMode(name: "\u{200B} Work \u{2060}")
+        let skipped = skipStore.importModes([skipBackup], resolution: .skip)
+        #expect(skipped.imported == 0)
+        #expect(skipped.skipped == 1)
+
+        let replaceStore = PersistenceController(inMemory: true)
+        _ = makeMode(in: replaceStore, name: "Work")
+        let replaceBackup = makeBackupMode(name: "\u{200B} Work \u{2060}")
+        let replaced = replaceStore.importModes([replaceBackup], resolution: .replace)
+        #expect(replaced.imported == 1)
+        #expect(replaceStore.fetchAllModes().count == 1)
+        #expect(replaceStore.fetchAllModes().first?.name == "Work")
+        #expect(replaceStore.fetchAllModes().first?.id == replaceBackup.id)
+
+        let keepBothStore = PersistenceController(inMemory: true)
+        _ = makeMode(in: keepBothStore, name: "Work")
+        let keepBothBackup = makeBackupMode(name: "\u{200B} Work \u{2060}")
+        let kept = keepBothStore.importModes([keepBothBackup], resolution: .keepBoth)
+        #expect(kept.imported == 1)
+        #expect(keepBothStore.fetchAllModes().compactMap(\.name).sorted() == ["Work", "Work (imported)"])
+        #expect(kept.idRemap[keepBothBackup.id] != nil)
+    }
+
+    @MainActor
     private func makeMode(
         in persistence: PersistenceController,
         name: String = "Stored name",
@@ -220,6 +273,34 @@ struct ModesEndpointTests {
             capitalization: true,
             profanityFilter: false,
             persist: persist
+        )
+    }
+
+    private func makeBackupMode(name: String) -> BackupMode {
+        BackupMode(
+            id: UUID(),
+            name: name,
+            preset: "hyper",
+            language: "en",
+            model: "base",
+            punctuation: true,
+            capitalization: true,
+            profanityFilter: false,
+            customInstructions: nil,
+            languageModel: nil,
+            cloudProvider: nil,
+            cloudTranscriptionModel: nil,
+            postProcessingMode: 0,
+            postProcessingProvider: nil,
+            englishSpelling: nil,
+            userSystemPrompt: nil,
+            isDefault: false,
+            sortOrder: 0,
+            cloudAccuracyTier: nil,
+            removeTrailingPeriod: nil,
+            geminiCustomPrompt: nil,
+            cloudPostProcessingModel: nil,
+            cloudTranscriptionDomain: nil
         )
     }
 }

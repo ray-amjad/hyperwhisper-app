@@ -22,27 +22,29 @@ import Foundation
 
 enum ModeNamePolicy {
     static func normalized(_ name: String) -> String? {
-        let scalars = name.unicodeScalars
-        guard let first = scalars.firstIndex(where: { !isBoundaryIgnorable($0) }),
-              let last = scalars.lastIndex(where: { !isBoundaryIgnorable($0) }) else {
+        let canonical = name.precomposedStringWithCanonicalMapping
+        let characters = Array(canonical)
+        guard let first = characters.firstIndex(where: hasMeaningfulScalar),
+              let last = characters.lastIndex(where: hasMeaningfulScalar) else {
             return nil
         }
 
-        let normalized = String(scalars[first...last])
-        return normalized.unicodeScalars.contains(where: isMeaningful) ? normalized : nil
+        return String(characters[first...last]).precomposedStringWithCanonicalMapping
     }
 
     static func storageName(_ proposed: String, replacing existing: String?) -> String {
         normalized(proposed) ?? existing.flatMap { normalized($0) } ?? "Untitled"
     }
 
-    private static func isBoundaryIgnorable(_ scalar: Unicode.Scalar) -> Bool {
-        switch scalar.properties.generalCategory {
-        case .control, .format, .spaceSeparator, .lineSeparator, .paragraphSeparator:
-            return true
-        default:
-            return false
-        }
+    static func comparisonKey(_ name: String) -> String? {
+        normalized(name)?.folding(
+            options: [.caseInsensitive],
+            locale: Locale(identifier: "en_US_POSIX")
+        )
+    }
+
+    private static func hasMeaningfulScalar(_ character: Character) -> Bool {
+        character.unicodeScalars.contains(where: isMeaningful)
     }
 
     private static func isMeaningful(_ scalar: Unicode.Scalar) -> Bool {
@@ -337,8 +339,65 @@ class PersistenceController: ObservableObject {
             // `geminiTranscribe`, so running this first would leave nothing to do
             // and then let the older migration write the value again.
             migrateGoogleChirp3TierIfNeeded()
+            repairModeNamesOnLaunch()
             repairBrokenLocalModesOnLaunch()
             repairStaleProcessingTranscriptsOnLaunch()
+        }
+    }
+
+    /// Repairs names written by older builds before the storage invariant existed.
+    /// The pass runs every launch, saves only when needed, and assigns deterministic
+    /// suffixes when canonicalization exposes an existing case-insensitive conflict.
+    @discardableResult
+    func repairModeNames() -> Int {
+        let modes = fetchAllModes().sorted {
+            let lhsNeedsRepair = ModeNamePolicy.normalized($0.name ?? "") != $0.name
+            let rhsNeedsRepair = ModeNamePolicy.normalized($1.name ?? "") != $1.name
+            if lhsNeedsRepair != rhsNeedsRepair { return !lhsNeedsRepair }
+            let lhs = $0.createdDate ?? .distantPast
+            let rhs = $1.createdDate ?? .distantPast
+            if lhs != rhs { return lhs < rhs }
+            return ($0.id?.uuidString ?? "") < ($1.id?.uuidString ?? "")
+        }
+        var occupied = Set<String>()
+        var repaired = 0
+
+        for mode in modes {
+            let base = ModeNamePolicy.storageName(mode.name ?? "", replacing: nil)
+            let finalName = Self.uniqueModeName(base, occupiedKeys: occupied)
+            if mode.name != finalName {
+                mode.name = finalName
+                mode.modifiedDate = Date()
+                repaired += 1
+            }
+            if let key = ModeNamePolicy.comparisonKey(finalName) {
+                occupied.insert(key)
+            }
+        }
+
+        if repaired > 0 { save() }
+        return repaired
+    }
+
+    private func repairModeNamesOnLaunch() {
+        let repaired = repairModeNames()
+        if repaired > 0 {
+            AppLogger.coreData.info("Launch repair normalized \(repaired, privacy: .public) mode name(s)")
+        }
+    }
+
+    private static func uniqueModeName(_ base: String, occupiedKeys: Set<String>) -> String {
+        guard let baseKey = ModeNamePolicy.comparisonKey(base), occupiedKeys.contains(baseKey) else {
+            return base
+        }
+
+        var suffix = 2
+        while true {
+            let candidate = "\(base) \(suffix)"
+            if let key = ModeNamePolicy.comparisonKey(candidate), !occupiedKeys.contains(key) {
+                return candidate
+            }
+            suffix += 1
         }
     }
 
@@ -2473,22 +2532,14 @@ class PersistenceController: ObservableObject {
         var skipped = 0
         var idRemap: [UUID: UUID] = [:]
 
-        // Get existing modes for conflict detection
-        let existingModes = fetchAllModes()
-        let existingNames = Set(existingModes.compactMap { $0.name?.lowercased() })
-        var existingModeObjectIDsByName: [String: NSManagedObjectID] = [:]
-        for mode in existingModes {
-            guard let normalizedName = mode.name?.lowercased(),
-                  existingModeObjectIDsByName[normalizedName] == nil else {
-                continue
-            }
-            existingModeObjectIDsByName[normalizedName] = mode.objectID
-        }
-        var replacedExistingModeNames = Set<String>()
-
         for backupMode in backupModes {
-            let normalizedName = backupMode.name.lowercased()
-            let hasConflict = existingNames.contains(normalizedName)
+            let normalizedBackupName = ModeNamePolicy.storageName(backupMode.name, replacing: nil)
+            let normalizedKey = ModeNamePolicy.comparisonKey(normalizedBackupName)!
+            let conflicts = fetchAllModes().filter {
+                guard let name = $0.name else { return false }
+                return ModeNamePolicy.comparisonKey(name) == normalizedKey
+            }
+            let hasConflict = !conflicts.isEmpty
 
             if hasConflict {
                 switch resolution {
@@ -2498,19 +2549,11 @@ class PersistenceController: ObservableObject {
                     continue
 
                 case .replace:
-                    // Delete the pre-import conflict once. Re-fetch by object ID rather than
-                    // holding a managed object from `existingModes`: `deleteMode` saves during
-                    // the loop, so captured objects can be invalidated. Tracking the original
-                    // object ID also prevents duplicate backup names from deleting a mode that
-                    // was imported earlier in this restore.
-                    if !replacedExistingModeNames.contains(normalizedName),
-                       let objectID = existingModeObjectIDsByName[normalizedName] {
-                        if let existingObject = try? container.viewContext.existingObject(with: objectID),
-                           let existingMode = existingObject as? Mode,
-                           !existingMode.isDeleted {
-                            deleteMode(existingMode)
-                        }
-                        replacedExistingModeNames.insert(normalizedName)
+                    // Replace every row whose stored canonical name conflicts.
+                    // Re-fetch on the next iteration so duplicate backup rows use
+                    // last-one-wins semantics without retaining deleted objects.
+                    for existingMode in conflicts where !existingMode.isDeleted {
+                        deleteMode(existingMode)
                     }
                     // Fall through to create new mode
 
@@ -2524,11 +2567,17 @@ class PersistenceController: ObservableObject {
             let finalName: String
             let finalId: UUID
             if hasConflict && resolution == .keepBoth {
-                finalName = "\(backupMode.name) (imported)"
+                let occupied = Set(fetchAllModes().compactMap { mode in
+                    mode.name.flatMap(ModeNamePolicy.comparisonKey)
+                })
+                finalName = Self.uniqueModeName(
+                    "\(normalizedBackupName) (imported)",
+                    occupiedKeys: occupied
+                )
                 finalId = UUID()  // New ID for duplicate
                 idRemap[backupMode.id] = finalId
             } else {
-                finalName = backupMode.name
+                finalName = normalizedBackupName
                 finalId = backupMode.id
             }
 

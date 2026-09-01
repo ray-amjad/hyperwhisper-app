@@ -261,6 +261,19 @@ pub fn normalize_universal_mode_json(json: String) -> Result<String, BackupError
             });
         };
 
+        // The backup name is a shared storage field. Canonicalize it here so
+        // Windows and Linux apply the same invariant as the macOS importer.
+        if let Some(name) = obj
+            .get("name")
+            .and_then(serde_json::Value::as_str)
+            .map(str::to_owned)
+        {
+            obj.insert(
+                "name".to_string(),
+                serde_json::Value::String(normalize_mode_name(&name)),
+            );
+        }
+
         // (1) cloudProvider fold. The RAW value is kept for step (2).
         let raw_provider = obj
             .get("cloudProvider")
@@ -309,6 +322,41 @@ pub fn normalize_universal_mode_json(json: String) -> Result<String, BackupError
     })
 }
 
+fn normalize_mode_name(name: &str) -> String {
+    use unicode_general_category::{get_general_category, GeneralCategory};
+    use unicode_normalization::UnicodeNormalization;
+    use unicode_segmentation::UnicodeSegmentation;
+
+    fn meaningful(character: &str) -> bool {
+        character.chars().any(|scalar| {
+            !matches!(
+                get_general_category(scalar),
+                GeneralCategory::Control
+                    | GeneralCategory::Format
+                    | GeneralCategory::SpaceSeparator
+                    | GeneralCategory::LineSeparator
+                    | GeneralCategory::ParagraphSeparator
+                    | GeneralCategory::NonspacingMark
+                    | GeneralCategory::SpacingMark
+                    | GeneralCategory::EnclosingMark
+                    | GeneralCategory::Unassigned
+            )
+        })
+    }
+
+    let canonical: String = name.nfc().collect();
+    let graphemes: Vec<&str> = UnicodeSegmentation::graphemes(canonical.as_str(), true).collect();
+    let Some(first) = graphemes.iter().position(|value| meaningful(value)) else {
+        return "Untitled".to_string();
+    };
+    let last = graphemes
+        .iter()
+        .rposition(|value| meaningful(value))
+        .expect("a first meaningful grapheme guarantees a last one");
+
+    graphemes[first..=last].concat().nfc().collect()
+}
+
 /// Migrate a persisted `cloudAccuracyTier` storage string to its canonical
 /// catalog id. `None`/empty → the default tier.
 #[uniffi::export]
@@ -325,8 +373,16 @@ pub fn migrate_cloud_pp_model(value: Option<String>) -> String {
 
 #[cfg(test)]
 mod normalize_universal_mode_tests {
-    use super::normalize_universal_mode_json;
+    use super::{normalize_mode_name, normalize_universal_mode_json};
     use serde_json::{json, Value};
+
+    #[test]
+    fn mode_names_are_canonical_and_grapheme_safe() {
+        assert_eq!(normalize_mode_name("\u{200b}\u{301}Work\u{2060}"), "Work");
+        assert_eq!(normalize_mode_name("Cafe\u{301}"), "Café");
+        assert_eq!(normalize_mode_name("\u{200b}\u{2060}"), "Untitled");
+        assert_eq!(normalize_mode_name("👩‍💻 Notes"), "👩‍💻 Notes");
+    }
 
     fn run(mode: Value) -> Value {
         serde_json::from_str(&normalize_universal_mode_json(mode.to_string()).unwrap()).unwrap()

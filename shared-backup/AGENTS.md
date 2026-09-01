@@ -172,6 +172,14 @@ recording workflow on another device.
 
 <important if="you are adding or modifying a Mode property, or editing the mode field-mapping tables">
 
+Mode names use one cross-platform storage rule. Normalize to NFC, remove boundary grapheme
+clusters that contain only whitespace, controls, format characters, or combining marks, and use
+`Untitled` when no visible grapheme remains. Preserve joiners and variation selectors inside a
+visible emoji grapheme. Windows and Linux apply this rule through
+`normalize_universal_mode_json`; macOS mirrors it in `ModeNamePolicy` for every native write and
+backup restore. Add shared cases to `shared-conformance/backup-vectors.json` under
+`modeNameNormalization`; Rust, macOS, Windows, and Linux must all run every row.
+
 Shared mode fields (top-level in the schema):
 
 | Field | macOS (Core Data) | Windows (EF Core) |
