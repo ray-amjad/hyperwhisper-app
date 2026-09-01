@@ -173,7 +173,12 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             CODE_SIGN_ENTITLEMENTS=""
 
-      # TEMPORARY diagnostic step — remove before merge.
+      # A macOS unit test runs INSIDE the app. When the app aborts, XCTest
+      # reports the test that happened to be running as a bare failure in
+      # 0.000 seconds, with no message and a different host pid on the next
+      # line — and the name moves between runs, which reads like a flaky test
+      # rather than one crash. The crash report names the real fault. Without
+      # this step the only way to get it is to rent a Mac.
       - name: Dump test-host crash reports
         if: failure()
         run: |
