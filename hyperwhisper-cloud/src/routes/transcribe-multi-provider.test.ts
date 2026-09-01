@@ -1105,7 +1105,7 @@ describe('existing provider model switching (Deepgram)', () => {
 // response read the log event instead. Local to this file, like every other
 // helper in the suite: a shared import here is one step from `mock.module`,
 // which is process-wide in bun. (issue #381, review r2)
-async function captureRouteEvents(run: () => Promise<Response>): Promise<{
+async function captureRouteEvents(run: () => Response | Promise<Response>): Promise<{
   response: Response;
   events: Array<Record<string, unknown>>;
 }> {

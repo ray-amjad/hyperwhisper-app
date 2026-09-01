@@ -419,6 +419,35 @@ describe('transcribeWithGemini — result and billing', () => {
     expect(estimated.upstreamDurationSeconds).not.toBe(60);
   });
 
+  test('a promptTokenCount with NO modality breakdown logs null, not the locally-estimated remainder', async () => {
+    // The billing tier subtracts `estimatePromptTextTokens()` — a local
+    // ~4-chars-per-token guess over the instruction + vocabulary we sent — from
+    // the prompt total. That is a fine billing input and a false upstream
+    // measurement: the remainder moves with OUR estimate, so logging it as
+    // `upstreamDurationSeconds` records our guess as Gemini's own number. That
+    // field exists to make exactly that impossible. (review r2)
+    globalThis.fetch = mock(async () => Response.json(generateContentResponse('   ', {
+      promptTokenCount: 2000,
+      // No promptTokensDetails: nothing here says how much of the 2000 is audio.
+    }))) as unknown as typeof fetch;
+
+    const reported = await captureNoSpeechEvent(
+      () => transcribeWithGemini(audio(), 'audio/wav', 'en-US'),
+    );
+    expect(reported.upstreamDurationSeconds).toBeNull();
+
+    // A partial breakdown that DOES account for the non-audio tokens is entirely
+    // upstream-derived, so it is still reported: (2000 - 80) / 32 = 60 s.
+    globalThis.fetch = mock(async () => Response.json(generateContentResponse('   ', {
+      promptTokenCount: 2000,
+      promptTokensDetails: [{ modality: 'TEXT', tokenCount: 80 }],
+    }))) as unknown as typeof fetch;
+    const fromBreakdown = await captureNoSpeechEvent(
+      () => transcribeWithGemini(audio(), 'audio/wav', 'en-US'),
+    );
+    expect(fromBreakdown.upstreamDurationSeconds as number).toBeCloseTo(60, 6);
+  });
+
   test('a response with no candidates at all is no_speech rather than a crash', async () => {
     globalThis.fetch = mock(async () => Response.json({ usageMetadata: { promptTokenCount: 100 } })) as unknown as typeof fetch;
 

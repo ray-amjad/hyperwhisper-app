@@ -2,10 +2,10 @@
 // Primary STT provider - $0.0055/min, best accuracy with vocabulary boosting
 
 import { computeDeepgramTranscriptionCost } from '../lib/cost-calculator';
-import { EmptyTranscriptError, ProviderUnavailableError } from './types';
+import { ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import { resolveProviderLanguage } from '../lib/language-codes';
-import { fetchWithTimeout, logProviderEvent, providerHttpError, splitVocabularyTerms } from './utils';
+import { emptyTranscriptOutcome, fetchWithTimeout, logProviderEvent, providerHttpError, splitVocabularyTerms } from './utils';
 
 // Maximum keywords Deepgram accepts
 const MAX_KEYWORDS = 100;
@@ -171,41 +171,25 @@ export async function transcribeWithDeepgram(
     // speech). That is worth one sibling call rather than a "No speech detected"
     // the user has to redo — but only when the ROUTE says a sibling is there to
     // take it. We never inspect `attempt` for that: the chain is the route's to
-    // read. (issue ray-amjad/hyperwhisper-app#381)
-    const upstreamDurationSeconds = duration > 0 ? duration : null;
-    const refusing = upstreamDurationSeconds !== null && context.mayRefuseEmptyTranscript === true;
-    // Logged on BOTH paths, refusal included. This event is the only per-provider
-    // count of "the upstream returned nothing", and suppressing it on the refusal
-    // path would zero it for exactly the providers and exactly the case the
-    // feature exists for. `refused` separates the two outcomes in one query.
-    logProviderEvent(provider, 'no_speech', {
-      elapsedMs: Math.round(performance.now() - startedAt),
-      detectedLanguage: channel?.detected_language,
-      upstreamDurationSeconds,
-      // The upstream's own id for the call that returned nothing — what an
-      // operator hands vendor support. On the refusal path there is no result
-      // for the route to read it off, so it has to be here.
+    // read. One shared block for all three covered adapters. See
+    // emptyTranscriptOutcome in providers/utils.
+    // (issue ray-amjad/hyperwhisper-app#381)
+    return emptyTranscriptOutcome(provider, {
+      label: 'Deepgram',
+      startedAt,
+      context,
+      upstreamDuration: duration,
       upstreamRequestId: data.metadata?.request_id,
-      refused: refusing,
-    }, context);
-    const noSpeechResult: TranscriptionResult = {
-      text: '',
-      language: channel?.detected_language,
-      durationSeconds: 0,
-      costUsd: 0,
-      source: 'no_speech',
-      requestId: data.metadata?.request_id,
-    };
-    if (refusing) {
-      throw new EmptyTranscriptError('Deepgram', {
-        upstreamDurationSeconds,
-        elapsedMs: Math.round(performance.now() - startedAt),
-        // The route keeps this as the request's floor, so a sibling that never
-        // answers cannot turn a benign no_speech into an error.
-        noSpeechResult,
-      });
-    }
-    return noSpeechResult;
+      logDetails: { detectedLanguage: channel?.detected_language },
+      noSpeechResult: {
+        text: '',
+        language: channel?.detected_language,
+        durationSeconds: 0,
+        costUsd: 0,
+        source: 'no_speech',
+        requestId: data.metadata?.request_id,
+      },
+    });
   }
 
   logProviderEvent(provider, 'success', {

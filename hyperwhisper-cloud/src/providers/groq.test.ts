@@ -34,6 +34,22 @@ function captureRequest(body: unknown) {
   return captured;
 }
 
+/** Like `captureRequest`, but with response headers — Groq's request id is one. */
+function jsonWithHeaders(body: unknown, headers: Record<string, string>) {
+  globalThis.fetch = mock(async () => new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json', ...headers },
+  })) as unknown as typeof fetch;
+}
+
+/** A raw 200 body, so a JSON literal `JSON.stringify` cannot produce is testable. */
+function captureRequestRaw(body: string) {
+  globalThis.fetch = mock(async () => new Response(body, {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  })) as unknown as typeof fetch;
+}
+
 function errorResponse(status: number, text = 'upstream said no') {
   let called = false;
   globalThis.fetch = mock(async () => {
@@ -275,5 +291,44 @@ describe('transcribeWithGroq — empty-transcript failover (issue #381)', () => 
     const result = await transcribeWithGroq(audio(), 'audio/wav', undefined, undefined, { mayRefuseEmptyTranscript: true });
     expect(result.source).toBe('no_speech');
     expect(result.costUsd).toBe(0);
+  });
+
+  test('the upstream request id comes off the x-request-id RESPONSE HEADER, on both paths', async () => {
+    // Groq puts no id in the JSON body, so this adapter logged
+    // `upstreamRequestId: undefined` 100% of the time while deepgram.ts and
+    // xai-stt.ts logged a real one — the drift the shared block removes. #381 is
+    // about precisely the call an operator has to report to the vendor.
+    jsonWithHeaders({ text: '', language: 'en', duration: 30 }, { 'x-request-id': 'req_groq_abc' });
+    const reported = await captureNoSpeechEvent(() => transcribeWithGroq(audio(), 'audio/wav'));
+    expect(reported.upstreamRequestId).toBe('req_groq_abc');
+
+    jsonWithHeaders({ text: '', language: 'en', duration: 30 }, { 'x-request-id': 'req_groq_abc' });
+    const thrown = await transcribeWithGroq(audio(), 'audio/wav', undefined, undefined, { mayRefuseEmptyTranscript: true })
+      .catch((e: unknown) => e);
+    expect(thrown).toBeInstanceOf(EmptyTranscriptError);
+    // The route reads it off the floor result for `provider_attempt_fail`.
+    expect((thrown as EmptyTranscriptError).noSpeechResult.requestId).toBe('req_groq_abc');
+
+    // And no header means no id, not the string "null".
+    jsonWithHeaders({ text: '', language: 'en', duration: 30 }, {});
+    const headerless = await captureNoSpeechEvent(() => transcribeWithGroq(audio(), 'audio/wav'));
+    expect(headerless.upstreamRequestId).toBeUndefined();
+  });
+
+  test('an Infinity duration is not a duration: no refusal, and nothing logged as the upstream number', async () => {
+    // `JSON.parse('{"duration":1e999}')` is Infinity, which passes `> 0`. The
+    // hand-written guard produced "empty transcript for Infinitys of audio" and
+    // failed the request over on a number nobody reported.
+    captureRequestRaw('{"text":"","language":"en","duration":1e999}');
+
+    const reported = await captureNoSpeechEvent(
+      () => transcribeWithGroq(audio(), 'audio/wav', undefined, undefined, { mayRefuseEmptyTranscript: true }),
+    );
+    expect(reported.upstreamDurationSeconds).toBeNull();
+    expect(reported.refused).toBe(false);
+
+    captureRequestRaw('{"text":"","language":"en","duration":1e999}');
+    const result = await transcribeWithGroq(audio(), 'audio/wav', undefined, undefined, { mayRefuseEmptyTranscript: true });
+    expect(result.source).toBe('no_speech');
   });
 });

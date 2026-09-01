@@ -123,14 +123,20 @@ export function resolveAudioInputTokens(
 }
 
 /**
- * Tiers 1-3 of `resolveAudioInputTokens` only — the audio-token count Gemini's own
- * `usageMetadata` supports, or `null` when the response carries no trustworthy
- * signal. Never falls back to the byte estimate, so a caller (telemetry) can tell
- * the upstream's number apart from our guess.
+ * Tiers 1-2 of `resolveAudioInputTokens` only — the audio-token count derivable
+ * ENTIRELY from Gemini's own modality breakdown, or `null`.
+ *
+ * This is the telemetry function, and the difference from
+ * {@link resolveUpstreamAudioInputTokens} is the whole point of it existing.
+ * Tier 3 subtracts `estimatePromptTextTokens()`, a local ~4-chars-per-token
+ * guess, from the prompt total — a perfectly good BILLING input, but the number
+ * it yields is part ours. Logging it as `upstreamDurationSeconds` would break
+ * the one invariant that log field was added to hold: our estimate is never
+ * recorded as the upstream's duration.
+ * (issue ray-amjad/hyperwhisper-app#381, review r2)
  */
-export function resolveUpstreamAudioInputTokens(
+export function resolveModalityAudioInputTokens(
   usage: GeminiUsageMetadata | undefined,
-  promptTextTokens: number = 0,
 ): number | null {
   const details = usage?.promptTokensDetails;
   const audioDetail = details?.find((d) => d.modality === 'AUDIO');
@@ -155,6 +161,28 @@ export function resolveUpstreamAudioInputTokens(
     }
   }
 
+  return null;
+}
+
+/**
+ * Tiers 1-3 of `resolveAudioInputTokens` only — the audio-token count Gemini's own
+ * `usageMetadata` supports, or `null` when the response carries no usable total.
+ * Never falls back to the byte estimate.
+ *
+ * For BILLING. Tier 3 nets our own prompt-text estimate out of the documented
+ * prompt total, so the result is not purely upstream-derived — telemetry must ask
+ * {@link resolveModalityAudioInputTokens} instead.
+ */
+export function resolveUpstreamAudioInputTokens(
+  usage: GeminiUsageMetadata | undefined,
+  promptTextTokens: number = 0,
+): number | null {
+  const fromModality = resolveModalityAudioInputTokens(usage);
+  if (fromModality !== null) {
+    return fromModality;
+  }
+
+  const promptTokenCount = usage?.promptTokenCount ?? 0;
   // No trustworthy modality breakdown. Prefer the documented promptTokenCount
   // (input-token TOTAL) over a byte heuristic — for low-bitrate Opus/AAC the
   // byte estimate falls far below Gemini's flat 32 audio-tokens/sec and
@@ -258,9 +286,11 @@ export async function transcribeWithGemini(
   const usage = data.usageMetadata;
   const promptTextTokens = estimatePromptTextTokens(promptText);
   const audioInputTokens = resolveAudioInputTokens(usage, audio.byteLength, promptTextTokens);
-  // Same value, minus the byte-estimate last resort: `null` when Gemini reported
-  // no usable usage, so telemetry never records our guess as the upstream's.
-  const upstreamAudioTokens = resolveUpstreamAudioInputTokens(usage, promptTextTokens);
+  // The audio token count Gemini's OWN modality breakdown gives, or null. Not the
+  // billing figure: that one nets our local prompt-text estimate out of the prompt
+  // total, and logging it as an upstream duration is exactly the confusion
+  // `upstreamDurationSeconds` exists to prevent. (review r2)
+  const upstreamAudioTokens = resolveModalityAudioInputTokens(usage);
   // The non-audio remainder of the documented prompt total is the text we sent
   // (instruction + vocab). Bill it at the text-input rate — not the audio rate,
   // and not $0. audio + text always sums to promptTokenCount, so there's no

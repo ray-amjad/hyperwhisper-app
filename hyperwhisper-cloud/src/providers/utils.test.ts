@@ -11,6 +11,7 @@ import {
   providerHttpError,
   readErrorBodyPreview,
   splitVocabularyTerms,
+  upstreamDurationOrNull,
 } from './utils';
 import { ProviderInputError, ProviderUnavailableError } from './types';
 
@@ -429,5 +430,30 @@ describe('splitVocabularyTerms (shared vocabulary-prompt splitter)', () => {
   test('an empty prompt yields no terms', () => {
     expect(splitVocabularyTerms('', NO_LIMITS)).toEqual([]);
     expect(splitVocabularyTerms('   ', NO_LIMITS)).toEqual([]);
+  });
+});
+
+describe('upstreamDurationOrNull (issue #381)', () => {
+  test('accepts a positive finite number and rejects everything else', () => {
+    expect(upstreamDurationOrNull(22.2)).toBe(22.2);
+    expect(upstreamDurationOrNull(0)).toBeNull();
+    expect(upstreamDurationOrNull(-1)).toBeNull();
+    expect(upstreamDurationOrNull(undefined)).toBeNull();
+    expect(upstreamDurationOrNull('22.2')).toBeNull();
+    expect(upstreamDurationOrNull(NaN)).toBeNull();
+  });
+
+  test('rejects Infinity, which a plain `> 0` lets through', () => {
+    // Not hypothetical: `JSON.parse('{"duration":1e999}')` yields Infinity, and
+    // the hand-written `duration > 0` at each of the three refusal sites passed
+    // it straight into the refusal message —
+    //   "Groq unavailable: empty transcript for Infinitys of audio"
+    // — and into `upstreamDurationSeconds`, the log field whose whole job is to
+    // hold a number an operator can trust.
+    const parsed = JSON.parse('{"duration":1e999}') as { duration: number };
+    expect(parsed.duration).toBe(Infinity);
+    expect(parsed.duration > 0).toBe(true);
+    expect(upstreamDurationOrNull(parsed.duration)).toBeNull();
+    expect(upstreamDurationOrNull(-Infinity)).toBeNull();
   });
 });

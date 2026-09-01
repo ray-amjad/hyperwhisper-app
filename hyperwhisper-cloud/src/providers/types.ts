@@ -49,9 +49,20 @@ export interface ProviderRequestContext {
    * this request can still end as the benign 200 `no_speech` it would have been
    * before the failover existed."
    *
-   * The route sets it only when this request's chain — after any geo filtering —
-   * still has a provider AFTER this one, and no refusal has been spent yet. That
-   * is what bounds the recovery at one extra upstream call.
+   * The route sets it only when all three of these hold:
+   *
+   *   1. This attempt is the provider the CALLER CHOSE. A sibling already
+   *      covering for a failed primary does not get to refuse in turn and push
+   *      the request onto a third provider.
+   *   2. This request's chain — after geo filtering, which is applied to every
+   *      request and not only to a blocked chosen provider — still has a provider
+   *      after this one that this region can actually reach.
+   *   3. No refusal has been spent yet on this request.
+   *
+   * The bound on the recovery is enforced separately and in the currency the spec
+   * priced: ONE extra attempt that reaches the wire. A sibling that throws before
+   * any fetch (no API key, a size cap, a content-type gate) costs nothing and does
+   * not consume it.
    *
    * Adapters must NOT re-derive this from `attempt`. `attempt === 1` means
    * "first entry of this request's chain", which is not the same claim: a
