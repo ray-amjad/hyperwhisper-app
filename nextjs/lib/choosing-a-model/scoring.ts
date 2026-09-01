@@ -360,7 +360,12 @@ export function rankModels(
     const privacy = privacyScore(model);
 
     const parts: Record<Priority, number> = { accuracy, latency, cost, privacy };
-    const contributions = {} as Record<Priority, number>;
+    const contributions: Record<Priority, number> = {
+      accuracy: 0,
+      latency: 0,
+      cost: 0,
+      privacy: 0,
+    };
     let score = 0;
     for (const key of PRIORITIES) {
       const contribution = (parts[key] * input.weights[key]) / totalWeight;
@@ -399,7 +404,8 @@ export function rebalance(
   const remaining = TOTAL_POINTS - value;
   const othersTotal = others.reduce((sum, key) => sum + weights[key], 0);
 
-  const next = { ...weights, [changed]: value } as Weights;
+  const next: Weights = { ...weights };
+  next[changed] = value;
   for (const key of others) {
     next[key] =
       othersTotal <= 0

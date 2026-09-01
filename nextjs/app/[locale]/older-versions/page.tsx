@@ -116,8 +116,10 @@ export default function DownloadsPage() {
 
           const displayVersion = shortVersionString || title || buildNumber;
 
-          if (versionMap.has(buildNumber)) {
-            versionMap.get(buildNumber)!.downloads.push(variant);
+          const existing = versionMap.get(buildNumber);
+
+          if (existing) {
+            existing.downloads.push(variant);
           } else {
             versionMap.set(buildNumber, {
               version: displayVersion,

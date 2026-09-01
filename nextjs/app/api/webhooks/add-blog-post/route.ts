@@ -53,11 +53,9 @@ type OutrankArticle = {
   url?: string;
 };
 
-type OutrankPayload = {
-  event_type?: string;
-  timestamp?: string;
-  data?: { articles?: OutrankArticle[] };
-};
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
 
 /**
  * Verify a per-request HMAC-SHA256 signature over the raw body. Returns false
@@ -265,27 +263,38 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  let payload: OutrankPayload;
+  let parsed: unknown;
   try {
-    payload = JSON.parse(rawBody) as OutrankPayload;
+    parsed = JSON.parse(rawBody);
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  if (payload.event_type !== "publish_articles") {
+  // The body is third-party JSON of an unproven shape, so read the envelope
+  // through explicit checks instead of asserting the whole payload.
+  const eventType = isRecord(parsed) ? parsed.event_type : undefined;
+
+  if (eventType !== "publish_articles") {
     return NextResponse.json(
-      { error: `Unsupported event_type: ${payload.event_type}` },
+      { error: `Unsupported event_type: ${String(eventType)}` },
       { status: 400 },
     );
   }
 
-  const articles = payload.data?.articles;
-  if (!Array.isArray(articles) || articles.length === 0) {
+  const data = isRecord(parsed) ? parsed.data : undefined;
+  const rawArticles = isRecord(data) ? data.articles : undefined;
+
+  if (!Array.isArray(rawArticles) || rawArticles.length === 0) {
     return NextResponse.json(
       { error: "No articles in payload" },
       { status: 400 },
     );
   }
+
+  // Only the array itself is proven above. Every per-article field below is
+  // read through optional chaining and validated before use, so the element
+  // type is a shape hint and not a trusted claim.
+  const articles = rawArticles as OutrankArticle[];
 
   if (articles.length > MAX_ARTICLES) {
     return NextResponse.json(
