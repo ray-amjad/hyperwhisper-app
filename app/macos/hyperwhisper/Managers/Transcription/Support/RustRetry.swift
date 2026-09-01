@@ -20,8 +20,8 @@
 //  Backoff budget (issue #379): 8 attempts of raw exponential backoff is ~127s
 //  of sleep, so a hard-down provider used to take ~150s to fail. The core owns
 //  the rule (`nextRetryWithinBudget`); this wrapper just carries the running
-//  total of the delays the core handed it (`sleptMs`) back into the next
-//  decision. The core gives up when the next sleep would push that total past
+//  total of the actual jittered sleeps (`sleptMs`) back into the next decision.
+//  The core gives up when the next nominal sleep would push that total past
 //  `budgetMs` (default `retryDefaultBudgetMs()` == 30s), which stops the
 //  sequence at attempt 5 after 15s of backoff, before the 16/32/64s sleeps are
 //  ever reached. `budgetMs: 0` means unbounded, i.e. exactly the old behaviour.
@@ -141,8 +141,13 @@ enum RustRetry {
                         didRecoverThisSequence = true
                         await hook(urlError)
                     }
-                    sleptMs += delayMs
-                    try await sleep(delayMs)
+                    let admittedDelayMs = Self.admittedSleepMs(
+                        coreDelayMs: delayMs,
+                        sleptMs: sleptMs,
+                        budgetMs: budgetMs
+                    )
+                    sleptMs += admittedDelayMs
+                    try await sleep(admittedDelayMs)
                     continue
                 case .giveUp:
                     Self.logGiveUp(
@@ -183,8 +188,13 @@ enum RustRetry {
 
             switch decision {
             case let .retry(delayMs):
-                sleptMs += delayMs
-                try await sleep(delayMs)
+                let admittedDelayMs = Self.admittedSleepMs(
+                    coreDelayMs: delayMs,
+                    sleptMs: sleptMs,
+                    budgetMs: budgetMs
+                )
+                sleptMs += admittedDelayMs
+                try await sleep(admittedDelayMs)
                 continue
             case .giveUp:
                 Self.logGiveUp(
@@ -257,13 +267,25 @@ enum RustRetry {
         return .rateLimited(retryAfter: retryAfter)
     }
 
-    private static func sleep(_ delayMs: UInt64) async throws {
-        // Add randomized jitter (0–30%) on top of the core's deterministic
-        // backoff so concurrent clients don't all retry in lockstep (thundering
-        // herd). The core forbids RNG, so the jitter lives here — restoring the
-        // pre-migration `.transcription` preset's `0...0.3` jitterRange.
-        let jitterFactor = 1.0 + Double.random(in: 0...0.3)
-        let nanos = UInt64(Double(delayMs) * jitterFactor * 1_000_000)
+    /// Add 0–30% jitter, then admit no more than the declared remaining budget.
+    /// `jitterUnit` is injectable only as a pure seam for boundary tests; runtime
+    /// callers use a full-range random value. With an unbounded budget, no cap is
+    /// applied and this preserves the pre-#379 jittered retry series.
+    static func admittedSleepMs(
+        coreDelayMs: UInt64,
+        sleptMs: UInt64,
+        budgetMs: UInt64,
+        jitterUnit: Double = Double.random(in: 0...1)
+    ) -> UInt64 {
+        let boundedUnit = min(max(jitterUnit, 0), 1)
+        let jittered = UInt64(Double(coreDelayMs) * (1 + boundedUnit * 0.3))
+        guard budgetMs > 0 else { return jittered }
+        let remaining = budgetMs > sleptMs ? budgetMs - sleptMs : 0
+        return min(jittered, remaining)
+    }
+
+    private static func sleep(_ admittedDelayMs: UInt64) async throws {
+        let nanos = admittedDelayMs * 1_000_000
         try await Task.sleep(nanoseconds: nanos)
     }
 }

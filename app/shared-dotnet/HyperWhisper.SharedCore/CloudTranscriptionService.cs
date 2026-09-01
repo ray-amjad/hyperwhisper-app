@@ -83,7 +83,8 @@ public sealed class CloudTranscriptionService : IDisposable
     /// (<c>RetryDefaultBudgetMs()</c> == 30s); <c>0</c> means unbounded, i.e. the
     /// pre-#379 behaviour of 8 attempts and ~127s of sleep. Injectable so a batch
     /// host can be more patient than a dictation one, and so tests can pin a
-    /// small budget without waiting out a real backoff series.
+    /// small budget without waiting out a real backoff series. This shared batch
+    /// driver does not add jitter, so the admitted core delay is the actual sleep.
     /// </param>
     public CloudTranscriptionService(
         HttpMessageHandler handler,
@@ -451,7 +452,8 @@ public sealed class CloudTranscriptionService : IDisposable
     {
         uint attempt = 0;
         var transportFailures = 0;
-        // Running total of the backoff the core has asked this sequence to sleep.
+        // Running total of the backoff this sequence actually sleeps. This batch
+        // driver adds no platform jitter, so it equals the core's returned delay.
         // Accumulated across the whole loop and never reset, so the budget bounds
         // the sequence rather than any single sleep.
         var sleptMs = 0UL;

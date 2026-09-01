@@ -5690,6 +5690,24 @@ internal static class Program
                     $"status {health.GetStatus(healthProvider)}");
             });
 
+            Run("RustRetry caps the actual jittered sleep at the remaining budget", () =>
+            {
+                var admitted = RustRetry.AdmittedSleepMs(
+                    coreDelayMs: 10_000,
+                    sleptMs: 20_000,
+                    budgetMs: 30_000,
+                    jitterUnit: 1);
+                Assert(admitted == 10_000, $"admitted {admitted}ms");
+                Assert(20_000UL + admitted == 30_000, "actual sleep exceeded the budget");
+
+                var unbounded = RustRetry.AdmittedSleepMs(
+                    coreDelayMs: 10_000,
+                    sleptMs: 20_000,
+                    budgetMs: 0,
+                    jitterUnit: 1);
+                Assert(unbounded == 13_000, $"unbounded jitter {unbounded}ms");
+            });
+
             Run("issue #379 (c1): a success near cache expiry starts a fresh TTL", () =>
             {
                 var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);

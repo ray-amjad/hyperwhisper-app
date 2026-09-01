@@ -217,8 +217,9 @@ internal static class RustRetry
                             didRecoverThisSequence = true;
                             await onTransportError(ex).ConfigureAwait(false);
                         }
-                        sleptMs += retry.@delayMs;
-                        await SleepAsync(retry.@delayMs, cancellationToken).ConfigureAwait(false);
+                        var admittedDelayMs = AdmittedSleepMs(retry.@delayMs, sleptMs, budget);
+                        sleptMs += admittedDelayMs;
+                        await SleepAsync(admittedDelayMs, cancellationToken).ConfigureAwait(false);
                         continue;
 
                     case RetryDecision.GiveUp:
@@ -257,8 +258,9 @@ internal static class RustRetry
             switch (nonOkDecision)
             {
                 case RetryDecision.Retry retry:
-                    sleptMs += retry.@delayMs;
-                    await SleepAsync(retry.@delayMs, cancellationToken).ConfigureAwait(false);
+                    var admittedDelayMs = AdmittedSleepMs(retry.@delayMs, sleptMs, budget);
+                    sleptMs += admittedDelayMs;
+                    await SleepAsync(admittedDelayMs, cancellationToken).ConfigureAwait(false);
                     continue;
 
                 case RetryDecision.GiveUp:
@@ -339,12 +341,26 @@ internal static class RustRetry
         return null;
     }
 
-    private static Task SleepAsync(ulong delayMs, CancellationToken cancellationToken)
+    /// <summary>
+    /// Adds 0-30% jitter and caps the actual admitted sleep at the declared
+    /// remaining budget. <paramref name="jitterUnit"/> is a pure test seam;
+    /// production callers use <see cref="Random.Shared"/> across its full range.
+    /// </summary>
+    internal static ulong AdmittedSleepMs(
+        ulong coreDelayMs,
+        ulong sleptMs,
+        ulong budgetMs,
+        double? jitterUnit = null)
     {
-        // Add 0–30% randomized jitter on top of the core's deterministic backoff
-        // so concurrent clients don't all retry in lockstep (thundering herd). The
-        // core forbids RNG, so the jitter lives here — mirrors macOS RustRetry.sleep.
-        var jittered = delayMs * (1.0 + Random.Shared.NextDouble() * 0.3);
-        return Task.Delay(TimeSpan.FromMilliseconds(jittered), cancellationToken);
+        var unit = Math.Clamp(jitterUnit ?? Random.Shared.NextDouble(), 0, 1);
+        var jittered = (ulong)(coreDelayMs * (1.0 + unit * 0.3));
+        if (budgetMs == 0) return jittered;
+        var remaining = budgetMs > sleptMs ? budgetMs - sleptMs : 0;
+        return Math.Min(jittered, remaining);
+    }
+
+    private static Task SleepAsync(ulong admittedDelayMs, CancellationToken cancellationToken)
+    {
+        return Task.Delay(TimeSpan.FromMilliseconds(admittedDelayMs), cancellationToken);
     }
 }

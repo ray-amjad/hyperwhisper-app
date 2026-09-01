@@ -54,6 +54,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("M4A storage performs a real private FFmpeg encode", M4aStorageEncodes),
     ("M4A history playback performs a real FFmpeg decode", M4aPlaybackDecodes),
     ("anonymous speed opt-out is scoped to HyperWhisper Cloud", LatencyOptOutIsScoped),
+    ("production batch transcription preserves the full retry envelope", BatchRetryBudgetIsUnbounded),
     ("Silero detector preserves bounded recurrent state", SileroDetectorStateIsBounded),
     ("packaged Silero ONNX model executes silence fixture", PackagedSileroExecutes),
     ("first-run onboarding persists decisions and gates real readiness", OnboardingStateMachine),
@@ -66,6 +67,13 @@ foreach (var test in tests)
     Console.WriteLine($"PASS {test.Name}");
 }
 Console.WriteLine($"{tests.Length}/{tests.Length} Linux composition tests passed");
+
+static Task BatchRetryBudgetIsUnbounded()
+{
+    Assert(LinuxModeAwareTranscriptionFactory.BatchRetryBudgetMs == 0,
+        "the production Linux batch host silently inherited the 30s interactive retry budget");
+    return Task.CompletedTask;
+}
 
 static Task OnboardingStateMachine()
 {
