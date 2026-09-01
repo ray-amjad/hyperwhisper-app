@@ -380,6 +380,21 @@ struct RustLicenseStoreSecurityTests {
         #expect(try keychain.readRecord()?.key == "prior-key")
     }
 
+    @Test func noOpLicenseTransactionSkipsKeychainWrite() throws {
+        let defaults = makeDefaults()
+        let credentials = FakeLicenseCredentialStore()
+        let keychain = LicenseKeychainStore(credentialStore: credentials)
+        try keychain.writeMigrationMarker()
+        try keychain.replaceRecord(with: LicenseKeychainRecord(key: "current-key"))
+        let store = RustLicenseStore(defaults: defaults, licenseStore: keychain, seedUsage: false)
+        credentials.writes.removeAll()
+        credentials.failWrites = true
+
+        #expect(store.performLicenseTransaction {})
+        #expect(credentials.writes.isEmpty)
+        #expect(try keychain.readRecord()?.key == "current-key")
+    }
+
     @Test func importedReplacementClearsOldKeyBoundVerdictBeforeValidation() throws {
         let defaults = makeDefaults()
         let credentials = FakeLicenseCredentialStore()
@@ -474,9 +489,7 @@ struct BackupLicenseStorageTests {
         BackupManager.shared.licenseManager = manager
 
         #expect(BackupManager.shared.importLicenseKeySecurely("replacement-key"))
-        for _ in 0..<10 where service.actions.count < 2 {
-            await Task.yield()
-        }
+        await service.waitForValidation()
 
         #expect(service.actions == ["replace", "validate"])
         #expect(service.expectedKeys == ["replacement-key"])
@@ -491,6 +504,18 @@ struct BackupLicenseStorageTests {
 
         #expect(BackupManager.shared.importLicenseKeySecurely("replacement-key"))
         #expect(manager.licenseStatus == .trial)
+    }
+
+    @Test func launchValidationBindsVerdictToStoredKey() async {
+        let service = BackupLicenseNetworkSpy()
+        #expect(service.replaceStoredLicenseKeyForImport("stored-key"))
+        service.actions.removeAll()
+        service.requiresRevalidation = true
+        let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false)
+
+        await manager.loadStoredLicense()
+
+        #expect(service.expectedKeys == ["stored-key"])
     }
 
     @Test func lateImportedValidationCannotOverrideNewerImportState() async {
@@ -553,7 +578,7 @@ struct BackupLicenseStorageTests {
         let service = BackupLicenseNetworkSpy()
         service.validationResultOverride = LicenseValidationResult(
             isValid: false,
-            status: .invalid,
+            status: .active,
             customerId: nil,
             customerEmail: nil,
             customerName: nil,
@@ -568,6 +593,28 @@ struct BackupLicenseStorageTests {
 
         #expect(manager.licenseStatus == .active)
         #expect(manager.customerEmail == "existing@example.com")
+        #expect(manager.lastError == "Could not securely save the license")
+    }
+
+    @Test func rejectedVerdictRevokesPublishedActiveStateWhenPersistenceFails() async {
+        let service = BackupLicenseNetworkSpy()
+        service.validationResultOverride = LicenseValidationResult(
+            isValid: false,
+            status: .invalid,
+            customerId: nil,
+            customerEmail: nil,
+            customerName: nil,
+            errorMessage: "Could not securely save the license",
+            storagePersistenceFailed: true
+        )
+        let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false)
+        manager.licenseStatus = .active
+        manager.customerEmail = "existing@example.com"
+
+        _ = await manager.activateLicense("revoked-key")
+
+        #expect(manager.licenseStatus == .invalid)
+        #expect(manager.customerEmail == nil)
         #expect(manager.lastError == "Could not securely save the license")
     }
 
@@ -598,7 +645,9 @@ private final class BackupLicenseNetworkSpy: LicenseNetworkServing {
     var clearSucceeds = true
     var expectedKeys: [String?] = []
     var validationResultOverride: LicenseValidationResult?
+    var requiresRevalidation = false
     private var storedKey: String?
+    private var validationWaiters: [CheckedContinuation<Void, Never>] = []
 
     func activateLicense(_ licenseKey: String) async -> LicenseValidationResult {
         validationResult
@@ -613,11 +662,21 @@ private final class BackupLicenseNetworkSpy: LicenseNetworkServing {
     ) async -> LicenseValidationResult {
         actions.append("validate")
         expectedKeys.append(expectedStoredLicenseKey)
+        let waiters = validationWaiters
+        validationWaiters.removeAll()
+        waiters.forEach { $0.resume() }
         return validationResult
     }
 
+    func waitForValidation() async {
+        if actions.contains("validate") { return }
+        await withCheckedContinuation { continuation in
+            validationWaiters.append(continuation)
+        }
+    }
+
     func probeLicense(_ licenseKey: String) async -> LicenseValidationResult { validationResult }
-    func shouldRevalidateLicense() -> Bool { false }
+    func shouldRevalidateLicense() -> Bool { requiresRevalidation }
     func getCachedLicenseStatus() -> LicenseStatus? { nil }
     func getStoredLicenseKey() -> String? { storedKey }
     func readStoredLicenseKey(retryAfterFailure: Bool) -> RustLicenseStore.StoredLicenseKeyRead {

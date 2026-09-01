@@ -80,8 +80,9 @@ struct LicenseValidationResult {
     let networkFailureFallback: Bool
 
     /// `true` when the server returned a verdict but the secure store could not
-    /// commit it. `LicenseManager` can then keep an already-published Active
-    /// state that still matches the unchanged prior record.
+    /// commit it. `status` still carries that authoritative server verdict.
+    /// `LicenseManager` keeps an existing Active state only when the server also
+    /// returned Active; an Invalid or Expired verdict revokes it immediately.
     let storagePersistenceFailed: Bool
 
     init(

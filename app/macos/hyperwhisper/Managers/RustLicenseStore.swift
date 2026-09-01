@@ -243,7 +243,8 @@ final class RustLicenseStore: KeyValueStore {
             }
 
             guard loadLicenseRecordIfNeeded() else { return false }
-            transactionRecord = cachedLicenseRecord
+            let previousRecord = cachedLicenseRecord
+            transactionRecord = previousRecord
 
             isLicenseTransactionActive = true
             operation()
@@ -252,6 +253,12 @@ final class RustLicenseStore: KeyValueStore {
                 transactionRecord = nil
             }
             defer { transactionRecord = nil }
+
+            // The expected-key precondition can reject a stale validation
+            // without changing the staged record. Do not turn that harmless
+            // no-op into a Keychain write that can fail and mask the real
+            // stale result.
+            guard transactionRecord != previousRecord else { return true }
 
             do {
                 try licenseStore.replaceRecord(with: transactionRecord)

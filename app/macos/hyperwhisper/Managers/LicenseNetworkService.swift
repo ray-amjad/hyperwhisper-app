@@ -351,9 +351,16 @@ class LicenseNetworkService: LicenseNetworkServing {
                     case .staleOrCancelled:
                         throw CancellationError()
                     case .storageFailed:
+                        let serverStatus = Self.adapt(outcome.status)
                         return LicenseValidationResult(
+                            // A valid server verdict is not an activation until
+                            // its key and cache commit. Callers must report the
+                            // storage failure instead of claiming success.
                             isValid: false,
-                            status: .invalid,
+                            // Keep the authoritative server status so the
+                            // manager can revoke an old Active session even
+                            // when persisting that revocation fails.
+                            status: serverStatus,
                             customerId: nil,
                             customerEmail: nil,
                             customerName: nil,

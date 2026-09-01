@@ -137,7 +137,7 @@ class LicenseManager: ObservableObject {
         let result = await networkService.validateLicense(
             licenseKey,
             isLaunchValidation: isLaunchValidation,
-            expectedStoredLicenseKey: nil
+            expectedStoredLicenseKey: isLaunchValidation ? licenseKey : nil
         )
         await processValidationResult(result)
 
@@ -349,9 +349,12 @@ class LicenseManager: ObservableObject {
 
     /// Updates UI state from validation result and posts notification.
     private func processValidationResult(_ result: LicenseValidationResult) {
-        if result.storagePersistenceFailed, licenseStatus == .active {
-            // The failed transaction leaves the prior secure record unchanged.
-            // Keep its matching published entitlement and report the write error.
+        if result.storagePersistenceFailed,
+           result.status == .active,
+           licenseStatus == .active {
+            // The server still accepts the attempted key, but the failed
+            // transaction leaves the prior secure record unchanged. Keep that
+            // prior published entitlement and report the write error.
             lastError = result.errorMessage
             return
         }
