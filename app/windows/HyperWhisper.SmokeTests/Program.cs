@@ -1335,6 +1335,94 @@ internal static class Program
                 Assert(handler.Sends == RustRetry.MaxTimeoutAttempts, $"sends {handler.Sends}");
             });
 
+            // Issue #379: 8 attempts of raw exponential backoff is ~127s of sleep,
+            // so an always-503 provider used to hang for ~150s. The budget is a
+            // THIRD bound, orthogonal to the two transport caps above (which the
+            // two cases above still pin at 4 and 2).
+            RunAsync("RustRetry's wall-clock budget stops a hard-down provider early", async () =>
+            {
+                // The stub 503s twice then succeeds — the shape of a real
+                // transient blip, and the shape that separates the two budgets
+                // without waiting out the full 127s series.
+                static StubHandler FlakyStub()
+                {
+                    var sends = 0;
+                    return new StubHandler(_ =>
+                    {
+                        sends++;
+                        return Task.FromResult(sends <= 2
+                            ? new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)
+                            {
+                                Content = new StringContent("{\"error\":\"provider down\"}")
+                            }
+                            : new HttpResponseMessage(HttpStatusCode.OK)
+                            {
+                                Content = new StringContent("{\"text\":\"ok\"}")
+                            });
+                    });
+                }
+
+                // budgetMs: 0 is unbounded — the pre-#379 behaviour. Both retries
+                // are taken (1s + 2s of sleep) and the third attempt succeeds.
+                var unbounded = FlakyStub();
+                using var unboundedClient = new HttpClient(unbounded);
+                var ok = await RustRetry.PerformAsync(
+                    unboundedClient,
+                    BuildDummyRequest,
+                    _ => new TranscriptionException(TranscriptionErrorCode.Unknown, "unexpected"),
+                    CancellationToken.None,
+                    budgetMs: 0);
+
+                Assert(ok.@status == 200, $"status {ok.@status}");
+                Assert(unbounded.Sends == 3, $"unbounded sends {unbounded.Sends}");
+
+                // A 2s budget: attempt 1's 1s sleep fits, attempt 2's 2s sleep
+                // would land past the deadline, so the sequence gives up at 2
+                // sends and the SAME stub never reaches its success.
+                var budgeted = FlakyStub();
+                using var budgetedClient = new HttpClient(budgeted);
+                var ex = await ExpectAsync<TranscriptionException>(() => RustRetry.PerformAsync(
+                    budgetedClient,
+                    BuildDummyRequest,
+                    resp => new TranscriptionException(
+                        TranscriptionErrorCode.ProviderUnavailable, "budget", null, (int)resp.@status),
+                    CancellationToken.None,
+                    budgetMs: 2_000));
+
+                Assert(ex.Code == TranscriptionErrorCode.ProviderUnavailable, $"code {ex.Code}");
+                Assert(budgeted.Sends == 2, $"budgeted sends {budgeted.Sends}");
+            });
+
+            RunAsync("RustRetry's budget never overrides the core attempt ceiling", async () =>
+            {
+                // `Retry-After: 0` makes every backoff zero, so `elapsed + delay`
+                // can never exceed any budget. The core's MAX_ATTEMPTS is still
+                // the ceiling — the budget only ever turns a Retry into a GiveUp,
+                // it never extends one. Costs no wall-clock time.
+                var handler = new StubHandler(_ =>
+                {
+                    var response = new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)
+                    {
+                        Content = new StringContent("{\"error\":\"provider down\"}")
+                    };
+                    response.Headers.TryAddWithoutValidation("Retry-After", "0");
+                    return Task.FromResult(response);
+                });
+                using var client = new HttpClient(handler);
+
+                var ex = await ExpectAsync<TranscriptionException>(() => RustRetry.PerformAsync(
+                    client,
+                    BuildDummyRequest,
+                    resp => new TranscriptionException(
+                        TranscriptionErrorCode.ProviderUnavailable, "exhausted", null, (int)resp.@status),
+                    CancellationToken.None,
+                    budgetMs: 5_000));
+
+                Assert(ex.Code == TranscriptionErrorCode.ProviderUnavailable, $"code {ex.Code}");
+                Assert(handler.Sends == (int)uniffi.hyperwhisper_core.HyperwhisperCoreMethods.RetryMaxAttempts(),
+                    $"sends {handler.Sends}");
+            });
+
             RunAsync("RustRetry never retries caller cancellation", async () =>
             {
                 using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));

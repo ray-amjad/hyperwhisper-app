@@ -30,8 +30,19 @@
 // Under-cap transport failures still ask the core NextRetry(attempt, 503, ...)
 // for the backoff delay, so the schedule stays core-owned.
 //
+// Wall-clock budget (issue #379): 8 attempts of raw exponential backoff is ~127s
+// of sleep, so a hard-down provider used to take ~150s to fail. The core owns the
+// rule (NextRetryWithinBudget), the platform owns the clock: a Stopwatch is
+// started BEFORE the loop and its elapsed value feeds every decision. The core
+// gives up when the next sleep would land past budgetMs (default
+// RetryDefaultBudgetMs() == 30s), which stops at attempt 5 (~20-25s) before the
+// 16/32/64s sleeps are reached. budgetMs: 0 means unbounded — exactly the old
+// behaviour. This is a THIRD, orthogonal bound: MaxTransportAttempts and
+// MaxTimeoutAttempts are per-failure-kind caps and are unchanged.
+//
 // TODO-verify (Windows/CI): Rust shared-core swap — compile-only; verify in CI.
 
+using System.Diagnostics;
 using System.Net.Http;
 using HyperWhisper.Models;
 using uniffi.hyperwhisper_core;
@@ -61,9 +72,10 @@ internal static class RustRetry
         Func<HttpResponse, TranscriptionException> parseError,
         CancellationToken cancellationToken,
         Func<Exception, Task>? onTransportError = null,
-        TimeSpan? perAttemptTimeout = null)
+        TimeSpan? perAttemptTimeout = null,
+        ulong? budgetMs = null)
     {
-        return PerformAsync(() => client, buildRequest, parseError, cancellationToken, onTransportError, perAttemptTimeout);
+        return PerformAsync(() => client, buildRequest, parseError, cancellationToken, onTransportError, perAttemptTimeout, budgetMs);
     }
 
     /// <summary>
@@ -72,11 +84,11 @@ internal static class RustRetry
     /// <list type="bullet">
     /// <item>On a 2xx response, returns the captured <see cref="HttpResponse"/>.</item>
     /// <item>On a non-2xx, parses <c>Retry-After</c> natively, asks the core
-    /// <c>NextRetry(...)</c>, and either sleeps <c>delayMs</c> and retries or
-    /// gives up.</item>
+    /// <c>NextRetryWithinBudget(...)</c>, and either sleeps <c>delayMs</c> and
+    /// retries or gives up.</item>
     /// <item>On a transport error with no HTTP response (network blip / timeout),
     /// treats it as a retryable 503-equivalent
-    /// (<c>NextRetry(attempt, 503, "", null)</c>).</item>
+    /// (<c>NextRetryWithinBudget(attempt, 503, "", null, …)</c>).</item>
     /// <item>On cancellation, throws <see cref="OperationCanceledException"/>.</item>
     /// <item>On give-up, throws the caller-mapped <see cref="TranscriptionException"/>
     /// derived from the last status/body (via <paramref name="parseError"/>), so
@@ -99,6 +111,13 @@ internal static class RustRetry
     /// <paramref name="perAttemptTimeout"/>, when set, bounds each individual
     /// attempt (each attempt gets the full budget); expiry counts against
     /// <see cref="MaxTimeoutAttempts"/>.
+    ///
+    /// <paramref name="budgetMs"/> is the TOTAL wall-clock budget for this whole
+    /// sequence, measured from before the first attempt and including the time
+    /// the failed requests themselves took. The core gives up rather than start a
+    /// sleep that would land past it. <c>null</c> = the core's interactive
+    /// <c>RetryDefaultBudgetMs()</c> (30s); <c>0</c> = unbounded (the pre-#379
+    /// behaviour), which a future batch caller can opt into.
     /// </summary>
     internal static async Task<HttpResponse> PerformAsync(
         Func<HttpClient> clientProvider,
@@ -106,7 +125,8 @@ internal static class RustRetry
         Func<HttpResponse, TranscriptionException> parseError,
         CancellationToken cancellationToken,
         Func<Exception, Task>? onTransportError = null,
-        TimeSpan? perAttemptTimeout = null)
+        TimeSpan? perAttemptTimeout = null,
+        ulong? budgetMs = null)
     {
         uint attempt = 0;
         // One-shot-per-sequence gate for the recovery hook.
@@ -115,6 +135,11 @@ internal static class RustRetry
         // MAX_ATTEMPTS=8 remains the global bound across ALL failure kinds.
         var transportFailures = 0;
         var timeoutFailures = 0;
+        var budget = budgetMs ?? HyperwhisperCoreMethods.RetryDefaultBudgetMs();
+        // Per-sequence monotonic clock for the wall-clock budget. Started BEFORE
+        // the loop and never restarted inside it, so it accumulates both the
+        // failed attempts' own time and every backoff sleep.
+        var sequenceClock = Stopwatch.StartNew();
 
         while (true)
         {
@@ -168,11 +193,14 @@ internal static class RustRetry
 
                 // Under cap — the core still owns the backoff schedule; treat as a
                 // retryable 503-equivalent.
-                var decision = HyperwhisperCoreMethods.NextRetry(
+                var elapsedMs = (ulong)sequenceClock.ElapsedMilliseconds;
+                var decision = HyperwhisperCoreMethods.NextRetryWithinBudget(
                     @attempt: attempt,
                     @status: 503,
                     @body: "",
-                    @retryAfter: null);
+                    @retryAfter: null,
+                    @elapsedMs: elapsedMs,
+                    @budgetMs: budget);
 
                 switch (decision)
                 {
@@ -189,6 +217,7 @@ internal static class RustRetry
 
                     case RetryDecision.GiveUp:
                     default:
+                        LogGiveUp(attempt, 503, "", null, elapsedMs, budget);
                         throw new TranscriptionException(
                             TranscriptionErrorCode.NetworkError,
                             ex.Message,
@@ -207,13 +236,18 @@ internal static class RustRetry
             var bodyText = System.Text.Encoding.UTF8.GetString(response.@body);
             var retryAfter = ParseRetryAfterHeader(response);
 
-            var nonOkDecision = HyperwhisperCoreMethods.NextRetry(
+            // Floor at 0: a negative Retry-After (e.g. "-1") is meaningless and a
+            // raw `(ulong)(-1)` would wrap to a huge delay → Task.Delay throws.
+            var retryAfterMs = retryAfter.HasValue ? (ulong)Math.Max(0, retryAfter.Value) : (ulong?)null;
+            var nonOkElapsedMs = (ulong)sequenceClock.ElapsedMilliseconds;
+
+            var nonOkDecision = HyperwhisperCoreMethods.NextRetryWithinBudget(
                 @attempt: attempt,
                 @status: response.@status,
                 @body: bodyText,
-                // Floor at 0: a negative Retry-After (e.g. "-1") is meaningless and a
-                // raw `(ulong)(-1)` would wrap to a huge delay → Task.Delay throws.
-                @retryAfter: retryAfter.HasValue ? (ulong)Math.Max(0, retryAfter.Value) : null);
+                @retryAfter: retryAfterMs,
+                @elapsedMs: nonOkElapsedMs,
+                @budgetMs: budget);
 
             switch (nonOkDecision)
             {
@@ -223,12 +257,34 @@ internal static class RustRetry
 
                 case RetryDecision.GiveUp:
                 default:
+                    LogGiveUp(attempt, response.@status, bodyText, retryAfterMs, nonOkElapsedMs, budget);
                     // The core's RateLimited carries no Retry-After (it doesn't
                     // read the header); enrich the give-up error with the value we
                     // parsed here so the "try again in N seconds" UI is preserved.
                     throw EnrichRateLimited(parseError(response), retryAfter);
             }
         }
+    }
+
+    /// <summary>
+    /// Log a give-up with a reason a support engineer can act on: the wall-clock
+    /// budget running out looks nothing like the attempt ceiling being hit, and
+    /// the two want different fixes. Determined by re-asking the core WITHOUT the
+    /// budget — if it would still have retried, the budget is what stopped us.
+    /// One extra FFI call, only ever on the give-up path. Log line only: nothing
+    /// downstream branches on this.
+    /// </summary>
+    private static void LogGiveUp(uint attempt, ushort status, string body, ulong? retryAfter, ulong elapsedMs, ulong budgetMs)
+    {
+        var unbudgeted = HyperwhisperCoreMethods.NextRetry(
+            @attempt: attempt,
+            @status: status,
+            @body: body,
+            @retryAfter: retryAfter);
+
+        LoggingService.Warn(unbudgeted is RetryDecision.Retry
+            ? $"RustRetry: giving up on the retry BUDGET after attempt {attempt} — {elapsedMs}ms elapsed of {budgetMs}ms (status {status})"
+            : $"RustRetry: giving up on the retry POLICY after attempt {attempt} of {HyperwhisperCoreMethods.RetryMaxAttempts()} — {elapsedMs}ms elapsed (status {status})");
     }
 
     /// <summary>

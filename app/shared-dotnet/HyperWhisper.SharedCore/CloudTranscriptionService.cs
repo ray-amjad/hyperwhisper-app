@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using System.Text;
 using uniffi.hyperwhisper_core;
@@ -61,6 +62,7 @@ public sealed class CloudTranscriptionService : IDisposable
     private readonly ICloudTranscriptionDelay _delay;
     private readonly ICloudTranscriptionObserver? _observer;
     private readonly Func<bool> _shareAnonymousSpeedData;
+    private readonly ulong _retryBudgetMs;
     private bool _disposed;
 
     /// <param name="shareAnonymousSpeedData">
@@ -75,12 +77,21 @@ public sealed class CloudTranscriptionService : IDisposable
     /// forgets the user's privacy choice must fail to compile rather than
     /// silently default to sharing.
     /// </param>
+    /// <param name="retryBudgetMs">
+    /// Total wall-clock budget, in milliseconds, for each retry sequence (issue
+    /// #379). <c>null</c> takes the core's interactive default
+    /// (<c>RetryDefaultBudgetMs()</c> == 30s); <c>0</c> means unbounded, i.e. the
+    /// pre-#379 behaviour of 8 attempts and ~127s of sleep. Injectable so a batch
+    /// host can be more patient than a dictation one, and so tests can pin a
+    /// small budget without waiting out a real backoff series.
+    /// </param>
     public CloudTranscriptionService(
         HttpMessageHandler handler,
         ICloudCredentialSource credentials,
         Func<bool> shareAnonymousSpeedData,
         ICloudTranscriptionDelay? delay = null,
-        ICloudTranscriptionObserver? observer = null)
+        ICloudTranscriptionObserver? observer = null,
+        ulong? retryBudgetMs = null)
     {
         ArgumentNullException.ThrowIfNull(handler);
         ArgumentNullException.ThrowIfNull(credentials);
@@ -93,6 +104,7 @@ public sealed class CloudTranscriptionService : IDisposable
         _delay = delay ?? new SystemCloudTranscriptionDelay();
         _observer = observer;
         _shareAnonymousSpeedData = shareAnonymousSpeedData;
+        _retryBudgetMs = retryBudgetMs ?? HyperwhisperCoreMethods.RetryDefaultBudgetMs();
     }
 
     public static IReadOnlyList<CloudProviderDescriptor> Providers => ProviderCatalog;
@@ -410,6 +422,18 @@ public sealed class CloudTranscriptionService : IDisposable
         }
     }
 
+    /// <summary>
+    /// Drive one request stage through the core-owned retry policy.
+    ///
+    /// Wall-clock budget (issue #379): 8 attempts of raw exponential backoff is
+    /// ~127s of sleep, so a hard-down provider used to take ~150s to fail. The
+    /// core owns the rule (<c>NextRetryWithinBudget</c>), this shell owns the
+    /// clock: a <see cref="Stopwatch"/> is started BEFORE the loop and never
+    /// restarted inside it, so it accumulates both the failed attempts' own time
+    /// and every backoff delay. The budget is per STAGE, matching the per-call
+    /// semantics of the macOS/Windows <c>RustRetry</c> drivers — a multi-step
+    /// provider's upload/poll/fetch legs each get their own.
+    /// </summary>
     private async Task<HttpResponse> SendWithRetryAsync<T>(
         Func<HttpRequest> build,
         Func<HttpResponse, T> parse,
@@ -420,6 +444,7 @@ public sealed class CloudTranscriptionService : IDisposable
     {
         uint attempt = 0;
         var transportFailures = 0;
+        var sequenceClock = Stopwatch.StartNew();
         while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -434,11 +459,13 @@ public sealed class CloudTranscriptionService : IDisposable
                     return response;
                 }
                 var retryAfter = RetryAfter(response);
-                var decision = HyperwhisperCoreMethods.NextRetry(
+                var decision = HyperwhisperCoreMethods.NextRetryWithinBudget(
                     attempt,
                     response.@status,
                     Encoding.UTF8.GetString(response.@body),
-                    retryAfter.HasValue ? (ulong)Math.Max(0, retryAfter.Value) : null);
+                    retryAfter.HasValue ? (ulong)Math.Max(0, retryAfter.Value) : null,
+                    (ulong)sequenceClock.ElapsedMilliseconds,
+                    _retryBudgetMs);
                 if (decision is RetryDecision.Retry retry)
                 {
                     await _delay.DelayAsync(TimeSpan.FromMilliseconds(retry.@delayMs), cancellationToken).ConfigureAwait(false);
@@ -465,7 +492,13 @@ public sealed class CloudTranscriptionService : IDisposable
             catch (HttpRequestException) when (++transportFailures < MaxTransportAttempts)
             {
                 Observe(new CloudTranscriptionEvent(provider, checked((int)attempt), null, stage));
-                var decision = HyperwhisperCoreMethods.NextRetry(attempt, 503, string.Empty, null);
+                var decision = HyperwhisperCoreMethods.NextRetryWithinBudget(
+                    attempt,
+                    503,
+                    string.Empty,
+                    null,
+                    (ulong)sequenceClock.ElapsedMilliseconds,
+                    _retryBudgetMs);
                 if (decision is not RetryDecision.Retry retry)
                 {
                     throw;

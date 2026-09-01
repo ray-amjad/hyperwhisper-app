@@ -17,6 +17,15 @@
 //  to 10s. The core is RNG-free, so a small randomized jitter (0–30%) is added
 //  platform-side at the sleep point (see `sleep(_:)`) to avoid a thundering herd.
 //
+//  Wall-clock budget (issue #379): 8 attempts of raw exponential backoff is
+//  ~127s of sleep, so a hard-down provider used to take ~150s to fail. The core
+//  owns the rule (`nextRetryWithinBudget`), the platform owns the clock: this
+//  wrapper starts a monotonic clock BEFORE the loop and feeds `elapsedMs` into
+//  every decision. The core gives up when the next sleep would land past
+//  `budgetMs` (default `retryDefaultBudgetMs()` == 30s), which stops the
+//  sequence at attempt 5 — ~20-25s — before the 16/32/64s sleeps are ever
+//  reached. `budgetMs: 0` means unbounded, i.e. exactly the old behaviour.
+//
 
 import Foundation
 
@@ -26,9 +35,10 @@ enum RustRetry {
     ///
     /// - On a 2xx response, returns the captured `HttpResponse`.
     /// - On a non-2xx, parses `Retry-After` natively, asks the core
-    ///   `nextRetry(...)`, and either sleeps `delayMs` and retries or gives up.
+    ///   `nextRetryWithinBudget(...)`, and either sleeps `delayMs` and retries
+    ///   or gives up.
     /// - On a `URLError` with no HTTP response (network blip), treats it as a
-    ///   retryable 503-equivalent (`nextRetry(attempt, 503, "", nil)`).
+    ///   retryable 503-equivalent (`nextRetryWithinBudget(attempt, 503, "", nil, …)`).
     /// - On cancellation, throws `CancellationError`.
     /// - On give-up, throws the core-mapped Swift `TranscriptionError` derived
     ///   from the last status/body (via `parseError`), so callers surface the
@@ -46,16 +56,35 @@ enum RustRetry {
     /// (VPN/captive-portal/tether swap) re-resolves instead of burning all
     /// attempts against a poisoned connection pool. Default `nil` = no-op, so
     /// other callers are unaffected.
+    ///
+    /// `budgetMs` is the TOTAL wall-clock budget for this whole sequence,
+    /// measured from before the first attempt and including the time the failed
+    /// requests themselves took. The core gives up rather than start a sleep
+    /// that would land past it. Default = the core's interactive
+    /// `retryDefaultBudgetMs()` (30s); `0` means unbounded (the pre-#379
+    /// behaviour), which a future batch caller can opt into.
+    ///
+    /// NOTE: the budget is per `perform(...)` CALL, not per user action.
+    /// `CloudAudioFormatRecovery.withUnsupportedFormatRecovery` wraps the routed
+    /// path and can re-run the whole sequence once (415 → WAV re-encode →
+    /// re-send), which is two independent budgets. That is accepted: a 415 gives
+    /// up on attempt 1, so the realistic worst case is one full budget plus one
+    /// short sequence.
     static func perform(
         session: URLSession,
         buildRequest: () throws -> HttpRequest,
         parseError: (HttpResponse) -> TranscriptionError,
-        onTransportError: ((URLError) async -> Void)? = nil
+        onTransportError: ((URLError) async -> Void)? = nil,
+        budgetMs: UInt64 = retryDefaultBudgetMs()
     ) async throws -> HttpResponse {
         var attempt: UInt32 = 0
         // One-shot-per-sequence gate for the recovery hook (matches the original
         // native `didResetThisSequence` semantics).
         var didRecoverThisSequence = false
+        // Per-sequence monotonic clock for the wall-clock budget. Started BEFORE
+        // the loop and never reset inside it, so it accumulates both the failed
+        // requests' own time and every backoff sleep.
+        let sequenceStart = DispatchTime.now()
 
         while true {
             try Task.checkCancellation()
@@ -88,7 +117,15 @@ enum RustRetry {
                 }
 
                 // No HTTP response — treat as a retryable 503-equivalent.
-                let decision = nextRetry(attempt: attempt, status: 503, body: "", retryAfter: nil)
+                let elapsedMs = Self.elapsedMs(since: sequenceStart)
+                let decision = nextRetryWithinBudget(
+                    attempt: attempt,
+                    status: 503,
+                    body: "",
+                    retryAfter: nil,
+                    elapsedMs: elapsedMs,
+                    budgetMs: budgetMs
+                )
                 switch decision {
                 case let .retry(delayMs):
                     // One-shot transport-error recovery (e.g. DNS-cache flush on a
@@ -101,6 +138,14 @@ enum RustRetry {
                     try await sleep(delayMs)
                     continue
                 case .giveUp:
+                    Self.logGiveUp(
+                        attempt: attempt,
+                        status: 503,
+                        body: "",
+                        retryAfter: nil,
+                        elapsedMs: elapsedMs,
+                        budgetMs: budgetMs
+                    )
                     throw TranscriptionError.transientNetwork(details: error.localizedDescription)
                 }
             }
@@ -114,15 +159,20 @@ enum RustRetry {
             let bodyText = String(data: response.body, encoding: .utf8) ?? ""
             let retryAfter = response.retryAfterSeconds
 
-            let decision = nextRetry(
+            // Clamp at the conversion: `retryAfterSeconds` uses `Int(...)` and so
+            // accepts negatives; `UInt64(-1)` would TRAP. A negative Retry-After
+            // is meaningless, so floor it at 0. (The `Int?` value is still passed
+            // to `enrichRateLimited` below for user messaging.)
+            let retryAfterMs = retryAfter.map { UInt64(max(0, $0)) }
+            let elapsedMs = Self.elapsedMs(since: sequenceStart)
+
+            let decision = nextRetryWithinBudget(
                 attempt: attempt,
                 status: response.status,
                 body: bodyText,
-                // Clamp at the conversion: `retryAfterSeconds` uses `Int(...)`
-                // and so accepts negatives; `UInt64(-1)` would TRAP. A negative
-                // Retry-After is meaningless, so floor it at 0. (The `Int?` value
-                // is still passed to `enrichRateLimited` below for user messaging.)
-                retryAfter: retryAfter.map { UInt64(max(0, $0)) }
+                retryAfter: retryAfterMs,
+                elapsedMs: elapsedMs,
+                budgetMs: budgetMs
             )
 
             switch decision {
@@ -130,11 +180,50 @@ enum RustRetry {
                 try await sleep(delayMs)
                 continue
             case .giveUp:
+                Self.logGiveUp(
+                    attempt: attempt,
+                    status: response.status,
+                    body: bodyText,
+                    retryAfter: retryAfterMs,
+                    elapsedMs: elapsedMs,
+                    budgetMs: budgetMs
+                )
                 // The core's RateLimited carries no Retry-After (it doesn't read
                 // the header); enrich the give-up error with the value we parsed
                 // here so the "try again in N seconds" UI is preserved.
                 throw enrichRateLimited(parseError(response), retryAfter: retryAfter)
             }
+        }
+    }
+
+    /// Milliseconds elapsed since the retry sequence began. `DispatchTime` is
+    /// monotonic, so a wall-clock adjustment mid-sequence can't corrupt the
+    /// budget, and the subtraction is wrapping-safe on the uptime nanoseconds.
+    private static func elapsedMs(since start: DispatchTime) -> UInt64 {
+        (DispatchTime.now().uptimeNanoseconds &- start.uptimeNanoseconds) / 1_000_000
+    }
+
+    /// Log a give-up with a reason a support engineer can act on: the wall-clock
+    /// budget running out looks nothing like the attempt ceiling being hit, and
+    /// the two want different fixes. Determined by re-asking the core WITHOUT
+    /// the budget — if it would still have retried, the budget is what stopped
+    /// us. One extra FFI call, only ever on the give-up path.
+    private static func logGiveUp(
+        attempt: UInt32,
+        status: UInt16,
+        body: String,
+        retryAfter: UInt64?,
+        elapsedMs: UInt64,
+        budgetMs: UInt64
+    ) {
+        if case .retry = nextRetry(attempt: attempt, status: status, body: body, retryAfter: retryAfter) {
+            AppLogger.network.warning(
+                "RustRetry: giving up on the retry BUDGET after attempt \(attempt, privacy: .public) — \(elapsedMs, privacy: .public)ms elapsed of \(budgetMs, privacy: .public)ms (status \(status, privacy: .public))"
+            )
+        } else {
+            AppLogger.network.warning(
+                "RustRetry: giving up on the retry POLICY after attempt \(attempt, privacy: .public) of \(retryMaxAttempts(), privacy: .public) — \(elapsedMs, privacy: .public)ms elapsed (status \(status, privacy: .public))"
+            )
         }
     }
 
