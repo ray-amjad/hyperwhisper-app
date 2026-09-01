@@ -157,6 +157,36 @@ struct CloudSttTierParityTests {
         #expect(shared?.voiceCapabilities?.wordTimestamps == false)
     }
 
+    @Test("Upload duration limits apply only to the active HyperWhisper Cloud tier")
+    func uploadDurationLimitUsesActiveProvider() {
+        let activeMuse = CloudSTTCatalog.shared.uploadDurationConstraint(
+            model: "cloud",
+            cloudProvider: "hyperwhisper",
+            accuracyTier: "metaMuse"
+        )
+        #expect(activeMuse?.maximumSeconds == 600)
+        #expect(activeMuse?.providerName == "Meta Muse Voice Transcribe")
+
+        let staleTierOnOpenAI = CloudSTTCatalog.shared.uploadDurationConstraint(
+            model: "cloud",
+            cloudProvider: "openai",
+            accuracyTier: "metaMuse"
+        )
+        #expect(staleTierOnOpenAI == nil)
+    }
+
+    @Test("Muse validates the post-VAD upload duration")
+    func museAcceptsSourceTrimmedBelowLimit() {
+        let constraint = CloudSTTCatalog.shared.uploadDurationConstraint(
+            model: "cloud",
+            cloudProvider: "hyperwhisper",
+            accuracyTier: "metaMuse"
+        )
+
+        #expect(constraint?.isExceeded(by: 12 * 60) == true)
+        #expect(constraint?.isExceeded(by: 9 * 60) == false)
+    }
+
     /// Catalog v8 retired `googleChirp3` and put `geminiTranscribe` in its array
     /// slot as Google's cloud tier. Every persisted Chirp value in the wild has
     /// to land there — and the failure mode is silent: `fromStorageValue`'s

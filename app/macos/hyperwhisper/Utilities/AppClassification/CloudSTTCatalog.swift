@@ -19,6 +19,15 @@ import Foundation
 /// The nested type names are kept as aliases for the shared-core records, so
 /// call sites keep reading `CloudSTTCatalog.Model` / `.Entry` / `.VendorGroup`.
 struct CloudSTTCatalog {
+    struct UploadDurationConstraint: Equatable {
+        let maximumSeconds: TimeInterval
+        let providerName: String
+
+        func isExceeded(by uploadedDurationSeconds: TimeInterval) -> Bool {
+            uploadedDurationSeconds > maximumSeconds
+        }
+    }
+
     /// One cloud STT provider row.
     typealias Entry = SttEntry
     /// A single selectable model within a provider — the Model dropdown
@@ -145,6 +154,35 @@ struct CloudSTTCatalog {
     func normalizeCloudProvider(_ value: String?) -> (provider: String?, accuracyTier: String?) {
         let normalized = cloudSttNormalizeCloudProvider(value: value)
         return (provider: normalized.provider, accuracyTier: normalized.accuracyTier)
+    }
+
+    /// The duration limit for the exact cloud engine that will receive an
+    /// uploaded file. Only HyperWhisper Cloud accuracy tiers use this catalog;
+    /// a stale tier value on a BYOK provider must not change that provider's
+    /// limits. Provider-specific numbers and names stay in catalog data rather
+    /// than in the generic file-import flow.
+    func uploadDurationConstraint(
+        model: String?,
+        cloudProvider: String?,
+        accuracyTier: String?
+    ) -> UploadDurationConstraint? {
+        let normalizedModel = model?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
+        guard normalizedModel.isEmpty || normalizedModel == "cloud",
+              CloudProvider.parse(cloudProvider) == .hyperwhisper else {
+            return nil
+        }
+
+        let tier = CloudAccuracyTier.fromStorageValue(accuracyTier)
+        guard let entry = entry(byId: tier.rawValue),
+              let maximumMinutes = entry.maxDurationMinutes,
+              maximumMinutes > 0 else {
+            return nil
+        }
+
+        return UploadDurationConstraint(
+            maximumSeconds: TimeInterval(maximumMinutes * 60),
+            providerName: entry.displayName
+        )
     }
 
     // MARK: - Live-only models

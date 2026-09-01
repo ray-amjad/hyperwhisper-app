@@ -374,15 +374,6 @@ class FileTranscriptionFlow {
             // STEP 4: Get audio duration (12-13%)
             progressState.animateProgress(to: 0.13, duration: 0.2)
             let duration = try await getAudioDuration(audioURL)
-            if mode.model?.lowercased() == "cloud",
-               CloudAccuracyTier.fromStorageValue(mode.cloudAccuracyTier) == .metaMuse,
-               duration > 10 * 60 {
-                throw FileTranscriptionError.durationTooLong(
-                    duration: duration,
-                    limit: 10 * 60,
-                    providerName: "Meta Muse"
-                )
-            }
 
             // STEP 4b: VAD SILENCE TRIMMING (Optional) (13-15%)
             // Uses VADProcessingService to analyze audio and trim leading/trailing silence.
@@ -397,6 +388,22 @@ class FileTranscriptionFlow {
             )
             let finalAudioURL = vadResult.finalAudioURL
             let trimResult = vadResult.trimResult
+
+            // Validate the artifact that will actually be uploaded. A long
+            // source may become valid after VAD, while a stale cloud tier on a
+            // BYOK mode must not apply another provider's limits.
+            let uploadDuration = try await getAudioDuration(finalAudioURL)
+            if let constraint = CloudSTTCatalog.shared.uploadDurationConstraint(
+                model: mode.model,
+                cloudProvider: mode.cloudProvider,
+                accuracyTier: mode.cloudAccuracyTier
+            ), constraint.isExceeded(by: uploadDuration) {
+                throw FileTranscriptionError.durationTooLong(
+                    duration: uploadDuration,
+                    limit: constraint.maximumSeconds,
+                    providerName: constraint.providerName
+                )
+            }
 
             // Check for cancellation
             guard !progressState.isCancelled else { throw CancellationError() }
@@ -443,7 +450,8 @@ class FileTranscriptionFlow {
                 audioURL: finalAudioURL,
                 mode: mode,
                 recordingSession: nil,
-                applicationContext: nil
+                applicationContext: nil,
+                audioDurationSeconds: uploadDuration
             )
 
             // Check for cancellation after transcription
