@@ -59,7 +59,9 @@ enum ModesEndpoint {
                 message: "Mode 'postProcessingMode' must be between \(Int16.min) and \(Int16.max)"
             )
         }
-        if PersistenceController.shared.fetchMode(byName: normalizedName) != nil {
+        let persistence = PersistenceController.shared
+        let context = Self.mutationContext(for: persistence)
+        if Self.fetchMode(byName: normalizedName, in: context) != nil {
             return LocalAPIResponder.failure(
                 code: .modeNameTaken,
                 message: "A mode named '\(normalizedName)' already exists",
@@ -68,7 +70,7 @@ enum ModesEndpoint {
         }
 
         let normalized = CloudSTTCatalog.shared.normalizeCloudProvider(dto.cloudProvider)
-        let mode = PersistenceController.shared.createOrUpdateMode(
+        let mode = persistence.createOrUpdateMode(
             id: nil,
             name: normalizedName,
             preset: dto.preset,
@@ -92,14 +94,14 @@ enum ModesEndpoint {
             geminiCustomPrompt: dto.geminiCustomPrompt,
             cloudPostProcessingModel: dto.cloudPostProcessingModel,
             cloudTranscriptionDomain: dto.cloudTranscriptionDomain,
-            persist: false
+            persist: false,
+            in: context
         )
 
-        let context = PersistenceController.shared.container.viewContext
         do {
             try context.save()
         } catch {
-            Self.discardUnpersistedMode(in: context)
+            context.rollback()
             AppLogger.coreData.error("LocalAPI POST /modes: save failed · \(error.localizedDescription, privacy: .public)")
             return LocalAPIResponder.failure(code: .transcriptionFailed, message: "Failed to save mode")
         }
@@ -113,6 +115,12 @@ enum ModesEndpoint {
     static func patch(request: HTTPRequest) async -> HTTPResponse {
         guard let id = idParameter(from: request) else {
             return LocalAPIResponder.failure(code: .invalidRequest, message: "Missing :id path parameter")
+        }
+        // Do not retain a view-context Mode across the body-data suspension point.
+        // A count fetch gives missing IDs their normal precedence while a DELETE
+        // racing the await is still handled by the isolated re-fetch below.
+        guard Self.modeExists(withId: id, in: PersistenceController.shared.container.viewContext) else {
+            return LocalAPIResponder.failure(code: .modeNotFound, message: "No mode with id '\(id)'")
         }
         let body: Data
         do { body = try await request.bodyData } catch {
@@ -159,16 +167,18 @@ enum ModesEndpoint {
             normalizedName = nil
         }
 
-        // Fetch only after the request body await. No suspension point can now
-        // let DELETE invalidate this managed object before the patch is saved.
-        guard let mode = PersistenceController.shared.fetchMode(withId: id) else {
+        // Fetch only after the request body await, in a context that owns only
+        // this API mutation. Its save or rollback cannot commit or discard
+        // unrelated pending UI edits in the shared view context.
+        let context = Self.mutationContext(for: PersistenceController.shared)
+        guard let mode = Self.fetchMode(withId: id, in: context) else {
             return LocalAPIResponder.failure(code: .modeNotFound, message: "No mode with id '\(id)'")
         }
 
         // Name uniqueness check — only when the caller is actually renaming.
         if let newName = normalizedName,
            newName != mode.name,
-           let clash = PersistenceController.shared.fetchMode(byName: newName),
+           let clash = Self.fetchMode(byName: newName, in: context),
            clash.id != mode.id {
             return LocalAPIResponder.failure(
                 code: .modeNameTaken,
@@ -186,12 +196,9 @@ enum ModesEndpoint {
         mode.modifiedDate = Date()
 
         do {
-            try PersistenceController.shared.container.viewContext.save()
+            try context.save()
         } catch {
-            Self.discardPendingPatch(
-                mode,
-                in: PersistenceController.shared.container.viewContext
-            )
+            context.rollback()
             AppLogger.coreData.error("LocalAPI PATCH /modes: save failed · \(error.localizedDescription, privacy: .public)")
             return LocalAPIResponder.failure(code: .transcriptionFailed, message: "Failed to save mode")
         }
@@ -238,13 +245,39 @@ enum ModesEndpoint {
     }
 
     @MainActor
-    static func discardPendingPatch(_ mode: Mode, in context: NSManagedObjectContext) {
-        context.refresh(mode, mergeChanges: false)
+    static func mutationContext(for persistence: PersistenceController) -> NSManagedObjectContext {
+        let context = NSManagedObjectContext(concurrencyType: .mainQueueConcurrencyType)
+        context.persistentStoreCoordinator = persistence.container.persistentStoreCoordinator
+        context.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
+        context.undoManager = nil
+        return context
     }
 
     @MainActor
-    static func discardUnpersistedMode(in context: NSManagedObjectContext) {
-        context.rollback()
+    static func modeExists(withId id: String, in context: NSManagedObjectContext) -> Bool {
+        guard let uuid = UUID(uuidString: id) else { return false }
+        let request: NSFetchRequest<Mode> = Mode.fetchRequest()
+        request.predicate = NSPredicate(format: "id == %@", uuid as CVarArg)
+        request.fetchLimit = 1
+        request.includesPropertyValues = false
+        return (try? context.count(for: request)) == 1
+    }
+
+    @MainActor
+    private static func fetchMode(withId id: String, in context: NSManagedObjectContext) -> Mode? {
+        guard let uuid = UUID(uuidString: id) else { return nil }
+        let request: NSFetchRequest<Mode> = Mode.fetchRequest()
+        request.predicate = NSPredicate(format: "id == %@", uuid as CVarArg)
+        request.fetchLimit = 1
+        return try? context.fetch(request).first
+    }
+
+    @MainActor
+    private static func fetchMode(byName name: String, in context: NSManagedObjectContext) -> Mode? {
+        let request: NSFetchRequest<Mode> = Mode.fetchRequest()
+        request.predicate = NSPredicate(format: "name ==[c] %@", name)
+        request.fetchLimit = 1
+        return try? context.fetch(request).first
     }
 
     /// Apply only the present keys of a `ModePatchDTO` onto an existing Mode.

@@ -2064,9 +2064,10 @@ class PersistenceController: ObservableObject {
         cloudPostProcessingModel: String? = nil,
         cloudTranscriptionDomain: String? = nil,
         foreignPlatformExtensions: String? = nil,
-        persist: Bool = true
+        persist: Bool = true,
+        in suppliedContext: NSManagedObjectContext? = nil
     ) -> Mode {
-        let context = container.viewContext
+        let context = suppliedContext ?? container.viewContext
         
         // Check if mode exists (for update)
         var mode: Mode?
@@ -2085,7 +2086,8 @@ class PersistenceController: ObservableObject {
             mode?.isSystemProvided = false
             
             // Set sort order for new mode
-            let maxSortOrder = fetchAllModes().map { $0.sortOrder }.max() ?? 0
+            let request: NSFetchRequest<Mode> = Mode.fetchRequest()
+            let maxSortOrder = (try? context.fetch(request).map(\.sortOrder).max()) ?? 0
             mode?.sortOrder = maxSortOrder + 1
         }
         

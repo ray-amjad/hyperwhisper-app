@@ -5,6 +5,7 @@
 
 
 import Foundation
+import CoreData
 import Testing
 @testable import HyperWhisper
 
@@ -74,30 +75,48 @@ struct ModesEndpointTests {
     }
 
     @MainActor
-    @Test func failedPatchCleanupRestoresTheStoredMode() throws {
+    @Test func isolatedPatchRollbackPreservesPendingViewContextEdits() throws {
         let persistence = PersistenceController(inMemory: true)
         let mode = makeMode(in: persistence)
+        let storedID = mode.id!.uuidString
 
-        mode.name = "Rejected replacement"
+        mode.name = "Pending UI edit"
         #expect(mode.hasChanges)
-        ModesEndpoint.discardPendingPatch(mode, in: persistence.container.viewContext)
+        let transaction = ModesEndpoint.mutationContext(for: persistence)
+        let request: NSFetchRequest<Mode> = Mode.fetchRequest()
+        request.predicate = NSPredicate(format: "id == %@", UUID(uuidString: storedID)! as CVarArg)
+        let isolatedMode = try #require(transaction.fetch(request).first)
+        isolatedMode.name = "Rejected API edit"
+        transaction.rollback()
 
-        #expect(mode.name == "Stored name")
-        #expect(!mode.hasChanges)
+        #expect(mode.name == "Pending UI edit")
+        #expect(mode.hasChanges)
     }
 
     @MainActor
-    @Test func failedCreateCleanupRemovesTheUnpersistedMode() {
+    @Test func isolatedCreateRollbackPreservesPendingViewContextEdits() {
         let persistence = PersistenceController(inMemory: true)
-        let mode = makeMode(in: persistence, persist: false)
-        let id = mode.id!
+        let existing = makeMode(in: persistence)
+        existing.name = "Pending UI edit"
+        let transaction = ModesEndpoint.mutationContext(for: persistence)
+        let mode = persistence.createOrUpdateMode(
+            name: "Rejected create",
+            preset: "hyper",
+            language: "en",
+            model: "base",
+            punctuation: true,
+            capitalization: true,
+            profanityFilter: false,
+            persist: false,
+            in: transaction
+        )
 
         #expect(mode.isInserted)
-        ModesEndpoint.discardUnpersistedMode(in: persistence.container.viewContext)
+        transaction.rollback()
 
         #expect(!mode.isInserted)
-        #expect(persistence.fetchMode(withId: id.uuidString) == nil)
-        #expect(!persistence.container.viewContext.hasChanges)
+        #expect(existing.name == "Pending UI edit")
+        #expect(existing.hasChanges)
     }
 
     @MainActor
