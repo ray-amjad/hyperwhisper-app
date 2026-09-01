@@ -39,6 +39,7 @@ struct HyperWhisperCloudEntitlementTests {
 
     private static let cloudAccountRequiredKey = "transcription.error.cloudAccountRequired"
     private static let cloudUnauthorizedKey = "transcription.error.unauthorized.hyperWhisperCloud"
+    private static let cloudForbiddenKey = "transcription.error.forbidden.hyperWhisperCloud"
     private static let providerUnauthorizedKey = "transcription.error.unauthorized.provider"
 
     /// Reads a key's **English** value straight out of `Base.lproj`, so marker
@@ -544,12 +545,16 @@ struct HyperWhisperCloudEntitlementTests {
 
     // MARK: - Local HTTP API does not leak a generic failure
 
-    @Test func cloudUnauthorizedMessagePointsToCloudSettingsForEveryStatus() throws {
-        let english = try #require(Self.baseLocalizedValue(forKey: Self.cloudUnauthorizedKey))
+    @Test func cloudUnauthorizedMessageDistinguishesForbiddenStatus() throws {
+        let unauthorizedEnglish = try #require(Self.baseLocalizedValue(forKey: Self.cloudUnauthorizedKey))
+        let forbiddenEnglish = try #require(Self.baseLocalizedValue(forKey: Self.cloudForbiddenKey))
 
-        #expect(english.localizedCaseInsensitiveContains("invalid or expired"))
-        #expect(english.contains("Settings → HyperWhisper Cloud"))
-        #expect(!english.contains("Settings → API Keys"))
+        #expect(unauthorizedEnglish.localizedCaseInsensitiveContains("invalid or expired"))
+        #expect(unauthorizedEnglish.contains("Settings → HyperWhisper Cloud"))
+        #expect(!unauthorizedEnglish.contains("Settings → API Keys"))
+        #expect(forbiddenEnglish.localizedCaseInsensitiveContains("denied"))
+        #expect(forbiddenEnglish.localizedCaseInsensitiveContains("lack access"))
+        #expect(forbiddenEnglish.contains("Settings → HyperWhisper Cloud"))
 
         let descriptions = ([nil, 401, 403] as [Int?]).map {
             TranscriptionError.unauthorized(
@@ -557,8 +562,35 @@ struct HyperWhisperCloudEntitlementTests {
                 statusCode: $0
             ).errorDescription
         }
-        #expect(descriptions.allSatisfy { $0 == descriptions.first! })
+        #expect(descriptions[0] == descriptions[1])
+        #expect(descriptions[2] != descriptions[0])
+        #expect(descriptions[2]?.contains("\n\n") == true)
+        #expect(descriptions[2]?.contains(#"\n"#) == false)
         #expect(descriptions.allSatisfy { $0 != Self.cloudUnauthorizedKey })
+        #expect(descriptions[2] != Self.cloudForbiddenKey)
+    }
+
+    @Test func everyForbiddenLocaleUsesRenderedLineBreaks() throws {
+        let localizations = Self.repoRoot.appendingPathComponent(
+            "app/macos/hyperwhisper/Localizations"
+        )
+        let localeDirectories = try FileManager.default.contentsOfDirectory(
+            at: localizations,
+            includingPropertiesForKeys: nil
+        ).filter { $0.pathExtension == "lproj" }
+        #expect(localeDirectories.count == 40)
+
+        for locale in localeDirectories {
+            let source = try String(
+                contentsOf: locale.appendingPathComponent("Localizable.strings"),
+                encoding: .utf8
+            )
+            let line = try #require(source.components(separatedBy: .newlines).first {
+                $0.hasPrefix(#""transcription.error.forbidden.hyperWhisperCloud""#)
+            })
+            #expect(line.contains(#"\n\n"#), "\(locale.lastPathComponent) must encode 2 line breaks")
+            #expect(!line.contains(#"\\n\\n"#), "\(locale.lastPathComponent) double-escapes line breaks")
+        }
     }
 
     @Test func byokUnauthorizedMessageKeepsTheAPIKeysDestination() throws {
