@@ -225,10 +225,22 @@ enum StreamingProviderErrorPolicy {
         return liveIsTerminalCloseCode(code: code)
     }
 
-    /// Whether a close code is strong enough to change provider health. Of the
-    /// terminal protocol codes, only 1011 means the server hit an unexpected
-    /// condition. The others can be caused by our payload or local limits.
-    static func isProviderUnavailableCloseCode(_ code: Int) -> Bool {
-        code == 1011
+    /// Whether a close frame is strong enough to change provider health.
+    ///
+    /// RFC 6455 code 1011 alone is ambiguous. Deepgram uses it for NET-0001
+    /// client/network inactivity and NET-0002 no-audio timeouts as well as
+    /// NET-0000 internal faults. Its structured close reason is therefore the
+    /// stronger signal: only NET-0000 counts. An absent or unknown Deepgram
+    /// reason stays conservative and does not mark the provider down.
+    static func isProviderUnavailableClose(
+        code: Int,
+        reason: String?,
+        provider: StreamingTranscriptionProvider?
+    ) -> Bool {
+        guard code == 1011 else { return false }
+        guard provider == .deepgram else { return true }
+
+        let normalized = reason?.uppercased() ?? ""
+        return normalized.contains("NET-0000")
     }
 }

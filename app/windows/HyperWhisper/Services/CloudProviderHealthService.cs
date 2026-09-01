@@ -675,13 +675,14 @@ public class CloudProviderHealthService : IDisposable
     /// the local network.
     /// </summary>
     /// <remarks>
-    /// YES: <see cref="TranscriptionErrorCode.ProviderUnavailable"/>, which
-    /// <c>RustCoreMapping</c> produces for <c>HwTranscriptionException.ProviderUnavailable</c>
-    /// (HTTP 5xx) — the exact counterpart of macOS's
+    /// YES: <see cref="TranscriptionErrorCode.ProviderUnavailable"/> carrying an
+    /// actual HTTP 5xx status. <c>RustCoreMapping</c> produces this shape for
+    /// <c>HwTranscriptionException.ProviderUnavailable</c> from HTTP 5xx — the exact counterpart of macOS's
     /// <c>.serverError(statusCode: 500...599, _)</c> plus <c>.providerNotAvailable</c>.
     ///
     /// NO, on purpose: Unauthorized, QuotaExceeded, RateLimited, NetworkError,
     /// NoSpeechDetected, FileTooLarge, InvalidRequest, Cancelled, CloudAccountRequired,
+    /// ProviderUnavailable without a 5xx (including HTTP 408 and poll exhaustion),
     /// and anything that is not a <see cref="TranscriptionException"/> at all.
     /// Marking a provider unreachable because the user's Wi-Fi dropped, because
     /// their card expired, or because they recorded silence would be a worse bug
@@ -691,7 +692,11 @@ public class CloudProviderHealthService : IDisposable
     /// </remarks>
     internal static bool IsDefinitiveProviderDownVerdict(Exception error)
     {
-        return error is TranscriptionException { Code: TranscriptionErrorCode.ProviderUnavailable };
+        return error is TranscriptionException
+        {
+            Code: TranscriptionErrorCode.ProviderUnavailable,
+            HttpStatusCode: >= 500 and <= 599
+        };
     }
 
     /// <summary>

@@ -133,6 +133,7 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
     /// Provider strategy that encapsulates WebSocket protocol differences.
     /// Set once at init and used throughout the session lifecycle.
     private let strategy: StreamingProviderStrategy
+    private let streamingProvider: StreamingTranscriptionProvider?
 
     /// Audio capture component that manages the AVAudioEngine lifecycle.
     /// Created when the session starts, destroyed when it stops.
@@ -314,8 +315,12 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
     /// URL format, auth headers, audio encoding, message parsing, and shutdown sequence.
     ///
     /// - Parameter strategy: The provider strategy to use for this session
-    init(strategy: StreamingProviderStrategy) {
+    init(
+        strategy: StreamingProviderStrategy,
+        streamingProvider: StreamingTranscriptionProvider? = nil
+    ) {
         self.strategy = strategy
+        self.streamingProvider = streamingProvider
         super.init()
     }
 
@@ -951,12 +956,16 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
                 // after a terminal upstream fault — whichever arrives first wins
                 // and the message the user reads is that frame's own wording.
                 //
-                // RFC 6455 1011 is the one code that definitively identifies a
-                // provider internal error, so it keeps that type for `/health`.
-                // The protocol/input cases stay generic server errors: they can
-                // name our malformed setup and must not mark a provider down.
+                // A 1011 can carry a provider-specific non-outage reason. The
+                // policy combines code, provider and close reason before it can
+                // change `/health`. Other protocol/input cases stay generic.
                 if StreamingProviderErrorPolicy.isTerminalCloseCode(rawCloseCode) {
-                    if StreamingProviderErrorPolicy.isProviderUnavailableCloseCode(rawCloseCode) {
+                    let closeReason = task.closeReason.flatMap { String(data: $0, encoding: .utf8) }
+                    if StreamingProviderErrorPolicy.isProviderUnavailableClose(
+                        code: rawCloseCode,
+                        reason: closeReason,
+                        provider: streamingProvider
+                    ) {
                         reportDefinitiveProviderFailure(
                             TranscriptionError.providerNotAvailable(
                                 provider: strategy.transcriptionProviderLabel,
@@ -2017,7 +2026,11 @@ extension StreamingTranscriptionClient: URLSessionWebSocketDelegate {
             // receive task IS a different task, so cancelling it is both safe
             // and what actually stops the loop.
             if StreamingProviderErrorPolicy.isTerminalCloseCode(rawCode) {
-                if StreamingProviderErrorPolicy.isProviderUnavailableCloseCode(rawCode) {
+                if StreamingProviderErrorPolicy.isProviderUnavailableClose(
+                    code: rawCode,
+                    reason: reasonString,
+                    provider: streamingProvider
+                ) {
                     reportDefinitiveProviderFailure(
                         TranscriptionError.providerNotAvailable(
                             provider: strategy.transcriptionProviderLabel,

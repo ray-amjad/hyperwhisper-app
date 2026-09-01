@@ -216,7 +216,10 @@ extension RecordingTranscriptionFlow {
                 return
             }
             apiKey = deepgramKey
-            service = StreamingTranscriptionClient(strategy: DeepgramStreamingStrategy())
+            service = StreamingTranscriptionClient(
+                strategy: DeepgramStreamingStrategy(),
+                streamingProvider: selectedStreamingProvider
+            )
 
         case .elevenLabs:
             // ElevenLabs direct streaming - requires user's ElevenLabs API key
@@ -227,7 +230,10 @@ extension RecordingTranscriptionFlow {
                 return
             }
             apiKey = elevenLabsKey
-            service = StreamingTranscriptionClient(strategy: ElevenLabsStreamingStrategy())
+            service = StreamingTranscriptionClient(
+                strategy: ElevenLabsStreamingStrategy(),
+                streamingProvider: selectedStreamingProvider
+            )
 
         case .openAI:
             // OpenAI Realtime direct streaming - requires user's OpenAI API key
@@ -238,7 +244,10 @@ extension RecordingTranscriptionFlow {
                 return
             }
             apiKey = openAIKey
-            service = StreamingTranscriptionClient(strategy: OpenAIStreamingStrategy())
+            service = StreamingTranscriptionClient(
+                strategy: OpenAIStreamingStrategy(),
+                streamingProvider: selectedStreamingProvider
+            )
 
         case .xai:
             // xAI direct streaming - requires user's Grok/xAI API key
@@ -249,7 +258,10 @@ extension RecordingTranscriptionFlow {
                 return
             }
             apiKey = xaiKey
-            service = StreamingTranscriptionClient(strategy: XAIStreamingStrategy())
+            service = StreamingTranscriptionClient(
+                strategy: XAIStreamingStrategy(),
+                streamingProvider: selectedStreamingProvider
+            )
 
         case .gemini:
             // Gemini 3.5 Transcribe Live direct streaming - requires the user's
@@ -261,7 +273,10 @@ extension RecordingTranscriptionFlow {
                 return
             }
             apiKey = geminiKey
-            service = StreamingTranscriptionClient(strategy: GeminiStreamingStrategy())
+            service = StreamingTranscriptionClient(
+                strategy: GeminiStreamingStrategy(),
+                streamingProvider: selectedStreamingProvider
+            )
 
         case .parakeetLocal:
             // On-device Parakeet streaming. The model id in `model` is the
@@ -363,7 +378,9 @@ extension RecordingTranscriptionFlow {
             service = StreamingTranscriptionClient(
                 strategy: HyperWhisperCloudStrategy(
                     cloudTier: settingsManager?.streamingCloudTier
-                        ?? HyperWhisperCloudStrategy.defaultCloudTier))
+                        ?? HyperWhisperCloudStrategy.defaultCloudTier),
+                streamingProvider: selectedStreamingProvider
+            )
         }
 
         // Log provider selection for analytics

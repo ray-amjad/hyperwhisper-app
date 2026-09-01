@@ -268,11 +268,35 @@ struct StreamingProviderErrorPolicyTests {
         #expect(!StreamingProviderErrorPolicy.isTerminalCloseCode(4002))
     }
 
-    @Test func onlyInternalErrorCloseChangesProviderHealth() {
-        #expect(StreamingProviderErrorPolicy.isProviderUnavailableCloseCode(1011))
+    @Test func onlyDefinitiveInternalErrorCloseChangesProviderHealth() {
+        #expect(StreamingProviderErrorPolicy.isProviderUnavailableClose(
+            code: 1011,
+            reason: nil,
+            provider: .hyperwhisperCloud
+        ))
 
         for code in [1000, 1002, 1003, 1006, 1007, 1008, 1009, 1012, 4001, 4002] {
-            #expect(!StreamingProviderErrorPolicy.isProviderUnavailableCloseCode(code))
+            #expect(!StreamingProviderErrorPolicy.isProviderUnavailableClose(
+                code: code,
+                reason: "NET-0000",
+                provider: .deepgram
+            ))
+        }
+    }
+
+    @Test func deepgram1011UsesItsStructuredReason() {
+        #expect(StreamingProviderErrorPolicy.isProviderUnavailableClose(
+            code: 1011,
+            reason: "NET-0000 Internal server error",
+            provider: .deepgram
+        ))
+
+        for reason in ["NET-0001 timeout", "NET-0002 no_audio_timeout", "no_audio_timeout", nil] {
+            #expect(!StreamingProviderErrorPolicy.isProviderUnavailableClose(
+                code: 1011,
+                reason: reason,
+                provider: .deepgram
+            ))
         }
     }
 

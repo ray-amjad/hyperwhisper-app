@@ -5766,6 +5766,9 @@ internal static class Program
                     new TranscriptionException(TranscriptionErrorCode.InvalidRequest, "bad body", "Google Chirp 3", 400),
                     new TranscriptionException(TranscriptionErrorCode.FileTooLarge, "too big", "Google Chirp 3", 413),
                     new TranscriptionException(TranscriptionErrorCode.Cancelled, "cancelled", "Google Chirp 3"),
+                    new TranscriptionException(TranscriptionErrorCode.ProviderUnavailable, "request timeout", "Google Chirp 3", 408),
+                    new TranscriptionException(TranscriptionErrorCode.ProviderUnavailable, "polling exhausted", "Google Chirp 3", 200),
+                    new TranscriptionException(TranscriptionErrorCode.ProviderUnavailable, "status unavailable", "Google Chirp 3"),
                     new OperationCanceledException("cancelled"),
                     new HttpRequestException("connection refused")
                 };
@@ -5781,8 +5784,13 @@ internal static class Program
                         $"{error.GetType().Name} classified as provider-down");
                 }
 
-                Assert(CloudProviderHealthService.IsDefinitiveProviderDownVerdict(ProviderDown()),
-                    "a 5xx ProviderUnavailable IS a provider-down verdict");
+                var issue379Failure = new TranscriptionException(
+                    TranscriptionErrorCode.ProviderUnavailable,
+                    "Google Chirp 3 unavailable",
+                    "Google Chirp 3",
+                    500);
+                Assert(CloudProviderHealthService.IsDefinitiveProviderDownVerdict(issue379Failure),
+                    "the issue #379 HTTP 500 must remain a provider-down verdict");
             });
 
             Run("issue #379 (e): the override never leaks into the forced-refresh verdict", () =>
