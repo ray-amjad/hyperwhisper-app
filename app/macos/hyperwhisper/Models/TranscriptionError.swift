@@ -21,8 +21,9 @@ enum TranscriptionError: LocalizedError {
     /// Provider refused the request as unauthenticated or forbidden.
     ///
     /// - Parameter statusCode: the HTTP status the provider actually returned
-    ///   (401 or 403), when the throw site knew it. Diagnostic only — nothing
-    ///   branches on it. HYPERWHISPER-T2 groups every unauthorized refusal into
+    ///   (401 or 403), when the throw site knew it. Error classification and
+    ///   reporting do not branch on it. User guidance distinguishes a forbidden
+    ///   request from an invalid credential. HYPERWHISPER-T2 groups every refusal into
     ///   one issue, and without this the report cannot tell a missing/expired
     ///   credential (401) from a credential the server knows but refuses (403),
     ///   which are different faults with different fixes.
@@ -101,8 +102,11 @@ enum TranscriptionError: LocalizedError {
             return "transcription.error.apiKeyMissing.generic".localized
         case .maxRetriesExceeded:
             return "transcription.error.maxRetriesExceeded".localized
-        case .unauthorized(let provider, _):
+        case .unauthorized(let provider, let statusCode):
             if provider == "HyperWhisper Cloud" {
+                if statusCode == 403 {
+                    return "transcription.error.forbidden.hyperWhisperCloud".localized
+                }
                 return "transcription.error.unauthorized.hyperWhisperCloud".localized
             }
             if let provider = provider {

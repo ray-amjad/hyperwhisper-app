@@ -124,18 +124,20 @@ struct TranscriptionErrorClassificationTests {
         #expect(statusCode == nil)
     }
 
-    /// The status is diagnostic only. Nothing branches on it, so a 401 and a 403
-    /// must still behave identically for the user.
-    @Test func theUnauthorizedStatusChangesNoUserFacingBehaviour() {
+    /// The status does not change classification or actions. A 403 gets
+    /// forbidden guidance instead of claiming that the key expired.
+    @Test func forbiddenStatusChangesOnlyUserGuidance() {
         let bare = TranscriptionError.unauthorized(provider: "HyperWhisper Cloud")
         let with401 = TranscriptionError.unauthorized(provider: "HyperWhisper Cloud", statusCode: 401)
         let with403 = TranscriptionError.unauthorized(provider: "HyperWhisper Cloud", statusCode: 403)
 
-        for error in [bare, with401, with403] {
+        for error in [with401, with403] {
             #expect(error.isRetryable == bare.isRetryable)
             #expect(error.showSettingsButton == bare.showSettingsButton)
-            #expect(error.errorDescription == bare.errorDescription)
         }
+        #expect(with401.errorDescription == bare.errorDescription)
+        #expect(with403.errorDescription != bare.errorDescription)
+        #expect(with403.errorDescription?.contains("can be valid") == true)
     }
 
     /// The fingerprint is built from `category` / `kind` / `stage` and must NOT

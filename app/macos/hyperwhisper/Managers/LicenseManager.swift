@@ -272,8 +272,8 @@ class LicenseManager: ObservableObject {
 
     /// Backup paths use the same service and `RustLicenseStore` instance as all
     /// Rust FFI calls. This prevents a second store and transaction lock.
-    func storedLicenseKeyForBackup() -> String? {
-        networkService.getStoredLicenseKey()
+    func storedLicenseKeyForBackup() -> RustLicenseStore.StoredLicenseKeyRead {
+        networkService.readStoredLicenseKey(retryAfterFailure: true)
     }
 
     /// Saves an imported replacement without the previous key-bound cache.

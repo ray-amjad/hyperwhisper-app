@@ -88,7 +88,19 @@ class BackupManager: ObservableObject {
 
     /// Testable shared-store read used by both backup formats.
     func licenseKeyForExport() -> String? {
-        emptyToNil(licenseManager?.storedLicenseKeyForBackup())
+        guard let licenseManager else {
+            lastError = "Failed to securely read the license key"
+            return nil
+        }
+        switch licenseManager.storedLicenseKeyForBackup() {
+        case .present(let key):
+            return emptyToNil(key)
+        case .missing:
+            return nil
+        case .unavailable:
+            lastError = "Failed to securely read the license key"
+            return nil
+        }
     }
 
     // MARK: - Export Methods
@@ -228,6 +240,7 @@ class BackupManager: ObservableObject {
         var licenseKey: String?
         if options.includeLicenseKey {
             licenseKey = licenseKeyForExport()
+            guard lastError == nil else { return nil }
         }
 
         // Fetch modes from Core Data (only when selected)
@@ -475,6 +488,7 @@ class BackupManager: ObservableObject {
         var licenseKey: String?
         if options.includeLicenseKey {
             licenseKey = licenseKeyForExport()
+            guard lastError == nil else { return nil }
         }
 
         // --- assemble the envelope (exportDate is an ISO-8601 STRING, not a Date) ---
@@ -609,9 +623,18 @@ class BackupManager: ObservableObject {
            let licenseKey = backupData.licenseKey?.trimmingCharacters(in: .whitespacesAndNewlines),
            !licenseKey.isEmpty {
             guard importLicenseKeySecurely(licenseKey) else {
-                let message = "Failed to securely import the license key"
-                lastError = message
-                return .failure(message)
+                return licenseImportFailureResult(
+                    modesImported: modesImported,
+                    modesSkipped: modesSkipped,
+                    vocabularyImported: vocabImported,
+                    vocabularySkipped: vocabSkipped,
+                    apiKeysImported: apiKeysImported,
+                    earlierSectionsApplied: (options.importSettings && backupData.settings != nil)
+                        || (options.importModes && backupData.modes != nil)
+                        || (options.importVocabulary && backupData.vocabulary != nil)
+                        || (options.importAPIKeys && backupData.apiKeys != nil),
+                    repairImportedModes: options.importModes
+                )
             }
             licenseKeyImported = true
         }
@@ -864,9 +887,18 @@ class BackupManager: ObservableObject {
            let licenseKey = dto.licenseKey?.trimmingCharacters(in: .whitespacesAndNewlines),
            !licenseKey.isEmpty {
             guard importLicenseKeySecurely(licenseKey) else {
-                let message = "Failed to securely import the license key"
-                lastError = message
-                return .failure(message)
+                return licenseImportFailureResult(
+                    modesImported: modesImported,
+                    modesSkipped: modesSkipped,
+                    vocabularyImported: vocabImported,
+                    vocabularySkipped: vocabSkipped,
+                    apiKeysImported: apiKeysImported,
+                    earlierSectionsApplied: settingsApplied
+                        || (options.importModes && dto.modes != nil)
+                        || (options.importVocabulary && topLevel["vocabulary"] != nil)
+                        || (options.importAPIKeys && dto.apiKeys != nil),
+                    repairImportedModes: options.importModes
+                )
             }
             licenseKeyImported = true
         }
@@ -885,6 +917,35 @@ class BackupManager: ObservableObject {
             licenseKeyImported: licenseKeyImported
         )
         result.pendingLocalDownloadModelIds = pendingLocalDownloads
+        return result
+    }
+
+    private func licenseImportFailureResult(
+        modesImported: Int,
+        modesSkipped: Int,
+        vocabularyImported: Int,
+        vocabularySkipped: Int,
+        apiKeysImported: Bool,
+        earlierSectionsApplied: Bool,
+        repairImportedModes: Bool
+    ) -> ImportResult {
+        let failureMessage = "Failed to securely import the license key"
+        guard earlierSectionsApplied else {
+            lastError = failureMessage
+            return .failure(failureMessage)
+        }
+
+        let message = "The other selected backup sections were applied, but the license key could not be securely imported."
+        lastError = message
+        var result = ImportResult.partialFailure(
+            message,
+            modesImported: modesImported,
+            modesSkipped: modesSkipped,
+            vocabularyImported: vocabularyImported,
+            vocabularySkipped: vocabularySkipped,
+            apiKeysImported: apiKeysImported
+        )
+        result.pendingLocalDownloadModelIds = repairImportedModes ? repairRestoredLocalModes() : []
         return result
     }
 

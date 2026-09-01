@@ -381,6 +381,26 @@ struct RustLicenseStoreSecurityTests {
 @MainActor
 @Suite(.serialized)
 struct BackupLicenseStorageTests {
+    @Test func partialImportFailurePreservesEarlierSectionResults() {
+        let result = ImportResult.partialFailure(
+            "license failed",
+            modesImported: 2,
+            modesSkipped: 1,
+            vocabularyImported: 3,
+            vocabularySkipped: 4,
+            apiKeysImported: true
+        )
+
+        #expect(!result.success)
+        #expect(result.partialSuccess)
+        #expect(result.modesImported == 2)
+        #expect(result.modesSkipped == 1)
+        #expect(result.vocabularyImported == 3)
+        #expect(result.vocabularySkipped == 4)
+        #expect(result.apiKeysImported)
+        #expect(!result.licenseKeyImported)
+    }
+
     @Test func exportReadsSharedSecureStoreInsteadOfForgedDefaults() throws {
         let suiteName = "BackupLicenseStorageTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -396,6 +416,25 @@ struct BackupLicenseStorageTests {
         BackupManager.shared.licenseManager = manager
 
         #expect(BackupManager.shared.licenseKeyForExport() == "secure-key")
+    }
+
+    @Test func exportReportsSecureReadFailureInsteadOfOmittingSelectedLicense() throws {
+        let suiteName = "BackupLicenseStorageTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        let credentials = FakeLicenseCredentialStore()
+        let keychain = LicenseKeychainStore(credentialStore: credentials)
+        try keychain.writeMigrationMarker()
+        let store = RustLicenseStore(defaults: defaults, licenseStore: keychain, seedUsage: false)
+        credentials.failReads = true
+        let manager = LicenseManager(
+            networkService: LicenseNetworkService(store: store),
+            loadStoredLicenseOnInit: false
+        )
+        BackupManager.shared.licenseManager = manager
+        BackupManager.shared.lastError = nil
+
+        #expect(BackupManager.shared.licenseKeyForExport() == nil)
+        #expect(BackupManager.shared.lastError == "Failed to securely read the license key")
     }
 
     @Test func importRequestsRevalidationOnlyAfterSecureReplacement() async {
