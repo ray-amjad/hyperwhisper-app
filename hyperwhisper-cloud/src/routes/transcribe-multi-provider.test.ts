@@ -808,7 +808,10 @@ describe('Gemini 3.5 Transcribe routing (X-STT-Provider: gemini-transcribe)', ()
       if (url.includes('api.deepgram.com')) {
         return Response.json({
           results: { channels: [{ alternatives: [{ transcript: '  ' }] }] },
-          metadata: { duration: 4, request_id: 'dg-silent' },
+          // No `duration`: this fixture is about the BILLING gate, so it must not
+          // also trip the empty-transcript failover (issue #381), which needs an
+          // upstream-reported duration > 0. That path has its own test below.
+          metadata: { request_id: 'dg-silent' },
         });
       }
       if (url.includes('/api/license/credits')) {
@@ -1093,5 +1096,71 @@ describe('existing provider model switching (Deepgram)', () => {
     expect(deepgramUrl).not.toContain('keywords=');
     const keytermValues = new URL(deepgramUrl).searchParams.getAll('keyterm');
     expect(keytermValues).toEqual(['HyperWhisper', 'SwiftUI']);
+  });
+});
+
+describe('empty-transcript failover, end to end (issue #381)', () => {
+  const savedXai = process.env.XAI_API_KEY;
+  const savedGrok = process.env.GROK_API_KEY;
+
+  beforeEach(() => {
+    process.env.XAI_API_KEY = 'test-xai-key';
+    delete process.env.GROK_API_KEY;
+    process.env.DEEPGRAM_API_KEY = 'test-deepgram-key';
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    if (savedXai === undefined) delete process.env.XAI_API_KEY;
+    else process.env.XAI_API_KEY = savedXai;
+    if (savedGrok === undefined) delete process.env.GROK_API_KEY;
+    else process.env.GROK_API_KEY = savedGrok;
+  });
+
+  test('grok returning empty text for 22.2 s of audio is recovered by deepgram, at one charge', async () => {
+    const sttCalls: string[] = [];
+    const charges: Array<{ amount: number }> = [];
+
+    globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes('api.x.ai')) {
+        sttCalls.push('grok');
+        // The incident: a 200 OK, no text, and the upstream's own report that it
+        // processed 22.2 seconds of audio.
+        return Response.json({ text: '', duration: 22.2, request_id: 'xai-empty' });
+      }
+      if (url.includes('api.deepgram.com')) {
+        sttCalls.push('deepgram');
+        return Response.json({
+          results: {
+            channels: [{ alternatives: [{ transcript: 'hello from deepgram' }], detected_language: 'en' }],
+          },
+          metadata: { duration: 22.2, request_id: 'dg-recovered' },
+        });
+      }
+      if (url.includes('/api/license/credits')) {
+        charges.push(JSON.parse(String(init?.body)) as { amount: number });
+        return Response.json({ credits_remaining: 999 });
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    const response = await buildApp().fetch(request({ 'X-STT-Provider': 'grok' }));
+    const body = await response.json() as {
+      text: string;
+      no_speech_detected?: boolean;
+      metadata: { stt_provider: string };
+    };
+    await drainPendingDeductions(2000);
+
+    expect(response.status).toBe(200);
+    expect(body.text).toBe('hello from deepgram');
+    expect(body.no_speech_detected).toBeUndefined();
+    // Exactly one extra upstream STT call — the chain stops at the first sibling
+    // that answers, and groq/elevenlabs are never reached.
+    expect(sttCalls).toEqual(['grok', 'deepgram']);
+    expect(charges).toHaveLength(1);
+    expect(body.metadata.stt_provider).toContain('deepgram');
+    expect(body.metadata.stt_provider).toContain('fallback from');
   });
 });

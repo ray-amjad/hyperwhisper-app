@@ -212,3 +212,45 @@ describe('transcribeWithGroq — transcript, duration and billing', () => {
     expect(missing.upstreamDurationSeconds).toBeNull();
   });
 });
+
+describe('transcribeWithGroq — empty-transcript failover (issue #381)', () => {
+  test('refuses an empty transcript with a reported duration on attempt 1, and logs no no_speech', async () => {
+    captureRequest({ text: '', language: 'en', duration: 30 });
+
+    const logged: unknown[][] = [];
+    const originalLog = console.log;
+    console.log = ((...args: unknown[]) => { logged.push(args); }) as typeof console.log;
+    let thrown: unknown;
+    try {
+      await transcribeWithGroq(audio(), 'audio/wav', undefined, undefined, { attempt: 1 });
+    } catch (error) {
+      thrown = error;
+    } finally {
+      console.log = originalLog;
+    }
+
+    expect(thrown).toBeInstanceOf(ProviderUnavailableError);
+    expect((thrown as ProviderUnavailableError).kind).toBe('bad_response');
+    expect((thrown as Error).message).toContain('30');
+    // A refusal is not a no_speech outcome. Logging one would corrupt the very
+    // rate `upstreamDurationSeconds` was added to measure.
+    expect(logged.some((args) => args[0] === 'provider.no_speech')).toBe(false);
+  });
+
+  test('the same body on attempt 2 resolves as no_speech at zero cost (one extra call, never two)', async () => {
+    captureRequest({ text: '', language: 'en', duration: 30 });
+
+    const result = await transcribeWithGroq(audio(), 'audio/wav', undefined, undefined, { attempt: 2 });
+    expect(result.source).toBe('no_speech');
+    expect(result.costUsd).toBe(0);
+    expect(result.text).toBe('');
+  });
+
+  test('an empty transcript with no reported duration resolves as no_speech even on attempt 1', async () => {
+    captureRequest({ text: '', language: 'en' });
+
+    const result = await transcribeWithGroq(audio(), 'audio/wav', undefined, undefined, { attempt: 1 });
+    expect(result.source).toBe('no_speech');
+    expect(result.costUsd).toBe(0);
+  });
+});

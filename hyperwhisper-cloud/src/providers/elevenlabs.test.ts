@@ -282,3 +282,17 @@ describe('transcribeWithElevenLabs — upstream error mapping', () => {
     }
   });
 });
+
+describe('transcribeWithElevenLabs — can never refuse an empty transcript (issue #381)', () => {
+  test('an empty transcript at attempt 1 still resolves as no_speech', async () => {
+    // ElevenLabs terminates all three covered fallback chains. If it could ever
+    // throw on an empty transcript, a genuinely silent recording would walk a
+    // chain to exhaustion instead of returning "No speech detected".
+    mockFetchOnce(() => jsonResponse({ text: '   ', language_code: 'en' }));
+
+    const result = await transcribeWithElevenLabs(AUDIO, 'audio/wav', 'en-US', undefined, { attempt: 1 });
+    expect(result.source).toBe('no_speech');
+    expect(result.costUsd).toBe(0);
+    expect(result.durationSeconds).toBe(0);
+  });
+});

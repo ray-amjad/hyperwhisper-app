@@ -101,6 +101,19 @@ export async function transcribeWithGroq(
   const transcript = data.text || '';
 
   if (!transcript || transcript.trim().length === 0) {
+    // No text, but the upstream itself says it processed audio (`duration` is the
+    // length of the SUBMITTED audio, not of detected speech). On the first attempt
+    // that is worth one sibling call rather than a "No speech detected" the user
+    // has to redo. Gated on attempt 1 so a request costs at most one extra call,
+    // and elevenlabs — which terminates every covered chain — never refuses.
+    // (issue ray-amjad/hyperwhisper-app#381)
+    if (duration > 0 && context.attempt === 1) {
+      throw new ProviderUnavailableError(
+        'Groq',
+        `empty transcript for ${duration}s of audio`,
+        { kind: 'bad_response', elapsedMs: Math.round(performance.now() - startTime) },
+      );
+    }
     logProviderEvent(provider, 'no_speech', {
       elapsedMs: Math.round(performance.now() - startTime),
       language: data.language,
