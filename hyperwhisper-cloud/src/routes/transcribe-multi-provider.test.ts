@@ -1099,6 +1099,33 @@ describe('existing provider model switching (Deepgram)', () => {
   });
 });
 
+// Route log lines are JSON on console.log (lib/logging.ts). The empty-transcript
+// cause is OPERATOR data and deliberately not on the response body — a client
+// contract — so the assertions that used to read `attempt_failures` off the JSON
+// response read the log event instead. Local to this file, like every other
+// helper in the suite: a shared import here is one step from `mock.module`,
+// which is process-wide in bun. (issue #381, review r2)
+async function captureRouteEvents(run: () => Promise<Response>): Promise<{
+  response: Response;
+  events: Array<Record<string, unknown>>;
+}> {
+  const events: Array<Record<string, unknown>> = [];
+  const originalLog = console.log;
+  console.log = (...args: unknown[]) => {
+    if (typeof args[0] === 'string' && args[0].startsWith('{')) {
+      try {
+        const parsed = JSON.parse(args[0]) as Record<string, unknown>;
+        if (typeof parsed.event === 'string') events.push(parsed);
+      } catch { /* not a route log line */ }
+    }
+  };
+  try {
+    return { response: await run(), events };
+  } finally {
+    console.log = originalLog;
+  }
+}
+
 describe('empty-transcript failover, end to end (issue #381)', () => {
   const savedXai = process.env.XAI_API_KEY;
   const savedGrok = process.env.GROK_API_KEY;
@@ -1164,13 +1191,19 @@ describe('empty-transcript failover, end to end (issue #381)', () => {
     expect(body.metadata.stt_provider).toContain('fallback from');
   });
 
-  test('a recovered request reports WHY it was degraded, so a fallback is not indistinguishable from an outage', async () => {
+  test('a recovered request reports WHY it was degraded in the LOG, and adds nothing to the response body', async () => {
     // The deploy smoke test's fixture rows exist to catch a provider returning
     // nothing for a language (the deepgram/zh-roger.mp3 row). Once a sibling
     // covers that, the run goes green on a transcript the row's own provider
     // never produced, and `X-STT-Provider` alone cannot say whether the fallback
     // was an empty transcript or a transient 429. The shared `bad_response` kind
     // cannot either — it also means a geo-block page and a truncated body.
+    //
+    // The discriminator is `emptyTranscript` on the OUTCOME LOG LINE, not on the
+    // response body: `/transcribe`'s body is a client contract that has to land
+    // in the apps in the same cycle (`CLAUDE.md`), and this PR is server-only.
+    // The second half of this test pins that — `attempt_failures` must never
+    // appear on the wire. (review r2)
     process.env.GROQ_API_KEY = 'test-groq-key';
 
     globalThis.fetch = mock(async (input: RequestInfo | URL) => {
@@ -1188,23 +1221,26 @@ describe('empty-transcript failover, end to end (issue #381)', () => {
       throw new Error(`Unexpected fetch: ${url}`);
     }) as unknown as typeof fetch;
 
-    const response = await buildApp().fetch(request({ 'X-STT-Provider': 'deepgram' }));
-    const body = await response.json() as {
-      text: string;
-      attempt_failures?: Array<{ provider: string; kind: string; empty_transcript?: boolean }>;
-    };
+    const { response, events } = await captureRouteEvents(
+      () => buildApp().fetch(request({ 'X-STT-Provider': 'deepgram' })),
+    );
+    const raw = await response.text();
+    const body = JSON.parse(raw) as { text: string };
     await drainPendingDeductions(2000);
 
     expect(response.status).toBe(200);
     expect(body.text).toBe('the sibling covered it');
-    expect(body.attempt_failures).toEqual([
-      expect.objectContaining({ provider: 'deepgram', kind: 'bad_response', empty_transcript: true }),
+    expect(raw).not.toContain('attempt_failures');
+
+    const done = events.find((e) => e.event === 'transcribe.request_done');
+    expect(done?.attemptFailures).toEqual([
+      expect.objectContaining({ provider: 'deepgram', kind: 'bad_response', emptyTranscript: true }),
     ]);
   });
 
   test('a transient sibling outage is NOT marked as an empty transcript', async () => {
     // The other half of the discriminator: if every degraded request looked like
-    // an empty transcript, the smoke test would red the deploy on a 429.
+    // an empty transcript, an operator could not size the failover's rate.
     process.env.GROQ_API_KEY = 'test-groq-key';
 
     globalThis.fetch = mock(async (input: RequestInfo | URL) => {
@@ -1217,16 +1253,18 @@ describe('empty-transcript failover, end to end (issue #381)', () => {
       throw new Error(`Unexpected fetch: ${url}`);
     }) as unknown as typeof fetch;
 
-    const response = await buildApp().fetch(request({ 'X-STT-Provider': 'deepgram' }));
-    const body = await response.json() as {
-      attempt_failures?: Array<{ provider: string; kind: string; empty_transcript?: boolean }>;
-    };
+    const { response, events } = await captureRouteEvents(
+      () => buildApp().fetch(request({ 'X-STT-Provider': 'deepgram' })),
+    );
+    await response.text();
     await drainPendingDeductions(2000);
 
     expect(response.status).toBe(200);
-    expect(body.attempt_failures).toHaveLength(1);
-    expect(body.attempt_failures?.[0]?.provider).toBe('deepgram');
-    expect(body.attempt_failures?.[0]?.empty_transcript).toBeUndefined();
+    const done = events.find((e) => e.event === 'transcribe.request_done');
+    const failures = done?.attemptFailures as Array<Record<string, unknown>> | undefined;
+    expect(failures).toHaveLength(1);
+    expect(failures?.[0]?.provider).toBe('deepgram');
+    expect(failures?.[0]?.emptyTranscript).toBeUndefined();
   });
 
   test('every sibling failing leaves the request as the 200 no_speech it was before the failover', async () => {
@@ -1288,14 +1326,22 @@ describe('empty-transcript failover, end to end (issue #381)', () => {
     expect(body.metadata.stt_provider).not.toContain('fallback from');
   });
 
-  test('a sibling whose API key is not configured cannot turn silence into a 500', async () => {
-    // DEEPGRAM_API_KEY unset (staging, or a machine that booted before the secret
-    // synced) makes the adapter throw a plain Error, which the route's last arm
-    // turns into a 500 carrying the internal secret name. Before this PR the same
-    // request was a 200 no_speech.
+  test('a sibling that fails BEFORE the wire does not spend the one extra call', async () => {
+    // #381's literal incident, with one twist: DEEPGRAM_API_KEY unset (staging, or
+    // a machine that booted before the secret synced). The adapter throws a plain
+    // Error before any fetch.
+    //
+    // Two regressions in one test. The missing key used to become a 500 carrying
+    // the internal secret name, where the pre-PR request was a 200 no_speech. And
+    // then round 1's positional budget (`index > refusalIndex + 1`) charged that
+    // non-call to the one extra upstream call the spec allows and stopped — so
+    // 30 s of real speech was answered `no_speech` while elevenlabs, configured
+    // and able to transcribe, was never asked. A chain POSITION is not a call.
+    // (review r2)
     const sttCalls: string[] = [];
     delete process.env.DEEPGRAM_API_KEY;
     process.env.GROQ_API_KEY = 'test-groq-key';
+    process.env.ELEVENLABS_API_KEY = 'test-11-key';
 
     globalThis.fetch = mock(async (input: RequestInfo | URL) => {
       const url = String(input);
@@ -1307,22 +1353,116 @@ describe('empty-transcript failover, end to end (issue #381)', () => {
         sttCalls.push('deepgram');
         return Response.json({ results: {} });
       }
+      if (url.includes('api.elevenlabs.io')) {
+        sttCalls.push('elevenlabs');
+        return Response.json({ text: 'elevenlabs heard the speech', language_code: 'en' });
+      }
+      if (url.includes('/api/license/credits')) return Response.json({ credits_remaining: 999 });
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    const { response, events } = await captureRouteEvents(
+      () => buildApp().fetch(request({ 'X-STT-Provider': 'groq' })),
+    );
+    const raw = await response.text();
+    const body = JSON.parse(raw) as { text: string; no_speech_detected?: boolean };
+    await drainPendingDeductions(2000);
+
+    expect(response.status).toBe(200);
+    expect(body.no_speech_detected).toBeUndefined();
+    expect(body.text).toBe('elevenlabs heard the speech');
+    // And the secret's name never reaches the client.
+    expect(raw).not.toContain('DEEPGRAM_API_KEY');
+    // Deepgram never reached the wire: the missing key is our gate, not a call.
+    // Exactly ONE extra upstream call was spent — on elevenlabs, which answered.
+    expect(sttCalls).toEqual(['groq', 'elevenlabs']);
+
+    // A4: the terminal sibling's failure is a breadcrumb, not a silent `break`.
+    const done = events.find((e) => e.event === 'transcribe.request_done');
+    expect(done?.attemptFailures).toEqual([
+      expect.objectContaining({ provider: 'groq', kind: 'bad_response', emptyTranscript: true }),
+      expect.objectContaining({ provider: 'deepgram', kind: 'non_retryable' }),
+    ]);
+    delete process.env.ELEVENLABS_API_KEY;
+  });
+
+  test('a keyless sibling still cannot turn silence into a 500 when nothing else can answer', async () => {
+    // The floor, unchanged: when every sibling after the refusal fails too, the
+    // request is still the 200 no_speech it was before the failover existed.
+    const sttCalls: string[] = [];
+    delete process.env.DEEPGRAM_API_KEY;
+    delete process.env.ELEVENLABS_API_KEY;
+    process.env.GROQ_API_KEY = 'test-groq-key';
+
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('api.groq.com')) {
+        sttCalls.push('groq');
+        return Response.json({ text: '', language: 'en', duration: 30 });
+      }
       throw new Error(`Unexpected fetch: ${url}`);
     }) as unknown as typeof fetch;
 
     const response = await buildApp().fetch(request({ 'X-STT-Provider': 'groq' }));
-    const body = await response.json() as {
-      no_speech_detected?: boolean;
-      error?: string;
-      message?: string;
-    };
+    const raw = await response.text();
+    const body = JSON.parse(raw) as { no_speech_detected?: boolean };
 
     expect(response.status).toBe(200);
     expect(body.no_speech_detected).toBe(true);
-    // And the secret's name never reaches the client.
-    expect(JSON.stringify(body)).not.toContain('DEEPGRAM_API_KEY');
-    // Deepgram never reached the wire: the missing key is our gate, not a call.
+    expect(raw).not.toContain('DEEPGRAM_API_KEY');
+    expect(raw).not.toContain('ELEVENLABS_API_KEY');
     expect(sttCalls).toEqual(['groq']);
+  });
+
+  test('a SIBLING covering for a failed primary never refuses, so elevenlabs is never reached', async () => {
+    // Round 1 granted the refusal at every non-terminal chain position. Chosen
+    // elevenlabs, chain ['elevenlabs','deepgram','groq']: elevenlabs 429s, and
+    // deepgram at index 1 saw `1 < 2` and refused — pushing a silent clip onto
+    // groq's Whisper. On the deepgram/groq/grok chains the same rule ends at
+    // elevenlabs, ~15x groq's price and documented as the last resort, called at
+    // zero revenue because a no_speech is never billable.
+    //
+    // The grant is the CALLER'S provider only. Reachable on neither main nor the
+    // pre-review-1 commit, so this pins the regression round 1 introduced.
+    // (review r2)
+    const sttCalls: string[] = [];
+    process.env.DEEPGRAM_API_KEY = 'test-deepgram-key';
+    process.env.GROQ_API_KEY = 'test-groq-key';
+    process.env.ELEVENLABS_API_KEY = 'test-11-key';
+
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('api.elevenlabs.io')) {
+        sttCalls.push('elevenlabs');
+        return new Response('rate limited', { status: 429 });
+      }
+      if (url.includes('api.deepgram.com')) {
+        sttCalls.push('deepgram');
+        // A genuine silence, with the upstream reporting the submitted length.
+        return Response.json({
+          results: { channels: [{ alternatives: [{ transcript: '' }] }] },
+          metadata: { duration: 6, request_id: 'dg-silent' },
+        });
+      }
+      if (url.includes('api.groq.com')) {
+        sttCalls.push('groq');
+        return Response.json({ text: 'Thank you.', language: 'en', duration: 6 });
+      }
+      if (url.includes('/api/license/credits')) return Response.json({ credits_remaining: 999 });
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    const response = await buildApp().fetch(request({ 'X-STT-Provider': 'elevenlabs' }));
+    const body = await response.json() as { no_speech_detected?: boolean; cost: { credits: number } };
+    await drainPendingDeductions(2000);
+
+    expect(response.status).toBe(200);
+    expect(body.no_speech_detected).toBe(true);
+    expect(body.cost.credits).toBe(0);
+    // Deepgram's no_speech is the answer. Groq is never asked, so the Whisper
+    // hallucination that would have been billed never happens either.
+    expect(sttCalls).toEqual(['elevenlabs', 'deepgram']);
+    delete process.env.ELEVENLABS_API_KEY;
   });
 
   test('a no_speech after a refusal is attributed to the chosen provider AND its model', async () => {
@@ -1411,12 +1551,79 @@ describe('empty-transcript failover, end to end (issue #381)', () => {
           body: audio,
         },
       ));
+      const body = await response.json() as {
+        no_speech_detected?: boolean;
+        metadata: { stt_provider: string; stt_model?: string };
+      };
+
+      expect(response.status).toBe(200);
+      expect(body.no_speech_detected).toBe(true);
+      expect(sttCalls).toEqual(['deepgram', 'groq']);
+      // B1: the chosen provider was DROPPED from this region's chain and never
+      // contacted, so the no_speech cannot be filed under it. Round 1 answered
+      // `elevenlabs/scribe_v2` here — a provider that never saw the audio, which
+      // Windows stamps into TranscriptionProviderDiagnostics on exactly this
+      // path. (review r2)
+      expect(body.metadata.stt_provider).toBe('groq/whisper-large-v3-turbo');
+      expect(response.headers.get('X-STT-Provider')).toBe('groq/whisper-large-v3-turbo');
+      expect(body.metadata.stt_provider).not.toContain('elevenlabs');
+      expect(body.metadata.stt_provider).not.toContain('scribe');
+      expect(body.metadata.stt_provider).not.toContain('fallback from');
+    } finally {
+      if (savedRegion === undefined) delete process.env.FLY_REGION;
+      else process.env.FLY_REGION = savedRegion;
+    }
+  });
+
+  test('a region that cannot reach a chain member never calls it, and never counts it', async () => {
+    // A2. `reachableFromRegion()` used to run ONLY when the CHOSEN provider was
+    // the geo-blocked one, so a `deepgram` request served from nrt kept
+    // elevenlabs on the tail of its chain. Two consequences, both fixed by
+    // filtering unconditionally: the route uploaded the audio a third time to a
+    // host that answers a 200 text/html FAQ page and can never transcribe it,
+    // and `chain.length` — which the empty-transcript grant reads — counted a
+    // provider this request cannot use. Round 1 granted groq the refusal at
+    // index 1 on `1 < 2` and spent the spec's one extra call on elevenlabs.
+    // (review r2)
+    const savedRegion = process.env.FLY_REGION;
+    process.env.FLY_REGION = 'nrt';
+    process.env.DEEPGRAM_API_KEY = 'test-deepgram-key';
+    process.env.GROQ_API_KEY = 'test-groq-key';
+    process.env.ELEVENLABS_API_KEY = 'test-11-key';
+    const sttCalls: string[] = [];
+
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('api.deepgram.com')) {
+        sttCalls.push('deepgram');
+        return new Response('rate limited', { status: 429 });
+      }
+      if (url.includes('api.groq.com')) {
+        sttCalls.push('groq');
+        return Response.json({ text: '', language: 'en', duration: 9 });
+      }
+      if (url.includes('api.elevenlabs.io')) {
+        sttCalls.push('elevenlabs');
+        // What nrt actually gets: the geo-block FAQ page, as a 200.
+        return new Response('<html>Do you restrict access…</html>', {
+          status: 200,
+          headers: { 'Content-Type': 'text/html' },
+        });
+      }
+      if (url.includes('/api/license/credits')) return Response.json({ credits_remaining: 999 });
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    try {
+      const response = await buildApp().fetch(request({ 'X-STT-Provider': 'deepgram' }));
       const body = await response.json() as { no_speech_detected?: boolean };
 
       expect(response.status).toBe(200);
       expect(body.no_speech_detected).toBe(true);
       expect(sttCalls).toEqual(['deepgram', 'groq']);
+      expect(sttCalls).not.toContain('elevenlabs');
     } finally {
+      delete process.env.ELEVENLABS_API_KEY;
       if (savedRegion === undefined) delete process.env.FLY_REGION;
       else process.env.FLY_REGION = savedRegion;
     }
