@@ -140,7 +140,6 @@ public static class SharedModelsCatalog
         CloudTranscriptionProvider.MicrosoftAzureSpeech => "microsoftAzureSpeech",
         CloudTranscriptionProvider.GoogleSpeech => "googleSpeech",
         CloudTranscriptionProvider.GeminiTranscribe => "geminiTranscribe",
-        CloudTranscriptionProvider.Meta => "meta",
     };
 
     public static string CatalogKey(PostProcessingProvider provider) => provider switch

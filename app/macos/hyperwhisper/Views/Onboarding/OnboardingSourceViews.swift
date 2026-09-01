@@ -198,7 +198,7 @@ struct OnboardingConfigureView: View {
     /// and the two providers whose health probe short circuits to `.healthy`
     /// without an API key, which would otherwise open the gate on a fake pass.
     static let onboardingProviders: [CloudProvider] = CloudProvider.allCases.filter {
-        $0 != .hyperwhisper && $0 != .microsoftAzureSpeech && $0 != .googleSpeech && $0 != .meta
+        $0 != .hyperwhisper && $0 != .microsoftAzureSpeech && $0 != .googleSpeech
     }
 
     @ObservedObject var flow: OnboardingFlowModel

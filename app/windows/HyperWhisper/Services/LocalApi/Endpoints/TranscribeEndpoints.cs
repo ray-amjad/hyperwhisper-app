@@ -835,9 +835,21 @@ internal static class TranscribeEndpoints
     /// "parakeet", and "qwen3_asr". Unknown strings are rejected so callers do not silently run
     /// a different engine than they requested.
     /// </summary>
-    private static void ApplyEngineModel(Mode mode, string engine, string? model)
+    internal static void ApplyEngineModel(Mode mode, string engine, string? model)
     {
         var normalized = engine.ToLowerInvariant();
+        if (normalized == "meta")
+        {
+            mode.ProviderType = "cloud";
+            mode.Model = "cloud";
+            mode.CloudProvider = CloudTranscriptionProvider.HyperWhisperCloud.GetIdentifier();
+            mode.CloudAccuracyTier = CloudAccuracyTier.MetaMuse.ToStorageValue();
+            mode.CloudTranscriptionModel = !string.IsNullOrEmpty(model)
+                ? model
+                : HyperWhisper.Services.AppClassification.CloudSttCatalog.Shared
+                    .DefaultModelIdForId(CloudAccuracyTier.MetaMuse.ToStorageValue()) ?? "";
+            return;
+        }
         var providerNormalization = HyperWhisper.Services.AppClassification.CloudSttCatalog.Shared
             .NormalizeCloudProvider(normalized);
         CloudTranscriptionProvider cloudProvider;

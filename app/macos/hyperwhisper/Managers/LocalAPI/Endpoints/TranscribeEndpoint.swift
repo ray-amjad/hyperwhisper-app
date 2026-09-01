@@ -688,8 +688,17 @@ enum TranscribeEndpoint {
     /// Encode an engine + model override pair onto a Mode's `model` /
     /// `cloudProvider` / `cloudTranscriptionModel` fields.
     @MainActor
-    private static func applyEngineModel(to mode: Mode, engine: String, model: String?) {
+    static func applyEngineModel(to mode: Mode, engine: String, model: String?) {
         let normalizedEngine = engine.lowercased()
+        if normalizedEngine == "meta" {
+            mode.model = "cloud"
+            mode.cloudProvider = CloudProvider.hyperwhisper.rawValue
+            mode.cloudAccuracyTier = CloudAccuracyTier.metaMuse.rawValue
+            mode.cloudTranscriptionModel = model?.isEmpty == false
+                ? model
+                : CloudSTTCatalog.shared.defaultModelId(forEntryId: CloudAccuracyTier.metaMuse.rawValue)
+            return
+        }
         let providerNormalization = CloudSTTCatalog.shared.normalizeCloudProvider(normalizedEngine)
         let cloudType: CloudProvider?
         if normalizedEngine == "cloud" {

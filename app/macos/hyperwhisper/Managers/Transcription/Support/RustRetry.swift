@@ -301,7 +301,6 @@ enum RustCoreMapping {
         // auth. `.geminiTranscribeLive` is the Phase-5 streaming model and has
         // no `CloudProvider` case, so it is unreachable from here.
         case .geminiTranscribe: return .geminiTranscribe
-        case .meta: return .hyperWhisperCloud
         }
     }
 

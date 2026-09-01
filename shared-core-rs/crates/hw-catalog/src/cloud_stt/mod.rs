@@ -416,9 +416,13 @@ mod tests {
         let n = c.normalize_cloud_provider(Some("googlespeech"));
         assert_eq!(n.provider.as_deref(), Some("hyperwhisper"));
         assert_eq!(n.accuracy_tier.as_deref(), Some("geminiTranscribe"));
+        // Meta was added only as a cloud tier on an unmerged branch. It has no
+        // shipped standalone-provider storage to migrate, so the provider field
+        // passes through while the tier's migrateFrom aliases remain available
+        // to explicit tier and Local API resolution.
         let meta = c.normalize_cloud_provider(Some("meta"));
-        assert_eq!(meta.provider.as_deref(), Some("hyperwhisper"));
-        assert_eq!(meta.accuracy_tier.as_deref(), Some("metaMuse"));
+        assert_eq!(meta.provider.as_deref(), Some("meta"));
+        assert_eq!(meta.accuracy_tier, None);
         // BYOK provider name passes through untouched (CRITICAL — must not
         // silently disable a user's BYOK setup).
         let byok = c.normalize_cloud_provider(Some("deepgram"));

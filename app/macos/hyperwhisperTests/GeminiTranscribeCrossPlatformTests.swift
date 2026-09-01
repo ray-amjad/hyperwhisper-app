@@ -55,10 +55,6 @@ struct CloudProviderStorageParsingTests {
     @Test("Every provider id round-trips regardless of case or padding")
     func everyIdParsesCaseInsensitively() {
         for provider in CloudProvider.allCases {
-            if provider == .meta {
-                #expect(CloudProvider.parse(provider.rawValue) == .hyperwhisper)
-                continue
-            }
             #expect(CloudProvider.parse(provider.rawValue) == provider)
             #expect(CloudProvider.parse(provider.rawValue.uppercased()) == provider)
             #expect(CloudProvider.parse("  \(provider.rawValue)  ") == provider)

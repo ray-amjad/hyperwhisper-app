@@ -15,6 +15,11 @@ namespace HyperWhisper.Services.LocalApi.Endpoints;
 [SupportedOSPlatform("windows")]
 internal static class HealthEndpoints
 {
+    internal static IReadOnlyList<CloudTranscriptionProvider> TranscriptionProviders { get; } =
+        Enum.GetValues<CloudTranscriptionProvider>()
+            .Where(provider => provider != CloudTranscriptionProvider.None)
+            .ToArray();
+
     public static void Map(IEndpointRouteBuilder app, LocalApiServer server)
     {
         app.MapGet("/health", () =>
@@ -41,10 +46,8 @@ internal static class HealthEndpoints
         var health = server.CloudHealth;
         if (apiKeys == null) return list;
 
-        foreach (CloudTranscriptionProvider provider in Enum.GetValues<CloudTranscriptionProvider>())
+        foreach (var provider in TranscriptionProviders)
         {
-            if (provider == CloudTranscriptionProvider.None) continue;
-
             var keyPresent = HasKeyForTranscriptionProvider(apiKeys, provider);
             var status = health?.GetStatus(provider) ?? ProviderHealth.Unknown;
 

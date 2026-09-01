@@ -4771,7 +4771,7 @@ internal static class Program
                     "CloudAccuracyTier.GoogleChirp3 is back; it would shadow the catalog migrateFrom alias.");
             });
 
-            Run("Meta Muse tier and native model registry stay aligned", () =>
+            Run("Meta Muse remains a cloud tier without a standalone provider", () =>
             {
                 var tier = CloudAccuracyTierExtensions.FromString("  METAMUSE  ");
                 Assert(tier == CloudAccuracyTier.MetaMuse, "Meta Muse persistence did not round-trip");
@@ -4779,13 +4779,12 @@ internal static class Program
                     "Meta Muse tier did not resolve its canonical id and provider");
 
                 Assert(CloudTranscriptionProviderExtensions.FromIdentifier("meta")
-                        == CloudTranscriptionProvider.HyperWhisperCloud,
-                    "standalone Meta provider spelling did not use HyperWhisper Cloud");
+                        == CloudTranscriptionProvider.None,
+                    "Meta reappeared as a standalone cloud provider");
                 var normalizedMeta = HyperWhisper.Services.AppClassification.CloudSttCatalog.Shared
                     .NormalizeCloudProvider("meta");
-                Assert(normalizedMeta.Provider == "hyperwhisper"
-                        && normalizedMeta.AccuracyTier == "metaMuse",
-                    "standalone Meta storage did not normalize to the Muse cloud tier");
+                Assert(normalizedMeta.Provider == "meta" && normalizedMeta.AccuracyTier == null,
+                    "unshipped Meta provider storage gained migration semantics");
 
                 var entry = HyperWhisper.Services.AppClassification.CloudSttCatalog.Shared.GetById("metaMuse");
                 Assert(entry is { SttProvider: "meta", MaxFileSizeMb: 32, MaxDurationMinutes: 10 },
@@ -4795,13 +4794,22 @@ internal static class Program
                     && !entry.Models[0].Streaming,
                     "Meta Muse batch model registry changed or became live-selectable");
 
-                var native = CloudTranscriptionModels.GetById(
-                    "muse-voice-transcribe-1.0", CloudTranscriptionProvider.Meta);
-                Assert(native is { Provider: CloudTranscriptionProvider.Meta }
-                    && CloudTranscriptionModels.GetDefault(CloudTranscriptionProvider.Meta)?.Id
-                        == "muse-voice-transcribe-1.0"
-                    && !CloudTranscriptionProvider.Meta.RequiresApiKey(),
-                    "Meta Muse native registry or no-BYOK behavior changed");
+                Assert(!Enum.GetNames<CloudTranscriptionProvider>().Contains("Meta")
+                        && CloudTranscriptionModels.GetById("muse-voice-transcribe-1.0") == null,
+                    "Meta Muse reappeared in the direct provider/model registry");
+                Assert(!HyperWhisper.Services.LocalApi.Endpoints.HealthEndpoints.TranscriptionProviders
+                        .Any(provider => provider.GetIdentifier() == "meta"),
+                    "/health still reports a phantom direct Meta provider");
+
+                var transient = new Mode();
+                HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ApplyEngineModel(
+                    transient, "meta", model: null);
+                Assert(transient.ProviderType == "cloud"
+                        && transient.Model == "cloud"
+                        && transient.CloudProvider == "hyperwhisper"
+                        && transient.CloudAccuracyTier == "metaMuse"
+                        && transient.CloudTranscriptionModel == "muse-voice-transcribe-1.0",
+                    "Local API engine=meta did not select the Muse cloud tier");
 
                 var caps = HyperWhisper.Services.SharedModelsCatalog.VoiceCapabilities(
                     "meta", "muse-voice-transcribe-1.0");

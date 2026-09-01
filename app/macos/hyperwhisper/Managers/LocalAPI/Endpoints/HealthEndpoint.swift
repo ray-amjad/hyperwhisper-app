@@ -15,6 +15,8 @@ import Speech
 
 enum HealthEndpoint {
 
+    static var transcriptionProviders: [CloudProvider] { CloudProvider.allCases }
+
     @MainActor
     static func handle(
         port: UInt16,
@@ -29,7 +31,7 @@ enum HealthEndpoint {
 
         // Cloud transcription providers
         var providerEntries: [HealthProviderStatus] = []
-        for provider in CloudProvider.allCases {
+        for provider in transcriptionProviders {
             let status = snapshot?.cloud[provider.rawValue] ?? "unknown"
             let keyPresent: Bool
             if !provider.requiresAPIKey {

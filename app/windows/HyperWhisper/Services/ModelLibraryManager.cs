@@ -438,9 +438,6 @@ public sealed class ModelLibraryManager
         CloudTranscriptionProvider.Grok => "providerGrok",
         CloudTranscriptionProvider.MicrosoftAzureSpeech => "providerMicrosoft",
         CloudTranscriptionProvider.GoogleSpeech => "providerGoogle",
-        // No Meta bitmap ships yet. Use the neutral voice mark instead of a
-        // different vendor's logo.
-        CloudTranscriptionProvider.Meta => "providerLocalWhisper",
         _ => "providerLocalWhisper"
     };
 

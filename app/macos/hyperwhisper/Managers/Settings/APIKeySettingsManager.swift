@@ -215,7 +215,7 @@ class APIKeySettingsManager: ObservableObject {
             return geminiAPIKey
         case .grok:
             return grokAPIKey
-        case .microsoftAzureSpeech, .googleSpeech, .meta:
+        case .microsoftAzureSpeech, .googleSpeech:
             return ""  // HyperWhisper Cloud only — no BYOK in v1
         case .geminiTranscribe:
             return geminiTranscribeAPIKey
@@ -264,7 +264,7 @@ class APIKeySettingsManager: ObservableObject {
             geminiAPIKey = key
         case .grok:
             grokAPIKey = key
-        case .microsoftAzureSpeech, .googleSpeech, .meta:
+        case .microsoftAzureSpeech, .googleSpeech:
             break
         case .geminiTranscribe:
             geminiTranscribeAPIKey = key
@@ -508,7 +508,7 @@ class APIKeySettingsManager: ObservableObject {
 
     private func keychainType(for provider: CloudProvider) -> KeychainManager.APIKeyType? {
         switch provider {
-        case .hyperwhisper, .microsoftAzureSpeech, .googleSpeech, .meta:
+        case .hyperwhisper, .microsoftAzureSpeech, .googleSpeech:
             return nil
         case .openai:
             return .openAI

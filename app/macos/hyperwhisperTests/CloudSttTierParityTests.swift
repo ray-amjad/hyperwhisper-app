@@ -141,12 +141,10 @@ struct CloudSttTierParityTests {
         #expect(CloudAccuracyTier.defaultTier(forVendorKey: "meta") == .metaMuse)
         #expect(!CloudAccuracyTier.streamingEligibleTiers.contains(.metaMuse))
 
-        let model = CloudTranscriptionModels.model(
-            withId: "muse-voice-transcribe-1.0", provider: .meta)
-        #expect(model?.provider == .meta)
-        #expect(CloudTranscriptionModels.defaultModel(for: .meta) == model?.id)
-        #expect(CloudProvider.parse("meta") == .hyperwhisper)
-        #expect(!OnboardingConfigureView.onboardingProviders.contains(.meta))
+        #expect(CloudProvider.parse("meta") == nil)
+        #expect(!CloudProvider.allCases.map(\.rawValue).contains("meta"))
+        #expect(CloudTranscriptionModels.model(withId: "muse-voice-transcribe-1.0") == nil)
+        #expect(!HealthEndpoint.transcriptionProviders.map(\.rawValue).contains("meta"))
 
         let shared = SharedModelsCatalog.entry(
             provider: "meta", kind: .voice, id: "muse-voice-transcribe-1.0")
@@ -155,6 +153,20 @@ struct CloudSttTierParityTests {
         #expect(shared?.voiceCapabilities?.codeSwitching == true)
         #expect(shared?.voiceCapabilities?.turnTimestamps == true)
         #expect(shared?.voiceCapabilities?.wordTimestamps == false)
+    }
+
+    @MainActor
+    @Test("Local API meta shorthand selects the Muse cloud tier without a direct provider")
+    func localApiMetaShorthandSelectsMuse() {
+        let persistence = PersistenceController(inMemory: true)
+        let mode = Mode(context: persistence.container.viewContext)
+
+        TranscribeEndpoint.applyEngineModel(to: mode, engine: "meta", model: nil)
+
+        #expect(mode.model == "cloud")
+        #expect(mode.cloudProvider == CloudProvider.hyperwhisper.rawValue)
+        #expect(mode.cloudAccuracyTier == CloudAccuracyTier.metaMuse.rawValue)
+        #expect(mode.cloudTranscriptionModel == "muse-voice-transcribe-1.0")
     }
 
     @Test("Upload duration limits apply only to the active HyperWhisper Cloud tier")

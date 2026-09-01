@@ -218,7 +218,7 @@ class TranscriptionProviderRouter {
 
             // Configure selected cloud provider
             switch cloudProviderType {
-            case .hyperwhisper, .microsoftAzureSpeech, .googleSpeech, .meta:
+            case .hyperwhisper, .microsoftAzureSpeech, .googleSpeech:
                 // Unreachable: these providers return `false` from `requiresAPIKey`
                 // and are filtered by the outer guard. Kept explicit so the switch
                 // stays exhaustive without a `default` arm that would silently
@@ -249,7 +249,7 @@ class TranscriptionProviderRouter {
         // Select cloud provider instance
         let provider: TranscriptionProvider
         switch cloudProviderType {
-        case .hyperwhisper, .meta:
+        case .hyperwhisper:
             // Initialize HyperWhisper Cloud provider if needed
             if hyperwhisperCloudProvider == nil,
                let licenseManager = licenseManager,
@@ -426,7 +426,8 @@ class TranscriptionProviderRouter {
     ///   `assemblyai`, `elevenlabs`, `mistral`, `soniox`, `gemini`, `grok`,
     ///   `hyperwhisper`, `microsoftazurespeech`, `googlespeech`,
     ///   `geminitranscribe`).
-    ///   `cloud` is an alias for `hyperwhisper`. All identifiers are matched
+    ///   `cloud` is an alias for `hyperwhisper`; `meta` selects its `metaMuse`
+    ///   tier through the transient mode. All identifiers are matched
     ///   case-insensitively via `engine.lowercased()`.
     ///
     /// - Parameters:
@@ -439,10 +440,11 @@ class TranscriptionProviderRouter {
         let normalizedEngine = engine.lowercased()
         let resolvedLanguage: String? = (language?.lowercased() == "auto") ? nil : language
 
-        // Cloud engine? Normalize retired standalone spellings first. In
-        // particular `meta` is a HyperWhisper Cloud tier, never a BYOK service.
+        // Cloud engine? Normalize retired standalone spellings first. `meta`
+        // is an explicit Local API shorthand for the HyperWhisper Cloud
+        // transport; it is not a persisted CloudProvider case.
         let cloudType: CloudProvider?
-        if normalizedEngine == "cloud" {
+        if normalizedEngine == "cloud" || normalizedEngine == "meta" {
             cloudType = .hyperwhisper
         } else {
             let normalized = CloudSTTCatalog.shared.normalizeCloudProvider(normalizedEngine)
@@ -495,7 +497,7 @@ class TranscriptionProviderRouter {
                 throw TranscriptionError.apiKeyMissing(provider: cloudProviderType.displayName)
             }
             switch cloudProviderType {
-            case .hyperwhisper, .microsoftAzureSpeech, .googleSpeech, .meta:
+            case .hyperwhisper, .microsoftAzureSpeech, .googleSpeech:
                 // Unreachable: filtered by the outer `requiresAPIKey` guard.
                 // Mirrors the same dead-arm pattern in `selectProvider(for:vocabulary:)`.
                 assertionFailure("BYOK-free providers should not enter the API-key configuration switch")
@@ -522,7 +524,7 @@ class TranscriptionProviderRouter {
 
         let provider: TranscriptionProvider
         switch cloudProviderType {
-        case .hyperwhisper, .meta:
+        case .hyperwhisper:
             ensureHyperWhisperCloudProvider()
             guard let hw = hyperwhisperCloudProvider else {
                 throw TranscriptionError.providerNotAvailable(provider: "HyperWhisper Cloud", reason: "Failed to initialize provider")
