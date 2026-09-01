@@ -420,10 +420,6 @@
 "license.button.activate" = "Virkja";
 "license.button.activating" = "Virkja...";
 "license.status.label" = "Staða: %@";
-"license.status.trial.title" = "Prufuútgáfa";
-"license.status.active.title" = "Virkt";
-"license.status.expired.title" = "Útrunnið";
-"license.status.invalid.title" = "Ógilt";
 "license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "Leyfishafi – fullur aðgangur";
 "license.status.expired.description" = "Leyfi útrunnið";
@@ -1052,7 +1048,6 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "settings.backup.import.confirm.button" = "Flytja inn";
 "settings.backup.conflict.skip" = "Sleppa núverandi";
 "settings.backup.conflict.replace" = "Skipta út núverandi";
-"settings.backup.conflict.keepBoth" = "Halda báðum";
 "settings.backup.security.warning" = "Viðvörun: Útflutt skrá mun innihalda viðkvæm gögn. Haltu henni öruggri og deildu henni ekki.";
 "settings.backup.info.note" = "Öryggisafrit innihalda stillingar, hama og orðaforða. Upptökur og afrit eru ekki innifalin.";
 "settings.backup.result.success.title" = "Árangur";
@@ -1087,9 +1082,6 @@ Upperfærðu þessar stillingar til að nota annað líkan áður en þú eyðir
 "transcribe.file.error.video.noAudio" = "Þessi myndbandskrá inniheldur ekki hljóðlag. Vinsamlegast veldu myndband með hljóði eða hljóðskrá.";
 
 // MARK: - File Transcription Progress
-"file.transcription.preparing" = "Undirbúa...";
-"file.transcription.transcribing" = "Afritar...";
-"file.transcription.finishing" = "Klára...";
 "file.transcription.cancel" = "Hætta við";
 
 // MARK: - Auto-Delete Recordings

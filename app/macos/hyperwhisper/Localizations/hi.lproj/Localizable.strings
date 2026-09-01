@@ -420,10 +420,6 @@
 "license.button.activate" = "सक्रिय करें";
 "license.button.activating" = "सक्रिय हो रहा है...";
 "license.status.label" = "स्थिति: %@";
-"license.status.trial.title" = "ट्रायल";
-"license.status.active.title" = "सक्रिय";
-"license.status.expired.title" = "समाप्त";
-"license.status.invalid.title" = "अमान्य";
 "license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "लाइसेंसप्राप्त – पूर्ण पहुंच";
 "license.status.expired.description" = "लाइसेंस समाप्त";
@@ -1052,7 +1048,6 @@
 "settings.backup.import.confirm.button" = "आयात करें";
 "settings.backup.conflict.skip" = "मौजूदा छोड़ें";
 "settings.backup.conflict.replace" = "मौजूदा को प्रतिस्थापित करें";
-"settings.backup.conflict.keepBoth" = "दोनों रखें";
 "settings.backup.security.warning" = "चेतावनी: निर्यात की गई फ़ाइल में संवेदनशील डेटा होगा। इसे सुरक्षित रखें और इसे साझा न करें।";
 "settings.backup.info.note" = "बैकअप में सेटिंग्स, मोड और शब्दावली शामिल होती है। रिकॉर्डिंग और ट्रांसक्रिप्ट शामिल नहीं हैं।";
 "settings.backup.result.success.title" = "सफलता";
@@ -1087,9 +1082,6 @@
 "transcribe.file.error.video.noAudio" = "इस वीडियो फ़ाइल में ऑडियो ट्रैक नहीं है। कृपया ऑडियो या एक ऑडियो फ़ाइल के साथ एक वीडियो चुनें।";
 
 // MARK: - File Transcription Progress
-"file.transcription.preparing" = "तैयारी की जा रही है...";
-"file.transcription.transcribing" = "ट्रांसक्राइब किया जा रहा है...";
-"file.transcription.finishing" = "समाप्त किया जा रहा है...";
 "file.transcription.cancel" = "रद्द करें";
 
 // MARK: - Auto-Delete Recordings

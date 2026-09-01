@@ -420,10 +420,6 @@
 "license.button.activate" = "Suaktyvinti";
 "license.button.activating" = "Suaktyvinimas...";
 "license.status.label" = "Būsena: %@";
-"license.status.trial.title" = "Bandomoji";
-"license.status.active.title" = "Aktyvi";
-"license.status.expired.title" = "Baigėsi";
-"license.status.invalid.title" = "Neteisinga";
 "license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "Licencijuota – Pilna prieiga";
 "license.status.expired.description" = "Licencija baigėsi";
@@ -1052,7 +1048,6 @@ Prieš trindami atnaujinkite šiuos režimus, kad naudotų kitą modelį.";
 "settings.backup.import.confirm.button" = "Importuoti";
 "settings.backup.conflict.skip" = "Praleisti esančius";
 "settings.backup.conflict.replace" = "Pakeisti esančius";
-"settings.backup.conflict.keepBoth" = "Laikyti abu";
 "settings.backup.security.warning" = "Įspėjimas: eksportuoti failas apima jautrią informaciją. Išlaikykite jį saugiu ir nedaleikite.";
 "settings.backup.info.note" = "Atsarginės kopijos apima nustatymus, režimus ir žodyną. Įrašai ir transkriptsiniu neįtrauki.";
 "settings.backup.result.success.title" = "Sėkmė";
@@ -1087,9 +1082,6 @@ Prieš trindami atnaujinkite šiuos režimus, kad naudotų kitą modelį.";
 "transcribe.file.error.video.noAudio" = "Šiame vaizdo faile nėra audio takelio. Pasirinkite video su audio arba audio failą.";
 
 // MARK: - File Transcription Progress
-"file.transcription.preparing" = "Paruošiama...";
-"file.transcription.transcribing" = "Transkripcija...";
-"file.transcription.finishing" = "Baigimas...";
 "file.transcription.cancel" = "Atšaukti";
 
 // MARK: - Auto-Delete Recordings

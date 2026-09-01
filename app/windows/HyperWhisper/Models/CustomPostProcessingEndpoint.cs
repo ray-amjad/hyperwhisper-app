@@ -139,7 +139,4 @@ public class CustomPostProcessingEndpoint
             ? null
             : verdict.Message ?? "Invalid URL format";
     }
-
-    /// <summary>Check if the endpoint configuration is valid.</summary>
-    public bool IsValid => Validate() == null;
 }

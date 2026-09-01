@@ -420,10 +420,6 @@
 "license.button.activate" = "Aktiver";
 "license.button.activating" = "Aktiverer...";
 "license.status.label" = "Status: %@";
-"license.status.trial.title" = "Prøveversjon";
-"license.status.active.title" = "Aktiv";
-"license.status.expired.title" = "Utløpt";
-"license.status.invalid.title" = "Ugyldig";
 "license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "Lisensiert – Full tilgang";
 "license.status.expired.description" = "Lisens utløpt";
@@ -1052,7 +1048,6 @@ Oppdater disse modusene til å bruke en annen modell før du sletter.";
 "settings.backup.import.confirm.button" = "Importer";
 "settings.backup.conflict.skip" = "Hopp over eksisterende";
 "settings.backup.conflict.replace" = "Erstatt eksisterende";
-"settings.backup.conflict.keepBoth" = "Behold begge";
 "settings.backup.security.warning" = "Advarsel: Den eksporterte filen vil inneholde sensitiv data. Hold den sikker og ikke del den.";
 "settings.backup.info.note" = "Sikkerhetskopier inkluderer innstillinger, moduser og ordforråd. Opptak og transkripsjoner er ikke inkludert.";
 "settings.backup.result.success.title" = "Vellykket";
@@ -1087,9 +1082,6 @@ Oppdater disse modusene til å bruke en annen modell før du sletter.";
 "transcribe.file.error.video.noAudio" = "Denne videofilen inneholder ikke et lydspor. Vennligst velg en video med lyd eller en lydfil.";
 
 // MARK: - File Transcription Progress
-"file.transcription.preparing" = "Forbereder...";
-"file.transcription.transcribing" = "Transkriberer...";
-"file.transcription.finishing" = "Fullfører...";
 "file.transcription.cancel" = "Avbryt";
 
 // MARK: - Auto-Delete Recordings

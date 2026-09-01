@@ -420,10 +420,6 @@
 "license.button.activate" = "활성화";
 "license.button.activating" = "활성화 중...";
 "license.status.label" = "상태: %@";
-"license.status.trial.title" = "체험판";
-"license.status.active.title" = "활성화";
-"license.status.expired.title" = "만료됨";
-"license.status.invalid.title" = "잘못됨";
 "license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "라이선스 – 전체 액세스";
 "license.status.expired.description" = "라이선스 만료됨";
@@ -1052,7 +1048,6 @@
 "settings.backup.import.confirm.button" = "가져오기";
 "settings.backup.conflict.skip" = "기존 건너뛰기";
 "settings.backup.conflict.replace" = "기존 교체";
-"settings.backup.conflict.keepBoth" = "둘 다 유지";
 "settings.backup.security.warning" = "경고: 내보낸 파일에는 민감한 데이터가 포함됩니다. 안전하게 보관하고 공유하지 마세요.";
 "settings.backup.info.note" = "백업에는 설정, 모드 및 어휘가 포함됩니다. 녹음 및 음성 인식은 포함되지 않습니다.";
 "settings.backup.result.success.title" = "성공";
@@ -1087,9 +1082,6 @@
 "transcribe.file.error.video.noAudio" = "이 비디오 파일에는 오디오 트랙이 포함되어 있지 않습니다. 오디오가 있는 비디오 또는 오디오 파일을 선택하세요.";
 
 // MARK: - File Transcription Progress
-"file.transcription.preparing" = "준비 중...";
-"file.transcription.transcribing" = "음성 인식 중...";
-"file.transcription.finishing" = "완료 중...";
 "file.transcription.cancel" = "취소";
 
 // MARK: - Auto-Delete Recordings

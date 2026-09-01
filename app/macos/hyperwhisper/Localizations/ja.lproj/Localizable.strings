@@ -420,10 +420,6 @@
 "license.button.activate" = "有効化";
 "license.button.activating" = "有効化中...";
 "license.status.label" = "ステータス: %@";
-"license.status.trial.title" = "トライアル";
-"license.status.active.title" = "有効";
-"license.status.expired.title" = "期限切れ";
-"license.status.invalid.title" = "無効";
 "license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "ライセンス済み - すべての機能が利用可能";
 "license.status.expired.description" = "ライセンスの有効期限が切れました";
@@ -1053,7 +1049,6 @@
 "settings.backup.import.confirm.button" = "インポート";
 "settings.backup.conflict.skip" = "既存をスキップ";
 "settings.backup.conflict.replace" = "既存を置換";
-"settings.backup.conflict.keepBoth" = "両方を保持";
 "settings.backup.security.warning" = "警告: エクスポートされたファイルには機密データが含まれます。安全に保管し、共有しないでください。";
 "settings.backup.info.note" = "バックアップには設定、モード、語彙が含まれます。録音と文字起こしは含まれません。";
 "settings.backup.result.success.title" = "成功";
@@ -1088,9 +1083,6 @@
 "transcribe.file.error.video.noAudio" = "この動画ファイルには音声トラックが含まれていません。音声付きの動画または音声ファイルを選択してください。";
 
 // MARK: - File Transcription Progress
-"file.transcription.preparing" = "準備中...";
-"file.transcription.transcribing" = "文字起こし中...";
-"file.transcription.finishing" = "完了処理中...";
 "file.transcription.cancel" = "キャンセル";
 
 // MARK: - Auto-Delete Recordings

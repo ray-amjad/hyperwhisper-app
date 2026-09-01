@@ -420,10 +420,6 @@
 "license.button.activate" = "Aktivera";
 "license.button.activating" = "Aktiverar...";
 "license.status.label" = "Status: %@";
-"license.status.trial.title" = "Testversion";
-"license.status.active.title" = "Aktiv";
-"license.status.expired.title" = "Utgånget";
-"license.status.invalid.title" = "Ogiltig";
 "license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "Licensierad – fullständig åtkomst";
 "license.status.expired.description" = "Licens utgånget";
@@ -1052,7 +1048,6 @@ Uppdatera dessa lägen för att använda en annan modell innan du raderar.";
 "settings.backup.import.confirm.button" = "Importera";
 "settings.backup.conflict.skip" = "Hoppa över befintlig";
 "settings.backup.conflict.replace" = "Ersätt befintlig";
-"settings.backup.conflict.keepBoth" = "Behåll båda";
 "settings.backup.security.warning" = "Varning: Den exporterade filen innehåller känslig data. Skydda den och dela den inte.";
 "settings.backup.info.note" = "Säkerhetskopior inkluderar inställningar, lägen och ordförråd. Inspelningar och transkriptioner inkluderas inte.";
 "settings.backup.result.success.title" = "Framgång";
@@ -1087,9 +1082,6 @@ Uppdatera dessa lägen för att använda en annan modell innan du raderar.";
 "transcribe.file.error.video.noAudio" = "Denna videofil innehåller inget ljudspår. Välj en video med ljud eller en ljudfil.";
 
 // MARK: - File Transcription Progress
-"file.transcription.preparing" = "Förbereder...";
-"file.transcription.transcribing" = "Transkriberar...";
-"file.transcription.finishing" = "Slutför...";
 "file.transcription.cancel" = "Avbryt";
 
 // MARK: - Auto-Delete Recordings

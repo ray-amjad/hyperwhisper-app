@@ -460,10 +460,4 @@ class KeychainManager {
         }
     }
 
-    /// Check if an API key exists for a custom endpoint
-    /// - Parameter endpointId: UUID of the custom endpoint
-    /// - Returns: True if the key exists, false otherwise
-    func hasCustomEndpointAPIKey(for endpointId: UUID) -> Bool {
-        return !getCustomEndpointAPIKey(for: endpointId).isEmpty
-    }
 }

@@ -420,10 +420,6 @@
 "license.button.activate" = "啟用";
 "license.button.activating" = "啟用中...";
 "license.status.label" = "狀態：%@";
-"license.status.trial.title" = "試用版";
-"license.status.active.title" = "活躍";
-"license.status.expired.title" = "已過期";
-"license.status.invalid.title" = "無效";
 "license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "已授權 – 完全存取";
 "license.status.expired.description" = "授權已過期";
@@ -1052,7 +1048,6 @@
 "settings.backup.import.confirm.button" = "匯入";
 "settings.backup.conflict.skip" = "跳過現有";
 "settings.backup.conflict.replace" = "替換現有";
-"settings.backup.conflict.keepBoth" = "保留兩者";
 "settings.backup.security.warning" = "警告：匯出的檔案將包含敏感資料。請妥善保管，不要分享。";
 "settings.backup.info.note" = "備份包括設定、模式和詞彙。不包括錄音和文字記錄。";
 "settings.backup.result.success.title" = "成功";
@@ -1087,9 +1082,6 @@
 "transcribe.file.error.video.noAudio" = "此影片檔案不包含音頻軌道。請選擇有音頻的影片或音頻檔案。";
 
 // MARK: - File Transcription Progress
-"file.transcription.preparing" = "準備中...";
-"file.transcription.transcribing" = "轉錄中...";
-"file.transcription.finishing" = "完成中...";
 "file.transcription.cancel" = "取消";
 
 // MARK: - Auto-Delete Recordings

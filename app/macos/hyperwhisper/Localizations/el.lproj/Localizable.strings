@@ -420,10 +420,6 @@
 "license.button.activate" = "Ενεργοποίηση";
 "license.button.activating" = "Ενεργοποίηση...";
 "license.status.label" = "Κατάσταση: %@";
-"license.status.trial.title" = "Δοκιμή";
-"license.status.active.title" = "Ενεργό";
-"license.status.expired.title" = "Λήξη";
-"license.status.invalid.title" = "Μη έγκυρο";
 "license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "Αδειοδοτημένο – Πλήρης Πρόσβαση";
 "license.status.expired.description" = "Άδεια Λήξη";
@@ -1052,7 +1048,6 @@
 "settings.backup.import.confirm.button" = "Εισαγωγή";
 "settings.backup.conflict.skip" = "Παράλειψη υπάρχουσας";
 "settings.backup.conflict.replace" = "Αντικατάσταση υπάρχουσας";
-"settings.backup.conflict.keepBoth" = "Κρατήστε και τα δύο";
 "settings.backup.security.warning" = "Προειδοποίηση: Το εξαγόμενο αρχείο θα περιέχει ευαίσθητα δεδομένα. Διατηρήστε το ασφαλές και μην το μοιράζεστε.";
 "settings.backup.info.note" = "Τα αντίγραφα ασφαλείας περιλαμβάνουν ρυθμίσεις, λειτουργίες και λεξιλόγιο. Οι εγγραφές και οι μεταγραφές δεν περιλαμβάνονται.";
 "settings.backup.result.success.title" = "Επιτυχία";
@@ -1087,9 +1082,6 @@
 "transcribe.file.error.video.noAudio" = "Αυτό το αρχείο βίντεο δεν περιέχει κομμάτι ήχου. Παρακαλώ επιλέξτε ένα βίντεο με ήχο ή ένα αρχείο ήχου.";
 
 // MARK: - File Transcription Progress
-"file.transcription.preparing" = "Προετοιμασία...";
-"file.transcription.transcribing" = "Μεταγραφή...";
-"file.transcription.finishing" = "Ολοκλήρωση...";
 "file.transcription.cancel" = "Ακύρωση";
 
 // MARK: - Auto-Delete Recordings
