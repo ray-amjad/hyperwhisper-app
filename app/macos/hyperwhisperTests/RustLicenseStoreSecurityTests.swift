@@ -517,6 +517,48 @@ struct BackupLicenseStorageTests {
         #expect(manager.licenseStatus == .active)
         #expect(manager.lastError != nil)
     }
+
+    @Test func persistenceFailureKeepsPublishedActiveStateForUnchangedPriorRecord() async {
+        let service = BackupLicenseNetworkSpy()
+        service.validationResultOverride = LicenseValidationResult(
+            isValid: false,
+            status: .invalid,
+            customerId: nil,
+            customerEmail: nil,
+            customerName: nil,
+            errorMessage: "Could not securely save the license",
+            storagePersistenceFailed: true
+        )
+        let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false)
+        manager.licenseStatus = .active
+        manager.customerEmail = "existing@example.com"
+
+        _ = await manager.activateLicense("replacement-key")
+
+        #expect(manager.licenseStatus == .active)
+        #expect(manager.customerEmail == "existing@example.com")
+        #expect(manager.lastError == "Could not securely save the license")
+    }
+
+    @Test func persistenceFailureWithoutPriorActiveStatePublishesInvalid() async {
+        let service = BackupLicenseNetworkSpy()
+        service.validationResultOverride = LicenseValidationResult(
+            isValid: false,
+            status: .invalid,
+            customerId: nil,
+            customerEmail: nil,
+            customerName: nil,
+            errorMessage: "Could not securely save the license",
+            storagePersistenceFailed: true
+        )
+        let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false)
+        manager.licenseStatus = .trial
+
+        _ = await manager.activateLicense("new-key")
+
+        #expect(manager.licenseStatus == .invalid)
+        #expect(manager.lastError == "Could not securely save the license")
+    }
 }
 
 private final class BackupLicenseNetworkSpy: LicenseNetworkServing {
@@ -524,6 +566,7 @@ private final class BackupLicenseNetworkSpy: LicenseNetworkServing {
     var replaceSucceeds = true
     var clearSucceeds = true
     var expectedKeys: [String?] = []
+    var validationResultOverride: LicenseValidationResult?
     private var storedKey: String?
 
     func activateLicense(_ licenseKey: String) async -> LicenseValidationResult {
@@ -559,7 +602,8 @@ private final class BackupLicenseNetworkSpy: LicenseNetworkServing {
     }
 
     private var validationResult: LicenseValidationResult {
-        LicenseValidationResult(
+        if let validationResultOverride { return validationResultOverride }
+        return LicenseValidationResult(
             isValid: true,
             status: .active,
             customerId: nil,

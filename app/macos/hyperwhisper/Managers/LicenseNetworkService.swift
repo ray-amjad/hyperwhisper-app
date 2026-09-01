@@ -357,7 +357,8 @@ class LicenseNetworkService: LicenseNetworkServing {
                             customerId: nil,
                             customerEmail: nil,
                             customerName: nil,
-                            errorMessage: "Could not securely save the license"
+                            errorMessage: "Could not securely save the license",
+                            storagePersistenceFailed: true
                         )
                     }
                 }

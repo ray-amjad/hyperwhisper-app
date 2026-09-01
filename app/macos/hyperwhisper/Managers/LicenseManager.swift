@@ -349,6 +349,12 @@ class LicenseManager: ObservableObject {
 
     /// Updates UI state from validation result and posts notification.
     private func processValidationResult(_ result: LicenseValidationResult) {
+        if result.storagePersistenceFailed, licenseStatus == .active {
+            // The failed transaction leaves the prior secure record unchanged.
+            // Keep its matching published entitlement and report the write error.
+            lastError = result.errorMessage
+            return
+        }
         licenseStatus = result.status
         customerEmail = result.customerEmail
         customerName = result.customerName
