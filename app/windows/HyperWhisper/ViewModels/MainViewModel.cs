@@ -2752,6 +2752,7 @@ public partial class MainViewModel : ViewModelBase
         Transcript? transcript = null;
         string? permanentPath = null;
         string? convertedTempPath = null;
+        bool ownsPathForTranscription = false;
         double duration = 0;
 
         try
@@ -2779,7 +2780,11 @@ public partial class MainViewModel : ViewModelBase
                     throw new Exception(convertResult.Error);
                 }
                 pathForTranscription = convertResult.Value!;
-                convertedTempPath = convertResult.Value!;
+                ownsPathForTranscription = !string.Equals(
+                    Path.GetFullPath(pathForTranscription),
+                    Path.GetFullPath(filePath),
+                    StringComparison.OrdinalIgnoreCase);
+                convertedTempPath = ownsPathForTranscription ? pathForTranscription : null;
                 LoggingService.Info($"TranscribeFileAsync: Converted to canonical WAV: {pathForTranscription}");
             }
             transcriptionCts.Token.ThrowIfCancellationRequested();
@@ -2805,7 +2810,7 @@ public partial class MainViewModel : ViewModelBase
 
             // STEP 6: Save file to permanent location
             UpdateFileProgressRequested?.Invoke(this, 0.15f);
-            permanentPath = HistoryService.Instance.SaveAudioFile(pathForTranscription);
+            permanentPath = HistoryService.Instance.SaveAudioFile(pathForTranscription, ownsPathForTranscription);
             LoggingService.Info($"TranscribeFileAsync: Audio saved ({permanentPath}, {fileInfo.Length:N0} bytes, {duration:F2}s)");
 
             // STEP 7: Create processing transcript

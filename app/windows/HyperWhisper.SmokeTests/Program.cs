@@ -4810,6 +4810,28 @@ internal static class Program
                     "Meta Muse shared-model capabilities drifted");
             });
 
+            Run("Saving a canonical imported WAV preserves the user source", () =>
+            {
+                var root = Path.Combine(Path.GetTempPath(), $"hw-source-ownership-{Guid.NewGuid():N}");
+                Directory.CreateDirectory(root);
+                var source = Path.Combine(root, "source.wav");
+                var saved = Path.Combine(root, "saved.wav");
+                try
+                {
+                    File.WriteAllBytes(source, new byte[] { 0x52, 0x49, 0x46, 0x46 });
+                    HistoryService.PersistAudioFile(source, saved, ownsSource: false);
+
+                    Assert(File.Exists(source), "saving a canonical import moved the user's source file");
+                    Assert(File.Exists(saved), "saving a canonical import did not create the history copy");
+                    Assert(File.ReadAllBytes(source).SequenceEqual(File.ReadAllBytes(saved)),
+                        "the history copy differs from the user's source file");
+                }
+                finally
+                {
+                    Directory.Delete(root, recursive: true);
+                }
+            });
+
             Run("Grok's empty model id resolves through a provider-scoped lookup", () =>
             {
                 // Grok's API takes no `model` parameter, so its single registry
