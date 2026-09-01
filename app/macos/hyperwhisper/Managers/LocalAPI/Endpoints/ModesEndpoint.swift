@@ -99,7 +99,7 @@ enum ModesEndpoint {
         do {
             try context.save()
         } catch {
-            Self.discardUnpersistedMode(mode, in: context)
+            Self.discardUnpersistedMode(in: context)
             AppLogger.coreData.error("LocalAPI POST /modes: save failed · \(error.localizedDescription, privacy: .public)")
             return LocalAPIResponder.failure(code: .transcriptionFailed, message: "Failed to save mode")
         }
@@ -243,9 +243,8 @@ enum ModesEndpoint {
     }
 
     @MainActor
-    static func discardUnpersistedMode(_ mode: Mode, in context: NSManagedObjectContext) {
-        context.delete(mode)
-        context.processPendingChanges()
+    static func discardUnpersistedMode(in context: NSManagedObjectContext) {
+        context.rollback()
     }
 
     /// Apply only the present keys of a `ModePatchDTO` onto an existing Mode.

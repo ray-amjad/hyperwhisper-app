@@ -90,12 +90,13 @@ struct ModesEndpointTests {
     @Test func failedCreateCleanupRemovesTheUnpersistedMode() {
         let persistence = PersistenceController(inMemory: true)
         let mode = makeMode(in: persistence, persist: false)
+        let id = mode.id!
 
         #expect(mode.isInserted)
-        ModesEndpoint.discardUnpersistedMode(mode, in: persistence.container.viewContext)
+        ModesEndpoint.discardUnpersistedMode(in: persistence.container.viewContext)
 
         #expect(!mode.isInserted)
-        #expect(mode.id.flatMap { persistence.fetchMode(withId: $0.uuidString) } == nil)
+        #expect(persistence.fetchMode(withId: id.uuidString) == nil)
         #expect(!persistence.container.viewContext.hasChanges)
     }
 
