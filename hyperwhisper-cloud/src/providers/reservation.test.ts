@@ -1,6 +1,11 @@
 import { describe, expect, test } from 'bun:test';
 import { maxReservationUsdPerMinute, type ReservationRateInput } from './reservation';
-import { estimatedUsdPerMinute, fallbackChainFor, ASSEMBLYAI_SYNC_ESTIMATED_USD_PER_MINUTE } from '../lib/stt-models';
+import {
+  estimatedUsdPerMinute,
+  fallbackChainFor,
+  ALL_STT_PROVIDER_IDS,
+  ASSEMBLYAI_SYNC_ESTIMATED_USD_PER_MINUTE,
+} from '../lib/stt-models';
 
 /** A long-enough clip that no provider's short-clip routing tier applies, so a
  * case can isolate the plain catalog-rate signal. */
@@ -116,12 +121,29 @@ describe('maxReservationUsdPerMinute — AssemblyAI sync premium route', () => {
     }
   });
 
-  test('a provider with no premium route is unaffected by a sync-shaped request', () => {
-    // Only the REQUESTED provider can take its own premium route. Deepgram
-    // reaching AssemblyAI is impossible (not in its chain), and a short clip
-    // must not inflate anyone else's reservation.
+  test('a chain with no premium-route member is unaffected by a sync-shaped request', () => {
+    // Deepgram's chain is deepgram/groq/elevenlabs, none of which has a premium
+    // route, so a short clip must not inflate its reservation at all.
     const short = maxReservationUsdPerMinute(input({ provider: 'deepgram', estimatedSeconds: SHORT_CLIP_SECONDS, language: 'en' }));
     const long = maxReservationUsdPerMinute(input({ provider: 'deepgram' }));
     expect(short).toBe(long);
+  });
+
+  test('EVERY provider whose chain can reach AssemblyAI reserves the sync rate on a sync-shaped request', () => {
+    // The premium route is evaluated for each chain member, not only for the
+    // requested provider: fallback forwards the same audio, language and content
+    // type, so a sibling reaches its own premium tier on the same terms. This
+    // holds vacuously today (AssemblyAI is self-only) and is here so that adding
+    // 'assemblyai' to another provider's fallbackChain — a one-line registry
+    // edit — cannot silently under-reserve.
+    for (const provider of ALL_STT_PROVIDER_IDS) {
+      const reachesAssemblyAI = fallbackChainFor(provider).includes('assemblyai');
+      const reserved = maxReservationUsdPerMinute(input({
+        provider, estimatedSeconds: SHORT_CLIP_SECONDS, language: 'en',
+      }));
+      if (reachesAssemblyAI) {
+        expect(reserved).toBeGreaterThanOrEqual(ASSEMBLYAI_SYNC_ESTIMATED_USD_PER_MINUTE);
+      }
+    }
   });
 });

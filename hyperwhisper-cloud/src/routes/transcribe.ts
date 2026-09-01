@@ -66,11 +66,13 @@ export type Provider = SttProviderId;
  * Preflight credit reservation: turn a declared Content-Length into the credits
  * to hold before the body is read.
  *
- * The route's job here is the byte→seconds→credits arithmetic. Which providers
- * the request could reach, what each of them would charge, and which of them
- * has a routing tier priced above its own catalog are all
- * `maxReservationUsdPerMinute`'s to answer. `model`/`medical` are optional to
- * keep the historical 2-arg call signature working.
+ * Which providers the request could reach, what each of them would charge, and
+ * which of them has a routing tier priced above its own catalog are all
+ * `maxReservationUsdPerMinute`'s to answer. What is left here is the
+ * byte→seconds→credits arithmetic, plus the prompt-token allowance, which is
+ * still `lib/cost-calculator.ts`'s and is applied to the primary provider only
+ * — see the note in providers/reservation.ts for when that has to move.
+ * `model`/`medical` are optional to keep the historical 2-arg signature working.
  */
 export function estimateCreditsForProviderFallbacks(
   sizeBytes: number,
