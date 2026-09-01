@@ -259,6 +259,28 @@ struct BackupConformanceVectorTests {
         }
     }
 
+    @Test("modeNameNormalization rows: macOS storage and the shared core agree")
+    func modeNameNormalizationRowsMatchAllHeads() throws {
+        for row in try Self.rows("modeNameNormalization") {
+            let label = Self.name(row)
+            let mode = try #require(row["mode"] as? [String: Any], "\(label): missing `mode`")
+            let source = try #require(mode["name"] as? String, "\(label): missing mode name")
+            let expected = try #require(
+                row["expectedName"] as? String, "\(label): missing `expectedName`")
+            let produced = try normalizeUniversalModeJson(json: Self.jsonString(mode))
+            let normalized = try #require(Self.value(json: produced).objectValue)
+
+            #expect(ModeNamePolicy.storageName(source, replacing: nil) == expected)
+            let actual = try #require(normalized["name"])
+            Self.expectJSON(
+                label,
+                "normalized mode name",
+                expected: .string(expected),
+                actual: actual
+            )
+        }
+    }
+
     // MARK: - Coverage guard
 
     /// The vectors are only a contract while they have rows in them, and the
@@ -267,7 +289,7 @@ struct BackupConformanceVectorTests {
     @Test("Every vector group macOS reads is populated and names its heads")
     func vectorGroupsArePopulated() throws {
         for group in [
-            "modeNormalization", "windowsSettings", "linuxSettings", "macosSettings",
+            "modeNormalization", "modeNameNormalization", "windowsSettings", "linuxSettings", "macosSettings",
             "unknownKeyRoundTrip",
         ] {
             let rows = try Self.rows(group)
