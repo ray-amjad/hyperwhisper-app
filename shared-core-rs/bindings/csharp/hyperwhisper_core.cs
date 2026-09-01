@@ -1254,6 +1254,10 @@ static class _UniFFILib {
     
     
     
+    
+    
+    
+    
 
     static _UniFFILib() {
         _UniFFILib.uniffiCheckContractApiVersion();
@@ -2067,6 +2071,10 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_next_retry_within_budget(uint @attempt,ushort @status,RustBuffer @body,RustBuffer @retryAfter,ulong @elapsedMs,ulong @budgetMs,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_no_speech_classify(RustBuffer @input,ref UniffiRustCallStatus _uniffi_out_err
     );
 
@@ -2172,6 +2180,10 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_remove_trailing_period(RustBuffer @text,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ulong uniffi_hyperwhisper_core_fn_func_retry_default_budget_ms(ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -3227,6 +3239,10 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_next_retry_within_budget(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_no_speech_classify(
     );
 
@@ -3332,6 +3348,10 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_remove_trailing_period(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_retry_default_budget_ms(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -4591,6 +4611,12 @@ static class _UniFFILib {
             }
         }
         {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_next_retry_within_budget();
+            if (checksum != 13527) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_next_retry_within_budget` checksum `13527`, library returned `{checksum}`");
+            }
+        }
+        {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_no_speech_classify();
             if (checksum != 39879) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_no_speech_classify` checksum `39879`, library returned `{checksum}`");
@@ -4750,6 +4776,12 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_remove_trailing_period();
             if (checksum != 16878) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_remove_trailing_period` checksum `16878`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_retry_default_budget_ms();
+            if (checksum != 9456) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_retry_default_budget_ms` checksum `9456`, library returned `{checksum}`");
             }
         }
         {
@@ -15797,6 +15829,24 @@ internal static class HyperwhisperCoreMethods {
 
 
     /// <summary>
+    /// `next_retry` plus a **total wall-clock budget** (issue #379).
+    ///
+    /// `elapsed_ms` is the time since the start of the whole attempt sequence (the
+    /// platform owns the clock, because it owns the sleep). A sleep that *would* land
+    /// past `budget_ms` is refused, so a hard-down provider fails in ~20-25s instead
+    /// of grinding through the full 1+2+4+8+16+32+64s series. `budget_ms == 0` means
+    /// unbounded, which makes this identical to `next_retry`. Use
+    /// `retry_default_budget_ms()` for interactive transcription.
+    /// </summary>
+    public static RetryDecision NextRetryWithinBudget(uint @attempt, ushort @status, string @body, ulong? @retryAfter, ulong @elapsedMs, ulong @budgetMs) {
+        return FfiConverterTypeRetryDecision.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_next_retry_within_budget(FfiConverterUInt32.INSTANCE.Lower(@attempt), FfiConverterUInt16.INSTANCE.Lower(@status), FfiConverterString.INSTANCE.Lower(@body), FfiConverterOptionalUInt64.INSTANCE.Lower(@retryAfter), FfiConverterUInt64.INSTANCE.Lower(@elapsedMs), FfiConverterUInt64.INSTANCE.Lower(@budgetMs), ref _status)
+));
+    }
+
+
+    /// <summary>
     /// Decide what to report. The five arms are evaluated in a fixed order — see
     /// `hw_audio::no_speech::classify`.
     /// </summary>
@@ -16163,6 +16213,19 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterString.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_remove_trailing_period(FfiConverterString.INSTANCE.Lower(@text), ref _status)
+));
+    }
+
+
+    /// <summary>
+    /// Default **total** wall-clock budget, in milliseconds, for one interactive
+    /// transcription attempt sequence. The default argument for the platform retry
+    /// drivers' `budgetMs` parameter; `0` means unbounded.
+    /// </summary>
+    public static ulong RetryDefaultBudgetMs() {
+        return FfiConverterUInt64.INSTANCE.Lift(
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_retry_default_budget_ms( ref _status)
 ));
     }
 

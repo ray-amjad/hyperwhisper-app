@@ -1319,6 +1319,11 @@ int8_t uniffi_hyperwhisper_core_fn_func_models_supports_custom_vocabulary(RustBu
 RustBuffer uniffi_hyperwhisper_core_fn_func_next_retry(uint32_t attempt, uint16_t status, RustBuffer body, RustBuffer retry_after, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_FN_FUNC_NEXT_RETRY_WITHIN_BUDGET
+#define UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_FN_FUNC_NEXT_RETRY_WITHIN_BUDGET
+RustBuffer uniffi_hyperwhisper_core_fn_func_next_retry_within_budget(uint32_t attempt, uint16_t status, RustBuffer body, RustBuffer retry_after, uint64_t elapsed_ms, uint64_t budget_ms, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_FN_FUNC_NO_SPEECH_CLASSIFY
 #define UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_FN_FUNC_NO_SPEECH_CLASSIFY
 RustBuffer uniffi_hyperwhisper_core_fn_func_no_speech_classify(RustBuffer input, RustCallStatus *_Nonnull out_status
@@ -1456,6 +1461,12 @@ RustBuffer uniffi_hyperwhisper_core_fn_func_remove_filler_words(RustBuffer text,
 #ifndef UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_FN_FUNC_REMOVE_TRAILING_PERIOD
 #define UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_FN_FUNC_REMOVE_TRAILING_PERIOD
 RustBuffer uniffi_hyperwhisper_core_fn_func_remove_trailing_period(RustBuffer text, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_FN_FUNC_RETRY_DEFAULT_BUDGET_MS
+#define UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_FN_FUNC_RETRY_DEFAULT_BUDGET_MS
+uint64_t uniffi_hyperwhisper_core_fn_func_retry_default_budget_ms(RustCallStatus *_Nonnull out_status
+    
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_FN_FUNC_RETRY_MAX_ATTEMPTS
@@ -2961,6 +2972,12 @@ uint16_t uniffi_hyperwhisper_core_checksum_func_next_retry(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_CHECKSUM_FUNC_NEXT_RETRY_WITHIN_BUDGET
+#define UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_CHECKSUM_FUNC_NEXT_RETRY_WITHIN_BUDGET
+uint16_t uniffi_hyperwhisper_core_checksum_func_next_retry_within_budget(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_CHECKSUM_FUNC_NO_SPEECH_CLASSIFY
 #define UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_CHECKSUM_FUNC_NO_SPEECH_CLASSIFY
 uint16_t uniffi_hyperwhisper_core_checksum_func_no_speech_classify(void
@@ -3120,6 +3137,12 @@ uint16_t uniffi_hyperwhisper_core_checksum_func_remove_filler_words(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_CHECKSUM_FUNC_REMOVE_TRAILING_PERIOD
 #define UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_CHECKSUM_FUNC_REMOVE_TRAILING_PERIOD
 uint16_t uniffi_hyperwhisper_core_checksum_func_remove_trailing_period(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_CHECKSUM_FUNC_RETRY_DEFAULT_BUDGET_MS
+#define UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_CHECKSUM_FUNC_RETRY_DEFAULT_BUDGET_MS
+uint16_t uniffi_hyperwhisper_core_checksum_func_retry_default_budget_ms(void
     
 );
 #endif
