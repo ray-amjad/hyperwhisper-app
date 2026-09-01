@@ -2025,7 +2025,8 @@ class PersistenceController: ObservableObject {
         geminiCustomPrompt: String? = nil,
         cloudPostProcessingModel: String? = nil,
         cloudTranscriptionDomain: String? = nil,
-        foreignPlatformExtensions: String? = nil
+        foreignPlatformExtensions: String? = nil,
+        persist: Bool = true
     ) -> Mode {
         let context = container.viewContext
         
@@ -2145,7 +2146,9 @@ class PersistenceController: ObservableObject {
         mode?.cloudTranscriptionDomain = trimmedDomain.isEmpty ? nil : trimmedDomain
         mode?.modifiedDate = Date()
 
-        save()
+        if persist {
+            save()
+        }
 
         return mode!
     }

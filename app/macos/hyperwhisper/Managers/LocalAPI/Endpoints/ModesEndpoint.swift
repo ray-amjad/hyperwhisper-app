@@ -91,8 +91,18 @@ enum ModesEndpoint {
             enableScreenOCR: dto.enableScreenOCR ?? false,
             geminiCustomPrompt: dto.geminiCustomPrompt,
             cloudPostProcessingModel: dto.cloudPostProcessingModel,
-            cloudTranscriptionDomain: dto.cloudTranscriptionDomain
+            cloudTranscriptionDomain: dto.cloudTranscriptionDomain,
+            persist: false
         )
+
+        let context = PersistenceController.shared.container.viewContext
+        do {
+            try context.save()
+        } catch {
+            Self.discardUnpersistedMode(mode, in: context)
+            AppLogger.coreData.error("LocalAPI POST /modes: save failed · \(error.localizedDescription, privacy: .public)")
+            return LocalAPIResponder.failure(code: .transcriptionFailed, message: "Failed to save mode")
+        }
 
         return LocalAPIResponder.ok(ModeResponse(ok: true, mode: Self.toDTO(mode)))
     }
@@ -104,10 +114,6 @@ enum ModesEndpoint {
         guard let id = idParameter(from: request) else {
             return LocalAPIResponder.failure(code: .invalidRequest, message: "Missing :id path parameter")
         }
-        guard let mode = PersistenceController.shared.fetchMode(withId: id) else {
-            return LocalAPIResponder.failure(code: .modeNotFound, message: "No mode with id '\(id)'")
-        }
-
         let body: Data
         do { body = try await request.bodyData } catch {
             return LocalAPIResponder.badRequest(message: "Could not read request body")
@@ -153,6 +159,12 @@ enum ModesEndpoint {
             normalizedName = nil
         }
 
+        // Fetch only after the request body await. No suspension point can now
+        // let DELETE invalidate this managed object before the patch is saved.
+        guard let mode = PersistenceController.shared.fetchMode(withId: id) else {
+            return LocalAPIResponder.failure(code: .modeNotFound, message: "No mode with id '\(id)'")
+        }
+
         // Name uniqueness check — only when the caller is actually renaming.
         if let newName = normalizedName,
            newName != mode.name,
@@ -176,6 +188,10 @@ enum ModesEndpoint {
         do {
             try PersistenceController.shared.container.viewContext.save()
         } catch {
+            Self.discardPendingPatch(
+                mode,
+                in: PersistenceController.shared.container.viewContext
+            )
             AppLogger.coreData.error("LocalAPI PATCH /modes: save failed · \(error.localizedDescription, privacy: .public)")
             return LocalAPIResponder.failure(code: .transcriptionFailed, message: "Failed to save mode")
         }
@@ -220,6 +236,17 @@ enum ModesEndpoint {
 
     static func int16Value(_ value: Int) -> Int16? {
         Int16(exactly: value)
+    }
+
+    @MainActor
+    static func discardPendingPatch(_ mode: Mode, in context: NSManagedObjectContext) {
+        context.refresh(mode, mergeChanges: false)
+    }
+
+    @MainActor
+    static func discardUnpersistedMode(_ mode: Mode, in context: NSManagedObjectContext) {
+        context.delete(mode)
+        context.processPendingChanges()
     }
 
     /// Apply only the present keys of a `ModePatchDTO` onto an existing Mode.

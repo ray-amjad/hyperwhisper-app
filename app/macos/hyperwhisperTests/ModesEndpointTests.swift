@@ -62,4 +62,43 @@ struct ModesEndpointTests {
         }
         #expect(value == "Use short sentences")
     }
+
+    @MainActor
+    @Test func failedPatchCleanupRestoresTheStoredMode() throws {
+        let persistence = PersistenceController(inMemory: true)
+        let mode = makeMode(in: persistence)
+
+        mode.name = "Rejected replacement"
+        #expect(mode.hasChanges)
+        ModesEndpoint.discardPendingPatch(mode, in: persistence.container.viewContext)
+
+        #expect(mode.name == "Stored name")
+        #expect(!mode.hasChanges)
+    }
+
+    @MainActor
+    @Test func failedCreateCleanupRemovesTheUnpersistedMode() {
+        let persistence = PersistenceController(inMemory: true)
+        let mode = makeMode(in: persistence, persist: false)
+
+        #expect(mode.isInserted)
+        ModesEndpoint.discardUnpersistedMode(mode, in: persistence.container.viewContext)
+
+        #expect(mode.managedObjectContext == nil)
+        #expect(!persistence.container.viewContext.hasChanges)
+    }
+
+    @MainActor
+    private func makeMode(in persistence: PersistenceController, persist: Bool = true) -> Mode {
+        persistence.createOrUpdateMode(
+            name: "Stored name",
+            preset: "hyper",
+            language: "en",
+            model: "base",
+            punctuation: true,
+            capitalization: true,
+            profanityFilter: false,
+            persist: persist
+        )
+    }
 }
