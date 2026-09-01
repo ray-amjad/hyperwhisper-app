@@ -38,6 +38,8 @@ struct HyperWhisperCloudEntitlementTests {
     private static let toastSettingsMarker = "account key"
 
     private static let cloudAccountRequiredKey = "transcription.error.cloudAccountRequired"
+    private static let cloudUnauthorizedKey = "transcription.error.unauthorized.hyperWhisperCloud"
+    private static let providerUnauthorizedKey = "transcription.error.unauthorized.provider"
 
     /// Reads a key's **English** value straight out of `Base.lproj`, so marker
     /// assertions do not depend on the test runner's locale.
@@ -541,6 +543,62 @@ struct HyperWhisperCloudEntitlementTests {
     }
 
     // MARK: - Local HTTP API does not leak a generic failure
+
+    @Test func cloudUnauthorizedMessagePointsToCloudSettingsForEveryStatus() throws {
+        let english = try #require(Self.baseLocalizedValue(forKey: Self.cloudUnauthorizedKey))
+
+        #expect(english.localizedCaseInsensitiveContains("invalid or expired"))
+        #expect(english.contains("Settings → HyperWhisper Cloud"))
+        #expect(!english.contains("Settings → API Keys"))
+
+        let descriptions = ([nil, 401, 403] as [Int?]).map {
+            TranscriptionError.unauthorized(
+                provider: "HyperWhisper Cloud",
+                statusCode: $0
+            ).errorDescription
+        }
+        #expect(descriptions.allSatisfy { $0 == descriptions.first! })
+        #expect(descriptions.allSatisfy { $0 != Self.cloudUnauthorizedKey })
+    }
+
+    @Test func byokUnauthorizedMessageKeepsTheAPIKeysDestination() throws {
+        let format = try #require(Self.baseLocalizedValue(forKey: Self.providerUnauthorizedKey))
+
+        #expect(format.contains("Settings → API Keys"))
+        #expect(!format.contains("Settings → HyperWhisper Cloud"))
+
+        let error = TranscriptionError.unauthorized(provider: "OpenAI", statusCode: 401)
+        #expect(error.errorDescription != Self.cloudUnauthorizedKey)
+    }
+
+    @Test func localAPIMapsCloudUnauthorizedToCloudSettingsWithoutChangingItsCode() {
+        let cloudResults = ([nil, 401, 403] as [Int?]).map {
+            LocalAPIResponder.mapTranscriptionError(
+                TranscriptionError.unauthorized(
+                    provider: "HyperWhisper Cloud",
+                    statusCode: $0
+                )
+            )
+        }
+
+        for (code, message, hint) in cloudResults {
+            #expect(code == .missingAPIKey)
+            #expect(message.localizedCaseInsensitiveContains("invalid or expired"))
+            #expect(hint?.contains("Settings → HyperWhisper Cloud") == true)
+            #expect(hint?.contains("Settings → API Keys") == false)
+        }
+        #expect(cloudResults[0].1 == cloudResults[1].1)
+        #expect(cloudResults[0].1 == cloudResults[2].1)
+        #expect(cloudResults[0].2 == cloudResults[1].2)
+        #expect(cloudResults[0].2 == cloudResults[2].2)
+
+        let (byokCode, _, byokHint) = LocalAPIResponder.mapTranscriptionError(
+            TranscriptionError.unauthorized(provider: "OpenAI", statusCode: 401)
+        )
+        #expect(byokCode == .missingAPIKey)
+        #expect(byokHint?.contains("Settings → API Keys") == true)
+        #expect(byokHint?.contains("Settings → HyperWhisper Cloud") == false)
+    }
 
     @Test func localAPIMapsCloudAccountRequiredToAnExplicitCode() {
         let (code, message, hint) = LocalAPIResponder.mapTranscriptionError(

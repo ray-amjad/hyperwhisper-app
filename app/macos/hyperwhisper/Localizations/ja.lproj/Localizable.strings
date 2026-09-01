@@ -927,6 +927,7 @@
 "transcription.error.maxRetriesExceeded" = "リトライ回数の上限を超えました";
 "transcription.error.unauthorized.provider" = "認証エラー: %@ APIキーまたは権限が無効です。\n\n設定 → APIキーで資格情報を確認してください。";
 "transcription.error.unauthorized.generic" = "認証エラー: APIキーまたは権限が無効です。\n\n設定 → APIキーで資格情報を確認してください。";
+"transcription.error.unauthorized.hyperWhisperCloud" = "HyperWhisper Cloudのアクセスキーが無効か、有効期限が切れています。\n\n設定 → HyperWhisper Cloudを開いてキーを更新してください。";
 "transcription.error.cloudAccountRequired" = "HyperWhisper Cloud にはアカウントキーが必要です。\n\n設定 → HyperWhisper Cloud でキーを入力するか、クレジットを購入してください。";
 "transcription.error.invalidRequest" = "無効なリクエストです。音声ファイルや設定を確認してください";
 "transcription.error.streamingInterrupted" = "ストリーミングが中断されました。部分的なテキストを表示します";

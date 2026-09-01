@@ -926,6 +926,7 @@ Atualize esses modos para usar um modelo diferente antes de excluir.";
 "transcription.error.maxRetriesExceeded" = "Número máximo de tentativas excedido";
 "transcription.error.unauthorized.provider" = "Não autorizado: chave de API %@ inválida ou permissões insuficientes.\n\nAbra Configurações → Chaves de API para verificar suas credenciais.";
 "transcription.error.unauthorized.generic" = "Não autorizado: chave de API inválida ou permissões insuficientes.\n\nAbra Configurações → Chaves de API para verificar suas credenciais.";
+"transcription.error.unauthorized.hyperWhisperCloud" = "A chave de acesso do HyperWhisper Cloud é inválida ou expirou.\n\nAbra Configurações → HyperWhisper Cloud para atualizar sua chave.";
 "transcription.error.cloudAccountRequired" = "O HyperWhisper Cloud requer uma chave de conta.\n\nAbra Configurações → HyperWhisper Cloud para inserir sua chave ou obter créditos.";
 "transcription.error.invalidRequest" = "Solicitação inválida: verifique arquivo de áudio ou configurações";
 "transcription.error.streamingInterrupted" = "Streaming interrompido; texto parcial mostrado";

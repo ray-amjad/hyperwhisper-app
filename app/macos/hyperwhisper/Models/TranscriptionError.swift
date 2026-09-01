@@ -102,6 +102,9 @@ enum TranscriptionError: LocalizedError {
         case .maxRetriesExceeded:
             return "transcription.error.maxRetriesExceeded".localized
         case .unauthorized(let provider, _):
+            if provider == "HyperWhisper Cloud" {
+                return "transcription.error.unauthorized.hyperWhisperCloud".localized
+            }
             if let provider = provider {
                 return "transcription.error.unauthorized.provider".localized(arguments: provider)
             }

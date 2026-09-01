@@ -926,6 +926,7 @@ Opdater disse tilstande til at bruge en anden model, inden du sletter.";
 "transcription.error.maxRetriesExceeded" = "Maksimalt antal forsøg overskredet";
 "transcription.error.unauthorized.provider" = "Uautoriseret: ugyldig %@ API-nøgle eller tilladelser.\n\nÅbn Indstillinger → API-nøgler for at verificere dine legitimationsoplysninger.";
 "transcription.error.unauthorized.generic" = "Uautoriseret: ugyldig API-nøgle eller tilladelser.\n\nÅbn Indstillinger → API-nøgler for at verificere dine legitimationsoplysninger.";
+"transcription.error.unauthorized.hyperWhisperCloud" = "Adgangsnøglen til HyperWhisper Cloud er ugyldig eller udløbet.\n\nÅbn Indstillinger → HyperWhisper Cloud for at opdatere din nøgle.";
 "transcription.error.cloudAccountRequired" = "HyperWhisper Cloud kræver en kontonøgle.\n\nÅbn Indstillinger → HyperWhisper Cloud for at indtaste din nøgle eller købe kreditter.";
 "transcription.error.invalidRequest" = "Ugyldig anmodning: kontroller lydfil eller indstillinger";
 "transcription.error.streamingInterrupted" = "Streaming afbrudt; delvis tekst vist";

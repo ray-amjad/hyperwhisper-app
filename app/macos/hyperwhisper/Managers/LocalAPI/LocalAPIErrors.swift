@@ -139,7 +139,10 @@ enum LocalAPIResponder {
                 return (.missingAPIKey, "API key for \(prov) is missing.", "Add the API key in Settings → API Keys.")
             case .unauthorized(let provider, _):
                 let prov = provider ?? "this provider"
-                return (.missingAPIKey, "API key for \(prov) is invalid or expired.", "Update the API key in Settings → API Keys.")
+                let settingsDestination = provider == "HyperWhisper Cloud"
+                    ? "Settings → HyperWhisper Cloud"
+                    : "Settings → API Keys"
+                return (.missingAPIKey, "API key for \(prov) is invalid or expired.", "Update the API key in \(settingsDestination).")
             case .audioFileNotFound:
                 return (.fileNotFound, "Audio file not found.", "Pass an absolute path the running app can read.")
             case .invalidAudioFormat, .audioConversionFailed:

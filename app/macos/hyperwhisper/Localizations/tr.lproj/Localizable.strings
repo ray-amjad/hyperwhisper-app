@@ -926,6 +926,7 @@ Silmeden önce bu modları farklı bir model kullanacak şekilde güncelleyin.";
 "transcription.error.maxRetriesExceeded" = "Maksimum yeniden deneme girişimleri aşıldı";
 "transcription.error.unauthorized.provider" = "Yetkisiz: Geçersiz %@ API anahtarı veya izinleri.\n\nBilgilerinizi doğrulamak için Ayarlar → API Anahtarları'nı açın.";
 "transcription.error.unauthorized.generic" = "Yetkisiz: Geçersiz API anahtarı veya izinleri.\n\nBilgilerinizi doğrulamak için Ayarlar → API Anahtarları'nı açın.";
+"transcription.error.unauthorized.hyperWhisperCloud" = "HyperWhisper Cloud erişim anahtarı geçersiz veya süresi dolmuş.\n\nAnahtarınızı güncellemek için Ayarlar → HyperWhisper Cloud bölümünü açın.";
 "transcription.error.cloudAccountRequired" = "HyperWhisper Cloud bir hesap anahtarı gerektirir.\n\nAnahtarınızı girmek veya kredi almak için Ayarlar → HyperWhisper Cloud'u açın.";
 "transcription.error.invalidRequest" = "Geçersiz istek: ses dosyasını veya ayarları kontrol edin";
 "transcription.error.streamingInterrupted" = "Akış kesildi; kısmi metin gösteriliyor";

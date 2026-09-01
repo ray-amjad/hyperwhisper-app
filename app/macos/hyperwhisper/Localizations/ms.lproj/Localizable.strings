@@ -926,6 +926,7 @@ Kemas kini mod-mod ini untuk menggunakan model yang berbeza sebelum memadam.";
 "transcription.error.maxRetriesExceeded" = "Cubaan semula maksimum melebihi";
 "transcription.error.unauthorized.provider" = "Tidak dibenarkan: kunci API %@ tidak sah atau kebenaran.\n\nBuka Tetapan → Kunci API untuk mengesahkan kelayakan anda.";
 "transcription.error.unauthorized.generic" = "Tidak dibenarkan: kunci API tidak sah atau kebenaran.\n\nBuka Tetapan → Kunci API untuk mengesahkan kelayakan anda.";
+"transcription.error.unauthorized.hyperWhisperCloud" = "Kunci akses HyperWhisper Cloud tidak sah atau telah tamat tempoh.\n\nBuka Tetapan → HyperWhisper Cloud untuk mengemas kini kunci anda.";
 "transcription.error.cloudAccountRequired" = "HyperWhisper Cloud memerlukan kunci akaun.\n\nBuka Tetapan → HyperWhisper Cloud untuk memasukkan kunci anda atau mendapatkan kredit.";
 "transcription.error.invalidRequest" = "Permintaan tidak sah: periksa fail audio atau tetapan";
 "transcription.error.streamingInterrupted" = "Streaming terganggu; teks separa ditunjukkan";

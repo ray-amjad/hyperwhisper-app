@@ -926,6 +926,7 @@ Pred odstránením aktualizujte tieto režimy, aby používali iný model.";
 "transcription.error.maxRetriesExceeded" = "Maximum pokusov o opakovanie bolo prekročené";
 "transcription.error.unauthorized.provider" = "Neoprávnený: neplatný %@ API kľúč alebo oprávnenia.\n\nOtvorte Nastavenia → API kľúče na overenie vašich poveí.";
 "transcription.error.unauthorized.generic" = "Neoprávnený: neplatný API kľúč alebo oprávnenia.\n\nOtvorte Nastavenia → API kľúče na overenie vašich poveí.";
+"transcription.error.unauthorized.hyperWhisperCloud" = "Prístupový kľúč HyperWhisper Cloud je neplatný alebo jeho platnosť vypršala.\n\nOtvorte Nastavenia → HyperWhisper Cloud a aktualizujte svoj kľúč.";
 "transcription.error.cloudAccountRequired" = "HyperWhisper Cloud vyžaduje kľúč účtu.\n\nOtvorte Nastavenia → HyperWhisper Cloud na zadanie kľúča alebo získanie kreditov.";
 "transcription.error.invalidRequest" = "Neplatná požiadavka: skontrolujte zvukový súbor alebo nastavenia";
 "transcription.error.streamingInterrupted" = "Streamovanie prerušené; zobrazený čiastočný text";

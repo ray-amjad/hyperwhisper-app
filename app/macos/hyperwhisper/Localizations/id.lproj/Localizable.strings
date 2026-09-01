@@ -926,6 +926,7 @@ Perbarui mode-mode ini untuk menggunakan model yang berbeda sebelum menghapus.";
 "transcription.error.maxRetriesExceeded" = "Percobaan ulang maksimum terlampaui";
 "transcription.error.unauthorized.provider" = "Tidak sah: kunci API %@ tidak valid atau izin.\n\nBuka Pengaturan → Kunci API untuk memverifikasi kredensial Anda.";
 "transcription.error.unauthorized.generic" = "Tidak sah: kunci API tidak valid atau izin.\n\nBuka Pengaturan → Kunci API untuk memverifikasi kredensial Anda.";
+"transcription.error.unauthorized.hyperWhisperCloud" = "Kunci akses HyperWhisper Cloud tidak valid atau telah kedaluwarsa.\n\nBuka Pengaturan → HyperWhisper Cloud untuk memperbarui kunci Anda.";
 "transcription.error.cloudAccountRequired" = "HyperWhisper Cloud memerlukan kunci akun.\n\nBuka Pengaturan → HyperWhisper Cloud untuk memasukkan kunci Anda atau mendapatkan kredit.";
 "transcription.error.invalidRequest" = "Permintaan tidak valid: periksa file audio atau pengaturan";
 "transcription.error.streamingInterrupted" = "Streaming terganggu; teks parsial ditampilkan";

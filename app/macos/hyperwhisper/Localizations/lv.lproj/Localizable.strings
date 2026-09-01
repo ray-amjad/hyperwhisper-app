@@ -926,6 +926,7 @@ Pirms dzēšanas atjauniniet šos režīmus, lai izmantotu citu modeli.";
 "transcription.error.maxRetriesExceeded" = "Maksimālais atkārtošanas mēģinājumu skaits pārsniegts";
 "transcription.error.unauthorized.provider" = "Neautorizēts: nepareiza %@ API atslēga vai atļaujas.\n\nAtvērt iestatījumus → API atslēgas, lai pārbaudītu savus akreditācijas datus.";
 "transcription.error.unauthorized.generic" = "Neautorizēts: nepareiza API atslēga vai atļaujas.\n\nAtvērt iestatījumus → API atslēgas, lai pārbaudītu savus akreditācijas datus.";
+"transcription.error.unauthorized.hyperWhisperCloud" = "HyperWhisper Cloud piekļuves atslēga nav derīga vai tās derīguma termiņš ir beidzies.\n\nAtveriet Iestatījumi → HyperWhisper Cloud, lai atjauninātu atslēgu.";
 "transcription.error.cloudAccountRequired" = "HyperWhisper Cloud nepieciešama konta atslēga.\n\nAtveriet Iestatījumi → HyperWhisper Cloud, lai ievadītu atslēgu vai iegādātos kredītus.";
 "transcription.error.invalidRequest" = "Nepareizs pieprasījums: pārbaudiet audio failu vai iestatījumus";
 "transcription.error.streamingInterrupted" = "Straumēšana bija pārraut; parādīts daļējs teksts";

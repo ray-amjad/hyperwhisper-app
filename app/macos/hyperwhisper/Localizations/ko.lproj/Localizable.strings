@@ -926,6 +926,7 @@
 "transcription.error.maxRetriesExceeded" = "최대 재시도 횟수 초과";
 "transcription.error.unauthorized.provider" = "권한 없음: 잘못된 %@ API 키 또는 권한.\n\n설정 → API 키를 열어 자격 증명을 확인하세요.";
 "transcription.error.unauthorized.generic" = "권한 없음: 잘못된 API 키 또는 권한.\n\n설정 → API 키를 열어 자격 증명을 확인하세요.";
+"transcription.error.unauthorized.hyperWhisperCloud" = "HyperWhisper Cloud 액세스 키가 잘못되었거나 만료되었습니다.\n\n설정 → HyperWhisper Cloud를 열어 키를 업데이트하세요.";
 "transcription.error.cloudAccountRequired" = "HyperWhisper Cloud에는 계정 키가 필요합니다.\n\n설정 → HyperWhisper Cloud를 열어 키를 입력하거나 크레딧을 구매하세요.";
 "transcription.error.invalidRequest" = "잘못된 요청: 오디오 파일 또는 설정 확인";
 "transcription.error.streamingInterrupted" = "스트리밍 중단됨; 부분 텍스트 표시됨";

@@ -926,6 +926,7 @@
 "transcription.error.maxRetriesExceeded" = "Перевищено максимальну кількість спроб повтору";
 "transcription.error.unauthorized.provider" = "Невозможна доступ: недійсний API ключ %@ або дозволи.\n\nВідкрийте параметри → API ключі, щоб перевірити облікові дані.";
 "transcription.error.unauthorized.generic" = "Невозможна доступ: недійсний API ключ або дозволи.\n\nВідкрийте параметри → API ключі, щоб перевірити облікові дані.";
+"transcription.error.unauthorized.hyperWhisperCloud" = "Ключ доступу до HyperWhisper Cloud недійсний або прострочений.\n\nВідкрийте Параметри → HyperWhisper Cloud, щоб оновити ключ.";
 "transcription.error.cloudAccountRequired" = "HyperWhisper Cloud потребує ключ облікового запису.\n\nВідкрийте параметри → HyperWhisper Cloud, щоб ввести ключ або придбати кредити.";
 "transcription.error.invalidRequest" = "Недійсний запит: перевірте аудіо файл або параметри";
 "transcription.error.streamingInterrupted" = "Потокова передача переривана; показаний частковий текст";
