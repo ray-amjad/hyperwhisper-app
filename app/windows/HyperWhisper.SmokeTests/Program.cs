@@ -5690,6 +5690,23 @@ internal static class Program
                     $"status {health.GetStatus(healthProvider)}");
             });
 
+            Run("issue #379 (c1): a success near cache expiry starts a fresh TTL", () =>
+            {
+                var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                using var health = new CloudProviderHealthService(() => now);
+
+                health.SetCachedTranscriptionStatusForTests(healthProvider, ProviderHealth.Healthy);
+                now = now.AddSeconds(59);
+
+                // The successful request is new evidence. It must stamp t=59,
+                // even when the existing raw status is already Healthy.
+                health.RecordTranscriptionOutcome(healthProvider, null);
+                now = now.AddSeconds(2);
+
+                Assert(health.GetStatus(healthProvider) == ProviderHealth.Healthy,
+                    "a success at t=59 expired with the probe that ran at t=0");
+            });
+
             Run("issue #379 (d): only a definitive provider-down verdict sets the override", () =>
             {
                 var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -5756,6 +5773,29 @@ internal static class Program
                 // …and reporting is unchanged by that refresh.
                 Assert(health.GetStatus(healthProvider) == ProviderHealth.Unreachable,
                     "the override must survive a probe inside its window");
+            });
+
+            Run("issue #379 (c2 guard): a failure does not refresh the raw probe cache", () =>
+            {
+                var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                using var health = new CloudProviderHealthService(() => now);
+
+                health.SetCachedTranscriptionStatusForTests(healthProvider, ProviderHealth.Healthy);
+                now = now.AddSeconds(59);
+                health.RecordTranscriptionOutcome(healthProvider, ProviderDown());
+                Assert(health.GetStatus(healthProvider) == ProviderHealth.Unreachable,
+                    "/health must apply the failure override");
+
+                now = now.AddSeconds(2);
+                // The t=0 raw probe is expired. GoogleSpeech has no BYOK key, so
+                // reaching the normal refresh path returns its raw Unknown. If
+                // the failure had re-stamped the cache at t=59, this call would
+                // return cached Unreachable and suppress the refresh instead.
+                var refreshed = health.RefreshAsync(healthProvider).GetAwaiter().GetResult();
+                Assert(refreshed == ProviderHealth.Unknown,
+                    $"failure refreshed the raw cache and suppressed the probe: {refreshed}");
+                Assert(health.GetStatus(healthProvider) == ProviderHealth.Unreachable,
+                    "/health must stay honest while the raw probe refreshes");
             });
 
             Console.WriteLine(_failures == 0

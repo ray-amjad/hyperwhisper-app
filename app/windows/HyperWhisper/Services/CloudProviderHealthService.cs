@@ -598,13 +598,13 @@ public class CloudProviderHealthService : IDisposable
     /// <remarks>
     /// STEP-BY-STEP:
     /// 1. <paramref name="error"/> null means the attempt SUCCEEDED. Clear any
-    ///    recorded failure and publish Healthy. A real transcription is stronger
-    ///    evidence than any probe, so a provider that demonstrably works must not
-    ///    stay Unreachable for the rest of the window.
+    ///    recorded failure and stamp Healthy at the current time. A real
+    ///    transcription is stronger evidence than any probe, and its fresh
+    ///    timestamp must not expire two seconds later with an older probe.
     /// 2. Otherwise classify. ONLY a definitive provider-down verdict counts (see
     ///    <see cref="IsDefinitiveProviderDownVerdict"/>); everything else is a no-op.
-    /// 3. A definitive failure stamps <c>_recentFailures</c> and publishes
-    ///    Unreachable into the cache, and then outranks the probe at
+    /// 3. A definitive failure stamps only <c>_recentFailures</c>, and then
+    ///    outranks the raw probe at
     ///    <see cref="GetStatus(CloudTranscriptionProvider)"/> for
     ///    <see cref="FailureOverrideTtlSeconds"/> seconds.
     ///
@@ -616,10 +616,10 @@ public class CloudProviderHealthService : IDisposable
     /// throughout a reproducible <c>POST /transcribe</c> failure.
     ///
     /// ⚠️ DELIBERATE ASYMMETRY, mirroring macOS: the override is applied at the
-    /// READ seam only. <see cref="RefreshAsync(CloudTranscriptionProvider, bool)"/>
-    /// still probes and still RETURNS the raw probe verdict, so nothing can wedge
-    /// a provider for 60 s after one transient blip. Do not "tidy" the override
-    /// into RefreshAsync's return value.
+    /// READ seam only. It is never written into the TTL cache.
+    /// <see cref="RefreshAsync(CloudTranscriptionProvider, bool)"/> therefore
+    /// keeps its normal cache age and still probes when that raw cache expires.
+    /// Do not "tidy" the override into the cache or RefreshAsync's return value.
     ///
     /// This deliberately does NOT raise <see cref="TranscriptionProviderStatusChanged"/>.
     /// The only subscriber answers it with a blocking <c>Dispatcher.Invoke</c>, and
@@ -636,25 +636,20 @@ public class CloudProviderHealthService : IDisposable
     {
         if (provider == CloudTranscriptionProvider.None) return;
 
-        var key = $"transcription:{provider}";
-
         if (error == null)
         {
-            var hadOverride = _recentFailures.TryRemove(provider, out _);
-            if (!hadOverride && GetStatus(provider) == ProviderHealth.Healthy) return;
-            UpdateCache(key, ProviderHealth.Healthy);
+            _recentFailures.TryRemove(provider, out _);
+            // Always re-stamp. A healthy probe at t=0 followed by a successful
+            // transcription at t=59 is fresh evidence at t=59, not at t=0.
+            UpdateCache($"transcription:{provider}", ProviderHealth.Healthy);
             return;
         }
 
         if (!IsDefinitiveProviderDownVerdict(error)) return;
 
         _recentFailures[provider] = _now();
-        // Mirror the failure into the cache as well, so the non-forced
-        // RefreshAsync path serves Unreachable instead of re-probing and
-        // republishing Healthy behind the override's back.
-        UpdateCache(key, ProviderHealth.Unreachable);
         LoggingService.Warn(
-            $"{provider} transcription reported the provider down; marking unreachable for {FailureOverrideTtlSeconds}s: {error.Message}");
+            $"{provider} transcription reported the provider down; marking /health unreachable for {FailureOverrideTtlSeconds}s: {error.Message}");
     }
 
     /// <summary>
