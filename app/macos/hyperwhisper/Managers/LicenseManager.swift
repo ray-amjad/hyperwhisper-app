@@ -350,9 +350,10 @@ class LicenseManager: ObservableObject {
     /// `securityd` stall, a login-keychain prompt left unanswered — was pinned
     /// to Trial until the next launch, because nothing else re-reads the
     /// record. The backoff now settles at 1 read per 60 seconds and continues
-    /// until the read answers `present` or `missing`, or until an activation,
-    /// import or deactivation cancels the task. One Keychain read a minute is
-    /// far cheaper than a wrongly un-entitled session.
+    /// until the read answers `present` or `missing`, or until a later
+    /// `loadStoredLicense()` gets a definitive read and cancels the task. One
+    /// Keychain read a minute is far cheaper than a wrongly un-entitled
+    /// session.
     private func scheduleLicenseStorageRetry() {
         guard licenseStorageRetryTask == nil else { return }
         licenseStorageRetryTask = Task { [weak self] in
