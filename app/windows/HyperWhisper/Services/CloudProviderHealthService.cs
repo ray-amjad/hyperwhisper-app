@@ -122,10 +122,11 @@ public class CloudProviderHealthService : IDisposable
     /// </summary>
     private readonly ConcurrentDictionary<CloudTranscriptionProvider, DateTime> _recentFailures = new();
 
-    // Monotonic generation for transcription credentials. A request captures
-    // this before resolving its provider. Any later key edit increments it, so
-    // an old in-flight result cannot publish evidence about the new key.
-    private long _transcriptionCredentialGeneration;
+    // Monotonic generations for transcription credentials, scoped by provider.
+    // A request captures its provider's value before resolving the key. A later
+    // edit to that key invalidates the old outcome without discarding valid
+    // outcomes for unrelated providers.
+    private readonly ConcurrentDictionary<CloudTranscriptionProvider, long> _transcriptionCredentialGenerations = new();
 
     /// <summary>
     /// Clock. Every timestamp this type takes — the two cache-hit gates, the
@@ -258,7 +259,7 @@ public class CloudProviderHealthService : IDisposable
     {
         var key = $"transcription:{provider}";
 
-        Interlocked.Increment(ref _transcriptionCredentialGeneration);
+        _transcriptionCredentialGenerations.AddOrUpdate(provider, 1, (_, generation) => generation + 1);
 
         // A key edit invalidates the transcription-failure override too (issue
         // #379). Without this, a user who reacts to an outage by re-pasting their
@@ -640,9 +641,9 @@ public class CloudProviderHealthService : IDisposable
     /// </remarks>
     /// <param name="provider">The provider the attempt actually ran against.</param>
     /// <param name="error">Null on success, otherwise the exception thrown.</param>
-    public long CaptureTranscriptionCredentialGeneration()
+    public long CaptureTranscriptionCredentialGeneration(CloudTranscriptionProvider provider)
     {
-        return Volatile.Read(ref _transcriptionCredentialGeneration);
+        return _transcriptionCredentialGenerations.GetOrAdd(provider, 0);
     }
 
     public void RecordTranscriptionOutcome(
@@ -651,7 +652,7 @@ public class CloudProviderHealthService : IDisposable
         Exception? error)
     {
         if (provider == CloudTranscriptionProvider.None) return;
-        if (credentialGeneration != CaptureTranscriptionCredentialGeneration()) return;
+        if (credentialGeneration != CaptureTranscriptionCredentialGeneration(provider)) return;
 
         if (error == null)
         {

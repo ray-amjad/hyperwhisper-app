@@ -340,6 +340,25 @@ struct CloudProviderHealthCacheTTLTests {
         #expect(manager.healthSnapshot().cloud[Self.cloudProvider.rawValue] == "unauthorized")
     }
 
+    @Test func anUnrelatedProviderKeyEditKeepsAnInFlightOutcomeValid() {
+        let clock = TestClock()
+        let client = CountingHealthCheckClient()
+        let keys = FixedKeyProvider()
+        let manager = Self.makeManager(client: client, keys: keys, clock: clock)
+
+        manager.setCachedTranscriptionStatusForTests(.healthy, for: Self.cloudProvider)
+        let credentialGenerations = manager.captureTranscriptionCredentialGeneration()
+
+        manager.registerAPIKeyChange(for: .deepgram, newValue: "short-new-key")
+        manager.recordTranscriptionOutcome(
+            for: Self.cloudProvider,
+            credentialGeneration: credentialGenerations,
+            error: Self.providerDownError
+        )
+
+        #expect(manager.healthSnapshot().cloud[Self.cloudProvider.rawValue] == "unreachable")
+    }
+
     /// (d) The verdict is keyed off the CLASSIFIED error, never off "a
     /// transcription failed". Marking a provider unreachable because the user's
     /// Wi-Fi dropped, their card expired, or they recorded silence would be a

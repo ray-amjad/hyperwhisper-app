@@ -177,10 +177,11 @@ final class CloudProviderHealthManager: ObservableObject {
     /// `CloudProvider.allCases`.
     private var lastTranscriptionFailure: [CloudProvider: Date] = [:]
 
-    /// Advances on every transcription API-key edit. Requests capture this
-    /// before provider resolution so an old in-flight result cannot publish
-    /// health evidence about a replacement key.
-    private var transcriptionCredentialGeneration: UInt64 = 0
+    /// Advances independently for each transcription provider. Requests capture
+    /// the full value snapshot before provider resolution, then compare only the
+    /// selected provider. An unrelated key edit therefore cannot discard valid
+    /// in-flight evidence.
+    private var transcriptionCredentialGenerations: [CloudProvider: UInt64] = [:]
 
     private let cacheTTL: TimeInterval = 60
 
@@ -426,8 +427,8 @@ final class CloudProviderHealthManager: ObservableObject {
     /// - Parameters:
     ///   - provider: the cloud provider the attempt actually ran against.
     ///   - error: `nil` on success, otherwise the error the attempt threw.
-    func captureTranscriptionCredentialGeneration() -> UInt64 {
-        transcriptionCredentialGeneration
+    func captureTranscriptionCredentialGeneration() -> [CloudProvider: UInt64] {
+        transcriptionCredentialGenerations
     }
 
     /// Test seam for generation-correlation cases. Publishes the same raw cache
@@ -442,10 +443,12 @@ final class CloudProviderHealthManager: ObservableObject {
 
     func recordTranscriptionOutcome(
         for provider: CloudProvider,
-        credentialGeneration: UInt64,
+        credentialGeneration: [CloudProvider: UInt64],
         error: Error?
     ) {
-        guard credentialGeneration == transcriptionCredentialGeneration else { return }
+        let capturedGeneration = credentialGeneration[provider, default: 0]
+        let currentGeneration = transcriptionCredentialGenerations[provider, default: 0]
+        guard capturedGeneration == currentGeneration else { return }
 
         guard let error else {
             lastTranscriptionFailure[provider] = nil
@@ -518,7 +521,7 @@ final class CloudProviderHealthManager: ObservableObject {
     func registerAPIKeyChange(for provider: CloudProvider, newValue: String) {
         let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        transcriptionCredentialGeneration &+= 1
+        transcriptionCredentialGenerations[provider, default: 0] &+= 1
 
         cache[provider] = nil
         // A key edit invalidates the transcription-failure override too (issue

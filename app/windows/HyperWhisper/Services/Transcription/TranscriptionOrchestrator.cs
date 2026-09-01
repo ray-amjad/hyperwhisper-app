@@ -342,7 +342,7 @@ public class TranscriptionOrchestrator : IDisposable
         // Capture before provider resolution reads any key. A later key edit
         // advances the generation and makes this request's outcome stale.
         var healthService = CloudProviderHealthService.Instance;
-        var credentialGeneration = healthService.CaptureTranscriptionCredentialGeneration();
+        var credentialGeneration = healthService.CaptureTranscriptionCredentialGeneration(providerType);
 
         // Get configured provider (validates API key, configures model)
         var provider = _providerFactory.GetConfiguredCloudProvider(providerType, mode.CloudTranscriptionModel);

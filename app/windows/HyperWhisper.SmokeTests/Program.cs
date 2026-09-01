@@ -5628,7 +5628,7 @@ internal static class Program
                 Assert(health.GetStatus(healthProvider) == ProviderHealth.Healthy, "probe should start Healthy");
 
                 health.RecordTranscriptionOutcome(
-                    healthProvider, health.CaptureTranscriptionCredentialGeneration(), ProviderDown());
+                    healthProvider, health.CaptureTranscriptionCredentialGeneration(healthProvider), ProviderDown());
 
                 Assert(health.GetHealthStatus(healthProvider) == ProviderHealth.Unreachable,
                     $"health status {health.GetHealthStatus(healthProvider)}");
@@ -5654,7 +5654,7 @@ internal static class Program
 
                 health.SetCachedTranscriptionStatusForTests(healthProvider, ProviderHealth.Healthy);
                 health.RecordTranscriptionOutcome(
-                    healthProvider, health.CaptureTranscriptionCredentialGeneration(), ProviderDown());
+                    healthProvider, health.CaptureTranscriptionCredentialGeneration(healthProvider), ProviderDown());
 
                 // AddMilliseconds, not AddSeconds(59.9): DateTime.AddSeconds rounds
                 // a fractional double to ticks, so 59.9 + 0.1 lands at 59.9999999s
@@ -5682,7 +5682,7 @@ internal static class Program
                 using var health = new CloudProviderHealthService(() => now);
 
                 health.SetCachedTranscriptionStatusForTests(healthProvider, ProviderHealth.Healthy);
-                var credentialGeneration = health.CaptureTranscriptionCredentialGeneration();
+                var credentialGeneration = health.CaptureTranscriptionCredentialGeneration(healthProvider);
                 health.RecordTranscriptionOutcome(healthProvider, credentialGeneration, ProviderDown());
                 Assert(health.GetHealthStatus(healthProvider) == ProviderHealth.Unreachable, "precondition");
 
@@ -5724,7 +5724,7 @@ internal static class Program
                 // The successful request is new evidence. It must stamp t=59,
                 // even when the existing raw status is already Healthy.
                 health.RecordTranscriptionOutcome(
-                    healthProvider, health.CaptureTranscriptionCredentialGeneration(), null);
+                    healthProvider, health.CaptureTranscriptionCredentialGeneration(healthProvider), null);
                 now = now.AddSeconds(2);
 
                 Assert(health.GetStatus(healthProvider) == ProviderHealth.Healthy,
@@ -5736,7 +5736,7 @@ internal static class Program
                 var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
                 using var health = new CloudProviderHealthService(() => now);
 
-                var oldGeneration = health.CaptureTranscriptionCredentialGeneration();
+                var oldGeneration = health.CaptureTranscriptionCredentialGeneration(healthProvider);
                 health.RegisterApiKeyChange(healthProvider, "replacement-key-0123456789");
                 health.SetCachedTranscriptionStatusForTests(healthProvider, ProviderHealth.Unauthorized);
 
@@ -5746,6 +5746,48 @@ internal static class Program
                     "an old-key success stamped the replacement key Healthy");
                 Assert(health.GetHealthStatus(healthProvider) == ProviderHealth.Unauthorized,
                     "/health lost the replacement key's Unauthorized verdict");
+            });
+
+            Run("issue #379 (c3): an unrelated provider key edit keeps an in-flight outcome valid", () =>
+            {
+                var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                using var health = new CloudProviderHealthService(() => now);
+
+                health.SetCachedTranscriptionStatusForTests(healthProvider, ProviderHealth.Healthy);
+                var googleGeneration = health.CaptureTranscriptionCredentialGeneration(healthProvider);
+
+                health.RegisterApiKeyChange(CloudTranscriptionProvider.Deepgram, "replacement-deepgram-key");
+                health.RecordTranscriptionOutcome(healthProvider, googleGeneration, ProviderDown());
+
+                Assert(health.GetHealthStatus(healthProvider) == ProviderHealth.Unreachable,
+                    "an unrelated Deepgram key edit discarded a valid Google outcome");
+            });
+
+            Run("issue #379 (c4): production API-key write mappings advance only the affected provider", () =>
+            {
+                var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                using var health = new CloudProviderHealthService(() => now);
+
+                var geminiBefore = health.CaptureTranscriptionCredentialGeneration(CloudTranscriptionProvider.Gemini);
+                var deepgramBefore = health.CaptureTranscriptionCredentialGeneration(CloudTranscriptionProvider.Deepgram);
+
+                // These are the same helpers called by the two real
+                // ApiKeyService.SetApiKey overloads after the vault write.
+                ApiKeyService.RegisterTranscriptionApiKeyChange(
+                    health, PostProcessingProvider.Gemini, "replacement-gemini-key");
+
+                Assert(health.CaptureTranscriptionCredentialGeneration(CloudTranscriptionProvider.Gemini) == geminiBefore + 1,
+                    "the shared Gemini key write did not advance Gemini transcription health");
+                Assert(health.CaptureTranscriptionCredentialGeneration(CloudTranscriptionProvider.Deepgram) == deepgramBefore,
+                    "the Gemini key write changed Deepgram's generation");
+
+                ApiKeyService.RegisterTranscriptionApiKeyChange(
+                    health, TranscriptionApiKeyType.Deepgram, "replacement-deepgram-key");
+
+                Assert(health.CaptureTranscriptionCredentialGeneration(CloudTranscriptionProvider.Deepgram) == deepgramBefore + 1,
+                    "the Deepgram transcription-key write did not advance Deepgram health");
+                Assert(health.CaptureTranscriptionCredentialGeneration(CloudTranscriptionProvider.Gemini) == geminiBefore + 1,
+                    "the Deepgram key write changed Gemini's generation");
             });
 
             Run("issue #379 (d): only a definitive provider-down verdict sets the override", () =>
@@ -5777,7 +5819,7 @@ internal static class Program
                 {
                     health.SetCachedTranscriptionStatusForTests(healthProvider, ProviderHealth.Healthy);
                     health.RecordTranscriptionOutcome(
-                        healthProvider, health.CaptureTranscriptionCredentialGeneration(), error);
+                        healthProvider, health.CaptureTranscriptionCredentialGeneration(healthProvider), error);
                     Assert(health.GetHealthStatus(healthProvider) == ProviderHealth.Healthy,
                         $"{error.GetType().Name} must not mark the provider unreachable");
                     Assert(!CloudProviderHealthService.IsDefinitiveProviderDownVerdict(error),
@@ -5811,7 +5853,7 @@ internal static class Program
 
                 health.SetCachedTranscriptionStatusForTests(healthProvider, ProviderHealth.Healthy);
                 health.RecordTranscriptionOutcome(
-                    healthProvider, health.CaptureTranscriptionCredentialGeneration(), ProviderDown());
+                    healthProvider, health.CaptureTranscriptionCredentialGeneration(healthProvider), ProviderDown());
                 Assert(health.GetHealthStatus(healthProvider) == ProviderHealth.Unreachable, "precondition");
 
                 // GoogleSpeech is keyless, so RefreshAsync short-circuits to Unknown
@@ -5834,7 +5876,7 @@ internal static class Program
                 health.SetCachedTranscriptionStatusForTests(healthProvider, ProviderHealth.Healthy);
                 now = now.AddSeconds(59);
                 health.RecordTranscriptionOutcome(
-                    healthProvider, health.CaptureTranscriptionCredentialGeneration(), ProviderDown());
+                    healthProvider, health.CaptureTranscriptionCredentialGeneration(healthProvider), ProviderDown());
                 Assert(health.GetHealthStatus(healthProvider) == ProviderHealth.Unreachable,
                     "/health must apply the failure override");
 
