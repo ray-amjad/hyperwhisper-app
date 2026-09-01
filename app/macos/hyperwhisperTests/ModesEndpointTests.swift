@@ -94,7 +94,8 @@ struct ModesEndpointTests {
         #expect(mode.isInserted)
         ModesEndpoint.discardUnpersistedMode(mode, in: persistence.container.viewContext)
 
-        #expect(mode.managedObjectContext == nil)
+        #expect(!mode.isInserted)
+        #expect(mode.id.flatMap { persistence.fetchMode(withId: $0.uuidString) } == nil)
         #expect(!persistence.container.viewContext.hasChanges)
     }
 
