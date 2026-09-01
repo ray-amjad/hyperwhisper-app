@@ -9,7 +9,7 @@
   This file contains all user-facing text that needs to be translated.
 */
 
-"transcription.error.forbidden.hyperWhisperCloud" = "HyperWhisper Cloud denied this request. Your network is temporarily blocked.\n\nWait a few minutes, then try again.";
+"transcription.error.forbidden.hyperWhisperCloud" = "HyperWhisper Cloud lükkas selle taotluse tagasi. Teie võrk on ajutiselt blokeeritud.\n\nOodake mõni minut ja proovige uuesti.";
 
 // MARK: - Application Navigation
 "app.title" = "HyperWhisper";
