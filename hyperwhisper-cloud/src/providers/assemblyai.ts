@@ -111,10 +111,9 @@ const SYNC_MAX_DURATION_SECONDS = 120;
 // 20s before the cap is treated as "too close to call" and skips sync
 // entirely rather than risk a wasted round-trip AssemblyAI rejects as too long.
 const SYNC_ESTIMATE_SAFETY_MARGIN_SECONDS = 20;
-// Exported so the preflight credit reservation (estimateCreditsForProviderFallbacks
-// in routes/transcribe.ts) can gate on the SAME eligibility threshold this file
-// uses, instead of drifting out of sync with a duplicated magic number.
-export const SYNC_ELIGIBLE_ESTIMATED_SECONDS = SYNC_MAX_DURATION_SECONDS - SYNC_ESTIMATE_SAFETY_MARGIN_SECONDS;
+// Module-private. A caller that needs to know whether sync could run asks
+// `couldRouteThroughSync` below rather than holding this threshold itself.
+const SYNC_ELIGIBLE_ESTIMATED_SECONDS = SYNC_MAX_DURATION_SECONDS - SYNC_ESTIMATE_SAFETY_MARGIN_SECONDS;
 const SYNC_MAX_KEYTERMS_PROMPT_CHARS = 2048;
 // AssemblyAI's sync p50 latency is ~134ms, so even a much tighter budget than
 // an earlier 40s leaves enormous headroom for a genuinely-slow-but-successful
@@ -170,8 +169,31 @@ function trimExplicitLanguage(language: string | undefined): string | undefined 
 
 /** `true` when `language` is an explicit, non-"auto" language — the only case
  * sync is eligible for. See the module doc's "Language" note above. */
-export function hasExplicitLanguage(language: string | undefined): boolean {
+function hasExplicitLanguage(language: string | undefined): boolean {
   return trimExplicitLanguage(language) !== undefined;
+}
+
+/** The part of the sync fast-path gate a caller can evaluate BEFORE the audio
+ * body is read: no medical domain, an explicit language, and a byte-size
+ * duration estimate under the eligibility threshold.
+ *
+ * The real gate in `transcribeWithAssemblyAI` adds the WAV-container term,
+ * which needs the body's Content-Type. This predicate deliberately leaves it
+ * out, so it is a SUPERSET of the real gate: the preflight credit reservation
+ * (providers/reservation.ts) may reserve the higher sync rate for a request
+ * that then goes async, but it can never reserve the lower async rate for a
+ * request that goes sync.
+ *
+ * Exists so a caller never needs this module's threshold or its language rule.
+ * The transcribe route imported both directly and re-derived the gate inline. */
+export function couldRouteThroughSync(input: {
+  medical: boolean;
+  language: string | undefined;
+  estimatedSeconds: number;
+}): boolean {
+  return !input.medical
+    && hasExplicitLanguage(input.language)
+    && input.estimatedSeconds < SYNC_ELIGIBLE_ESTIMATED_SECONDS;
 }
 
 /** `true` when `contentType` is a WAV container — the only container
@@ -421,7 +443,7 @@ export async function transcribeWithAssemblyAI(
   const estimatedSeconds = estimateSecondsFromBytes(audio.byteLength);
   const explicitLanguage = hasExplicitLanguage(language);
   const wavContainer = isWavContentType(contentType);
-  const syncEligible = !medical && explicitLanguage && wavContainer && estimatedSeconds < SYNC_ELIGIBLE_ESTIMATED_SECONDS;
+  const syncEligible = couldRouteThroughSync({ medical, language, estimatedSeconds }) && wavContainer;
   if (syncEligible) {
     logProviderEvent(provider, 'sync_attempt', {
       estimatedSeconds, thresholdSeconds: SYNC_ELIGIBLE_ESTIMATED_SECONDS,
