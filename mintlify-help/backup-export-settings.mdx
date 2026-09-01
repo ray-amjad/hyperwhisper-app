@@ -53,11 +53,15 @@ HyperWhisper exports your data to a file. You can import that file later on the 
   HyperWhisper does **not** include API keys and license keys by default. Keep a file that contains them in a secure location. Treat this file like a password.
 </Note>
 
+On macOS, an export that includes the license key reads it from the protected Keychain. If that secure read fails, HyperWhisper stops the export and does not write an incomplete backup. During an import, HyperWhisper securely replaces the stored key and waits for its online validation before it reports success. If the license-key step fails after another selected section was applied, the app reports a partial failure and does not roll back that earlier section.
+
 ## Import a backup
 
 Vocabulary import is **merge-only**. HyperWhisper never deletes the words in your list. It adds new words and updates existing words (see [Vocabulary merge behavior](#vocabulary-merge-behavior) below).
 
 Mode import is different on each platform. On **macOS**, an incoming mode with the same name as one of your modes replaces that mode. HyperWhisper deletes your version first. On **Windows**, HyperWhisper matches modes by internal ID and not by name. Two modes that you created separately with the same name stay separate, and you keep both. On both platforms, HyperWhisper adds a mode with a new name or a new ID next to your existing modes.
+
+Before an imported mode is stored, HyperWhisper normalizes its name across platforms. It normalizes Unicode, trims invisible-only characters from the boundaries, and uses `Untitled` if no visible character remains. macOS applies the same rule to names from the app and the Local API. At each start, macOS also repairs older stored names and adds a numeric suffix when the repair creates a case-insensitive conflict.
 
 You can restore only the sections that the file contains. You can also uncheck any of these sections before you confirm the import.
 

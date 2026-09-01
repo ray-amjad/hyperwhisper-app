@@ -222,6 +222,13 @@ Grant the permission at **System Settings → Privacy & Security → Screen Reco
     **Fix:** Open **Settings → HyperWhisper Cloud**. Then enter your account key, or click **Get Credits** to buy credits and create a key. Read [Pricing & Cloud Credits](/licensing) for the steps. To transcribe without a Cloud account, change the mode to a local model, or to a provider for which you hold your own API key.
   </Accordion>
 
+  <Accordion title="HyperWhisper Cloud rejects a request with 401 or 403">
+    These status codes have different meanings for HyperWhisper Cloud:
+
+    - **401** — the account key is invalid or expired. Open **Settings → HyperWhisper Cloud** and update the key.
+    - **403** — HyperWhisper Cloud temporarily blocked the network. Wait a few minutes, then try again. Changing the account key does not correct this network block.
+  </Accordion>
+
   <Accordion title="Insufficient credits or quota exceeded">
     Your account has no more credits, or your use is more than the quota of the provider.
 
