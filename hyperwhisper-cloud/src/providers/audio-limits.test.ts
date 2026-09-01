@@ -4,6 +4,7 @@ import {
   GEMINI_INLINE_MAX_BYTES,
   GEMINI_TRANSCRIBE_INLINE_MAX_BYTES,
   GOOGLE_CHIRP_INLINE_MAX_BYTES,
+  META_MUSE_MAX_BYTES,
   OPENAI_INLINE_MAX_BYTES,
 } from '../lib/constants';
 import { ALL_STT_PROVIDER_IDS, type SttProviderId } from '../lib/stt-models';
@@ -28,11 +29,12 @@ describe('preBufferMaxBytes', () => {
     expect(preBufferMaxBytes('gemini-transcribe')).toBe(GEMINI_TRANSCRIBE_INLINE_MAX_BYTES);
     expect(preBufferMaxBytes('openai')).toBe(OPENAI_INLINE_MAX_BYTES);
     expect(preBufferMaxBytes('google-chirp')).toBe(GOOGLE_CHIRP_INLINE_MAX_BYTES);
+    expect(preBufferMaxBytes('meta')).toBe(META_MUSE_MAX_BYTES);
   });
 
   test('returns null for every provider without a cap of its own', () => {
     setBucket(undefined);
-    const capped = new Set<SttProviderId>(['gemini', 'gemini-transcribe', 'openai', 'google-chirp']);
+    const capped = new Set<SttProviderId>(['gemini', 'gemini-transcribe', 'openai', 'google-chirp', 'meta']);
 
     // Drives off the registry, so a provider added there is covered here
     // without anyone remembering to extend this list.
@@ -75,5 +77,6 @@ describe('preBufferMaxBytes', () => {
     expect(preBufferMaxBytes('gemini')).toBe(GEMINI_INLINE_MAX_BYTES);
     expect(preBufferMaxBytes('gemini-transcribe')).toBe(GEMINI_TRANSCRIBE_INLINE_MAX_BYTES);
     expect(preBufferMaxBytes('openai')).toBe(OPENAI_INLINE_MAX_BYTES);
+    expect(preBufferMaxBytes('meta')).toBe(META_MUSE_MAX_BYTES);
   });
 });

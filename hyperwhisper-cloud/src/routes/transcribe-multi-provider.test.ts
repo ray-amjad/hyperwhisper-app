@@ -13,6 +13,7 @@ const { transcribeRoute, estimateCreditsForProviderFallbacks } = await import('.
 const { drainPendingDeductions } = await import('../middleware/credits');
 
 const originalFetch = globalThis.fetch;
+const originalMetaModelApiKey = process.env.META_MODEL_API_KEY;
 
 function buildApp(): Hono {
   const app = new Hono();
@@ -32,6 +33,111 @@ function request(headers: Record<string, string>, query = ''): Request {
     body: audio,
   });
 }
+
+function metaWavRequest(seconds: number, query = ''): Request {
+  const sampleRate = 16_000;
+  const dataBytes = sampleRate * 2 * seconds;
+  const audio = new Uint8Array(44 + dataBytes);
+  const view = new DataView(audio.buffer);
+  for (const [offset, text] of [[0, 'RIFF'], [8, 'WAVE'], [12, 'fmt '], [36, 'data']] as const) {
+    for (let index = 0; index < text.length; index++) view.setUint8(offset + index, text.charCodeAt(index));
+  }
+  view.setUint32(4, audio.byteLength - 8, true);
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  view.setUint32(40, dataBytes, true);
+  return new Request(`http://localhost/transcribe?license_key=test-license${query}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'audio/wav',
+      'Content-Length': String(audio.byteLength),
+      'X-STT-Provider': 'meta',
+      'X-STT-Model': 'muse-voice-transcribe-1.0',
+    },
+    body: audio,
+  });
+}
+
+describe('Meta Muse batch routing and billing', () => {
+  beforeEach(() => { process.env.META_MODEL_API_KEY = 'test-meta-key'; });
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    if (originalMetaModelApiKey === undefined) delete process.env.META_MODEL_API_KEY;
+    else process.env.META_MODEL_API_KEY = originalMetaModelApiKey;
+  });
+
+  test('routes the exact model, returns provider headers and deducts 3 credits for one minute', async () => {
+    let upstreamRequest: Record<string, unknown> = {};
+    let deduction: { amount: number; metadata: Record<string, unknown> } | undefined;
+    globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === 'https://api.meta.ai/v1/asr/transcribe') {
+        const form = init?.body as FormData;
+        upstreamRequest = JSON.parse(await (form.get('request') as File).text()) as Record<string, unknown>;
+        return Response.json({ transcript: 'Muse route works', audioDurationMs: 60_000, turns: [] });
+      }
+      if (url.includes('/api/license/credits')) {
+        deduction = JSON.parse(String(init?.body)) as typeof deduction;
+        return Response.json({ credits_remaining: 997, credits_deducted: 3 });
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    const response = await buildApp().fetch(metaWavRequest(60, '&language=en&initial_prompt=HyperWhisper,Meta'));
+    const body = await response.json() as { text: string; cost: { usd: number; credits: number } };
+    await drainPendingDeductions(2000);
+
+    expect(response.status).toBe(200);
+    expect(body.text).toBe('Muse route works');
+    expect(body.cost).toEqual({ usd: 0.003, credits: 3 });
+    expect(response.headers.get('X-STT-Provider')).toBe('meta/muse-voice-transcribe-1.0');
+    expect(response.headers.get('X-STT-Model')).toBe('muse-voice-transcribe-1.0');
+    expect(response.headers.get('X-Credits-Used')).toBe('3.0');
+    expect(upstreamRequest).toMatchObject({
+      model: 'muse-voice-transcribe-1.0',
+      audioEncoding: 'WAV',
+      mode: 'PUSH_TO_TALK',
+      keywords: ['HyperWhisper', 'Meta'],
+      languageBias: ['English'],
+    });
+    expect(deduction?.amount).toBe(3);
+    expect(deduction?.metadata).toMatchObject({
+      stt_provider: 'meta/muse-voice-transcribe-1.0',
+      stt_model: 'muse-voice-transcribe-1.0',
+    });
+  });
+
+  test('reserves at the registered 3-credit-per-minute rate', () => {
+    const oneEstimatedMinute = 480_000;
+    expect(estimateCreditsForProviderFallbacks(oneEstimatedMinute, 'meta', 'muse-voice-transcribe-1.0')).toBe(3);
+  });
+
+  test('rejects malformed WAV before an upstream request or credit deduction', async () => {
+    let upstreamRequests = 0;
+    let deductions = 0;
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === 'https://api.meta.ai/v1/asr/transcribe') upstreamRequests++;
+      if (url.includes('/api/license/credits')) deductions++;
+      return Response.json({});
+    }) as unknown as typeof fetch;
+
+    const response = await buildApp().fetch(request({
+      'X-STT-Provider': 'meta',
+      'X-STT-Model': 'muse-voice-transcribe-1.0',
+    }));
+    await drainPendingDeductions(2000);
+
+    expect(response.status).toBe(415);
+    expect(upstreamRequests).toBe(0);
+    expect(deductions).toBe(0);
+  });
+});
 
 describe('fail-closed provider/model validation', () => {
   afterEach(() => { globalThis.fetch = originalFetch; });

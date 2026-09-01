@@ -30,6 +30,9 @@ const AZURE_MAI_COST_PER_AUDIO_MINUTE = 0.006;
 // Google Cloud Speech-to-Text V2 Chirp 3 Pricing (USD)
 const GOOGLE_CHIRP_COST_PER_AUDIO_MINUTE = 0.016;
 
+// Meta Muse Voice Transcribe pricing: $3 per 1,000 audio minutes.
+const META_MUSE_COST_PER_AUDIO_MINUTE = 0.003;
+
 // ── New HyperWhisper Cloud STT proxy providers (per-model) ──────────────────
 // Each provider exposes one or more models with distinct pricing. Token-billed
 // providers (OpenAI gpt-4o-*, Gemini) bill from the response `usage` object so
@@ -280,6 +283,10 @@ export function computeAzureMaiTranscriptionCost(durationSeconds: number): numbe
 
 export function computeGoogleChirpTranscriptionCost(durationSeconds: number): number {
   return computeLinearPerMinuteCost(durationSeconds, GOOGLE_CHIRP_COST_PER_AUDIO_MINUTE);
+}
+
+export function computeMetaMuseTranscriptionCost(durationSeconds: number): number {
+  return computeLinearPerMinuteCost(durationSeconds, META_MUSE_COST_PER_AUDIO_MINUTE);
 }
 
 // ── New cloud STT proxy providers ───────────────────────────────────────────
