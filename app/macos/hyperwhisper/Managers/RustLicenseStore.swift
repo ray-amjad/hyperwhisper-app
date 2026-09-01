@@ -123,6 +123,7 @@ final class RustLicenseStore: KeyValueStore {
         defer { transactionLock.unlock() }
 
         do {
+            try licenseStore.migrateLegacyKeychainItemsIfNeeded()
             if try licenseStore.hasMigrationMarker() {
                 removeLegacyLicenseDefaults()
                 return

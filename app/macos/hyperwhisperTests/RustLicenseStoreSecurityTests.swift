@@ -104,6 +104,37 @@ struct RustLicenseStoreSecurityTests {
         #expect(credentials.deletions == [LicenseKeychainStore.migrationMarkerItem])
     }
 
+    @Test func legacyKeychainItemsMoveToDataProtectionKeychain() throws {
+        let credentials = FakeLicenseCredentialStore()
+        let store = LicenseKeychainStore(credentialStore: credentials)
+        let recordData = Data(#"{"key":"legacy-key"}"#.utf8)
+        let markerData = Data("complete".utf8)
+        credentials.storage[LicenseKeychainStore.legacyLicenseStateItem] = recordData
+        credentials.storage[LicenseKeychainStore.legacyMigrationMarkerItem] = markerData
+
+        try store.migrateLegacyKeychainItemsIfNeeded()
+
+        #expect(credentials.storage[LicenseKeychainStore.licenseStateItem] == recordData)
+        #expect(credentials.storage[LicenseKeychainStore.migrationMarkerItem] == markerData)
+        #expect(credentials.storage[LicenseKeychainStore.legacyLicenseStateItem] == nil)
+        #expect(credentials.storage[LicenseKeychainStore.legacyMigrationMarkerItem] == nil)
+    }
+
+    @Test func failedProtectedKeychainWriteKeepsLegacyItemForRetry() throws {
+        let credentials = FakeLicenseCredentialStore()
+        let store = LicenseKeychainStore(credentialStore: credentials)
+        let recordData = Data(#"{"key":"legacy-key"}"#.utf8)
+        credentials.storage[LicenseKeychainStore.legacyLicenseStateItem] = recordData
+        credentials.failWrites = true
+
+        #expect(throws: FakeCredentialStoreError.self) {
+            try store.migrateLegacyKeychainItemsIfNeeded()
+        }
+
+        #expect(credentials.storage[LicenseKeychainStore.legacyLicenseStateItem] == recordData)
+        #expect(credentials.storage[LicenseKeychainStore.licenseStateItem] == nil)
+    }
+
     @Test func concurrentMutationsAreSerialized() throws {
         let credentials = FakeLicenseCredentialStore()
         let store = LicenseKeychainStore(credentialStore: credentials)

@@ -174,6 +174,30 @@ final class LicenseKeychainStore: @unchecked Sendable {
         label: "HyperWhisper license migration marker"
     )
 
+    /// The first Keychain implementation used the same item identities without
+    /// opting into the Data Protection Keychain. Keep these descriptors only as
+    /// a one-time upgrade source; all normal reads and writes use the protected
+    /// descriptors above.
+    static let legacyLicenseStateItem = LicenseCredentialDescriptor(
+        itemClass: .genericPassword,
+        service: "com.hyperwhisper.app.license",
+        account: "license-state-v1",
+        accessibility: .whenUnlockedThisDeviceOnly,
+        synchronizable: false,
+        usesDataProtectionKeychain: false,
+        label: "HyperWhisper license state"
+    )
+
+    static let legacyMigrationMarkerItem = LicenseCredentialDescriptor(
+        itemClass: .genericPassword,
+        service: "com.hyperwhisper.app.license",
+        account: "userdefaults-migration-v1",
+        accessibility: .whenUnlockedThisDeviceOnly,
+        synchronizable: false,
+        usesDataProtectionKeychain: false,
+        label: "HyperWhisper license migration marker"
+    )
+
     private static let migrationMarkerData = Data("complete".utf8)
 
     private let credentialStore: LicenseCredentialStore
@@ -245,11 +269,47 @@ final class LicenseKeychainStore: @unchecked Sendable {
         }
     }
 
+    /// Moves items written by the initial Keychain implementation into the
+    /// Data Protection Keychain. The old item is removed only after the new
+    /// item can be read back byte-for-byte, so an interrupted upgrade keeps at
+    /// least one usable copy.
+    func migrateLegacyKeychainItemsIfNeeded() throws {
+        try withLock {
+            try migrateLegacyItemLocked(
+                from: Self.legacyLicenseStateItem,
+                to: Self.licenseStateItem
+            )
+            try migrateLegacyItemLocked(
+                from: Self.legacyMigrationMarkerItem,
+                to: Self.migrationMarkerItem
+            )
+        }
+    }
+
     private func readRecordLocked() throws -> LicenseKeychainRecord? {
         guard let data = try credentialStore.read(item: Self.licenseStateItem) else {
             return nil
         }
         return try decoder.decode(LicenseKeychainRecord.self, from: data)
+    }
+
+    private func migrateLegacyItemLocked(
+        from legacyItem: LicenseCredentialDescriptor,
+        to protectedItem: LicenseCredentialDescriptor
+    ) throws {
+        if try credentialStore.read(item: protectedItem) != nil {
+            try credentialStore.delete(item: legacyItem)
+            return
+        }
+        guard let legacyData = try credentialStore.read(item: legacyItem) else {
+            return
+        }
+
+        try credentialStore.write(legacyData, item: protectedItem)
+        guard try credentialStore.read(item: protectedItem) == legacyData else {
+            throw LicenseCredentialStoreError.unexpectedData
+        }
+        try credentialStore.delete(item: legacyItem)
     }
 
     private func withLock<T>(_ operation: () throws -> T) rethrows -> T {
