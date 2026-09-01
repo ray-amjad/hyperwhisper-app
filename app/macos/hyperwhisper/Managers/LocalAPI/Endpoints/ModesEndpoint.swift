@@ -53,6 +53,12 @@ enum ModesEndpoint {
         guard let normalizedName = Self.normalizedName(dto.name) else {
             return LocalAPIResponder.failure(code: .invalidRequest, message: "Mode 'name' cannot be empty")
         }
+        guard let postProcessingMode = Self.int16Value(dto.postProcessingMode ?? 1) else {
+            return LocalAPIResponder.failure(
+                code: .invalidRequest,
+                message: "Mode 'postProcessingMode' must be between \(Int16.min) and \(Int16.max)"
+            )
+        }
         if PersistenceController.shared.fetchMode(byName: normalizedName) != nil {
             return LocalAPIResponder.failure(
                 code: .modeNameTaken,
@@ -75,7 +81,7 @@ enum ModesEndpoint {
             languageModel: dto.languageModel,
             cloudProvider: normalized.provider,
             cloudTranscriptionModel: dto.cloudTranscriptionModel,
-            postProcessingMode: Int16(dto.postProcessingMode ?? 1),
+            postProcessingMode: postProcessingMode,
             postProcessingProvider: dto.postProcessingProvider,
             englishSpelling: dto.englishSpelling,
             userSystemPrompt: dto.userSystemPrompt,
@@ -111,6 +117,32 @@ enum ModesEndpoint {
             return LocalAPIResponder.badRequest(message: "Invalid JSON body")
         }
 
+        let sortOrder: Int16?
+        if let value = patch.sortOrder {
+            guard let converted = Self.int16Value(value) else {
+                return LocalAPIResponder.failure(
+                    code: .invalidRequest,
+                    message: "Mode 'sortOrder' must be between \(Int16.min) and \(Int16.max)"
+                )
+            }
+            sortOrder = converted
+        } else {
+            sortOrder = nil
+        }
+
+        let postProcessingMode: Int16?
+        if let value = patch.postProcessingMode {
+            guard let converted = Self.int16Value(value) else {
+                return LocalAPIResponder.failure(
+                    code: .invalidRequest,
+                    message: "Mode 'postProcessingMode' must be between \(Int16.min) and \(Int16.max)"
+                )
+            }
+            postProcessingMode = converted
+        } else {
+            postProcessingMode = nil
+        }
+
         let normalizedName: String?
         if let name = patch.name {
             guard let name = Self.normalizedName(name) else {
@@ -132,7 +164,13 @@ enum ModesEndpoint {
             )
         }
 
-        applyPatch(patch, normalizedName: normalizedName, to: mode)
+        applyPatch(
+            patch,
+            normalizedName: normalizedName,
+            sortOrder: sortOrder,
+            postProcessingMode: postProcessingMode,
+            to: mode
+        )
         mode.modifiedDate = Date()
 
         do {
@@ -180,11 +218,21 @@ enum ModesEndpoint {
         return normalized.isEmpty ? nil : normalized
     }
 
+    static func int16Value(_ value: Int) -> Int16? {
+        Int16(exactly: value)
+    }
+
     /// Apply only the present keys of a `ModePatchDTO` onto an existing Mode.
     /// Absent (nil) keys are left untouched; the GUI doesn't validate combinations
     /// either, so we trust the caller.
     @MainActor
-    private static func applyPatch(_ patch: ModePatchDTO, normalizedName: String?, to mode: Mode) {
+    private static func applyPatch(
+        _ patch: ModePatchDTO,
+        normalizedName: String?,
+        sortOrder: Int16?,
+        postProcessingMode: Int16?,
+        to mode: Mode
+    ) {
         if let normalizedName { mode.name = normalizedName }
         if let v = patch.preset { mode.preset = v }
         if let v = patch.language { mode.language = LanguageData.canonicalLanguageCode(v) }
@@ -192,10 +240,10 @@ enum ModesEndpoint {
         if let v = patch.punctuation { mode.punctuation = v }
         if let v = patch.capitalization { mode.capitalization = v }
         if let v = patch.profanityFilter { mode.profanityFilter = v }
-        if let v = patch.customInstructions { mode.customInstructions = v }
+        if case .value(let value) = patch.$customInstructions { mode.customInstructions = value }
         if let v = patch.userSystemPrompt { mode.userSystemPrompt = v.isEmpty ? nil : v }
         if let v = patch.isDefault { mode.isDefault = v }
-        if let v = patch.sortOrder { mode.sortOrder = Int16(v) }
+        if let sortOrder { mode.sortOrder = sortOrder }
         if let v = patch.languageModel { mode.languageModel = v }
         if let v = patch.cloudTranscriptionModel { mode.cloudTranscriptionModel = v }
         if let v = patch.cloudTranscriptionDomain { mode.cloudTranscriptionDomain = v }
@@ -205,7 +253,7 @@ enum ModesEndpoint {
             mode.cloudProvider = normalized.provider
             inferredAccuracyTier = normalized.accuracyTier
         }
-        if let v = patch.postProcessingMode { mode.postProcessingMode = Int16(v) }
+        if let postProcessingMode { mode.postProcessingMode = postProcessingMode }
         if let v = patch.postProcessingProvider { mode.postProcessingProvider = v }
         if let v = patch.englishSpelling { mode.englishSpelling = v }
         if let v = patch.useStreamingTranscription { mode.useStreamingTranscription = v }
