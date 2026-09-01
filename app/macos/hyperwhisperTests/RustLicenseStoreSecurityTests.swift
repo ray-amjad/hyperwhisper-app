@@ -533,6 +533,15 @@ struct BackupLicenseStorageTests {
 
         #expect(service.actions == ["replace", "validate"])
         #expect(service.expectedKeys == ["replacement-key"])
+    }
+
+    @Test func importedValidationPublishesCompletedResult() async {
+        let service = BackupLicenseNetworkSpy()
+        #expect(service.replaceStoredLicenseKeyForImport("replacement-key"))
+        let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false)
+
+        await manager.validateImportedLicenseKey("replacement-key")
+
         #expect(manager.licenseStatus == .active)
     }
 
