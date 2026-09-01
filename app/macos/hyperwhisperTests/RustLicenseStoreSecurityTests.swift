@@ -483,6 +483,46 @@ struct BackupLicenseStorageTests {
         #expect(BackupManager.shared.lastError == "Failed to securely read the license key")
     }
 
+    @Test func fullExportPreservesSpecificSecureReadFailure() async throws {
+        let suiteName = "BackupLicenseStorageTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        let credentials = FakeLicenseCredentialStore()
+        let keychain = LicenseKeychainStore(credentialStore: credentials)
+        try keychain.writeMigrationMarker()
+        let store = RustLicenseStore(defaults: defaults, licenseStore: keychain, seedUsage: false)
+        credentials.failReads = true
+        let manager = LicenseManager(
+            networkService: LicenseNetworkService(store: store),
+            loadStoredLicenseOnInit: false
+        )
+        BackupManager.shared.licenseManager = manager
+        BackupManager.shared.lastError = nil
+        var options = ExportOptions()
+        options.includeSettings = false
+        options.includeModes = false
+        options.includeVocabulary = false
+        options.includeLicenseKey = true
+
+        let exported = await BackupManager.shared.exportWithDialog(options: options)
+        #expect(!exported)
+        #expect(BackupManager.shared.lastError == "Failed to securely read the license key")
+    }
+
+    @Test func emptySelectedSectionsDoNotCountAsPartialSuccess() {
+        #expect(!BackupManager.earlierBackupSectionsWereApplied(
+            settingsApplied: false,
+            modesImported: 0,
+            vocabularyImported: 0,
+            apiKeysImported: false
+        ))
+        #expect(BackupManager.earlierBackupSectionsWereApplied(
+            settingsApplied: false,
+            modesImported: 1,
+            vocabularyImported: 0,
+            apiKeysImported: false
+        ))
+    }
+
     @Test func importRequestsRevalidationOnlyAfterSecureReplacement() async {
         let service = BackupLicenseNetworkSpy()
         let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false)

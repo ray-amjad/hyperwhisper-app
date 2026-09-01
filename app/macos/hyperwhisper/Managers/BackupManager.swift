@@ -314,7 +314,9 @@ class BackupManager: ObservableObject {
 
         // Legacy v1 backup with the selected sections.
         guard let backupData = createBackupData(options: options) else {
-            lastError = NSLocalizedString("settings.backup.export.error.create", value: "Failed to create backup data", comment: "")
+            if lastError == nil {
+                lastError = NSLocalizedString("settings.backup.export.error.create", value: "Failed to create backup data", comment: "")
+            }
             return nil
         }
 
@@ -410,7 +412,9 @@ class BackupManager: ObservableObject {
             // 1. Build BackupSettings EXACTLY as the v1 settings branch does (reuse createBackupData
             //    so the field set can never drift), then JSON-encode the 7-category macOS settings.
             guard let backupData = createBackupData(options: options), let macSettings = backupData.settings else {
-                lastError = NSLocalizedString("settings.backup.export.error.create", value: "Failed to create backup data", comment: "")
+                if lastError == nil {
+                    lastError = NSLocalizedString("settings.backup.export.error.create", value: "Failed to create backup data", comment: "")
+                }
                 return nil
             }
             let macEncoder = JSONEncoder()
@@ -629,10 +633,12 @@ class BackupManager: ObservableObject {
                     vocabularyImported: vocabImported,
                     vocabularySkipped: vocabSkipped,
                     apiKeysImported: apiKeysImported,
-                    earlierSectionsApplied: (options.importSettings && backupData.settings != nil)
-                        || (options.importModes && backupData.modes != nil)
-                        || (options.importVocabulary && backupData.vocabulary != nil)
-                        || (options.importAPIKeys && backupData.apiKeys != nil),
+                    earlierSectionsApplied: Self.earlierBackupSectionsWereApplied(
+                        settingsApplied: options.importSettings && backupData.settings != nil,
+                        modesImported: modesImported,
+                        vocabularyImported: vocabImported,
+                        apiKeysImported: apiKeysImported
+                    ),
                     repairImportedModes: options.importModes
                 )
             }
@@ -893,10 +899,12 @@ class BackupManager: ObservableObject {
                     vocabularyImported: vocabImported,
                     vocabularySkipped: vocabSkipped,
                     apiKeysImported: apiKeysImported,
-                    earlierSectionsApplied: settingsApplied
-                        || (options.importModes && dto.modes != nil)
-                        || (options.importVocabulary && topLevel["vocabulary"] != nil)
-                        || (options.importAPIKeys && dto.apiKeys != nil),
+                    earlierSectionsApplied: Self.earlierBackupSectionsWereApplied(
+                        settingsApplied: settingsApplied,
+                        modesImported: modesImported,
+                        vocabularyImported: vocabImported,
+                        apiKeysImported: apiKeysImported
+                    ),
                     repairImportedModes: options.importModes
                 )
             }
@@ -947,6 +955,17 @@ class BackupManager: ObservableObject {
         )
         result.pendingLocalDownloadModelIds = repairImportedModes ? repairRestoredLocalModes() : []
         return result
+    }
+
+    /// A partial-success message is truthful only when an earlier section made
+    /// a durable change. Merely selecting an empty section does not count.
+    nonisolated static func earlierBackupSectionsWereApplied(
+        settingsApplied: Bool,
+        modesImported: Int,
+        vocabularyImported: Int,
+        apiKeysImported: Bool
+    ) -> Bool {
+        settingsApplied || modesImported > 0 || vocabularyImported > 0 || apiKeysImported
     }
 
     /// Internal errors thrown by the v2 import settings step (caught locally so the step can fail
