@@ -690,11 +690,12 @@ enum TranscribeEndpoint {
     @MainActor
     private static func applyEngineModel(to mode: Mode, engine: String, model: String?) {
         let normalizedEngine = engine.lowercased()
+        let providerNormalization = CloudSTTCatalog.shared.normalizeCloudProvider(normalizedEngine)
         let cloudType: CloudProvider?
         if normalizedEngine == "cloud" {
             cloudType = .hyperwhisper
         } else {
-            cloudType = CloudProvider(rawValue: normalizedEngine)
+            cloudType = CloudProvider.parse(providerNormalization.provider)
         }
 
         if let cloudType {
@@ -705,6 +706,13 @@ enum TranscribeEndpoint {
 
             mode.model = "cloud"
             mode.cloudProvider = cloudType.rawValue
+            if let inferredTier = providerNormalization.accuracyTier {
+                mode.cloudAccuracyTier = inferredTier
+                mode.cloudTranscriptionModel = model?.isEmpty == false
+                    ? model
+                    : CloudSTTCatalog.shared.defaultModelId(forEntryId: inferredTier)
+                return
+            }
             if let m = model, !m.isEmpty {
                 mode.cloudTranscriptionModel = m
             } else {

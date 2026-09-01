@@ -146,7 +146,10 @@ public static class CloudTranscriptionProviderExtensions
         // Lower-cased form of the "geminiTranscribe" identifier — the switch runs
         // on ToLowerInvariant(), so the camelCase spelling would never match.
         "geminitranscribe" => CloudTranscriptionProvider.GeminiTranscribe,
-        "meta" => CloudTranscriptionProvider.Meta,
+        // Muse has no standalone client service. Accept the short-lived direct
+        // spelling safely as the HyperWhisper Cloud transport. Import and API
+        // paths also infer the `metaMuse` accuracy tier through the catalog.
+        "meta" => CloudTranscriptionProvider.HyperWhisperCloud,
         _ => CloudTranscriptionProvider.None
     };
 

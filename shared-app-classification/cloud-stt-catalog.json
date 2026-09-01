@@ -473,6 +473,7 @@
       ],
       "cloudTier": { "accuracy": "high", "creditsPerMinute": 3.0 },
       "migrateFrom": ["meta", "metamuse", "muse", "musevoicetranscribe"],
+      "legacyCloudProviderAliases": ["meta"],
       "customVocabulary": {
         "supported": true,
         "fieldName": "keywords",

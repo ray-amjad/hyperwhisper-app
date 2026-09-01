@@ -4778,6 +4778,15 @@ internal static class Program
                 Assert(tier.ToStorageValue() == "metaMuse" && tier.ToSttProvider() == "meta",
                     "Meta Muse tier did not resolve its canonical id and provider");
 
+                Assert(CloudTranscriptionProviderExtensions.FromIdentifier("meta")
+                        == CloudTranscriptionProvider.HyperWhisperCloud,
+                    "standalone Meta provider spelling did not use HyperWhisper Cloud");
+                var normalizedMeta = HyperWhisper.Services.AppClassification.CloudSttCatalog.Shared
+                    .NormalizeCloudProvider("meta");
+                Assert(normalizedMeta.Provider == "hyperwhisper"
+                        && normalizedMeta.AccuracyTier == "metaMuse",
+                    "standalone Meta storage did not normalize to the Muse cloud tier");
+
                 var entry = HyperWhisper.Services.AppClassification.CloudSttCatalog.Shared.GetById("metaMuse");
                 Assert(entry is { SttProvider: "meta", MaxFileSizeMb: 32, MaxDurationMinutes: 10 },
                     "Meta Muse catalog limits or provider changed");

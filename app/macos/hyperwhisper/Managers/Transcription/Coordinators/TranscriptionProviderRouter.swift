@@ -439,12 +439,14 @@ class TranscriptionProviderRouter {
         let normalizedEngine = engine.lowercased()
         let resolvedLanguage: String? = (language?.lowercased() == "auto") ? nil : language
 
-        // Cloud engine? Map directly via CloudProvider rawValue, plus a "cloud" alias.
+        // Cloud engine? Normalize retired standalone spellings first. In
+        // particular `meta` is a HyperWhisper Cloud tier, never a BYOK service.
         let cloudType: CloudProvider?
         if normalizedEngine == "cloud" {
             cloudType = .hyperwhisper
         } else {
-            cloudType = CloudProvider(rawValue: normalizedEngine)
+            let normalized = CloudSTTCatalog.shared.normalizeCloudProvider(normalizedEngine)
+            cloudType = CloudProvider.parse(normalized.provider)
         }
         if let cloudType {
             return try await selectCloudProviderForLocalAPI(cloudProviderType: cloudType)

@@ -841,7 +841,9 @@
         "muse",
         "musevoicetranscribe"
       ],
-      "legacyCloudProviderAliases": [],
+      "legacyCloudProviderAliases": [
+        "meta"
+      ],
       "defaultModelId": "muse-voice-transcribe-1.0",
       "models": [
         {

@@ -311,7 +311,7 @@ struct ModeEditorView: View {
             // Azure MAI + Google Chirp are HyperWhisper-Cloud-routed only and
             // surfaced via the Accuracy tier picker; don't list them as
             // standalone provider choices.
-            if provider == .microsoftAzureSpeech || provider == .googleSpeech {
+            if provider == .microsoftAzureSpeech || provider == .googleSpeech || provider == .meta {
                 return false
             }
             if !provider.requiresAPIKey { return true }

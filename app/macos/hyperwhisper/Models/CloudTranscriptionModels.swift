@@ -57,6 +57,12 @@ enum CloudProvider: String, CaseIterable, Identifiable {
               !trimmed.isEmpty else {
             return nil
         }
+        // `meta` was briefly emitted as a standalone provider while Muse was
+        // added. It has no BYOK service. Treat that spelling as the Cloud
+        // transport; storage/import code also restores the `metaMuse` tier.
+        if trimmed.caseInsensitiveCompare("meta") == .orderedSame {
+            return .hyperwhisper
+        }
         return CloudProvider(rawValue: trimmed.lowercased())
     }
 

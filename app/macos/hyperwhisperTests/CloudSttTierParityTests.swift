@@ -145,9 +145,8 @@ struct CloudSttTierParityTests {
             withId: "muse-voice-transcribe-1.0", provider: .meta)
         #expect(model?.provider == .meta)
         #expect(CloudTranscriptionModels.defaultModel(for: .meta) == model?.id)
-        #expect(CloudProvider.meta.routesViaHyperWhisperCloud)
-        #expect(!CloudProvider.meta.requiresAPIKey)
-        #expect(CloudProvider.meta.supportedAudioExtensions == ["wav"])
+        #expect(CloudProvider.parse("meta") == .hyperwhisper)
+        #expect(!OnboardingConfigureView.onboardingProviders.contains(.meta))
 
         let shared = SharedModelsCatalog.entry(
             provider: "meta", kind: .voice, id: "muse-voice-transcribe-1.0")
