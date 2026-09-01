@@ -825,7 +825,7 @@ private final class BackupLicenseNetworkSpy: LicenseNetworkServing {
         if !queuedStoredReads.isEmpty {
             return queuedStoredReads.removeFirst()
         }
-        storedKey.map(RustLicenseStore.StoredLicenseKeyRead.present) ?? .missing
+        return storedKey.map(RustLicenseStore.StoredLicenseKeyRead.present) ?? .missing
     }
     func clearStoredLicense() -> Bool { clearSucceeds }
 
