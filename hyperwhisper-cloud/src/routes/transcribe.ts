@@ -8,7 +8,7 @@ import {
   SYNC_ELIGIBLE_ESTIMATED_SECONDS as ASSEMBLYAI_SYNC_ELIGIBLE_ESTIMATED_SECONDS,
 } from '../providers/assemblyai';
 import type { TranscriptionResult } from '../providers/types';
-import { AudioTooLargeError, ProviderInputError, ProviderUnavailableError, UnsupportedAudioFormatError } from '../providers/types';
+import { AudioTooLargeError, EmptyTranscriptError, ProviderInputError, ProviderUnavailableError, UnsupportedAudioFormatError } from '../providers/types';
 // The providers layer's own answer to "which adapter runs this provider id", so
 // the route never imports an adapter or keeps a dispatch table of its own. See
 // providers/dispatch.ts.
@@ -446,6 +446,22 @@ export async function transcribeRoute(c: Context) {
   let lastError: Error | undefined;
   let lastInputError: ProviderInputError | undefined;
   let sawUnavailable = false;
+  // Chain position of the one attempt that refused an empty transcript
+  // (EmptyTranscriptError), if any. It is the single piece of state that makes
+  // this failure class different from every other one in the loop, and it does
+  // exactly two things:
+  //
+  //   1. It marks that `result` already holds a benign `no_speech` — the FLOOR of
+  //      this request. A refusal must never turn what would have been a 200
+  //      `no_speech` into an error, so every later arm (a sibling that is
+  //      rate-limited, one with no API key configured, one that rejects the
+  //      audio) settles on that floor instead of a 429/500/502.
+  //   2. It closes the door. No further attempt is authorised to refuse, and at
+  //      most ONE more provider is tried, which is what makes the spec's "at most
+  //      one extra upstream call" true rather than aspirational.
+  //
+  // (issue ray-amjad/hyperwhisper-app#381)
+  let refusalIndex: number | undefined;
   // Per-attempt failure breadcrumbs, surfaced on the final outcome log so one
   // line explains a degraded/failed request (which provider failed, why, how
   // long it hung) without correlating separate provider-level log events.
@@ -454,6 +470,14 @@ export async function transcribeRoute(c: Context) {
     kind: string;
     status?: number;
     attemptMs?: number;
+    /**
+     * The attempt was an empty-transcript refusal, not a provider fault. Inside
+     * the shared `bad_response` kind nothing else separates it from a geo-block
+     * or a truncated body, and the deploy smoke test has to be able to tell:
+     * a fallback caused by an empty transcript is the very regression its
+     * fixture rows exist to catch.
+     */
+    emptyTranscript?: true;
   }> = [];
   // Anonymous per-attempt timings for the public /latency page. Collected here
   // and sent once, after the response is decided, so reporting never adds wall
@@ -519,6 +543,12 @@ export async function transcribeRoute(c: Context) {
 
   try {
     for (const [index, current] of chain.entries()) {
+      // The one extra call this feature is allowed, already spent. Stopping here
+      // is not giving up: the refusal banked a `no_speech` in `result`, so the
+      // request answers with that. Walking on would cost the third and fourth
+      // upstream call the spec priced out. (issue #381)
+      if (refusalIndex !== undefined && index > refusalIndex + 1) break;
+
       // The chosen model + domain only apply to the provider the caller picked.
       // Fallback siblings run their own default model (the caller's model id is
       // meaningless to them) and never inherit the medical add-on.
@@ -549,6 +579,12 @@ export async function transcribeRoute(c: Context) {
           attempt: index + 1,
           model: attemptModel,
           domain: attemptDomain,
+          // Granted here and nowhere else. An adapter cannot see this request's
+          // chain — geo filtering can shrink it to a single provider — so it is
+          // told, per attempt, whether refusing an empty transcript has anywhere
+          // to go and whether the one extra call is still unspent. See
+          // ProviderRequestContext.mayRefuseEmptyTranscript. (issue #381)
+          mayRefuseEmptyTranscript: refusalIndex === undefined && index < chain.length - 1,
         }));
         // Prefer the model the adapter reports it ACTUALLY ran (e.g. AssemblyAI's
         // universal-3-5-pro → universal-2 fallback for unsupported languages) so the
@@ -598,6 +634,45 @@ export async function transcribeRoute(c: Context) {
           });
         }
 
+        // A 200 with no transcript for audio the upstream says it processed.
+        // Handled before the generic ProviderUnavailableError arm it extends,
+        // because this is the one failure in the loop that is not a fault: the
+        // request already has a valid answer in hand and is only asking a sibling
+        // whether it can do better. (issue #381)
+        if (error instanceof EmptyTranscriptError) {
+          const next = chain[index + 1];
+          fallbackCount += 1;
+          refusalIndex = index;
+          // The floor. If nothing after this produces text, THIS is the response:
+          // the same 200, the same 0 credits and the same `no_speech_detected`
+          // the user would have got before the failover existed. Overwritten
+          // wholesale by any later attempt that succeeds.
+          result = error.noSpeechResult;
+          logEvent(requestId, startTime, 'transcribe.provider_attempt_fail', {
+            provider: current,
+            attempt: index + 1,
+            kind: 'provider_unavailable',
+            unavailableKind: error.kind,
+            attemptMs: error.elapsedMs,
+            message: error.message,
+            // `provider_attempt_done` carries the upstream's id on every other
+            // path; this one never produces a result to read it off, and #381 was
+            // filed about precisely the call an operator now has to report to the
+            // vendor. The adapter's `provider.no_speech` event carries it too.
+            upstreamRequestId: error.noSpeechResult.requestId,
+            upstreamDurationSeconds: error.upstreamDurationSeconds,
+            nextProvider: next,
+          });
+          attemptFailures.push({
+            provider: current,
+            kind: error.kind,
+            attemptMs: error.elapsedMs,
+            emptyTranscript: true,
+          });
+          lastError = error;
+          sawUnavailable = true;
+          continue;
+        }
         if (error instanceof ProviderUnavailableError) {
           const next = chain[chain.indexOf(current) + 1];
           fallbackCount += 1;
@@ -644,6 +719,14 @@ export async function transcribeRoute(c: Context) {
           lastInputError = error;
           continue;
         }
+        // Everything below this line ENDS the request with an error. None of them
+        // may fire once a refusal has banked a benign `no_speech`: the user asked
+        // a question that already has a valid, free answer, and a sibling's 413,
+        // 415, missing API key or 500 is our problem, not theirs. Break to that
+        // answer instead. One guard, above every terminal arm, so a new arm
+        // cannot be added below it and quietly reintroduce the regression.
+        // (issue #381)
+        if (refusalIndex !== undefined) break;
         if (error instanceof AudioTooLargeError) {
           logEvent(requestId, startTime, 'transcribe.request_fail', {
             provider: current,
@@ -763,13 +846,25 @@ export async function transcribeRoute(c: Context) {
   // Read `source` once so TypeScript narrows away the 'no_speech' member
   // itself, instead of needing a cast to re-assert what the ternary proved.
   const resultSource = result.source;
-  const resultProvider: Provider = resultSource === 'no_speech' ? provider : resultSource;
-  const actualProvider = formatProviderName(resultProvider, usedModel);
-  const providerName = fallbackFrom
+  const noSpeech = resultSource === 'no_speech';
+  const resultProvider: Provider = noSpeech ? provider : resultSource;
+  // Nobody transcribed anything, so there is nothing to attribute to whichever
+  // provider happened to report it last. The route already answers `no_speech`
+  // with the CHOSEN provider — naming a sibling would tell the client a provider
+  // it never picked found nothing — and the model has to follow the provider or
+  // the pair does not exist: a sibling's model under the chosen provider's name
+  // produced strings like
+  //   `Deepgram/whisper-large-v3-turbo (fallback from Deepgram/nova-3-general)`
+  // on the client, in `metadata.stt_provider`, in the credit-metering row and in
+  // `request_done`'s `finalProvider`. The fallback note goes for the same reason:
+  // nothing fell back FROM anything when no transcript was produced. Which
+  // providers were tried, and why each declined, is still on `attemptFailures`.
+  const reportedModel = noSpeech ? model : usedModel;
+  const actualProvider = formatProviderName(resultProvider, reportedModel);
+  const providerName = fallbackFrom && !noSpeech
     ? `${actualProvider} (fallback from ${formatProviderName(fallbackFrom, model)})`
     : actualProvider;
 
-  const noSpeech = result.source === 'no_speech';
   // A no-speech result is free — EXCEPT where the upstream still billed us for
   // the audio and the adapter says so by returning a cost with it. Every
   // duration-billed provider here returns `costUsd: 0` for no_speech and is
@@ -791,7 +886,7 @@ export async function transcribeRoute(c: Context) {
         mode,
         endpoint: '/transcribe',
         stt_provider: providerName,
-        stt_model: usedModel || undefined,
+        stt_model: reportedModel || undefined,
       },
       clientIP
     ).catch(console.error);
@@ -808,15 +903,32 @@ export async function transcribeRoute(c: Context) {
     metadata: {
       request_id: requestId,
       stt_provider: providerName,
-      stt_model: usedModel || undefined,
+      stt_model: reportedModel || undefined,
     },
     ...(noSpeech ? { no_speech_detected: true } : {}),
+    // Why this request was degraded, not just that it was. `X-STT-Provider`
+    // already says a sibling answered; only this says whether the provider the
+    // caller asked for was rate-limited or returned a 200 with no transcript —
+    // two outcomes the shared `bad_response` kind cannot tell apart, and the
+    // second of which the deploy smoke test must fail on. Additive and omitted
+    // when empty, so every existing client is unaffected. (issue #381)
+    ...(attemptFailures.length
+      ? {
+        attempt_failures: attemptFailures.map((failure) => ({
+          provider: failure.provider,
+          kind: failure.kind,
+          ...(failure.status !== undefined ? { status: failure.status } : {}),
+          ...(failure.attemptMs !== undefined ? { attempt_ms: failure.attemptMs } : {}),
+          ...(failure.emptyTranscript ? { empty_transcript: true } : {}),
+        })),
+      }
+      : {}),
   };
 
   c.header('X-Request-ID', requestId);
   c.header('X-STT-Provider', providerName);
-  if (usedModel) {
-    c.header('X-STT-Model', usedModel);
+  if (reportedModel) {
+    c.header('X-STT-Model', reportedModel);
   }
   c.header('X-Total-Cost-Usd', formatUsd(result.costUsd));
   c.header('X-Credits-Used', creditsUsed.toFixed(1));

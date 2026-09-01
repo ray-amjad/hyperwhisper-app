@@ -2,7 +2,7 @@
 // Primary STT provider - $0.0055/min, best accuracy with vocabulary boosting
 
 import { computeDeepgramTranscriptionCost } from '../lib/cost-calculator';
-import { ProviderUnavailableError } from './types';
+import { EmptyTranscriptError, ProviderUnavailableError } from './types';
 import type { ProviderRequestContext, TranscriptionResult } from './types';
 import { resolveProviderLanguage } from '../lib/language-codes';
 import { fetchWithTimeout, logProviderEvent, providerHttpError, splitVocabularyTerms } from './utils';
@@ -166,25 +166,29 @@ export async function transcribeWithDeepgram(
   const duration = data.metadata?.duration || 0;
 
   if (!transcript || transcript.trim().length === 0) {
-    // No text, but the upstream itself says it processed audio (`metadata.duration`
-    // is the length of the SUBMITTED audio, not of detected speech). On the first
-    // attempt that is worth one sibling call rather than a "No speech detected" the
-    // user has to redo. Gated on attempt 1 so a request costs at most one extra
-    // call, and elevenlabs — which terminates every covered chain — never refuses.
-    // (issue ray-amjad/hyperwhisper-app#381)
-    if (duration > 0 && context.attempt === 1) {
-      throw new ProviderUnavailableError(
-        'Deepgram',
-        `empty transcript for ${duration}s of audio`,
-        { kind: 'bad_response', elapsedMs: Math.round(performance.now() - startedAt) },
-      );
-    }
+    // No text, but the upstream itself says it processed audio
+    // (`metadata.duration` is the length of the SUBMITTED audio, not of detected
+    // speech). That is worth one sibling call rather than a "No speech detected"
+    // the user has to redo — but only when the ROUTE says a sibling is there to
+    // take it. We never inspect `attempt` for that: the chain is the route's to
+    // read. (issue ray-amjad/hyperwhisper-app#381)
+    const upstreamDurationSeconds = duration > 0 ? duration : null;
+    const refusing = upstreamDurationSeconds !== null && context.mayRefuseEmptyTranscript === true;
+    // Logged on BOTH paths, refusal included. This event is the only per-provider
+    // count of "the upstream returned nothing", and suppressing it on the refusal
+    // path would zero it for exactly the providers and exactly the case the
+    // feature exists for. `refused` separates the two outcomes in one query.
     logProviderEvent(provider, 'no_speech', {
       elapsedMs: Math.round(performance.now() - startedAt),
       detectedLanguage: channel?.detected_language,
-      upstreamDurationSeconds: duration > 0 ? duration : null,
+      upstreamDurationSeconds,
+      // The upstream's own id for the call that returned nothing — what an
+      // operator hands vendor support. On the refusal path there is no result
+      // for the route to read it off, so it has to be here.
+      upstreamRequestId: data.metadata?.request_id,
+      refused: refusing,
     }, context);
-    return {
+    const noSpeechResult: TranscriptionResult = {
       text: '',
       language: channel?.detected_language,
       durationSeconds: 0,
@@ -192,6 +196,16 @@ export async function transcribeWithDeepgram(
       source: 'no_speech',
       requestId: data.metadata?.request_id,
     };
+    if (refusing) {
+      throw new EmptyTranscriptError('Deepgram', {
+        upstreamDurationSeconds,
+        elapsedMs: Math.round(performance.now() - startedAt),
+        // The route keeps this as the request's floor, so a sibling that never
+        // answers cannot turn a benign no_speech into an error.
+        noSpeechResult,
+      });
+    }
+    return noSpeechResult;
   }
 
   logProviderEvent(provider, 'success', {

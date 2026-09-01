@@ -1163,4 +1163,197 @@ describe('empty-transcript failover, end to end (issue #381)', () => {
     expect(body.metadata.stt_provider).toContain('deepgram');
     expect(body.metadata.stt_provider).toContain('fallback from');
   });
+
+  test('every sibling failing leaves the request as the 200 no_speech it was before the failover', async () => {
+    // Spec goal 3: no user's no_speech outcome becomes a hard error. Grok refuses,
+    // Deepgram is rate-limited — and before this fix the route ran out of chain,
+    // found no `result`, and returned 429. The native client classifies 429 as
+    // RETRYABLE (hw-net/src/retry.rs), so it re-uploaded the same silent audio up
+    // to 8 times over ~127 s, where NoSpeech is terminal.
+    const sttCalls: string[] = [];
+    const charges: unknown[] = [];
+
+    globalThis.fetch = mock(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes('api.x.ai')) {
+        sttCalls.push('grok');
+        return Response.json({ text: '', duration: 22.2, request_id: 'xai-empty' });
+      }
+      if (url.includes('api.deepgram.com')) {
+        sttCalls.push('deepgram');
+        return new Response('rate limited', { status: 429 });
+      }
+      if (url.includes('api.groq.com')) {
+        sttCalls.push('groq');
+        return Response.json({ text: 'groq should never be asked', duration: 22.2 });
+      }
+      if (url.includes('api.elevenlabs.io')) {
+        sttCalls.push('elevenlabs');
+        return Response.json({ text: 'elevenlabs should never be asked' });
+      }
+      if (url.includes('/api/license/credits')) {
+        charges.push(JSON.parse(String(init?.body)));
+        return Response.json({ credits_remaining: 999 });
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    process.env.GROQ_API_KEY = 'test-groq-key';
+    process.env.ELEVENLABS_API_KEY = 'test-11-key';
+    const response = await buildApp().fetch(request({ 'X-STT-Provider': 'grok' }));
+    const body = await response.json() as {
+      text: string;
+      no_speech_detected?: boolean;
+      cost: { credits: number };
+      metadata: { stt_provider: string };
+    };
+    await drainPendingDeductions(2000);
+
+    expect(response.status).toBe(200);
+    expect(body.no_speech_detected).toBe(true);
+    expect(body.text).toBe('');
+    expect(body.cost.credits).toBe(0);
+    expect(charges).toHaveLength(0);
+    // Spec goal 2, enforced rather than asserted: ONE extra upstream call. The
+    // chain stops after the single sibling, so groq and elevenlabs — two more
+    // paid calls, at zero revenue — are never reached.
+    expect(sttCalls).toEqual(['grok', 'deepgram']);
+    // The user chose grok and grok is what the answer is filed under.
+    expect(body.metadata.stt_provider).toContain('xai-grok');
+    expect(body.metadata.stt_provider).not.toContain('fallback from');
+  });
+
+  test('a sibling whose API key is not configured cannot turn silence into a 500', async () => {
+    // DEEPGRAM_API_KEY unset (staging, or a machine that booted before the secret
+    // synced) makes the adapter throw a plain Error, which the route's last arm
+    // turns into a 500 carrying the internal secret name. Before this PR the same
+    // request was a 200 no_speech.
+    const sttCalls: string[] = [];
+    delete process.env.DEEPGRAM_API_KEY;
+    process.env.GROQ_API_KEY = 'test-groq-key';
+
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('api.groq.com')) {
+        sttCalls.push('groq');
+        return Response.json({ text: '', language: 'en', duration: 30 });
+      }
+      if (url.includes('api.deepgram.com')) {
+        sttCalls.push('deepgram');
+        return Response.json({ results: {} });
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    const response = await buildApp().fetch(request({ 'X-STT-Provider': 'groq' }));
+    const body = await response.json() as {
+      no_speech_detected?: boolean;
+      error?: string;
+      message?: string;
+    };
+
+    expect(response.status).toBe(200);
+    expect(body.no_speech_detected).toBe(true);
+    // And the secret's name never reaches the client.
+    expect(JSON.stringify(body)).not.toContain('DEEPGRAM_API_KEY');
+    // Deepgram never reached the wire: the missing key is our gate, not a call.
+    expect(sttCalls).toEqual(['groq']);
+  });
+
+  test('a no_speech after a refusal is attributed to the chosen provider AND its model', async () => {
+    // The reproduced string was
+    //   `Deepgram/whisper-large-v3-turbo (fallback from Deepgram/nova-3-general)`
+    // — a Whisper model attributed to Deepgram, falling back from itself. It
+    // reached the client header, metadata.stt_provider, the credit-metering row
+    // and request_done's finalProvider.
+    process.env.DEEPGRAM_API_KEY = 'test-deepgram-key';
+    process.env.GROQ_API_KEY = 'test-groq-key';
+
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('api.deepgram.com')) {
+        return Response.json({
+          results: { channels: [{ alternatives: [{ transcript: '' }] }] },
+          metadata: { duration: 12, request_id: 'dg-empty' },
+        });
+      }
+      if (url.includes('api.groq.com')) {
+        // The sibling agrees: no speech. It must not refuse in turn — the one
+        // extra call is spent — and it must not lend its model to the answer.
+        return Response.json({ text: '', language: 'en', duration: 12 });
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    const response = await buildApp().fetch(request({ 'X-STT-Provider': 'deepgram' }));
+    const body = await response.json() as {
+      no_speech_detected?: boolean;
+      metadata: { stt_provider: string; stt_model?: string };
+    };
+
+    expect(response.status).toBe(200);
+    expect(body.no_speech_detected).toBe(true);
+    expect(body.metadata.stt_provider).toBe('deepgram/nova-3-general');
+    expect(body.metadata.stt_model).toBe('nova-3-general');
+    expect(response.headers.get('X-STT-Provider')).toBe('deepgram/nova-3-general');
+    expect(response.headers.get('X-STT-Model')).toBe('nova-3-general');
+    expect(body.metadata.stt_provider).not.toContain('whisper');
+    expect(body.metadata.stt_provider).not.toContain('fallback from');
+  });
+
+  test('the LAST provider of a geo-degraded chain never refuses', async () => {
+    // `attempt === 1` was standing in for "a sibling exists", and it is not the
+    // same claim: this request's chain is filtered by region before it is walked.
+    // An oversized upload from nrt cannot be replayed, so elevenlabs is dropped
+    // and the chain is ['deepgram', 'groq'] — groq is last, and a refusal there
+    // has nowhere to go but a 429 for what is a benign no_speech.
+    const savedRegion = process.env.FLY_REGION;
+    process.env.FLY_REGION = 'nrt';
+    process.env.DEEPGRAM_API_KEY = 'test-deepgram-key';
+    process.env.GROQ_API_KEY = 'test-groq-key';
+    const sttCalls: string[] = [];
+
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('api.deepgram.com')) {
+        sttCalls.push('deepgram');
+        return new Response('rate limited', { status: 429 });
+      }
+      if (url.includes('api.groq.com')) {
+        sttCalls.push('groq');
+        return Response.json({ text: '', language: 'en', duration: 9 });
+      }
+      if (url.includes('api.elevenlabs.io')) {
+        sttCalls.push('elevenlabs');
+        return Response.json({ text: 'unreachable from nrt' });
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    try {
+      // Over FLY_REPLAY_MAX_BODY_BYTES (900 KB), so the request stays in nrt and
+      // the chain is degraded instead of replayed to iad.
+      const audio = new Uint8Array(950_000);
+      const response = await buildApp().fetch(new Request(
+        'http://localhost/transcribe?license_key=test-license',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'audio/wav',
+            'Content-Length': String(audio.byteLength),
+            'X-STT-Provider': 'elevenlabs',
+          },
+          body: audio,
+        },
+      ));
+      const body = await response.json() as { no_speech_detected?: boolean };
+
+      expect(response.status).toBe(200);
+      expect(body.no_speech_detected).toBe(true);
+      expect(sttCalls).toEqual(['deepgram', 'groq']);
+    } finally {
+      if (savedRegion === undefined) delete process.env.FLY_REGION;
+      else process.env.FLY_REGION = savedRegion;
+    }
+  });
 });

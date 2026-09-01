@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { transcribeWithDeepgram } from './deepgram';
-import { ProviderInputError, ProviderUnavailableError } from './types';
+import { EmptyTranscriptError, ProviderInputError, ProviderUnavailableError } from './types';
 
 const originalFetch = globalThis.fetch;
 
@@ -281,51 +281,77 @@ describe('transcribeWithDeepgram — upstream error mapping', () => {
 });
 
 describe('transcribeWithDeepgram — empty-transcript failover (issue #381)', () => {
-  test('refuses an empty transcript with a reported duration on attempt 1, and logs no no_speech', async () => {
-    mockFetchOnce(() => jsonResponse({
-      results: { channels: [{ alternatives: [{ transcript: '  ' }], detected_language: 'en' }] },
-      metadata: { duration: 4.5, request_id: 'req-empty' },
-    }));
-
-    const logged: unknown[][] = [];
-    const originalLog = console.log;
-    console.log = ((...args: unknown[]) => { logged.push(args); }) as typeof console.log;
-    let thrown: unknown;
-    try {
-      await transcribeWithDeepgram(AUDIO, 'audio/wav', 'en-US', undefined, { attempt: 1 });
-    } catch (error) {
-      thrown = error;
-    } finally {
-      console.log = originalLog;
-    }
-
-    expect(thrown).toBeInstanceOf(ProviderUnavailableError);
-    expect((thrown as ProviderUnavailableError).kind).toBe('bad_response');
-    expect((thrown as Error).message).toContain('4.5');
-    // A refusal is not a no_speech outcome. Logging one would corrupt the very
-    // rate `upstreamDurationSeconds` was added to measure.
-    expect(logged.some((args) => args[0] === 'provider.no_speech')).toBe(false);
+  const emptyWithDuration = () => jsonResponse({
+    results: { channels: [{ alternatives: [{ transcript: '  ' }], detected_language: 'en' }] },
+    metadata: { duration: 4.5, request_id: 'req-empty' },
   });
 
-  test('the same body on attempt 2 resolves as no_speech at zero cost (one extra call, never two)', async () => {
-    mockFetchOnce(() => jsonResponse({
-      results: { channels: [{ alternatives: [{ transcript: '  ' }], detected_language: 'en' }] },
-      metadata: { duration: 4.5, request_id: 'req-empty' },
-    }));
+  test('refuses when the ROUTE grants the failover, and carries the no_speech it would have returned', async () => {
+    mockFetchOnce(emptyWithDuration);
 
-    const result = await transcribeWithDeepgram(AUDIO, 'audio/wav', 'en-US', undefined, { attempt: 2 });
+    let thrown: unknown;
+    try {
+      await transcribeWithDeepgram(AUDIO, 'audio/wav', 'en-US', undefined, { mayRefuseEmptyTranscript: true });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(EmptyTranscriptError);
+    const refusal = thrown as EmptyTranscriptError;
+    // Still a ProviderUnavailableError, so the route's chain walk, its
+    // attemptFailures and its /latency row are unchanged by construction.
+    expect(refusal).toBeInstanceOf(ProviderUnavailableError);
+    expect(refusal.kind).toBe('bad_response');
+    expect(refusal.message).toContain('4.5');
+    expect(refusal.upstreamDurationSeconds).toBe(4.5);
+    // The request's floor: exactly the result the caller would have got had the
+    // adapter not refused, so no sibling failure can turn it into an error.
+    expect(refusal.noSpeechResult).toMatchObject({
+      text: '',
+      source: 'no_speech',
+      costUsd: 0,
+      durationSeconds: 0,
+      requestId: 'req-empty',
+    });
+  });
+
+  test('a refusal still logs no_speech, with the duration, the upstream id and refused: true', async () => {
+    // Goal 4 of the spec is "the production rate of no_speech per provider becomes
+    // measurable". For the three covered providers the refusal path IS the common
+    // path, so an event that fires only when the adapter does NOT refuse counts
+    // nothing. Without this the field is dead by construction.
+    mockFetchOnce(emptyWithDuration);
+
+    const reported = await captureNoSpeechEvent(async () => {
+      await transcribeWithDeepgram(AUDIO, 'audio/wav', 'en-US', undefined, { mayRefuseEmptyTranscript: true })
+        .catch(() => undefined);
+    });
+    expect(reported.upstreamDurationSeconds).toBe(4.5);
+    expect(reported.refused).toBe(true);
+    // #381 is about handing the vendor the id of the call that returned nothing.
+    // There is no result on this path for the route to read it off.
+    expect(reported.upstreamRequestId).toBe('req-empty');
+  });
+
+  test('does NOT refuse without the grant, even on attempt 1 — a chain can filter down to one provider', async () => {
+    // The gate is "the route says a sibling is there", never `attempt === 1`.
+    // A geo-degraded chain's only provider is still its first attempt, and
+    // refusing there would return 429 for what is a benign no_speech.
+    mockFetchOnce(emptyWithDuration);
+
+    const result = await transcribeWithDeepgram(AUDIO, 'audio/wav', 'en-US', undefined, { attempt: 1 });
     expect(result.source).toBe('no_speech');
     expect(result.costUsd).toBe(0);
     expect(result.text).toBe('');
   });
 
-  test('an empty transcript with no reported duration resolves as no_speech even on attempt 1', async () => {
+  test('an empty transcript with no reported duration resolves as no_speech even with the grant', async () => {
     mockFetchOnce(() => jsonResponse({
       results: { channels: [{ alternatives: [{ transcript: '' }], detected_language: 'en' }] },
       metadata: { request_id: 'req-empty' },
     }));
 
-    const result = await transcribeWithDeepgram(AUDIO, 'audio/wav', 'en-US', undefined, { attempt: 1 });
+    const result = await transcribeWithDeepgram(AUDIO, 'audio/wav', 'en-US', undefined, { mayRefuseEmptyTranscript: true });
     expect(result.source).toBe('no_speech');
     expect(result.costUsd).toBe(0);
   });
