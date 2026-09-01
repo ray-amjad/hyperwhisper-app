@@ -614,7 +614,6 @@ private final class BackupLicenseNetworkSpy: LicenseNetworkServing {
     }
 }
 
-@MainActor
 private final class ControlledBackupLicenseNetworkSpy: LicenseNetworkServing {
     private struct PendingValidation {
         let key: String

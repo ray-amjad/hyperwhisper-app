@@ -58,7 +58,7 @@ final class RustLicenseStore: KeyValueStore {
     private var cachedLicenseRecord: LicenseKeychainRecord?
     private var licenseRecordCacheState: LicenseRecordCacheState = .unloaded
 
-    private enum LicenseRecordCacheState {
+    private enum LicenseRecordCacheState: Equatable {
         case unloaded
         case available
         case unavailable
