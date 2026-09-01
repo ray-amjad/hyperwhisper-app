@@ -29,6 +29,12 @@ function auth(credits: number): AuthContext {
   return { identifier: 'lic_test', credits, licenseKey: 'lic_test' };
 }
 
+async function expectNoPendingDeductions(): Promise<void> {
+  // The tracking cleanup runs from a separate finally chain after the returned deduction settles.
+  await Promise.resolve();
+  expect(await drainPendingDeductions(1000)).toBe(0);
+}
+
 afterEach(() => {
   cacheWrites.length = 0;
   globalThis.fetch = originalFetch;
@@ -124,6 +130,53 @@ describe('deductCredits / drainPendingDeductions', () => {
     expect(cacheWrites[0]?.license).toMatchObject({ isValid: true, credits: 12.3 });
   });
 
+  for (const status of [429, 500]) {
+    test(`deductCredits contains an HTTP ${status} failure and removes the settled deduction from in-flight tracking`, async () => {
+      globalThis.fetch = mock(async () => Response.json(
+        { error: 'synthetic upstream failure' },
+        { status },
+      )) as unknown as typeof fetch;
+
+      const costUsd = 0.05;
+      const creditsUsed = await deductCredits(auth(20), costUsd, {}, '1.2.3.4');
+
+      expect(creditsUsed).toBe(creditsForCost(costUsd));
+      expect(cacheWrites).toHaveLength(0);
+      await expectNoPendingDeductions();
+    });
+  }
+
+  test('deductCredits contains a network rejection and removes the settled deduction from in-flight tracking', async () => {
+    globalThis.fetch = mock(async () => {
+      throw new Error('synthetic connection reset');
+    }) as unknown as typeof fetch;
+
+    const costUsd = 0.05;
+    const creditsUsed = await deductCredits(auth(20), costUsd, {}, '1.2.3.4');
+
+    expect(creditsUsed).toBe(creditsForCost(costUsd));
+    expect(cacheWrites).toHaveLength(0);
+    await expectNoPendingDeductions();
+  });
+
+  const unusableBalances: Array<{ label: string; body: Record<string, unknown> }> = [
+    { label: 'missing', body: {} },
+    { label: 'non-numeric', body: { credits_remaining: '12.3' } },
+  ];
+
+  for (const { label, body } of unusableBalances) {
+    test(`deductCredits records usage but does not replace the cached balance when credits_remaining is ${label}`, async () => {
+      globalThis.fetch = mock(async () => Response.json(body)) as unknown as typeof fetch;
+
+      const costUsd = 0.05;
+      const creditsUsed = await deductCredits(auth(20), costUsd, {}, '1.2.3.4');
+
+      expect(creditsUsed).toBe(creditsForCost(costUsd));
+      expect(cacheWrites).toHaveLength(0);
+      await expectNoPendingDeductions();
+    });
+  }
+
   test('drainPendingDeductions waits for an in-flight deduction to finish before returning', async () => {
     globalThis.fetch = mock(async () => Response.json({ credits_remaining: 8 })) as unknown as typeof fetch;
 
@@ -135,5 +188,25 @@ describe('deductCredits / drainPendingDeductions', () => {
     expect(drained).toBe(1);
     // If drain had returned without awaiting the deduction, this write wouldn't exist yet.
     expect(cacheWrites).toHaveLength(1);
+  });
+
+  test('drainPendingDeductions times out on a pending request and drops it after settlement', async () => {
+    let resolveFetch: (response: Response) => void = () => {};
+    const pendingResponse = new Promise<Response>((resolve) => {
+      resolveFetch = resolve;
+    });
+    globalThis.fetch = mock(async () => pendingResponse) as unknown as typeof fetch;
+
+    const costUsd = 0.05;
+    const deduction = deductCredits(auth(20), costUsd, {}, '1.2.3.4');
+
+    expect(await drainPendingDeductions(20)).toBe(1);
+    expect(cacheWrites).toHaveLength(0);
+
+    resolveFetch(Response.json({ credits_remaining: 7.5 }));
+    expect(await deduction).toBe(creditsForCost(costUsd));
+    expect(cacheWrites).toHaveLength(1);
+    expect(cacheWrites[0]?.license.credits).toBe(7.5);
+    await expectNoPendingDeductions();
   });
 });
