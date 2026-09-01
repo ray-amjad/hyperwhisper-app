@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Net;
 using System.Text;
 using uniffi.hyperwhisper_core;
@@ -78,8 +77,9 @@ public sealed class CloudTranscriptionService : IDisposable
     /// silently default to sharing.
     /// </param>
     /// <param name="retryBudgetMs">
-    /// Total wall-clock budget, in milliseconds, for each retry sequence (issue
-    /// #379). <c>null</c> takes the core's interactive default
+    /// Total BACKOFF budget, in milliseconds, for each retry sequence (issue
+    /// #379) — the sleeping only, not the requests' own duration.
+    /// <c>null</c> takes the core's interactive default
     /// (<c>RetryDefaultBudgetMs()</c> == 30s); <c>0</c> means unbounded, i.e. the
     /// pre-#379 behaviour of 8 attempts and ~127s of sleep. Injectable so a batch
     /// host can be more patient than a dictation one, and so tests can pin a
@@ -425,14 +425,21 @@ public sealed class CloudTranscriptionService : IDisposable
     /// <summary>
     /// Drive one request stage through the core-owned retry policy.
     ///
-    /// Wall-clock budget (issue #379): 8 attempts of raw exponential backoff is
+    /// Backoff budget (issue #379): 8 attempts of raw exponential backoff is
     /// ~127s of sleep, so a hard-down provider used to take ~150s to fail. The
-    /// core owns the rule (<c>NextRetryWithinBudget</c>), this shell owns the
-    /// clock: a <see cref="Stopwatch"/> is started BEFORE the loop and never
-    /// restarted inside it, so it accumulates both the failed attempts' own time
-    /// and every backoff delay. The budget is per STAGE, matching the per-call
+    /// core owns the rule (<c>NextRetryWithinBudget</c>); this shell just carries
+    /// the running total of the delays the core handed it (<c>sleptMs</c>) back
+    /// into the next decision. The budget is per STAGE, matching the per-call
     /// semantics of the macOS/Windows <c>RustRetry</c> drivers — a multi-step
     /// provider's upload/poll/fetch legs each get their own.
+    ///
+    /// <c>sleptMs</c> is BACKOFF ONLY. The time a failed request itself took is
+    /// deliberately NOT charged to it: a large upload (Linux routes file imports
+    /// through here via <c>LinuxModeAwareTranscriptionFactory</c>) would
+    /// otherwise blow a 30s budget before its first error even arrived and get
+    /// zero retries. Counting only the returned delays also keeps the budget
+    /// deterministic under an injected <see cref="ICloudTranscriptionDelay"/>,
+    /// so a test can pin it without sleeping for real.
     /// </summary>
     private async Task<HttpResponse> SendWithRetryAsync<T>(
         Func<HttpRequest> build,
@@ -444,7 +451,10 @@ public sealed class CloudTranscriptionService : IDisposable
     {
         uint attempt = 0;
         var transportFailures = 0;
-        var sequenceClock = Stopwatch.StartNew();
+        // Running total of the backoff the core has asked this sequence to sleep.
+        // Accumulated across the whole loop and never reset, so the budget bounds
+        // the sequence rather than any single sleep.
+        var sleptMs = 0UL;
         while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -464,10 +474,11 @@ public sealed class CloudTranscriptionService : IDisposable
                     response.@status,
                     Encoding.UTF8.GetString(response.@body),
                     retryAfter.HasValue ? (ulong)Math.Max(0, retryAfter.Value) : null,
-                    (ulong)sequenceClock.ElapsedMilliseconds,
+                    sleptMs,
                     _retryBudgetMs);
                 if (decision is RetryDecision.Retry retry)
                 {
+                    sleptMs += retry.@delayMs;
                     await _delay.DelayAsync(TimeSpan.FromMilliseconds(retry.@delayMs), cancellationToken).ConfigureAwait(false);
                     continue;
                 }
@@ -497,12 +508,13 @@ public sealed class CloudTranscriptionService : IDisposable
                     503,
                     string.Empty,
                     null,
-                    (ulong)sequenceClock.ElapsedMilliseconds,
+                    sleptMs,
                     _retryBudgetMs);
                 if (decision is not RetryDecision.Retry retry)
                 {
                     throw;
                 }
+                sleptMs += retry.@delayMs;
                 await _delay.DelayAsync(TimeSpan.FromMilliseconds(retry.@delayMs), cancellationToken).ConfigureAwait(false);
             }
         }

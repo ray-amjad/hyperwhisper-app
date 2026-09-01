@@ -14583,23 +14583,26 @@ public func nextRetry(attempt: UInt32, status: UInt16, body: String, retryAfter:
 })
 }
 /**
- * `next_retry` plus a **total wall-clock budget** (issue #379).
+ * `next_retry` plus a **cumulative backoff budget** (issue #379).
  *
- * `elapsed_ms` is the time since the start of the whole attempt sequence (the
- * platform owns the clock, because it owns the sleep). A sleep that *would* land
- * past `budget_ms` is refused, so a hard-down provider fails in ~20-25s instead
- * of grinding through the full 1+2+4+8+16+32+64s series. `budget_ms == 0` means
- * unbounded, which makes this identical to `next_retry`. Use
- * `retry_default_budget_ms()` for interactive transcription.
+ * `slept_ms` is the sum of the `delay_ms` values this call has already returned
+ * for this attempt sequence — how much backoff the caller has been told to
+ * sleep so far, starting at `0` on attempt 1. It is deliberately **not** the
+ * sequence's wall clock: charging a slow request (a large upload) to the budget
+ * would leave a big file with zero retries. A sleep that would push the running
+ * total past `budget_ms` is refused, so a hard-down provider fails after 15s of
+ * backoff instead of grinding through the full 1+2+4+8+16+32+64s series.
+ * `budget_ms == 0` means unbounded, which makes this identical to `next_retry`.
+ * Use `retry_default_budget_ms()` for interactive transcription.
  */
-public func nextRetryWithinBudget(attempt: UInt32, status: UInt16, body: String, retryAfter: UInt64?, elapsedMs: UInt64, budgetMs: UInt64) -> RetryDecision {
+public func nextRetryWithinBudget(attempt: UInt32, status: UInt16, body: String, retryAfter: UInt64?, sleptMs: UInt64, budgetMs: UInt64) -> RetryDecision {
     return try!  FfiConverterTypeRetryDecision.lift(try! rustCall() {
     uniffi_hyperwhisper_core_fn_func_next_retry_within_budget(
         FfiConverterUInt32.lower(attempt),
         FfiConverterUInt16.lower(status),
         FfiConverterString.lower(body),
         FfiConverterOptionUInt64.lower(retryAfter),
-        FfiConverterUInt64.lower(elapsedMs),
+        FfiConverterUInt64.lower(sleptMs),
         FfiConverterUInt64.lower(budgetMs),$0
     )
 })
@@ -14956,7 +14959,7 @@ public func removeTrailingPeriod(text: String) -> String {
 })
 }
 /**
- * Default **total** wall-clock budget, in milliseconds, for one interactive
+ * Default **cumulative backoff** budget, in milliseconds, for one interactive
  * transcription attempt sequence. The default argument for the platform retry
  * drivers' `budgetMs` parameter; `0` means unbounded.
  */
@@ -15774,7 +15777,7 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_next_retry() != 16456) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_hyperwhisper_core_checksum_func_next_retry_within_budget() != 13527) {
+    if (uniffi_hyperwhisper_core_checksum_func_next_retry_within_budget() != 40999) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_no_speech_classify() != 39879) {
@@ -15858,7 +15861,7 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_remove_trailing_period() != 16878) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_hyperwhisper_core_checksum_func_retry_default_budget_ms() != 9456) {
+    if (uniffi_hyperwhisper_core_checksum_func_retry_default_budget_ms() != 35048) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_retry_max_attempts() != 57507) {

@@ -1321,7 +1321,7 @@ RustBuffer uniffi_hyperwhisper_core_fn_func_next_retry(uint32_t attempt, uint16_
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_FN_FUNC_NEXT_RETRY_WITHIN_BUDGET
 #define UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_FN_FUNC_NEXT_RETRY_WITHIN_BUDGET
-RustBuffer uniffi_hyperwhisper_core_fn_func_next_retry_within_budget(uint32_t attempt, uint16_t status, RustBuffer body, RustBuffer retry_after, uint64_t elapsed_ms, uint64_t budget_ms, RustCallStatus *_Nonnull out_status
+RustBuffer uniffi_hyperwhisper_core_fn_func_next_retry_within_budget(uint32_t attempt, uint16_t status, RustBuffer body, RustBuffer retry_after, uint64_t slept_ms, uint64_t budget_ms, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_HYPERWHISPER_CORE_FN_FUNC_NO_SPEECH_CLASSIFY

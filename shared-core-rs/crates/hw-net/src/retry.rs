@@ -76,22 +76,31 @@
 //!   2 for per-attempt timeouts — see `RustRetry.cs`) because grinding through
 //!   all 8 attempts against a dead network stretches a doomed request to ~27 min.
 //!   The core stays transport-agnostic; `MAX_ATTEMPTS` remains the global bound.
-//! - **Total wall-clock budget (issue #379).** `MAX_ATTEMPTS` alone is a poor
-//!   bound: against a hard-down provider the exponential series spends
-//!   1+2+4+8+16+32+64 = 127s of sleep before giving up, which the user
+//! - **Backoff budget (issue #379).** `MAX_ATTEMPTS` alone is a poor bound:
+//!   against a hard-down provider the exponential series spends
+//!   1+2+4+8+16+32+64 = 127s **of sleep** before giving up, which the user
 //!   experiences as a ~150s hang. [`next_retry_within_budget`] /
-//!   [`next_retry_for_error_within_budget`] add a *total* wall-clock budget on top
-//!   of the attempt ceiling: the platform passes the elapsed time of the whole
-//!   attempt sequence, and a sleep that would land past `budget_ms` is refused.
-//!   The purity rule is preserved — `elapsed_ms` is an **input**, exactly like
-//!   `attempt`; this module still has no clock and no RNG, because the platform
-//!   already owns the clock (it owns the sleep). The default,
-//!   [`DEFAULT_BUDGET_MS`] (30s), is tuned for *interactive* transcription and
-//!   mirrors the repo's interactive network patience (macOS
-//!   `HyperWhisperCloudManager` uses a 10s request / 15s resource timeout). A
-//!   batch caller passes a larger budget, or `0` for unbounded. The older
-//!   budget-free [`next_retry`] / [`next_retry_for_error`] are unchanged and are
-//!   exactly `budget_ms == 0`.
+//!   [`next_retry_for_error_within_budget`] add a budget on the *cumulative
+//!   backoff* on top of the attempt ceiling: the platform passes back the sum of
+//!   the delays this module has already handed it (`slept_ms`), and a sleep that
+//!   would push the running total past `budget_ms` is refused.
+//!
+//!   **The budget deliberately measures only the sleeping, not the requests.**
+//!   The sleeps are the part of the hang this module owns and the part that is
+//!   pure dead time; the requests are bounded elsewhere (per-attempt transport
+//!   timeouts, and the platform-side transport/timeout attempt caps in
+//!   `RustRetry`) and may be doing real work — a 150 MB import legitimately
+//!   uploads for minutes per attempt. Charging that upload to the budget would
+//!   make a large file get *zero* retries, which is a worse failure than the one
+//!   #379 reports. `slept_ms` is therefore the running total of the `delay_ms`
+//!   values this module returned, which keeps the policy a pure function of the
+//!   decision sequence: no clock, no RNG, fully golden-testable, and identical on
+//!   all three platforms regardless of their jitter.
+//!
+//!   The default, [`DEFAULT_BUDGET_MS`] (30s), is tuned for *interactive*
+//!   transcription. A batch caller passes a larger budget, or `0` for unbounded.
+//!   The older budget-free [`next_retry`] / [`next_retry_for_error`] are
+//!   unchanged and are exactly `budget_ms == 0`.
 
 use crate::contract::{RetryDecision, TranscriptionError};
 // Shared with the result-parse path (`providers::common::classify_http`) so the
@@ -110,30 +119,34 @@ use crate::providers::common::{error_message, is_quota_error};
 /// resilient than the unified 4, less aggressive than 10 for the providers that
 /// previously used only 3.
 ///
-/// **This is the attempt ceiling, not the wall-clock bound.** With no
-/// `Retry-After`, 7 retryable attempts sleep the exponential series
-/// 1+2+4+8+16+32+64s ≈ 127s — which against a hard-down provider is a ~150s hang
-/// (issue #379). The real bound is the **total wall-clock budget** a caller passes
-/// to [`next_retry_within_budget`] ([`DEFAULT_BUDGET_MS`], 30s, for interactive
+/// **This is the attempt ceiling, not the time bound.** With no `Retry-After`,
+/// 7 retryable attempts sleep the exponential series 1+2+4+8+16+32+64s ≈ 127s —
+/// which against a hard-down provider is a ~150s hang (issue #379). The real
+/// bound is the **cumulative backoff budget** a caller passes to
+/// [`next_retry_within_budget`] ([`DEFAULT_BUDGET_MS`], 30s, for interactive
 /// transcription); `MAX_ATTEMPTS` is the ceiling that still applies underneath it,
 /// and the only bound for the budget-free [`next_retry`].
 pub const MAX_ATTEMPTS: u32 = 8;
 
-/// Default **total** wall-clock budget, in milliseconds, for one interactive
+/// Default **cumulative backoff** budget, in milliseconds, for one interactive
 /// transcription attempt sequence (issue #379).
 ///
 /// 30s. Rationale: the retries that actually ride out a transient 429/5xx blip are
-/// the first four (1s + 2s + 4s + 8s = 15s of sleep). Past ~30s you are no longer
+/// the first four (1s + 2s + 4s + 8s = 15s of sleep). Past that you are no longer
 /// riding out a blip, you are waiting out an outage, and a user re-press does that
 /// better than a silent 150s hang. Against a hard-down provider a 30s budget stops
-/// at attempt 5 (15s already spent, attempt 5 wants 16s → 31s > 30s → `GiveUp`),
-/// so the 16/32/64s sleeps are never reached: ~20-25s wall clock instead of ~150s.
-/// A one- or two-blip 429 sequence is completely unchanged.
+/// at attempt 5 (15s of backoff already scheduled, attempt 5 wants 16s → 31s > 30s
+/// → `GiveUp`), so the 16/32/64s sleeps are never reached. For the #379 repro —
+/// a small dictation payload where each failed request costs a few seconds — that
+/// is ~20-30s end to end instead of ~150s. A one- or two-blip 429 sequence is
+/// completely unchanged.
+///
+/// **It bounds the sleeping only.** A slow attempt (a large upload) does not eat
+/// into it; see the module docs for why, and
+/// [`next_retry_for_error_within_budget`] for the exact contract.
 ///
 /// It is only a **default**: the budget is a per-call parameter, so a background
-/// or batch caller passes a larger value, or `0` for unbounded. It deliberately
-/// mirrors the repo's existing interactive network patience (macOS
-/// `HyperWhisperCloudManager`: 10s request / 15s resource timeouts).
+/// or batch caller passes a larger value, or `0` for unbounded.
 pub const DEFAULT_BUDGET_MS: u64 = 30_000;
 
 /// Upper bound, in seconds, on a single honored `Retry-After` sleep. Mirrors
@@ -277,17 +290,18 @@ pub fn next_retry(
     next_retry_for_error(attempt, &err, retry_after)
 }
 
-/// [`next_retry_for_error`] plus a **total wall-clock budget** (issue #379).
+/// [`next_retry_for_error`] plus a **cumulative backoff budget** (issue #379).
 ///
 /// Identical to [`next_retry_for_error`] in every respect except that it also
-/// refuses a sleep that would land past the deadline. The contract, in order:
+/// refuses a sleep that would push the sequence's total backoff past the budget.
+/// The contract, in order:
 ///
 /// 1. `attempt >= MAX_ATTEMPTS` → [`RetryDecision::GiveUp`] (unchanged).
 /// 2. `!is_retryable(err)` → [`RetryDecision::GiveUp`] (unchanged).
 /// 3. `delay_ms = backoff_ms(attempt, retry_after)` — the same delay the
 ///    budget-free path would have used, including the honored-and-clamped
 ///    `Retry-After`.
-/// 4. `budget_ms != 0 && elapsed_ms + delay_ms > budget_ms` → `GiveUp` (new).
+/// 4. `budget_ms != 0 && slept_ms + delay_ms > budget_ms` → `GiveUp` (new).
 /// 5. Otherwise `Retry { delay_ms }`.
 ///
 /// Because the budget is checked **last**, it can only ever turn a `Retry` into a
@@ -295,23 +309,35 @@ pub fn next_retry(
 /// ceiling. `budget_ms == 0` disables the check entirely, making this function
 /// byte-for-byte equivalent to [`next_retry_for_error`].
 ///
-/// `elapsed_ms` is the wall-clock time since the **start of the whole attempt
-/// sequence**, including the time the failed requests themselves took — so a
-/// provider that takes 60s to fail is correctly judged not worth retrying. The
-/// budget is never consulted mid-flight, so a slow-but-succeeding upload is never
-/// aborted by it.
+/// # What `slept_ms` is, and what it deliberately is not
+///
+/// `slept_ms` is the **sum of the `delay_ms` values this function has already
+/// returned** for this attempt sequence — i.e. how much backoff the caller has
+/// been told to sleep so far. It starts at `0` on attempt 1.
+///
+/// It is **not** the wall-clock elapsed time of the sequence, and the failed
+/// requests' own durations must not be added to it. Charging request time to the
+/// budget would mean a large upload gets *no* retries at all: a 150 MB import
+/// that spends four minutes uploading before a 502 would exceed a 30s budget on
+/// attempt 1, where it previously had seven attempts. That is a worse failure
+/// than the ~150s hang #379 reports. The request side is bounded by the
+/// per-attempt transport timeout and by the platform-side transport/timeout
+/// attempt caps (`RustRetry`), which are the right tools for it; this module
+/// bounds only the dead time it is itself responsible for.
+///
+/// Defining `slept_ms` as the returned delays rather than a measured clock also
+/// keeps the policy a **pure function of the decision sequence**: no clock, no
+/// RNG, fully golden-testable, and identical across platforms whatever jitter
+/// they add on top at the sleep point.
 ///
 /// The test is **"would exceed", not "has exceeded"**: a sleep is refused when it
-/// would land past the deadline, rather than started and then regretted. Exactly
-/// hitting the budget (`elapsed_ms + delay_ms == budget_ms`) is allowed.
-///
-/// Purity is unchanged: `elapsed_ms` is an input, like `attempt`. This module
-/// still has no clock — the platform owns it, because the platform owns the sleep.
+/// would push the total past the budget, rather than started and then regretted.
+/// Exactly hitting the budget (`slept_ms + delay_ms == budget_ms`) is allowed.
 pub fn next_retry_for_error_within_budget(
     attempt: u32,
     err: &TranscriptionError,
     retry_after: Option<u64>,
-    elapsed_ms: u64,
+    slept_ms: u64,
     budget_ms: u64,
 ) -> RetryDecision {
     // Attempts exhausted: terminal regardless of error or budget.
@@ -328,14 +354,14 @@ pub fn next_retry_for_error_within_budget(
     // `budget_ms == 0` means unbounded. `saturating_add` because both operands
     // are caller-supplied: the release profile is `panic = "abort"`, so a debug
     // overflow panic here would be an abort on device.
-    if budget_ms != 0 && elapsed_ms.saturating_add(delay_ms) > budget_ms {
+    if budget_ms != 0 && slept_ms.saturating_add(delay_ms) > budget_ms {
         return RetryDecision::GiveUp;
     }
 
     RetryDecision::Retry { delay_ms }
 }
 
-/// [`next_retry`] plus a **total wall-clock budget** (issue #379).
+/// [`next_retry`] plus a **cumulative backoff budget** (issue #379).
 ///
 /// Thin status-keyed convenience over [`next_retry_for_error_within_budget`],
 /// exactly as [`next_retry`] wraps [`next_retry_for_error`]: it
@@ -343,19 +369,19 @@ pub fn next_retry_for_error_within_budget(
 /// source of truth and the budgeted and budget-free paths cannot disagree about
 /// what an error *is*.
 ///
-/// `attempt` is 1-based (the attempt that just failed); `elapsed_ms` is measured
-/// from the start of the whole attempt sequence; `budget_ms == 0` means unbounded.
-/// See [`next_retry_for_error_within_budget`] for the full check order.
+/// `attempt` is 1-based (the attempt that just failed); `slept_ms` is the sum of
+/// the delays already returned for this sequence (NOT the sequence's wall clock —
+/// see [`next_retry_for_error_within_budget`]); `budget_ms == 0` means unbounded.
 pub fn next_retry_within_budget(
     attempt: u32,
     status: u16,
     body: &str,
     retry_after: Option<u64>,
-    elapsed_ms: u64,
+    slept_ms: u64,
     budget_ms: u64,
 ) -> RetryDecision {
     let err = classify_error(status, body);
-    next_retry_for_error_within_budget(attempt, &err, retry_after, elapsed_ms, budget_ms)
+    next_retry_for_error_within_budget(attempt, &err, retry_after, slept_ms, budget_ms)
 }
 
 /// Compute the sleep before retrying after `attempt` (1-based).
@@ -805,7 +831,30 @@ mod tests {
         assert_eq!(next_retry(1, 401, "", Some(2)), RetryDecision::GiveUp);
     }
 
-    // ---- total wall-clock budget (issue #379) ----
+    // ---- cumulative backoff budget (issue #379) ----
+
+    /// Replay a whole attempt sequence the way a platform driver does: start at
+    /// `slept_ms = 0`, add every returned `delay_ms` to the running total, and
+    /// stop at the first `GiveUp`. `request_ms` is what each failed attempt's own
+    /// request costs, which the driver does NOT add to `slept_ms`.
+    ///
+    /// Returns `(attempts_made, total_slept_ms, total_wall_clock_ms)`.
+    fn replay_sequence(status: u16, request_ms: u64, budget_ms: u64) -> (u32, u64, u64) {
+        let mut slept = 0u64;
+        let mut wall = 0u64;
+        let mut attempt = 0u32;
+        loop {
+            attempt += 1;
+            wall += request_ms;
+            match next_retry_within_budget(attempt, status, "", None, slept, budget_ms) {
+                RetryDecision::Retry { delay_ms } => {
+                    slept += delay_ms;
+                    wall += delay_ms;
+                }
+                RetryDecision::GiveUp => return (attempt, slept, wall),
+            }
+        }
+    }
 
     #[test]
     fn budget_stops_the_sequence_before_the_long_sleeps() {
@@ -816,27 +865,85 @@ mod tests {
         // sleeps — the ~127s that the user experienced as a ~150s hang — are
         // never reached.
         let budget = DEFAULT_BUDGET_MS;
-        let mut elapsed = 0u64;
+        let mut slept = 0u64;
         for (attempt, expected_delay) in [(1u32, 1_000u64), (2, 2_000), (3, 4_000), (4, 8_000)] {
             assert_eq!(
-                next_retry_within_budget(attempt, 500, "", None, elapsed, budget),
+                next_retry_within_budget(attempt, 500, "", None, slept, budget),
                 RetryDecision::Retry {
                     delay_ms: expected_delay
                 },
                 "attempt {attempt} should still retry within the budget"
             );
-            elapsed += expected_delay;
+            slept += expected_delay;
         }
-        assert_eq!(elapsed, 15_000);
+        assert_eq!(slept, 15_000);
         // Attempt 5 wants 16s: 15_000 + 16_000 = 31_000 > 30_000 → GiveUp.
         assert_eq!(
-            next_retry_within_budget(5, 500, "", None, elapsed, budget),
+            next_retry_within_budget(5, 500, "", None, slept, budget),
             RetryDecision::GiveUp
         );
         // And the budget-free path is untouched: it would happily sleep 16s.
         assert_eq!(
             next_retry(5, 500, "", None),
             RetryDecision::Retry { delay_ms: 16_000 }
+        );
+    }
+
+    #[test]
+    fn issue_379_repro_gives_up_in_about_thirty_seconds_not_one_fifty() {
+        // The issue as the user experienced it: a hard-down `googlespeech` on a
+        // small dictation payload. Each failed request costs ~2.9s (the reported
+        // ~150s total was ~127s of sleep + ~23s of requests over 8 attempts).
+        const DICTATION_REQUEST_MS: u64 = 2_900;
+
+        // Before #379 (no budget): all 8 attempts, 127s of sleep, ~150s wall clock.
+        let (attempts, slept, wall) = replay_sequence(500, DICTATION_REQUEST_MS, 0);
+        assert_eq!(attempts, MAX_ATTEMPTS, "unbudgeted burns the attempt ceiling");
+        assert_eq!(slept, 127_000);
+        assert_eq!(wall, 150_200, "the ~150s hang the issue reports");
+
+        // With the default budget: 5 attempts, 15s of sleep, ~30s wall clock.
+        let (attempts, slept, wall) = replay_sequence(500, DICTATION_REQUEST_MS, DEFAULT_BUDGET_MS);
+        assert_eq!(attempts, 5);
+        assert_eq!(slept, 15_000);
+        assert!(
+            (20_000..=30_000).contains(&wall),
+            "issue #379 wants ~20-30s, got {wall}ms"
+        );
+    }
+
+    #[test]
+    fn a_slow_failing_attempt_does_not_consume_the_budget() {
+        // REGRESSION GUARD (review round 1, finding A1). An earlier revision fed
+        // the sequence's wall clock into the budget, which meant a large upload
+        // got ZERO retries: it had already "spent" 30s uploading before the 502
+        // even arrived. The budget counts only the sleeping, so a slow attempt
+        // costs it nothing.
+        //
+        // A 150 MB import to Grok: four minutes of upload, then a 502.
+        // `GrokSttService` sets a 5-min base / 30-min cap per-attempt timeout
+        // precisely so this can happen.
+        const FOUR_MINUTES_MS: u64 = 240_000;
+        let (slow_attempts, slow_slept, _) = replay_sequence(502, FOUR_MINUTES_MS, DEFAULT_BUDGET_MS);
+        // A 200 ms dictation failure against the same provider.
+        let (fast_attempts, fast_slept, _) = replay_sequence(502, 200, DEFAULT_BUDGET_MS);
+
+        assert_eq!(
+            (slow_attempts, slow_slept),
+            (fast_attempts, fast_slept),
+            "request duration must not change how many attempts the budget allows"
+        );
+        assert_eq!(slow_attempts, 5, "the same 4 retries either way");
+        assert_eq!(slow_slept, 15_000);
+
+        // At the single-decision level: attempt 1 has slept nothing however long
+        // its request took, so its 1s retry is always available. This is also
+        // what makes the platform-side `MaxTimeoutAttempts = 2` cap reachable
+        // again (finding A2) — AssemblyAI's 30s per-attempt timeout used to spend
+        // the whole budget before the cap could allow the second attempt.
+        assert_eq!(
+            next_retry_within_budget(1, 503, "", None, 0, DEFAULT_BUDGET_MS),
+            RetryDecision::Retry { delay_ms: 1_000 }
         );
     }
 
@@ -875,13 +982,13 @@ mod tests {
                 },
                 "attempt {attempt}"
             );
-            // Unbounded really is unbounded: a huge elapsed changes nothing.
+            // Unbounded really is unbounded: a huge slept total changes nothing.
             assert_eq!(
                 next_retry_within_budget(attempt, 429, "", None, u64::MAX, 0),
                 RetryDecision::Retry {
                     delay_ms: expected_ms
                 },
-                "attempt {attempt} with a huge elapsed"
+                "attempt {attempt} with a huge slept total"
             );
         }
         assert_eq!(
@@ -941,22 +1048,6 @@ mod tests {
     }
 
     #[test]
-    fn a_slow_failing_attempt_consumes_the_budget() {
-        // `elapsed_ms` covers the failed REQUESTS, not just the sleeps. A
-        // provider that takes 29.5s to fail its very first attempt has already
-        // spent the budget, so even the cheap 1s retry is refused.
-        assert_eq!(
-            next_retry_within_budget(1, 503, "", None, 29_500, DEFAULT_BUDGET_MS),
-            RetryDecision::GiveUp
-        );
-        // 29.0s leaves exactly room for the 1s sleep.
-        assert_eq!(
-            next_retry_within_budget(1, 503, "", None, 29_000, DEFAULT_BUDGET_MS),
-            RetryDecision::Retry { delay_ms: 1_000 }
-        );
-    }
-
-    #[test]
     fn retry_after_is_still_clamped_under_a_budget() {
         // A hostile 300s Retry-After clamps to 10s, and 10s — not 300s — is what
         // the budget check measures. Otherwise a hostile server could force an
@@ -967,8 +1058,8 @@ mod tests {
                 delay_ms: MAX_RETRY_AFTER_SECS * 1_000
             }
         );
-        // 21s elapsed + the clamped 10s = 31s > 30s → GiveUp. (Had the raw 300s
-        // been used, this would have given up at 0ms elapsed.)
+        // 21s already slept + the clamped 10s = 31s > 30s → GiveUp. (Had the raw
+        // 300s been used, this would have given up at 0ms slept.)
         assert_eq!(
             next_retry_within_budget(1, 429, "", Some(300), 21_000, DEFAULT_BUDGET_MS),
             RetryDecision::GiveUp

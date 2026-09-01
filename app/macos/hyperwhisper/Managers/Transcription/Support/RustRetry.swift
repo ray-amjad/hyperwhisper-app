@@ -17,14 +17,21 @@
 //  to 10s. The core is RNG-free, so a small randomized jitter (0–30%) is added
 //  platform-side at the sleep point (see `sleep(_:)`) to avoid a thundering herd.
 //
-//  Wall-clock budget (issue #379): 8 attempts of raw exponential backoff is
-//  ~127s of sleep, so a hard-down provider used to take ~150s to fail. The core
-//  owns the rule (`nextRetryWithinBudget`), the platform owns the clock: this
-//  wrapper starts a monotonic clock BEFORE the loop and feeds `elapsedMs` into
-//  every decision. The core gives up when the next sleep would land past
+//  Backoff budget (issue #379): 8 attempts of raw exponential backoff is ~127s
+//  of sleep, so a hard-down provider used to take ~150s to fail. The core owns
+//  the rule (`nextRetryWithinBudget`); this wrapper just carries the running
+//  total of the delays the core handed it (`sleptMs`) back into the next
+//  decision. The core gives up when the next sleep would push that total past
 //  `budgetMs` (default `retryDefaultBudgetMs()` == 30s), which stops the
-//  sequence at attempt 5 — ~20-25s — before the 16/32/64s sleeps are ever
-//  reached. `budgetMs: 0` means unbounded, i.e. exactly the old behaviour.
+//  sequence at attempt 5 after 15s of backoff, before the 16/32/64s sleeps are
+//  ever reached. `budgetMs: 0` means unbounded, i.e. exactly the old behaviour.
+//
+//  `sleptMs` is BACKOFF ONLY — the time a failed request itself took is
+//  deliberately NOT charged to it. Otherwise a long-running attempt would get
+//  zero retries: `GeminiTranscriptionProvider` sets
+//  `timeoutIntervalForResource = 900` precisely because a large file can upload
+//  for minutes, and that upload would blow a 30s budget before the first error
+//  even arrived. Request duration is bounded by the session timeouts, not here.
 //
 
 import Foundation
@@ -57,10 +64,10 @@ enum RustRetry {
     /// attempts against a poisoned connection pool. Default `nil` = no-op, so
     /// other callers are unaffected.
     ///
-    /// `budgetMs` is the TOTAL wall-clock budget for this whole sequence,
-    /// measured from before the first attempt and including the time the failed
-    /// requests themselves took. The core gives up rather than start a sleep
-    /// that would land past it. Default = the core's interactive
+    /// `budgetMs` bounds the TOTAL BACKOFF this sequence may sleep — not its
+    /// wall clock, and explicitly not the time the failed requests themselves
+    /// took. The core gives up rather than start a sleep that would push the
+    /// running total past it. Default = the core's interactive
     /// `retryDefaultBudgetMs()` (30s); `0` means unbounded (the pre-#379
     /// behaviour), which a future batch caller can opt into.
     ///
@@ -81,10 +88,10 @@ enum RustRetry {
         // One-shot-per-sequence gate for the recovery hook (matches the original
         // native `didResetThisSequence` semantics).
         var didRecoverThisSequence = false
-        // Per-sequence monotonic clock for the wall-clock budget. Started BEFORE
-        // the loop and never reset inside it, so it accumulates both the failed
-        // requests' own time and every backoff sleep.
-        let sequenceStart = DispatchTime.now()
+        // Running total of the backoff the core has asked this sequence to sleep.
+        // Accumulated across the whole loop and never reset, so the budget bounds
+        // the sequence rather than any single sleep.
+        var sleptMs: UInt64 = 0
 
         while true {
             try Task.checkCancellation()
@@ -117,13 +124,12 @@ enum RustRetry {
                 }
 
                 // No HTTP response — treat as a retryable 503-equivalent.
-                let elapsedMs = Self.elapsedMs(since: sequenceStart)
                 let decision = nextRetryWithinBudget(
                     attempt: attempt,
                     status: 503,
                     body: "",
                     retryAfter: nil,
-                    elapsedMs: elapsedMs,
+                    sleptMs: sleptMs,
                     budgetMs: budgetMs
                 )
                 switch decision {
@@ -135,6 +141,7 @@ enum RustRetry {
                         didRecoverThisSequence = true
                         await hook(urlError)
                     }
+                    sleptMs += delayMs
                     try await sleep(delayMs)
                     continue
                 case .giveUp:
@@ -143,7 +150,7 @@ enum RustRetry {
                         status: 503,
                         body: "",
                         retryAfter: nil,
-                        elapsedMs: elapsedMs,
+                        sleptMs: sleptMs,
                         budgetMs: budgetMs
                     )
                     throw TranscriptionError.transientNetwork(details: error.localizedDescription)
@@ -164,19 +171,19 @@ enum RustRetry {
             // is meaningless, so floor it at 0. (The `Int?` value is still passed
             // to `enrichRateLimited` below for user messaging.)
             let retryAfterMs = retryAfter.map { UInt64(max(0, $0)) }
-            let elapsedMs = Self.elapsedMs(since: sequenceStart)
 
             let decision = nextRetryWithinBudget(
                 attempt: attempt,
                 status: response.status,
                 body: bodyText,
                 retryAfter: retryAfterMs,
-                elapsedMs: elapsedMs,
+                sleptMs: sleptMs,
                 budgetMs: budgetMs
             )
 
             switch decision {
             case let .retry(delayMs):
+                sleptMs += delayMs
                 try await sleep(delayMs)
                 continue
             case .giveUp:
@@ -185,7 +192,7 @@ enum RustRetry {
                     status: response.status,
                     body: bodyText,
                     retryAfter: retryAfterMs,
-                    elapsedMs: elapsedMs,
+                    sleptMs: sleptMs,
                     budgetMs: budgetMs
                 )
                 // The core's RateLimited carries no Retry-After (it doesn't read
@@ -196,14 +203,7 @@ enum RustRetry {
         }
     }
 
-    /// Milliseconds elapsed since the retry sequence began. `DispatchTime` is
-    /// monotonic, so a wall-clock adjustment mid-sequence can't corrupt the
-    /// budget, and the subtraction is wrapping-safe on the uptime nanoseconds.
-    private static func elapsedMs(since start: DispatchTime) -> UInt64 {
-        (DispatchTime.now().uptimeNanoseconds &- start.uptimeNanoseconds) / 1_000_000
-    }
-
-    /// Log a give-up with a reason a support engineer can act on: the wall-clock
+    /// Log a give-up with a reason a support engineer can act on: the backoff
     /// budget running out looks nothing like the attempt ceiling being hit, and
     /// the two want different fixes. Determined by re-asking the core WITHOUT
     /// the budget — if it would still have retried, the budget is what stopped
@@ -213,16 +213,16 @@ enum RustRetry {
         status: UInt16,
         body: String,
         retryAfter: UInt64?,
-        elapsedMs: UInt64,
+        sleptMs: UInt64,
         budgetMs: UInt64
     ) {
         if case .retry = nextRetry(attempt: attempt, status: status, body: body, retryAfter: retryAfter) {
             AppLogger.network.warning(
-                "RustRetry: giving up on the retry BUDGET after attempt \(attempt, privacy: .public) — \(elapsedMs, privacy: .public)ms elapsed of \(budgetMs, privacy: .public)ms (status \(status, privacy: .public))"
+                "RustRetry: giving up on the retry BUDGET after attempt \(attempt, privacy: .public) — \(sleptMs, privacy: .public)ms of backoff slept of \(budgetMs, privacy: .public)ms (status \(status, privacy: .public))"
             )
         } else {
             AppLogger.network.warning(
-                "RustRetry: giving up on the retry POLICY after attempt \(attempt, privacy: .public) of \(retryMaxAttempts(), privacy: .public) — \(elapsedMs, privacy: .public)ms elapsed (status \(status, privacy: .public))"
+                "RustRetry: giving up on the retry POLICY after attempt \(attempt, privacy: .public) of \(retryMaxAttempts(), privacy: .public) — \(sleptMs, privacy: .public)ms of backoff slept (status \(status, privacy: .public))"
             )
         }
     }

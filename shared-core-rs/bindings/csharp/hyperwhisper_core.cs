@@ -2071,7 +2071,7 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_next_retry_within_budget(uint @attempt,ushort @status,RustBuffer @body,RustBuffer @retryAfter,ulong @elapsedMs,ulong @budgetMs,ref UniffiRustCallStatus _uniffi_out_err
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_next_retry_within_budget(uint @attempt,ushort @status,RustBuffer @body,RustBuffer @retryAfter,ulong @sleptMs,ulong @budgetMs,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -4612,8 +4612,8 @@ static class _UniFFILib {
         }
         {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_next_retry_within_budget();
-            if (checksum != 13527) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_next_retry_within_budget` checksum `13527`, library returned `{checksum}`");
+            if (checksum != 40999) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_next_retry_within_budget` checksum `40999`, library returned `{checksum}`");
             }
         }
         {
@@ -4780,8 +4780,8 @@ static class _UniFFILib {
         }
         {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_retry_default_budget_ms();
-            if (checksum != 9456) {
-                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_retry_default_budget_ms` checksum `9456`, library returned `{checksum}`");
+            if (checksum != 35048) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_retry_default_budget_ms` checksum `35048`, library returned `{checksum}`");
             }
         }
         {
@@ -15829,19 +15829,22 @@ internal static class HyperwhisperCoreMethods {
 
 
     /// <summary>
-    /// `next_retry` plus a **total wall-clock budget** (issue #379).
+    /// `next_retry` plus a **cumulative backoff budget** (issue #379).
     ///
-    /// `elapsed_ms` is the time since the start of the whole attempt sequence (the
-    /// platform owns the clock, because it owns the sleep). A sleep that *would* land
-    /// past `budget_ms` is refused, so a hard-down provider fails in ~20-25s instead
-    /// of grinding through the full 1+2+4+8+16+32+64s series. `budget_ms == 0` means
-    /// unbounded, which makes this identical to `next_retry`. Use
-    /// `retry_default_budget_ms()` for interactive transcription.
+    /// `slept_ms` is the sum of the `delay_ms` values this call has already returned
+    /// for this attempt sequence — how much backoff the caller has been told to
+    /// sleep so far, starting at `0` on attempt 1. It is deliberately **not** the
+    /// sequence's wall clock: charging a slow request (a large upload) to the budget
+    /// would leave a big file with zero retries. A sleep that would push the running
+    /// total past `budget_ms` is refused, so a hard-down provider fails after 15s of
+    /// backoff instead of grinding through the full 1+2+4+8+16+32+64s series.
+    /// `budget_ms == 0` means unbounded, which makes this identical to `next_retry`.
+    /// Use `retry_default_budget_ms()` for interactive transcription.
     /// </summary>
-    public static RetryDecision NextRetryWithinBudget(uint @attempt, ushort @status, string @body, ulong? @retryAfter, ulong @elapsedMs, ulong @budgetMs) {
+    public static RetryDecision NextRetryWithinBudget(uint @attempt, ushort @status, string @body, ulong? @retryAfter, ulong @sleptMs, ulong @budgetMs) {
         return FfiConverterTypeRetryDecision.INSTANCE.Lift(
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
-    _UniFFILib.uniffi_hyperwhisper_core_fn_func_next_retry_within_budget(FfiConverterUInt32.INSTANCE.Lower(@attempt), FfiConverterUInt16.INSTANCE.Lower(@status), FfiConverterString.INSTANCE.Lower(@body), FfiConverterOptionalUInt64.INSTANCE.Lower(@retryAfter), FfiConverterUInt64.INSTANCE.Lower(@elapsedMs), FfiConverterUInt64.INSTANCE.Lower(@budgetMs), ref _status)
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_next_retry_within_budget(FfiConverterUInt32.INSTANCE.Lower(@attempt), FfiConverterUInt16.INSTANCE.Lower(@status), FfiConverterString.INSTANCE.Lower(@body), FfiConverterOptionalUInt64.INSTANCE.Lower(@retryAfter), FfiConverterUInt64.INSTANCE.Lower(@sleptMs), FfiConverterUInt64.INSTANCE.Lower(@budgetMs), ref _status)
 ));
     }
 
@@ -16218,7 +16221,7 @@ internal static class HyperwhisperCoreMethods {
 
 
     /// <summary>
-    /// Default **total** wall-clock budget, in milliseconds, for one interactive
+    /// Default **cumulative backoff** budget, in milliseconds, for one interactive
     /// transcription attempt sequence. The default argument for the platform retry
     /// drivers' `budgetMs` parameter; `0` means unbounded.
     /// </summary>
