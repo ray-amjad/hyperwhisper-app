@@ -23,8 +23,21 @@ import { logSentEmail } from "@/src/lib/db-layer";
 
 export interface EmailResult {
   success: boolean;
-  data?: any;
+  /** The provider's raw success payload. Shape is Resend's, so it stays
+   * `unknown` and callers must narrow it rather than dot into it. */
+  data?: unknown;
   error?: string;
+}
+
+/**
+ * Read the provider message id off Resend's success payload, accepting it only
+ * when it really is a string. The payload comes from the SDK as `unknown`, so
+ * the shape is checked rather than asserted.
+ */
+function providerMessageIdOf(data: unknown): string | null {
+  if (typeof data !== "object" || data === null || !("id" in data)) return null;
+
+  return typeof data.id === "string" ? data.id : null;
 }
 
 /**
@@ -165,7 +178,10 @@ export class EmailService {
     subject: string,
     send: () => Promise<{ data: unknown; error: unknown }>,
   ): Promise<EmailResult> {
-    let lastError: Error | undefined;
+    // A `catch` binding is `unknown`: `throw` can carry any value, so the
+    // failure is kept as-is and its message is read behind an `instanceof`
+    // check instead of asserting it is an Error.
+    let lastError: unknown;
 
     for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
       try {
@@ -196,13 +212,13 @@ export class EmailService {
           recipient: customerEmail,
           emailType: kind,
           subject,
-          providerMessageId: (result.data as { id?: string })?.id ?? null,
+          providerMessageId: providerMessageIdOf(result.data),
           status: "sent",
         });
 
         return { success: true, data: result.data };
       } catch (error) {
-        lastError = error as Error;
+        lastError = error;
         console.error(
           `Failed to send ${kind} email (attempt ${attempt}):`,
           error,
@@ -224,18 +240,20 @@ export class EmailService {
       }
     }
 
+    const lastErrorMessage =
+      lastError instanceof Error ? lastError.message : null;
+
     await this.safeLogSentEmail({
       recipient: customerEmail,
       emailType: kind,
       subject,
       status: "failed",
-      errorMessage: lastError?.message ?? null,
+      errorMessage: lastErrorMessage,
     });
 
     return {
       success: false,
-      error:
-        lastError?.message || "Failed to send email after multiple attempts",
+      error: lastErrorMessage || "Failed to send email after multiple attempts",
     };
   }
 

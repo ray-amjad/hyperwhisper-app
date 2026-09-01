@@ -4,7 +4,9 @@ import "@/styles/globals.css";
 if (typeof window === "undefined") {
   const noop = () => {};
 
-  (global as any).localStorage = {
+  // Typed against the real `Storage` interface, so the polyfill cannot drift
+  // out of shape without a type error.
+  const storagePolyfill: Storage = {
     getItem: () => null,
     setItem: noop,
     removeItem: noop,
@@ -12,6 +14,9 @@ if (typeof window === "undefined") {
     key: () => null,
     length: 0,
   };
+
+  (globalThis as typeof globalThis & { localStorage: Storage }).localStorage =
+    storagePolyfill;
 }
 
 import { Viewport } from "next";

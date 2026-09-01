@@ -188,12 +188,12 @@ export default function LatencyMatrix({ matrices, defaultBucket }: Props) {
    */
   const rows = useMemo(() => {
     const scored = vendorRows.map((vendor) => {
-      const score = activeSortRegion
-        ? (vendor.cells.get(activeSortRegion)?.enough
-            ? vendor.cells.get(activeSortRegion)!.value
-            : null)
-        : globalValue(vendor.cells);
-      return { vendor, score };
+      if (!activeSortRegion) {
+        return { vendor, score: globalValue(vendor.cells) };
+      }
+      const cell = vendor.cells.get(activeSortRegion);
+
+      return { vendor, score: cell?.enough ? cell.value : null };
     });
 
     // Vendors with nothing to show sink to the bottom instead of sorting as 0.

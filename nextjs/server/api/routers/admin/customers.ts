@@ -37,7 +37,9 @@ import { emailService } from "@/lib/services/email";
 // production money-handling refund flow. New code in this router should use
 // the shared `stripe` client instead.
 const legacyStripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2025-02-24.acacia" as any,
+  // @ts-expect-error - the SDK's types only admit the API version it ships
+  // with; this flow stays pinned to the older one it was tested against.
+  apiVersion: "2025-02-24.acacia",
 });
 
 const MAX_ADMIN_CREDIT_GRANT = 1_000_000;
@@ -421,12 +423,23 @@ export const customersRouter = createTRPCRouter({
       const name = email.split("@")[0];
 
       // Generate a unique license key with collision check
-      let key: string;
+      let key: string | undefined;
       for (let i = 0; i < 5; i++) {
-        key = generateLicenseKey();
-        const existing = await findAccountByKey(key);
-        if (!existing) break;
+        const candidate = generateLicenseKey();
+        const existing = await findAccountByKey(candidate);
+        if (!existing) {
+          key = candidate;
+          break;
+        }
         if (i === 4) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to generate unique license key" });
+      }
+      // Unreachable: the loop either assigns `key` or throws on its last pass.
+      // Kept so `key` is a `string` below without a non-null assertion.
+      if (key === undefined) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to generate unique license key",
+        });
       }
 
       // Create or find the user
@@ -437,7 +450,7 @@ export const customersRouter = createTRPCRouter({
 
       // Insert the license key
       const license = await insertAccountKey({
-        key: key!,
+        key,
         email,
         userId: user.id,
         status: "granted",
@@ -458,12 +471,12 @@ export const customersRouter = createTRPCRouter({
       await emailService.sendLicenseKey({
         customerName: name,
         customerEmail: email,
-        licenseKey: key!,
+        licenseKey: key,
         productName: "HyperWhisper",
         supportEmail: "hi@support.hyperwhisper.com",
       });
 
-      return { email, licenseKey: key! };
+      return { email, licenseKey: key };
     }),
 
   /**
