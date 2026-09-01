@@ -8,6 +8,7 @@ import Testing
 @testable import HyperWhisper
 
 private enum FakeCredentialStoreError: Error {
+    case readFailed
     case writeFailed
     case deleteFailed
 }
@@ -19,9 +20,13 @@ private final class FakeLicenseCredentialStore: LicenseCredentialStore {
     var deletions: [LicenseCredentialDescriptor] = []
     var failWrites = false
     var failDeletes = false
+    var failReads = false
 
     func read(item: LicenseCredentialDescriptor) throws -> Data? {
         reads.append(item)
+        if failReads {
+            throw FakeCredentialStoreError.readFailed
+        }
         return storage[item]
     }
 
@@ -79,6 +84,7 @@ struct RustLicenseStoreSecurityTests {
             #expect(item.service == "com.hyperwhisper.app.license")
             #expect(item.accessibility == .whenUnlockedThisDeviceOnly)
             #expect(item.synchronizable == false)
+            #expect(item.usesDataProtectionKeychain)
         }
         #expect(LicenseKeychainStore.licenseStateItem.account == "license-state-v1")
         #expect(LicenseKeychainStore.migrationMarkerItem.account == "userdefaults-migration-v1")
@@ -134,6 +140,71 @@ struct RustLicenseStoreSecurityTests {
 
         #expect(visibleError is FakeCredentialStoreError)
         #expect(try store.readRecord() == prior)
+    }
+
+    @Test func explicitReplacementAndDeletionRecoverMalformedRecord() throws {
+        let credentials = FakeLicenseCredentialStore()
+        let store = LicenseKeychainStore(credentialStore: credentials)
+        credentials.storage[LicenseKeychainStore.licenseStateItem] = Data("future-format".utf8)
+
+        #expect(throws: DecodingError.self) {
+            _ = try store.readRecord()
+        }
+
+        try store.replaceRecord(with: LicenseKeychainRecord(key: "replacement"))
+        #expect(try store.readRecord()?.key == "replacement")
+
+        credentials.storage[LicenseKeychainStore.licenseStateItem] = Data("malformed".utf8)
+        try store.replaceRecord(with: nil)
+        #expect(try store.readRecord() == nil)
+    }
+
+    @Test func explicitServiceClearRecoversMalformedRecord() throws {
+        let defaults = makeDefaults()
+        let credentials = FakeLicenseCredentialStore()
+        let keychain = LicenseKeychainStore(credentialStore: credentials)
+        try keychain.writeMigrationMarker()
+        credentials.storage[LicenseKeychainStore.licenseStateItem] = Data("future-format".utf8)
+        let store = RustLicenseStore(defaults: defaults, licenseStore: keychain, seedUsage: false)
+
+        #expect(LicenseNetworkService(store: store).clearStoredLicense())
+        #expect(try keychain.readRecord() == nil)
+    }
+
+    @Test func successfulRecordReadIsCachedAcrossCoreFieldAccesses() throws {
+        let defaults = makeDefaults()
+        let credentials = FakeLicenseCredentialStore()
+        let keychain = LicenseKeychainStore(credentialStore: credentials)
+        try keychain.writeMigrationMarker()
+        try keychain.replaceRecord(with: LicenseKeychainRecord(
+            key: "key",
+            customerId: "customer",
+            lastValidation: "100",
+            cachedStatus: "Active"
+        ))
+        credentials.reads.removeAll()
+        let store = RustLicenseStore(defaults: defaults, licenseStore: keychain, seedUsage: false)
+        credentials.reads.removeAll()
+
+        #expect(store.get(key: RustLicenseStore.kLicenseKey) == "key")
+        #expect(store.get(key: RustLicenseStore.kLicenseCustomerId) == "customer")
+        #expect(store.get(key: RustLicenseStore.kLicenseLastValidation) == "100")
+        #expect(store.get(key: RustLicenseStore.kLicenseCachedStatus) == "Active")
+        #expect(credentials.reads == [LicenseKeychainStore.licenseStateItem])
+    }
+
+    @Test func failedReadIsDistinctAndCanRecoverInSession() throws {
+        let defaults = makeDefaults()
+        let credentials = FakeLicenseCredentialStore()
+        let keychain = LicenseKeychainStore(credentialStore: credentials)
+        try keychain.writeMigrationMarker()
+        try keychain.replaceRecord(with: LicenseKeychainRecord(key: "secure-key"))
+        let store = RustLicenseStore(defaults: defaults, licenseStore: keychain, seedUsage: false)
+
+        credentials.failReads = true
+        #expect(store.readStoredLicenseKey() == .unavailable)
+        credentials.failReads = false
+        #expect(store.readStoredLicenseKey(retryAfterFailure: true) == .present("secure-key"))
     }
 
     @Test func migratesOnlyTrimmedLegacyKeyAndDeletesAllPlaintextFields() throws {
@@ -387,6 +458,9 @@ private final class BackupLicenseNetworkSpy: LicenseNetworkServing {
     func shouldRevalidateLicense() -> Bool { false }
     func getCachedLicenseStatus() -> LicenseStatus? { nil }
     func getStoredLicenseKey() -> String? { storedKey }
+    func readStoredLicenseKey(retryAfterFailure: Bool) -> RustLicenseStore.StoredLicenseKeyRead {
+        storedKey.map(RustLicenseStore.StoredLicenseKeyRead.present) ?? .missing
+    }
     func clearStoredLicense() -> Bool { clearSucceeds }
 
     func replaceStoredLicenseKeyForImport(_ licenseKey: String) -> Bool {

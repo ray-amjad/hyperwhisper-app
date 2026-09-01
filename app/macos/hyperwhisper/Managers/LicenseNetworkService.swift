@@ -51,6 +51,7 @@ protocol LicenseNetworkServing {
     func shouldRevalidateLicense() -> Bool
     func getCachedLicenseStatus() -> LicenseStatus?
     func getStoredLicenseKey() -> String?
+    func readStoredLicenseKey(retryAfterFailure: Bool) -> RustLicenseStore.StoredLicenseKeyRead
     func clearStoredLicense() -> Bool
     func replaceStoredLicenseKeyForImport(_ licenseKey: String) -> Bool
 }
@@ -537,7 +538,16 @@ class LicenseNetworkService: LicenseNetworkServing {
 
     /// Gets stored license key (nil for empty/whitespace). Delegates to the core.
     func getStoredLicenseKey() -> String? {
-        return licenseStoredLicenseKey(store: store)
+        guard case .present(let key) = readStoredLicenseKey(retryAfterFailure: false) else {
+            return nil
+        }
+        return key
+    }
+
+    func readStoredLicenseKey(
+        retryAfterFailure: Bool = false
+    ) -> RustLicenseStore.StoredLicenseKeyRead {
+        store.readStoredLicenseKey(retryAfterFailure: retryAfterFailure)
     }
 
     // MARK: - License Data Management
@@ -547,9 +557,7 @@ class LicenseNetworkService: LicenseNetworkServing {
     /// remote-override config untouched).
     @discardableResult
     func clearStoredLicense() -> Bool {
-        store.performLicenseTransaction {
-            licenseClearStoredLicense(store: store)
-        }
+        store.clearLicenseRecord()
     }
 
     /// Atomically installs a backup key without carrying over the prior key's

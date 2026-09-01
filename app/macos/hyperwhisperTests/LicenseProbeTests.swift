@@ -90,6 +90,7 @@ private final class LicenseNetworkSpy: LicenseNetworkServing {
     func shouldRevalidateLicense() -> Bool { false }
     func getCachedLicenseStatus() -> LicenseStatus? { nil }
     func getStoredLicenseKey() -> String? { nil }
+    func readStoredLicenseKey(retryAfterFailure: Bool) -> RustLicenseStore.StoredLicenseKeyRead { .missing }
     func clearStoredLicense() -> Bool { true }
     func replaceStoredLicenseKeyForImport(_ licenseKey: String) -> Bool { true }
 }

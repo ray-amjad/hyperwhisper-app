@@ -42,6 +42,12 @@ import Foundation
 /// `LicenseManager` and passed to every `license_*` call.
 final class RustLicenseStore: KeyValueStore {
 
+    enum StoredLicenseKeyRead: Equatable {
+        case present(String)
+        case missing
+        case unavailable
+    }
+
     // MARK: - Backing store
 
     private let defaults: UserDefaults
@@ -49,6 +55,14 @@ final class RustLicenseStore: KeyValueStore {
     private let transactionLock = NSRecursiveLock()
     private var transactionRecord: LicenseKeychainRecord?
     private var isLicenseTransactionActive = false
+    private var cachedLicenseRecord: LicenseKeychainRecord?
+    private var licenseRecordCacheState: LicenseRecordCacheState = .unloaded
+
+    private enum LicenseRecordCacheState {
+        case unloaded
+        case available
+        case unavailable
+    }
 
     /// Guards the one-shot Core Data → UserDefaults usage seed.
     private static let seedFlagKey = "didSeedUsageToKeyValueStoreV1"
@@ -182,14 +196,8 @@ final class RustLicenseStore: KeyValueStore {
                 if isLicenseTransactionActive {
                     return field.value(in: transactionRecord)
                 }
-                do {
-                    return field.value(in: try licenseStore.readRecord())
-                } catch {
-                    AppLogger.network.error(
-                        "License Keychain read failed: \(error.localizedDescription, privacy: .public)"
-                    )
-                    return nil
-                }
+                guard loadLicenseRecordIfNeeded() else { return nil }
+                return field.value(in: cachedLicenseRecord)
             }
         }
 
@@ -233,14 +241,8 @@ final class RustLicenseStore: KeyValueStore {
                 return true
             }
 
-            do {
-                transactionRecord = try licenseStore.readRecord()
-            } catch {
-                AppLogger.network.error(
-                    "License Keychain transaction read failed: \(error.localizedDescription, privacy: .public)"
-                )
-                return false
-            }
+            guard loadLicenseRecordIfNeeded() else { return false }
+            transactionRecord = cachedLicenseRecord
 
             isLicenseTransactionActive = true
             operation()
@@ -252,6 +254,8 @@ final class RustLicenseStore: KeyValueStore {
 
             do {
                 try licenseStore.replaceRecord(with: transactionRecord)
+                cachedLicenseRecord = transactionRecord
+                licenseRecordCacheState = .available
                 return true
             } catch {
                 AppLogger.network.error(
@@ -271,11 +275,34 @@ final class RustLicenseStore: KeyValueStore {
 
         return withTransactionLock {
             do {
-                try licenseStore.replaceRecord(with: LicenseKeychainRecord(key: trimmed))
+                let replacement = LicenseKeychainRecord(key: trimmed)
+                try licenseStore.replaceRecord(with: replacement)
+                cachedLicenseRecord = replacement
+                licenseRecordCacheState = .available
                 return true
             } catch {
                 AppLogger.network.error(
                     "Imported license Keychain write failed: \(error.localizedDescription, privacy: .public)"
+                )
+                return false
+            }
+        }
+    }
+
+    /// Deletes the complete secure record without decoding it first. Explicit
+    /// deactivation must remain possible when stored data is malformed or from
+    /// a newer record format.
+    @discardableResult
+    func clearLicenseRecord() -> Bool {
+        withTransactionLock {
+            do {
+                try licenseStore.replaceRecord(with: nil)
+                cachedLicenseRecord = nil
+                licenseRecordCacheState = .available
+                return true
+            } catch {
+                AppLogger.network.error(
+                    "License Keychain delete failed: \(error.localizedDescription, privacy: .public)"
                 )
                 return false
             }
@@ -289,17 +316,60 @@ final class RustLicenseStore: KeyValueStore {
                 return
             }
 
+            guard loadLicenseRecordIfNeeded() else { return }
+            var replacement = cachedLicenseRecord
+            field.set(value, in: &replacement)
+            if replacement?.isEmpty == true {
+                replacement = nil
+            }
+
             do {
-                try licenseStore.mutateRecord { record in
-                    field.set(value, in: &record)
-                    if record?.isEmpty == true {
-                        record = nil
-                    }
-                }
+                try licenseStore.replaceRecord(with: replacement)
+                cachedLicenseRecord = replacement
+                licenseRecordCacheState = .available
             } catch {
                 AppLogger.network.error(
                     "License Keychain update failed: \(error.localizedDescription, privacy: .public)"
                 )
+            }
+        }
+    }
+
+    /// Returns a secure key read without collapsing a Keychain error into
+    /// ordinary missing state. A caller can request a fresh read after an
+    /// earlier failure, while successful reads stay cached for the session.
+    func readStoredLicenseKey(retryAfterFailure: Bool = false) -> StoredLicenseKeyRead {
+        withTransactionLock {
+            if retryAfterFailure, licenseRecordCacheState == .unavailable {
+                licenseRecordCacheState = .unloaded
+            }
+            guard loadLicenseRecordIfNeeded() else { return .unavailable }
+            guard let key = cachedLicenseRecord?.key?
+                .trimmingCharacters(in: .whitespacesAndNewlines),
+                  !key.isEmpty else {
+                return .missing
+            }
+            return .present(key)
+        }
+    }
+
+    private func loadLicenseRecordIfNeeded() -> Bool {
+        switch licenseRecordCacheState {
+        case .available:
+            return true
+        case .unavailable:
+            return false
+        case .unloaded:
+            do {
+                cachedLicenseRecord = try licenseStore.readRecord()
+                licenseRecordCacheState = .available
+                return true
+            } catch {
+                licenseRecordCacheState = .unavailable
+                AppLogger.network.error(
+                    "License Keychain read failed: \(error.localizedDescription, privacy: .public)"
+                )
+                return false
             }
         }
     }

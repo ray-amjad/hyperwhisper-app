@@ -67,6 +67,7 @@ class LicenseManager: ObservableObject {
     /// them. HYPERWHISPER-F4 (review round 2).
     private var networkFailureRetryTask: Task<Void, Never>?
     private var networkFailureRetryID: UUID?
+    private var licenseStorageRetryTask: Task<Void, Never>?
 
     // MARK: - Initialization
 
@@ -164,10 +165,19 @@ class LicenseManager: ObservableObject {
     /// scheduled — see `scheduleRetrySoonAfterNetworkFallback`. HYPERWHISPER-F4
     /// (review round 2).
     func loadStoredLicense() async {
-        guard let storedKey = networkService.getStoredLicenseKey() else {
+        let keyRead = networkService.readStoredLicenseKey(retryAfterFailure: true)
+        guard case .present(let storedKey) = keyRead else {
+            if keyRead == .unavailable {
+                scheduleLicenseStorageRetry()
+                return
+            }
+            licenseStorageRetryTask?.cancel()
+            licenseStorageRetryTask = nil
             licenseStatus = .trial
             return
         }
+        licenseStorageRetryTask?.cancel()
+        licenseStorageRetryTask = nil
 
         if networkService.shouldRevalidateLicense() {
             // Publish the still-usable cached verdict before awaiting the live
@@ -285,6 +295,32 @@ class LicenseManager: ObservableObject {
         networkFailureRetryID = nil
         networkFailureRetryTask?.cancel()
         networkFailureRetryTask = nil
+    }
+
+    /// Retries an unavailable Keychain read during this app session. This keeps
+    /// a temporary locked-Keychain or service failure distinct from no license.
+    private func scheduleLicenseStorageRetry() {
+        guard licenseStorageRetryTask == nil else { return }
+        licenseStorageRetryTask = Task { [weak self] in
+            for delay in [1, 2, 4, 8, 16] as [UInt64] {
+                try? await Task.sleep(nanoseconds: delay * 1_000_000_000)
+                guard let self, !Task.isCancelled else { return }
+                let read = self.networkService.readStoredLicenseKey(retryAfterFailure: true)
+                switch read {
+                case .present:
+                    self.licenseStorageRetryTask = nil
+                    await self.loadStoredLicense()
+                    return
+                case .missing:
+                    self.licenseStorageRetryTask = nil
+                    self.licenseStatus = .trial
+                    return
+                case .unavailable:
+                    continue
+                }
+            }
+            self?.licenseStorageRetryTask = nil
+        }
     }
 
     /// Updates UI state from validation result and posts notification.

@@ -23,6 +23,7 @@ struct LicenseCredentialDescriptor: Hashable, Sendable {
     let account: String
     let accessibility: Accessibility
     let synchronizable: Bool
+    let usesDataProtectionKeychain: Bool
     let label: String
 }
 
@@ -105,6 +106,7 @@ final class SecurityLicenseCredentialStore: LicenseCredentialStore {
             kSecAttrService as String: item.service,
             kSecAttrAccount as String: item.account,
             kSecAttrSynchronizable as String: item.synchronizable,
+            kSecUseDataProtectionKeychain as String: item.usesDataProtectionKeychain,
         ]
     }
 
@@ -158,6 +160,7 @@ final class LicenseKeychainStore: @unchecked Sendable {
         account: "license-state-v1",
         accessibility: .whenUnlockedThisDeviceOnly,
         synchronizable: false,
+        usesDataProtectionKeychain: true,
         label: "HyperWhisper license state"
     )
 
@@ -167,6 +170,7 @@ final class LicenseKeychainStore: @unchecked Sendable {
         account: "userdefaults-migration-v1",
         accessibility: .whenUnlockedThisDeviceOnly,
         synchronizable: false,
+        usesDataProtectionKeychain: true,
         label: "HyperWhisper license migration marker"
     )
 
@@ -193,8 +197,13 @@ final class LicenseKeychainStore: @unchecked Sendable {
 
     /// Replaces or deletes the full record in one serialized operation.
     func replaceRecord(with record: LicenseKeychainRecord?) throws {
-        try mutateRecord { current in
-            current = record
+        try withLock {
+            if let record {
+                let data = try encoder.encode(record)
+                try credentialStore.write(data, item: Self.licenseStateItem)
+            } else {
+                try credentialStore.delete(item: Self.licenseStateItem)
+            }
         }
     }
 
