@@ -43,6 +43,25 @@ function errorResponse(status: number, text = 'upstream said no') {
   return () => called;
 }
 
+/**
+ * Swaps `console.log` for the duration of `run` and returns the details object of
+ * the `provider.no_speech` event it logged. Same swap-the-global idiom as
+ * `utils.test.ts` — no spy library is used anywhere in this suite.
+ */
+async function captureNoSpeechEvent(run: () => Promise<unknown>): Promise<Record<string, unknown>> {
+  const logged: unknown[][] = [];
+  const originalLog = console.log;
+  console.log = ((...args: unknown[]) => { logged.push(args); }) as typeof console.log;
+  try {
+    await run();
+  } finally {
+    console.log = originalLog;
+  }
+  const event = logged.find((args) => args[0] === 'provider.no_speech');
+  if (!event) throw new Error('no provider.no_speech event was logged');
+  return event[1] as Record<string, unknown>;
+}
+
 describe('transcribeWithGroq — multipart request shape', () => {
   test('throws a plain Error (not a fallback signal) when GROQ_API_KEY is missing', async () => {
     delete process.env.GROQ_API_KEY;
@@ -181,5 +200,15 @@ describe('transcribeWithGroq — transcript, duration and billing', () => {
       expect(result.costUsd).toBe(0);
       expect(result.language).toBe('en');
     }
+  });
+
+  test('the no_speech log event records the upstream duration, and null when there is none', async () => {
+    captureRequest({ text: '', language: 'en', duration: 30 });
+    const reported = await captureNoSpeechEvent(() => transcribeWithGroq(audio(), 'audio/wav'));
+    expect(reported.upstreamDurationSeconds).toBe(30);
+
+    captureRequest({ text: '', language: 'en' });
+    const missing = await captureNoSpeechEvent(() => transcribeWithGroq(audio(), 'audio/wav'));
+    expect(missing.upstreamDurationSeconds).toBeNull();
   });
 });

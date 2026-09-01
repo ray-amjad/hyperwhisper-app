@@ -104,6 +104,7 @@ export async function transcribeWithGroq(
     logProviderEvent(provider, 'no_speech', {
       elapsedMs: Math.round(performance.now() - startTime),
       language: data.language,
+      upstreamDurationSeconds: duration > 0 ? duration : null,
     }, context);
     return {
       text: '',

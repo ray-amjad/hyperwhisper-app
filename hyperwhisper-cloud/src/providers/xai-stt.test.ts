@@ -42,6 +42,25 @@ function errorResponse(status: number, text = 'upstream said no') {
   globalThis.fetch = mock(async () => new Response(text, { status })) as unknown as typeof fetch;
 }
 
+/**
+ * Swaps `console.log` for the duration of `run` and returns the details object of
+ * the `provider.no_speech` event it logged. Same swap-the-global idiom as
+ * `utils.test.ts` — no spy library is used anywhere in this suite.
+ */
+async function captureNoSpeechEvent(run: () => Promise<unknown>): Promise<Record<string, unknown>> {
+  const logged: unknown[][] = [];
+  const originalLog = console.log;
+  console.log = ((...args: unknown[]) => { logged.push(args); }) as typeof console.log;
+  try {
+    await run();
+  } finally {
+    console.log = originalLog;
+  }
+  const event = logged.find((args) => args[0] === 'provider.no_speech');
+  if (!event) throw new Error('no provider.no_speech event was logged');
+  return event[1] as Record<string, unknown>;
+}
+
 describe('transcribeWithXaiGrok — credentials', () => {
   test('a missing key fails over rather than throwing a plain Error', async () => {
     delete process.env.XAI_API_KEY;
@@ -231,5 +250,16 @@ describe('transcribeWithXaiGrok — transcript, duration and billing', () => {
       expect(result.language).toBe('ja');
       expect(result.requestId).toBe('req-empty');
     }
+  });
+
+  test('the no_speech log event records the upstream duration, and null when there is none', async () => {
+    // The incident shape from issue #381: 22.2 s of audio, no text.
+    captureRequest({ text: '', duration: 22.2, request_id: 'req-empty' });
+    const reported = await captureNoSpeechEvent(() => transcribeWithXaiGrok(audio(), 'audio/mp3', 'en'));
+    expect(reported.upstreamDurationSeconds).toBe(22.2);
+
+    captureRequest({ text: '', request_id: 'req-empty' });
+    const missing = await captureNoSpeechEvent(() => transcribeWithXaiGrok(audio(), 'audio/mp3', 'en'));
+    expect(missing.upstreamDurationSeconds).toBeNull();
   });
 });

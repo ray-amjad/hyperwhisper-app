@@ -130,6 +130,7 @@ export async function transcribeWithMistral(
   if (!transcript || transcript.trim().length === 0) {
     logProviderEvent(provider, 'no_speech', {
       model, elapsedMs: Math.round(performance.now() - startedAt), language: data.language,
+      upstreamDurationSeconds: rawDurationSeconds > 0 ? rawDurationSeconds : null,
     }, context);
     return { text: '', language: data.language, durationSeconds: 0, costUsd: 0, source: 'no_speech' };
   }

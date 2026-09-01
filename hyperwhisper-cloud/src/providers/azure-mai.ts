@@ -214,6 +214,7 @@ export async function transcribeWithAzureMai(
     logProviderEvent(provider, 'no_speech', {
       elapsedMs: Math.round(performance.now() - startedAt),
       detectedLanguage,
+      upstreamDurationSeconds: durationSeconds > 0 ? durationSeconds : null,
     }, context);
     return {
       text: '',

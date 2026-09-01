@@ -169,6 +169,7 @@ export async function transcribeWithDeepgram(
     logProviderEvent(provider, 'no_speech', {
       elapsedMs: Math.round(performance.now() - startedAt),
       detectedLanguage: channel?.detected_language,
+      upstreamDurationSeconds: duration > 0 ? duration : null,
     }, context);
     return {
       text: '',

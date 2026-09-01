@@ -34,6 +34,25 @@ function mockFetchOnce(handler: (url: string, init?: RequestInit) => Response | 
   };
 }
 
+/**
+ * Swaps `console.log` for the duration of `run` and returns the details object of
+ * the `provider.no_speech` event it logged. Same swap-the-global idiom as
+ * `utils.test.ts` — no spy library is used anywhere in this suite.
+ */
+async function captureNoSpeechEvent(run: () => Promise<unknown>): Promise<Record<string, unknown>> {
+  const logged: unknown[][] = [];
+  const originalLog = console.log;
+  console.log = ((...args: unknown[]) => { logged.push(args); }) as typeof console.log;
+  try {
+    await run();
+  } finally {
+    console.log = originalLog;
+  }
+  const event = logged.find((args) => args[0] === 'provider.no_speech');
+  if (!event) throw new Error('no provider.no_speech event was logged');
+  return event[1] as Record<string, unknown>;
+}
+
 describe('transcribeWithDeepgram — configuration', () => {
   test('throws a plain Error when DEEPGRAM_API_KEY is not configured, without calling fetch', async () => {
     delete process.env.DEEPGRAM_API_KEY;
@@ -180,6 +199,19 @@ describe('transcribeWithDeepgram — successful response handling', () => {
     expect(result.durationSeconds).toBe(0);
     expect(result.language).toBe('en');
     expect(result.requestId).toBe('req-empty');
+  });
+
+  test('the no_speech log event records the upstream duration, and null when there is none', async () => {
+    mockFetchOnce(() => jsonResponse({
+      results: { channels: [{ alternatives: [{ transcript: '   ' }] }] },
+      metadata: { duration: 45 },
+    }));
+    const reported = await captureNoSpeechEvent(() => transcribeWithDeepgram(AUDIO, 'audio/wav', 'en-US'));
+    expect(reported.upstreamDurationSeconds).toBe(45);
+
+    mockFetchOnce(() => jsonResponse({ results: { channels: [{ alternatives: [{ transcript: '' }] }] } }));
+    const missing = await captureNoSpeechEvent(() => transcribeWithDeepgram(AUDIO, 'audio/wav', 'en-US'));
+    expect(missing.upstreamDurationSeconds).toBeNull();
   });
 
   test('a response missing results/channels entirely is treated as no_speech, not a crash', async () => {

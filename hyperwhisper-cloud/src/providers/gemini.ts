@@ -112,6 +112,26 @@ export function resolveAudioInputTokens(
   audioByteLength: number,
   promptTextTokens: number = 0,
 ): number {
+  const upstreamTokens = resolveUpstreamAudioInputTokens(usage, promptTextTokens);
+  if (upstreamTokens !== null) {
+    return upstreamTokens;
+  }
+
+  // Last resort (tier 4): no usage total at all — estimate audio seconds from payload size.
+  const estimatedSeconds = (audioByteLength / BYTES_PER_MINUTE_ESTIMATE) * 60;
+  return Math.round(estimatedSeconds * AUDIO_TOKENS_PER_SECOND);
+}
+
+/**
+ * Tiers 1-3 of `resolveAudioInputTokens` only — the audio-token count Gemini's own
+ * `usageMetadata` supports, or `null` when the response carries no trustworthy
+ * signal. Never falls back to the byte estimate, so a caller (telemetry) can tell
+ * the upstream's number apart from our guess.
+ */
+export function resolveUpstreamAudioInputTokens(
+  usage: GeminiUsageMetadata | undefined,
+  promptTextTokens: number = 0,
+): number | null {
   const details = usage?.promptTokensDetails;
   const audioDetail = details?.find((d) => d.modality === 'AUDIO');
   if (audioDetail && typeof audioDetail.tokenCount === 'number') {
@@ -147,9 +167,7 @@ export function resolveAudioInputTokens(
     }
   }
 
-  // Last resort: no usage total at all — estimate audio seconds from payload size.
-  const estimatedSeconds = (audioByteLength / BYTES_PER_MINUTE_ESTIMATE) * 60;
-  return Math.round(estimatedSeconds * AUDIO_TOKENS_PER_SECOND);
+  return null;
 }
 
 // Rough English-text token estimate (~4 chars/token) for the instruction+vocab
@@ -238,7 +256,11 @@ export async function transcribeWithGemini(
     .trim();
 
   const usage = data.usageMetadata;
-  const audioInputTokens = resolveAudioInputTokens(usage, audio.byteLength, estimatePromptTextTokens(promptText));
+  const promptTextTokens = estimatePromptTextTokens(promptText);
+  const audioInputTokens = resolveAudioInputTokens(usage, audio.byteLength, promptTextTokens);
+  // Same value, minus the byte-estimate last resort: `null` when Gemini reported
+  // no usable usage, so telemetry never records our guess as the upstream's.
+  const upstreamAudioTokens = resolveUpstreamAudioInputTokens(usage, promptTextTokens);
   // The non-audio remainder of the documented prompt total is the text we sent
   // (instruction + vocab). Bill it at the text-input rate — not the audio rate,
   // and not $0. audio + text always sums to promptTokenCount, so there's no
@@ -254,6 +276,9 @@ export async function transcribeWithGemini(
   if (!transcript || transcript.length === 0) {
     logProviderEvent(provider, 'no_speech', {
       model, elapsedMs: Math.round(performance.now() - startedAt),
+      upstreamDurationSeconds: upstreamAudioTokens !== null && upstreamAudioTokens > 0
+        ? upstreamAudioTokens / AUDIO_TOKENS_PER_SECOND
+        : null,
     }, context);
     return { text: '', language, durationSeconds: 0, costUsd: 0, source: 'no_speech' };
   }
