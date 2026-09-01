@@ -645,6 +645,20 @@ extension RecordingTranscriptionFlow {
             )
         }
 
+        // Clear a previous outage only after the provider produces a transcript
+        // or completes the session. A socket open/start acknowledgement is not
+        // enough evidence because the first audio request can still fail.
+        service.onProviderSuccess = { [weak self] in
+            guard let self,
+                  let streamingHealthProvider,
+                  let streamingCredentialGeneration else { return }
+            self.providerHealthManager?.recordTranscriptionOutcome(
+                for: streamingHealthProvider,
+                credentialGeneration: streamingCredentialGeneration,
+                error: nil
+            )
+        }
+
         // ON ERROR:
         // Handle streaming errors - show alert and cleanup
         service.onError = { [weak self] error in

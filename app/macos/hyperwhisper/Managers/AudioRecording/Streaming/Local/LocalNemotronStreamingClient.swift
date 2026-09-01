@@ -21,6 +21,7 @@ final class LocalNemotronStreamingClient: NSObject, ObservableObject, StreamingC
     var onSessionComplete: ((Double, Double) -> Void)?
     var onError: ((Error) -> Void)?
     var onDefinitiveProviderFailure: ((Error) -> Void)?
+    var onProviderSuccess: (() -> Void)?
     var onConnectionStateChange: ((StreamingConnectionState) -> Void)?
     var onAudioLevel: ((Float) -> Void)?
 

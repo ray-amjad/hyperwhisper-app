@@ -18,6 +18,28 @@ import Testing
 
 struct StreamingProviderErrorPolicyTests {
 
+    @Test func onlyUsefulProviderEventsClearAStreamingFailure() {
+        let useful: [StreamingProviderEvent] = [
+            .partialTranscript(text: "hel"),
+            .finalTranscript(text: "hello"),
+            .finalTranscriptAndSessionComplete(text: "hello", durationSeconds: 1, creditsUsed: 1),
+            .sessionComplete(durationSeconds: 1, creditsUsed: 1)
+        ]
+        for event in useful {
+            #expect(StreamingProviderErrorPolicy.isUsefulProviderSuccessEvent(event))
+        }
+
+        let insufficient: [StreamingProviderEvent] = [
+            .sessionStarted(sessionId: "session"),
+            .metadata(raw: "{\"request_id\":\"x\"}"),
+            .warning(message: "provider warning"),
+            .error(message: "provider error")
+        ]
+        for event in insufficient {
+            #expect(!StreamingProviderErrorPolicy.isUsefulProviderSuccessEvent(event))
+        }
+    }
+
     // MARK: - Terminal
 
     @Test func noCreditsRemainingIsTerminal() {

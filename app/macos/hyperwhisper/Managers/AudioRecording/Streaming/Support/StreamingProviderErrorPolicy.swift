@@ -81,6 +81,21 @@ import Foundation
 ///   matches a terminal marker, which is what has to stay true.
 enum StreamingProviderErrorPolicy {
 
+    /// Strong success evidence from a live provider. A session-start event only
+    /// proves that a socket opened and setup was acknowledged; it can arrive
+    /// before the first audio is processed, so it must not clear a failure.
+    static func isUsefulProviderSuccessEvent(_ event: StreamingProviderEvent) -> Bool {
+        switch event {
+        case .finalTranscript,
+             .finalTranscriptAndSessionComplete,
+             .partialTranscript,
+             .sessionComplete:
+            return true
+        case .sessionStarted, .error, .warning, .metadata:
+            return false
+        }
+    }
+
     /// The outcome of classifying a provider error message.
     enum Outcome: Equatable {
         /// Reconnecting cannot help — the account, key, quota or permission is

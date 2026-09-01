@@ -115,6 +115,10 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
     /// Unlike `onError`, this does not imply that retries or teardown finished.
     var onDefinitiveProviderFailure: ((Error) -> Void)?
 
+    /// Called after useful provider work: a transcript or a completed session.
+    /// A socket opening or session-start acknowledgement alone does not count.
+    var onProviderSuccess: (() -> Void)?
+
     /// Called when the server sends a warning (e.g., session approaching max duration).
     var onWarning: ((String) -> Void)?
 
@@ -306,6 +310,7 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
     /// and "Reconnect success" crumbs below never leave the machine. Scope
     /// extras do, so the path taken is published there instead.
     private var stage = "idle"
+    private var didReportProviderSuccess = false
 
     // MARK: - Initialization
 
@@ -358,6 +363,7 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         lastError = nil
         didInitiateClose = false
         didHandleTerminalProviderError = false
+        didReportProviderSuccess = false
         pendingStartupFailure = nil
         reconnectCount = 0
         connectionEstablishedAt = Date()
@@ -1083,7 +1089,16 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
     /// retry and teardown behavior unchanged. Repeated 5xx responses are fresh
     /// evidence and deliberately refresh the override window.
     private func reportDefinitiveProviderFailure(_ error: Error) {
+        // A later useful event from a recovered stream must be able to clear
+        // this failure, even if the session had produced text before it failed.
+        didReportProviderSuccess = false
         onDefinitiveProviderFailure?(error)
+    }
+
+    private func reportProviderSuccess() {
+        guard !didReportProviderSuccess else { return }
+        didReportProviderSuccess = true
+        onProviderSuccess?()
     }
 
     /// The specific upgrade failure the current socket's response names, or
@@ -1263,6 +1278,10 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         guard let event = strategy.parseMessage(jsonString) else {
             logger.debug("Unhandled message from provider")
             return
+        }
+
+        if StreamingProviderErrorPolicy.isUsefulProviderSuccessEvent(event) {
+            reportProviderSuccess()
         }
 
         switch event {
