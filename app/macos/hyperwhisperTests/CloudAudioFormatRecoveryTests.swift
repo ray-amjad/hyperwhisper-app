@@ -30,18 +30,16 @@ struct CloudAudioFormatRecoveryTests {
 
     // MARK: - Eligibility
 
-    @Test func eligibilityRequiresA415OnANonWavFile() {
+    @Test func eligibilityRequiresA415AndIncludesNoncanonicalWavFiles() {
         #expect(CloudAudioFormatRecovery.shouldReencodeToWAV(
             after: Self.unsupportedFormat,
             sourceURL: Self.m4aSource
         ))
-        // Already a WAV — re-encoding would be pointless, and refusing here is
-        // what makes a retry loop structurally impossible.
-        #expect(!CloudAudioFormatRecovery.shouldReencodeToWAV(
+        #expect(CloudAudioFormatRecovery.shouldReencodeToWAV(
             after: Self.unsupportedFormat,
             sourceURL: Self.wavSource
         ))
-        #expect(!CloudAudioFormatRecovery.shouldReencodeToWAV(
+        #expect(CloudAudioFormatRecovery.shouldReencodeToWAV(
             after: Self.unsupportedFormat,
             sourceURL: URL(fileURLWithPath: "/tmp/hw-tests/RECORDING.WAV")
         ))
@@ -321,6 +319,36 @@ struct CloudAudioFormatRecoveryTests {
         #expect(recorder.removals == ["hw-reencode-test.wav"])
     }
 
+    @Test func metaMuseUsesIts32MbPostConversionCap() async {
+        let recorder = FormatRecoveryRecorder()
+        do {
+            _ = try await CloudAudioFormatRecovery.withUnsupportedFormatRecovery(
+                sourceURL: Self.m4aSource,
+                maximumReencodedBytes: CloudAudioFormatRecovery.metaMuseMaxReencodedUploadBytes,
+                reencode: { source, destination in
+                    recorder.recordReencode(source: source, destination: destination)
+                },
+                makeTempURL: { recorder.recordTempReservation(Self.tempWAV) },
+                fileSize: { _ in CloudAudioFormatRecovery.metaMuseMaxReencodedUploadBytes + 1 },
+                removeItem: { recorder.recordRemoval($0) },
+                send: { (uploadURL: URL, contentType: String?) async throws -> String in
+                    _ = recorder.recordUpload(url: uploadURL, contentType: contentType)
+                    throw Self.unsupportedFormat
+                }
+            )
+            Issue.record("Expected the original 415")
+        } catch let error as TranscriptionError {
+            guard case .serverError(let status, _) = error, status == 415 else {
+                Issue.record("Expected serverError(415), got \(error)")
+                return
+            }
+        } catch {
+            Issue.record("Expected TranscriptionError.serverError(415), got \(error)")
+        }
+        #expect(recorder.uploads.count == 1)
+        #expect(recorder.reencodes.count == 1)
+    }
+
     @Test func anUnreadableReencodePreservesTheOriginal415() async {
         let recorder = FormatRecoveryRecorder()
 
@@ -548,6 +576,7 @@ struct CloudAudioFormatRecoveryTests {
         #expect(CloudAudioFormatRecovery.wavContentType == "audio/wav")
         // Mirrors AZURE_MAI_MAX_BYTES (300 MB) on the server.
         #expect(CloudAudioFormatRecovery.maxReencodedUploadBytes == 300 * 1024 * 1024)
+        #expect(CloudAudioFormatRecovery.metaMuseMaxReencodedUploadBytes == 32 * 1024 * 1024)
     }
 
     // MARK: - Helpers

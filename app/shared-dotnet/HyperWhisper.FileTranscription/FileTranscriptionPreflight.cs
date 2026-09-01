@@ -161,12 +161,14 @@ public sealed class PortableFileTranscriptionPreflight
                 (duration <= TimeSpan.Zero || double.IsNaN(duration.TotalSeconds) || double.IsInfinity(duration.TotalSeconds)))
                 return Failure(FileTranscriptionPreflightError.DurationInvalid, "file_preflight.duration_invalid",
                     "The audio duration is invalid.");
-            if (!requiresNormalization && resolved.Constraints.MaximumDuration is { } maximumDuration)
+            // Conversion changes encoding and byte size, never duration. Reject a
+            // known overlength Muse source before paying the conversion cost.
+            if (resolved.Constraints.MaximumDuration is { } maximumDuration)
             {
-                if (metadata.Duration is null) return Failure(
+                if (metadata.Duration is null && !requiresNormalization) return Failure(
                     FileTranscriptionPreflightError.DurationUnavailable, "file_preflight.duration_unavailable",
                     "The audio duration could not be established for this provider.");
-                if (metadata.Duration > maximumDuration) return Failure(
+                if (metadata.Duration is { } knownDuration && knownDuration > maximumDuration) return Failure(
                     FileTranscriptionPreflightError.DurationTooLong, "file_preflight.duration_too_long",
                     "The audio exceeds the selected provider's duration limit.");
             }

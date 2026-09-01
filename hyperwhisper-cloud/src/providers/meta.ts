@@ -164,11 +164,10 @@ export async function transcribeWithMeta(
   const provider = 'meta';
   const model = context.model || META_MODEL;
 
+  const wav = parseMetaWav(audio, contentType);
   if (audio.byteLength > META_MUSE_MAX_BYTES) {
     throw new AudioTooLargeError('Meta Muse', audio.byteLength, META_MUSE_MAX_BYTES);
   }
-
-  const wav = parseMetaWav(audio, contentType);
   const apiKey = process.env.META_MODEL_API_KEY;
   if (!apiKey) throw new Error('META_MODEL_API_KEY not configured');
 

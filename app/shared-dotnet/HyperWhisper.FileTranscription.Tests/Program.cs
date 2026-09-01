@@ -130,6 +130,12 @@ static async Task MetaMuseNormalization()
             $"Meta Muse did not request conversion for {Path.GetExtension(file)}");
     }
 
+    var overlength = await Service(new FakeMetadata
+    {
+        Value = new(40L * ByteSizes.MiB, TimeSpan.FromMinutes(10) + TimeSpan.FromMilliseconds(1)),
+    }, account: true).ValidateAsync("recording.mp3", MetaMuseTarget());
+    AssertCode(overlength, "file_preflight.duration_too_long");
+
     foreach (var value in new[]
     {
         new FileAudioMetadata(1024, TimeSpan.FromMinutes(1), 1, 2, 16_000, 16),

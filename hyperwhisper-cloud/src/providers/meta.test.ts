@@ -208,9 +208,17 @@ describe('Meta Muse WAV preflight', () => {
     await expect(transcribeWithMeta(atCap, 'audio/wav')).resolves.toMatchObject({ text: 'valid' });
     expect(requests).toBe(1);
 
-    await expect(transcribeWithMeta(new ArrayBuffer(META_MUSE_MAX_BYTES + 1), 'audio/wav'))
+    const overCap = wav({ dataBytes, junkBytes: META_MUSE_MAX_BYTES - fixedBytes + 1 });
+    expect(overCap.byteLength).toBeGreaterThan(META_MUSE_MAX_BYTES);
+    await expect(transcribeWithMeta(overCap, 'audio/wav'))
       .rejects.toThrow(AudioTooLargeError);
     expect(requests).toBe(1);
+  });
+
+  test('reports format before the canonical-WAV size cap so clients can normalize and retry', async () => {
+    const oversizedCompressedSource = new ArrayBuffer(META_MUSE_MAX_BYTES + 1);
+    await expect(transcribeWithMeta(oversizedCompressedSource, 'audio/mpeg'))
+      .rejects.toThrow(UnsupportedAudioFormatError);
   });
 
   test.each([

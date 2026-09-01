@@ -374,6 +374,15 @@ class FileTranscriptionFlow {
             // STEP 4: Get audio duration (12-13%)
             progressState.animateProgress(to: 0.13, duration: 0.2)
             let duration = try await getAudioDuration(audioURL)
+            if mode.model?.lowercased() == "cloud",
+               CloudAccuracyTier.fromStorageValue(mode.cloudAccuracyTier) == .metaMuse,
+               duration > 10 * 60 {
+                throw FileTranscriptionError.durationTooLong(
+                    duration: duration,
+                    limit: 10 * 60,
+                    providerName: "Meta Muse"
+                )
+            }
 
             // STEP 4b: VAD SILENCE TRIMMING (Optional) (13-15%)
             // Uses VADProcessingService to analyze audio and trim leading/trailing silence.
@@ -737,6 +746,12 @@ class FileTranscriptionFlow {
                 )
             )
 
+        case .durationTooLong(_, let limit, let providerName):
+            showErrorAlert(
+                title: "transcribe.file.error.title".localized,
+                message: "\(providerName) supports audio up to \(Int(limit / 60)) minutes."
+            )
+
         case .cannotReadFile:
             showErrorAlert(
                 title: "transcribe.file.error.title".localized,
@@ -891,6 +906,9 @@ enum FileTranscriptionError: Error, LocalizedError {
     ///   - supportedFormats: List of formats the provider accepts
     case unsupportedFormat(format: String, providerName: String, supportedFormats: [String])
 
+    /// Known duration exceeds the selected provider's hard limit.
+    case durationTooLong(duration: TimeInterval, limit: TimeInterval, providerName: String)
+
     /// Cannot read or access the selected file
     case cannotReadFile
 
@@ -908,6 +926,8 @@ enum FileTranscriptionError: Error, LocalizedError {
             return "File exceeds \(providerName) size limit"
         case .unsupportedFormat(let format, let providerName, _):
             return "\(providerName) does not support .\(format) files"
+        case .durationTooLong(_, _, let providerName):
+            return "File exceeds \(providerName) duration limit"
         case .cannotReadFile:
             return "Cannot read file"
         case .copyFailed:

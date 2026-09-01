@@ -2699,15 +2699,31 @@ public partial class MainViewModel : ViewModelBase
             return;
         }
 
-        // STEP 2: Check file size per provider
+        var requiresMuseNormalization = mode.ProviderType?.Equals("cloud", StringComparison.OrdinalIgnoreCase) == true
+            && string.Equals(mode.CloudProvider, "hyperwhisper", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(mode.CloudAccuracyTier, "metaMuse", StringComparison.OrdinalIgnoreCase);
+
+        // STEP 2: Check file size per provider. Muse validates the normalized
+        // artifact, because a larger compressed source can become a <=32 MB WAV.
         var fileInfo = new FileInfo(filePath);
         var maxSize = GetMaxFileSizeForProvider(mode);
-        if (fileInfo.Length > maxSize)
+        if (!requiresMuseNormalization && fileInfo.Length > maxSize)
         {
             ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
                 Loc.S("errors.fileTooLarge", ByteSizeFormatter.FormatDecimal(maxSize)),
                 showSettingsButton: false));
             return;
+        }
+
+        if (requiresMuseNormalization)
+        {
+            var sourceDuration = FileTranscriptionService.GetAudioDuration(filePath);
+            if (sourceDuration.IsSuccess && sourceDuration.Value > 10 * 60)
+            {
+                ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
+                    "Meta Muse supports audio up to 10 minutes.", showSettingsButton: false));
+                return;
+            }
         }
 
         if (!await EnsureLocalProviderReadyForFileAsync(mode))
@@ -2746,7 +2762,7 @@ public partial class MainViewModel : ViewModelBase
             UpdateFileProgressRequested?.Invoke(this, 0.05f);
             string pathForTranscription;
 
-            if (mode.ProviderType == "cloud")
+            if (mode.ProviderType == "cloud" && !requiresMuseNormalization)
             {
                 // Cloud providers accept mp3/m4a/wav natively — send original file as-is
                 pathForTranscription = filePath;
@@ -2764,9 +2780,14 @@ public partial class MainViewModel : ViewModelBase
                 }
                 pathForTranscription = convertResult.Value!;
                 convertedTempPath = convertResult.Value!;
-                LoggingService.Info($"TranscribeFileAsync: Local mode - converted to WAV: {pathForTranscription}");
+                LoggingService.Info($"TranscribeFileAsync: Converted to canonical WAV: {pathForTranscription}");
             }
             transcriptionCts.Token.ThrowIfCancellationRequested();
+
+            if (requiresMuseNormalization && new FileInfo(pathForTranscription).Length > 32L * 1024 * 1024)
+            {
+                throw new InvalidOperationException("The normalized audio exceeds Meta Muse's 32 MB upload limit.");
+            }
 
             // STEP 5: Get duration
             UpdateFileProgressRequested?.Invoke(this, 0.10f);
@@ -2777,6 +2798,10 @@ public partial class MainViewModel : ViewModelBase
             }
             transcriptionCts.Token.ThrowIfCancellationRequested();
             duration = durationResult.Value;
+            if (requiresMuseNormalization && duration > 10 * 60)
+            {
+                throw new InvalidOperationException("Meta Muse supports audio up to 10 minutes.");
+            }
 
             // STEP 6: Save file to permanent location
             UpdateFileProgressRequested?.Invoke(this, 0.15f);

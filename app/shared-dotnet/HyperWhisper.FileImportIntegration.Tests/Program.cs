@@ -21,6 +21,7 @@ try
         ("Meta Muse preserves a compatible WAV", MetaMusePreservesCompatibleWave),
         ("Meta Muse rejects and cleans an oversized normalized WAV", MetaMuseRejectsNormalizedOverflow),
         ("Meta Muse reports a stable conversion failure", MetaMuseConversionFailure),
+        ("Meta Muse rejects known overlength audio before conversion", MetaMuseRejectsOverlengthBeforeConversion),
         ("local import normalizes to canonical WAV", LocalNormalizes),
         ("import snapshots mode before asynchronous preflight", ModeSnapshot),
         ("readiness failure prevents expensive import", EarlyReadinessFailure),
@@ -108,6 +109,19 @@ async Task MetaMuseConversionFailure()
     Assert(fixture.ViewModel.ErrorCode == "audio_normalization.failed"
         && transcriber.Path is null && File.Exists(source),
         "Meta Muse conversion failure was not stable or deleted the source");
+}
+
+async Task MetaMuseRejectsOverlengthBeforeConversion()
+{
+    var source = Source("muse-overlength.mp3", [1, 2, 3]);
+    var normalizer = new FakeNormalizer();
+    var transcriber = new CapturingTranscriber(PortableTranscriptionResult.Success("unused", "Meta"));
+    using var fixture = Fixture(source, MetaMuseMode(), transcriber, normalizer,
+        metadata: new StaticMetadata(3, TimeSpan.FromMinutes(10) + TimeSpan.FromMilliseconds(1)));
+    await fixture.ViewModel.TranscribeFileAsync();
+    Assert(fixture.ViewModel.ErrorCode == "file_preflight.duration_too_long"
+        && normalizer.Calls == 0 && transcriber.Path is null,
+        "Meta Muse converted or uploaded known overlength audio");
 }
 
 async Task LocalNormalizes()
@@ -305,10 +319,10 @@ sealed class FakeNormalizer : IAudioNormalizationService
     }
 }
 
-sealed class StaticMetadata(long length) : IFileAudioMetadataSource
+sealed class StaticMetadata(long length, TimeSpan? duration = null) : IFileAudioMetadataSource
 {
     public ValueTask<FileAudioMetadata?> ReadAsync(string path, CancellationToken cancellationToken = default)
-    { cancellationToken.ThrowIfCancellationRequested(); return ValueTask.FromResult<FileAudioMetadata?>(new(length, null)); }
+    { cancellationToken.ThrowIfCancellationRequested(); return ValueTask.FromResult<FileAudioMetadata?>(new(length, duration)); }
 }
 
 static class WaveFixture
