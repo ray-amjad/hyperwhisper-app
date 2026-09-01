@@ -457,11 +457,13 @@ struct BackupLicenseStorageTests {
         let store = RustLicenseStore(defaults: defaults, licenseStore: keychain, seedUsage: false)
         let manager = LicenseManager(
             networkService: LicenseNetworkService(store: store),
-            loadStoredLicenseOnInit: false
+            loadStoredLicenseOnInit: false,
+            notificationCenter: NotificationCenter()
         )
-        BackupManager.shared.licenseManager = manager
+        let backup = BackupManager()
+        backup.licenseManager = manager
 
-        #expect(BackupManager.shared.licenseKeyForExport() == "secure-key")
+        #expect(backup.licenseKeyForExport() == "secure-key")
     }
 
     @Test func exportReportsSecureReadFailureInsteadOfOmittingSelectedLicense() throws {
@@ -474,13 +476,15 @@ struct BackupLicenseStorageTests {
         credentials.failReads = true
         let manager = LicenseManager(
             networkService: LicenseNetworkService(store: store),
-            loadStoredLicenseOnInit: false
+            loadStoredLicenseOnInit: false,
+            notificationCenter: NotificationCenter()
         )
-        BackupManager.shared.licenseManager = manager
-        BackupManager.shared.lastError = nil
+        let backup = BackupManager()
+        backup.licenseManager = manager
+        backup.lastError = nil
 
-        #expect(BackupManager.shared.licenseKeyForExport() == nil)
-        #expect(BackupManager.shared.lastError == "Failed to securely read the license key")
+        #expect(backup.licenseKeyForExport() == nil)
+        #expect(backup.lastError == "Failed to securely read the license key")
     }
 
     @Test func fullExportPreservesSpecificSecureReadFailure() async throws {
@@ -493,19 +497,21 @@ struct BackupLicenseStorageTests {
         credentials.failReads = true
         let manager = LicenseManager(
             networkService: LicenseNetworkService(store: store),
-            loadStoredLicenseOnInit: false
+            loadStoredLicenseOnInit: false,
+            notificationCenter: NotificationCenter()
         )
-        BackupManager.shared.licenseManager = manager
-        BackupManager.shared.lastError = nil
+        let backup = BackupManager()
+        backup.licenseManager = manager
+        backup.lastError = nil
         var options = ExportOptions()
         options.includeSettings = false
         options.includeModes = false
         options.includeVocabulary = false
         options.includeLicenseKey = true
 
-        let exported = await BackupManager.shared.exportWithDialog(options: options)
+        let exported = await backup.exportWithDialog(options: options)
         #expect(!exported)
-        #expect(BackupManager.shared.lastError == "Failed to securely read the license key")
+        #expect(backup.lastError == "Failed to securely read the license key")
     }
 
     @Test func emptySelectedSectionsDoNotCountAsPartialSuccess() {
@@ -525,10 +531,11 @@ struct BackupLicenseStorageTests {
 
     @Test func importRequestsRevalidationOnlyAfterSecureReplacement() async {
         let service = BackupLicenseNetworkSpy()
-        let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false)
-        BackupManager.shared.licenseManager = manager
+        let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false, notificationCenter: NotificationCenter())
+        let backup = BackupManager()
+        backup.licenseManager = manager
 
-        #expect(BackupManager.shared.importLicenseKeySecurely("replacement-key"))
+        #expect(backup.importLicenseKeySecurely("replacement-key"))
         await service.waitForValidation()
 
         #expect(service.actions == ["replace", "validate"])
@@ -538,7 +545,7 @@ struct BackupLicenseStorageTests {
     @Test func importedValidationPublishesCompletedResult() async {
         let service = BackupLicenseNetworkSpy()
         #expect(service.replaceStoredLicenseKeyForImport("replacement-key"))
-        let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false)
+        let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false, notificationCenter: NotificationCenter())
 
         await manager.validateImportedLicenseKey("replacement-key")
 
@@ -547,11 +554,12 @@ struct BackupLicenseStorageTests {
 
     @Test func importPublishesNonActiveStateBeforeValidationStarts() {
         let service = BackupLicenseNetworkSpy()
-        let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false)
+        let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false, notificationCenter: NotificationCenter())
         manager.licenseStatus = .active
-        BackupManager.shared.licenseManager = manager
+        let backup = BackupManager()
+        backup.licenseManager = manager
 
-        #expect(BackupManager.shared.importLicenseKeySecurely("replacement-key"))
+        #expect(backup.importLicenseKeySecurely("replacement-key"))
         #expect(manager.licenseStatus == .trial)
     }
 
@@ -560,7 +568,7 @@ struct BackupLicenseStorageTests {
         #expect(service.replaceStoredLicenseKeyForImport("stored-key"))
         service.actions.removeAll()
         service.requiresRevalidation = true
-        let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false)
+        let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false, notificationCenter: NotificationCenter())
 
         await manager.loadStoredLicense()
 
@@ -569,12 +577,13 @@ struct BackupLicenseStorageTests {
 
     @Test func lateImportedValidationCannotOverrideNewerImportState() async {
         let service = ControlledBackupLicenseNetworkSpy()
-        let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false)
-        BackupManager.shared.licenseManager = manager
+        let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false, notificationCenter: NotificationCenter())
+        let backup = BackupManager()
+        backup.licenseManager = manager
 
-        #expect(BackupManager.shared.importLicenseKeySecurely("older-key"))
+        #expect(backup.importLicenseKeySecurely("older-key"))
         await service.waitForValidationCount(1)
-        #expect(BackupManager.shared.importLicenseKeySecurely("newer-key"))
+        #expect(backup.importLicenseKeySecurely("newer-key"))
         await service.waitForValidationCount(2)
 
         service.completeValidation(for: "newer-key", status: .active)
@@ -589,10 +598,11 @@ struct BackupLicenseStorageTests {
 
     @Test func lateImportedValidationCannotOverrideDeactivation() async {
         let service = ControlledBackupLicenseNetworkSpy()
-        let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false)
-        BackupManager.shared.licenseManager = manager
+        let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false, notificationCenter: NotificationCenter())
+        let backup = BackupManager()
+        backup.licenseManager = manager
 
-        #expect(BackupManager.shared.importLicenseKeySecurely("imported-key"))
+        #expect(backup.importLicenseKeySecurely("imported-key"))
         await service.waitForValidationCount(1)
         #expect(await manager.deactivateLicense())
         service.completeValidation(for: "imported-key", status: .active)
@@ -605,17 +615,18 @@ struct BackupLicenseStorageTests {
     @Test func failedSecureReplacementSkipsValidation() {
         let service = BackupLicenseNetworkSpy()
         service.replaceSucceeds = false
-        let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false)
-        BackupManager.shared.licenseManager = manager
+        let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false, notificationCenter: NotificationCenter())
+        let backup = BackupManager()
+        backup.licenseManager = manager
 
-        #expect(!BackupManager.shared.importLicenseKeySecurely("replacement-key"))
+        #expect(!backup.importLicenseKeySecurely("replacement-key"))
         #expect(service.actions == ["replace"])
     }
 
     @Test func failedClearDoesNotPublishTrialState() {
         let service = BackupLicenseNetworkSpy()
         service.clearSucceeds = false
-        let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false)
+        let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false, notificationCenter: NotificationCenter())
         manager.licenseStatus = .active
 
         #expect(!manager.clearLicense())
@@ -634,7 +645,7 @@ struct BackupLicenseStorageTests {
             errorMessage: "Could not securely save the license",
             storagePersistenceFailed: true
         )
-        let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false)
+        let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false, notificationCenter: NotificationCenter())
         manager.licenseStatus = .active
         manager.customerEmail = "existing@example.com"
 
@@ -656,7 +667,7 @@ struct BackupLicenseStorageTests {
             errorMessage: "Could not securely save the license",
             storagePersistenceFailed: true
         )
-        let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false)
+        let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false, notificationCenter: NotificationCenter())
         manager.licenseStatus = .active
         manager.customerEmail = "existing@example.com"
 
@@ -678,7 +689,7 @@ struct BackupLicenseStorageTests {
             errorMessage: "Could not securely save the license",
             storagePersistenceFailed: true
         )
-        let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false)
+        let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false, notificationCenter: NotificationCenter())
         manager.licenseStatus = .trial
 
         _ = await manager.activateLicense("new-key")

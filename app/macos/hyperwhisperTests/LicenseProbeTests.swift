@@ -21,7 +21,8 @@ struct LicenseProbeTests {
         )
         let manager = LicenseManager(
             networkService: service,
-            loadStoredLicenseOnInit: false
+            loadStoredLicenseOnInit: false,
+            notificationCenter: NotificationCenter()
         )
 
         let result = await manager.probeLicense("test-key")

@@ -137,8 +137,17 @@ enum LocalAPIResponder {
             case .apiKeyMissing(let provider):
                 let prov = provider ?? "this provider"
                 return (.missingAPIKey, "API key for \(prov) is missing.", "Add the API key in Settings → API Keys.")
-            case .unauthorized(let provider, _):
+            case .unauthorized(let provider, let statusCode):
                 let prov = provider ?? "this provider"
+                // A HyperWhisper Cloud 403 is the abuse guard, not a credential
+                // fault: `transcribe`, `post-process`, `usage` and `assistant`
+                // all answer 403 only for "Your IP has been temporarily blocked
+                // due to abuse". Reporting MISSING_API_KEY there tells an API
+                // client to rotate a key that is in fact valid, so this maps to
+                // the temporary code instead.
+                if provider == "HyperWhisper Cloud", statusCode == 403 {
+                    return (.rateLimited, "HyperWhisper Cloud denied this request.", "Your network is temporarily blocked. Wait a few minutes, then try again.")
+                }
                 let settingsDestination = provider == "HyperWhisper Cloud"
                     ? "Settings → HyperWhisper Cloud"
                     : "Settings → API Keys"

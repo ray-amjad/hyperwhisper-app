@@ -552,9 +552,16 @@ struct HyperWhisperCloudEntitlementTests {
         #expect(unauthorizedEnglish.localizedCaseInsensitiveContains("invalid or expired"))
         #expect(unauthorizedEnglish.contains("Settings → HyperWhisper Cloud"))
         #expect(!unauthorizedEnglish.contains("Settings → API Keys"))
+        // A HyperWhisper Cloud 403 is only ever the abuse guard — every route
+        // (`transcribe`, `post-process`, `usage`, `assistant`) answers 403 with
+        // "Your IP has been temporarily blocked due to abuse" and nothing else.
+        // So the 403 text must describe a temporary block and must NOT send the
+        // user to Settings to change a key that is working.
         #expect(forbiddenEnglish.localizedCaseInsensitiveContains("denied"))
-        #expect(forbiddenEnglish.localizedCaseInsensitiveContains("lack access"))
-        #expect(forbiddenEnglish.contains("Settings → HyperWhisper Cloud"))
+        #expect(forbiddenEnglish.localizedCaseInsensitiveContains("temporarily blocked"))
+        #expect(!forbiddenEnglish.localizedCaseInsensitiveContains("lack access"))
+        #expect(!forbiddenEnglish.contains("Settings → HyperWhisper Cloud"))
+        #expect(!forbiddenEnglish.contains("Settings → API Keys"))
 
         let descriptions = ([nil, 401, 403] as [Int?]).map {
             TranscriptionError.unauthorized(
@@ -613,16 +620,24 @@ struct HyperWhisperCloudEntitlementTests {
             )
         }
 
-        for (code, message, hint) in cloudResults {
+        // An unknown status and a 401 are the credential fault.
+        for (code, message, hint) in cloudResults[0...1] {
             #expect(code == .missingAPIKey)
             #expect(message.localizedCaseInsensitiveContains("invalid or expired"))
             #expect(hint?.contains("Settings → HyperWhisper Cloud") == true)
             #expect(hint?.contains("Settings → API Keys") == false)
         }
         #expect(cloudResults[0].1 == cloudResults[1].1)
-        #expect(cloudResults[0].1 == cloudResults[2].1)
         #expect(cloudResults[0].2 == cloudResults[1].2)
-        #expect(cloudResults[0].2 == cloudResults[2].2)
+
+        // A 403 is the abuse guard, not a bad key. Reporting MISSING_API_KEY
+        // here makes an API client rotate a valid key.
+        let (forbiddenCode, forbiddenMessage, forbiddenHint) = cloudResults[2]
+        #expect(forbiddenCode == .rateLimited)
+        #expect(!forbiddenMessage.localizedCaseInsensitiveContains("invalid or expired"))
+        #expect(forbiddenHint?.localizedCaseInsensitiveContains("temporarily blocked") == true)
+        #expect(forbiddenHint?.contains("Settings → HyperWhisper Cloud") == false)
+        #expect(forbiddenHint?.contains("Settings → API Keys") == false)
 
         let (byokCode, _, byokHint) = LocalAPIResponder.mapTranscriptionError(
             TranscriptionError.unauthorized(provider: "OpenAI", statusCode: 401)

@@ -50,9 +50,19 @@ class BackupManager: ObservableObject {
     /// through its one shared secure store.
     weak var licenseManager: LicenseManager?
 
-    // MARK: - Private Init
+    // MARK: - Init
 
-    private init() {}
+    /// Production code must use `BackupManager.shared`. This initializer is
+    /// internal only so a unit test can build its OWN instance.
+    ///
+    /// Writing `BackupManager.shared` from a test is not safe: the test host IS
+    /// the running app, so every `@Published` write here republishes into the
+    /// live view tree. That forces an AppKit constraint pass, which re-evaluates
+    /// `HomeStatsBar.body`, whose `@FetchRequest` throws "A fetch request must
+    /// have an entity" under XCTest bundle injection — the whole test host dies
+    /// with SIGABRT and the test that happened to be running is reported as a
+    /// bare failure in 0.000 seconds. Take an instance instead.
+    init() {}
 
     // MARK: - License Revalidation
 

@@ -69,12 +69,27 @@ class LicenseManager: ObservableObject {
     private var networkFailureRetryID: UUID?
     private var licenseStorageRetryTask: Task<Void, Never>?
 
+    /// Where `.licenseStatusChanged` is posted. Production uses `.default`.
+    ///
+    /// A unit test passes its own center. The macOS test host IS the running
+    /// app, so a post to `.default` reaches the LIVE `HyperWhisperCloudManager`
+    /// observer, which clears the live `credits` and republishes into the live
+    /// view tree. The resulting AppKit layout pass re-evaluates
+    /// `HomeStatsBar.body`, whose `@FetchRequest` throws "A fetch request must
+    /// have an entity" under XCTest bundle injection, and the whole test host
+    /// dies with SIGABRT. The test that happens to be running then reports a
+    /// bare failure in 0.000 seconds, which is why the failing test name moved
+    /// between CI runs.
+    private let notificationCenter: NotificationCenter
+
     // MARK: - Initialization
 
     init(
         networkService: (any LicenseNetworkServing)? = nil,
-        loadStoredLicenseOnInit: Bool = true
+        loadStoredLicenseOnInit: Bool = true,
+        notificationCenter: NotificationCenter = .default
     ) {
+        self.notificationCenter = notificationCenter
         if let networkService {
             self.store = nil
             self.networkService = networkService
@@ -310,7 +325,7 @@ class LicenseManager: ObservableObject {
         customerEmail = nil
         customerName = nil
         lastError = nil
-        NotificationCenter.default.post(name: .licenseStatusChanged, object: nil)
+        notificationCenter.post(name: .licenseStatusChanged, object: nil)
     }
 
     // MARK: - Private
@@ -321,12 +336,31 @@ class LicenseManager: ObservableObject {
         networkFailureRetryTask = nil
     }
 
-    /// Retries an unavailable Keychain read during this app session. This keeps
-    /// a temporary locked-Keychain or service failure distinct from no license.
+    /// Backoff for `scheduleLicenseStorageRetry`, in seconds. The last entry
+    /// repeats for every attempt after it, so the retry never stops while the
+    /// Keychain stays unavailable.
+    private static let licenseStorageRetryDelays: [UInt64] = [1, 2, 4, 8, 16, 32, 60]
+
+    /// Retries an unavailable Keychain read for the whole app session. This
+    /// keeps a temporary locked-Keychain or service failure distinct from no
+    /// license.
+    ///
+    /// The earlier version stopped after 5 attempts (31 seconds). A licensed
+    /// user whose Keychain stayed unavailable past that — a long
+    /// `securityd` stall, a login-keychain prompt left unanswered — was pinned
+    /// to Trial until the next launch, because nothing else re-reads the
+    /// record. The backoff now settles at 1 read per 60 seconds and continues
+    /// until the read answers `present` or `missing`, or until an activation,
+    /// import or deactivation cancels the task. One Keychain read a minute is
+    /// far cheaper than a wrongly un-entitled session.
     private func scheduleLicenseStorageRetry() {
         guard licenseStorageRetryTask == nil else { return }
         licenseStorageRetryTask = Task { [weak self] in
-            for delay in [1, 2, 4, 8, 16] as [UInt64] {
+            let delays = LicenseManager.licenseStorageRetryDelays
+            var attempt = 0
+            while !Task.isCancelled {
+                let delay = delays[min(attempt, delays.count - 1)]
+                attempt += 1
                 try? await Task.sleep(nanoseconds: delay * 1_000_000_000)
                 guard let self, !Task.isCancelled else { return }
                 let read = self.networkService.readStoredLicenseKey(retryAfterFailure: true)
@@ -343,7 +377,6 @@ class LicenseManager: ObservableObject {
                     continue
                 }
             }
-            self?.licenseStorageRetryTask = nil
         }
     }
 
@@ -362,7 +395,7 @@ class LicenseManager: ObservableObject {
         customerEmail = result.customerEmail
         customerName = result.customerName
         if !result.isValid { lastError = result.errorMessage }
-        NotificationCenter.default.post(name: .licenseStatusChanged, object: nil)
+        notificationCenter.post(name: .licenseStatusChanged, object: nil)
     }
 
     // MARK: - Customer Portal

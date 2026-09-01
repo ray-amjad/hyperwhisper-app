@@ -124,8 +124,9 @@ struct TranscriptionErrorClassificationTests {
         #expect(statusCode == nil)
     }
 
-    /// The status does not change classification or actions. A 403 gets
-    /// forbidden guidance instead of claiming that the key expired.
+    /// The status does not change classification or actions. A 403 says the
+    /// network is temporarily blocked — the only thing a HyperWhisper Cloud
+    /// route answers 403 for — instead of claiming that the key expired.
     @Test func forbiddenStatusChangesOnlyUserGuidance() {
         let bare = TranscriptionError.unauthorized(provider: "HyperWhisper Cloud")
         let with401 = TranscriptionError.unauthorized(provider: "HyperWhisper Cloud", statusCode: 401)
@@ -137,7 +138,7 @@ struct TranscriptionErrorClassificationTests {
         }
         #expect(with401.errorDescription == bare.errorDescription)
         #expect(with403.errorDescription != bare.errorDescription)
-        #expect(with403.errorDescription?.contains("can be valid") == true)
+        #expect(with403.errorDescription?.localizedCaseInsensitiveContains("temporarily blocked") == true)
     }
 
     /// The fingerprint is built from `category` / `kind` / `stage` and must NOT
