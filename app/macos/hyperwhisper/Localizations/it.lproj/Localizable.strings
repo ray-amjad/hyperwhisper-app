@@ -9,6 +9,8 @@
   This file contains all user-facing text that needs to be translated.
 */
 
+"transcription.error.forbidden.hyperWhisperCloud" = "HyperWhisper Cloud ha rifiutato questa richiesta. La tua rete è temporaneamente bloccata.\n\nAttendi alcuni minuti, quindi riprova.";
+
 // MARK: - Application Navigation
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
@@ -926,6 +928,7 @@ Aggiorna queste modalità per usare un modello diverso prima di eliminarlo.";
 "transcription.error.maxRetriesExceeded" = "Numero massimo di tentativi superato";
 "transcription.error.unauthorized.provider" = "Non autorizzato: chiave API %@ non valida o permessi.\n\nApri Impostazioni → Chiavi API per verificare le credenziali.";
 "transcription.error.unauthorized.generic" = "Non autorizzato: chiave API non valida o permessi.\n\nApri Impostazioni → Chiavi API per verificare le credenziali.";
+"transcription.error.unauthorized.hyperWhisperCloud" = "La chiave di accesso a HyperWhisper Cloud non è valida o è scaduta.\n\nApri Impostazioni → HyperWhisper Cloud per aggiornare la chiave.";
 "transcription.error.cloudAccountRequired" = "HyperWhisper Cloud richiede una chiave account.\n\nApri Impostazioni → HyperWhisper Cloud per inserire la tua chiave o ottenere crediti.";
 "transcription.error.invalidRequest" = "Richiesta non valida: controlla il file audio o le impostazioni";
 "transcription.error.streamingInterrupted" = "Streaming interrotto; testo parziale mostrato";

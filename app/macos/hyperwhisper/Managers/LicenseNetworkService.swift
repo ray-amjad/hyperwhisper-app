@@ -51,7 +51,9 @@ protocol LicenseNetworkServing {
     func shouldRevalidateLicense() -> Bool
     func getCachedLicenseStatus() -> LicenseStatus?
     func getStoredLicenseKey() -> String?
-    func clearStoredLicense()
+    func readStoredLicenseKey(retryAfterFailure: Bool) -> RustLicenseStore.StoredLicenseKeyRead
+    func clearStoredLicense() -> Bool
+    func replaceStoredLicenseKeyForImport(_ licenseKey: String) -> Bool
 }
 
 /// Handles license validation network operations.
@@ -84,22 +86,6 @@ class LicenseNetworkService: LicenseNetworkServing {
         }
     }
 
-    // MARK: - UserDefaults Keys
-
-    /// Keys for storing license information in UserDefaults.
-    /// Canonical source of truth for these keys — referenced by `BackupManager`
-    /// so backup export/import use the same key the license is actually stored under.
-    ///
-    /// M3-C: these still match the Rust core's `com.hyperwhisper.license.*` keys
-    /// 1:1, so the core reads/writes the exact same UserDefaults entries. Kept as
-    /// constants for `BackupManager` (which references `DefaultsKey.licenseKey`).
-    enum DefaultsKey {
-        static let licenseKey = "com.hyperwhisper.license.key"
-        static let customerId = "com.hyperwhisper.license.customerId"
-        static let lastValidation = "com.hyperwhisper.license.lastValidation"
-        static let cachedStatus = "com.hyperwhisper.license.cachedStatus"
-    }
-
     // MARK: - Properties
 
     /// Shared key-value store backing the Rust license core. Injected so the
@@ -127,9 +113,11 @@ class LicenseNetworkService: LicenseNetworkServing {
 
     // MARK: - License Deactivation
 
-    /// Deactivates the license locally by clearing UserDefaults.
+    /// Deactivates the license locally by deleting the secure record.
     func deactivateLicense() async -> (success: Bool, error: String?) {
-        clearStoredLicense()
+        guard clearStoredLicense() else {
+            return (false, "Could not securely remove the license")
+        }
         AppLogger.network.info("License deactivated locally")
         return (true, nil)
     }
@@ -347,7 +335,7 @@ class LicenseNetworkService: LicenseNetworkServing {
                 // stores the key, while a rejected replacement cannot overwrite
                 // the current key's global cache.
                 if mode.persistsResult {
-                    let didPersist = await MainActor.run {
+                    let persistence = await MainActor.run {
                         Self.persistValidationVerdictIfCurrent(
                             store: store,
                             status: outcome.status,
@@ -357,7 +345,29 @@ class LicenseNetworkService: LicenseNetworkServing {
                             isCancelled: withUnsafeCurrentTask { $0?.isCancelled ?? false }
                         )
                     }
-                    guard didPersist else { throw CancellationError() }
+                    switch persistence {
+                    case .persisted:
+                        break
+                    case .staleOrCancelled:
+                        throw CancellationError()
+                    case .storageFailed:
+                        let serverStatus = Self.adapt(outcome.status)
+                        return LicenseValidationResult(
+                            // A valid server verdict is not an activation until
+                            // its key and cache commit. Callers must report the
+                            // storage failure instead of claiming success.
+                            isValid: false,
+                            // Keep the authoritative server status so the
+                            // manager can revoke an old Active session even
+                            // when persisting that revocation fails.
+                            status: serverStatus,
+                            customerId: nil,
+                            customerEmail: nil,
+                            customerName: nil,
+                            errorMessage: "Could not securely save the license",
+                            storagePersistenceFailed: true
+                        )
+                    }
                 }
                 AppLogger.network.info("License validation · status=\(Self.adapt(outcome.status).rawValue)")
 
@@ -536,7 +546,16 @@ class LicenseNetworkService: LicenseNetworkServing {
 
     /// Gets stored license key (nil for empty/whitespace). Delegates to the core.
     func getStoredLicenseKey() -> String? {
-        return licenseStoredLicenseKey(store: store)
+        guard case .present(let key) = readStoredLicenseKey(retryAfterFailure: false) else {
+            return nil
+        }
+        return key
+    }
+
+    func readStoredLicenseKey(
+        retryAfterFailure: Bool = false
+    ) -> RustLicenseStore.StoredLicenseKeyRead {
+        store.readStoredLicenseKey(retryAfterFailure: retryAfterFailure)
     }
 
     // MARK: - License Data Management
@@ -544,8 +563,15 @@ class LicenseNetworkService: LicenseNetworkServing {
     /// Clears all stored license data (key, customerId, lastValidation, status).
     /// Delegates to the core's `licenseClearStoredLicense` (which leaves the
     /// remote-override config untouched).
-    func clearStoredLicense() {
-        licenseClearStoredLicense(store: store)
+    @discardableResult
+    func clearStoredLicense() -> Bool {
+        store.clearLicenseRecord()
+    }
+
+    /// Atomically installs a backup key without carrying over the prior key's
+    /// cached status, customer, or timestamp.
+    func replaceStoredLicenseKeyForImport(_ licenseKey: String) -> Bool {
+        store.replaceLicenseKeyForImport(licenseKey)
     }
 
     // MARK: - Per-call-site request policy
@@ -588,8 +614,13 @@ class LicenseNetworkService: LicenseNetworkServing {
     /// an Active verdict may replace the currently stored key. The delayed
     /// launch retry passes a non-nil expected key and therefore cannot restore
     /// a key that was cleared or replaced while its request was in flight.
+    enum ValidationPersistenceResult: Equatable {
+        case persisted
+        case staleOrCancelled
+        case storageFailed
+    }
+
     @MainActor
-    @discardableResult
     static func persistValidationVerdictIfCurrent(
         store: KeyValueStore,
         status: HwLicenseStatus,
@@ -597,23 +628,40 @@ class LicenseNetworkService: LicenseNetworkServing {
         expectedStoredLicenseKey: String?,
         nowUnixSecs: Int64,
         isCancelled: Bool
-    ) -> Bool {
-        guard !isCancelled else { return false }
+    ) -> ValidationPersistenceResult {
+        guard !isCancelled else { return .staleOrCancelled }
+
+        let persist = {
+            licensePersistValidationVerdict(
+                store: store,
+                status: status,
+                attemptedKey: attemptedKey,
+                nowUnixSecs: nowUnixSecs
+            )
+        }
+        if let secureStore = store as? RustLicenseStore {
+            var isCurrent = true
+            let didCommit = secureStore.performLicenseTransaction {
+                if let expectedStoredLicenseKey,
+                   licenseStoredLicenseKey(store: secureStore)
+                    != expectedStoredLicenseKey.trimmingCharacters(in: .whitespacesAndNewlines) {
+                    isCurrent = false
+                    return
+                }
+                persist()
+            }
+            guard didCommit else { return .storageFailed }
+            return isCurrent ? .persisted : .staleOrCancelled
+        }
 
         if let expectedStoredLicenseKey,
            licenseStoredLicenseKey(store: store) != expectedStoredLicenseKey.trimmingCharacters(
                in: .whitespacesAndNewlines
            ) {
-            return false
+            return .staleOrCancelled
         }
-
-        licensePersistValidationVerdict(
-            store: store,
-            status: status,
-            attemptedKey: attemptedKey,
-            nowUnixSecs: nowUnixSecs
-        )
-        return true
+        persist()
+        return .persisted
     }
 
     // MARK: - Error classification

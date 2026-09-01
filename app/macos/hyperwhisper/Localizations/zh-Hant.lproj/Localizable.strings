@@ -9,6 +9,8 @@
   This file contains all user-facing text that needs to be translated.
 */
 
+"transcription.error.forbidden.hyperWhisperCloud" = "HyperWhisper Cloud 拒絕了此要求。您的網路暫時遭到封鎖。\n\n請等待幾分鐘，然後再試一次。";
+
 // MARK: - Application Navigation
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
@@ -926,6 +928,7 @@
 "transcription.error.maxRetriesExceeded" = "超過最大重試次數";
 "transcription.error.unauthorized.provider" = "未授權：無效的 %@ API 金鑰或權限。\n\n開啟設定 → API 金鑰以驗證您的憑證。";
 "transcription.error.unauthorized.generic" = "未授權：無效的 API 金鑰或權限。\n\n開啟設定 → API 金鑰以驗證您的憑證。";
+"transcription.error.unauthorized.hyperWhisperCloud" = "HyperWhisper Cloud 存取金鑰無效或已過期。\n\n開啟設定 → HyperWhisper Cloud 以更新金鑰。";
 "transcription.error.cloudAccountRequired" = "HyperWhisper Cloud 需要帳戶金鑰。\n\n開啟設定 → HyperWhisper Cloud 輸入金鑰或購買點數。";
 "transcription.error.invalidRequest" = "無效的請求：檢查音頻檔案或設定";
 "transcription.error.streamingInterrupted" = "串流中斷；顯示部分文字";

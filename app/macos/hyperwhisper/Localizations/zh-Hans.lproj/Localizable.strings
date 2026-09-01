@@ -9,6 +9,8 @@
   This file contains all user-facing text that needs to be translated.
 */
 
+"transcription.error.forbidden.hyperWhisperCloud" = "HyperWhisper Cloud 拒绝了此请求。您的网络暂时被阻止。\n\n请等待几分钟，然后重试。";
+
 // MARK: - Application Navigation
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
@@ -927,6 +929,7 @@
 "transcription.error.maxRetriesExceeded" = "超过最大重试次数";
 "transcription.error.unauthorized.provider" = "未授权：%@ API 密钥或权限无效。\n\n打开 设置 → API 密钥 以验证凭据。";
 "transcription.error.unauthorized.generic" = "未授权：API 密钥或权限无效。\n\n打开 设置 → API 密钥 以验证凭据。";
+"transcription.error.unauthorized.hyperWhisperCloud" = "HyperWhisper Cloud 访问密钥无效或已过期。\n\n打开设置 → HyperWhisper Cloud 以更新密钥。";
 "transcription.error.cloudAccountRequired" = "HyperWhisper Cloud 需要账户密钥。\n\n打开 设置 → HyperWhisper Cloud 输入密钥或购买额度。";
 "transcription.error.invalidRequest" = "请求无效：请检查音频文件或设置";
 "transcription.error.streamingInterrupted" = "流式转写中断；显示部分文本";

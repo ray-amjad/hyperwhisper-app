@@ -16,8 +16,8 @@ import Foundation
 /// fail — but only *after* the client has pushed the audio over the network.
 /// The Rust core then maps that 401 to a terminal
 /// `TranscriptionError.unauthorized`, which is reported to Sentry as a
-/// production error and tells the user to "Open Settings → API Keys" for a
-/// provider that has no user-supplied API key. (Sentry HYPERWHISPER-T2.)
+/// production error and tells the user to update the account key in
+/// Settings → HyperWhisper Cloud. (Sentry HYPERWHISPER-T2.)
 ///
 /// This check refuses that request locally, up front, with a `TranscriptionError`
 /// that names the real remedy.

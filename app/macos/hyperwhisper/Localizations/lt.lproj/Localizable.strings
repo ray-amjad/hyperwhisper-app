@@ -9,6 +9,8 @@
   This file contains all user-facing text that needs to be translated.
 */
 
+"transcription.error.forbidden.hyperWhisperCloud" = "HyperWhisper Cloud atmetė šią užklausą. Jūsų tinklas laikinai užblokuotas.\n\nPalaukite kelias minutes ir bandykite dar kartą.";
+
 // MARK: - Application Navigation
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
@@ -926,6 +928,7 @@ Prieš trindami atnaujinkite šiuos režimus, kad naudotų kitą modelį.";
 "transcription.error.maxRetriesExceeded" = "Maksimalios pakartojimo bandymai viršyti";
 "transcription.error.unauthorized.provider" = "Neleistina: neteisinas %@ API raktas arba leidimai.\n\nAtidarkite nustatymai → API raktai, jei norite patikrinti savo duomenis.";
 "transcription.error.unauthorized.generic" = "Neleistina: neteisinas API raktas arba leidimai.\n\nAtidarkite nustatymai → API raktai, jei norite patikrinti savo duomenis.";
+"transcription.error.unauthorized.hyperWhisperCloud" = "„HyperWhisper Cloud“ prieigos raktas neteisingas arba jo galiojimas baigėsi.\n\nAtidarykite Nustatymai → HyperWhisper Cloud ir atnaujinkite raktą.";
 "transcription.error.cloudAccountRequired" = "HyperWhisper Cloud reikalauja paskyros rakto.\n\nAtidarykite Nustatymai → HyperWhisper Cloud, kad įvestumėte raktą arba įsigytumėte kreditų.";
 "transcription.error.invalidRequest" = "Neteisinga užklausa: patikrinkite audio failą arba nustatymus";
 "transcription.error.streamingInterrupted" = "Srautinis nutrūko; rodomas dalingas tekstas";

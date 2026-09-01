@@ -67,13 +67,29 @@ class LicenseManager: ObservableObject {
     /// them. HYPERWHISPER-F4 (review round 2).
     private var networkFailureRetryTask: Task<Void, Never>?
     private var networkFailureRetryID: UUID?
+    private var licenseStorageRetryTask: Task<Void, Never>?
+
+    /// Where `.licenseStatusChanged` is posted. Production uses `.default`.
+    ///
+    /// A unit test passes its own center. The macOS test host IS the running
+    /// app, so a post to `.default` reaches the LIVE `HyperWhisperCloudManager`
+    /// observer, which clears the live `credits` and republishes into the live
+    /// view tree. The resulting AppKit layout pass re-evaluates
+    /// `HomeStatsBar.body`, whose `@FetchRequest` throws "A fetch request must
+    /// have an entity" under XCTest bundle injection, and the whole test host
+    /// dies with SIGABRT. The test that happens to be running then reports a
+    /// bare failure in 0.000 seconds, which is why the failing test name moved
+    /// between CI runs.
+    private let notificationCenter: NotificationCenter
 
     // MARK: - Initialization
 
     init(
         networkService: (any LicenseNetworkServing)? = nil,
-        loadStoredLicenseOnInit: Bool = true
+        loadStoredLicenseOnInit: Bool = true,
+        notificationCenter: NotificationCenter = .default
     ) {
+        self.notificationCenter = notificationCenter
         if let networkService {
             self.store = nil
             self.networkService = networkService
@@ -95,6 +111,7 @@ class LicenseManager: ObservableObject {
 
     /// Activates a license key by validating it with the backend.
     func activateLicense(_ licenseKey: String) async -> LicenseValidationResult {
+        cancelLicenseStorageRetry()
         cancelNetworkFailureRetry()
         isValidating = true
         lastError = nil
@@ -105,8 +122,9 @@ class LicenseManager: ObservableObject {
         return result
     }
 
-    /// Deactivates the license locally (clears UserDefaults).
+    /// Deactivates the license locally (deletes the secure license record).
     func deactivateLicense() async -> Bool {
+        cancelLicenseStorageRetry()
         cancelNetworkFailureRetry()
         isDeactivating = true
         lastError = nil
@@ -114,7 +132,7 @@ class LicenseManager: ObservableObject {
 
         let (success, error) = await networkService.deactivateLicense()
         if success {
-            await clearLicense()
+            publishClearedLicenseState()
         } else {
             lastError = error
         }
@@ -127,6 +145,7 @@ class LicenseManager: ObservableObject {
     ///   launch, selecting its tighter retry budget. See HYPERWHISPER-F4.
     func validateLicense(_ licenseKey: String, isLaunchValidation: Bool = false) async -> LicenseValidationResult {
         if !isLaunchValidation {
+            cancelLicenseStorageRetry()
             cancelNetworkFailureRetry()
         }
         isValidating = true
@@ -136,7 +155,7 @@ class LicenseManager: ObservableObject {
         let result = await networkService.validateLicense(
             licenseKey,
             isLaunchValidation: isLaunchValidation,
-            expectedStoredLicenseKey: nil
+            expectedStoredLicenseKey: isLaunchValidation ? licenseKey : nil
         )
         await processValidationResult(result)
 
@@ -150,7 +169,8 @@ class LicenseManager: ObservableObject {
         await networkService.probeLicense(licenseKey)
     }
 
-    /// Loads stored license from UserDefaults, revalidates if cache expired (24h).
+    /// Loads the stored license from the secure store and revalidates if its
+    /// authenticated cache expired (24h).
     ///
     /// The revalidation call is tagged `isLaunchValidation: true` so a stale
     /// network at launch (wake-from-sleep, captive portal, DNS not up yet) gets a
@@ -163,10 +183,19 @@ class LicenseManager: ObservableObject {
     /// scheduled — see `scheduleRetrySoonAfterNetworkFallback`. HYPERWHISPER-F4
     /// (review round 2).
     func loadStoredLicense() async {
-        guard let storedKey = networkService.getStoredLicenseKey() else {
-            licenseStatus = .trial
+        let keyRead = networkService.readStoredLicenseKey(retryAfterFailure: true)
+        guard case .present(let storedKey) = keyRead else {
+            if keyRead == .unavailable {
+                scheduleLicenseStorageRetry()
+                return
+            }
+            licenseStorageRetryTask?.cancel()
+            licenseStorageRetryTask = nil
+            publishClearedLicenseState()
             return
         }
+        licenseStorageRetryTask?.cancel()
+        licenseStorageRetryTask = nil
 
         if networkService.shouldRevalidateLicense() {
             // Publish the still-usable cached verdict before awaiting the live
@@ -248,14 +277,61 @@ class LicenseManager: ObservableObject {
     }
 
     /// Clears stored license and resets to the unlicensed (trial) state.
-    func clearLicense() {
+    @discardableResult
+    func clearLicense() -> Bool {
+        cancelLicenseStorageRetry()
         cancelNetworkFailureRetry()
-        networkService.clearStoredLicense()
+        guard networkService.clearStoredLicense() else {
+            lastError = "Could not securely remove the license"
+            return false
+        }
+        publishClearedLicenseState()
+        return true
+    }
+
+    /// Backup paths use the same service and `RustLicenseStore` instance as all
+    /// Rust FFI calls. This prevents a second store and transaction lock.
+    func storedLicenseKeyForBackup() -> RustLicenseStore.StoredLicenseKeyRead {
+        networkService.readStoredLicenseKey(retryAfterFailure: true)
+    }
+
+    /// Saves an imported replacement without the previous key-bound cache.
+    func replaceStoredLicenseKeyFromBackup(_ licenseKey: String) -> Bool {
+        cancelLicenseStorageRetry()
+        cancelNetworkFailureRetry()
+        guard networkService.replaceStoredLicenseKeyForImport(licenseKey) else {
+            return false
+        }
+
+        // The replacement record has no authenticated verdict. Remove the old
+        // key's Active state before the asynchronous server check begins.
+        publishClearedLicenseState()
+        return true
+    }
+
+    /// Validates an imported replacement only while that exact key remains
+    /// current. A later import or deactivation owns both secure and UI state.
+    func validateImportedLicenseKey(_ licenseKey: String) async {
+        cancelLicenseStorageRetry()
+        isValidating = true
+        lastError = nil
+        defer { isValidating = false }
+
+        let result = await networkService.validateLicense(
+            licenseKey,
+            isLaunchValidation: false,
+            expectedStoredLicenseKey: licenseKey
+        )
+        guard networkService.getStoredLicenseKey() == licenseKey else { return }
+        processValidationResult(result)
+    }
+
+    private func publishClearedLicenseState() {
         licenseStatus = .trial
         customerEmail = nil
         customerName = nil
         lastError = nil
-        NotificationCenter.default.post(name: .licenseStatusChanged, object: nil)
+        notificationCenter.post(name: .licenseStatusChanged, object: nil)
     }
 
     // MARK: - Private
@@ -266,13 +342,72 @@ class LicenseManager: ObservableObject {
         networkFailureRetryTask = nil
     }
 
+    private func cancelLicenseStorageRetry() {
+        licenseStorageRetryTask?.cancel()
+        licenseStorageRetryTask = nil
+    }
+
+    /// Backoff for `scheduleLicenseStorageRetry`, in seconds. The last entry
+    /// repeats for every attempt after it, so the retry never stops while the
+    /// Keychain stays unavailable.
+    private static let licenseStorageRetryDelays: [UInt64] = [1, 2, 4, 8, 16, 32, 60]
+
+    /// Retries an unavailable Keychain read for the whole app session. This
+    /// keeps a temporary locked-Keychain or service failure distinct from no
+    /// license.
+    ///
+    /// The earlier version stopped after 5 attempts (31 seconds). A licensed
+    /// user whose Keychain stayed unavailable past that — a long
+    /// `securityd` stall, a login-keychain prompt left unanswered — was pinned
+    /// to Trial until the next launch, because nothing else re-reads the
+    /// record. The backoff now settles at 1 read per 60 seconds and continues
+    /// until the read answers `present` or `missing`, or until a later
+    /// `loadStoredLicense()` gets a definitive read and cancels the task. One
+    /// Keychain read a minute is far cheaper than a wrongly un-entitled
+    /// session.
+    private func scheduleLicenseStorageRetry() {
+        guard licenseStorageRetryTask == nil else { return }
+        licenseStorageRetryTask = Task { [weak self] in
+            let delays = LicenseManager.licenseStorageRetryDelays
+            var attempt = 0
+            while !Task.isCancelled {
+                let delay = delays[min(attempt, delays.count - 1)]
+                attempt += 1
+                try? await Task.sleep(nanoseconds: delay * 1_000_000_000)
+                guard let self, !Task.isCancelled else { return }
+                let read = self.networkService.readStoredLicenseKey(retryAfterFailure: true)
+                switch read {
+                case .present:
+                    self.licenseStorageRetryTask = nil
+                    await self.loadStoredLicense()
+                    return
+                case .missing:
+                    self.licenseStorageRetryTask = nil
+                    self.publishClearedLicenseState()
+                    return
+                case .unavailable:
+                    continue
+                }
+            }
+        }
+    }
+
     /// Updates UI state from validation result and posts notification.
     private func processValidationResult(_ result: LicenseValidationResult) {
+        if result.storagePersistenceFailed,
+           result.status == .active,
+           licenseStatus == .active {
+            // The server still accepts the attempted key, but the failed
+            // transaction leaves the prior secure record unchanged. Keep that
+            // prior published entitlement and report the write error.
+            lastError = result.errorMessage
+            return
+        }
         licenseStatus = result.status
         customerEmail = result.customerEmail
         customerName = result.customerName
         if !result.isValid { lastError = result.errorMessage }
-        NotificationCenter.default.post(name: .licenseStatusChanged, object: nil)
+        notificationCenter.post(name: .licenseStatusChanged, object: nil)
     }
 
     // MARK: - Customer Portal

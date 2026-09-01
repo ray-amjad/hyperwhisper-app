@@ -9,6 +9,8 @@
   This file contains all user-facing text that needs to be translated.
 */
 
+"transcription.error.forbidden.hyperWhisperCloud" = "HyperWhisper Cloud je zavrnil to zahtevo. Vaše omrežje je začasno blokirano.\n\nPočakajte nekaj minut in poskusite znova.";
+
 // MARK: - Application Navigation
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
@@ -926,6 +928,7 @@ Pred brisanjem posodobite te načine delovanja, da bodo uporabljali drug model."
 "transcription.error.maxRetriesExceeded" = "Presežen je bil največji število poskusov";
 "transcription.error.unauthorized.provider" = "Nepooblaščeno: neveljaven %@ API ključ ali dovoljenja.\n\nOdpri Nastavitve → API ključi za preverjanje svojih poverilnic.";
 "transcription.error.unauthorized.generic" = "Nepooblaščeno: neveljaven API ključ ali dovoljenja.\n\nOdpri Nastavitve → API ključi za preverjanje svojih poverilnic.";
+"transcription.error.unauthorized.hyperWhisperCloud" = "Ključ za dostop do HyperWhisper Cloud ni veljaven ali je potekel.\n\nOdprite Nastavitve → HyperWhisper Cloud in posodobite ključ.";
 "transcription.error.cloudAccountRequired" = "HyperWhisper Cloud zahteva ključ računa.\n\nOdpri Nastavitve → HyperWhisper Cloud za vnos ključa ali nakup kreditov.";
 "transcription.error.invalidRequest" = "Neveljavna zahteva: preveri zvočno datoteko ali nastavitve";
 "transcription.error.streamingInterrupted" = "Pretakanje je bila prekinjena; prikazano je delno besedilo";

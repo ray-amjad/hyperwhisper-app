@@ -9,6 +9,8 @@
   This file contains all user-facing text that needs to be translated.
 */
 
+"transcription.error.forbidden.hyperWhisperCloud" = "HyperWhisper Cloud ha rebutjat aquesta sol·licitud. La vostra xarxa està bloquejada temporalment.\n\nEspereu uns minuts i torneu-ho a provar.";
+
 // MARK: - Application Navigation
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
@@ -926,6 +928,7 @@ Actualitza aquests modes per utilitzar un model diferent abans d'eliminar-lo.";
 "transcription.error.maxRetriesExceeded" = "S'ha superat el nombre màxim d'intents";
 "transcription.error.unauthorized.provider" = "No autoritzat: clau API o permisos de %@ no vàlids.\n\nObriu Configuració → Claus API per verificar les vostres credencials.";
 "transcription.error.unauthorized.generic" = "No autoritzat: clau API o permisos no vàlids.\n\nObriu Configuració → Claus API per verificar les vostres credencials.";
+"transcription.error.unauthorized.hyperWhisperCloud" = "La clau d'accés de HyperWhisper Cloud no és vàlida o ha caducat.\n\nObriu Configuració → HyperWhisper Cloud per actualitzar la clau.";
 "transcription.error.cloudAccountRequired" = "HyperWhisper Cloud requereix una clau de compte.\n\nObriu Configuració → HyperWhisper Cloud per introduir la vostra clau o obtenir crèdits.";
 "transcription.error.invalidRequest" = "Sol·licitud no vàlida: comproveu el fitxer d'àudio o la configuració";
 "transcription.error.streamingInterrupted" = "Transmissió interrompuda; es mostra text parcial";

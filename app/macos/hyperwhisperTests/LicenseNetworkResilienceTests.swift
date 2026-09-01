@@ -315,7 +315,7 @@ struct LicenseNetworkResilienceTests {
             isCancelled: false
         )
 
-        #expect(!didPersist)
+        #expect(didPersist == .staleOrCancelled)
         #expect(licenseStoredLicenseKey(store: store) == "KEY-NEW")
         #expect(licenseCachedStatusWithinGrace(store: store, nowUnixSecs: t0 + 3) == .expired)
     }
@@ -341,7 +341,7 @@ struct LicenseNetworkResilienceTests {
             isCancelled: true
         )
 
-        #expect(!didPersist)
+        #expect(didPersist == .staleOrCancelled)
         #expect(licenseStoredLicenseKey(store: store) == "KEY-1")
         #expect(licenseCachedStatusWithinGrace(store: store, nowUnixSecs: t0 + 1) == .active)
     }
@@ -367,7 +367,7 @@ struct LicenseNetworkResilienceTests {
             isCancelled: false
         )
 
-        #expect(didPersist)
+        #expect(didPersist == .persisted)
         #expect(licenseStoredLicenseKey(store: store) == "KEY-NEW")
         #expect(licenseCachedStatusWithinGrace(store: store, nowUnixSecs: t0 + 1) == .active)
     }

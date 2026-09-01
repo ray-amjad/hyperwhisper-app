@@ -243,7 +243,7 @@ class AssemblyAIProvider: TranscriptionProvider {
                     break // parse below
                 case 401, 403:
                     AppLogger.network.error("AssemblyAI poll unauthorized · status=\(status, privacy: .public)")
-                    throw TranscriptionError.unauthorized(provider: "AssemblyAI")
+                    throw TranscriptionError.unauthorized(provider: "AssemblyAI", statusCode: status)
                 case 429, 500, 502, 503, 504:
                     // Transient errors on a status poll are non-fatal: the
                     // server-side job is still processing. Honor Retry-After and

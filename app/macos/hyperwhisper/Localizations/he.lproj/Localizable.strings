@@ -9,6 +9,8 @@
   This file contains all user-facing text that needs to be translated.
 */
 
+"transcription.error.forbidden.hyperWhisperCloud" = "HyperWhisper Cloud דחה את הבקשה הזו. הרשת שלך חסומה באופן זמני.\n\nיש להמתין מספר דקות ולנסות שוב.";
+
 // MARK: - Application Navigation
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
@@ -926,6 +928,7 @@
 "transcription.error.maxRetriesExceeded" = "חריגה ממספר ניסיונות חוזרים מקסימליים";
 "transcription.error.unauthorized.provider" = "לא מורשה: מפתח API לא תקין של %@ או הרשאות.\n\nפתח הגדרות → מפתחות API כדי לאמת את האישורים שלך.";
 "transcription.error.unauthorized.generic" = "לא מורשה: מפתח API לא תקין או הרשאות.\n\nפתח הגדרות → מפתחות API כדי לאמת את האישורים שלך.";
+"transcription.error.unauthorized.hyperWhisperCloud" = "מפתח הגישה ל-HyperWhisper Cloud אינו תקין או שפג תוקפו.\n\nפתח הגדרות → HyperWhisper Cloud כדי לעדכן את המפתח.";
 "transcription.error.cloudAccountRequired" = "HyperWhisper Cloud דורש מפתח חשבון.\n\nפתח הגדרות → HyperWhisper Cloud כדי להזין את המפתח שלך או לרכוש קרדיטים.";
 "transcription.error.invalidRequest" = "בקשה לא תקינה: בדוק קובץ אודיו או הגדרות";
 "transcription.error.streamingInterrupted" = "הזרמה הופרעה; טקסט חלקי מוצג";

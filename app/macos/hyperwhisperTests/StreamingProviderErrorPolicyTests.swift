@@ -358,7 +358,14 @@ struct StreamingErrorReportingPolicyTests {
         // `terminal`. The flow's own capture titled it "Streaming WebSocket
         // error" — an outage headline on a user who only has to top up.
         #expect(StreamingErrorReportingPolicy.shouldCaptureInSentry(StreamingError.insufficientCredits) == false)
-        #expect(StreamingErrorReportingPolicy.shouldCaptureInSentry(StreamingError.unauthorized) == false)
+        #expect(StreamingErrorReportingPolicy.shouldCaptureInSentry(StreamingError.unauthorized(statusCode: 401)) == false)
+    }
+
+    @Test func forbiddenUpgradeKeepsCloudBlockGuidance() {
+        let error = StreamingError.unauthorized(statusCode: 403)
+
+        #expect(error.localizedDescription == "transcription.error.forbidden.hyperWhisperCloud".localized)
+        #expect(error.localizedDescription != StreamingError.unauthorized(statusCode: 401).localizedDescription)
     }
 
     @Test func aTerminalProviderFrameIsNotReportedTwice() {

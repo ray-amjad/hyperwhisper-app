@@ -960,6 +960,8 @@
 "transcription.error.maxRetriesExceeded" = "Maximum retry attempts exceeded";
 "transcription.error.unauthorized.provider" = "Unauthorized: invalid %@ API key or permissions.\n\nOpen Settings → API Keys to verify your credentials.";
 "transcription.error.unauthorized.generic" = "Unauthorized: invalid API key or permissions.\n\nOpen Settings → API Keys to verify your credentials.";
+"transcription.error.unauthorized.hyperWhisperCloud" = "The HyperWhisper Cloud access key is invalid or expired.\n\nOpen Settings → HyperWhisper Cloud to update your key.";
+"transcription.error.forbidden.hyperWhisperCloud" = "HyperWhisper Cloud denied this request. Your network is temporarily blocked.\n\nWait a few minutes, then try again.";
 "transcription.error.cloudAccountRequired" = "HyperWhisper Cloud requires an account key.\n\nOpen Settings → HyperWhisper Cloud to enter your key or get credits.";
 "transcription.error.invalidRequest" = "Invalid request: check audio file or settings";
 "transcription.error.streamingInterrupted" = "Streaming interrupted; partial text shown";

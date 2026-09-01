@@ -9,6 +9,8 @@
   This file contains all user-facing text that needs to be translated.
 */
 
+"transcription.error.forbidden.hyperWhisperCloud" = "HyperWhisper Cloud heeft dit verzoek geweigerd. Uw netwerk is tijdelijk geblokkeerd.\n\nWacht enkele minuten en probeer het opnieuw.";
+
 // MARK: - Application Navigation
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
@@ -926,6 +928,7 @@ Wijzig deze modi zodat ze een ander model gebruiken voordat je verwijdert.";
 "transcription.error.maxRetriesExceeded" = "Maximale aantalpoging pogingen bereikt";
 "transcription.error.unauthorized.provider" = "Niet gemachtigd: ongeldige %@ API-sleutel of toestemmingen.\n\nOpen Instellingen → API-sleutels om je referenties te verifiëren.";
 "transcription.error.unauthorized.generic" = "Niet gemachtigd: ongeldige API-sleutel of toestemmingen.\n\nOpen Instellingen → API-sleutels om je referenties te verifiëren.";
+"transcription.error.unauthorized.hyperWhisperCloud" = "De toegangssleutel voor HyperWhisper Cloud is ongeldig of verlopen.\n\nOpen Instellingen → HyperWhisper Cloud om je sleutel bij te werken.";
 "transcription.error.cloudAccountRequired" = "HyperWhisper Cloud vereist een accountsleutel.\n\nOpen Instellingen → HyperWhisper Cloud om je sleutel in te voeren of tegoed te kopen.";
 "transcription.error.invalidRequest" = "Ongeldige aanvraag: controleer audiobestand of instellingen";
 "transcription.error.streamingInterrupted" = "Streaming onderbroken; gedeeltelijke tekst weergegeven";

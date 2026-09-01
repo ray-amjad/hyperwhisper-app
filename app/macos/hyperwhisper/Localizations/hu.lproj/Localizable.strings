@@ -9,6 +9,8 @@
   This file contains all user-facing text that needs to be translated.
 */
 
+"transcription.error.forbidden.hyperWhisperCloud" = "A HyperWhisper Cloud elutasította ezt a kérést. A hálózat ideiglenesen le van tiltva.\n\nVárjon néhány percet, majd próbálja újra.";
+
 // MARK: - Application Navigation
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
@@ -926,6 +928,7 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 "transcription.error.maxRetriesExceeded" = "Maximum újrapróbálási kísérletek túllépve";
 "transcription.error.unauthorized.provider" = "Jogosulatlan: érvénytelen %@ API kulcs vagy engedélyek.\n\nNyisd meg a Beállítások → API kulcsok menüt az azonosítók ellenőrzéséhez.";
 "transcription.error.unauthorized.generic" = "Jogosulatlan: érvénytelen API kulcs vagy engedélyek.\n\nNyisd meg a Beállítások → API kulcsok menüt az azonosítók ellenőrzéséhez.";
+"transcription.error.unauthorized.hyperWhisperCloud" = "A HyperWhisper Cloud hozzáférési kulcsa érvénytelen vagy lejárt.\n\nNyisd meg a Beállítások → HyperWhisper Cloud menüt a kulcs frissítéséhez.";
 "transcription.error.cloudAccountRequired" = "A HyperWhisper Cloud fiókkulcsot igényel.\n\nNyisd meg a Beállítások → HyperWhisper Cloud menüt a kulcs megadásához vagy kreditek vásárlásához.";
 "transcription.error.invalidRequest" = "Érvénytelen kérés: ellenőrizd az audio fájlt vagy beállításokat";
 "transcription.error.streamingInterrupted" = "Streamelés megszakítva; részleges szöveg megjelenítve";
