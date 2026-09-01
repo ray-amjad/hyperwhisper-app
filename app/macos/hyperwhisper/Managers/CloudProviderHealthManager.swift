@@ -16,12 +16,16 @@ import Combine
 // 6. REAL TRANSCRIPTION OUTCOMES FEED BACK (issue #379). The transcription call sites
 //    (TranscriptionPipeline+Transcription, TranscribeEndpoint) hand every finished cloud
 //    attempt to recordTranscriptionOutcome(for:error:). A definitive provider-down failure
-//    records a timestamp in lastTranscriptionFailure and publishes .unreachable; a success
-//    clears that record and publishes .healthy. The recorded failure then OUTRANKS the probe
-//    for failureOverrideTTL seconds at the two READ seams — status(for:) and healthSnapshot()
-//    — so `/health` and the badges stop reporting "healthy" for a provider that just refused
-//    to transcribe. See recordTranscriptionOutcome(for:error:) for why the probe alone cannot
-//    see this, and ensureHealthy(_:) for why the override is deliberately NOT applied there.
+//    stamps lastTranscriptionFailure; a success clears it.
+//
+//    THE RECORDED FAILURE IS APPLIED AT EXACTLY ONE SEAM: healthSnapshot(), which is what
+//    the Local API `/health` endpoint reports. It is applied NOWHERE else — not in
+//    status(for:), not in the published `statuses`/`cache` dictionaries, not in
+//    ensureHealthy(_:). That single-seam rule is the whole design, and it is what keeps a
+//    transient blip from degrading the app: every gate and badge in the app reads the probe
+//    verdict, exactly as it did before this feature existed, while `/health` alone stops
+//    claiming "reachable": true for a provider that just refused to transcribe. See
+//    applyFailureOverride(_:for:) for the enumerated reasons each other seam must NOT fold.
 //
 // This verbose documentation is mandated by CLAUDE.md so future contributors can walk the full
 // lifecycle without reverse-engineering the control flow.
@@ -167,9 +171,9 @@ final class CloudProviderHealthManager: ObservableObject {
     /// timestamp in this type, so the tests can cross `failureOverrideTTL`
     /// without a wall-clock wait.
     ///
-    /// Entries are never pruned on read — `status(for:)` and `healthSnapshot()`
-    /// stay pure reads. An expired entry simply stops matching; the dictionary
-    /// is bounded by `CloudProvider.allCases`.
+    /// Entries are never pruned on read — `healthSnapshot()` stays a pure read.
+    /// An expired entry simply stops matching; the dictionary is bounded by
+    /// `CloudProvider.allCases`.
     private var lastTranscriptionFailure: [CloudProvider: Date] = [:]
 
     private let cacheTTL: TimeInterval = 60
@@ -222,25 +226,21 @@ final class CloudProviderHealthManager: ObservableObject {
         self.apiKeyProvider = apiKeyProvider
     }
 
-    /// Snapshot of the current status for a provider (defaults to .unknown).
-    ///
-    /// READ SEAM 1 of 2 for the transcription-failure override (issue #379).
-    /// `healthSnapshot()` below is seam 2 and does NOT call through here, so
-    /// both must apply `applyFailureOverride` independently.
+    /// Snapshot of the probe-derived app status for a provider (defaults to
+    /// `.unknown`). The transcription-failure override deliberately does not
+    /// apply here: preflight gates, menus and badges all use this accessor, and
+    /// one failed request must not degrade those app surfaces for 60 seconds.
     func status(for provider: CloudProvider) -> ProviderHealth {
-        applyFailureOverride(statuses[provider] ?? .unknown, for: provider)
+        statuses[provider] ?? .unknown
     }
 
     /// Frozen, Sendable copy of both status dictionaries. Used by the Local API
     /// `/health` endpoint so the handler doesn't read the `@Published` dictionary
     /// while a refresh is mutating it.
     ///
-    /// READ SEAM 2 of 2 for the transcription-failure override (issue #379).
-    /// This reads `statuses` DIRECTLY rather than going through `status(for:)`,
-    /// so the override has to be applied here too — otherwise `/health` keeps
-    /// answering `"status":"healthy","reachable":true` (`HealthEndpoint.swift`
-    /// derives `reachable` from `status`) for a provider the app just failed to
-    /// transcribe with, which is the exact defect in issue #379.
+    /// The ONE read seam for the transcription-failure override (issue #379).
+    /// Applying it only here keeps the Local API honest without changing the
+    /// probe-derived statuses used by app gates, menus and badges.
     func healthSnapshot() -> HealthSnapshot {
         var cloud: [String: String] = [:]
         for (provider, health) in statuses {
@@ -343,9 +343,8 @@ final class CloudProviderHealthManager: ObservableObject {
     /// BEFORE "FIXING" IT.
     ///
     /// The transcription-failure override from `recordTranscriptionOutcome` is
-    /// applied at the two READ seams (`status(for:)` / `healthSnapshot()`) but is
-    /// NOT applied to what this method RETURNS. The value returned here is always
-    /// the raw probe result.
+    /// applied only by `healthSnapshot()`. The value read and returned here is
+    /// always the raw probe result.
     ///
     /// Why: `ProviderHealth.unreachable.shouldBlockTranscription == true`, and
     /// `TranscriptionProviderRouter` turns a non-healthy verdict from this method
@@ -355,16 +354,9 @@ final class CloudProviderHealthManager: ObservableObject {
     /// That is a worse bug than the stale `/health` verdict this override exists
     /// to fix.
     ///
-    /// What the override DOES do here, on purpose: because `status(for:)` reports
-    /// `.unreachable` during the window, the `current.isHealthy` short-circuit
-    /// below cannot fire, so this method always forces a FRESH probe after a real
-    /// failure instead of serving a stale "healthy" from `statuses`. The user
-    /// retries immediately, and a provider that has actually recovered self-heals
-    /// on its first success (`recordTranscriptionOutcome(for:error: nil)` clears
-    /// the record).
-    ///
-    /// Net effect: `/health` and the badges stay honest for 60 s; the
-    /// transcription path is never blocked by the override for even one attempt.
+    /// Net effect: `/health` reports the real failed outcome for 60 seconds. The
+    /// app's preflight, menu and badge paths behave exactly as they did before
+    /// outcome feedback existed, and a success clears the report immediately.
     func ensureHealthy(_ provider: CloudProvider) async -> ProviderHealth {
         if let task = pendingChecks[provider] {
             return await task.value
@@ -403,14 +395,14 @@ final class CloudProviderHealthManager: ObservableObject {
     /// STEP-BY-STEP (REQUIRED):
     /// 1. A transcription call site finishes a CLOUD attempt and hands the result
     ///    here: `error == nil` for a success, otherwise the thrown error.
-    /// 2. A success clears any recorded failure and publishes `.healthy`. A real
-    ///    transcription is stronger evidence than any probe, so a provider that
-    ///    demonstrably works must not stay `.unreachable` for the rest of the
-    ///    window.
+    /// 2. A success clears any recorded failure. A real transcription is
+    ///    stronger evidence than any probe, so `/health` must not stay
+    ///    `.unreachable` for the rest of the window.
     /// 3. A failure is classified. ONLY a definitive provider-down verdict counts
     ///    (see `isDefinitiveProviderDownVerdict`); everything else is a no-op.
-    /// 4. A definitive failure stamps `lastTranscriptionFailure[provider]` and
-    ///    publishes `.unreachable` into both `statuses` and `cache`.
+    /// 4. A definitive failure stamps `lastTranscriptionFailure[provider]`.
+    ///    Only `healthSnapshot()` folds that record into its result. The raw
+    ///    probe dictionaries remain untouched.
     ///
     /// WHY THIS EXISTS (issue #379): the health probe cannot see this failure. For
     /// the HW-Cloud-routed providers (`hyperwhisper`, `microsoftAzureSpeech`,
@@ -422,18 +414,16 @@ final class CloudProviderHealthManager: ObservableObject {
     /// reproducible `POST /transcribe` failure. Feeding the REAL outcome back is
     /// the only signal that can correct that; re-pointing the probe cannot.
     ///
-    /// See `ensureHealthy(_:)` for the deliberate asymmetry that stops this from
-    /// wedging the transcription path.
+    /// This `/health`-only seam stops a failed request from wedging the
+    /// transcription path or changing a menu or badge.
     ///
     /// - Parameters:
     ///   - provider: the cloud provider the attempt actually ran against.
     ///   - error: `nil` on success, otherwise the error the attempt threw.
     func recordTranscriptionOutcome(for provider: CloudProvider, error: Error?) {
         guard let error else {
-            guard lastTranscriptionFailure[provider] != nil || statuses[provider] != .healthy else { return }
+            guard lastTranscriptionFailure[provider] != nil else { return }
             lastTranscriptionFailure[provider] = nil
-            statuses[provider] = .healthy
-            cache[provider] = StatusRecord(status: .healthy, timestamp: now())
             AppLogger.network.info("\(provider.rawValue, privacy: .public) transcription succeeded · clearing health failure override")
             return
         }
@@ -442,12 +432,7 @@ final class CloudProviderHealthManager: ObservableObject {
 
         let stamp = now()
         lastTranscriptionFailure[provider] = stamp
-        statuses[provider] = .unreachable
-        // Mirror the failure into `cache` as well, so `refresh(_:force: false)`
-        // (the UI's periodic path) serves `.unreachable` from the cache instead of
-        // re-probing and republishing `.healthy` behind the override's back.
-        cache[provider] = StatusRecord(status: .unreachable, timestamp: stamp)
-        AppLogger.network.error("\(provider.rawValue, privacy: .public) transcription reported the provider down · marking unreachable for \(Int(self.failureOverrideTTL), privacy: .public)s · message=\(error.localizedDescription, privacy: .public)")
+        AppLogger.network.error("\(provider.rawValue, privacy: .public) transcription reported the provider down · marking /health unreachable for \(Int(self.failureOverrideTTL), privacy: .public)s · message=\(error.localizedDescription, privacy: .public)")
     }
 
     /// Whether `error` is a DEFINITIVE verdict that the PROVIDER ITSELF is down,
@@ -483,10 +468,11 @@ final class CloudProviderHealthManager: ObservableObject {
 
     /// Fold a recorded transcription failure over a probe-derived status.
     ///
-    /// Applied at both READ seams (`status(for:)`, `healthSnapshot()`) and
-    /// nowhere else. A pure function of `lastTranscriptionFailure` + `now()`; it
-    /// mutates nothing, so an expired record is simply ignored rather than
-    /// cleaned up.
+    /// Applied only at the Local API `healthSnapshot()` seam. It must not be
+    /// applied to `status(for:)`, `statuses`, `cache` or `ensureHealthy(_:)`:
+    /// those are app gates and badge inputs. A pure function of
+    /// `lastTranscriptionFailure` + `now()`; it mutates nothing, so an expired
+    /// record is simply ignored rather than cleaned up.
     private func applyFailureOverride(_ health: ProviderHealth, for provider: CloudProvider) -> ProviderHealth {
         guard let failedAt = lastTranscriptionFailure[provider] else { return health }
         guard now().timeIntervalSince(failedAt) < failureOverrideTTL else { return health }

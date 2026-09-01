@@ -203,10 +203,9 @@ struct CloudProviderHealthCacheTTLTests {
     /// stop `/health` reporting the provider healthy — even though the probe,
     /// which never touches the transcription endpoint, keeps saying it is.
     ///
-    /// Both read seams are asserted separately on purpose: `healthSnapshot()`
-    /// reads `statuses` directly and does NOT call through `status(for:)`, so a
-    /// fix applied to only one of them would leave `/health` — the surface the
-    /// issue was filed about — still lying.
+    /// The override belongs only to `healthSnapshot()`. The probe-derived
+    /// accessor and published dictionary feed app gates and badges, so they must
+    /// stay healthy after the failed request.
     @Test func aRecordedProviderDownFailureOutranksAHealthyProbe() async {
         let clock = TestClock()
         let client = CountingHealthCheckClient()
@@ -220,14 +219,16 @@ struct CloudProviderHealthCacheTTLTests {
 
         manager.recordTranscriptionOutcome(for: Self.cloudProvider, error: Self.providerDownError)
 
-        #expect(manager.status(for: Self.cloudProvider) == .unreachable)
+        #expect(manager.status(for: Self.cloudProvider) == .healthy)
+        #expect(manager.statuses[Self.cloudProvider] == .healthy)
         #expect(manager.healthSnapshot().cloud[Self.cloudProvider.rawValue] == "unreachable")
 
-        // Now let the probe run again and confirm it does NOT win. It republishes
-        // `.healthy` into `statuses`, and both seams still report `unreachable`.
-        let reprobed = await manager.ensureHealthy(Self.cloudProvider)
-        #expect(reprobed == .healthy)
-        #expect(manager.status(for: Self.cloudProvider) == .unreachable)
+        // The app gate serves its existing healthy probe without forcing a new
+        // health check. Only the Local API snapshot sees the failed outcome.
+        let gate = await manager.ensureHealthy(Self.cloudProvider)
+        #expect(gate == .healthy)
+        #expect(gate.shouldBlockTranscription == false)
+        #expect(manager.statuses[Self.cloudProvider] == .healthy)
         #expect(manager.healthSnapshot().cloud[Self.cloudProvider.rawValue] == "unreachable")
 
         // The whole exchange was hermetic: no injectable-client traffic at all.
@@ -247,13 +248,10 @@ struct CloudProviderHealthCacheTTLTests {
         _ = await manager.ensureHealthy(Self.cloudProvider)
         manager.recordTranscriptionOutcome(for: Self.cloudProvider, error: Self.providerDownError)
 
-        // A probe during the window republishes `.healthy` underneath the
-        // override — this is what the expiry then reveals.
-        _ = await manager.ensureHealthy(Self.cloudProvider)
-        #expect(manager.status(for: Self.cloudProvider) == .unreachable)
+        #expect(manager.status(for: Self.cloudProvider) == .healthy)
 
         clock.advance(59.9)
-        #expect(manager.status(for: Self.cloudProvider) == .unreachable)
+        #expect(manager.status(for: Self.cloudProvider) == .healthy)
         #expect(manager.healthSnapshot().cloud[Self.cloudProvider.rawValue] == "unreachable")
 
         clock.advance(0.1)
@@ -273,7 +271,7 @@ struct CloudProviderHealthCacheTTLTests {
 
         _ = await manager.ensureHealthy(Self.cloudProvider)
         manager.recordTranscriptionOutcome(for: Self.cloudProvider, error: Self.providerDownError)
-        #expect(manager.status(for: Self.cloudProvider) == .unreachable)
+        #expect(manager.healthSnapshot().cloud[Self.cloudProvider.rawValue] == "unreachable")
 
         // No clock movement at all — the success alone must clear it.
         manager.recordTranscriptionOutcome(for: Self.cloudProvider, error: nil)
@@ -325,19 +323,12 @@ struct CloudProviderHealthCacheTTLTests {
         ))
     }
 
-    /// (e) THE NO-WEDGE GUARANTEE — the most important case here.
+    /// (e) THE NO-DEGRADATION GUARANTEE — the most important case here.
     ///
-    /// The override is applied at the two read seams but never to what
-    /// `ensureHealthy` RETURNS. `ProviderHealth.unreachable.shouldBlockTranscription`
-    /// is true and `TranscriptionProviderRouter` turns a non-healthy verdict into
-    /// a thrown error before any audio is sent, so if the override leaked into
-    /// this return value one transient blip would lock the user out of the
-    /// provider for the full 60 s with no way to retry.
-    ///
-    /// What it must do instead: because `status(for:)` reports `.unreachable`, the
-    /// `isHealthy` short-circuit cannot fire, so a FRESH probe runs and its raw
-    /// result is what the router sees.
-    @Test func ensureHealthyStillProbesAndReturnsTheRawResultDuringTheOverride() async {
+    /// The override applies only to `/health`. `status(for:)`, the published
+    /// dictionary, and `ensureHealthy` feed menus, badges and preflight. They
+    /// must all retain the raw healthy probe and must not force a new probe.
+    @Test func theOverrideDoesNotDegradeAppGatesOrBadges() async {
         let clock = TestClock()
         let client = CountingHealthCheckClient()
         let keys = FixedKeyProvider()
@@ -345,21 +336,15 @@ struct CloudProviderHealthCacheTTLTests {
 
         _ = await manager.ensureHealthy(Self.cloudProvider)
         manager.recordTranscriptionOutcome(for: Self.cloudProvider, error: Self.providerDownError)
-        #expect(manager.status(for: Self.cloudProvider) == .unreachable)
+        #expect(manager.status(for: Self.cloudProvider) == .healthy)
+        #expect(manager.statuses[Self.cloudProvider] == .healthy)
 
-        // The router's pre-flight gate. Must NOT be `.unreachable`.
         let gate = await manager.ensureHealthy(Self.cloudProvider)
         #expect(gate == .healthy)
         #expect(gate.shouldBlockTranscription == false)
-
-        // …and the reported verdict is untouched by that probe.
-        #expect(manager.status(for: Self.cloudProvider) == .unreachable)
-
-        // Proof the gate really re-probed rather than serving a stale value:
-        // the probe wrote `.healthy` back into `statuses`, which only becomes
-        // visible once the override expires.
-        clock.advance(60)
-        #expect(manager.status(for: Self.cloudProvider) == .healthy)
+        #expect(manager.statuses[Self.cloudProvider] == .healthy)
+        #expect(manager.healthSnapshot().cloud[Self.cloudProvider.rawValue] == "unreachable")
+        #expect(client.sendCount == 0)
     }
 
     /// Re-pasting an API key during an outage must not leave the user staring at
@@ -372,11 +357,12 @@ struct CloudProviderHealthCacheTTLTests {
 
         _ = await manager.ensureHealthy(Self.cloudProvider)
         manager.recordTranscriptionOutcome(for: Self.cloudProvider, error: Self.providerDownError)
-        #expect(manager.status(for: Self.cloudProvider) == .unreachable)
+        #expect(manager.healthSnapshot().cloud[Self.cloudProvider.rawValue] == "unreachable")
 
         // An empty value takes the early-return branch, so no probe is scheduled
         // and the published status resets to `.unknown` — not `.unreachable`.
         manager.registerAPIKeyChange(for: Self.cloudProvider, newValue: "")
         #expect(manager.status(for: Self.cloudProvider) == .unknown)
+        #expect(manager.healthSnapshot().cloud[Self.cloudProvider.rawValue] == "unknown")
     }
 }
