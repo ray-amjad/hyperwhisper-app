@@ -124,18 +124,18 @@ struct TranscriptionErrorClassificationTests {
         #expect(statusCode == nil)
     }
 
-    /// The status does not change classification or actions. A 403 says the
-    /// network is temporarily blocked — the only thing a HyperWhisper Cloud
-    /// route answers 403 for — instead of claiming that the key expired.
-    @Test func forbiddenStatusChangesOnlyUserGuidance() {
+    /// A Cloud 403 is a temporary network block. Retrying can work after the
+    /// block clears, while opening Settings cannot change the network state.
+    @Test func forbiddenStatusChangesGuidanceAndRecoveryActions() {
         let bare = TranscriptionError.unauthorized(provider: "HyperWhisper Cloud")
         let with401 = TranscriptionError.unauthorized(provider: "HyperWhisper Cloud", statusCode: 401)
         let with403 = TranscriptionError.unauthorized(provider: "HyperWhisper Cloud", statusCode: 403)
 
-        for error in [with401, with403] {
-            #expect(error.isRetryable == bare.isRetryable)
-            #expect(error.showSettingsButton == bare.showSettingsButton)
-        }
+        #expect(with401.isRetryable == bare.isRetryable)
+        #expect(with401.showSettingsButton == bare.showSettingsButton)
+        #expect(with403.isRetryable)
+        #expect(!with403.showSettingsButton)
+        #expect(with403.shouldSurfaceInline)
         #expect(with401.errorDescription == bare.errorDescription)
         #expect(with403.errorDescription != bare.errorDescription)
         #expect(with403.errorDescription?.localizedCaseInsensitiveContains("temporarily blocked") == true)

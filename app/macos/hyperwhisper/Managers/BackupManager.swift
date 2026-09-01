@@ -72,19 +72,17 @@ class BackupManager: ObservableObject {
     /// import). Uses the same `validateLicense` call normal Settings activation
     /// goes through; if offline at import time, validation fails and the status
     /// falls back honestly instead of inheriting the old key's Active.
-    private func revalidateImportedLicenseKey(_ licenseKey: String) {
+    private func revalidateImportedLicenseKey(_ licenseKey: String) async {
         guard let licenseManager else {
             AppLogger.settings.warning("Imported a license key but no LicenseManager is wired — revalidation deferred to next launch")
             return
         }
-        Task {
-            await licenseManager.validateImportedLicenseKey(licenseKey)
-        }
+        await licenseManager.validateImportedLicenseKey(licenseKey)
     }
 
     /// Replaces the key and clears its old key-bound verdict in one secure
     /// write. Revalidation starts only after that write succeeds.
-    func importLicenseKeySecurely(_ licenseKey: String) -> Bool {
+    func importLicenseKeySecurely(_ licenseKey: String) async -> Bool {
         guard let licenseManager else {
             AppLogger.settings.error("License backup import failed: LicenseManager is not wired")
             return false
@@ -92,7 +90,7 @@ class BackupManager: ObservableObject {
         guard licenseManager.replaceStoredLicenseKeyFromBackup(licenseKey) else {
             return false
         }
-        revalidateImportedLicenseKey(licenseKey)
+        await revalidateImportedLicenseKey(licenseKey)
         return true
     }
 
@@ -566,7 +564,7 @@ class BackupManager: ObservableObject {
             let hasSettings = topLevel["settings"] is [String: Any]
             let hasModes = topLevel["modes"] is [Any]
             if hasSettings || hasModes {
-                return importUniversalV2(jsonData: jsonData, rawString: String(data: jsonData, encoding: .utf8), topLevel: topLevel, options: options)
+                return await importUniversalV2(jsonData: jsonData, rawString: String(data: jsonData, encoding: .utf8), topLevel: topLevel, options: options)
             }
             return importUniversalVocab(jsonData: jsonData, options: options)
         }
@@ -636,7 +634,7 @@ class BackupManager: ObservableObject {
         if options.importLicenseKey,
            let licenseKey = backupData.licenseKey?.trimmingCharacters(in: .whitespacesAndNewlines),
            !licenseKey.isEmpty {
-            guard importLicenseKeySecurely(licenseKey) else {
+            guard await importLicenseKeySecurely(licenseKey) else {
                 return licenseImportFailureResult(
                     modesImported: modesImported,
                     modesSkipped: modesSkipped,
@@ -750,7 +748,7 @@ class BackupManager: ObservableObject {
     /// Order: validate-first (reject before mutating) -> settings (REJOIN platformExtensions ->
     /// core inverse mapping -> applySettings UNCHANGED) -> modes (DTO -> present-only migrations ->
     /// existing importModes -> defaultModelByMode from parked extensions) -> vocab/keys/license.
-    private func importUniversalV2(jsonData: Data, rawString: String?, topLevel: [String: Any], options: ImportOptions) -> ImportResult {
+    private func importUniversalV2(jsonData: Data, rawString: String?, topLevel: [String: Any], options: ImportOptions) async -> ImportResult {
         // 1. VALIDATE FIRST with the core — reject before mutating any state.
         guard let raw = rawString else {
             let message = NSLocalizedString("settings.backup.import.error.decode", value: "Invalid backup file format", comment: "")
@@ -902,7 +900,7 @@ class BackupManager: ObservableObject {
         if options.importLicenseKey,
            let licenseKey = dto.licenseKey?.trimmingCharacters(in: .whitespacesAndNewlines),
            !licenseKey.isEmpty {
-            guard importLicenseKeySecurely(licenseKey) else {
+            guard await importLicenseKeySecurely(licenseKey) else {
                 return licenseImportFailureResult(
                     modesImported: modesImported,
                     modesSkipped: modesSkipped,

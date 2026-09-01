@@ -111,6 +111,7 @@ class LicenseManager: ObservableObject {
 
     /// Activates a license key by validating it with the backend.
     func activateLicense(_ licenseKey: String) async -> LicenseValidationResult {
+        cancelLicenseStorageRetry()
         cancelNetworkFailureRetry()
         isValidating = true
         lastError = nil
@@ -123,6 +124,7 @@ class LicenseManager: ObservableObject {
 
     /// Deactivates the license locally (deletes the secure license record).
     func deactivateLicense() async -> Bool {
+        cancelLicenseStorageRetry()
         cancelNetworkFailureRetry()
         isDeactivating = true
         lastError = nil
@@ -143,6 +145,7 @@ class LicenseManager: ObservableObject {
     ///   launch, selecting its tighter retry budget. See HYPERWHISPER-F4.
     func validateLicense(_ licenseKey: String, isLaunchValidation: Bool = false) async -> LicenseValidationResult {
         if !isLaunchValidation {
+            cancelLicenseStorageRetry()
             cancelNetworkFailureRetry()
         }
         isValidating = true
@@ -188,7 +191,7 @@ class LicenseManager: ObservableObject {
             }
             licenseStorageRetryTask?.cancel()
             licenseStorageRetryTask = nil
-            licenseStatus = .trial
+            publishClearedLicenseState()
             return
         }
         licenseStorageRetryTask?.cancel()
@@ -276,6 +279,7 @@ class LicenseManager: ObservableObject {
     /// Clears stored license and resets to the unlicensed (trial) state.
     @discardableResult
     func clearLicense() -> Bool {
+        cancelLicenseStorageRetry()
         cancelNetworkFailureRetry()
         guard networkService.clearStoredLicense() else {
             lastError = "Could not securely remove the license"
@@ -293,6 +297,7 @@ class LicenseManager: ObservableObject {
 
     /// Saves an imported replacement without the previous key-bound cache.
     func replaceStoredLicenseKeyFromBackup(_ licenseKey: String) -> Bool {
+        cancelLicenseStorageRetry()
         cancelNetworkFailureRetry()
         guard networkService.replaceStoredLicenseKeyForImport(licenseKey) else {
             return false
@@ -307,6 +312,7 @@ class LicenseManager: ObservableObject {
     /// Validates an imported replacement only while that exact key remains
     /// current. A later import or deactivation owns both secure and UI state.
     func validateImportedLicenseKey(_ licenseKey: String) async {
+        cancelLicenseStorageRetry()
         isValidating = true
         lastError = nil
         defer { isValidating = false }
@@ -334,6 +340,11 @@ class LicenseManager: ObservableObject {
         networkFailureRetryID = nil
         networkFailureRetryTask?.cancel()
         networkFailureRetryTask = nil
+    }
+
+    private func cancelLicenseStorageRetry() {
+        licenseStorageRetryTask?.cancel()
+        licenseStorageRetryTask = nil
     }
 
     /// Backoff for `scheduleLicenseStorageRetry`, in seconds. The last entry
@@ -372,7 +383,7 @@ class LicenseManager: ObservableObject {
                     return
                 case .missing:
                     self.licenseStorageRetryTask = nil
-                    self.licenseStatus = .trial
+                    self.publishClearedLicenseState()
                     return
                 case .unavailable:
                     continue

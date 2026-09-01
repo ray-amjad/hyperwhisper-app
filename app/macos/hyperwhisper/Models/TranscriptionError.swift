@@ -165,6 +165,11 @@ enum TranscriptionError: LocalizedError {
 
     /// Whether this error is retryable
     var isRetryable: Bool {
+        if case .unauthorized(let provider, let statusCode) = self,
+           provider == "HyperWhisper Cloud",
+           statusCode == 403 {
+            return true
+        }
         switch self {
         case .transientNetwork(_), .invalidResponse(_), .providerNotAvailable(_, _), .streamingInterrupted, .timeout(_), .serverError(_, _):
             return true
@@ -194,6 +199,11 @@ enum TranscriptionError: LocalizedError {
     /// - Server errors → transient, retry later
     /// - Timeout errors → transient, retry later
     var showSettingsButton: Bool {
+        if case .unauthorized(let provider, let statusCode) = self,
+           provider == "HyperWhisper Cloud",
+           statusCode == 403 {
+            return false
+        }
         switch self {
         case .apiKeyMissing, .unauthorized, .insufficientCredits, .quotaExceeded,
              .cloudAccountRequired:
@@ -215,7 +225,7 @@ enum TranscriptionError: LocalizedError {
     var shouldSurfaceInline: Bool {
         if showSettingsButton { return true }
         switch self {
-        case .localRuntimeUnavailable:
+        case .unauthorized, .localRuntimeUnavailable:
             return true
         default:
             return false

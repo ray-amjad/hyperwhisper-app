@@ -13,6 +13,14 @@ private enum FakeCredentialStoreError: Error {
     case deleteFailed
 }
 
+private final class NotificationCountBox: @unchecked Sendable {
+    var value = 0
+}
+
+private final class BoolBox: @unchecked Sendable {
+    var value = false
+}
+
 private final class FakeLicenseCredentialStore: LicenseCredentialStore {
     var storage: [LicenseCredentialDescriptor: Data] = [:]
     var reads: [LicenseCredentialDescriptor] = []
@@ -535,8 +543,7 @@ struct BackupLicenseStorageTests {
         let backup = BackupManager()
         backup.licenseManager = manager
 
-        #expect(backup.importLicenseKeySecurely("replacement-key"))
-        await service.waitForValidation()
+        #expect(await backup.importLicenseKeySecurely("replacement-key"))
 
         #expect(service.actions == ["replace", "validate"])
         #expect(service.expectedKeys == ["replacement-key"])
@@ -552,15 +559,31 @@ struct BackupLicenseStorageTests {
         #expect(manager.licenseStatus == .active)
     }
 
-    @Test func importPublishesNonActiveStateBeforeValidationStarts() {
-        let service = BackupLicenseNetworkSpy()
+    @Test func importWaitsForCompletedValidationBeforeReportingSuccess() async {
+        let service = ControlledBackupLicenseNetworkSpy()
         let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false, notificationCenter: NotificationCenter())
         manager.licenseStatus = .active
         let backup = BackupManager()
         backup.licenseManager = manager
+        let finished = BoolBox()
 
-        #expect(backup.importLicenseKeySecurely("replacement-key"))
+        let importTask = Task {
+            let result = await backup.importLicenseKeySecurely("replacement-key")
+            finished.value = true
+            return result
+        }
+        guard await service.waitForValidationCount(1) else {
+            Issue.record("import validation did not start")
+            return
+        }
+
+        #expect(!finished.value)
         #expect(manager.licenseStatus == .trial)
+        service.completeValidation(for: "replacement-key", status: .active)
+
+        #expect(await importTask.value)
+        #expect(finished.value)
+        #expect(manager.licenseStatus == .active)
     }
 
     @Test func launchValidationBindsVerdictToStoredKey() async {
@@ -575,26 +598,24 @@ struct BackupLicenseStorageTests {
         #expect(service.expectedKeys == ["stored-key"])
     }
 
-    /// Runs the two halves `BackupManager.importLicenseKeySecurely` runs —
-    /// `replaceStoredLicenseKeyFromBackup` then `validateImportedLicenseKey` —
-    /// but through Tasks this test owns, so each verdict can be awaited to
-    /// completion with `.value`.
-    ///
-    /// `BackupManager` starts the validation in a detached Task that nothing
-    /// can await. Resuming the spy's continuation and then yielding once does
-    /// NOT guarantee the manager has published, and that raced in CI.
-    /// `importRequestsRevalidationOnlyAfterSecureReplacement` above still
-    /// covers that `BackupManager` schedules the call at all.
+    /// Runs overlapping imports through Tasks this test owns, so each verdict
+    /// can be completed in the order needed to exercise stale-result guards.
     @Test func lateImportedValidationCannotOverrideNewerImportState() async {
         let service = ControlledBackupLicenseNetworkSpy()
         let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false, notificationCenter: NotificationCenter())
 
         #expect(manager.replaceStoredLicenseKeyFromBackup("older-key"))
         let olderValidation = Task { await manager.validateImportedLicenseKey("older-key") }
-        await service.waitForValidationCount(1)
+        guard await service.waitForValidationCount(1) else {
+            Issue.record("older validation did not start")
+            return
+        }
         #expect(manager.replaceStoredLicenseKeyFromBackup("newer-key"))
         let newerValidation = Task { await manager.validateImportedLicenseKey("newer-key") }
-        await service.waitForValidationCount(2)
+        guard await service.waitForValidationCount(2) else {
+            Issue.record("newer validation did not start")
+            return
+        }
 
         service.completeValidation(for: "newer-key", status: .active)
         await newerValidation.value
@@ -612,7 +633,10 @@ struct BackupLicenseStorageTests {
 
         #expect(manager.replaceStoredLicenseKeyFromBackup("imported-key"))
         let importedValidation = Task { await manager.validateImportedLicenseKey("imported-key") }
-        await service.waitForValidationCount(1)
+        guard await service.waitForValidationCount(1) else {
+            Issue.record("import validation did not start")
+            return
+        }
         #expect(await manager.deactivateLicense())
         service.completeValidation(for: "imported-key", status: .active)
         await importedValidation.value
@@ -621,14 +645,14 @@ struct BackupLicenseStorageTests {
         #expect(service.getStoredLicenseKey() == nil)
     }
 
-    @Test func failedSecureReplacementSkipsValidation() {
+    @Test func failedSecureReplacementSkipsValidation() async {
         let service = BackupLicenseNetworkSpy()
         service.replaceSucceeds = false
         let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false, notificationCenter: NotificationCenter())
         let backup = BackupManager()
         backup.licenseManager = manager
 
-        #expect(!backup.importLicenseKeySecurely("replacement-key"))
+        #expect(!(await backup.importLicenseKeySecurely("replacement-key")))
         #expect(service.actions == ["replace"])
     }
 
@@ -706,6 +730,52 @@ struct BackupLicenseStorageTests {
         #expect(manager.licenseStatus == .invalid)
         #expect(manager.lastError == "Could not securely save the license")
     }
+
+    @Test func missingSecureRecordClearsCustomerStateAndNotifiesObservers() async {
+        let service = BackupLicenseNetworkSpy()
+        let center = NotificationCenter()
+        let manager = LicenseManager(
+            networkService: service,
+            loadStoredLicenseOnInit: false,
+            notificationCenter: center
+        )
+        manager.licenseStatus = .active
+        manager.customerEmail = "stale@example.com"
+        manager.customerName = "Stale Customer"
+        let notificationCount = NotificationCountBox()
+        let observer = center.addObserver(
+            forName: .licenseStatusChanged,
+            object: nil,
+            queue: nil
+        ) { _ in
+            notificationCount.value += 1
+        }
+        defer { center.removeObserver(observer) }
+
+        await manager.loadStoredLicense()
+
+        #expect(manager.licenseStatus == .trial)
+        #expect(manager.customerEmail == nil)
+        #expect(manager.customerName == nil)
+        #expect(notificationCount.value == 1)
+    }
+
+    @Test func userActivationCancelsPendingSecureStorageRetry() async {
+        let service = BackupLicenseNetworkSpy()
+        service.queuedStoredReads = [.unavailable, .missing]
+        let manager = LicenseManager(
+            networkService: service,
+            loadStoredLicenseOnInit: false,
+            notificationCenter: NotificationCenter()
+        )
+
+        await manager.loadStoredLicense()
+        _ = await manager.activateLicense("new-key")
+        try? await Task.sleep(nanoseconds: 1_100_000_000)
+
+        #expect(service.storedReadCount == 1)
+        #expect(manager.licenseStatus == .active)
+    }
 }
 
 private final class BackupLicenseNetworkSpy: LicenseNetworkServing {
@@ -715,6 +785,8 @@ private final class BackupLicenseNetworkSpy: LicenseNetworkServing {
     var expectedKeys: [String?] = []
     var validationResultOverride: LicenseValidationResult?
     var requiresRevalidation = false
+    var queuedStoredReads: [RustLicenseStore.StoredLicenseKeyRead] = []
+    private(set) var storedReadCount = 0
     private var storedKey: String?
     private var validationWaiters: [CheckedContinuation<Void, Never>] = []
 
@@ -749,6 +821,10 @@ private final class BackupLicenseNetworkSpy: LicenseNetworkServing {
     func getCachedLicenseStatus() -> LicenseStatus? { nil }
     func getStoredLicenseKey() -> String? { storedKey }
     func readStoredLicenseKey(retryAfterFailure: Bool) -> RustLicenseStore.StoredLicenseKeyRead {
+        storedReadCount += 1
+        if !queuedStoredReads.isEmpty {
+            return queuedStoredReads.removeFirst()
+        }
         storedKey.map(RustLicenseStore.StoredLicenseKeyRead.present) ?? .missing
     }
     func clearStoredLicense() -> Bool { clearSucceeds }
@@ -803,13 +879,22 @@ private final class ControlledBackupLicenseNetworkSpy: LicenseNetworkServing {
         }
     }
 
-    /// Yields until `count` validations are in flight. The bound only stops a
-    /// wedged test from hanging the whole run; 1 or 2 yields is the real cost,
-    /// because the validation Task runs on the same MainActor executor.
-    func waitForValidationCount(_ count: Int) async {
-        for _ in 0..<100 where pending.count < count {
+    /// Yields until `count` validations are in flight. On timeout, resume every
+    /// pending continuation before returning false so a failed precondition
+    /// cannot leave an unstructured validation Task hanging in the test host.
+    func waitForValidationCount(_ count: Int) async -> Bool {
+        for _ in 0..<100 {
+            if pending.count >= count { return true }
             await Task.yield()
         }
+        guard pending.count < count else { return true }
+
+        let timedOut = pending
+        pending.removeAll()
+        for validation in timedOut {
+            validation.continuation.resume(returning: result(status: .invalid))
+        }
+        return false
     }
 
     func completeValidation(for key: String, status: LicenseStatus) {
