@@ -50,14 +50,13 @@ enum ModesEndpoint {
             )
         }
 
-        let trimmedName = dto.name.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmedName.isEmpty {
+        guard let normalizedName = Self.normalizedName(dto.name) else {
             return LocalAPIResponder.failure(code: .invalidRequest, message: "Mode 'name' cannot be empty")
         }
-        if PersistenceController.shared.fetchMode(byName: trimmedName) != nil {
+        if PersistenceController.shared.fetchMode(byName: normalizedName) != nil {
             return LocalAPIResponder.failure(
                 code: .modeNameTaken,
-                message: "A mode named '\(trimmedName)' already exists",
+                message: "A mode named '\(normalizedName)' already exists",
                 hint: "Choose a different name or PATCH the existing mode instead."
             )
         }
@@ -65,7 +64,7 @@ enum ModesEndpoint {
         let normalized = CloudSTTCatalog.shared.normalizeCloudProvider(dto.cloudProvider)
         let mode = PersistenceController.shared.createOrUpdateMode(
             id: nil,
-            name: trimmedName,
+            name: normalizedName,
             preset: dto.preset,
             language: dto.language,
             model: dto.model,
@@ -112,9 +111,18 @@ enum ModesEndpoint {
             return LocalAPIResponder.badRequest(message: "Invalid JSON body")
         }
 
+        let normalizedName: String?
+        if let name = patch.name {
+            guard let name = Self.normalizedName(name) else {
+                return LocalAPIResponder.failure(code: .invalidRequest, message: "Mode 'name' cannot be empty")
+            }
+            normalizedName = name
+        } else {
+            normalizedName = nil
+        }
+
         // Name uniqueness check — only when the caller is actually renaming.
-        if let newName = patch.name?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !newName.isEmpty,
+        if let newName = normalizedName,
            newName != mode.name,
            let clash = PersistenceController.shared.fetchMode(byName: newName),
            clash.id != mode.id {
@@ -124,7 +132,7 @@ enum ModesEndpoint {
             )
         }
 
-        applyPatch(patch, to: mode)
+        applyPatch(patch, normalizedName: normalizedName, to: mode)
         mode.modifiedDate = Date()
 
         do {
@@ -167,12 +175,17 @@ enum ModesEndpoint {
         request.routeParameters["id"]
     }
 
+    static func normalizedName(_ name: String) -> String? {
+        let normalized = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return normalized.isEmpty ? nil : normalized
+    }
+
     /// Apply only the present keys of a `ModePatchDTO` onto an existing Mode.
     /// Absent (nil) keys are left untouched; the GUI doesn't validate combinations
     /// either, so we trust the caller.
     @MainActor
-    private static func applyPatch(_ patch: ModePatchDTO, to mode: Mode) {
-        if let v = patch.name { mode.name = v }
+    private static func applyPatch(_ patch: ModePatchDTO, normalizedName: String?, to mode: Mode) {
+        if let normalizedName { mode.name = normalizedName }
         if let v = patch.preset { mode.preset = v }
         if let v = patch.language { mode.language = LanguageData.canonicalLanguageCode(v) }
         if let v = patch.model { mode.model = v }
