@@ -278,7 +278,31 @@ class LicenseManager: ObservableObject {
 
     /// Saves an imported replacement without the previous key-bound cache.
     func replaceStoredLicenseKeyFromBackup(_ licenseKey: String) -> Bool {
-        networkService.replaceStoredLicenseKeyForImport(licenseKey)
+        cancelNetworkFailureRetry()
+        guard networkService.replaceStoredLicenseKeyForImport(licenseKey) else {
+            return false
+        }
+
+        // The replacement record has no authenticated verdict. Remove the old
+        // key's Active state before the asynchronous server check begins.
+        publishClearedLicenseState()
+        return true
+    }
+
+    /// Validates an imported replacement only while that exact key remains
+    /// current. A later import or deactivation owns both secure and UI state.
+    func validateImportedLicenseKey(_ licenseKey: String) async {
+        isValidating = true
+        lastError = nil
+        defer { isValidating = false }
+
+        let result = await networkService.validateLicense(
+            licenseKey,
+            isLaunchValidation: false,
+            expectedStoredLicenseKey: licenseKey
+        )
+        guard networkService.getStoredLicenseKey() == licenseKey else { return }
+        processValidationResult(result)
     }
 
     private func publishClearedLicenseState() {

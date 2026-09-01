@@ -409,6 +409,53 @@ struct BackupLicenseStorageTests {
         }
 
         #expect(service.actions == ["replace", "validate"])
+        #expect(service.expectedKeys == ["replacement-key"])
+        #expect(manager.licenseStatus == .active)
+    }
+
+    @Test func importPublishesNonActiveStateBeforeValidationStarts() {
+        let service = BackupLicenseNetworkSpy()
+        let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false)
+        manager.licenseStatus = .active
+        BackupManager.shared.licenseManager = manager
+
+        #expect(BackupManager.shared.importLicenseKeySecurely("replacement-key"))
+        #expect(manager.licenseStatus == .trial)
+    }
+
+    @Test func lateImportedValidationCannotOverrideNewerImportState() async {
+        let service = ControlledBackupLicenseNetworkSpy()
+        let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false)
+        BackupManager.shared.licenseManager = manager
+
+        #expect(BackupManager.shared.importLicenseKeySecurely("older-key"))
+        await service.waitForValidationCount(1)
+        #expect(BackupManager.shared.importLicenseKeySecurely("newer-key"))
+        await service.waitForValidationCount(2)
+
+        service.completeValidation(for: "newer-key", status: .active)
+        await Task.yield()
+        #expect(manager.licenseStatus == .active)
+
+        service.completeValidation(for: "older-key", status: .invalid)
+        await Task.yield()
+        #expect(manager.licenseStatus == .active)
+        #expect(service.expectedKeys == ["older-key", "newer-key"])
+    }
+
+    @Test func lateImportedValidationCannotOverrideDeactivation() async {
+        let service = ControlledBackupLicenseNetworkSpy()
+        let manager = LicenseManager(networkService: service, loadStoredLicenseOnInit: false)
+        BackupManager.shared.licenseManager = manager
+
+        #expect(BackupManager.shared.importLicenseKeySecurely("imported-key"))
+        await service.waitForValidationCount(1)
+        #expect(await manager.deactivateLicense())
+        service.completeValidation(for: "imported-key", status: .active)
+        await Task.yield()
+
+        #expect(manager.licenseStatus == .trial)
+        #expect(service.getStoredLicenseKey() == nil)
     }
 
     @Test func failedSecureReplacementSkipsValidation() {
@@ -437,6 +484,7 @@ private final class BackupLicenseNetworkSpy: LicenseNetworkServing {
     var actions: [String] = []
     var replaceSucceeds = true
     var clearSucceeds = true
+    var expectedKeys: [String?] = []
     private var storedKey: String?
 
     func activateLicense(_ licenseKey: String) async -> LicenseValidationResult {
@@ -451,6 +499,7 @@ private final class BackupLicenseNetworkSpy: LicenseNetworkServing {
         expectedStoredLicenseKey: String?
     ) async -> LicenseValidationResult {
         actions.append("validate")
+        expectedKeys.append(expectedStoredLicenseKey)
         return validationResult
     }
 
@@ -478,6 +527,79 @@ private final class BackupLicenseNetworkSpy: LicenseNetworkServing {
             customerEmail: nil,
             customerName: nil,
             errorMessage: nil
+        )
+    }
+}
+
+@MainActor
+private final class ControlledBackupLicenseNetworkSpy: LicenseNetworkServing {
+    private struct PendingValidation {
+        let key: String
+        let continuation: CheckedContinuation<LicenseValidationResult, Never>
+    }
+
+    private var storedKey: String?
+    private var pending: [PendingValidation] = []
+    var expectedKeys: [String?] = []
+
+    func activateLicense(_ licenseKey: String) async -> LicenseValidationResult {
+        result(status: .active)
+    }
+
+    func deactivateLicense() async -> (success: Bool, error: String?) {
+        storedKey = nil
+        return (true, nil)
+    }
+
+    func validateLicense(
+        _ licenseKey: String,
+        isLaunchValidation: Bool,
+        expectedStoredLicenseKey: String?
+    ) async -> LicenseValidationResult {
+        expectedKeys.append(expectedStoredLicenseKey)
+        return await withCheckedContinuation { continuation in
+            pending.append(PendingValidation(key: licenseKey, continuation: continuation))
+        }
+    }
+
+    func waitForValidationCount(_ count: Int) async {
+        for _ in 0..<20 where pending.count < count {
+            await Task.yield()
+        }
+    }
+
+    func completeValidation(for key: String, status: LicenseStatus) {
+        guard let index = pending.firstIndex(where: { $0.key == key }) else { return }
+        let validation = pending.remove(at: index)
+        validation.continuation.resume(returning: result(status: status))
+    }
+
+    func probeLicense(_ licenseKey: String) async -> LicenseValidationResult {
+        result(status: .active)
+    }
+    func shouldRevalidateLicense() -> Bool { false }
+    func getCachedLicenseStatus() -> LicenseStatus? { nil }
+    func getStoredLicenseKey() -> String? { storedKey }
+    func readStoredLicenseKey(retryAfterFailure: Bool) -> RustLicenseStore.StoredLicenseKeyRead {
+        storedKey.map(RustLicenseStore.StoredLicenseKeyRead.present) ?? .missing
+    }
+    func clearStoredLicense() -> Bool {
+        storedKey = nil
+        return true
+    }
+    func replaceStoredLicenseKeyForImport(_ licenseKey: String) -> Bool {
+        storedKey = licenseKey
+        return true
+    }
+
+    private func result(status: LicenseStatus) -> LicenseValidationResult {
+        LicenseValidationResult(
+            isValid: status == .active,
+            status: status,
+            customerId: nil,
+            customerEmail: nil,
+            customerName: nil,
+            errorMessage: status == .active ? nil : "invalid"
         )
     }
 }

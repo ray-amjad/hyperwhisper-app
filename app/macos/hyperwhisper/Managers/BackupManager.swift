@@ -68,7 +68,7 @@ class BackupManager: ObservableObject {
             return
         }
         Task {
-            _ = await licenseManager.validateLicense(licenseKey)
+            await licenseManager.validateImportedLicenseKey(licenseKey)
         }
     }
 
