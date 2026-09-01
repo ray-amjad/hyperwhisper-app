@@ -46,8 +46,8 @@ class BackupManager: ObservableObject {
     // MARK: - Dependencies
 
     /// License manager, injected from the app root (it is a `@StateObject`
-    /// there, not a singleton). Used to force a real validation after an
-    /// import writes a license key.
+    /// there, not a singleton). All backup license reads and writes route
+    /// through its one shared secure store.
     weak var licenseManager: LicenseManager?
 
     // MARK: - Private Init
@@ -70,6 +70,25 @@ class BackupManager: ObservableObject {
         Task {
             _ = await licenseManager.validateLicense(licenseKey)
         }
+    }
+
+    /// Replaces the key and clears its old key-bound verdict in one secure
+    /// write. Revalidation starts only after that write succeeds.
+    func importLicenseKeySecurely(_ licenseKey: String) -> Bool {
+        guard let licenseManager else {
+            AppLogger.settings.error("License backup import failed: LicenseManager is not wired")
+            return false
+        }
+        guard licenseManager.replaceStoredLicenseKeyFromBackup(licenseKey) else {
+            return false
+        }
+        revalidateImportedLicenseKey(licenseKey)
+        return true
+    }
+
+    /// Testable shared-store read used by both backup formats.
+    func licenseKeyForExport() -> String? {
+        emptyToNil(licenseManager?.storedLicenseKeyForBackup())
     }
 
     // MARK: - Export Methods
@@ -208,7 +227,7 @@ class BackupManager: ObservableObject {
         // Collect license key if requested
         var licenseKey: String?
         if options.includeLicenseKey {
-            licenseKey = emptyToNil(UserDefaults.standard.string(forKey: LicenseNetworkService.DefaultsKey.licenseKey))
+            licenseKey = licenseKeyForExport()
         }
 
         // Fetch modes from Core Data (only when selected)
@@ -452,10 +471,10 @@ class BackupManager: ObservableObject {
             apiKeys = map.isEmpty ? nil : map
         }
 
-        // --- license key (as today) ---
+        // --- license key (explicit opt-in, read from the shared secure store) ---
         var licenseKey: String?
         if options.includeLicenseKey {
-            licenseKey = emptyToNil(UserDefaults.standard.string(forKey: LicenseNetworkService.DefaultsKey.licenseKey))
+            licenseKey = licenseKeyForExport()
         }
 
         // --- assemble the envelope (exportDate is an ISO-8601 STRING, not a Date) ---
@@ -589,8 +608,11 @@ class BackupManager: ObservableObject {
         if options.importLicenseKey,
            let licenseKey = backupData.licenseKey?.trimmingCharacters(in: .whitespacesAndNewlines),
            !licenseKey.isEmpty {
-            UserDefaults.standard.set(licenseKey, forKey: LicenseNetworkService.DefaultsKey.licenseKey)
-            revalidateImportedLicenseKey(licenseKey)
+            guard importLicenseKeySecurely(licenseKey) else {
+                let message = "Failed to securely import the license key"
+                lastError = message
+                return .failure(message)
+            }
             licenseKeyImported = true
         }
 
@@ -841,8 +863,11 @@ class BackupManager: ObservableObject {
         if options.importLicenseKey,
            let licenseKey = dto.licenseKey?.trimmingCharacters(in: .whitespacesAndNewlines),
            !licenseKey.isEmpty {
-            UserDefaults.standard.set(licenseKey, forKey: LicenseNetworkService.DefaultsKey.licenseKey)
-            revalidateImportedLicenseKey(licenseKey)
+            guard importLicenseKeySecurely(licenseKey) else {
+                let message = "Failed to securely import the license key"
+                lastError = message
+                return .failure(message)
+            }
             licenseKeyImported = true
         }
 

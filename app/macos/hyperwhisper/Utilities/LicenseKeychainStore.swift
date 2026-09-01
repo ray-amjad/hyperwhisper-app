@@ -142,6 +142,10 @@ struct LicenseKeychainRecord: Codable, Equatable, Sendable {
         self.lastValidation = lastValidation
         self.cachedStatus = cachedStatus
     }
+
+    var isEmpty: Bool {
+        key == nil && customerId == nil && lastValidation == nil && cachedStatus == nil
+    }
 }
 
 /// Owns the versioned license-state item and the secure migration marker.

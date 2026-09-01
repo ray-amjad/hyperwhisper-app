@@ -90,5 +90,6 @@ private final class LicenseNetworkSpy: LicenseNetworkServing {
     func shouldRevalidateLicense() -> Bool { false }
     func getCachedLicenseStatus() -> LicenseStatus? { nil }
     func getStoredLicenseKey() -> String? { nil }
-    func clearStoredLicense() {}
+    func clearStoredLicense() -> Bool { true }
+    func replaceStoredLicenseKeyForImport(_ licenseKey: String) -> Bool { true }
 }

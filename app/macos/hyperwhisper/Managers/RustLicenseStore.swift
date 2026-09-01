@@ -8,13 +8,11 @@
 //  this `KeyValueStore`, and takes `now_unix_secs` at every time-dependent call.
 //
 //  BACKWARD-COMPATIBILITY (the #1 migration risk):
-//  Today's macOS persistence is split across two stores with two key naming
-//  conventions, and this class reconciles both so existing users do NOT lose
-//  their trial seconds, lifetime model-download count, or active license:
+//  macOS persistence is split across secure license state, UserDefaults config
+//  and usage state, and a one-time Core Data usage seed:
 //
-//  1. license.* keys  → already in UserDefaults under
-//     `com.hyperwhisper.license.*` (see LicenseNetworkService.DefaultsKey).
-//     These match the core's keys EXACTLY — no migration, no alias.
+//  1. license.* keys → one versioned Keychain record. Legacy UserDefaults are
+//     migrated once, but only the key is trusted; cached verdict fields are not.
 //
 //  2. config.*  (remote trial-limit override) → ConfigService stored these as
 //     `config.trialDailyLimitSeconds` / `config.trialModelDownloadLimit` /
@@ -37,7 +35,7 @@
 
 import Foundation
 
-/// UserDefaults-backed `KeyValueStore` for the Rust license/usage core.
+/// Keychain/UserDefaults-backed `KeyValueStore` for the Rust license/usage core.
 ///
 /// Class-only (`AnyObject`) to satisfy the binding's `KeyValueStore` protocol
 /// (a UniFFI callback interface). A single shared instance is held by
@@ -47,9 +45,27 @@ final class RustLicenseStore: KeyValueStore {
     // MARK: - Backing store
 
     private let defaults: UserDefaults
+    private let licenseStore: LicenseKeychainStore
+    private let transactionLock = NSRecursiveLock()
+    private var transactionRecord: LicenseKeychainRecord?
+    private var isLicenseTransactionActive = false
 
     /// Guards the one-shot Core Data → UserDefaults usage seed.
     private static let seedFlagKey = "didSeedUsageToKeyValueStoreV1"
+
+    // MARK: - Core license keys (must match hw-license exactly)
+
+    static let kLicenseKey = "com.hyperwhisper.license.key"
+    static let kLicenseCustomerId = "com.hyperwhisper.license.customerId"
+    static let kLicenseLastValidation = "com.hyperwhisper.license.lastValidation"
+    static let kLicenseCachedStatus = "com.hyperwhisper.license.cachedStatus"
+
+    private static let legacyLicenseKeys = [
+        kLicenseKey,
+        kLicenseCustomerId,
+        kLicenseLastValidation,
+        kLicenseCachedStatus,
+    ]
 
     // MARK: - Core usage keys (must match hw-license/src/usage.rs exactly)
 
@@ -73,9 +89,60 @@ final class RustLicenseStore: KeyValueStore {
 
     // MARK: - Init + one-shot seed
 
-    init(defaults: UserDefaults = .standard) {
+    init(
+        defaults: UserDefaults = .standard,
+        licenseStore: LicenseKeychainStore = LicenseKeychainStore(),
+        seedUsage: Bool = true
+    ) {
         self.defaults = defaults
-        seedUsageFromCoreDataIfNeeded()
+        self.licenseStore = licenseStore
+        migrateLegacyLicenseIfNeeded()
+        if seedUsage {
+            seedUsageFromCoreDataIfNeeded()
+        }
+    }
+
+    /// Migrates only the legacy key. UserDefaults verdicts are forgeable and
+    /// must never become authenticated cache state in the Keychain record.
+    private func migrateLegacyLicenseIfNeeded() {
+        transactionLock.lock()
+        defer { transactionLock.unlock() }
+
+        do {
+            if try licenseStore.hasMigrationMarker() {
+                removeLegacyLicenseDefaults()
+                return
+            }
+
+            if try licenseStore.readRecord() == nil {
+                let legacyKey = defaults.string(forKey: Self.kLicenseKey)?
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                if let legacyKey, !legacyKey.isEmpty {
+                    try licenseStore.replaceRecord(with: LicenseKeychainRecord(key: legacyKey))
+                    guard try licenseStore.readRecord()?.key == legacyKey else {
+                        AppLogger.network.error("License Keychain migration read-back failed")
+                        return
+                    }
+                }
+            }
+
+            // A record already present always wins over forgeable defaults.
+            // Write the secure marker before removing plaintext preferences.
+            try licenseStore.writeMigrationMarker()
+            removeLegacyLicenseDefaults()
+        } catch {
+            // Keep legacy data so a later launch can retry, but get() never
+            // falls back to it. Do not include any credential value in the log.
+            AppLogger.network.error(
+                "License Keychain migration failed: \(error.localizedDescription, privacy: .public)"
+            )
+        }
+    }
+
+    private func removeLegacyLicenseDefaults() {
+        for key in Self.legacyLicenseKeys {
+            defaults.removeObject(forKey: key)
+        }
     }
 
     /// One-shot migration: copy the Core Data usage counters into UserDefaults
@@ -110,6 +177,22 @@ final class RustLicenseStore: KeyValueStore {
     // MARK: - KeyValueStore conformance
 
     func get(key: String) -> String? {
+        if let field = licenseField(for: key) {
+            return withTransactionLock {
+                if isLicenseTransactionActive {
+                    return field.value(in: transactionRecord)
+                }
+                do {
+                    return field.value(in: try licenseStore.readRecord())
+                } catch {
+                    AppLogger.network.error(
+                        "License Keychain read failed: \(error.localizedDescription, privacy: .public)"
+                    )
+                    return nil
+                }
+            }
+        }
+
         // Resolve a config-key alias to the legacy un-prefixed name only when the
         // prefixed key has not yet been written by the core. Prefer a freshly
         // written prefixed value so self-healing takes effect.
@@ -123,11 +206,146 @@ final class RustLicenseStore: KeyValueStore {
     }
 
     func set(key: String, value: String) {
+        if let field = licenseField(for: key) {
+            updateLicenseField(field, value: value)
+            return
+        }
         defaults.set(value, forKey: key)
     }
 
     func delete(key: String) {
+        if let field = licenseField(for: key) {
+            updateLicenseField(field, value: nil)
+            return
+        }
         defaults.removeObject(forKey: key)
+    }
+
+    // MARK: - Secure license transactions
+
+    /// Stages all Rust license callbacks and commits one full Keychain record.
+    /// A failed commit keeps the prior record and returns false.
+    @discardableResult
+    func performLicenseTransaction(_ operation: () -> Void) -> Bool {
+        withTransactionLock {
+            guard !isLicenseTransactionActive else {
+                operation()
+                return true
+            }
+
+            do {
+                transactionRecord = try licenseStore.readRecord()
+            } catch {
+                AppLogger.network.error(
+                    "License Keychain transaction read failed: \(error.localizedDescription, privacy: .public)"
+                )
+                return false
+            }
+
+            isLicenseTransactionActive = true
+            operation()
+            isLicenseTransactionActive = false
+            if transactionRecord?.isEmpty == true {
+                transactionRecord = nil
+            }
+            defer { transactionRecord = nil }
+
+            do {
+                try licenseStore.replaceRecord(with: transactionRecord)
+                return true
+            } catch {
+                AppLogger.network.error(
+                    "License Keychain transaction commit failed: \(error.localizedDescription, privacy: .public)"
+                )
+                return false
+            }
+        }
+    }
+
+    /// Replaces an imported key and clears all key-bound verdict data before
+    /// the caller starts real server validation.
+    @discardableResult
+    func replaceLicenseKeyForImport(_ key: String) -> Bool {
+        let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+
+        return withTransactionLock {
+            do {
+                try licenseStore.replaceRecord(with: LicenseKeychainRecord(key: trimmed))
+                return true
+            } catch {
+                AppLogger.network.error(
+                    "Imported license Keychain write failed: \(error.localizedDescription, privacy: .public)"
+                )
+                return false
+            }
+        }
+    }
+
+    private func updateLicenseField(_ field: LicenseField, value: String?) {
+        withTransactionLock {
+            if isLicenseTransactionActive {
+                field.set(value, in: &transactionRecord)
+                return
+            }
+
+            do {
+                try licenseStore.mutateRecord { record in
+                    field.set(value, in: &record)
+                    if record?.isEmpty == true {
+                        record = nil
+                    }
+                }
+            } catch {
+                AppLogger.network.error(
+                    "License Keychain update failed: \(error.localizedDescription, privacy: .public)"
+                )
+            }
+        }
+    }
+
+    private enum LicenseField {
+        case key
+        case customerId
+        case lastValidation
+        case cachedStatus
+
+        func value(in record: LicenseKeychainRecord?) -> String? {
+            switch self {
+            case .key: return record?.key
+            case .customerId: return record?.customerId
+            case .lastValidation: return record?.lastValidation
+            case .cachedStatus: return record?.cachedStatus
+            }
+        }
+
+        func set(_ value: String?, in record: inout LicenseKeychainRecord?) {
+            if record == nil, value != nil {
+                record = LicenseKeychainRecord()
+            }
+            switch self {
+            case .key: record?.key = value
+            case .customerId: record?.customerId = value
+            case .lastValidation: record?.lastValidation = value
+            case .cachedStatus: record?.cachedStatus = value
+            }
+        }
+    }
+
+    private func licenseField(for key: String) -> LicenseField? {
+        switch key {
+        case Self.kLicenseKey: return .key
+        case Self.kLicenseCustomerId: return .customerId
+        case Self.kLicenseLastValidation: return .lastValidation
+        case Self.kLicenseCachedStatus: return .cachedStatus
+        default: return nil
+        }
+    }
+
+    private func withTransactionLock<T>(_ operation: () -> T) -> T {
+        transactionLock.lock()
+        defer { transactionLock.unlock() }
+        return operation()
     }
 
     // MARK: - Numeric → String coercion

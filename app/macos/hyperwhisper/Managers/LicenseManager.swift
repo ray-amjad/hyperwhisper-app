@@ -105,7 +105,7 @@ class LicenseManager: ObservableObject {
         return result
     }
 
-    /// Deactivates the license locally (clears UserDefaults).
+    /// Deactivates the license locally (deletes the secure license record).
     func deactivateLicense() async -> Bool {
         cancelNetworkFailureRetry()
         isDeactivating = true
@@ -114,7 +114,7 @@ class LicenseManager: ObservableObject {
 
         let (success, error) = await networkService.deactivateLicense()
         if success {
-            await clearLicense()
+            publishClearedLicenseState()
         } else {
             lastError = error
         }
@@ -150,7 +150,8 @@ class LicenseManager: ObservableObject {
         await networkService.probeLicense(licenseKey)
     }
 
-    /// Loads stored license from UserDefaults, revalidates if cache expired (24h).
+    /// Loads the stored license from the secure store and revalidates if its
+    /// authenticated cache expired (24h).
     ///
     /// The revalidation call is tagged `isLaunchValidation: true` so a stale
     /// network at launch (wake-from-sleep, captive portal, DNS not up yet) gets a
@@ -248,9 +249,29 @@ class LicenseManager: ObservableObject {
     }
 
     /// Clears stored license and resets to the unlicensed (trial) state.
-    func clearLicense() {
+    @discardableResult
+    func clearLicense() -> Bool {
         cancelNetworkFailureRetry()
-        networkService.clearStoredLicense()
+        guard networkService.clearStoredLicense() else {
+            lastError = "Could not securely remove the license"
+            return false
+        }
+        publishClearedLicenseState()
+        return true
+    }
+
+    /// Backup paths use the same service and `RustLicenseStore` instance as all
+    /// Rust FFI calls. This prevents a second store and transaction lock.
+    func storedLicenseKeyForBackup() -> String? {
+        networkService.getStoredLicenseKey()
+    }
+
+    /// Saves an imported replacement without the previous key-bound cache.
+    func replaceStoredLicenseKeyFromBackup(_ licenseKey: String) -> Bool {
+        networkService.replaceStoredLicenseKeyForImport(licenseKey)
+    }
+
+    private func publishClearedLicenseState() {
         licenseStatus = .trial
         customerEmail = nil
         customerName = nil
