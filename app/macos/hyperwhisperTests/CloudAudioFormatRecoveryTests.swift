@@ -197,7 +197,7 @@ struct CloudAudioFormatRecoveryTests {
         #expect(recorder.removals == ["hw-reencode-test.wav"])
     }
 
-    @Test func anAlreadyWavSourceIsRethrownWithoutReencoding() async {
+    @Test func aNoncanonicalWavSourceIsReencodedAndRetriedOnce() async {
         let recorder = FormatRecoveryRecorder()
 
         do {
@@ -224,10 +224,15 @@ struct CloudAudioFormatRecoveryTests {
             Issue.record("Expected TranscriptionError.serverError, got \(error)")
         }
 
-        #expect(recorder.uploads == [.init(fileName: "recording.wav", contentType: nil)])
-        #expect(recorder.reencodes.isEmpty)
-        #expect(recorder.tempReservations == 0)
-        #expect(recorder.removals.isEmpty)
+        #expect(recorder.uploads == [
+            .init(fileName: "recording.wav", contentType: nil),
+            .init(fileName: "hw-reencode-test.wav", contentType: "audio/wav")
+        ])
+        #expect(recorder.reencodes == [
+            .init(source: "recording.wav", destination: "hw-reencode-test.wav")
+        ])
+        #expect(recorder.tempReservations == 1)
+        #expect(recorder.removals == ["hw-reencode-test.wav"])
     }
 
     // MARK: - Non-415 failures pass through untouched
