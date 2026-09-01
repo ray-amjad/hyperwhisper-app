@@ -162,6 +162,7 @@ jobs:
       # reason they must stay CLI args, not job-level env: vars.
       - name: Run unit tests
         run: |
+          touch "$RUNNER_TEMP/hyperwhisper-test-start"
           xcodebuild test-without-building \
             -project app/macos/hyperwhisper.xcodeproj \
             -scheme hyperwhisper \
@@ -182,9 +183,13 @@ jobs:
       - name: Dump test-host crash reports
         if: failure()
         run: |
-          ls -la ~/Library/Logs/DiagnosticReports/ 2>/dev/null || true
-          for f in ~/Library/Logs/DiagnosticReports/*.ips; do
-            [ -e "$f" ] || continue
+          reports="$HOME/Library/Logs/DiagnosticReports"
+          [ -d "$reports" ] || exit 0
+          find "$reports" \
+            -type f \
+            -name 'hyperwhisper*.ips' \
+            -newer "$RUNNER_TEMP/hyperwhisper-test-start" \
+            -print0 | while IFS= read -r -d '' f; do
             echo "===== $f ====="
             head -c 30000 "$f"
             echo
