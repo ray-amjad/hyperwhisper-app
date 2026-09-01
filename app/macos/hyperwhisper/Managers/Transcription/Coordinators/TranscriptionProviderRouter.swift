@@ -169,7 +169,7 @@ class TranscriptionProviderRouter {
     /// FROM, when there was one.
     ///
     /// Exists so a transcription call site can report the attempt's outcome back
-    /// to `CloudProviderHealthManager.recordTranscriptionOutcome(for:error:)`
+    /// to `CloudProviderHealthManager.recordTranscriptionOutcome(for:credentialGeneration:error:)`
     /// (issue #379) without re-deriving the provider identity from the Mode — the
     /// derivation here is a BILLING decision (`CloudProvider.parse(...) ??
     /// .hyperwhisper`, see below) and must have exactly one implementation.

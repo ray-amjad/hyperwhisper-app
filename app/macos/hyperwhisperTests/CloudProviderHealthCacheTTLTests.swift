@@ -217,7 +217,11 @@ struct CloudProviderHealthCacheTTLTests {
         #expect(manager.status(for: Self.cloudProvider) == .healthy)
         #expect(manager.healthSnapshot().cloud[Self.cloudProvider.rawValue] == "healthy")
 
-        manager.recordTranscriptionOutcome(for: Self.cloudProvider, error: Self.providerDownError)
+        manager.recordTranscriptionOutcome(
+            for: Self.cloudProvider,
+            credentialGeneration: manager.captureTranscriptionCredentialGeneration(),
+            error: Self.providerDownError
+        )
 
         #expect(manager.status(for: Self.cloudProvider) == .healthy)
         #expect(manager.statuses[Self.cloudProvider] == .healthy)
@@ -246,7 +250,11 @@ struct CloudProviderHealthCacheTTLTests {
         let manager = Self.makeManager(client: client, keys: keys, clock: clock)
 
         _ = await manager.ensureHealthy(Self.cloudProvider)
-        manager.recordTranscriptionOutcome(for: Self.cloudProvider, error: Self.providerDownError)
+        manager.recordTranscriptionOutcome(
+            for: Self.cloudProvider,
+            credentialGeneration: manager.captureTranscriptionCredentialGeneration(),
+            error: Self.providerDownError
+        )
 
         #expect(manager.status(for: Self.cloudProvider) == .healthy)
 
@@ -270,14 +278,66 @@ struct CloudProviderHealthCacheTTLTests {
         let manager = Self.makeManager(client: client, keys: keys, clock: clock)
 
         _ = await manager.ensureHealthy(Self.cloudProvider)
-        manager.recordTranscriptionOutcome(for: Self.cloudProvider, error: Self.providerDownError)
+        let credentialGeneration = manager.captureTranscriptionCredentialGeneration()
+        manager.recordTranscriptionOutcome(
+            for: Self.cloudProvider,
+            credentialGeneration: credentialGeneration,
+            error: Self.providerDownError
+        )
         #expect(manager.healthSnapshot().cloud[Self.cloudProvider.rawValue] == "unreachable")
 
         // No clock movement at all — the success alone must clear it.
-        manager.recordTranscriptionOutcome(for: Self.cloudProvider, error: nil)
+        manager.recordTranscriptionOutcome(
+            for: Self.cloudProvider,
+            credentialGeneration: credentialGeneration,
+            error: nil
+        )
 
         #expect(manager.status(for: Self.cloudProvider) == .healthy)
         #expect(manager.healthSnapshot().cloud[Self.cloudProvider.rawValue] == "healthy")
+    }
+
+    @Test func aRecordedSuccessRefreshesAStaleProbeVerdictToHealthy() async {
+        let clock = TestClock()
+        let client = CountingHealthCheckClient()
+        let keys = FixedKeyProvider()
+        let manager = Self.makeManager(client: client, keys: keys, clock: clock)
+
+        manager.setCachedTranscriptionStatusForTests(.unreachable, for: Self.cloudProvider)
+        clock.advance(61)
+        let generation = manager.captureTranscriptionCredentialGeneration()
+
+        manager.recordTranscriptionOutcome(
+            for: Self.cloudProvider,
+            credentialGeneration: generation,
+            error: nil
+        )
+
+        #expect(manager.status(for: Self.cloudProvider) == .healthy)
+        #expect(manager.healthSnapshot().cloud[Self.cloudProvider.rawValue] == "healthy")
+        clock.advance(59)
+        manager.refresh(Self.cloudProvider)
+        #expect(manager.status(for: Self.cloudProvider) == .healthy)
+    }
+
+    @Test func anOldCredentialGenerationCannotOverwriteTheNewUnauthorizedVerdict() {
+        let clock = TestClock()
+        let client = CountingHealthCheckClient()
+        let keys = FixedKeyProvider()
+        let manager = Self.makeManager(client: client, keys: keys, clock: clock)
+
+        let oldGeneration = manager.captureTranscriptionCredentialGeneration()
+        manager.registerAPIKeyChange(for: Self.cloudProvider, newValue: "short-new-key")
+        manager.setCachedTranscriptionStatusForTests(.unauthorized, for: Self.cloudProvider)
+
+        manager.recordTranscriptionOutcome(
+            for: Self.cloudProvider,
+            credentialGeneration: oldGeneration,
+            error: nil
+        )
+
+        #expect(manager.status(for: Self.cloudProvider) == .unauthorized)
+        #expect(manager.healthSnapshot().cloud[Self.cloudProvider.rawValue] == "unauthorized")
     }
 
     /// (d) The verdict is keyed off the CLASSIFIED error, never off "a
@@ -315,7 +375,11 @@ struct CloudProviderHealthCacheTTLTests {
         ]
 
         for error in harmless {
-            manager.recordTranscriptionOutcome(for: Self.cloudProvider, error: error)
+            manager.recordTranscriptionOutcome(
+                for: Self.cloudProvider,
+                credentialGeneration: manager.captureTranscriptionCredentialGeneration(),
+                error: error
+            )
             #expect(manager.status(for: Self.cloudProvider) == .healthy)
             #expect(manager.healthSnapshot().cloud[Self.cloudProvider.rawValue] == "healthy")
             #expect(CloudProviderHealthManager.isDefinitiveProviderDownVerdict(error) == false)
@@ -340,7 +404,11 @@ struct CloudProviderHealthCacheTTLTests {
         let manager = Self.makeManager(client: client, keys: keys, clock: clock)
 
         _ = await manager.ensureHealthy(Self.cloudProvider)
-        manager.recordTranscriptionOutcome(for: Self.cloudProvider, error: Self.providerDownError)
+        manager.recordTranscriptionOutcome(
+            for: Self.cloudProvider,
+            credentialGeneration: manager.captureTranscriptionCredentialGeneration(),
+            error: Self.providerDownError
+        )
         #expect(manager.status(for: Self.cloudProvider) == .healthy)
         #expect(manager.statuses[Self.cloudProvider] == .healthy)
 
@@ -361,7 +429,11 @@ struct CloudProviderHealthCacheTTLTests {
         let manager = Self.makeManager(client: client, keys: keys, clock: clock)
 
         _ = await manager.ensureHealthy(Self.cloudProvider)
-        manager.recordTranscriptionOutcome(for: Self.cloudProvider, error: Self.providerDownError)
+        manager.recordTranscriptionOutcome(
+            for: Self.cloudProvider,
+            credentialGeneration: manager.captureTranscriptionCredentialGeneration(),
+            error: Self.providerDownError
+        )
         #expect(manager.healthSnapshot().cloud[Self.cloudProvider.rawValue] == "unreachable")
 
         // An empty value takes the early-return branch, so no probe is scheduled

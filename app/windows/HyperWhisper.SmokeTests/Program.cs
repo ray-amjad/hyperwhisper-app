@@ -5627,20 +5627,23 @@ internal static class Program
                 health.SetCachedTranscriptionStatusForTests(healthProvider, ProviderHealth.Healthy);
                 Assert(health.GetStatus(healthProvider) == ProviderHealth.Healthy, "probe should start Healthy");
 
-                health.RecordTranscriptionOutcome(healthProvider, ProviderDown());
+                health.RecordTranscriptionOutcome(
+                    healthProvider, health.CaptureTranscriptionCredentialGeneration(), ProviderDown());
 
-                Assert(health.GetStatus(healthProvider) == ProviderHealth.Unreachable,
-                    $"status {health.GetStatus(healthProvider)}");
+                Assert(health.GetHealthStatus(healthProvider) == ProviderHealth.Unreachable,
+                    $"health status {health.GetHealthStatus(healthProvider)}");
+                Assert(health.GetStatus(healthProvider) == ProviderHealth.Healthy,
+                    "the /health override leaked into the generic model status seam");
 
                 // Even if the probe republishes Healthy underneath, the override wins.
                 health.SetCachedTranscriptionStatusForTests(healthProvider, ProviderHealth.Healthy);
-                Assert(health.GetStatus(healthProvider) == ProviderHealth.Unreachable,
+                Assert(health.GetHealthStatus(healthProvider) == ProviderHealth.Unreachable,
                     "a fresh healthy probe must not beat a real failure inside the window");
 
                 // /health derives `reachable` from exactly this value
                 // (HealthEndpoints.BuildTranscriptionProviders), so this is the
                 // reported symptom, asserted at its source.
-                Assert(health.GetStatus(healthProvider) != ProviderHealth.Healthy,
+                Assert(health.GetHealthStatus(healthProvider) != ProviderHealth.Healthy,
                     "/health would still report reachable:true");
             });
 
@@ -5650,7 +5653,8 @@ internal static class Program
                 using var health = new CloudProviderHealthService(() => now);
 
                 health.SetCachedTranscriptionStatusForTests(healthProvider, ProviderHealth.Healthy);
-                health.RecordTranscriptionOutcome(healthProvider, ProviderDown());
+                health.RecordTranscriptionOutcome(
+                    healthProvider, health.CaptureTranscriptionCredentialGeneration(), ProviderDown());
 
                 // AddMilliseconds, not AddSeconds(59.9): DateTime.AddSeconds rounds
                 // a fractional double to ticks, so 59.9 + 0.1 lands at 59.9999999s
@@ -5663,13 +5667,13 @@ internal static class Program
                 // stale in the same instant the override does and the assertion
                 // below would be reading cache expiry rather than override expiry.
                 health.SetCachedTranscriptionStatusForTests(healthProvider, ProviderHealth.Healthy);
-                Assert(health.GetStatus(healthProvider) == ProviderHealth.Unreachable,
+                Assert(health.GetHealthStatus(healthProvider) == ProviderHealth.Unreachable,
                     "still inside the window at 59.9s");
 
                 // The gate is `>= TTL` -> expired, so exactly 60 s is already out.
                 now = now.AddMilliseconds(100);
-                Assert(health.GetStatus(healthProvider) == ProviderHealth.Healthy,
-                    $"status after expiry {health.GetStatus(healthProvider)}");
+                Assert(health.GetHealthStatus(healthProvider) == ProviderHealth.Healthy,
+                    $"status after expiry {health.GetHealthStatus(healthProvider)}");
             });
 
             Run("issue #379 (c): a recorded success clears the override immediately", () =>
@@ -5678,13 +5682,14 @@ internal static class Program
                 using var health = new CloudProviderHealthService(() => now);
 
                 health.SetCachedTranscriptionStatusForTests(healthProvider, ProviderHealth.Healthy);
-                health.RecordTranscriptionOutcome(healthProvider, ProviderDown());
-                Assert(health.GetStatus(healthProvider) == ProviderHealth.Unreachable, "precondition");
+                var credentialGeneration = health.CaptureTranscriptionCredentialGeneration();
+                health.RecordTranscriptionOutcome(healthProvider, credentialGeneration, ProviderDown());
+                Assert(health.GetHealthStatus(healthProvider) == ProviderHealth.Unreachable, "precondition");
 
                 // No clock movement at all - the success alone must clear it. A real
                 // transcription is stronger evidence than any probe, so a provider
                 // that recovered must not stay Unreachable for the remaining ~59s.
-                health.RecordTranscriptionOutcome(healthProvider, null);
+                health.RecordTranscriptionOutcome(healthProvider, credentialGeneration, null);
 
                 Assert(health.GetStatus(healthProvider) == ProviderHealth.Healthy,
                     $"status {health.GetStatus(healthProvider)}");
@@ -5718,11 +5723,29 @@ internal static class Program
 
                 // The successful request is new evidence. It must stamp t=59,
                 // even when the existing raw status is already Healthy.
-                health.RecordTranscriptionOutcome(healthProvider, null);
+                health.RecordTranscriptionOutcome(
+                    healthProvider, health.CaptureTranscriptionCredentialGeneration(), null);
                 now = now.AddSeconds(2);
 
                 Assert(health.GetStatus(healthProvider) == ProviderHealth.Healthy,
                     "a success at t=59 expired with the probe that ran at t=0");
+            });
+
+            Run("issue #379 (c2): an old-key success cannot overwrite a new-key Unauthorized verdict", () =>
+            {
+                var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                using var health = new CloudProviderHealthService(() => now);
+
+                var oldGeneration = health.CaptureTranscriptionCredentialGeneration();
+                health.RegisterApiKeyChange(healthProvider, "replacement-key-0123456789");
+                health.SetCachedTranscriptionStatusForTests(healthProvider, ProviderHealth.Unauthorized);
+
+                health.RecordTranscriptionOutcome(healthProvider, oldGeneration, null);
+
+                Assert(health.GetStatus(healthProvider) == ProviderHealth.Unauthorized,
+                    "an old-key success stamped the replacement key Healthy");
+                Assert(health.GetHealthStatus(healthProvider) == ProviderHealth.Unauthorized,
+                    "/health lost the replacement key's Unauthorized verdict");
             });
 
             Run("issue #379 (d): only a definitive provider-down verdict sets the override", () =>
@@ -5750,8 +5773,9 @@ internal static class Program
                 foreach (var error in harmless)
                 {
                     health.SetCachedTranscriptionStatusForTests(healthProvider, ProviderHealth.Healthy);
-                    health.RecordTranscriptionOutcome(healthProvider, error);
-                    Assert(health.GetStatus(healthProvider) == ProviderHealth.Healthy,
+                    health.RecordTranscriptionOutcome(
+                        healthProvider, health.CaptureTranscriptionCredentialGeneration(), error);
+                    Assert(health.GetHealthStatus(healthProvider) == ProviderHealth.Healthy,
                         $"{error.GetType().Name} must not mark the provider unreachable");
                     Assert(!CloudProviderHealthService.IsDefinitiveProviderDownVerdict(error),
                         $"{error.GetType().Name} classified as provider-down");
@@ -5772,14 +5796,15 @@ internal static class Program
                 // Windows has no equivalent pre-flight gate (nothing calls GetStatus
                 // before transcribing), so there is nothing to wedge here. What is
                 // mirrored is the invariant that produces the guarantee: the
-                // override lives at the READ seam (GetStatus) only, and the
+                // override lives at the /health read seam (GetHealthStatus) only, and the
                 // "give me a fresh verdict" path still returns the RAW probe result.
                 var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
                 using var health = new CloudProviderHealthService(() => now);
 
                 health.SetCachedTranscriptionStatusForTests(healthProvider, ProviderHealth.Healthy);
-                health.RecordTranscriptionOutcome(healthProvider, ProviderDown());
-                Assert(health.GetStatus(healthProvider) == ProviderHealth.Unreachable, "precondition");
+                health.RecordTranscriptionOutcome(
+                    healthProvider, health.CaptureTranscriptionCredentialGeneration(), ProviderDown());
+                Assert(health.GetHealthStatus(healthProvider) == ProviderHealth.Unreachable, "precondition");
 
                 // GoogleSpeech is keyless, so RefreshAsync short-circuits to Unknown
                 // without any network I/O. The value that matters is that it is the
@@ -5789,7 +5814,7 @@ internal static class Program
                     $"forced refresh returned the override, not the probe: {refreshed}");
 
                 // …and reporting is unchanged by that refresh.
-                Assert(health.GetStatus(healthProvider) == ProviderHealth.Unreachable,
+                Assert(health.GetHealthStatus(healthProvider) == ProviderHealth.Unreachable,
                     "the override must survive a probe inside its window");
             });
 
@@ -5800,8 +5825,9 @@ internal static class Program
 
                 health.SetCachedTranscriptionStatusForTests(healthProvider, ProviderHealth.Healthy);
                 now = now.AddSeconds(59);
-                health.RecordTranscriptionOutcome(healthProvider, ProviderDown());
-                Assert(health.GetStatus(healthProvider) == ProviderHealth.Unreachable,
+                health.RecordTranscriptionOutcome(
+                    healthProvider, health.CaptureTranscriptionCredentialGeneration(), ProviderDown());
+                Assert(health.GetHealthStatus(healthProvider) == ProviderHealth.Unreachable,
                     "/health must apply the failure override");
 
                 now = now.AddSeconds(2);
@@ -5812,7 +5838,7 @@ internal static class Program
                 var refreshed = health.RefreshAsync(healthProvider).GetAwaiter().GetResult();
                 Assert(refreshed == ProviderHealth.Unknown,
                     $"failure refreshed the raw cache and suppressed the probe: {refreshed}");
-                Assert(health.GetStatus(healthProvider) == ProviderHealth.Unreachable,
+                Assert(health.GetHealthStatus(healthProvider) == ProviderHealth.Unreachable,
                     "/health must stay honest while the raw probe refreshes");
             });
 

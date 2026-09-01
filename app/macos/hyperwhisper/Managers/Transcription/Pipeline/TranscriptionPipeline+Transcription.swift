@@ -127,6 +127,10 @@ extension TranscriptionPipeline {
 
             // Select provider using the coordinator (local/cloud routing + health checks).
             markStage("select_provider")
+            // Capture before provider selection reads a credential. A key edit
+            // while this request is in flight makes its later outcome stale.
+            let healthManager = providerCoordinator.providerHealthManager
+            let credentialGeneration = healthManager?.captureTranscriptionCredentialGeneration()
             let selection = try await providerCoordinator.selectProvider(for: mode, vocabulary: vocabulary)
             let provider = selection.provider
             // Health feedback (issue #379): the cloud identity comes out of the
@@ -211,13 +215,23 @@ extension TranscriptionPipeline {
                     vocabulary: vocabulary
                 )
                 if let cloudProviderType {
-                    self.providerCoordinator.providerHealthManager?
-                        .recordTranscriptionOutcome(for: cloudProviderType, error: nil)
+                    if let credentialGeneration {
+                        healthManager?.recordTranscriptionOutcome(
+                            for: cloudProviderType,
+                            credentialGeneration: credentialGeneration,
+                            error: nil
+                        )
+                    }
                 }
             } catch {
                 if let cloudProviderType {
-                    self.providerCoordinator.providerHealthManager?
-                        .recordTranscriptionOutcome(for: cloudProviderType, error: error)
+                    if let credentialGeneration {
+                        healthManager?.recordTranscriptionOutcome(
+                            for: cloudProviderType,
+                            credentialGeneration: credentialGeneration,
+                            error: error
+                        )
+                    }
                 }
                 throw error
             }

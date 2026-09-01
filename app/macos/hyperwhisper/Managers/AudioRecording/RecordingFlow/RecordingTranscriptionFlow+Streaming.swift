@@ -122,6 +122,8 @@ extension RecordingTranscriptionFlow {
         let selectedStreamingProvider = StreamingTranscriptionProvider.fromStorageValue(provider)
             ?? .hyperwhisperCloud
         let streamingHealthProvider = selectedStreamingProvider.cloudHealthProvider
+        let streamingCredentialGeneration = providerHealthManager?
+            .captureTranscriptionCredentialGeneration()
         // Capture once for this concrete service callback. Reading the reusable
         // flow property inside a late callback could observe a newer session.
         let suppressTextDeliveryForSession = sessionStartedWithTextDeliverySuppressed
@@ -616,9 +618,12 @@ extension RecordingTranscriptionFlow {
         // 1011 Internal Error close. It fires independently of retry/teardown,
         // so reporting health cannot suppress the stream's normal recovery.
         service.onDefinitiveProviderFailure = { [weak self] error in
-            guard let self, let streamingHealthProvider else { return }
+            guard let self,
+                  let streamingHealthProvider,
+                  let streamingCredentialGeneration else { return }
             self.providerHealthManager?.recordTranscriptionOutcome(
                 for: streamingHealthProvider,
+                credentialGeneration: streamingCredentialGeneration,
                 error: error
             )
         }

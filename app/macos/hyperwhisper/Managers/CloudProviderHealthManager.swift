@@ -16,7 +16,7 @@ import Combine
 // 6. REAL TRANSCRIPTION OUTCOMES FEED BACK (issue #379). The transcription call sites
 //    (TranscriptionPipeline+Transcription, TranscribeEndpoint, and the streaming flow's
 //    definitive-failure callback) hand cloud outcomes to
-//    recordTranscriptionOutcome(for:error:). A definitive provider-down failure
+//    recordTranscriptionOutcome(for:credentialGeneration:error:). A definitive provider-down failure
 //    stamps lastTranscriptionFailure; a success clears it.
 //
 //    THE RECORDED FAILURE IS APPLIED AT EXACTLY ONE SEAM: healthSnapshot(), which is what
@@ -176,6 +176,11 @@ final class CloudProviderHealthManager: ObservableObject {
     /// An expired entry simply stops matching; the dictionary is bounded by
     /// `CloudProvider.allCases`.
     private var lastTranscriptionFailure: [CloudProvider: Date] = [:]
+
+    /// Advances on every transcription API-key edit. Requests capture this
+    /// before provider resolution so an old in-flight result cannot publish
+    /// health evidence about a replacement key.
+    private var transcriptionCredentialGeneration: UInt64 = 0
 
     private let cacheTTL: TimeInterval = 60
 
@@ -421,10 +426,31 @@ final class CloudProviderHealthManager: ObservableObject {
     /// - Parameters:
     ///   - provider: the cloud provider the attempt actually ran against.
     ///   - error: `nil` on success, otherwise the error the attempt threw.
-    func recordTranscriptionOutcome(for provider: CloudProvider, error: Error?) {
+    func captureTranscriptionCredentialGeneration() -> UInt64 {
+        transcriptionCredentialGeneration
+    }
+
+    /// Test seam for generation-correlation cases. Publishes the same raw cache
+    /// record a completed probe would publish, without network or keychain I/O.
+    func setCachedTranscriptionStatusForTests(
+        _ status: ProviderHealth,
+        for provider: CloudProvider
+    ) {
+        statuses[provider] = status
+        cache[provider] = StatusRecord(status: status, timestamp: now())
+    }
+
+    func recordTranscriptionOutcome(
+        for provider: CloudProvider,
+        credentialGeneration: UInt64,
+        error: Error?
+    ) {
+        guard credentialGeneration == transcriptionCredentialGeneration else { return }
+
         guard let error else {
-            guard lastTranscriptionFailure[provider] != nil else { return }
             lastTranscriptionFailure[provider] = nil
+            statuses[provider] = .healthy
+            cache[provider] = StatusRecord(status: .healthy, timestamp: now())
             AppLogger.network.info("\(provider.rawValue, privacy: .public) transcription succeeded · clearing health failure override")
             return
         }
@@ -491,6 +517,8 @@ final class CloudProviderHealthManager: ObservableObject {
     ///    stops typing, avoiding network spam on every keystroke.
     func registerAPIKeyChange(for provider: CloudProvider, newValue: String) {
         let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        transcriptionCredentialGeneration &+= 1
 
         cache[provider] = nil
         // A key edit invalidates the transcription-failure override too (issue

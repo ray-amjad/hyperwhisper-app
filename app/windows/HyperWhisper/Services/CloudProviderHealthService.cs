@@ -115,12 +115,17 @@ public class CloudProviderHealthService : IDisposable
     /// <summary>
     /// When each provider last returned a DEFINITIVE provider-down error from a
     /// real transcription (issue #379). See
-    /// <see cref="RecordTranscriptionOutcome(CloudTranscriptionProvider, Exception?)"/>.
-    /// Entries are never pruned on read — <see cref="GetStatus(CloudTranscriptionProvider)"/>
+    /// <see cref="RecordTranscriptionOutcome(CloudTranscriptionProvider, long, Exception?)"/>.
+    /// Entries are never pruned on read — <see cref="GetHealthStatus(CloudTranscriptionProvider)"/>
     /// stays a pure read. An expired entry simply stops matching, and the
     /// dictionary is bounded by the provider enum.
     /// </summary>
     private readonly ConcurrentDictionary<CloudTranscriptionProvider, DateTime> _recentFailures = new();
+
+    // Monotonic generation for transcription credentials. A request captures
+    // this before resolving its provider. Any later key edit increments it, so
+    // an old in-flight result cannot publish evidence about the new key.
+    private long _transcriptionCredentialGeneration;
 
     /// <summary>
     /// Clock. Every timestamp this type takes — the two cache-hit gates, the
@@ -178,15 +183,6 @@ public class CloudProviderHealthService : IDisposable
     /// Gets the cached health status for a transcription provider.
     /// Returns Unknown if not cached.
     /// </summary>
-    /// <remarks>
-    /// READ SEAM for the transcription-failure override (issue #379). This is the
-    /// only place a transcription provider's status is read: the Local API's
-    /// <c>/health</c> (HealthEndpoints.cs, which derives <c>reachable</c> from it)
-    /// and the Model Library badges (ModelLibraryManager) both come through here,
-    /// so applying the override once here fixes every surface. Mirrors the macOS
-    /// <c>CloudProviderHealthManager.status(for:)</c>; macOS additionally has to
-    /// patch <c>healthSnapshot()</c> because that one bypasses its accessor.
-    /// </remarks>
     public ProviderHealth GetStatus(CloudTranscriptionProvider provider)
     {
         var key = $"transcription:{provider}";
@@ -198,7 +194,17 @@ public class CloudProviderHealthService : IDisposable
                 status = cached.Status;
             }
         }
-        return ApplyFailureOverride(status, provider);
+        return status;
+    }
+
+    /// <summary>
+    /// Gets the Local API <c>/health</c> verdict. This is the only read seam that
+    /// folds a recent real transcription failure over the probe-derived cache.
+    /// Generic app reads remain probe-derived through <see cref="GetStatus"/>.
+    /// </summary>
+    public ProviderHealth GetHealthStatus(CloudTranscriptionProvider provider)
+    {
+        return ApplyFailureOverride(GetStatus(provider), provider);
     }
 
     /// <summary>
@@ -251,6 +257,8 @@ public class CloudProviderHealthService : IDisposable
     public void RegisterApiKeyChange(CloudTranscriptionProvider provider, string? newValue)
     {
         var key = $"transcription:{provider}";
+
+        Interlocked.Increment(ref _transcriptionCredentialGeneration);
 
         // A key edit invalidates the transcription-failure override too (issue
         // #379). Without this, a user who reacts to an outage by re-pasting their
@@ -605,7 +613,7 @@ public class CloudProviderHealthService : IDisposable
     ///    <see cref="IsDefinitiveProviderDownVerdict"/>); everything else is a no-op.
     /// 3. A definitive failure stamps only <c>_recentFailures</c>, and then
     ///    outranks the raw probe at
-    ///    <see cref="GetStatus(CloudTranscriptionProvider)"/> for
+    ///    <see cref="GetHealthStatus(CloudTranscriptionProvider)"/> for
     ///    <see cref="FailureOverrideTtlSeconds"/> seconds.
     ///
     /// WHY: the health probe cannot see this failure. It hits the vendor's
@@ -626,15 +634,24 @@ public class CloudProviderHealthService : IDisposable
     /// this method runs on the transcription thread — raising it here would put a
     /// synchronous UI-thread rendezvous on the hot path, and deadlock outright if
     /// the UI thread were ever waiting on the transcription. The Local API
-    /// <c>/health</c> reads <see cref="GetStatus(CloudTranscriptionProvider)"/>
+    /// <c>/health</c> reads <see cref="GetHealthStatus(CloudTranscriptionProvider)"/>
     /// directly, so the surface the issue was filed about is unaffected; the
     /// Settings badges pick the change up on their next rebuild.
     /// </remarks>
     /// <param name="provider">The provider the attempt actually ran against.</param>
     /// <param name="error">Null on success, otherwise the exception thrown.</param>
-    public void RecordTranscriptionOutcome(CloudTranscriptionProvider provider, Exception? error)
+    public long CaptureTranscriptionCredentialGeneration()
+    {
+        return Volatile.Read(ref _transcriptionCredentialGeneration);
+    }
+
+    public void RecordTranscriptionOutcome(
+        CloudTranscriptionProvider provider,
+        long credentialGeneration,
+        Exception? error)
     {
         if (provider == CloudTranscriptionProvider.None) return;
+        if (credentialGeneration != CaptureTranscriptionCredentialGeneration()) return;
 
         if (error == null)
         {

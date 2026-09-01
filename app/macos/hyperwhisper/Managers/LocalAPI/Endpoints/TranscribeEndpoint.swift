@@ -45,6 +45,11 @@ enum TranscribeEndpoint {
             return LocalAPIResponder.failure(code: .engineUnavailable, message: "Transcription pipeline not initialized")
         }
 
+        // Capture before resolution reads a credential. A later key edit makes
+        // this request's outcome stale and unable to overwrite the new verdict.
+        let healthManager = pipeline.providerCoordinator.providerHealthManager
+        let credentialGeneration = healthManager?.captureTranscriptionCredentialGeneration()
+
         // Determine the Mode (saved) or build a transient one from engine/model/language.
         let resolution: ProviderResolution
         do {
@@ -68,7 +73,6 @@ enum TranscribeEndpoint {
         // tell it whether the provider is actually up. Resolved once here, on the
         // main actor, so both the success and failure arms report synchronously —
         // no `Task { }` hop that could land after the next probe.
-        let healthManager = pipeline.providerCoordinator.providerHealthManager
         let cloudProviderType = resolution.cloudProviderType
 
         let started = Date()
@@ -81,11 +85,23 @@ enum TranscribeEndpoint {
                 vocabulary: resolution.vocabulary
             )
             if let cloudProviderType {
-                healthManager?.recordTranscriptionOutcome(for: cloudProviderType, error: nil)
+                if let credentialGeneration {
+                    healthManager?.recordTranscriptionOutcome(
+                        for: cloudProviderType,
+                        credentialGeneration: credentialGeneration,
+                        error: nil
+                    )
+                }
             }
         } catch {
             if let cloudProviderType {
-                healthManager?.recordTranscriptionOutcome(for: cloudProviderType, error: error)
+                if let credentialGeneration {
+                    healthManager?.recordTranscriptionOutcome(
+                        for: cloudProviderType,
+                        credentialGeneration: credentialGeneration,
+                        error: error
+                    )
+                }
             }
             cleanupTransientMode(resolution.transientMode)
             let (code, message, hint) = LocalAPIResponder.mapTranscriptionError(error)

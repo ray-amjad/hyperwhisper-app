@@ -339,6 +339,11 @@ public class TranscriptionOrchestrator : IDisposable
 
         LoggingService.LogPerformanceMarker("TranscriptionOrchestrator", $"Cloud transcription via {providerType}");
 
+        // Capture before provider resolution reads any key. A later key edit
+        // advances the generation and makes this request's outcome stale.
+        var healthService = CloudProviderHealthService.Instance;
+        var credentialGeneration = healthService.CaptureTranscriptionCredentialGeneration();
+
         // Get configured provider (validates API key, configures model)
         var provider = _providerFactory.GetConfiguredCloudProvider(providerType, mode.CloudTranscriptionModel);
 
@@ -391,7 +396,7 @@ public class TranscriptionOrchestrator : IDisposable
         }
         catch (Exception ex)
         {
-            CloudProviderHealthService.Instance.RecordTranscriptionOutcome(providerType, ex);
+            healthService.RecordTranscriptionOutcome(providerType, credentialGeneration, ex);
             throw;
         }
 
@@ -399,7 +404,7 @@ public class TranscriptionOrchestrator : IDisposable
 
         // Recorded after Stop() so the outcome bookkeeping never lands inside the
         // measured provider latency.
-        CloudProviderHealthService.Instance.RecordTranscriptionOutcome(providerType, null);
+        healthService.RecordTranscriptionOutcome(providerType, credentialGeneration, null);
 
         var displayName = TranscriptionProviderFactory.GetProviderDisplayName(providerType, mode.CloudTranscriptionModel);
 
