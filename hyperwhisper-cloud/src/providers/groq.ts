@@ -7,6 +7,7 @@ import type { ProviderRequestContext, TranscriptionResult } from './types';
 import {
   DEFAULT_AUDIO_EXTENSIONS,
   audioExtensionFromContentType,
+  emptyTranscriptOutcome,
   explicitLanguageSubtag,
   fetchWithTimeout,
   logProviderEvent,
@@ -101,17 +102,31 @@ export async function transcribeWithGroq(
   const transcript = data.text || '';
 
   if (!transcript || transcript.trim().length === 0) {
-    logProviderEvent(provider, 'no_speech', {
-      elapsedMs: Math.round(performance.now() - startTime),
-      language: data.language,
-    }, context);
-    return {
-      text: '',
-      language: data.language,
-      durationSeconds: 0,
-      costUsd: 0,
-      source: 'no_speech',
-    };
+    // No text, but the upstream itself says it processed audio (`duration` is the
+    // length of the SUBMITTED audio, not of detected speech). That is worth one
+    // sibling call rather than a "No speech detected" the user has to redo — but
+    // only when the ROUTE says a sibling is there to take it. We never inspect
+    // `attempt` for that: the chain is the route's to read. One shared block for
+    // all three covered adapters. See emptyTranscriptOutcome in providers/utils.
+    // (issue ray-amjad/hyperwhisper-app#381)
+    return emptyTranscriptOutcome(provider, {
+      label: 'Groq',
+      startedAt: startTime,
+      context,
+      upstreamDuration: duration,
+      // Groq puts no id in the JSON body; it is on the response header. This
+      // adapter was the one of the three that logged nothing here at all.
+      upstreamRequestId: response.headers.get('x-request-id') ?? undefined,
+      logDetails: { language: data.language },
+      noSpeechResult: {
+        text: '',
+        language: data.language,
+        durationSeconds: 0,
+        costUsd: 0,
+        source: 'no_speech',
+        requestId: response.headers.get('x-request-id') ?? undefined,
+      },
+    });
   }
 
   logProviderEvent(provider, 'success', {

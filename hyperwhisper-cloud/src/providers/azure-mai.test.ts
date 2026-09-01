@@ -31,6 +31,25 @@ function successResponse(text = 'hello world', locale = 'en-US') {
   });
 }
 
+/**
+ * Swaps `console.log` for the duration of `run` and returns the details object of
+ * the `provider.no_speech` event it logged. Same swap-the-global idiom as
+ * `utils.test.ts` — no spy library is used anywhere in this suite.
+ */
+async function captureNoSpeechEvent(run: () => Promise<unknown>): Promise<Record<string, unknown>> {
+  const logged: unknown[][] = [];
+  const originalLog = console.log;
+  console.log = ((...args: unknown[]) => { logged.push(args); }) as typeof console.log;
+  try {
+    await run();
+  } finally {
+    console.log = originalLog;
+  }
+  const event = logged.find((args) => args[0] === 'provider.no_speech');
+  if (!event) throw new Error('no provider.no_speech event was logged');
+  return event[1] as Record<string, unknown>;
+}
+
 describe('transcribeWithAzureMai — input gates (no upstream call)', () => {
   test('rejects audio over the 300 MB cap with AudioTooLargeError before any fetch', async () => {
     let called = false;
@@ -218,6 +237,20 @@ describe('transcribeWithAzureMai — success and no-speech results', () => {
 
     const result = await transcribeWithAzureMai(new ArrayBuffer(10), 'audio/wav');
     expect(result.source).toBe('no_speech');
+  });
+
+  test('the no_speech log event records the upstream duration, and null when there is none', async () => {
+    globalThis.fetch = mock(async () => successResponse('   ', 'en-US')) as unknown as typeof fetch;
+    const reported = await captureNoSpeechEvent(
+      () => transcribeWithAzureMai(new ArrayBuffer(10), 'audio/wav'),
+    );
+    expect(reported.upstreamDurationSeconds).toBe(4.2);
+
+    globalThis.fetch = mock(async () => Response.json({ combinedPhrases: [{ text: '' }] })) as unknown as typeof fetch;
+    const missing = await captureNoSpeechEvent(
+      () => transcribeWithAzureMai(new ArrayBuffer(10), 'audio/wav'),
+    );
+    expect(missing.upstreamDurationSeconds).toBeNull();
   });
 });
 

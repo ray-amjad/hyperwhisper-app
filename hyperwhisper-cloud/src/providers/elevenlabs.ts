@@ -193,6 +193,9 @@ export async function transcribeWithElevenLabs(
     logProviderEvent(provider, 'no_speech', {
       elapsedMs: Math.round(performance.now() - startTime),
       language: data.language_code,
+      // `duration` comes from the last word's end time, so an empty transcript
+      // always leaves it 0 — this provider structurally reports nothing here.
+      upstreamDurationSeconds: duration > 0 ? duration : null,
     }, context);
     return {
       text: '',
