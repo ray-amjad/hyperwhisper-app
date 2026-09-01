@@ -2088,7 +2088,7 @@ class PersistenceController: ObservableObject {
             // Set sort order for new mode
             let request: NSFetchRequest<Mode> = Mode.fetchRequest()
             let maxSortOrder = (try? context.fetch(request).map(\.sortOrder).max()) ?? 0
-            mode?.sortOrder = maxSortOrder + 1
+            mode?.sortOrder = maxSortOrder == .max ? .max : maxSortOrder + 1
         }
         
         // Update mode properties

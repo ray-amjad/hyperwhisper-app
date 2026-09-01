@@ -53,10 +53,10 @@ enum ModesEndpoint {
         guard let normalizedName = Self.normalizedName(dto.name) else {
             return LocalAPIResponder.failure(code: .invalidRequest, message: "Mode 'name' cannot be empty")
         }
-        guard let postProcessingMode = Self.int16Value(dto.postProcessingMode ?? 1) else {
+        guard let postProcessingMode = Self.postProcessingModeValue(dto.postProcessingMode ?? 1) else {
             return LocalAPIResponder.failure(
                 code: .invalidRequest,
-                message: "Mode 'postProcessingMode' must be between \(Int16.min) and \(Int16.max)"
+                message: "Mode 'postProcessingMode' must be 0, 1, or 2"
             )
         }
         let persistence = PersistenceController.shared
@@ -146,10 +146,10 @@ enum ModesEndpoint {
 
         let postProcessingMode: Int16?
         if let value = patch.postProcessingMode {
-            guard let converted = Self.int16Value(value) else {
+            guard let converted = Self.postProcessingModeValue(value) else {
                 return LocalAPIResponder.failure(
                     code: .invalidRequest,
-                    message: "Mode 'postProcessingMode' must be between \(Int16.min) and \(Int16.max)"
+                    message: "Mode 'postProcessingMode' must be 0, 1, or 2"
                 )
             }
             postProcessingMode = converted
@@ -244,6 +244,14 @@ enum ModesEndpoint {
         Int16(exactly: value)
     }
 
+    static func postProcessingModeValue(_ value: Int) -> Int16? {
+        guard let rawValue = Int16(exactly: value),
+              PostProcessingMode(rawValue: rawValue) != nil else {
+            return nil
+        }
+        return rawValue
+    }
+
     @MainActor
     static func mutationContext(for persistence: PersistenceController) -> NSManagedObjectContext {
         let context = NSManagedObjectContext(concurrencyType: .mainQueueConcurrencyType)
@@ -299,32 +307,45 @@ enum ModesEndpoint {
         if let v = patch.capitalization { mode.capitalization = v }
         if let v = patch.profanityFilter { mode.profanityFilter = v }
         if case .value(let value) = patch.$customInstructions { mode.customInstructions = value }
-        if let v = patch.userSystemPrompt { mode.userSystemPrompt = v.isEmpty ? nil : v }
+        if case .value(let value) = patch.$userSystemPrompt {
+            mode.userSystemPrompt = value.flatMap { $0.isEmpty ? nil : $0 }
+        }
         if let v = patch.isDefault { mode.isDefault = v }
         if let sortOrder { mode.sortOrder = sortOrder }
-        if let v = patch.languageModel { mode.languageModel = v }
-        if let v = patch.cloudTranscriptionModel { mode.cloudTranscriptionModel = v }
-        if let v = patch.cloudTranscriptionDomain { mode.cloudTranscriptionDomain = v }
+        if case .value(let value) = patch.$languageModel { mode.languageModel = value }
+        if case .value(let value) = patch.$cloudTranscriptionModel { mode.cloudTranscriptionModel = value }
+        if case .value(let value) = patch.$cloudTranscriptionDomain { mode.cloudTranscriptionDomain = value }
         var inferredAccuracyTier: String? = nil
-        if let v = patch.cloudProvider {
-            let normalized = CloudSTTCatalog.shared.normalizeCloudProvider(v)
-            mode.cloudProvider = normalized.provider
-            inferredAccuracyTier = normalized.accuracyTier
+        if case .value(let value) = patch.$cloudProvider {
+            if let value {
+                let normalized = CloudSTTCatalog.shared.normalizeCloudProvider(value)
+                mode.cloudProvider = normalized.provider
+                inferredAccuracyTier = normalized.accuracyTier
+            } else {
+                mode.cloudProvider = nil
+            }
         }
         if let postProcessingMode { mode.postProcessingMode = postProcessingMode }
-        if let v = patch.postProcessingProvider { mode.postProcessingProvider = v }
-        if let v = patch.englishSpelling { mode.englishSpelling = v }
+        if case .value(let value) = patch.$postProcessingProvider { mode.postProcessingProvider = value }
+        if case .value(let value) = patch.$englishSpelling { mode.englishSpelling = value }
         if let v = patch.useStreamingTranscription { mode.useStreamingTranscription = v }
         // Prefer an explicit patch over the migration's inferred tier so a
         // same-PATCH cloudProvider+cloudAccuracyTier pair lands as the caller
         // wrote it.
-        if let v = patch.cloudAccuracyTier ?? inferredAccuracyTier {
-            mode.cloudAccuracyTier = v
+        switch patch.$cloudAccuracyTier {
+        case .value(let value):
+            mode.cloudAccuracyTier = value
+        case .omitted:
+            if let inferredAccuracyTier { mode.cloudAccuracyTier = inferredAccuracyTier }
         }
         if let v = patch.removeTrailingPeriod { mode.removeTrailingPeriod = v }
         if let v = patch.enableScreenOCR { mode.enableScreenOCR = v }
-        if let v = patch.geminiCustomPrompt { mode.geminiCustomPrompt = v.isEmpty ? nil : v }
-        if let v = patch.cloudPostProcessingModel { mode.cloudPostProcessingModel = v }
+        if case .value(let value) = patch.$geminiCustomPrompt {
+            mode.geminiCustomPrompt = value.flatMap { $0.isEmpty ? nil : $0 }
+        }
+        if case .value(let value) = patch.$cloudPostProcessingModel {
+            mode.cloudPostProcessingModel = value
+        }
     }
 
     @MainActor

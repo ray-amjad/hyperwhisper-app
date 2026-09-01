@@ -216,22 +216,22 @@ struct ModePatchDTO: Decodable, Sendable {
     let capitalization: Bool?
     let profanityFilter: Bool?
     @NullablePatch var customInstructions: String?
-    let userSystemPrompt: String?
+    @NullablePatch var userSystemPrompt: String?
     let isDefault: Bool?
     let sortOrder: Int?
-    let languageModel: String?
-    let cloudTranscriptionModel: String?
-    let cloudTranscriptionDomain: String?
-    let cloudProvider: String?
+    @NullablePatch var languageModel: String?
+    @NullablePatch var cloudTranscriptionModel: String?
+    @NullablePatch var cloudTranscriptionDomain: String?
+    @NullablePatch var cloudProvider: String?
     let postProcessingMode: Int?
-    let postProcessingProvider: String?
-    let englishSpelling: String?
+    @NullablePatch var postProcessingProvider: String?
+    @NullablePatch var englishSpelling: String?
     let useStreamingTranscription: Bool?
-    let cloudAccuracyTier: String?
+    @NullablePatch var cloudAccuracyTier: String?
     let removeTrailingPeriod: Bool?
     let enableScreenOCR: Bool?
-    let geminiCustomPrompt: String?
-    let cloudPostProcessingModel: String?
+    @NullablePatch var geminiCustomPrompt: String?
+    @NullablePatch var cloudPostProcessingModel: String?
 }
 
 struct ModesListResponse: Codable, Sendable {

@@ -43,6 +43,15 @@ struct ModesEndpointTests {
         #expect(ModesEndpoint.int16Value(Int(Int16.max) + 1) == nil)
     }
 
+    @Test func postProcessingModeAcceptsOnlyDefinedRawValues() {
+        #expect(ModesEndpoint.postProcessingModeValue(0) == 0)
+        #expect(ModesEndpoint.postProcessingModeValue(1) == 1)
+        #expect(ModesEndpoint.postProcessingModeValue(2) == 2)
+        #expect(ModesEndpoint.postProcessingModeValue(-1) == nil)
+        #expect(ModesEndpoint.postProcessingModeValue(3) == nil)
+        #expect(ModesEndpoint.postProcessingModeValue(Int(Int16.max)) == nil)
+    }
+
     @Test func omittedNullablePatchFieldStaysUnchanged() throws {
         let patch = try JSONDecoder().decode(ModePatchDTO.self, from: Data("{}".utf8))
 
@@ -72,6 +81,72 @@ struct ModesEndpointTests {
             return
         }
         #expect(value == "Use short sentences")
+    }
+
+    @Test func everyNullableModeFieldDistinguishesOmittedFromNull() throws {
+        let omitted = try JSONDecoder().decode(ModePatchDTO.self, from: Data("{}".utf8))
+        let cleared = try JSONDecoder().decode(
+            ModePatchDTO.self,
+            from: Data(
+                """
+                {
+                  "customInstructions": null,
+                  "userSystemPrompt": null,
+                  "languageModel": null,
+                  "cloudTranscriptionModel": null,
+                  "cloudTranscriptionDomain": null,
+                  "cloudProvider": null,
+                  "postProcessingProvider": null,
+                  "englishSpelling": null,
+                  "cloudAccuracyTier": null,
+                  "geminiCustomPrompt": null,
+                  "cloudPostProcessingModel": null
+                }
+                """.utf8
+            )
+        )
+
+        let omittedStates = [
+            omitted.$customInstructions, omitted.$userSystemPrompt,
+            omitted.$languageModel, omitted.$cloudTranscriptionModel,
+            omitted.$cloudTranscriptionDomain, omitted.$cloudProvider,
+            omitted.$postProcessingProvider, omitted.$englishSpelling,
+            omitted.$cloudAccuracyTier, omitted.$geminiCustomPrompt,
+            omitted.$cloudPostProcessingModel,
+        ]
+        let clearedStates = [
+            cleared.$customInstructions, cleared.$userSystemPrompt,
+            cleared.$languageModel, cleared.$cloudTranscriptionModel,
+            cleared.$cloudTranscriptionDomain, cleared.$cloudProvider,
+            cleared.$postProcessingProvider, cleared.$englishSpelling,
+            cleared.$cloudAccuracyTier, cleared.$geminiCustomPrompt,
+            cleared.$cloudPostProcessingModel,
+        ]
+
+        for state in omittedStates {
+            guard case .omitted = state else {
+                Issue.record("Every omitted nullable Mode field must stay omitted")
+                continue
+            }
+        }
+        for state in clearedStates {
+            guard case .value(nil) = state else {
+                Issue.record("Every explicit null nullable Mode field must decode as a clear")
+                continue
+            }
+        }
+    }
+
+    @MainActor
+    @Test func creationAtMaximumStoredSortOrderDoesNotOverflow() {
+        let persistence = PersistenceController(inMemory: true)
+        let existing = makeMode(in: persistence)
+        existing.sortOrder = .max
+        persistence.save()
+
+        let created = makeMode(in: persistence, name: "Second mode")
+
+        #expect(created.sortOrder == .max)
     }
 
     @MainActor
