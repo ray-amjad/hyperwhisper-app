@@ -1164,6 +1164,71 @@ describe('empty-transcript failover, end to end (issue #381)', () => {
     expect(body.metadata.stt_provider).toContain('fallback from');
   });
 
+  test('a recovered request reports WHY it was degraded, so a fallback is not indistinguishable from an outage', async () => {
+    // The deploy smoke test's fixture rows exist to catch a provider returning
+    // nothing for a language (the deepgram/zh-roger.mp3 row). Once a sibling
+    // covers that, the run goes green on a transcript the row's own provider
+    // never produced, and `X-STT-Provider` alone cannot say whether the fallback
+    // was an empty transcript or a transient 429. The shared `bad_response` kind
+    // cannot either — it also means a geo-block page and a truncated body.
+    process.env.GROQ_API_KEY = 'test-groq-key';
+
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('api.deepgram.com')) {
+        return Response.json({
+          results: { channels: [{ alternatives: [{ transcript: '' }] }] },
+          metadata: { duration: 8, request_id: 'dg-empty' },
+        });
+      }
+      if (url.includes('api.groq.com')) {
+        return Response.json({ text: 'the sibling covered it', language: 'zh', duration: 8 });
+      }
+      if (url.includes('/api/license/credits')) return Response.json({ credits_remaining: 999 });
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    const response = await buildApp().fetch(request({ 'X-STT-Provider': 'deepgram' }));
+    const body = await response.json() as {
+      text: string;
+      attempt_failures?: Array<{ provider: string; kind: string; empty_transcript?: boolean }>;
+    };
+    await drainPendingDeductions(2000);
+
+    expect(response.status).toBe(200);
+    expect(body.text).toBe('the sibling covered it');
+    expect(body.attempt_failures).toEqual([
+      expect.objectContaining({ provider: 'deepgram', kind: 'bad_response', empty_transcript: true }),
+    ]);
+  });
+
+  test('a transient sibling outage is NOT marked as an empty transcript', async () => {
+    // The other half of the discriminator: if every degraded request looked like
+    // an empty transcript, the smoke test would red the deploy on a 429.
+    process.env.GROQ_API_KEY = 'test-groq-key';
+
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('api.deepgram.com')) return new Response('rate limited', { status: 429 });
+      if (url.includes('api.groq.com')) {
+        return Response.json({ text: 'the sibling covered it', language: 'en', duration: 8 });
+      }
+      if (url.includes('/api/license/credits')) return Response.json({ credits_remaining: 999 });
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as unknown as typeof fetch;
+
+    const response = await buildApp().fetch(request({ 'X-STT-Provider': 'deepgram' }));
+    const body = await response.json() as {
+      attempt_failures?: Array<{ provider: string; kind: string; empty_transcript?: boolean }>;
+    };
+    await drainPendingDeductions(2000);
+
+    expect(response.status).toBe(200);
+    expect(body.attempt_failures).toHaveLength(1);
+    expect(body.attempt_failures?.[0]?.provider).toBe('deepgram');
+    expect(body.attempt_failures?.[0]?.empty_transcript).toBeUndefined();
+  });
+
   test('every sibling failing leaves the request as the 200 no_speech it was before the failover', async () => {
     // Spec goal 3: no user's no_speech outcome becomes a hard error. Grok refuses,
     // Deepgram is rate-limited — and before this fix the route ran out of chain,

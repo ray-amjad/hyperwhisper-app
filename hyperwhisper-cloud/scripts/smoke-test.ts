@@ -205,14 +205,32 @@ async function checkTranscribe(check: SttCheck): Promise<void> {
       const text = await res.text().catch(() => '');
       return fail(name, `expected 200, got ${res.status} ${text.slice(0, 200)}`);
     }
-    const body = (await res.json().catch(() => ({}))) as { text?: string };
+    const body = (await res.json().catch(() => ({}))) as {
+      text?: string;
+      attempt_failures?: Array<{ provider?: string; empty_transcript?: boolean }>;
+    };
     const transcript = (body.text ?? '').trim();
     if (!transcript) return fail(name, 'empty transcript');
+
+    // The empty-transcript failover (issue #381) means the check above no longer
+    // sees an empty transcript from the requested provider — a sibling covers it
+    // and the run goes green on a transcript the row's own provider never
+    // produced. The `deepgram`/zh-roger.mp3 row exists precisely because
+    // nova-3-general is known to drop that language, and it used to go red here.
+    // The route reports the cause per attempt, so the signal is restored at its
+    // source rather than by widening the fallback rule below.
+    const refusedEmpty = (body.attempt_failures ?? []).some(
+      (failure) => failure.empty_transcript && failure.provider === check.provider,
+    );
+    if (refusedEmpty) {
+      return fail(name, `${check.provider} returned an empty transcript for this fixture (a sibling covered it)`);
+    }
 
     // The response echoes the served model name; check it starts with the
     // requested provider's prefix. A mismatch means a genuine fallback to a
     // different provider — impossible (and a real bug) for self-only providers,
-    // legitimate but worth surfacing for the rest.
+    // legitimate but worth surfacing for the rest. A fallback caused by an empty
+    // transcript has already failed above, so what reaches here is an outage.
     const served = res.headers.get('X-STT-Provider') || '?';
     const prefix = expectedServedPrefix(check.provider);
     if (!served.startsWith(prefix)) {
