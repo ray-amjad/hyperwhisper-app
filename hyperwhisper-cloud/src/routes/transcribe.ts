@@ -13,6 +13,7 @@ import { AudioTooLargeError, EmptyTranscriptError, ProviderInputError, ProviderU
 // the route never imports an adapter or keeps a dispatch table of its own. See
 // providers/dispatch.ts.
 import { transcribeWithProvider } from '../providers/dispatch';
+import { parseMetaWav } from '../providers/meta';
 import { creditsForCost, estimatePromptInputReservationUsd, formatUsd } from '../lib/cost-calculator';
 import {
   estimatedUsdPerMinute,
@@ -78,17 +79,17 @@ export function estimateCreditsForProviderFallbacks(
   medical: boolean = false,
   initialPrompt?: string,
   language?: string,
+  exactAudioSeconds?: number,
 ): number {
   const chain = fallbackChainFor(provider);
-  // Muse requests are canonical mono PCM16 WAV. The desktop normalizers emit
-  // 16 kHz, or 32,000 payload bytes per second. The generic estimator assumes
-  // 64 kbps encoded audio and inflated a real one-minute Muse upload to four
-  // minutes, rejecting users who had the 3 credits the request actually needs.
-  // Subtract the canonical 44-byte WAV header; malformed/noncanonical files are
-  // still rejected by the adapter before any upstream call.
-  const estimatedSeconds = provider === 'meta'
+  // Muse requests are canonical mono PCM16 WAV at 16 or 24 kHz. The route
+  // supplies the parsed duration because Content-Length cannot identify which
+  // accepted byte rate produced the file. Keep the 16 kHz size fallback for
+  // direct historical callers of this estimator; the live route never uses it
+  // for a valid Muse WAV.
+  const estimatedSeconds = exactAudioSeconds ?? (provider === 'meta'
     ? Math.max(10, Math.max(0, sizeBytes - 44) / (16_000 * 2))
-    : estimateAudioSecondsFromSize(sizeBytes);
+    : estimateAudioSecondsFromSize(sizeBytes));
   const hasInitialPrompt = Boolean(initialPrompt);
   const rates = chain.map((p) => estimatedUsdPerMinute(
     p,
@@ -393,30 +394,63 @@ export async function transcribeRoute(c: Context) {
   // Deepgram/Groq/Grok fallback, which still forwards the prompt and bills the surcharge.
   // estimatedUsdPerMinute scopes the add-on to universal-3-5-pro / scribe_v2, so passing it
   // for every request is safe and never under-reserves.
-  const estimatedCredits = estimateCreditsForProviderFallbacks(contentLength, provider, model, medical, initialPrompt, language);
-  const creditCheck = await validateCredits(authResult.value, estimatedCredits, clientIP);
-  if (!creditCheck.ok) {
-    logEvent(requestId, startTime, 'transcribe.request_rejected', {
-      reason: 'credits_failed',
-      flyRequestId,
-      status: creditCheck.response.status,
-      estimatedCredits,
+  const readAudioBuffer = async (): Promise<ArrayBuffer> => {
+    const uploadStart = performance.now();
+    const body = await c.req.arrayBuffer();
+    const uploadMs = Math.round(performance.now() - uploadStart);
+    const uploadBytesPerSec = uploadMs > 0
+      ? Math.round((body.byteLength / uploadMs) * 1000)
+      : undefined;
+    logEvent(requestId, startTime, 'transcribe.buffer_read_done', {
+      audioBytes: body.byteLength,
+      uploadMs,
+      uploadBytesPerSec,
     });
-    return creditCheck.response;
-  }
-  logEvent(requestId, startTime, 'transcribe.credits_done', { estimatedCredits });
+    return body;
+  };
 
-  const uploadStart = performance.now();
-  const audioBuffer = await c.req.arrayBuffer();
-  const uploadMs = Math.round(performance.now() - uploadStart);
-  const uploadBytesPerSec = uploadMs > 0
-    ? Math.round((audioBuffer.byteLength / uploadMs) * 1000)
-    : undefined;
-  logEvent(requestId, startTime, 'transcribe.buffer_read_done', {
-    audioBytes: audioBuffer.byteLength,
-    uploadMs,
-    uploadBytesPerSec,
-  });
+  // Meta billing is duration-based while its two accepted PCM sample rates
+  // have different byte rates. Read this finite-capped body and parse the WAV
+  // before reservation; Content-Length cannot distinguish a 60-second 24 kHz
+  // clip from a 90-second 16 kHz clip. Invalid/noncanonical audio deliberately
+  // skips reservation and continues to the adapter, which returns the 415/400
+  // that tells a native client whether to normalize and retry.
+  let audioBuffer: ArrayBuffer | undefined;
+  let exactAudioSeconds: number | undefined;
+  let skipCreditValidationForLocalInputError = false;
+  if (provider === 'meta') {
+    audioBuffer = await readAudioBuffer();
+    try {
+      exactAudioSeconds = parseMetaWav(audioBuffer, contentType).durationSeconds;
+    } catch (error) {
+      if (error instanceof UnsupportedAudioFormatError || error instanceof ProviderInputError) {
+        skipCreditValidationForLocalInputError = true;
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  const estimatedCredits = estimateCreditsForProviderFallbacks(
+    contentLength, provider, model, medical, initialPrompt, language, exactAudioSeconds,
+  );
+  if (!skipCreditValidationForLocalInputError) {
+    const creditCheck = await validateCredits(authResult.value, estimatedCredits, clientIP);
+    if (!creditCheck.ok) {
+      logEvent(requestId, startTime, 'transcribe.request_rejected', {
+        reason: 'credits_failed',
+        flyRequestId,
+        status: creditCheck.response.status,
+        estimatedCredits,
+      });
+      return creditCheck.response;
+    }
+    logEvent(requestId, startTime, 'transcribe.credits_done', { estimatedCredits });
+  } else {
+    logEvent(requestId, startTime, 'transcribe.credits_skipped_invalid_audio', { provider });
+  }
+
+  audioBuffer ??= await readAudioBuffer();
 
   // The credit check above trusted the declared Content-Length. Reject bodies
   // that arrive larger than declared so a client can't under-declare to pass

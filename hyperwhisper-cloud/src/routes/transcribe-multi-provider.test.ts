@@ -34,9 +34,8 @@ function request(headers: Record<string, string>, query = ''): Request {
   });
 }
 
-function metaWavRequest(seconds: number, query = ''): Request {
-  const sampleRate = 16_000;
-  const dataBytes = sampleRate * 2 * seconds;
+function metaWavRequest(seconds: number, query = '', sampleRate = 16_000, channels = 1): Request {
+  const dataBytes = sampleRate * channels * 2 * seconds;
   const audio = new Uint8Array(44 + dataBytes);
   const view = new DataView(audio.buffer);
   for (const [offset, text] of [[0, 'RIFF'], [8, 'WAVE'], [12, 'fmt '], [36, 'data']] as const) {
@@ -45,10 +44,10 @@ function metaWavRequest(seconds: number, query = ''): Request {
   view.setUint32(4, audio.byteLength - 8, true);
   view.setUint32(16, 16, true);
   view.setUint16(20, 1, true);
-  view.setUint16(22, 1, true);
+  view.setUint16(22, channels, true);
   view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * 2, true);
-  view.setUint16(32, 2, true);
+  view.setUint32(28, sampleRate * channels * 2, true);
+  view.setUint16(32, channels * 2, true);
   view.setUint16(34, 16, true);
   view.setUint32(40, dataBytes, true);
   return new Request(`http://localhost/transcribe?license_key=test-license${query}`, {
@@ -112,15 +111,35 @@ describe('Meta Muse batch routing and billing', () => {
     });
   });
 
-  test('reserves at the registered 3-credit-per-minute rate', () => {
+  test('reserves a 16 kHz minute at the registered 3-credit rate', () => {
     const oneMinuteCanonicalMuseWav = 44 + (16_000 * 2 * 60);
-    expect(estimateCreditsForProviderFallbacks(oneMinuteCanonicalMuseWav, 'meta', 'muse-voice-transcribe-1.0')).toBe(3);
+    expect(estimateCreditsForProviderFallbacks(
+      oneMinuteCanonicalMuseWav, 'meta', 'muse-voice-transcribe-1.0', false, undefined, undefined, 60,
+    )).toBe(3);
   });
 
-  test('does not apply the generic 64 kbps estimate to canonical Muse WAV', () => {
-    const oneMinuteCanonicalMuseWav = 44 + (16_000 * 2 * 60);
-    expect(oneMinuteCanonicalMuseWav).toBeGreaterThan(480_000);
-    expect(estimateCreditsForProviderFallbacks(oneMinuteCanonicalMuseWav, 'meta', 'muse-voice-transcribe-1.0')).toBe(3);
+  test('reserves a 24 kHz minute as 3 credits rather than 4.5', () => {
+    const oneMinuteCanonicalMuseWav = 44 + (24_000 * 2 * 60);
+    expect(oneMinuteCanonicalMuseWav).toBeGreaterThan(44 + (16_000 * 2 * 60));
+    expect(estimateCreditsForProviderFallbacks(
+      oneMinuteCanonicalMuseWav, 'meta', 'muse-voice-transcribe-1.0', false, undefined, undefined, 60,
+    )).toBe(3);
+  });
+
+  test('routes an accepted 24 kHz WAV after exact-duration reservation', async () => {
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      if (String(input) === 'https://api.meta.ai/v1/asr/transcribe') {
+        return Response.json({ transcript: '24 kHz works', audioDurationMs: 60_000, turns: [] });
+      }
+      return Response.json({ credits_remaining: 997, credits_deducted: 3 });
+    }) as unknown as typeof fetch;
+
+    const response = await buildApp().fetch(metaWavRequest(60, '', 24_000));
+    const body = await response.json() as { text: string; cost: { credits: number } };
+
+    expect(response.status).toBe(200);
+    expect(body.text).toBe('24 kHz works');
+    expect(body.cost.credits).toBe(3);
   });
 
   test('rejects malformed WAV before an upstream request or credit deduction', async () => {
@@ -137,6 +156,24 @@ describe('Meta Muse batch routing and billing', () => {
       'X-STT-Provider': 'meta',
       'X-STT-Model': 'muse-voice-transcribe-1.0',
     }));
+    await drainPendingDeductions(2000);
+
+    expect(response.status).toBe(415);
+    expect(upstreamRequests).toBe(0);
+    expect(deductions).toBe(0);
+  });
+
+  test('returns 415 for a well-formed but noncanonical stereo WAV without reserving credits', async () => {
+    let upstreamRequests = 0;
+    let deductions = 0;
+    globalThis.fetch = mock(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === 'https://api.meta.ai/v1/asr/transcribe') upstreamRequests++;
+      if (url.includes('/api/license/credits')) deductions++;
+      return Response.json({});
+    }) as unknown as typeof fetch;
+
+    const response = await buildApp().fetch(metaWavRequest(1, '', 16_000, 2));
     await drainPendingDeductions(2000);
 
     expect(response.status).toBe(415);

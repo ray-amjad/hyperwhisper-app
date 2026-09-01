@@ -29,6 +29,7 @@ import {
   GEMINI_TRANSCRIBE_INLINE_MAX_BYTES,
   GOOGLE_CHIRP_INLINE_MAX_BYTES,
   OPENAI_INLINE_MAX_BYTES,
+  META_MUSE_SOURCE_MAX_BYTES,
 } from '../lib/constants';
 // From lib/gcs-config, not lib/gcs-storage: this gate only needs to know
 // whether a bucket exists, and must not drag the storage client (Google OAuth,
@@ -57,10 +58,11 @@ const PRE_BUFFER_LIMITS: Partial<Record<SttProviderId, PreBufferLimitResolver>> 
   'gemini-transcribe': () => GEMINI_TRANSCRIBE_INLINE_MAX_BYTES,
   // OpenAI hard-rejects audio over 25 MB with a 400.
   openai: () => OPENAI_INLINE_MAX_BYTES,
-  // Meta is deliberately not capped here. A noncanonical source can be larger
-  // than the 32 MB canonical-WAV limit and still normalize below it. The Meta
-  // adapter identifies format first, then applies the 32 MB cap to a canonical
-  // WAV. This lets desktop clients receive 415, normalize, and retry.
+  // A noncanonical source can be larger than the 32 MB canonical-WAV limit and
+  // still normalize below it, so retain one conversion-retry window. Twice the
+  // canonical cap is still only 6.25% of a 1 GiB Fly machine before the
+  // ArrayBuffer and multipart copies, avoiding the old 2 GiB allocation path.
+  meta: () => META_MUSE_SOURCE_MAX_BYTES,
 };
 
 /**
