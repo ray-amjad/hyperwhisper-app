@@ -268,6 +268,14 @@ struct StreamingProviderErrorPolicyTests {
         #expect(!StreamingProviderErrorPolicy.isTerminalCloseCode(4002))
     }
 
+    @Test func onlyInternalErrorCloseChangesProviderHealth() {
+        #expect(StreamingProviderErrorPolicy.isProviderUnavailableCloseCode(1011))
+
+        for code in [1000, 1002, 1003, 1006, 1007, 1008, 1009, 1012, 4001, 4002] {
+            #expect(!StreamingProviderErrorPolicy.isProviderUnavailableCloseCode(code))
+        }
+    }
+
     @Test func hyperWhisperCloudStrategyFallbackWordingIsTransient() {
         // HyperWhisperCloudStrategy's fallback for an error frame with no
         // message body.
@@ -324,11 +332,9 @@ struct StreamingProviderErrorPolicyTests {
         #expect(StreamingProviderErrorPolicy.upgradeRefusal(forStatus: 403) == .unauthorized)
     }
 
-    @Test func recoverableUpgradeStatusesKeepTheirReconnect() {
-        // The expensive direction again. A rate limit clears on its own, a 5xx
-        // is the service's problem and not the user's, and a proxy mangling the
-        // upgrade is exactly what the reconnect exists for. Nothing here should
-        // stop the retry.
+    @Test func nonUserUpgradeStatusesAreNotAccountRefusals() {
+        // These statuses do not name an account action. The client classifies
+        // 5xx separately as provider unavailable; the rest keep normal handling.
         let statuses = [0, 200, 400, 404, 408, 429, 500, 502, 503, 504]
 
         for status in statuses {
@@ -339,11 +345,46 @@ struct StreamingProviderErrorPolicyTests {
         }
     }
 
+
+    @Test func onlyFiveHundredsMakeAnUpgradeProviderUnavailable() {
+        for status in [500, 502, 503, 504, 599] {
+            #expect(StreamingProviderErrorPolicy.isProviderUnavailableUpgradeStatus(status))
+        }
+        for status in [0, 101, 400, 401, 402, 403, 408, 429, 600] {
+            #expect(!StreamingProviderErrorPolicy.isProviderUnavailableUpgradeStatus(status))
+        }
+    }
+
     @Test func aSuccessfulUpgradeIsNotARefusal() {
         // 101 is the status a socket that actually opened carries, so every
         // mid-session drop reads its response and finds nothing here. Without
         // this the refusal check would swallow ordinary disconnects.
         #expect(StreamingProviderErrorPolicy.upgradeRefusal(forStatus: 101) == nil)
+    }
+}
+
+// MARK: - Health provider identity
+
+struct StreamingHealthProviderIdentityTests {
+
+    @Test func everyRemoteStreamMapsToItsActualCloudHealthProvider() {
+        let expected: [StreamingTranscriptionProvider: CloudProvider] = [
+            .hyperwhisperCloud: .hyperwhisper,
+            .deepgram: .deepgram,
+            .elevenLabs: .elevenLabs,
+            .openAI: .openai,
+            .xai: .grok,
+            .gemini: .geminiTranscribe,
+        ]
+
+        for (streaming, cloud) in expected {
+            #expect(streaming.cloudHealthProvider == cloud)
+        }
+    }
+
+    @Test func localStreamsHaveNoCloudHealthProvider() {
+        #expect(StreamingTranscriptionProvider.parakeetLocal.cloudHealthProvider == nil)
+        #expect(StreamingTranscriptionProvider.nemotronLocal.cloudHealthProvider == nil)
     }
 }
 

@@ -176,6 +176,12 @@ enum StreamingProviderErrorPolicy {
         }
     }
 
+    /// Whether a failed WebSocket upgrade is a definitive provider-down health
+    /// signal. Account and throttling statuses are deliberately excluded.
+    static func isProviderUnavailableUpgradeStatus(_ status: Int) -> Bool {
+        (500...599).contains(status)
+    }
+
     // MARK: - Close codes
 
     /// Whether a WebSocket close code means the session cannot be rescued by
@@ -217,5 +223,12 @@ enum StreamingProviderErrorPolicy {
     static func isTerminalCloseCode(_ code: Int) -> Bool {
         guard let code = UInt16(exactly: code) else { return false }
         return liveIsTerminalCloseCode(code: code)
+    }
+
+    /// Whether a close code is strong enough to change provider health. Of the
+    /// terminal protocol codes, only 1011 means the server hit an unexpected
+    /// condition. The others can be caused by our payload or local limits.
+    static func isProviderUnavailableCloseCode(_ code: Int) -> Bool {
+        code == 1011
     }
 }

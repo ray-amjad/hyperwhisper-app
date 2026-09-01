@@ -21,6 +21,7 @@ final class LocalParakeetStreamingClient: NSObject, ObservableObject, StreamingC
     var onTranscriptUpdate: ((String, Bool) -> Void)?
     var onSessionComplete: ((Double, Double) -> Void)?
     var onError: ((Error) -> Void)?
+    var onDefinitiveProviderFailure: ((Error) -> Void)?
     var onConnectionStateChange: ((StreamingConnectionState) -> Void)?
     var onAudioLevel: ((Float) -> Void)?
 

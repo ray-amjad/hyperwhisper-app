@@ -306,6 +306,11 @@ struct CloudProviderHealthCacheTTLTests {
             TranscriptionError.invalidRequest,
             TranscriptionError.invalidResponse(details: "bad json"),
             TranscriptionError.serverError(statusCode: 404, message: "Not Found"),
+            StreamingError.connectionTimeout,
+            StreamingError.serverError("Connection lost after multiple retries"),
+            StreamingError.audioEngineError("microphone unavailable"),
+            StreamingError.insufficientCredits,
+            StreamingError.unauthorized,
             CancellationError()
         ]
 

@@ -14,8 +14,9 @@ import Combine
 // 5. Published dictionaries drive SwiftUI badges and the recording guardrails, ensuring the UI
 //    reacts instantly to health changes without hammering provider APIs.
 // 6. REAL TRANSCRIPTION OUTCOMES FEED BACK (issue #379). The transcription call sites
-//    (TranscriptionPipeline+Transcription, TranscribeEndpoint) hand every finished cloud
-//    attempt to recordTranscriptionOutcome(for:error:). A definitive provider-down failure
+//    (TranscriptionPipeline+Transcription, TranscribeEndpoint, and the streaming flow's
+//    definitive-failure callback) hand cloud outcomes to
+//    recordTranscriptionOutcome(for:error:). A definitive provider-down failure
 //    stamps lastTranscriptionFailure; a success clears it.
 //
 //    THE RECORDED FAILURE IS APPLIED AT EXACTLY ONE SEAM: healthSnapshot(), which is what
@@ -441,8 +442,9 @@ final class CloudProviderHealthManager: ObservableObject {
     /// classified error, never off a raw status code or a response body string.
     ///
     /// - YES: `.serverError` with a 5xx status (this is what
-    ///   `RustRetry.swift` maps `HwTranscriptionError.ProviderUnavailable` onto)
-    ///   and `.providerNotAvailable`.
+    ///   `RustRetry.swift` maps `HwTranscriptionError.ProviderUnavailable` onto),
+    ///   and `.providerNotAvailable`. The streaming client maps only a 5xx
+    ///   WebSocket upgrade or a 1011 close onto those same classified errors.
     /// - NO, on purpose: `.unauthorized`, `.quotaExceeded`, `.insufficientCredits`,
     ///   `.rateLimited`, `.transientNetwork`, `.noSpeechDetected`,
     ///   `.audioFileTooLarge`, `.invalidRequest`, `.invalidResponse`,
