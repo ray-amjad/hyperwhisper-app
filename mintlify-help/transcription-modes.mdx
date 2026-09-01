@@ -56,7 +56,7 @@ With HyperWhisper Cloud, you select the speech-to-text provider that processes y
 
 Two rows control this. The **Provider** row names the company. The **Model** row names the model. The Model row is always a dropdown, also for a company that gives only one model.
 
-The Provider row shows ten companies, in alphabetical order:
+The Provider row shows 11 companies, in alphabetical order:
 
 | Provider | Models in the Model row |
 |---|---|
@@ -67,6 +67,7 @@ The Provider row shows ten companies, in alphabetical order:
 | Groq | Whisper Large v3 Turbo, Whisper Large v3 |
 | Microsoft | MAI-Transcribe 1.5 |
 | Mistral | Voxtral Mini |
+| Meta | Muse Voice Transcribe 1.0 |
 | OpenAI | GPT-4o Transcribe, GPT-4o Mini Transcribe, Whisper, GPT Transcribe |
 | Soniox | Async v5 |
 | xAI | Grok Speech-to-Text |
@@ -79,6 +80,10 @@ The Provider row shows **(Recommended)** on the ElevenLabs row only. ElevenLabs 
 
 <Note>
   The Model row does not show **Gemini 3.5 Transcribe Live** or **GPT Live Transcribe**. HyperWhisper Cloud serves these two models on a WebSocket only, and the batch transcription endpoint refuses them. HyperWhisper Cloud uses Gemini 3.5 Transcribe Live for [streaming transcription](/streaming-settings). You cannot select GPT Live Transcribe anywhere in the app.
+</Note>
+
+<Note>
+  Meta's Muse model supports real-time streaming upstream. HyperWhisper currently supports only its pre-recorded push-to-talk path. Muse therefore appears in a mode's Model row, but it does not appear in the HyperWhisper Live engine picker. A Muse mode costs 3 credits per audio minute.
 </Note>
 
 Below the two rows, HyperWhisper shows the approximate credit cost for each minute of the model that you selected. A badge also appears there when the model is a **Preview** model, or when the model does not support custom vocabulary. Today every HyperWhisper Cloud model supports custom vocabulary, thus only the **Preview** badge appears. For your own provider (BYOK), some models still have no vocabulary support, and the mode editor shows a notice for them.

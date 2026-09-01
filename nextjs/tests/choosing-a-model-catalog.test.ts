@@ -475,12 +475,12 @@ test("no row is live for a vendor whose live route runs none of its rows", async
    * reasons the vendor hint conflated. Named rather than derived: deriving the
    * expectation from the same list the mirror uses would assert nothing.
    *
-   *  - `assemblyai`, `mistral`, `soniox` — no live route exists at all, though
-   *    `features.streaming` is true for all three.
+   *  - `assemblyai`, `mistral`, `soniox`, `meta` — no live route exists at all,
+   *    though `features.streaming` is true for all four.
    *  - `openai`, `elevenlabs` — a live route exists, but it runs
    *    `gpt-realtime-whisper` / `scribe_v2_realtime`, which are not rows here.
    */
-  const noLiveRow = ["assemblyai", "mistral", "soniox", "openai", "elevenlabs"];
+  const noLiveRow = ["assemblyai", "mistral", "soniox", "meta", "openai", "elevenlabs"];
   for (const model of CLOUD_MODELS as {
     id: string;
     sttProvider: string;
@@ -516,6 +516,19 @@ test("documented language counts match the catalog", async () => {
       `${model.id} language count drifted from the catalog`,
     );
   }
+});
+
+test("Meta Muse keeps streaming benchmark values out of the batch ranking", async () => {
+  const { CLOUD_MODELS } = await loadCatalog();
+  const muse = CLOUD_MODELS.find(
+    (model: { id: string }) => model.id === "metaMuse:muse-voice-transcribe-1.0",
+  );
+
+  assert.ok(muse, "Muse should be listed in the model chooser");
+  assert.equal(muse.wer, null);
+  assert.equal(muse.speedFactor, null);
+  assert.equal(muse.streaming, false);
+  assert.equal(muse.byok, false);
 });
 
 test("every on-device model both apps ship is on the page, and no others", async () => {

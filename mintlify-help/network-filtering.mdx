@@ -44,6 +44,10 @@ If you use **HyperWhisper Cloud** (the default transcription service in the app)
   The streaming endpoints are WebSockets. If your firewall permits HTTPS but stops the WebSocket upgrade, batch transcription operates correctly and streaming transcription does not connect.
 </Note>
 
+<Note>
+  A Meta Muse mode still connects only to `transcribe-prod-v2.hyperwhisper.com`. The HyperWhisper Cloud server connects to `https://api.meta.ai/v1/asr/transcribe`. Do not add `api.meta.ai` to a device allowlist for HyperWhisper Cloud. HyperWhisper does not support a direct Meta API key or a Meta live WebSocket.
+</Note>
+
 <Tip>
 HyperWhisper Cloud needs no API key. It is the best option for most users. It uses prepaid credits at a low price. There is no free trial and no anonymous use. For more information, see [Cloud Credits](/cloud-credits).
 </Tip>
@@ -65,6 +69,8 @@ HyperWhisper downloads the models from these URLs:
 - `https://huggingface.co/unsloth/gemma-4-31B-it-GGUF/resolve/main/*` - Gemma 4 31B local post-processing models
 
 ## Optional: Third-Party Transcription Providers
+
+Meta Muse is not in this section. It is available through HyperWhisper Cloud only.
 
 <Info>
 **Whitelist only the providers that you use.** If you do not use a provider, you do not need to whitelist its domains. For example, when you have no OpenAI API key, you do not need `api.openai.com`.

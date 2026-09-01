@@ -111,7 +111,7 @@ test("accepts every provider the page can display", async () => {
   const { validateSample } = await load();
   const { KNOWN_PROVIDERS } = await loadProviders();
 
-  assert.equal(KNOWN_PROVIDERS.length, 11);
+  assert.equal(KNOWN_PROVIDERS.length, 12);
   for (const provider of KNOWN_PROVIDERS) {
     const result = validateSample(goodSample({ provider }));
     assert.ok("sample" in result, `${provider} should be accepted`);

@@ -259,7 +259,7 @@ export type DeviceModel = {
 export type Model = CloudModel | DeviceModel;
 
 /**
- * Mirrored from `cloud-stt-catalog.json` v8 (2026-08-27). Benchmark columns
+ * Mirrored from `cloud-stt-catalog.json` v9 (2026-09-01). Benchmark columns
  * from the Artificial Analysis non-streaming leaderboard, pulled 2026-08-19,
  * and 2026-08-28 for the `gemini-3.5-transcribe` row — a model that leaderboard
  * has not measured carries `wer: null` / `speedFactor: null` rather than a
@@ -311,6 +311,11 @@ const CLOUD_MODELS_RAW = [
   { id: "gemini:gemini-2.5-pro", name: "Gemini 2.5 Pro", vendorLabel: "Google Gemini", vendor: "Google", sttProvider: "gemini", modelId: "gemini-2.5-pro", credits: 7.5, wer: 2.9, speedFactor: 13.3, languages: null, streaming: false, customVocabulary: true, preview: false, isDefault: false, byok: true },
   { id: "gemini:gemini-3-flash-preview", name: "Gemini 3 Flash", vendorLabel: "Google Gemini", vendor: "Google", sttProvider: "gemini", modelId: "gemini-3-flash-preview", credits: 3.0, wer: 2.9, speedFactor: 16.1, languages: null, streaming: false, customVocabulary: true, preview: true, isDefault: false, byok: true },
   { id: "gemini:gemini-3.1-pro-preview", name: "Gemini 3.1 Pro", vendorLabel: "Google Gemini", vendor: "Google", sttProvider: "gemini", modelId: "gemini-3.1-pro-preview", credits: 10.0, wer: 2.8, speedFactor: 7.0, languages: null, streaming: false, customVocabulary: true, preview: true, isDefault: false, byok: true },
+  // Muse is ranked on Artificial Analysis's streaming board, not on the
+  // non-streaming board used by this page. Do not put that streaming WER or
+  // speed figure beside batch results. Meta supports streaming upstream, but
+  // HyperWhisper has no Meta live relay, so this batch row is not live-selectable.
+  { id: "metaMuse:muse-voice-transcribe-1.0", name: "Muse Voice Transcribe 1.0", vendorLabel: "Meta Muse Voice Transcribe", vendor: "Meta", sttProvider: "meta", modelId: "muse-voice-transcribe-1.0", credits: 3.0, wer: null, speedFactor: null, languages: 25, streaming: false, customVocabulary: true, preview: false, isDefault: true, byok: false },
 ] as const;
 
 export const CLOUD_MODELS: readonly CloudModel[] = CLOUD_MODELS_RAW.map(
