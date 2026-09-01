@@ -389,7 +389,7 @@ struct CloudProviderHealthCacheTTLTests {
             StreamingError.serverError("Connection lost after multiple retries"),
             StreamingError.audioEngineError("microphone unavailable"),
             StreamingError.insufficientCredits,
-            StreamingError.unauthorized(nil),
+            StreamingError.unauthorized(statusCode: nil),
             CancellationError()
         ]
 
