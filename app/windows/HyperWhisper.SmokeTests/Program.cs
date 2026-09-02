@@ -8359,6 +8359,77 @@ internal static class Program
                 }
             });
 
+            Run("onboarding: the window never exceeds the work area it opens on", () =>
+            {
+                // 760 x 624 mirrors the macOS sheet and is right on a desktop. On a
+                // 1366 x 768 laptop at 150% the whole work area is ~910 x 464 DIP, so
+                // the designed height is a third taller than the screen - and the
+                // window is NoResize with a custom caption, so a Continue button below
+                // the bottom edge cannot be reached by dragging, by keyboard or by
+                // maximizing. The stage is a ScrollViewer and takes the slack.
+
+                // A desktop: nothing is clamped.
+                var desktop = OnboardingWindow.FitToWorkArea(1920, 1032);
+                Assert(desktop.Width == 760 && desktop.Height == 624,
+                    $"a 1920x1032 work area must give the design size, got {desktop.Width}x{desktop.Height}");
+
+                // 1366 x 768 at 150%: 910.67 x 512 DIP, less a 48 DIP taskbar.
+                var laptop150 = OnboardingWindow.FitToWorkArea(1366 / 1.5, (768 - 72) / 1.5);
+                Assert(laptop150.Width == 760,
+                    $"150% still has room for the designed width; got {laptop150.Width}");
+                Assert(laptop150.Height <= (768 - 72) / 1.5 + 0.001,
+                    $"150% must clamp the height to the work area; got {laptop150.Height} " +
+                    $"against {(768 - 72) / 1.5}");
+                Assert(laptop150.Height < 624, "150% on a 768-tall screen has to clamp at all");
+
+                // 1366 x 768 at 200%: 683 x 348 DIP. Now the width has to give too.
+                var laptop200 = OnboardingWindow.FitToWorkArea(1366 / 2.0, (768 - 72) / 2.0);
+                Assert(laptop200.Width <= 1366 / 2.0 + 0.001,
+                    $"200% must clamp the width as well; got {laptop200.Width}");
+                Assert(laptop200.Height <= (768 - 72) / 2.0 + 0.001,
+                    $"200% must clamp the height; got {laptop200.Height}");
+
+                // The floor beats a nonsense work area rather than collapsing.
+                var absurd = OnboardingWindow.FitToWorkArea(10, 10);
+                Assert(absurd.Width >= 480 && absurd.Height >= 360,
+                    $"the floor must win over an impossible work area, got {absurd.Width}x{absurd.Height}");
+            });
+
+            Run("onboarding: the microphone step stops asking for speech when there is no device", () =>
+            {
+                // Found in a recording of the real flow on a box with no capture
+                // device: the step still said "Say something. Watch the bars." and "If
+                // the level moves when you talk, HyperWhisper can hear you." over an
+                // honest "No microphone is connected" a few rows below.
+                var h = new OnboardingHarness();
+
+                h.Audio.PublishAvailability(OnboardingDeviceAvailability.Available);
+                Assert(h.Flow.ShowsMicrophonePrompt,
+                    "with a working microphone the prompt is the whole point of the step");
+                var withDevice = h.Flow.MicrophoneStepTitle;
+
+                foreach (var dead in new[]
+                         {
+                             OnboardingDeviceAvailability.NoDevices,
+                             OnboardingDeviceAvailability.Blocked,
+                             OnboardingDeviceAvailability.EnumerationFailed
+                         })
+                {
+                    h.Audio.PublishAvailability(dead);
+
+                    Assert(!h.Flow.ShowsMicrophonePrompt,
+                        $"{dead}: the flow must not ask the user to watch a level it cannot show");
+                    Assert(h.Flow.MicrophoneStepTitle != withDevice,
+                        $"{dead}: the step's question must change too - the title IS the prompt");
+                    Assert(!string.IsNullOrWhiteSpace(h.Flow.MicrophoneStepTitle),
+                        $"{dead}: the step still needs a question");
+
+                    // And the honest diagnosis is still the thing that explains it.
+                    Assert(!string.IsNullOrWhiteSpace(h.Flow.MicrophoneHintText),
+                        $"{dead}: suppressing the prompt must not suppress the explanation");
+                }
+            });
+
             Run("onboarding: no footer button takes its height from the 56px footer band", () =>
             {
                 // RAY'S OWN COMPLAINT, FROM WATCHING THE RECORDING: "the back button
@@ -8421,7 +8492,7 @@ internal static class Program
 
                 foreach (var (name, button) in new[]
                          {
-                             ("BackButton", back),
+                             ("BackButton", back!),
                              ("SetUpLaterButton", setUpLater!),
                              ("PrimaryButton", primary!)
                          })

@@ -356,6 +356,33 @@ if (Test-Path -LiteralPath $OnboardingWindowXaml) {
     } else {
         Write-Fail "OnboardingWindow is resizable; the steps are laid out against a fixed stage"
     }
+
+    # 760 x 624 is the DESIGN size, not a guarantee. It has to be clamped to the
+    # monitor's work area, because the window is NoResize with a custom caption: on a
+    # 1366x768 laptop at 150% the designed height is a third taller than the whole
+    # work area, and the footer - Continue included - lands below the bottom edge
+    # with no way to drag, keyboard or maximize it back.
+    if ($windowXaml -match 'MaxWidth="760"' -or $windowXaml -match 'MaxHeight="624"') {
+        Write-Fail "OnboardingWindow re-pins MaxWidth/MaxHeight to the design size; that is what stops the work-area clamp shrinking it on a small screen"
+    } else {
+        Write-Pass "OnboardingWindow does not pin its Max size, so the work-area clamp can shrink it"
+    }
+
+    if (Test-Path -LiteralPath $OnboardingWindowCode) {
+        $sizeCode = Read-Text $OnboardingWindowCode
+        $clampBits = @(
+            @{ Pattern = 'ClampToWorkArea'; What = "a clamp method" },
+            @{ Pattern = 'FitToWorkArea';   What = "the pure sizing policy the smoke suite pins" },
+            @{ Pattern = 'Screen\.FromHandle'; What = "the window's OWN monitor (SystemParameters.WorkArea is the primary display only)" },
+            @{ Pattern = 'DpiChanged';      What = "a re-clamp when the scale changes mid-flow" }
+        )
+        $missing = @($clampBits | Where-Object { $sizeCode -notmatch $_.Pattern } | ForEach-Object { $_.What })
+        if ($missing.Count -gt 0) {
+            Write-Fail "OnboardingWindow.xaml.cs is missing: $($missing -join '; ')"
+        } else {
+            Write-Pass "OnboardingWindow clamps itself to its own monitor's work area, and re-clamps on a DPI change"
+        }
+    }
 } else {
     Write-Fail "OnboardingWindow.xaml not found at $(Get-RelativePath $OnboardingWindowXaml)"
 }
@@ -473,8 +500,19 @@ if ($missingKeys.Count -gt 0) {
     Write-Pass "every onboarding.* key referenced in C#/XAML exists in Strings.resx ($($usedKeys.Count) key(s))"
 }
 
+# Dead keys used to be reported as INFO, because four of them shipped: a11y.selected,
+# a11y.notSelected, mic.permissionHint and permissions.shortcut.unassigned, each with
+# a more specific sibling that won. They are gone from all 40 files now, so the count
+# is zero and this can be a real check. It is worth having as one: an onboarding.*
+# key is 40 lines across 40 locale files, and nothing else in the repo would ever
+# notice that none of them is read.
 $unreferenced = @($definedKeys | Where-Object { $usedKeys -notcontains $_ })
-Write-Info "Strings.resx defines $($definedKeys.Count) onboarding.* keys; $($usedKeys.Count) referenced, $($unreferenced.Count) unreferenced (dead keys are informational)"
+if ($unreferenced.Count -gt 0) {
+    Write-Fail "$($unreferenced.Count) onboarding.* key(s) are defined in all 40 .resx and referenced nowhere"
+    Show-Hits @($unreferenced | Sort-Object) 12
+} else {
+    Write-Pass "all $($definedKeys.Count) onboarding.* keys in Strings.resx are referenced from C#/XAML"
+}
 
 # --- all 40 .resx carry an identical onboarding.* key set ------------------
 # The repo's practice is English placeholders in every locale file, so the KEY

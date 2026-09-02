@@ -29,6 +29,23 @@ public partial class OnboardingWindow : Window
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int pvAttribute, int cbAttribute);
 
+    /// <summary>
+    /// The macOS sheet's 760 x 580 plus this window's own 44px caption row. It is the
+    /// size every step is laid out against and the LARGEST this window is ever shown
+    /// at; see <see cref="ClampToWorkArea"/> for what happens when it does not fit.
+    /// </summary>
+    private const double DesignWidth = 760;
+    private const double DesignHeight = 624;
+
+    /// <summary>
+    /// The floor the clamp will not go below, and the same numbers as the XAML's
+    /// MinWidth/MinHeight. Below roughly this the footer's four columns start
+    /// colliding, and no real Windows work area is this small - a 1024 x 600 netbook
+    /// at 200% is still 512 x 260 DIP, which is the worst case that exists.
+    /// </summary>
+    private const double FloorWidth = 480;
+    private const double FloorHeight = 360;
+
     private readonly OnboardingFlowViewModel _flow;
     private readonly Dictionary<OnboardingStep, Page> _pages = new();
 
@@ -60,14 +77,26 @@ public partial class OnboardingWindow : Window
             if (PresentationSource.FromVisual(this) is HwndSource source)
                 source.CompositionTarget.BackgroundColor = Colors.Transparent;
 
+            // Before WindowStartupLocation="CenterOwner" runs, so it centres the
+            // size we are actually going to show.
+            ClampToWorkArea();
             ApplyMacStyleWindowBackdrop();
         };
+
+        // A window dragged onto a smaller monitor, or a scale change while the flow
+        // is open, has to be clamped again. NoResize means the user cannot rescue it.
+        DpiChanged += (_, _) => ClampToWorkArea();
+        LocationChanged += (_, _) => ClampToWorkArea();
 
         Loaded += (_, _) =>
         {
             ThemeService.Instance.ThemeChanged += OnThemeChanged;
             ApplyMacStyleWindowBackdrop();
             ShowStep(_flow.Step);
+
+            // Again after CenterOwner has positioned it: centring on an owner that
+            // is itself near an edge can push a window that FITS partly off screen.
+            ClampToWorkArea();
         };
 
         // The analogue of macOS's NSApplication.didBecomeActiveNotification handler
@@ -96,6 +125,114 @@ public partial class OnboardingWindow : Window
             if (e.Key == Key.Escape)
                 e.Handled = true;
         };
+    }
+
+    // =========================================================================
+    // FITTING THE SCREEN
+    // =========================================================================
+
+    /// <summary>Re-entrancy guard: this method moves the window, and moving it raises
+    /// <see cref="Window.LocationChanged"/>, which calls it again.</summary>
+    private bool _clamping;
+
+    /// <summary>
+    /// Keep the window inside the work area of the monitor it is on.
+    ///
+    /// 760 x 624 mirrors the macOS sheet and is right on a desktop. It is not right
+    /// on a 1366 x 768 laptop at 150% scaling, where the whole work area is about
+    /// 910 x 464 DIP: the designed height is a third taller than the screen, and
+    /// because this window is <c>ResizeMode="NoResize"</c> with a custom caption, a
+    /// user whose Continue button is below the bottom edge has no way to reach it -
+    /// not by dragging, not by keyboard, not by maximizing.
+    ///
+    /// This is deliberately NOT a redesign. The designed width is kept whenever it
+    /// fits, nothing is re-laid out, and the slack is taken by the piece already
+    /// built to take it: <c>OnboardingStage</c> is a ScrollViewer whose content grid
+    /// tracks the viewport height, so a shorter window simply scrolls a step that no
+    /// longer fits and still centres one that does. The three fixed bands - caption,
+    /// hairline and the footer - are outside that scroller and therefore stay on
+    /// screen at every size, which is the whole point of having put them there.
+    ///
+    /// The monitor comes from the window's own handle rather than
+    /// <c>SystemParameters.WorkArea</c>, which is the primary display only: this
+    /// window is centred on its owner, and the owner is wherever the user left the
+    /// app.
+    /// </summary>
+    private void ClampToWorkArea()
+    {
+        if (_clamping) return;
+
+        try
+        {
+            _clamping = true;
+
+            var (workWidth, workHeight, workLeft, workTop) = CurrentWorkAreaDip();
+            if (workWidth <= 0 || workHeight <= 0)
+                return;
+
+            var (width, height) = FitToWorkArea(workWidth, workHeight);
+
+            if (Math.Abs(Width - width) > 0.5) Width = width;
+            if (Math.Abs(Height - height) > 0.5) Height = height;
+
+            // A window that FITS can still be positioned off the edge, because
+            // CenterOwner centres on the owner and not on the screen.
+            if (!double.IsNaN(Left) && !double.IsNaN(Top))
+            {
+                var left = Math.Min(Math.Max(Left, workLeft), workLeft + workWidth - width);
+                var top = Math.Min(Math.Max(Top, workTop), workTop + workHeight - height);
+
+                if (Math.Abs(Left - left) > 0.5) Left = left;
+                if (Math.Abs(Top - top) > 0.5) Top = top;
+            }
+        }
+        catch (Exception ex)
+        {
+            // Never let a display query stop first run from opening.
+            LoggingService.Debug($"OnboardingWindow: could not clamp to the work area: {ex.Message}");
+        }
+        finally
+        {
+            _clamping = false;
+        }
+    }
+
+    /// <summary>
+    /// The whole of the sizing policy, as one pure function of the work area, so the
+    /// smoke suite can pin 150% and 200% on a small laptop without a display.
+    ///
+    /// Never larger than the design size, never larger than the work area, never
+    /// smaller than the floor. The floor wins over the work area on purpose: a window
+    /// squeezed to nothing is worse than one that overhangs, and no work area that
+    /// small exists on Windows.
+    /// </summary>
+    internal static (double Width, double Height) FitToWorkArea(double workWidth, double workHeight) =>
+        (Math.Max(FloorWidth, Math.Min(DesignWidth, workWidth)),
+         Math.Max(FloorHeight, Math.Min(DesignHeight, workHeight)));
+
+    /// <summary>
+    /// This window's monitor's work area, in device-independent pixels, which is what
+    /// <see cref="Window.Width"/> and <see cref="Window.Left"/> are measured in.
+    /// Falls back to the primary display before the handle exists.
+    /// </summary>
+    private (double Width, double Height, double Left, double Top) CurrentWorkAreaDip()
+    {
+        var hwnd = new WindowInteropHelper(this).Handle;
+        if (hwnd == IntPtr.Zero)
+        {
+            var primary = SystemParameters.WorkArea; // already DIP
+            return (primary.Width, primary.Height, primary.Left, primary.Top);
+        }
+
+        // Fully qualified: GlobalUsings pulls in System.Windows.Forms, and
+        // System.Windows.Controls has a Screen-free namespace of its own.
+        var screen = System.Windows.Forms.Screen.FromHandle(hwnd);
+        var dpi = VisualTreeHelper.GetDpi(this);
+        var scaleX = dpi.DpiScaleX > 0 ? dpi.DpiScaleX : 1.0;
+        var scaleY = dpi.DpiScaleY > 0 ? dpi.DpiScaleY : 1.0;
+
+        var area = screen.WorkingArea; // physical pixels
+        return (area.Width / scaleX, area.Height / scaleY, area.Left / scaleX, area.Top / scaleY);
     }
 
     // =========================================================================

@@ -42,10 +42,16 @@
                 <TextBlock Style="{StaticResource OnboardingGlyphStyle}" Text="&#xE720;"/>
             </Border>
 
+            <!-- Both lines fork on whether there is a usable input. With none,
+                 "Say something. Watch the bars." asks for something the machine
+                 cannot do, so the question becomes "Check your microphone." and the
+                 supporting line is withdrawn entirely - MicrophoneHintText inside
+                 the card below already says exactly what is wrong and what to do. -->
             <TextBlock Style="{StaticResource OnboardingQuestionStyle}"
-                       Text="{loc:Loc onboarding.mic.title}"/>
+                       Text="{Binding MicrophoneStepTitle}"/>
             <TextBlock Style="{StaticResource OnboardingDetailStyle}"
-                       Text="{loc:Loc onboarding.mic.subtitle}"/>
+                       Text="{loc:Loc onboarding.mic.subtitle}"
+                       Visibility="{Binding ShowsMicrophonePrompt, Converter={StaticResource OnboardingBoolToVisibility}}"/>
 
             <Border Style="{StaticResource OnboardingCardStyle}" Margin="0,24,0,8">
                 <StackPanel>

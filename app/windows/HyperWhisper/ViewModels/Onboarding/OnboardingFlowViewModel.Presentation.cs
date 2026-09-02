@@ -394,6 +394,28 @@ public sealed partial class OnboardingFlowViewModel
     // MICROPHONE STEP
     // =========================================================================
 
+    /// <summary>
+    /// The step's own question. macOS has one string here because a Mac effectively
+    /// always has an input; Windows genuinely does not, and "Say something. Watch the
+    /// bars." asks for something impossible on a machine with no capture device, a
+    /// blocked consent toggle, or an audio stack that would not enumerate. Found in a
+    /// recording of the real flow on a box with zero devices.
+    /// </summary>
+    public string MicrophoneStepTitle => HasUsableMicrophone
+        ? Loc.S("onboarding.mic.title")
+        : Loc.S("onboarding.mic.title.unavailable");
+
+    /// <summary>
+    /// Whether to show "If the level moves when you talk, HyperWhisper can hear you."
+    ///
+    /// Suppressed rather than replaced. The specific, honest diagnosis for each of the
+    /// other three availabilities is <see cref="MicrophoneHintText"/>, which is already
+    /// on screen a few rows below inside the card; a second copy of it in the step's
+    /// supporting line would put the same sentence twice on one screen, and a fourth
+    /// generic sentence would say less than the one that is already there.
+    /// </summary>
+    public bool ShowsMicrophonePrompt => HasUsableMicrophone;
+
     public bool IsMicrophoneBlocked => DeviceAvailability == OnboardingDeviceAvailability.Blocked;
 
     public bool IsMicrophoneMissing => DeviceAvailability == OnboardingDeviceAvailability.NoDevices;
@@ -679,7 +701,8 @@ public sealed partial class OnboardingFlowViewModel
             {
                 nameof(IsMicrophoneBlocked), nameof(IsMicrophoneMissing),
                 nameof(IsMicrophoneEnumerationFailed), nameof(MicrophoneHintText),
-                nameof(ShowsPrivacySettingsAction), nameof(ShowsSoundSettingsAction)
+                nameof(ShowsPrivacySettingsAction), nameof(ShowsSoundSettingsAction),
+                nameof(MicrophoneStepTitle), nameof(ShowsMicrophonePrompt)
             },
             [nameof(InputLevel)] = new[] { nameof(InputLevelPercent), nameof(InputLevelAccessibleValue) },
             [nameof(TryItMode)] = new[]

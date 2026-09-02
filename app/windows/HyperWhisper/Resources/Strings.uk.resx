@@ -2271,9 +2271,6 @@ You can re-download it later.</value>
   <data name="onboarding.permissions.shortcut.change" xml:space="preserve">
     <value>Choose a different shortcut</value>
   </data>
-  <data name="onboarding.permissions.shortcut.unassigned" xml:space="preserve">
-    <value>Unassigned</value>
-  </data>
   <data name="onboarding.source.title" xml:space="preserve">
     <value>How do you want to transcribe?</value>
   </data>
@@ -2496,6 +2493,9 @@ You can re-download it later.</value>
   <data name="onboarding.mic.title" xml:space="preserve">
     <value>Say something. Watch the bars.</value>
   </data>
+  <data name="onboarding.mic.title.unavailable" xml:space="preserve">
+    <value>Check your microphone.</value>
+  </data>
   <data name="onboarding.mic.subtitle" xml:space="preserve">
     <value>If the level moves when you talk, HyperWhisper can hear you.</value>
   </data>
@@ -2513,9 +2513,6 @@ You can re-download it later.</value>
   </data>
   <data name="onboarding.mic.soundSettings" xml:space="preserve">
     <value>Sound Settings</value>
-  </data>
-  <data name="onboarding.mic.permissionHint" xml:space="preserve">
-    <value>Microphone access is off. Turn it on in Windows Settings to see your level.</value>
   </data>
   <data name="onboarding.mic.note" xml:space="preserve">
     <value>System Default follows whatever Windows is using, including a headset you plug in later.</value>
@@ -2699,12 +2696,6 @@ You can re-download it later.</value>
   </data>
   <data name="onboarding.a11y.inputLevel" xml:space="preserve">
     <value>Microphone input level</value>
-  </data>
-  <data name="onboarding.a11y.selected" xml:space="preserve">
-    <value>Selected</value>
-  </data>
-  <data name="onboarding.a11y.notSelected" xml:space="preserve">
-    <value>Not selected</value>
   </data>
   <data name="onboarding.a11y.selectedDetail" xml:space="preserve">
     <value>Selected, {0}</value>

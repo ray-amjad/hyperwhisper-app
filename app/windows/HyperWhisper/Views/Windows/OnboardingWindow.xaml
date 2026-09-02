@@ -20,6 +20,15 @@
     Three fixed bands and one elastic one: caption 44, hairline 3, the stage, and
     the footer 56. The footer is deliberately OUTSIDE the stage's scroll, so
     Continue, Back and "Set Up Later" can never be scrolled off screen.
+
+    760 x 624 is the DESIGN size, not a guarantee. It is the largest this window
+    will ever be; OnboardingWindow.xaml.cs clamps both to the work area of the
+    monitor it opens on, and the stage takes up the slack by scrolling. At 150%
+    on a 1366 x 768 laptop the work area is about 910 x 464 DIP, so the designed
+    624 height simply does not fit and an unclamped window put its own footer -
+    Continue included - below the bottom of the screen, on a window the user
+    cannot resize or move by keyboard. The Min/Max pins that used to be here are
+    what stopped that being fixable, so they are gone: the clamp is the pin now.
 -->
 <Window x:Class="HyperWhisper.Views.Windows.OnboardingWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -29,7 +38,7 @@
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="{loc:Loc onboarding.window.title}"
         Width="760" Height="624"
-        MinWidth="760" MinHeight="624" MaxWidth="760" MaxHeight="624"
+        MinWidth="480" MinHeight="360"
         WindowStartupLocation="CenterOwner"
         WindowStyle="None"
         ResizeMode="NoResize"
