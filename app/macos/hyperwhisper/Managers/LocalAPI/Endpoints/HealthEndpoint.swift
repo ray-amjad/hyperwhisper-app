@@ -23,6 +23,7 @@ enum HealthEndpoint {
         cloudHealth: CloudProviderHealthManager?,
         whisperModelManager: WhisperModelManager?,
         parakeetModelManager: ParakeetModelManager?,
+        nemotronModelManager: NemotronModelManager?,
         qwen3AsrModelManager: Qwen3AsrModelManager?,
         localModelManager: LocalModelManager?,
         settingsManager: SettingsManager?
@@ -82,6 +83,7 @@ enum HealthEndpoint {
         let local = collectLocalModels(
             whisperModelManager: whisperModelManager,
             parakeetModelManager: parakeetModelManager,
+            nemotronModelManager: nemotronModelManager,
             qwen3AsrModelManager: qwen3AsrModelManager,
             localModelManager: localModelManager
         )
@@ -105,6 +107,7 @@ enum HealthEndpoint {
     private static func collectLocalModels(
         whisperModelManager: WhisperModelManager?,
         parakeetModelManager: ParakeetModelManager?,
+        nemotronModelManager: NemotronModelManager?,
         qwen3AsrModelManager: Qwen3AsrModelManager?,
         localModelManager: LocalModelManager?
     ) -> HealthLocalModels {
@@ -123,6 +126,17 @@ enum HealthEndpoint {
         var parakeet: [HealthLocalModelEntry] = []
         if let pm = parakeetModelManager {
             parakeet = pm.availableModels.map { item in
+                HealthLocalModelEntry(
+                    id: item.id,
+                    displayName: item.displayName,
+                    installed: item.isDownloaded
+                )
+            }
+        }
+
+        var nemotron: [HealthLocalModelEntry] = []
+        if let nm = nemotronModelManager {
+            nemotron = nm.availableModels.map { item in
                 HealthLocalModelEntry(
                     id: item.id,
                     displayName: item.displayName,
@@ -165,6 +179,7 @@ enum HealthEndpoint {
         return HealthLocalModels(
             whisper: whisper,
             parakeet: parakeet,
+            nemotron: nemotron,
             qwen3_asr: qwen3,
             apple_speech: apple,
             local_llm: localLLM
