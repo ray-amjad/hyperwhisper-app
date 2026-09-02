@@ -19,9 +19,6 @@ export const serverSchema = z.object({
   // Resend Email
   RESEND_API_KEY: z.string(),
 
-  // HyperWhisper Cloud API (for CF Workers to call credits endpoints)
-  HYPERWHISPER_CLOUD_API_KEY: z.string().optional(),
-
   // Shared secret for internal license endpoints (Agentic Coding School calls
   // /api/internal/grant-license and /api/internal/licenses-for-email with it)
   HYPERWHISPER_INTERNAL_SECRET: z.string().optional(),
@@ -78,9 +75,6 @@ export const serverEnv = {
   // Resend Email
   RESEND_API_KEY: process.env.RESEND_API_KEY,
 
-  // HyperWhisper Cloud API (for CF Workers to call credits endpoints)
-  HYPERWHISPER_CLOUD_API_KEY: process.env.HYPERWHISPER_CLOUD_API_KEY,
-
   // Shared secret for internal license endpoints (Agentic Coding School calls
   // /api/internal/grant-license and /api/internal/licenses-for-email with it)
   HYPERWHISPER_INTERNAL_SECRET: process.env.HYPERWHISPER_INTERNAL_SECRET,
@@ -112,7 +106,6 @@ export const serverEnv = {
 export const clientSchema = z.object({
   NEXT_PUBLIC_ENVIRONMENT: z.enum(["development", "test", "production"]).optional(),
   NEXT_PUBLIC_SITE_URL: z.string().url().optional(),
-  NEXT_PUBLIC_CLOUDFLARE_WORKER_URL: z.string().url(),
   NEXT_PUBLIC_POSTHOG_KEY: z.string().optional(),
   NEXT_PUBLIC_POSTHOG_HOST: z.string().url().optional(),
 });
@@ -126,7 +119,6 @@ export const clientSchema = z.object({
 export const clientEnv = {
   NEXT_PUBLIC_ENVIRONMENT: process.env.NEXT_PUBLIC_ENVIRONMENT,
   NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
-  NEXT_PUBLIC_CLOUDFLARE_WORKER_URL: process.env.NEXT_PUBLIC_CLOUDFLARE_WORKER_URL,
   NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
   NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
 };
