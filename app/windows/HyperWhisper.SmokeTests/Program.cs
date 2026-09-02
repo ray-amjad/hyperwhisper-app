@@ -7632,6 +7632,42 @@ internal static class Program
                     "eight characters is short enough to hide outright, however wide they encode");
             });
 
+            RunAsync("onboarding F1: leaving Configure cancels a probe in flight and keeps the earlier pass", async () =>
+            {
+                // The other half of the F1 remedy: in-flight checks are cancelled
+                // when the user moves off the step that started them, so neither
+                // spinner is left running and no result lands on a screen the user
+                // is no longer on. What a cancelled RE-probe must NOT do is retract
+                // the pass the same key already earned - the gate is open on that
+                // pass, and a cancelled call is evidence of nothing.
+                var h = new OnboardingHarness();
+                h.GrantMicrophone();
+                h.AdvanceTo(OnboardingStep.Source);
+                h.Flow.SelectSource(OnboardingSourceKind.HyperWhisperCloud);
+                Assert(h.Flow.Advance(), "configure must be reachable");
+
+                h.Flow.LicenseKeyInput = "HW-KEY";
+                h.Flow.TestAccessKey();
+                await h.LastTask;
+                Assert(h.Flow.KeyValidated && h.Flow.CanContinue, "precondition: the key passed");
+
+                h.License.GateProbe = true;
+                h.Flow.TestAccessKey();                             // a second press, parked
+                var second = h.LastTask;
+                Assert(h.Flow.IsTestingKey, "precondition: the re-probe is running");
+
+                Assert(h.Flow.Advance(), "the gate is open, so Continue must work");
+                Assert(!h.Flow.IsTestingKey, "leaving the step must not strand the spinner");
+                Assert(!h.Flow.HasInFlightWorkForTesting, "and must not leave the check in the task box");
+
+                h.License.ReleaseProbe();
+                await second;
+
+                Assert(h.Flow.KeyValidated,
+                    "a cancelled re-probe must not retract the pass the same key already earned");
+                Assert(h.Flow.Step == OnboardingStep.Setup, "and the flow must have moved on");
+            });
+
             RunAsync("onboarding: the licence fake parks a probe and an activation independently", async () =>
             {
                 // Not a product defect - a defect in the test double, which produced
