@@ -692,11 +692,11 @@ enum TranscribeEndpoint {
         let normalizedEngine = engine.lowercased()
         if normalizedEngine == "meta" {
             mode.model = "cloud"
-            mode.cloudProvider = CloudProvider.hyperwhisper.rawValue
-            mode.cloudAccuracyTier = CloudAccuracyTier.metaMuse.rawValue
+            mode.cloudProvider = CloudProvider.meta.rawValue
+            mode.cloudAccuracyTier = nil
             mode.cloudTranscriptionModel = model?.isEmpty == false
                 ? model
-                : CloudSTTCatalog.shared.defaultModelId(forEntryId: CloudAccuracyTier.metaMuse.rawValue)
+                : CloudTranscriptionModels.defaultModel(for: .meta)
             return
         }
         let providerNormalization = CloudSTTCatalog.shared.normalizeCloudProvider(normalizedEngine)

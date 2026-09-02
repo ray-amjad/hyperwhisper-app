@@ -314,6 +314,10 @@ struct ModeEditorView: View {
             if provider == .microsoftAzureSpeech || provider == .googleSpeech {
                 return false
             }
+            // Keep Meta hidden until phase 4 flips the shared catalog gate.
+            if provider == .meta && !CloudTranscriptionModels.isMetaBYOKCatalogEnabled {
+                return false
+            }
             if !provider.requiresAPIKey { return true }
             if provider == current { return true }
             return cloudHealth.status(for: provider) == .healthy

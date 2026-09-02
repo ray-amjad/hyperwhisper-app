@@ -167,10 +167,18 @@ struct CloudSTTCatalog {
         accuracyTier: String?
     ) -> UploadDurationConstraint? {
         let normalizedModel = model?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
-        guard normalizedModel.isEmpty || normalizedModel == "cloud",
-              CloudProvider.parse(cloudProvider) == .hyperwhisper else {
+        guard normalizedModel.isEmpty || normalizedModel == "cloud" else {
             return nil
         }
+
+        let resolvedProvider = CloudProvider.parse(cloudProvider) ?? .hyperwhisper
+        if resolvedProvider == .meta {
+            return UploadDurationConstraint(
+                maximumSeconds: MetaMuseProvider.maxDurationSeconds,
+                providerName: "Meta Muse"
+            )
+        }
+        guard resolvedProvider == .hyperwhisper else { return nil }
 
         let tier = CloudAccuracyTier.fromStorageValue(accuracyTier)
         guard let entry = entry(byId: tier.rawValue),

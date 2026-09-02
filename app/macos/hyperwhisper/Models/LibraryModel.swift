@@ -54,6 +54,7 @@ enum LibraryProviderKey: Hashable {
             // Same vendor and same brand mark as `.gemini` — reuse the asset
             // rather than shipping a second identical PNG.
             case .geminiTranscribe:    return "providerGemini"
+            case .meta:                return nil
             }
         case .postProcessing(let provider):
             switch provider {
@@ -101,6 +102,7 @@ enum LibraryProviderKey: Hashable {
             case .microsoftAzureSpeech: return "m.square.fill"
             case .googleSpeech: return "globe"
             case .geminiTranscribe: return "sparkle"
+            case .meta: return "waveform"
             }
         case .postProcessing(let provider):
             switch provider {
@@ -278,7 +280,7 @@ extension CloudProvider {
         // Both Google slots take an AI Studio key; only the slot differs.
         case .gemini, .geminiTranscribe: return "AIza..."
         case .grok:       return "xai-..."
-        case .assemblyAI, .elevenLabs, .mistral, .soniox, .hyperwhisper, .microsoftAzureSpeech, .googleSpeech:
+        case .assemblyAI, .elevenLabs, .mistral, .soniox, .meta, .hyperwhisper, .microsoftAzureSpeech, .googleSpeech:
             return "Paste API key"
         }
     }

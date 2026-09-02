@@ -95,7 +95,8 @@
   ],
   "apiKeys": {
     "openai": "sk-proj-example123",
-    "anthropic": "sk-ant-example456"
+    "anthropic": "sk-ant-example456",
+    "meta": "example-not-a-secret"
   },
   "licenseKey": null,
   "platformExtensions": {

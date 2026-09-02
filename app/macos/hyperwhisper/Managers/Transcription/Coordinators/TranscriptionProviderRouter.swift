@@ -68,6 +68,7 @@ class TranscriptionProviderRouter {
     /// Gemini 3.5 Transcribe. A separate instance from
     /// `geminiTranscriptionProvider`: different endpoint, different key slot.
     private let geminiTranscribeProvider = GeminiTranscribeProvider()
+    private let metaMuseProvider = MetaMuseProvider()
 
     /// HyperWhisper-Cloud-routed providers (no BYOK). Constructed lazily when
     /// the HW Cloud managers are available, mirroring `hyperwhisperCloudProvider`.
@@ -243,6 +244,8 @@ class TranscriptionProviderRouter {
                 grokSTTProvider.configure(apiKey: apiKey)
             case .geminiTranscribe:
                 geminiTranscribeProvider.configure(apiKey: apiKey)
+            case .meta:
+                metaMuseProvider.configure(apiKey: apiKey)
             }
         }
 
@@ -305,6 +308,8 @@ class TranscriptionProviderRouter {
             provider = google
         case .geminiTranscribe:
             provider = geminiTranscribeProvider
+        case .meta:
+            provider = metaMuseProvider
         }
 
         // Check provider health before use
@@ -441,10 +446,10 @@ class TranscriptionProviderRouter {
         let resolvedLanguage: String? = (language?.lowercased() == "auto") ? nil : language
 
         // Cloud engine? Normalize retired standalone spellings first. `meta`
-        // is an explicit Local API shorthand for the HyperWhisper Cloud
-        // transport; it is not a persisted CloudProvider case.
+        // is the direct BYOK route; HyperWhisper Cloud Muse remains the
+        // `hyperwhisper` provider plus the `metaMuse` accuracy tier.
         let cloudType: CloudProvider?
-        if normalizedEngine == "cloud" || normalizedEngine == "meta" {
+        if normalizedEngine == "cloud" {
             cloudType = .hyperwhisper
         } else {
             let normalized = CloudSTTCatalog.shared.normalizeCloudProvider(normalizedEngine)
@@ -519,6 +524,8 @@ class TranscriptionProviderRouter {
                 grokSTTProvider.configure(apiKey: apiKey)
             case .geminiTranscribe:
                 geminiTranscribeProvider.configure(apiKey: apiKey)
+            case .meta:
+                metaMuseProvider.configure(apiKey: apiKey)
             }
         }
 
@@ -560,6 +567,8 @@ class TranscriptionProviderRouter {
             provider = google
         case .geminiTranscribe:
             provider = geminiTranscribeProvider
+        case .meta:
+            provider = metaMuseProvider
         }
 
         if let healthManager = providerHealthManager {

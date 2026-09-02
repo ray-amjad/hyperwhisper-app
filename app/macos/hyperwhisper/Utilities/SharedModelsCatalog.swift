@@ -120,6 +120,7 @@ extension SharedModelsCatalog {
         // Catalog key is camelCase (the enum's rawValue is lowercased so it can
         // round-trip through the Local API's `engine.lowercased()`).
         case .geminiTranscribe:    return "geminiTranscribe"
+        case .meta:                return "meta"
         }
     }
 

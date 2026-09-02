@@ -32,7 +32,7 @@ enum HealthEndpoint {
         // Cloud transcription providers
         var providerEntries: [HealthProviderStatus] = []
         for provider in transcriptionProviders {
-            let status = snapshot?.cloud[provider.rawValue] ?? "unknown"
+            var status = snapshot?.cloud[provider.rawValue] ?? "unknown"
             let keyPresent: Bool
             if !provider.requiresAPIKey {
                 // HW-Cloud-routed providers (hyperwhisper, microsoftAzureSpeech,
@@ -42,6 +42,11 @@ enum HealthEndpoint {
                 keyPresent = !settingsManager.apiKey(for: provider).isEmpty
             } else {
                 keyPresent = false
+            }
+            if provider == .meta, keyPresent {
+                // Meta has no documented content-free validation endpoint.
+                // Presence is configuration, not proof of reachability.
+                status = "configured"
             }
             providerEntries.append(HealthProviderStatus(
                 id: provider.rawValue,

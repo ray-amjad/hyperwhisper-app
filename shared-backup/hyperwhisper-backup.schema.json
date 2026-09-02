@@ -277,7 +277,8 @@
         "mistral": { "type": ["string", "null"] },
         "cerebras": { "type": ["string", "null"] },
         "soniox": { "type": ["string", "null"] },
-        "geminitranscribe": { "type": ["string", "null"], "description": "Google Gemini 3.5 Transcribe (BYOK). A SEPARATE key from 'gemini', which is the legacy Gemini post-processing/transcription key: same 'AIza' shape, different API, and a user may hold different keys for the two, so a backup that omits this one restores a machine that looks configured for Google and has no Gemini 3.5 Transcribe key at all. Squashed lowercase like 'assemblyai' and 'elevenlabs'; the camelCase catalog spelling 'geminiTranscribe' is tolerated on import." }
+        "geminitranscribe": { "type": ["string", "null"], "description": "Google Gemini 3.5 Transcribe (BYOK). A SEPARATE key from 'gemini', which is the legacy Gemini post-processing/transcription key: same 'AIza' shape, different API, and a user may hold different keys for the two, so a backup that omits this one restores a machine that looks configured for Google and has no Gemini 3.5 Transcribe key at all. Squashed lowercase like 'assemblyai' and 'elevenlabs'; the camelCase catalog spelling 'geminiTranscribe' is tolerated on import." },
+        "meta": { "type": ["string", "null"], "description": "Meta Model API key for direct Muse Voice Transcribe batch requests. Stored in the platform secure credential store and included only in an explicit plaintext-key export." }
       },
       "additionalProperties": true
     }

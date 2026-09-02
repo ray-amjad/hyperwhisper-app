@@ -551,7 +551,12 @@ class FileTranscriptionFlow {
                 return
             }
 
-            let limit = provider.maxFileSizeBytes
+            // Muse's 32 MiB limit applies to the normalized WAV. Permit a
+            // bounded source container here, then MetaMuseProvider re-stats the
+            // final canonical artifact immediately before request construction.
+            let limit = provider == .meta
+                ? MetaMuseProvider.maxSourceBytes
+                : provider.maxFileSizeBytes
             if fileSize > limit {
                 throw FileTranscriptionError.fileTooLarge(
                     fileSize: fileSize,

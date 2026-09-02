@@ -653,11 +653,13 @@ struct BackupAPIKeys: Codable {
     /// and the legacy key coming back fine is what hides it. Optional, so
     /// backups written before this field decode unchanged.
     let geminitranscribe: String?
+    /// Direct Meta Muse key. Optional for backward-compatible decoding.
+    let meta: String?
 
     /// Returns true if any API key is present
     var hasAnyKey: Bool {
         [openai, groq, fireworks, anthropic, gemini, deepgram, assemblyai, elevenlabs, mistral, grok,
-         geminitranscribe]
+         geminitranscribe, meta]
             .compactMap { $0 }
             .contains { !$0.isEmpty }
     }

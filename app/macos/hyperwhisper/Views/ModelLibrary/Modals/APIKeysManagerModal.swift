@@ -158,6 +158,9 @@ struct APIKeysManagerModal: View {
 
         // Cloud transcription providers — some also do post-processing (shared key).
         for provider in CloudProvider.allCases where provider.requiresAPIKey {
+            if provider == .meta && !CloudTranscriptionModels.isMetaBYOKCatalogEnabled {
+                continue
+            }
             entries.append(APIKeyProviderEntry(
                 id: "cloud-\(provider.rawValue)",
                 target: .cloud(provider),

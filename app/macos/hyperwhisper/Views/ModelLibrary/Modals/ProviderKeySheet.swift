@@ -202,7 +202,9 @@ struct ProviderKeySheet: View {
             HStack(alignment: .top, spacing: 8) {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundColor(.green)
-                Text("Everything's good to go.")
+                Text(target.cloudProvider == .meta
+                    ? "Key saved; validated on first transcription."
+                    : "Everything's good to go.")
                     .font(.caption)
                 Spacer()
             }
@@ -297,6 +299,11 @@ struct ProviderKeySheet: View {
         isTesting = true
         let cloudProvider = target.cloudProvider
         let postProvider = target.postProcessingProvider
+        if cloudProvider == .meta {
+            lastTestResult = .healthy
+            isTesting = false
+            return
+        }
         Task {
             // Probe cloud + post in parallel for shared-key providers
             // (OpenAI, Gemini, Groq, Grok); halves the wait when both apply.

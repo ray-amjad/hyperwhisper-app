@@ -488,6 +488,10 @@ final class CloudProviderHealthManager: ObservableObject {
         let apiKey = rawKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !apiKey.isEmpty else { return .unknown }
 
+        // Meta documents no content-free key validation endpoint. A saved key
+        // is configured and is validated by the first real transcription.
+        if provider == .meta { return .healthy }
+
         return await runHealthCheckWithRetry(force: force) {
             // RUST SHARED CORE (Wave 3 / M3-B.4): every STT provider's probe URL,
             // auth header, and 2xx/4xx verdict now comes from the core
@@ -510,6 +514,8 @@ final class CloudProviderHealthManager: ObservableObject {
 
         let apiKey = rawKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !apiKey.isEmpty else { return .unknown }
+
+        if provider == .meta { return .healthy }
 
         return await runHealthCheckWithRetry(force: true) {
             await self.performRustHealthCheck(for: provider, apiKey: apiKey)

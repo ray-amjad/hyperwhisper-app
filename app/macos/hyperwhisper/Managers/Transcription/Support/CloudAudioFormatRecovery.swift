@@ -60,6 +60,37 @@ enum CloudAudioFormatRecovery {
     static let maxReencodedUploadBytes: Int64 = 300 * 1024 * 1024
     static let metaMuseMaxReencodedUploadBytes: Int64 = 32 * 1024 * 1024
 
+    /// True for both ways Muse can be selected. The direct target must never be
+    /// inferred from a stale cloud tier on another BYOK provider.
+    static func isMuseTransportTarget(cloudProvider: String?, accuracyTier: String?) -> Bool {
+        let provider = CloudProvider.parse(cloudProvider) ?? .hyperwhisper
+        if provider == .meta { return true }
+        return provider == .hyperwhisper
+            && CloudAccuracyTier.fromStorageValue(accuracyTier) == .metaMuse
+    }
+
+    /// Normalize a direct Muse artifact before building its Rust request. A
+    /// canonical WAV passes through without a copy. An app-owned temporary WAV
+    /// is deleted on success, error, or cancellation.
+    static func withMuseTransportNormalization<T>(
+        sourceURL: URL,
+        isCanonicalMuseWAV: (URL) -> Bool,
+        reencode: (URL, URL) async throws -> Void,
+        makeTempURL: () -> URL = { makeTemporaryWAVURL() },
+        removeItem: (URL) -> Void = { deleteFile(at: $0) },
+        send: (URL) async throws -> T
+    ) async throws -> T {
+        if isCanonicalMuseWAV(sourceURL) {
+            return try await send(sourceURL)
+        }
+        let temporaryURL = makeTempURL()
+        defer { removeItem(temporaryURL) }
+        try Task.checkCancellation()
+        try await reencode(sourceURL, temporaryURL)
+        try Task.checkCancellation()
+        return try await send(temporaryURL)
+    }
+
     /// HTTP status the backend uses for "this upstream cannot read that format".
     private static let unsupportedMediaTypeStatus = 415
 
