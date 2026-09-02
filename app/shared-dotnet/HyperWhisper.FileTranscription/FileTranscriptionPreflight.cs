@@ -22,8 +22,39 @@ public sealed record FileAudioMetadata(
     uint? SampleRate = null,
     ushort? BitsPerSample = null)
 {
-    public bool IsMuseCompatibleWave => WaveEncoding == 1 && Channels == 1
-        && BitsPerSample == 16 && SampleRate is 16_000 or 24_000;
+    public bool IsMuseCompatibleWave => MetaMuseAudioContract.IsCanonicalWave(this);
+}
+
+public enum MetaMuseAudioProblem { None, InvalidFormat, FileTooLarge, DurationTooLong }
+
+/// <summary>
+/// Canonical Meta Muse batch-audio rules shared by portable preflight and the
+/// Windows transport. Hosts can import other containers only after normalizing
+/// them to this exact network contract.
+/// </summary>
+public static class MetaMuseAudioContract
+{
+    public const long MaximumUploadBytes = 32L * 1024 * 1024;
+    public const long MaximumSourceBytes = 64L * 1024 * 1024;
+    public static readonly TimeSpan MaximumDuration = TimeSpan.FromMinutes(10);
+
+    public static bool IsCanonicalWave(FileAudioMetadata metadata) =>
+        metadata.WaveEncoding == 1
+        && metadata.Channels == 1
+        && metadata.BitsPerSample == 16
+        && metadata.SampleRate is 16_000 or 24_000
+        && metadata.Duration is { } duration
+        && duration > TimeSpan.Zero
+        && !double.IsNaN(duration.TotalSeconds)
+        && !double.IsInfinity(duration.TotalSeconds);
+
+    public static MetaMuseAudioProblem ValidateCanonical(FileAudioMetadata? metadata)
+    {
+        if (metadata is null || !IsCanonicalWave(metadata)) return MetaMuseAudioProblem.InvalidFormat;
+        if (metadata.LengthBytes > MaximumUploadBytes) return MetaMuseAudioProblem.FileTooLarge;
+        if (metadata.Duration > MaximumDuration) return MetaMuseAudioProblem.DurationTooLong;
+        return MetaMuseAudioProblem.None;
+    }
 }
 
 public sealed record FileTranscriptionConstraints(
@@ -242,7 +273,7 @@ public sealed class PortableFileTranscriptionPreflight
                         tierLimits.MaximumDuration,
                         PortableImportExtensions,
                         RequiresMuseWave: true,
-                        MaximumSourceBytes: 64L * 1024 * 1024)
+                        MaximumSourceBytes: MetaMuseAudioContract.MaximumSourceBytes)
                 };
             }
         }
@@ -329,11 +360,11 @@ public sealed class PortableFileTranscriptionPreflight
                 "muse-voice-transcribe-1.0",
                 new HashSet<string>(["muse-voice-transcribe-1.0"], StringComparer.Ordinal),
                 new FileTranscriptionConstraints(
-                    32L * 1024 * 1024,
-                    TimeSpan.FromMinutes(10),
+                    MetaMuseAudioContract.MaximumUploadBytes,
+                    MetaMuseAudioContract.MaximumDuration,
                     PortableImportExtensions,
                     RequiresMuseWave: true,
-                    MaximumSourceBytes: 64L * 1024 * 1024)),
+                    MaximumSourceBytes: MetaMuseAudioContract.MaximumSourceBytes)),
         };
 }
 

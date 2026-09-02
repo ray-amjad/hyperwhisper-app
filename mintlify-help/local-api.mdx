@@ -235,6 +235,8 @@ For a macOS PATCH, an omitted field stays unchanged. An explicit JSON `null` cle
   Windows accepts and returns five more mode fields than macOS: `localEngine`, `localParakeetModel`, `localPostProcessingModel`, `customVocabulary`, and `providerType`. These fields hold the Windows settings that have no macOS equivalent. macOS ignores these keys when you send them, and never returns them.
 </Note>
 
+The `providers` array includes `key_present`, `reachable`, and `status`. A Meta key reports `status: "configured"` and `reachable: false`. Meta has no safe empty request for key validation. A transcription validates the key for that request, but the health endpoint stays conservative. macOS and Windows use the same status.
+
 ## Next steps
 
 - [MCP setup guide](/api-reference/local-api/mcp-setup) — connect HyperWhisper to Cursor, Claude Desktop, or Claude Code as an agent tool.

@@ -168,6 +168,7 @@ static async Task MetaMuseNormalization()
 
     foreach (var value in new[]
     {
+        new FileAudioMetadata(1024, null, 1, 1, 16_000, 16),
         new FileAudioMetadata(1024, TimeSpan.FromMinutes(1), 1, 2, 16_000, 16),
         new FileAudioMetadata(1024, TimeSpan.FromMinutes(1), 1, 1, 48_000, 16),
         new FileAudioMetadata(1024, TimeSpan.FromMinutes(1), 3, 1, 16_000, 32),

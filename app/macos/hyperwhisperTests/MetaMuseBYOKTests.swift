@@ -133,6 +133,38 @@ struct MetaMuseBYOKTests {
         }
     }
 
+    @Test("WAV inspection streams past metadata larger than 1 MiB")
+    func wavInspectionStreamsLargeMetadata() throws {
+        let junkBytes = 1024 * 1024 + 2
+        let audioBytes: UInt32 = 32_000
+        var data = Data()
+        data.append(contentsOf: Array("RIFF".utf8))
+        appendLE(UInt32(36 + 8 + junkBytes) + audioBytes, to: &data)
+        data.append(contentsOf: Array("WAVEfmt ".utf8))
+        appendLE(UInt32(16), to: &data)
+        appendLE(UInt16(1), to: &data)
+        appendLE(UInt16(1), to: &data)
+        appendLE(UInt32(16_000), to: &data)
+        appendLE(UInt32(32_000), to: &data)
+        appendLE(UInt16(2), to: &data)
+        appendLE(UInt16(16), to: &data)
+        data.append(contentsOf: Array("JUNK".utf8))
+        appendLE(UInt32(junkBytes), to: &data)
+        data.append(Data(repeating: 0, count: junkBytes))
+        data.append(contentsOf: Array("data".utf8))
+        appendLE(audioBytes, to: &data)
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("meta-muse-large-metadata-\(UUID().uuidString).wav")
+        try data.write(to: url)
+        defer { try? FileManager.default.removeItem(at: url) }
+        let handle = try FileHandle(forWritingTo: url)
+        try handle.truncate(atOffset: UInt64(data.count) + UInt64(audioBytes))
+        try handle.close()
+
+        let metadata = try MetaMuseWAVInspector.inspect(url: url)
+        #expect(metadata.durationSeconds == 1)
+    }
+
     @Test("Provider executes the shared Meta multipart request and parser")
     func providerUsesSharedWireContract() async throws {
         let wav = temporaryWAV(sampleRate: 16_000, seconds: 1)

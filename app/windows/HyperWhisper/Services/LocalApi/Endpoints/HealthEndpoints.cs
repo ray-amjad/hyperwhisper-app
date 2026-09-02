@@ -50,13 +50,14 @@ internal static class HealthEndpoints
         {
             var keyPresent = HasKeyForTranscriptionProvider(apiKeys, provider);
             var status = health?.GetStatus(provider) ?? ProviderHealth.Unknown;
+            var statusText = StatusString(provider, keyPresent, status);
 
             list.Add(new HealthProviderStatus
             {
                 Id = provider.GetIdentifier(),
                 KeyPresent = keyPresent,
-                Reachable = status == ProviderHealth.Healthy,
-                Status = StatusString(status)
+                Reachable = IsReachable(provider, keyPresent, status),
+                Status = statusText
             });
         }
         return list;
@@ -185,5 +186,16 @@ internal static class HealthEndpoints
         ProviderHealth.Unknown => "unknown",
         _ => status.ToString().ToLowerInvariant()
     };
+
+    internal static string StatusString(
+        CloudTranscriptionProvider provider, bool keyPresent, ProviderHealth status) =>
+        provider == CloudTranscriptionProvider.Meta && keyPresent
+            ? "configured"
+            : StatusString(status);
+
+    internal static bool IsReachable(
+        CloudTranscriptionProvider provider, bool keyPresent, ProviderHealth status) =>
+        provider != CloudTranscriptionProvider.Meta
+        && status == ProviderHealth.Healthy;
 
 }

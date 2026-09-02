@@ -10,6 +10,8 @@
 */
 
 // MARK: - Application Navigation
+
+"onboarding.provider.configuredUnverified" = "Configured; the key validates on first transcription.";
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
 "app.badge.pro" = "PRO";

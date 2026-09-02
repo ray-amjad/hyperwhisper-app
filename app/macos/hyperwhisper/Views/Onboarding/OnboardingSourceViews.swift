@@ -460,7 +460,10 @@ struct OnboardingConfigureView: View {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 16))
                         .foregroundStyle(Color.green)
-                    OnboardingRowText(title: "Configured; the key validates on first transcription.")
+                    OnboardingRowText(title: NSLocalizedString(
+                        "onboarding.provider.configuredUnverified",
+                        comment: "A provider key is saved but has no safe validation endpoint"
+                    ))
                 }
             case .healthy:
                 OnboardingCardDivider()

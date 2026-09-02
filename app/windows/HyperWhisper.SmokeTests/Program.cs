@@ -4809,6 +4809,17 @@ internal static class Program
                 Assert(HyperWhisper.Services.LocalApi.Endpoints.HealthEndpoints.TranscriptionProviders
                         .Any(provider => provider == CloudTranscriptionProvider.Meta),
                     "/health does not report direct Meta key status");
+                Assert(HyperWhisper.Services.LocalApi.Endpoints.HealthEndpoints.StatusString(
+                        CloudTranscriptionProvider.Meta, keyPresent: true, ProviderHealth.Unknown) == "configured",
+                    "/health does not distinguish a configured Meta key from an unknown probe");
+                Assert(!HyperWhisper.Services.LocalApi.Endpoints.HealthEndpoints.IsReachable(
+                        CloudTranscriptionProvider.Meta, keyPresent: true, ProviderHealth.Healthy),
+                    "/health claims the configured-only Meta key was probed");
+                Assert(ModelLibraryManager.CloudProviderAssetName(CloudTranscriptionProvider.Meta) == "providerMeta",
+                    "Meta still uses another provider's brand asset");
+                Assert(!MainViewModel.ExceedsMuseSourceLimit(64L * 1024 * 1024)
+                        && MainViewModel.ExceedsMuseSourceLimit(64L * 1024 * 1024 + 1),
+                    "Windows Meta normalization source bound drifted");
 
                 var transient = new Mode();
                 HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ApplyEngineModel(
@@ -4824,6 +4835,12 @@ internal static class Program
                     overridden, "meta", model: null);
                 Assert(overridden.CloudTranscriptionModel == "muse-voice-transcribe-1.0",
                     "Local API engine=meta retained a baseline provider model");
+
+                var savedOpenAi = new Mode { CloudTranscriptionModel = "gpt-4o-transcribe" };
+                HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ApplyEngineModel(
+                    savedOpenAi, "openai", model: null);
+                Assert(savedOpenAi.CloudTranscriptionModel == "gpt-4o-transcribe",
+                    "Local API erased a saved provider model when model was omitted");
 
                 var cloud = new Mode
                 {
@@ -4851,7 +4868,7 @@ internal static class Program
                     File.WriteAllText(path, "not a wave file");
                     try
                     {
-                        MetaMuseService.ValidateFinalWave(path, 32L * 1024 * 1024);
+                        MetaMuseService.ValidateFinalWaveAsync(path).GetAwaiter().GetResult();
                         throw new InvalidOperationException("malformed Meta audio was accepted");
                     }
                     catch (TranscriptionException ex)
@@ -4890,12 +4907,18 @@ internal static class Program
 
             Run("Store-as-M4A includes canonical WAV imports only", () =>
             {
-                Assert(MainViewModel.ShouldConvertImportedAudioToM4A(true, "canonical.wav"),
+                Assert(MainViewModel.ShouldConvertImportedAudioToM4A(
+                        true, "canonical.wav", "history-copy.wav"),
                     "Store-as-M4A skipped a canonical WAV import");
-                Assert(!MainViewModel.ShouldConvertImportedAudioToM4A(false, "canonical.wav"),
+                Assert(!MainViewModel.ShouldConvertImportedAudioToM4A(
+                        false, "canonical.wav", "history-copy.wav"),
                     "Store-as-M4A ignored the disabled setting");
-                Assert(!MainViewModel.ShouldConvertImportedAudioToM4A(true, "provider-native.mp3"),
+                Assert(!MainViewModel.ShouldConvertImportedAudioToM4A(
+                        true, "provider-native.mp3", "history-copy.wav"),
                     "Store-as-M4A treated a provider-native non-WAV as WAV");
+                Assert(!MainViewModel.ShouldConvertImportedAudioToM4A(
+                        true, "user-owned.wav", "user-owned.wav"),
+                    "Store-as-M4A can delete a user-owned fallback source");
             });
 
             Run("Grok's empty model id resolves through a provider-scoped lookup", () =>

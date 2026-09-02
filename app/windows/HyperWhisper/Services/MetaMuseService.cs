@@ -1,8 +1,8 @@
 using System.Diagnostics;
 using System.IO;
+using HyperWhisper.FileTranscription;
 using HyperWhisper.Models;
 using HyperWhisper.Services.Transcription;
-using NAudio.Wave;
 using uniffi.hyperwhisper_core;
 
 namespace HyperWhisper.Services;
@@ -36,7 +36,7 @@ public sealed class MetaMuseService : ApiKeyTranscriptionServiceBase
         var totalSw = Stopwatch.StartNew();
         var maxBytes = CloudTranscriptionProvider.Meta.GetMaxFileSizeBytes();
         TranscriptionPreflight.Validate("Meta Muse", ApiKey, audioPath, maxBytes, "32 MB");
-        ValidateFinalWave(audioPath, maxBytes);
+        await ValidateFinalWaveAsync(audioPath, cancellationToken);
 
         var coreParams = BuildDirectVendorParams(
             audioPath,
@@ -53,47 +53,39 @@ public sealed class MetaMuseService : ApiKeyTranscriptionServiceBase
             cancellationToken: cancellationToken);
     }
 
-    internal static void ValidateFinalWave(string audioPath, long maxBytes)
+    internal static async Task ValidateFinalWaveAsync(
+        string audioPath, CancellationToken cancellationToken = default)
     {
         try
         {
-            using var reader = new WaveFileReader(audioPath);
-            var format = reader.WaveFormat;
-            var isSupported = format.Encoding == WaveFormatEncoding.Pcm
-                              && format.BitsPerSample == 16
-                              && format.Channels == 1
-                              && format.SampleRate is 16000 or 24000;
-            if (!isSupported)
+            var metadata = await new StreamingFileAudioMetadataSource()
+                .ReadAsync(audioPath, cancellationToken);
+            switch (MetaMuseAudioContract.ValidateCanonical(metadata))
             {
+            case MetaMuseAudioProblem.InvalidFormat:
                 throw new TranscriptionException(
                     TranscriptionErrorCode.UnsupportedFormat,
                     "Meta Muse requires mono 16-bit PCM WAV audio at 16 kHz or 24 kHz.",
                     "Meta Muse");
-            }
-
-            if (reader.TotalTime > TimeSpan.FromMinutes(10))
-            {
+            case MetaMuseAudioProblem.DurationTooLong:
                 throw new TranscriptionException(
                     TranscriptionErrorCode.InvalidRequest,
                     "Meta Muse accepts audio up to 10 minutes.",
                     "Meta Muse");
-            }
-
-            // Re-read the final artifact metadata immediately before the Rust
-            // request builder reads it. Never trust an earlier conversion stat.
-            if (new FileInfo(audioPath).Length > maxBytes)
-            {
+            case MetaMuseAudioProblem.FileTooLarge:
                 throw new TranscriptionException(
                     TranscriptionErrorCode.FileTooLarge,
                     "The audio file exceeds Meta Muse's 32 MB limit.",
                     "Meta Muse");
+            case MetaMuseAudioProblem.None:
+                return;
             }
         }
         catch (TranscriptionException)
         {
             throw;
         }
-        catch (Exception ex) when (ex is IOException or InvalidDataException or ArgumentException or FormatException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or ArgumentException or FormatException)
         {
             throw new TranscriptionException(
                 TranscriptionErrorCode.UnsupportedFormat,

@@ -361,8 +361,8 @@
                             <StackPanel Orientation="Horizontal">
                                 <Border Width="24" Height="24" CornerRadius="5" Margin="0,0,8,0"
                                         Background="#1877F2" VerticalAlignment="Center">
-                                    <Image Source="/Assets/Providers/providerLocalWhisper.png" Width="15" Height="15"
-                                           VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="M" Foreground="White" FontWeight="Bold" FontSize="14"
+                                               VerticalAlignment="Center" HorizontalAlignment="Center"/>
                                 </Border>
                                 <TextBlock Text="{loc:Loc provider.meta}" FontSize="13" FontWeight="Medium"
                                            Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>

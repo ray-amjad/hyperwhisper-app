@@ -17,6 +17,7 @@ using System.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using HyperWhisper.Data.Entities;
+using HyperWhisper.FileTranscription;
 using HyperWhisper.Models;
 using HyperWhisper.Localization;
 using HyperWhisper.Services;
@@ -2718,6 +2719,13 @@ public partial class MainViewModel : ViewModelBase
 
         if (requiresMuseNormalization)
         {
+            if (ExceedsMuseSourceLimit(fileInfo.Length))
+            {
+                ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
+                    Loc.S("errors.fileTooLarge", ByteSizeFormatter.FormatDecimal(MetaMuseAudioContract.MaximumSourceBytes)),
+                    showSettingsButton: false));
+                return;
+            }
             var sourceDuration = FileTranscriptionService.GetAudioDuration(filePath);
             if (sourceDuration.IsSuccess && sourceDuration.Value > 10 * 60)
             {
@@ -2845,7 +2853,7 @@ public partial class MainViewModel : ViewModelBase
 
             // STORAGE: Optionally compress to M4A for space savings (local mode saves WAV)
             if (ShouldConvertImportedAudioToM4A(
-                    _storageService.StoreAsM4A, pathForTranscription))
+                    _storageService.StoreAsM4A, pathForTranscription, permanentPath))
             {
                 var compressedPath = _storageService.TryConvertWavToM4A(permanentPath);
                 if (!string.IsNullOrEmpty(compressedPath))
@@ -2978,10 +2986,18 @@ public partial class MainViewModel : ViewModelBase
         }
     }
 
-    internal static bool ShouldConvertImportedAudioToM4A(bool storeAsM4A, string pathForTranscription) =>
+    internal static bool ShouldConvertImportedAudioToM4A(
+        bool storeAsM4A, string pathForTranscription, string historyPath) =>
         storeAsM4A
         && string.Equals(
-            Path.GetExtension(pathForTranscription), ".wav", StringComparison.OrdinalIgnoreCase);
+            Path.GetExtension(pathForTranscription), ".wav", StringComparison.OrdinalIgnoreCase)
+        && !string.Equals(
+            Path.GetFullPath(pathForTranscription),
+            Path.GetFullPath(historyPath),
+            StringComparison.OrdinalIgnoreCase);
+
+    internal static bool ExceedsMuseSourceLimit(long sourceBytes) =>
+        sourceBytes > MetaMuseAudioContract.MaximumSourceBytes;
 
     private bool CanStartFileTranscription()
     {

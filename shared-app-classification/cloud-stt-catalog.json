@@ -481,7 +481,7 @@
         "caveats": "HyperWhisper Cloud and direct BYOK requests forward vocabulary as the Meta Model API keywords field. HyperWhisper keeps at most 100 non-empty terms of 80 characters. The API reference does not publish a phrase-count limit."
       },
       "languages": {
-        "count": 25,
+        "count": "unverified",
         "autoDetect": true,
         "codeFormat": "unverified",
         "codes": "unverified",

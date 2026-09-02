@@ -824,7 +824,7 @@
       "turnTimestamps": true,
       "customVocabularySupported": "yes",
       "customVocabularyFieldName": "keywords",
-      "languagesCount": 25,
+      "languagesCount": null,
       "languagesAutoDetect": true,
       "languagesCodeFormat": "unverified",
       "languagesHasCodes": false,

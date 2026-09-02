@@ -80,7 +80,6 @@ final class MetaMuseProvider: TranscriptionProvider {
             isCanonicalMuseWAV: { _ in sourceIsCanonical },
             reencode: CloudAudioFormatRecovery.reencodeToWAV
         ) { [self] uploadURL in
-            try MetaMuseWAVInspector.validateForUpload(url: uploadURL)
             return try await transcribeCanonicalWAV(
                 uploadURL,
                 language: language,
@@ -139,7 +138,7 @@ final class MetaMuseProvider: TranscriptionProvider {
     }
 }
 
-/// Bounded RIFF metadata reader for the platform-owned final-artifact gate.
+/// Streaming RIFF metadata reader for the platform-owned final-artifact gate.
 /// It does not parse Meta's request or response contract.
 enum MetaMuseWAVInspector {
     struct Metadata: Equatable {
@@ -160,42 +159,46 @@ enum MetaMuseWAVInspector {
         }
         let handle = try FileHandle(forReadingFrom: url)
         defer { try? handle.close() }
-        let header = try handle.read(upToCount: 1024 * 1024) ?? Data()
+        let header = try readExactly(handle, count: 12)
         guard header.count >= 12,
               String(data: header[0..<4], encoding: .ascii) == "RIFF",
               String(data: header[8..<12], encoding: .ascii) == "WAVE" else {
             throw TranscriptionError.serverError(statusCode: 400, message: "Meta Muse requires a WAV file")
         }
 
-        var cursor = 12
+        var cursor: UInt64 = 12
         var format: (UInt16, UInt16, UInt32, UInt16)?
         var dataBytes: UInt32?
-        while cursor + 8 <= header.count {
-            let id = String(data: header[cursor..<(cursor + 4)], encoding: .ascii)
-            let size = readUInt32LE(header, cursor + 4)
+        for _ in 0..<256 where cursor + 8 <= UInt64(fileBytes) {
+            try handle.seek(toOffset: cursor)
+            let chunkHeader = try readExactly(handle, count: 8)
+            guard chunkHeader.count == 8 else { break }
+            let id = String(data: chunkHeader[0..<4], encoding: .ascii)
+            let size = readUInt32LE(chunkHeader, 4)
             let body = cursor + 8
-            if id == "data" {
-                // Only the data chunk header must fit in the bounded prefix;
-                // audio payload can be up to the 32 MiB transport limit.
-                guard Int64(body) + Int64(size) <= fileBytes else {
-                    throw TranscriptionError.serverError(
-                        statusCode: 400,
-                        message: "Meta Muse WAV data is truncated"
-                    )
-                }
-                dataBytes = size
-                break
-            }
-            guard body + Int(size) <= header.count else { break }
-            if id == "fmt ", size >= 16 {
-                format = (
-                    readUInt16LE(header, body),
-                    readUInt16LE(header, body + 2),
-                    readUInt32LE(header, body + 4),
-                    readUInt16LE(header, body + 14)
+            let paddedEnd = body + UInt64(size) + UInt64(size % 2)
+            guard paddedEnd <= UInt64(fileBytes) + UInt64(size % 2) else {
+                throw TranscriptionError.serverError(
+                    statusCode: 400,
+                    message: "Meta Muse WAV chunk is truncated"
                 )
             }
-            cursor = body + Int(size) + Int(size % 2)
+            if id == "data" {
+                dataBytes = size
+            }
+            if id == "fmt ", size >= 16 {
+                try handle.seek(toOffset: body)
+                let formatBytes = try readExactly(handle, count: 16)
+                guard formatBytes.count == 16 else { break }
+                format = (
+                    readUInt16LE(formatBytes, 0),
+                    readUInt16LE(formatBytes, 2),
+                    readUInt32LE(formatBytes, 4),
+                    readUInt16LE(formatBytes, 14)
+                )
+            }
+            if format != nil, dataBytes != nil { break }
+            cursor = paddedEnd
         }
 
         guard let (audioFormat, channels, sampleRate, bitsPerSample) = format,
@@ -247,5 +250,16 @@ enum MetaMuseWAVInspector {
             | (UInt32(data[offset + 1]) << 8)
             | (UInt32(data[offset + 2]) << 16)
             | (UInt32(data[offset + 3]) << 24)
+    }
+
+    private static func readExactly(_ handle: FileHandle, count: Int) throws -> Data {
+        var result = Data()
+        while result.count < count {
+            guard let part = try handle.read(upToCount: count - result.count), !part.isEmpty else {
+                break
+            }
+            result.append(part)
+        }
+        return result
     }
 }

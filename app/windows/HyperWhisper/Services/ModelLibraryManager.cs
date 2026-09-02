@@ -64,7 +64,7 @@ public sealed class ModelLibraryManager
                 Id = $"cloud-tx-{model.Provider.GetIdentifier()}-{model.Id}",
                 DisplayName = model.DisplayName,
                 ProviderName = model.Provider.GetDisplayName(),
-                ProviderAssetName = ProviderAssetName(model.Provider),
+                ProviderAssetName = CloudProviderAssetName(model.Provider),
                 Kind = LibraryModelKind.Voice,
                 LocationKind = LibraryModelLocationKind.Cloud,
                 StatusKind = StatusForCloud(model.Provider, out var message),
@@ -422,7 +422,7 @@ public sealed class ModelLibraryManager
         };
     }
 
-    private static string ProviderAssetName(CloudTranscriptionProvider provider) => provider switch
+    internal static string CloudProviderAssetName(CloudTranscriptionProvider provider) => provider switch
     {
         CloudTranscriptionProvider.OpenAI => "providerOpenAI",
         CloudTranscriptionProvider.Groq => "providerGroq",
@@ -436,7 +436,7 @@ public sealed class ModelLibraryManager
         // shipping a duplicate PNG. ApiKeysSettingsPage.xaml points at the same
         // asset — keep the two in step.
         CloudTranscriptionProvider.GeminiTranscribe => "providerGemini",
-        CloudTranscriptionProvider.Meta => "providerLocalWhisper",
+        CloudTranscriptionProvider.Meta => "providerMeta",
         CloudTranscriptionProvider.Grok => "providerGrok",
         CloudTranscriptionProvider.MicrosoftAzureSpeech => "providerMicrosoft",
         CloudTranscriptionProvider.GoogleSpeech => "providerGoogle",
