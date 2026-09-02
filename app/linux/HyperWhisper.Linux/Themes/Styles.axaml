@@ -31,19 +31,11 @@
   </Style>
 
   <!-- Cards -->
-  <Style Selector="Border.card">
+  <Style Selector="Border.card, Border.metricCard">
     <Setter Property="Background" Value="{DynamicResource HwCardBackgroundBrush}"/>
-    <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
-    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="BorderThickness" Value="0"/>
     <Setter Property="CornerRadius" Value="10"/>
-    <Setter Property="Padding" Value="18"/>
-  </Style>
-  <Style Selector="Border.metricCard">
-    <Setter Property="Background" Value="{DynamicResource HwCardBackgroundBrush}"/>
-    <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
-    <Setter Property="BorderThickness" Value="1"/>
-    <Setter Property="CornerRadius" Value="10"/>
-    <Setter Property="Padding" Value="18"/>
+    <Setter Property="Padding" Value="20"/>
   </Style>
   <Style Selector="Border.notice">
     <Setter Property="Background" Value="{DynamicResource HwWarningBackgroundBrush}"/>
@@ -78,12 +70,99 @@
     <Setter Property="Background" Value="{DynamicResource HwHoverBackgroundBrush}"/>
   </Style>
   <Style Selector="ListBox.nav ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
-    <Setter Property="Background" Value="{DynamicResource HwAccentBrush}"/>
-    <Setter Property="TextBlock.Foreground" Value="{DynamicResource HwOnAccentBrush}"/>
+    <Setter Property="Background" Value="{DynamicResource HwSelectedBackgroundBrush}"/>
+    <Setter Property="TextBlock.Foreground" Value="{DynamicResource HwTextPrimaryBrush}"/>
   </Style>
   <Style Selector="ListBox.nav ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-    <Setter Property="Background" Value="{DynamicResource HwAccentHoverBrush}"/>
-    <Setter Property="TextBlock.Foreground" Value="{DynamicResource HwOnAccentBrush}"/>
+    <Setter Property="Background" Value="{DynamicResource HwSelectedBackgroundBrush}"/>
+    <Setter Property="TextBlock.Foreground" Value="{DynamicResource HwTextPrimaryBrush}"/>
+  </Style>
+
+  <!-- The Settings sub-page column. No tile, so the rows sit tighter than the main sidebar. -->
+  <Style Selector="ListBox.nav.sub ListBoxItem">
+    <Setter Property="Padding" Value="12,7"/>
+    <Setter Property="FontSize" Value="13"/>
+  </Style>
+
+  <!-- Edition badge pinned under the sidebar, matching the Windows PRO chip. -->
+  <Style Selector="Border.editionBadge">
+    <Setter Property="Background" Value="{DynamicResource HwCardBackgroundBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="Padding" Value="10,7"/>
+  </Style>
+  <Style Selector="Border.editionPill">
+    <Setter Property="Background" Value="{DynamicResource HwHoverBackgroundBrush}"/>
+    <Setter Property="CornerRadius" Value="4"/>
+    <Setter Property="Padding" Value="6,2"/>
+  </Style>
+
+  <!-- A settings row: title and description on the left, the control hard right, hairline
+       under it. Windows groups these rows into one card, so the last row drops the rule. -->
+  <Style Selector="Border.settingRow">
+    <Setter Property="BorderBrush" Value="{DynamicResource HwSubtleBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="0,0,0,1"/>
+    <Setter Property="Padding" Value="0,14"/>
+  </Style>
+  <Style Selector="Border.settingRow.last">
+    <Setter Property="BorderThickness" Value="0"/>
+  </Style>
+  <Style Selector="TextBlock.rowTitle">
+    <Setter Property="FontSize" Value="14"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Foreground" Value="{DynamicResource HwTextPrimaryBrush}"/>
+    <Setter Property="TextWrapping" Value="Wrap"/>
+  </Style>
+
+  <!-- A whole row that behaves as one button, for the Getting started list. -->
+  <Style Selector="Button.rowAction">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="CornerRadius" Value="10"/>
+    <Setter Property="Padding" Value="16,13"/>
+    <Setter Property="MinHeight" Value="0"/>
+    <Setter Property="HorizontalAlignment" Value="Stretch"/>
+    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+  </Style>
+  <Style Selector="Button.rowAction /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource HwCardBackgroundBrush}"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="CornerRadius" Value="10"/>
+  </Style>
+  <Style Selector="Button.rowAction:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource HwHoverBackgroundBrush}"/>
+    <Setter Property="BorderThickness" Value="0"/>
+  </Style>
+  <Style Selector="Button.modeCard /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="Padding" Value="18,16"/>
+  </Style>
+
+  <Style Selector="Border.keyChip">
+    <Setter Property="Background" Value="{DynamicResource HwHoverBackgroundBrush}"/>
+    <Setter Property="CornerRadius" Value="5"/>
+    <Setter Property="Padding" Value="8,3"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+  <Style Selector="TextBlock.statValue">
+    <Setter Property="FontSize" Value="21"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="Foreground" Value="{DynamicResource HwTextPrimaryBrush}"/>
+  </Style>
+
+  <!-- Empty state: a centred glyph and two lines, the shape Windows draws inside an
+       empty list instead of leaving a blank rectangle. -->
+  <Style Selector="StackPanel.emptyState">
+    <Setter Property="HorizontalAlignment" Value="Center"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+    <Setter Property="Spacing" Value="6"/>
+    <Setter Property="Margin" Value="0,34"/>
+  </Style>
+  <Style Selector="StackPanel.emptyState > TextBlock">
+    <Setter Property="HorizontalAlignment" Value="Center"/>
+    <Setter Property="TextAlignment" Value="Center"/>
   </Style>
 
   <!-- List surfaces inside a page -->

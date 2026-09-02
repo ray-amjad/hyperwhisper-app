@@ -51,6 +51,7 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
         Vocabulary = new VocabularyViewModel(vocabularyRepository);
         Modes = new ModesViewModel(modeRepository, settings, credentials);
         Settings = new SettingsViewModel(settings, localLlmRuntimeStatus, localWhisperRuntimeStatus);
+        Streaming = new StreamingSettingsViewModel(Settings);
         History = new HistoryViewModel(
             historyRepository,
             playback,
@@ -103,6 +104,7 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
     public VocabularyViewModel Vocabulary { get; }
     public ModesViewModel Modes { get; }
     public SettingsViewModel Settings { get; }
+    public StreamingSettingsViewModel Streaming { get; }
     public ModelLibraryViewModel? Models { get; }
     public BackupViewModel Backup { get; }
     public CredentialManagementViewModel? Credentials { get; }
@@ -166,6 +168,7 @@ public sealed class ApplicationShellViewModel : ViewModelBase, IDisposable
             "vocabulary" => (Text("sidebar.vocabulary", "Vocabulary"), Vocabulary),
             "modes" => (Text("sidebar.modes", "Modes"), Modes),
             "settings" => (Text("sidebar.settings", "Settings"), Settings),
+            "streaming" => (Text("settings.nav.streaming", "Streaming"), Streaming),
             "models" when Models is not null => (Text("settings.section.models", "Models"), Models),
             "backup" => (Text("settings.nav.backup", "Backup"), Backup),
             "credentials" when Credentials is not null => (Text("linux.ui.provider.credentials", "Credentials"), Credentials),

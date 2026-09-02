@@ -305,4 +305,70 @@
   <data name="linux.overlay.escape_hint" xml:space="preserve"><value>Esc ·</value></data>
   <data name="linux.storage.restart_required" xml:space="preserve"><value>Save and restart HyperWhisper to use this folder for new recordings. Existing history keeps its original absolute audio paths.</value></data>
   <data name="linux.ui.use.for.live.transcription" xml:space="preserve"><value>Use for live transcription</value></data>
+  <data name="linux.page.subtitle.home" xml:space="preserve">
+    <value>Record and transcribe, and see how much time you save.</value>
+  </data>
+  <data name="linux.page.subtitle.modes" xml:space="preserve">
+    <value>Create custom profiles for different contexts and workflows</value>
+  </data>
+  <data name="linux.page.subtitle.vocabulary" xml:space="preserve">
+    <value>This helps the software to recognize names, acronyms, slang, or words from other languages when mixing languages.</value>
+  </data>
+  <data name="linux.page.subtitle.models" xml:space="preserve">
+    <value>Browse the local and cloud transcription models available to a mode.</value>
+  </data>
+  <data name="linux.page.subtitle.history" xml:space="preserve">
+    <value>Search past transcripts, play the recording, and transcribe again.</value>
+  </data>
+  <data name="linux.page.subtitle.settings" xml:space="preserve">
+    <value>Application, shortcut, audio, and storage preferences.</value>
+  </data>
+  <data name="linux.page.subtitle.account" xml:space="preserve">
+    <value>Track your HyperWhisper Cloud balance and usage</value>
+  </data>
+  <data name="linux.page.subtitle.credentials" xml:space="preserve">
+    <value>Store provider API keys in the desktop secret service.</value>
+  </data>
+  <data name="linux.page.subtitle.backup" xml:space="preserve">
+    <value>Export and import modes, vocabulary, and settings.</value>
+  </data>
+  <data name="linux.page.subtitle.about" xml:space="preserve">
+    <value>Version, updates, and privacy-safe diagnostics.</value>
+  </data>
+  <data name="linux.status.record_hint" xml:space="preserve">
+    <value>Press {0} to record</value>
+  </data>
+  <data name="linux.status.mode_label" xml:space="preserve">
+    <value>Mode:</value>
+  </data>
+  <data name="linux.status.model_label" xml:space="preserve">
+    <value>Model:</value>
+  </data>
+  <data name="linux.page.subtitle.streaming" xml:space="preserve">
+    <value>Use a separate hotkey to transcribe continuously and paste final speech segments into the active application.</value>
+  </data>
+  <data name="linux.ui.minutes.short" xml:space="preserve">
+    <value>min</value>
+  </data>
+  <data name="linux.empty.modes.title" xml:space="preserve">
+    <value>No modes yet</value>
+  </data>
+  <data name="linux.empty.modes.body" xml:space="preserve">
+    <value>Create a mode to choose a provider, a language and post-processing.</value>
+  </data>
+  <data name="linux.empty.vocabulary.title" xml:space="preserve">
+    <value>No vocabulary words yet</value>
+  </data>
+  <data name="linux.empty.vocabulary.body" xml:space="preserve">
+    <value>Add custom words to improve transcription accuracy</value>
+  </data>
+  <data name="linux.empty.history.title" xml:space="preserve">
+    <value>No transcripts yet</value>
+  </data>
+  <data name="linux.empty.history.body" xml:space="preserve">
+    <value>Recordings you transcribe show here.</value>
+  </data>
+  <data name="linux.empty.historyDetail.title" xml:space="preserve">
+    <value>Select a recording to view details</value>
+  </data>
 </root>

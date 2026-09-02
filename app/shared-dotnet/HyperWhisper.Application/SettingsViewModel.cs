@@ -81,8 +81,33 @@ public sealed class SettingsViewModel : ViewModelBase
     public bool AllowLocalLlmCpuFallback { get => _allowLocalLlmCpuFallback; set => Set(ref _allowLocalLlmCpuFallback, value); }
     public bool LocalApiEnabled { get => _localApiEnabled; set => Set(ref _localApiEnabled, value); }
     public int LocalApiPort { get => _localApiPort; set => Set(ref _localApiPort, Math.Clamp(value, 0, 65535)); }
-    public string ToggleShortcutModifiers { get => _toggleShortcutModifiers; set => Set(ref _toggleShortcutModifiers, value ?? string.Empty); }
-    public string ToggleShortcutKey { get => _toggleShortcutKey; set => Set(ref _toggleShortcutKey, value ?? string.Empty); }
+    public string ToggleShortcutModifiers
+    {
+        get => _toggleShortcutModifiers;
+        set { if (Set(ref _toggleShortcutModifiers, value ?? string.Empty)) Notify(nameof(ToggleShortcutDisplay)); }
+    }
+    public string ToggleShortcutKey
+    {
+        get => _toggleShortcutKey;
+        set { if (Set(ref _toggleShortcutKey, value ?? string.Empty)) Notify(nameof(ToggleShortcutDisplay)); }
+    }
+
+    /// <summary>
+    /// The record shortcut as one label, for the status bar and the Home shortcut chip.
+    /// Both apps show the shortcut where the user looks for it, not only in Settings.
+    /// </summary>
+    public string ToggleShortcutDisplay
+    {
+        get
+        {
+            var parts = (_toggleShortcutModifiers ?? string.Empty)
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Append(_toggleShortcutKey ?? string.Empty)
+                .Where(part => !string.IsNullOrWhiteSpace(part))
+                .Select(part => char.ToUpperInvariant(part[0]) + part[1..]);
+            return string.Join("+", parts);
+        }
+    }
     public string CancelShortcutModifiers { get => _cancelShortcutModifiers; set => Set(ref _cancelShortcutModifiers, value ?? string.Empty); }
     public string CancelShortcutKey { get => _cancelShortcutKey; set => Set(ref _cancelShortcutKey, value ?? string.Empty); }
     public string ChangeModeShortcutModifiers { get => _changeModeShortcutModifiers; set => Set(ref _changeModeShortcutModifiers, value ?? string.Empty); }

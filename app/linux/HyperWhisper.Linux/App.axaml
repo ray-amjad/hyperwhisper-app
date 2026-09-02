@@ -7,6 +7,7 @@
       <ResourceDictionary.MergedDictionaries>
         <ResourceInclude Source="avares://HyperWhisper/Themes/Colors.axaml"/>
         <ResourceInclude Source="avares://HyperWhisper/Themes/Brushes.axaml"/>
+        <ResourceInclude Source="avares://HyperWhisper/Themes/Icons.axaml"/>
       </ResourceDictionary.MergedDictionaries>
     </ResourceDictionary>
   </Application.Resources>

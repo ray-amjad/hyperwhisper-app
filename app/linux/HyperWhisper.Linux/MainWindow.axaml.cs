@@ -189,7 +189,9 @@ public partial class MainWindow : Window
             L);
         InitializeComponent();
         DataContext = _viewModel;
-        PlatformStatusText.Text = LF("linux.platform.connected", _platformServices.Paths.DataDirectory);
+        GoTo("home");
+        UpdateShortcutHint();
+        ShowPlatformStatus(LF("linux.platform.connected", _platformServices.Paths.DataDirectory), false);
         Opened += OnOpened;
         Closing += OnClosing;
         Closed += OnClosed;
@@ -225,7 +227,7 @@ public partial class MainWindow : Window
             _storageMaintenance = RunStorageMaintenanceLoopAsync(_lifetime.Token);
             var tray = await _platformServices.Tray.StartAsync(_lifetime.Token);
             if (tray.IsFailure)
-                PlatformStatusText.Text += LF("linux.platform.tray_unavailable", tray.Error!.Message);
+                ShowPlatformStatus(PlatformStatusText.Text + LF("linux.platform.tray_unavailable", tray.Error!.Message), true);
             else
             {
                 _trayAvailable = true;
@@ -367,10 +369,7 @@ public partial class MainWindow : Window
     {
         try
         {
-            _viewModel.Navigate(page);
-            foreach (var item in Navigation.Items.OfType<ListBoxItem>())
-                if (string.Equals(item.Tag?.ToString(), page, StringComparison.Ordinal))
-                { Navigation.SelectedItem = item; break; }
+            GoTo(page);
         }
         catch (ArgumentException) { _viewModel.Status.Failure("models.navigation_unavailable", L("linux.error.navigation_unavailable")); }
     }
@@ -669,6 +668,7 @@ public partial class MainWindow : Window
 
     private void ApplyDesktopSettings()
     {
+        UpdateShortcutHint();
         var settings = _viewModel.Settings;
         if (Avalonia.Application.Current is { } application)
             application.RequestedThemeVariant = settings.ThemeMode switch
@@ -704,7 +704,7 @@ public partial class MainWindow : Window
         var shortcutFailure = new[] { toggle, cancel, changeMode, streaming }.FirstOrDefault(item => item.IsFailure);
         if (shortcutFailure?.Error is { } shortcutError)
         {
-            PlatformStatusText.Text = LF("linux.platform.warning", shortcutError.Message);
+            ShowPlatformStatus(LF("linux.platform.warning", shortcutError.Message), true);
             settings.Status.Failure(shortcutError.Code, shortcutError.Message);
             return;
         }
@@ -726,8 +726,8 @@ public partial class MainWindow : Window
             StreamingEnabled = settings.StreamingEnabled,
             StreamingShortcut = streaming.Value,
         });
-        if (result.IsFailure) PlatformStatusText.Text = LF("linux.platform.warning", result.Error!.Message);
-        else PlatformStatusText.Text = LF("linux.platform.connected", _platformServices.Paths.DataDirectory);
+        if (result.IsFailure) ShowPlatformStatus(LF("linux.platform.warning", result.Error!.Message), true);
+        else ShowPlatformStatus(LF("linux.platform.connected", _platformServices.Paths.DataDirectory), false);
 
         var autostart = settings.AutostartEnabled ? _platformServices.Autostart.Enable() : _platformServices.Autostart.Disable();
         if (autostart.IsFailure && settings.AutostartEnabled)
@@ -812,13 +812,7 @@ public partial class MainWindow : Window
     private void NavigateFromTray(string page)
     {
         ShowFromTray();
-        _viewModel.Navigate(page);
-        foreach (var item in Navigation.Items.OfType<ListBoxItem>())
-        {
-            if (!string.Equals(item.Tag?.ToString(), page, StringComparison.Ordinal)) continue;
-            Navigation.SelectedItem = item;
-            break;
-        }
+        GoTo(page);
     }
 
     private void SelectDefaultMicrophone()
@@ -856,7 +850,7 @@ public partial class MainWindow : Window
             Show();
             WindowState = WindowState.Normal;
         }
-        PlatformStatusText.Text += L("linux.platform.tray_disconnected");
+        ShowPlatformStatus(PlatformStatusText.Text + L("linux.platform.tray_disconnected"), true);
     });
 
     private void OnWindowPropertyChanged(object? sender, Avalonia.AvaloniaPropertyChangedEventArgs e)
@@ -1014,13 +1008,80 @@ public partial class MainWindow : Window
     private const string LocalApiMcpSnippet = "{\n  \"mcpServers\": {\n    \"hyperwhisper\": {\n      \"command\": \"npx\",\n      \"args\": [\"-y\", \"@hyperwhisper/mcp\"]\n    }\n  }\n}";
     private const string LocalApiCurlSnippet = "DISCOVERY=\"${XDG_DATA_HOME:-$HOME/.local/share}/hyperwhisper/local-api.json\"\nPORT=\"$(jq -r .port \"$DISCOVERY\")\"\nTOKEN=\"$(jq -r .token \"$DISCOVERY\")\"\ncurl \"http://127.0.0.1:$PORT/health\"\ncurl -H \"Authorization: Bearer $TOKEN\" \"http://127.0.0.1:$PORT/models\"";
 
+    // Backup, the cloud account, provider credentials and About are their own pages here, but
+    // the Windows app reaches all four through Settings. The sidebar shows one Settings row and
+    // a second column lists the family, so both apps navigate the same way.
+    private static readonly string[] SettingsFamily = ["settings", "account", "credentials", "backup", "about"];
+    private bool _navigationSyncing;
+
     private void OnNavigationChanged(object? sender, SelectionChangedEventArgs e)
     {
-        if (Navigation.SelectedItem is ListBoxItem { Tag: string pageId })
+        if (Navigation.SelectedItem is ListBoxItem { Tag: string pageId }) GoTo(pageId);
+    }
+
+    private void OnSettingsNavigationChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (SettingsNav.SelectedItem is ListBoxItem { Tag: string pageId }) GoTo(pageId);
+    }
+
+    /// <summary>
+    /// Single entry point for navigation. Selecting a list item raises the same event the user
+    /// click raises, so every path guards against re-entering itself.
+    /// </summary>
+    private void GoTo(string pageId)
+    {
+        if (_navigationSyncing) return;
+        _navigationSyncing = true;
+        try
         {
             _viewModel.Navigate(pageId);
+            var inSettings = Array.IndexOf(SettingsFamily, pageId) >= 0;
+            Select(Navigation, inSettings ? "settings" : pageId);
+            // The sidebar list raises its first selection while the rest of the tree is still
+            // being built, so every control below it in the markup can still be null here.
+            if (SettingsNavPane is not null) SettingsNavPane.IsVisible = inSettings;
+            if (inSettings && SettingsNav is not null) Select(SettingsNav, pageId);
+            if (PageSubtitle is not null) PageSubtitle.Text = _localization[$"linux.page.subtitle.{pageId}"];
+            // Windows opens Home straight onto the dashboard, with no page heading above it.
+            if (PageHeader is not null) PageHeader.IsVisible = pageId != "home";
             if (pageId == "settings") Dispatcher.UIThread.Post(UpdateLocalApiConnectionUi);
         }
+        finally { _navigationSyncing = false; }
+    }
+
+    /// <summary>
+    /// The platform integration message used to sit in the sidebar, where a long warning
+    /// pushed the rest of the column off screen. It now shows as a notice over the page, and
+    /// only when something is actually wrong.
+    /// </summary>
+    private void ShowPlatformStatus(string text, bool isWarning)
+    {
+        PlatformStatusText.Text = text;
+        PlatformNotice.IsVisible = isWarning;
+    }
+
+    private void OnGoToShortcuts(object? sender, RoutedEventArgs e) => GoTo("settings");
+    private void OnGoToModes(object? sender, RoutedEventArgs e) => GoTo("modes");
+    private void OnGoToVocabulary(object? sender, RoutedEventArgs e) => GoTo("vocabulary");
+
+    private void OnSelectMode(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Control { Tag: Mode mode }) _viewModel.Modes.Selected = mode;
+    }
+
+    private static void Select(ListBox list, string tag)
+    {
+        foreach (var item in list.Items.OfType<ListBoxItem>())
+            if (string.Equals(item.Tag?.ToString(), tag, StringComparison.Ordinal))
+            { list.SelectedItem = item; return; }
+    }
+
+    private void UpdateShortcutHint()
+    {
+        var shortcut = _viewModel.Settings.ToggleShortcutDisplay;
+        ShortcutHintText.Text = string.IsNullOrEmpty(shortcut)
+            ? string.Empty
+            : string.Format(_localization["linux.status.record_hint"], shortcut);
     }
 
     private void OnHistorySelectionChanged(object? sender, SelectionChangedEventArgs e)
@@ -1109,6 +1170,11 @@ public partial class MainWindow : Window
             if (_viewModel.Recording is null || string.IsNullOrWhiteSpace(_viewModel.Recording.Message)) return 8;
 
             await SeedSmokeDataAsync();
+            // History and Model Library hide their detail pane until a row is picked, the way the
+            // Windows app does. Pick the first row on each so the detail controls are on screen.
+            _viewModel.History.Selected ??= _viewModel.History.Items.FirstOrDefault();
+            if (_viewModel.Models is not null)
+                _viewModel.Models.Selected ??= _viewModel.Models.Items.FirstOrDefault();
             var expectedControls = new Dictionary<string, string>(StringComparer.Ordinal)
             {
                 ["home"] = "HomeStartRecordingButton",
