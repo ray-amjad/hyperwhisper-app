@@ -671,7 +671,10 @@ if (Test-Path -LiteralPath $GatewayPath) {
 # marshalling, ~100 times over a Parakeet download. An unsynchronised Dictionary
 # written there and read by the binding layer can tear, throw, or spin forever.
 if (Test-Path -LiteralPath $CommitterPath) {
-    if ($committerSource -match "Dictionary<string,\s*double>\s+_progress") {
+    # The lookbehind matters: ConcurrentDictionary<string, double> _progress
+    # CONTAINS the plain form as a substring, so a naive match fails the fix it
+    # is meant to protect.
+    if ($committerSource -match "(?<!Concurrent)Dictionary<string,\s*double>\s+_progress") {
         Write-Fail "the download-progress store is a plain Dictionary written from the download thread"
     } else {
         Write-Pass "the download-progress store is not an unsynchronised Dictionary"

@@ -201,7 +201,7 @@ public sealed class LiveOnboardingModelCatalog : IOnboardingModelCatalog, IDispo
     ///
     /// Concurrent, not a plain Dictionary. <see cref="OnDownloadChanged"/> now
     /// marshals to the UI thread (see OnboardingUiDispatch) so writes and the
-    /// binding layer's reads land on one thread in the app — but this type is
+    /// binding layer's reads land on one thread in the app - but this type is
     /// the honest one for a store whose producer is a background download
     /// thread and whose consumers are public methods any caller may reach. The
     /// unsynchronised version could tear a read against an insert-and-resize:

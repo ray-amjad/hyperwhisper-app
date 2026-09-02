@@ -249,7 +249,7 @@ public sealed class LiveOnboardingAudioGateway : IOnboardingAudioGateway, IDispo
     {
         // AudioDeviceService debounces this to 250 ms and raises it from a
         // System.Timers.Timer, sourced from the MMDevice COM notification
-        // client — so it arrives on a threadpool thread.
+        // client - so it arrives on a threadpool thread.
         //
         // THE ADAPTER MARSHALS. RefreshDevices raises DevicesChanged, which the
         // flow turns into writes of DeviceAvailability, IsLevelMeterActive and
@@ -645,7 +645,7 @@ public sealed class LiveOnboardingAudioGateway : IOnboardingAudioGateway, IDispo
             // pre-selects Parakeet V2, the committer writes LocalEngine and
             // LocalParakeetModel but leaves ModelType null, so MainViewModel's
             // eager load never fires, ParakeetTranscriptionService.IsAvailable is
-            // false, and the orchestrator threw ModelNotLoaded — rendered as
+            // false, and the orchestrator threw ModelNotLoaded - rendered as
             // "Error: Local transcription model not loaded" on the very step that
             // is supposed to prove the product works.
             if (localProvider is not null)
@@ -674,7 +674,7 @@ public sealed class LiveOnboardingAudioGateway : IOnboardingAudioGateway, IDispo
             // NOT after the flow gave up on this run. A provider that returns
             // normally on a cancelled token (several do: they finish the request
             // they already sent) would otherwise publish into a step the user has
-            // walked away from — and walking forward into Try It again resets the
+            // walked away from - and walking forward into Try It again resets the
             // "this came from the sample clip" flag, so a stale sample result
             // renders as the user's own recording.
             if (cancellationToken.IsCancellationRequested)
@@ -723,10 +723,10 @@ public sealed class LiveOnboardingAudioGateway : IOnboardingAudioGateway, IDispo
     /// the failure on the transcript channel and answering false when it cannot.
     ///
     /// This is a FOURTH readiness check, and deliberately not a shared one. The
-    /// three that already exist each speak a different vocabulary — the Local
+    /// three that already exist each speak a different vocabulary - the Local
     /// API's is wire error codes and English hints aimed at an MCP client,
     /// MainViewModel's two are toast strings with a settings deep link, and this
-    /// one is an inline sentence inside a modal — and the three also differ in
+    /// one is an inline sentence inside a modal - and the three also differ in
     /// what they do around the load (the GUI unloads Whisper under 32 GB of RAM
     /// before a Parakeet spawn, the API does not). Unifying them is a real
     /// cleanup and is NOT this change: it would put /transcribe at risk to fix a
