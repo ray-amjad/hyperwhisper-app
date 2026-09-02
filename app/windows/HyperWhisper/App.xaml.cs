@@ -3,12 +3,25 @@ using HyperWhisper.Data;
 using HyperWhisper.Localization;
 using HyperWhisper.Services;
 using HyperWhisper.Services.LocalApi;
+using HyperWhisper.Services.Onboarding;
 using HyperWhisper.Services.Transcription;
 
 namespace HyperWhisper;
 
 public partial class App : WpfApplication
 {
+    /// <summary>
+    /// Whether this launch owes the user the first run flow. Decided ONCE in
+    /// OnStartup, after the database and settings are up and before anything
+    /// UI affine has happened, and read by MainWindow.Loaded.
+    ///
+    /// It is a snapshot, not a live read: the flow's own completion clears
+    /// SettingsService.OnboardingPending, and MainWindow still has to know that
+    /// this launch was a first run so it can keep LaunchMinimized from hiding the
+    /// window out from under the modal.
+    /// </summary>
+    public static bool ShouldShowOnboarding { get; private set; }
+
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
@@ -111,6 +124,22 @@ public partial class App : WpfApplication
         else if (SettingsService.Instance.IsFirstLaunch)
         {
             LoggingService.Info("First launch detected in isolated app-data profile - skipping launch at startup registration");
+        }
+
+        // FIRST RUN ONBOARDING
+        // Decide here and stash the answer: the database is initialised, settings
+        // are loaded, and nothing UI affine has happened yet. MainWindow.Loaded
+        // does the showing, once its own navigation has populated the device list
+        // and registered the hotkeys the flow reads.
+        //
+        // Unlike the block above, this is NOT gated on the app-data override: an
+        // isolated profile is the mechanism that produces a fresh
+        // OnboardingPending == true, and onboarding writes nothing outside
+        // AppDataRoot. See OnboardingLaunchPolicy for the whole rule.
+        ShouldShowOnboarding = OnboardingLaunchPolicy.ShouldShowOnboarding();
+        if (ShouldShowOnboarding)
+        {
+            LoggingService.Info("Onboarding pending - the first run flow will be shown once the main window has loaded");
         }
 
         // THEME INITIALIZATION

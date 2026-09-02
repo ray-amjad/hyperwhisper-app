@@ -7,6 +7,7 @@ using HyperWhisper.Data.Entities;
 using HyperWhisper.Localization;
 using HyperWhisper.Models;
 using HyperWhisper.Services;
+using HyperWhisper.Services.Onboarding;
 using HyperWhisper.Services.Platform;
 using HyperWhisper.ViewModels;
 using HyperWhisper.Views.Pages;
@@ -34,8 +35,17 @@ public partial class MainWindow : Window
     private System.Windows.Forms.ToolStripMenuItem? _modeMenu;
     private System.Windows.Forms.ToolStripMenuItem? _fileTranscriptionMenu;
     private System.Windows.Forms.ToolStripMenuItem? _checkForUpdatesMenu;
+    private System.Windows.Forms.ToolStripMenuItem? _runSetupAgainMenu;
     private bool _isCheckingForUpdatesFromTray;
     private bool _shutdownStarted;
+
+    /// <summary>
+    /// True for exactly as long as the onboarding window is up. The tray is built
+    /// in this constructor, i.e. BEFORE the modal ever opens, so its recording
+    /// items are clickable behind it; this flag is what keeps a competing
+    /// recording from being started from there.
+    /// </summary>
+    private bool _isOnboardingOpen;
 
     public MainWindow()
     {
@@ -163,8 +173,24 @@ public partial class MainWindow : Window
             ThemeService.Instance.ThemeChanged += OnThemeChanged;
             ApplyMacStyleWindowBackdrop();
 
+            // FIRST RUN ONBOARDING
+            // Resolved here, and deliberately in this position:
+            //   * AFTER OnNavigatedToAsync, because that is what populates
+            //     AudioDevices and registers the global hotkeys. The Microphone
+            //     step reads the first and the Permissions step's shortcut row
+            //     reads the second, and KeyboardShortcutService needs this window
+            //     to own an HWND or the row reports Unknown forever.
+            //   * BEFORE the LaunchMinimized hide, mirroring the macOS ordering
+            //     comment at hyperwhisperApp.swift:845-847. Hiding first would
+            //     leave a first run user with LaunchMinimized on staring at an
+            //     ownerless modal over an empty desktop.
+            if (App.ShouldShowOnboarding)
+            {
+                ShowOnboarding();
+            }
+
             // Hide window if LaunchMinimized is enabled
-            if (SettingsService.Instance.LaunchMinimized)
+            if (SettingsService.Instance.LaunchMinimized && !App.ShouldShowOnboarding)
             {
                 Hide();
                 _notifyIcon?.ShowBalloonTip(2000, "HyperWhisper", $"Running in background. Press {_viewModel.HotkeyText} to record.", System.Windows.Forms.ToolTipIcon.Info);
@@ -433,6 +459,99 @@ public partial class MainWindow : Window
         _modeToast.ShowMode(modeName);
     }
 
+    // =========================================================================
+    // FIRST RUN ONBOARDING
+    // =========================================================================
+
+    /// <summary>
+    /// Builds the live flow, shows the onboarding window modally over this one,
+    /// and releases everything it owns when it closes.
+    ///
+    /// Modal on purpose: the window is the port of a macOS sheet, and the flow
+    /// stages writes against the same default Mode, credential store and input
+    /// device the main window is showing. Two of them open at once would be two
+    /// editors of one row.
+    ///
+    /// The delivery gate is raised for the whole lifetime of the window. The Try
+    /// It step drives its own recorder and renders inline, so it never reaches a
+    /// sink by itself; the gate is the backstop for the GLOBAL hotkey, which
+    /// stays live behind the modal and would otherwise paste a test sentence into
+    /// whatever the user had focused.
+    /// </summary>
+    private void ShowOnboarding()
+    {
+        if (_isOnboardingOpen)
+            return;
+
+        OnboardingLiveDependencies.LiveOnboarding? live = null;
+
+        try
+        {
+            live = OnboardingLiveDependencies.CreateLive(
+                // Deep-link to the Shortcuts section rather than to Settings in
+                // general, so the row the user pressed the button about is the one
+                // waiting for them. KNOWN LIMIT: this window is application modal,
+                // so the shell behind it cannot be typed into until the flow ends.
+                // The permissions row never gates Continue, and the shortcut is
+                // re-read on every Activated, so the flow stays completable either
+                // way.
+                openShortcutSettings: () => Dispatcher.Invoke(() =>
+                    NavigateToSettingsSection("Shortcuts")),
+                returnToHome: () => Dispatcher.Invoke(() =>
+                {
+                    _viewModel.CurrentPage = MainViewModel.NavigationPage.Home;
+                    NavigateToPage(MainViewModel.NavigationPage.Home);
+                }));
+
+            var window = new OnboardingWindow(live.Flow) { Owner = this };
+
+            _isOnboardingOpen = true;
+            TextDeliveryGate.SetSuppressed(true);
+            RefreshRecordingMenu();
+            RefreshFileTranscriptionMenu();
+
+            LoggingService.Info("MainWindow: Showing the onboarding window");
+            window.ShowDialog();
+        }
+        catch (Exception ex)
+        {
+            // A first run flow that cannot open must never stop the app from
+            // starting. The pending flag is left alone, so the next launch tries
+            // again rather than silently skipping setup forever.
+            LoggingService.Error("MainWindow: Failed to show the onboarding window", ex);
+            SentryService.Capture(ex, "Failed to show the onboarding window");
+        }
+        finally
+        {
+            _isOnboardingOpen = false;
+            TextDeliveryGate.SetSuppressed(false);
+
+            // The flow model's own Cleanup() runs from the window's Closing; these
+            // are the OS resources behind the seams (a COM device-notification
+            // client, a capture stream, and event subscriptions on process
+            // lifetime singletons) and outlive it if nobody disposes them.
+            live?.DisposeResources();
+
+            // Onboarding may have rewritten the default Mode and the selected
+            // device, and it owns its own recorder, so re-read what the tray shows.
+            RefreshRecordingMenu();
+            RefreshMicrophoneMenu();
+            RefreshModeMenu();
+            RefreshFileTranscriptionMenu();
+        }
+    }
+
+    /// <summary>
+    /// The tray's "Run setup again". The main window is brought forward first:
+    /// the onboarding window is shown with Owner = this, and a hidden owner would
+    /// put a modal on screen with nothing behind it to return to.
+    /// </summary>
+    private void RunSetupAgainFromTray()
+    {
+        ShowMainWindow();
+        ShowOnboarding();
+    }
+
     private void InitializeSystemTray()
     {
         try
@@ -447,6 +566,17 @@ public partial class MainWindow : Window
             menu.Items.Add("-");
             menu.Items.Add(Loc.S("menu.history"), null, (s, e) => Dispatcher.Invoke(() => ShowMainWindow(MainViewModel.NavigationPage.History)));
             menu.Items.Add(Loc.S("menu.settings"), null, (s, e) => Dispatcher.Invoke(() => ShowMainWindow(MainViewModel.NavigationPage.Settings)));
+
+            // RUN SETUP AGAIN
+            // macOS has no in-app re-run; Windows needs one because the only other
+            // levers are a scratch HYPERWHISPER_WINDOWS_APPDATA_ROOT profile and
+            // hand-editing settings.json with the app closed. A --onboarding switch
+            // is NOT the answer: SingleInstanceGuard.TryAcquire() kills the second
+            // instance before e.Args is ever inspected, so the flag would silently
+            // do nothing whenever the app was already running.
+            _runSetupAgainMenu = new System.Windows.Forms.ToolStripMenuItem(Loc.S("onboarding.menu.runAgain"));
+            _runSetupAgainMenu.Click += (s, e) => Dispatcher.Invoke(RunSetupAgainFromTray);
+            menu.Items.Add(_runSetupAgainMenu);
             menu.Items.Add("-");
 
             // MICROPHONE SUBMENU
@@ -497,6 +627,11 @@ public partial class MainWindow : Window
                 RefreshMicrophoneMenu();
                 RefreshModeMenu();
                 RefreshFileTranscriptionMenu();
+
+                // Re-entering setup while it is already on screen would build a
+                // second flow model over the same Mode row.
+                if (_runSetupAgainMenu != null)
+                    _runSetupAgainMenu.Enabled = !_isOnboardingOpen;
             };
 
             menu.Items.Add("-");
@@ -525,15 +660,24 @@ public partial class MainWindow : Window
         _recordingMenu.Text = _viewModel.IsRecording
             ? Loc.S("menu.recording.stop")
             : Loc.S("menu.recording.toggle");
-        _recordingMenu.Enabled = _viewModel.IsRecording ||
+        // While onboarding is open the tray sits behind a modal that owns its own
+        // recorder and stages the Mode the tray would record with, so no recording
+        // may be started (or stopped) from here.
+        _recordingMenu.Enabled = !_isOnboardingOpen &&
+            (_viewModel.IsRecording ||
             (!_viewModel.IsTranscribing &&
              !_viewModel.IsModelLoading &&
              _viewModel.SelectedAudioDevice != null &&
-             _viewModel.SelectedMode != null);
+             _viewModel.SelectedMode != null));
     }
 
     private async void ToggleRecordingFromTray()
     {
+        // Belt and braces with RefreshRecordingMenu: a menu already open when the
+        // onboarding window appeared still holds an enabled item.
+        if (_isOnboardingOpen)
+            return;
+
         if (_viewModel.IsTranscribing || _viewModel.IsModelLoading)
             return;
 
@@ -765,7 +909,7 @@ public partial class MainWindow : Window
             var modeName = string.IsNullOrWhiteSpace(mode.Name) ? Loc.S("menu.mode.unnamed") : mode.Name;
             var modeItem = new System.Windows.Forms.ToolStripMenuItem(modeName)
             {
-                Enabled = !_viewModel.IsRecording && !_viewModel.IsTranscribing && !_viewModel.IsModelLoading,
+                Enabled = !_viewModel.IsRecording && !_viewModel.IsTranscribing && !_viewModel.IsModelLoading && !_isOnboardingOpen,
                 Tag = mode
             };
 

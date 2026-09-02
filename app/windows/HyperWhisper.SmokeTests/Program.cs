@@ -75,6 +75,14 @@ internal static class Program
 
         Environment.SetEnvironmentVariable(AppPaths.AppDataRootOverrideEnvironmentVariable, tempRoot);
 
+        // A scratch profile has no settings.json, so ApplyDefaults seeds
+        // OnboardingPending = true — which is exactly how the dev-box end-to-end
+        // test makes the first-run flow appear. Today's suite never constructs
+        // HyperWhisper.App or MainWindow (it builds its own bare Application), so
+        // nothing here can trip the modal; this is set so that a future harness
+        // which DOES boot the real App stays safe.
+        Environment.SetEnvironmentVariable(OnboardingLaunchPolicy.SkipEnvironmentVariable, "1");
+
         try
         {
             Directory.CreateDirectory(tempRoot);
@@ -7404,6 +7412,67 @@ internal static class Program
             });
 
             // =================================================================
+            // ONBOARDING — FIRST RUN TRIGGER (phase 4)
+            //
+            // The whole trigger is one pure function plus one environment
+            // variable. Both are pinned here because getting either wrong is
+            // silent: too eager and every launch shows a modal, too shy and a
+            // fresh install never sees setup at all.
+            // =================================================================
+
+            Run("onboarding trigger: the pending flag alone decides", () =>
+            {
+                Assert(!OnboardingLaunchPolicy.ShouldShowOnboarding(false, null),
+                    "a settled profile must never be shown the first-run flow");
+                Assert(OnboardingLaunchPolicy.ShouldShowOnboarding(true, null),
+                    "a pending profile must be shown the first-run flow");
+            });
+
+            Run("onboarding trigger: only \"1\" opts out", () =>
+            {
+                Assert(!OnboardingLaunchPolicy.ShouldShowOnboarding(true, "1"),
+                    "HYPERWHISPER_WINDOWS_SKIP_ONBOARDING=1 must suppress the flow");
+                Assert(!OnboardingLaunchPolicy.ShouldShowOnboarding(true, " 1 "),
+                    "the opt-out must survive stray whitespace");
+
+                // A stale variable left in a shell must not silently disable first
+                // run, so anything that is not "1" is not an opt-out.
+                foreach (var value in new[] { "", "0", "false", "no", "yes", "true", "2" })
+                {
+                    Assert(OnboardingLaunchPolicy.ShouldShowOnboarding(true, value),
+                        $"skip value '{value}' must NOT suppress the flow");
+                }
+
+                Assert(!OnboardingLaunchPolicy.ShouldShowOnboarding(false, "0"),
+                    "the opt-out must not be able to FORCE the flow on a settled profile");
+            });
+
+            Run("onboarding trigger: an isolated app-data profile does not suppress it", () =>
+            {
+                // This is the one the plan was amended over. The app-data override
+                // guards the machine-wide Run key registration above it in
+                // App.OnStartup; onboarding writes nothing outside AppDataRoot, and
+                // a scratch profile is precisely how a fresh OnboardingPending ==
+                // true is produced. Guarding on it would break the only end-to-end
+                // verification there is.
+                Assert(AppPaths.IsAppDataRootOverridden,
+                    "the smoke harness is expected to run under an app-data override");
+                Assert(OnboardingLaunchPolicy.ShouldShowOnboarding(true, null),
+                    "the app-data override must not suppress the first-run flow");
+
+                Assert(OnboardingLaunchPolicy.SkipEnvironmentVariable == "HYPERWHISPER_WINDOWS_SKIP_ONBOARDING",
+                    "the opt-out variable name is documented in the PR and must not drift");
+            });
+
+            Run("onboarding trigger: the \"Run setup again\" tray string resolves", () =>
+            {
+                // The tray label is the only onboarding string that never enters a
+                // page's visual tree, so the phase 3 raw-key case cannot see it.
+                const string key = "onboarding.menu.runAgain";
+                Assert(HyperWhisper.Localization.Loc.S(key) != key, $"'{key}' is missing from Strings.resx");
+            });
+
+            // =================================================================
             // ONBOARDING — WPF (phase 3)
             //
             // XAML faults are build-time for syntax and RUN-time for everything
@@ -7483,6 +7552,7 @@ internal static class Program
         finally
         {
             Environment.SetEnvironmentVariable(AppPaths.AppDataRootOverrideEnvironmentVariable, null);
+            Environment.SetEnvironmentVariable(OnboardingLaunchPolicy.SkipEnvironmentVariable, null);
 
             try
             {

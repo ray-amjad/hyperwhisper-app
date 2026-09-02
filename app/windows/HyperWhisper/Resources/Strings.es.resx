@@ -2711,4 +2711,7 @@ Puede volver a descargarlo más tarde.</value>
   <data name="onboarding.error.microphone.denied" xml:space="preserve">
     <value>Microphone permission denied. Please grant permission in Windows Settings.</value>
   </data>
+  <data name="onboarding.menu.runAgain" xml:space="preserve">
+    <value>Run setup again</value>
+  </data>
 </root>
