@@ -528,7 +528,7 @@ test("Meta Muse keeps streaming benchmark values out of the batch ranking", asyn
   assert.equal(muse.wer, null);
   assert.equal(muse.speedFactor, null);
   assert.equal(muse.streaming, false);
-  assert.equal(muse.byok, false);
+  assert.equal(muse.byok, true);
 });
 
 test("every on-device model both apps ship is on the page, and no others", async () => {

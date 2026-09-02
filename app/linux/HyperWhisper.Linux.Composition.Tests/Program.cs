@@ -131,7 +131,7 @@ static async Task OnboardingModeReadiness()
         "cloud/stt/metaMuse/muse-voice-transcribe-1.0", "Meta Muse", "meta",
         "muse-voice-transcribe-1.0", ModelDeployment.Cloud, ModelWorkload.Voice,
         ModelSurface.BatchTranscription, true, false, [], false,
-        CloudTierEligible: true, ByokEligible: false, CredentialAccount: "MetaApiKey");
+        CloudTierEligible: true, ByokEligible: true, CredentialAccount: "MetaApiKey");
     var credentials = new OnboardingCredentials(("OpenAIApiKey", "private-test-key"),
         ("LicenseKey", "private-license"), ("MetaApiKey", "private-meta-key"));
     var localModels = new OnboardingLocalModels("base");

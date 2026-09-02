@@ -148,7 +148,7 @@ static async Task TestMetaReadinessAsync()
         && x.ModelId == "muse-voice-transcribe-1.0"
         && x.Surface == ModelSurface.BatchTranscription);
     Equal("MetaApiKey", row.CredentialAccount);
-    True(!row.ByokEligible && row.CloudTierEligible);
+    True(row.ByokEligible && row.CloudTierEligible);
     var probe = new FakeProbe();
     var missing = await Service(new FakeCredentials(), probe).CheckAsync(row);
     Equal(ReadinessState.MissingCredential, missing.State);

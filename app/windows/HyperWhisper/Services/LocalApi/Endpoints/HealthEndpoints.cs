@@ -79,6 +79,7 @@ internal static class HealthEndpoints
             CloudTranscriptionProvider.Mistral => apiKeys.HasApiKey(TranscriptionApiKeyType.Mistral),
             CloudTranscriptionProvider.Soniox => apiKeys.HasApiKey(TranscriptionApiKeyType.Soniox),
             CloudTranscriptionProvider.GeminiTranscribe => apiKeys.HasApiKey(TranscriptionApiKeyType.GeminiTranscribe),
+            CloudTranscriptionProvider.Meta => apiKeys.HasApiKey(TranscriptionApiKeyType.Meta),
             // HW-Cloud-routed providers are always "configured" — no API key
             // is required (the Fly backend authenticates with license/device).
             CloudTranscriptionProvider.HyperWhisperCloud => true,

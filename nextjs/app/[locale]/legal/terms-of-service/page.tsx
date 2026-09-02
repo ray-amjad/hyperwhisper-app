@@ -267,6 +267,15 @@ export default function TermsOfServicePage() {
         >
           Mistral
         </a>
+        ,{" "}
+        <a
+          className="text-blue-600 dark:text-blue-400 hover:underline"
+          href="https://dev.meta.ai/docs/speech-to-text/"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Meta
+        </a>
       </p>
       <p>
         <strong>Post-processing providers</strong> (bring your own API key):{" "}

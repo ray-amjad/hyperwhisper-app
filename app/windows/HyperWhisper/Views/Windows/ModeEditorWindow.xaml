@@ -152,6 +152,8 @@
                                  FromIdentifier lower-cases before matching. -->
                             <ComboBoxItem Content="{loc:Loc provider.geminiTranscribe}" Tag="geminiTranscribe"
                                           ToolTip="{loc:Loc mode.editor.provider.geminiTranscribe.tooltip}"/>
+                            <ComboBoxItem Content="{loc:Loc provider.meta}" Tag="meta"
+                                          ToolTip="{loc:Loc mode.editor.provider.meta.tooltip}"/>
                             <ComboBoxItem Content="{loc:Loc provider.grok}" Tag="grok"
                                           ToolTip="{loc:Loc mode.editor.provider.grok.tooltip}"/>
                         </ComboBox>

@@ -226,7 +226,7 @@ mod tests {
     #[test]
     fn embedded_catalog_parses() {
         let c = catalog();
-        assert_eq!(c.version(), 9);
+        assert_eq!(c.version(), 10);
         assert!(c.providers().len() >= 10);
     }
 
@@ -808,7 +808,7 @@ mod tests {
         assert_eq!(meta.default_model_id(), Some("muse-voice-transcribe-1.0"));
         let access = meta.access.expect("Meta Muse access gate");
         assert!(access.cloud_tier_eligible);
-        assert!(!access.byok_eligible);
+        assert!(access.byok_eligible);
         assert!(meta.features.code_switching);
         assert!(meta.features.endpointing);
         assert!(meta.features.context_bias);

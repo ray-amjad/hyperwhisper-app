@@ -1,7 +1,7 @@
 {
   "$schemaDoc": "Shared source of truth for cloud STT provider capabilities. Loaded by macOS and Windows clients to drive UI affordances (custom-vocab field visibility, supported-language chips, credits/min caption, cloud-tier vs BYOK list filtering, accepted-format hints). Every fact is either verified from an upstream doc (with the URL in `sources`) OR marked the literal string `\"unverified\"`. See CLAUDE.md (symlink to AGENTS.md) in this directory before editing.",
-  "version": 9,
-  "updated": "2026-09-01",
+  "version": 10,
+  "updated": "2026-09-02",
   "providers": [
     {
       "id": "groqWhisper",
@@ -467,7 +467,7 @@
       "vendor": "meta",
       "vendorDisplayName": "Meta",
       "sttProvider": "meta",
-      "access": { "cloudTierEligible": true, "byokEligible": false },
+      "access": { "cloudTierEligible": true, "byokEligible": true },
       "models": [
         { "id": "muse-voice-transcribe-1.0", "displayName": "Muse Voice Transcribe 1.0", "creditsPerMinute": 3.0, "isDefault": true, "previewStatus": false, "supportsCustomVocabulary": true, "streaming": false }
       ],
@@ -478,7 +478,7 @@
         "supported": true,
         "fieldName": "keywords",
         "maxPhrases": "unverified",
-        "caveats": "HyperWhisper Cloud forwards vocabulary as the Meta Model API keywords field. The API reference does not publish a phrase-count limit."
+        "caveats": "HyperWhisper Cloud and direct BYOK requests forward vocabulary as the Meta Model API keywords field. HyperWhisper keeps at most 100 non-empty terms of 80 characters. The API reference does not publish a phrase-count limit."
       },
       "languages": {
         "count": 25,

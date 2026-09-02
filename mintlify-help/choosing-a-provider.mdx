@@ -87,7 +87,9 @@ The page gives the best match first, then the full ranked list. For a Cloud mode
 
 ### Meta Muse Voice Transcribe
 
-Meta Muse Voice Transcribe 1.0 is available through HyperWhisper Cloud. It costs **3 credits per audio minute**, or **$0.003 per minute**. This is **$0.18 per audio hour**. You cannot use your own Meta API key in HyperWhisper.
+Meta Muse Voice Transcribe 1.0 is available through HyperWhisper Cloud or with your own Meta Model API key. The Cloud route costs **3 credits per audio minute**, or **$0.003 per minute**. This is **$0.18 per audio hour**. The direct route uses your Meta account and does not use HyperWhisper credits.
+
+For direct use, add the key in **Model Library → API Keys**, then select **Your Provider → Meta → Muse Voice Transcribe 1.0**. The app stores the key in the operating system's secure credential store. Your device sends the audio directly to `api.meta.ai`; the request does not reach HyperWhisper servers.
 
 Meta has extensively evaluated 25 languages. Meta does not publish the closed language-code list in the Model API reference. HyperWhisper therefore does not claim a language code until it can map that code to Meta's API.
 

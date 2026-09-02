@@ -2700,8 +2700,9 @@ public partial class MainViewModel : ViewModelBase
         }
 
         var requiresMuseNormalization = mode.ProviderType?.Equals("cloud", StringComparison.OrdinalIgnoreCase) == true
-            && string.Equals(mode.CloudProvider, "hyperwhisper", StringComparison.OrdinalIgnoreCase)
-            && string.Equals(mode.CloudAccuracyTier, "metaMuse", StringComparison.OrdinalIgnoreCase);
+            && ((string.Equals(mode.CloudProvider, "hyperwhisper", StringComparison.OrdinalIgnoreCase)
+                 && string.Equals(mode.CloudAccuracyTier, "metaMuse", StringComparison.OrdinalIgnoreCase))
+                || string.Equals(mode.CloudProvider, "meta", StringComparison.OrdinalIgnoreCase));
 
         // STEP 2: Check file size per provider. Muse validates the normalized
         // artifact, because a larger compressed source can become a <=32 MB WAV.

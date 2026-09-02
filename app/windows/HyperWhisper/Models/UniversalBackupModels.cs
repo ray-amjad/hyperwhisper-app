@@ -397,6 +397,9 @@ public class UniversalApiKeys
     [JsonPropertyName("geminitranscribe")]
     public string? GeminiTranscribe { get; set; }
 
+    [JsonPropertyName("meta")]
+    public string? Meta { get; set; }
+
     /// <summary>Captures unknown provider keys for round-trip preservation.</summary>
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? AdditionalKeys { get; set; }

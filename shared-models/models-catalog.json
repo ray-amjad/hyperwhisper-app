@@ -537,7 +537,7 @@
       "kind": "voice",
       "supportsCustomVocabulary": true,
       "availableViaHyperWhisperCloud": true,
-      "platforms": ["macos", "windows"],
+      "platforms": ["macos", "windows", "linux"],
       "voiceCapabilities": {
         "codeSwitching": true,
         "endpointing": true,
@@ -547,7 +547,7 @@
         "diarization": true,
         "wordTimestamps": false
       },
-      "notes": "Meta Muse Voice Transcribe 1.0 through HyperWhisper Cloud only. The 25 evaluated languages are not enumerated in the Model API reference, so no closed language list is claimed here."
+      "notes": "Meta Muse Voice Transcribe 1.0 through HyperWhisper Cloud or a direct Meta Model API key. The 25 evaluated languages are not enumerated in the Model API reference, so no closed language list is claimed here."
     }
   ]
 }

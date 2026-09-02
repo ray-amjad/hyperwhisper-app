@@ -95,7 +95,7 @@ The number of available languages depends on the model or the provider that you 
 | **Deepgram Nova 3 Medical, Nova 2 Medical** | English only |
 | **Google Gemini 3.5 Transcribe** | Google publishes "85+ languages" and gives no list for each code. Thus the picker shows every language |
 | **Azure MAI-Transcribe** (via HyperWhisper Cloud) | ~42 languages |
-| **Meta Muse Voice Transcribe** (via HyperWhisper Cloud) | 25 extensively evaluated languages. Meta's Model API reference does not publish a closed code list |
+| **Meta Muse Voice Transcribe** (Cloud or direct Meta key) | 25 extensively evaluated languages. Meta's Model API reference does not publish a closed code list |
 | **Parakeet V3** | 25 European languages (English, German, French, Spanish, Italian, Portuguese, Dutch, Polish, Russian, Ukrainian, Czech, Slovak, Hungarian, Romanian, Bulgarian, Croatian, Slovenian, Serbian, Danish, Swedish, Norwegian, Finnish, Estonian, Latvian, Lithuanian) |
 | **Qwen3 ASR** (macOS) | 30 languages, which include Chinese, English, Cantonese, Arabic, Japanese, Korean, and the major European languages |
 | **Qwen3 ASR** (Windows) | 11 languages — a smaller variant than the macOS model |
@@ -139,7 +139,7 @@ Each provider has its own spelling of a language code. For a request through Hyp
 - **Google Gemini 3.5 Transcribe** accepts a bare code such as `en` and a full locale such as `en-US`. HyperWhisper Cloud sends the code of the mode without a change.
 - **Azure MAI-Transcribe** lists Norwegian as `nb`. HyperWhisper Cloud sends `nb` for Norwegian.
 - **ElevenLabs Scribe** lists Tagalog as `fil`, and Mandarin as `cmn`.
-- **Meta Muse Voice Transcribe** takes a language name for biasing. HyperWhisper Cloud maps a known picker code to that name. It sends no language bias for **Automatic** or for a code that it cannot map.
+- **Meta Muse Voice Transcribe** takes a language name for biasing. Cloud and direct Meta requests map a known picker code to that name. They send no language bias for **Automatic** or for a code that they cannot map.
 
 If the provider has no code for your language, HyperWhisper Cloud sends no language. The provider then detects the language from the audio. A transcription with automatic detection is better than a failed request.
 

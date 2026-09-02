@@ -4771,16 +4771,22 @@ internal static class Program
                     "CloudAccuracyTier.GoogleChirp3 is back; it would shadow the catalog migrateFrom alias.");
             });
 
-            Run("Meta Muse remains a cloud tier without a standalone provider", () =>
+            Run("Meta Muse direct provider stays separate from the cloud tier", () =>
             {
                 var tier = CloudAccuracyTierExtensions.FromString("  METAMUSE  ");
                 Assert(tier == CloudAccuracyTier.MetaMuse, "Meta Muse persistence did not round-trip");
                 Assert(tier.ToStorageValue() == "metaMuse" && tier.ToSttProvider() == "meta",
                     "Meta Muse tier did not resolve its canonical id and provider");
 
-                Assert(CloudTranscriptionProviderExtensions.FromIdentifier("meta")
-                        == CloudTranscriptionProvider.None,
-                    "Meta reappeared as a standalone cloud provider");
+                Assert((int)CloudTranscriptionProvider.Meta == 15,
+                    "Meta changed its append-only persisted enum value");
+                Assert(CloudTranscriptionProviderExtensions.FromIdentifier("  META  ".Trim())
+                        == CloudTranscriptionProvider.Meta,
+                    "Meta direct provider did not parse case-insensitively");
+                Assert(CloudTranscriptionProvider.Meta.GetIdentifier() == "meta"
+                        && CloudTranscriptionProvider.Meta.RequiresApiKey()
+                        && CloudTranscriptionProvider.Meta.GetMaxFileSizeBytes() == 32L * 1024 * 1024,
+                    "Meta direct provider metadata drifted");
                 var normalizedMeta = HyperWhisper.Services.AppClassification.CloudSttCatalog.Shared
                     .NormalizeCloudProvider("meta");
                 Assert(normalizedMeta.Provider == "meta" && normalizedMeta.AccuracyTier == null,
@@ -4794,22 +4800,35 @@ internal static class Program
                     && !entry.Models[0].Streaming,
                     "Meta Muse batch model registry changed or became live-selectable");
 
-                Assert(!Enum.GetNames<CloudTranscriptionProvider>().Contains("Meta")
-                        && CloudTranscriptionModels.GetById("muse-voice-transcribe-1.0") == null,
-                    "Meta Muse reappeared in the direct provider/model registry");
-                Assert(!HyperWhisper.Services.LocalApi.Endpoints.HealthEndpoints.TranscriptionProviders
-                        .Any(provider => provider.GetIdentifier() == "meta"),
-                    "/health still reports a phantom direct Meta provider");
+                Assert(entry!.Access?.ByokEligible == true,
+                    "Meta BYOK catalog gate is not enabled");
+                Assert(CloudTranscriptionModels.GetById(
+                        "muse-voice-transcribe-1.0", CloudTranscriptionProvider.Meta)?.Provider
+                        == CloudTranscriptionProvider.Meta,
+                    "Meta Muse direct model is missing");
+                Assert(HyperWhisper.Services.LocalApi.Endpoints.HealthEndpoints.TranscriptionProviders
+                        .Any(provider => provider == CloudTranscriptionProvider.Meta),
+                    "/health does not report direct Meta key status");
 
                 var transient = new Mode();
                 HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ApplyEngineModel(
                     transient, "meta", model: null);
                 Assert(transient.ProviderType == "cloud"
                         && transient.Model == "cloud"
-                        && transient.CloudProvider == "hyperwhisper"
-                        && transient.CloudAccuracyTier == "metaMuse"
+                        && transient.CloudProvider == "meta"
                         && transient.CloudTranscriptionModel == "muse-voice-transcribe-1.0",
-                    "Local API engine=meta did not select the Muse cloud tier");
+                    "Local API engine=meta did not select direct Muse");
+
+                var cloud = new Mode
+                {
+                    ProviderType = "cloud",
+                    Model = "cloud",
+                    CloudProvider = "hyperwhisper",
+                    CloudAccuracyTier = "metaMuse",
+                    CloudTranscriptionModel = "muse-voice-transcribe-1.0",
+                };
+                Assert(cloud.CloudProvider == "hyperwhisper" && cloud.CloudAccuracyTier == "metaMuse",
+                    "the existing HyperWhisper Cloud Meta route changed");
 
                 var caps = HyperWhisper.Services.SharedModelsCatalog.VoiceCapabilities(
                     "meta", "muse-voice-transcribe-1.0");
@@ -5461,6 +5480,32 @@ internal static class Program
                     {
                     }
                 }
+            });
+
+            Run("the Meta API key uses its isolated backup slot", () =>
+            {
+                const string Placeholder = "not-a-real-secret-value";
+                var stored = new Dictionary<TranscriptionApiKeyType, string?>
+                {
+                    [TranscriptionApiKeyType.Meta] = Placeholder,
+                };
+                var exported = UniversalBackupMapper.MapApiKeys(
+                    _ => null,
+                    type => stored.TryGetValue(type, out var value) ? value : null);
+                Assert(exported.Meta == Placeholder, "the export dropped the Meta key");
+                Assert(exported.Gemini == null && exported.GeminiTranscribe == null,
+                    "the Meta key leaked into a Google key slot");
+
+                var json = JsonSerializer.Serialize(exported);
+                Assert(json.Contains("\"meta\""), "the Meta backup field is not lowercase");
+                var restored = new Dictionary<TranscriptionApiKeyType, string?>();
+                UniversalBackupMapper.ApplyApiKeys(
+                    JsonSerializer.Deserialize<UniversalApiKeys>(json)!,
+                    (_, _) => { },
+                    (type, value) => restored[type] = value);
+                Assert(restored.TryGetValue(TranscriptionApiKeyType.Meta, out var value)
+                       && value == Placeholder,
+                    "the restore left Meta unconfigured");
             });
 
             RunAsync("typed multipart files survive the C# binding beside streamed audio", async () =>

@@ -838,18 +838,6 @@ internal static class TranscribeEndpoints
     internal static void ApplyEngineModel(Mode mode, string engine, string? model)
     {
         var normalized = engine.ToLowerInvariant();
-        if (normalized == "meta")
-        {
-            mode.ProviderType = "cloud";
-            mode.Model = "cloud";
-            mode.CloudProvider = CloudTranscriptionProvider.HyperWhisperCloud.GetIdentifier();
-            mode.CloudAccuracyTier = CloudAccuracyTier.MetaMuse.ToStorageValue();
-            mode.CloudTranscriptionModel = !string.IsNullOrEmpty(model)
-                ? model
-                : HyperWhisper.Services.AppClassification.CloudSttCatalog.Shared
-                    .DefaultModelIdForId(CloudAccuracyTier.MetaMuse.ToStorageValue()) ?? "";
-            return;
-        }
         var providerNormalization = HyperWhisper.Services.AppClassification.CloudSttCatalog.Shared
             .NormalizeCloudProvider(normalized);
         CloudTranscriptionProvider cloudProvider;

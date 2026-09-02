@@ -14,7 +14,7 @@ Meta Muse Voice Transcribe has a narrower network contract than the general Hype
 - The normalized file is not more than 32 MB.
 - The audio is not longer than 10 minutes.
 
-Windows and Linux accept `.wav`, `.mp3`, and `.m4a` imports for a Muse mode. They convert the input to a 16 kHz mono PCM WAV before the upload. They then check the 32 MB and 10-minute limits on the converted file.
+Windows and Linux accept `.wav`, `.mp3`, and `.m4a` imports for Cloud and direct Meta Muse modes. They convert the input to a 16 kHz mono PCM WAV before the upload. They then check the 32 MB and 10-minute limits on the converted file.
 
 macOS sends the first file through the normal HyperWhisper Cloud path. If Meta rejects a non-WAV format, macOS converts it to a 16 kHz mono PCM WAV and tries one more time. A WAV that has an unsupported sample format does not get this retry. Convert that WAV to mono PCM16 at 16 kHz or 24 kHz first.
 

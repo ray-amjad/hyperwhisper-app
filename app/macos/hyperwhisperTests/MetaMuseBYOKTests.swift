@@ -14,14 +14,14 @@ struct MetaMuseBYOKTests {
         #expect(CloudTranscriptionModels.defaultModel(for: .meta) == MetaMuseProvider.modelID)
     }
 
-    @Test("Production catalog gate keeps Meta BYOK undiscoverable")
-    func productionGateIsOff() {
+    @Test("Production catalog exposes Meta BYOK after all clients are ready")
+    func productionGateIsOn() {
         #expect(
             CloudSTTCatalog.shared.entry(byId: CloudAccuracyTier.metaMuse.rawValue)?
-                .access?.byokEligible == false
+                .access?.byokEligible == true
         )
-        #expect(!CloudTranscriptionModels.isMetaBYOKCatalogEnabled)
-        #expect(CloudTranscriptionModels.models(for: .meta).isEmpty)
+        #expect(CloudTranscriptionModels.isMetaBYOKCatalogEnabled)
+        #expect(CloudTranscriptionModels.models(for: .meta).map(\.id) == [MetaMuseProvider.modelID])
     }
 
     @Test("Test catalog override exposes exactly the batch Muse model")

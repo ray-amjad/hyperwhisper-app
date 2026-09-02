@@ -811,7 +811,7 @@
       "vendorLabel": "Meta",
       "sttProvider": "meta",
       "cloudTierEligible": true,
-      "byokEligible": false,
+      "byokEligible": true,
       "cloudTierAccuracy": "high",
       "cloudTierCreditsPerMinute": 3.0,
       "wordTimestamps": false,

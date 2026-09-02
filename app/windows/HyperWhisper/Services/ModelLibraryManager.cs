@@ -417,6 +417,7 @@ public sealed class ModelLibraryManager
             CloudTranscriptionProvider.Mistral => _apiKeys.HasApiKey(TranscriptionApiKeyType.Mistral),
             CloudTranscriptionProvider.Soniox => _apiKeys.HasApiKey(TranscriptionApiKeyType.Soniox),
             CloudTranscriptionProvider.GeminiTranscribe => _apiKeys.HasApiKey(TranscriptionApiKeyType.GeminiTranscribe),
+            CloudTranscriptionProvider.Meta => _apiKeys.HasApiKey(TranscriptionApiKeyType.Meta),
             _ => false
         };
     }
@@ -435,6 +436,7 @@ public sealed class ModelLibraryManager
         // shipping a duplicate PNG. ApiKeysSettingsPage.xaml points at the same
         // asset — keep the two in step.
         CloudTranscriptionProvider.GeminiTranscribe => "providerGemini",
+        CloudTranscriptionProvider.Meta => "providerLocalWhisper",
         CloudTranscriptionProvider.Grok => "providerGrok",
         CloudTranscriptionProvider.MicrosoftAzureSpeech => "providerMicrosoft",
         CloudTranscriptionProvider.GoogleSpeech => "providerGoogle",

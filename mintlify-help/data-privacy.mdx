@@ -151,6 +151,8 @@ These fields contain counts, durations, fixed identifiers, and connection state.
 
 If you configure your own API key in **Model Library → API Keys**, your device sends the audio **directly to that provider**. The request uses your account with that provider, under the terms of that provider.
 
+For direct Meta Muse, the device connects to `api.meta.ai`. The Meta key stays in the operating system's secure credential store, and the audio request does not reach HyperWhisper servers. Meta's public speech-to-text documentation does not state its retention, logging, or model-training rules, so review your Meta account terms before use.
+
 <Warning>
 **With your own API keys, you are usually responsible for your own opt-out.** HyperWhisper cannot change dashboard-level settings on an account that HyperWhisper does not control. Each provider has its own default. Some providers do not train on API data. Other providers do train on API data until you opt out.
 </Warning>

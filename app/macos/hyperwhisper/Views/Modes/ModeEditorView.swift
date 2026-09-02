@@ -314,7 +314,7 @@ struct ModeEditorView: View {
             if provider == .microsoftAzureSpeech || provider == .googleSpeech {
                 return false
             }
-            // Keep Meta hidden until phase 4 flips the shared catalog gate.
+            // Meta follows the shared cross-platform BYOK rollout gate.
             if provider == .meta && !CloudTranscriptionModels.isMetaBYOKCatalogEnabled {
                 return false
             }
