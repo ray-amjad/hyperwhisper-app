@@ -3,6 +3,21 @@
     <channel>
         <title>hyperwhisper</title>
         <item>
+            <title>2.46.0</title>
+            <pubDate>Wed, 02 Sep 2026 12:06:28 +0000</pubDate>
+            <sparkle:version>116</sparkle:version>
+            <sparkle:shortVersionString>2.46.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
+            <enclosure url="https://builds.hyperwhisper.com/hyperwhisper-2.46.0.dmg" length="35061613" type="application/octet-stream" sparkle:edSignature="AkbdVyeL5F/mM6Ak7PvX1Ltfyk00zfDNkw5eElzRZSJeC23OTQRGbZGWoh5t74EsmPbivUtxKJWEPme4d6VbBA=="/>
+            <description>
+                <![CDATA[
+                <ul>
+                    <li><b>Meta Muse Voice Transcribe is here.</b> Meta's new speech model, on HyperWhisper Cloud or with your own Meta API key. It reads your custom vocabulary, handles mixed-language speech and labels each speaker.</li><li><b>A failing cloud provider now gives up in about 20 seconds, not 150.</b> A transcription against a down provider used to hang for over two minutes before it told you.</li><li><b>Provider status now follows real transcriptions.</b> A provider that just failed every attempt no longer reports itself as healthy.</li><li>Your licence key now moves to the macOS Keychain on its own, and HyperWhisper Cloud stops blaming a missing API key when the real cause is a temporary block.</li><li>Fixed empty Mode names in the local API, and backups made on a Mac no longer drop your Windows and Linux settings.</li>
+                </ul>
+                ]]>
+            </description>
+        </item>
+        <item>
             <title>2.45.0</title>
             <pubDate>Fri, 28 Aug 2026 03:54:10 +0000</pubDate>
             <sparkle:version>115</sparkle:version>
