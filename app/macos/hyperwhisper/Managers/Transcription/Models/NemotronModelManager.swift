@@ -115,15 +115,26 @@ final class NemotronModelManager: ObservableObject {
         ]
 
         /// Resolve supported persisted aliases to the exact identifiers used
-        /// by the model library. Keep this list explicit: coercing an unknown
-        /// identifier to a real variant would make a typo select a real model.
+        /// by the model library. Coercing an unknown identifier to a real
+        /// variant would make a typo select a real model, so anything that is
+        /// not a known variant returns nil.
+        ///
+        /// Normalises (trim + lowercase) and then defers to
+        /// `NemotronModelManager.variant(forModelId:)`, which is the app's
+        /// existing owner of "is this a real Nemotron id" — the provider path
+        /// and the on-disk variant lookup already go through it. Keeping a
+        /// second id list here let the Local API accept an id the provider
+        /// would then reject. The switch below is exhaustive over `Variant`,
+        /// so a third variant is a compile error at this site rather than a
+        /// silently missing arm. Same shape as `supportedLanguages(forModelId:)`.
         static func canonicalModelId(for modelId: String) -> String? {
-            switch modelId.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
-            case latinModelId:
+            let normalized = modelId.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            switch NemotronModelManager.variant(forModelId: normalized) {
+            case .latin:
                 return latinModelId
-            case multilingualModelId:
+            case .multilingual:
                 return multilingualModelId
-            default:
+            case .none:
                 return nil
             }
         }
@@ -300,6 +311,11 @@ final class NemotronModelManager: ObservableObject {
     // VARIANT FROM MODEL ID:
     // Maps Constants.latinModelId / Constants.multilingualModelId to the on-disk variant.
     // Returns nil for any unrelated model id (e.g. a Parakeet/Qwen3 id).
+    //
+    // THE single id->variant list. `Constants.canonicalModelId(for:)` normalises and
+    // then calls this, so a new variant is registered here once and both the Local API
+    // and the provider path agree about what a real Nemotron id is. Matching is exact —
+    // callers that accept user input normalise before calling.
     //
     // Marked nonisolated because the @MainActor class isolation otherwise pins these
     // pure helpers to the main actor, which would forbid use from the (background)

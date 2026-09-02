@@ -89,6 +89,37 @@ struct NemotronLocalAPIEngineTests {
         }
     }
 
+    /// Review round 1. `canonicalModelId(for:)` used to re-implement the
+    /// id → variant switch that `NemotronModelManager.variant(forModelId:)`
+    /// already owned, with looser normalisation, so a third variant added to
+    /// one and not the other would let the Local API accept an id the
+    /// provider then rejects. They share one list now; this pins that they
+    /// still agree, in both directions, over every declared variant.
+    @Test func canonicalModelIdAgreesWithTheVariantLookup() {
+        for variant in NemotronModelManager.Variant.allCases {
+            let id: String
+            switch variant {
+            case .latin: id = NemotronModelManager.Constants.latinModelId
+            case .multilingual: id = NemotronModelManager.Constants.multilingualModelId
+            }
+
+            #expect(NemotronModelManager.variant(forModelId: id) == variant)
+            #expect(NemotronModelManager.Constants.canonicalModelId(for: id) == id)
+
+            // What canonicalModelId hands the router must be an id the
+            // provider path's own lookup resolves to the same variant.
+            let canonical = NemotronModelManager.Constants.canonicalModelId(for: "  \(id.uppercased())  ")
+            #expect(canonical == id)
+            #expect(NemotronModelManager.variant(forModelId: canonical ?? "") == variant)
+        }
+
+        // Neither side may claim an id the other rejects.
+        for id in ["nemotron-3.5-latin", "nemotron-asr-3.5-", "parakeet-tdt-0.6b-v3", "base", ""] {
+            #expect(NemotronModelManager.variant(forModelId: id) == nil)
+            #expect(NemotronModelManager.Constants.canonicalModelId(for: id) == nil)
+        }
+    }
+
     // MARK: - Constants.modelIdForSelection(_:)
 
     @Test func missingAndBlankSelectionModelIdsDefaultToMultilingual() {
