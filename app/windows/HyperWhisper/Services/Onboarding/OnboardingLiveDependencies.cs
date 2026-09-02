@@ -28,6 +28,7 @@ using HyperWhisper.Data;
 using HyperWhisper.Data.Entities;
 using HyperWhisper.Localization;
 using HyperWhisper.Models;
+using HyperWhisper.Utilities;
 using HyperWhisper.ViewModels;
 using HyperWhisper.ViewModels.Onboarding;
 
@@ -264,9 +265,56 @@ public sealed class LiveOnboardingModelCatalog : IOnboardingModelCatalog, IDispo
     /// "large-v3-turbo" (macOS spells it "large-v3_turbo"). Sizes are read from
     /// the same catalogs the Model Library uses so the two screens agree.
     /// </summary>
-    public IReadOnlyList<OnboardingModelSelection> Models => CuratedModels;
+    public IReadOnlyList<OnboardingModelSelection> Models => SupportedModels;
 
     internal static readonly IReadOnlyList<OnboardingModelSelection> CuratedModels = BuildCurated();
+
+    /// <summary>
+    /// The shortlist minus the engines this machine cannot run.
+    ///
+    /// ModelLibraryManager already refuses to enable a row whose engine is
+    /// unsupported (PlatformHelper.SupportsWhisperTranscription /
+    /// SupportsParakeetTranscription), and ModeService checks the same pair before
+    /// it will use a local Mode - but first run offered the whole shortlist and
+    /// RECOMMENDED Parakeet. On an ARM64 machine with no native sherpa-onnx daemon
+    /// that is a model the user can download, select, and commit into a Mode that
+    /// then fails on the very next screen. Filtered at the source so the Configure
+    /// list, the recommendation and the committed Mode all agree.
+    ///
+    /// Computed once. Both predicates read the OS architecture and the presence of
+    /// a payload in the app directory; neither changes while the process runs.
+    /// </summary>
+    internal static readonly IReadOnlyList<OnboardingModelSelection> SupportedModels = BuildSupported();
+
+    private static IReadOnlyList<OnboardingModelSelection> BuildSupported()
+    {
+        var supported = CuratedModels
+            .Where(m => m.Kind switch
+            {
+                OnboardingModelKind.Whisper => PlatformHelper.SupportsWhisperTranscription,
+                OnboardingModelKind.Parakeet => PlatformHelper.SupportsParakeetTranscription,
+                _ => false
+            })
+            .ToList();
+
+        if (supported.Count != CuratedModels.Count)
+        {
+            LoggingService.Info(
+                $"LiveOnboardingModelCatalog: {CuratedModels.Count - supported.Count} of "
+                + $"{CuratedModels.Count} curated models are unsupported on this platform "
+                + $"({PlatformHelper.ArchitectureName})");
+        }
+
+        // The recommendation has to survive the filter. Parakeet V2 carries it, and
+        // it is the first thing to go on ARM64 - leaving a list where nothing is
+        // recommended and the flow's default pick is whatever happened to be first.
+        if (supported.Count > 0 && !supported.Any(m => m.IsRecommended))
+        {
+            supported[0] = supported[0] with { IsRecommended = true };
+        }
+
+        return supported;
+    }
 
     private static IReadOnlyList<OnboardingModelSelection> BuildCurated()
     {
@@ -370,7 +418,14 @@ public sealed class LiveOnboardingModelCatalog : IOnboardingModelCatalog, IDispo
             Id = LibraryId(model),
             DisplayName = model.DisplayName,
             ProviderName = model.Kind == OnboardingModelKind.Whisper ? "Whisper" : "NVIDIA",
-            ProviderAssetName = model.Kind == OnboardingModelKind.Whisper ? "providerLocalWhisper" : "providerLocalParakeet",
+            // "providerParakeet", not "providerLocalParakeet". The second name has
+            // no PNG behind it - ParakeetModelInfo.ProviderAssetName has always
+            // said "providerParakeet" - so the row this builds drew nothing where
+            // the Model Library draws the NVIDIA mark. Both names are asserted
+            // against Assets/Providers by the smoke suite now.
+            ProviderAssetName = model.Kind == OnboardingModelKind.Whisper
+                ? "providerLocalWhisper"
+                : "providerParakeet",
             Kind = LibraryModelKind.Voice,
             LocationKind = LibraryModelLocationKind.Offline,
             StatusKind = LibraryModelStatusKind.Downloadable,
@@ -476,15 +531,26 @@ public sealed class LiveOnboardingLicenseGateway : IOnboardingLicenseGateway
 
     public bool IsActive => _manager.IsLicensed;
 
+    // A SWALLOWED CANCEL IS STILL A CANCEL.
+    //
+    // LicenseNetworkService catches OperationCanceledException and returns
+    // Failed("Validation cancelled", Invalid) rather than rethrowing, so without
+    // these two lines the flow's own `catch (OperationCanceledException) { return; }`
+    // never ran and a cancelled call arrived at the continuation looking exactly
+    // like a rejected licence key - complete with "Validation cancelled" rendered
+    // as the reason the key was refused.
+
     public async Task<OnboardingLicenseOutcome> ProbeAsync(string key, CancellationToken cancellationToken)
     {
         var result = await _manager.ProbeLicenseAsync(key, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
         return ToOutcome(result);
     }
 
     public async Task<OnboardingLicenseOutcome> ActivateAsync(string key, CancellationToken cancellationToken)
     {
         var result = await _manager.ActivateLicenseAsync(key, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
         return ToOutcome(result);
     }
 
@@ -1125,15 +1191,48 @@ public static class OnboardingLiveDependencies
     }
 
     /// <summary>
-    /// Points the running app at a device by name. A null name, or a name that is
-    /// not currently connected, leaves the app on the system default rather than
-    /// on a device it cannot open.
+    /// Points the running app at a device by name.
+    ///
+    /// A name that is not currently connected falls back to the FIRST available
+    /// device, which is exactly what MainViewModel does for itself in
+    /// RefreshAudioDevicesPreservingSelection: on this view model null is not
+    /// "system default", it is "no microphone", and StartRecordingAsync refuses to
+    /// record and raises errors.noMicrophone over it.
+    ///
+    /// That mattered on the rollback path. "Set Up Later" restores the device the
+    /// flow found open; if the user's own microphone was unplugged during the flow,
+    /// the previous code wrote null and left the app unable to record for the rest
+    /// of the session - with the rollback reporting a clean deferral, because the
+    /// device is the one reversible write with no failure channel. Falling back
+    /// here needs no failure channel: there is nothing the user could do about a
+    /// device that no longer exists, and the app's own next device event would have
+    /// made the same choice.
+    ///
+    /// An EMPTY name still means null, and that is not the same case: it is the
+    /// faithful restore of a view model that genuinely had nothing selected.
     /// </summary>
     private static void ApplyOpenDevice(MainViewModel viewModel, string? name)
     {
-        viewModel.SelectedAudioDevice = string.IsNullOrEmpty(name)
-            ? null
-            : viewModel.AudioDevices.FirstOrDefault(d => d.Name == name);
+        if (string.IsNullOrEmpty(name))
+        {
+            viewModel.SelectedAudioDevice = null;
+            return;
+        }
+
+        var match = viewModel.AudioDevices.FirstOrDefault(d => d.Name == name);
+        if (match is not null)
+        {
+            viewModel.SelectedAudioDevice = match;
+            return;
+        }
+
+        var fallback = viewModel.AudioDevices.FirstOrDefault();
+        LoggingService.Warn(
+            $"LiveOnboarding: input device '{name}' is no longer connected; "
+            + (fallback is null
+                ? "there is nothing to fall back to"
+                : $"falling back to '{fallback.Name}'"));
+        viewModel.SelectedAudioDevice = fallback;
     }
 
     /// <summary>

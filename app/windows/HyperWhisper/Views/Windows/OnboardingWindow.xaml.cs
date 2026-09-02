@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Threading;
 using HyperWhisper.Localization;
 using HyperWhisper.Models;
 using HyperWhisper.Services;
@@ -90,8 +91,21 @@ public partial class OnboardingWindow : Window
 
         // A window dragged onto a smaller monitor, or a scale change while the flow
         // is open, has to be clamped again. NoResize means the user cannot rescue it.
+        //
+        // DpiChanged fires once, so it clamps inline. LocationChanged fires PER
+        // PIXEL of a caption drag - WindowChrome gives the 44px caption a system
+        // drag - and clamping on every one of them did two bad things: it ran a
+        // Screen.FromHandle and a VisualTreeHelper.GetDpi on the UI thread for
+        // every mouse move, and, far worse, it clamped the window back inside
+        // whatever monitor FromHandle reported at that instant. The window could
+        // therefore never accumulate enough overlap with the next display for
+        // FromHandle to switch: it snapped back mid-drag and could not be moved to
+        // a second monitor at all.
+        //
+        // Debounced per app/windows/AGENTS.md, and the same shape
+        // RecordingOverlayWindow already uses for this same event.
         DpiChanged += (_, _) => ClampToWorkArea();
-        LocationChanged += (_, _) => ClampToWorkArea();
+        LocationChanged += (_, _) => ScheduleClamp();
 
         Loaded += (_, _) =>
         {
@@ -120,6 +134,8 @@ public partial class OnboardingWindow : Window
         {
             ThemeService.Instance.ThemeChanged -= OnThemeChanged;
             _flow.PropertyChanged -= OnFlowPropertyChanged;
+            _clampTimer?.Stop();
+            _clampTimer = null;
         };
 
         // Mirrors macOS's .interactiveDismissDisabled(). The only two exits are the
@@ -139,6 +155,41 @@ public partial class OnboardingWindow : Window
     /// <summary>Re-entrancy guard: this method moves the window, and moving it raises
     /// <see cref="Window.LocationChanged"/>, which calls it again.</summary>
     private bool _clamping;
+
+    /// <summary>
+    /// Coalesces the per-pixel <see cref="Window.LocationChanged"/> storm a caption
+    /// drag produces into ONE clamp, ~250 ms after the window stops moving.
+    ///
+    /// A DispatcherTimer, not a System.Timers.Timer: the handler reads and writes
+    /// Left, Top, Width and Height, so it has to arrive on the UI thread, and this
+    /// is the same type RecordingOverlayWindow uses for the same event. The
+    /// SourceInitialized and Loaded clamps stay SYNCHRONOUS - they run before the
+    /// window is shown, and a first paint 250 ms off screen is not a debounce, it
+    /// is a flicker.
+    /// </summary>
+    private DispatcherTimer? _clampTimer;
+
+    private void ScheduleClamp()
+    {
+        // While the clamp itself is moving the window, its own LocationChanged must
+        // not arm the timer for another pass.
+        if (_clamping) return;
+
+        _clampTimer ??= CreateClampTimer();
+        _clampTimer.Stop();
+        _clampTimer.Start();
+    }
+
+    private DispatcherTimer CreateClampTimer()
+    {
+        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+        timer.Tick += (_, _) =>
+        {
+            timer.Stop();
+            ClampToWorkArea();
+        };
+        return timer;
+    }
 
     /// <summary>
     /// Keep the window inside the work area of the monitor it is on.

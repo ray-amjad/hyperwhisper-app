@@ -85,14 +85,29 @@ public partial class ShortcutRecorderBox : WpfUserControl
 
     private static void OnDisplayTextChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
-        if (d is ShortcutRecorderBox box)
-            box.Field.Text = e.NewValue as string ?? string.Empty;
+        if (d is not ShortcutRecorderBox box)
+            return;
+
+        box.Field.Text = e.NewValue as string ?? string.Empty;
+
+        // A verdict about the LAST chord cannot outlive the field it was about.
+        // ClearError had exactly one caller - the successful-capture path - so a
+        // rejected chord left the box red for the rest of the page visit: there is
+        // no focus handler, and LoadShortcutSettings and ResetShortcuts_Click both
+        // write DisplayText and nothing else. This is the hook they already go
+        // through.
+        box.ClearError();
     }
 
     /// <summary>
-    /// Whether a rejected chord renders its reason under the field. The Shortcuts
-    /// page and the onboarding step both want it; the push-to-talk box historically
-    /// did not have an error line, so it can turn it off and keep looking the same.
+    /// Whether a rejected chord renders its reason under the field, AND the red
+    /// border that goes with it. The two are one setting: see
+    /// <see cref="ShowError"/> for why they may never be split again.
+    ///
+    /// Every host now leaves this true. The push-to-talk box used to set it false
+    /// so it would "keep looking the same" as the page it came from, which was
+    /// true of the text and false of the border; it now explains a rejected chord
+    /// like the other five recorders do.
     /// </summary>
     public static readonly DependencyProperty ShowsInlineErrorProperty =
         DependencyProperty.Register(nameof(ShowsInlineError), typeof(bool), typeof(ShortcutRecorderBox),
@@ -172,6 +187,13 @@ public partial class ShortcutRecorderBox : WpfUserControl
         ShortcutCaptured?.Invoke(this, new ShortcutCapturedEventArgs(Role, shortcut));
     }
 
+    /// <summary>
+    /// Focusing the field starts a new attempt, so the last one's verdict goes. The
+    /// other clearing hook is <see cref="OnDisplayTextChanged"/>, for a host that
+    /// re-seeds or resets the box without the user touching it.
+    /// </summary>
+    private void Field_GotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e) => ClearError();
+
     private void Field_PreviewKeyUp(object sender, WpfKeyEventArgs e)
     {
         // Keep the capture field from leaking Win-key releases to WPF text input.
@@ -206,15 +228,34 @@ public partial class ShortcutRecorderBox : WpfUserControl
     // ERROR DISPLAY
     // =========================================================================
 
+    /// <summary>
+    /// The red border and the reason are ONE thing, and are drawn together.
+    ///
+    /// They came apart once: the border was painted unconditionally while the text
+    /// was gated on <see cref="ShowsInlineError"/>, so the one box declared
+    /// ShowsInlineError="False" - push-to-talk custom - turned red with nothing
+    /// anywhere saying why. The old page it was lifted from drew NEITHER for that
+    /// role, so the field went from silent to unexplained.
+    ///
+    /// The fix is the pairing, not the suppression: a host that does not want the
+    /// line does not want the border either. ShowsInlineError="False" has no user
+    /// left (the push-to-talk box now shows its reason like the other five), but the
+    /// property stays, and this method is what stops it drifting apart again.
+    /// </summary>
     private void ShowError(string message)
     {
         ErrorMessage = message;
 
-        if (ShowsInlineError)
+        if (!ShowsInlineError)
         {
-            ErrorText.Text = message;
-            ErrorText.Visibility = Visibility.Visible;
+            // No line means no border. The reason still has to be reachable, so it
+            // goes on the field itself.
+            Field.ToolTip = message;
+            return;
         }
+
+        ErrorText.Text = message;
+        ErrorText.Visibility = Visibility.Visible;
 
         Field.BorderBrush = new System.Windows.Media.SolidColorBrush(
             System.Windows.Media.Color.FromRgb(0xFF, 0x55, 0x55));
@@ -226,6 +267,7 @@ public partial class ShortcutRecorderBox : WpfUserControl
         ErrorMessage = null;
         ErrorText.Text = string.Empty;
         ErrorText.Visibility = Visibility.Collapsed;
+        Field.ClearValue(ToolTipProperty);
         // Control.*, not Border.*. The page this was lifted from cleared
         // Border.BorderBrushProperty on a TextBox, which is a DIFFERENT dependency
         // property from the Control.BorderBrush the TextBox actually renders, so the

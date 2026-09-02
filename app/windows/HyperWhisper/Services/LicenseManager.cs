@@ -222,6 +222,29 @@ public sealed class LicenseManager : INotifyPropertyChanged
             LoggingService.Info("LicenseManager: Activating license...");
 
             var result = await LicenseNetworkService.Instance.ValidateLicenseAsync(licenseKey, cancellationToken);
+
+            // A CANCELLED activation is not a verdict about the licence.
+            //
+            // LicenseNetworkService swallows OperationCanceledException and answers
+            // Failed(..., LicenseStatus.Invalid), and ProcessValidationResult writes
+            // whatever it is handed straight into the process-wide LicenseStatus. So
+            // a licensed user who pressed Activate in first run and then clicked
+            // Back, or Set Up Later, before the response landed had IsLicensed go
+            // false for the rest of the session: the sidebar flipped to the
+            // unlicensed layout and Credits went null, over a licence that is
+            // perfectly valid. Onboarding is the first caller that hands this method
+            // a token the UI routinely cancels; the settings page passes
+            // CancellationToken.None, which is why this could not happen before.
+            //
+            // A VALID result is still processed. If the activation reached the server
+            // before the cancel, recording it is strictly better than dropping it.
+            if (cancellationToken.IsCancellationRequested && !result.IsValid)
+            {
+                LoggingService.Info(
+                    "LicenseManager: activation was cancelled; leaving the stored licence state untouched");
+                return result;
+            }
+
             ProcessValidationResult(result);
 
             return result;

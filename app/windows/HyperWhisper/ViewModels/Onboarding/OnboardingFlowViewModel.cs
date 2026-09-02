@@ -1104,8 +1104,23 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
             return;
         }
 
+        // ACCEPTED, which is not the same as Healthy.
+        //
+        // A vendor with no content-free validation endpoint answers Unknown for
+        // every key, valid or not - see CloudTranscriptionProviderExtensions
+        // .SupportsKeyHealthProbe, which is where CloudProviderHealthService's
+        // unconditional Unknown comes from. Meta MuseSTT is the only one today, and
+        // it is on the chip strip: waiting for Healthy there meant the key was
+        // never written, Continue was disabled for good, and nothing on screen
+        // changed at all, because every pill needs an exact enum match. So Unknown
+        // from a vendor that can only ever answer Unknown is a pass - a CONFIGURED
+        // key, said in those words on its own pill, not a validated one.
+        var unverifiable = !provider.SupportsKeyHealthProbe();
+        var accepted = health == ProviderHealth.Healthy
+            || (unverifiable && health == ProviderHealth.Unknown);
+
         var persisted = false;
-        if (health == ProviderHealth.Healthy)
+        if (accepted)
         {
             // Snapshot whatever this provider had BEFORE overwriting it, so Set Up
             // Later can put the user's original key back (bug 1).
@@ -1113,7 +1128,7 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
             persisted = _providerKeys.Persist(key, provider);
         }
 
-        if (health == ProviderHealth.Healthy && !persisted)
+        if (accepted && !persisted)
         {
             ProviderTestHealth = null;
             _providerErrorMessage = _providerKeys.ValidationError
@@ -1131,14 +1146,15 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
             // the pill and is unchanged (ShowsProviderTestError needs a null
             // health); the Setup step has only the funnel, so without this its
             // "Save API key" button failed in silence.
-            _providerErrorMessage = health switch
-            {
-                ProviderHealth.Healthy => null,
-                ProviderHealth.Unauthorized => Loc.S("onboarding.configure.test.unauthorized"),
-                _ => Loc.S("onboarding.configure.test.unreachable")
-            };
+            _providerErrorMessage = accepted
+                ? null
+                : health switch
+                {
+                    ProviderHealth.Unauthorized => Loc.S("onboarding.configure.test.unauthorized"),
+                    _ => Loc.S("onboarding.configure.test.unreachable")
+                };
 
-            var passed = health == ProviderHealth.Healthy && persisted;
+            var passed = accepted && persisted;
             RecordValidationOutcome(scope, passed);
             if (passed)
                 _validatedProviderKeys[provider] = key;
@@ -1328,6 +1344,12 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
     {
         SetupErrorMessage = SelectedSource switch
         {
+            // A catalog with no rows is not "nothing selected yet", it is a machine
+            // this build ships no local engine for (ARM64 Windows 10, or ARM64 with
+            // no native Parakeet daemon). Saying so beats an empty list under a
+            // permanently disabled Continue.
+            OnboardingSourceKind.OnDevice when _catalog.Models.Count == 0 =>
+                Loc.S("onboarding.setup.model.unsupported"),
             OnboardingSourceKind.OnDevice =>
                 SelectedModel is null ? null : _downloadErrors.Message(SelectedModel.Kind),
             OnboardingSourceKind.HyperWhisperCloud => _activationErrorMessage,
@@ -1505,29 +1527,74 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
             ? SelectedDeviceName
             : Loc.S("onboarding.done.mic.noneConnected");
 
+    /// <summary>
+    /// True between <see cref="BeginMicrophoneStep"/> and
+    /// <see cref="EndMicrophoneStep"/>. The meter's arming rule reads THIS and not
+    /// <see cref="Step"/>: the two step hooks are public and the suite drives them
+    /// directly, and "the microphone step is open" is the fact the rule is really
+    /// about, whichever way the step was entered.
+    /// </summary>
+    private bool _microphoneStepOpen;
+
     public void BeginMicrophoneStep()
     {
         if (!_isLive)
             return;
 
+        _microphoneStepOpen = true;
         _audio.RefreshDevices();
         _audio.RefreshMicrophoneAuthorization();
         DeviceAvailability = _audio.Availability;
         RefreshDeviceOptions();
-
-        // From the OPEN, not from availability. A device that enumerates can still
-        // refuse to open (another app holds it exclusively, consent flips between
-        // the read and the open, the driver faults), and lighting the meter on
-        // availability alone left 33 bars frozen under a live "speak to see the
-        // level" hint.
-        IsLevelMeterActive = DeviceAvailability == OnboardingDeviceAvailability.Available
-            && _audio.StartInputLevelPreview();
+        SyncLevelMeter();
     }
 
     public void EndMicrophoneStep()
     {
+        _microphoneStepOpen = false;
         _audio.StopInputLevelPreview();
         IsLevelMeterActive = false;
+    }
+
+    /// <summary>
+    /// The ONE rule for when the level meter runs, applied from all three places
+    /// that can change its inputs: entering the step, picking a device, and a
+    /// device-availability change from the OS.
+    ///
+    /// It runs when the microphone step is open, a device is available, and the
+    /// capture stream actually opened - from the OPEN, not from availability. A
+    /// device that enumerates can still refuse to open (another app holds it
+    /// exclusively, consent flips between the read and the open, the driver
+    /// faults), and lighting the meter on availability alone left 33 bars frozen
+    /// under a live "speak to see the level" hint.
+    ///
+    /// Written as a sync rather than as two one-way hooks because the one-way
+    /// version only ever turned the meter OFF: plugging a microphone in while the
+    /// step was open flipped the title to "Say something. Watch the bars." over a
+    /// meter that stayed dead, and only clicking a device row or leaving and
+    /// re-entering the step repaired it. StartInputLevelPreview is idempotent, so
+    /// calling this when nothing moved costs nothing.
+    /// </summary>
+    private void SyncLevelMeter()
+    {
+        var shouldRun = _isLive
+            && _microphoneStepOpen
+            && DeviceAvailability == OnboardingDeviceAvailability.Available;
+
+        if (!shouldRun)
+        {
+            // Only when something is actually running: an unconditional stop would
+            // turn every device change on every other step into a gateway call.
+            if (IsLevelMeterActive)
+            {
+                _audio.StopInputLevelPreview();
+                IsLevelMeterActive = false;
+            }
+
+            return;
+        }
+
+        IsLevelMeterActive = _audio.StartInputLevelPreview();
     }
 
     public void RefreshDeviceOptions()
@@ -1591,9 +1658,9 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
         SelectedDeviceId = id;
         _audio.SelectDevice(id.Length == 0 ? null : id);
 
-        // Re-point the metering session at the newly selected device. Same rule as
-        // BeginMicrophoneStep: the flag follows the open, not the availability.
-        IsLevelMeterActive = _audio.StartInputLevelPreview();
+        // Re-point the metering session at the newly selected device, through the
+        // one arming rule.
+        SyncLevelMeter();
     }
 
     // =========================================================================
@@ -2192,14 +2259,16 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
         // Availability is step-independent: the Done step's summary reads it too.
         DeviceAvailability = _audio.Availability;
 
-        // Reconcile the meter with reality. Unplugging the microphone mid-step used
-        // to leave the flag true and the bars frozen at their last heights.
-        if (DeviceAvailability != OnboardingDeviceAvailability.Available)
-            IsLevelMeterActive = false;
-
         // The list itself only belongs to the microphone step, exactly as on macOS.
         if (Step == OnboardingStep.Microphone)
             ApplyDeviceList(_audio.Devices);
+
+        // Reconcile the meter with reality, in BOTH directions. Unplugging the
+        // microphone mid-step used to leave the flag true and the bars frozen at
+        // their last heights; plugging one in left them dead under a prompt that
+        // had already gone back to asking for speech. After the list, so a
+        // recovery meters the device the step is now showing.
+        SyncLevelMeter();
     }
 
     private void OnIsRecordingChanged(object? sender, EventArgs e) => IsRecording = _audio.IsRecording;

@@ -390,13 +390,28 @@ internal sealed class FakeOnboardingAudio : IOnboardingAudioGateway
     }
 
     /// <summary>
-    /// Mirrors the live adapter: the preference goes back even when the device it
-    /// names is absent, while the open device only reopens if it is still present.
+    /// Mirrors the live adapter (LiveOnboarding.ApplyOpenDevice): the preference
+    /// goes back even when the device it names is absent; the OPEN device goes back
+    /// when it is still present, falls back to the first connected device when it is
+    /// not, and is only left at null when null is what was captured.
+    ///
+    /// The fallback is the part that matters. On MainViewModel null is not "system
+    /// default", it is "no microphone", so a fake that restored null for an absent
+    /// device agreed with a live adapter that left the app unable to record.
     /// </summary>
     public void RestoreDevice(string? storedId, string? openId)
     {
         StoredDeviceId = storedId;
-        SelectedDeviceId = _devices.Any(d => d.Id == openId) ? openId : null;
+
+        if (string.IsNullOrEmpty(openId))
+        {
+            SelectedDeviceId = null;
+            return;
+        }
+
+        SelectedDeviceId = _devices.Any(d => d.Id == openId)
+            ? openId
+            : _devices.FirstOrDefault()?.Id;
     }
 
     public bool StartInputLevelPreview()

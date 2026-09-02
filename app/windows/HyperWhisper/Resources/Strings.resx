@@ -2742,6 +2742,12 @@ You can re-download it later.</value>
   <data name="onboarding.apply.mode.failed" xml:space="preserve">
     <value>HyperWhisper could not save your setup choice. Nothing has been changed. Try again, or choose Set Up Later.</value>
   </data>
+  <data name="onboarding.configure.test.unverified" xml:space="preserve">
+    <value>API key saved. This provider has no way to check a key without transcribing, so it will be verified the first time you dictate.</value>
+  </data>
+  <data name="onboarding.setup.model.unsupported" xml:space="preserve">
+    <value>This build does not include an on-device speech engine for this PC. Choose HyperWhisper Cloud or your own API key instead.</value>
+  </data>
   <data name="errors.textNotDelivered" xml:space="preserve">
     <value>HyperWhisper could not deliver the transcript: it was neither pasted nor copied to the clipboard. It is saved in History.</value>
   </data>

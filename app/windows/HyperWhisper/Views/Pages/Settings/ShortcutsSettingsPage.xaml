@@ -178,7 +178,6 @@
                         <controls:ShortcutRecorderBox x:Name="PushToTalkCustomBox"
                                                       Grid.Column="1"
                                                       Role="PushToTalkCustom"
-                                                      ShowsInlineError="False"
                                                       ShortcutCaptured="ShortcutBox_Captured"
                                                       ToolTip="{loc:Loc settings.shortcuts.pushToTalk.custom.tooltip}"/>
                     </Grid>

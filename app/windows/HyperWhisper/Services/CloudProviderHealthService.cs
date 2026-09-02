@@ -447,8 +447,11 @@ public class CloudProviderHealthService : IDisposable
         CancellationToken cancellationToken = default)
     {
         // Meta documents no content-free validation endpoint. A present key is
-        // configured but remains unvalidated until the first transcription.
-        if (provider == CloudTranscriptionProvider.Meta)
+        // configured but remains unvalidated until the first transcription. The
+        // predicate is on the enum so callers that must interpret this Unknown -
+        // the onboarding Configure step - read the same fact rather than a second
+        // hard-coded copy of it.
+        if (!provider.SupportsKeyHealthProbe())
         {
             return ProviderHealth.Unknown;
         }

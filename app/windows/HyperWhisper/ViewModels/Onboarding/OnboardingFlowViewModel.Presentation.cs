@@ -49,6 +49,23 @@ public sealed record OnboardingProviderRow(
     bool IsSelected)
 {
     public string AccessibleName => OnboardingRowAccessibility.Describe(DisplayName, IsSelected);
+
+    /// <summary>
+    /// True when this vendor has a real PNG. False collapses the image and puts the
+    /// monogram in its place, exactly as the Model Library does - a blank 14x14 gap
+    /// is what "bind the path anyway" looks like on screen.
+    ///
+    /// Bools, not System.Windows.Visibility: this file is presentation state, not
+    /// WPF, and the page already has OnboardingBoolToVisibility for the conversion.
+    /// </summary>
+    public bool HasAsset => AssetPath.Length > 0;
+
+    public bool ShowsMonogram => !HasAsset;
+
+    /// <summary>The first letter of the display name, for the no-logo fallback.</summary>
+    public string Monogram => DisplayName.Length > 0
+        ? DisplayName.Substring(0, 1).ToUpperInvariant()
+        : "?";
 }
 
 /// <summary>One curated model as the Configure step's list renders it.</summary>
@@ -256,10 +273,13 @@ public sealed partial class OnboardingFlowViewModel
             var rows = new List<OnboardingProviderRow>();
             foreach (var provider in _providerKeys.Providers)
             {
+                // CHECKED, not concatenated. See Models/ProviderAssets.cs: a vendor
+                // whose logo does not ship renders a monogram rather than a blank
+                // gap, and the row carries the empty string that says so.
                 rows.Add(new OnboardingProviderRow(
                     provider,
                     provider.GetDisplayName(),
-                    $"/Assets/Providers/{provider.GetAssetName()}.png",
+                    ProviderAssets.PathFor(provider.GetAssetName()) ?? string.Empty,
                     provider == SelectedProvider));
             }
 
@@ -312,7 +332,29 @@ public sealed partial class OnboardingFlowViewModel
 
     public bool ShowsProviderTestUnauthorized => !IsTestingKey && ProviderTestHealth == ProviderHealth.Unauthorized;
 
-    public bool ShowsProviderTestUnreachable => !IsTestingKey && ProviderTestHealth == ProviderHealth.Unreachable;
+    /// <summary>
+    /// The fourth pill: the key was SAVED, and this vendor cannot be checked
+    /// without spending a transcription. Meta MuseSTT is the only one, and without
+    /// this row its Unknown matched no pill at all - the spinner stopped, nothing
+    /// appeared, and Continue stayed disabled with no explanation.
+    ///
+    /// Keyed on the provider as well as the health, because Unknown from a vendor
+    /// that CAN be checked means something else entirely.
+    /// </summary>
+    public bool ShowsProviderTestUnverified =>
+        !IsTestingKey
+        && ProviderTestHealth == ProviderHealth.Unknown
+        && !SelectedProvider.SupportsKeyHealthProbe();
+
+    /// <summary>
+    /// Unknown from a vendor that DOES have a validation endpoint is a probe that
+    /// answered nothing, which is the same thing to a user as one that could not be
+    /// reached. Without this arm it matched no pill either.
+    /// </summary>
+    public bool ShowsProviderTestUnreachable =>
+        !IsTestingKey
+        && (ProviderTestHealth == ProviderHealth.Unreachable
+            || (ProviderTestHealth == ProviderHealth.Unknown && SelectedProvider.SupportsKeyHealthProbe()));
 
     public bool ShowsProviderTestError => !IsTestingKey && ProviderTestHealth is null && HasSetupError;
 
@@ -666,7 +708,11 @@ public sealed partial class OnboardingFlowViewModel
             {
                 nameof(ProviderOptions), nameof(SelectedProviderDisplayName),
                 nameof(ProviderValidatedCheckText), nameof(ProviderCredentialItemText),
-                nameof(SourceSummary)
+                nameof(SourceSummary),
+                // Two pills read the provider as well as the health: which of them
+                // an Unknown belongs to depends on whether the vendor can be
+                // probed at all.
+                nameof(ShowsProviderTestUnverified), nameof(ShowsProviderTestUnreachable)
             },
             [nameof(SelectedModel)] = new[]
             {
@@ -685,7 +731,7 @@ public sealed partial class OnboardingFlowViewModel
                 nameof(ShowsLicenseTestPassed),
                 nameof(ShowsLicenseTestFailed), nameof(ShowsProviderTestHealthy),
                 nameof(ShowsProviderTestUnauthorized), nameof(ShowsProviderTestUnreachable),
-                nameof(ShowsProviderTestError)
+                nameof(ShowsProviderTestUnverified), nameof(ShowsProviderTestError)
             },
             [nameof(LicenseTestPassed)] = new[]
             {
@@ -694,7 +740,8 @@ public sealed partial class OnboardingFlowViewModel
             [nameof(ProviderTestHealth)] = new[]
             {
                 nameof(ShowsProviderTestHealthy), nameof(ShowsProviderTestUnauthorized),
-                nameof(ShowsProviderTestUnreachable), nameof(ShowsProviderTestError)
+                nameof(ShowsProviderTestUnreachable), nameof(ShowsProviderTestUnverified),
+                nameof(ShowsProviderTestError)
             },
             [nameof(IsActivatingLicense)] = new[] { nameof(CanActivateLicense) },
             [nameof(SetupErrorMessage)] = new[]

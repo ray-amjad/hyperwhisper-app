@@ -459,6 +459,36 @@ public partial class MainViewModel : ViewModelBase
     }
 
     /// <summary>
+    /// The transcript reached NO sink: not the focused app, not the clipboard. Say
+    /// so, and say where it did land.
+    ///
+    /// This exists because honouring CopyToClipboard's return value - correct, and
+    /// the fix for a "Copied" overlay over text that reached nothing - made the
+    /// pre-existing, non-onboarding clipboard failures map to SmartPasteResult
+    /// .Failed, which has an empty arm in the batch switch and no arm at all in the
+    /// streaming one. A wrong overlay became total silence.
+    ///
+    /// Reported HERE rather than as a new switch arm because Failed has other
+    /// origins with their own reporting, and because only this call site knows the
+    /// transcript is in History and nowhere else.
+    ///
+    /// One exception, and it is the round-1 rule this must not undo: while the
+    /// onboarding window is up TextDeliveryGate refuses every delivery ON PURPOSE -
+    /// the Try It panel shows the transcript itself, and a toast behind an
+    /// application-modal window is unreachable anyway. A deliberate refusal is not
+    /// a failure to report.
+    /// </summary>
+    private void ReportUndeliveredTranscript()
+    {
+        if (TextDeliveryGate.IsSuppressed)
+            return;
+
+        var message = Loc.S("errors.textNotDelivered");
+        StatusText = message;
+        ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(message, showSettingsButton: false));
+    }
+
+    /// <summary>
     /// Refreshes the audio device list while preserving the current selection
     /// if the previously selected device is still available.
     ///
@@ -1664,6 +1694,9 @@ public partial class MainViewModel : ViewModelBase
                 LoggingService.Debug(copied
                     ? "MainViewModel: Auto-paste disabled, streaming text copied to clipboard only"
                     : "MainViewModel: Auto-paste disabled and the clipboard copy was refused; streaming text was not delivered");
+
+                if (!copied)
+                    ReportUndeliveredTranscript();
             }
             else if (!string.IsNullOrWhiteSpace(pendingFallbackText))
             {
@@ -1686,6 +1719,9 @@ public partial class MainViewModel : ViewModelBase
                         LoggingService.Warn(copied
                             ? "MainViewModel: Streaming pending final segment paste failed; copied full transcript to clipboard"
                             : "MainViewModel: Streaming pending final segment paste failed and the clipboard copy was refused; text was not delivered");
+
+                        if (!copied)
+                            ReportUndeliveredTranscript();
                     }
                     else
                     {
@@ -2247,6 +2283,9 @@ public partial class MainViewModel : ViewModelBase
                 LoggingService.Debug(copied
                     ? "MainViewModel: Auto-paste disabled, text copied to clipboard only"
                     : "MainViewModel: Auto-paste disabled and the clipboard copy was refused; text was not delivered");
+
+                if (!copied)
+                    ReportUndeliveredTranscript();
             }
 
             // CLIPBOARD PRESERVATION - STEP 2: Schedule clipboard restoration.

@@ -225,8 +225,22 @@
                                                 CommandParameter="{Binding Provider}"
                                                 AutomationProperties.Name="{Binding AccessibleName}">
                                             <StackPanel Orientation="Horizontal">
-                                                <Image Source="{Binding AssetPath}" Width="14" Height="14"
-                                                       Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                                <!-- A vendor with no PNG (Meta MuseSTT) draws its
+                                                     initial instead. Binding the path anyway made
+                                                     ImageSourceConverter throw inside the binding
+                                                     engine, which swallows it: a blank 14x14 gap
+                                                     where every other chip has a logo. -->
+                                                <Grid Width="14" Height="14" Margin="0,0,6,0"
+                                                      VerticalAlignment="Center">
+                                                    <Image Source="{Binding AssetPath}"
+                                                           Width="14" Height="14"
+                                                           Visibility="{Binding HasAsset, Converter={StaticResource OnboardingBoolToVisibility}}"/>
+                                                    <TextBlock Text="{Binding Monogram}"
+                                                               FontWeight="Bold" FontSize="11"
+                                                               Visibility="{Binding ShowsMonogram, Converter={StaticResource OnboardingBoolToVisibility}}"
+                                                               HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center"/>
+                                                </Grid>
                                                 <TextBlock Style="{StaticResource OnboardingChipTextStyle}"
                                                            Text="{Binding DisplayName}"/>
                                             </StackPanel>
@@ -279,6 +293,25 @@
                                                FontSize="16" Margin="0,0,12,0"/>
                                     <TextBlock Style="{StaticResource OnboardingRowTitleStyle}"
                                                Text="{loc:Loc onboarding.configure.test.healthy}"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+
+                        <!--
+                            SAVED, not validated. A vendor with no content-free
+                            validation endpoint (Meta MuseSTT) can only answer
+                            Unknown, so the flow accepts it and says so here rather
+                            than rendering nothing and leaving Continue disabled.
+                        -->
+                        <StackPanel Visibility="{Binding ShowsProviderTestUnverified, Converter={StaticResource OnboardingBoolToVisibility}}">
+                            <Border Style="{StaticResource OnboardingDividerStyle}"/>
+                            <Border Style="{StaticResource OnboardingCardBlockStyle}">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Style="{StaticResource OnboardingCheckGlyphStyle}"
+                                               FontSize="16" Margin="0,0,12,0"/>
+                                    <TextBlock Style="{StaticResource OnboardingRowTitleStyle}" Width="500"
+                                               TextWrapping="Wrap"
+                                               Text="{loc:Loc onboarding.configure.test.unverified}"/>
                                 </StackPanel>
                             </Border>
                         </StackPanel>

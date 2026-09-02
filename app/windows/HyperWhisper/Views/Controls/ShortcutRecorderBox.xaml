@@ -30,7 +30,8 @@
                  IsReadOnly="True"
                  VerticalAlignment="Center"
                  PreviewKeyDown="Field_PreviewKeyDown"
-                 PreviewKeyUp="Field_PreviewKeyUp"/>
+                 PreviewKeyUp="Field_PreviewKeyUp"
+                 GotKeyboardFocus="Field_GotKeyboardFocus"/>
 
         <TextBlock x:Name="ErrorText"
                    Text=""

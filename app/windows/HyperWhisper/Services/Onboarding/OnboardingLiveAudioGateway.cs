@@ -399,15 +399,29 @@ public sealed class LiveOnboardingAudioGateway : IOnboardingAudioGateway, IDispo
         _preview = null;
         _previewDeviceNumber = -1;
 
+        preview.DataAvailable -= OnPreviewData;
+
+        // Two try blocks, not one. StopRecording throws when the endpoint has been
+        // removed under a live stream - which is the single most likely way to get
+        // here - and sharing a block with Dispose leaked the WaveInEvent and its
+        // native callback exactly then. Dispose is what actually releases the
+        // device, so it must run whether or not the stop succeeded.
         try
         {
-            preview.DataAvailable -= OnPreviewData;
             preview.StopRecording();
-            preview.Dispose();
         }
         catch (Exception ex)
         {
             LoggingService.Debug($"LiveOnboardingAudioGateway: level preview stop failed: {ex.Message}");
+        }
+
+        try
+        {
+            preview.Dispose();
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Debug($"LiveOnboardingAudioGateway: level preview dispose failed: {ex.Message}");
         }
 
         ResumeKeepWarmLocked(deviceNumber);
