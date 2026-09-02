@@ -2719,6 +2719,12 @@ You can re-download it later.</value>
   <data name="onboarding.restore.mode.failed" xml:space="preserve">
     <value>HyperWhisper could not restore your previous default Mode. Open Modes to check its settings.</value>
   </data>
+  <data name="onboarding.apply.mode.failed" xml:space="preserve">
+    <value>HyperWhisper could not save your setup choice. Nothing has been changed. Try again, or choose Set Up Later.</value>
+  </data>
+  <data name="errors.textNotDelivered" xml:space="preserve">
+    <value>HyperWhisper could not deliver the transcript: it was neither pasted nor copied to the clipboard. It is saved in History.</value>
+  </data>
   <data name="app.unknown.error" xml:space="preserve">
     <value>Um erro desconhecido ocorreu</value>
   </data>

@@ -363,6 +363,9 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
         if (next > (int)OnboardingSteps.Last)
             return false;
 
+        if (!ApplyStagedSourceIfEntering((OnboardingStep)next))
+            return false;
+
         StepWillLeave(Step);
         Step = (OnboardingStep)next;
         StepDidChange();
@@ -382,11 +385,27 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
         if (previous < (int)OnboardingSteps.First)
             return false;
 
+        if (!ApplyStagedSourceIfEntering((OnboardingStep)previous))
+            return false;
+
         StepWillLeave(Step);
         Step = (OnboardingStep)previous;
         StepDidChange();
         return true;
     }
+
+    /// <summary>
+    /// The Try It step records through the source the user just set up, so it is
+    /// the one place production state is written before completion. The write runs
+    /// BEFORE the step changes, not from StepDidChange, because a failure has to
+    /// leave the user on the step they are still looking at: entering Try It first
+    /// and then discovering the Mode was never written gives a page whose only
+    /// control cannot work, with no way to say why.
+    ///
+    /// Both directions, because Done -> Back re-enters Try It.
+    /// </summary>
+    private bool ApplyStagedSourceIfEntering(OnboardingStep step) =>
+        step != OnboardingStep.TryIt || ApplyStagedSourceReversibly();
 
     /// <summary>
     /// The step-exit hooks. macOS runs these from each step view's .onDisappear; a
@@ -446,11 +465,10 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
                 break;
 
             case OnboardingStep.TryIt:
-                // The Try It step has to record through the source the user just set
-                // up, so this is the one place production state is written before
-                // completion. It is fully reversible: DeferSetup() restores the
-                // captured point.
-                ApplyStagedSourceReversibly();
+                // The staged source is already in production state: the write is a
+                // PRECONDITION of arriving here (see ApplyStagedSourceIfEntering),
+                // so this step is never entered over a Mode that was not written.
+                // It is fully reversible: DeferSetup() restores the captured point.
                 BeginTryItStep();
                 break;
         }
@@ -1881,37 +1899,96 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
     /// </summary>
     public bool ModeRestoreFailed => _modeRestoreFailed;
 
-    private void ApplyStagedSourceReversibly()
-    {
-        if (StagedSource is not { } staged)
-            return;
+    /// <summary>
+    /// True when the last attempt to write the staged source into production state
+    /// failed. The mirror of <see cref="ModeRestoreFailed"/>, on the apply side:
+    /// the restore point is kept, the step does not change, the flow does not
+    /// close, and the window reports it through the same path.
+    /// </summary>
+    public bool SourceApplyFailed => _sourceApplyFailed;
 
+    private bool _sourceApplyFailed;
+
+    /// <summary>
+    /// Write the staged source into production state, reversibly.
+    /// </summary>
+    /// <returns>
+    /// True when the write went in, and on a flow with nothing staged (there is
+    /// then nothing that can fail). False when the Modes database refused.
+    ///
+    /// The Restore mirror at LiveOnboardingSourceCommitter.Restore has been fully
+    /// wrapped since it was written; this was not, and ModeService.SaveMode
+    /// RETHROWS DbUpdateException. The path from the footer button is
+    /// PrimaryButton_Click -> Advance/Complete -> ApplyStagedSourceReversibly with
+    /// no try/catch anywhere on it, so a locked SQLite file (the Local API's own
+    /// DbContext, an antivirus handle, a full disk) surfaced as App.xaml.cs's raw
+    /// unhandled-exception box on top of the first-run window - and left the flow
+    /// on an unarmed Try It page, or with the window never closing at all.
+    /// </returns>
+    private bool ApplyStagedSourceReversibly()
+    {
+        _sourceApplyFailed = false;
+
+        if (StagedSource is not { } staged)
+            return true;
+
+        // Captured BEFORE the write, and kept if the write fails: a throw can
+        // still leave a half-applied Mode behind, so the snapshot is the only way
+        // back and HasPendingProductionWrite must stay true over it.
         if (_restorePoint is null)
         {
             _restorePoint = _committer.CaptureRestorePoint();
             RaiseGateChanged();
         }
 
-        _committer.Apply(staged);
+        try
+        {
+            _committer.Apply(staged);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _sourceApplyFailed = true;
+            HyperWhisper.Services.LoggingService.Error(
+                "OnboardingFlowViewModel: could not write the staged source into production state; "
+                + $"the restore point is kept so the change is still reversible: {ex.Message}",
+                ex);
+            RaiseGateChanged();
+            return false;
+        }
     }
 
     /// <summary>
     /// Explicit completion. The staged configuration becomes production state and
     /// there is nothing left to roll back.
     /// </summary>
-    [RelayCommand]
-    public void Complete()
+    /// <returns>
+    /// True when the flow closed. False when the final write refused, in which case
+    /// NOTHING has happened: first run is not marked complete, the restore point is
+    /// kept, and the window stays open so the user can retry or defer.
+    /// <see cref="SourceApplyFailed"/> says why.
+    ///
+    /// No longer a [RelayCommand]: the generator only accepts void and Task, and
+    /// nothing bound to CompleteCommand - the footer button is a Click handler in
+    /// OnboardingWindow, which is the caller that needs the answer.
+    /// </returns>
+    public bool Complete()
     {
         if (!_isLive)
-            return;
+            return false;
 
-        ApplyStagedSourceReversibly();
+        // Discarding the restore points below is what makes this irreversible, so
+        // it may only happen over a write that actually landed.
+        if (!ApplyStagedSourceReversibly())
+            return false;
+
         _restorePoint = null;
         _providerKeyRestorePoints.Clear();
         _didCaptureDevice = false;
         _previousDeviceId = null;
         _previousOpenDeviceId = null;
         Finish(markCompleted: true);
+        return true;
     }
 
     /// <summary>

@@ -938,10 +938,27 @@ public sealed class LiveOnboardingSourceCommitter : IOnboardingSourceCommitter
             else
             {
                 // Nothing was flagged default before, so remove what Apply created
-                // rather than leaving a synthetic default behind. DeleteMode
-                // refuses to remove the last remaining Mode, which is the right
-                // answer: an empty Modes table is worse than a stray default.
-                _modes.DeleteMode(restore.ModeId);
+                // rather than leaving a synthetic default behind.
+                //
+                // JUDGED ON THE OUTCOME, not on the return value. DeleteMode
+                // answers false for three unrelated reasons and only one of them
+                // is a failed rollback:
+                //   * the row is already gone      - the goal is met, this is a pass
+                //   * it is the last remaining Mode - a deliberate refusal, but the
+                //     onboarding Mode IS still production state afterwards
+                //   * DbUpdateException            - a genuine failure
+                // So the question asked is "is the row still there?", which
+                // separates the first from the other two without teaching this
+                // method ModeService's reason codes. Dropping the answer
+                // altogether reported a clean deferral over a Mode the flow had
+                // created and could not remove, with the restore point discarded.
+                if (!_modes.DeleteMode(restore.ModeId) && _modes.GetMode(restore.ModeId) is not null)
+                {
+                    LoggingService.Error(
+                        "LiveOnboardingSourceCommitter: restore could not delete the Mode onboarding "
+                        + $"created ({restore.ModeId}); it is still the default");
+                    return false;
+                }
             }
 
             // DeleteMode may have re-pointed the selection; put the user's back

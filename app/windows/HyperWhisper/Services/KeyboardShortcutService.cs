@@ -118,6 +118,9 @@ public sealed class KeyboardShortcutService : IDisposable, PlatformContracts.IGl
     private readonly LowLevelKeyboardProc _hookCallback;
     private IntPtr _hookId = IntPtr.Zero;
 
+    /// <summary>One line per process, not one per RegisterShortcuts call.</summary>
+    private bool _loggedHookSuppressed;
+
     private HwndSource? _hwndSource;
     private readonly ConcurrentDictionary<int, string> _hotkeyIdToName = new();
     private readonly ConcurrentDictionary<string, int> _nameToHotkeyId = new();
@@ -339,6 +342,19 @@ public sealed class KeyboardShortcutService : IDisposable, PlatformContracts.IGl
             return Result.Failure($"Cannot register '{name}' - HwndSource is null");
         }
 
+        // RegisterHotKey is EXCLUSIVE per chord, machine-wide. In a second
+        // instance every call fails with Win32 1409 ("hot key already
+        // registered") against the first instance's own registration, and the
+        // shell renders that as a conflict banner for a conflict with itself.
+        // A secondary instance records the shortcut and registers nothing.
+        if (!SingleInstanceGuard.OwnsGlobalInput)
+        {
+            _shortcuts[name] = shortcut;
+            LoggingService.Info(
+                $"KeyboardShortcutService: '{name}' = {shortcut} recorded but NOT registered - secondary instance");
+            return Result.Success();
+        }
+
         // Attempt Win32 RegisterHotKey
         var modifiers = BuildHotkeyModifierMask(shortcut);
         var vk = (uint)KeyInterop.VirtualKeyFromKey(shortcut.Key.Value);
@@ -410,6 +426,21 @@ public sealed class KeyboardShortcutService : IDisposable, PlatformContracts.IGl
     private void EnsureHook()
     {
         if (_hookId != IntPtr.Zero) return;
+
+        // A WH_KEYBOARD_LL hook is per PROCESS and non-exclusive: two instances
+        // both get every key, so one press would start two recordings. Only the
+        // instance that owns machine-global input installs it. See
+        // SingleInstanceGuard.OwnsGlobalInput.
+        if (!SingleInstanceGuard.OwnsGlobalInput)
+        {
+            if (!_loggedHookSuppressed)
+            {
+                _loggedHookSuppressed = true;
+                LoggingService.Info(
+                    "KeyboardShortcutService: low-level keyboard hook suppressed - this is a secondary instance");
+            }
+            return;
+        }
 
         using var curProcess = Process.GetCurrentProcess();
         using var curModule = curProcess.MainModule;

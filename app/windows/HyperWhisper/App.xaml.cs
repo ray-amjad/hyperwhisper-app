@@ -55,6 +55,11 @@ public partial class App : WpfApplication
             return;
         }
 
+        // The mutex is per profile, so a scratch profile boots beside the user's
+        // own app. Machine-global input is a separate question with a separate
+        // answer; say which one this process got, once, in its own log.
+        SingleInstanceGuard.LogGlobalInputDecision();
+
         // CRITICAL: Register exception handlers FIRST, before any initialization,
         // so that startup crashes are logged instead of silently terminating.
         // Without this, background thread crashes and native library failures

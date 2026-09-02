@@ -288,13 +288,52 @@ public partial class OnboardingWindow : Window
         if (_flow.Step == OnboardingSteps.Last)
         {
             // Explicit completion: the staged source becomes production state.
-            _flow.Complete();
+            // A refused write leaves the window open over a flow that has NOT
+            // been marked complete and still holds its restore point, so the
+            // user can press Done again or fall back to Set Up Later.
+            if (!_flow.Complete())
+            {
+                ReportFailedSourceApply();
+                return;
+            }
+
             _flowResolved = true;
             Close();
             return;
         }
 
-        _flow.Advance();
+        if (!_flow.Advance())
+            ReportFailedSourceApply();
+    }
+
+    /// <summary>
+    /// The apply-side mirror of <see cref="ReportUnrestoredState"/>. Advance() and
+    /// Complete() return false for two very different reasons - a closed gate,
+    /// which the disabled button already explains, and a database that refused the
+    /// one production write this flow makes before completion, which nothing
+    /// explains. Only the second is worth a box.
+    /// </summary>
+    private void ReportFailedSourceApply()
+    {
+        if (!_flow.SourceApplyFailed)
+            return;
+
+        if (App.IsSessionEnding)
+        {
+            LoggingService.Warn(
+                "OnboardingWindow: the staged source could not be written, but the OS is ending the "
+                + "session so the report is logged rather than shown");
+            return;
+        }
+
+        // Fully qualified: GlobalUsings pulls in System.Windows.Forms, which has a
+        // MessageBox of its own.
+        System.Windows.MessageBox.Show(
+            this,
+            Loc.S("onboarding.apply.mode.failed"),
+            Loc.S("errors.unhandled.title"),
+            System.Windows.MessageBoxButton.OK,
+            System.Windows.MessageBoxImage.Warning);
     }
 
     private void SetUpLaterButton_Click(object sender, RoutedEventArgs e) => DeferAndClose();
