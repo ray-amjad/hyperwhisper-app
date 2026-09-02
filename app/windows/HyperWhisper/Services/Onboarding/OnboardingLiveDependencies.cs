@@ -825,16 +825,16 @@ public sealed class LiveOnboardingSourceCommitter : IOnboardingSourceCommitter
             // running app kept dictating with the onboarding-staged Mode for the rest
             // of the session and could re-persist it. The restore path has to be as
             // loud as the apply path.
-            if (!string.IsNullOrEmpty(restore.PreviousSelectedModeId))
+            if (restore.PreviousSelectedModeId is { } previousId)
             {
-                _modes.SetSelectedMode(restore.PreviousSelectedModeId!);
+                _modes.SetSelectedMode(previousId);
 
                 // SetSelectedMode is a no-op when the row is gone (the user's Mode
                 // was itself the one Apply created and Restore has just deleted).
                 // Fall back to the raw write so the setting is never left pointing
                 // at the staged selection.
-                if (_settings.SelectedModeId != restore.PreviousSelectedModeId)
-                    _settings.SelectedModeId = restore.PreviousSelectedModeId;
+                if (_settings.SelectedModeId != previousId)
+                    _settings.SelectedModeId = previousId;
             }
             else
             {

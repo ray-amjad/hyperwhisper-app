@@ -532,7 +532,7 @@ public sealed class LiveOnboardingAudioGateway : IOnboardingAudioGateway, IDispo
     /// CancellationToken.None, so the flow had no transcribing state (the step
     /// showed "Nothing here yet" and a live Record button for the whole of a local
     /// model's 20 s), no re-entrancy guard, and nothing for "Set Up Later" to
-    /// cancel — it disposed the gateway and the recorder while an orchestrator call
+    /// cancel: it disposed the gateway and the recorder while an orchestrator call
     /// was still running and still billable.
     /// </summary>
     public async Task StopAndTranscribeAsync(CancellationToken cancellationToken)

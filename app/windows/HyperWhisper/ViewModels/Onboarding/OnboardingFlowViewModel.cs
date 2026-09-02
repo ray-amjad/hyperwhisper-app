@@ -296,8 +296,19 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// True when the key currently in the field is the exact key that passed a
+    /// True when the key that would actually be USED is the exact key that passed a
     /// probe and a credential write for the selected provider this session.
+    ///
+    /// A non-empty field must match: that is the fix for a remembered pass
+    /// surviving an edit, where validating key A and typing key B left Continue
+    /// enabled while the credential store still held A.
+    ///
+    /// An EMPTY field falls back to the credential store, because emptying it is
+    /// the flow's own doing and not the user's: <see cref="SelectProvider"/> clears
+    /// it on every provider change so a masked key typed for one vendor can never
+    /// be saved under another. Switching away and back must not throw away a pass
+    /// the user has already paid a network round trip for, and the stored key is
+    /// what the next transcription would use.
     /// </summary>
     private bool SelectedProviderKeyIsValidated
     {
@@ -306,7 +317,13 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
             if (!_validatedProviderKeys.TryGetValue(SelectedProvider, out var validated))
                 return false;
 
-            return validated.Length > 0 && validated == ApiKeyInput.Trim();
+            if (validated.Length == 0)
+                return false;
+
+            var typed = ApiKeyInput.Trim();
+            return typed.Length == 0
+                ? _providerKeys.CurrentKey(SelectedProvider) == validated
+                : typed == validated;
         }
     }
 

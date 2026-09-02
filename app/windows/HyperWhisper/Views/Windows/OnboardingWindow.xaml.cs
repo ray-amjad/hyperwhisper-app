@@ -162,7 +162,7 @@ public partial class OnboardingWindow : Window
     /// <summary>
     /// The two EXPLICIT exits: the footer's "Set Up Later" and the caption X. The
     /// user has decided not to set up now, so anything already written is rolled
-    /// back and first run is closed for good — which is what macOS's
+    /// back and first run is closed for good, which is what macOS's
     /// <c>deferSetup()</c> does (it reaches the same <c>markOnboardingCompleted()</c>
     /// as <c>complete()</c>, clearing both of its flags).
     ///
@@ -206,13 +206,15 @@ public partial class OnboardingWindow : Window
         if (lost.Count == 0)
             return;
 
+        // Fully qualified: GlobalUsings pulls in System.Windows.Forms, which has a
+        // MessageBox of its own.
         var providers = string.Join(", ", lost.Select(p => p.GetDisplayName()));
-        MessageBox.Show(
+        System.Windows.MessageBox.Show(
             this,
             $"{Loc.S("onboarding.setup.provider.saveFailed")}\n\n{providers}",
             Loc.S("errors.unhandled.title"),
-            MessageBoxButton.OK,
-            MessageBoxImage.Warning);
+            System.Windows.MessageBoxButton.OK,
+            System.Windows.MessageBoxImage.Warning);
     }
 
     // =========================================================================

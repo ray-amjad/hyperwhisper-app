@@ -7857,6 +7857,25 @@ internal static class Program
                 h.Flow.ResetConfigureTestResults();
                 Assert(h.Flow.CanContinue,
                     "Back navigation clears the inline result, not the fact that this key was verified");
+
+                // Emptying the field is the FLOW's doing, not the user's:
+                // SelectProvider clears it so a masked key typed for one vendor can
+                // never be saved under another. A round trip through a second
+                // provider must not throw away a pass the user already paid a
+                // network round trip for.
+                h.Flow.SelectProvider(CloudTranscriptionProvider.Groq);
+                Assert(h.Flow.ApiKeyInput.Length == 0, "precondition: the provider switch cleared the field");
+                Assert(!h.Flow.CanContinue, "the other provider was never validated");
+
+                h.Flow.SelectProvider(CloudTranscriptionProvider.OpenAI);
+                Assert(h.Flow.ApiKeyInput.Length == 0, "precondition: still cleared");
+                Assert(h.Flow.CanContinue,
+                    "an empty field falls back to the stored key, which IS the validated one");
+
+                // But a stored key that no longer matches the validated one does not
+                // reopen the gate, however it got there.
+                h.ProviderKeys.Stored[CloudTranscriptionProvider.OpenAI] = "sk-something-else";
+                Assert(!h.Flow.CanContinue, "a stored key that was never probed here is not a pass");
             });
 
             Run("onboarding: the Try It microphone transcription is owned, guarded and cancellable", () =>
