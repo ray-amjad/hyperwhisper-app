@@ -93,6 +93,17 @@
     <Setter Property="BorderThickness" Value="1"/>
     <Setter Property="CornerRadius" Value="8"/>
     <Setter Property="Padding" Value="4"/>
+    <!-- An empty list collapsed to a hairline and read as a stray rule across the page. -->
+    <Setter Property="MinHeight" Value="180"/>
+  </Style>
+  <!-- The Fluent default is 296 px wide. Two of them plus a button never fit the History
+       filter pane, so they drew over the transcript detail column. -->
+  <Style Selector="DatePicker">
+    <Setter Property="MinWidth" Value="0"/>
+    <Setter Property="HorizontalAlignment" Value="Stretch"/>
+  </Style>
+  <Style Selector="DatePicker /template/ Button#PART_FlyoutButton">
+    <Setter Property="MinWidth" Value="0"/>
   </Style>
   <Style Selector="ListBox.plain ListBoxItem">
     <Setter Property="CornerRadius" Value="6"/>
@@ -112,6 +123,16 @@
     <Setter Property="Padding" Value="14,7"/>
     <Setter Property="MinHeight" Value="34"/>
     <Setter Property="FontSize" Value="13"/>
+    <!-- The template binds the presenter to the control, so set the control too. Styling
+         only the presenter left an enabled button on the Fluent grey default. -->
+    <Setter Property="Background" Value="{DynamicResource HwInputBackgroundBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwBorderBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+  </Style>
+  <Style Selector="Button.accent">
+    <Setter Property="Background" Value="{DynamicResource HwAccentBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource HwAccentBrush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource HwOnAccentBrush}"/>
   </Style>
   <Style Selector="Button /template/ ContentPresenter#PART_ContentPresenter">
     <Setter Property="Background" Value="{DynamicResource HwInputBackgroundBrush}"/>
