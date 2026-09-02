@@ -483,7 +483,18 @@ public interface IOnboardingSourceCommitter
 
     void Apply(OnboardingStagedSource staged);
 
-    void Restore(IOnboardingRestorePoint point);
+    /// <summary>
+    /// Put back what <see cref="Apply"/> wrote.
+    /// </summary>
+    /// <returns>
+    /// True when production state is back. A committer that swallowed a database
+    /// failure and answered void let the flow discard the restore point and
+    /// close over a Mode that was still the staged one, with nothing left to
+    /// retry from. Same contract as
+    /// <see cref="IOnboardingProviderKeyGateway.Persist"/>, which is the other
+    /// sink here that can refuse a write.
+    /// </returns>
+    bool Restore(IOnboardingRestorePoint point);
 
     void MarkOnboardingCompleted();
 

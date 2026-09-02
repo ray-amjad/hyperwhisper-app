@@ -20,6 +20,26 @@
 //     remember it.
 //   - MainWindow's tray item enablement, so a disabled item also LOOKS disabled.
 //
+// ROUND 2 WIDENED "ENTRY POINT" FROM "STARTS A RECORDING" TO "WRITES STATE THE
+// FLOW STAGES OR RESTORES". The flow stages three facts - the default Mode row
+// and the active Mode selection, the provider API keys, and the input device -
+// and a writer that moves any of them behind the modal is silently discarded by
+// Complete() or Rollback(). The census found four classes of writer, and each
+// now asks THIS static at the ONE funnel its class converges on, rather than
+// growing a fourth and fifth per-site check:
+//
+//   - The active Mode: MainViewModel.TrySelectMode, which the changeMode global
+//     shortcut (via CycleMode) and the tray's Mode submenu both go through.
+//   - The input device: MainViewModel.TrySelectAudioDevice, which the tray's
+//     Microphone submenu goes through.
+//   - The Local API: one middleware in LocalApiServer refuses every mutating
+//     (non-GET) request, so POST /modes, PATCH /modes/{id}, DELETE /modes/{id},
+//     POST /transcribe and POST /post-process are all covered, and so is any
+//     endpoint added later.
+//   - The reverse direction: MainWindow.ShowOnboarding refuses to OPEN over a
+//     dictation that is already in flight, because raising the delivery gate
+//     under a completing transcription drops it on an empty Failed arm.
+//
 // It also drives TextDeliveryGate, because "onboarding is up" and "text may not
 // be delivered into another app" are the same fact on Windows and were being
 // written twice. The gate stays the belt and braces backstop for anything
@@ -53,5 +73,27 @@ public static class OnboardingSession
         {
             LoggingService.Info($"OnboardingSession: {(value ? "opened" : "closed")}");
         }
+    }
+
+    /// <summary>
+    /// The one question every writer of staged state asks: may this change go
+    /// through right now?
+    /// </summary>
+    /// <param name="context">
+    /// What was refused, for the log. It is the only reason this is a method
+    /// rather than a second read of <see cref="IsActive"/>: a write that is
+    /// silently dropped is indistinguishable from a write that never arrived,
+    /// and the first cut of the guard left exactly that hole.
+    /// </param>
+    /// <returns>True when the caller must NOT perform the write.</returns>
+    public static bool BlocksStateChange(string context)
+    {
+        if (!IsActive)
+        {
+            return false;
+        }
+
+        LoggingService.Info($"OnboardingSession: refused '{context}' while the first-run window is open");
+        return true;
     }
 }

@@ -764,14 +764,70 @@ public partial class MainViewModel : ViewModelBase
         UpdateModelStatus();
     }
 
-    private void CycleMode()
+    private bool CycleMode()
     {
-        if (Modes.Count == 0) return;
+        if (Modes.Count == 0) return false;
 
         int currentIndex = SelectedMode != null ? Modes.FindIndex(m => m.Id == SelectedMode.Id) : -1;
         int nextIndex = currentIndex >= 0 ? (currentIndex + 1) % Modes.Count : 0;
-        SelectedMode = Modes[nextIndex];
+        return TrySelectMode(Modes[nextIndex]);
     }
+
+    /// <summary>
+    /// The single funnel for a USER-INITIATED change of the active Mode: the
+    /// changeMode global shortcut (through <see cref="CycleMode"/>) and the
+    /// tray's Mode submenu.
+    ///
+    /// It exists so the onboarding guard is asked ONCE for the whole class of
+    /// writer. Setting <see cref="SelectedMode"/> raises
+    /// <c>ModeService.SetSelectedMode</c>, which is the exact row the first-run
+    /// flow snapshots as <c>PreviousSelectedModeId</c> and blind-restores on
+    /// "Set Up Later" — so a hotkey press behind the modal moved the selection
+    /// to a Mode both Complete() and Rollback() then discarded, while the Try It
+    /// step transcribed against a Mode the flow never configured.
+    ///
+    /// The guard is deliberately NOT on the property setter: the flow's own
+    /// Apply() and Restore() reach <see cref="SelectedMode"/> through
+    /// ModeService's ModeSelected event, and blocking that would stop onboarding
+    /// putting the user's Mode back.
+    /// </summary>
+    /// <returns>False when the change was refused.</returns>
+    public bool TrySelectMode(Mode? mode)
+    {
+        if (OnboardingSession.BlocksStateChange("change the active Mode"))
+            return false;
+
+        SelectedMode = mode;
+        return true;
+    }
+
+    /// <summary>
+    /// The same funnel for the input device, which the tray's Microphone submenu
+    /// writes. Onboarding's Microphone step captures the device it replaces once
+    /// and restores it on deferral, so a tray pick made behind the modal is
+    /// reverted without the user ever being told.
+    /// </summary>
+    /// <returns>False when the change was refused.</returns>
+    public bool TrySelectAudioDevice(AudioDeviceService.AudioDevice? device)
+    {
+        if (OnboardingSession.BlocksStateChange("change the input device"))
+            return false;
+
+        SelectedAudioDevice = device;
+        return true;
+    }
+
+    /// <summary>
+    /// True while a dictation the user started is still going: capturing,
+    /// loading a model for it, transcribing it, or streaming.
+    ///
+    /// Read by MainWindow before it opens the onboarding window. Raising the
+    /// text-delivery gate over a transcription that is already in flight makes
+    /// it land on SmartPasteResult.Failed, which pastes nothing, copies nothing
+    /// and shows nothing — the transcript survives only in History.
+    /// </summary>
+    public bool HasDictationInFlight =>
+        IsRecording || IsTranscribing || IsModelLoading || IsStreamingActive();
 
     [RelayCommand]
     private async Task LoadModelAsync()
@@ -1041,8 +1097,12 @@ public partial class MainViewModel : ViewModelBase
                 if (IsRecording || IsTranscribing) await HandleCancelRequest();
                 break;
             case "changeMode":
-                CycleMode();
-                ShowModeToastRequested?.Invoke(this, SelectedMode?.Name ?? "Default");
+                // CycleMode goes through TrySelectMode, which refuses while the
+                // first-run window owns the Mode row. A toast for a change that
+                // did not happen (and which would draw behind a modal anyway)
+                // is worse than silence.
+                if (CycleMode())
+                    ShowModeToastRequested?.Invoke(this, SelectedMode?.Name ?? "Default");
                 break;
             case "streaming":
                 if (!_settingsService.StreamingEnabled || _hotkeyBlocked || IsTranscribing)

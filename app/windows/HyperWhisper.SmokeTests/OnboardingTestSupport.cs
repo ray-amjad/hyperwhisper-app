@@ -409,16 +409,40 @@ internal sealed class FakeOnboardingAudio : IOnboardingAudioGateway
         PublishWarning(null);
     }
 
-    public Task TranscribeSampleClipAsync(CancellationToken cancellationToken)
+    /// <summary>When true, the next sample transcription parks until <see cref="ReleaseSample"/>.</summary>
+    public bool GateSample { get; set; }
+
+    private TaskCompletionSource<bool>? _sampleGate;
+
+    public async Task TranscribeSampleClipAsync(CancellationToken cancellationToken)
     {
         SampleTranscriptions++;
 
         if (SampleThrows)
-            return Task.FromException(new InvalidOperationException("sample clip missing"));
+            throw new InvalidOperationException("sample clip missing");
 
+        if (GateSample)
+        {
+            _sampleGate = new TaskCompletionSource<bool>();
+            await _sampleGate.Task;
+        }
+
+        // The live gateway drops a transcript that lands after the flow gave up
+        // on this run; the fake has to do the same or the Back-navigation case
+        // would pass for the wrong reason.
+        cancellationToken.ThrowIfCancellationRequested();
         PublishTranscript(SampleTranscript);
-        return Task.CompletedTask;
     }
+
+    /// <summary>Let a parked sample transcription land, long after Back was pressed.</summary>
+    public void ReleaseSample()
+    {
+        var gate = _sampleGate;
+        _sampleGate = null;
+        gate?.TrySetResult(true);
+    }
+
+    public bool IsSampleParked => _sampleGate is not null;
 
     // --- Test drivers --------------------------------------------------------
 
@@ -495,11 +519,23 @@ internal sealed class FakeOnboardingCommitter : IOnboardingSourceCommitter
         ProductionState = $"{staged.Source.Identifier()}:{staged.Model}:{staged.CloudProvider ?? "-"}";
     }
 
-    public void Restore(IOnboardingRestorePoint point)
+    /// <summary>
+    /// The database refuses the restore. The real committer catches its own
+    /// exceptions and answers false, so that is what the fake does.
+    /// </summary>
+    public bool RestoreSucceeds { get; set; } = true;
+
+    public bool Restore(IOnboardingRestorePoint point)
     {
         RestoreCount++;
+
+        if (!RestoreSucceeds)
+            return false;
+
         if (point is FakeOnboardingRestorePoint restore)
             ProductionState = restore.State;
+
+        return true;
     }
 
     public void MarkOnboardingCompleted() => MarkCompletedCount++;

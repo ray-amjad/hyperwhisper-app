@@ -2726,6 +2726,12 @@
   <data name="onboarding.menu.runAgain" xml:space="preserve">
     <value>Run setup again</value>
   </data>
+  <data name="onboarding.menu.runAgain.busy" xml:space="preserve">
+    <value>Finish the current dictation before running setup again.</value>
+  </data>
+  <data name="onboarding.restore.mode.failed" xml:space="preserve">
+    <value>HyperWhisper could not restore your previous default Mode. Open Modes to check its settings.</value>
+  </data>
   <data name="app.unknown.error" xml:space="preserve">
     <value>不明なエラーが発生しました</value>
   </data>

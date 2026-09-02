@@ -87,6 +87,14 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
     private readonly List<CloudTranscriptionProvider> _unrestoredProviderKeys = new();
 
     /// <summary>
+    /// True when the LAST rollback could not put the default Mode back. The
+    /// Mode's counterpart to <see cref="_unrestoredProviderKeys"/>: one
+    /// mechanism, two sinks, both reported by the window rather than logged and
+    /// forgotten.
+    /// </summary>
+    private bool _modeRestoreFailed;
+
+    /// <summary>
     /// The exact trimmed key that passed a probe AND a credential write THIS
     /// session, per provider.
     ///
@@ -1390,9 +1398,19 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
 
     public void EndTryItStep()
     {
-        // Cancel the owned transcription before tearing the recorder down, so a
+        // Cancel BOTH owned transcriptions before tearing the recorder down, so a
         // running orchestrator call is not left billing against a disposed gateway.
+        //
+        // The sample clip is a SEPARATE task-box key from the microphone
+        // recording, and cancelling only the microphone one let a sample
+        // transcription started here survive Back: it kept running with no
+        // chrome, and because walking forward into Try It again resets
+        // TranscriptCameFromSample to false, its result then rendered as the
+        // user's own recording, complete with the device name and the "recorded"
+        // pill. The defer and complete paths were already safe because Finish()
+        // calls CancelAll(); only Back leaked.
         _taskBox.Cancel(OnboardingTaskKeys.TestRecording);
+        _taskBox.Cancel(OnboardingTaskKeys.SampleClip);
         _audio.StopRecordingForExit();
         _audio.ClearTranscript();
         IsTranscribingSample = false;
@@ -1554,6 +1572,14 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
     /// </summary>
     public IReadOnlyList<CloudTranscriptionProvider> UnrestoredProviderKeys => _unrestoredProviderKeys;
 
+    /// <summary>
+    /// True when the last rollback could not put the pre-onboarding default Mode
+    /// back. The restore point is retained in that case, so
+    /// <see cref="HasPendingProductionWrite"/> stays true and the window reports
+    /// it beside any lost credential.
+    /// </summary>
+    public bool ModeRestoreFailed => _modeRestoreFailed;
+
     private void ApplyStagedSourceReversibly()
     {
         if (StagedSource is not { } staged)
@@ -1667,10 +1693,28 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
     /// </returns>
     private bool Rollback()
     {
+        // The Mode path now matches the credential path below: the restore point
+        // is discarded only when the write actually went back.
+        //
+        // Restore() swallows database failures; discarding the snapshot
+        // regardless turned "your default Mode is still the one onboarding
+        // staged" into a clean deferral, with the pre-onboarding row gone from
+        // memory and no way to retry. A transient EF failure while deferring
+        // after the Try It step is enough.
+        _modeRestoreFailed = false;
         if (_restorePoint is { } point)
         {
-            _committer.Restore(point);
-            _restorePoint = null;
+            if (_committer.Restore(point))
+            {
+                _restorePoint = null;
+            }
+            else
+            {
+                _modeRestoreFailed = true;
+                HyperWhisper.Services.LoggingService.Error(
+                    "OnboardingFlowViewModel: could not restore the pre-onboarding default Mode; "
+                    + "the restore point is kept so the change is still reversible");
+            }
         }
 
         // "Test API key" writes to the credential store before any commit boundary,
@@ -1717,7 +1761,7 @@ public sealed partial class OnboardingFlowViewModel : ViewModelBase
         }
 
         RaiseGateChanged();
-        return _unrestoredProviderKeys.Count == 0;
+        return _unrestoredProviderKeys.Count == 0 && !_modeRestoreFailed;
     }
 
     /// <param name="markCompleted">

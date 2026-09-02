@@ -195,7 +195,22 @@ public sealed class LiveOnboardingModelCatalog : IOnboardingModelCatalog, IDispo
     private readonly ModelDownloadService _downloads;
 
     private OnboardingDownloadErrors _errors = OnboardingDownloadErrors.None;
-    private readonly Dictionary<string, double> _progress = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Download progress per Model Library row id, as a FRACTION.
+    ///
+    /// Concurrent, not a plain Dictionary. <see cref="OnDownloadChanged"/> now
+    /// marshals to the UI thread (see OnboardingUiDispatch) so writes and the
+    /// binding layer's reads land on one thread in the app — but this type is
+    /// the honest one for a store whose producer is a background download
+    /// thread and whose consumers are public methods any caller may reach. The
+    /// unsynchronised version could tear a read against an insert-and-resize:
+    /// a torn value, an InvalidOperationException, or an unrecoverable spin
+    /// inside Dictionary while the Setup step was on screen.
+    /// </summary>
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, double> _progress =
+        new(StringComparer.Ordinal);
+
     private bool _disposed;
 
     public LiveOnboardingModelCatalog(
@@ -347,22 +362,37 @@ public sealed class LiveOnboardingModelCatalog : IOnboardingModelCatalog, IDispo
     private static ParakeetModelInfo? ParakeetInfo(string id) =>
         ParakeetModelInfo.AllModels.FirstOrDefault(m => m.Id == id);
 
+    /// <summary>
+    /// ModelDownloadService raises this synchronously, with no marshalling, from
+    /// inside its <c>Task.Run(() =&gt; RunDownloadAsync(download))</c>. Everything
+    /// below either mutates state the UI thread reads or raises an event the
+    /// flow turns into PropertyChanged, so the whole body is posted rather than
+    /// only the event: splitting the two would leave the write racing the read
+    /// it is meant to feed.
+    /// </summary>
     private void OnDownloadChanged(object? sender, ModelDownloadChangedEventArgs e)
     {
         var model = CuratedModels.FirstOrDefault(m => LibraryId(m) == e.ModelId);
         if (model is null) return;
 
-        _progress[e.ModelId] = ProgressFraction(e.Progress);
-
-        if (e.IsCompleted)
+        OnboardingUiDispatch.Post(() =>
         {
-            _progress.Remove(e.ModelId);
-            // Carry the engine the FAILURE belongs to, so a Whisper failure is
-            // never attributed to a selected Parakeet model.
-            PublishError(model.Kind, e.IsSuccess ? null : (e.Error ?? Loc.S("onboarding.setup.model.downloadFailed")));
-        }
+            // A tick queued before Dispose and delivered after it has nothing
+            // left to update.
+            if (_disposed) return;
 
-        DownloadActivity?.Invoke(this, EventArgs.Empty);
+            _progress[e.ModelId] = ProgressFraction(e.Progress);
+
+            if (e.IsCompleted)
+            {
+                _progress.TryRemove(e.ModelId, out _);
+                // Carry the engine the FAILURE belongs to, so a Whisper failure is
+                // never attributed to a selected Parakeet model.
+                PublishError(model.Kind, e.IsSuccess ? null : (e.Error ?? Loc.S("onboarding.setup.model.downloadFailed")));
+            }
+
+            DownloadActivity?.Invoke(this, EventArgs.Empty);
+        });
     }
 
     /// <summary>
@@ -647,6 +677,16 @@ public sealed class LiveOnboardingProviderKeyGateway : IOnboardingProviderKeyGat
     /// (its own step), and Microsoft Azure Speech / Google Speech, whose health
     /// probe short-circuits to Healthy WITHOUT a key. Offering those two would
     /// open the setup gate on a pass that proves nothing.
+    ///
+    /// It stays a HAND-WRITTEN list because the order is the order the chips are
+    /// drawn in, and a catalog flag carries no order. What stops it drifting is
+    /// the smoke case "the BYOK list is every key-taking vendor the app
+    /// supports", which derives the expected set from
+    /// <c>CloudTranscriptionProviderExtensions.RequiresApiKey</c> - the same
+    /// predicate ProviderApiKeyWindow uses - so a vendor added to the enum with
+    /// no entry here fails the suite instead of quietly disappearing from first
+    /// run. Meta MuseSTT is what that case would have caught: #393 shipped it
+    /// with full Windows BYOK support and this list never grew.
     /// </summary>
     public static IReadOnlyList<CloudTranscriptionProvider> ByokProviders { get; } = new[]
     {
@@ -660,12 +700,31 @@ public sealed class LiveOnboardingProviderKeyGateway : IOnboardingProviderKeyGat
         CloudTranscriptionProvider.Gemini,
         CloudTranscriptionProvider.GeminiTranscribe,
         CloudTranscriptionProvider.Grok,
+        CloudTranscriptionProvider.Meta,
+    };
+
+    /// <summary>
+    /// The vendors this branch deliberately does not offer, because their health
+    /// probe passes without a key (or, for HyperWhisper Cloud, because the flow
+    /// has a whole step for it).
+    /// </summary>
+    internal static readonly IReadOnlyList<CloudTranscriptionProvider> KeylessProviders = new[]
+    {
+        CloudTranscriptionProvider.HyperWhisperCloud,
+        CloudTranscriptionProvider.MicrosoftAzureSpeech,
+        CloudTranscriptionProvider.GoogleSpeech,
     };
 
     /// <summary>
     /// The key slot for a provider that has no shared post-processing provider.
     /// Mirrors the mapping CloudProviderHealthService.GetTranscriptionApiKey uses,
-    /// in the write direction.
+    /// in the write direction, and must stay a superset-by-behaviour of
+    /// ProviderApiKeyWindow.ToTranscriptionKeyType: a provider offered on this
+    /// branch with no arm here lands in Persist's failure branch and rejects a
+    /// correctly typed key with the generic "could not save" string.
+    ///
+    /// Grok is absent on purpose - it routes through the shared
+    /// PostProcessingProvider.Grok key, which Persist checks first.
     /// </summary>
     internal static TranscriptionApiKeyType? TranscriptionKeyType(CloudTranscriptionProvider provider) => provider switch
     {
@@ -675,6 +734,7 @@ public sealed class LiveOnboardingProviderKeyGateway : IOnboardingProviderKeyGat
         CloudTranscriptionProvider.Mistral => TranscriptionApiKeyType.Mistral,
         CloudTranscriptionProvider.Soniox => TranscriptionApiKeyType.Soniox,
         CloudTranscriptionProvider.GeminiTranscribe => TranscriptionApiKeyType.GeminiTranscribe,
+        CloudTranscriptionProvider.Meta => TranscriptionApiKeyType.Meta,
         _ => null
     };
 }
@@ -707,9 +767,39 @@ public sealed class LiveOnboardingSourceCommitter : IOnboardingSourceCommitter
     /// </summary>
     private Mode? FindDefaultMode() => _modes.GetAllModes().FirstOrDefault(m => m.IsDefault);
 
+    /// <summary>
+    /// The row <see cref="Apply"/> will write and <see cref="Restore"/> will put
+    /// back. The flagged default, or - when nothing is flagged - whatever
+    /// already sits on the well-known seed id.
+    ///
+    /// The second half is the fix for a real hole. Apply's fallback builds a
+    /// Mode with <c>ModeDefaults.DefaultModeId</c> and SaveMode writes EVERY
+    /// column, so a row already at that id was silently overwritten - name,
+    /// prompt, vocabulary and all - and a deferral then DELETED it, because the
+    /// restore point recorded "no default existed". That is reachable without
+    /// any exotic state: the Local API can clear IsDefault on that very row
+    /// (PATCH /modes/{id}), and so can any future editor.
+    ///
+    /// Note this does NOT widen what onboarding touches. The seed id is the
+    /// only row the fallback ever wrote to; all that changes is that the write
+    /// is now reversible, and that the row's other columns survive it.
+    /// </summary>
+    private Mode? FindTargetMode() => SelectTargetMode(_modes.GetAllModes());
+
+    /// <summary>
+    /// The pure half of <see cref="FindTargetMode"/>, so the rule can be asserted
+    /// without a database.
+    /// </summary>
+    internal static Mode? SelectTargetMode(IEnumerable<Mode> modes)
+    {
+        var all = modes as IReadOnlyCollection<Mode> ?? modes.ToList();
+        return all.FirstOrDefault(m => m.IsDefault)
+            ?? all.FirstOrDefault(m => m.Id == ModeDefaults.DefaultModeId);
+    }
+
     public IOnboardingRestorePoint CaptureRestorePoint()
     {
-        var existing = FindDefaultMode();
+        var existing = FindTargetMode();
         return new WindowsOnboardingRestorePoint
         {
             ModeExisted = existing is not null,
@@ -729,7 +819,11 @@ public sealed class LiveOnboardingSourceCommitter : IOnboardingSourceCommitter
     /// </summary>
     public void Apply(OnboardingStagedSource staged)
     {
-        var existing = FindDefaultMode();
+        // The SAME row CaptureRestorePoint snapshotted, or a new one when there
+        // genuinely is nothing at the seed id. Reconfiguring an existing
+        // fallback-id row in place keeps its name, prompt and vocabulary, and
+        // keeps the snapshot an exact undo of what changed.
+        var existing = FindTargetMode();
         var mode = existing is null ? NewDefaultMode() : WindowsOnboardingRestorePoint.Clone(existing);
 
         ApplyStagedFields(mode, staged);
@@ -796,9 +890,16 @@ public sealed class LiveOnboardingSourceCommitter : IOnboardingSourceCommitter
         Language = "auto"
     };
 
-    public void Restore(IOnboardingRestorePoint point)
+    /// <returns>
+    /// True when production state is back. False when the database refused -
+    /// the flow KEEPS the restore point in that case, exactly as the credential
+    /// rollback keeps a provider whose key could not be written back, so the
+    /// value is still there for a second attempt and the user is told rather
+    /// than shown a clean deferral over a Mode that is still the staged one.
+    /// </returns>
+    public bool Restore(IOnboardingRestorePoint point)
     {
-        if (point is not WindowsOnboardingRestorePoint restore) return;
+        if (point is not WindowsOnboardingRestorePoint restore) return false;
 
         try
         {
@@ -843,10 +944,13 @@ public sealed class LiveOnboardingSourceCommitter : IOnboardingSourceCommitter
                 // save or delete above has already told the shell to re-read.
                 _settings.SelectedModeId = null;
             }
+
+            return true;
         }
         catch (Exception ex)
         {
             LoggingService.Error($"LiveOnboardingSourceCommitter: restore failed: {ex.Message}", ex);
+            return false;
         }
     }
 
@@ -909,9 +1013,17 @@ public static class OnboardingLiveDependencies
         var permissions = new LiveOnboardingPermissions(
             openShortcutSettings ?? (() => NavigateMainShell(MainViewModel.NavigationPage.Settings)));
 
+        // One pair for the whole window: the Setup step's catalog reads them to
+        // decide what is installed, and the Try It step's gateway reads them to
+        // LOAD what the Setup step just downloaded. Both are stateless wrappers
+        // over the model directories, so sharing them costs nothing and keeps
+        // the two steps answering from the same place.
+        var whisperModels = new WhisperModelService();
+        var parakeetModels = new ParakeetModelService();
+
         var catalog = new LiveOnboardingModelCatalog(
-            new WhisperModelService(),
-            new ParakeetModelService(),
+            whisperModels,
+            parakeetModels,
             ModelDownloadService.Instance);
 
         var license = new LiveOnboardingLicenseGateway(LicenseManager.Instance);
@@ -934,6 +1046,8 @@ public static class OnboardingLiveDependencies
             ModeService.Instance,
             MicrophoneKeepWarmService.Instance,
             VocabularyService.Instance,
+            whisperModels,
+            parakeetModels,
             // The running app's open device lives on MainViewModel, not in
             // settings; see the comment on those two delegates.
             readOpenDevice: mainViewModel is null ? null : () => mainViewModel.SelectedAudioDevice?.Name,

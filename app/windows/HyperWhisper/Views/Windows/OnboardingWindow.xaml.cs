@@ -173,7 +173,7 @@ public partial class OnboardingWindow : Window
     {
         _flow.DeferSetup();
         _flowResolved = true;
-        ReportUnrestoredProviderKeys();
+        ReportUnrestoredState();
         Close();
     }
 
@@ -184,34 +184,65 @@ public partial class OnboardingWindow : Window
         // does, but do NOT mark first run complete: an interrupted first run has to
         // be re-offered on the next launch, and a PC that restarts for an update
         // mid-flow must not drop a brand-new user into an unconfigured app forever.
-        //
-        // No dialog on this path: it can run while the OS is ending the session,
-        // where a modal message box would block shutdown. The failure is logged.
         if (!_flowResolved)
         {
             _flow.AbandonSetup();
             _flowResolved = true;
+
+            // AND REPORT, exactly as the explicit exits do. The rollback these
+            // four routes run is the SAME rollback, and it can lose the same
+            // pre-onboarding API key: the flow overwrote it to test a new one and
+            // Credential Manager then refused both attempts to put it back. The
+            // earlier reasoning - "a modal box would block OS shutdown" - is true
+            // of exactly one of the four, and App.IsSessionEnding is what
+            // distinguishes it. Alt+F4 and the taskbar leave the app running (the
+            // flow ends with ReturnToHome), so there is nothing a dialog can
+            // block there.
+            ReportUnrestoredState();
         }
 
         _flow.Cleanup();
     }
 
     /// <summary>
-    /// A key the flow overwrote and then could not put back is a real credential
-    /// loss. Say so, with the provider named, instead of closing over the top of it.
+    /// A reversible write the flow made and then could not put back is a real
+    /// loss. Say so, naming what, instead of closing over the top of it.
+    ///
+    /// Two sinks can refuse: Windows Credential Manager (per provider) and the
+    /// Modes database (the default Mode row). Both keep their restore point on
+    /// failure, so both are still recoverable; the user has to be told which.
     /// </summary>
-    private void ReportUnrestoredProviderKeys()
+    private void ReportUnrestoredState()
     {
         var lost = _flow.UnrestoredProviderKeys;
-        if (lost.Count == 0)
+        if (lost.Count == 0 && !_flow.ModeRestoreFailed)
             return;
+
+        // The single exception. See App.IsSessionEnding.
+        if (App.IsSessionEnding)
+        {
+            LoggingService.Warn(
+                "OnboardingWindow: rollback left state unrestored, but the OS is ending the session "
+                + "so the report is logged rather than shown");
+            return;
+        }
+
+        var lines = new List<string>();
+
+        if (_flow.ModeRestoreFailed)
+            lines.Add(Loc.S("onboarding.restore.mode.failed"));
+
+        if (lost.Count > 0)
+        {
+            var providers = string.Join(", ", lost.Select(p => p.GetDisplayName()));
+            lines.Add($"{Loc.S("onboarding.setup.provider.saveFailed")}\n\n{providers}");
+        }
 
         // Fully qualified: GlobalUsings pulls in System.Windows.Forms, which has a
         // MessageBox of its own.
-        var providers = string.Join(", ", lost.Select(p => p.GetDisplayName()));
         System.Windows.MessageBox.Show(
             this,
-            $"{Loc.S("onboarding.setup.provider.saveFailed")}\n\n{providers}",
+            string.Join("\n\n", lines),
             Loc.S("errors.unhandled.title"),
             System.Windows.MessageBoxButton.OK,
             System.Windows.MessageBoxImage.Warning);

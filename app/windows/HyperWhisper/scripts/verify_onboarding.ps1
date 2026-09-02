@@ -593,7 +593,7 @@ if (Test-Path -LiteralPath $GatewayPath) {
 $CommitterPath = Join-Path $AdaptersDir "OnboardingLiveDependencies.cs"
 if (Test-Path -LiteralPath $CommitterPath) {
     $committerSource = Read-Text $CommitterPath
-    $restoreIndex = $committerSource.IndexOf("public void Restore(IOnboardingRestorePoint point)")
+    $restoreIndex = $committerSource.IndexOf("public bool Restore(IOnboardingRestorePoint point)")
     $markIndex = $committerSource.IndexOf("public void MarkOnboardingCompleted()")
     if ($restoreIndex -ge 0 -and $markIndex -gt $restoreIndex) {
         $restoreBody = $committerSource.Substring($restoreIndex, $markIndex - $restoreIndex)
@@ -629,6 +629,133 @@ if (Test-Path -LiteralPath $SmokeProgramPath) {
         "the smoke harness opts out of the first-run flow, so a future harness that boots the real App cannot hang on a modal"
 } else {
     Write-Fail "the smoke harness was not found at $(Get-RelativePath $SmokeProgramPath)"
+}
+
+# ---------------------------------------------------------------------------
+# Review round 2. Four findings whose defect needs a real database, a WPF
+# Application, a Local API client or a capture device to reproduce, so the
+# regression guard is the wiring rather than the behaviour. Everything else
+# from that round has a smoke case; section 5 runs them.
+# ---------------------------------------------------------------------------
+
+# The Try It step is the only transcription entry point in the app that did not
+# load the local engine first. On the DEFAULT first-run path (Parakeet V2, which
+# leaves ModelType null so MainViewModel's eager load never fires) that made the
+# demo fail with "Local transcription model not loaded".
+if (Test-Path -LiteralPath $GatewayPath) {
+    $transcribeIndex = $gatewaySource.IndexOf("TranscriptionRuntime.Orchestrator.TranscribeAsync(")
+    $readyIndex = $gatewaySource.IndexOf("await EnsureLocalEngineReadyAsync(")
+    if ($readyIndex -ge 0 -and $transcribeIndex -gt $readyIndex) {
+        Write-Pass "the Try It step loads the local engine before it asks the orchestrator to use it"
+    } else {
+        Write-Fail "the Try It transcription does not ensure the local model is loaded first"
+        Write-Detail "EnsureLocalEngineReadyAsync=$readyIndex TranscribeAsync=$transcribeIndex"
+    }
+
+    # AudioDeviceService raises DevicesChanged off the MMDevice COM notification
+    # thread. The flow writes bound view-model state from that handler, and is
+    # deliberately Dispatcher-free so the smoke suite can drive it, so the
+    # ADAPTER is what marshals. app/windows/AGENTS.md's rule.
+    $hardwareIndex = $gatewaySource.IndexOf("private void OnHardwareDevicesChanged")
+    if ($hardwareIndex -ge 0) {
+        $hardwareBody = $gatewaySource.Substring($hardwareIndex, [Math]::Min(1400, $gatewaySource.Length - $hardwareIndex))
+        if ($hardwareBody.Contains("OnboardingUiDispatch.Post(")) {
+            Write-Pass "the device-change handler marshals to the UI thread before it touches flow state"
+        } else {
+            Write-Fail "OnHardwareDevicesChanged runs on the COM notification thread with no dispatcher hop"
+        }
+    }
+}
+
+# ModelDownloadService raises DownloadChanged from inside Task.Run with no
+# marshalling, ~100 times over a Parakeet download. An unsynchronised Dictionary
+# written there and read by the binding layer can tear, throw, or spin forever.
+if (Test-Path -LiteralPath $CommitterPath) {
+    if ($committerSource -match "Dictionary<string,\s*double>\s+_progress") {
+        Write-Fail "the download-progress store is a plain Dictionary written from the download thread"
+    } else {
+        Write-Pass "the download-progress store is not an unsynchronised Dictionary"
+    }
+
+    $downloadIndex = $committerSource.IndexOf("private void OnDownloadChanged")
+    if ($downloadIndex -ge 0) {
+        $downloadBody = $committerSource.Substring($downloadIndex, [Math]::Min(1800, $committerSource.Length - $downloadIndex))
+        if ($downloadBody.Contains("OnboardingUiDispatch.Post(")) {
+            Write-Pass "the download-progress handler marshals to the UI thread"
+        } else {
+            Write-Fail "OnDownloadChanged mutates progress state on the download thread with no dispatcher hop"
+        }
+    }
+}
+
+# Every USER-INITIATED writer of state the flow stages goes through one funnel,
+# and the funnel asks OnboardingSession. Per-call-site checks are what left the
+# changeMode hotkey and two tray submenus behind in round 1.
+if (Test-Path -LiteralPath $MainViewModelPath) {
+    Assert-Wired $viewModelSource "public bool TrySelectMode(Mode? mode)" `
+        "the active Mode has ONE user-initiated funnel, which the changeMode hotkey and the tray both use"
+    Assert-Wired $viewModelSource "public bool TrySelectAudioDevice(" `
+        "and so does the input device"
+    Assert-Wired $viewModelSource "return TrySelectMode(Modes[nextIndex]);" `
+        "CycleMode (the changeMode global shortcut) goes through the funnel"
+
+    $trayWrites = @([regex]::Matches($viewModelSource, 'OnboardingSession\.BlocksStateChange\('))
+    if ($trayWrites.Count -ge 2) {
+        Write-Pass "both staged-state funnels consult the onboarding session ($($trayWrites.Count) guards)"
+    } else {
+        Write-Fail "MainViewModel has $($trayWrites.Count) staged-state guard(s); the Mode and device funnels both need one"
+    }
+}
+
+if (Test-Path -LiteralPath $MainWindowPath) {
+    Assert-Wired $mainSource "_viewModel.TrySelectMode(m)" "the tray Mode submenu goes through the funnel"
+    Assert-Wired $mainSource "_viewModel.TrySelectAudioDevice(dev)" "the tray Microphone submenu goes through the funnel"
+    Assert-Wired $mainSource "if (_viewModel.HasDictationInFlight)" `
+        "onboarding refuses to open OVER a running dictation, whose transcript the delivery gate would then swallow"
+}
+
+# The Local API keeps serving against the exact Mode row and shared orchestrator
+# the flow stages. One middleware, per METHOD, so a new endpoint inherits it.
+$LocalApiServerPath = Join-Path $ProjectRoot "Services\LocalApi\LocalApiServer.cs"
+if (Test-Path -LiteralPath $LocalApiServerPath) {
+    $serverSource = Read-Text $LocalApiServerPath
+    Assert-Wired $serverSource "!IsReadOnlyMethod(ctx.Request.Method) && OnboardingSession.IsActive" `
+        "the Local API refuses every mutating request while the first-run window is open"
+} else {
+    Write-Fail "LocalApiServer.cs not found at $(Get-RelativePath $LocalApiServerPath)"
+}
+
+# The four close routes run the SAME rollback, so they owe the same report. Only
+# an OS session end may skip it, because only that one can be blocked by a modal.
+if (Test-Path -LiteralPath $OnboardingWindowCode) {
+    $closingIndex = $windowCode.IndexOf("private void OnWindowClosing")
+    if ($closingIndex -ge 0) {
+        $closingBody = $windowCode.Substring($closingIndex, [Math]::Min(1800, $windowCode.Length - $closingIndex))
+        if ($closingBody.Contains("ReportUnrestoredState();")) {
+            Write-Pass "Alt+F4 and the taskbar report a credential or Mode the rollback could not put back"
+        } else {
+            Write-Fail "OnWindowClosing rolls back but never reports what the rollback could not restore"
+        }
+    }
+
+    Assert-Wired $windowCode "App.IsSessionEnding" `
+        "the no-dialog exception is scoped to an OS session end rather than applied to all four close routes"
+    Assert-Wired $windowCode "_flow.ModeRestoreFailed" `
+        "a Mode the database refused to restore is reported alongside a lost API key"
+}
+
+# The single-instance guard is per PROFILE. A scratch
+# HYPERWHISPER_WINDOWS_APPDATA_ROOT instance shares no state with the user's own
+# copy, and refusing it is what made the end-to-end first-run demo impossible.
+$GuardPath = Join-Path $ProjectRoot "Services\SingleInstanceGuard.cs"
+if (Test-Path -LiteralPath $GuardPath) {
+    $guardSource = Read-Text $GuardPath
+    Assert-Wired $guardSource "AppPaths.IsAppDataRootOverridden" `
+        "the single-instance mutex is scoped to the app-data root when it is overridden"
+    Assert-Wired $guardSource "AppPaths.AppDataRootHash" `
+        "and it reuses CredentialResource's fingerprint rather than inventing a second hashing scheme"
+} else {
+    Write-Fail "SingleInstanceGuard.cs not found at $(Get-RelativePath $GuardPath)"
 }
 
 # ===========================================================================

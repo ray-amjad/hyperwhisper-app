@@ -488,6 +488,29 @@ public partial class MainWindow : Window
         if (IsOnboardingOpen)
             return;
 
+        // NEVER OVER A DICTATION THAT IS ALREADY RUNNING.
+        //
+        // SetActive(true) below raises the text-delivery gate, and a
+        // transcription that completes after that lands on
+        // SmartPasteResult.Failed: SmartPasteService returns Failed before any
+        // clipboard write, the batch arm is an empty `case Failed: break;` and
+        // the streaming finalise switch has no Failed case at all. The user's
+        // sentence reaches no application, no clipboard and no overlay, and the
+        // tray's Stop item is disabled the moment the window appears, so the
+        // hotkey is the only way out.
+        //
+        // The check belongs HERE rather than on the tray item, because it is the
+        // gate-raising that does the damage: the startup path cannot hit it (no
+        // dictation exists yet) and any future caller inherits it.
+        if (_viewModel.HasDictationInFlight)
+        {
+            LoggingService.Info("MainWindow: Refused to open onboarding over an in-flight dictation");
+            ShowErrorToast(new ErrorToastEventArgs(
+                Loc.S("onboarding.menu.runAgain.busy"),
+                showSettingsButton: false));
+            return;
+        }
+
         OnboardingLiveDependencies.LiveOnboarding? live = null;
 
         try
@@ -634,9 +657,11 @@ public partial class MainWindow : Window
                 RefreshFileTranscriptionMenu();
 
                 // Re-entering setup while it is already on screen would build a
-                // second flow model over the same Mode row.
+                // second flow model over the same Mode row; opening it OVER a
+                // running dictation raises the delivery gate under a transcript
+                // that has nowhere left to land.
                 if (_runSetupAgainMenu != null)
-                    _runSetupAgainMenu.Enabled = !IsOnboardingOpen;
+                    _runSetupAgainMenu.Enabled = !IsOnboardingOpen && !_viewModel.HasDictationInFlight;
             };
 
             menu.Items.Add("-");
@@ -826,6 +851,11 @@ public partial class MainWindow : Window
             var deviceItem = new System.Windows.Forms.ToolStripMenuItem(device.Name)
             {
                 Checked = isSelected,
+                // The onboarding Microphone step captures the device it replaces
+                // ONCE and restores it on "Set Up Later", so a pick made here
+                // behind the modal is silently reverted — and the flow's level
+                // meter stays open on its own device meanwhile.
+                Enabled = !IsOnboardingOpen,
                 Tag = device
             };
 
@@ -833,7 +863,11 @@ public partial class MainWindow : Window
             {
                 if (s is System.Windows.Forms.ToolStripMenuItem item && item.Tag is AudioDeviceService.AudioDevice dev)
                 {
-                    _viewModel.SelectedAudioDevice = dev;
+                    // Belt and braces with Enabled: a menu already open when the
+                    // onboarding window appeared still holds an enabled item.
+                    if (!_viewModel.TrySelectAudioDevice(dev))
+                        return;
+
                     LoggingService.Info($"System tray: Selected microphone '{dev.Name}'");
                 }
             };
@@ -873,6 +907,11 @@ public partial class MainWindow : Window
             var modeItem = new System.Windows.Forms.ToolStripMenuItem(modeName)
             {
                 Checked = isSelected,
+                // The flow stages the default Mode row and snapshots the active
+                // selection; a change made here is discarded by both Complete()
+                // and Rollback(), and the Try It step would demonstrate a Mode
+                // the flow never configured.
+                Enabled = !IsOnboardingOpen,
                 Tag = mode
             };
 
@@ -880,7 +919,9 @@ public partial class MainWindow : Window
             {
                 if (s is System.Windows.Forms.ToolStripMenuItem item && item.Tag is Mode m)
                 {
-                    _viewModel.SelectedMode = m;
+                    if (!_viewModel.TrySelectMode(m))
+                        return;
+
                     LoggingService.Info($"System tray: Selected mode '{modeName}'");
                 }
             };

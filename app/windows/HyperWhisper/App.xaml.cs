@@ -22,9 +22,30 @@ public partial class App : WpfApplication
     /// </summary>
     public static bool ShouldShowOnboarding { get; private set; }
 
+    /// <summary>
+    /// True once Windows has told us the user is logging off, restarting or
+    /// shutting down.
+    ///
+    /// The one thing that legitimately forbids a modal dialog during teardown: a
+    /// message box raised while the OS is ending the session blocks shutdown
+    /// behind a prompt nobody will answer. Every OTHER close - Alt+F4, the
+    /// taskbar, tray Quit - leaves the process alive and running, so a report
+    /// there is both feasible and owed.
+    ///
+    /// WPF raises SessionEnding before it closes windows, so a handler reading
+    /// this from Window.Closing sees the right answer.
+    /// </summary>
+    public static bool IsSessionEnding { get; private set; }
+
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        SessionEnding += (_, args) =>
+        {
+            IsSessionEnding = true;
+            LoggingService.Info($"App: the OS is ending the session ({args.ReasonSessionEnding})");
+        };
 
         // SINGLE-INSTANCE CHECK: Prevent duplicate instances (e.g., installer + auto-restart)
         if (!SingleInstanceGuard.TryAcquire())

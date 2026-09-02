@@ -54,6 +54,14 @@ public sealed class LiveOnboardingAudioGateway : IOnboardingAudioGateway, IDispo
     private readonly VocabularyService _vocabulary;
 
     /// <summary>
+    /// The two on-device catalogs, so the Try It step can LOAD the engine the
+    /// user just chose before asking the orchestrator to use it. See
+    /// <see cref="EnsureLocalEngineReadyAsync"/>.
+    /// </summary>
+    private readonly WhisperModelService _whisperModels;
+    private readonly ParakeetModelService _parakeetModels;
+
+    /// <summary>
     /// Reads and writes whichever device the RUNNING APP has open.
     ///
     /// SettingsService.LastSelectedMicrophone is documented as "(future)" and is
@@ -102,6 +110,8 @@ public sealed class LiveOnboardingAudioGateway : IOnboardingAudioGateway, IDispo
         ModeService modes,
         MicrophoneKeepWarmService keepWarm,
         VocabularyService vocabulary,
+        WhisperModelService whisperModels,
+        ParakeetModelService parakeetModels,
         Func<string?>? readOpenDevice = null,
         Action<string?>? writeOpenDevice = null)
     {
@@ -111,6 +121,8 @@ public sealed class LiveOnboardingAudioGateway : IOnboardingAudioGateway, IDispo
         _modes = modes;
         _keepWarm = keepWarm;
         _vocabulary = vocabulary;
+        _whisperModels = whisperModels;
+        _parakeetModels = parakeetModels;
 
         _readOpenDevice = readOpenDevice ?? (() => _localOpenDevice);
         _writeOpenDevice = writeOpenDevice ?? (value => _localOpenDevice = value);
@@ -235,9 +247,18 @@ public sealed class LiveOnboardingAudioGateway : IOnboardingAudioGateway, IDispo
 
     private void OnHardwareDevicesChanged(object? sender, EventArgs e)
     {
-        // AudioDeviceService already debounces this to 250 ms and raises it off
-        // the COM notification thread; the flow marshals to the UI thread itself.
-        RefreshDevices();
+        // AudioDeviceService debounces this to 250 ms and raises it from a
+        // System.Timers.Timer, sourced from the MMDevice COM notification
+        // client — so it arrives on a threadpool thread.
+        //
+        // THE ADAPTER MARSHALS. RefreshDevices raises DevicesChanged, which the
+        // flow turns into writes of DeviceAvailability, IsLevelMeterActive and
+        // the whole DeviceOptions list, racing the UI thread's own
+        // BeginMicrophoneStep and SelectDevice over the same fields. An earlier
+        // comment here asserted that the flow marshalled; it never did, and the
+        // flow is deliberately Dispatcher-free so the smoke suite can drive it
+        // with no WPF Application at all.
+        OnboardingUiDispatch.Post(RefreshDevices);
     }
 
     public void SelectDevice(string? id)
@@ -615,6 +636,27 @@ public sealed class LiveOnboardingAudioGateway : IOnboardingAudioGateway, IDispo
                 return;
             }
 
+            var localProvider = LocalProviderFor(mode);
+
+            // LOAD THE ENGINE FIRST. Every other transcription entry point does
+            // (MainViewModel.StartRecordingAsync, EnsureLocalProviderReadyForFileAsync,
+            // the Local API's /transcribe); this one did not, and the DEFAULT
+            // first-run path went straight through it: the Source step
+            // pre-selects Parakeet V2, the committer writes LocalEngine and
+            // LocalParakeetModel but leaves ModelType null, so MainViewModel's
+            // eager load never fires, ParakeetTranscriptionService.IsAvailable is
+            // false, and the orchestrator threw ModelNotLoaded — rendered as
+            // "Error: Local transcription model not loaded" on the very step that
+            // is supposed to prove the product works.
+            if (localProvider is not null)
+            {
+                var ready = await EnsureLocalEngineReadyAsync(mode, localProvider, cancellationToken);
+                if (!ready)
+                {
+                    return;
+                }
+            }
+
             // The PROCESS-WIDE orchestrator and local provider, never a private
             // one: the GUI, the Local API server and this window must observe the
             // same loaded model.
@@ -625,9 +667,21 @@ public sealed class LiveOnboardingAudioGateway : IOnboardingAudioGateway, IDispo
                 // genuine first run; a returning user re-running setup gets their
                 // own terms, which is what makes this a real demonstration.
                 vocabulary: _vocabulary.GetVocabularyWords(100),
-                localTranscriptionProvider: LocalProviderFor(mode),
+                localTranscriptionProvider: localProvider,
                 cancellationToken: cancellationToken,
                 callSite: TranscriptionCallSite.Onboarding);
+
+            // NOT after the flow gave up on this run. A provider that returns
+            // normally on a cancelled token (several do: they finish the request
+            // they already sent) would otherwise publish into a step the user has
+            // walked away from — and walking forward into Try It again resets the
+            // "this came from the sample clip" flag, so a stale sample result
+            // renders as the user's own recording.
+            if (cancellationToken.IsCancellationRequested)
+            {
+                LoggingService.Debug("LiveOnboardingAudioGateway: dropping a transcript that landed after cancellation");
+                return;
+            }
 
             PublishTranscript(result.FinalText);
         }
@@ -662,6 +716,94 @@ public sealed class LiveOnboardingAudioGateway : IOnboardingAudioGateway, IDispo
         return mode.LocalEngine == "parakeet"
             ? TranscriptionRuntime.ParakeetProvider
             : TranscriptionRuntime.LocalProvider;
+    }
+
+    /// <summary>
+    /// Bring the shared local engine up for <paramref name="mode"/>, publishing
+    /// the failure on the transcript channel and answering false when it cannot.
+    ///
+    /// This is a FOURTH readiness check, and deliberately not a shared one. The
+    /// three that already exist each speak a different vocabulary — the Local
+    /// API's is wire error codes and English hints aimed at an MCP client,
+    /// MainViewModel's two are toast strings with a settings deep link, and this
+    /// one is an inline sentence inside a modal — and the three also differ in
+    /// what they do around the load (the GUI unloads Whisper under 32 GB of RAM
+    /// before a Parakeet spawn, the API does not). Unifying them is a real
+    /// cleanup and is NOT this change: it would put /transcribe at risk to fix a
+    /// defect that is entirely inside onboarding.
+    ///
+    /// Both branches are no-ops when the engine is already warm, which is the
+    /// common case for a returning user re-running setup.
+    /// </summary>
+    private async Task<bool> EnsureLocalEngineReadyAsync(
+        Mode mode,
+        ITranscriptionProvider provider,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (provider is ParakeetTranscriptionService parakeet)
+            {
+                var modelId = string.IsNullOrWhiteSpace(mode.LocalParakeetModel)
+                    ? mode.Model
+                    : mode.LocalParakeetModel;
+
+                var info = ParakeetModelInfo.AllModels.FirstOrDefault(m => m.Id == modelId);
+                if (info is null || !_parakeetModels.IsModelDownloaded(info))
+                {
+                    PublishTranscript(Error(Loc.S("errors.modelNotDownloaded", modelId ?? "")));
+                    return false;
+                }
+
+                if (!parakeet.NeedsReload(info.Id, mode.Language))
+                {
+                    return true;
+                }
+
+                LoggingService.Info($"LiveOnboardingAudioGateway: loading Parakeet-family model {info.DisplayName} for the Try It step");
+                await parakeet.InitializeAsync(
+                    _parakeetModels.GetModelDirectory(info),
+                    mode.Language == "auto" ? null : mode.Language);
+                return true;
+            }
+
+            if (provider is TranscriptionService whisper)
+            {
+                var modelType = string.IsNullOrWhiteSpace(mode.ModelType) ? mode.Model : mode.ModelType;
+
+                var info = WhisperModelInfo.AllModels.FirstOrDefault(m => m.Type == modelType);
+                if (info is null || !_whisperModels.IsModelDownloaded(info))
+                {
+                    PublishTranscript(Error(Loc.S("errors.modelNotDownloaded", modelType ?? "")));
+                    return false;
+                }
+
+                var modelPath = _whisperModels.GetModelPath(info);
+                if (whisper.IsInitialized
+                    && string.Equals(whisper.LoadedModelPath, modelPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+
+                LoggingService.Info($"LiveOnboardingAudioGateway: loading Whisper model {info.DisplayName} for the Try It step");
+                await whisper.InitializeAsync(modelPath, null, cancellationToken);
+                return true;
+            }
+
+            // An unrecognised provider is not a reason to refuse: let the
+            // orchestrator decide, exactly as it did before this check existed.
+            return true;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            LoggingService.Error($"LiveOnboardingAudioGateway: local model load failed: {ex.Message}", ex);
+            PublishTranscript(Error(Loc.S("errors.modelLoadFailed")));
+            return false;
+        }
     }
 
     // =========================================================================

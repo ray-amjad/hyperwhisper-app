@@ -8049,6 +8049,269 @@ internal static class Program
                 }
             });
 
+            // ----- Review round 2 regressions ---------------------------------
+            // Same rule as round 1: one case per finding whose defect a test can
+            // express, naming the shape that was wrong. The four whose defect
+            // needs a database, a WPF Application or a real capture device are
+            // gated in scripts\verify_onboarding.ps1 instead, and say so there.
+
+            Run("onboarding: the BYOK list is every key-taking vendor the app supports", () =>
+            {
+                // The list was hand-written and #393 shipped Meta MuseSTT with full
+                // Windows BYOK support without growing it, so a first-run user who
+                // paid for Meta simply could not pick it. Derive the expectation
+                // from RequiresApiKey — the same predicate ProviderApiKeyWindow uses
+                // — so the next vendor added to the enum fails here instead.
+                var offered = LiveOnboardingProviderKeyGateway.ByokProviders;
+                var keyless = LiveOnboardingProviderKeyGateway.KeylessProviders;
+
+                var expected = Enum.GetValues<CloudTranscriptionProvider>()
+                    .Where(p => p != CloudTranscriptionProvider.None)
+                    .Where(p => p.RequiresApiKey())
+                    .Where(p => !keyless.Contains(p))
+                    .ToList();
+
+                var missing = expected.Where(p => !offered.Contains(p)).ToList();
+                Assert(missing.Count == 0,
+                    "these vendors take an API key on Windows but first run does not offer them: "
+                    + string.Join(", ", missing));
+
+                var extra = offered.Where(p => !expected.Contains(p)).ToList();
+                Assert(extra.Count == 0,
+                    "these are offered on the BYOK branch but do not need a key: "
+                    + string.Join(", ", extra));
+
+                Assert(offered.Contains(CloudTranscriptionProvider.Meta),
+                    "Meta MuseSTT is live on Windows with no feature gate and must be offered");
+
+                // Merely listing it is not enough: with no key slot, Persist takes
+                // its failure branch and rejects a correctly typed key with the
+                // generic "could not save" string.
+                Assert(LiveOnboardingProviderKeyGateway.TranscriptionKeyType(CloudTranscriptionProvider.Meta)
+                        == TranscriptionApiKeyType.Meta,
+                    "Meta needs its own key slot, or saving one lands in Persist's failure branch");
+            });
+
+            Run("onboarding: leaving Try It cancels the SAMPLE transcription too", () =>
+            {
+                // EndTryItStep cancelled only the microphone key. A sample clip
+                // started here therefore survived Back with no chrome, and because
+                // walking forward into Try It again resets TranscriptCameFromSample,
+                // its result then rendered as the user's OWN recording — device name,
+                // "recorded" pill and all.
+                var h = new OnboardingHarness();
+                h.StageInstalledOnDeviceModel();
+                h.AdvanceTo(OnboardingStep.TryIt);
+
+                h.Audio.GateSample = true;
+                h.Flow.TranscribeSampleClip();
+
+                Assert(h.Audio.SampleTranscriptions == 1, "precondition: the sample transcription started");
+                Assert(h.Flow.IsTranscribingSample, "precondition: the step says it is transcribing");
+                Assert(h.Flow.HasInFlightWorkForTesting, "precondition: it is owned by the task box");
+
+                h.Flow.Back();
+
+                Assert(!h.Flow.HasInFlightWorkForTesting,
+                    "Back must cancel the sample clip, not just the microphone recording");
+                Assert(!h.Flow.IsTranscribingSample, "and clear the transcribing state");
+
+                // And the late result is dropped rather than published into a step
+                // the user has walked away from.
+                h.Audio.ReleaseSample();
+                h.LastTask.GetAwaiter().GetResult();
+                Assert(h.Flow.Transcript.Length == 0,
+                    "a sample transcript that lands after Back must not write flow state");
+            });
+
+            Run("onboarding: a Mode restore the database refuses keeps its restore point", () =>
+            {
+                // Restore() swallows database failures. Discarding the snapshot
+                // regardless turned "your default Mode is still the staged one" into
+                // a clean deferral, with nothing left to retry from. Same mechanism
+                // as the credential rollback, not a second one.
+                var h = new OnboardingHarness();
+                h.StageInstalledOnDeviceModel();
+                h.AdvanceTo(OnboardingStep.TryIt);
+
+                Assert(h.Committer.ProductionState != FakeOnboardingCommitter.Seed,
+                    "precondition: the staged source was applied");
+                Assert(h.Flow.HasPendingProductionWrite, "precondition: there is something to roll back");
+
+                h.Committer.RestoreSucceeds = false;
+                h.Flow.DeferSetup();
+
+                Assert(h.Committer.RestoreCount == 1, "the restore was attempted");
+                Assert(h.Flow.ModeRestoreFailed, "the failure must be reported, not swallowed");
+                Assert(h.Flow.HasPendingProductionWrite,
+                    "a restore point that could not be spent must not be discarded");
+
+                // A clean rollback still forgets it.
+                var clean = new OnboardingHarness();
+                clean.StageInstalledOnDeviceModel();
+                clean.AdvanceTo(OnboardingStep.TryIt);
+                clean.Flow.DeferSetup();
+
+                Assert(!clean.Flow.ModeRestoreFailed, "a clean rollback reports nothing");
+                Assert(clean.Committer.ProductionState == FakeOnboardingCommitter.Seed, "and puts the Mode back");
+                Assert(!clean.Flow.HasPendingProductionWrite, "nothing is left to roll back");
+            });
+
+            Run("onboarding: an unflagged row on the seed id is snapshotted, not overwritten", () =>
+            {
+                // Apply's fallback builds a Mode on ModeDefaults.DefaultModeId and
+                // SaveMode writes every column, so a row already sitting there was
+                // silently clobbered and a deferral then DELETED it, because the
+                // restore point recorded "no default existed". The Local API can
+                // clear IsDefault on that very row.
+                var flagged = new Mode { Id = Guid.NewGuid(), Name = "User's own", IsDefault = true };
+                var seedRow = new Mode { Id = ModeDefaults.DefaultModeId, Name = "Hyper", IsDefault = false };
+                var unrelated = new Mode { Id = Guid.NewGuid(), Name = "Email", IsDefault = false };
+
+                var withFlag = LiveOnboardingSourceCommitter.SelectTargetMode(new[] { unrelated, seedRow, flagged });
+                Assert(ReferenceEquals(withFlag, flagged),
+                    "a flagged default always wins; that is macOS's findDefaultMode and must not change");
+
+                var withoutFlag = LiveOnboardingSourceCommitter.SelectTargetMode(new[] { unrelated, seedRow });
+                Assert(ReferenceEquals(withoutFlag, seedRow),
+                    "with nothing flagged, the row already on the seed id is the target — "
+                    + "so it is snapshotted and reconfigured in place rather than overwritten and deleted");
+
+                var neither = LiveOnboardingSourceCommitter.SelectTargetMode(new[] { unrelated });
+                Assert(neither is null,
+                    "with neither, there is genuinely nothing to snapshot and Apply creates the row");
+
+                // And the fallback must never reach for one of the user's OWN Modes,
+                // which is what ModeService.GetDefaultMode's lowest-SortOrder rule
+                // would have done.
+                Assert(!ReferenceEquals(neither, unrelated), "an unrelated Mode is never the target");
+            });
+
+            Run("onboarding: the session refuses state changes and says which", () =>
+            {
+                // Round 1 put the guard on the two recording entry points. Round 2's
+                // census found four more classes of writer — the changeMode hotkey,
+                // the tray's Mode and Microphone submenus, and the Local API — and
+                // they all ask THIS, at one funnel each, so a silently dropped write
+                // is at least a logged one.
+                Assert(!OnboardingSession.BlocksStateChange("test"),
+                    "nothing is blocked while no session is open");
+
+                try
+                {
+                    OnboardingSession.SetActive(true);
+                    Assert(OnboardingSession.BlocksStateChange("change the active Mode"),
+                        "a state change must be refused while the first-run window owns the app");
+                }
+                finally
+                {
+                    OnboardingSession.SetActive(false);
+                }
+
+                Assert(!OnboardingSession.BlocksStateChange("test"), "and allowed again once it closes");
+            });
+
+            Run("onboarding: the Local API refuses every mutating method while first run is open", () =>
+            {
+                // The server kept serving /modes and /transcribe against the exact
+                // Mode row and shared orchestrator the flow stages and blind-restores:
+                // a client PATCH landed, and Restore then destroyed it with no
+                // version check and no log. The rule is per-METHOD so a new endpoint
+                // inherits it.
+                foreach (var method in new[] { "GET", "get", "HEAD" })
+                {
+                    Assert(LocalApiServer.IsReadOnlyMethod(method),
+                        $"{method} only reads and must stay available");
+                }
+
+                foreach (var method in new[] { "POST", "PATCH", "PUT", "DELETE", "OPTIONS", "", null })
+                {
+                    Assert(!LocalApiServer.IsReadOnlyMethod(method),
+                        $"'{method}' is not a read and must be refused while onboarding is open");
+                }
+
+                // ENGINE_UNAVAILABLE, not a fifteenth code: hw-localapi's wire codes
+                // are a closed fourteen shared with macOS, and its conformance test
+                // fails on anything else.
+                Assert(HyperwhisperCoreMethods.LocalApiErrorCodeFromWireValue(
+                           LocalApiErrorCode.EngineUnavailable) is not null,
+                    "the refusal code must be one hw-localapi knows, or the macOS decoder breaks");
+            });
+
+            Run("onboarding: the UI dispatch runs inline when there is no WPF application", () =>
+            {
+                // The download-progress dictionary and the device-change handler both
+                // marshal through this now. In the smoke harness there is no
+                // Application, and a helper that quietly dropped the callback there
+                // would make every case below it pass for the wrong reason.
+                var ran = 0;
+                OnboardingUiDispatch.Post(() => ran++);
+                Assert(ran == 1, "with no Application the work must run inline, not be dropped");
+
+                // A throwing handler must not escape: on the posted path it would
+                // surface on the dispatcher, far from the OS callback that caused it.
+                OnboardingUiDispatch.Post(() => throw new InvalidOperationException("handler blew up"));
+                OnboardingUiDispatch.Post(() => ran++);
+                Assert(ran == 2, "a throwing handler must not stop the next one");
+            });
+
+            Run("single instance: the mutex is per profile, not per product", () =>
+            {
+                // Not a review finding. The end-to-end demo could not run: a scratch
+                // HYPERWHISPER_WINDOWS_APPDATA_ROOT instance was refused whenever any
+                // other HyperWhisper was running, so the process lived 7 s and its log
+                // never reached "APPLICATION STARTING". The guard exists to stop two
+                // instances fighting over ONE app-data root, and a scratch profile
+                // shares none of it — which is also the only way this head reaches
+                // first run while the user's own copy is up.
+                var original = Environment.GetEnvironmentVariable(
+                    AppPaths.AppDataRootOverrideEnvironmentVariable);
+                try
+                {
+                    Environment.SetEnvironmentVariable(
+                        AppPaths.AppDataRootOverrideEnvironmentVariable, null);
+
+                    Assert(!AppPaths.IsAppDataRootOverridden, "precondition: no override");
+                    Assert(SingleInstanceGuard.MutexName == "HyperWhisper_SingleInstance_Mutex",
+                        "the production mutex name must stay byte-identical, or an upgrade "
+                        + "stops seeing the running instance it is replacing");
+                    Assert(SingleInstanceGuard.MessageName == "HyperWhisper_ShowExistingInstance",
+                        "and so must the activation message");
+                    Assert(AppPaths.CredentialResource == "HyperWhisper",
+                        "precondition: the credential resource is undecorated too");
+
+                    var scratchA = Path.Combine(Path.GetTempPath(), "hw-smoke-profile-a");
+                    Environment.SetEnvironmentVariable(
+                        AppPaths.AppDataRootOverrideEnvironmentVariable, scratchA);
+
+                    var mutexA = SingleInstanceGuard.MutexName;
+                    Assert(mutexA != "HyperWhisper_SingleInstance_Mutex",
+                        "an overridden root is a separate profile and must not be refused");
+                    Assert(mutexA.StartsWith("HyperWhisper_SingleInstance_Mutex.Test.", StringComparison.Ordinal),
+                        $"unexpected scratch mutex name '{mutexA}'");
+
+                    // ONE hashing scheme, not two: the suffix is the same 16 hex
+                    // digits CredentialResource already appends.
+                    var credentialSuffix = AppPaths.CredentialResource.Split(".Test.")[1];
+                    Assert(mutexA.EndsWith(credentialSuffix, StringComparison.Ordinal),
+                        "the mutex suffix must be AppPaths.AppDataRootHash, the same fingerprint "
+                        + "CredentialResource uses, rather than a second scheme");
+
+                    var scratchB = Path.Combine(Path.GetTempPath(), "hw-smoke-profile-b");
+                    Environment.SetEnvironmentVariable(
+                        AppPaths.AppDataRootOverrideEnvironmentVariable, scratchB);
+                    Assert(SingleInstanceGuard.MutexName != mutexA,
+                        "two different scratch profiles must not collide with each other either");
+                    Assert(SingleInstanceGuard.MessageName != "HyperWhisper_ShowExistingInstance",
+                        "the activation broadcast is scoped too, or a third launch raises the wrong profile");
+                }
+                finally
+                {
+                    Environment.SetEnvironmentVariable(
+                        AppPaths.AppDataRootOverrideEnvironmentVariable, original);
+                }
+            });
+
             //
             // Deliberately last: constructing WPF objects installs a Dispatcher
             // SynchronizationContext, which the flow-model cases above detach
