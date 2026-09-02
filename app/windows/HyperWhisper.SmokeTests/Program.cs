@@ -38,6 +38,7 @@ using HyperWhisper.Services.Transcription;
 using HyperWhisper.Utilities;
 using HyperWhisper.ViewModels;
 using HyperWhisper.ViewModels.Onboarding;
+using HyperWhisper.Views.Controls;
 using HyperWhisper.Views.Controls.Onboarding;
 using HyperWhisper.Views.Pages.Onboarding;
 using HyperWhisper.Views.Pages.Settings;
@@ -7941,7 +7942,7 @@ internal static class Program
 
                 // And the row a missing logo produces is renderable.
                 var h = new OnboardingHarness();
-                h.ProviderKeys.Providers = LiveOnboardingProviderKeys.ByokProviders;
+                h.ProviderKeys.Providers = LiveOnboardingProviderKeyGateway.ByokProviders;
                 foreach (var row in h.Flow.ProviderOptions)
                 {
                     Assert(row.HasAsset ^ row.ShowsMonogram,

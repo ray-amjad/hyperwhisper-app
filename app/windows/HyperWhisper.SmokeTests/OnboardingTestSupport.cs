@@ -411,7 +411,7 @@ internal sealed class FakeOnboardingAudio : IOnboardingAudioGateway
 
         SelectedDeviceId = _devices.Any(d => d.Id == openId)
             ? openId
-            : _devices.FirstOrDefault()?.Id;
+            : (_devices.Count > 0 ? _devices[0].Id : null);
     }
 
     public bool StartInputLevelPreview()
