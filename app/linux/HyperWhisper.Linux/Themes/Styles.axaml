@@ -115,6 +115,15 @@
   </Style>
   <Style Selector="ListBox.plain ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
     <Setter Property="Background" Value="{DynamicResource HwSelectedBackgroundBrush}"/>
+    <Setter Property="TextBlock.Foreground" Value="{DynamicResource HwTextPrimaryBrush}"/>
+  </Style>
+  <Style Selector="ListBox.plain ListBoxItem:selected:focus /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource HwSelectedBackgroundBrush}"/>
+    <Setter Property="TextBlock.Foreground" Value="{DynamicResource HwTextPrimaryBrush}"/>
+  </Style>
+  <Style Selector="ListBox.plain ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource HwSelectedBackgroundBrush}"/>
+    <Setter Property="TextBlock.Foreground" Value="{DynamicResource HwTextPrimaryBrush}"/>
   </Style>
 
   <!-- Buttons -->
