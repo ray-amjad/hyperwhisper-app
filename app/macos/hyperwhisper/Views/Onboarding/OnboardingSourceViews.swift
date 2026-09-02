@@ -604,6 +604,16 @@ struct OnboardingSetupView: View {
                     .disabled(flow.isActivatingLicense
                               || flow.licenseKeyInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
+                    // #315: the user was sent back here from a later step. The
+                    // copy names Back explicitly, because a user who reached
+                    // `.configure` on an already-active license never typed a
+                    // key, so the Activate button above stays disabled for them
+                    // and Back is the only way to a working licence.
+                    if flow.selectedSourceStoppedWorking {
+                        OnboardingErrorNote(text: "onboarding.setup.stopped.cloud".localized)
+                            .padding(.top, DesignConstants.Spacing.medium)
+                    }
+
                     if let error = flow.setupErrorMessage {
                         OnboardingErrorNote(text: "onboarding.setup.cloud.error".localized(arguments: error))
                             .padding(.top, DesignConstants.Spacing.medium)
@@ -696,6 +706,17 @@ struct OnboardingSetupView: View {
                         .controlSize(.large)
                     }
 
+                    // #315: sent back here because the model was removed after
+                    // the user cleared this step. No download failed, so the
+                    // note below cannot fire and this one has to.
+                    if flow.selectedSourceStoppedWorking {
+                        OnboardingErrorNote(
+                            text: "onboarding.setup.stopped.onDevice"
+                                .localized(arguments: model.displayName)
+                        )
+                        .padding(.top, DesignConstants.Spacing.medium)
+                    }
+
                     // Bug 2: a failed download is surfaced for BOTH engines, in
                     // every branch, so nobody is parked at the mandatory gate with
                     // no explanation. The message is framed by localized copy
@@ -759,6 +780,15 @@ struct OnboardingSetupView: View {
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
                     .disabled(flow.apiKeyInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+                    // #315: sent back here because the Keychain entry went away.
+                    if flow.selectedSourceStoppedWorking {
+                        OnboardingErrorNote(
+                            text: "onboarding.setup.stopped.provider"
+                                .localized(arguments: flow.selectedProvider.displayName)
+                        )
+                        .padding(.top, DesignConstants.Spacing.medium)
+                    }
 
                     if let error = flow.setupErrorMessage {
                         OnboardingErrorNote(text: "onboarding.setup.provider.error".localized(arguments: error))

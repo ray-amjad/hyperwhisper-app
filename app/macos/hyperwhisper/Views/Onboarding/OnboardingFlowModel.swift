@@ -313,6 +313,26 @@ final class OnboardingFlowModel: ObservableObject {
     /// Parakeet download failures, license activation failures, and Keychain
     /// write failures, whichever matches the selected source.
     @Published private(set) var setupErrorMessage: String?
+    /// #315: true once a bounce has sent the user BACK to `.setup` because the
+    /// source they had already set up stopped working. Armed only by
+    /// `bounceToSetupIfSourceUnusable()`, and disarmed by every `select(...)`,
+    /// because a note about the previous source must not survive picking a new
+    /// one. Read through `selectedSourceStoppedWorking`, never directly.
+    @Published private(set) var wasSentBackToSetup = false
+
+    /// #315: the setup step has nothing else that can explain a bounce.
+    /// `setupErrorMessage` only republishes failures this flow PRODUCED — a
+    /// download that failed, an activation that was refused, a Keychain write
+    /// that was denied — and none of the three bounce triggers is one of those:
+    /// the model was deleted from under us, the license lapsed server side, the
+    /// Keychain entry went away. So the setup card renders a dedicated note off
+    /// this instead, and the user is told what broke and what to do about it.
+    ///
+    /// ANDed with the gate rather than cleared by hand, so fixing the source
+    /// takes the note away and the note can never outlive the failure it names.
+    var selectedSourceStoppedWorking: Bool {
+        wasSentBackToSetup && step == .setup && !isSelectedSourceUsable
+    }
 
     // MARK: Microphone
 
@@ -490,6 +510,10 @@ final class OnboardingFlowModel: ObservableObject {
     func select(source: TranscriptionSource) {
         guard selectedSource != source else { return }
         selectedSource = source
+        // #315: the bounce note names the source that stopped working. Choosing
+        // a different one makes it a statement about something the user is no
+        // longer setting up.
+        wasSentBackToSetup = false
         keyValidated = false
         licenseTestPassed = nil
         providerTestHealth = nil
@@ -504,12 +528,14 @@ final class OnboardingFlowModel: ObservableObject {
     func select(model: OnboardingModelSelection) {
         guard selectedModel != model else { return }
         selectedModel = model
+        wasSentBackToSetup = false
         refreshSetupError()
     }
 
     func select(provider: CloudProvider) {
         guard selectedProvider != provider else { return }
         selectedProvider = provider
+        wasSentBackToSetup = false
         // A masked key typed for one provider must never be saved under another.
         apiKeyInput = ""
         invalidateProviderValidation()
@@ -847,6 +873,29 @@ final class OnboardingFlowModel: ObservableObject {
         }
     }
 
+    /// #315: one bounce policy, one implementation. An unusable source must
+    /// never reach production state, and a user whose source stopped working is
+    /// sent to the step that can explain and fix it rather than being blocked
+    /// where nothing on screen is about transcription sources.
+    ///
+    /// Gated on `selectedSource` rather than on `isSelectedSourceUsable` alone:
+    /// with no source chosen there is nothing to protect, and completing from an
+    /// early step has to keep closing the flow cleanly. `stagedSource` is nil
+    /// exactly when `selectedSource` is, so this is the same condition without
+    /// building the staged struct only to nil-test it.
+    ///
+    /// - Returns: true when the caller must refuse what it was about to do.
+    private func bounceToSetupIfSourceUnusable() -> Bool {
+        guard selectedSource != nil, !isSelectedSourceUsable else { return false }
+        step = .setup
+        // Republishes whatever failure the flow itself last recorded. None of
+        // the three bounce triggers produces one, which is why the note the user
+        // actually reads comes from `selectedSourceStoppedWorking` below.
+        refreshSetupError()
+        wasSentBackToSetup = true
+        return true
+    }
+
     @discardableResult
     func advance() -> Bool {
         guard canContinue,
@@ -855,15 +904,10 @@ final class OnboardingFlowModel: ObservableObject {
         // user passed it still reached Try It. Suppressing the write there is
         // not enough — the test recording would then run through their PREVIOUS
         // production configuration and read as a pass. Refuse the transition and
-        // send them to the one step that can explain and fix it. Checked before
-        // `step = next` so `stepDidChange()` is never entered re-entrantly; the
-        // return value stays honest ("the user did not move forward") even though
-        // `step` changed.
-        if next == .tryIt, stagedSource != nil, !isSelectedSourceUsable {
-            step = .setup
-            refreshSetupError()
-            return false
-        }
+        // send them back. Checked before `step = next` so `stepDidChange()` is
+        // never entered re-entrantly; the return value stays honest ("the user
+        // did not move forward") even though `step` changed.
+        if next == .tryIt, bounceToSetupIfSourceUnusable() { return false }
         step = next
         stepDidChange()
         return true
@@ -951,14 +995,7 @@ final class OnboardingFlowModel: ObservableObject {
         // #315: the gate was only ever checked on the way out of `.setup`, so a
         // model deleted or a license deactivated during the last two steps still
         // became the user's default and failed on their first real dictation.
-        // Gate on the thing being committed rather than on the gate alone: with
-        // no staged source there is nothing to protect and closing cleanly is
-        // existing behaviour.
-        if stagedSource != nil, !isSelectedSourceUsable {
-            step = .setup
-            refreshSetupError()
-            return false
-        }
+        if bounceToSetupIfSourceUnusable() { return false }
         applyStagedSourceReversibly()
         restorePoint = nil
         providerKeyRestorePoints.removeAll()
