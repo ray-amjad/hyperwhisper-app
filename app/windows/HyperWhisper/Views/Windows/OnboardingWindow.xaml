@@ -94,7 +94,12 @@
                Background="Transparent"/>
 
         <!-- Footer: Back, the quiet deferral, the reassurance line, and exactly
-             one primary. Mirrors OnboardingFocusComponents.swift:572-634. -->
+             one primary. Mirrors OnboardingFocusComponents.swift:572-634.
+
+             The band is a fixed 56 row, so every button in it takes its height
+             from its own style and NOT from the row. Those styles live in
+             OnboardingResources.xaml; see the BUTTONS section there for why an
+             alignment and not a Height. -->
         <Border Grid.Row="3"
                 BorderBrush="{DynamicResource BorderBrush}"
                 BorderThickness="0,1,0,0"
@@ -110,7 +115,7 @@
                 <Button Grid.Column="0"
                         x:Name="BackButton"
                         Content="{loc:Loc onboarding.footer.back}"
-                        Style="{StaticResource MacButtonStyle}"
+                        Style="{StaticResource OnboardingButtonStyle}"
                         Command="{Binding GoBackCommand}"
                         Margin="0,0,8,0"
                         Visibility="{Binding CanGoBack, Converter={StaticResource OnboardingBoolToVisibility}}"
@@ -122,11 +127,8 @@
                 <Button Grid.Column="1"
                         x:Name="SetUpLaterButton"
                         Content="{loc:Loc onboarding.setupLater.button}"
+                        Style="{StaticResource OnboardingQuietButtonStyle}"
                         Click="SetUpLaterButton_Click"
-                        Background="Transparent"
-                        BorderThickness="0"
-                        FontWeight="Normal"
-                        Foreground="{DynamicResource TextTertiaryBrush}"
                         Visibility="{Binding ShowsSetUpLater, Converter={StaticResource OnboardingBoolToVisibility}}"
                         AutomationProperties.Name="{loc:Loc onboarding.setupLater.button}"/>
 
@@ -142,11 +144,10 @@
                 <Button Grid.Column="3"
                         x:Name="PrimaryButton"
                         Content="{Binding PrimaryButtonText}"
-                        Style="{StaticResource PrimaryButtonStyle}"
+                        Style="{StaticResource OnboardingFooterPrimaryButtonStyle}"
                         Click="PrimaryButton_Click"
                         IsEnabled="{Binding CanContinue}"
-                        IsDefault="True"
-                        Padding="20,7"/>
+                        IsDefault="True"/>
             </Grid>
         </Border>
     </Grid>

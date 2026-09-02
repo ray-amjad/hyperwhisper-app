@@ -8359,6 +8359,131 @@ internal static class Program
                 }
             });
 
+            Run("onboarding: no footer button takes its height from the 56px footer band", () =>
+            {
+                // RAY'S OWN COMPLAINT, FROM WATCHING THE RECORDING: "the back button
+                // and the continue button are way too tall compared to a Windows
+                // application."
+                //
+                // The footer is a fixed 56 row and the three buttons carried no
+                // VerticalAlignment, so WPF's default Stretch made every one of them
+                // render the full 56 - close to double what the same styles render on
+                // any Settings page, where a button sits in a StackPanel and is never
+                // stretched.
+                //
+                // This is asserted by MEASURING and not by grepping for an attribute:
+                // the defect is a rendered height, an attribute can be added in the
+                // wrong place, and a future container change could reintroduce the
+                // stretch with every attribute still present.
+                // Goes through the shared builder so the Application and its three
+                // theme dictionaries exist however this case is ordered.
+                BuildOnboardingStepPages(out var footerFlow);
+                var window = new OnboardingWindow(footerFlow);
+
+                var back = window.FindName("BackButton") as System.Windows.Controls.Button;
+                var setUpLater = window.FindName("SetUpLaterButton") as System.Windows.Controls.Button;
+                var primary = window.FindName("PrimaryButton") as System.Windows.Controls.Button;
+                Assert(back is not null && setUpLater is not null && primary is not null,
+                    "the footer no longer has all three named buttons");
+
+                // Back and Set Up Later are bound to flow flags that are false on step
+                // one. A collapsed button measures 0, which would pass this check
+                // without proving anything, so they are made visible for the layout
+                // pass; setting a local value replaces the binding on this throwaway
+                // window only.
+                back!.Visibility = Visibility.Visible;
+                setUpLater!.Visibility = Visibility.Visible;
+
+                // A Window that was never shown cannot be laid out, but its content
+                // can. The root Grid IS the four-band layout, footer row included.
+                var root = window.Content as FrameworkElement;
+                Assert(root is not null, "OnboardingWindow no longer has a FrameworkElement root");
+                window.Content = null;
+                root!.DataContext = footerFlow;
+                root.Measure(new Size(760, 624));
+                root.Arrange(new Rect(0, 0, 760, 624));
+                root.UpdateLayout();
+
+                // The reference is not a number in this file. It is the height the
+                // SAME styles render at on a real Settings page, measured in the same
+                // process: BackupExportSettingsPage's Export button is
+                // PrimaryButtonStyle with VerticalAlignment=Center and no other
+                // metrics, which is exactly what a Windows button in this app is.
+                var settingsPage = new BackupExportSettingsPage();
+                settingsPage.Measure(new Size(760, 624));
+                settingsPage.Arrange(new Rect(0, 0, 760, 624));
+                settingsPage.UpdateLayout();
+                var reference = settingsPage.ExportButton.ActualHeight;
+
+                Assert(reference > 20 && reference < 40,
+                    $"the Settings reference button measured {reference:F2}, which is not a plausible " +
+                    "Windows button height - the reference itself is wrong, not the footer");
+
+                foreach (var (name, button) in new[]
+                         {
+                             ("BackButton", back),
+                             ("SetUpLaterButton", setUpLater!),
+                             ("PrimaryButton", primary!)
+                         })
+                {
+                    var height = button.ActualHeight;
+
+                    Assert(height > 0,
+                        $"{name} measured 0 - it never took part in the layout pass, so this " +
+                        "case proves nothing about it");
+
+                    // The bug, stated as the bug: the button must not be as tall as
+                    // the band it sits in.
+                    Assert(height < 56,
+                        $"{name} rendered {height:F2} tall, the full height of the 56 footer band. " +
+                        "It is being stretched by its container again.");
+
+                    // And it must match what the rest of the app renders. One pixel of
+                    // tolerance covers the 12 vs 13 FontSize and the border on
+                    // MacButtonStyle; anything wider than that is a different control.
+                    Assert(Math.Abs(height - reference) <= 1.0,
+                        $"{name} rendered {height:F2} tall against a Settings page button's " +
+                        $"{reference:F2}. Onboarding must look like the rest of the app.");
+                }
+            });
+
+            Run("onboarding: no control on any step page is stretched by its container", () =>
+            {
+                // The footer was the only place a FIXED row forced the stretch, but the
+                // same default is one sibling away from doing it on any card row: a
+                // Grid row is as tall as its tallest child, so a wrapped label next to
+                // a button silently makes the button match it.
+                //
+                // The four selectable styles are the deliberate exception and say so in
+                // OnboardingResources.xaml: a row or card that IS the tap target has to
+                // fill its slot. They are recognised by their template's own Border
+                // padding rather than by name, so renaming a style cannot slip a
+                // stretched button past this.
+                foreach (var (step, page) in BuildOnboardingStepPages(out _))
+                {
+                    foreach (var control in DescendantsOf<System.Windows.Controls.Control>(page))
+                    {
+                        if (control is not (System.Windows.Controls.Button
+                                            or System.Windows.Controls.ComboBox
+                                            or System.Windows.Controls.TextBox
+                                            or System.Windows.Controls.PasswordBox))
+                            continue;
+
+                        if (control.VerticalAlignment != VerticalAlignment.Stretch)
+                            continue;
+
+                        // A stretched control is only acceptable when it was MEANT to
+                        // be one: the selectable row and card styles set Stretch
+                        // explicitly and carry a Command, i.e. the whole thing is the
+                        // click target.
+                        Assert(control is System.Windows.Controls.Primitives.ButtonBase { Command: not null },
+                            $"{page.GetType().Name} ({step}) has a stretched " +
+                            $"{control.GetType().Name} with no explicit height or alignment - " +
+                            "its container decides how tall it is");
+                    }
+                }
+            });
+
             Run("onboarding: no step page renders a raw onboarding.* key", () =>
             {
                 // Loc.S returns the KEY when a resource is missing, and {loc:Loc}
@@ -9151,6 +9276,24 @@ internal static class Program
         }
 
         return null;
+    }
+
+    /// <summary>Every descendant of the given type, in visual-tree order.</summary>
+    private static List<T> DescendantsOf<T>(DependencyObject root) where T : DependencyObject
+    {
+        var found = new List<T>();
+        Collect(root);
+        return found;
+
+        void Collect(DependencyObject node)
+        {
+            if (node is T match)
+                found.Add(match);
+
+            var count = System.Windows.Media.VisualTreeHelper.GetChildrenCount(node);
+            for (var i = 0; i < count; i++)
+                Collect(System.Windows.Media.VisualTreeHelper.GetChild(node, i));
+        }
     }
 
     /// <summary>Every string this subtree actually puts in front of a user.</summary>

@@ -34,6 +34,70 @@
     <Thickness x:Key="OnboardingStageMargin">40,24,40,32</Thickness>
 
     <!-- =====================================================================
+         BUTTONS
+
+         A BUTTON'S HEIGHT IS DECIDED BY THE BUTTON, NEVER BY ITS CONTAINER.
+
+         WPF's default VerticalAlignment is Stretch, so a Button dropped into a
+         fixed row or next to a taller sibling silently grows to fill it. The
+         footer band is a fixed 56 row, which is how Back, "Set Up Later" and
+         Continue all rendered 56 tall - nearly twice the height of the same
+         button on any Settings page, and the first thing anyone noticed about
+         this flow.
+
+         The fix is an alignment, not a Height. Every button in this app takes
+         its height from FontSize 13 plus the style's own vertical padding:
+         MacButtonStyle 6+6 plus a 1 border, PrimaryButtonStyle 7+7, both
+         landing on the same ~31 device-independent pixels. That is what the
+         Settings pages render, because their buttons sit in StackPanels and are
+         never stretched. Pinning a literal Height here would instead freeze the
+         flow at one font scale and clip the longer strings in 39 other locales.
+
+         The three selectable styles further down are the deliberate exception:
+         a row or card that IS the tap target must fill its slot, so they
+         declare Stretch out loud rather than inheriting it by accident.
+         ===================================================================== -->
+
+    <!-- Any secondary button in the flow. -->
+    <Style x:Key="OnboardingButtonStyle" TargetType="Button" BasedOn="{StaticResource MacButtonStyle}">
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <!-- A primary that shares a card row with text: centred against it. -->
+    <Style x:Key="OnboardingPrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource PrimaryButtonStyle}">
+        <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+
+    <!-- A primary that is the whole content of a card block, so it leads the
+         block rather than being centred in it. The roomier padding is the
+         Setup step's one call to action carrying a glyph beside its label. -->
+    <Style x:Key="OnboardingBlockPrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource PrimaryButtonStyle}">
+        <Setter Property="HorizontalAlignment" Value="Left"/>
+        <Setter Property="VerticalAlignment" Value="Top"/>
+        <Setter Property="Padding" Value="16,8"/>
+    </Style>
+
+    <!-- The footer's single primary. It keeps the wider 20 horizontal padding
+         the call site used to set inline: the vertical 7 is PrimaryButtonStyle's
+         own and was never what made it tall, and a lone Continue reads as the
+         one thing to press when it is wider than the Back beside it. Expressed
+         here rather than on the Button so the footer carries no metrics. -->
+    <Style x:Key="OnboardingFooterPrimaryButtonStyle" TargetType="Button"
+           BasedOn="{StaticResource OnboardingPrimaryButtonStyle}">
+        <Setter Property="Padding" Value="20,7"/>
+    </Style>
+
+    <!-- "Set Up Later": the quietest control on screen, so the single primary
+         keeps its hierarchy. -->
+    <Style x:Key="OnboardingQuietButtonStyle" TargetType="Button"
+           BasedOn="{StaticResource OnboardingButtonStyle}">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="FontWeight" Value="Normal"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextTertiaryBrush}"/>
+    </Style>
+
+    <!-- =====================================================================
          STEP SCAFFOLD: the anchor glyph, the question, the one supporting line
          ===================================================================== -->
 
@@ -309,18 +373,24 @@
          The implicit TextBox / PasswordBox styles in Generic.xaml already give
          the surface, border, radius and focus ring. Only the monospaced face is
          added, so a pasted key can be checked character by character.
+
+         Both carry their own Height, and both are centred for the same reason
+         the buttons are: they share a Grid row with a Test button, and without
+         an alignment whichever control is shorter gets stretched to the other.
          ===================================================================== -->
 
     <Style x:Key="OnboardingKeyFieldStyle" TargetType="TextBox">
         <Setter Property="FontFamily" Value="Consolas, Cascadia Mono, Courier New"/>
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="Height" Value="32"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
 
     <Style x:Key="OnboardingKeyPasswordStyle" TargetType="PasswordBox">
         <Setter Property="FontFamily" Value="Consolas, Cascadia Mono, Courier New"/>
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="Height" Value="32"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
     </Style>
 
     <!-- =====================================================================
@@ -358,6 +428,9 @@
     <Style x:Key="OnboardingSelectableCardStyle" TargetType="Button">
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <!-- Declared, not inherited: this button IS the card, so filling its
+             slot is the design and not the footer's stretch bug. -->
+        <Setter Property="VerticalAlignment" Value="Stretch"/>
         <Setter Property="Margin" Value="0,0,0,8"/>
         <Setter Property="Template">
             <Setter.Value>
@@ -395,6 +468,8 @@
     <Style x:Key="OnboardingSelectableRowStyle" TargetType="Button">
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <!-- As above: the row IS the tap target. -->
+        <Setter Property="VerticalAlignment" Value="Stretch"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
@@ -437,6 +512,10 @@
          needs inside a WrapPanel, at the same 8 gap macOS uses. -->
     <Style x:Key="OnboardingChipStyle" TargetType="Button">
         <Setter Property="Cursor" Value="Hand"/>
+        <!-- A chip sits in a WrapPanel, which gives its children their desired
+             height, so this is already true. Said out loud so the whole file
+             answers "what decides this button's height?" the same way. -->
+        <Setter Property="VerticalAlignment" Value="Top"/>
         <Setter Property="Margin" Value="0,0,8,8"/>
         <Setter Property="Template">
             <Setter.Value>

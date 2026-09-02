@@ -53,6 +53,7 @@ $SmokeProgramPath = Join-Path $WindowsRoot "HyperWhisper.SmokeTests\Program.cs"
 
 $StepPagesDir = Join-Path $ProjectRoot "Views\Pages\Onboarding"
 $ControlsDir = Join-Path $ProjectRoot "Views\Controls\Onboarding"
+$OnboardingResourcesXaml = Join-Path $ControlsDir "OnboardingResources.xaml"
 $FlowDir = Join-Path $ProjectRoot "ViewModels\Onboarding"
 $AdaptersDir = Join-Path $ProjectRoot "Services\Onboarding"
 
@@ -259,6 +260,84 @@ if ($radiusHits.Count -gt 0) {
     Show-Hits $radiusHits 10
 } else {
     Write-Pass "every CornerRadius literal in the onboarding XAML is on the $($AllowedCornerRadii -join '/') scale"
+}
+
+# --- no control takes its height from its container ------------------------
+# Ray's own complaint, from watching a recording of the flow: "the back button
+# and the continue button are way too tall compared to a Windows application."
+#
+# WPF's default VerticalAlignment is Stretch. The footer band is a fixed 56 row,
+# so three buttons with no alignment rendered 56 tall against the ~31 the same
+# styles render on every Settings page. Nothing about that is visible in a build
+# or in a binding, and it is one attribute away from coming back.
+#
+# The behavioural half of this lives in HyperWhisper.SmokeTests, which MEASURES
+# the rendered heights against a real Settings page button. This half is the
+# cheap one: every interactive control in the onboarding XAML has to say, at its
+# call site or through a keyed style, what decides its height.
+$stretchHits = @()
+foreach ($file in $DesignXaml) {
+    $text = Read-Text $file.FullName
+    foreach ($match in [regex]::Matches($text, '<(Button|ComboBox|TextBox|PasswordBox)\b[^>]*>')) {
+        $tag = $match.Value
+        if ($tag -match 'Style\s*=' -or $tag -match 'VerticalAlignment\s*=' -or $tag -match 'Height\s*=') { continue }
+        $line = ($text.Substring(0, $match.Index) -split "`n").Count
+        $stretchHits += "$(Get-RelativePath $file.FullName):$($line): <$($match.Groups[1].Value) ...>"
+    }
+}
+if ($stretchHits.Count -gt 0) {
+    Write-Fail "an onboarding Button/ComboBox/TextBox/PasswordBox has no Style, VerticalAlignment or Height, so its container decides how tall it is"
+    Show-Hits $stretchHits 10
+} else {
+    Write-Pass "every interactive control in the onboarding XAML decides its own height"
+}
+
+# --- the shared button styles carry the alignment --------------------------
+# The remedy above is only real if the styles the call sites point at actually
+# set it. Every Button style in OnboardingResources.xaml must declare a
+# VerticalAlignment, INCLUDING the selectable row and card styles that
+# deliberately stretch: an exception that is written down is a decision, and an
+# exception that is inherited from a WPF default is the bug this check exists
+# for.
+if (Test-Path -LiteralPath $OnboardingResourcesXaml) {
+    $resourcesXaml = Read-Text $OnboardingResourcesXaml
+
+    # key -> whether it sets VerticalAlignment itself, and what it is BasedOn.
+    # A style may inherit the setter, so the answer is a walk and not a match.
+    $buttonStyles = @{}
+    foreach ($match in [regex]::Matches($resourcesXaml, '(?s)<Style\s+x:Key="(?<key>[^"]+)"[^>]*TargetType="Button"[^>]*>(?<body>.*?)</Style>')) {
+        $header = $match.Value.Substring(0, $match.Value.IndexOf(">") + 1)
+        $basedOn = $null
+        $basedOnMatch = [regex]::Match($header, 'BasedOn="\{StaticResource\s+(?<base>[^}]+)\}"')
+        if ($basedOnMatch.Success) { $basedOn = $basedOnMatch.Groups["base"].Value.Trim() }
+
+        $buttonStyles[$match.Groups["key"].Value] = [pscustomobject]@{
+            SetsAlignment = $match.Groups["body"].Value -match 'Property="VerticalAlignment"'
+            BasedOn       = $basedOn
+        }
+    }
+
+    $unalignedStyles = @()
+    foreach ($key in $buttonStyles.Keys) {
+        $cursor = $key
+        $resolved = $false
+        # Bounded so a BasedOn cycle cannot hang the gate.
+        for ($hop = 0; $hop -lt 8 -and $cursor -and $buttonStyles.ContainsKey($cursor); $hop++) {
+            if ($buttonStyles[$cursor].SetsAlignment) { $resolved = $true; break }
+            $cursor = $buttonStyles[$cursor].BasedOn
+        }
+        if (-not $resolved) { $unalignedStyles += $key }
+    }
+
+    if ($buttonStyles.Count -eq 0) {
+        Write-Fail "no Button styles found in OnboardingResources.xaml; the alignment check is not running"
+    } elseif ($unalignedStyles.Count -gt 0) {
+        Write-Fail "onboarding Button style(s) that neither set nor inherit a VerticalAlignment: $(($unalignedStyles | Sort-Object) -join ', ')"
+    } else {
+        Write-Pass "all $($buttonStyles.Count) Button styles in OnboardingResources.xaml settle their own VerticalAlignment"
+    }
+} else {
+    Write-Fail "OnboardingResources.xaml not found at $(Get-RelativePath $OnboardingResourcesXaml)"
 }
 
 # --- the window is the macOS stage plus the caption row --------------------

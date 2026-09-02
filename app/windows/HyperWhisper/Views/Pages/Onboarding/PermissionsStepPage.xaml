@@ -75,10 +75,9 @@
                             </Border>
 
                             <Button Grid.Column="2"
-                                    Style="{StaticResource PrimaryButtonStyle}"
+                                    Style="{StaticResource OnboardingPrimaryButtonStyle}"
                                     Content="{Binding MicrophoneActionText}"
                                     Command="{Binding HandleMicrophoneActionCommand}"
-                                    VerticalAlignment="Center"
                                     Visibility="{Binding HasMicrophoneAccess, Converter={StaticResource OnboardingBoolToVisibility}, ConverterParameter=Inverse}"/>
                         </Grid>
                     </Border>
@@ -151,9 +150,9 @@
                                                VerticalAlignment="Center"
                                                Margin="0,0,12,0"/>
                                     <Button Grid.Column="1"
+                                            Style="{StaticResource OnboardingButtonStyle}"
                                             Content="{loc:Loc onboarding.permissions.shortcut.change}"
-                                            Command="{Binding ChooseDifferentShortcutCommand}"
-                                            VerticalAlignment="Center"/>
+                                            Command="{Binding ChooseDifferentShortcutCommand}"/>
                                 </Grid>
                             </Border>
                         </Border>

@@ -105,11 +105,9 @@
                         <Border Style="{StaticResource OnboardingCardBlockStyle}"
                                 Visibility="{Binding IsSelectedSourceUsable, Converter={StaticResource OnboardingBoolToVisibility}, ConverterParameter=Inverse}">
                             <StackPanel>
-                                <Button Style="{StaticResource PrimaryButtonStyle}"
+                                <Button Style="{StaticResource OnboardingBlockPrimaryButtonStyle}"
                                         Command="{Binding ActivateCloudLicenseCommand}"
-                                        IsEnabled="{Binding CanActivateLicense}"
-                                        HorizontalAlignment="Left"
-                                        Padding="16,8">
+                                        IsEnabled="{Binding CanActivateLicense}">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE73E;"
                                                    Margin="0,0,8,0" VerticalAlignment="Center"/>
@@ -216,10 +214,8 @@
                                 </StackPanel>
 
                                 <!-- Neither: offer the download -->
-                                <Button Style="{StaticResource PrimaryButtonStyle}"
+                                <Button Style="{StaticResource OnboardingBlockPrimaryButtonStyle}"
                                         Command="{Binding StartSelectedModelDownloadCommand}"
-                                        HorizontalAlignment="Left"
-                                        Padding="16,8"
                                         Visibility="{Binding ShowsDownloadButton, Converter={StaticResource OnboardingBoolToVisibility}}">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE896;"
@@ -325,11 +321,9 @@
                         <Border Style="{StaticResource OnboardingCardBlockStyle}"
                                 Visibility="{Binding IsSelectedSourceUsable, Converter={StaticResource OnboardingBoolToVisibility}, ConverterParameter=Inverse}">
                             <StackPanel>
-                                <Button Style="{StaticResource PrimaryButtonStyle}"
+                                <Button Style="{StaticResource OnboardingBlockPrimaryButtonStyle}"
                                         Command="{Binding SaveProviderKeyCommand}"
-                                        IsEnabled="{Binding CanSaveProviderKey}"
-                                        HorizontalAlignment="Left"
-                                        Padding="16,8">
+                                        IsEnabled="{Binding CanSaveProviderKey}">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE72E;"
                                                    Margin="0,0,8,0" VerticalAlignment="Center"/>

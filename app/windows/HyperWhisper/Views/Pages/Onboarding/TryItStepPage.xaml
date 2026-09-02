@@ -87,12 +87,13 @@
                                        Margin="0,0,12,0"/>
 
                             <Button Grid.Column="2"
-                                    Style="{StaticResource PrimaryButtonStyle}"
+                                    Style="{StaticResource OnboardingPrimaryButtonStyle}"
                                     Content="{loc:Loc onboarding.tryIt.record}"
                                     Command="{Binding ToggleTestRecordingCommand}"
                                     Visibility="{Binding ShowsRecordButton, Converter={StaticResource OnboardingBoolToVisibility}}"/>
 
                             <Button Grid.Column="2"
+                                    Style="{StaticResource OnboardingButtonStyle}"
                                     Content="{loc:Loc onboarding.test.stop}"
                                     Command="{Binding ToggleTestRecordingCommand}"
                                     Visibility="{Binding ShowsStopButton, Converter={StaticResource OnboardingBoolToVisibility}}"/>
@@ -139,7 +140,7 @@
                                        Margin="0,0,12,0"/>
 
                             <Button Grid.Column="1"
-                                    Style="{StaticResource PrimaryButtonStyle}"
+                                    Style="{StaticResource OnboardingPrimaryButtonStyle}"
                                     Content="{loc:Loc onboarding.tryIt.sample.button}"
                                     Command="{Binding TranscribeSampleClipCommand}"
                                     Visibility="{Binding ShowsSampleButton, Converter={StaticResource OnboardingBoolToVisibility}}"/>
@@ -234,11 +235,13 @@
                                        Margin="0,0,12,0"/>
 
                             <Button Grid.Column="1"
+                                    Style="{StaticResource OnboardingButtonStyle}"
                                     Content="{loc:Loc onboarding.tryIt.recordAgain}"
                                     Command="{Binding ToggleTestRecordingCommand}"
                                     Visibility="{Binding ShowsRecordAgain, Converter={StaticResource OnboardingBoolToVisibility}}"/>
 
                             <Button Grid.Column="1"
+                                    Style="{StaticResource OnboardingButtonStyle}"
                                     Content="{loc:Loc onboarding.tryIt.sample.button}"
                                     Command="{Binding TranscribeSampleClipCommand}"
                                     Visibility="{Binding ShowsSampleAgain, Converter={StaticResource OnboardingBoolToVisibility}}"/>

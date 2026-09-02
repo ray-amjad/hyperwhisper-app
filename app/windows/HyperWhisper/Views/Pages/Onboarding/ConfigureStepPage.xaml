@@ -58,6 +58,7 @@
                                          Margin="0,0,8,0"
                                          AutomationProperties.Name="{loc:Loc onboarding.configure.cloud.placeholder}"/>
                                 <Button Grid.Column="1"
+                                        Style="{StaticResource OnboardingButtonStyle}"
                                         Content="{loc:Loc onboarding.configure.cloud.testKey}"
                                         Command="{Binding TestAccessKeyCommand}"
                                         IsEnabled="{Binding CanTestAccessKey}"/>
@@ -99,9 +100,9 @@
                                                    Text="{loc:Loc onboarding.configure.cloud.creditsCaption}"/>
                                     </StackPanel>
                                     <Button Grid.Column="1"
+                                            Style="{StaticResource OnboardingButtonStyle}"
                                             Content="{loc:Loc onboarding.configure.cloud.getCredits}"
-                                            Click="GetCredits_Click"
-                                            VerticalAlignment="Center"/>
+                                            Click="GetCredits_Click"/>
                                 </Grid>
                             </Border>
                         </StackPanel>
@@ -255,6 +256,7 @@
                                              Margin="0,0,8,0"
                                              AutomationProperties.Name="{loc:Loc onboarding.configure.provider.keyPlaceholder}"/>
                                 <Button Grid.Column="1"
+                                        Style="{StaticResource OnboardingButtonStyle}"
                                         Content="{loc:Loc onboarding.configure.provider.testKey}"
                                         Command="{Binding TestProviderKeyCommand}"
                                         IsEnabled="{Binding CanTestProviderKey}"/>

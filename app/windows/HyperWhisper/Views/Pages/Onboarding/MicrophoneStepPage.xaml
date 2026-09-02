@@ -118,8 +118,8 @@
                                        Margin="0,0,12,0"/>
 
                             <Button Grid.Column="1"
+                                    Style="{StaticResource OnboardingButtonStyle}"
                                     Command="{Binding HandleMicrophoneActionCommand}"
-                                    VerticalAlignment="Center"
                                     Visibility="{Binding ShowsPrivacySettingsAction, Converter={StaticResource OnboardingBoolToVisibility}}">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE72E;"
@@ -130,8 +130,8 @@
                             </Button>
 
                             <Button Grid.Column="1"
+                                    Style="{StaticResource OnboardingButtonStyle}"
                                     Click="SoundSettings_Click"
-                                    VerticalAlignment="Center"
                                     Visibility="{Binding ShowsSoundSettingsAction, Converter={StaticResource OnboardingBoolToVisibility}}">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE767;"
