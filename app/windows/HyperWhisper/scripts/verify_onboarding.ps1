@@ -774,7 +774,10 @@ if (Test-Path -LiteralPath $OnboardingWindowCode) {
     Assert-Wired $windowCode "Closing += OnWindowClosing;" "Alt+F4 and the taskbar reach the flow rather than closing over it"
     Assert-Wired $windowCode "_flow.AbandonSetup();" `
         "Alt+F4, tray Quit and an OS shutdown roll back but leave OnboardingPending set, so first run is re-offered"
-    Assert-Wired $windowCode "_flow.Complete();" "the last step commits the staged configuration"
+    # Complete() returns bool now: a refused production write must not close the
+    # window. The call is checked, not just made.
+    Assert-Wired $windowCode "if (!_flow.Complete())" `
+        "the last step commits the staged configuration, and honours a refusal"
     Assert-Wired $windowCode "e.Key == Key.Escape" "Escape cannot throw away a half-finished setup (macOS interactiveDismissDisabled)"
     Assert-Wired $windowCode "_flow.Cleanup();" "the flow detaches from its seams when the window closes"
 } else {
@@ -937,9 +940,16 @@ $ProviderAssetsPath = Join-Path $ProjectRoot "Models\ProviderAssets.cs"
 $ProviderAssetsDir = Join-Path $ProjectRoot "Assets\Providers"
 
 if ((Test-Path -LiteralPath $ProviderAssetsPath) -and (Test-Path -LiteralPath $ProviderAssetsDir)) {
+    # Only the initialiser, not the prose around it: the file's own comments name
+    # the sentinel that deliberately has no PNG.
     $assetSource = Read-Text $ProviderAssetsPath
+    $initialiser = [regex]::Match($assetSource, 'ShippedNames\s*=\s*new HashSet<string>\([^)]*\)\s*\{(?<body>[^}]*)\}')
+    if (-not $initialiser.Success) {
+        Write-Fail "could not find the ShippedNames initialiser in ProviderAssets.cs"
+    }
+
     $declared = [System.Collections.Generic.HashSet[string]]::new()
-    foreach ($m in [regex]::Matches($assetSource, '"(provider[A-Za-z0-9]+)"')) {
+    foreach ($m in [regex]::Matches($initialiser.Groups["body"].Value, '"([^"]+)"')) {
         $declared.Add($m.Groups[1].Value) | Out-Null
     }
 
@@ -1035,8 +1045,11 @@ if (Test-Path -LiteralPath $RecorderCode) {
     Write-Fail "ShortcutRecorderBox.xaml.cs not found"
 }
 
+# .xaml only. -Include "*.xaml" also returns "*.xaml.cs" under the FileSystem
+# provider, and this control's own doc comment names the value it is banning.
 $inlineErrorOff = @()
-foreach ($xaml in Get-ChildItem -LiteralPath (Join-Path $ProjectRoot "Views") -Recurse -Include "*.xaml" -File) {
+foreach ($xaml in Get-ChildItem -LiteralPath (Join-Path $ProjectRoot "Views") -Recurse -File |
+        Where-Object { $_.Extension -eq ".xaml" }) {
     if ((Read-Text $xaml.FullName) -match 'ShowsInlineError\s*=\s*"False"') {
         $inlineErrorOff += (Get-RelativePath $xaml.FullName)
     }

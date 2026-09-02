@@ -435,12 +435,12 @@ public sealed class LiveOnboardingModelCatalog : IOnboardingModelCatalog, IDispo
     /// <summary>
     /// The Assets/Providers logo for a local engine.
     ///
-    /// "providerParakeet", not "providerLocalParakeet". The second name has no PNG
-    /// behind it - ParakeetModelInfo.ProviderAssetName has always said
-    /// "providerParakeet" - so the row this builds drew nothing where the Model
-    /// Library draws the NVIDIA mark. Named and internal so the smoke suite can
-    /// assert both names against ProviderAssets.ShippedNames rather than trusting a
-    /// literal buried in an object initialiser.
+    /// The Parakeet arm matches ParakeetModelInfo.ProviderAssetName, which is what
+    /// the Model Library uses. It did not: the name here had a "Local" in it that
+    /// no PNG has ever had, so the row this builds drew nothing where the Library
+    /// draws the NVIDIA mark. Named and internal so the smoke suite can assert both
+    /// arms against ProviderAssets.ShippedNames rather than trusting a literal
+    /// buried in an object initialiser.
     /// </summary>
     internal static string ProviderAssetNameFor(OnboardingModelKind kind) =>
         kind == OnboardingModelKind.Whisper ? "providerLocalWhisper" : "providerParakeet";
