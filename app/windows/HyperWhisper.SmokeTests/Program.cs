@@ -31,6 +31,7 @@ using HyperWhisper.Services;
 using HyperWhisper.AppClassification;
 using HyperWhisper.Services.AppClassification;
 using HyperWhisper.Services.LocalApi;
+using HyperWhisper.Services.Onboarding;
 using HyperWhisper.Services.Platform;
 using HyperWhisper.Services.Streaming;
 using HyperWhisper.Services.Transcription;
@@ -899,6 +900,10 @@ internal static class Program
                     "GettingStartedCompletedSteps", "LocalApiServerPersistedPort",
                     "LocalApiServerEnabled", "SelectedModeId", "RecordingOverlayXRatio",
                     "RecordingOverlayYRatio", "PushToTalk",
+                    // First-run bookkeeping for THIS install. Restoring a backup
+                    // taken before setup finished must not re-open the onboarding
+                    // window on a machine that is already configured.
+                    "OnboardingPending",
                     // Phase 3 bookkeeping. Raw preserved JSON, not settings: each has
                     // its own merge point, and running them through the pairs tables
                     // would re-emit them at the wrong path.
@@ -7084,6 +7089,316 @@ internal static class Program
             });
 
             SynchronizationContext.SetSynchronizationContext(onboardingPreviousContext);
+
+            // =================================================================
+            // ONBOARDING — LIVE ADAPTERS (phase 2)
+            //
+            // The seams above are covered against fakes. These cover the pure
+            // decision points of the REAL adapters in
+            // HyperWhisper/Services/Onboarding/OnboardingLiveDependencies.cs.
+            //
+            // Deliberately absent: anything that would write to the machine
+            // running the suite. LiveOnboardingProviderKeyGateway.Persist puts a
+            // secret in Windows Credential Manager and LiveOnboardingPermissions
+            // reads HKCU, so those are exercised through their pure halves
+            // (TranscriptionKeyType, BuildState, Evaluate) instead of by
+            // touching real state.
+            // =================================================================
+
+            Run("onboarding: the restore point clones every Mode field", () =>
+            {
+                // Reflection, not a hand-written field list: a column added to Mode
+                // and forgotten in Clone() fails here rather than silently failing
+                // to come back when the user picks "Set Up Later".
+                var settable = typeof(Mode)
+                    .GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                    .Where(p => p.CanRead && p.CanWrite)
+                    .OrderBy(p => p.Name, StringComparer.Ordinal)
+                    .ToArray();
+
+                Assert(settable.Length >= 34,
+                    $"Mode should expose at least 34 settable columns, found {settable.Length}");
+
+                var source = new Mode();
+                var seed = 1;
+                foreach (var property in settable)
+                {
+                    object value =
+                        property.PropertyType == typeof(string) ? $"value-{seed}"
+                        : property.PropertyType == typeof(bool) ? (object)(seed % 2 == 0)
+                        : property.PropertyType == typeof(int) ? 1000 + seed
+                        : property.PropertyType == typeof(Guid) ? Guid.NewGuid()
+                        : property.PropertyType == typeof(DateTime)
+                            ? new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddDays(seed)
+                        : property.PropertyType == typeof(List<string>) ? new List<string> { $"term-{seed}" }
+                        : throw new InvalidOperationException(
+                            $"Mode.{property.Name} is a {property.PropertyType.Name}. Teach this case how to "
+                            + "seed that type, and teach WindowsOnboardingRestorePoint.Clone how to copy it.");
+
+                    property.SetValue(source, value);
+                    seed++;
+                }
+
+                var clone = WindowsOnboardingRestorePoint.Clone(source);
+
+                foreach (var property in settable)
+                {
+                    var original = property.GetValue(source);
+                    var copied = property.GetValue(clone);
+
+                    if (property.PropertyType == typeof(List<string>))
+                    {
+                        // The committer mutates the live row on its way to Apply().
+                        // A snapshot that aliased the same list would follow the
+                        // mutation and restore nothing.
+                        Assert(!ReferenceEquals(original, copied),
+                            $"Mode.{property.Name} must be deep-copied, not aliased");
+                        Assert(((List<string>)original!).SequenceEqual((List<string>)copied!),
+                            $"Mode.{property.Name} contents must survive the clone");
+                        continue;
+                    }
+
+                    Assert(Equals(original, copied),
+                        $"WindowsOnboardingRestorePoint.Clone dropped Mode.{property.Name}. Add it to Clone().");
+                }
+            });
+
+            Run("onboarding: microphone consent is denied only when a ConsentStore toggle says Deny", () =>
+            {
+                // Nothing here reads HKCU. Evaluate() exists as an internal so the
+                // policy can be pinned without writing to the real consent store of
+                // whoever is running the suite.
+                Assert(MicrophonePrivacyService.Evaluate(null, null) == MicrophoneConsent.Allowed,
+                    "a machine that has never recorded has no value under either key; that is not a denial");
+                Assert(MicrophonePrivacyService.Evaluate("Allow", "Allow") == MicrophoneConsent.Allowed,
+                    "both toggles on must read as allowed");
+                Assert(MicrophonePrivacyService.Evaluate("Deny", "Allow") == MicrophoneConsent.Denied,
+                    "the global toggle alone blocks every app");
+                Assert(MicrophonePrivacyService.Evaluate("Allow", "Deny") == MicrophoneConsent.Denied,
+                    "the desktop-app toggle alone blocks THIS app, which is the case that matters");
+                Assert(MicrophonePrivacyService.Evaluate("deny", null) == MicrophoneConsent.Denied,
+                    "the registry value's case must not decide whether the user is blocked");
+                Assert(MicrophonePrivacyService.Evaluate("Prompt", null) == MicrophoneConsent.Allowed,
+                    "an unrecognised value must not be reported as a denial");
+            });
+
+            Run("onboarding: the text delivery gate suppresses and clears", () =>
+            {
+                var before = TextDeliveryGate.IsSuppressed;
+                try
+                {
+                    TextDeliveryGate.SetSuppressed(false);
+                    Assert(!TextDeliveryGate.IsSuppressed, "the gate must start open");
+
+                    TextDeliveryGate.SetSuppressed(true);
+                    Assert(TextDeliveryGate.IsSuppressed,
+                        "onboarding raises this so its Try It transcript never lands in the user's editor");
+
+                    TextDeliveryGate.SetSuppressed(true);
+                    Assert(TextDeliveryGate.IsSuppressed, "raising it twice must not toggle it back");
+
+                    TextDeliveryGate.SetSuppressed(false);
+                    Assert(!TextDeliveryGate.IsSuppressed,
+                        "the gate must reopen on close, or dictation stays dead for the rest of the session");
+                }
+                finally
+                {
+                    TextDeliveryGate.SetSuppressed(before);
+                }
+            });
+
+            Run("onboarding: the shortcut row separates 'not registered yet' from a real conflict", () =>
+            {
+                var shortcut = new KeyboardShortcut { Control = true, Shift = true, Key = Key.Space };
+                var display = shortcut.ToDisplayString();
+
+                var never = LiveOnboardingPermissions.BuildState(display, shortcut, null);
+                Assert(never.Status == OnboardingShortcutStatus.Unknown && never.FailureReason is null,
+                    "no recorded attempt means unknown, not failed");
+
+                var noHwnd = LiveOnboardingPermissions.BuildState(
+                    display, shortcut, Result.Failure("Cannot register shortcut: HwndSource is null"));
+                Assert(noHwnd.Status == OnboardingShortcutStatus.Unknown && noHwnd.FailureReason is null,
+                    "the window having no HWND yet is an ordering fact about the app, never a verdict "
+                    + "about the user's shortcut");
+
+                var ok = LiveOnboardingPermissions.BuildState(display, shortcut, Result.Success());
+                Assert(ok.Status == OnboardingShortcutStatus.Registered && ok.FailureReason is null,
+                    "a successful registration is registered");
+                Assert(ok.DisplayText == display, "the row must print the configured chord");
+
+                var taken = LiveOnboardingPermissions.BuildState(
+                    display, shortcut, Result.Failure("RegisterHotKey failed (Win32 error=1409)"));
+                Assert(taken.Status == OnboardingShortcutStatus.Failed,
+                    "1409 is a real conflict and must render as one");
+                Assert(taken.FailureReason == ShortcutValidationService.GetRegistrationErrorMessage(1409, shortcut),
+                    "the onboarding row must print the same sentence as the main window's banner");
+
+                var reserved = LiveOnboardingPermissions.BuildState(
+                    display, shortcut, Result.Failure("RegisterHotKey failed (Win32 error=1413)"));
+                Assert(reserved.FailureReason == ShortcutValidationService.GetRegistrationErrorMessage(1413, shortcut),
+                    "1413 must map to the 'reserved by Windows' sentence");
+
+                var unparsed = LiveOnboardingPermissions.BuildState(
+                    display, shortcut, Result.Failure("something else went wrong"));
+                Assert(unparsed.Status == OnboardingShortcutStatus.Failed
+                    && unparsed.FailureReason == ShortcutValidationService.GetRegistrationErrorMessage(0, shortcut),
+                    "a failure with no Win32 code still has to say something");
+            });
+
+            Run("onboarding: the credits panel flattens the cloud balance and survives having none", () =>
+            {
+                Assert(LiveOnboardingCreditsGateway.Flatten(null) is null,
+                    "no balance fetched yet must stay null so the panel renders an ellipsis, not a zero");
+
+                var credits = new HyperWhisperCloudCredits
+                {
+                    CreditsRemaining = 1234.5,
+                    MinutesRemaining = 78
+                };
+                var flat = LiveOnboardingCreditsGateway.Flatten(credits);
+
+                Assert(flat is not null, "a fetched balance must flatten");
+                Assert(flat!.CreditsRemaining == 1234.5, "credits must cross unchanged");
+                Assert(flat.MinutesRemaining == 78, "minutes must cross unchanged");
+                Assert(flat.FormattedBalance == credits.FormattedBalance,
+                    "the onboarding panel must print the same balance string as the rest of the app, "
+                    + "not its own re-formatting of the number");
+                Assert(flat.FormattedBalance == "$1.23 remaining (~78 minutes)",
+                    $"unexpected balance rendering '{flat.FormattedBalance}'");
+            });
+
+            Run("onboarding: the curated model shortlist maps onto Model Library download ids", () =>
+            {
+                var curated = LiveOnboardingModelCatalog.CuratedModels;
+                Assert(curated.Count == 4, $"the shortlist is four models, found {curated.Count}");
+                Assert(curated.Count(m => m.IsRecommended) == 1,
+                    "exactly one model may carry the recommended badge");
+
+                foreach (var model in curated)
+                {
+                    var libraryId = LiveOnboardingModelCatalog.LibraryId(model);
+                    var expectedPrefix = model.Kind == OnboardingModelKind.Parakeet ? "parakeet-" : "whisper-";
+                    Assert(libraryId.StartsWith(expectedPrefix, StringComparison.Ordinal),
+                        $"'{model.Id}' must resolve to a {expectedPrefix}* library row, got '{libraryId}'");
+
+                    // ModelDownloadService keys on the Model Library row id, not on
+                    // the raw model id. Getting this wrong makes StartDownload a
+                    // silent no-op and leaves the step spinning forever.
+                    var known = model.Kind == OnboardingModelKind.Parakeet
+                        ? ParakeetModelInfo.AllModels.Any(m => m.Id == model.Id)
+                        // Whisper's identity column is Type, not Id.
+                        : WhisperModelInfo.AllModels.Any(m => m.Type == model.Id);
+                    Assert(known, $"'{model.Id}' is not a model this app knows how to download");
+                }
+            });
+
+            Run("onboarding: every offered BYOK provider has somewhere to store its key", () =>
+            {
+                var offered = LiveOnboardingProviderKeyGateway.ByokProviders;
+                Assert(offered.Count == offered.Distinct().Count(), "the provider list must not repeat a vendor");
+
+                foreach (var provider in offered)
+                {
+                    var routed = provider.GetApiKeyProvider() != PostProcessingProvider.None
+                        || LiveOnboardingProviderKeyGateway.TranscriptionKeyType(provider) is not null;
+                    Assert(routed,
+                        $"{provider} is offered on the BYOK branch but Persist() has no slot for its key, "
+                        + "so the setup step would fail with 'could not save'");
+                }
+
+                // These three need no key: HyperWhisper Cloud has its own step, and
+                // the health probe for the two platform providers short-circuits to
+                // Healthy WITHOUT one. Offering them opens the gate on a pass that
+                // proves nothing.
+                foreach (var excluded in new[]
+                {
+                    CloudTranscriptionProvider.HyperWhisperCloud,
+                    CloudTranscriptionProvider.MicrosoftAzureSpeech,
+                    CloudTranscriptionProvider.GoogleSpeech,
+                })
+                    Assert(!offered.Contains(excluded), $"{excluded} must not be offered as a BYOK key vendor");
+            });
+
+            Run("onboarding: committing a staged source writes the Windows engine columns", () =>
+            {
+                // Windows Modes carry LocalEngine / LocalParakeetModel, which the
+                // macOS shape has no equivalent of. The committer derives them from
+                // the staged model id, so OnboardingStagedSource needs no extra
+                // field — but only if this mapping stays right.
+                var parakeet = new Mode();
+                LiveOnboardingSourceCommitter.ApplyStagedFields(
+                    parakeet,
+                    new OnboardingStagedSource(OnboardingSourceKind.OnDevice, "parakeet-v2", null, 0, null));
+
+                Assert(parakeet.ProviderType == "local", "an on-device source is local");
+                Assert(parakeet.LocalEngine == "parakeet", "a Parakeet id must select the Parakeet engine");
+                Assert(parakeet.LocalParakeetModel == "parakeet-v2", "the Parakeet slot holds the id");
+                Assert(parakeet.CloudProvider is null, "an on-device Mode has no cloud provider");
+
+                var whisper = new Mode();
+                LiveOnboardingSourceCommitter.ApplyStagedFields(
+                    whisper,
+                    new OnboardingStagedSource(OnboardingSourceKind.OnDevice, "base", null, 0, null));
+
+                Assert(whisper.LocalEngine == "whisper", "a Whisper id must select the Whisper engine");
+                Assert(whisper.Model == "base" && whisper.ModelType == "base",
+                    "both Whisper columns carry the id; TranscriptionService reads ModelType");
+                Assert(whisper.LocalParakeetModel is null,
+                    "a Whisper selection must not leave a stale Parakeet model behind");
+
+                var cloud = new Mode { CloudTranscriptionModel = "left-over-model" };
+                LiveOnboardingSourceCommitter.ApplyStagedFields(
+                    cloud,
+                    new OnboardingStagedSource(
+                        OnboardingSourceKind.HyperWhisperCloud, "hyperwhisper", "hyperwhisper", 1,
+                        CloudAccuracyTier.ElevenLabsScribeV2.ToStorageValue()));
+
+                Assert(cloud.ProviderType == "cloud", "a cloud source is cloud");
+                Assert(cloud.CloudProvider == "hyperwhisper", "the provider id must land");
+                Assert(cloud.PostProcessingMode == 1, "the staged post-processing mode must land");
+                Assert(cloud.CloudAccuracyTier == CloudAccuracyTier.ElevenLabsScribeV2.ToStorageValue(),
+                    "the staged accuracy tier must land");
+                Assert(cloud.CloudTranscriptionModel is null,
+                    "a stale per-provider model override would silently outrank the tier");
+            });
+
+            Run("onboarding: the sample clip ships in the build and extracts as a real WAV", () =>
+            {
+                // The no-microphone path is the ONLY thing the Try It step can offer
+                // on a machine with no input device, so a missing resource turns that
+                // step into a dead end.
+                Assert(OnboardingLiveDependencies.SampleClipExists(),
+                    $"'{OnboardingLiveDependencies.SampleClipResourceName}' is not embedded in this build. "
+                    + "Check the EmbeddedResource LogicalName in HyperWhisper.csproj.");
+
+                var path = OnboardingLiveDependencies.ExtractSampleClip();
+                Assert(path is not null, "the clip must extract to a real file for FileTranscriptionService");
+
+                try
+                {
+                    var bytes = File.ReadAllBytes(path!);
+                    Assert(bytes.Length > 1024, $"the extracted clip is only {bytes.Length} bytes");
+
+                    // Assert on the header, not on a transcription: no smoke test may
+                    // depend on a model being installed or a network being up.
+                    Assert(System.Text.Encoding.ASCII.GetString(bytes, 0, 4) == "RIFF"
+                        && System.Text.Encoding.ASCII.GetString(bytes, 8, 4) == "WAVE",
+                        "the extracted file is not a RIFF/WAVE container");
+
+                    var channels = BitConverter.ToUInt16(bytes, 22);
+                    var sampleRate = BitConverter.ToUInt32(bytes, 24);
+                    var bitsPerSample = BitConverter.ToUInt16(bytes, 34);
+
+                    Assert(channels == 1 && sampleRate == 16000 && bitsPerSample == 16,
+                        $"the clip is {channels}ch/{sampleRate}Hz/{bitsPerSample}bit; the transcription path "
+                        + "wants 16 kHz mono 16-bit");
+                }
+                finally
+                {
+                    try { if (path is not null) File.Delete(path); } catch { /* best effort */ }
+                }
+            });
 
             Console.WriteLine(_failures == 0
                 ? "All smoke tests passed."

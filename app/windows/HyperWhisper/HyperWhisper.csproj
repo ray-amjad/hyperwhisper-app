@@ -155,6 +155,12 @@
     <EmbeddedResource Include="Assets\Sounds\stop2.wav" LogicalName="HyperWhisper.Assets.Sounds.stop2.wav" />
     <EmbeddedResource Include="Assets\Sounds\stop3.wav" LogicalName="HyperWhisper.Assets.Sounds.stop3.wav" />
     <EmbeddedResource Include="Assets\Sounds\stop4.wav" LogicalName="HyperWhisper.Assets.Sounds.stop4.wav" />
+    <!-- First-run onboarding "Try It" sample clip: 16 kHz mono 16-bit PCM, so
+         FileTranscriptionService.IsAlready16KhzMonoPcmWav short-circuits the
+         conversion. This block lists every file explicitly - there is no glob -
+         so a WAV missing from here simply does not ship and only fails at run
+         time. -->
+    <EmbeddedResource Include="Assets\Sounds\onboarding-sample.wav" LogicalName="HyperWhisper.Assets.Sounds.onboarding-sample.wav" />
   </ItemGroup>
 
   <!-- Provider brand marks used by the Windows Model Library. -->

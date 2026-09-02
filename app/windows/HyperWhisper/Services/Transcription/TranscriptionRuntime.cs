@@ -13,7 +13,15 @@ namespace HyperWhisper.Services.Transcription;
 public enum TranscriptionCallSite
 {
     Gui,
-    Api
+    Api,
+
+    /// <summary>
+    /// The first-run onboarding "give it a try" step, which renders both the
+    /// transcript and any warning inline in its own window. A toast behind the
+    /// modal would be unreachable, so GUI subscribers treat this like
+    /// <see cref="Api"/>: anything that is not <see cref="Gui"/> suppresses.
+    /// </summary>
+    Onboarding
 }
 
 /// <summary>

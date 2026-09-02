@@ -253,6 +253,41 @@ public class CloudProviderHealthService : IDisposable
     }
 
     /// <summary>
+    /// Probes a CANDIDATE key without publishing, caching or persisting it.
+    ///
+    /// <see cref="RefreshAsync(CloudTranscriptionProvider, bool)"/> cannot serve
+    /// this: it reads the key out of the credential store, so it can only grade a
+    /// key that has already been saved. Onboarding has to grade the key the user
+    /// just typed BEFORE writing it, precisely so a failed credential write cannot
+    /// be masked by a health check that passed against a temporary in-memory
+    /// credential. Mirrors macOS <c>CloudProviderHealthManager.probe</c>.
+    ///
+    /// The status cache is deliberately left alone: a probe of some other key must
+    /// not overwrite what the app believes about the stored one.
+    /// </summary>
+    public async Task<ProviderHealth> ProbeAsync(
+        CloudTranscriptionProvider provider,
+        string apiKey,
+        CancellationToken cancellationToken = default)
+    {
+        // Routed / HW-Cloud providers need no API key and are always reachable.
+        if (provider is CloudTranscriptionProvider.HyperWhisperCloud
+            or CloudTranscriptionProvider.MicrosoftAzureSpeech
+            or CloudTranscriptionProvider.GoogleSpeech)
+        {
+            return ProviderHealth.Healthy;
+        }
+
+        var trimmed = apiKey?.Trim() ?? "";
+        if (trimmed.Length == 0)
+        {
+            return ProviderHealth.Unknown;
+        }
+
+        return await PerformTranscriptionHealthCheckAsync(provider, trimmed, cancellationToken);
+    }
+
+    /// <summary>
     /// Registers an API key change with debounced refresh.
     /// </summary>
     public void RegisterApiKeyChange(CloudTranscriptionProvider provider, string? newValue)
@@ -406,7 +441,10 @@ public class CloudProviderHealthService : IDisposable
     // HEALTH CHECK IMPLEMENTATION
     // =========================================================================
 
-    private async Task<ProviderHealth> PerformTranscriptionHealthCheckAsync(CloudTranscriptionProvider provider, string apiKey)
+    private async Task<ProviderHealth> PerformTranscriptionHealthCheckAsync(
+        CloudTranscriptionProvider provider,
+        string apiKey,
+        CancellationToken cancellationToken = default)
     {
         // WAVE 3 / Win-2: the health request + verdict now run through the Rust
         // shared core (BuildHealthRequest(WithBase) + ParseHealthResponse). The
@@ -433,7 +471,7 @@ public class CloudProviderHealthService : IDisposable
             // Build the request via the core (URL + auth header / ?key= for Gemini).
             var request = HyperwhisperCoreMethods.BuildHealthRequest(hwProvider, apiKey);
 
-            var captured = await RustHttpExecutor.ExecuteAsync(request, _httpClient, CancellationToken.None);
+            var captured = await RustHttpExecutor.ExecuteAsync(request, _httpClient, cancellationToken);
 
             // The core's verdict collapses healthy vs unauthorized into a bool +
             // raw status; expand it back into the app's 3-state enum, preserving

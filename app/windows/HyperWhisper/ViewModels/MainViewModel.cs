@@ -234,12 +234,13 @@ public partial class MainViewModel : ViewModelBase
         };
         _orchestratorWarningHandler = (s, args) =>
         {
-            // The orchestrator is shared with the Local API server via
-            // TranscriptionRuntime. Warnings from API-driven calls were
-            // returned in the HTTP response — don't pop a toast on top of the
-            // user's GUI for something they didn't trigger.
+            // The orchestrator is shared with the Local API server and with the
+            // first-run onboarding window via TranscriptionRuntime. Warnings from
+            // API-driven calls were returned in the HTTP response, and onboarding
+            // renders its own inline — don't pop a toast on top of the user's GUI
+            // for something they didn't trigger here.
             if (args is OrchestratorPostProcessingWarningEventArgs tagged
-                && tagged.CallSite == TranscriptionCallSite.Api)
+                && tagged.CallSite != TranscriptionCallSite.Gui)
             {
                 return;
             }
@@ -303,7 +304,7 @@ public partial class MainViewModel : ViewModelBase
         {
             if (kvp.Value.IsFailure)
             {
-                int win32Error = ExtractWin32ErrorCode(kvp.Value.Error);
+                int win32Error = ShortcutValidationService.ExtractWin32ErrorCode(kvp.Value.Error);
                 string userMessage = ShortcutValidationService.GetRegistrationErrorMessage(
                     win32Error,
                     shortcuts[kvp.Key]
@@ -326,20 +327,6 @@ public partial class MainViewModel : ViewModelBase
 
         _pushToTalkMonitor.Configure(_settingsService.PushToTalk);
         _pushToTalkMonitor.Start();
-    }
-
-    private static int ExtractWin32ErrorCode(string? errorMessage)
-    {
-        if (string.IsNullOrEmpty(errorMessage)) return 0;
-
-        // Extract from format: "...Win32 error=1409"
-        var match = System.Text.RegularExpressions.Regex.Match(errorMessage, @"Win32 error=(\d+)");
-        if (match.Success && int.TryParse(match.Groups[1].Value, out int code))
-        {
-            return code;
-        }
-
-        return 0;
     }
 
     public override async Task OnNavigatedToAsync()

@@ -124,10 +124,38 @@ public sealed class KeyboardShortcutService : IDisposable, PlatformContracts.IGl
     private int _hotkeyIdCounter = 1;
     private bool _disposed;
 
+    private readonly ConcurrentDictionary<string, Result> _lastRegistrationResults = new();
+
+    /// <summary>
+    /// The instance the running app registers its global shortcuts through.
+    ///
+    /// There is no DI container here and exactly one of these is ever constructed
+    /// (MainViewModel's), but a Win32 hotkey is per-thread: registering the same
+    /// combination a second time from a second instance fails with 1409 against
+    /// ourselves. So anything that wants to know whether the user's shortcut is
+    /// live has to ask THIS object rather than make its own attempt.
+    /// </summary>
+    public static KeyboardShortcutService? Current { get; private set; }
+
     public KeyboardShortcutService()
     {
         _hookCallback = HookCallback;
+        Current = this;
     }
+
+    /// <summary>
+    /// The outcome of the most recent <see cref="RegisterShortcut"/> attempt for
+    /// <paramref name="name"/>, or null when this shortcut has never been
+    /// registered through this service (no window yet, or the app has not reached
+    /// RegisterShortcutsFromSettings). Null is "not known", NOT "failed".
+    ///
+    /// Read-only by design: the app already re-registers everything whenever
+    /// settings change, so a caller that wants a fresh answer only has to read
+    /// again. Re-registering from a second call site would unregister the live
+    /// hotkey first and could leave the user with none.
+    /// </summary>
+    public Result? GetLastRegistrationResult(string name)
+        => _lastRegistrationResults.TryGetValue(name, out var result) ? result : null;
 
     public void AttachWindowIfNeeded()
     {
@@ -252,6 +280,7 @@ public sealed class KeyboardShortcutService : IDisposable, PlatformContracts.IGl
         foreach (var name in removed)
         {
             _shortcuts.Remove(name);
+            _lastRegistrationResults.TryRemove(name, out _);
             UnregisterHotKeyForName(name);
         }
 
@@ -266,6 +295,13 @@ public sealed class KeyboardShortcutService : IDisposable, PlatformContracts.IGl
     }
 
     public Result RegisterShortcut(string name, KeyboardShortcut shortcut)
+    {
+        var result = RegisterShortcutCore(name, shortcut);
+        _lastRegistrationResults[name] = result;
+        return result;
+    }
+
+    private Result RegisterShortcutCore(string name, KeyboardShortcut shortcut)
     {
         _activeShortcuts.Remove(name);
         UnregisterHotKeyForName(name);
@@ -335,6 +371,7 @@ public sealed class KeyboardShortcutService : IDisposable, PlatformContracts.IGl
         _shortcuts.Clear();
         _activeShortcuts.Clear();
         _pressedKeys.Clear();
+        _lastRegistrationResults.Clear();
     }
 
     /// <summary>
@@ -351,6 +388,8 @@ public sealed class KeyboardShortcutService : IDisposable, PlatformContracts.IGl
     {
         if (_disposed) return;
         _disposed = true;
+
+        if (ReferenceEquals(Current, this)) Current = null;
 
         Clear();
         if (_hookId != IntPtr.Zero)

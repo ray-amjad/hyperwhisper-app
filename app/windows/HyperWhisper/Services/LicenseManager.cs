@@ -233,6 +233,24 @@ public sealed class LicenseManager : INotifyPropertyChanged
     }
 
     /// <summary>
+    /// Checks a license key WITHOUT activating it. Read only: it does not call
+    /// ProcessValidationResult, so LicenseStatus, CustomerEmail and LastError are
+    /// untouched, and the network service's probe path does not store the key or
+    /// write the validation cache either.
+    ///
+    /// This preserves the macOS invariant (LicenseManager.probeLicense) that the
+    /// onboarding "Test access key" button is a lookup and "Activate" is the one
+    /// explicit account action. Collapsing Test into ActivateLicenseAsync would
+    /// quietly change what pressing a button does.
+    /// </summary>
+    public Task<LicenseValidationResult> ProbeLicenseAsync(
+        string licenseKey,
+        CancellationToken cancellationToken = default)
+    {
+        return LicenseNetworkService.Instance.ProbeLicenseAsync(licenseKey, cancellationToken);
+    }
+
+    /// <summary>
     /// Deactivates the license locally (clears stored data).
     /// </summary>
     /// <returns>True if deactivation succeeded.</returns>

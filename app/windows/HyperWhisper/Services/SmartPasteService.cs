@@ -687,6 +687,14 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
         // counts, flags and durations only — never the transcript.
         var attempt = NewPasteAttempt(text, autoPasteAttempted: false);
 
+        // Suppression is checked HERE, at the sink, not at each of the four call
+        // sites that lead here. See TextDeliveryGate.
+        if (TextDeliveryGate.IsSuppressed)
+        {
+            LoggingService.Info("SmartPasteService: Clipboard copy suppressed by TextDeliveryGate");
+            return false;
+        }
+
         if (string.IsNullOrEmpty(text))
         {
             LoggingService.Warn("SmartPasteService: Empty text, nothing to copy");
@@ -764,6 +772,18 @@ public class SmartPasteService : IDisposable, PlatformContracts.ITextInjectionSe
         // last step of the record → transcribe → paste flow is visible in
         // production. Holds counts, flags and durations only — never the text.
         var attempt = NewPasteAttempt(text, autoPasteAttempted: true);
+
+        // Suppression is checked HERE, at the sink, not at each of the four call
+        // sites that lead here. Without it a global hotkey pressed while the
+        // first-run window is open would paste a test sentence into whatever the
+        // user had focused AND clobber their clipboard. Failed is the honest
+        // answer and it is silent: the caller's switch has no case for it beyond
+        // hiding the overlay. See TextDeliveryGate.
+        if (TextDeliveryGate.IsSuppressed)
+        {
+            LoggingService.Info("SmartPasteService: Paste suppressed by TextDeliveryGate");
+            return SmartPasteResult.Failed;
+        }
 
         if (string.IsNullOrEmpty(text))
         {
