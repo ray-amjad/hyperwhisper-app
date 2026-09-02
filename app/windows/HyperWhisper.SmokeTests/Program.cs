@@ -5679,18 +5679,24 @@ internal static class Program
                             new HwPart.FileRef("audio", path, "audio/wav", "audio.wav"),
                         })));
 
-                    Assert(message.Content != null, "typed multipart request produced no content");
-                    var rendered = System.Text.Encoding.UTF8.GetString(
-                        await message.Content!.ReadAsByteArrayAsync());
-                    Assert(rendered.Contains("name=\"request\"; filename=\"request.json\"", StringComparison.Ordinal),
+                    Assert(message.Content is MultipartFormDataContent,
+                        "typed multipart request produced no multipart content");
+                    var parts = ((MultipartFormDataContent)message.Content!).ToList();
+                    var requestPart = parts.SingleOrDefault(part =>
+                        part.Headers.ContentDisposition?.Name?.Trim('"') == "request");
+                    var audioPart = parts.SingleOrDefault(part =>
+                        part.Headers.ContentDisposition?.Name?.Trim('"') == "audio");
+                    Assert(requestPart?.Headers.ContentDisposition?.FileName?.Trim('"') == "request.json",
                         "typed request.json disposition is missing");
-                    Assert(rendered.Contains("Content-Type: application/json", StringComparison.OrdinalIgnoreCase),
+                    Assert(requestPart?.Headers.ContentType?.MediaType == "application/json",
                         "typed request.json MIME is missing");
-                    Assert(rendered.Contains("{\"mode\":\"PUSH_TO_TALK\"}", StringComparison.Ordinal),
+                    Assert(System.Text.Encoding.UTF8.GetString(
+                            await requestPart!.ReadAsByteArrayAsync()) == "{\"mode\":\"PUSH_TO_TALK\"}",
                         "typed request.json bytes are missing");
-                    Assert(rendered.Contains("name=\"audio\"; filename=\"audio.wav\"", StringComparison.Ordinal),
+                    Assert(audioPart?.Headers.ContentDisposition?.FileName?.Trim('"') == "audio.wav",
                         "streamed audio disposition is missing");
-                    Assert(rendered.Contains("streamed-audio-marker", StringComparison.Ordinal),
+                    Assert(System.Text.Encoding.UTF8.GetString(
+                            await audioPart!.ReadAsByteArrayAsync()) == "streamed-audio-marker",
                         "streamed audio bytes are missing");
                 }
                 finally
