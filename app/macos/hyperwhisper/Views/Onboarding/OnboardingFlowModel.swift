@@ -851,6 +851,19 @@ final class OnboardingFlowModel: ObservableObject {
     func advance() -> Bool {
         guard canContinue,
               let next = OnboardingStep(rawValue: step.rawValue + 1) else { return false }
+        // #315: the setup gate is positional, so a source that died after the
+        // user passed it still reached Try It. Suppressing the write there is
+        // not enough — the test recording would then run through their PREVIOUS
+        // production configuration and read as a pass. Refuse the transition and
+        // send them to the one step that can explain and fix it. Checked before
+        // `step = next` so `stepDidChange()` is never entered re-entrantly; the
+        // return value stays honest ("the user did not move forward") even though
+        // `step` changed.
+        if next == .tryIt, stagedSource != nil, !isSelectedSourceUsable {
+            step = .setup
+            refreshSetupError()
+            return false
+        }
         step = next
         stepDidChange()
         return true
@@ -914,7 +927,11 @@ final class OnboardingFlowModel: ObservableObject {
     }
 
     private func applyStagedSourceReversibly() {
-        guard let staged = stagedSource else { return }
+        // #315: usability is a precondition of the WRITE, not of a step
+        // transition. Both callers now re-check it and bounce the user to
+        // `.setup` first, so nothing reachable returns here — this is the
+        // backstop that stops a future third caller reintroducing the bug.
+        guard isSelectedSourceUsable, let staged = stagedSource else { return }
         if restorePoint == nil {
             restorePoint = committer.captureRestorePoint()
         }
@@ -923,8 +940,25 @@ final class OnboardingFlowModel: ObservableObject {
 
     /// Explicit completion. The staged configuration becomes production state and
     /// there is nothing left to roll back.
-    func complete() {
-        guard isLive else { return }
+    ///
+    /// Returns false when completion was refused: either the flow has already
+    /// closed, or the setup gate has shut since the user passed it. In the second
+    /// case nothing is committed and the flow is sent back to `.setup` to fix it,
+    /// so the caller must keep the sheet open.
+    @discardableResult
+    func complete() -> Bool {
+        guard isLive else { return false }
+        // #315: the gate was only ever checked on the way out of `.setup`, so a
+        // model deleted or a license deactivated during the last two steps still
+        // became the user's default and failed on their first real dictation.
+        // Gate on the thing being committed rather than on the gate alone: with
+        // no staged source there is nothing to protect and closing cleanly is
+        // existing behaviour.
+        if stagedSource != nil, !isSelectedSourceUsable {
+            step = .setup
+            refreshSetupError()
+            return false
+        }
         applyStagedSourceReversibly()
         restorePoint = nil
         providerKeyRestorePoints.removeAll()
@@ -932,6 +966,7 @@ final class OnboardingFlowModel: ObservableObject {
         previousDeviceID = nil
         previousOpenDeviceID = nil
         finish()
+        return true
     }
 
     /// Set Up Later. Bug 1: every reversible write this flow made is put back, so

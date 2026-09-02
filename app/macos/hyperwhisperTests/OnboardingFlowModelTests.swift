@@ -944,6 +944,156 @@ struct OnboardingCompletionTests {
     }
 }
 
+// MARK: - Re-checking the setup gate before the commit
+
+/// The setup gate used to be positional: checked on the way out of `.setup` and
+/// never again, so a model deleted or a license deactivated during the last two
+/// steps still became the user's default. These pin the two places production
+/// state can be written — completion, and entry to Try It — against a source that
+/// stopped being usable after the user passed the gate honestly.
+@MainActor
+struct OnboardingCompletionGateTests {
+    @Test func completeBouncesToSetupWhenTheModelDisappearedAfterTheGate() {
+        let h = Harness()
+        h.stageInstalledOnDeviceModel()
+        h.advance(to: .done)
+        #expect(h.committer.applied.count == 1)
+
+        h.catalog.installed.remove(FakeCatalog.parakeet.id)
+
+        #expect(!h.flow.complete(), "a source that cannot transcribe must not be committed")
+        #expect(h.flow.step == .setup)
+        #expect(h.committer.applied.count == 1, "only the reversible Try It write, no second commit")
+        #expect(h.committer.markCompletedCount == 0)
+        #expect(h.committer.returnHomeCount == 0)
+        #expect(h.flow.isLiveForTesting, "the flow stays open so the user can fix the source")
+        #expect(h.flow.hasPendingProductionWrite)
+        #expect(!h.flow.canContinue)
+    }
+
+    /// The reachable trigger: a license can be deactivated server side between the
+    /// setup step and the finish, and the try it step makes that window minutes wide.
+    @Test func completeBouncesToSetupWhenTheCloudLicenceWentInactiveAfterTheGate() async {
+        let h = Harness()
+        h.grantMicrophone()
+        h.flow.select(source: .hyperwhisperCloud)
+        h.flow.licenseKeyInput = "key"
+        h.flow.testAccessKey()
+        await h.flow.lastAsyncTaskForTesting?.value
+        h.advance(to: .setup)
+        h.flow.activateCloudLicense()
+        await h.flow.lastAsyncTaskForTesting?.value
+        h.advance(to: .done)
+        #expect(h.committer.applied.count == 1)
+
+        h.license.isActive = false
+
+        #expect(!h.flow.complete())
+        #expect(h.flow.step == .setup)
+        #expect(h.committer.applied.count == 1)
+        #expect(h.committer.markCompletedCount == 0)
+        #expect(h.committer.returnHomeCount == 0)
+        #expect(h.flow.isLiveForTesting)
+        #expect(!h.flow.canContinue)
+    }
+
+    /// The half of the gate no other test moves: `validatedProviders` still holds
+    /// the provider while the Keychain entry behind it has gone.
+    @Test func completeBouncesToSetupWhenTheProviderKeyVanishedAfterTheGate() async {
+        let h = Harness()
+        h.grantMicrophone()
+        h.advance(to: .source)
+        h.flow.select(source: .yourProvider)
+        h.advance(to: .configure)
+        h.flow.apiKeyInput = "sk-test"
+        h.flow.testProviderKey()
+        await h.flow.lastAsyncTaskForTesting?.value
+        h.advance(to: .done)
+        #expect(h.committer.applied.count == 1)
+
+        h.providerKeys.stored[.openai] = nil
+
+        #expect(!h.flow.complete())
+        #expect(h.flow.step == .setup)
+        #expect(h.committer.applied.count == 1)
+        #expect(h.committer.markCompletedCount == 0)
+        #expect(h.committer.returnHomeCount == 0)
+        #expect(h.flow.isLiveForTesting)
+        #expect(!h.flow.canContinue)
+    }
+
+    /// Called directly rather than through `Harness.advance(to:)`, which asserts
+    /// that every call moved forward — the bounce deliberately does not.
+    @Test func advanceBouncesToSetupWhenTheSourceDiedBeforeTryIt() {
+        let h = Harness()
+        h.stageInstalledOnDeviceModel()
+        h.advance(to: .microphone)
+
+        h.catalog.installed.remove(FakeCatalog.parakeet.id)
+
+        #expect(!h.flow.advance())
+        #expect(h.flow.step == .setup,
+                "Try It must record through the source the user set up, so a dead source is sent back rather than skipped past")
+        #expect(h.committer.applied.isEmpty)
+        #expect(h.committer.productionState == FakeCommitter.seed)
+        #expect(!h.flow.canContinue)
+        #expect(h.flow.isLiveForTesting)
+    }
+
+    @Test func fixingTheSourceAfterABounceLetsCompletionCommit() {
+        let h = Harness()
+        h.stageInstalledOnDeviceModel()
+        h.advance(to: .done)
+        h.catalog.installed.remove(FakeCatalog.parakeet.id)
+        #expect(!h.flow.complete())
+
+        h.catalog.installed.insert(FakeCatalog.parakeet.id)
+
+        #expect(h.flow.complete())
+        #expect(h.committer.applied.last?.source == .onDevice)
+        #expect(h.committer.applied.last?.model == FakeCatalog.parakeet.id)
+        #expect(h.committer.productionState.contains(FakeCatalog.parakeet.id))
+        #expect(h.committer.restoreCount == 0)
+        #expect(h.committer.markCompletedCount == 1)
+        #expect(!h.flow.hasPendingProductionWrite)
+        #expect(!h.flow.isLiveForTesting)
+    }
+
+    /// The point of refusing the transition rather than silently suppressing the
+    /// write: once the source is fixed, Try It records through the fixed source.
+    @Test func fixingTheSourceAfterAnAdvanceBounceRecordsThroughTheNewSource() {
+        let h = Harness()
+        h.stageInstalledOnDeviceModel()
+        h.advance(to: .microphone)
+        h.catalog.installed.remove(FakeCatalog.parakeet.id)
+        #expect(!h.flow.advance())
+
+        h.catalog.installed.insert(FakeCatalog.parakeet.id)
+        h.advance(to: .tryIt)
+
+        #expect(h.committer.applied.count == 1)
+        #expect(h.committer.applied.last?.model == FakeCatalog.parakeet.id)
+        #expect(h.committer.productionState != FakeCommitter.seed)
+    }
+
+    /// The bounce deliberately leaves the Try It write applied, because the user is
+    /// about to walk forward through Try It again and it has to record through the
+    /// source they just fixed. Set Up Later must still put everything back.
+    @Test func bouncingBackKeepsTheReversibleWriteRollbackable() {
+        let h = Harness()
+        h.stageInstalledOnDeviceModel()
+        h.advance(to: .done)
+        h.catalog.installed.remove(FakeCatalog.parakeet.id)
+        #expect(!h.flow.complete())
+
+        h.flow.deferSetup()
+
+        #expect(h.committer.restoreCount == 1)
+        #expect(h.committer.productionState == FakeCommitter.seed)
+        #expect(!h.flow.hasPendingProductionWrite)
+    }
+}
+
 // MARK: - Late async completion (bug 3)
 
 @MainActor
