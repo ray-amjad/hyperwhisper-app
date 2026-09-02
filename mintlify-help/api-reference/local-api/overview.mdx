@@ -84,11 +84,6 @@ The server refuses a request that is too large:
 | Request body | 50 MiB (52,428,800 bytes) |
 | Audio | 48 MiB (50,331,648 bytes) |
 
-The audio limit applies to the decoded bytes of `audio_base64`, and to a
-multipart `audio` part. These are the two shapes that the server holds in
-memory. A `file` path is different: the server reads it from disk in small
-pieces, and the audio limit does not apply to it.
-
 A refusal is a business failure, not a protocol failure. The server returns
 **HTTP 200** with this envelope:
 
@@ -105,11 +100,24 @@ A refusal is a business failure, not a protocol failure. The server returns
 The message is `Audio exceeds the configured upload limit.` when the audio
 limit is the one that the request passed.
 
-The server does not return **413**. `PAYLOAD_TOO_LARGE` is not one of the
-codes in the closed set, and a client that shares the macOS decoder cannot read
-an envelope that contains it. Read the `code`, not the status.
+Each platform applies the limits differently:
 
-These two limits apply on macOS. The Windows server does not apply them yet.
+- **macOS** applies both limits. The request limit applies to every route that
+  reads a body. The audio limit applies to the decoded bytes of `audio_base64`.
+  It does not apply to a `file` path, because the server reads that file from
+  disk in small pieces. macOS always answers with the HTTP 200 envelope.
+- **Linux** applies both limits. It also applies the audio limit to a multipart
+  `audio` part and to a `file` path. Only `/transcribe` answers with the
+  HTTP 200 envelope. On the other routes, the web server stops the body itself
+  and returns a bare **413** with no envelope.
+- **Windows** does not use these two values yet. Its web server keeps its own
+  default of 30,000,000 bytes (approximately 28.6 MiB), which applies to every
+  route. The refusal arrives as HTTP 400 with the message `Invalid JSON body`.
+  Windows has no audio limit.
+
+Do not use **413** to find an oversized request. `PAYLOAD_TOO_LARGE` is not one
+of the codes in the closed set, and a client that shares the macOS decoder
+cannot read an envelope that contains it. Read the `code`, not the status.
 
 ## Endpoints
 
