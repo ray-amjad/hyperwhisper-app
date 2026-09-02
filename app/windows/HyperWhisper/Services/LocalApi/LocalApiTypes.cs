@@ -75,7 +75,6 @@ internal sealed class HealthLocalModels
 {
     [JsonPropertyName("whisper")] public List<HealthLocalModelEntry> Whisper { get; init; } = new();
     [JsonPropertyName("parakeet")] public List<HealthLocalModelEntry> Parakeet { get; init; } = new();
-    [JsonPropertyName("nemotron")] public List<HealthLocalModelEntry> Nemotron { get; init; } = new();
     [JsonPropertyName("qwen3_asr")] public List<HealthLocalModelEntry> Qwen3Asr { get; init; } = new();
     [JsonPropertyName("apple_speech")] public List<HealthLocalModelEntry> AppleSpeech { get; init; } = new();
     [JsonPropertyName("local_llm")] public List<HealthLocalModelEntry> LocalLlm { get; init; } = new();

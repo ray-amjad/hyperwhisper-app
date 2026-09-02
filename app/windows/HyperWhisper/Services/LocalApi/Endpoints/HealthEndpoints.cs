@@ -131,7 +131,6 @@ internal static class HealthEndpoints
         }
 
         var parakeet = new List<HealthLocalModelEntry>();
-        var nemotron = new List<HealthLocalModelEntry>();
         var qwen3Asr = new List<HealthLocalModelEntry>();
         if (server.ParakeetModels is { } parakeetSvc)
         {
@@ -146,16 +145,11 @@ internal static class HealthEndpoints
 
                 // Keep all sherpa-daemon models in the legacy parakeet bucket for
                 // Windows client compatibility. Also fill the documented qwen3_asr
-                // and nemotron buckets for cross-platform consumers that look for
-                // those engines directly.
+                // bucket for cross-platform consumers that look for Qwen directly.
                 parakeet.Add(entry);
                 if (m.Engine == ParakeetEngine.Qwen3)
                 {
                     qwen3Asr.Add(entry);
-                }
-                if (m.Engine == ParakeetEngine.NemotronMl)
-                {
-                    nemotron.Add(entry);
                 }
             }
         }
@@ -178,7 +172,6 @@ internal static class HealthEndpoints
         {
             Whisper = whisper,
             Parakeet = parakeet,
-            Nemotron = nemotron,
             Qwen3Asr = qwen3Asr,
             AppleSpeech = new List<HealthLocalModelEntry>(),    // Apple Speech is macOS-only
             LocalLlm = localLlm
