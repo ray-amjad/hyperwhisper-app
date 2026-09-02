@@ -796,9 +796,33 @@ enum TranscribeEndpoint {
         // same set `TranscriptionProviderRouter.resolveProvider` matches on,
         // which is why it is a constant and not a second literal copy.
         case _ where NemotronModelManager.Constants.engineAliases.contains(normalizedEngine):
-            let requestedNemotronModel = model?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            if requestedNemotronModel.isEmpty {
-                // No explicit model. Same reasoning as the cloud branch's
+            // `canonicalModelId` trims, lowercases, and answers nil for blank,
+            // so this one test covers "no model", "  ", and "not a variant".
+            if let explicitVariant = NemotronModelManager.Constants.canonicalModelId(for: model ?? "") {
+                // An explicit model naming a real variant wins outright: the
+                // caller is changing variant, not re-asserting the engine, so
+                // no inherit and no language snap.
+                //
+                // Review round 2: this arm now accepts ONLY a real variant. It
+                // used to pass an unknown id through unchanged
+                // (`modelIdForSelection` preserves it), on the reasoning that
+                // the router would reject it and name it in the error. True on
+                // the engine-only path, where `resolve` calls `resolveProvider`
+                // BEFORE `makeTransientMode` — but the mixed mode_id+engine
+                // path only calls `selectProvider(for: transient)` and never
+                // reaches `resolveProvider`, so nothing rejected it. There
+                // `{mode_id: X, engine: "nemotron", model: "base"}` wrote
+                // "base" onto the Mode, `selectLocalProvider`'s
+                // `mapModelIdToWhisperModel` matched it, and LibWhisper
+                // transcribed — `ok: true`, `"engine": "whisperLocal"`, for a
+                // caller who asked for Nemotron (`"parakeet-tdt-0.6b-v3"`
+                // reached ParakeetProvider the same way). `engine=` must never
+                // select another engine's provider, so an unusable model is
+                // treated as absent and falls through to the inherit-or-default
+                // rule below; the response's `model` then reports what ran.
+                mode.model = explicitVariant
+            } else {
+                // No usable explicit model. Same reasoning as the cloud branch's
                 // `belongsToProvider` guard above: on the mixed mode_id+engine
                 // form the caller is re-asserting the engine, not asking to
                 // change variant, and `mode` is already a copy of their saved
@@ -830,8 +854,6 @@ enum TranscribeEndpoint {
                 } else {
                     mode.model = NemotronModelManager.Constants.modelIdForSelection(nil)
                 }
-            } else {
-                mode.model = NemotronModelManager.Constants.modelIdForSelection(requestedNemotronModel)
             }
         case "qwen3asr", "qwen3", "qwen3-asr":
             mode.model = Qwen3AsrModelManager.Constants.modelId

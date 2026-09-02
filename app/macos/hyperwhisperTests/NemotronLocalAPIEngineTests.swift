@@ -10,7 +10,7 @@
 //  `model` was already a Nemotron id fell through `engineLabel`'s final
 //  `return "whisperLocal"`.
 //
-//  So there are two properties worth pinning here, and they are different:
+//  So there are five properties worth pinning here, and they are different:
 //
 //  1. The engine ALIASES have to keep landing a canonical Nemotron id on the
 //     Mode. `resolveProvider` and `applyEngineModel` were two hand-copied
@@ -24,6 +24,17 @@
 //  3. The mixed `mode_id` + `engine` form must not swap the variant the
 //     caller saved — review round 1's regression, where re-asserting
 //     `engine=nemotron` on a Latin mode silently selected multilingual.
+//  4. …but it must not KEEP that variant for a language the variant cannot
+//     transcribe — review round 2, where the round-1 inherit rule sent
+//     `language=ja` to the Latin model's pruned vocabulary and returned 200.
+//  5. `engine=nemotron` must never leave a non-Nemotron id on the Mode —
+//     review round 2, where an explicit `model=base` routed the request to
+//     LibWhisper and answered `"engine": "whisperLocal"`.
+//
+//  Properties 4 and 5 both matter because they are only reachable on the mixed
+//  `mode_id` + `engine` path, which resolves through
+//  `selectProvider(for: transient)` and never calls `resolveProvider` — so the
+//  router's own guards do not run.
 //
 //  `resolveProvider` and `HealthEndpoint.handle` are NOT tested here: both are
 //  `@MainActor` and want live providers / `Bundle.main`, and no test in this
@@ -157,6 +168,12 @@ struct NemotronLocalAPIEngineTests {
     /// An unknown explicit value survives unchanged rather than being replaced
     /// by the default, so the router can reject the id the caller actually
     /// sent instead of transcribing with a model nobody asked for.
+    ///
+    /// Review round 2: `TranscriptionProviderRouter.resolveProvider` is now the
+    /// only caller that passes a value here — `applyEngineModel` stopped
+    /// forwarding unknown ids, because on the mixed `mode_id` path no router
+    /// guard ever ran on them. This pass-through is still what puts the
+    /// caller's own spelling into `resolveProvider`'s error message.
     @Test func unknownSelectionIdentifiersSurviveUnchanged() {
         #expect(
             NemotronModelManager.Constants.modelIdForSelection("nemotron-3.5-latin")
@@ -429,6 +446,102 @@ struct NemotronLocalAPIEngineTests {
         for language in ["ja", "zh", "en", "auto", nil, "cy"] {
             #expect(inheritedModel(savedVariant: multilingual, language: language) == multilingual)
         }
+    }
+
+    /// Review round 2. `engine=nemotron` must never be able to run a different
+    /// engine.
+    ///
+    /// The arm used to pass an unknown explicit `model` through unchanged, on
+    /// the reasoning that `resolveProvider` rejects it first. It does — but only
+    /// on the engine-only path. The mixed `mode_id` + `engine` form resolves
+    /// through `selectProvider(for: transient)` and never reaches
+    /// `resolveProvider`, so `{mode_id: X, engine: "nemotron", model: "base"}`
+    /// left "base" on the Mode, `selectLocalProvider`'s
+    /// `mapModelIdToWhisperModel` matched it (`lower.contains("base")`), and
+    /// LibWhisper answered `ok: true` with `"engine": "whisperLocal"`.
+    /// `"parakeet-tdt-0.6b-v3"` reached ParakeetProvider by the same route.
+    ///
+    /// The property is about the Mode, not about which error is raised: after
+    /// this call `mode.model` must always name a real Nemotron variant, so no
+    /// other engine's provider can be selected from it.
+    @Test func anExplicitNonNemotronModelNeverSurvivesOnTheMode() {
+        let persistence = PersistenceController(inMemory: true)
+
+        let foreign = [
+            "base",                                  // routed to LibWhisper by substring
+            "large-v3-turbo",
+            "small.en",
+            "ggml-medium",
+            ParakeetModelManager.Constants.v2ModelId,
+            ParakeetModelManager.Constants.v3ModelId,
+            Qwen3AsrModelManager.Constants.modelId,
+            "apple-speech-analyzer",
+            "cloud",
+            "nemotron-3.5-latin",                    // the spelling in the issue's own curl
+            "nemotron-3.5-ml-560ms",                 // the Windows/Linux id for another model
+            "nemotron-asr-3.5-",                     // the bare router prefix
+            "nemotron-asr-3.5-bogus",                // prefix-alike, names no variant
+            "typo",
+        ]
+
+        // Both request shapes: no baseline Mode (engine-only) and a baseline
+        // Mode carrying each of the things `mode.model` can actually hold.
+        let baselines: [String?] = [
+            nil,
+            "base",
+            NemotronModelManager.Constants.latinModelId,
+            NemotronModelManager.Constants.multilingualModelId,
+        ]
+
+        for requested in foreign {
+            for baseline in baselines {
+                let mode = Mode(context: persistence.container.viewContext)
+                if let baseline { mode.model = baseline }
+                mode.language = "en"
+                TranscribeEndpoint.applyEngineModel(to: mode, engine: "nemotron", model: requested)
+
+                let landed = mode.model ?? ""
+                #expect(
+                    NemotronModelManager.variant(forModelId: landed) != nil,
+                    """
+                    engine 'nemotron' with model '\(requested)' (baseline '\(baseline ?? "nil")') \
+                    left '\(landed)' on the Mode, which is not a Nemotron variant — \
+                    selectLocalProvider will hand this request to another engine's provider.
+                    """
+                )
+                #expect(
+                    TranscribeEndpoint.engineLabel(forMode: mode) == "nemotron",
+                    "the response would report an engine the caller did not ask for"
+                )
+            }
+        }
+
+        // The coercion is "treat an unusable model as absent", so it lands on
+        // exactly what the no-model form would have chosen: the saved variant
+        // when there is one, the default otherwise.
+        func landedModel(baseline: String?, requested: String?) -> String? {
+            let mode = Mode(context: persistence.container.viewContext)
+            if let baseline { mode.model = baseline }
+            mode.language = "en"
+            TranscribeEndpoint.applyEngineModel(to: mode, engine: "nemotron", model: requested)
+            return mode.model
+        }
+        #expect(
+            landedModel(baseline: NemotronModelManager.Constants.latinModelId, requested: "base")
+                == NemotronModelManager.Constants.latinModelId
+        )
+        #expect(
+            landedModel(baseline: "base", requested: "typo")
+                == NemotronModelManager.Constants.multilingualModelId
+        )
+        // …and a real variant is still honoured over the baseline, which is the
+        // whole point of sending `model` at all.
+        #expect(
+            landedModel(
+                baseline: NemotronModelManager.Constants.latinModelId,
+                requested: NemotronModelManager.Constants.multilingualModelId
+            ) == NemotronModelManager.Constants.multilingualModelId
+        )
     }
 
     // MARK: - TranscribeEndpoint.engineLabel(forMode:)
