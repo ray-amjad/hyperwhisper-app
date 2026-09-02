@@ -209,6 +209,13 @@ internal sealed class FakeOnboardingCredits : IOnboardingCreditsGateway
 
 internal sealed class FakeOnboardingProviderKeys : IOnboardingProviderKeyGateway
 {
+    /// <summary>Two is enough to prove the chip strip renders a list and marks one selected.</summary>
+    public IReadOnlyList<CloudTranscriptionProvider> Providers { get; set; } = new[]
+    {
+        CloudTranscriptionProvider.OpenAI,
+        CloudTranscriptionProvider.Groq
+    };
+
     public string? ValidationError { get; set; }
     public ProviderHealth Health { get; set; } = ProviderHealth.Healthy;
     public bool PersistSucceeds { get; set; } = true;

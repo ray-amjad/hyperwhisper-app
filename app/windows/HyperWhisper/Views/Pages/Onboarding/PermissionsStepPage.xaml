@@ -1,0 +1,172 @@
+<!--
+    Step 2 of 8: Permissions. Mirrors OnboardingView.swift:207-273.
+
+    Row 1 is the microphone, which is the one thing that gates Continue.
+    Row 2 is NOT Accessibility. Windows has no Accessibility grant: RegisterHotKey,
+    SendInput and SetForegroundWindow all work without a user grant, so a copied
+    Accessibility row would be a stub. What genuinely fails on Windows is
+    registering the global shortcut, so row 2 shows the configured shortcut, the
+    real registration outcome, and an inline way out of a conflict.
+
+    Like Accessibility on macOS, it never gates Continue, so it never renders as an
+    error block. Its three renderings are Registered, Failed and Unknown, and
+    Unknown (the app has not registered the hotkey yet) is a neutral state, not a
+    failure.
+-->
+<Page x:Class="HyperWhisper.Views.Pages.Onboarding.PermissionsStepPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:loc="clr-namespace:HyperWhisper.Localization"
+      xmlns:onboarding="clr-namespace:HyperWhisper.Views.Controls.Onboarding"
+      Title="{loc:Loc onboarding.permissions.title}"
+      Background="Transparent">
+    <Page.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/HyperWhisper;component/Views/Controls/Onboarding/OnboardingResources.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Page.Resources>
+
+    <onboarding:OnboardingStage>
+        <StackPanel Width="{StaticResource OnboardingBodyWidth}"
+                    HorizontalAlignment="Left"
+                    Margin="{StaticResource OnboardingStageMargin}">
+
+            <Border Style="{StaticResource OnboardingGlyphTileStyle}">
+                <TextBlock Style="{StaticResource OnboardingGlyphStyle}" Text="&#xE72E;"/>
+            </Border>
+
+            <TextBlock Style="{StaticResource OnboardingQuestionStyle}"
+                       Text="{loc:Loc onboarding.permissions.title}"/>
+            <TextBlock Style="{StaticResource OnboardingDetailStyle}"
+                       Text="{loc:Loc onboarding.permissions.subtitle}"/>
+
+            <Border Style="{StaticResource OnboardingCardStyle}" Margin="0,24,0,8">
+                <StackPanel>
+
+                    <!-- Row 1: microphone -->
+                    <Border Style="{StaticResource OnboardingCardRowStyle}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Column="0" Style="{StaticResource OnboardingRowGlyphStyle}"
+                                       Text="&#xE720;" Margin="0,0,12,0"/>
+
+                            <StackPanel Grid.Column="1" Margin="0,0,12,0">
+                                <TextBlock Style="{StaticResource OnboardingRowTitleStyle}"
+                                           Text="{loc:Loc onboarding.permissions.microphone.title}"/>
+                                <TextBlock Style="{StaticResource OnboardingRowCaptionStyle}"
+                                           Text="{loc:Loc onboarding.permissions.microphone.subtitle}"/>
+                            </StackPanel>
+
+                            <Border Grid.Column="2" Style="{StaticResource OnboardingGoodPillStyle}"
+                                    Visibility="{Binding HasMicrophoneAccess, Converter={StaticResource OnboardingBoolToVisibility}}">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Style="{StaticResource OnboardingCheckGlyphStyle}"
+                                               FontSize="11" Margin="0,0,6,0"/>
+                                    <TextBlock Style="{StaticResource OnboardingGoodPillTextStyle}"
+                                               Text="{loc:Loc onboarding.permissions.granted}"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Button Grid.Column="2"
+                                    Style="{StaticResource PrimaryButtonStyle}"
+                                    Content="{Binding MicrophoneActionText}"
+                                    Command="{Binding HandleMicrophoneActionCommand}"
+                                    VerticalAlignment="Center"
+                                    Visibility="{Binding HasMicrophoneAccess, Converter={StaticResource OnboardingBoolToVisibility}, ConverterParameter=Inverse}"/>
+                        </Grid>
+                    </Border>
+
+                    <Border Style="{StaticResource OnboardingDividerStyle}"/>
+
+                    <!-- Row 2: the global shortcut -->
+                    <Border Style="{StaticResource OnboardingCardRowStyle}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Column="0" Style="{StaticResource OnboardingRowGlyphStyle}"
+                                       Text="&#xE765;" Margin="0,0,12,0"/>
+
+                            <StackPanel Grid.Column="1" Margin="0,0,12,0">
+                                <TextBlock Style="{StaticResource OnboardingRowTitleStyle}"
+                                           Text="{loc:Loc onboarding.permissions.shortcut.title}"/>
+                                <TextBlock Style="{StaticResource OnboardingRowCaptionStyle}"
+                                           Text="{loc:Loc onboarding.permissions.shortcut.subtitle}"/>
+                            </StackPanel>
+
+                            <onboarding:OnboardingKeycaps Grid.Column="2"
+                                                          Shortcut="{Binding ShortcutDisplay}"
+                                                          VerticalAlignment="Center"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- Registered -->
+                    <StackPanel Visibility="{Binding IsShortcutRegistered, Converter={StaticResource OnboardingBoolToVisibility}}">
+                        <Border Style="{StaticResource OnboardingDividerStyle}"/>
+                        <Border Style="{StaticResource OnboardingCardRowStyle}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource OnboardingCheckGlyphStyle}" Margin="0,0,12,0"/>
+                                <TextBlock Style="{StaticResource OnboardingRowTitleStyle}"
+                                           Text="{loc:Loc onboarding.permissions.shortcut.registered}"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Unknown: neutral, never a failure -->
+                    <StackPanel Visibility="{Binding IsShortcutUnknown, Converter={StaticResource OnboardingBoolToVisibility}}">
+                        <Border Style="{StaticResource OnboardingDividerStyle}"/>
+                        <Border Style="{StaticResource OnboardingCardRowStyle}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource OnboardingPendingGlyphStyle}" Margin="0,0,12,0"/>
+                                <TextBlock Style="{StaticResource OnboardingRowCaptionStyle}" Margin="0"
+                                           Text="{loc:Loc onboarding.permissions.shortcut.checking}"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Failed: the sentence comes back from ShortcutValidationService
+                         verbatim rather than being forked into a second copy in .resx -->
+                    <StackPanel Visibility="{Binding IsShortcutFailed, Converter={StaticResource OnboardingBoolToVisibility}}">
+                        <Border Style="{StaticResource OnboardingDividerStyle}"/>
+                        <Border Style="{StaticResource OnboardingCardBlockStyle}">
+                            <Border Style="{StaticResource OnboardingWarningBoxStyle}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0"
+                                               Style="{StaticResource OnboardingWarningTextStyle}"
+                                               Text="{Binding ShortcutFailureText}"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,12,0"/>
+                                    <Button Grid.Column="1"
+                                            Content="{loc:Loc onboarding.permissions.shortcut.change}"
+                                            Command="{Binding ChooseDifferentShortcutCommand}"
+                                            VerticalAlignment="Center"/>
+                                </Grid>
+                            </Border>
+                        </Border>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <StackPanel Style="{StaticResource OnboardingQuietNoteStyle}">
+                <TextBlock Style="{StaticResource OnboardingNoteGlyphStyle}"/>
+                <TextBlock Style="{StaticResource OnboardingNoteTextStyle}"
+                           Width="520"
+                           Text="{loc:Loc onboarding.permissions.note}"/>
+            </StackPanel>
+        </StackPanel>
+    </onboarding:OnboardingStage>
+</Page>

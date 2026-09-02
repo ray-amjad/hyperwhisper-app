@@ -525,6 +525,9 @@ public sealed class LiveOnboardingProviderKeyGateway : IOnboardingProviderKeyGat
         _health = health;
     }
 
+    /// <inheritdoc />
+    public IReadOnlyList<CloudTranscriptionProvider> Providers => ByokProviders;
+
     /// <summary>
     /// The reason the LAST credential write failed, or null. Deliberately local to
     /// this gateway rather than read from an app-global validation field: an
@@ -912,6 +915,14 @@ public static class OnboardingLiveDependencies
             audio,
             committer,
             Loc.S("onboarding.mic.device.systemDefault"));
+
+        // The Done step's "Text delivery" row is the one thing the flow renders that
+        // is neither a seam read nor its own state. macOS branches it on the
+        // Accessibility grant; Windows has none, so it branches on the setting that
+        // actually decides where the text lands. It arrives as a delegate for the
+        // same reason everything else does: this file is the only one that may
+        // resolve a singleton.
+        flow.ReadAutoPasteEnabled = () => SettingsService.Instance.AutoPasteEnabled;
 
         return new LiveOnboarding(flow, new IDisposable[] { audio, recorder, deviceService, credits, catalog });
     }

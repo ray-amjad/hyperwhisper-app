@@ -1,0 +1,92 @@
+<!--
+    Step 1 of 8: Welcome. Mirrors OnboardingView.swift:168-203.
+    One card, three numbered tasks, one quiet note.
+-->
+<Page x:Class="HyperWhisper.Views.Pages.Onboarding.WelcomeStepPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:loc="clr-namespace:HyperWhisper.Localization"
+      xmlns:onboarding="clr-namespace:HyperWhisper.Views.Controls.Onboarding"
+      Title="{loc:Loc onboarding.welcome.title}"
+      Background="Transparent">
+    <Page.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/HyperWhisper;component/Views/Controls/Onboarding/OnboardingResources.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Page.Resources>
+
+    <onboarding:OnboardingStage>
+        <StackPanel Width="{StaticResource OnboardingBodyWidth}"
+                    HorizontalAlignment="Left"
+                    Margin="{StaticResource OnboardingStageMargin}">
+
+            <Border Style="{StaticResource OnboardingGlyphTileStyle}">
+                <TextBlock Style="{StaticResource OnboardingGlyphStyle}" Text="&#xE720;"/>
+            </Border>
+
+            <TextBlock Style="{StaticResource OnboardingQuestionStyle}"
+                       Text="{loc:Loc onboarding.welcome.title}"/>
+            <TextBlock Style="{StaticResource OnboardingDetailStyle}"
+                       Text="{loc:Loc onboarding.welcome.subtitle}"/>
+
+            <Border Style="{StaticResource OnboardingCardStyle}" Margin="0,24,0,8">
+                <StackPanel>
+                    <Border Style="{StaticResource OnboardingCardRowStyle}">
+                        <StackPanel Orientation="Horizontal">
+                            <Border Style="{StaticResource OnboardingStepNumberStyle}" Margin="0,0,12,0">
+                                <TextBlock Style="{StaticResource OnboardingStepNumberTextStyle}" Text="1"/>
+                            </Border>
+                            <StackPanel Width="480">
+                                <TextBlock Style="{StaticResource OnboardingRowTitleStyle}"
+                                           Text="{loc:Loc onboarding.welcome.task1.title}"/>
+                                <TextBlock Style="{StaticResource OnboardingRowCaptionStyle}"
+                                           Text="{loc:Loc onboarding.welcome.task1.caption}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{StaticResource OnboardingDividerStyle}"/>
+
+                    <Border Style="{StaticResource OnboardingCardRowStyle}">
+                        <StackPanel Orientation="Horizontal">
+                            <Border Style="{StaticResource OnboardingStepNumberStyle}" Margin="0,0,12,0">
+                                <TextBlock Style="{StaticResource OnboardingStepNumberTextStyle}" Text="2"/>
+                            </Border>
+                            <StackPanel Width="480">
+                                <TextBlock Style="{StaticResource OnboardingRowTitleStyle}"
+                                           Text="{loc:Loc onboarding.welcome.task2.title}"/>
+                                <TextBlock Style="{StaticResource OnboardingRowCaptionStyle}"
+                                           Text="{loc:Loc onboarding.welcome.task2.caption}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{StaticResource OnboardingDividerStyle}"/>
+
+                    <Border Style="{StaticResource OnboardingCardRowStyle}">
+                        <StackPanel Orientation="Horizontal">
+                            <Border Style="{StaticResource OnboardingStepNumberStyle}" Margin="0,0,12,0">
+                                <TextBlock Style="{StaticResource OnboardingStepNumberTextStyle}" Text="3"/>
+                            </Border>
+                            <StackPanel Width="480">
+                                <TextBlock Style="{StaticResource OnboardingRowTitleStyle}"
+                                           Text="{loc:Loc onboarding.welcome.task3.title}"/>
+                                <TextBlock Style="{StaticResource OnboardingRowCaptionStyle}"
+                                           Text="{loc:Loc onboarding.welcome.task3.caption}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <StackPanel Style="{StaticResource OnboardingQuietNoteStyle}">
+                <TextBlock Style="{StaticResource OnboardingNoteGlyphStyle}"/>
+                <TextBlock Style="{StaticResource OnboardingNoteTextStyle}"
+                           Width="520"
+                           Text="{loc:Loc onboarding.welcome.note}"/>
+            </StackPanel>
+        </StackPanel>
+    </onboarding:OnboardingStage>
+</Page>

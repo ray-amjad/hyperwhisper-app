@@ -38,7 +38,10 @@ using HyperWhisper.Services.Transcription;
 using HyperWhisper.Utilities;
 using HyperWhisper.ViewModels;
 using HyperWhisper.ViewModels.Onboarding;
+using HyperWhisper.Views.Controls.Onboarding;
+using HyperWhisper.Views.Pages.Onboarding;
 using HyperWhisper.Views.Pages.Settings;
+using HyperWhisper.Views.Windows;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -7400,6 +7403,78 @@ internal static class Program
                 }
             });
 
+            // =================================================================
+            // ONBOARDING — WPF (phase 3)
+            //
+            // XAML faults are build-time for syntax and RUN-time for everything
+            // else: a missing StaticResource, a style whose TargetType does not
+            // match, a converter that is not in scope. None of those show up in
+            // `dotnet build`, and there is no other harness on this repo that
+            // constructs an onboarding page. These three cases are that harness.
+            //
+            // Deliberately last: constructing WPF objects installs a Dispatcher
+            // SynchronizationContext, which the flow-model cases above detach
+            // precisely because it never pumps in a console process.
+            // =================================================================
+
+            Run("onboarding: the window and all eight step pages initialize under WPF", () =>
+            {
+                var pages = BuildOnboardingStepPages(out var flow);
+
+                Assert(pages.Count == OnboardingSteps.Count,
+                    $"expected {OnboardingSteps.Count} step pages, built {pages.Count}");
+
+                foreach (var (step, page) in pages)
+                {
+                    Assert(page.IsInitialized,
+                        $"{page.GetType().Name} ({step}) did not finish WPF initialization");
+                    Assert(ReferenceEquals(page.DataContext, flow),
+                        $"{page.GetType().Name} must bind the window's flow model, not build one");
+                }
+
+                // The window itself: its resources, its footer bindings and its
+                // step-to-page switch all parse here or not at all.
+                var window = new OnboardingWindow(flow);
+                Assert(window.IsInitialized, "OnboardingWindow did not finish WPF initialization");
+                Assert(ReferenceEquals(window.DataContext, flow),
+                    "OnboardingWindow must bind the flow model it was handed");
+            });
+
+            Run("onboarding: every step page is a scrolling stage, so no step can strand its footer", () =>
+            {
+                // macOS wraps each step in GeometryReader { ScrollView { ... } } so a
+                // long step scrolls and a short one still centres. The Windows window
+                // is fixed-size and cannot resize, so a step that does not scroll
+                // simply loses its lower half on a 125% display.
+                foreach (var (step, page) in BuildOnboardingStepPages(out _))
+                {
+                    var stage = FindDescendant<OnboardingStage>(page);
+                    Assert(stage is not null,
+                        $"{page.GetType().Name} ({step}) is not wrapped in an OnboardingStage");
+                    Assert(stage!.Scroll is not null,
+                        $"{page.GetType().Name} ({step}) has an OnboardingStage with no ScrollViewer");
+                    Assert(stage.Scroll.VerticalScrollBarVisibility == System.Windows.Controls.ScrollBarVisibility.Auto,
+                        $"{page.GetType().Name} ({step}) must scroll vertically on demand");
+                }
+            });
+
+            Run("onboarding: no step page renders a raw onboarding.* key", () =>
+            {
+                // Loc.S returns the KEY when a resource is missing, and {loc:Loc}
+                // resolves once at parse time, so a typo or a key that never reached
+                // Strings.resx shows up on screen as "onboarding.mic.title". After a
+                // layout pass every {loc:Loc} and every bound VM string has run, so
+                // the visual tree is the honest place to look for one.
+                foreach (var (step, page) in BuildOnboardingStepPages(out _))
+                {
+                    foreach (var text in VisualTextOf(page))
+                    {
+                        Assert(!text.StartsWith("onboarding.", StringComparison.Ordinal),
+                            $"{page.GetType().Name} ({step}) renders the unresolved key '{text}'");
+                    }
+                }
+            });
+
             Console.WriteLine(_failures == 0
                 ? "All smoke tests passed."
                 : $"{_failures} smoke test(s) FAILED.");
@@ -8110,6 +8185,95 @@ internal static class Program
 
         public void Write(string resource, string account, string value) => StoredValue = value;
         public void Delete(string resource, string account) => StoredValue = null;
+    }
+
+    /// <summary>
+    /// Builds one instance of each of the eight step pages, bound to a fake-backed
+    /// flow model and laid out once so every binding and every {loc:Loc} has run.
+    /// Layout is what turns a page from parsed XAML into something worth asserting
+    /// on: ItemsControl containers do not exist until it happens.
+    /// </summary>
+    private static IReadOnlyList<(OnboardingStep Step, System.Windows.Controls.Page Page)>
+        BuildOnboardingStepPages(out OnboardingFlowViewModel flow)
+    {
+        // One Application per AppDomain, and an earlier case may already own it.
+        var application = System.Windows.Application.Current;
+        if (application is null)
+        {
+            application = new System.Windows.Application();
+            LoadApplicationResources(application);
+        }
+
+        var harness = new OnboardingHarness();
+        flow = harness.Flow;
+
+        var pages = new List<(OnboardingStep, System.Windows.Controls.Page)>();
+
+        foreach (var step in Enum.GetValues<OnboardingStep>())
+        {
+            System.Windows.Controls.Page page = step switch
+            {
+                OnboardingStep.Welcome => new WelcomeStepPage(),
+                OnboardingStep.Permissions => new PermissionsStepPage(),
+                OnboardingStep.Source => new SourceStepPage(),
+                OnboardingStep.Configure => new ConfigureStepPage(),
+                OnboardingStep.Setup => new SetupStepPage(),
+                OnboardingStep.Microphone => new MicrophoneStepPage(),
+                OnboardingStep.TryIt => new TryItStepPage(),
+                _ => new DoneStepPage()
+            };
+
+            page.DataContext = flow;
+
+            // The window's own size, so a step that overflows here overflows there.
+            page.Measure(new Size(760, 521));
+            page.Arrange(new Rect(0, 0, 760, 521));
+            page.UpdateLayout();
+
+            pages.Add((step, page));
+        }
+
+        return pages;
+    }
+
+    private static T? FindDescendant<T>(DependencyObject root) where T : DependencyObject
+    {
+        if (root is T match)
+            return match;
+
+        var count = System.Windows.Media.VisualTreeHelper.GetChildrenCount(root);
+        for (var i = 0; i < count; i++)
+        {
+            if (FindDescendant<T>(System.Windows.Media.VisualTreeHelper.GetChild(root, i)) is { } found)
+                return found;
+        }
+
+        return null;
+    }
+
+    /// <summary>Every string this subtree actually puts in front of a user.</summary>
+    private static List<string> VisualTextOf(DependencyObject root)
+    {
+        var texts = new List<string>();
+        Collect(root);
+        return texts;
+
+        void Collect(DependencyObject node)
+        {
+            switch (node)
+            {
+                case System.Windows.Controls.TextBlock block when !string.IsNullOrEmpty(block.Text):
+                    texts.Add(block.Text);
+                    break;
+                case System.Windows.Controls.ContentControl { Content: string content } when content.Length > 0:
+                    texts.Add(content);
+                    break;
+            }
+
+            var count = System.Windows.Media.VisualTreeHelper.GetChildrenCount(node);
+            for (var i = 0; i < count; i++)
+                Collect(System.Windows.Media.VisualTreeHelper.GetChild(node, i));
+        }
     }
 
     private static void LoadApplicationResources(System.Windows.Application application)

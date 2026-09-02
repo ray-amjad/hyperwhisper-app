@@ -326,6 +326,16 @@ public interface IOnboardingCreditsGateway
 /// <summary>Bring-your-own-key providers.</summary>
 public interface IOnboardingProviderKeyGateway
 {
+    /// <summary>
+    /// The providers the Configure step offers, in display order. macOS keeps this
+    /// list as a static on the view itself
+    /// (OnboardingSourceViews.swift:200-202); Windows cannot, because a view that
+    /// owned the list would also own the policy of which providers are safe to
+    /// offer, and that policy is exactly what excludes the two whose health probe
+    /// short-circuits to Healthy without a key.
+    /// </summary>
+    IReadOnlyList<CloudTranscriptionProvider> Providers { get; }
+
     string? ValidationError { get; }
 
     Task<ProviderHealth> ProbeAsync(

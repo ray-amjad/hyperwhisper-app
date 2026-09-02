@@ -1,0 +1,382 @@
+<!--
+    Step 5 of 8: perform the action. Mirrors OnboardingSourceViews.swift:481-764.
+    Forks four ways, like Configure.
+
+    This is the one mandatory gate in the flow: Continue opens only once the chosen
+    source is genuinely usable (a model on disk, an activated licence, or a key
+    both stored and probed this session).
+
+    Every failure on this page reads ONE message, SetupErrorMessage, framed by
+    localized copy because the managers report in hard-coded English. Nothing here
+    falls back to LicenseManager's or ApiKeyService's app-global error state: those
+    are long lived and unobserved, and reading them renders an unrelated failure
+    from an earlier session.
+-->
+<Page x:Class="HyperWhisper.Views.Pages.Onboarding.SetupStepPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:loc="clr-namespace:HyperWhisper.Localization"
+      xmlns:onboarding="clr-namespace:HyperWhisper.Views.Controls.Onboarding"
+      Title="{loc:Loc onboarding.setup.onDevice.title}"
+      Background="Transparent">
+    <Page.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/HyperWhisper;component/Views/Controls/Onboarding/OnboardingResources.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Page.Resources>
+
+    <onboarding:OnboardingStage>
+        <Grid Width="{StaticResource OnboardingBodyWidth}"
+              HorizontalAlignment="Left"
+              Margin="{StaticResource OnboardingStageMargin}">
+
+            <!-- ============ HyperWhisper Cloud: activate ============ -->
+            <StackPanel Visibility="{Binding IsCloudSelected, Converter={StaticResource OnboardingBoolToVisibility}}">
+                <Border Style="{StaticResource OnboardingGlyphTileStyle}">
+                    <TextBlock Style="{StaticResource OnboardingGlyphStyle}" Text="&#xE753;"/>
+                </Border>
+                <TextBlock Style="{StaticResource OnboardingQuestionStyle}"
+                           Text="{loc:Loc onboarding.setup.cloud.title}"/>
+                <TextBlock Style="{StaticResource OnboardingDetailStyle}"
+                           Text="{loc:Loc onboarding.setup.cloud.subtitle}"/>
+
+                <Border Style="{StaticResource OnboardingCardStyle}" Margin="0,24,0,8">
+                    <StackPanel>
+                        <Border Style="{StaticResource OnboardingCardRowStyle}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource OnboardingCheckGlyphStyle}" Margin="0,0,12,0"
+                                           Visibility="{Binding KeyValidated, Converter={StaticResource OnboardingBoolToVisibility}}"/>
+                                <TextBlock Style="{StaticResource OnboardingPendingGlyphStyle}" Margin="0,0,12,0"
+                                           Visibility="{Binding KeyValidated, Converter={StaticResource OnboardingBoolToVisibility}, ConverterParameter=Inverse}"/>
+                                <TextBlock Style="{StaticResource OnboardingRowTitleStyle}"
+                                           Text="{loc:Loc onboarding.setup.cloud.check.keyVerified}"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource OnboardingDividerStyle}"/>
+
+                        <Border Style="{StaticResource OnboardingCardRowStyle}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource OnboardingCheckGlyphStyle}" Margin="0,0,12,0"
+                                           Visibility="{Binding IsSelectedSourceUsable, Converter={StaticResource OnboardingBoolToVisibility}}"/>
+                                <TextBlock Style="{StaticResource OnboardingPendingGlyphStyle}" Margin="0,0,12,0"
+                                           Visibility="{Binding IsSelectedSourceUsable, Converter={StaticResource OnboardingBoolToVisibility}, ConverterParameter=Inverse}"/>
+                                <TextBlock Style="{StaticResource OnboardingRowTitleStyle}"
+                                           Text="{loc:Loc onboarding.setup.cloud.check.activated}"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource OnboardingDividerStyle}"/>
+
+                        <Border Style="{StaticResource OnboardingCardRowStyle}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource OnboardingCheckGlyphStyle}" Margin="0,0,12,0"
+                                           Visibility="{Binding AreCreditsConfirmed, Converter={StaticResource OnboardingBoolToVisibility}}"/>
+                                <TextBlock Style="{StaticResource OnboardingPendingGlyphStyle}" Margin="0,0,12,0"
+                                           Visibility="{Binding AreCreditsConfirmed, Converter={StaticResource OnboardingBoolToVisibility}, ConverterParameter=Inverse}"/>
+                                <TextBlock Style="{StaticResource OnboardingRowTitleStyle}"
+                                           Text="{loc:Loc onboarding.setup.cloud.check.creditsConfirmed}"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource OnboardingDividerStyle}"/>
+
+                        <!-- Activated: the balance, display only. -->
+                        <Border Style="{StaticResource OnboardingCardRowStyle}"
+                                Visibility="{Binding IsSelectedSourceUsable, Converter={StaticResource OnboardingBoolToVisibility}}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Style="{StaticResource OnboardingBigNumberStyle}"
+                                               Text="{Binding CreditsFormatted}"/>
+                                    <TextBlock Style="{StaticResource OnboardingBigNumberCaptionStyle}"
+                                               Text="{loc:Loc onboarding.setup.cloud.credits.caption}"/>
+                                </StackPanel>
+                                <Border Grid.Column="1" Style="{StaticResource OnboardingAccentPillStyle}">
+                                    <TextBlock Style="{StaticResource OnboardingAccentPillTextStyle}"
+                                               Text="{loc:Loc onboarding.setup.cloud.active}"/>
+                                </Border>
+                            </Grid>
+                        </Border>
+
+                        <!-- Not yet activated: the one explicit account action. -->
+                        <Border Style="{StaticResource OnboardingCardBlockStyle}"
+                                Visibility="{Binding IsSelectedSourceUsable, Converter={StaticResource OnboardingBoolToVisibility}, ConverterParameter=Inverse}">
+                            <StackPanel>
+                                <Button Style="{StaticResource PrimaryButtonStyle}"
+                                        Command="{Binding ActivateCloudLicenseCommand}"
+                                        IsEnabled="{Binding CanActivateLicense}"
+                                        HorizontalAlignment="Left"
+                                        Padding="16,8">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE73E;"
+                                                   Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{loc:Loc onboarding.setup.cloud.activate}"
+                                                   VerticalAlignment="Center"
+                                                   Visibility="{Binding IsActivatingLicense, Converter={StaticResource OnboardingBoolToVisibility}, ConverterParameter=Inverse}"/>
+                                        <TextBlock Text="{loc:Loc onboarding.setup.cloud.activating}"
+                                                   VerticalAlignment="Center"
+                                                   Visibility="{Binding IsActivatingLicense, Converter={StaticResource OnboardingBoolToVisibility}}"/>
+                                    </StackPanel>
+                                </Button>
+
+                                <StackPanel Orientation="Horizontal" Margin="0,12,0,0"
+                                            Visibility="{Binding HasSetupError, Converter={StaticResource OnboardingBoolToVisibility}}">
+                                    <TextBlock Style="{StaticResource OnboardingErrorGlyphStyle}"/>
+                                    <TextBlock Style="{StaticResource OnboardingErrorNoteStyle}" Width="490"
+                                               Text="{Binding SetupCloudErrorText}"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <StackPanel Style="{StaticResource OnboardingQuietNoteStyle}">
+                    <TextBlock Style="{StaticResource OnboardingNoteGlyphStyle}"/>
+                    <TextBlock Style="{StaticResource OnboardingNoteTextStyle}" Width="520"
+                               Text="{loc:Loc onboarding.setup.cloud.note}"/>
+                </StackPanel>
+            </StackPanel>
+
+            <!-- ============ On this PC: download (routes per engine) ============ -->
+            <StackPanel Visibility="{Binding IsOnDeviceSelected, Converter={StaticResource OnboardingBoolToVisibility}}">
+                <Border Style="{StaticResource OnboardingGlyphTileStyle}">
+                    <TextBlock Style="{StaticResource OnboardingGlyphStyle}" Text="&#xE896;"/>
+                </Border>
+                <TextBlock Style="{StaticResource OnboardingQuestionStyle}"
+                           Text="{loc:Loc onboarding.setup.onDevice.title}"/>
+                <TextBlock Style="{StaticResource OnboardingDetailStyle}"
+                           Text="{loc:Loc onboarding.setup.onDevice.subtitle}"/>
+
+                <Border Style="{StaticResource OnboardingCardStyle}" Margin="0,24,0,8"
+                        Visibility="{Binding HasSelectedModel, Converter={StaticResource OnboardingBoolToVisibility}}">
+                    <StackPanel>
+                        <Border Style="{StaticResource OnboardingCardRowStyle}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Grid.Column="0" Style="{StaticResource OnboardingRowGlyphStyle}"
+                                           Text="&#xE977;" Margin="0,0,12,0"/>
+
+                                <StackPanel Grid.Column="1" Margin="0,0,12,0">
+                                    <TextBlock Style="{StaticResource OnboardingRowTitleStyle}"
+                                               Text="{Binding SelectedModelDisplayName}"/>
+                                    <TextBlock Style="{StaticResource OnboardingRowCaptionStyle}"
+                                               Text="{Binding SelectedModelSubtitle}"/>
+                                </StackPanel>
+
+                                <Border Grid.Column="2" Style="{StaticResource OnboardingGoodPillStyle}"
+                                        Visibility="{Binding IsSelectedModelInstalled, Converter={StaticResource OnboardingBoolToVisibility}}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Style="{StaticResource OnboardingCheckGlyphStyle}"
+                                                   FontSize="11" Margin="0,0,6,0"/>
+                                        <TextBlock Style="{StaticResource OnboardingGoodPillTextStyle}"
+                                                   Text="{loc:Loc onboarding.setup.onDevice.ready}"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Grid.Column="2" Style="{StaticResource OnboardingAccentPillStyle}"
+                                        Visibility="{Binding IsSelectedModelDownloading, Converter={StaticResource OnboardingBoolToVisibility}}">
+                                    <TextBlock Style="{StaticResource OnboardingAccentPillTextStyle}"
+                                               Text="{Binding DownloadingPillText}"/>
+                                </Border>
+                            </Grid>
+                        </Border>
+
+                        <Border Style="{StaticResource OnboardingDividerStyle}"/>
+
+                        <Border Style="{StaticResource OnboardingCardBlockStyle}">
+                            <StackPanel>
+                                <!-- Ready -->
+                                <StackPanel Visibility="{Binding IsSelectedModelInstalled, Converter={StaticResource OnboardingBoolToVisibility}}">
+                                    <TextBlock Style="{StaticResource OnboardingBigNumberStyle}" Text="100%"/>
+                                    <TextBlock Style="{StaticResource OnboardingBigNumberCaptionStyle}"
+                                               Text="{loc:Loc onboarding.setup.onDevice.storedCaption}"/>
+                                </StackPanel>
+
+                                <!-- Downloading. The managers publish a fraction, not
+                                     bytes or a rate, so the reference's "409 MB of
+                                     620 MB" and "40s left" reduce to the one figure
+                                     that is actually known. -->
+                                <StackPanel Visibility="{Binding IsSelectedModelDownloading, Converter={StaticResource OnboardingBoolToVisibility}}">
+                                    <TextBlock Style="{StaticResource OnboardingBigNumberStyle}"
+                                               Text="{Binding SelectedModelProgressPercentText}"/>
+                                    <onboarding:OnboardingProgressBar Value="{Binding SelectedModelProgress}"
+                                                                      Margin="0,12,0,0"/>
+                                    <TextBlock Style="{StaticResource OnboardingBigNumberCompactStyle}"
+                                               Text="{Binding SelectedModelSizeText}" Margin="0,12,0,0"/>
+                                    <TextBlock Style="{StaticResource OnboardingBigNumberCaptionStyle}"
+                                               Text="{loc:Loc onboarding.setup.onDevice.totalCaption}"/>
+                                </StackPanel>
+
+                                <!-- Neither: offer the download -->
+                                <Button Style="{StaticResource PrimaryButtonStyle}"
+                                        Command="{Binding StartSelectedModelDownloadCommand}"
+                                        HorizontalAlignment="Left"
+                                        Padding="16,8"
+                                        Visibility="{Binding ShowsDownloadButton, Converter={StaticResource OnboardingBoolToVisibility}}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE896;"
+                                                   Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding DownloadButtonText}" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+
+                                <!-- A failed download is surfaced for BOTH engines, in
+                                     every branch, so nobody is parked at the mandatory
+                                     gate with no explanation. -->
+                                <StackPanel Orientation="Horizontal" Margin="0,12,0,0"
+                                            Visibility="{Binding HasSetupError, Converter={StaticResource OnboardingBoolToVisibility}}">
+                                    <TextBlock Style="{StaticResource OnboardingErrorGlyphStyle}"/>
+                                    <TextBlock Style="{StaticResource OnboardingErrorNoteStyle}" Width="490"
+                                               Text="{Binding SetupOnDeviceErrorText}"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource OnboardingCardStyle}" Margin="0,24,0,8"
+                        Visibility="{Binding HasSelectedModel, Converter={StaticResource OnboardingBoolToVisibility}, ConverterParameter=Inverse}">
+                    <Border Style="{StaticResource OnboardingCardRowStyle}">
+                        <TextBlock Style="{StaticResource OnboardingRowTitleStyle}"
+                                   Text="{loc:Loc onboarding.setup.selectFirst}"/>
+                    </Border>
+                </Border>
+
+                <StackPanel Style="{StaticResource OnboardingQuietNoteStyle}">
+                    <TextBlock Style="{StaticResource OnboardingNoteGlyphStyle}"/>
+                    <TextBlock Style="{StaticResource OnboardingNoteTextStyle}" Width="520"
+                               Text="{loc:Loc onboarding.setup.onDevice.note}"/>
+                </StackPanel>
+            </StackPanel>
+
+            <!-- ============ Your API key: save + verify ============ -->
+            <StackPanel Visibility="{Binding IsProviderSelected, Converter={StaticResource OnboardingBoolToVisibility}}">
+                <Border Style="{StaticResource OnboardingGlyphTileStyle}">
+                    <TextBlock Style="{StaticResource OnboardingGlyphStyle}" Text="&#xE72E;"/>
+                </Border>
+                <TextBlock Style="{StaticResource OnboardingQuestionStyle}"
+                           Text="{loc:Loc onboarding.setup.provider.title}"/>
+                <TextBlock Style="{StaticResource OnboardingDetailStyle}"
+                           Text="{loc:Loc onboarding.setup.provider.subtitle}"/>
+
+                <Border Style="{StaticResource OnboardingCardStyle}" Margin="0,24,0,8">
+                    <StackPanel>
+                        <Border Style="{StaticResource OnboardingCardRowStyle}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource OnboardingCheckGlyphStyle}" Margin="0,0,12,0"
+                                           Visibility="{Binding KeyValidated, Converter={StaticResource OnboardingBoolToVisibility}}"/>
+                                <TextBlock Style="{StaticResource OnboardingPendingGlyphStyle}" Margin="0,0,12,0"
+                                           Visibility="{Binding KeyValidated, Converter={StaticResource OnboardingBoolToVisibility}, ConverterParameter=Inverse}"/>
+                                <TextBlock Style="{StaticResource OnboardingRowTitleStyle}"
+                                           Text="{Binding ProviderValidatedCheckText}"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource OnboardingDividerStyle}"/>
+
+                        <Border Style="{StaticResource OnboardingCardRowStyle}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource OnboardingCheckGlyphStyle}" Margin="0,0,12,0"
+                                           Visibility="{Binding IsSelectedSourceUsable, Converter={StaticResource OnboardingBoolToVisibility}}"/>
+                                <TextBlock Style="{StaticResource OnboardingPendingGlyphStyle}" Margin="0,0,12,0"
+                                           Visibility="{Binding IsSelectedSourceUsable, Converter={StaticResource OnboardingBoolToVisibility}, ConverterParameter=Inverse}"/>
+                                <TextBlock Style="{StaticResource OnboardingRowTitleStyle}"
+                                           Text="{loc:Loc onboarding.setup.provider.check.written}"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource OnboardingDividerStyle}"/>
+
+                        <!-- Saved. The key is never rendered whole, even on the machine
+                             that just typed it. -->
+                        <Border Style="{StaticResource OnboardingCardRowStyle}"
+                                Visibility="{Binding IsSelectedSourceUsable, Converter={StaticResource OnboardingBoolToVisibility}}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Style="{StaticResource OnboardingRowGlyphStyle}"
+                                           Text="&#xE72E;" Margin="0,0,12,0"/>
+                                <StackPanel Grid.Column="1" Margin="0,0,12,0">
+                                    <TextBlock Style="{StaticResource OnboardingRowTitleSingleLineStyle}"
+                                               Text="{Binding ProviderCredentialItemText}"/>
+                                    <TextBlock Style="{StaticResource OnboardingRowCaptionStyle}"
+                                               Text="{Binding MaskedApiKey}"/>
+                                </StackPanel>
+                                <Border Grid.Column="2" Style="{StaticResource OnboardingGoodPillStyle}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Style="{StaticResource OnboardingCheckGlyphStyle}"
+                                                   FontSize="11" Margin="0,0,6,0"/>
+                                        <TextBlock Style="{StaticResource OnboardingGoodPillTextStyle}"
+                                                   Text="{loc:Loc onboarding.setup.provider.saved}"/>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                        </Border>
+
+                        <Border Style="{StaticResource OnboardingCardBlockStyle}"
+                                Visibility="{Binding IsSelectedSourceUsable, Converter={StaticResource OnboardingBoolToVisibility}, ConverterParameter=Inverse}">
+                            <StackPanel>
+                                <Button Style="{StaticResource PrimaryButtonStyle}"
+                                        Command="{Binding SaveProviderKeyCommand}"
+                                        IsEnabled="{Binding CanSaveProviderKey}"
+                                        HorizontalAlignment="Left"
+                                        Padding="16,8">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE72E;"
+                                                   Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{loc:Loc onboarding.setup.provider.save}"
+                                                   VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+
+                                <StackPanel Orientation="Horizontal" Margin="0,12,0,0"
+                                            Visibility="{Binding HasSetupError, Converter={StaticResource OnboardingBoolToVisibility}}">
+                                    <TextBlock Style="{StaticResource OnboardingErrorGlyphStyle}"/>
+                                    <TextBlock Style="{StaticResource OnboardingErrorNoteStyle}" Width="490"
+                                               Text="{Binding SetupProviderErrorText}"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <StackPanel Style="{StaticResource OnboardingQuietNoteStyle}">
+                    <TextBlock Style="{StaticResource OnboardingNoteGlyphStyle}"/>
+                    <TextBlock Style="{StaticResource OnboardingNoteTextStyle}" Width="520"
+                               Text="{loc:Loc onboarding.setup.provider.note}"/>
+                </StackPanel>
+            </StackPanel>
+
+            <!-- ============ No source chosen ============ -->
+            <StackPanel Visibility="{Binding HasNoSourceSelected, Converter={StaticResource OnboardingBoolToVisibility}}">
+                <Border Style="{StaticResource OnboardingGlyphTileStyle}">
+                    <TextBlock Style="{StaticResource OnboardingGlyphStyle}" Text="&#xE897;"/>
+                </Border>
+                <TextBlock Style="{StaticResource OnboardingQuestionStyle}"
+                           Text="{loc:Loc onboarding.setup.noSource.title}"/>
+                <TextBlock Style="{StaticResource OnboardingDetailStyle}"
+                           Text="{loc:Loc onboarding.noSource.detail}"/>
+
+                <Border Style="{StaticResource OnboardingCardStyle}" Margin="0,24,0,8">
+                    <Border Style="{StaticResource OnboardingCardRowStyle}">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource OnboardingRowTitleStyle}"
+                                       Text="{loc:Loc onboarding.setup.selectFirst}"/>
+                            <TextBlock Style="{StaticResource OnboardingRowCaptionStyle}"
+                                       Text="{loc:Loc onboarding.setup.noSource.caption}"/>
+                        </StackPanel>
+                    </Border>
+                </Border>
+            </StackPanel>
+        </Grid>
+    </onboarding:OnboardingStage>
+</Page>

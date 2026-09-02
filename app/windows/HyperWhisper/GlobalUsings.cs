@@ -18,6 +18,7 @@ global using WpfTextBox = System.Windows.Controls.TextBox;
 global using WpfTextBlock = System.Windows.Controls.TextBlock;
 global using WpfComboBox = System.Windows.Controls.ComboBox;
 global using WpfCheckBox = System.Windows.Controls.CheckBox;
+global using WpfUserControl = System.Windows.Controls.UserControl;
 
 // WPF Media types
 global using WpfColor = System.Windows.Media.Color;

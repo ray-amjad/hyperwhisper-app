@@ -421,25 +421,12 @@ public sealed class ModelLibraryManager
         };
     }
 
-    private static string ProviderAssetName(CloudTranscriptionProvider provider) => provider switch
-    {
-        CloudTranscriptionProvider.OpenAI => "providerOpenAI",
-        CloudTranscriptionProvider.Groq => "providerGroq",
-        CloudTranscriptionProvider.Deepgram => "providerDeepgram",
-        CloudTranscriptionProvider.AssemblyAI => "providerAssemblyAI",
-        CloudTranscriptionProvider.ElevenLabs => "providerElevenLabs",
-        CloudTranscriptionProvider.Mistral => "providerMistral",
-        CloudTranscriptionProvider.Soniox => "providerSoniox",
-        CloudTranscriptionProvider.Gemini => "providerGemini",
-        // Same vendor as Gemini, so it reuses the Gemini logo rather than
-        // shipping a duplicate PNG. ApiKeysSettingsPage.xaml points at the same
-        // asset — keep the two in step.
-        CloudTranscriptionProvider.GeminiTranscribe => "providerGemini",
-        CloudTranscriptionProvider.Grok => "providerGrok",
-        CloudTranscriptionProvider.MicrosoftAzureSpeech => "providerMicrosoft",
-        CloudTranscriptionProvider.GoogleSpeech => "providerGoogle",
-        _ => "providerLocalWhisper"
-    };
+    // Single-sourced on CloudTranscriptionProviderExtensions.GetAssetName so the
+    // model library and the onboarding provider chips can never disagree about
+    // which logo a provider gets. ApiKeysSettingsPage.xaml names the same files
+    // literally; keep the three in step.
+    private static string ProviderAssetName(CloudTranscriptionProvider provider) =>
+        provider.GetAssetName();
 
     private static string ProviderAssetName(PostProcessingProvider provider) => provider switch
     {

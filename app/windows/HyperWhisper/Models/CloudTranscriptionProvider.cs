@@ -100,6 +100,31 @@ public static class CloudTranscriptionProviderExtensions
     };
 
     /// <summary>
+    /// The bare file name, without extension, of this provider's logo under
+    /// Assets/Providers. Single-sourced here because two places need it:
+    /// ModelLibraryManager builds LibraryModel.ProviderAssetName from it, and the
+    /// onboarding Configure step draws the same marks on its provider chips.
+    /// GeminiTranscribe is the same vendor as Gemini and deliberately reuses the
+    /// Gemini logo rather than shipping a duplicate PNG.
+    /// </summary>
+    public static string GetAssetName(this CloudTranscriptionProvider provider) => provider switch
+    {
+        CloudTranscriptionProvider.OpenAI => "providerOpenAI",
+        CloudTranscriptionProvider.Groq => "providerGroq",
+        CloudTranscriptionProvider.Deepgram => "providerDeepgram",
+        CloudTranscriptionProvider.AssemblyAI => "providerAssemblyAI",
+        CloudTranscriptionProvider.ElevenLabs => "providerElevenLabs",
+        CloudTranscriptionProvider.Mistral => "providerMistral",
+        CloudTranscriptionProvider.Soniox => "providerSoniox",
+        CloudTranscriptionProvider.Gemini => "providerGemini",
+        CloudTranscriptionProvider.GeminiTranscribe => "providerGemini",
+        CloudTranscriptionProvider.Grok => "providerGrok",
+        CloudTranscriptionProvider.MicrosoftAzureSpeech => "providerMicrosoft",
+        CloudTranscriptionProvider.GoogleSpeech => "providerGoogle",
+        _ => "providerLocalWhisper"
+    };
+
+    /// <summary>
     /// Gets the string identifier used in Mode.CloudProvider field.
     /// Used for JSON serialization and cross-platform compatibility.
     /// </summary>

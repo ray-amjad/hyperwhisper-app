@@ -1,0 +1,153 @@
+<!--
+    THE FIRST RUN ONBOARDING WINDOW
+
+    Port of app/macos/hyperwhisper/Views/OnboardingView.swift. Eight steps:
+    welcome, permissions, choose source, configure, set up, microphone, try it,
+    done. Each step is an anchor glyph, a question, one supporting line, and a
+    single cluster of cards.
+
+    All step gating, staging, validation, task ownership and rollback live in
+    ViewModels/Onboarding/OnboardingFlowViewModel.cs. This window and its eight
+    pages are presentation only.
+
+    macOS presents a sheet, which has no title bar, so its progress hairline sits
+    flush at y = 0 for free. Windows has no sheet, so this is a custom chrome
+    window in the same shape as MainWindow: WindowStyle=None plus a 44 caption
+    row, with the hairline flush underneath it. The caption carries Close only,
+    because Minimize would leave a modal the user cannot get back to and Maximize
+    would break a stage designed at one size.
+
+    Three fixed bands and one elastic one: caption 44, hairline 3, the stage, and
+    the footer 56. The footer is deliberately OUTSIDE the stage's scroll, so
+    Continue, Back and "Set Up Later" can never be scrolled off screen.
+-->
+<Window x:Class="HyperWhisper.Views.Windows.OnboardingWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="clr-namespace:HyperWhisper.Localization"
+        xmlns:onboarding="clr-namespace:HyperWhisper.Views.Controls.Onboarding"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        Title="{loc:Loc onboarding.window.title}"
+        Width="760" Height="624"
+        MinWidth="760" MinHeight="624" MaxWidth="760" MaxHeight="624"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        Background="Transparent">
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="44"
+                            CornerRadius="0"
+                            GlassFrameThickness="0"
+                            ResizeBorderThickness="0"
+                            UseAeroCaptionButtons="False"/>
+    </shell:WindowChrome.WindowChrome>
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/HyperWhisper;component/Views/Controls/Onboarding/OnboardingResources.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid Background="{DynamicResource ContentBackgroundBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="44"/>
+            <RowDefinition Height="3"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="56"/>
+        </Grid.RowDefinitions>
+
+        <!-- Caption. WindowChrome makes this row draggable. -->
+        <Border Grid.Row="0" Background="Transparent">
+            <StackPanel Orientation="Horizontal"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Center"
+                        Margin="0,0,8,0"
+                        shell:WindowChrome.IsHitTestVisibleInChrome="True">
+                <Button Style="{StaticResource CaptionButtonStyle}"
+                        Click="CloseButton_Click"
+                        ToolTip="{loc:Loc window.caption.close}"
+                        AutomationProperties.Name="{loc:Loc window.caption.close}">
+                    <Path Width="10" Height="10" Stretch="Fill"
+                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                          StrokeThickness="1.5"
+                          StrokeStartLineCap="Round"
+                          StrokeEndLineCap="Round"
+                          Data="M1,1 L9,9 M9,1 L1,9"/>
+                </Button>
+            </StackPanel>
+        </Border>
+
+        <!-- Eight segment progress hairline, flush under the caption. -->
+        <onboarding:OnboardingStepProgress Grid.Row="1"
+                                           x:Name="StepProgress"
+                                           Current="{Binding StepIndex}"
+                                           AutomationProperties.Name="{Binding ProgressAccessibleName}"/>
+
+        <!-- The stage. The pages are constructed once and reused, so a step keeps
+             nothing across a Back and the flow model stays the only state. -->
+        <Frame Grid.Row="2"
+               x:Name="StepFrame"
+               NavigationUIVisibility="Hidden"
+               Background="Transparent"/>
+
+        <!-- Footer: Back, the quiet deferral, the reassurance line, and exactly
+             one primary. Mirrors OnboardingFocusComponents.swift:572-634. -->
+        <Border Grid.Row="3"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="0,1,0,0"
+                Background="{DynamicResource ContentBackgroundBrush}">
+            <Grid Margin="20,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <Button Grid.Column="0"
+                        x:Name="BackButton"
+                        Content="{loc:Loc onboarding.footer.back}"
+                        Style="{StaticResource MacButtonStyle}"
+                        Command="{Binding GoBackCommand}"
+                        Margin="0,0,8,0"
+                        Visibility="{Binding CanGoBack, Converter={StaticResource OnboardingBoolToVisibility}}"
+                        AutomationProperties.Name="{loc:Loc onboarding.footer.back}"/>
+
+                <!-- The quietest control on screen, so the single primary keeps its
+                     hierarchy. Withdrawn on the final step, where the work is
+                     already done and deferring would only roll it back. -->
+                <Button Grid.Column="1"
+                        x:Name="SetUpLaterButton"
+                        Content="{loc:Loc onboarding.setupLater.button}"
+                        Click="SetUpLaterButton_Click"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        FontWeight="Normal"
+                        Foreground="{DynamicResource TextTertiaryBrush}"
+                        Visibility="{Binding ShowsSetUpLater, Converter={StaticResource OnboardingBoolToVisibility}}"
+                        AutomationProperties.Name="{loc:Loc onboarding.setupLater.button}"/>
+
+                <TextBlock Grid.Column="2"
+                           Text="{Binding FooterReassurance}"
+                           FontSize="12"
+                           Foreground="{DynamicResource TextTertiaryBrush}"
+                           TextTrimming="CharacterEllipsis"
+                           VerticalAlignment="Center"
+                           HorizontalAlignment="Right"
+                           Margin="12,0"/>
+
+                <Button Grid.Column="3"
+                        x:Name="PrimaryButton"
+                        Content="{Binding PrimaryButtonText}"
+                        Style="{StaticResource PrimaryButtonStyle}"
+                        Click="PrimaryButton_Click"
+                        IsEnabled="{Binding CanContinue}"
+                        IsDefault="True"
+                        Padding="20,7"/>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
