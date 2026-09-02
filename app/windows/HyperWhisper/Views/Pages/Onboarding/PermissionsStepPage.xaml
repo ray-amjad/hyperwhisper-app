@@ -163,8 +163,11 @@
                                                    VerticalAlignment="Center"
                                                    Margin="0,0,12,0"/>
 
+                                        <!-- No x:Name. OnboardingStage is a UserControl, so it opens
+                                             its own XAML name scope and a named child inside it is
+                                             an MC3093 at compile time. The handler is wired by
+                                             event, and UIA finds it by AutomationProperties.Name. -->
                                         <controls:ShortcutRecorderBox Grid.Column="1"
-                                                                      x:Name="ShortcutRecorder"
                                                                       Role="Toggle"
                                                                       Width="180"
                                                                       VerticalAlignment="Center"
