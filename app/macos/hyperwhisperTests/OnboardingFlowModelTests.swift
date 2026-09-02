@@ -1094,6 +1094,177 @@ struct OnboardingCompletionGateTests {
     }
 }
 
+// MARK: - The bounce has to explain itself
+
+/// A bounce rewinds the sheet by up to three steps and leaves Continue disabled.
+/// If nothing on screen says why, that is a worse experience than the bug it
+/// replaced, so these pin the explanation as hard as the refusal itself: without
+/// them, a regression that armed no note at all would pass every test above.
+@MainActor
+struct OnboardingBounceExplanationTests {
+    @Test func theOnDeviceBounceTellsTheUserWhyTheyWereSentBack() {
+        let h = Harness()
+        h.stageInstalledOnDeviceModel()
+        h.advance(to: .done)
+        h.catalog.installed.remove(FakeCatalog.parakeet.id)
+
+        #expect(!h.flow.complete())
+        #expect(h.flow.selectedSourceStoppedWorking,
+                "the setup card renders its note off this, and nothing else on the step explains the rewind")
+        // Why the note has to be its own surface rather than another
+        // `setupErrorMessage`: that property only republishes failures this flow
+        // PRODUCED, and a model deleted from under us is not one of them.
+        #expect(h.flow.setupErrorMessage == nil,
+                "no download failed, so the download-error channel has nothing to say here")
+    }
+
+    @Test func theCloudBounceTellsTheUserWhyTheyWereSentBack() async {
+        let h = Harness()
+        h.grantMicrophone()
+        h.flow.select(source: .hyperwhisperCloud)
+        h.flow.licenseKeyInput = "key"
+        h.flow.testAccessKey()
+        await h.flow.lastAsyncTaskForTesting?.value
+        h.advance(to: .setup)
+        h.flow.activateCloudLicense()
+        await h.flow.lastAsyncTaskForTesting?.value
+        h.advance(to: .done)
+
+        h.license.isActive = false
+
+        #expect(!h.flow.complete())
+        #expect(h.flow.selectedSourceStoppedWorking)
+        #expect(h.flow.setupErrorMessage == nil,
+                "activation succeeded; the licence lapsed afterwards, so there is no activation error to show")
+    }
+
+    @Test func theProviderBounceTellsTheUserWhyTheyWereSentBack() async {
+        let h = Harness()
+        h.grantMicrophone()
+        h.advance(to: .source)
+        h.flow.select(source: .yourProvider)
+        h.advance(to: .configure)
+        h.flow.apiKeyInput = "sk-test"
+        h.flow.testProviderKey()
+        await h.flow.lastAsyncTaskForTesting?.value
+        h.advance(to: .done)
+
+        h.providerKeys.stored[.openai] = nil
+
+        #expect(!h.flow.complete())
+        #expect(h.flow.selectedSourceStoppedWorking)
+        #expect(h.flow.setupErrorMessage == nil,
+                "the key was written successfully; it vanished afterwards, so there is no Keychain error to show")
+    }
+
+    /// The other bounce site. Same note, because the user lands on the same step
+    /// with the same disabled Continue.
+    @Test func theAdvanceBounceTellsTheUserWhyTheyWereSentBack() {
+        let h = Harness()
+        h.stageInstalledOnDeviceModel()
+        h.advance(to: .microphone)
+        h.catalog.installed.remove(FakeCatalog.parakeet.id)
+
+        #expect(!h.flow.advance())
+        #expect(h.flow.selectedSourceStoppedWorking)
+    }
+
+    /// Reaching `.setup` the ordinary way is not a bounce. A first-run user who
+    /// has simply not downloaded the model yet must not be told their source
+    /// stopped working.
+    @Test func arrivingAtSetupNormallyShowsNoBounceNote() {
+        let h = Harness()
+        h.grantMicrophone()
+        h.flow.select(source: .onDevice)
+        h.advance(to: .setup)
+
+        #expect(h.flow.step == .setup)
+        #expect(!h.flow.isSelectedSourceUsable, "the gate is shut, but nothing has been taken away")
+        #expect(!h.flow.selectedSourceStoppedWorking)
+    }
+
+    /// The note is derived from the gate, not stored, so fixing the source takes
+    /// it away with no separate bookkeeping to forget.
+    @Test func fixingTheSourceTakesTheBounceNoteAway() {
+        let h = Harness()
+        h.stageInstalledOnDeviceModel()
+        h.advance(to: .done)
+        h.catalog.installed.remove(FakeCatalog.parakeet.id)
+        #expect(!h.flow.complete())
+        #expect(h.flow.selectedSourceStoppedWorking)
+
+        h.catalog.installed.insert(FakeCatalog.parakeet.id)
+
+        #expect(!h.flow.selectedSourceStoppedWorking)
+    }
+
+    /// The note names one source. Picking a different one makes it a statement
+    /// about something the user is no longer setting up.
+    @Test func choosingADifferentSourceTakesTheBounceNoteAway() {
+        let h = Harness()
+        h.stageInstalledOnDeviceModel()
+        h.advance(to: .done)
+        h.catalog.installed.remove(FakeCatalog.parakeet.id)
+        #expect(!h.flow.complete())
+        #expect(h.flow.selectedSourceStoppedWorking)
+
+        h.flow.select(source: .hyperwhisperCloud)
+
+        #expect(!h.flow.selectedSourceStoppedWorking)
+    }
+
+    /// A bounce off a later step, then forward again, then a second bounce: the
+    /// note has to come back rather than be spent by the first one.
+    @Test func aSecondBounceArmsTheNoteAgain() {
+        let h = Harness()
+        h.stageInstalledOnDeviceModel()
+        h.advance(to: .microphone)
+        h.catalog.installed.remove(FakeCatalog.parakeet.id)
+        #expect(!h.flow.advance())
+
+        h.catalog.installed.insert(FakeCatalog.parakeet.id)
+        h.advance(to: .done)
+        #expect(!h.flow.selectedSourceStoppedWorking)
+
+        h.catalog.installed.remove(FakeCatalog.parakeet.id)
+        #expect(!h.flow.complete())
+        #expect(h.flow.selectedSourceStoppedWorking)
+    }
+}
+
+/// The bounce copy ships in `Base.lproj` only, which is the repo's normal way to
+/// add a string: `String.localized` resolves an untranslated key through Base
+/// (see `LocalizationFallbackTests`), so a Base-only key renders readable English
+/// in every locale instead of a raw identifier.
+struct OnboardingBounceCopyTests {
+    private let keys = [
+        "onboarding.setup.stopped.onDevice",
+        "onboarding.setup.stopped.cloud",
+        "onboarding.setup.stopped.provider"
+    ]
+
+    @Test func everyBounceNoteKeyResolvesToRealCopy() throws {
+        let base = try #require(BaseLocalizationBundle.resolve(in: .main))
+        for key in keys {
+            let value = try #require(base.localizedValueIfPresent(forKey: key),
+                                     "\(key) is missing from Base.lproj")
+            #expect(value != key)
+            #expect(key.localized != key, "\(key) renders as its own identifier")
+        }
+    }
+
+    /// Both parameterised notes are rendered through `localized(arguments:)`.
+    /// Drop the placeholder and `String(format:)` silently discards the model or
+    /// provider name, leaving copy that names nothing.
+    @Test func theParameterisedBounceNotesKeepTheirPlaceholder() throws {
+        let base = try #require(BaseLocalizationBundle.resolve(in: .main))
+        for key in ["onboarding.setup.stopped.onDevice", "onboarding.setup.stopped.provider"] {
+            let value = try #require(base.localizedValueIfPresent(forKey: key))
+            #expect(value.contains("%@"), "\(key) no longer interpolates its name")
+        }
+    }
+}
+
 // MARK: - Late async completion (bug 3)
 
 @MainActor
