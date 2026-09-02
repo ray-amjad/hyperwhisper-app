@@ -282,6 +282,12 @@ struct NemotronLocalAPIEngineTests {
             ] {
                 let mode = Mode(context: persistence.container.viewContext)
                 mode.model = inherited
+                // Explicit, because inheriting is now conditional on the
+                // language too (see the round-2 test below) and "en" is the
+                // one code BOTH variants serve. Left implicit this would ride
+                // on the Core Data default and break for a confusing reason if
+                // that default ever moved.
+                mode.language = "en"
                 TranscribeEndpoint.applyEngineModel(to: mode, engine: alias, model: nil)
                 #expect(
                     mode.model == inherited,
@@ -292,6 +298,7 @@ struct NemotronLocalAPIEngineTests {
                 // must inherit on exactly the same terms as nil.
                 let blank = Mode(context: persistence.container.viewContext)
                 blank.model = inherited
+                blank.language = "en"
                 TranscribeEndpoint.applyEngineModel(to: blank, engine: alias, model: "   ")
                 #expect(blank.model == inherited)
             }
@@ -301,6 +308,7 @@ struct NemotronLocalAPIEngineTests {
         // still recognised, and is normalised to the canonical spelling.
         let shouted = Mode(context: persistence.container.viewContext)
         shouted.model = NemotronModelManager.Constants.latinModelId.uppercased()
+        shouted.language = "en"
         TranscribeEndpoint.applyEngineModel(to: shouted, engine: "nemotron", model: nil)
         #expect(shouted.model == NemotronModelManager.Constants.latinModelId)
 
@@ -343,6 +351,83 @@ struct NemotronLocalAPIEngineTests {
                 "inherited '\(inherited)' should not have been kept as a Nemotron selection"
             )
             #expect(TranscribeEndpoint.engineLabel(forMode: mode) == "nemotron")
+        }
+    }
+
+    /// Review round 2, the regression the round-1 inherit rule introduced.
+    ///
+    /// Round 1 taught the arm to keep a Mode's saved Nemotron variant, and
+    /// looked only at the model id. Nothing downstream re-checks the variant
+    /// against the language: `NemotronProvider.prepareIfNeeded(language:modelId:)`
+    /// resolves the variant from `modelId` alone and never reads its `language`
+    /// argument, and `transcribe` then passes `mode.language` straight to
+    /// `setLanguage`. So `{mode_id: <a Latin mode>, engine: "nemotron",
+    /// language: "ja"}` inherited Latin and returned HTTP 200 full of
+    /// Latin-script garbage — a request that WORKED before the round-1 fix,
+    /// because it used to get multilingual.
+    ///
+    /// The rule now: inherit only a variant that can serve the requested
+    /// language, otherwise take the multilingual default, whose unlisted codes
+    /// degrade to the model's own auto-detect prompt rather than to the wrong
+    /// alphabet.
+    @Test func anInheritedVariantIsDroppedWhenItCannotServeTheRequestedLanguage() {
+        let persistence = PersistenceController(inMemory: true)
+
+        func inheritedModel(savedVariant: String, language: String?) -> String? {
+            let mode = Mode(context: persistence.container.viewContext)
+            mode.model = savedVariant
+            mode.language = language
+            TranscribeEndpoint.applyEngineModel(to: mode, engine: "nemotron", model: nil)
+            return mode.model
+        }
+
+        let latin = NemotronModelManager.Constants.latinModelId
+        let multilingual = NemotronModelManager.Constants.multilingualModelId
+
+        // The bug, and its neighbours: every language the multilingual variant
+        // lists and the Latin one does not.
+        for language in ["ja", "zh", "ko", "ar", "ru", "hi", "th", "he"] {
+            #expect(
+                NemotronModelManager.latinLanguages[language] == nil,
+                "'\(language)' is in latinLanguages — this case no longer tests anything"
+            )
+            #expect(
+                inheritedModel(savedVariant: latin, language: language) == multilingual,
+                """
+                a Latin-variant Mode plus language '\(language)' kept Latin. The Latin \
+                variant's vocabulary is pruned to \
+                \(NemotronModelManager.latinLanguages.keys.sorted().joined(separator: "/")), so \
+                that transcribes to Latin-script garbage with a 200 status.
+                """
+            )
+        }
+
+        // A language no variant lists is still safer on multilingual.
+        #expect(inheritedModel(savedVariant: latin, language: "cy") == multilingual)
+
+        // Round 1's fix must NOT regress: a Latin Mode keeps Latin for every
+        // language the Latin variant does serve, region subtag or not…
+        for language in NemotronModelManager.latinLanguages.keys {
+            #expect(inheritedModel(savedVariant: latin, language: language) == latin)
+        }
+        #expect(inheritedModel(savedVariant: latin, language: "pt-BR") == latin)
+        #expect(inheritedModel(savedVariant: latin, language: "EN-us") == latin)
+        #expect(inheritedModel(savedVariant: latin, language: "  de  ") == latin)
+
+        // …and for "no language asked", in every spelling the rest of the
+        // Local API treats as auto-detect. This is the exact case round 1
+        // repaired, so it must survive unchanged.
+        for language in [nil, "", "   ", "auto", "AUTO"] {
+            #expect(
+                inheritedModel(savedVariant: latin, language: language) == latin,
+                "auto-detect ('\(language ?? "nil")') must still inherit the saved Latin variant"
+            )
+        }
+
+        // The multilingual variant serves everything it lists, and inheriting
+        // it is never downgraded.
+        for language in ["ja", "zh", "en", "auto", nil, "cy"] {
+            #expect(inheritedModel(savedVariant: multilingual, language: language) == multilingual)
         }
     }
 
