@@ -589,6 +589,27 @@ fn windows_legacy_cloud_routing_migrates() {
     );
 }
 
+#[test]
+fn meta_muse_tier_survives_backup_round_trip_and_alias_migration() {
+    let fixture = r#"{
+        "schemaVersion": 2,
+        "exportDate": "2026-09-01T00:00:00Z",
+        "appVersion": "1.0.0",
+        "platform": "linux",
+        "modes": [{
+            "id": "7a0e8400-e29b-41d4-a716-446655440001",
+            "name": "Muse",
+            "cloudAccuracyTier": "metaMuse"
+        }]
+    }"#;
+    assert_value_round_trip(fixture, "meta-muse-tier");
+
+    let backup = parse_backup(&fixture.replace("metaMuse", "MUSE")).unwrap();
+    let mut records = to_records(&backup);
+    migrate_mode_cloud_routing(&mut records.modes[0]);
+    assert_eq!(records.modes[0].cloud_accuracy_tier.as_deref(), Some("metaMuse"));
+}
+
 // ---------------------------------------------------------------------------
 // macOS 7 → universal 5 settings adapter (the path that ADDS v2)
 // ---------------------------------------------------------------------------

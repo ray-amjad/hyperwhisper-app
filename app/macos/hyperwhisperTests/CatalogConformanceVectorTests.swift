@@ -48,6 +48,11 @@ struct CatalogConformanceVectorTests {
         let wordTimestamps: Bool
         let diarization: Bool
         let streaming: Bool
+        let codeSwitching: Bool
+        let endpointing: Bool
+        let contextBias: Bool
+        let languageBias: Bool
+        let turnTimestamps: Bool
         /// "yes" / "no" / "unverified", or nil when the row carries no
         /// `customVocabulary` block at all.
         let customVocabularySupported: String?
@@ -97,6 +102,17 @@ struct CatalogConformanceVectorTests {
         let availableViaHyperWhisperCloud: Bool
         let supportsAllLanguages: Bool
         let languageCodes: [String]
+        let voiceCapabilities: VoiceCapabilitiesVector?
+    }
+
+    struct VoiceCapabilitiesVector: Decodable {
+        let codeSwitching: Bool
+        let endpointing: Bool
+        let contextBias: Bool
+        let languageBias: Bool
+        let turnTimestamps: Bool
+        let diarization: Bool
+        let wordTimestamps: Bool
     }
 
     /// The vectors are repo data shared by three stacks, not a bundled app
@@ -147,6 +163,11 @@ struct CatalogConformanceVectorTests {
             #expect(got.features.wordTimestamps == want.wordTimestamps, "\(id).features.wordTimestamps")
             #expect(got.features.diarization == want.diarization, "\(id).features.diarization")
             #expect(got.features.streaming == want.streaming, "\(id).features.streaming")
+            #expect(got.features.codeSwitching == want.codeSwitching, "\(id).features.codeSwitching")
+            #expect(got.features.endpointing == want.endpointing, "\(id).features.endpointing")
+            #expect(got.features.contextBias == want.contextBias, "\(id).features.contextBias")
+            #expect(got.features.languageBias == want.languageBias, "\(id).features.languageBias")
+            #expect(got.features.turnTimestamps == want.turnTimestamps, "\(id).features.turnTimestamps")
 
             // The tri-state the bool-or-string field decodes to.
             #expect(
@@ -271,6 +292,13 @@ struct CatalogConformanceVectorTests {
                 got.availableViaHyperWhisperCloud == want.availableViaHyperWhisperCloud,
                 "\(label).availableViaHyperWhisperCloud"
             )
+            #expect(got.voiceCapabilities?.codeSwitching == want.voiceCapabilities?.codeSwitching, "\(label).voiceCapabilities.codeSwitching")
+            #expect(got.voiceCapabilities?.endpointing == want.voiceCapabilities?.endpointing, "\(label).voiceCapabilities.endpointing")
+            #expect(got.voiceCapabilities?.contextBias == want.voiceCapabilities?.contextBias, "\(label).voiceCapabilities.contextBias")
+            #expect(got.voiceCapabilities?.languageBias == want.voiceCapabilities?.languageBias, "\(label).voiceCapabilities.languageBias")
+            #expect(got.voiceCapabilities?.turnTimestamps == want.voiceCapabilities?.turnTimestamps, "\(label).voiceCapabilities.turnTimestamps")
+            #expect(got.voiceCapabilities?.diarization == want.voiceCapabilities?.diarization, "\(label).voiceCapabilities.diarization")
+            #expect(got.voiceCapabilities?.wordTimestamps == want.voiceCapabilities?.wordTimestamps, "\(label).voiceCapabilities.wordTimestamps")
 
             // Resolved support, not the raw column: this pins the wildcard
             // fallback and the "uncatalogued ⇒ every language" rule too.

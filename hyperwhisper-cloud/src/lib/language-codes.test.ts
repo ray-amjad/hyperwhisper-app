@@ -180,6 +180,36 @@ describe('resolveProviderLanguage — the shared contract', () => {
   });
 });
 
+describe('meta', () => {
+  test('maps picker codes and region-qualified codes to Muse language names', () => {
+    expect(resolve('meta', 'muse-voice-transcribe-1.0', 'en-US')).toBe('English');
+    expect(resolve('meta', 'muse-voice-transcribe-1.0', 'zh-TW')).toBe('Mandarin Chinese');
+    expect(resolve('meta', 'muse-voice-transcribe-1.0', 'tl')).toBe('Tagalog');
+  });
+
+  test('maps legacy saved-mode aliases', () => {
+    expect(resolve('meta', 'muse-voice-transcribe-1.0', 'iw')).toBe('Hebrew');
+    expect(resolve('meta', 'muse-voice-transcribe-1.0', 'in')).toBe('Indonesian');
+    expect(resolve('meta', 'muse-voice-transcribe-1.0', 'cmn-Hans')).toBe('Mandarin Chinese');
+  });
+
+  test('falls back to auto-detect with the shared telemetry contract', () => {
+    const events = captureEvents(() => {
+      expect(resolve('meta', 'muse-voice-transcribe-1.0', 'zz')).toBeNull();
+    });
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      event: 'language_unmappable',
+      details: {
+        model: 'muse-voice-transcribe-1.0',
+        requested: 'zz',
+        reason: 'no_locale',
+        fallback: 'auto_detect',
+      },
+    });
+  });
+});
+
 describe('google-chirp', () => {
   // The bug this whole module exists for: the picker sends `en`, Chirp 3 wants
   // a locale, and the raw forward was a permanent 400 that the client retried

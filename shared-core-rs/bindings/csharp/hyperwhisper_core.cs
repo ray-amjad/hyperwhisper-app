@@ -2031,6 +2031,14 @@ static class _UniFFILib {
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_meta_build_transcribe_request(RustBuffer @params,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_meta_parse_transcribe_response(RustBuffer @resp,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern RustBuffer uniffi_hyperwhisper_core_fn_func_migrate_cloud_accuracy_tier(RustBuffer @value,ref UniffiRustCallStatus _uniffi_out_err
     );
 
@@ -3196,6 +3204,14 @@ static class _UniFFILib {
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_hyperwhisper_core_checksum_func_macos_settings_to_universal_settings_json(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_meta_build_transcribe_request(
+    );
+
+    [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_hyperwhisper_core_checksum_func_meta_parse_transcribe_response(
     );
 
     [DllImport("hyperwhisper_core", CallingConvention = CallingConvention.Cdecl)]
@@ -4548,6 +4564,18 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_macos_settings_to_universal_settings_json();
             if (checksum != 44899) {
                 throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_macos_settings_to_universal_settings_json` checksum `44899`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_meta_build_transcribe_request();
+            if (checksum != 23035) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_meta_build_transcribe_request` checksum `23035`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_hyperwhisper_core_checksum_func_meta_parse_transcribe_response();
+            if (checksum != 61443) {
+                throw new UniffiContractChecksumException($"uniffi.hyperwhisper_core: uniffi bindings expected function `uniffi_hyperwhisper_core_checksum_func_meta_parse_transcribe_response` checksum `61443`, library returned `{checksum}`");
             }
         }
         {
@@ -7981,7 +8009,8 @@ internal record ModelsEntry (
     /// </summary>
     List<string> @supportedLanguages, 
     bool? @isEnglishOnly, 
-    bool? @supportsAllLanguages
+    bool? @supportsAllLanguages, 
+    ModelsVoiceCapabilities? @voiceCapabilities
 ) {
 }
 
@@ -8000,7 +8029,8 @@ class FfiConverterTypeModelsEntry: FfiConverterRustBuffer<ModelsEntry> {
             @notes: FfiConverterOptionalString.INSTANCE.Read(stream),
             @supportedLanguages: FfiConverterSequenceString.INSTANCE.Read(stream),
             @isEnglishOnly: FfiConverterOptionalBoolean.INSTANCE.Read(stream),
-            @supportsAllLanguages: FfiConverterOptionalBoolean.INSTANCE.Read(stream)
+            @supportsAllLanguages: FfiConverterOptionalBoolean.INSTANCE.Read(stream),
+            @voiceCapabilities: FfiConverterOptionalTypeModelsVoiceCapabilities.INSTANCE.Read(stream)
         );
     }
 
@@ -8016,7 +8046,8 @@ class FfiConverterTypeModelsEntry: FfiConverterRustBuffer<ModelsEntry> {
             + FfiConverterOptionalString.INSTANCE.AllocationSize(value.@notes)
             + FfiConverterSequenceString.INSTANCE.AllocationSize(value.@supportedLanguages)
             + FfiConverterOptionalBoolean.INSTANCE.AllocationSize(value.@isEnglishOnly)
-            + FfiConverterOptionalBoolean.INSTANCE.AllocationSize(value.@supportsAllLanguages);
+            + FfiConverterOptionalBoolean.INSTANCE.AllocationSize(value.@supportsAllLanguages)
+            + FfiConverterOptionalTypeModelsVoiceCapabilities.INSTANCE.AllocationSize(value.@voiceCapabilities);
     }
 
     public override void Write(ModelsEntry value, BigEndianStream stream) {
@@ -8031,6 +8062,60 @@ class FfiConverterTypeModelsEntry: FfiConverterRustBuffer<ModelsEntry> {
             FfiConverterSequenceString.INSTANCE.Write(value.@supportedLanguages, stream);
             FfiConverterOptionalBoolean.INSTANCE.Write(value.@isEnglishOnly, stream);
             FfiConverterOptionalBoolean.INSTANCE.Write(value.@supportsAllLanguages, stream);
+            FfiConverterOptionalTypeModelsVoiceCapabilities.INSTANCE.Write(value.@voiceCapabilities, stream);
+    }
+}
+
+
+
+/// <summary>
+/// Structured voice-model capabilities from `models-catalog.json`.
+/// </summary>
+internal record ModelsVoiceCapabilities (
+    bool @codeSwitching, 
+    bool @endpointing, 
+    bool @contextBias, 
+    bool @languageBias, 
+    bool @turnTimestamps, 
+    bool @diarization, 
+    bool @wordTimestamps
+) {
+}
+
+class FfiConverterTypeModelsVoiceCapabilities: FfiConverterRustBuffer<ModelsVoiceCapabilities> {
+    public static FfiConverterTypeModelsVoiceCapabilities INSTANCE = new FfiConverterTypeModelsVoiceCapabilities();
+
+    public override ModelsVoiceCapabilities Read(BigEndianStream stream) {
+        return new ModelsVoiceCapabilities(
+            @codeSwitching: FfiConverterBoolean.INSTANCE.Read(stream),
+            @endpointing: FfiConverterBoolean.INSTANCE.Read(stream),
+            @contextBias: FfiConverterBoolean.INSTANCE.Read(stream),
+            @languageBias: FfiConverterBoolean.INSTANCE.Read(stream),
+            @turnTimestamps: FfiConverterBoolean.INSTANCE.Read(stream),
+            @diarization: FfiConverterBoolean.INSTANCE.Read(stream),
+            @wordTimestamps: FfiConverterBoolean.INSTANCE.Read(stream)
+        );
+    }
+
+    public override int AllocationSize(ModelsVoiceCapabilities value) {
+        return 0
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@codeSwitching)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@endpointing)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@contextBias)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@languageBias)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@turnTimestamps)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@diarization)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@wordTimestamps);
+    }
+
+    public override void Write(ModelsVoiceCapabilities value, BigEndianStream stream) {
+            FfiConverterBoolean.INSTANCE.Write(value.@codeSwitching, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@endpointing, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@contextBias, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@languageBias, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@turnTimestamps, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@diarization, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@wordTimestamps, stream);
     }
 }
 
@@ -8560,7 +8645,12 @@ class FfiConverterTypeSttEntry: FfiConverterRustBuffer<SttEntry> {
 internal record SttFeatures (
     bool @wordTimestamps, 
     bool @diarization, 
-    bool @streaming
+    bool @streaming, 
+    bool @codeSwitching, 
+    bool @endpointing, 
+    bool @contextBias, 
+    bool @languageBias, 
+    bool @turnTimestamps
 ) {
 }
 
@@ -8571,7 +8661,12 @@ class FfiConverterTypeSttFeatures: FfiConverterRustBuffer<SttFeatures> {
         return new SttFeatures(
             @wordTimestamps: FfiConverterBoolean.INSTANCE.Read(stream),
             @diarization: FfiConverterBoolean.INSTANCE.Read(stream),
-            @streaming: FfiConverterBoolean.INSTANCE.Read(stream)
+            @streaming: FfiConverterBoolean.INSTANCE.Read(stream),
+            @codeSwitching: FfiConverterBoolean.INSTANCE.Read(stream),
+            @endpointing: FfiConverterBoolean.INSTANCE.Read(stream),
+            @contextBias: FfiConverterBoolean.INSTANCE.Read(stream),
+            @languageBias: FfiConverterBoolean.INSTANCE.Read(stream),
+            @turnTimestamps: FfiConverterBoolean.INSTANCE.Read(stream)
         );
     }
 
@@ -8579,13 +8674,23 @@ class FfiConverterTypeSttFeatures: FfiConverterRustBuffer<SttFeatures> {
         return 0
             + FfiConverterBoolean.INSTANCE.AllocationSize(value.@wordTimestamps)
             + FfiConverterBoolean.INSTANCE.AllocationSize(value.@diarization)
-            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@streaming);
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@streaming)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@codeSwitching)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@endpointing)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@contextBias)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@languageBias)
+            + FfiConverterBoolean.INSTANCE.AllocationSize(value.@turnTimestamps);
     }
 
     public override void Write(SttFeatures value, BigEndianStream stream) {
             FfiConverterBoolean.INSTANCE.Write(value.@wordTimestamps, stream);
             FfiConverterBoolean.INSTANCE.Write(value.@diarization, stream);
             FfiConverterBoolean.INSTANCE.Write(value.@streaming, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@codeSwitching, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@endpointing, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@contextBias, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@languageBias, stream);
+            FfiConverterBoolean.INSTANCE.Write(value.@turnTimestamps, stream);
     }
 }
 
@@ -11067,6 +11172,13 @@ internal record HwPart {
         string @filename
     ) : HwPart {}
     
+    public record InlineFile (
+        string @field,
+        string @filename,
+        string @mime,
+        byte[] @data
+    ) : HwPart {}
+    
 
     
 }
@@ -11089,6 +11201,13 @@ class FfiConverterTypeHwPart : FfiConverterRustBuffer<HwPart>{
                     FfiConverterString.INSTANCE.Read(stream),
                     FfiConverterString.INSTANCE.Read(stream)
                 );
+            case 3:
+                return new HwPart.InlineFile(
+                    FfiConverterString.INSTANCE.Read(stream),
+                    FfiConverterString.INSTANCE.Read(stream),
+                    FfiConverterString.INSTANCE.Read(stream),
+                    FfiConverterByteArray.INSTANCE.Read(stream)
+                );
             default:
                 throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwPart.Read()", value));
         }
@@ -11106,6 +11225,12 @@ class FfiConverterTypeHwPart : FfiConverterRustBuffer<HwPart>{
                     + FfiConverterString.INSTANCE.AllocationSize(variant_value.@path)
                     + FfiConverterString.INSTANCE.AllocationSize(variant_value.@mime)
                     + FfiConverterString.INSTANCE.AllocationSize(variant_value.@filename);
+            case HwPart.InlineFile variant_value:
+                return 4
+                    + FfiConverterString.INSTANCE.AllocationSize(variant_value.@field)
+                    + FfiConverterString.INSTANCE.AllocationSize(variant_value.@filename)
+                    + FfiConverterString.INSTANCE.AllocationSize(variant_value.@mime)
+                    + FfiConverterByteArray.INSTANCE.AllocationSize(variant_value.@data);
             default:
                 throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwPart.AllocationSize()", value));
         }
@@ -11125,6 +11250,13 @@ class FfiConverterTypeHwPart : FfiConverterRustBuffer<HwPart>{
                 FfiConverterString.INSTANCE.Write(variant_value.@mime, stream);
                 FfiConverterString.INSTANCE.Write(variant_value.@filename, stream);
                 break;
+            case HwPart.InlineFile variant_value:
+                stream.WriteInt(3);
+                FfiConverterString.INSTANCE.Write(variant_value.@field, stream);
+                FfiConverterString.INSTANCE.Write(variant_value.@filename, stream);
+                FfiConverterString.INSTANCE.Write(variant_value.@mime, stream);
+                FfiConverterByteArray.INSTANCE.Write(variant_value.@data, stream);
+                break;
             default:
                 throw new InternalException(String.Format("invalid enum value '{0}' in FfiConverterTypeHwPart.Write()", value));
         }
@@ -11138,7 +11270,7 @@ class FfiConverterTypeHwPart : FfiConverterRustBuffer<HwPart>{
 
 
 /// <summary>
-/// The 14 cloud speech-to-text providers. Mirrors `hw_net::Provider`.
+/// The 15 cloud speech-to-text providers. Mirrors `hw_net::Provider`.
 /// </summary>
 internal enum HwProvider: int {
     
@@ -11155,7 +11287,8 @@ internal enum HwProvider: int {
     AzureMai,
     GoogleChirp,
     GeminiTranscribe,
-    GeminiTranscribeLive
+    GeminiTranscribeLive,
+    Meta
 }
 
 class FfiConverterTypeHwProvider: FfiConverterRustBuffer<HwProvider> {
@@ -12414,6 +12547,37 @@ class FfiConverterOptionalTypeModelsEntry: FfiConverterRustBuffer<ModelsEntry?> 
         } else {
             stream.WriteByte(1);
             FfiConverterTypeModelsEntry.INSTANCE.Write((ModelsEntry)value, stream);
+        }
+    }
+}
+
+
+
+
+class FfiConverterOptionalTypeModelsVoiceCapabilities: FfiConverterRustBuffer<ModelsVoiceCapabilities?> {
+    public static FfiConverterOptionalTypeModelsVoiceCapabilities INSTANCE = new FfiConverterOptionalTypeModelsVoiceCapabilities();
+
+    public override ModelsVoiceCapabilities? Read(BigEndianStream stream) {
+        if (stream.ReadByte() == 0) {
+            return null;
+        }
+        return FfiConverterTypeModelsVoiceCapabilities.INSTANCE.Read(stream);
+    }
+
+    public override int AllocationSize(ModelsVoiceCapabilities? value) {
+        if (value == null) {
+            return 1;
+        } else {
+            return 1 + FfiConverterTypeModelsVoiceCapabilities.INSTANCE.AllocationSize((ModelsVoiceCapabilities)value);
+        }
+    }
+
+    public override void Write(ModelsVoiceCapabilities? value, BigEndianStream stream) {
+        if (value == null) {
+            stream.WriteByte(0);
+        } else {
+            stream.WriteByte(1);
+            FfiConverterTypeModelsVoiceCapabilities.INSTANCE.Write((ModelsVoiceCapabilities)value, stream);
         }
     }
 }
@@ -15713,6 +15877,24 @@ internal static class HyperwhisperCoreMethods {
         return FfiConverterString.INSTANCE.Lift(
     _UniffiHelpers.RustCallWithError(FfiConverterTypeBackupError.INSTANCE, (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_hyperwhisper_core_fn_func_macos_settings_to_universal_settings_json(FfiConverterString.INSTANCE.Lower(@macosJson), FfiConverterOptionalString.INSTANCE.Lower(@existingMacosExtJson), ref _status)
+));
+    }
+
+
+    /// <exception cref="HwTranscriptionException"></exception>
+    public static HttpRequest MetaBuildTranscribeRequest(TranscribeParams @params) {
+        return FfiConverterTypeHttpRequest.INSTANCE.Lift(
+    _UniffiHelpers.RustCallWithError(FfiConverterTypeHwTranscriptionError.INSTANCE, (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_meta_build_transcribe_request(FfiConverterTypeTranscribeParams.INSTANCE.Lower(@params), ref _status)
+));
+    }
+
+
+    /// <exception cref="HwTranscriptionException"></exception>
+    public static HwTranscript MetaParseTranscribeResponse(HttpResponse @resp) {
+        return FfiConverterTypeHwTranscript.INSTANCE.Lift(
+    _UniffiHelpers.RustCallWithError(FfiConverterTypeHwTranscriptionError.INSTANCE, (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_hyperwhisper_core_fn_func_meta_parse_transcribe_response(FfiConverterTypeHttpResponse.INSTANCE.Lower(@resp), ref _status)
 ));
     }
 

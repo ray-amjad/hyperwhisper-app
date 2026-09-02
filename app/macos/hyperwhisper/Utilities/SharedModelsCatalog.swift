@@ -74,6 +74,11 @@ enum SharedModelsCatalog {
         modelsAvailableViaHwCloud(provider: provider, kind: hwKind(kind), id: id)
     }
 
+    /// Structured voice capabilities retained by the shared-model decoder.
+    static func voiceCapabilities(provider: String, id: String) -> ModelsVoiceCapabilities? {
+        entry(provider: provider, kind: .voice, id: id)?.voiceCapabilities
+    }
+
     /// Language filter capability for a CLOUD voice model. Local providers carry
     /// no language data in the catalog (their rows are wildcards), so callers
     /// resolve those in-code; for a cloud row with neither `supportedLanguages`
@@ -115,6 +120,7 @@ extension SharedModelsCatalog {
         // Catalog key is camelCase (the enum's rawValue is lowercased so it can
         // round-trip through the Local API's `engine.lowercased()`).
         case .geminiTranscribe:    return "geminiTranscribe"
+        case .meta:                return "meta"
         }
     }
 

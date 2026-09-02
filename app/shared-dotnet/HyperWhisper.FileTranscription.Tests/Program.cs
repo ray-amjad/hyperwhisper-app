@@ -10,6 +10,10 @@ var tests = new (string Name, Func<Task> Run)[]
     ("invalid duration is rejected before downstream work", InvalidDurationGate),
     ("cloud credentials and models fail before metadata", CloudReadinessPrecedesMetadata),
     ("HyperWhisper guest device readiness and model fallback match routing", HyperWhisperGuestReadiness),
+    ("Meta Muse accepts canonical WAV without conversion", MetaMuseCanonicalWave),
+    ("Meta Muse converts portable non-WAV and incompatible WAV inputs", MetaMuseNormalization),
+    ("Meta Muse enforces limits on the normalized WAV", MetaMuseNormalizedLimits),
+    ("non-Muse cloud tiers keep the existing portable import policy", NonMuseCloudTierLimits),
     ("local backend model and install state fail before metadata", LocalReadinessPrecedesMetadata),
     ("local import has no provider byte or duration cap", LocalHasNoProviderLimit),
     ("unsupported format and missing file are stable", FileValidation),
@@ -43,10 +47,16 @@ static async Task CloudByteLimits()
         new ProviderLimit(CloudTranscriptionProvider.GoogleChirp, "chirp_3", 9_500_000L, true),
         new ProviderLimit(CloudTranscriptionProvider.GeminiTranscribe, "gemini-3.5-transcribe", 14L * ByteSizes.MiB, false),
         new ProviderLimit(CloudTranscriptionProvider.HyperWhisperCloud, "nova-3-general", 2L * ByteSizes.GiB, true, "deepgramNova3"),
+        new ProviderLimit(CloudTranscriptionProvider.Meta, "muse-voice-transcribe-1.0", 32L * ByteSizes.MiB, false),
     };
     foreach (var item in cases)
     {
-        var metadata = new FakeMetadata { Value = new(item.Bytes, TimeSpan.FromMinutes(1)) };
+        var metadata = new FakeMetadata
+        {
+            Value = item.Provider == CloudTranscriptionProvider.Meta
+                ? new(item.Bytes, TimeSpan.FromMinutes(1), 1, 1, 16_000, 16)
+                : new(item.Bytes, TimeSpan.FromMinutes(1)),
+        };
         var result = await Service(metadata, account: item.Account).ValidateAsync(
             "recording.wav", new(FileTranscriptionRoute.Cloud, item.Model, CloudProvider: item.Provider, CloudCatalogTier: item.Tier));
         Assert(result.IsSuccess && result.Constraints?.MaximumBytes == item.Bytes,
@@ -71,7 +81,9 @@ static async Task CloudByteLimits()
         AssertCode(await missingCredential.ValidateAsync("recording.wav",
             new(FileTranscriptionRoute.Cloud, item.Model, CloudProvider: item.Provider, CloudCatalogTier: item.Tier)),
             "file_preflight.credential_missing");
-        metadata.Value = new(item.Bytes + 1, TimeSpan.FromMinutes(1));
+        metadata.Value = item.Provider == CloudTranscriptionProvider.Meta
+            ? new(item.Bytes + 1, TimeSpan.FromMinutes(1), 1, 1, 16_000, 16)
+            : new(item.Bytes + 1, TimeSpan.FromMinutes(1));
         result = await Service(metadata, account: item.Account).ValidateAsync(
             "recording.wav", new(FileTranscriptionRoute.Cloud, item.Model, CloudProvider: item.Provider, CloudCatalogTier: item.Tier));
         AssertCode(result, "file_preflight.file_too_large");
@@ -88,6 +100,118 @@ static async Task HyperWhisperGuestReadiness()
         CloudCatalogTier: "deepgramNova3"));
     Assert(result.IsSuccess && result.ResolvedModel == "nova-3-general",
         "device-only HyperWhisper guest routing was rejected or failed model fallback");
+}
+
+static async Task MetaMuseCanonicalWave()
+{
+    foreach (var target in MetaMuseTargets())
+    foreach (var sampleRate in new uint[] { 16_000, 24_000 })
+    {
+        var metadata = new FakeMetadata
+        {
+            Value = new(1024, TimeSpan.FromMinutes(1), 1, 1, sampleRate, 16),
+        };
+        var result = await Service(metadata,
+            account: target.CloudProvider == CloudTranscriptionProvider.HyperWhisperCloud).ValidateAsync(
+            "recording.wav", target);
+        Assert(result.IsSuccess && !result.RequiresNormalization
+            && result.ResolvedModel == "muse-voice-transcribe-1.0"
+            && result.Constraints is
+            {
+                MaximumBytes: 32L * ByteSizes.MiB,
+                MaximumDuration: var duration,
+                RequiresMuseWave: true,
+                MaximumSourceBytes: 64L * ByteSizes.MiB,
+            }
+            && duration == TimeSpan.FromMinutes(10),
+            $"Meta Muse rejected canonical {sampleRate} Hz PCM WAV");
+    }
+}
+
+static async Task MetaMuseNormalization()
+{
+    foreach (var target in MetaMuseTargets())
+    foreach (var file in new[] { "recording.mp3", "recording.m4a" })
+    {
+        var result = await Service(new FakeMetadata
+        {
+            // The source may exceed the upload cap. The normalized artifact is
+            // authoritative because conversion can reduce its byte size.
+            Value = new(40L * ByteSizes.MiB, null),
+        }, account: target.CloudProvider == CloudTranscriptionProvider.HyperWhisperCloud).ValidateAsync(file, target);
+        Assert(result.IsSuccess && result.RequiresNormalization,
+            $"Meta Muse did not request conversion for {Path.GetExtension(file)}");
+    }
+
+    foreach (var target in MetaMuseTargets())
+    {
+    var sourceAtLimit = await Service(new FakeMetadata
+    {
+        Value = new(64L * ByteSizes.MiB, null),
+    }, account: target.CloudProvider == CloudTranscriptionProvider.HyperWhisperCloud)
+        .ValidateAsync("source-at-limit.mp3", target);
+    Assert(sourceAtLimit.IsSuccess && sourceAtLimit.RequiresNormalization,
+        "Meta Muse rejected a source at the 64 MiB normalization bound");
+
+    var sourceOverLimit = await Service(new FakeMetadata
+    {
+        Value = new(64L * ByteSizes.MiB + 1, null),
+    }, account: target.CloudProvider == CloudTranscriptionProvider.HyperWhisperCloud)
+        .ValidateAsync("source-over-limit.mp3", target);
+    AssertCode(sourceOverLimit, "file_preflight.file_too_large");
+
+    var overlength = await Service(new FakeMetadata
+    {
+        Value = new(40L * ByteSizes.MiB, TimeSpan.FromMinutes(10) + TimeSpan.FromMilliseconds(1)),
+    }, account: target.CloudProvider == CloudTranscriptionProvider.HyperWhisperCloud).ValidateAsync("recording.mp3", target);
+    AssertCode(overlength, "file_preflight.duration_too_long");
+
+    foreach (var value in new[]
+    {
+        new FileAudioMetadata(1024, null, 1, 1, 16_000, 16),
+        new FileAudioMetadata(1024, TimeSpan.FromMinutes(1), 1, 2, 16_000, 16),
+        new FileAudioMetadata(1024, TimeSpan.FromMinutes(1), 1, 1, 48_000, 16),
+        new FileAudioMetadata(1024, TimeSpan.FromMinutes(1), 3, 1, 16_000, 32),
+    })
+    {
+        var result = await Service(new FakeMetadata { Value = value }, account: target.CloudProvider == CloudTranscriptionProvider.HyperWhisperCloud)
+            .ValidateAsync("recording.wav", target);
+        Assert(result.IsSuccess && result.RequiresNormalization,
+            "Meta Muse did not normalize an incompatible WAV");
+    }
+    }
+}
+
+static async Task NonMuseCloudTierLimits()
+{
+    var metadata = new FakeMetadata { Value = new(30L * ByteSizes.MiB, TimeSpan.FromMinutes(20)) };
+    var result = await Service(metadata, account: true).ValidateAsync(
+        "recording.m4a",
+        new(FileTranscriptionRoute.Cloud, "", CloudProvider: CloudTranscriptionProvider.HyperWhisperCloud,
+            CloudCatalogTier: "gemini"));
+    Assert(result.IsSuccess && result.Constraints is
+        { MaximumBytes: 2L * ByteSizes.GiB, MaximumDuration: null, RequiresMuseWave: false },
+        "a non-Muse cloud tier inherited catalog file limits");
+}
+
+static async Task MetaMuseNormalizedLimits()
+{
+    foreach (var target in MetaMuseTargets())
+    {
+    var metadata = new FakeMetadata
+    {
+        Value = new(32L * ByteSizes.MiB + 1, TimeSpan.FromMinutes(1), 1, 1, 16_000, 16),
+    };
+    AssertCode(await Service(metadata,
+        account: target.CloudProvider == CloudTranscriptionProvider.HyperWhisperCloud).ValidateAsync(
+        "normalized.wav", target), "file_preflight.file_too_large");
+
+    metadata.Value = new(1024, TimeSpan.FromMinutes(10) + TimeSpan.FromMilliseconds(1),
+        1, 1, 16_000, 16);
+    AssertCode(await Service(metadata,
+        account: target.CloudProvider == CloudTranscriptionProvider.HyperWhisperCloud).ValidateAsync(
+        "normalized.wav", target), "file_preflight.duration_too_long");
+    }
 }
 
 static async Task InvalidDurationGate()
@@ -246,6 +370,19 @@ static byte[] WaveHeader(uint dataBytes, uint bytesPerSecond)
 
 static PortableFileTranscriptionPreflight Service(FakeMetadata metadata, bool account = false) =>
     new(metadata, new FakeLocalReadiness(), new FakeCredentials(api: !account, account: account));
+
+static FileTranscriptionTarget MetaMuseTarget() => new(
+    FileTranscriptionRoute.Cloud,
+    "muse-voice-transcribe-1.0",
+    CloudProvider: CloudTranscriptionProvider.HyperWhisperCloud,
+    CloudCatalogTier: "metaMuse");
+
+static IReadOnlyList<FileTranscriptionTarget> MetaMuseTargets() =>
+[
+    MetaMuseTarget(),
+    new(FileTranscriptionRoute.Cloud, "muse-voice-transcribe-1.0",
+        CloudProvider: CloudTranscriptionProvider.Meta),
+];
 
 static void AssertCode(FileTranscriptionPreflightResult result, string code) =>
     Assert(result.Failure?.Code == code, $"expected {code}, got {result.Failure?.Code ?? "success"}");

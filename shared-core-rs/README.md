@@ -17,7 +17,7 @@ shared-core-rs/
     hw-core/              UniFFI umbrella — the single FFI surface (all #[uniffi::export]s)
     hw-phonetic/          Beider-Morse phonetic encoding (was app/macos/rphonetic-ffi)
     hw-text/              pure text logic + M1b prompt builder (build_system_prompt/info)
-    hw-net/               sans-I/O contract + 12 cloud STT providers + retry/health/errors
+    hw-net/               sans-I/O contract + 15 cloud STT providers + retry/health/errors
     hw-license/           license validate + trial limits + 24h cache / 7-day grace (KeyValueStore)
     hw-backup/            backup validate + universal-v2 bidirectional settings/mode mapping
     hw-catalog/           models + cloud-stt + cloud-pp + app-type catalog lookups

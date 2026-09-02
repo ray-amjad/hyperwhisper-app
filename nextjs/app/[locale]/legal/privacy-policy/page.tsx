@@ -167,6 +167,18 @@ export default function PrivacyPolicyPage() {
             Mistral
           </a>
         </li>
+        <li>
+          <a
+            className="text-blue-600 dark:text-blue-400 hover:underline"
+            href="https://dev.meta.ai/docs/speech-to-text/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Meta Muse Voice Transcribe
+          </a>
+          . A direct Meta request goes from your device to api.meta.ai and does
+          not pass through HyperWhisper servers.
+        </li>
       </ul>
       <p>
         <strong>Third-party post-processing providers</strong> (bring your own

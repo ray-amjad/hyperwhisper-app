@@ -32,7 +32,7 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
     {
         "openai", "groq", "deepgram", "assemblyai", "elevenlabs", "mistral",
         "soniox", "hyperwhisper", "gemini", "geminitranscribe", "grok",
-        "microsoftazurespeech", "googlespeech",
+        "microsoftazurespeech", "googlespeech", "meta",
     };
     private static readonly HashSet<string> WhisperModels = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -369,6 +369,7 @@ public sealed class ApplicationLocalApiBackend : ILocalApiBackend
             mode.CloudProvider = cloud;
             mode.Model = "cloud";
             if (normalizedModel is not null) mode.CloudTranscriptionModel = normalizedModel;
+            else if (cloud == "meta") mode.CloudTranscriptionModel = "muse-voice-transcribe-1.0";
             return;
         }
 

@@ -10,7 +10,7 @@
 //! `CursorContext` uses — so the leaf crate stays dependency-light and all
 //! `#[uniffi::export]` items land in one place (`hw-core/src/lib.rs`).
 
-/// The 14 cloud speech-to-text providers HyperWhisper integrates.
+/// The 15 cloud speech-to-text providers HyperWhisper integrates.
 ///
 /// `AzureMai` and `GoogleChirp` are *routed* through HyperWhisper Cloud (their
 /// requests go to the HW Cloud endpoint with `X-STT-Provider`/`-Model`/`-Domain`
@@ -40,6 +40,8 @@ pub enum Provider {
     GeminiTranscribe,
     /// Gemini 3.5 Transcribe Live (`BidiGenerateContent` WebSocket).
     GeminiTranscribeLive,
+    /// Meta Muse Voice Transcribe, batch/file API only.
+    Meta,
 }
 
 /// HTTP verb for a built request.
@@ -123,7 +125,20 @@ pub enum Part {
         mime: String,
         filename: String,
     },
+    /// A small, typed in-memory file part. This is for provider metadata such
+    /// as Meta's documented `request.json`, never for audio. Builders must keep
+    /// `data` at or below [`MAX_INLINE_MULTIPART_FILE_BYTES`].
+    InlineFile {
+        field: String,
+        filename: String,
+        mime: String,
+        data: Vec<u8>,
+    },
 }
+
+/// Maximum payload for [`Part::InlineFile`]. This prevents the typed metadata
+/// escape hatch from becoming a way to copy audio across FFI.
+pub const MAX_INLINE_MULTIPART_FILE_BYTES: usize = 64 * 1024;
 
 /// A fully-described HTTP request for the platform to execute.
 #[derive(Debug, Clone, PartialEq, Eq)]

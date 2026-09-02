@@ -46,6 +46,7 @@ public sealed class CredentialStoreCloudCredentialSource(
         // disables the other.
         CloudTranscriptionProvider.GeminiTranscribe => "GeminiTranscribeApiKey",
         CloudTranscriptionProvider.Grok => "GrokApiKey",
+        CloudTranscriptionProvider.Meta => "MetaApiKey",
         CloudTranscriptionProvider.AzureMai or CloudTranscriptionProvider.GoogleChirp
             or CloudTranscriptionProvider.HyperWhisperCloud => "LicenseKey",
         _ => null,

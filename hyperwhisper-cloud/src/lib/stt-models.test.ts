@@ -14,7 +14,7 @@ import {
 
 describe('isValidProviderId', () => {
   test('accepts known providers (legacy + new)', () => {
-    for (const id of ['deepgram', 'groq', 'openai', 'gemini', 'gemini-transcribe', 'assemblyai', 'mistral', 'soniox']) {
+    for (const id of ['deepgram', 'groq', 'openai', 'gemini', 'gemini-transcribe', 'assemblyai', 'mistral', 'soniox', 'meta']) {
       expect(isValidProviderId(id)).toBe(true);
     }
   });
@@ -138,6 +138,16 @@ describe('resolveModel', () => {
     if (legacy.ok) expect(legacy.model.id).toBe('stt-async-v5');
   });
 
+  test('Meta Muse resolves only its exact batch model', () => {
+    const defaulted = resolveModel('meta', undefined);
+    expect(defaulted.ok).toBe(true);
+    if (defaulted.ok) {
+      expect(defaulted.model.id).toBe('muse-voice-transcribe-1.0');
+      expect(defaulted.model.supportsVocabulary).toBe(true);
+    }
+    expect(resolveModel('meta', 'muse-voice-transcribe-live').ok).toBe(false);
+  });
+
   test('ElevenLabs scribe_v1 is retired and now unresolvable (fail-closed)', () => {
     const r = resolveModel('elevenlabs', 'scribe_v1');
     expect(r.ok).toBe(false);
@@ -176,6 +186,7 @@ describe('getProviderDef', () => {
   test('new proxy providers are self-only; the cheap trio + grok are not', () => {
     expect(getProviderDef('openai').selfOnly).toBe(true);
     expect(getProviderDef('assemblyai').selfOnly).toBe(true);
+    expect(getProviderDef('meta').selfOnly).toBe(true);
     expect(getProviderDef('grok').selfOnly).toBe(false);
     expect(getProviderDef('deepgram').selfOnly).toBe(false);
   });
@@ -199,7 +210,7 @@ describe('fallbackChainFor', () => {
   });
 
   test('every other provider is a chain of one — no silent substitution', () => {
-    for (const id of ['azure-mai', 'google-chirp', 'openai', 'gemini', 'gemini-transcribe', 'assemblyai', 'mistral', 'soniox'] as SttProviderId[]) {
+    for (const id of ['azure-mai', 'google-chirp', 'openai', 'gemini', 'gemini-transcribe', 'assemblyai', 'mistral', 'soniox', 'meta'] as SttProviderId[]) {
       expect(fallbackChainFor(id)).toEqual([id]);
     }
   });
@@ -234,7 +245,7 @@ describe('isSelfOnly', () => {
   // a provider to a cross-provider chain, or shortening one, has to be a
   // deliberate edit here too.
   const SELF_ONLY: SttProviderId[] = [
-    'azure-mai', 'google-chirp', 'openai', 'gemini', 'gemini-transcribe', 'assemblyai', 'mistral', 'soniox',
+    'azure-mai', 'google-chirp', 'openai', 'gemini', 'gemini-transcribe', 'assemblyai', 'mistral', 'soniox', 'meta',
   ];
 
   test('exactly the single-upstream providers are self-only', () => {
@@ -276,6 +287,7 @@ describe('servedNameFor', () => {
     assemblyai: 'assemblyai',
     mistral: 'mistral',
     soniox: 'soniox',
+    meta: 'meta',
   };
 
   test('every registered provider serves the label the clients already see', () => {

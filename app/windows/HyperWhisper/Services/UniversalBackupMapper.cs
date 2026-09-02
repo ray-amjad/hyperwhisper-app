@@ -431,7 +431,8 @@ public static class UniversalBackupMapper
             // two are different APIs behind the same "AIza" key shape, so leaving
             // this out restores a machine that looks configured for Google and has
             // no Gemini 3.5 Transcribe key at all.
-            GeminiTranscribe = readTranscriptionKey(TranscriptionApiKeyType.GeminiTranscribe)
+            GeminiTranscribe = readTranscriptionKey(TranscriptionApiKeyType.GeminiTranscribe),
+            Meta = readTranscriptionKey(TranscriptionApiKeyType.Meta)
         };
     }
 
@@ -1040,6 +1041,8 @@ public static class UniversalBackupMapper
             : ExtraApiKey(apiKeys, "geminiTranscribe");
         if (!string.IsNullOrEmpty(geminiTranscribe))
             writeTranscriptionKey(TranscriptionApiKeyType.GeminiTranscribe, geminiTranscribe);
+        if (!string.IsNullOrEmpty(apiKeys.Meta))
+            writeTranscriptionKey(TranscriptionApiKeyType.Meta, apiKeys.Meta);
     }
 
     /// <summary>

@@ -314,9 +314,13 @@ struct ModeEditorView: View {
             if provider == .microsoftAzureSpeech || provider == .googleSpeech {
                 return false
             }
+            // Meta follows the shared cross-platform BYOK rollout gate.
+            if provider == .meta && !CloudTranscriptionModels.isMetaBYOKCatalogEnabled {
+                return false
+            }
             if !provider.requiresAPIKey { return true }
             if provider == current { return true }
-            return cloudHealth.status(for: provider) == .healthy
+            return cloudHealth.status(for: provider).isHealthy
         }
     }
 
@@ -407,7 +411,7 @@ struct ModeEditorView: View {
     private var currentProviderNeedsAttention: Bool {
         let provider = currentCloudProvider
         guard provider.requiresAPIKey else { return false }
-        return cloudHealth.status(for: provider) != .healthy
+        return !cloudHealth.status(for: provider).isHealthy
     }
 
     private var cloudTranscriptionModelsForPicker: [CloudTranscriptionModel] {

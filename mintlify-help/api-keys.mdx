@@ -128,6 +128,14 @@ You can use Cerebras for post-processing only. Get your API key at [cloud.cerebr
   Put the key in the **Gemini 3.5 Transcribe** slot. A key in the **Google Gemini** slot does not operate Gemini 3.5 Transcribe. The two slots are separate, because the two products use different endpoints of Google.
 </Warning>
 
+### Meta Muse Voice Transcribe
+
+Get a Meta Model API key from [Meta for Developers](https://dev.meta.ai/docs/speech-to-text/). Add it to the **Meta** slot in **Model Library → API Keys**.
+
+The key stays in your operating system's secure credential store. A direct Meta mode sends its normalized WAV file from your device to `api.meta.ai`. It does not send the request through HyperWhisper Cloud and does not use HyperWhisper credits.
+
+HyperWhisper does not make a hidden audio request to test the key. The app reports the key as configured and validates it on your first transcription.
+
 Gemini 3.5 Transcribe is a speech model. You use it for transcription and for [streaming transcription](/streaming-settings). You cannot use it for post-processing. Use **Google Gemini** for post-processing.
 
 [Video Tutorial Coming Soon]

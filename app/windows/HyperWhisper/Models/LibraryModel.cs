@@ -115,7 +115,13 @@ public sealed class LibraryModelViewModel : System.ComponentModel.INotifyPropert
     public string Id => Model.Id;
     public string DisplayName => Model.DisplayName;
     public string ProviderName => Model.ProviderName;
-    public string ProviderAssetPath => $"/Assets/Providers/{Model.ProviderAssetName}.png";
+    public string ProviderAssetPath => Model.ProviderAssetName == "providerMeta"
+        ? string.Empty
+        : $"/Assets/Providers/{Model.ProviderAssetName}.png";
+    public Visibility ProviderAssetVisibility => Model.ProviderAssetName == "providerMeta"
+        ? Visibility.Collapsed : Visibility.Visible;
+    public Visibility ProviderMonogramVisibility => Model.ProviderAssetName == "providerMeta"
+        ? Visibility.Visible : Visibility.Collapsed;
     public string TagText => Model.Tag ?? "";
     public Visibility TagVisibility => string.IsNullOrWhiteSpace(Model.Tag) ? Visibility.Collapsed : Visibility.Visible;
     public string RuntimeBadgeText => Model.RuntimeBadge ?? "";

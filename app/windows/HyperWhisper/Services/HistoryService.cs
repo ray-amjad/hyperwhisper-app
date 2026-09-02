@@ -435,7 +435,7 @@ public class HistoryService
     // =========================================================================
 
     /// <summary>
-    /// Moves an audio file from a temporary location to permanent storage.
+    /// Saves an audio file to permanent storage.
     /// Called when recording stops to preserve the audio for history/retry.
     ///
     /// DEFENSIVE BEHAVIOR:
@@ -443,9 +443,10 @@ public class HistoryService
     /// - Falls back to using temp path if move ultimately fails
     /// - Never returns a path to a non-existent file
     /// </summary>
-    /// <param name="tempPath">Path to the temporary audio file</param>
+    /// <param name="tempPath">Path to the audio file</param>
+    /// <param name="ownsSource">Whether the caller owns the source and permits moving/deleting it</param>
     /// <returns>Path to the audio file (permanent if move succeeded, temp if failed)</returns>
-    public string SaveAudioFile(string tempPath)
+    public string SaveAudioFile(string tempPath, bool ownsSource = true)
     {
         var audioFolder = _storageService.GetRecordingsFolder();
         if (!string.IsNullOrEmpty(_storageService.ValidationError))
@@ -465,7 +466,7 @@ public class HistoryService
         {
             try
             {
-                File.Move(tempPath, permanentPath);
+                PersistAudioFile(tempPath, permanentPath, ownsSource);
                 LoggingService.Debug($"HistoryService: Saved audio to {permanentPath}");
                 return permanentPath;
             }
@@ -484,7 +485,10 @@ public class HistoryService
                 {
                     File.Copy(tempPath, permanentPath, overwrite: true);
                     LoggingService.Debug($"HistoryService: Copied audio to {permanentPath} (move failed)");
-                    try { File.Delete(tempPath); } catch { }
+                    if (ownsSource)
+                    {
+                        try { File.Delete(tempPath); } catch { }
+                    }
                     return permanentPath;
                 }
                 catch (Exception copyEx)
@@ -500,6 +504,17 @@ public class HistoryService
         // This ensures we never return a path to a non-existent file
         LoggingService.Warn($"HistoryService: Using temp path as fallback: {tempPath}");
         return tempPath;
+    }
+
+    internal static void PersistAudioFile(string sourcePath, string destinationPath, bool ownsSource)
+    {
+        if (ownsSource)
+        {
+            File.Move(sourcePath, destinationPath);
+            return;
+        }
+
+        File.Copy(sourcePath, destinationPath, overwrite: false);
     }
 
     /// <summary>

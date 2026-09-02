@@ -211,4 +211,43 @@ struct RustHTTPExecutorBase64Tests {
             )
         }
     }
+
+    @Test("A typed multipart file survives the Swift binding beside streamed audio")
+    func typedMultipartFileAndStreamedAudioAreWritten() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("hw-multipart-tests-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let audio = directory.appendingPathComponent("input.wav")
+        let output = directory.appendingPathComponent("body.multipart")
+        try Data("streamed-audio-marker".utf8).write(to: audio)
+        let metadata = Data(#"{"mode":"PUSH_TO_TALK"}"#.utf8)
+
+        try RustHTTPExecutor.writeMultipartBody(
+            to: output,
+            boundary: "test-boundary",
+            parts: [
+                .inlineFile(
+                    field: "request",
+                    filename: "request.json",
+                    mime: "application/json",
+                    data: metadata
+                ),
+                .fileRef(
+                    field: "audio",
+                    path: audio.path,
+                    mime: "audio/wav",
+                    filename: "audio.wav"
+                ),
+            ]
+        )
+
+        let rendered = String(decoding: try Data(contentsOf: output), as: UTF8.self)
+        #expect(rendered.contains(#"name="request"; filename="request.json""#))
+        #expect(rendered.contains("Content-Type: application/json"))
+        #expect(rendered.contains(#"{"mode":"PUSH_TO_TALK"}"#))
+        #expect(rendered.contains(#"name="audio"; filename="audio.wav""#))
+        #expect(rendered.contains("streamed-audio-marker"))
+    }
 }

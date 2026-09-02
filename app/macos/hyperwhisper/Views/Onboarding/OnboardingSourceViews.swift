@@ -198,7 +198,10 @@ struct OnboardingConfigureView: View {
     /// and the two providers whose health probe short circuits to `.healthy`
     /// without an API key, which would otherwise open the gate on a fake pass.
     static let onboardingProviders: [CloudProvider] = CloudProvider.allCases.filter {
-        $0 != .hyperwhisper && $0 != .microsoftAzureSpeech && $0 != .googleSpeech
+        $0 != .hyperwhisper
+            && $0 != .microsoftAzureSpeech
+            && $0 != .googleSpeech
+            && ($0 != .meta || CloudTranscriptionModels.isMetaBYOKCatalogEnabled)
     }
 
     @ObservedObject var flow: OnboardingFlowModel
@@ -451,6 +454,17 @@ struct OnboardingConfigureView: View {
             }
         } else if let health = flow.providerTestHealth {
             switch health {
+            case .configured:
+                OnboardingCardDivider()
+                OnboardingCardRow {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 16))
+                        .foregroundStyle(Color.green)
+                    OnboardingRowText(title: NSLocalizedString(
+                        "onboarding.provider.configuredUnverified",
+                        comment: "A provider key is saved but has no safe validation endpoint"
+                    ))
+                }
             case .healthy:
                 OnboardingCardDivider()
                 OnboardingCardRow {

@@ -64,9 +64,15 @@ static void AllCatalogsLoad()
     //   settings.streaming.cloudTier.title
     //   settings.streaming.cloudTier.subtitle
     //
+    // Four for the direct Meta BYOK provider:
+    //   provider.meta
+    //   mode.editor.provider.meta.tooltip
+    //   settings.api.invalidKey.meta
+    //   settings.api.provider.meta.description
+    //
     // The catalog-v8 tier rename is key-count neutral: googleChirp3's
     // label/description became geminiTranscribe's.
-    Equal(667, PortableLocalizer.BaseKeyCount, "base key count");
+    Equal(671, PortableLocalizer.BaseKeyCount, "base key count");
     var english = new PortableLocalizer(CultureInfo.InvariantCulture);
     var key = english.Key("home.welcome.title");
     NotBlank(english.Get(key), "base value");

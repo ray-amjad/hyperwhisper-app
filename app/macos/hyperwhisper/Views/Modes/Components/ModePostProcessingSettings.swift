@@ -179,7 +179,7 @@ struct LanguageProcessingSettingsView: View {
     ///
     /// The /post-process endpoint has separate billing from transcription.
     private var availableCloudProviders: [PostProcessingProvider] {
-        // Drop providers whose health is anything but .healthy so the
+        // Drop providers whose health cannot route so the
         // picker can't surface dead options. Always preserve the
         // currently-selected provider so we don't yank a saved choice
         // out from under the user — the row beside the picker shows a
@@ -190,7 +190,7 @@ struct LanguageProcessingSettingsView: View {
             if provider.isLocal { return false }
             if !provider.requiresAPIKey { return true }
             if provider == current { return true }
-            return cloudHealth.status(for: provider) == .healthy
+            return cloudHealth.status(for: provider).isHealthy
         }
     }
 
@@ -550,7 +550,8 @@ struct LanguageProcessingSettingsView: View {
                                 }
                             }
 
-                            if currentProvider.requiresAPIKey && cloudHealth.status(for: currentProvider) != .healthy {
+                            if currentProvider.requiresAPIKey
+                                && !cloudHealth.status(for: currentProvider).isHealthy {
                                 HStack(spacing: 8) {
                                     Image(systemName: "exclamationmark.triangle.fill")
                                         .font(.caption)

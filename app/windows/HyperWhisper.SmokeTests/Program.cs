@@ -4861,6 +4861,156 @@ internal static class Program
                     "CloudAccuracyTier.GoogleChirp3 is back; it would shadow the catalog migrateFrom alias.");
             });
 
+            Run("Meta Muse direct provider stays separate from the cloud tier", () =>
+            {
+                var tier = CloudAccuracyTierExtensions.FromString("  METAMUSE  ");
+                Assert(tier == CloudAccuracyTier.MetaMuse, "Meta Muse persistence did not round-trip");
+                Assert(tier.ToStorageValue() == "metaMuse" && tier.ToSttProvider() == "meta",
+                    "Meta Muse tier did not resolve its canonical id and provider");
+
+                Assert((int)CloudTranscriptionProvider.Meta == 15,
+                    "Meta changed its append-only persisted enum value");
+                Assert(CloudTranscriptionProviderExtensions.FromIdentifier("  META  ".Trim())
+                        == CloudTranscriptionProvider.Meta,
+                    "Meta direct provider did not parse case-insensitively");
+                Assert(CloudTranscriptionProvider.Meta.GetIdentifier() == "meta"
+                        && CloudTranscriptionProvider.Meta.RequiresApiKey()
+                        && CloudTranscriptionProvider.Meta.GetMaxFileSizeBytes() == 32L * 1024 * 1024,
+                    "Meta direct provider metadata drifted");
+                var normalizedMeta = HyperWhisper.Services.AppClassification.CloudSttCatalog.Shared
+                    .NormalizeCloudProvider("meta");
+                Assert(normalizedMeta.Provider == "meta" && normalizedMeta.AccuracyTier == null,
+                    "unshipped Meta provider storage gained migration semantics");
+
+                var entry = HyperWhisper.Services.AppClassification.CloudSttCatalog.Shared.GetById("metaMuse");
+                Assert(entry is { SttProvider: "meta", MaxFileSizeMb: 32, MaxDurationMinutes: 10 },
+                    "Meta Muse catalog limits or provider changed");
+                Assert(entry!.Models.Count == 1
+                    && entry.Models[0].Id == "muse-voice-transcribe-1.0"
+                    && !entry.Models[0].Streaming,
+                    "Meta Muse batch model registry changed or became live-selectable");
+
+                Assert(entry!.Access?.ByokEligible == true,
+                    "Meta BYOK catalog gate is not enabled");
+                Assert(CloudTranscriptionModels.GetById(
+                        "muse-voice-transcribe-1.0", CloudTranscriptionProvider.Meta)?.Provider
+                        == CloudTranscriptionProvider.Meta,
+                    "Meta Muse direct model is missing");
+                Assert(HyperWhisper.Services.LocalApi.Endpoints.HealthEndpoints.TranscriptionProviders
+                        .Any(provider => provider == CloudTranscriptionProvider.Meta),
+                    "/health does not report direct Meta key status");
+                Assert(HyperWhisper.Services.LocalApi.Endpoints.HealthEndpoints.StatusString(
+                        CloudTranscriptionProvider.Meta, keyPresent: true, ProviderHealth.Unknown) == "configured",
+                    "/health does not distinguish a configured Meta key from an unknown probe");
+                Assert(!HyperWhisper.Services.LocalApi.Endpoints.HealthEndpoints.IsReachable(
+                        CloudTranscriptionProvider.Meta, keyPresent: true, ProviderHealth.Healthy),
+                    "/health claims the configured-only Meta key was probed");
+                Assert(ModelLibraryManager.CloudProviderAssetName(CloudTranscriptionProvider.Meta) == "providerMeta",
+                    "Meta still uses another provider's brand asset");
+                Assert(!MainViewModel.ExceedsMuseSourceLimit(64L * 1024 * 1024)
+                        && MainViewModel.ExceedsMuseSourceLimit(64L * 1024 * 1024 + 1),
+                    "Windows Meta normalization source bound drifted");
+
+                var transient = new Mode();
+                HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ApplyEngineModel(
+                    transient, "meta", model: null);
+                Assert(transient.ProviderType == "cloud"
+                        && transient.Model == "cloud"
+                        && transient.CloudProvider == "meta"
+                        && transient.CloudTranscriptionModel == "muse-voice-transcribe-1.0",
+                    "Local API engine=meta did not select direct Muse");
+
+                var overridden = new Mode { CloudTranscriptionModel = "stale-other-provider-model" };
+                HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ApplyEngineModel(
+                    overridden, "meta", model: null);
+                Assert(overridden.CloudTranscriptionModel == "muse-voice-transcribe-1.0",
+                    "Local API engine=meta retained a baseline provider model");
+
+                var savedOpenAi = new Mode { CloudTranscriptionModel = "gpt-4o-transcribe" };
+                HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ApplyEngineModel(
+                    savedOpenAi, "openai", model: null);
+                Assert(savedOpenAi.CloudTranscriptionModel == "gpt-4o-transcribe",
+                    "Local API erased a saved provider model when model was omitted");
+
+                var cloud = new Mode
+                {
+                    ProviderType = "cloud",
+                    Model = "cloud",
+                    CloudProvider = "hyperwhisper",
+                    CloudAccuracyTier = "metaMuse",
+                    CloudTranscriptionModel = "muse-voice-transcribe-1.0",
+                };
+                Assert(cloud.CloudProvider == "hyperwhisper" && cloud.CloudAccuracyTier == "metaMuse",
+                    "the existing HyperWhisper Cloud Meta route changed");
+
+                var caps = HyperWhisper.Services.SharedModelsCatalog.VoiceCapabilities(
+                    "meta", "muse-voice-transcribe-1.0");
+                Assert(caps is { CodeSwitching: true, Endpointing: true, ContextBias: true,
+                    LanguageBias: true, TurnTimestamps: true, Diarization: true, WordTimestamps: false },
+                    "Meta Muse shared-model capabilities drifted");
+            });
+
+            Run("Meta Muse maps malformed NAudio input to a typed format error", () =>
+            {
+                var path = Path.Combine(Path.GetTempPath(), $"meta-malformed-{Guid.NewGuid():N}.wav");
+                try
+                {
+                    File.WriteAllText(path, "not a wave file");
+                    try
+                    {
+                        MetaMuseService.ValidateFinalWaveAsync(path).GetAwaiter().GetResult();
+                        throw new InvalidOperationException("malformed Meta audio was accepted");
+                    }
+                    catch (TranscriptionException ex)
+                    {
+                        Assert(ex.Code == TranscriptionErrorCode.UnsupportedFormat,
+                            "malformed Meta audio did not return the typed unsupported-format error");
+                    }
+                }
+                finally
+                {
+                    File.Delete(path);
+                }
+            });
+
+            Run("Saving a canonical imported WAV preserves the user source", () =>
+            {
+                var root = Path.Combine(Path.GetTempPath(), $"hw-source-ownership-{Guid.NewGuid():N}");
+                Directory.CreateDirectory(root);
+                var source = Path.Combine(root, "source.wav");
+                var saved = Path.Combine(root, "saved.wav");
+                try
+                {
+                    File.WriteAllBytes(source, new byte[] { 0x52, 0x49, 0x46, 0x46 });
+                    HistoryService.PersistAudioFile(source, saved, ownsSource: false);
+
+                    Assert(File.Exists(source), "saving a canonical import moved the user's source file");
+                    Assert(File.Exists(saved), "saving a canonical import did not create the history copy");
+                    Assert(File.ReadAllBytes(source).SequenceEqual(File.ReadAllBytes(saved)),
+                        "the history copy differs from the user's source file");
+                }
+                finally
+                {
+                    Directory.Delete(root, recursive: true);
+                }
+            });
+
+            Run("Store-as-M4A includes canonical WAV imports only", () =>
+            {
+                Assert(MainViewModel.ShouldConvertImportedAudioToM4A(
+                        true, "canonical.wav", "history-copy.wav"),
+                    "Store-as-M4A skipped a canonical WAV import");
+                Assert(!MainViewModel.ShouldConvertImportedAudioToM4A(
+                        false, "canonical.wav", "history-copy.wav"),
+                    "Store-as-M4A ignored the disabled setting");
+                Assert(!MainViewModel.ShouldConvertImportedAudioToM4A(
+                        true, "provider-native.mp3", "history-copy.wav"),
+                    "Store-as-M4A treated a provider-native non-WAV as WAV");
+                Assert(!MainViewModel.ShouldConvertImportedAudioToM4A(
+                        true, "user-owned.wav", "user-owned.wav"),
+                    "Store-as-M4A can delete a user-owned fallback source");
+            });
+
             Run("Grok's empty model id resolves through a provider-scoped lookup", () =>
             {
                 // Grok's API takes no `model` parameter, so its single registry
@@ -5469,6 +5619,85 @@ internal static class Program
                         $"declared Content-Length {message.Content.Headers.ContentLength}, body is {expected.Length}");
                     Assert(message.Content.Headers.ContentType?.MediaType == "application/json",
                         "the inline-base64 body must be sent as application/json");
+                }
+                finally
+                {
+                    try
+                    {
+                        var directory = Path.GetDirectoryName(path);
+                        if (directory != null && Directory.Exists(directory))
+                            Directory.Delete(directory, recursive: true);
+                    }
+                    catch (IOException)
+                    {
+                    }
+                }
+            });
+
+            Run("the Meta API key uses its isolated backup slot", () =>
+            {
+                const string Placeholder = "not-a-real-secret-value";
+                var stored = new Dictionary<TranscriptionApiKeyType, string?>
+                {
+                    [TranscriptionApiKeyType.Meta] = Placeholder,
+                };
+                var exported = UniversalBackupMapper.MapApiKeys(
+                    _ => null,
+                    type => stored.TryGetValue(type, out var value) ? value : null);
+                Assert(exported.Meta == Placeholder, "the export dropped the Meta key");
+                Assert(exported.Gemini == null && exported.GeminiTranscribe == null,
+                    "the Meta key leaked into a Google key slot");
+
+                var json = JsonSerializer.Serialize(exported);
+                Assert(json.Contains("\"meta\""), "the Meta backup field is not lowercase");
+                var restored = new Dictionary<TranscriptionApiKeyType, string?>();
+                UniversalBackupMapper.ApplyApiKeys(
+                    JsonSerializer.Deserialize<UniversalApiKeys>(json)!,
+                    (_, _) => { },
+                    (type, value) => restored[type] = value);
+                Assert(restored.TryGetValue(TranscriptionApiKeyType.Meta, out var value)
+                       && value == Placeholder,
+                    "the restore left Meta unconfigured");
+            });
+
+            RunAsync("typed multipart files survive the C# binding beside streamed audio", async () =>
+            {
+                var path = Path.Combine(
+                    Path.GetTempPath(), "HyperWhisper.SmokeTests", Guid.NewGuid().ToString("N") + ".wav");
+                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                try
+                {
+                    await File.WriteAllTextAsync(path, "streamed-audio-marker");
+                    var metadata = System.Text.Encoding.UTF8.GetBytes("{\"mode\":\"PUSH_TO_TALK\"}");
+                    using var message = RustHttpExecutor.BuildRequestMessage(new HttpRequest(
+                        @method: uniffi.hyperwhisper_core.HttpMethod.Post,
+                        @url: "https://example.test/transcribe",
+                        @headers: new List<Header>(),
+                        @body: new Body.Multipart("test-boundary", new List<HwPart>
+                        {
+                            new HwPart.InlineFile("request", "request.json", "application/json", metadata),
+                            new HwPart.FileRef("audio", path, "audio/wav", "audio.wav"),
+                        })));
+
+                    Assert(message.Content is MultipartFormDataContent,
+                        "typed multipart request produced no multipart content");
+                    var parts = ((MultipartFormDataContent)message.Content!).ToList();
+                    var requestPart = parts.SingleOrDefault(part =>
+                        part.Headers.ContentDisposition?.Name?.Trim('"') == "request");
+                    var audioPart = parts.SingleOrDefault(part =>
+                        part.Headers.ContentDisposition?.Name?.Trim('"') == "audio");
+                    Assert(requestPart?.Headers.ContentDisposition?.FileName?.Trim('"') == "request.json",
+                        "typed request.json disposition is missing");
+                    Assert(requestPart?.Headers.ContentType?.MediaType == "application/json",
+                        "typed request.json MIME is missing");
+                    Assert(System.Text.Encoding.UTF8.GetString(
+                            await requestPart!.ReadAsByteArrayAsync()) == "{\"mode\":\"PUSH_TO_TALK\"}",
+                        "typed request.json bytes are missing");
+                    Assert(audioPart?.Headers.ContentDisposition?.FileName?.Trim('"') == "audio.wav",
+                        "streamed audio disposition is missing");
+                    Assert(System.Text.Encoding.UTF8.GetString(
+                            await audioPart!.ReadAsByteArrayAsync()) == "streamed-audio-marker",
+                        "streamed audio bytes are missing");
                 }
                 finally
                 {

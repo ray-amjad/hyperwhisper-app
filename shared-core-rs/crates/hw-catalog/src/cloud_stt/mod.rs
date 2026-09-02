@@ -226,7 +226,7 @@ mod tests {
     #[test]
     fn embedded_catalog_parses() {
         let c = catalog();
-        assert_eq!(c.version(), 8);
+        assert_eq!(c.version(), 10);
         assert!(c.providers().len() >= 10);
     }
 
@@ -416,6 +416,13 @@ mod tests {
         let n = c.normalize_cloud_provider(Some("googlespeech"));
         assert_eq!(n.provider.as_deref(), Some("hyperwhisper"));
         assert_eq!(n.accuracy_tier.as_deref(), Some("geminiTranscribe"));
+        // Meta was added only as a cloud tier on an unmerged branch. It has no
+        // shipped standalone-provider storage to migrate, so the provider field
+        // passes through while the tier's migrateFrom aliases remain available
+        // to explicit tier and Local API resolution.
+        let meta = c.normalize_cloud_provider(Some("meta"));
+        assert_eq!(meta.provider.as_deref(), Some("meta"));
+        assert_eq!(meta.accuracy_tier, None);
         // BYOK provider name passes through untouched (CRITICAL — must not
         // silently disable a user's BYOK setup).
         let byok = c.normalize_cloud_provider(Some("deepgram"));
@@ -614,8 +621,8 @@ mod tests {
         assert_eq!(
             names,
             vec![
-                "AssemblyAI", "Deepgram", "ElevenLabs", "Google", "Groq", "Microsoft",
-                "Mistral", "OpenAI", "Soniox", "xAI",
+                "AssemblyAI", "Deepgram", "ElevenLabs", "Google", "Groq", "Meta",
+                "Microsoft", "Mistral", "OpenAI", "Soniox", "xAI",
             ],
             "the Provider dropdown reads alphabetically, case-insensitively \
              (xAI sorts last only under a case-insensitive compare)"
@@ -779,5 +786,36 @@ mod tests {
                 "{present} is in the catalog and must reach the picker"
             );
         }
+    }
+
+    #[test]
+    fn new_feature_fields_default_false_and_meta_sets_verified_values() {
+        let old = CloudSttCatalog::parse(r#"{
+            "version":8,"providers":[{"id":"old","displayName":"Old","vendor":"old",
+            "features":{"wordTimestamps":true}}]
+        }"#).unwrap();
+        let old_features = old.entry("old").unwrap().features;
+        assert!(old_features.word_timestamps);
+        assert!(!old_features.code_switching);
+        assert!(!old_features.endpointing);
+        assert!(!old_features.context_bias);
+        assert!(!old_features.language_bias);
+        assert!(!old_features.turn_timestamps);
+
+        let catalog = catalog();
+        let meta = catalog.entry("metaMuse").expect("Meta Muse catalog row");
+        assert_eq!(meta.stt_provider.as_deref(), Some("meta"));
+        assert_eq!(meta.default_model_id(), Some("muse-voice-transcribe-1.0"));
+        let access = meta.access.expect("Meta Muse access gate");
+        assert!(access.cloud_tier_eligible);
+        assert!(access.byok_eligible);
+        assert!(meta.features.code_switching);
+        assert!(meta.features.endpointing);
+        assert!(meta.features.context_bias);
+        assert!(meta.features.language_bias);
+        assert!(meta.features.turn_timestamps);
+        assert!(meta.features.diarization);
+        assert!(!meta.features.word_timestamps);
+        assert!(!meta.default_model().unwrap().streaming());
     }
 }

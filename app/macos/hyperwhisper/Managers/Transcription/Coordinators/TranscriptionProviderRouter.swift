@@ -68,6 +68,7 @@ class TranscriptionProviderRouter {
     /// Gemini 3.5 Transcribe. A separate instance from
     /// `geminiTranscriptionProvider`: different endpoint, different key slot.
     private let geminiTranscribeProvider = GeminiTranscribeProvider()
+    private let metaMuseProvider = MetaMuseProvider()
 
     /// HyperWhisper-Cloud-routed providers (no BYOK). Constructed lazily when
     /// the HW Cloud managers are available, mirroring `hyperwhisperCloudProvider`.
@@ -260,6 +261,8 @@ class TranscriptionProviderRouter {
                 grokSTTProvider.configure(apiKey: apiKey)
             case .geminiTranscribe:
                 geminiTranscribeProvider.configure(apiKey: apiKey)
+            case .meta:
+                metaMuseProvider.configure(apiKey: apiKey)
             }
         }
 
@@ -322,6 +325,8 @@ class TranscriptionProviderRouter {
             provider = google
         case .geminiTranscribe:
             provider = geminiTranscribeProvider
+        case .meta:
+            provider = metaMuseProvider
         }
 
         // Check provider health before use
@@ -443,7 +448,8 @@ class TranscriptionProviderRouter {
     ///   `assemblyai`, `elevenlabs`, `mistral`, `soniox`, `gemini`, `grok`,
     ///   `hyperwhisper`, `microsoftazurespeech`, `googlespeech`,
     ///   `geminitranscribe`).
-    ///   `cloud` is an alias for `hyperwhisper`. All identifiers are matched
+    ///   `cloud` is an alias for `hyperwhisper`; `meta` selects its `metaMuse`
+    ///   tier through the transient mode. All identifiers are matched
     ///   case-insensitively via `engine.lowercased()`.
     ///
     /// - Parameters:
@@ -458,12 +464,15 @@ class TranscriptionProviderRouter {
         let normalizedEngine = engine.lowercased()
         let resolvedLanguage: String? = (language?.lowercased() == "auto") ? nil : language
 
-        // Cloud engine? Map directly via CloudProvider rawValue, plus a "cloud" alias.
+        // Cloud engine? Normalize retired standalone spellings first. `meta`
+        // is the direct BYOK route; HyperWhisper Cloud Muse remains the
+        // `hyperwhisper` provider plus the `metaMuse` accuracy tier.
         let cloudType: CloudProvider?
         if normalizedEngine == "cloud" {
             cloudType = .hyperwhisper
         } else {
-            cloudType = CloudProvider(rawValue: normalizedEngine)
+            let normalized = CloudSTTCatalog.shared.normalizeCloudProvider(normalizedEngine)
+            cloudType = CloudProvider.parse(normalized.provider)
         }
         if let cloudType {
             let cloud = try await selectCloudProviderForLocalAPI(cloudProviderType: cloudType)
@@ -536,6 +545,8 @@ class TranscriptionProviderRouter {
                 grokSTTProvider.configure(apiKey: apiKey)
             case .geminiTranscribe:
                 geminiTranscribeProvider.configure(apiKey: apiKey)
+            case .meta:
+                metaMuseProvider.configure(apiKey: apiKey)
             }
         }
 
@@ -577,6 +588,8 @@ class TranscriptionProviderRouter {
             provider = google
         case .geminiTranscribe:
             provider = geminiTranscribeProvider
+        case .meta:
+            provider = metaMuseProvider
         }
 
         if let healthManager = providerHealthManager {
@@ -803,7 +816,7 @@ class TranscriptionProviderRouter {
             return .modelNotDownloaded
         case .checking, .unknown:
             return .providerNotAvailable(provider: providerDisplayName, reason: "Provider health check failed")
-        case .healthy:
+        case .healthy, .configured:
             // Defensive fallback – should never happen
             return .providerNotAvailable(provider: providerDisplayName, reason: "Unexpected health status")
         }

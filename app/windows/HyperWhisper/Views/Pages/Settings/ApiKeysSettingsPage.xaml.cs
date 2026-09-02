@@ -36,6 +36,7 @@ public partial class ApiKeysSettingsPage : Page
     private bool _sonioxKeyVisible;
     private bool _grokKeyVisible;
     private bool _geminiTranscribeKeyVisible;
+    private bool _metaKeyVisible;
 
     public ApiKeysSettingsPage()
     {
@@ -70,6 +71,7 @@ public partial class ApiKeysSettingsPage : Page
         // Gemini 3.5 Transcribe has its own key slot, so it is a transcription-only
         // entry here even though the vendor is the same as the Gemini card below.
         UpdateKeyStatus(TranscriptionApiKeyType.GeminiTranscribe, GeminiTranscribeStatusText);
+        UpdateKeyStatus(TranscriptionApiKeyType.Meta, MetaStatusText);
         UpdateGrokStatus();
 
         LoggingService.Info("ApiKeysSettingsPage: Initialized");
@@ -849,6 +851,57 @@ public partial class ApiKeysSettingsPage : Page
         _sonioxKeyVisible = false;
         SonioxShowButton.Content = Loc.S("settings.api.show");
         UpdateKeyStatus(TranscriptionApiKeyType.Soniox, SonioxStatusText);
+    }
+
+    // =========================================================================
+    // META MUSE
+    // =========================================================================
+
+    private void MetaKeyBox_PasswordChanged(object sender, RoutedEventArgs e) { }
+
+    private void MetaShowButton_Click(object sender, RoutedEventArgs e)
+    {
+        _metaKeyVisible = !_metaKeyVisible;
+        MetaShowButton.Content = _metaKeyVisible ? Loc.S("settings.api.hide") : Loc.S("settings.api.show");
+
+        if (_metaKeyVisible && ApiKeyService.Instance.HasApiKey(TranscriptionApiKeyType.Meta))
+        {
+            MetaStatusText.Text = ApiKeyService.Instance.GetApiKey(TranscriptionApiKeyType.Meta) ?? "";
+        }
+        else
+        {
+            UpdateKeyStatus(TranscriptionApiKeyType.Meta, MetaStatusText);
+        }
+    }
+
+    private void MetaSaveButton_Click(object sender, RoutedEventArgs e)
+    {
+        var key = MetaKeyBox.Password;
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            ApiKeyService.Instance.SetApiKey(TranscriptionApiKeyType.Meta, null);
+            LoggingService.Info("ApiKeys: Cleared Meta API key");
+        }
+        else
+        {
+            if (!ApiKeyService.IsValidKeyFormat(TranscriptionApiKeyType.Meta, key))
+            {
+                WpfMessageBox.Show(
+                    Loc.S("settings.api.invalidKey.meta"),
+                    Loc.S("settings.api.invalidKey.title"),
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+                return;
+            }
+
+            ApiKeyService.Instance.SetApiKey(TranscriptionApiKeyType.Meta, key);
+            LoggingService.Info("ApiKeys: Saved Meta API key");
+        }
+
+        MetaKeyBox.Password = "";
+        _metaKeyVisible = false;
+        MetaShowButton.Content = Loc.S("settings.api.show");
+        UpdateKeyStatus(TranscriptionApiKeyType.Meta, MetaStatusText);
     }
 
     // =========================================================================

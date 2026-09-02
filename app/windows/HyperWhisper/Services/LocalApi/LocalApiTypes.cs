@@ -60,6 +60,7 @@ internal sealed class HealthProviderStatus
     [JsonPropertyName("id")] public string Id { get; init; } = "";
     [JsonPropertyName("key_present")] public bool KeyPresent { get; init; }
     [JsonPropertyName("reachable")] public bool Reachable { get; init; }
+    // "configured" means a key is present but the provider has no safe probe.
     [JsonPropertyName("status")] public string Status { get; init; } = "unknown";
 }
 

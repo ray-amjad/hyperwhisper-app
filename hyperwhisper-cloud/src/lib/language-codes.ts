@@ -99,7 +99,8 @@ export type LanguageMappedProvider =
   | 'deepgram'
   | 'azure-mai'
   | 'elevenlabs'
-  | 'openai';
+  | 'openai'
+  | 'meta';
 
 /**
  * Why an explicitly requested language was discarded.
@@ -180,6 +181,7 @@ function resolveExplicit(
     case 'azure-mai': return resolveAzureMaiLocale(language);
     case 'elevenlabs': return resolveElevenLabsLanguage(language);
     case 'openai': return resolveOpenAILanguage(language);
+    case 'meta': return resolveMetaLanguageBias(language);
   }
 }
 
@@ -561,6 +563,51 @@ function resolveOpenAILanguage(language: string): Resolution {
 }
 
 // ---------------------------------------------------------------------------
+// Meta Muse Voice Transcribe — documented language names, not picker codes
+// ---------------------------------------------------------------------------
+
+// Muse's `languageBias` request field takes language names. This allow-list
+// preserves the adapter's 25-language request contract. The shared picker still
+// sends its normal language codes, so aliases cover the legacy codes that can
+// survive in a saved Mode.
+const META_LANGUAGE_BIAS_BY_BASE: Readonly<Record<string, string>> = {
+  ar: 'Arabic',
+  bn: 'Bengali',
+  nl: 'Dutch',
+  en: 'English',
+  fr: 'French',
+  de: 'German',
+  he: 'Hebrew',
+  iw: 'Hebrew',
+  hi: 'Hindi',
+  id: 'Indonesian',
+  in: 'Indonesian',
+  it: 'Italian',
+  ja: 'Japanese',
+  kn: 'Kannada',
+  ko: 'Korean',
+  ms: 'Malay',
+  zh: 'Mandarin Chinese',
+  cmn: 'Mandarin Chinese',
+  mr: 'Marathi',
+  pl: 'Polish',
+  pt: 'Portuguese',
+  es: 'Spanish',
+  fil: 'Tagalog',
+  tl: 'Tagalog',
+  ta: 'Tamil',
+  te: 'Telugu',
+  th: 'Thai',
+  tr: 'Turkish',
+  vi: 'Vietnamese',
+};
+
+function resolveMetaLanguageBias(language: string): Resolution {
+  const name = META_LANGUAGE_BIAS_BY_BASE[primarySubtag(language)];
+  return name ? { code: name } : NO_LOCALE;
+}
+
+// ---------------------------------------------------------------------------
 // Gemini — the code goes into a PROMPT, so name the language
 // ---------------------------------------------------------------------------
 
@@ -625,5 +672,6 @@ export const __tables = {
   ELEVENLABS_LANGUAGES,
   ELEVENLABS_ALIASES,
   OPENAI_LANGUAGES,
+  META_LANGUAGE_BIAS_BY_BASE,
   LANGUAGE_NAMES,
 };

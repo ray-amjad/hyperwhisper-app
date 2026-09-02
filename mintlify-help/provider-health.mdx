@@ -129,7 +129,7 @@ This provider has no API key, or HyperWhisper did not test the key. Add a key in
 
 ## Local API `/health` endpoint
 
-The macOS app gives all provider statuses through its Local API at `GET /health`. This endpoint returns the cached health of each cloud provider and post-processing provider. It also returns information about the installed local models. The endpoint does not start a new probe. It reads the current cached state.
+The macOS and Windows apps give all provider statuses through the Local API at `GET /health`. This endpoint returns the cached health of each cloud provider and post-processing provider. It also returns information about the installed local models. The endpoint does not start a new probe. It reads the current cached state. A saved Meta key reports `configured` with `reachable: false` because Meta has no safe empty request for key validation. A transcription validates the key for that request, but the health endpoint stays conservative.
 
 For installation and authentication details, see [Local API](/local-api).
 

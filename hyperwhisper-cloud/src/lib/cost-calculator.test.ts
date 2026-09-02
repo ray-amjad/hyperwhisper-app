@@ -18,6 +18,7 @@ import {
   computeGroqTranscriptionCost,
   computeMistralChatCost,
   computeMistralTranscriptionCost,
+  computeMetaMuseTranscriptionCost,
   computeOpenAIChatCost,
   computeOpenAITranscriptionCost,
   computeSonioxTranscriptionCost,
@@ -40,6 +41,11 @@ import {
 describe('new STT provider cost functions', () => {
   test('Mistral Voxtral bills $0.003/min', () => {
     expect(computeMistralTranscriptionCost(120)).toBeCloseTo(0.006, 6);
+  });
+
+  test('Meta Muse bills $0.003/min', () => {
+    expect(computeMetaMuseTranscriptionCost(60)).toBeCloseTo(0.003, 6);
+    expect(computeMetaMuseTranscriptionCost(120)).toBeCloseTo(0.006, 6);
   });
 
   test('Soniox bills the blended ~$0.10/hr rate (audio + output, no context)', () => {

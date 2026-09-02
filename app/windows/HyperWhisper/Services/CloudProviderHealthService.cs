@@ -408,6 +408,12 @@ public class CloudProviderHealthService : IDisposable
 
     private async Task<ProviderHealth> PerformTranscriptionHealthCheckAsync(CloudTranscriptionProvider provider, string apiKey)
     {
+        // Meta documents no content-free validation endpoint. A present key is
+        // configured but remains unvalidated until the first transcription.
+        if (provider == CloudTranscriptionProvider.Meta)
+        {
+            return ProviderHealth.Unknown;
+        }
         // WAVE 3 / Win-2: the health request + verdict now run through the Rust
         // shared core (BuildHealthRequest(WithBase) + ParseHealthResponse). The
         // core owns the per-provider endpoint/auth + the Gemini/Grok 400 fold and
@@ -571,6 +577,7 @@ public class CloudProviderHealthService : IDisposable
             CloudTranscriptionProvider.Soniox => ApiKeyService.Instance.GetApiKey(TranscriptionApiKeyType.Soniox),
             // Own key slot — Google, but NOT the Gemini post-processing key.
             CloudTranscriptionProvider.GeminiTranscribe => ApiKeyService.Instance.GetApiKey(TranscriptionApiKeyType.GeminiTranscribe),
+            CloudTranscriptionProvider.Meta => ApiKeyService.Instance.GetApiKey(TranscriptionApiKeyType.Meta),
 
             // HyperWhisper Cloud doesn't need API key
             CloudTranscriptionProvider.HyperWhisperCloud => null,

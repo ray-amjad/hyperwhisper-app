@@ -485,6 +485,9 @@ class HyperWhisperCloudProvider: TranscriptionProvider {
 
         let requestResult = try await CloudAudioFormatRecovery.withUnsupportedFormatRecovery(
             sourceURL: audioURL,
+            maximumReencodedBytes: accuracyTier == .metaMuse
+                ? CloudAudioFormatRecovery.metaMuseMaxReencodedUploadBytes
+                : CloudAudioFormatRecovery.maxReencodedUploadBytes,
             reencode: { source, destination in
                 try await CloudAudioFormatRecovery.reencodeToWAV(source: source, destination: destination)
             },
