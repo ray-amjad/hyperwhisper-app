@@ -60,12 +60,13 @@ async Task CloudPreservesOriginal()
 
 async Task MetaMuseNormalizesPortableSources()
 {
+    foreach (var mode in MetaMuseModes())
     foreach (var extension in new[] { "mp3", "m4a" })
     {
         var source = Source($"muse-source.{extension}", [1, 2, 3, 4]);
         var normalizer = new FakeNormalizer();
         var transcriber = new CapturingTranscriber(PortableTranscriptionResult.Success("muse", "Meta"));
-        using var fixture = Fixture(source, MetaMuseMode(), transcriber, normalizer);
+        using var fixture = Fixture(source, mode, transcriber, normalizer);
         await fixture.ViewModel.TranscribeFileAsync();
         Assert(normalizer.Calls == 1 && transcriber.Path is not null
             && string.Equals(Path.GetExtension(transcriber.Path), ".wav", StringComparison.OrdinalIgnoreCase)
@@ -76,52 +77,64 @@ async Task MetaMuseNormalizesPortableSources()
 
 async Task MetaMusePreservesCompatibleWave()
 {
+    foreach (var mode in MetaMuseModes())
+    {
     var source = Source("muse-compatible.wav", WaveFixture.Canonical(16_000, 32));
     var normalizer = new FakeNormalizer();
     var transcriber = new CapturingTranscriber(PortableTranscriptionResult.Success("muse", "Meta"));
-    using var fixture = Fixture(source, MetaMuseMode(), transcriber, normalizer);
+    using var fixture = Fixture(source, mode, transcriber, normalizer);
     await fixture.ViewModel.TranscribeFileAsync();
     Assert(normalizer.Calls == 0 && transcriber.Path is not null
         && File.ReadAllBytes(transcriber.Path).SequenceEqual(File.ReadAllBytes(source)),
         "Meta Muse changed a compatible 16 kHz mono PCM16 WAV");
+    }
 }
 
 async Task MetaMuseRejectsNormalizedOverflow()
 {
+    foreach (var mode in MetaMuseModes())
+    {
     var source = Source("muse-overflow.mp3", [1, 2, 3]);
     var normalizer = new FakeNormalizer { OutputDataBytes = 32L * 1024 * 1024 + 1 };
     var transcriber = new CapturingTranscriber(PortableTranscriptionResult.Success("unused", "Meta"));
-    using var fixture = Fixture(source, MetaMuseMode(), transcriber, normalizer);
+    using var fixture = Fixture(source, mode, transcriber, normalizer);
     await fixture.ViewModel.TranscribeFileAsync();
     Assert(fixture.ViewModel.ErrorCode == "file_preflight.file_too_large"
         && transcriber.Path is null
         && !Directory.EnumerateFiles(fixture.Paths.RecordingsDirectory).Any(),
         "Meta Muse retained or uploaded an oversized normalized WAV");
+    }
 }
 
 async Task MetaMuseConversionFailure()
 {
+    foreach (var mode in MetaMuseModes())
+    {
     var source = Source("muse-failure.mp3", [1, 2, 3]);
     var normalizer = new FakeNormalizer { Fail = true };
     var transcriber = new CapturingTranscriber(PortableTranscriptionResult.Success("unused", "Meta"));
-    using var fixture = Fixture(source, MetaMuseMode(), transcriber, normalizer);
+    using var fixture = Fixture(source, mode, transcriber, normalizer);
     await fixture.ViewModel.TranscribeFileAsync();
     Assert(fixture.ViewModel.ErrorCode == "audio_normalization.failed"
         && transcriber.Path is null && File.Exists(source),
         "Meta Muse conversion failure was not stable or deleted the source");
+    }
 }
 
 async Task MetaMuseRejectsOverlengthBeforeConversion()
 {
+    foreach (var mode in MetaMuseModes())
+    {
     var source = Source("muse-overlength.mp3", [1, 2, 3]);
     var normalizer = new FakeNormalizer();
     var transcriber = new CapturingTranscriber(PortableTranscriptionResult.Success("unused", "Meta"));
-    using var fixture = Fixture(source, MetaMuseMode(), transcriber, normalizer,
+    using var fixture = Fixture(source, mode, transcriber, normalizer,
         metadata: new StaticMetadata(3, TimeSpan.FromMinutes(10) + TimeSpan.FromMilliseconds(1)));
     await fixture.ViewModel.TranscribeFileAsync();
     Assert(fixture.ViewModel.ErrorCode == "file_preflight.duration_too_long"
         && normalizer.Calls == 0 && transcriber.Path is null,
         "Meta Muse converted or uploaded known overlength audio");
+    }
 }
 
 async Task LocalNormalizes()
@@ -267,6 +280,16 @@ static Mode MetaMuseMode() => new()
     CloudAccuracyTier = "metaMuse", CloudTranscriptionModel = "muse-voice-transcribe-1.0",
     Language = "auto",
 };
+
+static IReadOnlyList<Mode> MetaMuseModes() =>
+[
+    MetaMuseMode(),
+    new Mode
+    {
+        Name = "Direct Meta Muse", ProviderType = "cloud", CloudProvider = "meta",
+        CloudTranscriptionModel = "muse-voice-transcribe-1.0", Language = "auto",
+    },
+];
 
 static bool IsOwnerOnly(string path) => OperatingSystem.IsWindows()
     || (File.GetUnixFileMode(path) & (UnixFileMode.GroupRead | UnixFileMode.GroupWrite | UnixFileMode.GroupExecute

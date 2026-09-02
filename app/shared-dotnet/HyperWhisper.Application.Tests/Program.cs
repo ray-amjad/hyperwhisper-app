@@ -488,6 +488,7 @@ try
         "credential UI did not delete the stored credential");
     Assert(credentialViewModel.Items.Any(item => item.Account == "AnthropicApiKey")
         && credentialViewModel.Items.Any(item => item.Account == "CerebrasApiKey")
+        && credentialViewModel.Items.Any(item => item.Account == "MetaApiKey")
         && credentialViewModel.Items.All(item => item.Account != "LicenseKey"),
         "credential UI omitted cloud post-processing providers");
 

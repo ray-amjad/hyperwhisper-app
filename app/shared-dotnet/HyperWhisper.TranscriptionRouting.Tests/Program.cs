@@ -101,7 +101,7 @@ static async Task TestRouterAsync(string root)
         "openai", "groq", "elevenlabs", "mistral", "grok", "deepgram",
         "assemblyai", "soniox", "gemini", "geminiTranscribe", "geminitranscribe",
         "gemini-transcribe", "microsoftAzureSpeech",
-        "googleSpeech", "hyperwhisper",
+        "googleSpeech", "hyperwhisper", "meta", "META",
     })
     {
         var mode = new Mode
@@ -214,6 +214,20 @@ static async Task TestRouterAsync(string root)
             RoutedProvider: "meta",
             RoutedModel: "muse-voice-transcribe-1.0",
         }, "Meta Muse tier did not route through the Meta provider and exact model id");
+
+    var directMetaMode = new Mode
+    {
+        ProviderType = "cloud",
+        CloudProvider = "meta",
+    };
+    await router.TranscribeAsync(audio, new TranscriptionWorkflowRequest(SelectedMode: directMetaMode));
+    Assert(cloud.LastRequest is
+        {
+            Provider: CloudTranscriptionProvider.Meta,
+            Model: "muse-voice-transcribe-1.0",
+            RoutedProvider: null,
+            RoutedModel: null,
+        }, "direct Meta did not stay separate from HyperWhisper Cloud or use the exact default model");
 
     // This route's own 1000-term cap, kept out of the shared core deliberately:
     // the live-streaming router caps at 100 and neither may drift onto the other.
@@ -380,12 +394,15 @@ static void TestCredentials()
     var store = new MemoryCredentials();
     store.Values[("HyperWhisper", "OpenAIApiKey")] = Encoding.UTF8.GetBytes("secret-value");
     store.Values[("HyperWhisper", "LicenseKey")] = Encoding.UTF8.GetBytes("account-value");
+    store.Values[("HyperWhisper", "MetaApiKey")] = Encoding.UTF8.GetBytes("meta-value");
     var source = new CredentialStoreCloudCredentialSource(store, new StaticIdentity());
     var api = source.GetCredentialAsync(CloudTranscriptionProvider.OpenAi, CancellationToken.None).Result;
     var routed = source.GetCredentialAsync(CloudTranscriptionProvider.HyperWhisperCloud, CancellationToken.None).Result;
+    var meta = source.GetCredentialAsync(CloudTranscriptionProvider.Meta, CancellationToken.None).Result;
     Assert(api?.ApiKey == "secret-value" && api.DeviceId == "device-id", "API credential mapping changed");
     Assert(routed?.LicenseKey == "account-value" && routed.ApiKey is null, "account credential mapping changed");
-    Assert(store.ReadAccounts.SequenceEqual(["OpenAIApiKey", "LicenseKey"]), "credential account names changed");
+    Assert(meta?.ApiKey == "meta-value" && meta.LicenseKey is null, "Meta credential mapping changed");
+    Assert(store.ReadAccounts.SequenceEqual(["OpenAIApiKey", "LicenseKey", "MetaApiKey"]), "credential account names changed");
 }
 
 static void Assert(bool condition, string message)

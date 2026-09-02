@@ -160,6 +160,23 @@ try
         && !geminiRestore.Contains("GeminiApiKey"),
         "the Gemini 3.5 Transcribe key did not survive a backup round trip");
 
+    var metaStore = new MemoryCredentialStore();
+    metaStore.Seed("MetaApiKey", "meta-export-secret");
+    var metaExport = JsonNode.Parse(await new ApplicationBackupService(database, settings, metaStore)
+        .ExportAsync(new BackupExportSelection(
+            IncludeSettings: false, IncludeModes: false, IncludeVocabulary: false,
+            IncludeCredentials: true)))!.AsObject();
+    Assert(metaExport["apiKeys"] is JsonObject metaKeys
+        && metaKeys.Count == 1
+        && metaKeys["meta"]!.GetValue<string>() == "meta-export-secret",
+        "the Meta key was not exported only after explicit credential opt-in");
+    var metaRestore = new MemoryCredentialStore();
+    var metaImport = await new ApplicationBackupService(database, settings, metaRestore)
+        .ImportAsync(metaExport.ToJsonString(), credentialSelection);
+    Assert(metaImport.IsSuccess && metaImport.Value!.CredentialsImported == 1
+        && metaRestore.Text("MetaApiKey") == "meta-export-secret",
+        "the Meta key did not survive a transactional secure-store round trip");
+
     // A Windows or macOS backup spells this id in camelCase. Before the id
     // charset accepted capitals, one such member failed the WHOLE restore —
     // modes, vocabulary and settings with it, not just the keys — while the

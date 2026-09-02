@@ -227,13 +227,14 @@ public sealed class ModeAwareTranscriptionRouter : IRecordedAudioTranscriber, ID
             "microsoftazurespeech" or "azure-mai" => CloudTranscriptionProvider.AzureMai,
             "googlespeech" or "google-chirp" => CloudTranscriptionProvider.GoogleChirp,
             "hyperwhisper" => CloudTranscriptionProvider.HyperWhisperCloud,
+            "meta" => CloudTranscriptionProvider.Meta,
             _ => default,
         };
         return value?.Trim().ToLowerInvariant() is
             "openai" or "groq" or "elevenlabs" or "mistral" or "grok" or "deepgram"
             or "assemblyai" or "soniox" or "gemini" or "geminitranscribe"
             or "gemini-transcribe" or "microsoftazurespeech"
-            or "azure-mai" or "googlespeech" or "google-chirp" or "hyperwhisper";
+            or "azure-mai" or "googlespeech" or "google-chirp" or "hyperwhisper" or "meta";
     }
 
     public void Dispose()
@@ -275,6 +276,7 @@ public sealed class ModeAwareTranscriptionRouter : IRecordedAudioTranscriber, ID
         CloudTranscriptionProvider.Gemini => "gemini",
         CloudTranscriptionProvider.AzureMai => "azureMaiTranscribe",
         CloudTranscriptionProvider.GeminiTranscribe => "geminiTranscribe",
+        CloudTranscriptionProvider.Meta => "metaMuse",
         // GoogleChirp is deliberately absent: catalog v8 retired `googleChirp3`,
         // so it has no entry to look up. `DefaultModel` pins its model directly.
         CloudTranscriptionProvider.HyperWhisperCloud => "deepgramNova3",

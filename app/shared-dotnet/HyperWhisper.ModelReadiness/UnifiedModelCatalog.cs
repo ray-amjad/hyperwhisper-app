@@ -135,8 +135,13 @@ public static class UnifiedModelCatalog
             // For every pre-existing streaming vendor models[0] is either already the
             // streaming row (deepgram) or has no `streaming: true` row at all, so this
             // falls back to exactly today's behaviour.
-            var liveModel = provider.@models.FirstOrDefault(model => model.@streaming == true)
-                ?? provider.@models[0];
+            var liveModel = provider.@models.FirstOrDefault(model => model.@streaming == true);
+            // Meta advertises upstream streaming capability, but HyperWhisper
+            // implements only its batch/file route. Do not turn the provider-
+            // level flag into a portable live picker row when no model opts in.
+            if (liveModel is null && sttProvider.Equals("meta", StringComparison.OrdinalIgnoreCase))
+                continue;
+            liveModel ??= provider.@models[0];
             AddStreamingRow(result, emitted, sttProvider, liveModel.@id,
                 Required(provider.@displayName, "displayName"), LanguageCodes(provider.@id),
                 ProviderSupportsVocabulary(provider));
@@ -262,6 +267,7 @@ public static class UnifiedModelCatalog
         "gemini" => "GeminiApiKey",
         "geminitranscribe" or "gemini-transcribe" => "GeminiTranscribeApiKey",
         "grok" or "xai" => "GrokApiKey",
+        "meta" => "MetaApiKey",
         "azure-mai" or "microsoftazurespeech" => "LicenseKey",
         "google-chirp" or "googlespeech" => "LicenseKey",
         "hyperwhisper" => "LicenseKey",

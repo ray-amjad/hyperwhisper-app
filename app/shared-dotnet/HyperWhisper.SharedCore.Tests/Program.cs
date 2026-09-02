@@ -194,8 +194,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("cloud catalog enumerates every batch provider", () =>
     {
         var providers = CloudTranscriptionService.Providers;
-        Assert.Equal(13, providers.Count);
-        Assert.Equal(13, providers.Select(value => value.Provider).Distinct().Count());
+        Assert.Equal(14, providers.Count);
+        Assert.Equal(14, providers.Select(value => value.Provider).Distinct().Count());
         Assert.True(providers.All(value => value.SupportsBatch));
         Assert.Equal(3, providers.Count(value => value.IsMultiStep));
         return Task.CompletedTask;
@@ -206,6 +206,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("retry policy retries transient responses deterministically", TestRetryAsync),
     ("unauthorized responses are classified without leaking provider bodies", TestUnauthorizedAsync),
     ("cancellation stops in-flight HTTP and returns structured cancellation", TestCancellationAsync),
+    ("Meta transport rechecks WAV limits retry auth and diagnostics", TestMetaTransportGuardsAsync),
     ("live strategies construct and parse all six provider protocols", TestLiveProvidersAsync),
     ("gemini live setup frame pins the input_audio_transcription position", TestGeminiLiveSetupFrameAsync),
     ("a mid-session provider complete is a turn boundary not the end", TestMidSessionTurnBoundaryAsync),
@@ -569,9 +570,10 @@ static async Task TestSingleShotProvidersAsync()
         new ProviderCase(CloudTranscriptionProvider.GoogleChirp, "chirp_3", "{\"text\":\"chirp text\",\"cost\":{\"credits\":1.0}}", "chirp text", true),
         new ProviderCase(CloudTranscriptionProvider.HyperWhisperCloud, "", "{\"text\":\"cloud text\",\"credits_remaining\":99}", "cloud text", true),
         new ProviderCase(CloudTranscriptionProvider.GeminiTranscribe, "gemini-3.5-transcribe", "{\"steps\":[{\"content\":[{\"text\":\"gemini transcribe text\"}]}]}", "gemini transcribe text"),
+        new ProviderCase(CloudTranscriptionProvider.Meta, "muse-voice-transcribe-1.0", "{\"transcript\":\"meta text\",\"audioDurationMs\":1000}", "meta text"),
     };
 
-    var audio = TempAudio();
+    var audio = TempWaveAudio();
     try
     {
         foreach (var value in cases)
@@ -685,10 +687,12 @@ static async Task TestTypedMultipartFileAsync()
 
         Assert.NotNull(message.Content);
         var rendered = Encoding.UTF8.GetString(await message.Content!.ReadAsByteArrayAsync());
-        Assert.True(rendered.Contains("name=\"request\"; filename=\"request.json\"", StringComparison.Ordinal));
+        Assert.True(rendered.Contains("name=\"request\"; filename=\"request.json\"", StringComparison.Ordinal)
+            || rendered.Contains("name=request; filename=request.json", StringComparison.Ordinal));
         Assert.True(rendered.Contains("Content-Type: application/json", StringComparison.OrdinalIgnoreCase));
         Assert.True(rendered.Contains("{\"mode\":\"PUSH_TO_TALK\"}", StringComparison.Ordinal));
-        Assert.True(rendered.Contains("name=\"audio\"; filename=\"audio.wav\"", StringComparison.Ordinal));
+        Assert.True(rendered.Contains("name=\"audio\"; filename=\"audio.wav\"", StringComparison.Ordinal)
+            || rendered.Contains("name=audio; filename=audio.wav", StringComparison.Ordinal));
         Assert.True(rendered.Contains("streamed-audio-marker", StringComparison.Ordinal));
     }
     finally
@@ -871,6 +875,61 @@ static async Task TestCancellationAsync()
     {
         File.Delete(audio);
     }
+}
+
+static async Task TestMetaTransportGuardsAsync()
+{
+    const string secret = "meta-secret-never-diagnose";
+    var audio = TempWaveAudio();
+    try
+    {
+        var attempts = 0;
+        var observer = new RecordingObserver();
+        var handler = new RecordingHandler((_, _) => ++attempts == 1
+            ? Json("{\"error\":\"temporary\"}", HttpStatusCode.ServiceUnavailable)
+            : Json("{\"transcript\":\"meta retry\",\"audioDurationMs\":1}"));
+        using var service = new CloudTranscriptionService(
+            handler, new StaticCredentials(secret), Sharing, new ImmediateDelay(), observer);
+        var result = await service.TranscribeAsync(new CloudTranscriptionRequest(
+            CloudTranscriptionProvider.Meta, audio, "muse-voice-transcribe-1.0"));
+        Assert.True(result.IsSuccess && result.Attempts == 2);
+        Assert.DoesNotContain(secret, string.Join('\n', observer.Events));
+
+        using var unauthorized = new CloudTranscriptionService(
+            new RecordingHandler((_, _) => Json(secret, HttpStatusCode.Forbidden)),
+            new StaticCredentials(secret), Sharing);
+        var rejected = await unauthorized.TranscribeAsync(new CloudTranscriptionRequest(
+            CloudTranscriptionProvider.Meta, audio, "muse-voice-transcribe-1.0"));
+        Assert.Equal(CloudTranscriptionErrorCode.Unauthorized, rejected.Failure!.Code);
+        Assert.DoesNotContain(secret, rejected.Failure.Message);
+
+        var invalid = TempAudio("not-a-wave");
+        try
+        {
+            var calls = 0;
+            using var invalidService = new CloudTranscriptionService(
+                new RecordingHandler((_, _) => { calls++; return Json("{}"); }),
+                new StaticCredentials(secret), Sharing);
+            var invalidResult = await invalidService.TranscribeAsync(new CloudTranscriptionRequest(
+                CloudTranscriptionProvider.Meta, invalid, "muse-voice-transcribe-1.0"));
+            Assert.Equal(CloudTranscriptionErrorCode.InvalidRequest, invalidResult.Failure!.Code);
+            Assert.Equal(0, calls);
+        }
+        finally { File.Delete(invalid); }
+
+        await using (var stream = new FileStream(audio, FileMode.Open, FileAccess.Write, FileShare.None))
+            stream.SetLength(32L * 1024 * 1024 + 1);
+        var oversizedCalls = 0;
+        using var oversizedService = new CloudTranscriptionService(
+            new RecordingHandler((_, _) => { oversizedCalls++; return Json("{}"); }),
+            new StaticCredentials(secret), Sharing);
+        var oversized = await oversizedService.TranscribeAsync(new CloudTranscriptionRequest(
+            CloudTranscriptionProvider.HyperWhisperCloud, audio, string.Empty,
+            RoutedProvider: "meta", RoutedModel: "muse-voice-transcribe-1.0"));
+        Assert.Equal(CloudTranscriptionErrorCode.FileTooLarge, oversized.Failure!.Code);
+        Assert.Equal(0, oversizedCalls);
+    }
+    finally { File.Delete(audio); }
 }
 
 static async Task TestLiveProvidersAsync()
@@ -2266,6 +2325,23 @@ static string TempAudio(string content = "RIFF-test-audio")
 {
     var path = Path.Combine(Path.GetTempPath(), $"hyperwhisper-shared-{Guid.NewGuid():N}.wav");
     File.WriteAllText(path, content);
+    return path;
+}
+
+static string TempWaveAudio()
+{
+    var path = Path.Combine(Path.GetTempPath(), $"hyperwhisper-shared-{Guid.NewGuid():N}.wav");
+    var bytes = new byte[46];
+    "RIFF"u8.CopyTo(bytes); BitConverter.GetBytes(38).CopyTo(bytes, 4);
+    "WAVEfmt "u8.CopyTo(bytes.AsSpan(8)); BitConverter.GetBytes(16).CopyTo(bytes, 16);
+    BitConverter.GetBytes((ushort)1).CopyTo(bytes, 20);
+    BitConverter.GetBytes((ushort)1).CopyTo(bytes, 22);
+    BitConverter.GetBytes(16_000).CopyTo(bytes, 24);
+    BitConverter.GetBytes(32_000).CopyTo(bytes, 28);
+    BitConverter.GetBytes((ushort)2).CopyTo(bytes, 32);
+    BitConverter.GetBytes((ushort)16).CopyTo(bytes, 34);
+    "data"u8.CopyTo(bytes.AsSpan(36)); BitConverter.GetBytes(2).CopyTo(bytes, 40);
+    File.WriteAllBytes(path, bytes);
     return path;
 }
 

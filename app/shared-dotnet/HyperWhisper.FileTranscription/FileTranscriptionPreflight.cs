@@ -321,6 +321,14 @@ public sealed class PortableFileTranscriptionPreflight
             [CloudTranscriptionProvider.GeminiTranscribe] = Cloud(14L * 1024 * 1024, "gemini-3.5-transcribe",
                 ["gemini-3.5-transcribe"]),
             [CloudTranscriptionProvider.HyperWhisperCloud] = Cloud(2L * 1024 * 1024 * 1024, "default", ["default"], account: true),
+            [CloudTranscriptionProvider.Meta] = new(
+                "muse-voice-transcribe-1.0",
+                new HashSet<string>(["muse-voice-transcribe-1.0"], StringComparer.Ordinal),
+                new FileTranscriptionConstraints(
+                    32L * 1024 * 1024,
+                    TimeSpan.FromMinutes(10),
+                    PortableImportExtensions,
+                    RequiresMuseWave: true)),
         };
 }
 

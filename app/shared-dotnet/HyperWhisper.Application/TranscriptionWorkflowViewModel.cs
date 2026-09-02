@@ -222,13 +222,14 @@ public sealed class TranscriptionWorkflowViewModel : ViewModelBase, IDisposable
             "microsoftazurespeech" or "azure-mai" => CloudTranscriptionProvider.AzureMai,
             "googlespeech" or "google-chirp" => CloudTranscriptionProvider.GoogleChirp,
             "hyperwhisper" => CloudTranscriptionProvider.HyperWhisperCloud,
+            "meta" => CloudTranscriptionProvider.Meta,
             _ => default,
         };
         return value?.Trim().ToLowerInvariant() is
             "openai" or "groq" or "elevenlabs" or "mistral" or "grok" or "deepgram"
             or "assemblyai" or "soniox" or "gemini" or "geminitranscribe"
             or "gemini-transcribe" or "microsoftazurespeech" or "azure-mai"
-            or "googlespeech" or "google-chirp" or "hyperwhisper";
+            or "googlespeech" or "google-chirp" or "hyperwhisper" or "meta";
     }
 
     public void ReportInputFailure(string code, string message)

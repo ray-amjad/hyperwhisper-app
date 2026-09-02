@@ -21,6 +21,7 @@ public enum CloudTranscriptionProvider
     AzureMai,
     GoogleChirp,
     HyperWhisperCloud,
+    Meta,
 }
 
 public sealed record CloudCredential(string? ApiKey = null, string? LicenseKey = null, string? DeviceId = null);
