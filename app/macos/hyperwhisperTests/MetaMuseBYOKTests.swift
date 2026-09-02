@@ -46,6 +46,7 @@ struct MetaMuseBYOKTests {
         #endif
     }
 
+    @MainActor
     @Test("Universal key export is opt-in and maps Meta to its isolated slot")
     func universalBackupMapping() {
         let exported = BackupManager.universalAPIKeyMap { slot in
