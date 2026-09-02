@@ -69,6 +69,13 @@ public class CloudProviderHealthService : IDisposable
     private const int DebounceDelayMs = 500;
     private const int RequestTimeoutSeconds = 10;
 
+    /// <summary>
+    /// How long a recorded transcription failure outranks the health probe
+    /// (issue #379). Deliberately the same 60 s as <see cref="CacheTtlSeconds"/>:
+    /// the failure record exists to beat exactly one cache generation, not to latch.
+    /// </summary>
+    private const int FailureOverrideTtlSeconds = 60;
+
     // Health check endpoints
     private static readonly Dictionary<CloudTranscriptionProvider, (string Url, string AuthScheme)> TranscriptionEndpoints = new()
     {
@@ -104,6 +111,31 @@ public class CloudProviderHealthService : IDisposable
     private readonly HttpClient _httpClient;
     private readonly ConcurrentDictionary<string, (ProviderHealth Status, DateTime CachedAt)> _cache = new();
     private readonly ConcurrentDictionary<string, System.Timers.Timer> _debounceTimers = new();
+
+    /// <summary>
+    /// When each provider last returned a DEFINITIVE provider-down error from a
+    /// real transcription (issue #379). See
+    /// <see cref="RecordTranscriptionOutcome(CloudTranscriptionProvider, long, Exception?)"/>.
+    /// Entries are never pruned on read — <see cref="GetHealthStatus(CloudTranscriptionProvider)"/>
+    /// stays a pure read. An expired entry simply stops matching, and the
+    /// dictionary is bounded by the provider enum.
+    /// </summary>
+    private readonly ConcurrentDictionary<CloudTranscriptionProvider, DateTime> _recentFailures = new();
+
+    // Monotonic generations for transcription credentials, scoped by provider.
+    // A request captures its provider's value before resolving the key. A later
+    // edit to that key invalidates the old outcome without discarding valid
+    // outcomes for unrelated providers.
+    private readonly ConcurrentDictionary<CloudTranscriptionProvider, long> _transcriptionCredentialGenerations = new();
+
+    /// <summary>
+    /// Clock. Every timestamp this type takes — the two cache-hit gates, the
+    /// <see cref="UpdateCache"/> stamp, and the failure-override window — reads
+    /// through this one closure, so a test that moves it moves all of them
+    /// together. Mirrors the macOS <c>CloudProviderHealthManager.now</c>.
+    /// </summary>
+    private readonly Func<DateTime> _now;
+
     private bool _disposed;
 
     // =========================================================================
@@ -124,8 +156,20 @@ public class CloudProviderHealthService : IDisposable
     // CONSTRUCTOR
     // =========================================================================
 
-    private CloudProviderHealthService()
+    private CloudProviderHealthService() : this(() => DateTime.UtcNow)
     {
+    }
+
+    /// <summary>
+    /// Test seam (issue #379): builds a NON-singleton instance with a clock the
+    /// caller drives by hand, so the 60 s cache TTL and the 60 s failure-override
+    /// window can be crossed without a wall-clock wait. Visible to
+    /// HyperWhisper.SmokeTests via InternalsVisibleTo (see HyperWhisper.csproj).
+    /// Production always goes through <see cref="Instance"/>.
+    /// </summary>
+    internal CloudProviderHealthService(Func<DateTime> now)
+    {
+        _now = now;
         _httpClient = new HttpClient
         {
             Timeout = TimeSpan.FromSeconds(RequestTimeoutSeconds)
@@ -143,14 +187,25 @@ public class CloudProviderHealthService : IDisposable
     public ProviderHealth GetStatus(CloudTranscriptionProvider provider)
     {
         var key = $"transcription:{provider}";
+        var status = ProviderHealth.Unknown;
         if (_cache.TryGetValue(key, out var cached))
         {
-            if (DateTime.UtcNow - cached.CachedAt < TimeSpan.FromSeconds(CacheTtlSeconds))
+            if (_now() - cached.CachedAt < TimeSpan.FromSeconds(CacheTtlSeconds))
             {
-                return cached.Status;
+                status = cached.Status;
             }
         }
-        return ProviderHealth.Unknown;
+        return status;
+    }
+
+    /// <summary>
+    /// Gets the Local API <c>/health</c> verdict. This is the only read seam that
+    /// folds a recent real transcription failure over the probe-derived cache.
+    /// Generic app reads remain probe-derived through <see cref="GetStatus"/>.
+    /// </summary>
+    public ProviderHealth GetHealthStatus(CloudTranscriptionProvider provider)
+    {
+        return ApplyFailureOverride(GetStatus(provider), provider);
     }
 
     /// <summary>
@@ -165,7 +220,7 @@ public class CloudProviderHealthService : IDisposable
         // Check cache unless forced
         if (!force && _cache.TryGetValue(key, out var cached))
         {
-            if (DateTime.UtcNow - cached.CachedAt < TimeSpan.FromSeconds(CacheTtlSeconds))
+            if (_now() - cached.CachedAt < TimeSpan.FromSeconds(CacheTtlSeconds))
             {
                 return cached.Status;
             }
@@ -203,6 +258,14 @@ public class CloudProviderHealthService : IDisposable
     public void RegisterApiKeyChange(CloudTranscriptionProvider provider, string? newValue)
     {
         var key = $"transcription:{provider}";
+
+        _transcriptionCredentialGenerations.AddOrUpdate(provider, 1, (_, generation) => generation + 1);
+
+        // A key edit invalidates the transcription-failure override too (issue
+        // #379). Without this, a user who reacts to an outage by re-pasting their
+        // key would see Unreachable for the rest of the 60 s window and read it as
+        // "the new key is bad".
+        _recentFailures.TryRemove(provider, out _);
 
         // Cancel existing debounce timer
         if (_debounceTimers.TryRemove(key, out var existingTimer))
@@ -248,7 +311,7 @@ public class CloudProviderHealthService : IDisposable
         var key = $"postprocessing:{provider}";
         if (_cache.TryGetValue(key, out var cached))
         {
-            if (DateTime.UtcNow - cached.CachedAt < TimeSpan.FromSeconds(CacheTtlSeconds))
+            if (_now() - cached.CachedAt < TimeSpan.FromSeconds(CacheTtlSeconds))
             {
                 return cached.Status;
             }
@@ -268,7 +331,7 @@ public class CloudProviderHealthService : IDisposable
         // Check cache unless forced
         if (!force && _cache.TryGetValue(key, out var cached))
         {
-            if (DateTime.UtcNow - cached.CachedAt < TimeSpan.FromSeconds(CacheTtlSeconds))
+            if (_now() - cached.CachedAt < TimeSpan.FromSeconds(CacheTtlSeconds))
             {
                 return cached.Status;
             }
@@ -518,7 +581,7 @@ public class CloudProviderHealthService : IDisposable
 
     private void UpdateCache(string key, ProviderHealth status)
     {
-        _cache[key] = (status, DateTime.UtcNow);
+        _cache[key] = (status, _now());
     }
 
     /// <summary>
@@ -527,6 +590,137 @@ public class CloudProviderHealthService : IDisposable
     public void InvalidateCache(CloudTranscriptionProvider provider)
     {
         _cache.TryRemove($"transcription:{provider}", out _);
+        // A deliberate invalidation clears the transcription-failure override too
+        // (issue #379) — otherwise the "give me a fresh verdict" entry point would
+        // keep answering with the stale one.
+        _recentFailures.TryRemove(provider, out _);
+    }
+
+    // =========================================================================
+    // TRANSCRIPTION OUTCOME FEEDBACK (issue #379)
+    // =========================================================================
+
+    /// <summary>
+    /// Records the outcome of a real cloud transcription attempt so the health
+    /// verdict stops disagreeing with what the app just observed.
+    /// </summary>
+    /// <remarks>
+    /// STEP-BY-STEP:
+    /// 1. <paramref name="error"/> null means the attempt SUCCEEDED. Clear any
+    ///    recorded failure and stamp Healthy at the current time. A real
+    ///    transcription is stronger evidence than any probe, and its fresh
+    ///    timestamp must not expire two seconds later with an older probe.
+    /// 2. Otherwise classify. ONLY a definitive provider-down verdict counts (see
+    ///    <see cref="IsDefinitiveProviderDownVerdict"/>); everything else is a no-op.
+    /// 3. A definitive failure stamps only <c>_recentFailures</c>, and then
+    ///    outranks the raw probe at
+    ///    <see cref="GetHealthStatus(CloudTranscriptionProvider)"/> for
+    ///    <see cref="FailureOverrideTtlSeconds"/> seconds.
+    ///
+    /// WHY: the health probe cannot see this failure. It hits the vendor's
+    /// model-list endpoint, not the transcription endpoint, and for the
+    /// HW-Cloud-routed providers it short-circuits without any network call at
+    /// all. Either way it stays green while transcription is failing, which is
+    /// why <c>/health</c> reported <c>"status":"healthy","reachable":true</c>
+    /// throughout a reproducible <c>POST /transcribe</c> failure.
+    ///
+    /// ⚠️ DELIBERATE ASYMMETRY, mirroring macOS: the override is applied at the
+    /// READ seam only. It is never written into the TTL cache.
+    /// <see cref="RefreshAsync(CloudTranscriptionProvider, bool)"/> therefore
+    /// keeps its normal cache age and still probes when that raw cache expires.
+    /// Do not "tidy" the override into the cache or RefreshAsync's return value.
+    ///
+    /// This deliberately does NOT raise <see cref="TranscriptionProviderStatusChanged"/>.
+    /// The only subscriber answers it with a blocking <c>Dispatcher.Invoke</c>, and
+    /// this method runs on the transcription thread — raising it here would put a
+    /// synchronous UI-thread rendezvous on the hot path, and deadlock outright if
+    /// the UI thread were ever waiting on the transcription. The Local API
+    /// <c>/health</c> reads <see cref="GetHealthStatus(CloudTranscriptionProvider)"/>
+    /// directly, so the surface the issue was filed about is unaffected; the
+    /// Settings badges pick the change up on their next rebuild.
+    /// </remarks>
+    /// <param name="provider">The provider the attempt actually ran against.</param>
+    /// <param name="error">Null on success, otherwise the exception thrown.</param>
+    public long CaptureTranscriptionCredentialGeneration(CloudTranscriptionProvider provider)
+    {
+        return _transcriptionCredentialGenerations.GetOrAdd(provider, 0);
+    }
+
+    public void RecordTranscriptionOutcome(
+        CloudTranscriptionProvider provider,
+        long credentialGeneration,
+        Exception? error)
+    {
+        if (provider == CloudTranscriptionProvider.None) return;
+        if (credentialGeneration != CaptureTranscriptionCredentialGeneration(provider)) return;
+
+        if (error == null)
+        {
+            _recentFailures.TryRemove(provider, out _);
+            // Always re-stamp. A healthy probe at t=0 followed by a successful
+            // transcription at t=59 is fresh evidence at t=59, not at t=0.
+            UpdateCache($"transcription:{provider}", ProviderHealth.Healthy);
+            return;
+        }
+
+        if (!IsDefinitiveProviderDownVerdict(error)) return;
+
+        _recentFailures[provider] = _now();
+        LoggingService.Warn(
+            $"{provider} transcription reported the provider down; marking /health unreachable for {FailureOverrideTtlSeconds}s: {error.Message}");
+    }
+
+    /// <summary>
+    /// Whether <paramref name="error"/> is a DEFINITIVE verdict that the PROVIDER
+    /// ITSELF is down, as opposed to a verdict about the request, the account or
+    /// the local network.
+    /// </summary>
+    /// <remarks>
+    /// YES: <see cref="TranscriptionErrorCode.ProviderUnavailable"/> carrying an
+    /// actual HTTP 5xx status. <c>RustCoreMapping</c> produces this shape for
+    /// <c>HwTranscriptionException.ProviderUnavailable</c> from HTTP 5xx — the exact counterpart of macOS's
+    /// <c>.serverError(statusCode: 500...599, _)</c> plus <c>.providerNotAvailable</c>.
+    ///
+    /// NO, on purpose: Unauthorized, QuotaExceeded, RateLimited, NetworkError,
+    /// NoSpeechDetected, FileTooLarge, InvalidRequest, Cancelled, CloudAccountRequired,
+    /// ProviderUnavailable without a 5xx (including HTTP 408 and poll exhaustion),
+    /// and anything that is not a <see cref="TranscriptionException"/> at all.
+    /// Marking a provider unreachable because the user's Wi-Fi dropped, because
+    /// their card expired, or because they recorded silence would be a worse bug
+    /// than the stale verdict this exists to fix. The default is therefore the
+    /// CONSERVATIVE answer, so a code added to the enum later cannot start marking
+    /// providers unreachable until someone deliberately lists it here.
+    /// </remarks>
+    internal static bool IsDefinitiveProviderDownVerdict(Exception error)
+    {
+        return error is TranscriptionException
+        {
+            Code: TranscriptionErrorCode.ProviderUnavailable,
+            HttpStatusCode: >= 500 and <= 599
+        };
+    }
+
+    /// <summary>
+    /// Folds a recorded transcription failure over a probe-derived status. Pure:
+    /// mutates nothing, so an expired record is ignored rather than cleaned up.
+    /// </summary>
+    private ProviderHealth ApplyFailureOverride(ProviderHealth status, CloudTranscriptionProvider provider)
+    {
+        if (!_recentFailures.TryGetValue(provider, out var failedAt)) return status;
+        if (_now() - failedAt >= TimeSpan.FromSeconds(FailureOverrideTtlSeconds)) return status;
+        return ProviderHealth.Unreachable;
+    }
+
+    /// <summary>
+    /// Test seam (issue #379): publishes a cached status directly, so a smoke test
+    /// can put a provider in the "probe says Healthy" state the override has to
+    /// beat without doing any network I/O. Visible to HyperWhisper.SmokeTests via
+    /// InternalsVisibleTo (see HyperWhisper.csproj) — no other accessibility gives
+    /// the test the state it needs while keeping <c>UpdateCache</c> private.
+    /// </summary>
+    internal void SetCachedTranscriptionStatusForTests(CloudTranscriptionProvider provider, ProviderHealth status)
+    {
+        UpdateCache($"transcription:{provider}", status);
     }
 
     /// <summary>

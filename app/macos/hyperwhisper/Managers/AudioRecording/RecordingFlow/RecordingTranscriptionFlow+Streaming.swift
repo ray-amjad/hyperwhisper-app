@@ -116,6 +116,14 @@ extension RecordingTranscriptionFlow {
         fastFormatting: Bool = true
     ) async {
         let normalizedLanguage = normalizedStreamingLanguage(streamingLanguageParam, provider: provider, model: model)
+        // Resolve once for both service routing and health feedback. The raw
+        // setting ids do not map mechanically to CloudProvider (`xai` is
+        // `.grok`, and Gemini Live is `.geminiTranscribe`).
+        let selectedStreamingProvider = StreamingTranscriptionProvider.fromStorageValue(provider)
+            ?? .hyperwhisperCloud
+        let streamingHealthProvider = selectedStreamingProvider.cloudHealthProvider
+        let streamingCredentialGeneration = providerHealthManager?
+            .captureTranscriptionCredentialGeneration()
         // Capture once for this concrete service callback. Reading the reusable
         // flow property inside a late callback could observe a newer session.
         let suppressTextDeliveryForSession = sessionStartedWithTextDeliverySuppressed
@@ -198,7 +206,7 @@ extension RecordingTranscriptionFlow {
         let service: any StreamingClientProtocol
         var apiKey: String?
 
-        switch StreamingTranscriptionProvider.fromStorageValue(provider) {
+        switch selectedStreamingProvider {
         case .deepgram:
             // Deepgram direct streaming - requires user's Deepgram API key
             let deepgramKey = KeychainManager.shared.getAPIKey(for: .deepgram)
@@ -208,7 +216,10 @@ extension RecordingTranscriptionFlow {
                 return
             }
             apiKey = deepgramKey
-            service = StreamingTranscriptionClient(strategy: DeepgramStreamingStrategy())
+            service = StreamingTranscriptionClient(
+                strategy: DeepgramStreamingStrategy(),
+                streamingProvider: selectedStreamingProvider
+            )
 
         case .elevenLabs:
             // ElevenLabs direct streaming - requires user's ElevenLabs API key
@@ -219,7 +230,10 @@ extension RecordingTranscriptionFlow {
                 return
             }
             apiKey = elevenLabsKey
-            service = StreamingTranscriptionClient(strategy: ElevenLabsStreamingStrategy())
+            service = StreamingTranscriptionClient(
+                strategy: ElevenLabsStreamingStrategy(),
+                streamingProvider: selectedStreamingProvider
+            )
 
         case .openAI:
             // OpenAI Realtime direct streaming - requires user's OpenAI API key
@@ -230,7 +244,10 @@ extension RecordingTranscriptionFlow {
                 return
             }
             apiKey = openAIKey
-            service = StreamingTranscriptionClient(strategy: OpenAIStreamingStrategy())
+            service = StreamingTranscriptionClient(
+                strategy: OpenAIStreamingStrategy(),
+                streamingProvider: selectedStreamingProvider
+            )
 
         case .xai:
             // xAI direct streaming - requires user's Grok/xAI API key
@@ -241,7 +258,10 @@ extension RecordingTranscriptionFlow {
                 return
             }
             apiKey = xaiKey
-            service = StreamingTranscriptionClient(strategy: XAIStreamingStrategy())
+            service = StreamingTranscriptionClient(
+                strategy: XAIStreamingStrategy(),
+                streamingProvider: selectedStreamingProvider
+            )
 
         case .gemini:
             // Gemini 3.5 Transcribe Live direct streaming - requires the user's
@@ -253,7 +273,10 @@ extension RecordingTranscriptionFlow {
                 return
             }
             apiKey = geminiKey
-            service = StreamingTranscriptionClient(strategy: GeminiStreamingStrategy())
+            service = StreamingTranscriptionClient(
+                strategy: GeminiStreamingStrategy(),
+                streamingProvider: selectedStreamingProvider
+            )
 
         case .parakeetLocal:
             // On-device Parakeet streaming. The model id in `model` is the
@@ -355,7 +378,9 @@ extension RecordingTranscriptionFlow {
             service = StreamingTranscriptionClient(
                 strategy: HyperWhisperCloudStrategy(
                     cloudTier: settingsManager?.streamingCloudTier
-                        ?? HyperWhisperCloudStrategy.defaultCloudTier))
+                        ?? HyperWhisperCloudStrategy.defaultCloudTier),
+                streamingProvider: selectedStreamingProvider
+            )
         }
 
         // Log provider selection for analytics
@@ -376,7 +401,7 @@ extension RecordingTranscriptionFlow {
         var licenseKey: String?
         var deviceId: String?
 
-        if StreamingTranscriptionProvider.fromStorageValue(provider) == .hyperwhisperCloud || provider == "hyperwhisperCloud" {
+        if selectedStreamingProvider == .hyperwhisperCloud {
             guard let licenseManager = licenseManager else {
                 AppLogger.audio.error("❌ Streaming failed: LicenseManager not available")
                 await cancelRecordingWithError("Streaming transcription unavailable")
@@ -487,7 +512,7 @@ extension RecordingTranscriptionFlow {
         // is used ONLY for filler removal, never for typing/CJK/vocabulary, which
         // continue to treat the language as genuinely unknown.
         let fillerRemovalLanguage = Self.fillerRemovalLanguageHint(streamingLanguage: streamingLanguage)
-        let isLocalProvider = StreamingTranscriptionProvider.fromStorageValue(provider)?.isLocal ?? false
+        let isLocalProvider = selectedStreamingProvider.isLocal
         // Exact-vocab substitutions on the local path. Cloud providers
         // already receive vocabulary hints server-side; re-applying
         // substitutions there would fight the server's own normalization.
@@ -603,6 +628,35 @@ extension RecordingTranscriptionFlow {
 
             // Credits are already deducted on server side
             // TODO: Update local credit display if needed
+        }
+
+        // HEALTH FEEDBACK:
+        // The remote client fires this only for a 5xx WebSocket upgrade or a
+        // 1011 Internal Error close. It fires independently of retry/teardown,
+        // so reporting health cannot suppress the stream's normal recovery.
+        service.onDefinitiveProviderFailure = { [weak self] error in
+            guard let self,
+                  let streamingHealthProvider,
+                  let streamingCredentialGeneration else { return }
+            self.providerHealthManager?.recordTranscriptionOutcome(
+                for: streamingHealthProvider,
+                credentialGeneration: streamingCredentialGeneration,
+                error: error
+            )
+        }
+
+        // Clear a previous outage only after the provider produces a transcript
+        // or completes the session. A socket open/start acknowledgement is not
+        // enough evidence because the first audio request can still fail.
+        service.onProviderSuccess = { [weak self] in
+            guard let self,
+                  let streamingHealthProvider,
+                  let streamingCredentialGeneration else { return }
+            self.providerHealthManager?.recordTranscriptionOutcome(
+                for: streamingHealthProvider,
+                credentialGeneration: streamingCredentialGeneration,
+                error: nil
+            )
         }
 
         // ON ERROR:

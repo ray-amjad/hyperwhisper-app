@@ -85,6 +85,24 @@ struct CloudProviderHealthCacheTTLTests {
     /// client sees every request the manager makes.
     private static let provider: PostProcessingProvider = .anthropic
 
+    /// Google Chirp 3 is the STT provider used by the failure-override tests
+    /// below, for two reasons. It is the provider from issue #379 — the one that
+    /// kept reporting `"status":"healthy","reachable":true` while
+    /// `POST /transcribe {"engine":"googlespeech"}` failed. And it is the only
+    /// `CloudProvider` whose probe is hermetic: `performHealthCheck(for:force:)`
+    /// short-circuits the HW-Cloud-routed providers to `.healthy` with no network
+    /// call and no API key, so "the probe says healthy" is a fact of the code
+    /// rather than something a stub has to fake. Every BYOK provider's probe goes
+    /// through the non-injectable `rustHealthSession` and would hit the network.
+    private static let cloudProvider: CloudProvider = .googleSpeech
+
+    /// The definitive provider-down error: `RustRetry.swift` maps
+    /// `HwTranscriptionError.ProviderUnavailable` onto exactly this shape.
+    private static let providerDownError = TranscriptionError.serverError(
+        statusCode: 503,
+        message: "Provider unavailable"
+    )
+
     private static func makeManager(
         client: CountingHealthCheckClient,
         keys: FixedKeyProvider,
@@ -177,5 +195,270 @@ struct CloudProviderHealthCacheTTLTests {
 
         #expect(snapshot.timestamp == Date(timeIntervalSince1970: 1_700_000_000 + 1234))
         #expect(keys.postProcessingReadCount == 0)
+    }
+
+    // MARK: - Transcription-failure override (issue #379)
+
+    /// (a) The defect itself. A real transcription that came back with a 5xx must
+    /// stop `/health` reporting the provider healthy — even though the probe,
+    /// which never touches the transcription endpoint, keeps saying it is.
+    ///
+    /// The override belongs only to `healthSnapshot()`. The probe-derived
+    /// accessor and published dictionary feed app gates and badges, so they must
+    /// stay healthy after the failed request.
+    @Test func aRecordedProviderDownFailureOutranksAHealthyProbe() async {
+        let clock = TestClock()
+        let client = CountingHealthCheckClient()
+        let keys = FixedKeyProvider()
+        let manager = Self.makeManager(client: client, keys: keys, clock: clock)
+
+        let probed = await manager.ensureHealthy(Self.cloudProvider)
+        #expect(probed == .healthy)
+        #expect(manager.status(for: Self.cloudProvider) == .healthy)
+        #expect(manager.healthSnapshot().cloud[Self.cloudProvider.rawValue] == "healthy")
+
+        manager.recordTranscriptionOutcome(
+            for: Self.cloudProvider,
+            credentialGeneration: manager.captureTranscriptionCredentialGeneration(),
+            error: Self.providerDownError
+        )
+
+        #expect(manager.status(for: Self.cloudProvider) == .healthy)
+        #expect(manager.statuses[Self.cloudProvider] == .healthy)
+        #expect(manager.healthSnapshot().cloud[Self.cloudProvider.rawValue] == "unreachable")
+
+        // The app gate serves its existing healthy probe without forcing a new
+        // health check. Only the Local API snapshot sees the failed outcome.
+        let gate = await manager.ensureHealthy(Self.cloudProvider)
+        #expect(gate == .healthy)
+        #expect(gate.shouldBlockTranscription == false)
+        #expect(manager.statuses[Self.cloudProvider] == .healthy)
+        #expect(manager.healthSnapshot().cloud[Self.cloudProvider.rawValue] == "unreachable")
+
+        // The whole exchange was hermetic: no injectable-client traffic at all.
+        #expect(client.sendCount == 0)
+    }
+
+    /// (b) The override is a cooldown, not a latch. Once `failureOverrideTTL`
+    /// passes, whatever the probe last published shows through again. The gate is
+    /// a strict `<`, so exactly 60 s is already expired — the same boundary rule
+    /// as `cacheTTL`.
+    @Test func theFailureOverrideExpiresAfterItsTTL() async {
+        let clock = TestClock()
+        let client = CountingHealthCheckClient()
+        let keys = FixedKeyProvider()
+        let manager = Self.makeManager(client: client, keys: keys, clock: clock)
+
+        _ = await manager.ensureHealthy(Self.cloudProvider)
+        manager.recordTranscriptionOutcome(
+            for: Self.cloudProvider,
+            credentialGeneration: manager.captureTranscriptionCredentialGeneration(),
+            error: Self.providerDownError
+        )
+
+        #expect(manager.status(for: Self.cloudProvider) == .healthy)
+
+        clock.advance(59.9)
+        #expect(manager.status(for: Self.cloudProvider) == .healthy)
+        #expect(manager.healthSnapshot().cloud[Self.cloudProvider.rawValue] == "unreachable")
+
+        clock.advance(0.1)
+        #expect(manager.status(for: Self.cloudProvider) == .healthy)
+        #expect(manager.healthSnapshot().cloud[Self.cloudProvider.rawValue] == "healthy")
+    }
+
+    /// (c) A real success is stronger evidence than any probe, so it clears the
+    /// override immediately rather than waiting out the window. Without this a
+    /// provider that recovered on the very next attempt would still be reported
+    /// unreachable for the remaining ~59 s while demonstrably working.
+    @Test func aRecordedSuccessClearsTheOverrideImmediately() async {
+        let clock = TestClock()
+        let client = CountingHealthCheckClient()
+        let keys = FixedKeyProvider()
+        let manager = Self.makeManager(client: client, keys: keys, clock: clock)
+
+        _ = await manager.ensureHealthy(Self.cloudProvider)
+        let credentialGeneration = manager.captureTranscriptionCredentialGeneration()
+        manager.recordTranscriptionOutcome(
+            for: Self.cloudProvider,
+            credentialGeneration: credentialGeneration,
+            error: Self.providerDownError
+        )
+        #expect(manager.healthSnapshot().cloud[Self.cloudProvider.rawValue] == "unreachable")
+
+        // No clock movement at all — the success alone must clear it.
+        manager.recordTranscriptionOutcome(
+            for: Self.cloudProvider,
+            credentialGeneration: credentialGeneration,
+            error: nil
+        )
+
+        #expect(manager.status(for: Self.cloudProvider) == .healthy)
+        #expect(manager.healthSnapshot().cloud[Self.cloudProvider.rawValue] == "healthy")
+    }
+
+    @Test func aRecordedSuccessRefreshesAStaleProbeVerdictToHealthy() async {
+        let clock = TestClock()
+        let client = CountingHealthCheckClient()
+        let keys = FixedKeyProvider()
+        let manager = Self.makeManager(client: client, keys: keys, clock: clock)
+
+        manager.setCachedTranscriptionStatusForTests(.unreachable, for: Self.cloudProvider)
+        clock.advance(61)
+        let generation = manager.captureTranscriptionCredentialGeneration()
+
+        manager.recordTranscriptionOutcome(
+            for: Self.cloudProvider,
+            credentialGeneration: generation,
+            error: nil
+        )
+
+        #expect(manager.status(for: Self.cloudProvider) == .healthy)
+        #expect(manager.healthSnapshot().cloud[Self.cloudProvider.rawValue] == "healthy")
+        clock.advance(59)
+        manager.refresh(Self.cloudProvider)
+        #expect(manager.status(for: Self.cloudProvider) == .healthy)
+    }
+
+    @Test func anOldCredentialGenerationCannotOverwriteTheNewUnauthorizedVerdict() {
+        let clock = TestClock()
+        let client = CountingHealthCheckClient()
+        let keys = FixedKeyProvider()
+        let manager = Self.makeManager(client: client, keys: keys, clock: clock)
+
+        let oldGeneration = manager.captureTranscriptionCredentialGeneration()
+        manager.registerAPIKeyChange(for: Self.cloudProvider, newValue: "short-new-key")
+        manager.setCachedTranscriptionStatusForTests(.unauthorized, for: Self.cloudProvider)
+
+        manager.recordTranscriptionOutcome(
+            for: Self.cloudProvider,
+            credentialGeneration: oldGeneration,
+            error: nil
+        )
+
+        #expect(manager.status(for: Self.cloudProvider) == .unauthorized)
+        #expect(manager.healthSnapshot().cloud[Self.cloudProvider.rawValue] == "unauthorized")
+    }
+
+    @Test func anUnrelatedProviderKeyEditKeepsAnInFlightOutcomeValid() {
+        let clock = TestClock()
+        let client = CountingHealthCheckClient()
+        let keys = FixedKeyProvider()
+        let manager = Self.makeManager(client: client, keys: keys, clock: clock)
+
+        manager.setCachedTranscriptionStatusForTests(.healthy, for: Self.cloudProvider)
+        let credentialGenerations = manager.captureTranscriptionCredentialGeneration()
+
+        manager.registerAPIKeyChange(for: .deepgram, newValue: "short-new-key")
+        manager.recordTranscriptionOutcome(
+            for: Self.cloudProvider,
+            credentialGeneration: credentialGenerations,
+            error: Self.providerDownError
+        )
+
+        #expect(manager.healthSnapshot().cloud[Self.cloudProvider.rawValue] == "unreachable")
+    }
+
+    /// (d) The verdict is keyed off the CLASSIFIED error, never off "a
+    /// transcription failed". Marking a provider unreachable because the user's
+    /// Wi-Fi dropped, their card expired, or they recorded silence would be a
+    /// worse bug than the stale verdict the override exists to fix.
+    ///
+    /// The 404 case matters most: it proves the check is on the 5xx RANGE, not on
+    /// `.serverError` as a case.
+    @Test func nonDefinitiveFailuresDoNotSetTheOverride() async {
+        let clock = TestClock()
+        let client = CountingHealthCheckClient()
+        let keys = FixedKeyProvider()
+        let manager = Self.makeManager(client: client, keys: keys, clock: clock)
+
+        _ = await manager.ensureHealthy(Self.cloudProvider)
+        #expect(manager.status(for: Self.cloudProvider) == .healthy)
+
+        let harmless: [Error] = [
+            TranscriptionError.unauthorized(provider: "Google Chirp 3", statusCode: 401),
+            TranscriptionError.quotaExceeded(provider: "Google Chirp 3", message: nil),
+            TranscriptionError.insufficientCredits(remaining: 0, required: 10),
+            TranscriptionError.rateLimited(retryAfter: 5),
+            TranscriptionError.transientNetwork(details: "No internet connection"),
+            TranscriptionError.noSpeechDetected,
+            TranscriptionError.invalidRequest,
+            TranscriptionError.invalidResponse(details: "bad json"),
+            TranscriptionError.serverError(statusCode: 404, message: "Not Found"),
+            StreamingError.connectionTimeout,
+            StreamingError.serverError("Connection lost after multiple retries"),
+            StreamingError.audioEngineError("microphone unavailable"),
+            StreamingError.insufficientCredits,
+            StreamingError.unauthorized(statusCode: nil),
+            CancellationError()
+        ]
+
+        for error in harmless {
+            manager.recordTranscriptionOutcome(
+                for: Self.cloudProvider,
+                credentialGeneration: manager.captureTranscriptionCredentialGeneration(),
+                error: error
+            )
+            #expect(manager.status(for: Self.cloudProvider) == .healthy)
+            #expect(manager.healthSnapshot().cloud[Self.cloudProvider.rawValue] == "healthy")
+            #expect(CloudProviderHealthManager.isDefinitiveProviderDownVerdict(error) == false)
+        }
+
+        // …and the two that DO count, for contrast.
+        #expect(CloudProviderHealthManager.isDefinitiveProviderDownVerdict(Self.providerDownError))
+        #expect(CloudProviderHealthManager.isDefinitiveProviderDownVerdict(
+            TranscriptionError.providerNotAvailable(provider: "Google Chirp 3", reason: "down")
+        ))
+    }
+
+    /// (e) THE NO-DEGRADATION GUARANTEE — the most important case here.
+    ///
+    /// The override applies only to `/health`. `status(for:)`, the published
+    /// dictionary, and `ensureHealthy` feed menus, badges and preflight. They
+    /// must all retain the raw healthy probe and must not force a new probe.
+    @Test func theOverrideDoesNotDegradeAppGatesOrBadges() async {
+        let clock = TestClock()
+        let client = CountingHealthCheckClient()
+        let keys = FixedKeyProvider()
+        let manager = Self.makeManager(client: client, keys: keys, clock: clock)
+
+        _ = await manager.ensureHealthy(Self.cloudProvider)
+        manager.recordTranscriptionOutcome(
+            for: Self.cloudProvider,
+            credentialGeneration: manager.captureTranscriptionCredentialGeneration(),
+            error: Self.providerDownError
+        )
+        #expect(manager.status(for: Self.cloudProvider) == .healthy)
+        #expect(manager.statuses[Self.cloudProvider] == .healthy)
+
+        let gate = await manager.ensureHealthy(Self.cloudProvider)
+        #expect(gate == .healthy)
+        #expect(gate.shouldBlockTranscription == false)
+        #expect(manager.statuses[Self.cloudProvider] == .healthy)
+        #expect(manager.healthSnapshot().cloud[Self.cloudProvider.rawValue] == "unreachable")
+        #expect(client.sendCount == 0)
+    }
+
+    /// Re-pasting an API key during an outage must not leave the user staring at
+    /// `unreachable` and concluding the new key is bad.
+    @Test func anAPIKeyChangeClearsTheFailureOverride() async {
+        let clock = TestClock()
+        let client = CountingHealthCheckClient()
+        let keys = FixedKeyProvider()
+        let manager = Self.makeManager(client: client, keys: keys, clock: clock)
+
+        _ = await manager.ensureHealthy(Self.cloudProvider)
+        manager.recordTranscriptionOutcome(
+            for: Self.cloudProvider,
+            credentialGeneration: manager.captureTranscriptionCredentialGeneration(),
+            error: Self.providerDownError
+        )
+        #expect(manager.healthSnapshot().cloud[Self.cloudProvider.rawValue] == "unreachable")
+
+        // An empty value takes the early-return branch, so no probe is scheduled
+        // and the published status resets to `.unknown` — not `.unreachable`.
+        manager.registerAPIKeyChange(for: Self.cloudProvider, newValue: "")
+        #expect(manager.status(for: Self.cloudProvider) == .unknown)
+        #expect(manager.healthSnapshot().cloud[Self.cloudProvider.rawValue] == "unknown")
     }
 }

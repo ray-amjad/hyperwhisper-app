@@ -46,7 +46,7 @@ internal static class HealthEndpoints
             if (provider == CloudTranscriptionProvider.None) continue;
 
             var keyPresent = HasKeyForTranscriptionProvider(apiKeys, provider);
-            var status = health?.GetStatus(provider) ?? ProviderHealth.Unknown;
+            var status = health?.GetHealthStatus(provider) ?? ProviderHealth.Unknown;
 
             list.Add(new HealthProviderStatus
             {

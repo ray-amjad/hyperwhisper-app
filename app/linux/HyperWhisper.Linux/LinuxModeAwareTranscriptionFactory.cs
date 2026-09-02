@@ -14,6 +14,12 @@ namespace HyperWhisper.Linux;
 /// </summary>
 internal static class LinuxModeAwareTranscriptionFactory
 {
+    // Linux routes recorded files through the shared batch client. Preserve the
+    // pre-#379 retry envelope explicitly at this production host seam: 0 means
+    // unbounded by cumulative backoff, while the Rust attempt ceiling still
+    // limits every stage to 8 attempts (~127 s nominal backoff).
+    internal const ulong BatchRetryBudgetMs = 0;
+
     public static ModeAwareTranscriptionRouter Create(
         IAppPaths paths,
         IPrivateFileService privateFiles,
@@ -41,7 +47,8 @@ internal static class LinuxModeAwareTranscriptionFactory
         var cloud = new SharedCoreBatchCloudClient(new CloudTranscriptionService(
             new HttpClientHandler(),
             credentials,
-            shareAnonymousSpeedData: ShareAnonymousSpeedData));
+            shareAnonymousSpeedData: ShareAnonymousSpeedData,
+            retryBudgetMs: BatchRetryBudgetMs));
         parakeet = new ParakeetDaemonTranscriber(
             new LinuxNativeRuntimeLocator(),
             new LinuxChildProcessLauncher(),

@@ -61,6 +61,7 @@ public sealed class CloudTranscriptionService : IDisposable
     private readonly ICloudTranscriptionDelay _delay;
     private readonly ICloudTranscriptionObserver? _observer;
     private readonly Func<bool> _shareAnonymousSpeedData;
+    private readonly ulong _retryBudgetMs;
     private bool _disposed;
 
     /// <param name="shareAnonymousSpeedData">
@@ -75,12 +76,23 @@ public sealed class CloudTranscriptionService : IDisposable
     /// forgets the user's privacy choice must fail to compile rather than
     /// silently default to sharing.
     /// </param>
+    /// <param name="retryBudgetMs">
+    /// Total BACKOFF budget, in milliseconds, for each retry sequence (issue
+    /// #379) — the sleeping only, not the requests' own duration.
+    /// <c>null</c> takes the core's interactive default
+    /// (<c>RetryDefaultBudgetMs()</c> == 30s); <c>0</c> means unbounded, i.e. the
+    /// pre-#379 behaviour of 8 attempts and ~127s of sleep. Injectable so a batch
+    /// host can be more patient than a dictation one, and so tests can pin a
+    /// small budget without waiting out a real backoff series. This shared batch
+    /// driver does not add jitter, so the admitted core delay is the actual sleep.
+    /// </param>
     public CloudTranscriptionService(
         HttpMessageHandler handler,
         ICloudCredentialSource credentials,
         Func<bool> shareAnonymousSpeedData,
         ICloudTranscriptionDelay? delay = null,
-        ICloudTranscriptionObserver? observer = null)
+        ICloudTranscriptionObserver? observer = null,
+        ulong? retryBudgetMs = null)
     {
         ArgumentNullException.ThrowIfNull(handler);
         ArgumentNullException.ThrowIfNull(credentials);
@@ -93,6 +105,7 @@ public sealed class CloudTranscriptionService : IDisposable
         _delay = delay ?? new SystemCloudTranscriptionDelay();
         _observer = observer;
         _shareAnonymousSpeedData = shareAnonymousSpeedData;
+        _retryBudgetMs = retryBudgetMs ?? HyperwhisperCoreMethods.RetryDefaultBudgetMs();
     }
 
     public static IReadOnlyList<CloudProviderDescriptor> Providers => ProviderCatalog;
@@ -410,6 +423,25 @@ public sealed class CloudTranscriptionService : IDisposable
         }
     }
 
+    /// <summary>
+    /// Drive one request stage through the core-owned retry policy.
+    ///
+    /// Backoff budget (issue #379): 8 attempts of raw exponential backoff is
+    /// ~127s of sleep, so a hard-down provider used to take ~150s to fail. The
+    /// core owns the rule (<c>NextRetryWithinBudget</c>); this shell just carries
+    /// the running total of the delays the core handed it (<c>sleptMs</c>) back
+    /// into the next decision. The budget is per STAGE, matching the per-call
+    /// semantics of the macOS/Windows <c>RustRetry</c> drivers — a multi-step
+    /// provider's upload/poll/fetch legs each get their own.
+    ///
+    /// <c>sleptMs</c> is BACKOFF ONLY. The time a failed request itself took is
+    /// deliberately NOT charged to it: a large upload (Linux routes file imports
+    /// through here via <c>LinuxModeAwareTranscriptionFactory</c>) would
+    /// otherwise blow a 30s budget before its first error even arrived and get
+    /// zero retries. Counting only the returned delays also keeps the budget
+    /// deterministic under an injected <see cref="ICloudTranscriptionDelay"/>,
+    /// so a test can pin it without sleeping for real.
+    /// </summary>
     private async Task<HttpResponse> SendWithRetryAsync<T>(
         Func<HttpRequest> build,
         Func<HttpResponse, T> parse,
@@ -420,6 +452,11 @@ public sealed class CloudTranscriptionService : IDisposable
     {
         uint attempt = 0;
         var transportFailures = 0;
+        // Running total of the backoff this sequence actually sleeps. This batch
+        // driver adds no platform jitter, so it equals the core's returned delay.
+        // Accumulated across the whole loop and never reset, so the budget bounds
+        // the sequence rather than any single sleep.
+        var sleptMs = 0UL;
         while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -434,13 +471,16 @@ public sealed class CloudTranscriptionService : IDisposable
                     return response;
                 }
                 var retryAfter = RetryAfter(response);
-                var decision = HyperwhisperCoreMethods.NextRetry(
+                var decision = HyperwhisperCoreMethods.NextRetryWithinBudget(
                     attempt,
                     response.@status,
                     Encoding.UTF8.GetString(response.@body),
-                    retryAfter.HasValue ? (ulong)Math.Max(0, retryAfter.Value) : null);
+                    retryAfter.HasValue ? (ulong)Math.Max(0, retryAfter.Value) : null,
+                    sleptMs,
+                    _retryBudgetMs);
                 if (decision is RetryDecision.Retry retry)
                 {
+                    sleptMs += retry.@delayMs;
                     await _delay.DelayAsync(TimeSpan.FromMilliseconds(retry.@delayMs), cancellationToken).ConfigureAwait(false);
                     continue;
                 }
@@ -465,11 +505,18 @@ public sealed class CloudTranscriptionService : IDisposable
             catch (HttpRequestException) when (++transportFailures < MaxTransportAttempts)
             {
                 Observe(new CloudTranscriptionEvent(provider, checked((int)attempt), null, stage));
-                var decision = HyperwhisperCoreMethods.NextRetry(attempt, 503, string.Empty, null);
+                var decision = HyperwhisperCoreMethods.NextRetryWithinBudget(
+                    attempt,
+                    503,
+                    string.Empty,
+                    null,
+                    sleptMs,
+                    _retryBudgetMs);
                 if (decision is not RetryDecision.Retry retry)
                 {
                     throw;
                 }
+                sleptMs += retry.@delayMs;
                 await _delay.DelayAsync(TimeSpan.FromMilliseconds(retry.@delayMs), cancellationToken).ConfigureAwait(false);
             }
         }

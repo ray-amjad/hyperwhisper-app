@@ -45,6 +45,11 @@ enum TranscribeEndpoint {
             return LocalAPIResponder.failure(code: .engineUnavailable, message: "Transcription pipeline not initialized")
         }
 
+        // Capture before resolution reads a credential. A later key edit makes
+        // this request's outcome stale and unable to overwrite the new verdict.
+        let healthManager = pipeline.providerCoordinator.providerHealthManager
+        let credentialGeneration = healthManager?.captureTranscriptionCredentialGeneration()
+
         // Determine the Mode (saved) or build a transient one from engine/model/language.
         let resolution: ProviderResolution
         do {
@@ -63,6 +68,13 @@ enum TranscribeEndpoint {
             resolution.provider.setTimestampGranularities(granularities)
         }
 
+        // Health feedback (issue #379): the health manager owns the `/health`
+        // verdict for this provider, and only the real transcribe call below can
+        // tell it whether the provider is actually up. Resolved once here, on the
+        // main actor, so both the success and failure arms report synchronously —
+        // no `Task { }` hop that could land after the next probe.
+        let cloudProviderType = resolution.cloudProviderType
+
         let started = Date()
         let text: String
         do {
@@ -72,7 +84,25 @@ enum TranscribeEndpoint {
                 mode: resolution.mode,
                 vocabulary: resolution.vocabulary
             )
+            if let cloudProviderType {
+                if let credentialGeneration {
+                    healthManager?.recordTranscriptionOutcome(
+                        for: cloudProviderType,
+                        credentialGeneration: credentialGeneration,
+                        error: nil
+                    )
+                }
+            }
         } catch {
+            if let cloudProviderType {
+                if let credentialGeneration {
+                    healthManager?.recordTranscriptionOutcome(
+                        for: cloudProviderType,
+                        credentialGeneration: credentialGeneration,
+                        error: error
+                    )
+                }
+            }
             cleanupTransientMode(resolution.transientMode)
             let (code, message, hint) = LocalAPIResponder.mapTranscriptionError(error)
             return LocalAPIResponder.failure(code: code, message: message, hint: hint)
@@ -541,6 +571,11 @@ enum TranscribeEndpoint {
         /// Non-nil when we synthesized a Mode in the viewContext just for this
         /// request — caller MUST delete it after `provider.transcribe(...)`.
         let transientMode: Mode?
+        /// The cloud provider this request resolved to, straight out of the
+        /// router's own resolution (never re-derived here). nil for local
+        /// engines. Used to report the transcription outcome back to
+        /// `CloudProviderHealthManager` (issue #379).
+        let cloudProviderType: CloudProvider?
     }
 
     @MainActor
@@ -565,27 +600,29 @@ enum TranscribeEndpoint {
             // Pure mode_id call → use saved Mode untouched.
             if !hasOverride {
                 let vocab: [Vocabulary] = []
-                let provider = try await router.selectProvider(for: stored, vocabulary: vocab)
+                let selection = try await router.selectProvider(for: stored, vocabulary: vocab)
                 return ProviderResolution(
-                    provider: provider,
+                    provider: selection.provider,
                     mode: stored,
                     vocabulary: vocab,
                     engineLabel: engineLabel(forMode: stored),
                     modelLabel: modelLabel(forMode: stored),
-                    transientMode: nil
+                    transientMode: nil,
+                    cloudProviderType: selection.cloudProviderType
                 )
             }
 
             // Mixed: saved mode supplies defaults, request overrides specific fields.
             let transient = makeTransientMode(baseline: stored, engine: trimmedEngine, model: trimmedModel, language: trimmedLanguage)
-            let provider = try await router.selectProvider(for: transient, vocabulary: [])
+            let selection = try await router.selectProvider(for: transient, vocabulary: [])
             return ProviderResolution(
-                provider: provider,
+                provider: selection.provider,
                 mode: transient,
                 vocabulary: [],
                 engineLabel: engineLabel(forMode: transient),
                 modelLabel: modelLabel(forMode: transient),
-                transientMode: transient
+                transientMode: transient,
+                cloudProviderType: selection.cloudProviderType
             )
         }
 
@@ -595,7 +632,7 @@ enum TranscribeEndpoint {
             throw TranscriptionError.invalidRequest
         }
 
-        let provider = try await router.resolveProvider(
+        let selection = try await router.resolveProvider(
             engine: engine,
             model: req.model,
             language: req.language
@@ -609,12 +646,13 @@ enum TranscribeEndpoint {
         // response must report the model that actually ran, not "". This also
         // matches the normalized labels the mode_id paths above already return.
         return ProviderResolution(
-            provider: provider,
+            provider: selection.provider,
             mode: transient,
             vocabulary: [],
             engineLabel: engineLabel(forMode: transient),
             modelLabel: modelLabel(forMode: transient),
-            transientMode: transient
+            transientMode: transient,
+            cloudProviderType: selection.cloudProviderType
         )
     }
 

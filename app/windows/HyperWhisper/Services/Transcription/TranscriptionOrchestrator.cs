@@ -339,6 +339,11 @@ public class TranscriptionOrchestrator : IDisposable
 
         LoggingService.LogPerformanceMarker("TranscriptionOrchestrator", $"Cloud transcription via {providerType}");
 
+        // Capture before provider resolution reads any key. A later key edit
+        // advances the generation and makes this request's outcome stale.
+        var healthService = CloudProviderHealthService.Instance;
+        var credentialGeneration = healthService.CaptureTranscriptionCredentialGeneration(providerType);
+
         // Get configured provider (validates API key, configures model)
         var provider = _providerFactory.GetConfiguredCloudProvider(providerType, mode.CloudTranscriptionModel);
 
@@ -359,30 +364,47 @@ public class TranscriptionOrchestrator : IDisposable
         // reached Sentry as the same report.
         var attemptSw = System.Diagnostics.Stopwatch.StartNew();
 
+        // HEALTH FEEDBACK (issue #379): this is the narrowest place that has BOTH
+        // the provider identity and the exception, so the real outcome of the
+        // cloud call — and only that call — is what reaches the health cache. The
+        // caller's own catch further up also sees post-processing and file
+        // failures, which say nothing about whether the provider is up.
         string result;
-        if (providerType == CloudTranscriptionProvider.HyperWhisperCloud && provider is HyperWhisperCloudService hwCloud)
+        try
         {
-            // HyperWhisper Cloud supports accuracy tier + per-provider model + domain selection
-            result = await hwCloud.TranscribeAsync(audioPath, language, effectiveVocabulary,
-                mode.CloudAccuracyTier, mode.CloudTranscriptionModel, mode.CloudTranscriptionDomain, cancellationToken);
+            if (providerType == CloudTranscriptionProvider.HyperWhisperCloud && provider is HyperWhisperCloudService hwCloud)
+            {
+                // HyperWhisper Cloud supports accuracy tier + per-provider model + domain selection
+                result = await hwCloud.TranscribeAsync(audioPath, language, effectiveVocabulary,
+                    mode.CloudAccuracyTier, mode.CloudTranscriptionModel, mode.CloudTranscriptionDomain, cancellationToken);
+            }
+            else if (providerType == CloudTranscriptionProvider.AssemblyAI && provider is AssemblyAIService assemblyAIService)
+            {
+                // Pass an already-known duration (e.g. the file-import flow's
+                // NAudio probe, or the live-recording flow's RecordingDuration) as
+                // a PER-CALL parameter, not a shared setter, so AssemblyAI's
+                // sync-eligibility gate can skip re-probing the same file without
+                // risking a concurrent request overwriting a shared instance
+                // field — see AssemblyAIService's internal TranscribeAsync
+                // overload doc comment for why.
+                result = await assemblyAIService.TranscribeAsync(audioPath, language, effectiveVocabulary, knownDurationSeconds, cancellationToken);
+            }
+            else
+            {
+                result = await provider.TranscribeAsync(audioPath, language, effectiveVocabulary, cancellationToken);
+            }
         }
-        else if (providerType == CloudTranscriptionProvider.AssemblyAI && provider is AssemblyAIService assemblyAIService)
+        catch (Exception ex)
         {
-            // Pass an already-known duration (e.g. the file-import flow's
-            // NAudio probe, or the live-recording flow's RecordingDuration) as
-            // a PER-CALL parameter, not a shared setter, so AssemblyAI's
-            // sync-eligibility gate can skip re-probing the same file without
-            // risking a concurrent request overwriting a shared instance
-            // field — see AssemblyAIService's internal TranscribeAsync
-            // overload doc comment for why.
-            result = await assemblyAIService.TranscribeAsync(audioPath, language, effectiveVocabulary, knownDurationSeconds, cancellationToken);
-        }
-        else
-        {
-            result = await provider.TranscribeAsync(audioPath, language, effectiveVocabulary, cancellationToken);
+            healthService.RecordTranscriptionOutcome(providerType, credentialGeneration, ex);
+            throw;
         }
 
         attemptSw.Stop();
+
+        // Recorded after Stop() so the outcome bookkeeping never lands inside the
+        // measured provider latency.
+        healthService.RecordTranscriptionOutcome(providerType, credentialGeneration, null);
 
         var displayName = TranscriptionProviderFactory.GetProviderDisplayName(providerType, mode.CloudTranscriptionModel);
 
