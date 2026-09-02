@@ -793,7 +793,24 @@ enum TranscribeEndpoint {
         case "parakeet":
             mode.model = ParakeetModelManager.Constants.modelIdForSelection(model)
         case "nemotron", "nemotronlocal", "nemotron-local", "nemotron-asr":
-            mode.model = NemotronModelManager.Constants.modelIdForSelection(model)
+            let requestedNemotronModel = model?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            if requestedNemotronModel.isEmpty {
+                // No explicit model. Same reasoning as the cloud branch's
+                // `belongsToProvider` guard above: on the mixed mode_id+engine
+                // form the caller is re-asserting the engine, not asking to
+                // change variant, and `mode` is already a copy of their saved
+                // Mode — so keep an inherited id that really is a Nemotron
+                // variant. Defaulting unconditionally would swap a saved Latin
+                // mode to multilingual and fail with MODEL_NOT_INSTALLED for a
+                // caller who only installed Latin. Anything else inherited
+                // (the Core Data default "base", a Parakeet id, a prefix-alike
+                // that names no real variant) is not usable here, so it falls
+                // through to the engine's default.
+                mode.model = NemotronModelManager.Constants.canonicalModelId(for: mode.model ?? "")
+                    ?? NemotronModelManager.Constants.modelIdForSelection(nil)
+            } else {
+                mode.model = NemotronModelManager.Constants.modelIdForSelection(requestedNemotronModel)
+            }
         case "qwen3asr", "qwen3", "qwen3-asr":
             mode.model = Qwen3AsrModelManager.Constants.modelId
         case "applespeech", "apple", "apple-speech", "apple-speech-analyzer", "speech-analyzer":

@@ -187,6 +187,88 @@ struct NemotronLocalAPIEngineTests {
         #expect(blank.model == NemotronModelManager.Constants.multilingualModelId)
     }
 
+    /// Review round 1, the mixed `mode_id` + `engine` form. `makeTransientMode`
+    /// copies `baseline.model` onto the transient Mode BEFORE calling
+    /// `applyEngineModel`, so on that path the Mode already carries the
+    /// variant the user saved. Re-asserting `engine=nemotron` with no `model`
+    /// must not swap it: a caller with only the Latin variant installed
+    /// otherwise gets MODEL_NOT_INSTALLED for the multilingual default they
+    /// never asked for.
+    @Test func anInheritedNemotronVariantSurvivesAnEngineOnlyOverride() {
+        let persistence = PersistenceController(inMemory: true)
+        let aliases = ["nemotron", "nemotronLocal", "nemotron-local", "nemotron-asr"]
+
+        for alias in aliases {
+            for inherited in [
+                NemotronModelManager.Constants.latinModelId,
+                NemotronModelManager.Constants.multilingualModelId,
+            ] {
+                let mode = Mode(context: persistence.container.viewContext)
+                mode.model = inherited
+                TranscribeEndpoint.applyEngineModel(to: mode, engine: alias, model: nil)
+                #expect(
+                    mode.model == inherited,
+                    "engine '\(alias)' with no model replaced the inherited '\(inherited)' with '\(mode.model ?? "nil")'"
+                )
+
+                // A blank/whitespace model is not an override either, so it
+                // must inherit on exactly the same terms as nil.
+                let blank = Mode(context: persistence.container.viewContext)
+                blank.model = inherited
+                TranscribeEndpoint.applyEngineModel(to: blank, engine: alias, model: "   ")
+                #expect(blank.model == inherited)
+            }
+        }
+
+        // An inherited id written by an older build in a different case is
+        // still recognised, and is normalised to the canonical spelling.
+        let shouted = Mode(context: persistence.container.viewContext)
+        shouted.model = NemotronModelManager.Constants.latinModelId.uppercased()
+        TranscribeEndpoint.applyEngineModel(to: shouted, engine: "nemotron", model: nil)
+        #expect(shouted.model == NemotronModelManager.Constants.latinModelId)
+
+        // An explicit model still beats the inherited one — inheriting is only
+        // the no-model fallback, not a veto on the request.
+        let overridden = Mode(context: persistence.container.viewContext)
+        overridden.model = NemotronModelManager.Constants.latinModelId
+        TranscribeEndpoint.applyEngineModel(
+            to: overridden,
+            engine: "nemotron",
+            model: NemotronModelManager.Constants.multilingualModelId
+        )
+        #expect(overridden.model == NemotronModelManager.Constants.multilingualModelId)
+    }
+
+    /// The other half of the inherit rule: only a REAL Nemotron variant is
+    /// inheritable. Anything else on the baseline Mode — the Core Data default
+    /// "base", another engine's id, or a prefix-alike that names no variant —
+    /// is not a Nemotron selection, so `engine=nemotron` falls back to the
+    /// engine default rather than carrying a foreign id into the router.
+    @Test func aNonNemotronInheritedModelFallsBackToTheDefaultVariant() {
+        let persistence = PersistenceController(inMemory: true)
+        let foreign = [
+            "base",                       // the Core Data default on a fresh Mode
+            "large-v3-turbo",
+            ParakeetModelManager.Constants.v2ModelId,
+            Qwen3AsrModelManager.Constants.modelId,
+            "apple-speech-analyzer",
+            "cloud",
+            "nemotron-asr-3.5-bogus",     // prefix-alike, names no real variant
+            "",
+        ]
+
+        for inherited in foreign {
+            let mode = Mode(context: persistence.container.viewContext)
+            mode.model = inherited
+            TranscribeEndpoint.applyEngineModel(to: mode, engine: "nemotron", model: nil)
+            #expect(
+                mode.model == NemotronModelManager.Constants.multilingualModelId,
+                "inherited '\(inherited)' should not have been kept as a Nemotron selection"
+            )
+            #expect(TranscribeEndpoint.engineLabel(forMode: mode) == "nemotron")
+        }
+    }
+
     // MARK: - TranscribeEndpoint.engineLabel(forMode:)
 
     /// The direct regression test for the issue's first comment: a saved Mode
