@@ -422,10 +422,6 @@
 "license.button.activate" = "הפעל";
 "license.button.activating" = "מפעיל...";
 "license.status.label" = "מצב: %@";
-"license.status.trial.title" = "ניסיון";
-"license.status.active.title" = "פעיל";
-"license.status.expired.title" = "פג תוקף";
-"license.status.invalid.title" = "לא תקין";
 "license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "מורשה – גישה מלאה";
 "license.status.expired.description" = "רישיון פג תוקף";
@@ -1055,7 +1051,6 @@
 "settings.backup.import.confirm.button" = "ייבא";
 "settings.backup.conflict.skip" = "דלג על קיים";
 "settings.backup.conflict.replace" = "החלף קיים";
-"settings.backup.conflict.keepBoth" = "שמור את שניהם";
 "settings.backup.security.warning" = "אזהרה: הקובץ המיוצא יכיל נתונים רגישים. שמור אותו מאובטח ואל תשתף אותו.";
 "settings.backup.info.note" = "גיבויים כוללים הגדרות, מצבים ואוצר מילים. הקלטות ותמלולים אינם כלולים.";
 "settings.backup.result.success.title" = "הצלחה";
@@ -1090,9 +1085,6 @@
 "transcribe.file.error.video.noAudio" = "קובץ הוידאו הזה לא מכיל רצועת אודיו. אנא בחר וידאו עם אודיו או קובץ אודיו.";
 
 // MARK: - File Transcription Progress
-"file.transcription.preparing" = "מכין...";
-"file.transcription.transcribing" = "מתמלל...";
-"file.transcription.finishing" = "מסיים...";
 "file.transcription.cancel" = "ביטול";
 
 // MARK: - Auto-Delete Recordings

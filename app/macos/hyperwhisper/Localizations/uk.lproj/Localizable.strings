@@ -422,10 +422,6 @@
 "license.button.activate" = "Активувати";
 "license.button.activating" = "Активація...";
 "license.status.label" = "Стан: %@";
-"license.status.trial.title" = "Пробна версія";
-"license.status.active.title" = "Активна";
-"license.status.expired.title" = "Закінчилась";
-"license.status.invalid.title" = "Недійсна";
 "license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "Ліцензовано – повний доступ";
 "license.status.expired.description" = "Ліцензія закінчилась";
@@ -1055,7 +1051,6 @@
 "settings.backup.import.confirm.button" = "Імпортувати";
 "settings.backup.conflict.skip" = "Пропустити існуючі";
 "settings.backup.conflict.replace" = "Замінити існуючі";
-"settings.backup.conflict.keepBoth" = "Зберегти обидва";
 "settings.backup.security.warning" = "Попередження: експортований файл буде містити чутливі дані. Зберігайте його в безпеці та не спільно користуйтеся ним.";
 "settings.backup.info.note" = "Резервні копії включають параметри, режими та словник. Записи та транскрипти не включені.";
 "settings.backup.result.success.title" = "Успіх";
@@ -1090,9 +1085,6 @@
 "transcribe.file.error.video.noAudio" = "Цей відеофайл не містить аудіо доріжки. Виберіть відео зі звуком або аудіо файл.";
 
 // MARK: - File Transcription Progress
-"file.transcription.preparing" = "Підготовка...";
-"file.transcription.transcribing" = "Транскрипція...";
-"file.transcription.finishing" = "Завершення...";
 "file.transcription.cancel" = "Скасувати";
 
 // MARK: - Auto-Delete Recordings

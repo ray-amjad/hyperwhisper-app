@@ -172,14 +172,4 @@ extension CustomPostProcessingEndpoint {
             throw ValidationError.rejected(verdict.message ?? "Invalid URL format")
         }
     }
-
-    /// Check if the endpoint configuration is valid
-    var isValid: Bool {
-        do {
-            try validate()
-            return true
-        } catch {
-            return false
-        }
-    }
 }

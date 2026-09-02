@@ -722,17 +722,6 @@ enum ModeConflictResolution: String, CaseIterable, Identifiable {
     case keepBoth
 
     var id: String { rawValue }
-
-    var localizedName: String {
-        switch self {
-        case .skip:
-            return NSLocalizedString("settings.backup.conflict.skip", value: "Skip existing", comment: "")
-        case .replace:
-            return NSLocalizedString("settings.backup.conflict.replace", value: "Replace existing", comment: "")
-        case .keepBoth:
-            return NSLocalizedString("settings.backup.conflict.keepBoth", value: "Keep both", comment: "")
-        }
-    }
 }
 
 /// How to handle vocabulary conflicts during import
@@ -744,15 +733,6 @@ enum VocabularyConflictResolution: String, CaseIterable, Identifiable {
     case replace
 
     var id: String { rawValue }
-
-    var localizedName: String {
-        switch self {
-        case .skip:
-            return NSLocalizedString("settings.backup.conflict.skip", value: "Skip existing", comment: "")
-        case .replace:
-            return NSLocalizedString("settings.backup.conflict.replace", value: "Replace existing", comment: "")
-        }
-    }
 }
 
 // MARK: - File Inspection (auto-detect what a backup contains)
@@ -817,20 +797,6 @@ struct BackupValidationResult {
         )
     }
 
-    /// Creates a failed validation result
-    static func failure(_ message: String) -> BackupValidationResult {
-        BackupValidationResult(
-            isValid: false,
-            version: nil,
-            exportDate: nil,
-            appVersion: nil,
-            modeCount: 0,
-            vocabularyCount: 0,
-            hasAPIKeys: false,
-            hasLicenseKey: false,
-            errorMessage: message
-        )
-    }
 }
 
 /// Result of an import operation

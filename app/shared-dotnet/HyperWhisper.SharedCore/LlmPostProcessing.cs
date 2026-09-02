@@ -46,14 +46,6 @@ public static class LlmPostProcessing
     public static uint GroqMaxCompletionTokens =>
         HyperwhisperCoreMethods.LlmGroqMaxCompletionTokens();
 
-    /// <summary>Max custom endpoint URL length.</summary>
-    public static uint MaxCustomEndpointUrlChars =>
-        HyperwhisperCoreMethods.LlmMaxCustomEndpointUrlChars();
-
-    /// <summary>Max custom endpoint model-name length.</summary>
-    public static uint MaxCustomEndpointModelChars =>
-        HyperwhisperCoreMethods.LlmMaxCustomEndpointModelChars();
-
     /// <summary>
     /// Build the post-processing request. The caller sends it with its own
     /// timeout and retry policy.

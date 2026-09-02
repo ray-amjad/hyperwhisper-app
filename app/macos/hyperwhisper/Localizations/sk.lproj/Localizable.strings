@@ -422,10 +422,6 @@
 "license.button.activate" = "Aktivovať";
 "license.button.activating" = "Aktivácia...";
 "license.status.label" = "Stav: %@";
-"license.status.trial.title" = "Skúšobná verzia";
-"license.status.active.title" = "Aktívna";
-"license.status.expired.title" = "Vypršala";
-"license.status.invalid.title" = "Neplatná";
 "license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "Licencovaný – Úplný prístup";
 "license.status.expired.description" = "Licencia vypršala";
@@ -1055,7 +1051,6 @@ Pred odstránením aktualizujte tieto režimy, aby používali iný model.";
 "settings.backup.import.confirm.button" = "Importovať";
 "settings.backup.conflict.skip" = "Preskočiť existujúce";
 "settings.backup.conflict.replace" = "Nahradiť existujúce";
-"settings.backup.conflict.keepBoth" = "Ponechať obe";
 "settings.backup.security.warning" = "Upozornenie: Vyviezený súbor bude obsahovať citlivé údaje. Udržujte ho v bezpečnosti a nezdieľajte ho.";
 "settings.backup.info.note" = "Zálohy zahŕňajú nastavenia, režimy a slovník. Nahrávky a prepisy nie sú zahrnuté.";
 "settings.backup.result.success.title" = "Úspech";
@@ -1090,9 +1085,6 @@ Pred odstránením aktualizujte tieto režimy, aby používali iný model.";
 "transcribe.file.error.video.noAudio" = "Tento videosúbor neobsahuje zvukovú stopu. Vyberte si video so zvukom alebo zvukový súbor.";
 
 // MARK: - File Transcription Progress
-"file.transcription.preparing" = "Príprava...";
-"file.transcription.transcribing" = "Prepisujem...";
-"file.transcription.finishing" = "Doužívam...";
 "file.transcription.cancel" = "Zrušiť";
 
 // MARK: - Auto-Delete Recordings

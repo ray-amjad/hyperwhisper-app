@@ -422,10 +422,6 @@
 "license.button.activate" = "تفعيل";
 "license.button.activating" = "جارٍ التفعيل...";
 "license.status.label" = "الحالة: %@";
-"license.status.trial.title" = "تجربة";
-"license.status.active.title" = "نشط";
-"license.status.expired.title" = "انتهت الصلاحية";
-"license.status.invalid.title" = "غير صحيح";
 "license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "مرخص – وصول كامل";
 "license.status.expired.description" = "انتهت صلاحية الترخيص";
@@ -1055,7 +1051,6 @@
 "settings.backup.import.confirm.button" = "استيراد";
 "settings.backup.conflict.skip" = "تخطي الموجودة";
 "settings.backup.conflict.replace" = "استبدال الموجودة";
-"settings.backup.conflict.keepBoth" = "الاحتفاظ بالاثنين";
 "settings.backup.security.warning" = "تحذير: سيحتوي الملف المُصدَّر على بيانات حساسة. احفظه بأمان ولا تشاركه.";
 "settings.backup.info.note" = "تحتوي النسخ الاحتياطية على الإعدادات والأوضاع والمفردات. لا يتم تضمين التسجيلات والنسخ.";
 "settings.backup.result.success.title" = "نجح";
@@ -1090,9 +1085,6 @@
 "transcribe.file.error.video.noAudio" = "لا يحتوي ملف الفيديو هذا على مسار صوتي. يرجى تحديد فيديو مع صوت أو ملف صوتي.";
 
 // MARK: - File Transcription Progress
-"file.transcription.preparing" = "جارٍ التحضير...";
-"file.transcription.transcribing" = "جارٍ النسخ...";
-"file.transcription.finishing" = "جارٍ الإنهاء...";
 "file.transcription.cancel" = "إلغاء";
 
 // MARK: - Auto-Delete Recordings

@@ -422,10 +422,6 @@
 "license.button.activate" = "Activați";
 "license.button.activating" = "Se activează...";
 "license.status.label" = "Stare: %@";
-"license.status.trial.title" = "Versiune de probă";
-"license.status.active.title" = "Activ";
-"license.status.expired.title" = "Expirat";
-"license.status.invalid.title" = "Nevalid";
 "license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "Cu licență – Acces complet";
 "license.status.expired.description" = "Licența a expirat";
@@ -1055,7 +1051,6 @@ Actualizați aceste moduri pentru a utiliza un model diferit înainte de șterge
 "settings.backup.import.confirm.button" = "Importați";
 "settings.backup.conflict.skip" = "Omiteți existent";
 "settings.backup.conflict.replace" = "Înlocuiți existent";
-"settings.backup.conflict.keepBoth" = "Păstrați ambele";
 "settings.backup.security.warning" = "Avertisment: Fișierul exportat va conține date sensibile. Păstrați-l în siguranță și nu-l partajați.";
 "settings.backup.info.note" = "Copiile de siguranță includ setări, moduri și vocabular. Înregistrări și transcrieri nu sunt incluse.";
 "settings.backup.result.success.title" = "Succes";
@@ -1090,9 +1085,6 @@ Actualizați aceste moduri pentru a utiliza un model diferit înainte de șterge
 "transcribe.file.error.video.noAudio" = "Acest fișier video nu conține o pistă audio. Vă rugăm selectați un video cu audio sau un fișier audio.";
 
 // MARK: - File Transcription Progress
-"file.transcription.preparing" = "Se pregătește...";
-"file.transcription.transcribing" = "Se transcrie...";
-"file.transcription.finishing" = "Se termină...";
 "file.transcription.cancel" = "Anulați";
 
 // MARK: - Auto-Delete Recordings

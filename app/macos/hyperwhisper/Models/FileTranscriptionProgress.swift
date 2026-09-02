@@ -35,18 +35,6 @@ enum FileTranscriptionStage: String, CaseIterable {
     case transcribing = "transcribing"
     case finishing = "finishing"
 
-    /// Localized title for display in the popup
-    var localizedTitle: String {
-        switch self {
-        case .preparing:
-            return "file.transcription.preparing".localized
-        case .transcribing:
-            return "file.transcription.transcribing".localized
-        case .finishing:
-            return "file.transcription.finishing".localized
-        }
-    }
-
     /// SF Symbol icon for this stage
     var icon: String {
         switch self {

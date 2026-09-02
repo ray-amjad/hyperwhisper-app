@@ -370,11 +370,6 @@ final class BareModifierKeyMonitor {
         }
     }
 
-    /// Check if monitoring is currently active
-    func isRunning() -> Bool {
-        return isMonitoring
-    }
-
     /// Reset state to idle when recording is stopped externally
     ///
     /// **When to Call:**

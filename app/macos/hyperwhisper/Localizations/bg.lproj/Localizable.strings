@@ -422,10 +422,6 @@
 "license.button.activate" = "Активиране";
 "license.button.activating" = "Активиране...";
 "license.status.label" = "Статус: %@";
-"license.status.trial.title" = "Пробен период";
-"license.status.active.title" = "Активен";
-"license.status.expired.title" = "Изтекъл";
-"license.status.invalid.title" = "Невалиден";
 "license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "Лицензиран – Пълен достъп";
 "license.status.expired.description" = "Лицензът е изтекъл";
@@ -1055,7 +1051,6 @@
 "settings.backup.import.confirm.button" = "Импортиране";
 "settings.backup.conflict.skip" = "Пропусни съществуващите";
 "settings.backup.conflict.replace" = "Замени съществуващите";
-"settings.backup.conflict.keepBoth" = "Запази и двата";
 "settings.backup.security.warning" = "Предупреждение: Експортираният файл ще съдържа чувствителни данни. Пазете го на сигурно и не го споделяйте.";
 "settings.backup.info.note" = "Резервните копия включват настройки, режими и речник. Записите и транскрипциите не са включени.";
 "settings.backup.result.success.title" = "Успех";
@@ -1090,9 +1085,6 @@
 "transcribe.file.error.video.noAudio" = "Този видео файл не съдържа аудио пътека. Моля, изберете видео с аудио или аудио файл.";
 
 // MARK: - File Transcription Progress
-"file.transcription.preparing" = "Подготовка...";
-"file.transcription.transcribing" = "Транскрибиране...";
-"file.transcription.finishing" = "Завършване...";
 "file.transcription.cancel" = "Отказ";
 
 // MARK: - Auto-Delete Recordings

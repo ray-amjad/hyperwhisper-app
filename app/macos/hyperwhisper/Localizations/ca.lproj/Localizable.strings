@@ -422,10 +422,6 @@
 "license.button.activate" = "Activar";
 "license.button.activating" = "Activant...";
 "license.status.label" = "Estat: %@";
-"license.status.trial.title" = "Prova";
-"license.status.active.title" = "Activa";
-"license.status.expired.title" = "Caducada";
-"license.status.invalid.title" = "No vàlida";
 "license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "Amb llicència – Accés complet";
 "license.status.expired.description" = "Llicència caducada";
@@ -1055,7 +1051,6 @@ Actualitza aquests modes per utilitzar un model diferent abans d'eliminar-lo.";
 "settings.backup.import.confirm.button" = "Importar";
 "settings.backup.conflict.skip" = "Ometre els existents";
 "settings.backup.conflict.replace" = "Substituir els existents";
-"settings.backup.conflict.keepBoth" = "Conservar ambdós";
 "settings.backup.security.warning" = "Avís: El fitxer exportat contindrà dades sensibles. Manteniu-lo segur i no el compartiu.";
 "settings.backup.info.note" = "Les còpies de seguretat inclouen configuració, modes i vocabulari. Les gravacions i transcripcions no s'inclouen.";
 "settings.backup.result.success.title" = "Correcte";
@@ -1090,9 +1085,6 @@ Actualitza aquests modes per utilitzar un model diferent abans d'eliminar-lo.";
 "transcribe.file.error.video.noAudio" = "Aquest fitxer de vídeo no conté una pista d'àudio. Seleccioneu un vídeo amb àudio o un fitxer d'àudio.";
 
 // MARK: - File Transcription Progress
-"file.transcription.preparing" = "Preparant...";
-"file.transcription.transcribing" = "Transcrivint...";
-"file.transcription.finishing" = "Finalitzant...";
 "file.transcription.cancel" = "Cancel·lar";
 
 // MARK: - Auto-Delete Recordings

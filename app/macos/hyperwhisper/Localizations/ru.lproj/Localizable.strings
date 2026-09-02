@@ -422,10 +422,6 @@
 "license.button.activate" = "Активировать";
 "license.button.activating" = "Активирование...";
 "license.status.label" = "Статус: %@";
-"license.status.trial.title" = "Пробная версия";
-"license.status.active.title" = "Активна";
-"license.status.expired.title" = "Истекла";
-"license.status.invalid.title" = "Недействительна";
 "license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "Лицензировано – Полный доступ";
 "license.status.expired.description" = "Лицензия истекла";
@@ -1055,7 +1051,6 @@
 "settings.backup.import.confirm.button" = "Импортировать";
 "settings.backup.conflict.skip" = "Пропустить существующие";
 "settings.backup.conflict.replace" = "Заменить существующие";
-"settings.backup.conflict.keepBoth" = "Сохранить оба";
 "settings.backup.security.warning" = "Предупреждение: экспортированный файл будет содержать конфиденциальные данные. Храните его в безопасности и не делитесь им.";
 "settings.backup.info.note" = "Резервные копии включают параметры, режимы и словарь. Записи и транскрипции не включены.";
 "settings.backup.result.success.title" = "Успешно";
@@ -1090,9 +1085,6 @@
 "transcribe.file.error.video.noAudio" = "Этот видеофайл не содержит аудиодорожку. Пожалуйста, выберите видео со звуком или аудиофайл.";
 
 // MARK: - File Transcription Progress
-"file.transcription.preparing" = "Подготовка...";
-"file.transcription.transcribing" = "Транскрипция...";
-"file.transcription.finishing" = "Завершение...";
 "file.transcription.cancel" = "Отмена";
 
 // MARK: - Auto-Delete Recordings

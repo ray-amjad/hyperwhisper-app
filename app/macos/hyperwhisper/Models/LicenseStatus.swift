@@ -42,21 +42,6 @@ enum LicenseStatus: String, CaseIterable {
     case expired = "Expired"
     case invalid = "Invalid"
 
-    /// Localized display name for the status badge
-    /// Used in the UI to show the current license state
-    var localizedTitle: String {
-        switch self {
-        case .trial:
-            return "license.status.trial.title".localized
-        case .active:
-            return "license.status.active.title".localized
-        case .expired:
-            return "license.status.expired.title".localized
-        case .invalid:
-            return "license.status.invalid.title".localized
-        }
-    }
-
     /// User-friendly description of the Cloud license status.
     var description: String {
         switch self {
