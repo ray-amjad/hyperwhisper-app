@@ -5093,7 +5093,7 @@ public struct FfiConverterTypeModelsEntry: FfiConverterRustBuffer {
                 notes: FfiConverterOptionString.read(from: &buf), 
                 supportedLanguages: FfiConverterSequenceString.read(from: &buf), 
                 isEnglishOnly: FfiConverterOptionBool.read(from: &buf), 
-                supportsAllLanguages: FfiConverterOptionBool.read(from: &buf),
+                supportsAllLanguages: FfiConverterOptionBool.read(from: &buf), 
                 voiceCapabilities: FfiConverterOptionTypeModelsVoiceCapabilities.read(from: &buf)
         )
     }
@@ -5202,12 +5202,12 @@ public struct FfiConverterTypeModelsVoiceCapabilities: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ModelsVoiceCapabilities {
         return
             try ModelsVoiceCapabilities(
-                codeSwitching: FfiConverterBool.read(from: &buf),
-                endpointing: FfiConverterBool.read(from: &buf),
-                contextBias: FfiConverterBool.read(from: &buf),
-                languageBias: FfiConverterBool.read(from: &buf),
-                turnTimestamps: FfiConverterBool.read(from: &buf),
-                diarization: FfiConverterBool.read(from: &buf),
+                codeSwitching: FfiConverterBool.read(from: &buf), 
+                endpointing: FfiConverterBool.read(from: &buf), 
+                contextBias: FfiConverterBool.read(from: &buf), 
+                languageBias: FfiConverterBool.read(from: &buf), 
+                turnTimestamps: FfiConverterBool.read(from: &buf), 
+                diarization: FfiConverterBool.read(from: &buf), 
                 wordTimestamps: FfiConverterBool.read(from: &buf)
         )
     }
@@ -6349,11 +6349,11 @@ public struct FfiConverterTypeSttFeatures: FfiConverterRustBuffer {
             try SttFeatures(
                 wordTimestamps: FfiConverterBool.read(from: &buf), 
                 diarization: FfiConverterBool.read(from: &buf), 
-                streaming: FfiConverterBool.read(from: &buf),
-                codeSwitching: FfiConverterBool.read(from: &buf),
-                endpointing: FfiConverterBool.read(from: &buf),
-                contextBias: FfiConverterBool.read(from: &buf),
-                languageBias: FfiConverterBool.read(from: &buf),
+                streaming: FfiConverterBool.read(from: &buf), 
+                codeSwitching: FfiConverterBool.read(from: &buf), 
+                endpointing: FfiConverterBool.read(from: &buf), 
+                contextBias: FfiConverterBool.read(from: &buf), 
+                languageBias: FfiConverterBool.read(from: &buf), 
                 turnTimestamps: FfiConverterBool.read(from: &buf)
         )
     }
@@ -10189,6 +10189,8 @@ public enum HwPart {
     )
     case fileRef(field: String, path: String, mime: String, filename: String
     )
+    case inlineFile(field: String, filename: String, mime: String, data: Data
+    )
 }
 
 
@@ -10206,6 +10208,9 @@ public struct FfiConverterTypeHwPart: FfiConverterRustBuffer {
         )
         
         case 2: return .fileRef(field: try FfiConverterString.read(from: &buf), path: try FfiConverterString.read(from: &buf), mime: try FfiConverterString.read(from: &buf), filename: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 3: return .inlineFile(field: try FfiConverterString.read(from: &buf), filename: try FfiConverterString.read(from: &buf), mime: try FfiConverterString.read(from: &buf), data: try FfiConverterData.read(from: &buf)
         )
         
         default: throw UniffiInternalError.unexpectedEnumCase
@@ -10228,6 +10233,14 @@ public struct FfiConverterTypeHwPart: FfiConverterRustBuffer {
             FfiConverterString.write(path, into: &buf)
             FfiConverterString.write(mime, into: &buf)
             FfiConverterString.write(filename, into: &buf)
+            
+        
+        case let .inlineFile(field,filename,mime,data):
+            writeInt(&buf, Int32(3))
+            FfiConverterString.write(field, into: &buf)
+            FfiConverterString.write(filename, into: &buf)
+            FfiConverterString.write(mime, into: &buf)
+            FfiConverterData.write(data, into: &buf)
             
         }
     }
@@ -10257,7 +10270,7 @@ extension HwPart: Equatable, Hashable {}
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
- * The 14 cloud speech-to-text providers. Mirrors `hw_net::Provider`.
+ * The 15 cloud speech-to-text providers. Mirrors `hw_net::Provider`.
  */
 
 public enum HwProvider {
@@ -10276,6 +10289,7 @@ public enum HwProvider {
     case googleChirp
     case geminiTranscribe
     case geminiTranscribeLive
+    case meta
 }
 
 
@@ -10316,6 +10330,8 @@ public struct FfiConverterTypeHwProvider: FfiConverterRustBuffer {
         case 13: return .geminiTranscribe
         
         case 14: return .geminiTranscribeLive
+        
+        case 15: return .meta
         
         default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -10379,6 +10395,10 @@ public struct FfiConverterTypeHwProvider: FfiConverterRustBuffer {
         
         case .geminiTranscribeLive:
             writeInt(&buf, Int32(14))
+        
+        
+        case .meta:
+            writeInt(&buf, Int32(15))
         
         }
     }
@@ -14654,6 +14674,20 @@ public func macosSettingsToUniversalSettingsJson(macosJson: String, existingMaco
     )
 })
 }
+public func metaBuildTranscribeRequest(params: TranscribeParams)throws  -> HttpRequest {
+    return try  FfiConverterTypeHttpRequest.lift(try rustCallWithError(FfiConverterTypeHwTranscriptionError.lift) {
+    uniffi_hyperwhisper_core_fn_func_meta_build_transcribe_request(
+        FfiConverterTypeTranscribeParams.lower(params),$0
+    )
+})
+}
+public func metaParseTranscribeResponse(resp: HttpResponse)throws  -> HwTranscript {
+    return try  FfiConverterTypeHwTranscript.lift(try rustCallWithError(FfiConverterTypeHwTranscriptionError.lift) {
+    uniffi_hyperwhisper_core_fn_func_meta_parse_transcribe_response(
+        FfiConverterTypeHttpResponse.lower(resp),$0
+    )
+})
+}
 /**
  * Migrate a persisted `cloudAccuracyTier` storage string to its canonical
  * catalog id. `None`/empty → the default tier.
@@ -15890,6 +15924,12 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_macos_settings_to_universal_settings_json() != 44899) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_meta_build_transcribe_request() != 23035) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_meta_parse_transcribe_response() != 61443) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_migrate_cloud_accuracy_tier() != 39469) {

@@ -5463,6 +5463,53 @@ internal static class Program
                 }
             });
 
+            RunAsync("typed multipart files survive the C# binding beside streamed audio", async () =>
+            {
+                var path = Path.Combine(
+                    Path.GetTempPath(), "HyperWhisper.SmokeTests", Guid.NewGuid().ToString("N") + ".wav");
+                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                try
+                {
+                    await File.WriteAllTextAsync(path, "streamed-audio-marker");
+                    var metadata = System.Text.Encoding.UTF8.GetBytes("{\"mode\":\"PUSH_TO_TALK\"}");
+                    using var message = RustHttpExecutor.BuildRequestMessage(new HttpRequest(
+                        @method: uniffi.hyperwhisper_core.HttpMethod.Post,
+                        @url: "https://example.test/transcribe",
+                        @headers: new List<Header>(),
+                        @body: new Body.Multipart("test-boundary", new List<HwPart>
+                        {
+                            new HwPart.InlineFile("request", "request.json", "application/json", metadata),
+                            new HwPart.FileRef("audio", path, "audio/wav", "audio.wav"),
+                        })));
+
+                    Assert(message.Content != null, "typed multipart request produced no content");
+                    var rendered = System.Text.Encoding.UTF8.GetString(
+                        await message.Content!.ReadAsByteArrayAsync());
+                    Assert(rendered.Contains("name=\"request\"; filename=\"request.json\"", StringComparison.Ordinal),
+                        "typed request.json disposition is missing");
+                    Assert(rendered.Contains("Content-Type: application/json", StringComparison.OrdinalIgnoreCase),
+                        "typed request.json MIME is missing");
+                    Assert(rendered.Contains("{\"mode\":\"PUSH_TO_TALK\"}", StringComparison.Ordinal),
+                        "typed request.json bytes are missing");
+                    Assert(rendered.Contains("name=\"audio\"; filename=\"audio.wav\"", StringComparison.Ordinal),
+                        "streamed audio disposition is missing");
+                    Assert(rendered.Contains("streamed-audio-marker", StringComparison.Ordinal),
+                        "streamed audio bytes are missing");
+                }
+                finally
+                {
+                    try
+                    {
+                        var directory = Path.GetDirectoryName(path);
+                        if (directory != null && Directory.Exists(directory))
+                            Directory.Delete(directory, recursive: true);
+                    }
+                    catch (IOException)
+                    {
+                    }
+                }
+            });
+
             // =================================================================
             // Local API wire contract (issue #289)
             //

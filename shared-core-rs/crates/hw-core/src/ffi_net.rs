@@ -13,7 +13,7 @@ use hw_net::contract as c;
 // Contract types
 // ===========================================================================
 
-/// The 14 cloud speech-to-text providers. Mirrors `hw_net::Provider`.
+/// The 15 cloud speech-to-text providers. Mirrors `hw_net::Provider`.
 #[derive(uniffi::Enum)]
 pub enum HwProvider {
     HyperWhisperCloud,
@@ -30,6 +30,7 @@ pub enum HwProvider {
     GoogleChirp,
     GeminiTranscribe,
     GeminiTranscribeLive,
+    Meta,
 }
 
 impl From<HwProvider> for c::Provider {
@@ -49,6 +50,7 @@ impl From<HwProvider> for c::Provider {
             HwProvider::GoogleChirp => c::Provider::GoogleChirp,
             HwProvider::GeminiTranscribe => c::Provider::GeminiTranscribe,
             HwProvider::GeminiTranscribeLive => c::Provider::GeminiTranscribeLive,
+            HwProvider::Meta => c::Provider::Meta,
         }
     }
 }
@@ -70,6 +72,7 @@ impl From<c::Provider> for HwProvider {
             c::Provider::GoogleChirp => HwProvider::GoogleChirp,
             c::Provider::GeminiTranscribe => HwProvider::GeminiTranscribe,
             c::Provider::GeminiTranscribeLive => HwProvider::GeminiTranscribeLive,
+            c::Provider::Meta => HwProvider::Meta,
         }
     }
 }
@@ -143,6 +146,12 @@ pub enum HwPart {
         mime: String,
         filename: String,
     },
+    InlineFile {
+        field: String,
+        filename: String,
+        mime: String,
+        data: Vec<u8>,
+    },
 }
 
 impl From<c::Part> for HwPart {
@@ -159,6 +168,17 @@ impl From<c::Part> for HwPart {
                 path,
                 mime,
                 filename,
+            },
+            c::Part::InlineFile {
+                field,
+                filename,
+                mime,
+                data,
+            } => HwPart::InlineFile {
+                field,
+                filename,
+                mime,
+                data,
             },
         }
     }
@@ -178,6 +198,17 @@ impl From<HwPart> for c::Part {
                 path,
                 mime,
                 filename,
+            },
+            HwPart::InlineFile {
+                field,
+                filename,
+                mime,
+                data,
+            } => c::Part::InlineFile {
+                field,
+                filename,
+                mime,
+                data,
             },
         }
     }
@@ -729,6 +760,11 @@ single_shot!(
     gemini_transcribe_parse_transcribe_response,
     hw_net::providers::gemini_transcribe
 );
+single_shot!(
+    meta_build_transcribe_request,
+    meta_parse_transcribe_response,
+    hw_net::providers::meta
+);
 
 // ===========================================================================
 // HyperWhisper Cloud (single-shot + credit helpers)
@@ -1063,7 +1099,7 @@ mod tests {
     // helpers
     // -----------------------------------------------------------------------
 
-    const ALL_PROVIDERS: [HwProvider; 14] = [
+    const ALL_PROVIDERS: [HwProvider; 15] = [
         HwProvider::HyperWhisperCloud,
         HwProvider::Openai,
         HwProvider::Groq,
@@ -1078,6 +1114,7 @@ mod tests {
         HwProvider::GoogleChirp,
         HwProvider::GeminiTranscribe,
         HwProvider::GeminiTranscribeLive,
+        HwProvider::Meta,
     ];
 
     /// A distinct label per FFI provider arm, written independently of the
@@ -1099,6 +1136,7 @@ mod tests {
             HwProvider::GoogleChirp => "google_chirp",
             HwProvider::GeminiTranscribe => "gemini_transcribe",
             HwProvider::GeminiTranscribeLive => "gemini_transcribe_live",
+            HwProvider::Meta => "meta",
         }
     }
 
@@ -1120,6 +1158,7 @@ mod tests {
             c::Provider::GoogleChirp => "google_chirp",
             c::Provider::GeminiTranscribe => "gemini_transcribe",
             c::Provider::GeminiTranscribeLive => "gemini_transcribe_live",
+            c::Provider::Meta => "meta",
         }
     }
 
@@ -1983,6 +2022,12 @@ mod tests {
                         mime: "audio/wav".to_string(),
                         filename: "take-one.wav".to_string(),
                     },
+                    HwPart::InlineFile {
+                        field: "request".to_string(),
+                        filename: "request.json".to_string(),
+                        mime: "application/json".to_string(),
+                        data: br#"{"mode":"PUSH_TO_TALK"}"#.to_vec(),
+                    },
                 ],
             },
         };
@@ -2002,6 +2047,13 @@ mod tests {
                 assert_eq!(path, "/tmp/take-one.wav");
                 assert_eq!(mime, "audio/wav");
                 assert_eq!(filename, "take-one.wav");
+                assert!(parts.iter().any(|part| matches!(
+                    part,
+                    HwPart::InlineFile { field, filename, mime, data }
+                        if field == "request" && filename == "request.json"
+                            && mime == "application/json"
+                            && data == br#"{"mode":"PUSH_TO_TALK"}"#
+                )));
             }
             _ => panic!("expected a multipart body"),
         }

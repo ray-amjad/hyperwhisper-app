@@ -235,6 +235,7 @@ var tests = new (string Name, Func<Task> Run)[]
     }),
     ("live protocol vocabulary keeps its own length drop and cap", TestLiveVocabularyAsync),
     ("inline base64 audio bodies assemble prefix + base64(file) + suffix", TestInlineBase64BodyAsync),
+    ("typed multipart files survive the C# binding and keep audio file-backed", TestTypedMultipartFileAsync),
     ("live terminal-error policy comes from the shared core", () =>
     {
         // The policy this head never had (issue #281). The macOS suite
@@ -658,6 +659,37 @@ static async Task TestInlineBase64BodyAsync()
         Assert.True(config.TryGetProperty("custom_vocabulary", out _));
         Assert.False(config.TryGetProperty("diarization_mode", out _));
         Assert.False(config.TryGetProperty("timestamp_granularities", out _));
+    }
+    finally
+    {
+        File.Delete(audio);
+    }
+}
+
+static async Task TestTypedMultipartFileAsync()
+{
+    var audio = TempAudio("streamed-audio-marker");
+    try
+    {
+        var metadata = Encoding.UTF8.GetBytes("{\"mode\":\"PUSH_TO_TALK\"}");
+        using var message = RustHttpTransport.BuildRequestMessage(new uniffi.hyperwhisper_core.HttpRequest(
+            uniffi.hyperwhisper_core.HttpMethod.Post,
+            "https://example.test/transcribe",
+            [],
+            new uniffi.hyperwhisper_core.Body.Multipart("test-boundary", [
+                new uniffi.hyperwhisper_core.HwPart.InlineFile(
+                    "request", "request.json", "application/json", metadata),
+                new uniffi.hyperwhisper_core.HwPart.FileRef(
+                    "audio", audio, "audio/wav", "audio.wav"),
+            ])));
+
+        Assert.NotNull(message.Content);
+        var rendered = Encoding.UTF8.GetString(await message.Content!.ReadAsByteArrayAsync());
+        Assert.True(rendered.Contains("name=\"request\"; filename=\"request.json\"", StringComparison.Ordinal));
+        Assert.True(rendered.Contains("Content-Type: application/json", StringComparison.OrdinalIgnoreCase));
+        Assert.True(rendered.Contains("{\"mode\":\"PUSH_TO_TALK\"}", StringComparison.Ordinal));
+        Assert.True(rendered.Contains("name=\"audio\"; filename=\"audio.wav\"", StringComparison.Ordinal));
+        Assert.True(rendered.Contains("streamed-audio-marker", StringComparison.Ordinal));
     }
     finally
     {

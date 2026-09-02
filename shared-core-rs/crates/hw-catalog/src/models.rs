@@ -509,6 +509,9 @@ mod tests {
             .entry("meta", Kind::Voice, "muse-voice-transcribe-1.0")
             .expect("Meta Muse shared-model row");
         let model_caps = model.voice_capabilities.expect("Meta Muse model capabilities");
+        assert!(model.available_via_hyper_whisper_cloud);
+        assert_eq!(model.platforms, ["macos", "windows"]);
+        assert!(!model.platforms.iter().any(|platform| platform == "linux"));
         let stt = crate::cloud_stt::CloudSttCatalog::embedded().unwrap();
         let stt_caps = stt.entry("metaMuse").expect("Meta Muse STT row").features;
 

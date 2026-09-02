@@ -130,6 +130,7 @@ const KNOWN_PROVIDER_IDS: &[&str] = &[
     "grok",
     "microsoftazurespeech",
     "googlespeech",
+    "meta",
 ];
 
 /// Resolve provider-specific model aliases before display, import or request
@@ -205,6 +206,11 @@ mod tests {
         // Windows' `_ => modelId` arm.
         assert_eq!(resolve_model_alias("nova-2", Some("openai")), "nova-2");
         assert_eq!(resolve_model_alias("scribe_v1", Some("hyperwhisper")), "scribe_v1");
+        assert_eq!(
+            resolve_model_alias("nova-2", Some("meta")),
+            "nova-2",
+            "canonical Meta is recognized without exposing a picker row"
+        );
         assert_eq!(
             resolve_model_alias("mai-transcribe-1.5", Some("microsoftAzureSpeech")),
             "mai-transcribe-1.5"
