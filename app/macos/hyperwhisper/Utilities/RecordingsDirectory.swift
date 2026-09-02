@@ -5,7 +5,7 @@
 
 import Foundation
 
-/// Resolves the configured recordings directory or the legacy default location.
+/// Resolves the configured recordings directory or the legacy fallback location.
 enum RecordingsDirectory {
     static func resolve(configuredPath: String?) -> URL {
         if let configuredPath, !configuredPath.isEmpty {

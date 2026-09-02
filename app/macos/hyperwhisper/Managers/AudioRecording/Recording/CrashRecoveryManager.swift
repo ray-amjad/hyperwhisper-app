@@ -158,7 +158,7 @@ class CrashRecoveryManager {
 
     /// Recordings directory URL from the shared resolver.
     /// Honors `settingsManager.recordingsFolder` when set, otherwise falls back
-    /// to the default `~/Documents/Recordings`.
+    /// to the legacy `~/Documents/Recordings` location.
     private var recordingsDirectory: URL {
         RecordingsDirectory.resolve(configuredPath: settingsManager?.recordingsFolder)
     }
