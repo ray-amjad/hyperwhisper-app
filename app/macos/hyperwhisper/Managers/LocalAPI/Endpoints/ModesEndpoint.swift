@@ -37,9 +37,11 @@ enum ModesEndpoint {
 
     @MainActor
     static func create(request: HTTPRequest) async -> HTTPResponse {
+        // Bounded read (issue #375) — see `LocalAPIBodyLimit`.
         let body: Data
-        do { body = try await request.bodyData } catch {
-            return LocalAPIResponder.badRequest(message: "Could not read request body")
+        switch await LocalAPIBodyLimit.read(request) {
+        case .body(let data): body = data
+        case .rejected(let response): return response
         }
 
         let dto: ModeDTO
@@ -122,9 +124,13 @@ enum ModesEndpoint {
         guard Self.modeExists(withId: id, in: PersistenceController.shared.container.viewContext) else {
             return LocalAPIResponder.failure(code: .modeNotFound, message: "No mode with id '\(id)'")
         }
+        // Bounded read (issue #375) — see `LocalAPIBodyLimit`. Deliberately still
+        // the same point in the sequence: the existence check above must stay
+        // before the suspension point, and the read must stay after it.
         let body: Data
-        do { body = try await request.bodyData } catch {
-            return LocalAPIResponder.badRequest(message: "Could not read request body")
+        switch await LocalAPIBodyLimit.read(request) {
+        case .body(let data): body = data
+        case .rejected(let response): return response
         }
         let patch: ModePatchDTO
         do { patch = try LocalAPIResponder.decoder.decode(ModePatchDTO.self, from: body) } catch {

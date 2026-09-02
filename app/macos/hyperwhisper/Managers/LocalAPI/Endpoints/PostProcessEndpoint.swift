@@ -19,9 +19,11 @@ enum PostProcessEndpoint {
 
     @MainActor
     static func handle(request: HTTPRequest, transcriptionPipeline: TranscriptionPipeline?) async -> HTTPResponse {
+        // Bounded read (issue #375) — see `LocalAPIBodyLimit`.
         let body: Data
-        do { body = try await request.bodyData } catch {
-            return LocalAPIResponder.badRequest(message: "Could not read request body")
+        switch await LocalAPIBodyLimit.read(request) {
+        case .body(let data): body = data
+        case .rejected(let response): return response
         }
 
         let req: PostProcessRequest
