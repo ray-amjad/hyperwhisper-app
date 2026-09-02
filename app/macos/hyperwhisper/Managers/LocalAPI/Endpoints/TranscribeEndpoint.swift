@@ -792,6 +792,8 @@ enum TranscribeEndpoint {
             mode.model = model ?? "base"
         case "parakeet":
             mode.model = ParakeetModelManager.Constants.modelIdForSelection(model)
+        case "nemotron", "nemotronlocal", "nemotron-local", "nemotron-asr":
+            mode.model = NemotronModelManager.Constants.modelIdForSelection(model)
         case "qwen3asr", "qwen3", "qwen3-asr":
             mode.model = Qwen3AsrModelManager.Constants.modelId
         case "applespeech", "apple", "apple-speech", "apple-speech-analyzer", "speech-analyzer":
@@ -820,12 +822,13 @@ enum TranscribeEndpoint {
     }
 
     @MainActor
-    private static func engineLabel(forMode mode: Mode) -> String {
+    static func engineLabel(forMode mode: Mode) -> String {
         let modelString = (mode.model ?? "").lowercased()
         if modelString == "cloud" || modelString.isEmpty {
             return mode.cloudProvider ?? "cloud"
         }
         if modelString.hasPrefix("parakeet-tdt-") { return "parakeet" }
+        if modelString.hasPrefix("nemotron-asr-3.5-") { return "nemotron" }
         if modelString == "apple-speech-analyzer" { return "appleSpeech" }
         if modelString == Qwen3AsrModelManager.Constants.modelId { return "qwen3Asr" }
         return "whisperLocal"

@@ -443,7 +443,8 @@ class TranscriptionProviderRouter {
     /// engine + model in the request body instead of referencing a saved mode.
     ///
     /// Engine identifiers (case-insensitive):
-    /// - Local: `whisperLocal`, `whisper`, `parakeet`, `qwen3Asr`, `appleSpeech`.
+    /// - Local: `whisperLocal`, `whisper`, `parakeet`, `nemotron`, `qwen3Asr`,
+    ///   `appleSpeech`.
     /// - Cloud: the CloudProvider rawValue (`openai`, `groq`, `deepgram`,
     ///   `assemblyai`, `elevenlabs`, `mistral`, `soniox`, `gemini`, `grok`,
     ///   `hyperwhisper`, `microsoftazurespeech`, `googlespeech`,
@@ -493,6 +494,15 @@ class TranscriptionProviderRouter {
                 throw TranscriptionError.providerNotAvailable(
                     provider: "Parakeet",
                     reason: "Unknown Parakeet model '\(requestedModelId)'"
+                )
+            }
+            modelString = canonicalModelId
+        case "nemotron", "nemotronlocal", "nemotron-local", "nemotron-asr":
+            let requestedModelId = NemotronModelManager.Constants.modelIdForSelection(model)
+            guard let canonicalModelId = NemotronModelManager.Constants.canonicalModelId(for: requestedModelId) else {
+                throw TranscriptionError.providerNotAvailable(
+                    provider: "Nemotron",
+                    reason: "Unknown Nemotron model '\(requestedModelId)'"
                 )
             }
             modelString = canonicalModelId

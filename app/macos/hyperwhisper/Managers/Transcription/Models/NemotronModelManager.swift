@@ -92,6 +92,32 @@ final class NemotronModelManager: ObservableObject {
         // Required file inside a downloaded variant — matches FluidAudio's own
         // cache-reuse probe in downloadVariant.
         static let metadataFileName = "metadata.json"
+
+        /// Resolve supported persisted aliases to the exact identifiers used
+        /// by the model library. Keep this list explicit: coercing an unknown
+        /// identifier to a real variant would make a typo select a real model.
+        static func canonicalModelId(for modelId: String) -> String? {
+            switch modelId.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+            case latinModelId:
+                return latinModelId
+            case multilingualModelId:
+                return multilingualModelId
+            default:
+                return nil
+            }
+        }
+
+        /// Local API requests default an omitted Nemotron model to the
+        /// multilingual variant, matching `SettingsManager.defaultStreamingNemotronVariant`.
+        /// Preserve unknown explicit values so the provider router can reject
+        /// them instead of silently changing the requested model.
+        static func modelIdForSelection(_ modelId: String?) -> String {
+            guard let trimmed = modelId?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !trimmed.isEmpty else {
+                return multilingualModelId
+            }
+            return canonicalModelId(for: trimmed) ?? trimmed
+        }
     }
 
     // LATIN VARIANT — vocab-pruned, fast path:
