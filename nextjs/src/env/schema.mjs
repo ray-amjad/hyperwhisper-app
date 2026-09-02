@@ -13,8 +13,8 @@ export const serverSchema = z.object({
   STRIPE_WEBHOOK_SECRET: z.string().startsWith("whsec_"),
 
   // Upstash Redis
-  UPSTASH_REDIS_REST_URL: z.string().url(),
-  UPSTASH_REDIS_REST_TOKEN: z.string(),
+  UPSTASH_REDIS_SITE_URL: z.string().url(),
+  UPSTASH_REDIS_SITE_TOKEN: z.string(),
 
   // Resend Email
   RESEND_API_KEY: z.string(),
@@ -69,8 +69,8 @@ export const serverEnv = {
   STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
 
   // Upstash Redis
-  UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
-  UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
+  UPSTASH_REDIS_SITE_URL: process.env.UPSTASH_REDIS_SITE_URL,
+  UPSTASH_REDIS_SITE_TOKEN: process.env.UPSTASH_REDIS_SITE_TOKEN,
 
   // Resend Email
   RESEND_API_KEY: process.env.RESEND_API_KEY,
