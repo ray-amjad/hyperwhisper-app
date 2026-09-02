@@ -10,6 +10,8 @@
 */
 
 // MARK: - Application Navigation
+
+"onboarding.provider.configuredUnverified" = "Configured; the key validates on first transcription.";
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
 "app.badge.pro" = "PRO";
@@ -592,10 +594,6 @@
 "license.button.activate" = "Activate";
 "license.button.activating" = "Activating...";
 "license.status.label" = "Status: %@";
-"license.status.trial.title" = "Trial";
-"license.status.active.title" = "Active";
-"license.status.expired.title" = "Expired";
-"license.status.invalid.title" = "Invalid";
 "license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "Licensed – Full Access";
 "license.status.expired.description" = "License Expired";
@@ -960,6 +958,8 @@
 "transcription.error.maxRetriesExceeded" = "Maximum retry attempts exceeded";
 "transcription.error.unauthorized.provider" = "Unauthorized: invalid %@ API key or permissions.\n\nOpen Settings → API Keys to verify your credentials.";
 "transcription.error.unauthorized.generic" = "Unauthorized: invalid API key or permissions.\n\nOpen Settings → API Keys to verify your credentials.";
+"transcription.error.unauthorized.hyperWhisperCloud" = "The HyperWhisper Cloud access key is invalid or expired.\n\nOpen Settings → HyperWhisper Cloud to update your key.";
+"transcription.error.forbidden.hyperWhisperCloud" = "HyperWhisper Cloud denied this request. Your network is temporarily blocked.\n\nWait a few minutes, then try again.";
 "transcription.error.cloudAccountRequired" = "HyperWhisper Cloud requires an account key.\n\nOpen Settings → HyperWhisper Cloud to enter your key or get credits.";
 "transcription.error.invalidRequest" = "Invalid request: check audio file or settings";
 "transcription.error.streamingInterrupted" = "Streaming interrupted; partial text shown";
@@ -1090,7 +1090,6 @@
 "settings.backup.import.confirm.button" = "Import";
 "settings.backup.conflict.skip" = "Skip existing";
 "settings.backup.conflict.replace" = "Replace existing";
-"settings.backup.conflict.keepBoth" = "Keep both";
 "settings.backup.security.warning" = "Warning: The exported file will contain sensitive data. Keep it secure and do not share it.";
 "settings.backup.info.note" = "Choose which sections to export or restore. Backups can include settings, modes, and vocabulary. Recordings and transcripts are not included.";
 "settings.backup.result.success.title" = "Success";
@@ -1127,9 +1126,6 @@
 "transcribe.file.error.video.noAudio" = "This video file doesn't contain an audio track. Please select a video with audio or an audio file.";
 
 // MARK: - File Transcription Progress
-"file.transcription.preparing" = "Preparing...";
-"file.transcription.transcribing" = "Transcribing...";
-"file.transcription.finishing" = "Finishing...";
 "file.transcription.cancel" = "Cancel";
 
 // MARK: - Auto-Delete Recordings

@@ -42,9 +42,9 @@ interface SttCheck {
 // Every STT provider in the registry gets exercised at least once (enforced by
 // checkProviderCoverage below). The multilingual voice fixtures are spread
 // across providers so nothing goes untested and the language coverage stays
-// broad. All fixtures are mp3 — azure-mai accepts it (WAV/MP3/FLAC only); the
-// async providers (google-chirp, assemblyai, soniox) take tiny clips so they
-// finish well inside TIMEOUT_MS.
+// broad. Most fixtures are MP3. Meta gets a dedicated mono PCM16 WAV at 24 kHz
+// because its batch endpoint rejects every other format. The async providers
+// take tiny clips so they finish well inside TIMEOUT_MS.
 //
 // NOTE: google-chirp requires region-qualified BCP-47 codes (`ja-JP`, not `ja`)
 // — it 400s on a bare language subtag. Every other provider accepts the short
@@ -73,6 +73,7 @@ const STT_CHECKS: SttCheck[] = [
   // row is what catches the endpoint being wrong even when the gemini row is
   // green. It accepts a bare subtag (unlike google-chirp).
   { provider: 'gemini-transcribe', file: 'en-us-sarah.mp3', language: 'en' },
+  { provider: 'meta', file: 'en-us-sarah-meta.wav', language: 'en' },
 ];
 
 // Every post-process LLM provider gets exercised once — like the STT set, this
@@ -198,7 +199,10 @@ async function checkTranscribe(check: SttCheck): Promise<void> {
     });
     const res = await fetchWithTimeout(`${BASE_URL}/transcribe?${qs}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'audio/mpeg', 'X-STT-Provider': check.provider },
+      headers: {
+        'Content-Type': check.file.endsWith('.wav') ? 'audio/wav' : 'audio/mpeg',
+        'X-STT-Provider': check.provider,
+      },
       body: audio,
     });
     if (res.status !== 200) {
@@ -213,6 +217,25 @@ async function checkTranscribe(check: SttCheck): Promise<void> {
     // requested provider's prefix. A mismatch means a genuine fallback to a
     // different provider — impossible (and a real bug) for self-only providers,
     // legitimate but worth surfacing for the rest.
+    //
+    // KNOWN GAP (issue ray-amjad/hyperwhisper-app#381). Since the
+    // empty-transcript failover, the `if (!transcript)` check above no longer
+    // sees an empty transcript from the REQUESTED provider — a sibling covers it
+    // and the row goes green on a transcript the row's own provider never
+    // produced. The `deepgram`/zh-roger.mp3 row exists precisely because
+    // nova-3-general is known to drop that language, and it used to go red here.
+    //
+    // Nothing on the wire distinguishes that from a transient 429 that a sibling
+    // also covered: `X-STT-Provider` reports the fallback either way, and both
+    // are the shared `bad_response` failure kind. The per-attempt cause is
+    // deliberately NOT on the response body — that body is a client contract
+    // (`CLAUDE.md`, "response shape ... must land in clients in the same PR
+    // cycle") and this script is the only reader a new field would have had.
+    // So the choice here is between failing a prod promotion on an upstream's
+    // transient bad minute and missing a per-fixture provider regression that
+    // users no longer feel, because the failover now covers it. `warn` is the
+    // lesser evil; the reliable detector is the log event, in one query:
+    //   provider.no_speech | where refused == true and provider == "deepgram"
     const served = res.headers.get('X-STT-Provider') || '?';
     const prefix = expectedServedPrefix(check.provider);
     if (!served.startsWith(prefix)) {

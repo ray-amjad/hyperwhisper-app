@@ -4987,6 +4987,7 @@ public struct ModelsEntry {
     public var supportedLanguages: [String]
     public var isEnglishOnly: Bool?
     public var supportsAllLanguages: Bool?
+    public var voiceCapabilities: ModelsVoiceCapabilities?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -4999,7 +5000,7 @@ public struct ModelsEntry {
          * Base ISO codes, empty on rows that carry none. Prefer
          * `models_language_support`, which resolves the wildcard fallback and the
          * "uncatalogued ⇒ every language" rule.
-         */supportedLanguages: [String], isEnglishOnly: Bool?, supportsAllLanguages: Bool?) {
+         */supportedLanguages: [String], isEnglishOnly: Bool?, supportsAllLanguages: Bool?, voiceCapabilities: ModelsVoiceCapabilities?) {
         self.provider = provider
         self.id = id
         self.kind = kind
@@ -5011,6 +5012,7 @@ public struct ModelsEntry {
         self.supportedLanguages = supportedLanguages
         self.isEnglishOnly = isEnglishOnly
         self.supportsAllLanguages = supportsAllLanguages
+        self.voiceCapabilities = voiceCapabilities
     }
 }
 
@@ -5051,6 +5053,9 @@ extension ModelsEntry: Equatable, Hashable {
         if lhs.supportsAllLanguages != rhs.supportsAllLanguages {
             return false
         }
+        if lhs.voiceCapabilities != rhs.voiceCapabilities {
+            return false
+        }
         return true
     }
 
@@ -5066,6 +5071,7 @@ extension ModelsEntry: Equatable, Hashable {
         hasher.combine(supportedLanguages)
         hasher.combine(isEnglishOnly)
         hasher.combine(supportsAllLanguages)
+        hasher.combine(voiceCapabilities)
     }
 }
 
@@ -5087,7 +5093,8 @@ public struct FfiConverterTypeModelsEntry: FfiConverterRustBuffer {
                 notes: FfiConverterOptionString.read(from: &buf), 
                 supportedLanguages: FfiConverterSequenceString.read(from: &buf), 
                 isEnglishOnly: FfiConverterOptionBool.read(from: &buf), 
-                supportsAllLanguages: FfiConverterOptionBool.read(from: &buf)
+                supportsAllLanguages: FfiConverterOptionBool.read(from: &buf), 
+                voiceCapabilities: FfiConverterOptionTypeModelsVoiceCapabilities.read(from: &buf)
         )
     }
 
@@ -5103,6 +5110,7 @@ public struct FfiConverterTypeModelsEntry: FfiConverterRustBuffer {
         FfiConverterSequenceString.write(value.supportedLanguages, into: &buf)
         FfiConverterOptionBool.write(value.isEnglishOnly, into: &buf)
         FfiConverterOptionBool.write(value.supportsAllLanguages, into: &buf)
+        FfiConverterOptionTypeModelsVoiceCapabilities.write(value.voiceCapabilities, into: &buf)
     }
 }
 
@@ -5119,6 +5127,115 @@ public func FfiConverterTypeModelsEntry_lift(_ buf: RustBuffer) throws -> Models
 #endif
 public func FfiConverterTypeModelsEntry_lower(_ value: ModelsEntry) -> RustBuffer {
     return FfiConverterTypeModelsEntry.lower(value)
+}
+
+
+/**
+ * Structured voice-model capabilities from `models-catalog.json`.
+ */
+public struct ModelsVoiceCapabilities {
+    public var codeSwitching: Bool
+    public var endpointing: Bool
+    public var contextBias: Bool
+    public var languageBias: Bool
+    public var turnTimestamps: Bool
+    public var diarization: Bool
+    public var wordTimestamps: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(codeSwitching: Bool, endpointing: Bool, contextBias: Bool, languageBias: Bool, turnTimestamps: Bool, diarization: Bool, wordTimestamps: Bool) {
+        self.codeSwitching = codeSwitching
+        self.endpointing = endpointing
+        self.contextBias = contextBias
+        self.languageBias = languageBias
+        self.turnTimestamps = turnTimestamps
+        self.diarization = diarization
+        self.wordTimestamps = wordTimestamps
+    }
+}
+
+
+
+extension ModelsVoiceCapabilities: Equatable, Hashable {
+    public static func ==(lhs: ModelsVoiceCapabilities, rhs: ModelsVoiceCapabilities) -> Bool {
+        if lhs.codeSwitching != rhs.codeSwitching {
+            return false
+        }
+        if lhs.endpointing != rhs.endpointing {
+            return false
+        }
+        if lhs.contextBias != rhs.contextBias {
+            return false
+        }
+        if lhs.languageBias != rhs.languageBias {
+            return false
+        }
+        if lhs.turnTimestamps != rhs.turnTimestamps {
+            return false
+        }
+        if lhs.diarization != rhs.diarization {
+            return false
+        }
+        if lhs.wordTimestamps != rhs.wordTimestamps {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(codeSwitching)
+        hasher.combine(endpointing)
+        hasher.combine(contextBias)
+        hasher.combine(languageBias)
+        hasher.combine(turnTimestamps)
+        hasher.combine(diarization)
+        hasher.combine(wordTimestamps)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeModelsVoiceCapabilities: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ModelsVoiceCapabilities {
+        return
+            try ModelsVoiceCapabilities(
+                codeSwitching: FfiConverterBool.read(from: &buf), 
+                endpointing: FfiConverterBool.read(from: &buf), 
+                contextBias: FfiConverterBool.read(from: &buf), 
+                languageBias: FfiConverterBool.read(from: &buf), 
+                turnTimestamps: FfiConverterBool.read(from: &buf), 
+                diarization: FfiConverterBool.read(from: &buf), 
+                wordTimestamps: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ModelsVoiceCapabilities, into buf: inout [UInt8]) {
+        FfiConverterBool.write(value.codeSwitching, into: &buf)
+        FfiConverterBool.write(value.endpointing, into: &buf)
+        FfiConverterBool.write(value.contextBias, into: &buf)
+        FfiConverterBool.write(value.languageBias, into: &buf)
+        FfiConverterBool.write(value.turnTimestamps, into: &buf)
+        FfiConverterBool.write(value.diarization, into: &buf)
+        FfiConverterBool.write(value.wordTimestamps, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeModelsVoiceCapabilities_lift(_ buf: RustBuffer) throws -> ModelsVoiceCapabilities {
+    return try FfiConverterTypeModelsVoiceCapabilities.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeModelsVoiceCapabilities_lower(_ value: ModelsVoiceCapabilities) -> RustBuffer {
+    return FfiConverterTypeModelsVoiceCapabilities.lower(value)
 }
 
 
@@ -6159,13 +6276,23 @@ public struct SttFeatures {
     public var wordTimestamps: Bool
     public var diarization: Bool
     public var streaming: Bool
+    public var codeSwitching: Bool
+    public var endpointing: Bool
+    public var contextBias: Bool
+    public var languageBias: Bool
+    public var turnTimestamps: Bool
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(wordTimestamps: Bool, diarization: Bool, streaming: Bool) {
+    public init(wordTimestamps: Bool, diarization: Bool, streaming: Bool, codeSwitching: Bool, endpointing: Bool, contextBias: Bool, languageBias: Bool, turnTimestamps: Bool) {
         self.wordTimestamps = wordTimestamps
         self.diarization = diarization
         self.streaming = streaming
+        self.codeSwitching = codeSwitching
+        self.endpointing = endpointing
+        self.contextBias = contextBias
+        self.languageBias = languageBias
+        self.turnTimestamps = turnTimestamps
     }
 }
 
@@ -6182,6 +6309,21 @@ extension SttFeatures: Equatable, Hashable {
         if lhs.streaming != rhs.streaming {
             return false
         }
+        if lhs.codeSwitching != rhs.codeSwitching {
+            return false
+        }
+        if lhs.endpointing != rhs.endpointing {
+            return false
+        }
+        if lhs.contextBias != rhs.contextBias {
+            return false
+        }
+        if lhs.languageBias != rhs.languageBias {
+            return false
+        }
+        if lhs.turnTimestamps != rhs.turnTimestamps {
+            return false
+        }
         return true
     }
 
@@ -6189,6 +6331,11 @@ extension SttFeatures: Equatable, Hashable {
         hasher.combine(wordTimestamps)
         hasher.combine(diarization)
         hasher.combine(streaming)
+        hasher.combine(codeSwitching)
+        hasher.combine(endpointing)
+        hasher.combine(contextBias)
+        hasher.combine(languageBias)
+        hasher.combine(turnTimestamps)
     }
 }
 
@@ -6202,7 +6349,12 @@ public struct FfiConverterTypeSttFeatures: FfiConverterRustBuffer {
             try SttFeatures(
                 wordTimestamps: FfiConverterBool.read(from: &buf), 
                 diarization: FfiConverterBool.read(from: &buf), 
-                streaming: FfiConverterBool.read(from: &buf)
+                streaming: FfiConverterBool.read(from: &buf), 
+                codeSwitching: FfiConverterBool.read(from: &buf), 
+                endpointing: FfiConverterBool.read(from: &buf), 
+                contextBias: FfiConverterBool.read(from: &buf), 
+                languageBias: FfiConverterBool.read(from: &buf), 
+                turnTimestamps: FfiConverterBool.read(from: &buf)
         )
     }
 
@@ -6210,6 +6362,11 @@ public struct FfiConverterTypeSttFeatures: FfiConverterRustBuffer {
         FfiConverterBool.write(value.wordTimestamps, into: &buf)
         FfiConverterBool.write(value.diarization, into: &buf)
         FfiConverterBool.write(value.streaming, into: &buf)
+        FfiConverterBool.write(value.codeSwitching, into: &buf)
+        FfiConverterBool.write(value.endpointing, into: &buf)
+        FfiConverterBool.write(value.contextBias, into: &buf)
+        FfiConverterBool.write(value.languageBias, into: &buf)
+        FfiConverterBool.write(value.turnTimestamps, into: &buf)
     }
 }
 
@@ -10032,6 +10189,8 @@ public enum HwPart {
     )
     case fileRef(field: String, path: String, mime: String, filename: String
     )
+    case inlineFile(field: String, filename: String, mime: String, data: Data
+    )
 }
 
 
@@ -10049,6 +10208,9 @@ public struct FfiConverterTypeHwPart: FfiConverterRustBuffer {
         )
         
         case 2: return .fileRef(field: try FfiConverterString.read(from: &buf), path: try FfiConverterString.read(from: &buf), mime: try FfiConverterString.read(from: &buf), filename: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 3: return .inlineFile(field: try FfiConverterString.read(from: &buf), filename: try FfiConverterString.read(from: &buf), mime: try FfiConverterString.read(from: &buf), data: try FfiConverterData.read(from: &buf)
         )
         
         default: throw UniffiInternalError.unexpectedEnumCase
@@ -10071,6 +10233,14 @@ public struct FfiConverterTypeHwPart: FfiConverterRustBuffer {
             FfiConverterString.write(path, into: &buf)
             FfiConverterString.write(mime, into: &buf)
             FfiConverterString.write(filename, into: &buf)
+            
+        
+        case let .inlineFile(field,filename,mime,data):
+            writeInt(&buf, Int32(3))
+            FfiConverterString.write(field, into: &buf)
+            FfiConverterString.write(filename, into: &buf)
+            FfiConverterString.write(mime, into: &buf)
+            FfiConverterData.write(data, into: &buf)
             
         }
     }
@@ -10100,7 +10270,7 @@ extension HwPart: Equatable, Hashable {}
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
- * The 14 cloud speech-to-text providers. Mirrors `hw_net::Provider`.
+ * The 15 cloud speech-to-text providers. Mirrors `hw_net::Provider`.
  */
 
 public enum HwProvider {
@@ -10119,6 +10289,7 @@ public enum HwProvider {
     case googleChirp
     case geminiTranscribe
     case geminiTranscribeLive
+    case meta
 }
 
 
@@ -10159,6 +10330,8 @@ public struct FfiConverterTypeHwProvider: FfiConverterRustBuffer {
         case 13: return .geminiTranscribe
         
         case 14: return .geminiTranscribeLive
+        
+        case 15: return .meta
         
         default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -10222,6 +10395,10 @@ public struct FfiConverterTypeHwProvider: FfiConverterRustBuffer {
         
         case .geminiTranscribeLive:
             writeInt(&buf, Int32(14))
+        
+        
+        case .meta:
+            writeInt(&buf, Int32(15))
         
         }
     }
@@ -11800,6 +11977,30 @@ fileprivate struct FfiConverterOptionTypeModelsEntry: FfiConverterRustBuffer {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeModelsEntry.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeModelsVoiceCapabilities: FfiConverterRustBuffer {
+    typealias SwiftType = ModelsVoiceCapabilities?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeModelsVoiceCapabilities.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeModelsVoiceCapabilities.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -14473,6 +14674,20 @@ public func macosSettingsToUniversalSettingsJson(macosJson: String, existingMaco
     )
 })
 }
+public func metaBuildTranscribeRequest(params: TranscribeParams)throws  -> HttpRequest {
+    return try  FfiConverterTypeHttpRequest.lift(try rustCallWithError(FfiConverterTypeHwTranscriptionError.lift) {
+    uniffi_hyperwhisper_core_fn_func_meta_build_transcribe_request(
+        FfiConverterTypeTranscribeParams.lower(params),$0
+    )
+})
+}
+public func metaParseTranscribeResponse(resp: HttpResponse)throws  -> HwTranscript {
+    return try  FfiConverterTypeHwTranscript.lift(try rustCallWithError(FfiConverterTypeHwTranscriptionError.lift) {
+    uniffi_hyperwhisper_core_fn_func_meta_parse_transcribe_response(
+        FfiConverterTypeHttpResponse.lower(resp),$0
+    )
+})
+}
 /**
  * Migrate a persisted `cloudAccuracyTier` storage string to its canonical
  * catalog id. `None`/empty → the default tier.
@@ -14579,6 +14794,31 @@ public func nextRetry(attempt: UInt32, status: UInt16, body: String, retryAfter:
         FfiConverterUInt16.lower(status),
         FfiConverterString.lower(body),
         FfiConverterOptionUInt64.lower(retryAfter),$0
+    )
+})
+}
+/**
+ * `next_retry` plus a **cumulative backoff budget** (issue #379).
+ *
+ * `slept_ms` is the sum of the `delay_ms` values this call has already returned
+ * for this attempt sequence — how much backoff the caller has been told to
+ * sleep so far, starting at `0` on attempt 1. It is deliberately **not** the
+ * sequence's wall clock: charging a slow request (a large upload) to the budget
+ * would leave a big file with zero retries. A sleep that would push the running
+ * total past `budget_ms` is refused, so a hard-down provider fails after 15s of
+ * backoff instead of grinding through the full 1+2+4+8+16+32+64s series.
+ * `budget_ms == 0` means unbounded, which makes this identical to `next_retry`.
+ * Use `retry_default_budget_ms()` for interactive transcription.
+ */
+public func nextRetryWithinBudget(attempt: UInt32, status: UInt16, body: String, retryAfter: UInt64?, sleptMs: UInt64, budgetMs: UInt64) -> RetryDecision {
+    return try!  FfiConverterTypeRetryDecision.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_next_retry_within_budget(
+        FfiConverterUInt32.lower(attempt),
+        FfiConverterUInt16.lower(status),
+        FfiConverterString.lower(body),
+        FfiConverterOptionUInt64.lower(retryAfter),
+        FfiConverterUInt64.lower(sleptMs),
+        FfiConverterUInt64.lower(budgetMs),$0
     )
 })
 }
@@ -14930,6 +15170,17 @@ public func removeTrailingPeriod(text: String) -> String {
     return try!  FfiConverterString.lift(try! rustCall() {
     uniffi_hyperwhisper_core_fn_func_remove_trailing_period(
         FfiConverterString.lower(text),$0
+    )
+})
+}
+/**
+ * Default **cumulative backoff** budget, in milliseconds, for one interactive
+ * transcription attempt sequence. The default argument for the platform retry
+ * drivers' `budgetMs` parameter; `0` means unbounded.
+ */
+public func retryDefaultBudgetMs() -> UInt64 {
+    return try!  FfiConverterUInt64.lift(try! rustCall() {
+    uniffi_hyperwhisper_core_fn_func_retry_default_budget_ms($0
     )
 })
 }
@@ -15711,6 +15962,12 @@ private var initializationResult: InitializationResult = {
     if (uniffi_hyperwhisper_core_checksum_func_macos_settings_to_universal_settings_json() != 44899) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_hyperwhisper_core_checksum_func_meta_build_transcribe_request() != 23035) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_meta_parse_transcribe_response() != 61443) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_hyperwhisper_core_checksum_func_migrate_cloud_accuracy_tier() != 39469) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -15739,6 +15996,9 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_next_retry() != 16456) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_next_retry_within_budget() != 40999) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_no_speech_classify() != 39879) {
@@ -15820,6 +16080,9 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_remove_trailing_period() != 16878) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_hyperwhisper_core_checksum_func_retry_default_budget_ms() != 35048) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_hyperwhisper_core_checksum_func_retry_max_attempts() != 57507) {

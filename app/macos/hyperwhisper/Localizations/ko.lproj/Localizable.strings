@@ -9,6 +9,8 @@
   This file contains all user-facing text that needs to be translated.
 */
 
+"transcription.error.forbidden.hyperWhisperCloud" = "HyperWhisper Cloud에서 이 요청을 거부했습니다. 네트워크가 일시적으로 차단되었습니다.\n\n몇 분 후에 다시 시도하세요.";
+
 // MARK: - Application Navigation
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
@@ -420,10 +422,6 @@
 "license.button.activate" = "활성화";
 "license.button.activating" = "활성화 중...";
 "license.status.label" = "상태: %@";
-"license.status.trial.title" = "체험판";
-"license.status.active.title" = "활성화";
-"license.status.expired.title" = "만료됨";
-"license.status.invalid.title" = "잘못됨";
 "license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "라이선스 – 전체 액세스";
 "license.status.expired.description" = "라이선스 만료됨";
@@ -926,6 +924,7 @@
 "transcription.error.maxRetriesExceeded" = "최대 재시도 횟수 초과";
 "transcription.error.unauthorized.provider" = "권한 없음: 잘못된 %@ API 키 또는 권한.\n\n설정 → API 키를 열어 자격 증명을 확인하세요.";
 "transcription.error.unauthorized.generic" = "권한 없음: 잘못된 API 키 또는 권한.\n\n설정 → API 키를 열어 자격 증명을 확인하세요.";
+"transcription.error.unauthorized.hyperWhisperCloud" = "HyperWhisper Cloud 액세스 키가 잘못되었거나 만료되었습니다.\n\n설정 → HyperWhisper Cloud를 열어 키를 업데이트하세요.";
 "transcription.error.cloudAccountRequired" = "HyperWhisper Cloud에는 계정 키가 필요합니다.\n\n설정 → HyperWhisper Cloud를 열어 키를 입력하거나 크레딧을 구매하세요.";
 "transcription.error.invalidRequest" = "잘못된 요청: 오디오 파일 또는 설정 확인";
 "transcription.error.streamingInterrupted" = "스트리밍 중단됨; 부분 텍스트 표시됨";
@@ -1052,7 +1051,6 @@
 "settings.backup.import.confirm.button" = "가져오기";
 "settings.backup.conflict.skip" = "기존 건너뛰기";
 "settings.backup.conflict.replace" = "기존 교체";
-"settings.backup.conflict.keepBoth" = "둘 다 유지";
 "settings.backup.security.warning" = "경고: 내보낸 파일에는 민감한 데이터가 포함됩니다. 안전하게 보관하고 공유하지 마세요.";
 "settings.backup.info.note" = "백업에는 설정, 모드 및 어휘가 포함됩니다. 녹음 및 음성 인식은 포함되지 않습니다.";
 "settings.backup.result.success.title" = "성공";
@@ -1087,9 +1085,6 @@
 "transcribe.file.error.video.noAudio" = "이 비디오 파일에는 오디오 트랙이 포함되어 있지 않습니다. 오디오가 있는 비디오 또는 오디오 파일을 선택하세요.";
 
 // MARK: - File Transcription Progress
-"file.transcription.preparing" = "준비 중...";
-"file.transcription.transcribing" = "음성 인식 중...";
-"file.transcription.finishing" = "완료 중...";
 "file.transcription.cancel" = "취소";
 
 // MARK: - Auto-Delete Recordings

@@ -17,18 +17,37 @@
 //  to 10s. The core is RNG-free, so a small randomized jitter (0–30%) is added
 //  platform-side at the sleep point (see `sleep(_:)`) to avoid a thundering herd.
 //
+//  Backoff budget (issue #379): 8 attempts of raw exponential backoff is ~127s
+//  of sleep, so a hard-down provider used to take ~150s to fail. The core owns
+//  the rule (`nextRetryWithinBudget`); this wrapper just carries the running
+//  total of the actual jittered sleeps (`sleptMs`) back into the next decision.
+//  The core gives up when the next nominal sleep would push that total past
+//  `budgetMs` (default `retryDefaultBudgetMs()` == 30s), which stops the
+//  sequence at attempt 5 after 15s of backoff, before the 16/32/64s sleeps are
+//  ever reached. `budgetMs: 0` means unbounded, i.e. exactly the old behaviour.
+//
+//  `sleptMs` is BACKOFF ONLY — the time a failed request itself took is
+//  deliberately NOT charged to it. Otherwise a long-running attempt would get
+//  zero retries: `GeminiTranscriptionProvider` sets
+//  `timeoutIntervalForResource = 900` precisely because a large file can upload
+//  for minutes, and that upload would blow a 30s budget before the first error
+//  even arrived. Request duration is bounded by the session timeouts, not here.
+//
 
 import Foundation
 
 enum RustRetry {
 
+    typealias Executor = (HttpRequest, URLSession) async throws -> HttpResponse
+
     /// Drive `buildRequest()`'s output through the executor + core retry loop.
     ///
     /// - On a 2xx response, returns the captured `HttpResponse`.
     /// - On a non-2xx, parses `Retry-After` natively, asks the core
-    ///   `nextRetry(...)`, and either sleeps `delayMs` and retries or gives up.
+    ///   `nextRetryWithinBudget(...)`, and either sleeps `delayMs` and retries
+    ///   or gives up.
     /// - On a `URLError` with no HTTP response (network blip), treats it as a
-    ///   retryable 503-equivalent (`nextRetry(attempt, 503, "", nil)`).
+    ///   retryable 503-equivalent (`nextRetryWithinBudget(attempt, 503, "", nil, …)`).
     /// - On cancellation, throws `CancellationError`.
     /// - On give-up, throws the core-mapped Swift `TranscriptionError` derived
     ///   from the last status/body (via `parseError`), so callers surface the
@@ -46,16 +65,38 @@ enum RustRetry {
     /// (VPN/captive-portal/tether swap) re-resolves instead of burning all
     /// attempts against a poisoned connection pool. Default `nil` = no-op, so
     /// other callers are unaffected.
+    ///
+    /// `budgetMs` bounds the TOTAL BACKOFF this sequence may sleep — not its
+    /// wall clock, and explicitly not the time the failed requests themselves
+    /// took. The core gives up rather than start a sleep that would push the
+    /// running total past it. Default = the core's interactive
+    /// `retryDefaultBudgetMs()` (30s); `0` means unbounded (the pre-#379
+    /// behaviour), which a future batch caller can opt into.
+    ///
+    /// NOTE: the budget is per `perform(...)` CALL, not per user action.
+    /// `CloudAudioFormatRecovery.withUnsupportedFormatRecovery` wraps the routed
+    /// path and can re-run the whole sequence once (415 → WAV re-encode →
+    /// re-send), which is two independent budgets. That is accepted: a 415 gives
+    /// up on attempt 1, so the realistic worst case is one full budget plus one
+    /// short sequence.
     static func perform(
         session: URLSession,
         buildRequest: () throws -> HttpRequest,
         parseError: (HttpResponse) -> TranscriptionError,
-        onTransportError: ((URLError) async -> Void)? = nil
+        onTransportError: ((URLError) async -> Void)? = nil,
+        budgetMs: UInt64 = retryDefaultBudgetMs(),
+        execute: @escaping Executor = { request, session in
+            try await RustHTTPExecutor.execute(request, session: session)
+        }
     ) async throws -> HttpResponse {
         var attempt: UInt32 = 0
         // One-shot-per-sequence gate for the recovery hook (matches the original
         // native `didResetThisSequence` semantics).
         var didRecoverThisSequence = false
+        // Running total of the backoff the core has asked this sequence to sleep.
+        // Accumulated across the whole loop and never reset, so the budget bounds
+        // the sequence rather than any single sleep.
+        var sleptMs: UInt64 = 0
 
         while true {
             try Task.checkCancellation()
@@ -67,7 +108,7 @@ enum RustRetry {
             // a URLSession transport error (no HTTP response).
             let response: HttpResponse
             do {
-                response = try await RustHTTPExecutor.execute(request, session: session)
+                response = try await execute(request, session)
             } catch is CancellationError {
                 throw CancellationError()
             } catch {
@@ -88,7 +129,14 @@ enum RustRetry {
                 }
 
                 // No HTTP response — treat as a retryable 503-equivalent.
-                let decision = nextRetry(attempt: attempt, status: 503, body: "", retryAfter: nil)
+                let decision = nextRetryWithinBudget(
+                    attempt: attempt,
+                    status: 503,
+                    body: "",
+                    retryAfter: nil,
+                    sleptMs: sleptMs,
+                    budgetMs: budgetMs
+                )
                 switch decision {
                 case let .retry(delayMs):
                     // One-shot transport-error recovery (e.g. DNS-cache flush on a
@@ -98,9 +146,23 @@ enum RustRetry {
                         didRecoverThisSequence = true
                         await hook(urlError)
                     }
-                    try await sleep(delayMs)
+                    let admittedDelayMs = Self.admittedSleepMs(
+                        coreDelayMs: delayMs,
+                        sleptMs: sleptMs,
+                        budgetMs: budgetMs
+                    )
+                    sleptMs += admittedDelayMs
+                    try await sleep(admittedDelayMs)
                     continue
                 case .giveUp:
+                    Self.logGiveUp(
+                        attempt: attempt,
+                        status: 503,
+                        body: "",
+                        retryAfter: nil,
+                        sleptMs: sleptMs,
+                        budgetMs: budgetMs
+                    )
                     throw TranscriptionError.transientNetwork(details: error.localizedDescription)
                 }
             }
@@ -114,27 +176,69 @@ enum RustRetry {
             let bodyText = String(data: response.body, encoding: .utf8) ?? ""
             let retryAfter = response.retryAfterSeconds
 
-            let decision = nextRetry(
+            // Clamp at the conversion: `retryAfterSeconds` uses `Int(...)` and so
+            // accepts negatives; `UInt64(-1)` would TRAP. A negative Retry-After
+            // is meaningless, so floor it at 0. (The `Int?` value is still passed
+            // to `enrichRateLimited` below for user messaging.)
+            let retryAfterMs = retryAfter.map { UInt64(max(0, $0)) }
+
+            let decision = nextRetryWithinBudget(
                 attempt: attempt,
                 status: response.status,
                 body: bodyText,
-                // Clamp at the conversion: `retryAfterSeconds` uses `Int(...)`
-                // and so accepts negatives; `UInt64(-1)` would TRAP. A negative
-                // Retry-After is meaningless, so floor it at 0. (The `Int?` value
-                // is still passed to `enrichRateLimited` below for user messaging.)
-                retryAfter: retryAfter.map { UInt64(max(0, $0)) }
+                retryAfter: retryAfterMs,
+                sleptMs: sleptMs,
+                budgetMs: budgetMs
             )
 
             switch decision {
             case let .retry(delayMs):
-                try await sleep(delayMs)
+                let admittedDelayMs = Self.admittedSleepMs(
+                    coreDelayMs: delayMs,
+                    sleptMs: sleptMs,
+                    budgetMs: budgetMs
+                )
+                sleptMs += admittedDelayMs
+                try await sleep(admittedDelayMs)
                 continue
             case .giveUp:
+                Self.logGiveUp(
+                    attempt: attempt,
+                    status: response.status,
+                    body: bodyText,
+                    retryAfter: retryAfterMs,
+                    sleptMs: sleptMs,
+                    budgetMs: budgetMs
+                )
                 // The core's RateLimited carries no Retry-After (it doesn't read
                 // the header); enrich the give-up error with the value we parsed
                 // here so the "try again in N seconds" UI is preserved.
                 throw enrichRateLimited(parseError(response), retryAfter: retryAfter)
             }
+        }
+    }
+
+    /// Log a give-up with a reason a support engineer can act on: the backoff
+    /// budget running out looks nothing like the attempt ceiling being hit, and
+    /// the two want different fixes. Determined by re-asking the core WITHOUT
+    /// the budget — if it would still have retried, the budget is what stopped
+    /// us. One extra FFI call, only ever on the give-up path.
+    private static func logGiveUp(
+        attempt: UInt32,
+        status: UInt16,
+        body: String,
+        retryAfter: UInt64?,
+        sleptMs: UInt64,
+        budgetMs: UInt64
+    ) {
+        if case .retry = nextRetry(attempt: attempt, status: status, body: body, retryAfter: retryAfter) {
+            AppLogger.network.warning(
+                "RustRetry: giving up on the retry BUDGET after attempt \(attempt, privacy: .public) — \(sleptMs, privacy: .public)ms of backoff slept of \(budgetMs, privacy: .public)ms (status \(status, privacy: .public))"
+            )
+        } else {
+            AppLogger.network.warning(
+                "RustRetry: giving up on the retry POLICY after attempt \(attempt, privacy: .public) of \(retryMaxAttempts(), privacy: .public) — \(sleptMs, privacy: .public)ms of backoff slept (status \(status, privacy: .public))"
+            )
         }
     }
 
@@ -168,13 +272,25 @@ enum RustRetry {
         return .rateLimited(retryAfter: retryAfter)
     }
 
-    private static func sleep(_ delayMs: UInt64) async throws {
-        // Add randomized jitter (0–30%) on top of the core's deterministic
-        // backoff so concurrent clients don't all retry in lockstep (thundering
-        // herd). The core forbids RNG, so the jitter lives here — restoring the
-        // pre-migration `.transcription` preset's `0...0.3` jitterRange.
-        let jitterFactor = 1.0 + Double.random(in: 0...0.3)
-        let nanos = UInt64(Double(delayMs) * jitterFactor * 1_000_000)
+    /// Add 0–30% jitter, then admit no more than the declared remaining budget.
+    /// `jitterUnit` is injectable only as a pure seam for boundary tests; runtime
+    /// callers use a full-range random value. With an unbounded budget, no cap is
+    /// applied and this preserves the pre-#379 jittered retry series.
+    static func admittedSleepMs(
+        coreDelayMs: UInt64,
+        sleptMs: UInt64,
+        budgetMs: UInt64,
+        jitterUnit: Double = Double.random(in: 0...1)
+    ) -> UInt64 {
+        let boundedUnit = min(max(jitterUnit, 0), 1)
+        let jittered = UInt64(Double(coreDelayMs) * (1 + boundedUnit * 0.3))
+        guard budgetMs > 0 else { return jittered }
+        let remaining = budgetMs > sleptMs ? budgetMs - sleptMs : 0
+        return min(jittered, remaining)
+    }
+
+    private static func sleep(_ admittedDelayMs: UInt64) async throws {
+        let nanos = admittedDelayMs * 1_000_000
         try await Task.sleep(nanoseconds: nanos)
     }
 }
@@ -301,6 +417,7 @@ enum RustCoreMapping {
         // auth. `.geminiTranscribeLive` is the Phase-5 streaming model and has
         // no `CloudProvider` case, so it is unreachable from here.
         case .geminiTranscribe: return .geminiTranscribe
+        case .meta: return .meta
         }
     }
 

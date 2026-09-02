@@ -69,6 +69,8 @@ class KeychainManager {
         /// `.gemini`: same vendor, different API and different eligibility, so
         /// the two keys must not overwrite each other.
         case geminiTranscribe = "geminitranscribe"
+        /// Isolated Meta Model API key slot. This value is never stored in defaults.
+        case meta = "MetaApiKey"
 
         /// User-friendly display name
         var displayName: String {
@@ -85,6 +87,7 @@ class KeychainManager {
             case .cerebras: return "Cerebras"
             case .grok: return "Grok"
             case .geminiTranscribe: return "Gemini 3.5 Transcribe"
+            case .meta: return "Meta"
             }
         }
 
@@ -105,6 +108,8 @@ class KeychainManager {
             // Never lived in UserDefaults (the provider postdates the Keychain
             // migration); the arm exists so the switch stays exhaustive.
             case .geminiTranscribe: return "geminiTranscribeAPIKey"
+            // Meta postdates the defaults migration and has never had a defaults slot.
+            case .meta: return "metaAPIKey"
             }
         }
     }
@@ -460,10 +465,4 @@ class KeychainManager {
         }
     }
 
-    /// Check if an API key exists for a custom endpoint
-    /// - Parameter endpointId: UUID of the custom endpoint
-    /// - Returns: True if the key exists, false otherwise
-    func hasCustomEndpointAPIKey(for endpointId: UUID) -> Bool {
-        return !getCustomEndpointAPIKey(for: endpointId).isEmpty
-    }
 }

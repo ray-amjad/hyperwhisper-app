@@ -143,6 +143,7 @@ public partial class ProviderApiKeyWindow : Window
         CloudTranscriptionProvider.Soniox => TranscriptionApiKeyType.Soniox,
         CloudTranscriptionProvider.Grok => TranscriptionApiKeyType.Grok,
         CloudTranscriptionProvider.GeminiTranscribe => TranscriptionApiKeyType.GeminiTranscribe,
+        CloudTranscriptionProvider.Meta => TranscriptionApiKeyType.Meta,
         _ => throw new InvalidOperationException($"{provider} does not have a separate transcription API key.")
     };
 

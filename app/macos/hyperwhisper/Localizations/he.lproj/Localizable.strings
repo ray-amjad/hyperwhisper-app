@@ -9,6 +9,8 @@
   This file contains all user-facing text that needs to be translated.
 */
 
+"transcription.error.forbidden.hyperWhisperCloud" = "HyperWhisper Cloud דחה את הבקשה הזו. הרשת שלך חסומה באופן זמני.\n\nיש להמתין מספר דקות ולנסות שוב.";
+
 // MARK: - Application Navigation
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
@@ -420,10 +422,6 @@
 "license.button.activate" = "הפעל";
 "license.button.activating" = "מפעיל...";
 "license.status.label" = "מצב: %@";
-"license.status.trial.title" = "ניסיון";
-"license.status.active.title" = "פעיל";
-"license.status.expired.title" = "פג תוקף";
-"license.status.invalid.title" = "לא תקין";
 "license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "מורשה – גישה מלאה";
 "license.status.expired.description" = "רישיון פג תוקף";
@@ -926,6 +924,7 @@
 "transcription.error.maxRetriesExceeded" = "חריגה ממספר ניסיונות חוזרים מקסימליים";
 "transcription.error.unauthorized.provider" = "לא מורשה: מפתח API לא תקין של %@ או הרשאות.\n\nפתח הגדרות → מפתחות API כדי לאמת את האישורים שלך.";
 "transcription.error.unauthorized.generic" = "לא מורשה: מפתח API לא תקין או הרשאות.\n\nפתח הגדרות → מפתחות API כדי לאמת את האישורים שלך.";
+"transcription.error.unauthorized.hyperWhisperCloud" = "מפתח הגישה ל-HyperWhisper Cloud אינו תקין או שפג תוקפו.\n\nפתח הגדרות → HyperWhisper Cloud כדי לעדכן את המפתח.";
 "transcription.error.cloudAccountRequired" = "HyperWhisper Cloud דורש מפתח חשבון.\n\nפתח הגדרות → HyperWhisper Cloud כדי להזין את המפתח שלך או לרכוש קרדיטים.";
 "transcription.error.invalidRequest" = "בקשה לא תקינה: בדוק קובץ אודיו או הגדרות";
 "transcription.error.streamingInterrupted" = "הזרמה הופרעה; טקסט חלקי מוצג";
@@ -1052,7 +1051,6 @@
 "settings.backup.import.confirm.button" = "ייבא";
 "settings.backup.conflict.skip" = "דלג על קיים";
 "settings.backup.conflict.replace" = "החלף קיים";
-"settings.backup.conflict.keepBoth" = "שמור את שניהם";
 "settings.backup.security.warning" = "אזהרה: הקובץ המיוצא יכיל נתונים רגישים. שמור אותו מאובטח ואל תשתף אותו.";
 "settings.backup.info.note" = "גיבויים כוללים הגדרות, מצבים ואוצר מילים. הקלטות ותמלולים אינם כלולים.";
 "settings.backup.result.success.title" = "הצלחה";
@@ -1087,9 +1085,6 @@
 "transcribe.file.error.video.noAudio" = "קובץ הוידאו הזה לא מכיל רצועת אודיו. אנא בחר וידאו עם אודיו או קובץ אודיו.";
 
 // MARK: - File Transcription Progress
-"file.transcription.preparing" = "מכין...";
-"file.transcription.transcribing" = "מתמלל...";
-"file.transcription.finishing" = "מסיים...";
 "file.transcription.cancel" = "ביטול";
 
 // MARK: - Auto-Delete Recordings

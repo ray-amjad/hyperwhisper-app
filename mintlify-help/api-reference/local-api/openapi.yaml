@@ -329,7 +329,13 @@ components:
       required: [name, preset, language, model, punctuation, capitalization, profanityFilter]
       properties:
         id: { type: string, format: uuid }
-        name: { type: string }
+        name:
+          type: string
+          description: >-
+            Must not be empty after normalization and must be unique without
+            regard to case. Windows trims boundary whitespace. macOS also
+            normalizes Unicode, trims invisible boundary characters, and
+            rejects names with no visible base character.
         preset: { type: string, description: "hyper | message | mail | note | meeting | code | custom" }
         language: { type: string }
         model: { type: string }
@@ -340,13 +346,20 @@ components:
         userSystemPrompt: { type: string, nullable: true }
         isDefault: { type: boolean, nullable: true }
         isSystemProvided: { type: boolean, nullable: true }
-        sortOrder: { type: integer, nullable: true }
+        sortOrder:
+          type: integer
+          nullable: true
+          description: >-
+            macOS stores values from -32768 through 32767. On create, macOS
+            ignores this input and assigns the next stored order.
         createdDate: { type: string, format: date-time, nullable: true }
         modifiedDate: { type: string, format: date-time, nullable: true }
         languageModel: { type: string, nullable: true }
         cloudTranscriptionModel: { type: string, nullable: true }
         cloudProvider: { type: string, nullable: true }
-        postProcessingMode: { type: integer, description: "0 = off, 1 = cloud, 2 = local" }
+        postProcessingMode:
+          type: integer
+          description: "0 = off, 1 = cloud, 2 = local. macOS rejects all other values."
         postProcessingProvider: { type: string, nullable: true }
         englishSpelling:
           type: string
@@ -385,10 +398,21 @@ components:
         Partial Mode. Any field omitted is left untouched on the server. All
         fields are optional. `id`, `isSystemProvided`, `createdDate` and
         `modifiedDate` are read-only: the server ignores them here, and sets
-        `modifiedDate` itself on each patch.
+        `modifiedDate` itself on each patch. On macOS, an explicit JSON null
+        clears `customInstructions`, `userSystemPrompt`, `languageModel`,
+        `cloudTranscriptionModel`, `cloudTranscriptionDomain`, `cloudProvider`,
+        `postProcessingProvider`, `englishSpelling`, `cloudAccuracyTier`,
+        `geminiCustomPrompt`, or `cloudPostProcessingModel`. Windows treats null
+        like omission for nullable PATCH fields.
       type: object
       properties:
-        name: { type: string }
+        name:
+          type: string
+          description: >-
+            Must not be empty after normalization and must be unique without
+            regard to case. Windows trims boundary whitespace. macOS also
+            normalizes Unicode, trims invisible boundary characters, and
+            rejects names with no visible base character.
         preset: { type: string, description: "hyper | message | mail | note | meeting | code | custom" }
         language: { type: string }
         model: { type: string }
@@ -398,11 +422,16 @@ components:
         customInstructions: { type: string, nullable: true }
         userSystemPrompt: { type: string, nullable: true }
         isDefault: { type: boolean, nullable: true }
-        sortOrder: { type: integer, nullable: true }
+        sortOrder:
+          type: integer
+          nullable: true
+          description: "macOS accepts values from -32768 through 32767."
         languageModel: { type: string, nullable: true }
         cloudTranscriptionModel: { type: string, nullable: true }
         cloudProvider: { type: string, nullable: true }
-        postProcessingMode: { type: integer, description: "0 = off, 1 = cloud, 2 = local" }
+        postProcessingMode:
+          type: integer
+          description: "0 = off, 1 = cloud, 2 = local. macOS rejects all other values."
         postProcessingProvider: { type: string, nullable: true }
         englishSpelling: { type: string, nullable: true, description: "american | british | australian | canadian" }
         useStreamingTranscription: { type: boolean, nullable: true }

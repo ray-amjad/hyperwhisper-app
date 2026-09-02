@@ -9,6 +9,8 @@
   This file contains all user-facing text that needs to be translated.
 */
 
+"transcription.error.forbidden.hyperWhisperCloud" = "HyperWhisper Cloud afviste denne anmodning. Dit netværk er midlertidigt blokeret.\n\nVent et par minutter, og prøv igen.";
+
 // MARK: - Application Navigation
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
@@ -420,10 +422,6 @@
 "license.button.activate" = "Aktiver";
 "license.button.activating" = "Aktiverer...";
 "license.status.label" = "Status: %@";
-"license.status.trial.title" = "Prøveversion";
-"license.status.active.title" = "Aktiv";
-"license.status.expired.title" = "Udløbet";
-"license.status.invalid.title" = "Ugyldig";
 "license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "Licenseret – Fuld adgang";
 "license.status.expired.description" = "Licens udløbet";
@@ -926,6 +924,7 @@ Opdater disse tilstande til at bruge en anden model, inden du sletter.";
 "transcription.error.maxRetriesExceeded" = "Maksimalt antal forsøg overskredet";
 "transcription.error.unauthorized.provider" = "Uautoriseret: ugyldig %@ API-nøgle eller tilladelser.\n\nÅbn Indstillinger → API-nøgler for at verificere dine legitimationsoplysninger.";
 "transcription.error.unauthorized.generic" = "Uautoriseret: ugyldig API-nøgle eller tilladelser.\n\nÅbn Indstillinger → API-nøgler for at verificere dine legitimationsoplysninger.";
+"transcription.error.unauthorized.hyperWhisperCloud" = "Adgangsnøglen til HyperWhisper Cloud er ugyldig eller udløbet.\n\nÅbn Indstillinger → HyperWhisper Cloud for at opdatere din nøgle.";
 "transcription.error.cloudAccountRequired" = "HyperWhisper Cloud kræver en kontonøgle.\n\nÅbn Indstillinger → HyperWhisper Cloud for at indtaste din nøgle eller købe kreditter.";
 "transcription.error.invalidRequest" = "Ugyldig anmodning: kontroller lydfil eller indstillinger";
 "transcription.error.streamingInterrupted" = "Streaming afbrudt; delvis tekst vist";
@@ -1052,7 +1051,6 @@ Opdater disse tilstande til at bruge en anden model, inden du sletter.";
 "settings.backup.import.confirm.button" = "Importer";
 "settings.backup.conflict.skip" = "Spring eksisterende over";
 "settings.backup.conflict.replace" = "Erstat eksisterende";
-"settings.backup.conflict.keepBoth" = "Behold begge";
 "settings.backup.security.warning" = "Advarsel: Den eksporterede fil vil indeholde følsomme data. Opbevar den sikkert, og del den ikke.";
 "settings.backup.info.note" = "Sikkerhedskopier inkluderer indstillinger, tilstande og ordforråd. Optagelser og transkripter er ikke inkluderet.";
 "settings.backup.result.success.title" = "Succes";
@@ -1087,9 +1085,6 @@ Opdater disse tilstande til at bruge en anden model, inden du sletter.";
 "transcribe.file.error.video.noAudio" = "Denne videofil indeholder ikke et lydspor. Vælg venligst en video med lyd eller en lydfil.";
 
 // MARK: - File Transcription Progress
-"file.transcription.preparing" = "Forbereder...";
-"file.transcription.transcribing" = "Transskriberer...";
-"file.transcription.finishing" = "Afslutter...";
 "file.transcription.cancel" = "Annuller";
 
 // MARK: - Auto-Delete Recordings

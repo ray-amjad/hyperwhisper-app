@@ -756,6 +756,7 @@ public static class LoggingService
         CloudTranscriptionProvider.Mistral => apiKeys.HasApiKey(TranscriptionApiKeyType.Mistral),
         CloudTranscriptionProvider.Soniox => apiKeys.HasApiKey(TranscriptionApiKeyType.Soniox),
         CloudTranscriptionProvider.GeminiTranscribe => apiKeys.HasApiKey(TranscriptionApiKeyType.GeminiTranscribe),
+        CloudTranscriptionProvider.Meta => apiKeys.HasApiKey(TranscriptionApiKeyType.Meta),
         CloudTranscriptionProvider.HyperWhisperCloud => true,
         CloudTranscriptionProvider.MicrosoftAzureSpeech => true,
         CloudTranscriptionProvider.GoogleSpeech => true,

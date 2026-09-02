@@ -160,6 +160,23 @@ try
         && !geminiRestore.Contains("GeminiApiKey"),
         "the Gemini 3.5 Transcribe key did not survive a backup round trip");
 
+    var metaStore = new MemoryCredentialStore();
+    metaStore.Seed("MetaApiKey", "meta-export-secret");
+    var metaExport = JsonNode.Parse(await new ApplicationBackupService(database, settings, metaStore)
+        .ExportAsync(new BackupExportSelection(
+            IncludeSettings: false, IncludeModes: false, IncludeVocabulary: false,
+            IncludeCredentials: true)))!.AsObject();
+    Assert(metaExport["apiKeys"] is JsonObject metaKeys
+        && metaKeys.Count == 1
+        && metaKeys["meta"]!.GetValue<string>() == "meta-export-secret",
+        "the Meta key was not exported only after explicit credential opt-in");
+    var metaRestore = new MemoryCredentialStore();
+    var metaImport = await new ApplicationBackupService(database, settings, metaRestore)
+        .ImportAsync(metaExport.ToJsonString(), credentialSelection);
+    Assert(metaImport.IsSuccess && metaImport.Value!.CredentialsImported == 1
+        && metaRestore.Text("MetaApiKey") == "meta-export-secret",
+        "the Meta key did not survive a transactional secure-store round trip");
+
     // A Windows or macOS backup spells this id in camelCase. Before the id
     // charset accepted capitals, one such member failed the WHOLE restore —
     // modes, vocabulary and settings with it, not just the keys — while the
@@ -423,6 +440,40 @@ try
     }
 
     Console.WriteLine($"Backup mode-normalization vectors: {vectorRows.Count}/{vectorRows.Count} rows matched the Linux import.");
+
+    var nameVectorRows = JsonNode.Parse(await File.ReadAllTextAsync(vectorsPath))!
+        .AsObject()["modeNameNormalization"]!.AsArray();
+    Assert(nameVectorRows.Count > 0, "backup-vectors.json has no modeNameNormalization rows");
+    var nameVectorRoot = Path.Combine(root, "mode-name-normalization-vectors");
+    Directory.CreateDirectory(nameVectorRoot);
+    var nameVectorPaths = new TestPaths(nameVectorRoot);
+    var nameVectorSettings = new PortableSettingsService(new MemoryPrivateFileService(), nameVectorPaths);
+    Assert(nameVectorSettings.Load().IsSuccess, "name-vector settings did not initialize");
+    var nameVectorDatabase = new ApplicationDb(nameVectorPaths);
+    await nameVectorDatabase.MigrateAsync();
+    var nameVectorService = new ApplicationBackupService(nameVectorDatabase, nameVectorSettings);
+    foreach (var rowNode in nameVectorRows)
+    {
+        var row = rowNode!.AsObject();
+        var label = row["name"]!.GetValue<string>();
+        var id = Guid.Parse(row["mode"]!["id"]!.GetValue<string>());
+        var nameVectorBackup = new JsonObject
+        {
+            ["schemaVersion"] = 2,
+            ["exportDate"] = DateTimeOffset.UtcNow.ToString("O"),
+            ["appVersion"] = "1.0.0",
+            ["platform"] = "linux",
+            ["modes"] = new JsonArray(row["mode"]!.DeepClone()),
+        };
+        var nameVectorImport = await nameVectorService.ImportAsync(nameVectorBackup.ToJsonString());
+        Assert(nameVectorImport.IsSuccess,
+            $"mode-name vector '{label}' import failed: {nameVectorImport.Error?.Message}");
+        var imported = (await new ModeRepository(nameVectorDatabase).ListAsync())
+            .SingleOrDefault(item => item.Id == id);
+        Assert(imported is not null, $"mode-name vector '{label}' was not imported");
+        Assert(imported!.Name == row["expectedName"]!.GetValue<string>(),
+            $"mode-name vector '{label}' restored as '{imported.Name}'");
+    }
 
     // NATIVE CAPTURE (issue #277, phase 2a) — the SETTINGS halves.
     //

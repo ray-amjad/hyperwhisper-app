@@ -291,7 +291,10 @@ export async function transcribeWithGoogleChirp(
     const detectedLanguage = normalized.languageCode;
     const rawBilled = normalized.billedDuration;
 
-    let durationSeconds = parseIsoDurationToSeconds(rawBilled);
+    // Captured BEFORE the byte-estimate overwrite below: our guess must never be
+    // recorded as the upstream's reported duration.
+    const rawUpstreamDurationSeconds = parseIsoDurationToSeconds(rawBilled);
+    let durationSeconds = rawUpstreamDurationSeconds;
     if (durationSeconds <= 0) {
       // Estimate from byte length using a content-type-aware bytes-per-second
       // table. Raw PCM (32 kB/s) over-bills compressed audio by up to 10× if
@@ -311,6 +314,7 @@ export async function transcribeWithGoogleChirp(
       logProviderEvent(provider, 'no_speech', {
         elapsedMs: Math.round(performance.now() - startedAt),
         detectedLanguage,
+        upstreamDurationSeconds: rawUpstreamDurationSeconds > 0 ? rawUpstreamDurationSeconds : null,
       }, context);
       return {
         text: '',

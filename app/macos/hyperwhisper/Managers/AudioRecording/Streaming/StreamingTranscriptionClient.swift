@@ -111,6 +111,14 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
     /// Called when an error occurs.
     var onError: ((Error) -> Void)?
 
+    /// Called when the socket supplies a definitive provider-down verdict.
+    /// Unlike `onError`, this does not imply that retries or teardown finished.
+    var onDefinitiveProviderFailure: ((Error) -> Void)?
+
+    /// Called after useful provider work: a transcript or a completed session.
+    /// A socket opening or session-start acknowledgement alone does not count.
+    var onProviderSuccess: (() -> Void)?
+
     /// Called when the server sends a warning (e.g., session approaching max duration).
     var onWarning: ((String) -> Void)?
 
@@ -129,6 +137,7 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
     /// Provider strategy that encapsulates WebSocket protocol differences.
     /// Set once at init and used throughout the session lifecycle.
     private let strategy: StreamingProviderStrategy
+    private let streamingProvider: StreamingTranscriptionProvider?
 
     /// Audio capture component that manages the AVAudioEngine lifecycle.
     /// Created when the session starts, destroyed when it stops.
@@ -301,6 +310,7 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
     /// and "Reconnect success" crumbs below never leave the machine. Scope
     /// extras do, so the path taken is published there instead.
     private var stage = "idle"
+    private var didReportProviderSuccess = false
 
     // MARK: - Initialization
 
@@ -310,8 +320,12 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
     /// URL format, auth headers, audio encoding, message parsing, and shutdown sequence.
     ///
     /// - Parameter strategy: The provider strategy to use for this session
-    init(strategy: StreamingProviderStrategy) {
+    init(
+        strategy: StreamingProviderStrategy,
+        streamingProvider: StreamingTranscriptionProvider? = nil
+    ) {
         self.strategy = strategy
+        self.streamingProvider = streamingProvider
         super.init()
     }
 
@@ -349,6 +363,7 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         lastError = nil
         didInitiateClose = false
         didHandleTerminalProviderError = false
+        didReportProviderSuccess = false
         pendingStartupFailure = nil
         reconnectCount = 0
         connectionEstablishedAt = Date()
@@ -901,6 +916,19 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
                     break
                 }
 
+                // A 5xx WebSocket upgrade is a definitive provider-down
+                // verdict. Preserve that fact in the error type so the flow can
+                // feed it into `/health` without treating a transport failure,
+                // a user-account refusal, or a local audio error as an outage.
+                if let status = providerUnavailableUpgradeStatus(for: task) {
+                    reportDefinitiveProviderFailure(
+                        TranscriptionError.serverError(
+                            statusCode: status,
+                            message: "Streaming WebSocket upgrade failed"
+                        )
+                    )
+                }
+
                 // SERVER-INITIATED CLOSE (4001 credits exhausted / 4002 max duration):
                 // The didCloseWith delegate sets didInitiateClose via a separately
                 // enqueued Task { @MainActor in ... }, which can land AFTER this catch
@@ -934,11 +962,23 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
                 // after a terminal upstream fault — whichever arrives first wins
                 // and the message the user reads is that frame's own wording.
                 //
-                // A `serverError` rather than one of the two dedicated cases: the
-                // close code alone identifies no account state, and it must stay
-                // Sentry-reportable, because in every case listed here the bug is
-                // ours or the service's and nobody would otherwise hear about it.
+                // A 1011 can carry a provider-specific non-outage reason. The
+                // policy combines code, provider and close reason before it can
+                // change `/health`. Other protocol/input cases stay generic.
                 if StreamingProviderErrorPolicy.isTerminalCloseCode(rawCloseCode) {
+                    let closeReason = task.closeReason.flatMap { String(data: $0, encoding: .utf8) }
+                    if StreamingProviderErrorPolicy.isProviderUnavailableClose(
+                        code: rawCloseCode,
+                        reason: closeReason,
+                        provider: streamingProvider
+                    ) {
+                        reportDefinitiveProviderFailure(
+                            TranscriptionError.providerNotAvailable(
+                                provider: strategy.transcriptionProviderLabel,
+                                reason: "Streaming service closed with 1011 Internal Error"
+                            )
+                        )
+                    }
                     handleTerminalCondition(
                         .serverError("The transcription service ended the session (code \(rawCloseCode))"),
                         detail: "terminal close code \(rawCloseCode)",
@@ -1035,7 +1075,34 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         return StreamingProviderErrorPolicy.upgradeRefusal(forStatus: response.statusCode)
     }
 
-    /// The refusal the current socket's response names, or `error` unchanged.
+    /// A failed WebSocket upgrade status that definitively says the provider,
+    /// not the user's account or local network, failed the request.
+    private func providerUnavailableUpgradeStatus(
+        for task: URLSessionWebSocketTask
+    ) -> Int? {
+        guard let response = task.response as? HTTPURLResponse,
+              StreamingProviderErrorPolicy.isProviderUnavailableUpgradeStatus(response.statusCode) else { return nil }
+        return response.statusCode
+    }
+
+    /// Emit a health verdict for a concrete provider failure while leaving
+    /// retry and teardown behavior unchanged. Repeated 5xx responses are fresh
+    /// evidence and deliberately refresh the override window.
+    private func reportDefinitiveProviderFailure(_ error: Error) {
+        // A later useful event from a recovered stream must be able to clear
+        // this failure, even if the session had produced text before it failed.
+        didReportProviderSuccess = false
+        onDefinitiveProviderFailure?(error)
+    }
+
+    private func reportProviderSuccess() {
+        guard !didReportProviderSuccess else { return }
+        didReportProviderSuccess = true
+        onProviderSuccess?()
+    }
+
+    /// The specific upgrade failure the current socket's response names, or
+    /// `error` unchanged.
     ///
     /// A startup failure on a socket the server refused outright *is* that
     /// refusal, whatever shape the failure happened to arrive in — a send that
@@ -1049,11 +1116,11 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
     ///
     /// A `pendingStartupFailure` wins outright, because it is the more specific
     /// answer to the same question — either the provider's own wording for a
-    /// terminal frame, or a refusal the receive loop classified first. That
-    /// second case is why this is returned rather than deferred to: the send and
-    /// the receive both fail on a refused socket with no guaranteed order, and
-    /// whichever loses would otherwise rethrow its own generic transport error
-    /// over an answer already sitting in hand.
+    /// terminal frame, or an upgrade failure the receive loop classified first.
+    /// That second case is why this is returned rather than deferred to: the send
+    /// and the receive both fail on a refused socket with no guaranteed order,
+    /// and whichever loses would otherwise rethrow its own generic transport
+    /// error over an answer already sitting in hand.
     ///
     /// Reporting goes through `handleRefusedUpgrade` rather than being done
     /// here, so a refusal is reported the same way — one Sentry capture, one
@@ -1064,8 +1131,19 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
     private func refusalDuringStartup(shadowing error: Error) -> Error {
         if error is CancellationError { return error }
         if let failure = pendingStartupFailure { return failure }
-        guard let task = webSocketTask,
-              let refusal = terminalUpgradeRefusal(for: task) else { return error }
+        guard let task = webSocketTask else { return error }
+
+        if let status = providerUnavailableUpgradeStatus(for: task) {
+            reportDefinitiveProviderFailure(
+                TranscriptionError.serverError(
+                    statusCode: status,
+                    message: "Streaming WebSocket upgrade failed"
+                )
+            )
+            return error
+        }
+
+        guard let refusal = terminalUpgradeRefusal(for: task) else { return error }
 
         // The caller's own task, not the receive loop — so that loop is a
         // different task and cancelling it is what stops it reaching the
@@ -1085,7 +1163,9 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         cancelReceiveTask: Bool
     ) -> StreamingError {
         let status = (task.response as? HTTPURLResponse)?.statusCode ?? 0
-        let error: StreamingError = refusal == .insufficientCredits ? .insufficientCredits : .unauthorized
+        let error: StreamingError = refusal == .insufficientCredits
+            ? .insufficientCredits
+            : .unauthorized(statusCode: status)
         handleTerminalCondition(error, detail: "HTTP \(status)", cancelReceiveTask: cancelReceiveTask)
         return error
     }
@@ -1200,6 +1280,10 @@ class StreamingTranscriptionClient: NSObject, ObservableObject, StreamingClientP
         guard let event = strategy.parseMessage(jsonString) else {
             logger.debug("Unhandled message from provider")
             return
+        }
+
+        if StreamingProviderErrorPolicy.isUsefulProviderSuccessEvent(event) {
+            reportProviderSuccess()
         }
 
         switch event {
@@ -1963,6 +2047,18 @@ extension StreamingTranscriptionClient: URLSessionWebSocketDelegate {
             // receive task IS a different task, so cancelling it is both safe
             // and what actually stops the loop.
             if StreamingProviderErrorPolicy.isTerminalCloseCode(rawCode) {
+                if StreamingProviderErrorPolicy.isProviderUnavailableClose(
+                    code: rawCode,
+                    reason: reasonString,
+                    provider: streamingProvider
+                ) {
+                    reportDefinitiveProviderFailure(
+                        TranscriptionError.providerNotAvailable(
+                            provider: strategy.transcriptionProviderLabel,
+                            reason: "Streaming service closed with 1011 Internal Error"
+                        )
+                    )
+                }
                 handleTerminalCondition(
                     .serverError("The transcription service ended the session (code \(rawCode))"),
                     detail: "terminal close code \(rawCode) (delegate)",
@@ -2018,8 +2114,9 @@ enum StreamingError: LocalizedError {
     /// "Server error: …" — the one description that is wrong here, because the
     /// server is working exactly as designed.
     case insufficientCredits
-    /// The key was refused — a 401/403 on the upgrade.
-    case unauthorized
+    /// The key or network was refused on the upgrade. Keep the response status
+    /// because HyperWhisper Cloud uses 403 for a temporary network block.
+    case unauthorized(statusCode: Int?)
 
     var errorDescription: String? {
         switch self {
@@ -2036,7 +2133,10 @@ enum StreamingError: LocalizedError {
             // (`TranscriptionError.insufficientCredits`). One condition, one
             // wording, whichever path the user hit it on.
             return "transcription.error.insufficientCredits".localized
-        case .unauthorized:
+        case .unauthorized(let statusCode):
+            if statusCode == 403 {
+                return "transcription.error.forbidden.hyperWhisperCloud".localized
+            }
             return "transcription.error.unauthorized.generic".localized
         }
     }

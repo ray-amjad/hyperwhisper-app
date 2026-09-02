@@ -44,7 +44,7 @@ HyperWhisper app
       ▼
 Fly.io Anycast ──► Nearest of 17 regions (production)
       │
-      ├─► Deepgram / Groq / ElevenLabs / xAI         (speech-to-text)
+      ├─► Deepgram / Groq / ElevenLabs / xAI / Meta  (speech-to-text)
       ├─► Cerebras / Groq / Anthropic / xAI          (post-process LLM)
       ├─► Anthropic Claude                           (Assistant vision)
       │
@@ -78,6 +78,7 @@ The service is a proxy. Once a request reaches the upstream provider, that provi
 - `groq.ts` — Groq Whisper Large v3.
 - `elevenlabs.ts` — ElevenLabs Scribe v2.
 - `xai-stt.ts` — xAI Grok STT.
+- `meta.ts` — Meta Muse Voice Transcribe 1.0 through the Meta Model API batch endpoint.
 
 **Post-processing LLMs** (`src/providers/`)
 

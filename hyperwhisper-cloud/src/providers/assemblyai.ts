@@ -359,7 +359,15 @@ async function transcribeWithAssemblyAISync(
   }
 
   if (job.text.trim().length === 0) {
-    logProviderEvent(provider, 'no_speech', { model: SYNC_DEFAULT_MODEL, path: 'sync' }, context);
+    logProviderEvent(provider, 'no_speech', {
+      model: SYNC_DEFAULT_MODEL,
+      path: 'sync',
+      // Read inline off the response: the byte-estimate fallback below runs only
+      // on the success path, and must never be logged as the upstream's number.
+      upstreamDurationSeconds: typeof job.audio_duration_ms === 'number' && job.audio_duration_ms > 0
+        ? job.audio_duration_ms / 1000
+        : null,
+    }, context);
     return { text: '', language: explicitLanguage, durationSeconds: 0, costUsd: 0, source: 'no_speech' };
   }
 
@@ -613,7 +621,12 @@ export async function transcribeWithAssemblyAI(
         const rawDuration = job.audio_duration || 0;
 
         if (!transcript || transcript.trim().length === 0) {
-          logProviderEvent(provider, 'no_speech', { model, polls, language: job.language_code }, context);
+          logProviderEvent(provider, 'no_speech', {
+            model,
+            polls,
+            language: job.language_code,
+            upstreamDurationSeconds: (rawDuration > 0 && Number.isFinite(rawDuration)) ? rawDuration : null,
+          }, context);
           return { text: '', language: job.language_code, durationSeconds: 0, costUsd: 0, source: 'no_speech' };
         }
 

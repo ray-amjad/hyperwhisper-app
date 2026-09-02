@@ -38,6 +38,9 @@ struct HyperWhisperCloudEntitlementTests {
     private static let toastSettingsMarker = "account key"
 
     private static let cloudAccountRequiredKey = "transcription.error.cloudAccountRequired"
+    private static let cloudUnauthorizedKey = "transcription.error.unauthorized.hyperWhisperCloud"
+    private static let cloudForbiddenKey = "transcription.error.forbidden.hyperWhisperCloud"
+    private static let providerUnauthorizedKey = "transcription.error.unauthorized.provider"
 
     /// Reads a key's **English** value straight out of `Base.lproj`, so marker
     /// assertions do not depend on the test runner's locale.
@@ -541,6 +544,108 @@ struct HyperWhisperCloudEntitlementTests {
     }
 
     // MARK: - Local HTTP API does not leak a generic failure
+
+    @Test func cloudUnauthorizedMessageDistinguishesForbiddenStatus() throws {
+        let unauthorizedEnglish = try #require(Self.baseLocalizedValue(forKey: Self.cloudUnauthorizedKey))
+        let forbiddenEnglish = try #require(Self.baseLocalizedValue(forKey: Self.cloudForbiddenKey))
+
+        #expect(unauthorizedEnglish.localizedCaseInsensitiveContains("invalid or expired"))
+        #expect(unauthorizedEnglish.contains("Settings → HyperWhisper Cloud"))
+        #expect(!unauthorizedEnglish.contains("Settings → API Keys"))
+        // A HyperWhisper Cloud 403 is only ever the abuse guard — every route
+        // (`transcribe`, `post-process`, `usage`, `assistant`) answers 403 with
+        // "Your IP has been temporarily blocked due to abuse" and nothing else.
+        // So the 403 text must describe a temporary block and must NOT send the
+        // user to Settings to change a key that is working.
+        #expect(forbiddenEnglish.localizedCaseInsensitiveContains("denied"))
+        #expect(forbiddenEnglish.localizedCaseInsensitiveContains("temporarily blocked"))
+        #expect(!forbiddenEnglish.localizedCaseInsensitiveContains("lack access"))
+        #expect(!forbiddenEnglish.contains("Settings → HyperWhisper Cloud"))
+        #expect(!forbiddenEnglish.contains("Settings → API Keys"))
+
+        let descriptions = ([nil, 401, 403] as [Int?]).map {
+            TranscriptionError.unauthorized(
+                provider: "HyperWhisper Cloud",
+                statusCode: $0
+            ).errorDescription
+        }
+        #expect(descriptions[0] == descriptions[1])
+        #expect(descriptions[2] != descriptions[0])
+        #expect(descriptions[2]?.contains("\n\n") == true)
+        #expect(descriptions[2]?.contains(#"\n"#) == false)
+        #expect(descriptions.allSatisfy { $0 != Self.cloudUnauthorizedKey })
+        #expect(descriptions[2] != Self.cloudForbiddenKey)
+    }
+
+    @Test func everyForbiddenLocaleUsesRenderedLineBreaks() throws {
+        let localizations = Self.repoRoot.appendingPathComponent(
+            "app/macos/hyperwhisper/Localizations"
+        )
+        let localeDirectories = try FileManager.default.contentsOfDirectory(
+            at: localizations,
+            includingPropertiesForKeys: nil
+        ).filter { $0.pathExtension == "lproj" }
+        #expect(localeDirectories.count == 40)
+
+        for locale in localeDirectories {
+            let source = try String(
+                contentsOf: locale.appendingPathComponent("Localizable.strings"),
+                encoding: .utf8
+            )
+            let line = try #require(source.components(separatedBy: .newlines).first {
+                $0.hasPrefix(#""transcription.error.forbidden.hyperWhisperCloud""#)
+            })
+            #expect(line.contains(#"\n\n"#), "\(locale.lastPathComponent) must encode 2 line breaks")
+            #expect(!line.contains(#"\\n\\n"#), "\(locale.lastPathComponent) double-escapes line breaks")
+        }
+    }
+
+    @Test func byokUnauthorizedMessageKeepsTheAPIKeysDestination() throws {
+        let format = try #require(Self.baseLocalizedValue(forKey: Self.providerUnauthorizedKey))
+
+        #expect(format.contains("Settings → API Keys"))
+        #expect(!format.contains("Settings → HyperWhisper Cloud"))
+
+        let error = TranscriptionError.unauthorized(provider: "OpenAI", statusCode: 401)
+        #expect(error.errorDescription != Self.cloudUnauthorizedKey)
+    }
+
+    @Test func localAPIMapsCloudUnauthorizedToCloudSettingsWithoutChangingItsCode() {
+        let cloudResults = ([nil, 401, 403] as [Int?]).map {
+            LocalAPIResponder.mapTranscriptionError(
+                TranscriptionError.unauthorized(
+                    provider: "HyperWhisper Cloud",
+                    statusCode: $0
+                )
+            )
+        }
+
+        // An unknown status and a 401 are the credential fault.
+        for (code, message, hint) in cloudResults[0...1] {
+            #expect(code == .missingAPIKey)
+            #expect(message.localizedCaseInsensitiveContains("invalid or expired"))
+            #expect(hint?.contains("Settings → HyperWhisper Cloud") == true)
+            #expect(hint?.contains("Settings → API Keys") == false)
+        }
+        #expect(cloudResults[0].1 == cloudResults[1].1)
+        #expect(cloudResults[0].2 == cloudResults[1].2)
+
+        // A 403 is the abuse guard, not a bad key. Reporting MISSING_API_KEY
+        // here makes an API client rotate a valid key.
+        let (forbiddenCode, forbiddenMessage, forbiddenHint) = cloudResults[2]
+        #expect(forbiddenCode == .rateLimited)
+        #expect(!forbiddenMessage.localizedCaseInsensitiveContains("invalid or expired"))
+        #expect(forbiddenHint?.localizedCaseInsensitiveContains("temporarily blocked") == true)
+        #expect(forbiddenHint?.contains("Settings → HyperWhisper Cloud") == false)
+        #expect(forbiddenHint?.contains("Settings → API Keys") == false)
+
+        let (byokCode, _, byokHint) = LocalAPIResponder.mapTranscriptionError(
+            TranscriptionError.unauthorized(provider: "OpenAI", statusCode: 401)
+        )
+        #expect(byokCode == .missingAPIKey)
+        #expect(byokHint?.contains("Settings → API Keys") == true)
+        #expect(byokHint?.contains("Settings → HyperWhisper Cloud") == false)
+    }
 
     @Test func localAPIMapsCloudAccountRequiredToAnExplicitCode() {
         let (code, message, hint) = LocalAPIResponder.mapTranscriptionError(

@@ -28,7 +28,7 @@ public static class UniversalBackupMapper
     // =========================================================================
 
     /// <summary>
-    /// Canonicalize an imported mode's five cloud-routing fields in the Rust
+    /// Canonicalize an imported mode's name and five cloud-routing fields in the Rust
     /// shared core (<c>normalize_universal_mode_json</c>): the cloudProvider
     /// catalog fold, the legacy model-alias tables, the present-only
     /// cloudAccuracyTier / cloudPostProcessingModel migration including the
@@ -38,8 +38,8 @@ public static class UniversalBackupMapper
     /// <remarks>
     /// PRESENT-ONLY: the core returns a field ABSENT (null here) when no source
     /// supplied one, so the caller keeps the Mode entity's own default instead of
-    /// the core's. Only the five cloud-routing properties of the result are read;
-    /// every other field is taken from the original DTO.
+    /// the core's. The normalized name and five cloud-routing properties are read
+    /// from the result; every other field is taken from the original DTO.
     /// </remarks>
     private static UniversalMode NormalizeCloudRouting(UniversalMode universal)
     {
@@ -431,7 +431,8 @@ public static class UniversalBackupMapper
             // two are different APIs behind the same "AIza" key shape, so leaving
             // this out restores a machine that looks configured for Google and has
             // no Gemini 3.5 Transcribe key at all.
-            GeminiTranscribe = readTranscriptionKey(TranscriptionApiKeyType.GeminiTranscribe)
+            GeminiTranscribe = readTranscriptionKey(TranscriptionApiKeyType.GeminiTranscribe),
+            Meta = readTranscriptionKey(TranscriptionApiKeyType.Meta)
         };
     }
 
@@ -881,7 +882,7 @@ public static class UniversalBackupMapper
         var mode = new Mode
         {
             Id = universal.Id,
-            Name = universal.Name,
+            Name = normalized.Name,
             Preset = universal.Preset,
             Language = universal.Language,
             Model = universal.Model,
@@ -1040,6 +1041,8 @@ public static class UniversalBackupMapper
             : ExtraApiKey(apiKeys, "geminiTranscribe");
         if (!string.IsNullOrEmpty(geminiTranscribe))
             writeTranscriptionKey(TranscriptionApiKeyType.GeminiTranscribe, geminiTranscribe);
+        if (!string.IsNullOrEmpty(apiKeys.Meta))
+            writeTranscriptionKey(TranscriptionApiKeyType.Meta, apiKeys.Meta);
     }
 
     /// <summary>

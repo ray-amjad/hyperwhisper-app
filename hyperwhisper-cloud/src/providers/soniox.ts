@@ -280,7 +280,15 @@ export async function transcribeWithSoniox(
     const language_ = transcriptData.tokens?.find((t) => t.language)?.language;
 
     if (!transcript) {
-      logProviderEvent(provider, 'no_speech', { model, polls }, context);
+      logProviderEvent(provider, 'no_speech', {
+        model,
+        polls,
+        // Set from `job.audio_duration_ms` during polling; still 0 means the
+        // upstream never reported one.
+        upstreamDurationSeconds: (durationSeconds > 0 && Number.isFinite(durationSeconds))
+          ? durationSeconds
+          : null,
+      }, context);
       return { text: '', language: language_, durationSeconds: 0, costUsd: 0, source: 'no_speech' };
     }
 

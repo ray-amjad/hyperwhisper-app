@@ -624,6 +624,21 @@ internal static class Program
                     AssertModeVectorField(label, "cloudAccuracyTier", expected, mode.CloudAccuracyTier);
                     AssertModeVectorField(label, "cloudPostProcessingModel", expected, mode.CloudPostProcessingModel);
                 }
+
+                var nameRows = vectors.RootElement.GetProperty("modeNameNormalization");
+                Assert(nameRows.GetArrayLength() > 0,
+                    "backup-vectors.json has no modeNameNormalization rows");
+                foreach (var row in nameRows.EnumerateArray())
+                {
+                    var label = row.GetProperty("name").GetString()
+                        ?? throw new InvalidOperationException("a mode-name vector row has no name");
+                    var universal = JsonSerializer.Deserialize<UniversalMode>(
+                        row.GetProperty("mode").GetRawText())
+                        ?? throw new InvalidOperationException($"vector '{label}' did not deserialize");
+                    var mode = UniversalBackupMapper.MapToMode(universal);
+                    Assert(mode.Name == row.GetProperty("expectedName").GetString(),
+                        $"vector '{label}': normalized mode name was '{mode.Name}'");
+                }
             });
 
             // NATIVE CAPTURE (issue #277, phase 2a). Drives every
@@ -1333,6 +1348,96 @@ internal static class Program
 
                 Assert(ex.Code == TranscriptionErrorCode.NetworkError, $"code {ex.Code}");
                 Assert(handler.Sends == RustRetry.MaxTimeoutAttempts, $"sends {handler.Sends}");
+            });
+
+            // Issue #379: 8 attempts of raw exponential backoff is ~127s of sleep,
+            // so an always-503 provider used to hang for ~150s. The budget is a
+            // THIRD bound, orthogonal to the two transport caps above (which the
+            // two cases above still pin at 4 and 2).
+            RunAsync("RustRetry's backoff budget stops a hard-down provider early", async () =>
+            {
+                // The stub 503s twice then succeeds — the shape of a real
+                // transient blip, and the shape that separates the two budgets
+                // without waiting out the full 127s series.
+                static StubHandler FlakyStub()
+                {
+                    var sends = 0;
+                    return new StubHandler(_ =>
+                    {
+                        sends++;
+                        return Task.FromResult(sends <= 2
+                            ? new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)
+                            {
+                                Content = new StringContent("{\"error\":\"provider down\"}")
+                            }
+                            : new HttpResponseMessage(HttpStatusCode.OK)
+                            {
+                                Content = new StringContent("{\"text\":\"ok\"}")
+                            });
+                    });
+                }
+
+                // budgetMs: 0 is unbounded — the pre-#379 behaviour. Both retries
+                // are taken (1s + 2s of sleep) and the third attempt succeeds.
+                var unbounded = FlakyStub();
+                using var unboundedClient = new HttpClient(unbounded);
+                var ok = await RustRetry.PerformAsync(
+                    unboundedClient,
+                    BuildDummyRequest,
+                    _ => new TranscriptionException(TranscriptionErrorCode.Unknown, "unexpected"),
+                    CancellationToken.None,
+                    budgetMs: 0);
+
+                Assert(ok.@status == 200, $"status {ok.@status}");
+                Assert(unbounded.Sends == 3, $"unbounded sends {unbounded.Sends}");
+
+                // A 2s budget: attempt 1's 1s sleep fits, and attempt 2's 2s sleep
+                // would take the RUNNING TOTAL to 3s, past the budget — so the
+                // sequence gives up at 2 sends and the SAME stub never reaches its
+                // success. Note the stub answers instantly: the budget counts the
+                // backoff only, never the requests' own duration.
+                var budgeted = FlakyStub();
+                using var budgetedClient = new HttpClient(budgeted);
+                var ex = await ExpectAsync<TranscriptionException>(() => RustRetry.PerformAsync(
+                    budgetedClient,
+                    BuildDummyRequest,
+                    resp => new TranscriptionException(
+                        TranscriptionErrorCode.ProviderUnavailable, "budget", null, (int)resp.@status),
+                    CancellationToken.None,
+                    budgetMs: 2_000));
+
+                Assert(ex.Code == TranscriptionErrorCode.ProviderUnavailable, $"code {ex.Code}");
+                Assert(budgeted.Sends == 2, $"budgeted sends {budgeted.Sends}");
+            });
+
+            RunAsync("RustRetry's budget never overrides the core attempt ceiling", async () =>
+            {
+                // `Retry-After: 0` makes every backoff zero, so `slept + delay`
+                // can never exceed any budget. The core's MAX_ATTEMPTS is still
+                // the ceiling — the budget only ever turns a Retry into a GiveUp,
+                // it never extends one. Costs no wall-clock time.
+                var handler = new StubHandler(_ =>
+                {
+                    var response = new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)
+                    {
+                        Content = new StringContent("{\"error\":\"provider down\"}")
+                    };
+                    response.Headers.TryAddWithoutValidation("Retry-After", "0");
+                    return Task.FromResult(response);
+                });
+                using var client = new HttpClient(handler);
+
+                var ex = await ExpectAsync<TranscriptionException>(() => RustRetry.PerformAsync(
+                    client,
+                    BuildDummyRequest,
+                    resp => new TranscriptionException(
+                        TranscriptionErrorCode.ProviderUnavailable, "exhausted", null, (int)resp.@status),
+                    CancellationToken.None,
+                    budgetMs: 5_000));
+
+                Assert(ex.Code == TranscriptionErrorCode.ProviderUnavailable, $"code {ex.Code}");
+                Assert(handler.Sends == (int)uniffi.hyperwhisper_core.HyperwhisperCoreMethods.RetryMaxAttempts(),
+                    $"sends {handler.Sends}");
             });
 
             RunAsync("RustRetry never retries caller cancellation", async () =>
@@ -4756,6 +4861,156 @@ internal static class Program
                     "CloudAccuracyTier.GoogleChirp3 is back; it would shadow the catalog migrateFrom alias.");
             });
 
+            Run("Meta Muse direct provider stays separate from the cloud tier", () =>
+            {
+                var tier = CloudAccuracyTierExtensions.FromString("  METAMUSE  ");
+                Assert(tier == CloudAccuracyTier.MetaMuse, "Meta Muse persistence did not round-trip");
+                Assert(tier.ToStorageValue() == "metaMuse" && tier.ToSttProvider() == "meta",
+                    "Meta Muse tier did not resolve its canonical id and provider");
+
+                Assert((int)CloudTranscriptionProvider.Meta == 15,
+                    "Meta changed its append-only persisted enum value");
+                Assert(CloudTranscriptionProviderExtensions.FromIdentifier("  META  ".Trim())
+                        == CloudTranscriptionProvider.Meta,
+                    "Meta direct provider did not parse case-insensitively");
+                Assert(CloudTranscriptionProvider.Meta.GetIdentifier() == "meta"
+                        && CloudTranscriptionProvider.Meta.RequiresApiKey()
+                        && CloudTranscriptionProvider.Meta.GetMaxFileSizeBytes() == 32L * 1024 * 1024,
+                    "Meta direct provider metadata drifted");
+                var normalizedMeta = HyperWhisper.Services.AppClassification.CloudSttCatalog.Shared
+                    .NormalizeCloudProvider("meta");
+                Assert(normalizedMeta.Provider == "meta" && normalizedMeta.AccuracyTier == null,
+                    "unshipped Meta provider storage gained migration semantics");
+
+                var entry = HyperWhisper.Services.AppClassification.CloudSttCatalog.Shared.GetById("metaMuse");
+                Assert(entry is { SttProvider: "meta", MaxFileSizeMb: 32, MaxDurationMinutes: 10 },
+                    "Meta Muse catalog limits or provider changed");
+                Assert(entry!.Models.Count == 1
+                    && entry.Models[0].Id == "muse-voice-transcribe-1.0"
+                    && !entry.Models[0].Streaming,
+                    "Meta Muse batch model registry changed or became live-selectable");
+
+                Assert(entry!.Access?.ByokEligible == true,
+                    "Meta BYOK catalog gate is not enabled");
+                Assert(CloudTranscriptionModels.GetById(
+                        "muse-voice-transcribe-1.0", CloudTranscriptionProvider.Meta)?.Provider
+                        == CloudTranscriptionProvider.Meta,
+                    "Meta Muse direct model is missing");
+                Assert(HyperWhisper.Services.LocalApi.Endpoints.HealthEndpoints.TranscriptionProviders
+                        .Any(provider => provider == CloudTranscriptionProvider.Meta),
+                    "/health does not report direct Meta key status");
+                Assert(HyperWhisper.Services.LocalApi.Endpoints.HealthEndpoints.StatusString(
+                        CloudTranscriptionProvider.Meta, keyPresent: true, ProviderHealth.Unknown) == "configured",
+                    "/health does not distinguish a configured Meta key from an unknown probe");
+                Assert(!HyperWhisper.Services.LocalApi.Endpoints.HealthEndpoints.IsReachable(
+                        CloudTranscriptionProvider.Meta, keyPresent: true, ProviderHealth.Healthy),
+                    "/health claims the configured-only Meta key was probed");
+                Assert(ModelLibraryManager.CloudProviderAssetName(CloudTranscriptionProvider.Meta) == "providerMeta",
+                    "Meta still uses another provider's brand asset");
+                Assert(!MainViewModel.ExceedsMuseSourceLimit(64L * 1024 * 1024)
+                        && MainViewModel.ExceedsMuseSourceLimit(64L * 1024 * 1024 + 1),
+                    "Windows Meta normalization source bound drifted");
+
+                var transient = new Mode();
+                HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ApplyEngineModel(
+                    transient, "meta", model: null);
+                Assert(transient.ProviderType == "cloud"
+                        && transient.Model == "cloud"
+                        && transient.CloudProvider == "meta"
+                        && transient.CloudTranscriptionModel == "muse-voice-transcribe-1.0",
+                    "Local API engine=meta did not select direct Muse");
+
+                var overridden = new Mode { CloudTranscriptionModel = "stale-other-provider-model" };
+                HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ApplyEngineModel(
+                    overridden, "meta", model: null);
+                Assert(overridden.CloudTranscriptionModel == "muse-voice-transcribe-1.0",
+                    "Local API engine=meta retained a baseline provider model");
+
+                var savedOpenAi = new Mode { CloudTranscriptionModel = "gpt-4o-transcribe" };
+                HyperWhisper.Services.LocalApi.Endpoints.TranscribeEndpoints.ApplyEngineModel(
+                    savedOpenAi, "openai", model: null);
+                Assert(savedOpenAi.CloudTranscriptionModel == "gpt-4o-transcribe",
+                    "Local API erased a saved provider model when model was omitted");
+
+                var cloud = new Mode
+                {
+                    ProviderType = "cloud",
+                    Model = "cloud",
+                    CloudProvider = "hyperwhisper",
+                    CloudAccuracyTier = "metaMuse",
+                    CloudTranscriptionModel = "muse-voice-transcribe-1.0",
+                };
+                Assert(cloud.CloudProvider == "hyperwhisper" && cloud.CloudAccuracyTier == "metaMuse",
+                    "the existing HyperWhisper Cloud Meta route changed");
+
+                var caps = HyperWhisper.Services.SharedModelsCatalog.VoiceCapabilities(
+                    "meta", "muse-voice-transcribe-1.0");
+                Assert(caps is { CodeSwitching: true, Endpointing: true, ContextBias: true,
+                    LanguageBias: true, TurnTimestamps: true, Diarization: true, WordTimestamps: false },
+                    "Meta Muse shared-model capabilities drifted");
+            });
+
+            Run("Meta Muse maps malformed NAudio input to a typed format error", () =>
+            {
+                var path = Path.Combine(Path.GetTempPath(), $"meta-malformed-{Guid.NewGuid():N}.wav");
+                try
+                {
+                    File.WriteAllText(path, "not a wave file");
+                    try
+                    {
+                        MetaMuseService.ValidateFinalWaveAsync(path).GetAwaiter().GetResult();
+                        throw new InvalidOperationException("malformed Meta audio was accepted");
+                    }
+                    catch (TranscriptionException ex)
+                    {
+                        Assert(ex.Code == TranscriptionErrorCode.UnsupportedFormat,
+                            "malformed Meta audio did not return the typed unsupported-format error");
+                    }
+                }
+                finally
+                {
+                    File.Delete(path);
+                }
+            });
+
+            Run("Saving a canonical imported WAV preserves the user source", () =>
+            {
+                var root = Path.Combine(Path.GetTempPath(), $"hw-source-ownership-{Guid.NewGuid():N}");
+                Directory.CreateDirectory(root);
+                var source = Path.Combine(root, "source.wav");
+                var saved = Path.Combine(root, "saved.wav");
+                try
+                {
+                    File.WriteAllBytes(source, new byte[] { 0x52, 0x49, 0x46, 0x46 });
+                    HistoryService.PersistAudioFile(source, saved, ownsSource: false);
+
+                    Assert(File.Exists(source), "saving a canonical import moved the user's source file");
+                    Assert(File.Exists(saved), "saving a canonical import did not create the history copy");
+                    Assert(File.ReadAllBytes(source).SequenceEqual(File.ReadAllBytes(saved)),
+                        "the history copy differs from the user's source file");
+                }
+                finally
+                {
+                    Directory.Delete(root, recursive: true);
+                }
+            });
+
+            Run("Store-as-M4A includes canonical WAV imports only", () =>
+            {
+                Assert(MainViewModel.ShouldConvertImportedAudioToM4A(
+                        true, "canonical.wav", "history-copy.wav"),
+                    "Store-as-M4A skipped a canonical WAV import");
+                Assert(!MainViewModel.ShouldConvertImportedAudioToM4A(
+                        false, "canonical.wav", "history-copy.wav"),
+                    "Store-as-M4A ignored the disabled setting");
+                Assert(!MainViewModel.ShouldConvertImportedAudioToM4A(
+                        true, "provider-native.mp3", "history-copy.wav"),
+                    "Store-as-M4A treated a provider-native non-WAV as WAV");
+                Assert(!MainViewModel.ShouldConvertImportedAudioToM4A(
+                        true, "user-owned.wav", "user-owned.wav"),
+                    "Store-as-M4A can delete a user-owned fallback source");
+            });
+
             Run("Grok's empty model id resolves through a provider-scoped lookup", () =>
             {
                 // Grok's API takes no `model` parameter, so its single registry
@@ -5379,6 +5634,85 @@ internal static class Program
                 }
             });
 
+            Run("the Meta API key uses its isolated backup slot", () =>
+            {
+                const string Placeholder = "not-a-real-secret-value";
+                var stored = new Dictionary<TranscriptionApiKeyType, string?>
+                {
+                    [TranscriptionApiKeyType.Meta] = Placeholder,
+                };
+                var exported = UniversalBackupMapper.MapApiKeys(
+                    _ => null,
+                    type => stored.TryGetValue(type, out var value) ? value : null);
+                Assert(exported.Meta == Placeholder, "the export dropped the Meta key");
+                Assert(exported.Gemini == null && exported.GeminiTranscribe == null,
+                    "the Meta key leaked into a Google key slot");
+
+                var json = JsonSerializer.Serialize(exported);
+                Assert(json.Contains("\"meta\""), "the Meta backup field is not lowercase");
+                var restored = new Dictionary<TranscriptionApiKeyType, string?>();
+                UniversalBackupMapper.ApplyApiKeys(
+                    JsonSerializer.Deserialize<UniversalApiKeys>(json)!,
+                    (_, _) => { },
+                    (type, value) => restored[type] = value);
+                Assert(restored.TryGetValue(TranscriptionApiKeyType.Meta, out var value)
+                       && value == Placeholder,
+                    "the restore left Meta unconfigured");
+            });
+
+            RunAsync("typed multipart files survive the C# binding beside streamed audio", async () =>
+            {
+                var path = Path.Combine(
+                    Path.GetTempPath(), "HyperWhisper.SmokeTests", Guid.NewGuid().ToString("N") + ".wav");
+                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                try
+                {
+                    await File.WriteAllTextAsync(path, "streamed-audio-marker");
+                    var metadata = System.Text.Encoding.UTF8.GetBytes("{\"mode\":\"PUSH_TO_TALK\"}");
+                    using var message = RustHttpExecutor.BuildRequestMessage(new HttpRequest(
+                        @method: uniffi.hyperwhisper_core.HttpMethod.Post,
+                        @url: "https://example.test/transcribe",
+                        @headers: new List<Header>(),
+                        @body: new Body.Multipart("test-boundary", new List<HwPart>
+                        {
+                            new HwPart.InlineFile("request", "request.json", "application/json", metadata),
+                            new HwPart.FileRef("audio", path, "audio/wav", "audio.wav"),
+                        })));
+
+                    Assert(message.Content is MultipartFormDataContent,
+                        "typed multipart request produced no multipart content");
+                    var parts = ((MultipartFormDataContent)message.Content!).ToList();
+                    var requestPart = parts.SingleOrDefault(part =>
+                        part.Headers.ContentDisposition?.Name?.Trim('"') == "request");
+                    var audioPart = parts.SingleOrDefault(part =>
+                        part.Headers.ContentDisposition?.Name?.Trim('"') == "audio");
+                    Assert(requestPart?.Headers.ContentDisposition?.FileName?.Trim('"') == "request.json",
+                        "typed request.json disposition is missing");
+                    Assert(requestPart?.Headers.ContentType?.MediaType == "application/json",
+                        "typed request.json MIME is missing");
+                    Assert(System.Text.Encoding.UTF8.GetString(
+                            await requestPart!.ReadAsByteArrayAsync()) == "{\"mode\":\"PUSH_TO_TALK\"}",
+                        "typed request.json bytes are missing");
+                    Assert(audioPart?.Headers.ContentDisposition?.FileName?.Trim('"') == "audio.wav",
+                        "streamed audio disposition is missing");
+                    Assert(System.Text.Encoding.UTF8.GetString(
+                            await audioPart!.ReadAsByteArrayAsync()) == "streamed-audio-marker",
+                        "streamed audio bytes are missing");
+                }
+                finally
+                {
+                    try
+                    {
+                        var directory = Path.GetDirectoryName(path);
+                        if (directory != null && Directory.Exists(directory))
+                            Directory.Delete(directory, recursive: true);
+                    }
+                    catch (IOException)
+                    {
+                    }
+                }
+            });
+
             // =================================================================
             // Local API wire contract (issue #289)
             //
@@ -5504,6 +5838,302 @@ internal static class Program
                 Assert(unauthorized.httpStatus == 401, "a credential failure is still 401");
                 Assert(unauthorized.json == "{\"ok\":false,\"error\":{\"code\":\"INVALID_REQUEST\",\"message\":\"Missing or invalid bearer token\"}}",
                     $"the 401 envelope changed shape: {unauthorized.json}");
+            });
+
+            // =================================================================
+            // Issue #379 — real transcription outcomes feed the health cache.
+            //
+            // The reported defect: with a valid Cloud key, POST /transcribe
+            // {"engine":"googlespeech"} failed, and /health kept reporting that
+            // provider "status":"healthy","reachable":true throughout. The probe
+            // is not lying by accident — it hits the vendor's model-list endpoint
+            // (and for the HW-Cloud-routed providers it short-circuits with no
+            // network call at all), so it is genuinely green while transcription
+            // is failing. Only the real outcome can correct it.
+            //
+            // These mirror the macOS cases (a)-(e) in
+            // app/macos/hyperwhisperTests/CloudProviderHealthCacheTTLTests.swift.
+            // The clock is injected exactly as macOS injects `now: () -> Date`,
+            // so the 60 s window is crossed without a wall-clock wait.
+            // =================================================================
+
+            const CloudTranscriptionProvider healthProvider = CloudTranscriptionProvider.GoogleSpeech;
+
+            static TranscriptionException ProviderDown() => new(
+                TranscriptionErrorCode.ProviderUnavailable, "Google Chirp 3 unavailable", "Google Chirp 3", 503);
+
+            Run("issue #379 (a): a recorded provider-down failure outranks a healthy probe", () =>
+            {
+                var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                using var health = new CloudProviderHealthService(() => now);
+
+                // The state the issue reported: the probe says Healthy.
+                health.SetCachedTranscriptionStatusForTests(healthProvider, ProviderHealth.Healthy);
+                Assert(health.GetStatus(healthProvider) == ProviderHealth.Healthy, "probe should start Healthy");
+
+                health.RecordTranscriptionOutcome(
+                    healthProvider, health.CaptureTranscriptionCredentialGeneration(healthProvider), ProviderDown());
+
+                Assert(health.GetHealthStatus(healthProvider) == ProviderHealth.Unreachable,
+                    $"health status {health.GetHealthStatus(healthProvider)}");
+                Assert(health.GetStatus(healthProvider) == ProviderHealth.Healthy,
+                    "the /health override leaked into the generic model status seam");
+
+                // Even if the probe republishes Healthy underneath, the override wins.
+                health.SetCachedTranscriptionStatusForTests(healthProvider, ProviderHealth.Healthy);
+                Assert(health.GetHealthStatus(healthProvider) == ProviderHealth.Unreachable,
+                    "a fresh healthy probe must not beat a real failure inside the window");
+
+                // /health derives `reachable` from exactly this value
+                // (HealthEndpoints.BuildTranscriptionProviders), so this is the
+                // reported symptom, asserted at its source.
+                Assert(health.GetHealthStatus(healthProvider) != ProviderHealth.Healthy,
+                    "/health would still report reachable:true");
+            });
+
+            Run("issue #379 (b): the failure override expires after its 60s TTL", () =>
+            {
+                var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                using var health = new CloudProviderHealthService(() => now);
+
+                health.SetCachedTranscriptionStatusForTests(healthProvider, ProviderHealth.Healthy);
+                health.RecordTranscriptionOutcome(
+                    healthProvider, health.CaptureTranscriptionCredentialGeneration(healthProvider), ProviderDown());
+
+                // AddMilliseconds, not AddSeconds(59.9): DateTime.AddSeconds rounds
+                // a fractional double to ticks, so 59.9 + 0.1 lands at 59.9999999s
+                // and never reaches the boundary. Verified, not assumed.
+                now = now.AddMilliseconds(59_900);
+
+                // Re-stamp the probe at 59.9s. This is what separates the two 60s
+                // windows: unlike macOS, whose `statuses` dictionary never expires,
+                // GetStatus reads the TTL'd cache, so a probe left at t=0 would go
+                // stale in the same instant the override does and the assertion
+                // below would be reading cache expiry rather than override expiry.
+                health.SetCachedTranscriptionStatusForTests(healthProvider, ProviderHealth.Healthy);
+                Assert(health.GetHealthStatus(healthProvider) == ProviderHealth.Unreachable,
+                    "still inside the window at 59.9s");
+
+                // The gate is `>= TTL` -> expired, so exactly 60 s is already out.
+                now = now.AddMilliseconds(100);
+                Assert(health.GetHealthStatus(healthProvider) == ProviderHealth.Healthy,
+                    $"status after expiry {health.GetHealthStatus(healthProvider)}");
+            });
+
+            Run("issue #379 (c): a recorded success clears the override immediately", () =>
+            {
+                var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                using var health = new CloudProviderHealthService(() => now);
+
+                health.SetCachedTranscriptionStatusForTests(healthProvider, ProviderHealth.Healthy);
+                var credentialGeneration = health.CaptureTranscriptionCredentialGeneration(healthProvider);
+                health.RecordTranscriptionOutcome(healthProvider, credentialGeneration, ProviderDown());
+                Assert(health.GetHealthStatus(healthProvider) == ProviderHealth.Unreachable, "precondition");
+
+                // No clock movement at all - the success alone must clear it. A real
+                // transcription is stronger evidence than any probe, so a provider
+                // that recovered must not stay Unreachable for the remaining ~59s.
+                health.RecordTranscriptionOutcome(healthProvider, credentialGeneration, null);
+
+                Assert(health.GetStatus(healthProvider) == ProviderHealth.Healthy,
+                    $"status {health.GetStatus(healthProvider)}");
+            });
+
+            Run("RustRetry caps the actual jittered sleep at the remaining budget", () =>
+            {
+                var admitted = RustRetry.AdmittedSleepMs(
+                    coreDelayMs: 10_000,
+                    sleptMs: 20_000,
+                    budgetMs: 30_000,
+                    jitterUnit: 1);
+                Assert(admitted == 10_000, $"admitted {admitted}ms");
+                Assert(20_000UL + admitted == 30_000, "actual sleep exceeded the budget");
+
+                var unbounded = RustRetry.AdmittedSleepMs(
+                    coreDelayMs: 10_000,
+                    sleptMs: 20_000,
+                    budgetMs: 0,
+                    jitterUnit: 1);
+                Assert(unbounded == 13_000, $"unbounded jitter {unbounded}ms");
+            });
+
+            Run("issue #379 (c1): a success near cache expiry starts a fresh TTL", () =>
+            {
+                var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                using var health = new CloudProviderHealthService(() => now);
+
+                health.SetCachedTranscriptionStatusForTests(healthProvider, ProviderHealth.Healthy);
+                now = now.AddSeconds(59);
+
+                // The successful request is new evidence. It must stamp t=59,
+                // even when the existing raw status is already Healthy.
+                health.RecordTranscriptionOutcome(
+                    healthProvider, health.CaptureTranscriptionCredentialGeneration(healthProvider), null);
+                now = now.AddSeconds(2);
+
+                Assert(health.GetStatus(healthProvider) == ProviderHealth.Healthy,
+                    "a success at t=59 expired with the probe that ran at t=0");
+            });
+
+            Run("issue #379 (c2): an old-key success cannot overwrite a new-key Unauthorized verdict", () =>
+            {
+                var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                using var health = new CloudProviderHealthService(() => now);
+
+                var oldGeneration = health.CaptureTranscriptionCredentialGeneration(healthProvider);
+                health.RegisterApiKeyChange(healthProvider, "replacement-key-0123456789");
+                health.SetCachedTranscriptionStatusForTests(healthProvider, ProviderHealth.Unauthorized);
+
+                health.RecordTranscriptionOutcome(healthProvider, oldGeneration, null);
+
+                Assert(health.GetStatus(healthProvider) == ProviderHealth.Unauthorized,
+                    "an old-key success stamped the replacement key Healthy");
+                Assert(health.GetHealthStatus(healthProvider) == ProviderHealth.Unauthorized,
+                    "/health lost the replacement key's Unauthorized verdict");
+            });
+
+            Run("issue #379 (c3): an unrelated provider key edit keeps an in-flight outcome valid", () =>
+            {
+                var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                using var health = new CloudProviderHealthService(() => now);
+
+                health.SetCachedTranscriptionStatusForTests(healthProvider, ProviderHealth.Healthy);
+                var googleGeneration = health.CaptureTranscriptionCredentialGeneration(healthProvider);
+
+                health.RegisterApiKeyChange(CloudTranscriptionProvider.Deepgram, "replacement-deepgram-key");
+                health.RecordTranscriptionOutcome(healthProvider, googleGeneration, ProviderDown());
+
+                Assert(health.GetHealthStatus(healthProvider) == ProviderHealth.Unreachable,
+                    "an unrelated Deepgram key edit discarded a valid Google outcome");
+            });
+
+            Run("issue #379 (c4): production API-key write mappings advance only the affected provider", () =>
+            {
+                var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                using var health = new CloudProviderHealthService(() => now);
+
+                var geminiBefore = health.CaptureTranscriptionCredentialGeneration(CloudTranscriptionProvider.Gemini);
+                var deepgramBefore = health.CaptureTranscriptionCredentialGeneration(CloudTranscriptionProvider.Deepgram);
+
+                // These are the same helpers called by the two real
+                // ApiKeyService.SetApiKey overloads after the vault write.
+                ApiKeyService.RegisterTranscriptionApiKeyChange(
+                    health, PostProcessingProvider.Gemini, "replacement-gemini-key");
+
+                Assert(health.CaptureTranscriptionCredentialGeneration(CloudTranscriptionProvider.Gemini) == geminiBefore + 1,
+                    "the shared Gemini key write did not advance Gemini transcription health");
+                Assert(health.CaptureTranscriptionCredentialGeneration(CloudTranscriptionProvider.Deepgram) == deepgramBefore,
+                    "the Gemini key write changed Deepgram's generation");
+
+                ApiKeyService.RegisterTranscriptionApiKeyChange(
+                    health, TranscriptionApiKeyType.Deepgram, "replacement-deepgram-key");
+
+                Assert(health.CaptureTranscriptionCredentialGeneration(CloudTranscriptionProvider.Deepgram) == deepgramBefore + 1,
+                    "the Deepgram transcription-key write did not advance Deepgram health");
+                Assert(health.CaptureTranscriptionCredentialGeneration(CloudTranscriptionProvider.Gemini) == geminiBefore + 1,
+                    "the Deepgram key write changed Gemini's generation");
+            });
+
+            Run("issue #379 (d): only a definitive provider-down verdict sets the override", () =>
+            {
+                var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                using var health = new CloudProviderHealthService(() => now);
+
+                // Marking a provider unreachable because the user's Wi-Fi dropped,
+                // their card expired, or they recorded silence would be a worse bug
+                // than the stale verdict the override exists to fix.
+                var harmless = new Exception[]
+                {
+                    new TranscriptionException(TranscriptionErrorCode.Unauthorized, "bad key", "Google Chirp 3", 401),
+                    new TranscriptionException(TranscriptionErrorCode.QuotaExceeded, "quota", "Google Chirp 3", 429),
+                    new TranscriptionException(TranscriptionErrorCode.RateLimited, "slow down", "Google Chirp 3", 429),
+                    new TranscriptionException(TranscriptionErrorCode.NetworkError, "offline", "Google Chirp 3"),
+                    new TranscriptionException(TranscriptionErrorCode.NoSpeechDetected, "silence", "Google Chirp 3"),
+                    new TranscriptionException(TranscriptionErrorCode.InvalidRequest, "bad body", "Google Chirp 3", 400),
+                    new TranscriptionException(TranscriptionErrorCode.FileTooLarge, "too big", "Google Chirp 3", 413),
+                    new TranscriptionException(TranscriptionErrorCode.Cancelled, "cancelled", "Google Chirp 3"),
+                    new TranscriptionException(TranscriptionErrorCode.ProviderUnavailable, "request timeout", "Google Chirp 3", 408),
+                    new TranscriptionException(TranscriptionErrorCode.ProviderUnavailable, "polling exhausted", "Google Chirp 3", 200),
+                    new TranscriptionException(TranscriptionErrorCode.ProviderUnavailable, "status unavailable", "Google Chirp 3"),
+                    new OperationCanceledException("cancelled"),
+                    new HttpRequestException("connection refused")
+                };
+
+                foreach (var error in harmless)
+                {
+                    health.SetCachedTranscriptionStatusForTests(healthProvider, ProviderHealth.Healthy);
+                    health.RecordTranscriptionOutcome(
+                        healthProvider, health.CaptureTranscriptionCredentialGeneration(healthProvider), error);
+                    Assert(health.GetHealthStatus(healthProvider) == ProviderHealth.Healthy,
+                        $"{error.GetType().Name} must not mark the provider unreachable");
+                    Assert(!CloudProviderHealthService.IsDefinitiveProviderDownVerdict(error),
+                        $"{error.GetType().Name} classified as provider-down");
+                }
+
+                var issue379Failure = new TranscriptionException(
+                    TranscriptionErrorCode.ProviderUnavailable,
+                    "Google Chirp 3 unavailable",
+                    "Google Chirp 3",
+                    500);
+                Assert(CloudProviderHealthService.IsDefinitiveProviderDownVerdict(issue379Failure),
+                    "the issue #379 HTTP 500 must remain a provider-down verdict");
+            });
+
+            Run("issue #379 (e): the override never leaks into the forced-refresh verdict", () =>
+            {
+                // THE NO-WEDGE GUARANTEE. On macOS this is load-bearing:
+                // ProviderHealth.unreachable.shouldBlockTranscription is true and
+                // TranscriptionProviderRouter throws on a non-healthy ensureHealthy
+                // verdict, so an override that leaked into the return value would
+                // lock the user out of the provider for 60s after one blip.
+                //
+                // Windows has no equivalent pre-flight gate (nothing calls GetStatus
+                // before transcribing), so there is nothing to wedge here. What is
+                // mirrored is the invariant that produces the guarantee: the
+                // override lives at the /health read seam (GetHealthStatus) only, and the
+                // "give me a fresh verdict" path still returns the RAW probe result.
+                var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                using var health = new CloudProviderHealthService(() => now);
+
+                health.SetCachedTranscriptionStatusForTests(healthProvider, ProviderHealth.Healthy);
+                health.RecordTranscriptionOutcome(
+                    healthProvider, health.CaptureTranscriptionCredentialGeneration(healthProvider), ProviderDown());
+                Assert(health.GetHealthStatus(healthProvider) == ProviderHealth.Unreachable, "precondition");
+
+                // GoogleSpeech is keyless, so RefreshAsync short-circuits to Unknown
+                // without any network I/O. The value that matters is that it is the
+                // probe's own verdict and NOT the override's Unreachable.
+                var refreshed = health.RefreshAsync(healthProvider, force: true).GetAwaiter().GetResult();
+                Assert(refreshed != ProviderHealth.Unreachable,
+                    $"forced refresh returned the override, not the probe: {refreshed}");
+
+                // …and reporting is unchanged by that refresh.
+                Assert(health.GetHealthStatus(healthProvider) == ProviderHealth.Unreachable,
+                    "the override must survive a probe inside its window");
+            });
+
+            Run("issue #379 (c2 guard): a failure does not refresh the raw probe cache", () =>
+            {
+                var now = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                using var health = new CloudProviderHealthService(() => now);
+
+                health.SetCachedTranscriptionStatusForTests(healthProvider, ProviderHealth.Healthy);
+                now = now.AddSeconds(59);
+                health.RecordTranscriptionOutcome(
+                    healthProvider, health.CaptureTranscriptionCredentialGeneration(healthProvider), ProviderDown());
+                Assert(health.GetHealthStatus(healthProvider) == ProviderHealth.Unreachable,
+                    "/health must apply the failure override");
+
+                now = now.AddSeconds(2);
+                // The t=0 raw probe is expired. GoogleSpeech has no BYOK key, so
+                // reaching the normal refresh path returns its raw Unknown. If
+                // the failure had re-stamped the cache at t=59, this call would
+                // return cached Unreachable and suppress the refresh instead.
+                var refreshed = health.RefreshAsync(healthProvider).GetAwaiter().GetResult();
+                Assert(refreshed == ProviderHealth.Unknown,
+                    $"failure refreshed the raw cache and suppressed the probe: {refreshed}");
+                Assert(health.GetHealthStatus(healthProvider) == ProviderHealth.Unreachable,
+                    "/health must stay honest while the raw probe refreshes");
             });
 
             Console.WriteLine(_failures == 0

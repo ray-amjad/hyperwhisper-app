@@ -3,7 +3,24 @@ title: Transcribe a File
 description: Import an existing audio or video file and transcribe it with any HyperWhisper mode.
 ---
 
-HyperWhisper transcribes live recordings, and also audio files that you already have on disk. The procedure is the same on both platforms. You select a file from the menu, a progress popup shows the work, and the result goes to your History. The supported formats and the provider limits are different on each platform. Select your platform below.
+HyperWhisper transcribes live recordings, and also audio files that you already have on disk. You select a file from the menu, a progress popup shows the work, and the result goes to your History. The supported formats and the provider limits are different on each platform. Select your platform below.
+
+## Meta Muse file limits
+
+Meta Muse Voice Transcribe has a narrower network contract than the general HyperWhisper Cloud limit. The upload must meet all these conditions:
+
+- The file is a RIFF/WAVE file with mono, 16-bit integer PCM audio.
+- The sample rate is 16 kHz or 24 kHz.
+- The normalized file is not more than 32 MB.
+- The audio is not longer than 10 minutes.
+
+Windows and Linux accept `.wav`, `.mp3`, and `.m4a` imports for Cloud and direct Meta Muse modes. They convert the input to a 16 kHz mono PCM WAV before the upload. They then check the 32 MB and 10-minute limits on the converted file.
+
+macOS sends the first file through the normal HyperWhisper Cloud path. If Meta rejects a non-WAV format, macOS converts it to a 16 kHz mono PCM WAV and tries one more time. A WAV that has an unsupported sample format does not get this retry. Convert that WAV to mono PCM16 at 16 kHz or 24 kHz first.
+
+<Warning>
+  Meta supports longer real-time sessions upstream, but the pre-recorded Model API path that HyperWhisper uses has a 10-minute limit. Split a longer file or select a different model.
+</Warning>
 
 <Tabs>
   <Tab title="macOS">
@@ -55,11 +72,12 @@ HyperWhisper transcribes live recordings, and also audio files that you already 
     | Grok | 500 MB |
     | Microsoft Azure Speech | 300 MB |
     | Google Gemini 3.5 Transcribe | 14 MB |
+    | Meta Muse Voice Transcribe | 32 MB |
 
     If the file is too large for the provider of the selected mode, HyperWhisper shows an error. The error gives the file size, the limit of the provider, and the name of the provider. To transcribe larger files, change the mode to a different provider (for example, HyperWhisper Cloud or a local model).
 
     <Warning>
-      The 2 GB limit for HyperWhisper Cloud is the limit that the app applies before the upload. Four Cloud engines have a smaller limit on the server:
+      The 2 GB limit for HyperWhisper Cloud is the general limit that the app applies before the upload. Five Cloud engines have a smaller limit on the server:
 
       | Cloud engine | Server limit |
       | --- | --- |
@@ -67,8 +85,9 @@ HyperWhisper transcribes live recordings, and also audio files that you already 
       | Google Gemini | 14 MB |
       | Google Gemini 3.5 Transcribe | 14 MB |
       | Microsoft MAI-Transcribe 1.5 | 300 MB |
+      | Meta Muse Voice Transcribe | 32 MB and 10 minutes |
 
-      A file that is larger than the server limit gets a "file too large" error from the server. The app does not stop it first. For a large file, select a different Cloud engine, for example ElevenLabs Scribe v2 or Deepgram Nova 3.
+      A file that is larger than the server limit gets a "file too large" error from the server. The macOS app does not stop it first. For a large file, select a different Cloud engine, for example ElevenLabs Scribe v2 or Deepgram Nova 3.
     </Warning>
 
     ## What happens during transcription
@@ -130,11 +149,12 @@ HyperWhisper transcribes live recordings, and also audio files that you already 
     | Grok | 500 MB |
     | Microsoft Azure Speech | 300 MB |
     | Google Gemini 3.5 Transcribe | 14 MB |
+    | Meta Muse Voice Transcribe | 32 MB after conversion |
 
     If the file is larger than the limit, HyperWhisper shows a toast notification before the upload. The notification gives the maximum size for that provider.
 
     <Warning>
-      The 2 GB limit for HyperWhisper Cloud is the limit that the app applies before the upload. Four Cloud engines have a smaller limit on the server:
+      The 2 GB limit for HyperWhisper Cloud is the general limit. Windows uses the selected Cloud engine's smaller limit when the catalog provides one:
 
       | Cloud engine | Server limit |
       | --- | --- |
@@ -142,8 +162,9 @@ HyperWhisper transcribes live recordings, and also audio files that you already 
       | Google Gemini | 14 MB |
       | Google Gemini 3.5 Transcribe | 14 MB |
       | Microsoft MAI-Transcribe 1.5 | 300 MB |
+      | Meta Muse Voice Transcribe | 32 MB and 10 minutes, after conversion |
 
-      A file that is larger than the server limit gets a "file too large" error from the server. The app does not stop it first. For a large file, select a different Cloud engine, for example ElevenLabs Scribe v2 or Deepgram Nova 3.
+      Windows checks the selected Cloud engine before the upload. For a large file, select a different Cloud engine, for example ElevenLabs Scribe v2 or Deepgram Nova 3.
     </Warning>
 
     ## What happens during transcription
@@ -152,7 +173,7 @@ HyperWhisper transcribes live recordings, and also audio files that you already 
 
     <Steps>
       <Step title="Preparing (0–15%)">
-        HyperWhisper makes sure that the file is correct. If your mode uses the local **Whisper** model, HyperWhisper converts the file to a 16 kHz mono WAV in your temp folder. Whisper accepts only this format. HyperWhisper does the resampling and the stereo-to-mono conversion automatically. If your mode uses a **cloud** provider, HyperWhisper sends the original file. It uploads MP3 and M4A files without a new encode.
+        HyperWhisper makes sure that the file is correct. If your mode uses the local **Whisper** model, HyperWhisper converts the file to a 16 kHz mono WAV in your temp folder. Whisper accepts only this format. HyperWhisper does the resampling and the stereo-to-mono conversion automatically. Most cloud providers receive the original file. A Meta Muse mode first converts WAV, MP3, or M4A input to a 16 kHz mono PCM WAV.
       </Step>
       <Step title="Transcribing (15–85%)">
         HyperWhisper sends the audio to Whisper, to Parakeet, or to the cloud provider of your mode. If your computer supports it, Whisper uses Vulkan or CUDA GPU acceleration.

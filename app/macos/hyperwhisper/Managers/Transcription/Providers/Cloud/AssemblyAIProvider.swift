@@ -243,7 +243,7 @@ class AssemblyAIProvider: TranscriptionProvider {
                     break // parse below
                 case 401, 403:
                     AppLogger.network.error("AssemblyAI poll unauthorized · status=\(status, privacy: .public)")
-                    throw TranscriptionError.unauthorized(provider: "AssemblyAI")
+                    throw TranscriptionError.unauthorized(provider: "AssemblyAI", statusCode: status)
                 case 429, 500, 502, 503, 504:
                     // Transient errors on a status poll are non-fatal: the
                     // server-side job is still processing. Honor Retry-After and
@@ -376,47 +376,6 @@ class AssemblyAIProvider: TranscriptionProvider {
             }
             logger.warning("AssemblyAI sync parse failed (non-fatal): \(String(describing: err), privacy: .public) — falling back to async")
             return nil
-        }
-    }
-}
-
-// MARK: - Health Checks
-
-extension AssemblyAIProvider {
-    /// Perform a basic GET request to verify the API key and connectivity.
-    func healthCheck(apiKey: String) async -> ProviderHealth {
-        guard !apiKey.isEmpty else { return .unknown }
-        guard let url = URL(string: "https://api.assemblyai.com/v2/transcript?limit=1") else { return .unknown }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.setValue(apiKey, forHTTPHeaderField: "Authorization")
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-
-        let session = URLSession(configuration: .ephemeral)
-        do {
-            let (_, response) = try await session.data(for: request)
-            guard let http = response as? HTTPURLResponse else {
-                AppLogger.network.error("AssemblyAI health check missing HTTPURLResponse")
-                return .unreachable
-            }
-            switch http.statusCode {
-            case 200..<300:
-                return .healthy
-            case 401, 403:
-                AppLogger.network.error("AssemblyAI health check unauthorized · status=\(http.statusCode, privacy: .public)")
-                return .unauthorized
-            default:
-                AppLogger.network.error("AssemblyAI health check failed · status=\(http.statusCode, privacy: .public)")
-                return .unreachable
-            }
-        } catch {
-            if let urlError = error as? URLError {
-                AppLogger.network.error("AssemblyAI health check network error · code=\(urlError.code.rawValue, privacy: .public)")
-            } else {
-                AppLogger.network.error("AssemblyAI health check error · message=\(error.localizedDescription, privacy: .public)")
-            }
-            return .unreachable
         }
     }
 }

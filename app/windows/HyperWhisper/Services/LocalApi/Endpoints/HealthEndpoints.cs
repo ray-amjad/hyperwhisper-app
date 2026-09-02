@@ -15,6 +15,11 @@ namespace HyperWhisper.Services.LocalApi.Endpoints;
 [SupportedOSPlatform("windows")]
 internal static class HealthEndpoints
 {
+    internal static IReadOnlyList<CloudTranscriptionProvider> TranscriptionProviders { get; } =
+        Enum.GetValues<CloudTranscriptionProvider>()
+            .Where(provider => provider != CloudTranscriptionProvider.None)
+            .ToArray();
+
     public static void Map(IEndpointRouteBuilder app, LocalApiServer server)
     {
         app.MapGet("/health", () =>
@@ -41,19 +46,18 @@ internal static class HealthEndpoints
         var health = server.CloudHealth;
         if (apiKeys == null) return list;
 
-        foreach (CloudTranscriptionProvider provider in Enum.GetValues<CloudTranscriptionProvider>())
+        foreach (var provider in TranscriptionProviders)
         {
-            if (provider == CloudTranscriptionProvider.None) continue;
-
             var keyPresent = HasKeyForTranscriptionProvider(apiKeys, provider);
-            var status = health?.GetStatus(provider) ?? ProviderHealth.Unknown;
+            var status = health?.GetHealthStatus(provider) ?? ProviderHealth.Unknown;
+            var statusText = StatusString(provider, keyPresent, status);
 
             list.Add(new HealthProviderStatus
             {
                 Id = provider.GetIdentifier(),
                 KeyPresent = keyPresent,
-                Reachable = status == ProviderHealth.Healthy,
-                Status = StatusString(status)
+                Reachable = IsReachable(provider, keyPresent, status),
+                Status = statusText
             });
         }
         return list;
@@ -76,6 +80,7 @@ internal static class HealthEndpoints
             CloudTranscriptionProvider.Mistral => apiKeys.HasApiKey(TranscriptionApiKeyType.Mistral),
             CloudTranscriptionProvider.Soniox => apiKeys.HasApiKey(TranscriptionApiKeyType.Soniox),
             CloudTranscriptionProvider.GeminiTranscribe => apiKeys.HasApiKey(TranscriptionApiKeyType.GeminiTranscribe),
+            CloudTranscriptionProvider.Meta => apiKeys.HasApiKey(TranscriptionApiKeyType.Meta),
             // HW-Cloud-routed providers are always "configured" — no API key
             // is required (the Fly backend authenticates with license/device).
             CloudTranscriptionProvider.HyperWhisperCloud => true,
@@ -181,5 +186,16 @@ internal static class HealthEndpoints
         ProviderHealth.Unknown => "unknown",
         _ => status.ToString().ToLowerInvariant()
     };
+
+    internal static string StatusString(
+        CloudTranscriptionProvider provider, bool keyPresent, ProviderHealth status) =>
+        provider == CloudTranscriptionProvider.Meta && keyPresent
+            ? "configured"
+            : StatusString(status);
+
+    internal static bool IsReachable(
+        CloudTranscriptionProvider provider, bool keyPresent, ProviderHealth status) =>
+        provider != CloudTranscriptionProvider.Meta
+        && status == ProviderHealth.Healthy;
 
 }

@@ -390,6 +390,11 @@ public sealed class CloudSttCatalog
             WordTimestamps = e.@features.@wordTimestamps,
             Diarization = e.@features.@diarization,
             Streaming = e.@features.@streaming,
+            CodeSwitching = e.@features.@codeSwitching,
+            Endpointing = e.@features.@endpointing,
+            ContextBias = e.@features.@contextBias,
+            LanguageBias = e.@features.@languageBias,
+            TurnTimestamps = e.@features.@turnTimestamps,
         },
         CustomVocabulary = e.@customVocabulary is null ? null : new CloudSttCustomVocabulary
         {
@@ -540,6 +545,11 @@ public sealed class CloudSttFeatures
     public bool WordTimestamps { get; init; }
     public bool Diarization { get; init; }
     public bool Streaming { get; init; }
+    public bool CodeSwitching { get; init; }
+    public bool Endpointing { get; init; }
+    public bool ContextBias { get; init; }
+    public bool LanguageBias { get; init; }
+    public bool TurnTimestamps { get; init; }
 }
 
 public sealed class CloudSttCustomVocabulary

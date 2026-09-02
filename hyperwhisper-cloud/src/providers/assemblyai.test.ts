@@ -73,6 +73,25 @@ function mockAsyncFlow(opts: {
   return calls;
 }
 
+/**
+ * Swaps `console.log` for the duration of `run` and returns the details object of
+ * the `provider.no_speech` event it logged. Same swap-the-global idiom as
+ * `utils.test.ts` — no spy library is used anywhere in this suite.
+ */
+async function captureNoSpeechEvent(run: () => Promise<unknown>): Promise<Record<string, unknown>> {
+  const logged: unknown[][] = [];
+  const originalLog = console.log;
+  console.log = ((...args: unknown[]) => { logged.push(args); }) as typeof console.log;
+  try {
+    await run();
+  } finally {
+    console.log = originalLog;
+  }
+  const event = logged.find((args) => args[0] === 'provider.no_speech');
+  if (!event) throw new Error('no provider.no_speech event was logged');
+  return event[1] as Record<string, unknown>;
+}
+
 describe('couldRouteThroughSync', () => {
   const eligible = { medical: false, language: 'en', estimatedSeconds: 6 };
 
@@ -191,6 +210,23 @@ describe('transcribeWithAssemblyAI — sync fast path behavior', () => {
     expect(result.source).toBe('no_speech');
     expect(result.costUsd).toBe(0);
     expect(calls).toEqual([{ url: SYNC_URL, method: 'POST' }]);
+  });
+
+  test('the sync no_speech log event records the upstream duration, and null when there is none', async () => {
+    globalThis.fetch = mock(async () => jsonResponse({ text: '   ', audio_duration_ms: 1000 })) as unknown as typeof fetch;
+    const reported = await captureNoSpeechEvent(
+      () => transcribeWithAssemblyAI(SMALL_AUDIO, 'audio/wav', 'en-US'),
+    );
+    expect(reported.upstreamDurationSeconds).toBe(1);
+
+    // No `audio_duration_ms`: the byte-estimate fallback lives below the empty
+    // check, so nothing must stand in for the number AssemblyAI never sent.
+    globalThis.fetch = mock(async () => jsonResponse({ text: '' })) as unknown as typeof fetch;
+    const missing = await captureNoSpeechEvent(
+      () => transcribeWithAssemblyAI(SMALL_AUDIO, 'audio/wav', 'en-US'),
+    );
+    expect(missing.upstreamDurationSeconds).toBeNull();
+    expect(missing.upstreamDurationSeconds).not.toBe(6); // the 48,000-byte estimate
   });
 
   test('a missing/zero sync duration falls back to the byte-size estimate', async () => {
@@ -313,6 +349,20 @@ describe('transcribeWithAssemblyAI — async polling, billing, and cleanup', () 
     const result = await transcribeWithAssemblyAI(SMALL_AUDIO, 'audio/mpeg', 'en-US');
     expect(result.source).toBe('no_speech');
     expect(result.costUsd).toBe(0);
+  }, 10_000);
+
+  test('the async no_speech log event records the upstream duration, and null when there is none', async () => {
+    mockAsyncFlow({ pollBodies: [{ status: 200, body: { status: 'completed', text: '', audio_duration: 10 } }] });
+    const reported = await captureNoSpeechEvent(
+      () => transcribeWithAssemblyAI(SMALL_AUDIO, 'audio/mpeg', 'en-US'),
+    );
+    expect(reported.upstreamDurationSeconds).toBe(10);
+
+    mockAsyncFlow({ pollBodies: [{ status: 200, body: { status: 'completed', text: '' } }] });
+    const missing = await captureNoSpeechEvent(
+      () => transcribeWithAssemblyAI(SMALL_AUDIO, 'audio/mpeg', 'en-US'),
+    );
+    expect(missing.upstreamDurationSeconds).toBeNull();
   }, 10_000);
 
   test('a failed transcript job (HTTP 200, status:"error") throws ProviderInputError and still cleans up', async () => {

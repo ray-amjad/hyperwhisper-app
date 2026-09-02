@@ -130,6 +130,28 @@ pub fn multipart_file(
     }
 }
 
+/// Build a bounded typed in-memory multipart file. This is for small provider
+/// metadata documents, never audio; audio must remain a [`Part::FileRef`].
+pub fn multipart_inline_file(
+    field: impl Into<String>,
+    filename: impl Into<String>,
+    mime: impl Into<String>,
+    data: Vec<u8>,
+) -> Result<Part, crate::contract::TranscriptionError> {
+    if data.len() > crate::contract::MAX_INLINE_MULTIPART_FILE_BYTES {
+        return Err(crate::contract::TranscriptionError::BadRequest {
+            status: 400,
+            message: "inline multipart file exceeds 64 KiB".to_string(),
+        });
+    }
+    Ok(Part::InlineFile {
+        field: field.into(),
+        filename: filename.into(),
+        mime: mime.into(),
+        data,
+    })
+}
+
 /// A fixed multipart boundary string. Boundaries must not appear in the payload;
 /// since audio is streamed by the platform and our fields are short, a fixed
 /// token is fine and keeps the core deterministic (no RNG in Rust).
@@ -251,5 +273,22 @@ mod tests {
         assert_eq!(resolve_mime("/tmp/rec.caf"), "audio/x-caf");
         assert_eq!(resolve_mime("/tmp/noext"), DEFAULT_AUDIO_MIME);
     }
-}
 
+    #[test]
+    fn inline_multipart_file_is_bounded() {
+        assert!(multipart_inline_file(
+            "request",
+            "request.json",
+            "application/json",
+            vec![0; crate::contract::MAX_INLINE_MULTIPART_FILE_BYTES],
+        )
+        .is_ok());
+        assert!(multipart_inline_file(
+            "request",
+            "request.json",
+            "application/json",
+            vec![0; crate::contract::MAX_INLINE_MULTIPART_FILE_BYTES + 1],
+        )
+        .is_err());
+    }
+}

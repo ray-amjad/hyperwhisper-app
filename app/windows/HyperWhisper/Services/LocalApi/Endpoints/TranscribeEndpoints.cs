@@ -835,9 +835,11 @@ internal static class TranscribeEndpoints
     /// "parakeet", and "qwen3_asr". Unknown strings are rejected so callers do not silently run
     /// a different engine than they requested.
     /// </summary>
-    private static void ApplyEngineModel(Mode mode, string engine, string? model)
+    internal static void ApplyEngineModel(Mode mode, string engine, string? model)
     {
         var normalized = engine.ToLowerInvariant();
+        var providerNormalization = HyperWhisper.Services.AppClassification.CloudSttCatalog.Shared
+            .NormalizeCloudProvider(normalized);
         CloudTranscriptionProvider cloudProvider;
         if (normalized == "cloud")
         {
@@ -845,7 +847,7 @@ internal static class TranscribeEndpoints
         }
         else
         {
-            cloudProvider = CloudTranscriptionProviderExtensions.FromIdentifier(normalized);
+            cloudProvider = CloudTranscriptionProviderExtensions.FromIdentifier(providerNormalization.Provider);
         }
 
         if (cloudProvider != CloudTranscriptionProvider.None)
@@ -853,11 +855,20 @@ internal static class TranscribeEndpoints
             mode.ProviderType = "cloud";
             mode.Model = "cloud";
             mode.CloudProvider = cloudProvider.GetIdentifier();
+            if (!string.IsNullOrEmpty(providerNormalization.AccuracyTier))
+            {
+                mode.CloudAccuracyTier = providerNormalization.AccuracyTier;
+                mode.CloudTranscriptionModel = !string.IsNullOrEmpty(model)
+                    ? model
+                    : HyperWhisper.Services.AppClassification.CloudSttCatalog.Shared
+                        .DefaultModelIdForId(providerNormalization.AccuracyTier) ?? "";
+                return;
+            }
             if (!string.IsNullOrEmpty(model))
             {
                 mode.CloudTranscriptionModel = model;
             }
-            else if (string.IsNullOrEmpty(mode.CloudTranscriptionModel))
+            else if (cloudProvider == CloudTranscriptionProvider.Meta)
             {
                 mode.CloudTranscriptionModel = CloudTranscriptionModels.GetDefault(cloudProvider)?.Id ?? "";
             }

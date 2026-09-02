@@ -244,7 +244,7 @@ enum RustHTTPExecutor {
     /// FFI. Parts are written in the core-provided order using the core-provided
     /// boundary. The caller owns `tempURL`'s lifecycle (creates the cleanup
     /// `defer` before calling), so a throw mid-write never leaks the partial file.
-    private static func writeMultipartBody(to tempURL: URL, boundary: String, parts: [HwPart]) throws {
+    static func writeMultipartBody(to tempURL: URL, boundary: String, parts: [HwPart]) throws {
         FileManager.default.createFile(atPath: tempURL.path, contents: nil)
 
         let handle = try FileHandle(forWritingTo: tempURL)
@@ -275,6 +275,13 @@ enum RustHTTPExecutor {
                     if chunk.isEmpty { break }
                     try handle.write(contentsOf: chunk)
                 }
+                try write(crlf)
+
+            case let .inlineFile(field, filename, mime, data):
+                try write("--\(boundary)\(crlf)")
+                try write("Content-Disposition: form-data; name=\"\(field)\"; filename=\"\(filename)\"\(crlf)")
+                try write("Content-Type: \(mime)\(crlf)\(crlf)")
+                try handle.write(contentsOf: data)
                 try write(crlf)
             }
         }

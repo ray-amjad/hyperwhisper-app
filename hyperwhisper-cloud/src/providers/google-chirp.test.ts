@@ -102,6 +102,25 @@ function syncRecognizeResponse(transcript = 'hello world', languageCode = 'en-US
   });
 }
 
+/**
+ * Swaps `console.log` for the duration of `run` and returns the details object of
+ * the `provider.no_speech` event it logged. Same swap-the-global idiom as
+ * `utils.test.ts` — no spy library is used anywhere in this suite.
+ */
+async function captureNoSpeechEvent(run: () => Promise<unknown>): Promise<Record<string, unknown>> {
+  const logged: unknown[][] = [];
+  const originalLog = console.log;
+  console.log = ((...args: unknown[]) => { logged.push(args); }) as typeof console.log;
+  try {
+    await run();
+  } finally {
+    console.log = originalLog;
+  }
+  const event = logged.find((args) => args[0] === 'provider.no_speech');
+  if (!event) throw new Error('no provider.no_speech event was logged');
+  return event[1] as Record<string, unknown>;
+}
+
 describe('transcribeWithGoogleChirp — input gates (no upstream call)', () => {
   test('throws a plain Error when GOOGLE_PROJECT_ID is not configured', async () => {
     delete process.env.GOOGLE_PROJECT_ID;
@@ -170,6 +189,24 @@ describe('transcribeWithGoogleChirp — inline sync recognize path', () => {
     expect(result.source).toBe('no_speech');
     expect(result.text).toBe('');
     expect(result.costUsd).toBe(0);
+  });
+
+  test('a no_speech with no totalBilledDuration logs a null upstream duration, never our byte estimate', async () => {
+    // `durationSeconds` is overwritten with estimateAudioSeconds() BEFORE the
+    // empty check, so the logged value must come from the raw parse instead.
+    const audioBytes = 160_000; // wav @ 32,000 B/s => a 5 s estimate we must NOT log
+    fetchHandler = () => syncRecognizeResponse('', 'en-US'); // no metadata at all
+    const estimated = await captureNoSpeechEvent(
+      () => transcribeWithGoogleChirp(new ArrayBuffer(audioBytes), 'audio/wav'),
+    );
+    expect(estimated.upstreamDurationSeconds).toBeNull();
+    expect(estimated.upstreamDurationSeconds).not.toBe(5);
+
+    fetchHandler = () => syncRecognizeResponse('', 'en-US', '7s');
+    const reported = await captureNoSpeechEvent(
+      () => transcribeWithGoogleChirp(new ArrayBuffer(audioBytes), 'audio/wav'),
+    );
+    expect(reported.upstreamDurationSeconds).toBe(7);
   });
 
   test('falls back to a byte-length duration estimate when totalBilledDuration is missing, instead of zero-billing', async () => {

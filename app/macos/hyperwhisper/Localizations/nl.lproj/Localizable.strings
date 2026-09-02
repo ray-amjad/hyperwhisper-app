@@ -9,6 +9,8 @@
   This file contains all user-facing text that needs to be translated.
 */
 
+"transcription.error.forbidden.hyperWhisperCloud" = "HyperWhisper Cloud heeft dit verzoek geweigerd. Uw netwerk is tijdelijk geblokkeerd.\n\nWacht enkele minuten en probeer het opnieuw.";
+
 // MARK: - Application Navigation
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
@@ -420,10 +422,6 @@
 "license.button.activate" = "Activeren";
 "license.button.activating" = "Activeren...";
 "license.status.label" = "Status: %@";
-"license.status.trial.title" = "Proefversie";
-"license.status.active.title" = "Actief";
-"license.status.expired.title" = "Verlopen";
-"license.status.invalid.title" = "Ongeldig";
 "license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "Gelicentieerd – Volledige toegang";
 "license.status.expired.description" = "Licentie verlopen";
@@ -926,6 +924,7 @@ Wijzig deze modi zodat ze een ander model gebruiken voordat je verwijdert.";
 "transcription.error.maxRetriesExceeded" = "Maximale aantalpoging pogingen bereikt";
 "transcription.error.unauthorized.provider" = "Niet gemachtigd: ongeldige %@ API-sleutel of toestemmingen.\n\nOpen Instellingen → API-sleutels om je referenties te verifiëren.";
 "transcription.error.unauthorized.generic" = "Niet gemachtigd: ongeldige API-sleutel of toestemmingen.\n\nOpen Instellingen → API-sleutels om je referenties te verifiëren.";
+"transcription.error.unauthorized.hyperWhisperCloud" = "De toegangssleutel voor HyperWhisper Cloud is ongeldig of verlopen.\n\nOpen Instellingen → HyperWhisper Cloud om je sleutel bij te werken.";
 "transcription.error.cloudAccountRequired" = "HyperWhisper Cloud vereist een accountsleutel.\n\nOpen Instellingen → HyperWhisper Cloud om je sleutel in te voeren of tegoed te kopen.";
 "transcription.error.invalidRequest" = "Ongeldige aanvraag: controleer audiobestand of instellingen";
 "transcription.error.streamingInterrupted" = "Streaming onderbroken; gedeeltelijke tekst weergegeven";
@@ -1052,7 +1051,6 @@ Wijzig deze modi zodat ze een ander model gebruiken voordat je verwijdert.";
 "settings.backup.import.confirm.button" = "Importeren";
 "settings.backup.conflict.skip" = "Bestaande overslaan";
 "settings.backup.conflict.replace" = "Bestaande vervangen";
-"settings.backup.conflict.keepBoth" = "Beiden behouden";
 "settings.backup.security.warning" = "Waarschuwing: Het geëxporteerde bestand bevat gevoelige gegevens. Bewaar het veilig en deel het niet.";
 "settings.backup.info.note" = "Back-ups bevatten instellingen, modi en woordenlijst. Opnamen en transcripties zijn niet inbegrepen.";
 "settings.backup.result.success.title" = "Succes";
@@ -1087,9 +1085,6 @@ Wijzig deze modi zodat ze een ander model gebruiken voordat je verwijdert.";
 "transcribe.file.error.video.noAudio" = "Dit videobestand bevat geen audiopunt. Selecteer een video met audio of een audiobestand.";
 
 // MARK: - File Transcription Progress
-"file.transcription.preparing" = "Voorbereiden...";
-"file.transcription.transcribing" = "Transcriberen...";
-"file.transcription.finishing" = "Voltooien...";
 "file.transcription.cancel" = "Annuleren";
 
 // MARK: - Auto-Delete Recordings

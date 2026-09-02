@@ -390,6 +390,22 @@ enum StreamingTranscriptionProvider: String, CaseIterable, Identifiable {
         }
     }
 
+    /// The provider identity used by the Local API health snapshot. This is a
+    /// routing table, not a string conversion: xAI uses the batch `.grok` id,
+    /// and Gemini Live uses the dedicated `.geminiTranscribe` provider.
+    /// On-device providers return nil because no cloud health verdict exists.
+    var cloudHealthProvider: CloudProvider? {
+        switch self {
+        case .hyperwhisperCloud: return .hyperwhisper
+        case .deepgram: return .deepgram
+        case .elevenLabs: return .elevenLabs
+        case .openAI: return .openai
+        case .xai: return .grok
+        case .gemini: return .geminiTranscribe
+        case .parakeetLocal, .nemotronLocal: return nil
+        }
+    }
+
     /// Maps to KeychainManager's API key type for key retrieval.
     ///
     /// Returns nil for HyperWhisper Cloud since it doesn't use the keychain.

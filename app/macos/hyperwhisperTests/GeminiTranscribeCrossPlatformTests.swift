@@ -201,7 +201,8 @@ struct GeminiTranscribeBackupKeyTests {
         let keys = BackupAPIKeys(
             openai: nil, groq: nil, fireworks: nil, anthropic: nil, gemini: nil,
             deepgram: nil, assemblyai: nil, elevenlabs: nil, mistral: nil, grok: nil,
-            geminitranscribe: Self.transcribeKey
+            geminitranscribe: Self.transcribeKey,
+            meta: nil
         )
         #expect(keys.hasAnyKey, "a backup holding only this key is not an empty backup")
 

@@ -9,6 +9,8 @@
   This file contains all user-facing text that needs to be translated.
 */
 
+"transcription.error.forbidden.hyperWhisperCloud" = "A HyperWhisper Cloud elutasította ezt a kérést. A hálózat ideiglenesen le van tiltva.\n\nVárjon néhány percet, majd próbálja újra.";
+
 // MARK: - Application Navigation
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
@@ -420,10 +422,6 @@
 "license.button.activate" = "Aktiválás";
 "license.button.activating" = "Aktiválás...";
 "license.status.label" = "Állapot: %@";
-"license.status.trial.title" = "Próba";
-"license.status.active.title" = "Aktív";
-"license.status.expired.title" = "Lejárt";
-"license.status.invalid.title" = "Érvénytelen";
 "license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "Licencelt – Teljes hozzáférés";
 "license.status.expired.description" = "Licenc lejárt";
@@ -926,6 +924,7 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 "transcription.error.maxRetriesExceeded" = "Maximum újrapróbálási kísérletek túllépve";
 "transcription.error.unauthorized.provider" = "Jogosulatlan: érvénytelen %@ API kulcs vagy engedélyek.\n\nNyisd meg a Beállítások → API kulcsok menüt az azonosítók ellenőrzéséhez.";
 "transcription.error.unauthorized.generic" = "Jogosulatlan: érvénytelen API kulcs vagy engedélyek.\n\nNyisd meg a Beállítások → API kulcsok menüt az azonosítók ellenőrzéséhez.";
+"transcription.error.unauthorized.hyperWhisperCloud" = "A HyperWhisper Cloud hozzáférési kulcsa érvénytelen vagy lejárt.\n\nNyisd meg a Beállítások → HyperWhisper Cloud menüt a kulcs frissítéséhez.";
 "transcription.error.cloudAccountRequired" = "A HyperWhisper Cloud fiókkulcsot igényel.\n\nNyisd meg a Beállítások → HyperWhisper Cloud menüt a kulcs megadásához vagy kreditek vásárlásához.";
 "transcription.error.invalidRequest" = "Érvénytelen kérés: ellenőrizd az audio fájlt vagy beállításokat";
 "transcription.error.streamingInterrupted" = "Streamelés megszakítva; részleges szöveg megjelenítve";
@@ -1052,7 +1051,6 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 "settings.backup.import.confirm.button" = "Importálás";
 "settings.backup.conflict.skip" = "Meglévők kihagyása";
 "settings.backup.conflict.replace" = "Meglévők cseréje";
-"settings.backup.conflict.keepBoth" = "Mindkettő megtartása";
 "settings.backup.security.warning" = "Figyelmeztetés: Az exportált fájl érzékeny adatokat fog tartalmazni. Tartsd biztonságban és ne oszd meg.";
 "settings.backup.info.note" = "A biztonsági mentések beállításokat, módokat és szókincset tartalmaznak. Felvételek és átírások nem kerülnek bele.";
 "settings.backup.result.success.title" = "Sikeres";
@@ -1087,9 +1085,6 @@ A törlés előtt frissítsd ezeket a módokat, hogy más modellt használjanak.
 "transcribe.file.error.video.noAudio" = "Ez a videó fájl nem tartalmaz audio sávot. Kérlek válassz audio sávval rendelkező videót vagy audio fájlt.";
 
 // MARK: - File Transcription Progress
-"file.transcription.preparing" = "Előkészítés...";
-"file.transcription.transcribing" = "Átírás...";
-"file.transcription.finishing" = "Befejezés...";
 "file.transcription.cancel" = "Mégsem";
 
 // MARK: - Auto-Delete Recordings

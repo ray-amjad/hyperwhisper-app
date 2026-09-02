@@ -9,6 +9,8 @@
   This file contains all user-facing text that needs to be translated.
 */
 
+"transcription.error.forbidden.hyperWhisperCloud" = "HyperWhisper Cloud bu isteği reddetti. Ağınız geçici olarak engellendi.\n\nBirkaç dakika bekleyip tekrar deneyin.";
+
 // MARK: - Application Navigation
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
@@ -420,10 +422,6 @@
 "license.button.activate" = "Etkinleştir";
 "license.button.activating" = "Etkinleştiriliyor...";
 "license.status.label" = "Durum: %@";
-"license.status.trial.title" = "Deneme";
-"license.status.active.title" = "Etkin";
-"license.status.expired.title" = "Süresi Doldu";
-"license.status.invalid.title" = "Geçersiz";
 "license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "Lisanslı – Tam Erişim";
 "license.status.expired.description" = "Lisans Süresi Doldu";
@@ -926,6 +924,7 @@ Silmeden önce bu modları farklı bir model kullanacak şekilde güncelleyin.";
 "transcription.error.maxRetriesExceeded" = "Maksimum yeniden deneme girişimleri aşıldı";
 "transcription.error.unauthorized.provider" = "Yetkisiz: Geçersiz %@ API anahtarı veya izinleri.\n\nBilgilerinizi doğrulamak için Ayarlar → API Anahtarları'nı açın.";
 "transcription.error.unauthorized.generic" = "Yetkisiz: Geçersiz API anahtarı veya izinleri.\n\nBilgilerinizi doğrulamak için Ayarlar → API Anahtarları'nı açın.";
+"transcription.error.unauthorized.hyperWhisperCloud" = "HyperWhisper Cloud erişim anahtarı geçersiz veya süresi dolmuş.\n\nAnahtarınızı güncellemek için Ayarlar → HyperWhisper Cloud bölümünü açın.";
 "transcription.error.cloudAccountRequired" = "HyperWhisper Cloud bir hesap anahtarı gerektirir.\n\nAnahtarınızı girmek veya kredi almak için Ayarlar → HyperWhisper Cloud'u açın.";
 "transcription.error.invalidRequest" = "Geçersiz istek: ses dosyasını veya ayarları kontrol edin";
 "transcription.error.streamingInterrupted" = "Akış kesildi; kısmi metin gösteriliyor";
@@ -1052,7 +1051,6 @@ Silmeden önce bu modları farklı bir model kullanacak şekilde güncelleyin.";
 "settings.backup.import.confirm.button" = "İçe Aktar";
 "settings.backup.conflict.skip" = "Mevcut olanları atla";
 "settings.backup.conflict.replace" = "Mevcut olanları değiştir";
-"settings.backup.conflict.keepBoth" = "İkisini de tut";
 "settings.backup.security.warning" = "Uyarı: Dışa aktarılan dosya hassas verileri içerecektir. Güvenli bir şekilde saklayın ve paylaşmayın.";
 "settings.backup.info.note" = "Yedeklemeler ayarları, modları ve kelime hazinesini içerir. Kayıtlar ve transkriptler dahil değildir.";
 "settings.backup.result.success.title" = "Başarı";
@@ -1087,9 +1085,6 @@ Silmeden önce bu modları farklı bir model kullanacak şekilde güncelleyin.";
 "transcribe.file.error.video.noAudio" = "Bu video dosyasında ses parçası yok. Lütfen ses içeren bir video veya ses dosyası seçin.";
 
 // MARK: - File Transcription Progress
-"file.transcription.preparing" = "Hazırlanıyor...";
-"file.transcription.transcribing" = "Transkribe ediliyor...";
-"file.transcription.finishing" = "Bitiriliyor...";
 "file.transcription.cancel" = "İptal";
 
 // MARK: - Auto-Delete Recordings

@@ -38,6 +38,14 @@ export const OPENAI_INLINE_MAX_BYTES = 25 * 1024 * 1024;
 // large" before any model code runs.
 export const AZURE_MAI_MAX_BYTES = 300 * 1024 * 1024;
 
+// Meta Muse Voice Transcribe's batch endpoint caps WAV uploads at 32 MB.
+export const META_MUSE_MAX_BYTES = 32 * 1024 * 1024;
+// The first noncanonical request must reach the adapter so clients can receive
+// 415 and retry after normalization. Bound that source at twice the canonical
+// cap: 64 MiB is 6.25% of a 1 GiB Fly machine before request/form-data copies,
+// while leaving useful headroom for compressed and alternate WAV sources.
+export const META_MUSE_SOURCE_MAX_BYTES = META_MUSE_MAX_BYTES * 2;
+
 // `/assistant` coarse total-body guard, checked against Content-Length BEFORE
 // buffering so a multi-hundred-MB upload is rejected early (the body is fully
 // buffered by formData() on a 1 GB Fly machine). Finer per-image / per-messages

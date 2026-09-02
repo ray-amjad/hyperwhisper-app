@@ -23,6 +23,9 @@ enum CloudProvider: String, CaseIterable, Identifiable {
     /// `:generateContent` path accepts `gemini-3.5-transcribe`, bills the audio
     /// and returns empty text, so the two must never be merged.
     case geminiTranscribe = "geminitranscribe"
+    /// Meta Muse batch transcription using the user's own Meta Model API key.
+    /// Public discovery stays catalog-gated until every desktop head ships it.
+    case meta = "meta"
 
     var id: String { rawValue }
 
@@ -99,6 +102,8 @@ enum CloudProvider: String, CaseIterable, Identifiable {
             return "Google Cloud Speech"
         case .geminiTranscribe:
             return "Gemini 3.5 Transcribe"
+        case .meta:
+            return "Meta"
         }
     }
 
@@ -131,6 +136,8 @@ enum CloudProvider: String, CaseIterable, Identifiable {
             return "Google Cloud Speech-to-Text V2 with Chirp 3 (multilingual + phrase adaptation)"
         case .geminiTranscribe:
             return "Google's dedicated Gemini 3.5 speech-to-text API with native custom vocabulary"
+        case .meta:
+            return "Meta Muse Voice Transcribe batch speech-to-text"
         }
     }
 
@@ -159,6 +166,8 @@ enum CloudProvider: String, CaseIterable, Identifiable {
             return "https://aistudio.google.com/apikey"
         case .grok:
             return "https://console.x.ai/"
+        case .meta:
+            return "https://dev.meta.ai/docs/speech-to-text/"
         case .microsoftAzureSpeech, .googleSpeech:
             // HyperWhisper Cloud only — no BYOK in v1.
             return "https://www.hyperwhisper.com"
@@ -226,6 +235,8 @@ enum CloudProvider: String, CaseIterable, Identifiable {
             // inline as base64, which inflates it by ~33%. 14 MB of raw audio
             // stays under the endpoint's request ceiling once encoded.
             return 14 * 1024 * 1024  // 14 MB
+        case .meta:
+            return 32 * 1024 * 1024
         }
     }
 
@@ -284,6 +295,10 @@ enum CloudProvider: String, CaseIterable, Identifiable {
             // xAI Grok STT supported containers (auto-detected)
             // Ref: https://docs.x.ai/docs/api-reference#speech-to-text
             return ["wav", "mp3", "ogg", "opus", "flac", "aac", "mp4", "m4a", "mkv"]
+
+        case .meta:
+            // Imported containers are normalized to canonical Muse WAV before upload.
+            return ["wav", "mp3", "mp4", "m4a", "webm", "flac", "ogg", "aac"]
 
         case .microsoftAzureSpeech:
             // Azure Speech Foundry transcribe endpoint — common containers
@@ -349,10 +364,25 @@ extension CloudTranscriptionModel {
 struct CloudTranscriptionModels {
     /// Default model to use when creating new modes with cloud transcription
     static let defaultModelId = "whisper-1"
+
+    /// Test seam for exercising a completed direct provider before the shared
+    /// cross-platform catalog gate is activated. Production always reads the gate.
+    #if DEBUG
+    static var metaBYOKCatalogOverride: Bool?
+    #endif
+
+    static var isMetaBYOKCatalogEnabled: Bool {
+        #if DEBUG
+        if let override = metaBYOKCatalogOverride { return override }
+        #endif
+        return CloudSTTCatalog.shared.entry(byId: CloudAccuracyTier.metaMuse.rawValue)?
+            .access?.byokEligible == true
+    }
     
     /// All available cloud transcription models for speech-to-text
     /// Models are ordered by provider and capability
-    static let availableModels: [CloudTranscriptionModel] = [
+    static var availableModels: [CloudTranscriptionModel] {
+        var models: [CloudTranscriptionModel] = [
         // OpenAI Models
         CloudTranscriptionModel(
             id: "gpt-4o-mini-transcribe-2025-12-15",
@@ -645,7 +675,24 @@ struct CloudTranscriptionModels {
             isPopular: true,
             pricePerSecond: nil
         ),
-    ]
+
+        ]
+        if isMetaBYOKCatalogEnabled {
+            let catalogModel = CloudSTTCatalog.shared.defaultModel(
+                forEntryId: CloudAccuracyTier.metaMuse.rawValue
+            )
+            models.append(CloudTranscriptionModel(
+                id: catalogModel?.id ?? MetaMuseProvider.modelID,
+                displayName: catalogModel?.displayName ?? "Muse Voice Transcribe 1.0",
+                isAvailable: true,
+                description: "Meta Muse batch transcription using your Meta Model API key",
+                provider: .meta,
+                isPopular: true,
+                pricePerSecond: nil
+            ))
+        }
+        return models
+    }
     
     /// Legacy AssemblyAI model IDs that have been retired. Resolved transparently to their
     /// modern replacements so existing Modes and backups keep working.
@@ -856,6 +903,8 @@ struct CloudTranscriptionModels {
             // (`gemini-3.5-transcribe-live`) is WebSocket-only and must never be
             // offered here — the REST builder rejects it with a 400.
             return "gemini-3.5-transcribe"
+        case .meta:
+            return "muse-voice-transcribe-1.0"
         }
     }
 }

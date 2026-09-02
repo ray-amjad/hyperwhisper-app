@@ -55,6 +55,16 @@ public sealed class LanguageSupport
            || Codes.Any(c => c.StartsWith(baseCode + "-", StringComparison.Ordinal));
 }
 
+/// <summary>Structured capability metadata for a shared voice-model row.</summary>
+public sealed record ModelVoiceCapabilities(
+    bool CodeSwitching,
+    bool Endpointing,
+    bool ContextBias,
+    bool LanguageBias,
+    bool TurnTimestamps,
+    bool Diarization,
+    bool WordTimestamps);
+
 /// <summary>
 /// Per-model metadata from the shared catalog, resolved by the Rust core.
 ///
@@ -79,6 +89,20 @@ public static class SharedModelsCatalog
 
     public static bool AvailableViaHyperWhisperCloud(string provider, CatalogKind kind, string id)
         => HyperwhisperCoreMethods.ModelsAvailableViaHwCloud(provider, ToHwKind(kind), id ?? "");
+
+    public static ModelVoiceCapabilities? VoiceCapabilities(string provider, string id)
+    {
+        var value = HyperwhisperCoreMethods.ModelsEntry(
+            provider, HwKind.Voice, id ?? "")?.@voiceCapabilities;
+        return value is null ? null : new(
+            value.@codeSwitching,
+            value.@endpointing,
+            value.@contextBias,
+            value.@languageBias,
+            value.@turnTimestamps,
+            value.@diarization,
+            value.@wordTimestamps);
+    }
 
     /// <summary>
     /// Language-filter capability for a CLOUD voice model. Local providers carry
@@ -116,6 +140,7 @@ public static class SharedModelsCatalog
         CloudTranscriptionProvider.MicrosoftAzureSpeech => "microsoftAzureSpeech",
         CloudTranscriptionProvider.GoogleSpeech => "googleSpeech",
         CloudTranscriptionProvider.GeminiTranscribe => "geminiTranscribe",
+        CloudTranscriptionProvider.Meta => "meta",
     };
 
     public static string CatalogKey(PostProcessingProvider provider) => provider switch

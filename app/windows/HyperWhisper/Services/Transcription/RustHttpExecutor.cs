@@ -43,7 +43,7 @@ namespace HyperWhisper.Services.Transcription;
 /// <summary>
 /// Executes a Rust-core-built <see cref="HttpRequest"/> over an
 /// <see cref="HttpClient"/> and captures an <see cref="HttpResponse"/> for the
-/// core to parse. Reused by all 12 cloud STT providers.
+/// core to parse. Reused by all 15 cloud STT providers.
 /// </summary>
 internal static class RustHttpExecutor
 {
@@ -268,6 +268,21 @@ internal static class RustHttpExecutor
                     content.Add(fileContent, fileRef.@field, fileRef.@filename);
                     break;
                 }
+
+                case HwPart.InlineFile inlineFile:
+                {
+                    var inlineContent = new ByteArrayContent(inlineFile.@data);
+                    if (MediaTypeHeaderValue.TryParse(inlineFile.@mime, out var mediaType))
+                    {
+                        inlineContent.Headers.ContentType = mediaType;
+                    }
+                    content.Add(inlineContent, inlineFile.@field, inlineFile.@filename);
+                    break;
+                }
+
+                default:
+                    throw new NotSupportedException(
+                        $"Unhandled Rust multipart part variant: {part.GetType().Name}");
             }
         }
         return content;

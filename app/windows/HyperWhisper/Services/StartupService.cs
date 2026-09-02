@@ -196,17 +196,6 @@ public class StartupService : PlatformContracts.IAutostartService
         }
     }
 
-    /// <summary>
-    /// Sets the startup state based on a boolean value.
-    /// Convenience method for binding to settings.
-    /// </summary>
-    /// <param name="enabled">True to enable, false to disable.</param>
-    /// <returns>True if the operation succeeded.</returns>
-    public bool SetEnabled(bool enabled)
-    {
-        return enabled ? Enable() : Disable();
-    }
-
     PlatformContracts.PlatformResult<bool> PlatformContracts.IAutostartService.IsEnabled()
         => PlatformContracts.PlatformResult<bool>.Success(IsEnabled);
 

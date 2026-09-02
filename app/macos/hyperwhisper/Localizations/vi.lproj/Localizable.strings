@@ -9,6 +9,8 @@
   This file contains all user-facing text that needs to be translated.
 */
 
+"transcription.error.forbidden.hyperWhisperCloud" = "HyperWhisper Cloud đã từ chối yêu cầu này. Mạng của bạn tạm thời bị chặn.\n\nHãy đợi vài phút rồi thử lại.";
+
 // MARK: - Application Navigation
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
@@ -420,10 +422,6 @@
 "license.button.activate" = "Kích hoạt";
 "license.button.activating" = "Đang Kích hoạt...";
 "license.status.label" = "Trạng thái: %@";
-"license.status.trial.title" = "Dùng thử";
-"license.status.active.title" = "Hoạt động";
-"license.status.expired.title" = "Đã hết hạn";
-"license.status.invalid.title" = "Không hợp lệ";
 "license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "Được cấp phép – Quyền truy cập Đầy đủ";
 "license.status.expired.description" = "Giấy phép Đã hết hạn";
@@ -926,6 +924,7 @@ Cập nhật các chế độ này để sử dụng mô hình khác trước kh
 "transcription.error.maxRetriesExceeded" = "Vượt quá số lần thử lại tối đa";
 "transcription.error.unauthorized.provider" = "Không được phép: khóa API %@ không hợp lệ hoặc quyền.\n\nMở Cài đặt → Khóa API để xác minh thông tin đăng nhập của bạn.";
 "transcription.error.unauthorized.generic" = "Không được phép: khóa API hoặc quyền không hợp lệ.\n\nMở Cài đặt → Khóa API để xác minh thông tin đăng nhập của bạn.";
+"transcription.error.unauthorized.hyperWhisperCloud" = "Khóa truy cập HyperWhisper Cloud không hợp lệ hoặc đã hết hạn.\n\nMở Cài đặt → HyperWhisper Cloud để cập nhật khóa.";
 "transcription.error.cloudAccountRequired" = "HyperWhisper Cloud yêu cầu khóa tài khoản.\n\nMở Cài đặt → HyperWhisper Cloud để nhập khóa của bạn hoặc mua tín dụng.";
 "transcription.error.invalidRequest" = "Yêu cầu không hợp lệ: kiểm tra tệp âm thanh hoặc cài đặt";
 "transcription.error.streamingInterrupted" = "Luồng phát bị gián đoạn; văn bản một phần được hiển thị";
@@ -1052,7 +1051,6 @@ Cập nhật các chế độ này để sử dụng mô hình khác trước kh
 "settings.backup.import.confirm.button" = "Nhập";
 "settings.backup.conflict.skip" = "Bỏ qua hiện có";
 "settings.backup.conflict.replace" = "Thay thế hiện có";
-"settings.backup.conflict.keepBoth" = "Giữ cả hai";
 "settings.backup.security.warning" = "Cảnh báo: Tệp được xuất sẽ chứa dữ liệu nhạy cảm. Giữ nó an toàn và không chia sẻ.";
 "settings.backup.info.note" = "Bản sao lưu bao gồm cài đặt, chế độ và từ vựng. Các bản ghi âm và bản chuyển đổi không được bao gồm.";
 "settings.backup.result.success.title" = "Thành công";
@@ -1087,9 +1085,6 @@ Cập nhật các chế độ này để sử dụng mô hình khác trước kh
 "transcribe.file.error.video.noAudio" = "Tệp video này không chứa bản nhạc âm thanh. Vui lòng chọn video có âm thanh hoặc tệp âm thanh.";
 
 // MARK: - File Transcription Progress
-"file.transcription.preparing" = "Đang chuẩn bị...";
-"file.transcription.transcribing" = "Đang chuyển đổi...";
-"file.transcription.finishing" = "Đang hoàn tất...";
 "file.transcription.cancel" = "Hủy";
 
 // MARK: - Auto-Delete Recordings

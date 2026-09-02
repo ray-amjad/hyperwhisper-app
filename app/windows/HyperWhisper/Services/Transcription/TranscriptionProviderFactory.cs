@@ -34,6 +34,7 @@ public class TranscriptionProviderFactory : IDisposable
     private readonly Lazy<SonioxService> _soniox;
     private readonly Lazy<GeminiTranscriptionService> _gemini;
     private readonly Lazy<GeminiTranscribeService> _geminiTranscribe;
+    private readonly Lazy<MetaMuseService> _meta;
     private readonly Lazy<HyperWhisperCloudService> _hyperWhisperCloud;
     private readonly Lazy<GrokSttService> _grok;
     private readonly Lazy<AzureMAITranscriptionService> _azureMai;
@@ -57,6 +58,7 @@ public class TranscriptionProviderFactory : IDisposable
         _soniox = new Lazy<SonioxService>(() => new SonioxService());
         _gemini = new Lazy<GeminiTranscriptionService>(() => new GeminiTranscriptionService());
         _geminiTranscribe = new Lazy<GeminiTranscribeService>(() => new GeminiTranscribeService());
+        _meta = new Lazy<MetaMuseService>(() => new MetaMuseService());
         _hyperWhisperCloud = new Lazy<HyperWhisperCloudService>(() => new HyperWhisperCloudService());
         _grok = new Lazy<GrokSttService>(() => new GrokSttService());
         _azureMai = new Lazy<AzureMAITranscriptionService>(() => new AzureMAITranscriptionService());
@@ -109,6 +111,7 @@ public class TranscriptionProviderFactory : IDisposable
             CloudTranscriptionProvider.Soniox => ConfigureAndReturn(_soniox.Value, apiKey!, effectiveModelId),
             CloudTranscriptionProvider.Gemini => ConfigureAndReturn(_gemini.Value, apiKey!, effectiveModelId),
             CloudTranscriptionProvider.GeminiTranscribe => ConfigureAndReturn(_geminiTranscribe.Value, apiKey!, effectiveModelId),
+            CloudTranscriptionProvider.Meta => ConfigureAndReturn(_meta.Value, apiKey!, effectiveModelId),
             CloudTranscriptionProvider.HyperWhisperCloud => ConfigureHyperWhisperCloud(_hyperWhisperCloud.Value),
             CloudTranscriptionProvider.Grok => ConfigureAndReturn(_grok.Value, apiKey!, effectiveModelId),
             // HW-Cloud-routed providers — no per-request configuration; the
@@ -188,6 +191,7 @@ public class TranscriptionProviderFactory : IDisposable
             CloudTranscriptionProvider.Soniox => ApiKeyService.Instance.GetApiKey(TranscriptionApiKeyType.Soniox),
             // Own key slot — deliberately NOT PostProcessingProvider.Gemini.
             CloudTranscriptionProvider.GeminiTranscribe => ApiKeyService.Instance.GetApiKey(TranscriptionApiKeyType.GeminiTranscribe),
+            CloudTranscriptionProvider.Meta => ApiKeyService.Instance.GetApiKey(TranscriptionApiKeyType.Meta),
 
             // HyperWhisper-Cloud-routed providers don't need an API key
             CloudTranscriptionProvider.HyperWhisperCloud => null,
@@ -230,6 +234,7 @@ public class TranscriptionProviderFactory : IDisposable
             CloudTranscriptionProvider.Soniox => "stt-async-v5",
             CloudTranscriptionProvider.Gemini => "gemini-2.5-flash",
             CloudTranscriptionProvider.GeminiTranscribe => "gemini-3.5-transcribe",
+            CloudTranscriptionProvider.Meta => "muse-voice-transcribe-1.0",
             CloudTranscriptionProvider.HyperWhisperCloud => "",
             CloudTranscriptionProvider.Grok => "",
             CloudTranscriptionProvider.MicrosoftAzureSpeech => "mai-transcribe-1.5",
@@ -257,6 +262,7 @@ public class TranscriptionProviderFactory : IDisposable
         SafeDispose(_soniox);
         SafeDispose(_gemini);
         SafeDispose(_geminiTranscribe);
+        SafeDispose(_meta);
         SafeDispose(_hyperWhisperCloud);
         SafeDispose(_grok);
         SafeDispose(_azureMai);

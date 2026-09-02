@@ -506,6 +506,18 @@ public static class CloudTranscriptionModels
         }
     };
 
+    public static readonly CloudTranscriptionModel[] Meta = new[]
+    {
+        new CloudTranscriptionModel
+        {
+            Id = "muse-voice-transcribe-1.0",
+            DisplayName = "Muse Voice Transcribe 1.0",
+            Description = "Meta's batch speech-to-text model with language and vocabulary biasing",
+            Provider = CloudTranscriptionProvider.Meta,
+            IsPopular = true
+        }
+    };
+
     // =========================================================================
     // ALL MODELS
     // =========================================================================
@@ -523,6 +535,7 @@ public static class CloudTranscriptionModels
             .Concat(Soniox)
             .Concat(Gemini)
             .Concat(GeminiTranscribe)
+            .Concat(Meta)
             .Concat(Grok)
             .Concat(MicrosoftAzureSpeech)
             .Concat(GoogleSpeech)
@@ -543,6 +556,7 @@ public static class CloudTranscriptionModels
             CloudTranscriptionProvider.Soniox => Soniox,
             CloudTranscriptionProvider.Gemini => Gemini,
             CloudTranscriptionProvider.GeminiTranscribe => GeminiTranscribe,
+            CloudTranscriptionProvider.Meta => Meta,
             CloudTranscriptionProvider.HyperWhisperCloud => new[] { HyperWhisperCloudSentinel },
             CloudTranscriptionProvider.Grok => Grok,
             CloudTranscriptionProvider.MicrosoftAzureSpeech => MicrosoftAzureSpeech,
@@ -688,6 +702,7 @@ public static class CloudTranscriptionModels
             CloudTranscriptionProvider.Soniox => "stt-async-v5",  // Parity with macOS + cloud default; v4 auto-routes to v5 upstream after 2026-06-30
             CloudTranscriptionProvider.Gemini => "gemini-2.5-flash",
             CloudTranscriptionProvider.GeminiTranscribe => "gemini-3.5-transcribe",
+            CloudTranscriptionProvider.Meta => "muse-voice-transcribe-1.0",
             CloudTranscriptionProvider.HyperWhisperCloud => HyperWhisperCloudSentinel.Id,
             CloudTranscriptionProvider.Grok => "",
             CloudTranscriptionProvider.MicrosoftAzureSpeech => "mai-transcribe-1.5",

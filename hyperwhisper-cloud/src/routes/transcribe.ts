@@ -4,18 +4,18 @@
 
 import type { Context } from 'hono';
 import type { TranscriptionResult } from '../providers/types';
-import { AudioTooLargeError, ProviderInputError, ProviderUnavailableError, UnsupportedAudioFormatError } from '../providers/types';
+import { AudioTooLargeError, EmptyTranscriptError, ProviderInputError, ProviderUnavailableError, UnsupportedAudioFormatError } from '../providers/types';
 // The providers layer's own answer to "which adapter runs this provider id", so
 // the route never imports an adapter or keeps a dispatch table of its own. See
 // providers/dispatch.ts.
 import { transcribeWithProvider } from '../providers/dispatch';
+import { parseMetaWav } from '../providers/meta';
 import { creditsForCost, estimatePromptInputReservationUsd, formatUsd } from '../lib/cost-calculator';
 import {
   fallbackChainFor,
   formatProviderName,
   getProviderDef,
   isSelfOnly,
-  isValidProviderId,
   resolveModel,
   servedNameFor,
   MEDICAL_DOMAIN,
@@ -34,10 +34,6 @@ import {
 // runProviderAttempt is how the same page learns whether an attempt ever reached
 // the provider at all.
 import { estimateAudioSeconds, runProviderAttempt, type ProviderAttemptNetwork } from '../providers/utils';
-// The providers layer's own answer to "how big a payload may this provider be
-// handed", so the route never needs a provider's byte caps or the environment
-// that lifts them. See providers/audio-limits.ts.
-import { preBufferMaxBytes } from '../providers/audio-limits';
 // The providers layer's own answer to "can this Fly region reach this provider",
 // so the route never needs a provider's blocked-region list, its replay region,
 // or its id in a filter. See providers/geo-availability.ts.
@@ -47,17 +43,18 @@ import { planGeoRouting, reachableFromRegion } from '../providers/geo-availabili
 // or an adapter's internal routing gate. See providers/reservation.ts.
 import { maxReservationUsdPerMinute } from '../providers/reservation';
 import { rawQuery } from '../lib/query';
-import { MAX_AUDIO_SIZE_BYTES } from '../lib/constants';
 import { isIPBlocked } from '../lib/redis';
-import {
-  errorResponse,
-  fileTooLargeResponse,
-  invalidContentTypeResponse,
-  missingContentLengthResponse,
-} from '../lib/responses';
+import { errorResponse } from '../lib/responses';
 import { validateAuth } from '../middleware/auth';
 import { deductCredits, estimateAudioSecondsFromSize, validateCredits } from '../middleware/credits';
 import { flyProxyOverheadMs, logEvent, machineUptimeMs } from '../lib/logging';
+import {
+  extractDomain,
+  extractModel,
+  extractProvider,
+  isLatencyOptOut,
+  validateStreamingHeaders,
+} from './transcribe-request';
 
 // Supported providers (mirror the server-side registry in lib/stt-models.ts).
 export type Provider = SttProviderId;
@@ -81,8 +78,16 @@ export function estimateCreditsForProviderFallbacks(
   medical: boolean = false,
   initialPrompt?: string,
   language?: string,
+  exactAudioSeconds?: number,
 ): number {
-  const estimatedSeconds = estimateAudioSecondsFromSize(sizeBytes);
+  // Muse requests are canonical mono PCM16 WAV at 16 or 24 kHz. The route
+  // supplies the parsed duration because Content-Length cannot identify which
+  // accepted byte rate produced the file. Keep the 16 kHz size fallback for
+  // direct historical callers of this estimator; the live route never uses it
+  // for a valid Muse WAV.
+  const estimatedSeconds = exactAudioSeconds ?? (provider === 'meta'
+    ? Math.max(10, Math.max(0, sizeBytes - 44) / (16_000 * 2))
+    : estimateAudioSecondsFromSize(sizeBytes));
   const usdPerMinute = maxReservationUsdPerMinute({
     provider,
     model,
@@ -100,55 +105,7 @@ export function estimateCreditsForProviderFallbacks(
   return Math.max(0.1, creditsForCost(estimatedCostUsd));
 }
 
-type ProviderSelection =
-  | { ok: true; provider: Provider }
-  | { ok: false; provided: string };
-
-function extractProvider(c: Context): ProviderSelection {
-  const header = c.req.header('X-STT-Provider')?.toLowerCase().trim();
-  // No header → historical default (many clients send only a provider, some
-  // none). An explicitly-supplied but unknown provider is REJECTED (fail-closed)
-  // rather than silently billed against a default upstream.
-  if (!header) {
-    return { ok: true, provider: 'deepgram' };
-  }
-  if (isValidProviderId(header)) {
-    return { ok: true, provider: header };
-  }
-  return { ok: false, provided: header };
-}
-
-function extractModel(c: Context): string | undefined {
-  return c.req.header('X-STT-Model')?.trim() || rawQuery(c.req.url, 'model')?.trim() || undefined;
-}
-
-function extractDomain(c: Context): string | undefined {
-  const domain = c.req.header('X-STT-Domain')?.toLowerCase().trim();
-  return domain || undefined;
-}
-
-/**
- * Values that mean "the header is present but the client is NOT opting out".
- * Everything else counts as an opt-out, including values we never documented —
- * a client that bothers to send this header at all means to be excluded, so an
- * unrecognised value fails toward privacy rather than toward more data.
- */
-const LATENCY_OPT_IN_VALUES = new Set(['', '0', 'false', 'no', 'off']);
-
-/**
- * True when the caller asked to be left out of the public latency statistics
- * (`X-Latency-Opt-Out: 1`). The macOS and Windows apps send this when the user
- * turns off "Share anonymous speed data" in settings.
- *
- * Opting out costs the user nothing and changes nothing else about the
- * request — it only stops the anonymous timing row from being written. See
- * lib/latency-report.ts for what that row holds.
- */
-export function isLatencyOptOut(c: Context): boolean {
-  const header = c.req.header('X-Latency-Opt-Out');
-  if (header === undefined) return false;
-  return !LATENCY_OPT_IN_VALUES.has(header.toLowerCase().trim());
-}
+export { isLatencyOptOut };
 
 /**
  * The public page's failure taxonomy for whatever the attempt threw. Keeps the
@@ -175,44 +132,6 @@ function failureKindFor(error: unknown): LatencyFailureKind {
  */
 function elapsedFor(attemptStart: number): number {
   return performance.now() - attemptStart;
-}
-
-function validateStreamingHeaders(c: Context, provider: Provider):
-  | { ok: true; contentType: string; contentLength: number }
-  | { ok: false; response: Response } {
-  const contentType = c.req.header('Content-Type') || '';
-  if (!contentType.startsWith('audio/')) {
-    return { ok: false, response: invalidContentTypeResponse('audio/*', contentType) };
-  }
-
-  const contentLengthHeader = c.req.header('Content-Length');
-  if (!contentLengthHeader) {
-    return { ok: false, response: missingContentLengthResponse() };
-  }
-
-  const contentLength = Number.parseInt(contentLengthHeader, 10);
-  if (!Number.isFinite(contentLength) || contentLength <= 0) {
-    return { ok: false, response: errorResponse(400, 'Invalid Content-Length', 'Content-Length must be a positive integer') };
-  }
-
-  if (contentLength > MAX_AUDIO_SIZE_BYTES) {
-    return { ok: false, response: fileTooLargeResponse(contentLength, MAX_AUDIO_SIZE_BYTES) };
-  }
-
-  // Some providers reject a payload this large no matter what we do with it —
-  // Chirp's inline `recognize` cap, Gemini's base64 inline cap, OpenAI's hard
-  // 25 MB limit. Ask the providers layer for the cap and 413 on the way past,
-  // so we never allocate a buffer of up to MAX_AUDIO_SIZE_BYTES only to throw
-  // it away. `null` means this provider has no cap of its own.
-  const providerMaxBytes = preBufferMaxBytes(provider);
-  if (providerMaxBytes !== null && contentLength > providerMaxBytes) {
-    return {
-      ok: false,
-      response: fileTooLargeResponse(contentLength, providerMaxBytes),
-    };
-  }
-
-  return { ok: true, contentType, contentLength };
 }
 
 export async function transcribeRoute(c: Context) {
@@ -307,7 +226,6 @@ export async function transcribeRoute(c: Context) {
   }
   // The body was too large for Fly to replay, so the request stays in this
   // region and the unreachable provider comes out of the chain below.
-  const geoDegraded = geoPlan.action === 'drop_from_chain';
   if (geoPlan.action === 'drop_from_chain') {
     logEvent(requestId, startTime, 'transcribe.fly_replay_skipped_oversized', {
       flyRequestId,
@@ -354,33 +272,93 @@ export async function transcribeRoute(c: Context) {
   }
   logEvent(requestId, startTime, 'transcribe.auth_done');
 
+  const readAudioBuffer = async (): Promise<ArrayBuffer> => {
+    const uploadStart = performance.now();
+    const body = await c.req.arrayBuffer();
+    const uploadMs = Math.round(performance.now() - uploadStart);
+    const uploadBytesPerSec = uploadMs > 0
+      ? Math.round((body.byteLength / uploadMs) * 1000)
+      : undefined;
+    logEvent(requestId, startTime, 'transcribe.buffer_read_done', {
+      audioBytes: body.byteLength,
+      uploadMs,
+      uploadBytesPerSec,
+    });
+    return body;
+  };
+
+  // Meta needs the buffered WAV to calculate an exact reservation. Before that
+  // allocation, reserve the lowest possible cost for this byte count: accepted
+  // 24 kHz mono PCM16 has the highest byte rate, so any canonical Muse WAV of
+  // this size is at least this long. The exact duration check below still owns
+  // the final amount and increases it for 16 kHz audio.
+  if (provider === 'meta') {
+    const minimumAudioSeconds = Math.max(0, contentLength - 44) / (24_000 * 2);
+    const minimumEstimatedCredits = estimateCreditsForProviderFallbacks(
+      contentLength, provider, model, medical, initialPrompt, language, minimumAudioSeconds,
+    );
+    const minimumCreditCheck = await validateCredits(
+      authResult.value, minimumEstimatedCredits, clientIP,
+    );
+    if (!minimumCreditCheck.ok) {
+      logEvent(requestId, startTime, 'transcribe.request_rejected', {
+        reason: 'credits_failed_before_buffer',
+        flyRequestId,
+        status: minimumCreditCheck.response.status,
+        estimatedCredits: minimumEstimatedCredits,
+      });
+      return minimumCreditCheck.response;
+    }
+    logEvent(requestId, startTime, 'transcribe.credits_minimum_done', {
+      estimatedCredits: minimumEstimatedCredits,
+    });
+  }
+
+  // Meta billing is duration-based while its two accepted PCM sample rates
+  // have different byte rates. Read this finite-capped body and parse the WAV
+  // before reservation; Content-Length cannot distinguish a 60-second 24 kHz
+  // clip from a 90-second 16 kHz clip. Invalid/noncanonical audio deliberately
+  // skips reservation and continues to the adapter, which returns the 415/400
+  // that tells a native client whether to normalize and retry.
+  let audioBuffer: ArrayBuffer | undefined;
+  let exactAudioSeconds: number | undefined;
+  let skipCreditValidationForLocalInputError = false;
+  if (provider === 'meta') {
+    audioBuffer = await readAudioBuffer();
+    try {
+      exactAudioSeconds = parseMetaWav(audioBuffer, contentType).durationSeconds;
+    } catch (error) {
+      if (error instanceof UnsupportedAudioFormatError || error instanceof ProviderInputError) {
+        skipCreditValidationForLocalInputError = true;
+      } else {
+        throw error;
+      }
+    }
+  }
+
   // The raw request values go in as they arrived — the initial_prompt, the
   // domain and the language are all things the reservation prices for itself.
   // See providers/reservation.ts for which of them cost what, and why.
-  const estimatedCredits = estimateCreditsForProviderFallbacks(contentLength, provider, model, medical, initialPrompt, language);
-  const creditCheck = await validateCredits(authResult.value, estimatedCredits, clientIP);
-  if (!creditCheck.ok) {
-    logEvent(requestId, startTime, 'transcribe.request_rejected', {
-      reason: 'credits_failed',
-      flyRequestId,
-      status: creditCheck.response.status,
-      estimatedCredits,
-    });
-    return creditCheck.response;
+  const estimatedCredits = estimateCreditsForProviderFallbacks(
+    contentLength, provider, model, medical, initialPrompt, language, exactAudioSeconds,
+  );
+  if (!skipCreditValidationForLocalInputError) {
+    const creditCheck = await validateCredits(authResult.value, estimatedCredits, clientIP);
+    if (!creditCheck.ok) {
+      logEvent(requestId, startTime, 'transcribe.request_rejected', {
+        reason: 'credits_failed',
+        flyRequestId,
+        status: creditCheck.response.status,
+        estimatedCredits,
+      });
+      return creditCheck.response;
+    }
+    logEvent(requestId, startTime, 'transcribe.credits_done', { estimatedCredits });
+  } else {
+    logEvent(requestId, startTime, 'transcribe.credits_skipped_invalid_audio', { provider });
   }
-  logEvent(requestId, startTime, 'transcribe.credits_done', { estimatedCredits });
 
-  const uploadStart = performance.now();
-  const audioBuffer = await c.req.arrayBuffer();
-  const uploadMs = Math.round(performance.now() - uploadStart);
-  const uploadBytesPerSec = uploadMs > 0
-    ? Math.round((audioBuffer.byteLength / uploadMs) * 1000)
-    : undefined;
-  logEvent(requestId, startTime, 'transcribe.buffer_read_done', {
-    audioBytes: audioBuffer.byteLength,
-    uploadMs,
-    uploadBytesPerSec,
-  });
+  audioBuffer ??= await readAudioBuffer();
 
   // The credit check above trusted the declared Content-Length. Reject bodies
   // that arrive larger than declared so a client can't under-declare to pass
@@ -406,17 +384,59 @@ export async function transcribeRoute(c: Context) {
   // The model that actually produced the result. Defaults to the requested
   // model; on a cross-provider fallback it becomes that sibling's default model.
   let usedModel = model;
+  // The provider whose attempt produced `result`. `result.source` names it on a
+  // transcript, but a `no_speech` result's source is the literal `'no_speech'`,
+  // so the only record of who answered is this. (review r2)
+  let servedBy: Provider | undefined;
+  // Whether the provider the caller ASKED for was ever actually attempted. It
+  // is not always in the chain: an oversized upload from a region that geo-blocks
+  // the chosen provider drops it, and the request is served by a sibling from
+  // position 0. Attributing that request's outcome to the chosen provider would
+  // name a provider we never called — which is exactly what the `no_speech`
+  // attribution and the `fallback from` note below both used to do.
+  // (review r2)
+  let chosenProviderAttempted = false;
 
-  // The request stayed in a region that cannot reach the requested provider, so
-  // keep only the chain members this region can reach. We fall through to the
-  // next provider instead of failing the chain on a geo-block response the
+  // Only the chain members this region can actually reach. We fall through to
+  // the next provider instead of failing the chain on a geo-block response the
   // adapter cannot tell apart from a real answer.
-  const chain = geoDegraded
-    ? reachableFromRegion(fallbackChainFor(provider))
-    : fallbackChainFor(provider);
+  //
+  // Filtered UNCONDITIONALLY, not only when the CHOSEN provider is the blocked
+  // one. A `deepgram` request served from `nrt`/`bom`/`maa` used to keep
+  // elevenlabs on the tail of its chain, so a degraded request uploaded the
+  // audio a third time to a host that answers 200 `text/html`. That call could
+  // never produce a transcript, and it also made `chain.length` a count of
+  // providers this request cannot use — which the empty-transcript grant below
+  // reads. One filter, one meaning: `chain` is what this request may actually
+  // call. (issue ray-amjad/hyperwhisper-app#381, review r2)
+  const chain = reachableFromRegion(fallbackChainFor(provider));
   let lastError: Error | undefined;
   let lastInputError: ProviderInputError | undefined;
   let sawUnavailable = false;
+  // Chain position of the one attempt that refused an empty transcript
+  // (EmptyTranscriptError), if any. It is the single piece of state that makes
+  // this failure class different from every other one in the loop, and it does
+  // exactly two things:
+  //
+  //   1. It marks that `result` already holds a benign `no_speech` — the FLOOR of
+  //      this request. A refusal must never turn what would have been a 200
+  //      `no_speech` into an error, so every later arm (a sibling that is
+  //      rate-limited, one with no API key configured, one that rejects the
+  //      audio) settles on that floor instead of a 429/500/502.
+  //   2. It closes the door. No further attempt is authorised to refuse.
+  //
+  // (issue ray-amjad/hyperwhisper-app#381)
+  let refusalIndex: number | undefined;
+  // How much of the one extra UPSTREAM CALL the spec budgets has been spent.
+  //
+  // Deliberately NOT `index > refusalIndex + 1`. A chain POSITION is not a call:
+  // `DEEPGRAM_API_KEY` unset makes the adapter throw before any fetch, and the
+  // positional rule charged that non-event to the budget and then stopped —
+  // returning a `no_speech` for 22 s of real speech while groq and elevenlabs,
+  // both configured and both able to transcribe, were never asked. The budget is
+  // spent only by an attempt that reached the wire, which the loop already knows
+  // from `ProviderAttemptNetwork.reachedProvider`. (review r2)
+  let recoveryCallsSpent = 0;
   // Per-attempt failure breadcrumbs, surfaced on the final outcome log so one
   // line explains a degraded/failed request (which provider failed, why, how
   // long it hung) without correlating separate provider-level log events.
@@ -425,6 +445,14 @@ export async function transcribeRoute(c: Context) {
     kind: string;
     status?: number;
     attemptMs?: number;
+    /**
+     * The attempt was an empty-transcript refusal, not a provider fault. Inside
+     * the shared `bad_response` kind nothing else separates it from a geo-block
+     * or a truncated body. Log-only, like every other field here: `/transcribe`'s
+     * response body is a client contract (`hyperwhisper-cloud/CLAUDE.md`, "must
+     * land in clients in the same PR cycle") and this is operator data.
+     */
+    emptyTranscript?: true;
   }> = [];
   // Anonymous per-attempt timings for the public /latency page. Collected here
   // and sent once, after the response is decided, so reporting never adds wall
@@ -490,6 +518,16 @@ export async function transcribeRoute(c: Context) {
 
   try {
     for (const [index, current] of chain.entries()) {
+      // The one extra call this feature is allowed, already spent. Stopping here
+      // is not giving up: the refusal banked a `no_speech` in `result`, so the
+      // request answers with that. Walking on would cost the third and fourth
+      // upstream call the spec priced out. (issue #381)
+      if (refusalIndex !== undefined && recoveryCallsSpent > 0) break;
+
+      if (current === provider) {
+        chosenProviderAttempted = true;
+      }
+
       // The chosen model + domain only apply to the provider the caller picked.
       // Fallback siblings run their own default model (the caller's model id is
       // meaningless to them) and never inherit the medical add-on.
@@ -520,13 +558,37 @@ export async function transcribeRoute(c: Context) {
           attempt: index + 1,
           model: attemptModel,
           domain: attemptDomain,
+          // Granted here and nowhere else. An adapter cannot see this request's
+          // chain — geo filtering can shrink it to a single provider — so it is
+          // told, per attempt, whether refusing an empty transcript has anywhere
+          // to go. See ProviderRequestContext.mayRefuseEmptyTranscript.
+          //
+          // THREE conditions, and the middle one is the spec's, not a fact about
+          // the table: only the provider the CALLER CHOSE may refuse. A sibling
+          // that is already covering for a rate-limited primary refusing in turn
+          // would push the request onto a third provider — on the deepgram/groq/
+          // grok chains that third provider is elevenlabs, ~15x groq's price and
+          // documented as the last resort, called at zero revenue because a
+          // `no_speech` is never billable. Granting it at every non-terminal
+          // position made that the outcome of every silent clip recorded while a
+          // primary was having a bad hour. (issue #381, review r2)
+          mayRefuseEmptyTranscript: refusalIndex === undefined
+            && current === provider
+            && index < chain.length - 1,
         }));
+        servedBy = current;
         // Prefer the model the adapter reports it ACTUALLY ran (e.g. AssemblyAI's
         // universal-3-5-pro → universal-2 fallback for unsupported languages) so the
         // X-STT-Model header and deduction metadata match what was billed; fall
         // back to the attempted model when the adapter doesn't report one.
         usedModel = result.model || attemptModel;
-        if (current !== provider) {
+        // `chosenProviderAttempted`, not just `current !== provider`: a chosen
+        // provider that this region dropped out of the chain was never called, so
+        // nothing fell back FROM it. Without the guard a request whose chosen
+        // provider is geo-blocked reported `X-STT-Provider: elevenlabs/scribe_v2`
+        // for a `no_speech` that deepgram produced and elevenlabs never saw.
+        // (review r2)
+        if (current !== provider && chosenProviderAttempted) {
           fallbackFrom = provider;
         }
         const attemptMs = performance.now() - attemptStart;
@@ -567,8 +629,56 @@ export async function transcribeRoute(c: Context) {
             latencyMs: elapsedFor(attemptStart),
             failureKind: failureKindFor(error),
           });
+          // The same signal, read a second way: an attempt made AFTER a refusal
+          // that reached the wire is the one extra upstream call the spec budgets,
+          // spent. One that never reached it (no API key, a size cap, a
+          // content-type gate) cost nothing and must not close the door on a
+          // sibling that could still answer. (issue #381, review r2)
+          if (refusalIndex !== undefined) {
+            recoveryCallsSpent += 1;
+          }
         }
 
+        // A 200 with no transcript for audio the upstream says it processed.
+        // Handled before the generic ProviderUnavailableError arm it extends,
+        // because this is the one failure in the loop that is not a fault: the
+        // request already has a valid answer in hand and is only asking a sibling
+        // whether it can do better. (issue #381)
+        if (error instanceof EmptyTranscriptError) {
+          const next = chain[index + 1];
+          fallbackCount += 1;
+          refusalIndex = index;
+          // The floor. If nothing after this produces text, THIS is the response:
+          // the same 200, the same 0 credits and the same `no_speech_detected`
+          // the user would have got before the failover existed. Overwritten
+          // wholesale by any later attempt that succeeds.
+          result = error.noSpeechResult;
+          servedBy = current;
+          logEvent(requestId, startTime, 'transcribe.provider_attempt_fail', {
+            provider: current,
+            attempt: index + 1,
+            kind: 'provider_unavailable',
+            unavailableKind: error.kind,
+            attemptMs: error.elapsedMs,
+            message: error.message,
+            // `provider_attempt_done` carries the upstream's id on every other
+            // path; this one never produces a result to read it off, and #381 was
+            // filed about precisely the call an operator now has to report to the
+            // vendor. The adapter's `provider.no_speech` event carries it too.
+            upstreamRequestId: error.noSpeechResult.requestId,
+            upstreamDurationSeconds: error.upstreamDurationSeconds,
+            nextProvider: next,
+          });
+          attemptFailures.push({
+            provider: current,
+            kind: error.kind,
+            attemptMs: error.elapsedMs,
+            emptyTranscript: true,
+          });
+          lastError = error;
+          sawUnavailable = true;
+          continue;
+        }
         if (error instanceof ProviderUnavailableError) {
           const next = chain[chain.indexOf(current) + 1];
           fallbackCount += 1;
@@ -613,6 +723,47 @@ export async function transcribeRoute(c: Context) {
           });
           lastError = error;
           lastInputError = error;
+          continue;
+        }
+        // Everything below this line ENDS the request with an error. None of them
+        // may fire once a refusal has banked a benign `no_speech`: the user asked
+        // a question that already has a valid, free answer, and a sibling's 413,
+        // 415, missing API key or 500 is our problem, not theirs. One guard, above
+        // every terminal arm, so a new arm cannot be added below it and quietly
+        // reintroduce the regression. (issue #381)
+        //
+        // It records and CONTINUES rather than breaking, for two reasons. The
+        // budget is counted in wire calls above, so a sibling that failed before
+        // the wire left it unspent and the next sibling is still owed the request
+        // (a bare `break` here answered #381's literal incident — 22 s of real
+        // speech — with a `no_speech`, having called nobody but the provider that
+        // refused). And a bare `break` also bypassed the failure log entirely, so
+        // the final `no_speech` gave an operator no indication that a sibling had
+        // been tried at all, let alone why it failed. (review r2)
+        if (refusalIndex !== undefined) {
+          const terminalKind = error instanceof AudioTooLargeError
+            ? 'audio_too_large'
+            : error instanceof UnsupportedAudioFormatError
+              ? 'unsupported_audio_format'
+              : 'non_retryable';
+          fallbackCount += 1;
+          logEvent(requestId, startTime, 'transcribe.provider_attempt_fail', {
+            provider: current,
+            attempt: index + 1,
+            kind: terminalKind,
+            message: error instanceof Error ? error.message : String(error),
+            attemptMs: Math.round(elapsedFor(attemptStart)),
+            // The request is NOT ending here. Without this an operator reading the
+            // line would expect the matching `request_fail` that never comes.
+            afterEmptyTranscriptRefusal: true,
+            nextProvider: chain[index + 1],
+          });
+          attemptFailures.push({
+            provider: current,
+            kind: terminalKind,
+            attemptMs: Math.round(elapsedFor(attemptStart)),
+          });
+          lastError = error instanceof Error ? error : new Error(String(error));
           continue;
         }
         if (error instanceof AudioTooLargeError) {
@@ -734,13 +885,40 @@ export async function transcribeRoute(c: Context) {
   // Read `source` once so TypeScript narrows away the 'no_speech' member
   // itself, instead of needing a cast to re-assert what the ternary proved.
   const resultSource = result.source;
-  const resultProvider: Provider = resultSource === 'no_speech' ? provider : resultSource;
-  const actualProvider = formatProviderName(resultProvider, usedModel);
-  const providerName = fallbackFrom
+  const noSpeech = resultSource === 'no_speech';
+  // Nobody transcribed anything, so there is nothing to attribute to whichever
+  // provider happened to report it last. The route answers `no_speech` with the
+  // CHOSEN provider — naming a sibling would tell the client a provider it never
+  // picked found nothing — and the model has to follow the provider or the pair
+  // does not exist: a sibling's model under the chosen provider's name produced
+  // strings like
+  //   `Deepgram/whisper-large-v3-turbo (fallback from Deepgram/nova-3-general)`
+  // on the client, in `metadata.stt_provider`, in the credit-metering row and in
+  // `request_done`'s `finalProvider`. The fallback note goes for the same reason:
+  // nothing fell back FROM anything when no transcript was produced. Which
+  // providers were tried, and why each declined, is on `attemptFailures` in the
+  // `request_done` log line.
+  //
+  // Both halves are conditioned on the chosen provider having been ATTEMPTED,
+  // not on a sibling having answered. When this region dropped the chosen
+  // provider out of the chain it was never called at all, and naming it here
+  // reported `X-STT-Provider: elevenlabs/scribe_v2` + `no_speech_detected` for a
+  // request elevenlabs never received — which Windows stamps into
+  // `TranscriptionProviderDiagnostics` on exactly this path, so a Sentry report
+  // named a provider that was never contacted. In that case the answer is filed
+  // under the provider that actually produced it, with ITS model (`usedModel`,
+  // which is also the field an adapter uses to report a model it silently
+  // substituted, e.g. AssemblyAI universal-3-5-pro → universal-2).
+  // (review r2)
+  const resultProvider: Provider = noSpeech
+    ? (chosenProviderAttempted ? provider : servedBy ?? provider)
+    : resultSource;
+  const reportedModel = noSpeech && chosenProviderAttempted ? model : usedModel;
+  const actualProvider = formatProviderName(resultProvider, reportedModel);
+  const providerName = fallbackFrom && !noSpeech
     ? `${actualProvider} (fallback from ${formatProviderName(fallbackFrom, model)})`
     : actualProvider;
 
-  const noSpeech = result.source === 'no_speech';
   // A no-speech result is free — EXCEPT where the upstream still billed us for
   // the audio and the adapter says so by returning a cost with it. Every
   // duration-billed provider here returns `costUsd: 0` for no_speech and is
@@ -762,7 +940,7 @@ export async function transcribeRoute(c: Context) {
         mode,
         endpoint: '/transcribe',
         stt_provider: providerName,
-        stt_model: usedModel || undefined,
+        stt_model: reportedModel || undefined,
       },
       clientIP
     ).catch(console.error);
@@ -779,15 +957,15 @@ export async function transcribeRoute(c: Context) {
     metadata: {
       request_id: requestId,
       stt_provider: providerName,
-      stt_model: usedModel || undefined,
+      stt_model: reportedModel || undefined,
     },
     ...(noSpeech ? { no_speech_detected: true } : {}),
   };
 
   c.header('X-Request-ID', requestId);
   c.header('X-STT-Provider', providerName);
-  if (usedModel) {
-    c.header('X-STT-Model', usedModel);
+  if (reportedModel) {
+    c.header('X-STT-Model', reportedModel);
   }
   c.header('X-Total-Cost-Usd', formatUsd(result.costUsd));
   c.header('X-Credits-Used', creditsUsed.toFixed(1));

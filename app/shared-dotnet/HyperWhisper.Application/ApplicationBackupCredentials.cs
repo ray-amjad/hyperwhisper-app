@@ -32,6 +32,7 @@ public sealed partial class ApplicationBackupService
             // member, so a backup round-trips across all three platforms.
             ["geminitranscribe"] = "GeminiTranscribeApiKey",
             ["grok"] = "GrokApiKey",
+            ["meta"] = "MetaApiKey",
         }.ToImmutableDictionary(StringComparer.Ordinal);
 
     /// <summary>

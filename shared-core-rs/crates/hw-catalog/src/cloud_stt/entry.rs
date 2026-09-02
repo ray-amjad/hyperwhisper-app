@@ -56,9 +56,8 @@ pub struct Access {
     pub byok_eligible: bool,
 }
 
-/// Per-provider capability flags (catalog v7 `features`). All three default to
-/// `false` on an older catalog that omits the block, which is the conservative
-/// answer for each: no word timestamps, no diarization, no streaming.
+/// Per-provider capability flags. Every field defaults to `false` when an older
+/// catalog omits it, which is the conservative answer for client affordances.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Features {
@@ -68,6 +67,16 @@ pub struct Features {
     pub diarization: bool,
     #[serde(default)]
     pub streaming: bool,
+    #[serde(default)]
+    pub code_switching: bool,
+    #[serde(default)]
+    pub endpointing: bool,
+    #[serde(default)]
+    pub context_bias: bool,
+    #[serde(default)]
+    pub language_bias: bool,
+    #[serde(default)]
+    pub turn_timestamps: bool,
 }
 
 /// The provider's `languages` block (catalog v7). Every field is polymorphic in

@@ -24,9 +24,6 @@ import Foundation
 
 class SonioxProvider: TranscriptionProvider {
     private enum Constants {
-        /// Base URL retained ONLY for the out-of-scope health check (the
-        /// transcription steps now build URLs in the Rust core).
-        static let apiBaseURL = "https://api.soniox.com/v1"
         static let maxPollAttempts = 180
         /// Total wall-clock budget for the status-poll loop, decoupled from the
         /// attempt cap so tuning one doesn't silently change the other.
@@ -298,42 +295,4 @@ class SonioxProvider: TranscriptionProvider {
         }
     }
 
-}
-
-extension SonioxProvider {
-    func healthCheck(apiKey: String) async -> ProviderHealth {
-        guard !apiKey.isEmpty else { return .unknown }
-        guard let url = URL(string: "\(Constants.apiBaseURL)/models") else { return .unknown }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-
-        let session = URLSession(configuration: .ephemeral)
-        do {
-            let (_, response) = try await session.data(for: request)
-            guard let http = response as? HTTPURLResponse else {
-                AppLogger.network.error("Soniox health check missing HTTPURLResponse")
-                return .unreachable
-            }
-            switch http.statusCode {
-            case 200..<300:
-                return .healthy
-            case 401, 403:
-                AppLogger.network.error("Soniox health check unauthorized · status=\(http.statusCode, privacy: .public)")
-                return .unauthorized
-            default:
-                AppLogger.network.error("Soniox health check failed · status=\(http.statusCode, privacy: .public)")
-                return .unreachable
-            }
-        } catch {
-            if let urlError = error as? URLError {
-                AppLogger.network.error("Soniox health check network error · code=\(urlError.code.rawValue, privacy: .public)")
-            } else {
-                AppLogger.network.error("Soniox health check error · message=\(error.localizedDescription, privacy: .public)")
-            }
-            return .unreachable
-        }
-    }
 }

@@ -13,6 +13,20 @@ import Combine
 //    resulting status back on the main actor.
 // 5. Published dictionaries drive SwiftUI badges and the recording guardrails, ensuring the UI
 //    reacts instantly to health changes without hammering provider APIs.
+// 6. REAL TRANSCRIPTION OUTCOMES FEED BACK (issue #379). The transcription call sites
+//    (TranscriptionPipeline+Transcription, TranscribeEndpoint, and the streaming flow's
+//    definitive-failure callback) hand cloud outcomes to
+//    recordTranscriptionOutcome(for:credentialGeneration:error:). A definitive provider-down failure
+//    stamps lastTranscriptionFailure; a success clears it.
+//
+//    THE RECORDED FAILURE IS APPLIED AT EXACTLY ONE SEAM: healthSnapshot(), which is what
+//    the Local API `/health` endpoint reports. It is applied NOWHERE else — not in
+//    status(for:), not in the published `statuses`/`cache` dictionaries, not in
+//    ensureHealthy(_:). That single-seam rule is the whole design, and it is what keeps a
+//    transient blip from degrading the app: every gate and badge in the app reads the probe
+//    verdict, exactly as it did before this feature existed, while `/health` alone stops
+//    claiming "reachable": true for a provider that just refused to transcribe. See
+//    applyFailureOverride(_:for:) for the enumerated reasons each other seam must NOT fold.
 //
 // This verbose documentation is mandated by CLAUDE.md so future contributors can walk the full
 // lifecycle without reverse-engineering the control flow.
@@ -39,6 +53,8 @@ struct URLSessionHealthCheckClient: HealthCheckHTTPClient {
 enum ProviderHealth: Equatable {
     case unknown
     case checking
+    /// A credential is present, but the provider has no safe content-free probe.
+    case configured
     case healthy
     case unauthorized
     case unreachable
@@ -46,8 +62,7 @@ enum ProviderHealth: Equatable {
 
     /// Whether this status represents a state that allows cloud operations.
     var isHealthy: Bool {
-        if case .healthy = self { return true }
-        return false
+        self == .healthy || self == .configured
     }
 
     /// Human-readable text for UI badges.
@@ -57,6 +72,8 @@ enum ProviderHealth: Equatable {
             return "provider.status.unknown".localized
         case .checking:
             return "provider.status.checking".localized
+        case .configured:
+            return "Configured"
         case .healthy:
             return "provider.status.healthy".localized
         case .unauthorized:
@@ -71,7 +88,7 @@ enum ProviderHealth: Equatable {
     /// Whether this status should block starting a transcription.
     var shouldBlockTranscription: Bool {
         switch self {
-        case .healthy:
+        case .healthy, .configured:
             return false
         case .checking:
             // UX IMPROVEMENT: permit users to initiate recording while we finish probing. The
@@ -153,7 +170,28 @@ final class CloudProviderHealthManager: ObservableObject {
     private var debouncedRefreshTasks: [CloudProvider: Task<Void, Never>] = [:]
     private var debouncedPostProcessingTasks: [PostProcessingProvider: Task<Void, Never>] = [:]
 
+    /// When each provider last returned a DEFINITIVE provider-down error from a
+    /// real transcription (issue #379). Stamped with `now()`, like every other
+    /// timestamp in this type, so the tests can cross `failureOverrideTTL`
+    /// without a wall-clock wait.
+    ///
+    /// Entries are never pruned on read — `healthSnapshot()` stays a pure read.
+    /// An expired entry simply stops matching; the dictionary is bounded by
+    /// `CloudProvider.allCases`.
+    private var lastTranscriptionFailure: [CloudProvider: Date] = [:]
+
+    /// Advances independently for each transcription provider. Requests capture
+    /// the full value snapshot before provider resolution, then compare only the
+    /// selected provider. An unrelated key edit therefore cannot discard valid
+    /// in-flight evidence.
+    private var transcriptionCredentialGenerations: [CloudProvider: UInt64] = [:]
+
     private let cacheTTL: TimeInterval = 60
+
+    /// How long a recorded transcription failure outranks the health probe.
+    /// Deliberately the same 60 s as `cacheTTL`: the failure record exists to
+    /// beat exactly one cache generation, not to latch.
+    private let failureOverrideTTL: TimeInterval = 60
     private let debounceDelay: UInt64 = 500_000_000 // 500 ms expressed in nanoseconds
     private let maxRetryAttempts = 3
     private let minimumProbeLength = 16
@@ -198,7 +236,10 @@ final class CloudProviderHealthManager: ObservableObject {
         self.apiKeyProvider = apiKeyProvider
     }
 
-    /// Snapshot of the current status for a provider (defaults to .unknown).
+    /// Snapshot of the probe-derived app status for a provider (defaults to
+    /// `.unknown`). The transcription-failure override deliberately does not
+    /// apply here: preflight gates, menus and badges all use this accessor, and
+    /// one failed request must not degrade those app surfaces for 60 seconds.
     func status(for provider: CloudProvider) -> ProviderHealth {
         statuses[provider] ?? .unknown
     }
@@ -206,10 +247,14 @@ final class CloudProviderHealthManager: ObservableObject {
     /// Frozen, Sendable copy of both status dictionaries. Used by the Local API
     /// `/health` endpoint so the handler doesn't read the `@Published` dictionary
     /// while a refresh is mutating it.
+    ///
+    /// The ONE read seam for the transcription-failure override (issue #379).
+    /// Applying it only here keeps the Local API honest without changing the
+    /// probe-derived statuses used by app gates, menus and badges.
     func healthSnapshot() -> HealthSnapshot {
         var cloud: [String: String] = [:]
         for (provider, health) in statuses {
-            cloud[provider.rawValue] = Self.healthRawString(health)
+            cloud[provider.rawValue] = Self.healthRawString(applyFailureOverride(health, for: provider))
         }
         var post: [String: String] = [:]
         for (provider, health) in postProcessingStatuses {
@@ -224,6 +269,7 @@ final class CloudProviderHealthManager: ObservableObject {
         switch status {
         case .unknown: return "unknown"
         case .checking: return "checking"
+        case .configured: return "configured"
         case .healthy: return "healthy"
         case .unauthorized: return "unauthorized"
         case .unreachable: return "unreachable"
@@ -303,6 +349,25 @@ final class CloudProviderHealthManager: ObservableObject {
 
     /// Ensure a provider is healthy before kicking off a transcription.
     /// Runs the check immediately if we don't already have a healthy status.
+    ///
+    /// ⚠️ DELIBERATE ASYMMETRY WITH THE FAILURE OVERRIDE (issue #379) — READ THIS
+    /// BEFORE "FIXING" IT.
+    ///
+    /// The transcription-failure override from `recordTranscriptionOutcome` is
+    /// applied only by `healthSnapshot()`. The value read and returned here is
+    /// always the raw probe result.
+    ///
+    /// Why: `ProviderHealth.unreachable.shouldBlockTranscription == true`, and
+    /// `TranscriptionProviderRouter` turns a non-healthy verdict from this method
+    /// into a thrown `TranscriptionError` before any audio is sent. If the
+    /// override leaked into the return value, ONE transient blip would wedge the
+    /// provider for the full `failureOverrideTTL` — the user could not even retry.
+    /// That is a worse bug than the stale `/health` verdict this override exists
+    /// to fix.
+    ///
+    /// Net effect: `/health` reports the real failed outcome for 60 seconds. The
+    /// app's preflight, menu and badge paths behave exactly as they did before
+    /// outcome feedback existed, and a success clears the report immediately.
     func ensureHealthy(_ provider: CloudProvider) async -> ProviderHealth {
         if let task = pendingChecks[provider] {
             return await task.value
@@ -336,6 +401,119 @@ final class CloudProviderHealthManager: ObservableObject {
         return await task.value
     }
 
+    // MARK: - Transcription Outcome Feedback (issue #379)
+
+    /// STEP-BY-STEP (REQUIRED):
+    /// 1. A transcription call site finishes a CLOUD attempt and hands the result
+    ///    here: `error == nil` for a success, otherwise the thrown error.
+    /// 2. A success clears any recorded failure. A real transcription is
+    ///    stronger evidence than any probe, so `/health` must not stay
+    ///    `.unreachable` for the rest of the window.
+    /// 3. A failure is classified. ONLY a definitive provider-down verdict counts
+    ///    (see `isDefinitiveProviderDownVerdict`); everything else is a no-op.
+    /// 4. A definitive failure stamps `lastTranscriptionFailure[provider]`.
+    ///    Only `healthSnapshot()` folds that record into its result. The raw
+    ///    probe dictionaries remain untouched.
+    ///
+    /// WHY THIS EXISTS (issue #379): the health probe cannot see this failure. For
+    /// the HW-Cloud-routed providers (`hyperwhisper`, `microsoftAzureSpeech`,
+    /// `googleSpeech`) `performHealthCheck(for:force:)` returns `.healthy`
+    /// unconditionally without any network call, and for the BYOK providers the
+    /// probe hits the vendor's *model-list* endpoint, not the transcription
+    /// endpoint. Either way the probe stays green while transcription is failing,
+    /// so `/health` reported `"status":"healthy","reachable":true` throughout a
+    /// reproducible `POST /transcribe` failure. Feeding the REAL outcome back is
+    /// the only signal that can correct that; re-pointing the probe cannot.
+    ///
+    /// This `/health`-only seam stops a failed request from wedging the
+    /// transcription path or changing a menu or badge.
+    ///
+    /// - Parameters:
+    ///   - provider: the cloud provider the attempt actually ran against.
+    ///   - error: `nil` on success, otherwise the error the attempt threw.
+    func captureTranscriptionCredentialGeneration() -> [CloudProvider: UInt64] {
+        transcriptionCredentialGenerations
+    }
+
+    /// Test seam for generation-correlation cases. Publishes the same raw cache
+    /// record a completed probe would publish, without network or keychain I/O.
+    func setCachedTranscriptionStatusForTests(
+        _ status: ProviderHealth,
+        for provider: CloudProvider
+    ) {
+        statuses[provider] = status
+        cache[provider] = StatusRecord(status: status, timestamp: now())
+    }
+
+    func recordTranscriptionOutcome(
+        for provider: CloudProvider,
+        credentialGeneration: [CloudProvider: UInt64],
+        error: Error?
+    ) {
+        let capturedGeneration = credentialGeneration[provider, default: 0]
+        let currentGeneration = transcriptionCredentialGenerations[provider, default: 0]
+        guard capturedGeneration == currentGeneration else { return }
+
+        guard let error else {
+            lastTranscriptionFailure[provider] = nil
+            statuses[provider] = .healthy
+            cache[provider] = StatusRecord(status: .healthy, timestamp: now())
+            AppLogger.network.info("\(provider.rawValue, privacy: .public) transcription succeeded · clearing health failure override")
+            return
+        }
+
+        guard Self.isDefinitiveProviderDownVerdict(error) else { return }
+
+        let stamp = now()
+        lastTranscriptionFailure[provider] = stamp
+        AppLogger.network.error("\(provider.rawValue, privacy: .public) transcription reported the provider down · marking /health unreachable for \(Int(self.failureOverrideTTL), privacy: .public)s · message=\(error.localizedDescription, privacy: .public)")
+    }
+
+    /// Whether `error` is a DEFINITIVE verdict that the PROVIDER ITSELF is down,
+    /// as opposed to a verdict about the request, the account or the local
+    /// network. Mirrors the spirit of `hw-net`'s `is_retryable` table: key off the
+    /// classified error, never off a raw status code or a response body string.
+    ///
+    /// - YES: `.serverError` with a 5xx status (this is what
+    ///   `RustRetry.swift` maps `HwTranscriptionError.ProviderUnavailable` onto),
+    ///   and `.providerNotAvailable`. The streaming client maps only a 5xx
+    ///   WebSocket upgrade or a 1011 close onto those same classified errors.
+    /// - NO, on purpose: `.unauthorized`, `.quotaExceeded`, `.insufficientCredits`,
+    ///   `.rateLimited`, `.transientNetwork`, `.noSpeechDetected`,
+    ///   `.audioFileTooLarge`, `.invalidRequest`, `.invalidResponse`,
+    ///   `CancellationError`, and anything that is not a `TranscriptionError` at
+    ///   all. Marking a provider unreachable because the user's Wi-Fi dropped,
+    ///   because their card expired, or because they recorded silence would be a
+    ///   worse bug than the stale verdict this exists to fix.
+    ///
+    /// The `default` arm is deliberately the CONSERVATIVE answer: `TranscriptionError`
+    /// is an append-only enum, and a case added later must not start marking
+    /// providers unreachable until someone deliberately lists it above.
+    static func isDefinitiveProviderDownVerdict(_ error: Error) -> Bool {
+        guard let transcriptionError = error as? TranscriptionError else { return false }
+        switch transcriptionError {
+        case .serverError(let statusCode, _):
+            return (500...599).contains(statusCode)
+        case .providerNotAvailable:
+            return true
+        default:
+            return false
+        }
+    }
+
+    /// Fold a recorded transcription failure over a probe-derived status.
+    ///
+    /// Applied only at the Local API `healthSnapshot()` seam. It must not be
+    /// applied to `status(for:)`, `statuses`, `cache` or `ensureHealthy(_:)`:
+    /// those are app gates and badge inputs. A pure function of
+    /// `lastTranscriptionFailure` + `now()`; it mutates nothing, so an expired
+    /// record is simply ignored rather than cleaned up.
+    private func applyFailureOverride(_ health: ProviderHealth, for provider: CloudProvider) -> ProviderHealth {
+        guard let failedAt = lastTranscriptionFailure[provider] else { return health }
+        guard now().timeIntervalSince(failedAt) < failureOverrideTTL else { return health }
+        return .unreachable
+    }
+
     // MARK: - API Key Mutation Handling
 
     /// STEP-BY-STEP (REQUIRED):
@@ -347,7 +525,14 @@ final class CloudProviderHealthManager: ObservableObject {
     func registerAPIKeyChange(for provider: CloudProvider, newValue: String) {
         let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
 
+        transcriptionCredentialGenerations[provider, default: 0] &+= 1
+
         cache[provider] = nil
+        // A key edit invalidates the transcription-failure override too (issue
+        // #379). Without this, a user who reacts to an outage by re-pasting their
+        // key would see `.unreachable` for the rest of the 60 s window and read it
+        // as "the new key is bad".
+        lastTranscriptionFailure[provider] = nil
         debouncedRefreshTasks[provider]?.cancel()
         pendingChecks[provider]?.cancel()
         pendingChecks[provider] = nil
@@ -460,7 +645,8 @@ final class CloudProviderHealthManager: ObservableObject {
             attempt += 1
             lastStatus = await operation()
 
-            if lastStatus == .healthy || lastStatus == .unauthorized || lastStatus == .unknown {
+            if lastStatus == .healthy || lastStatus == .configured
+                || lastStatus == .unauthorized || lastStatus == .unknown {
                 return lastStatus
             }
 
@@ -488,6 +674,10 @@ final class CloudProviderHealthManager: ObservableObject {
         let apiKey = rawKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !apiKey.isEmpty else { return .unknown }
 
+        // Meta documents no content-free key validation endpoint. A saved key
+        // is configured and is validated by the first real transcription.
+        if provider == .meta { return .configured }
+
         return await runHealthCheckWithRetry(force: force) {
             // RUST SHARED CORE (Wave 3 / M3-B.4): every STT provider's probe URL,
             // auth header, and 2xx/4xx verdict now comes from the core
@@ -510,6 +700,8 @@ final class CloudProviderHealthManager: ObservableObject {
 
         let apiKey = rawKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !apiKey.isEmpty else { return .unknown }
+
+        if provider == .meta { return .configured }
 
         return await runHealthCheckWithRetry(force: true) {
             await self.performRustHealthCheck(for: provider, apiKey: apiKey)

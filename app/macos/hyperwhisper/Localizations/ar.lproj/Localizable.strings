@@ -9,6 +9,8 @@
   This file contains all user-facing text that needs to be translated.
 */
 
+"transcription.error.forbidden.hyperWhisperCloud" = "رفضت HyperWhisper Cloud هذا الطلب. شبكتك محظورة مؤقتًا.\n\nانتظر بضع دقائق، ثم حاول مرة أخرى.";
+
 // MARK: - Application Navigation
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
@@ -420,10 +422,6 @@
 "license.button.activate" = "تفعيل";
 "license.button.activating" = "جارٍ التفعيل...";
 "license.status.label" = "الحالة: %@";
-"license.status.trial.title" = "تجربة";
-"license.status.active.title" = "نشط";
-"license.status.expired.title" = "انتهت الصلاحية";
-"license.status.invalid.title" = "غير صحيح";
 "license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "مرخص – وصول كامل";
 "license.status.expired.description" = "انتهت صلاحية الترخيص";
@@ -926,6 +924,7 @@
 "transcription.error.maxRetriesExceeded" = "تم تجاوز حد محاولات إعادة المحاولة الأقصى";
 "transcription.error.unauthorized.provider" = "غير مصرح: مفتاح API %@ غير صحيح أو أذونات.\n\nافتح الإعدادات → مفاتيح API للتحقق من بيانات الاعتماد الخاصة بك.";
 "transcription.error.unauthorized.generic" = "غير مصرح: مفتاح API غير صحيح أو أذونات.\n\nافتح الإعدادات → مفاتيح API للتحقق من بيانات الاعتماد الخاصة بك.";
+"transcription.error.unauthorized.hyperWhisperCloud" = "مفتاح الوصول إلى HyperWhisper Cloud غير صالح أو منتهي الصلاحية.\n\nافتح الإعدادات → HyperWhisper Cloud لتحديث مفتاحك.";
 "transcription.error.cloudAccountRequired" = "يتطلب HyperWhisper Cloud مفتاح حساب.\n\nافتح الإعدادات → HyperWhisper Cloud لإدخال مفتاحك أو الحصول على رصيد.";
 "transcription.error.invalidRequest" = "طلب غير صحيح: تحقق من ملف الصوت أو الإعدادات";
 "transcription.error.streamingInterrupted" = "تم مقاطعة البث؛ تم عرض نص جزئي";
@@ -1052,7 +1051,6 @@
 "settings.backup.import.confirm.button" = "استيراد";
 "settings.backup.conflict.skip" = "تخطي الموجودة";
 "settings.backup.conflict.replace" = "استبدال الموجودة";
-"settings.backup.conflict.keepBoth" = "الاحتفاظ بالاثنين";
 "settings.backup.security.warning" = "تحذير: سيحتوي الملف المُصدَّر على بيانات حساسة. احفظه بأمان ولا تشاركه.";
 "settings.backup.info.note" = "تحتوي النسخ الاحتياطية على الإعدادات والأوضاع والمفردات. لا يتم تضمين التسجيلات والنسخ.";
 "settings.backup.result.success.title" = "نجح";
@@ -1087,9 +1085,6 @@
 "transcribe.file.error.video.noAudio" = "لا يحتوي ملف الفيديو هذا على مسار صوتي. يرجى تحديد فيديو مع صوت أو ملف صوتي.";
 
 // MARK: - File Transcription Progress
-"file.transcription.preparing" = "جارٍ التحضير...";
-"file.transcription.transcribing" = "جارٍ النسخ...";
-"file.transcription.finishing" = "جارٍ الإنهاء...";
 "file.transcription.cancel" = "إلغاء";
 
 // MARK: - Auto-Delete Recordings

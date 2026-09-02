@@ -9,6 +9,8 @@
   This file contains all user-facing text that needs to be translated.
 */
 
+"transcription.error.forbidden.hyperWhisperCloud" = "HyperWhisper Cloud hat diese Anfrage abgelehnt. Ihr Netzwerk ist vorübergehend gesperrt.\n\nWarten Sie einige Minuten und versuchen Sie es erneut.";
+
 // MARK: - Application Navigation
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
@@ -420,10 +422,6 @@
 "license.button.activate" = "Aktivieren";
 "license.button.activating" = "Aktivieren...";
 "license.status.label" = "Status: %@";
-"license.status.trial.title" = "Versuch";
-"license.status.active.title" = "Aktiv";
-"license.status.expired.title" = "Abgelaufen";
-"license.status.invalid.title" = "Ungültig";
 "license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "Lizenziert – Vollzugriff";
 "license.status.expired.description" = "Lizenz abgelaufen";
@@ -926,6 +924,7 @@ Aktualisiere diese Modi, um ein anderes Modell zu verwenden, bevor du es löschs
 "transcription.error.maxRetriesExceeded" = "Maximale Wiederholungsversuche überschritten";
 "transcription.error.unauthorized.provider" = "Nicht autorisiert: Ungültiger %@ API-Schlüssel oder Berechtigungen.\n\nÖffnen Sie Einstellungen → API-Schlüssel, um Ihre zu überprüfen Anmeldeinformationen.";
 "transcription.error.unauthorized.generic" = "Nicht autorisiert: Ungültiger API-Schlüssel oder ungültige Berechtigungen.\n\nÖffnen Sie Einstellungen → API-Schlüssel, um Ihre Anmeldeinformationen zu überprüfen.";
+"transcription.error.unauthorized.hyperWhisperCloud" = "Der Zugriffsschlüssel für HyperWhisper Cloud ist ungültig oder abgelaufen.\n\nÖffnen Sie Einstellungen → HyperWhisper Cloud, um Ihren Schlüssel zu aktualisieren.";
 "transcription.error.cloudAccountRequired" = "HyperWhisper Cloud erfordert einen Kontoschlüssel.\n\nÖffnen Sie Einstellungen → HyperWhisper Cloud, um Ihren Schlüssel einzugeben oder Credits zu erwerben.";
 "transcription.error.invalidRequest" = "Ungültige Anfrage: Überprüfen Sie die Audiodatei oder Einstellungen";
 "transcription.error.streamingInterrupted" = "Streaming unterbrochen; Teiltext angezeigt";
@@ -1052,7 +1051,6 @@ Aktualisiere diese Modi, um ein anderes Modell zu verwenden, bevor du es löschs
 "settings.backup.import.confirm.button" = "Importieren";
 "settings.backup.conflict.skip" = "Vorhandenes überspringen";
 "settings.backup.conflict.replace" = "Vorhandenes ersetzen";
-"settings.backup.conflict.keepBoth" = "Behalte beides";
 "settings.backup.security.warning" = "Warnung: Die exportierte Datei enthält vertrauliche Daten. Bewahren Sie es sicher auf und geben Sie es nicht weiter.";
 "settings.backup.info.note" = "Backups umfassen Einstellungen, Modi und Vokabular. Aufzeichnungen und Transkripte sind nicht enthalten.";
 "settings.backup.result.success.title" = "Erfolg";
@@ -1087,9 +1085,6 @@ Aktualisiere diese Modi, um ein anderes Modell zu verwenden, bevor du es löschs
 "transcribe.file.error.video.noAudio" = "Diese Videodatei enthält keine Audiospur. Bitte wählen Sie ein Video mit Audio oder eine Audiodatei aus.";
 
 // MARK: - File Transcription Progress
-"file.transcription.preparing" = "Vorbereiten...";
-"file.transcription.transcribing" = "Transkribieren...";
-"file.transcription.finishing" = "Fertig...";
 "file.transcription.cancel" = "Stornieren";
 
 // MARK: - Auto-Delete Recordings

@@ -81,6 +81,21 @@ import Foundation
 ///   matches a terminal marker, which is what has to stay true.
 enum StreamingProviderErrorPolicy {
 
+    /// Strong success evidence from a live provider. A session-start event only
+    /// proves that a socket opened and setup was acknowledged; it can arrive
+    /// before the first audio is processed, so it must not clear a failure.
+    static func isUsefulProviderSuccessEvent(_ event: StreamingProviderEvent) -> Bool {
+        switch event {
+        case .finalTranscript,
+             .finalTranscriptAndSessionComplete,
+             .partialTranscript,
+             .sessionComplete:
+            return true
+        case .sessionStarted, .error, .warning, .metadata:
+            return false
+        }
+    }
+
     /// The outcome of classifying a provider error message.
     enum Outcome: Equatable {
         /// Reconnecting cannot help — the account, key, quota or permission is
@@ -176,6 +191,12 @@ enum StreamingProviderErrorPolicy {
         }
     }
 
+    /// Whether a failed WebSocket upgrade is a definitive provider-down health
+    /// signal. Account and throttling statuses are deliberately excluded.
+    static func isProviderUnavailableUpgradeStatus(_ status: Int) -> Bool {
+        (500...599).contains(status)
+    }
+
     // MARK: - Close codes
 
     /// Whether a WebSocket close code means the session cannot be rescued by
@@ -217,5 +238,24 @@ enum StreamingProviderErrorPolicy {
     static func isTerminalCloseCode(_ code: Int) -> Bool {
         guard let code = UInt16(exactly: code) else { return false }
         return liveIsTerminalCloseCode(code: code)
+    }
+
+    /// Whether a close frame is strong enough to change provider health.
+    ///
+    /// RFC 6455 code 1011 alone is ambiguous. Deepgram uses it for NET-0001
+    /// client/network inactivity and NET-0002 no-audio timeouts as well as
+    /// NET-0000 internal faults. Its structured close reason is therefore the
+    /// stronger signal: only NET-0000 counts. An absent or unknown Deepgram
+    /// reason stays conservative and does not mark the provider down.
+    static func isProviderUnavailableClose(
+        code: Int,
+        reason: String?,
+        provider: StreamingTranscriptionProvider?
+    ) -> Bool {
+        guard code == 1011 else { return false }
+        guard provider == .deepgram else { return true }
+
+        let normalized = reason?.uppercased() ?? ""
+        return normalized.contains("NET-0000")
     }
 }

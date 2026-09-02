@@ -9,6 +9,8 @@
   This file contains all user-facing text that needs to be translated.
 */
 
+"transcription.error.forbidden.hyperWhisperCloud" = "HyperWhisper Cloud ปฏิเสธคำขอนี้ เครือข่ายของคุณถูกบล็อกชั่วคราว\n\nรอสักครู่ แล้วลองอีกครั้ง";
+
 // MARK: - Application Navigation
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
@@ -420,10 +422,6 @@
 "license.button.activate" = "เปิดใช้งาน";
 "license.button.activating" = "กำลังเปิดใช้งาน...";
 "license.status.label" = "สถานะ: %@";
-"license.status.trial.title" = "ทดลอง";
-"license.status.active.title" = "ใช้งานอยู่";
-"license.status.expired.title" = "หมดอายุ";
-"license.status.invalid.title" = "ไม่ถูกต้อง";
 "license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "ลัทธิ - เข้าถึงแบบเต็ม";
 "license.status.expired.description" = "ลัทธิหมดอายุ";
@@ -926,6 +924,7 @@
 "transcription.error.maxRetriesExceeded" = "เกินจำนวนการพยายามลองใหม่สูงสุด";
 "transcription.error.unauthorized.provider" = "ไม่ได้รับการยืนยัน: คีย์ API %@ ไม่ถูกต้องหรือสิทธิ์\n\nเปิดการตั้งค่า → คีย์ API เพื่อตรวจสอบข้อมูลประจำตัวของคุณ";
 "transcription.error.unauthorized.generic" = "ไม่ได้รับการยืนยัน: คีย์ API ไม่ถูกต้องหรือสิทธิ์\n\nเปิดการตั้งค่า → คีย์ API เพื่อตรวจสอบข้อมูลประจำตัวของคุณ";
+"transcription.error.unauthorized.hyperWhisperCloud" = "คีย์การเข้าถึง HyperWhisper Cloud ไม่ถูกต้องหรือหมดอายุแล้ว\n\nเปิด การตั้งค่า → HyperWhisper Cloud เพื่ออัปเดตคีย์ของคุณ";
 "transcription.error.cloudAccountRequired" = "HyperWhisper Cloud ต้องใช้คีย์บัญชี\n\nเปิดการตั้งค่า → HyperWhisper Cloud เพื่อป้อนคีย์ของคุณหรือซื้อเครดิต";
 "transcription.error.invalidRequest" = "คำขอไม่ถูกต้อง: ตรวจสอบไฟล์เสียงหรือการตั้งค่า";
 "transcription.error.streamingInterrupted" = "สตรีมถูกหลีกลี่ยง ข้อความบางส่วนแสดง";
@@ -1052,7 +1051,6 @@
 "settings.backup.import.confirm.button" = "นำเข้า";
 "settings.backup.conflict.skip" = "ข้ามที่มีอยู่";
 "settings.backup.conflict.replace" = "แทนที่ที่มีอยู่";
-"settings.backup.conflict.keepBoth" = "เก็บทั้งคู่";
 "settings.backup.security.warning" = "คำเตือน: ไฟล์ที่ส่งออกจะมีข้อมูลที่ละเอียดอ่อน เก็บให้ปลอดภัยและไม่ใช้ร่วมกัน";
 "settings.backup.info.note" = "ไฟล์สำรองรวมถึงการตั้งค่า โหมด และศัพท์เฉพาะ การบันทึกและการสัญลักษณ์ไม่รวม";
 "settings.backup.result.success.title" = "ความสำเร็จ";
@@ -1087,9 +1085,6 @@
 "transcribe.file.error.video.noAudio" = "ไฟล์วิดีโอนี้ไม่มีเทร็กเสียง โปรดเลือกวิดีโอที่มีเสียงหรือไฟล์เสียง";
 
 // MARK: - File Transcription Progress
-"file.transcription.preparing" = "กำลังเตรียม...";
-"file.transcription.transcribing" = "กำลังสัญลักษณ์...";
-"file.transcription.finishing" = "กำลังเสร็จ...";
 "file.transcription.cancel" = "ยกเลิก";
 
 // MARK: - Auto-Delete Recordings

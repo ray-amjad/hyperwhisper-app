@@ -187,6 +187,10 @@ export async function transcribeWithOpenAI(
   if (!transcript || transcript.trim().length === 0) {
     logProviderEvent(provider, 'no_speech', {
       model, elapsedMs: Math.round(performance.now() - startedAt), language: data.language,
+      // NOT `durationSeconds`: on the gpt-4o branch that is already our own
+      // byte estimate, computed above this check. Only the raw upstream field
+      // may be logged as the upstream's number.
+      upstreamDurationSeconds: rawWhisperDuration > 0 ? rawWhisperDuration : null,
     }, context);
     return { text: '', language: data.language, durationSeconds: 0, costUsd: 0, source: 'no_speech' };
   }

@@ -9,6 +9,8 @@
   This file contains all user-facing text that needs to be translated.
 */
 
+"transcription.error.forbidden.hyperWhisperCloud" = "HyperWhisper Cloud lükkas selle taotluse tagasi. Teie võrk on ajutiselt blokeeritud.\n\nOodake mõni minut ja proovige uuesti.";
+
 // MARK: - Application Navigation
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
@@ -420,10 +422,6 @@
 "license.button.activate" = "Aktiveeri";
 "license.button.activating" = "Aktiveerimine...";
 "license.status.label" = "Olek: %@";
-"license.status.trial.title" = "Proov";
-"license.status.active.title" = "Aktiivne";
-"license.status.expired.title" = "Aegunud";
-"license.status.invalid.title" = "Kehtetu";
 "license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "Litsentsitud – täielik juurdepääs";
 "license.status.expired.description" = "Litsents aegunud";
@@ -926,6 +924,7 @@ Ennе kustutamist uuenda neid režiime teise mudeli kasutamiseks.";
 "transcription.error.maxRetriesExceeded" = "Maksimaalne uuesti proovimise katsed ületatud";
 "transcription.error.unauthorized.provider" = "Volitamata: vale %@ API võti või load.\n\nAvage Seaded → API võtmed oma mandaatide kontrollimiseks.";
 "transcription.error.unauthorized.generic" = "Volitamata: vale API võti või load.\n\nAvage Seaded → API võtmed oma mandaatide kontrollimiseks.";
+"transcription.error.unauthorized.hyperWhisperCloud" = "HyperWhisper Cloudi juurdepääsuvõti on vigane või aegunud.\n\nVõtme uuendamiseks avage Seaded → HyperWhisper Cloud.";
 "transcription.error.cloudAccountRequired" = "HyperWhisper Cloud nõuab kontovõtit.\n\nAvage Seaded → HyperWhisper Cloud, et sisestada oma võti või hankida krediiti.";
 "transcription.error.invalidRequest" = "Vale päring: kontrollige helifaili või seadeid";
 "transcription.error.streamingInterrupted" = "Voogedastus katkestatud; osaliselt tekst näidatud";
@@ -1052,7 +1051,6 @@ Ennе kustutamist uuenda neid režiime teise mudeli kasutamiseks.";
 "settings.backup.import.confirm.button" = "Impordi";
 "settings.backup.conflict.skip" = "Jäta olemasolevad vahele";
 "settings.backup.conflict.replace" = "Asenda olemasolevad";
-"settings.backup.conflict.keepBoth" = "Hoia mõlemaid";
 "settings.backup.security.warning" = "Hoiatus: eksporditud fail sisaldab tundlikke andmeid. Hoidke seda turvaliselt ega jaga seda.";
 "settings.backup.info.note" = "Varukoopiad sisaldavad seadeid, režiime ja sõnavara. Salvestused ja transkriptsioonid ei ole kaasatud.";
 "settings.backup.result.success.title" = "Edukalt";
@@ -1087,9 +1085,6 @@ Ennе kustutamist uuenda neid režiime teise mudeli kasutamiseks.";
 "transcribe.file.error.video.noAudio" = "See videofail ei sisalda heliriba. Palun valige video heliga või helifail.";
 
 // MARK: - File Transcription Progress
-"file.transcription.preparing" = "Ettevalmistamine...";
-"file.transcription.transcribing" = "Transkribeerimine...";
-"file.transcription.finishing" = "Lõpetamine...";
 "file.transcription.cancel" = "Tühista";
 
 // MARK: - Auto-Delete Recordings

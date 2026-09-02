@@ -653,11 +653,13 @@ struct BackupAPIKeys: Codable {
     /// and the legacy key coming back fine is what hides it. Optional, so
     /// backups written before this field decode unchanged.
     let geminitranscribe: String?
+    /// Direct Meta Muse key. Optional for backward-compatible decoding.
+    let meta: String?
 
     /// Returns true if any API key is present
     var hasAnyKey: Bool {
         [openai, groq, fireworks, anthropic, gemini, deepgram, assemblyai, elevenlabs, mistral, grok,
-         geminitranscribe]
+         geminitranscribe, meta]
             .compactMap { $0 }
             .contains { !$0.isEmpty }
     }
@@ -722,17 +724,6 @@ enum ModeConflictResolution: String, CaseIterable, Identifiable {
     case keepBoth
 
     var id: String { rawValue }
-
-    var localizedName: String {
-        switch self {
-        case .skip:
-            return NSLocalizedString("settings.backup.conflict.skip", value: "Skip existing", comment: "")
-        case .replace:
-            return NSLocalizedString("settings.backup.conflict.replace", value: "Replace existing", comment: "")
-        case .keepBoth:
-            return NSLocalizedString("settings.backup.conflict.keepBoth", value: "Keep both", comment: "")
-        }
-    }
 }
 
 /// How to handle vocabulary conflicts during import
@@ -744,15 +735,6 @@ enum VocabularyConflictResolution: String, CaseIterable, Identifiable {
     case replace
 
     var id: String { rawValue }
-
-    var localizedName: String {
-        switch self {
-        case .skip:
-            return NSLocalizedString("settings.backup.conflict.skip", value: "Skip existing", comment: "")
-        case .replace:
-            return NSLocalizedString("settings.backup.conflict.replace", value: "Replace existing", comment: "")
-        }
-    }
 }
 
 // MARK: - File Inspection (auto-detect what a backup contains)
@@ -817,26 +799,13 @@ struct BackupValidationResult {
         )
     }
 
-    /// Creates a failed validation result
-    static func failure(_ message: String) -> BackupValidationResult {
-        BackupValidationResult(
-            isValid: false,
-            version: nil,
-            exportDate: nil,
-            appVersion: nil,
-            modeCount: 0,
-            vocabularyCount: 0,
-            hasAPIKeys: false,
-            hasLicenseKey: false,
-            errorMessage: message
-        )
-    }
 }
 
 /// Result of an import operation
 /// Contains statistics about what was imported
 struct ImportResult {
     let success: Bool
+    let partialSuccess: Bool
     let modesImported: Int
     let modesSkipped: Int
     let vocabularyImported: Int
@@ -861,6 +830,7 @@ struct ImportResult {
     ) -> ImportResult {
         ImportResult(
             success: true,
+            partialSuccess: false,
             modesImported: modesImported,
             modesSkipped: modesSkipped,
             vocabularyImported: vocabularyImported,
@@ -875,11 +845,35 @@ struct ImportResult {
     static func failure(_ message: String) -> ImportResult {
         ImportResult(
             success: false,
+            partialSuccess: false,
             modesImported: 0,
             modesSkipped: 0,
             vocabularyImported: 0,
             vocabularySkipped: 0,
             apiKeysImported: false,
+            licenseKeyImported: false,
+            errorMessage: message
+        )
+    }
+
+    /// Creates a result for a late section failure after earlier sections were
+    /// already applied and cannot be rolled back.
+    static func partialFailure(
+        _ message: String,
+        modesImported: Int,
+        modesSkipped: Int,
+        vocabularyImported: Int,
+        vocabularySkipped: Int,
+        apiKeysImported: Bool
+    ) -> ImportResult {
+        ImportResult(
+            success: false,
+            partialSuccess: true,
+            modesImported: modesImported,
+            modesSkipped: modesSkipped,
+            vocabularyImported: vocabularyImported,
+            vocabularySkipped: vocabularySkipped,
+            apiKeysImported: apiKeysImported,
             licenseKeyImported: false,
             errorMessage: message
         )

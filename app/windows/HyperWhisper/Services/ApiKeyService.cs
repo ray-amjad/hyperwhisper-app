@@ -90,6 +90,7 @@ public class ApiKeyService
             var settingName = provider.GetApiKeySettingName();
             if (string.IsNullOrEmpty(settingName)) return;
             SaveToVault(settingName, apiKey);
+            RegisterTranscriptionApiKeyChange(CloudProviderHealthService.Instance, provider, apiKey);
             ApiKeysChanged?.Invoke(this, EventArgs.Empty);
         }
     }
@@ -186,6 +187,7 @@ public class ApiKeyService
             var settingName = type.GetSettingName();
             if (string.IsNullOrEmpty(settingName)) return;
             SaveToVault(settingName, apiKey);
+            RegisterTranscriptionApiKeyChange(CloudProviderHealthService.Instance, type, apiKey);
             ApiKeysChanged?.Invoke(this, EventArgs.Empty);
         }
     }
@@ -262,6 +264,56 @@ public class ApiKeyService
     // =========================================================================
     // HELPER METHODS
     // =========================================================================
+
+    /// <summary>
+    /// Connects the production key-write seam to transcription health. The
+    /// injected service overload also gives the smoke suite a vault-free way to
+    /// prove that the exact mapping used by SetApiKey advances only the affected
+    /// provider's credential generation.
+    /// </summary>
+    internal static void RegisterTranscriptionApiKeyChange(
+        CloudProviderHealthService healthService,
+        PostProcessingProvider provider,
+        string? apiKey)
+    {
+        var transcriptionProvider = provider switch
+        {
+            PostProcessingProvider.OpenAI => CloudTranscriptionProvider.OpenAI,
+            PostProcessingProvider.Groq => CloudTranscriptionProvider.Groq,
+            PostProcessingProvider.Grok => CloudTranscriptionProvider.Grok,
+            PostProcessingProvider.Gemini => CloudTranscriptionProvider.Gemini,
+            PostProcessingProvider.Mistral => CloudTranscriptionProvider.Mistral,
+            _ => CloudTranscriptionProvider.None
+        };
+
+        if (transcriptionProvider != CloudTranscriptionProvider.None)
+        {
+            healthService.RegisterApiKeyChange(transcriptionProvider, apiKey);
+        }
+    }
+
+    internal static void RegisterTranscriptionApiKeyChange(
+        CloudProviderHealthService healthService,
+        TranscriptionApiKeyType type,
+        string? apiKey)
+    {
+        var transcriptionProvider = type switch
+        {
+            TranscriptionApiKeyType.Deepgram => CloudTranscriptionProvider.Deepgram,
+            TranscriptionApiKeyType.AssemblyAI => CloudTranscriptionProvider.AssemblyAI,
+            TranscriptionApiKeyType.ElevenLabs => CloudTranscriptionProvider.ElevenLabs,
+            TranscriptionApiKeyType.Mistral => CloudTranscriptionProvider.Mistral,
+            TranscriptionApiKeyType.Soniox => CloudTranscriptionProvider.Soniox,
+            TranscriptionApiKeyType.Grok => CloudTranscriptionProvider.Grok,
+            TranscriptionApiKeyType.GeminiTranscribe => CloudTranscriptionProvider.GeminiTranscribe,
+            _ => CloudTranscriptionProvider.None
+        };
+
+        if (transcriptionProvider != CloudTranscriptionProvider.None)
+        {
+            healthService.RegisterApiKeyChange(transcriptionProvider, apiKey);
+        }
+    }
 
     /// <summary>
     /// Masks an API key for display (e.g., "sk-...abc123").

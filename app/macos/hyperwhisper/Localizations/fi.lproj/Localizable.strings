@@ -9,6 +9,8 @@
   This file contains all user-facing text that needs to be translated.
 */
 
+"transcription.error.forbidden.hyperWhisperCloud" = "HyperWhisper Cloud hylkäsi tämän pyynnön. Verkkosi on estetty väliaikaisesti.\n\nOdota muutama minuutti ja yritä uudelleen.";
+
 // MARK: - Application Navigation
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
@@ -420,10 +422,6 @@
 "license.button.activate" = "Aktivoi";
 "license.button.activating" = "Aktivoidaan...";
 "license.status.label" = "Tila: %@";
-"license.status.trial.title" = "Kokeilu";
-"license.status.active.title" = "Aktiivinen";
-"license.status.expired.title" = "Vanhentunut";
-"license.status.invalid.title" = "Virheellinen";
 "license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "Lisensoitu – täysi pääsy";
 "license.status.expired.description" = "Lisenssi vanhentunut";
@@ -926,6 +924,7 @@ Päivitä nämä tilat käyttämään eri mallia ennen poistamista.";
 "transcription.error.maxRetriesExceeded" = "Uudelleenyritysten enimmäismäärä ylitetty";
 "transcription.error.unauthorized.provider" = "Ei valtuutusta: virheellinen %@ API-avain tai käyttöoikeudet.\n\nAvaa Asetukset → API-avaimet vahvistaaksesi tunnistetietosi.";
 "transcription.error.unauthorized.generic" = "Ei valtuutusta: virheellinen API-avain tai käyttöoikeudet.\n\nAvaa Asetukset → API-avaimet vahvistaaksesi tunnistetietosi.";
+"transcription.error.unauthorized.hyperWhisperCloud" = "HyperWhisper Cloudin käyttöavain on virheellinen tai vanhentunut.\n\nPäivitä avaimesi kohdassa Asetukset → HyperWhisper Cloud.";
 "transcription.error.cloudAccountRequired" = "HyperWhisper Cloud vaatii tiliavaimen.\n\nAvaa Asetukset → HyperWhisper Cloud syöttääksesi avaimesi tai hankkiaksesi krediittejä.";
 "transcription.error.invalidRequest" = "Virheellinen pyyntö: tarkista äänitiedosto tai asetukset";
 "transcription.error.streamingInterrupted" = "Suoratoisto keskeytetty; osittainen teksti näytetään";
@@ -1052,7 +1051,6 @@ Päivitä nämä tilat käyttämään eri mallia ennen poistamista.";
 "settings.backup.import.confirm.button" = "Tuo";
 "settings.backup.conflict.skip" = "Ohita olemassa olevat";
 "settings.backup.conflict.replace" = "Korvaa olemassa olevat";
-"settings.backup.conflict.keepBoth" = "Pidä molemmat";
 "settings.backup.security.warning" = "Varoitus: Viety tiedosto sisältää arkaluontoisia tietoja. Pidä se turvassa äläkä jaa sitä.";
 "settings.backup.info.note" = "Varmuuskopiot sisältävät asetukset, tilat ja sanaston. Nauhoituksia ja transkriptioita ei sisällytetä.";
 "settings.backup.result.success.title" = "Onnistui";
@@ -1087,9 +1085,6 @@ Päivitä nämä tilat käyttämään eri mallia ennen poistamista.";
 "transcribe.file.error.video.noAudio" = "Tämä videotiedosto ei sisällä äänitä. Valitse video, jossa on ääni tai äänitiedosto.";
 
 // MARK: - File Transcription Progress
-"file.transcription.preparing" = "Valmistellaan...";
-"file.transcription.transcribing" = "Transkriboidaan...";
-"file.transcription.finishing" = "Viimeistellään...";
 "file.transcription.cancel" = "Peruuta";
 
 // MARK: - Auto-Delete Recordings

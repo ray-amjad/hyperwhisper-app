@@ -82,7 +82,7 @@ struct HealthProviderStatus: Codable, Sendable {
     let key_present: Bool
     /// Whether the most recent health probe succeeded.
     let reachable: Bool
-    /// Raw health status string (e.g. "healthy", "unauthorized", "unreachable", "unknown", "checking", "notInstalled").
+    /// Raw health status string (for example "healthy", "configured", "unauthorized", "unreachable", "unknown", "checking", or "notInstalled").
     let status: String
 }
 
@@ -163,9 +163,51 @@ struct ModeDTO: Codable, Sendable {
     let cloudPostProcessingModel: String?
 }
 
+/// Keeps the difference between an omitted PATCH key and an explicit JSON null.
+@propertyWrapper
+struct NullablePatch<Value: Decodable & Sendable>: Decodable, Sendable {
+    enum State: Sendable {
+        case omitted
+        case value(Value?)
+    }
+
+    private(set) var state: State = .omitted
+
+    var wrappedValue: Value? {
+        switch state {
+        case .omitted: nil
+        case .value(let value): value
+        }
+    }
+
+    var projectedValue: State { state }
+
+    init() {}
+
+    init(state: State) {
+        self.state = state
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        state = try container.decodeNil() ? .value(nil) : .value(container.decode(Value.self))
+    }
+}
+
+extension KeyedDecodingContainer {
+    func decode<T>(
+        _ type: NullablePatch<T>.Type,
+        forKey key: Key
+    ) throws -> NullablePatch<T> where T: Decodable & Sendable {
+        guard contains(key) else { return NullablePatch() }
+        guard try !decodeNil(forKey: key) else { return NullablePatch(state: .value(nil)) }
+        return try NullablePatch(from: superDecoder(forKey: key))
+    }
+}
+
 /// Partial Mode body used by `PATCH /modes/{id}`. All fields optional —
 /// any present key replaces the stored value; absent keys are left untouched.
-struct ModePatchDTO: Codable, Sendable {
+struct ModePatchDTO: Decodable, Sendable {
     let name: String?
     let preset: String?
     let language: String?
@@ -173,23 +215,23 @@ struct ModePatchDTO: Codable, Sendable {
     let punctuation: Bool?
     let capitalization: Bool?
     let profanityFilter: Bool?
-    let customInstructions: String?
-    let userSystemPrompt: String?
+    @NullablePatch var customInstructions: String?
+    @NullablePatch var userSystemPrompt: String?
     let isDefault: Bool?
     let sortOrder: Int?
-    let languageModel: String?
-    let cloudTranscriptionModel: String?
-    let cloudTranscriptionDomain: String?
-    let cloudProvider: String?
+    @NullablePatch var languageModel: String?
+    @NullablePatch var cloudTranscriptionModel: String?
+    @NullablePatch var cloudTranscriptionDomain: String?
+    @NullablePatch var cloudProvider: String?
     let postProcessingMode: Int?
-    let postProcessingProvider: String?
-    let englishSpelling: String?
+    @NullablePatch var postProcessingProvider: String?
+    @NullablePatch var englishSpelling: String?
     let useStreamingTranscription: Bool?
-    let cloudAccuracyTier: String?
+    @NullablePatch var cloudAccuracyTier: String?
     let removeTrailingPeriod: Bool?
     let enableScreenOCR: Bool?
-    let geminiCustomPrompt: String?
-    let cloudPostProcessingModel: String?
+    @NullablePatch var geminiCustomPrompt: String?
+    @NullablePatch var cloudPostProcessingModel: String?
 }
 
 struct ModesListResponse: Codable, Sendable {

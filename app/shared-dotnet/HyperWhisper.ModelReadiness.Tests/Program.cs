@@ -22,6 +22,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("provider metadata probes use fixed content-free requests", TestMetadataProbeRequestsAsync),
     ("provider metadata outcomes are bounded and explicit", TestMetadataProbeOutcomesAsync),
     ("provider metadata cancellation propagates", TestMetadataProbeCancellationAsync),
+    ("Meta readiness reports configured without a probe", TestMetaReadinessAsync),
 };
 
 foreach (var test in tests)
@@ -83,9 +84,12 @@ static Task TestStreamingCoverageAsync()
         .Where(provider => provider.GetProperty("features").GetProperty("streaming").GetBoolean())
         .Select(provider => provider.GetProperty("sttProvider").GetString()!).ToHashSet(StringComparer.OrdinalIgnoreCase);
     var rows = Load().Where(x => x.Surface == ModelSurface.StreamingTranscription).ToArray();
-    foreach (var provider in catalogProviders) True(rows.Any(x => x.ProviderId.Equals(provider, StringComparison.OrdinalIgnoreCase)));
+    foreach (var provider in catalogProviders.Where(provider =>
+        !provider.Equals("meta", StringComparison.OrdinalIgnoreCase)))
+        True(rows.Any(x => x.ProviderId.Equals(provider, StringComparison.OrdinalIgnoreCase)));
     foreach (var provider in new[] { "deepgram", "elevenlabs", "openai", "grok", "hyperwhisper" })
         True(rows.Any(x => x.ProviderId.Equals(provider, StringComparison.OrdinalIgnoreCase)));
+    True(rows.All(x => !x.ProviderId.Equals("meta", StringComparison.OrdinalIgnoreCase)));
     True(rows.All(x => x.SupportsStreaming && x.Workload == ModelWorkload.Voice));
     return Task.CompletedTask;
 }
@@ -136,6 +140,22 @@ static async Task TestMissingCredentialAsync()
     Equal(ReadinessState.Healthy, result.State);
     Equal(1, probe.Requests.Count);
     True(!probe.Requests[0].Credential.IsPresent);
+}
+
+static async Task TestMetaReadinessAsync()
+{
+    var row = Load().Single(x => x.ProviderId.Equals("meta", StringComparison.OrdinalIgnoreCase)
+        && x.ModelId == "muse-voice-transcribe-1.0"
+        && x.Surface == ModelSurface.BatchTranscription);
+    Equal("MetaApiKey", row.CredentialAccount);
+    True(row.ByokEligible && row.CloudTierEligible);
+    var probe = new FakeProbe();
+    var missing = await Service(new FakeCredentials(), probe).CheckAsync(row);
+    Equal(ReadinessState.MissingCredential, missing.State);
+    var configured = await Service(new FakeCredentials(("MetaApiKey", "meta-secret")), probe).CheckAsync(row);
+    Equal(ReadinessState.Healthy, configured.State);
+    Equal("Key saved; validated on first transcription.", configured.Detail);
+    Equal(0, probe.Requests.Count);
 }
 
 static async Task TestHealthStatesAsync()

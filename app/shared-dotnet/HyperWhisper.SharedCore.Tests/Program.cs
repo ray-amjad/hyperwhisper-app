@@ -194,8 +194,8 @@ var tests = new (string Name, Func<Task> Run)[]
     ("cloud catalog enumerates every batch provider", () =>
     {
         var providers = CloudTranscriptionService.Providers;
-        Assert.Equal(13, providers.Count);
-        Assert.Equal(13, providers.Select(value => value.Provider).Distinct().Count());
+        Assert.Equal(14, providers.Count);
+        Assert.Equal(14, providers.Select(value => value.Provider).Distinct().Count());
         Assert.True(providers.All(value => value.SupportsBatch));
         Assert.Equal(3, providers.Count(value => value.IsMultiStep));
         return Task.CompletedTask;
@@ -204,8 +204,10 @@ var tests = new (string Name, Func<Task> Run)[]
     ("multi-step providers execute upload poll parse and cleanup flows", TestMultiStepProvidersAsync),
     ("observer diagnostics redact credentials and request bodies", TestObserverRedactionAsync),
     ("retry policy retries transient responses deterministically", TestRetryAsync),
+    ("the retry backoff budget stops a hard-down provider early", TestRetryBudgetAsync),
     ("unauthorized responses are classified without leaking provider bodies", TestUnauthorizedAsync),
     ("cancellation stops in-flight HTTP and returns structured cancellation", TestCancellationAsync),
+    ("Meta transport rechecks WAV limits retry auth and diagnostics", TestMetaTransportGuardsAsync),
     ("live strategies construct and parse all six provider protocols", TestLiveProvidersAsync),
     ("gemini live setup frame pins the input_audio_transcription position", TestGeminiLiveSetupFrameAsync),
     ("a mid-session provider complete is a turn boundary not the end", TestMidSessionTurnBoundaryAsync),
@@ -235,6 +237,7 @@ var tests = new (string Name, Func<Task> Run)[]
     }),
     ("live protocol vocabulary keeps its own length drop and cap", TestLiveVocabularyAsync),
     ("inline base64 audio bodies assemble prefix + base64(file) + suffix", TestInlineBase64BodyAsync),
+    ("typed multipart files survive the C# binding and keep audio file-backed", TestTypedMultipartFileAsync),
     ("live terminal-error policy comes from the shared core", () =>
     {
         // The policy this head never had (issue #281). The macOS suite
@@ -568,9 +571,10 @@ static async Task TestSingleShotProvidersAsync()
         new ProviderCase(CloudTranscriptionProvider.GoogleChirp, "chirp_3", "{\"text\":\"chirp text\",\"cost\":{\"credits\":1.0}}", "chirp text", true),
         new ProviderCase(CloudTranscriptionProvider.HyperWhisperCloud, "", "{\"text\":\"cloud text\",\"credits_remaining\":99}", "cloud text", true),
         new ProviderCase(CloudTranscriptionProvider.GeminiTranscribe, "gemini-3.5-transcribe", "{\"steps\":[{\"content\":[{\"text\":\"gemini transcribe text\"}]}]}", "gemini transcribe text"),
+        new ProviderCase(CloudTranscriptionProvider.Meta, "muse-voice-transcribe-1.0", "{\"transcript\":\"meta text\",\"audioDurationMs\":1000}", "meta text"),
     };
 
-    var audio = TempAudio();
+    var audio = TempWaveAudio();
     try
     {
         foreach (var value in cases)
@@ -658,6 +662,39 @@ static async Task TestInlineBase64BodyAsync()
         Assert.True(config.TryGetProperty("custom_vocabulary", out _));
         Assert.False(config.TryGetProperty("diarization_mode", out _));
         Assert.False(config.TryGetProperty("timestamp_granularities", out _));
+    }
+    finally
+    {
+        File.Delete(audio);
+    }
+}
+
+static async Task TestTypedMultipartFileAsync()
+{
+    var audio = TempAudio("streamed-audio-marker");
+    try
+    {
+        var metadata = Encoding.UTF8.GetBytes("{\"mode\":\"PUSH_TO_TALK\"}");
+        using var message = RustHttpTransport.BuildRequestMessage(new uniffi.hyperwhisper_core.HttpRequest(
+            uniffi.hyperwhisper_core.HttpMethod.Post,
+            "https://example.test/transcribe",
+            [],
+            new uniffi.hyperwhisper_core.Body.Multipart("test-boundary", [
+                new uniffi.hyperwhisper_core.HwPart.InlineFile(
+                    "request", "request.json", "application/json", metadata),
+                new uniffi.hyperwhisper_core.HwPart.FileRef(
+                    "audio", audio, "audio/wav", "audio.wav"),
+            ])));
+
+        Assert.NotNull(message.Content);
+        var rendered = Encoding.UTF8.GetString(await message.Content!.ReadAsByteArrayAsync());
+        Assert.True(rendered.Contains("name=\"request\"; filename=\"request.json\"", StringComparison.Ordinal)
+            || rendered.Contains("name=request; filename=request.json", StringComparison.Ordinal));
+        Assert.True(rendered.Contains("Content-Type: application/json", StringComparison.OrdinalIgnoreCase));
+        Assert.True(rendered.Contains("{\"mode\":\"PUSH_TO_TALK\"}", StringComparison.Ordinal));
+        Assert.True(rendered.Contains("name=\"audio\"; filename=\"audio.wav\"", StringComparison.Ordinal)
+            || rendered.Contains("name=audio; filename=audio.wav", StringComparison.Ordinal));
+        Assert.True(rendered.Contains("streamed-audio-marker", StringComparison.Ordinal));
     }
     finally
     {
@@ -793,6 +830,97 @@ static async Task TestRetryAsync()
     }
 }
 
+// Issue #379: an always-503 provider used to burn all 8 core attempts, which is
+// 1+2+4+8+16+32+64 = 127s of sleep and a ~150s user-visible hang. The budget cuts
+// the sequence at the attempt whose next sleep would push the RUNNING TOTAL of
+// backoff past it.
+static async Task TestRetryBudgetAsync()
+{
+    var audio = TempAudio();
+    try
+    {
+        // A 5s budget. The delays ACCUMULATE: 1s (total 1s) and 2s (total 3s)
+        // both fit, and the third would take the total to 7s, so exactly 3
+        // requests go out and 2 delays are taken.
+        //
+        // This is the assertion that pins accumulation. If the running total were
+        // reset each iteration — or were a wall clock that an ImmediateDelay
+        // never advances — every individual delay up to 4s would fit on its own
+        // and the sequence would run to 4 sends / 3 delays instead.
+        var budgeted = new ImmediateDelay();
+        var budgetedSends = 0;
+        var budgetedHandler = new RecordingHandler((_, _) =>
+        {
+            budgetedSends++;
+            return Json("{\"error\":\"provider down\"}", HttpStatusCode.ServiceUnavailable);
+        });
+        using (var service = new CloudTranscriptionService(
+            budgetedHandler, new StaticCredentials(), Sharing, budgeted, observer: null, retryBudgetMs: 5_000))
+        {
+            var result = await service.TranscribeAsync(new CloudTranscriptionRequest(
+                CloudTranscriptionProvider.Groq, audio, "whisper-large-v3"));
+            Assert.False(result.IsSuccess);
+            Assert.Equal(3, budgetedSends);
+            Assert.Equal(3, result.Attempts);
+            Assert.Equal(2, budgeted.Delays.Count);
+            // And the delays really were the core's series, not a single long one.
+            Assert.Equal(TimeSpan.FromMilliseconds(1_000), budgeted.Delays[0]);
+            Assert.Equal(TimeSpan.FromMilliseconds(2_000), budgeted.Delays[1]);
+        }
+
+        // budgetMs 0 is unbounded — the pre-#379 behaviour, all 8 core attempts.
+        // This is the proof the parameter reaches the core rather than being
+        // clamped somewhere on the way.
+        var unbounded = new ImmediateDelay();
+        var unboundedSends = 0;
+        var unboundedHandler = new RecordingHandler((_, _) =>
+        {
+            unboundedSends++;
+            return Json("{\"error\":\"provider down\"}", HttpStatusCode.ServiceUnavailable);
+        });
+        using (var service = new CloudTranscriptionService(
+            unboundedHandler, new StaticCredentials(), Sharing, unbounded, observer: null, retryBudgetMs: 0))
+        {
+            var result = await service.TranscribeAsync(new CloudTranscriptionRequest(
+                CloudTranscriptionProvider.Groq, audio, "whisper-large-v3"));
+            Assert.False(result.IsSuccess);
+            Assert.Equal((int)uniffi.hyperwhisper_core.HyperwhisperCoreMethods.RetryMaxAttempts(), unboundedSends);
+            Assert.Equal(7, unbounded.Delays.Count);
+        }
+
+        // REGRESSION GUARD (review round 1, finding A1): the budget counts the
+        // BACKOFF, never the requests' own duration. A slow attempt must not cost
+        // the sequence a retry — otherwise a large file import, whose every
+        // attempt legitimately runs for minutes, would get none at all.
+        //
+        // A 1.5s budget: the 1s sleep fits, the 2s one does not, so 2 requests go
+        // out however long each takes. The handler burns a full second per
+        // attempt, which under a wall-clock budget would have given up after ONE
+        // request (1 000ms spent + a 1 000ms sleep = 2 000ms > 1 500ms).
+        var slow = new ImmediateDelay();
+        var slowSends = 0;
+        var slowHandler = new RecordingHandler(async (_, token) =>
+        {
+            slowSends++;
+            await Task.Delay(TimeSpan.FromMilliseconds(1_000), token);
+            return Json("{\"error\":\"provider down\"}", HttpStatusCode.ServiceUnavailable);
+        });
+        using (var service = new CloudTranscriptionService(
+            slowHandler, new StaticCredentials(), Sharing, slow, observer: null, retryBudgetMs: 1_500))
+        {
+            var result = await service.TranscribeAsync(new CloudTranscriptionRequest(
+                CloudTranscriptionProvider.Groq, audio, "whisper-large-v3"));
+            Assert.False(result.IsSuccess);
+            Assert.Equal(2, slowSends);
+            Assert.Equal(1, slow.Delays.Count);
+        }
+    }
+    finally
+    {
+        File.Delete(audio);
+    }
+}
+
 static async Task TestUnauthorizedAsync()
 {
     const string hostileBody = "credential=must-not-surface";
@@ -839,6 +967,61 @@ static async Task TestCancellationAsync()
     {
         File.Delete(audio);
     }
+}
+
+static async Task TestMetaTransportGuardsAsync()
+{
+    const string secret = "meta-secret-never-diagnose";
+    var audio = TempWaveAudio();
+    try
+    {
+        var attempts = 0;
+        var observer = new RecordingObserver();
+        var handler = new RecordingHandler((_, _) => ++attempts == 1
+            ? Json("{\"error\":\"temporary\"}", HttpStatusCode.ServiceUnavailable)
+            : Json("{\"transcript\":\"meta retry\",\"audioDurationMs\":1}"));
+        using var service = new CloudTranscriptionService(
+            handler, new StaticCredentials(secret), Sharing, new ImmediateDelay(), observer);
+        var result = await service.TranscribeAsync(new CloudTranscriptionRequest(
+            CloudTranscriptionProvider.Meta, audio, "muse-voice-transcribe-1.0"));
+        Assert.True(result.IsSuccess && result.Attempts == 2);
+        Assert.DoesNotContain(secret, string.Join('\n', observer.Events));
+
+        using var unauthorized = new CloudTranscriptionService(
+            new RecordingHandler((_, _) => Json(secret, HttpStatusCode.Forbidden)),
+            new StaticCredentials(secret), Sharing);
+        var rejected = await unauthorized.TranscribeAsync(new CloudTranscriptionRequest(
+            CloudTranscriptionProvider.Meta, audio, "muse-voice-transcribe-1.0"));
+        Assert.Equal(CloudTranscriptionErrorCode.Unauthorized, rejected.Failure!.Code);
+        Assert.DoesNotContain(secret, rejected.Failure.Message);
+
+        var invalid = TempAudio("not-a-wave");
+        try
+        {
+            var calls = 0;
+            using var invalidService = new CloudTranscriptionService(
+                new RecordingHandler((_, _) => { calls++; return Json("{}"); }),
+                new StaticCredentials(secret), Sharing);
+            var invalidResult = await invalidService.TranscribeAsync(new CloudTranscriptionRequest(
+                CloudTranscriptionProvider.Meta, invalid, "muse-voice-transcribe-1.0"));
+            Assert.Equal(CloudTranscriptionErrorCode.InvalidRequest, invalidResult.Failure!.Code);
+            Assert.Equal(0, calls);
+        }
+        finally { File.Delete(invalid); }
+
+        await using (var stream = new FileStream(audio, FileMode.Open, FileAccess.Write, FileShare.None))
+            stream.SetLength(32L * 1024 * 1024 + 1);
+        var oversizedCalls = 0;
+        using var oversizedService = new CloudTranscriptionService(
+            new RecordingHandler((_, _) => { oversizedCalls++; return Json("{}"); }),
+            new StaticCredentials(secret), Sharing);
+        var oversized = await oversizedService.TranscribeAsync(new CloudTranscriptionRequest(
+            CloudTranscriptionProvider.HyperWhisperCloud, audio, string.Empty,
+            RoutedProvider: "meta", RoutedModel: "muse-voice-transcribe-1.0"));
+        Assert.Equal(CloudTranscriptionErrorCode.FileTooLarge, oversized.Failure!.Code);
+        Assert.Equal(0, oversizedCalls);
+    }
+    finally { File.Delete(audio); }
 }
 
 static async Task TestLiveProvidersAsync()
@@ -2234,6 +2417,23 @@ static string TempAudio(string content = "RIFF-test-audio")
 {
     var path = Path.Combine(Path.GetTempPath(), $"hyperwhisper-shared-{Guid.NewGuid():N}.wav");
     File.WriteAllText(path, content);
+    return path;
+}
+
+static string TempWaveAudio()
+{
+    var path = Path.Combine(Path.GetTempPath(), $"hyperwhisper-shared-{Guid.NewGuid():N}.wav");
+    var bytes = new byte[46];
+    "RIFF"u8.CopyTo(bytes); BitConverter.GetBytes(38).CopyTo(bytes, 4);
+    "WAVEfmt "u8.CopyTo(bytes.AsSpan(8)); BitConverter.GetBytes(16).CopyTo(bytes, 16);
+    BitConverter.GetBytes((ushort)1).CopyTo(bytes, 20);
+    BitConverter.GetBytes((ushort)1).CopyTo(bytes, 22);
+    BitConverter.GetBytes(16_000).CopyTo(bytes, 24);
+    BitConverter.GetBytes(32_000).CopyTo(bytes, 28);
+    BitConverter.GetBytes((ushort)2).CopyTo(bytes, 32);
+    BitConverter.GetBytes((ushort)16).CopyTo(bytes, 34);
+    "data"u8.CopyTo(bytes.AsSpan(36)); BitConverter.GetBytes(2).CopyTo(bytes, 40);
+    File.WriteAllBytes(path, bytes);
     return path;
 }
 

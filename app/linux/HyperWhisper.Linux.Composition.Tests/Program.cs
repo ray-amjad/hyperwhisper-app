@@ -54,6 +54,7 @@ var tests = new (string Name, Func<Task> Run)[]
     ("M4A storage performs a real private FFmpeg encode", M4aStorageEncodes),
     ("M4A history playback performs a real FFmpeg decode", M4aPlaybackDecodes),
     ("anonymous speed opt-out is scoped to HyperWhisper Cloud", LatencyOptOutIsScoped),
+    ("production batch transcription preserves the full retry envelope", BatchRetryBudgetIsUnbounded),
     ("Silero detector preserves bounded recurrent state", SileroDetectorStateIsBounded),
     ("packaged Silero ONNX model executes silence fixture", PackagedSileroExecutes),
     ("first-run onboarding persists decisions and gates real readiness", OnboardingStateMachine),
@@ -66,6 +67,13 @@ foreach (var test in tests)
     Console.WriteLine($"PASS {test.Name}");
 }
 Console.WriteLine($"{tests.Length}/{tests.Length} Linux composition tests passed");
+
+static Task BatchRetryBudgetIsUnbounded()
+{
+    Assert(LinuxModeAwareTranscriptionFactory.BatchRetryBudgetMs == 0,
+        "the production Linux batch host silently inherited the 30s interactive retry budget");
+    return Task.CompletedTask;
+}
 
 static Task OnboardingStateMachine()
 {
@@ -127,9 +135,16 @@ static async Task OnboardingModeReadiness()
         "cloud/stt/openai/whisper-1", "OpenAI", "openai", "whisper-1",
         ModelDeployment.Cloud, ModelWorkload.Voice, ModelSurface.BatchTranscription,
         true, true, [], false, CredentialAccount: "OpenAIApiKey");
-    var credentials = new OnboardingCredentials(("OpenAIApiKey", "private-test-key"), ("LicenseKey", "private-license"));
+    var metaCapability = new ModelCapability(
+        "cloud/stt/metaMuse/muse-voice-transcribe-1.0", "Meta Muse", "meta",
+        "muse-voice-transcribe-1.0", ModelDeployment.Cloud, ModelWorkload.Voice,
+        ModelSurface.BatchTranscription, true, false, [], false,
+        CloudTierEligible: true, ByokEligible: true, CredentialAccount: "MetaApiKey");
+    var credentials = new OnboardingCredentials(("OpenAIApiKey", "private-test-key"),
+        ("LicenseKey", "private-license"), ("MetaApiKey", "private-meta-key"));
     var localModels = new OnboardingLocalModels("base");
-    var readiness = new LinuxOnboardingModeReadiness(credentials, localModels, [localCapability, cloudCapability]);
+    var readiness = new LinuxOnboardingModeReadiness(credentials, localModels,
+        [localCapability, cloudCapability, metaCapability]);
 
     Assert(await readiness.IsReadyAsync(new Mode
     {
@@ -151,6 +166,11 @@ static async Task OnboardingModeReadiness()
     {
         ProviderType = "cloud", CloudProvider = "hyperwhisper", CloudTranscriptionModel = "scribe_v2",
     }), "credentialed HyperWhisper mode was rejected");
+    Assert(await readiness.IsReadyAsync(new Mode
+    {
+        ProviderType = "cloud", CloudProvider = "meta",
+        CloudTranscriptionModel = "muse-voice-transcribe-1.0",
+    }), "explicit internal Meta composition could not read the isolated secure key");
     Assert(!await new LinuxOnboardingModeReadiness(
         new OnboardingCredentials(), localModels, [localCapability, cloudCapability]).IsReadyAsync(new Mode
         {

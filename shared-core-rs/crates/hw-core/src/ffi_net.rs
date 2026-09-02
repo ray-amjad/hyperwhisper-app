@@ -13,7 +13,7 @@ use hw_net::contract as c;
 // Contract types
 // ===========================================================================
 
-/// The 14 cloud speech-to-text providers. Mirrors `hw_net::Provider`.
+/// The 15 cloud speech-to-text providers. Mirrors `hw_net::Provider`.
 #[derive(uniffi::Enum)]
 pub enum HwProvider {
     HyperWhisperCloud,
@@ -30,6 +30,7 @@ pub enum HwProvider {
     GoogleChirp,
     GeminiTranscribe,
     GeminiTranscribeLive,
+    Meta,
 }
 
 impl From<HwProvider> for c::Provider {
@@ -49,6 +50,7 @@ impl From<HwProvider> for c::Provider {
             HwProvider::GoogleChirp => c::Provider::GoogleChirp,
             HwProvider::GeminiTranscribe => c::Provider::GeminiTranscribe,
             HwProvider::GeminiTranscribeLive => c::Provider::GeminiTranscribeLive,
+            HwProvider::Meta => c::Provider::Meta,
         }
     }
 }
@@ -70,6 +72,7 @@ impl From<c::Provider> for HwProvider {
             c::Provider::GoogleChirp => HwProvider::GoogleChirp,
             c::Provider::GeminiTranscribe => HwProvider::GeminiTranscribe,
             c::Provider::GeminiTranscribeLive => HwProvider::GeminiTranscribeLive,
+            c::Provider::Meta => HwProvider::Meta,
         }
     }
 }
@@ -143,6 +146,12 @@ pub enum HwPart {
         mime: String,
         filename: String,
     },
+    InlineFile {
+        field: String,
+        filename: String,
+        mime: String,
+        data: Vec<u8>,
+    },
 }
 
 impl From<c::Part> for HwPart {
@@ -159,6 +168,17 @@ impl From<c::Part> for HwPart {
                 path,
                 mime,
                 filename,
+            },
+            c::Part::InlineFile {
+                field,
+                filename,
+                mime,
+                data,
+            } => HwPart::InlineFile {
+                field,
+                filename,
+                mime,
+                data,
             },
         }
     }
@@ -178,6 +198,17 @@ impl From<HwPart> for c::Part {
                 path,
                 mime,
                 filename,
+            },
+            HwPart::InlineFile {
+                field,
+                filename,
+                mime,
+                data,
+            } => c::Part::InlineFile {
+                field,
+                filename,
+                mime,
+                data,
             },
         }
     }
@@ -593,6 +624,14 @@ pub fn retry_max_attempts() -> u32 {
     hw_net::retry::MAX_ATTEMPTS
 }
 
+/// Default **cumulative backoff** budget, in milliseconds, for one interactive
+/// transcription attempt sequence. The default argument for the platform retry
+/// drivers' `budgetMs` parameter; `0` means unbounded.
+#[uniffi::export]
+pub fn retry_default_budget_ms() -> u64 {
+    hw_net::retry::DEFAULT_BUDGET_MS
+}
+
 /// Upper bound, in seconds, on a single honored `Retry-After` sleep.
 #[uniffi::export]
 pub fn retry_max_retry_after_secs() -> u64 {
@@ -621,6 +660,30 @@ pub fn next_retry(
     retry_after: Option<u64>,
 ) -> RetryDecision {
     hw_net::retry::next_retry(attempt, status, &body, retry_after).into()
+}
+
+/// `next_retry` plus a **cumulative backoff budget** (issue #379).
+///
+/// `slept_ms` is the sum of the `delay_ms` values this call has already returned
+/// for this attempt sequence — how much backoff the caller has been told to
+/// sleep so far, starting at `0` on attempt 1. It is deliberately **not** the
+/// sequence's wall clock: charging a slow request (a large upload) to the budget
+/// would leave a big file with zero retries. A sleep that would push the running
+/// total past `budget_ms` is refused, so a hard-down provider fails after 15s of
+/// backoff instead of grinding through the full 1+2+4+8+16+32+64s series.
+/// `budget_ms == 0` means unbounded, which makes this identical to `next_retry`.
+/// Use `retry_default_budget_ms()` for interactive transcription.
+#[uniffi::export]
+pub fn next_retry_within_budget(
+    attempt: u32,
+    status: u16,
+    body: String,
+    retry_after: Option<u64>,
+    slept_ms: u64,
+    budget_ms: u64,
+) -> RetryDecision {
+    hw_net::retry::next_retry_within_budget(attempt, status, &body, retry_after, slept_ms, budget_ms)
+        .into()
 }
 
 // ===========================================================================
@@ -728,6 +791,11 @@ single_shot!(
     gemini_transcribe_build_transcribe_request,
     gemini_transcribe_parse_transcribe_response,
     hw_net::providers::gemini_transcribe
+);
+single_shot!(
+    meta_build_transcribe_request,
+    meta_parse_transcribe_response,
+    hw_net::providers::meta
 );
 
 // ===========================================================================
@@ -1063,7 +1131,7 @@ mod tests {
     // helpers
     // -----------------------------------------------------------------------
 
-    const ALL_PROVIDERS: [HwProvider; 14] = [
+    const ALL_PROVIDERS: [HwProvider; 15] = [
         HwProvider::HyperWhisperCloud,
         HwProvider::Openai,
         HwProvider::Groq,
@@ -1078,6 +1146,7 @@ mod tests {
         HwProvider::GoogleChirp,
         HwProvider::GeminiTranscribe,
         HwProvider::GeminiTranscribeLive,
+        HwProvider::Meta,
     ];
 
     /// A distinct label per FFI provider arm, written independently of the
@@ -1099,6 +1168,7 @@ mod tests {
             HwProvider::GoogleChirp => "google_chirp",
             HwProvider::GeminiTranscribe => "gemini_transcribe",
             HwProvider::GeminiTranscribeLive => "gemini_transcribe_live",
+            HwProvider::Meta => "meta",
         }
     }
 
@@ -1120,6 +1190,7 @@ mod tests {
             c::Provider::GoogleChirp => "google_chirp",
             c::Provider::GeminiTranscribe => "gemini_transcribe",
             c::Provider::GeminiTranscribeLive => "gemini_transcribe_live",
+            c::Provider::Meta => "meta",
         }
     }
 
@@ -1787,6 +1858,68 @@ mod tests {
         ));
     }
 
+    /// Issue #379 across the FFI boundary: the backoff budget stops a hard-down
+    /// provider before the 16/32/64s sleeps, where the attempt ceiling alone
+    /// would have burned ~127s.
+    #[test]
+    fn a_budget_stops_retrying_before_the_long_sleeps() {
+        let budget = retry_default_budget_ms();
+        assert_eq!(budget, 30_000, "interactive default");
+        // 15s of sleep already spent; attempt 5 wants 16s → past the deadline.
+        assert!(matches!(
+            next_retry_within_budget(5, 500, String::new(), None, 15_000, budget),
+            RetryDecision::GiveUp
+        ));
+        // The same attempt is still a retry with room to spare.
+        assert!(matches!(
+            next_retry_within_budget(5, 500, String::new(), None, 0, budget),
+            RetryDecision::Retry { delay_ms: 16_000 }
+        ));
+    }
+
+    /// `slept_ms` counts BACKOFF ONLY (review round 1, finding A1), so the number
+    /// of attempts a sequence gets is independent of how long each request takes.
+    /// A 150 MB import that uploads for four minutes before each 502 gets exactly
+    /// as many attempts as a 200 ms dictation failure — an earlier revision fed
+    /// the sequence's wall clock in here and gave the big upload only one.
+    #[test]
+    fn the_attempt_count_is_independent_of_request_duration_across_the_ffi() {
+        // Drive the export exactly as a platform driver does: accumulate the
+        // returned delays, ignore the request time.
+        fn attempts_before_give_up(budget: u64) -> u32 {
+            let mut slept = 0u64;
+            let mut attempt = 0u32;
+            loop {
+                attempt += 1;
+                match next_retry_within_budget(attempt, 502, String::new(), None, slept, budget) {
+                    RetryDecision::Retry { delay_ms } => slept += delay_ms,
+                    RetryDecision::GiveUp => return attempt,
+                }
+            }
+        }
+        // The driver never adds request time, so a four-minute upload and a
+        // 200 ms failure produce the identical call sequence and stop together.
+        assert_eq!(attempts_before_give_up(retry_default_budget_ms()), 5);
+        assert_eq!(attempts_before_give_up(0), retry_max_attempts());
+    }
+
+    /// `budget_ms == 0` is unbounded, so the budgeted export is a strict superset
+    /// of `next_retry` — the pre-#379 behaviour is still reachable, unchanged.
+    #[test]
+    fn a_zero_budget_matches_the_unbudgeted_export() {
+        for attempt in 1..=retry_max_attempts() {
+            let budgeted = next_retry_within_budget(attempt, 503, String::new(), None, 0, 0);
+            let plain = next_retry(attempt, 503, String::new(), None);
+            match (budgeted, plain) {
+                (RetryDecision::Retry { delay_ms: a }, RetryDecision::Retry { delay_ms: b }) => {
+                    assert_eq!(a, b, "attempt {attempt}")
+                }
+                (RetryDecision::GiveUp, RetryDecision::GiveUp) => {}
+                _ => panic!("budget_ms=0 diverged from next_retry on attempt {attempt}"),
+            }
+        }
+    }
+
     /// The `Display` text is hand-written in this file (not derived from the
     /// leaf's `thiserror` messages), so nothing but a test keeps it honest.
     #[test]
@@ -1983,6 +2116,12 @@ mod tests {
                         mime: "audio/wav".to_string(),
                         filename: "take-one.wav".to_string(),
                     },
+                    HwPart::InlineFile {
+                        field: "request".to_string(),
+                        filename: "request.json".to_string(),
+                        mime: "application/json".to_string(),
+                        data: br#"{"mode":"PUSH_TO_TALK"}"#.to_vec(),
+                    },
                 ],
             },
         };
@@ -2002,6 +2141,13 @@ mod tests {
                 assert_eq!(path, "/tmp/take-one.wav");
                 assert_eq!(mime, "audio/wav");
                 assert_eq!(filename, "take-one.wav");
+                assert!(parts.iter().any(|part| matches!(
+                    part,
+                    HwPart::InlineFile { field, filename, mime, data }
+                        if field == "request" && filename == "request.json"
+                            && mime == "application/json"
+                            && data == br#"{"mode":"PUSH_TO_TALK"}"#
+                )));
             }
             _ => panic!("expected a multipart body"),
         }

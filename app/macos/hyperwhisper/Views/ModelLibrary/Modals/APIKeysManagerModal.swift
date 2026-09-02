@@ -111,6 +111,7 @@ struct APIKeysManagerModal: View {
         let (text, color): (String, Color) = {
             switch status {
             case .healthy: return ("Valid", .green)
+            case .configured: return ("Configured", .green)
             case .unauthorized: return ("Invalid", .orange)
             case .unreachable: return ("Unreachable", .orange)
             case .checking: return ("Checking…", .secondary)
@@ -158,6 +159,9 @@ struct APIKeysManagerModal: View {
 
         // Cloud transcription providers — some also do post-processing (shared key).
         for provider in CloudProvider.allCases where provider.requiresAPIKey {
+            if provider == .meta && !CloudTranscriptionModels.isMetaBYOKCatalogEnabled {
+                continue
+            }
             entries.append(APIKeyProviderEntry(
                 id: "cloud-\(provider.rawValue)",
                 target: .cloud(provider),

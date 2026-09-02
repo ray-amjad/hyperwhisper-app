@@ -1,4 +1,5 @@
 using System.Net;
+using System.Buffers.Binary;
 using System.Text;
 using uniffi.hyperwhisper_core;
 
@@ -37,6 +38,7 @@ public sealed class CloudTranscriptionService : IDisposable
             [CloudTranscriptionProvider.AzureMai] = 300L * 1024 * 1024,
             [CloudTranscriptionProvider.GoogleChirp] = 9_500_000L,
             [CloudTranscriptionProvider.HyperWhisperCloud] = 2L * 1024 * 1024 * 1024,
+            [CloudTranscriptionProvider.Meta] = 32L * 1024 * 1024,
         };
 
     private static readonly CloudProviderDescriptor[] ProviderCatalog =
@@ -54,6 +56,7 @@ public sealed class CloudTranscriptionService : IDisposable
         new(CloudTranscriptionProvider.Gemini, "gemini", "Google Gemini", true, true),
         new(CloudTranscriptionProvider.GeminiTranscribe, "geminiTranscribe", "Gemini 3.5 Transcribe", false, true),
         new(CloudTranscriptionProvider.HyperWhisperCloud, "hyperwhisperCloud", "HyperWhisper Cloud", false, true),
+        new(CloudTranscriptionProvider.Meta, "metaMuse", "Meta Muse", false, true),
     ];
 
     private readonly HttpClient _client;
@@ -61,6 +64,7 @@ public sealed class CloudTranscriptionService : IDisposable
     private readonly ICloudTranscriptionDelay _delay;
     private readonly ICloudTranscriptionObserver? _observer;
     private readonly Func<bool> _shareAnonymousSpeedData;
+    private readonly ulong _retryBudgetMs;
     private bool _disposed;
 
     /// <param name="shareAnonymousSpeedData">
@@ -75,12 +79,23 @@ public sealed class CloudTranscriptionService : IDisposable
     /// forgets the user's privacy choice must fail to compile rather than
     /// silently default to sharing.
     /// </param>
+    /// <param name="retryBudgetMs">
+    /// Total BACKOFF budget, in milliseconds, for each retry sequence (issue
+    /// #379) — the sleeping only, not the requests' own duration.
+    /// <c>null</c> takes the core's interactive default
+    /// (<c>RetryDefaultBudgetMs()</c> == 30s); <c>0</c> means unbounded, i.e. the
+    /// pre-#379 behaviour of 8 attempts and ~127s of sleep. Injectable so a batch
+    /// host can be more patient than a dictation one, and so tests can pin a
+    /// small budget without waiting out a real backoff series. This shared batch
+    /// driver does not add jitter, so the admitted core delay is the actual sleep.
+    /// </param>
     public CloudTranscriptionService(
         HttpMessageHandler handler,
         ICloudCredentialSource credentials,
         Func<bool> shareAnonymousSpeedData,
         ICloudTranscriptionDelay? delay = null,
-        ICloudTranscriptionObserver? observer = null)
+        ICloudTranscriptionObserver? observer = null,
+        ulong? retryBudgetMs = null)
     {
         ArgumentNullException.ThrowIfNull(handler);
         ArgumentNullException.ThrowIfNull(credentials);
@@ -93,6 +108,7 @@ public sealed class CloudTranscriptionService : IDisposable
         _delay = delay ?? new SystemCloudTranscriptionDelay();
         _observer = observer;
         _shareAnonymousSpeedData = shareAnonymousSpeedData;
+        _retryBudgetMs = retryBudgetMs ?? HyperwhisperCoreMethods.RetryDefaultBudgetMs();
     }
 
     public static IReadOnlyList<CloudProviderDescriptor> Providers => ProviderCatalog;
@@ -193,14 +209,94 @@ public sealed class CloudTranscriptionService : IDisposable
                 "The audio file is empty.",
                 request.Provider));
         }
-        if (MaximumFileBytes.TryGetValue(request.Provider, out var maximumBytes) && length > maximumBytes)
+        var museTarget = request.Provider == CloudTranscriptionProvider.Meta
+            || request.Provider == CloudTranscriptionProvider.HyperWhisperCloud
+                && string.Equals(request.RoutedProvider, "meta", StringComparison.OrdinalIgnoreCase);
+        var maximumBytes = museTarget
+            ? 32L * 1024 * 1024
+            : MaximumFileBytes.GetValueOrDefault(request.Provider, long.MaxValue);
+        if (length > maximumBytes)
         {
             throw new CloudFailureException(new CloudTranscriptionFailure(
                 CloudTranscriptionErrorCode.FileTooLarge,
                 "The audio file exceeds the selected provider's upload limit.",
                 request.Provider));
         }
+        if (museTarget) ValidateMuseWave(request);
     }
+
+    /// <summary>
+    /// Re-opens the final artifact immediately before the Rust request builder.
+    /// Import preflight runs earlier, but this transport gate closes the race
+    /// where an owned normalized file changes before upload. It reads RIFF
+    /// metadata only; audio data remains streamed from disk by the HTTP layer.
+    /// </summary>
+    private static void ValidateMuseWave(CloudTranscriptionRequest request)
+    {
+        try
+        {
+            using var stream = new FileStream(request.AudioPath, FileMode.Open, FileAccess.Read,
+                FileShare.Read, 4096, FileOptions.SequentialScan);
+            Span<byte> header = stackalloc byte[12];
+            stream.ReadExactly(header);
+            if (!header[..4].SequenceEqual("RIFF"u8)
+                || !header[8..].SequenceEqual("WAVE"u8))
+                throw InvalidMuseWave(request.Provider);
+
+            ushort? encoding = null, channels = null, blockAlign = null, bits = null;
+            uint? sampleRate = null, byteRate = null;
+            uint? dataBytes = null;
+            Span<byte> chunk = stackalloc byte[8];
+            Span<byte> format = stackalloc byte[16];
+            for (var count = 0; count < 256 && stream.Position + 8 <= stream.Length; count++)
+            {
+                stream.ReadExactly(chunk);
+                var size = BinaryPrimitives.ReadUInt32LittleEndian(chunk[4..]);
+                var payloadStart = stream.Position;
+                var payloadEnd = checked(payloadStart + size);
+                if (payloadEnd > stream.Length) throw InvalidMuseWave(request.Provider);
+                if (chunk[..4].SequenceEqual("fmt "u8))
+                {
+                    if (size < 16) throw InvalidMuseWave(request.Provider);
+                    stream.ReadExactly(format);
+                    encoding = BinaryPrimitives.ReadUInt16LittleEndian(format);
+                    channels = BinaryPrimitives.ReadUInt16LittleEndian(format[2..]);
+                    sampleRate = BinaryPrimitives.ReadUInt32LittleEndian(format[4..]);
+                    byteRate = BinaryPrimitives.ReadUInt32LittleEndian(format[8..]);
+                    blockAlign = BinaryPrimitives.ReadUInt16LittleEndian(format[12..]);
+                    bits = BinaryPrimitives.ReadUInt16LittleEndian(format[14..]);
+                }
+                else if (chunk[..4].SequenceEqual("data"u8))
+                {
+                    dataBytes = size;
+                }
+                stream.Position = payloadEnd + (size & 1);
+                if (stream.Position > stream.Length) throw InvalidMuseWave(request.Provider);
+                if (encoding.HasValue && dataBytes.HasValue) break;
+            }
+
+            if (encoding != 1 || channels != 1 || bits != 16 || blockAlign != 2
+                || sampleRate is not (16_000 or 24_000) || byteRate != sampleRate * 2
+                || dataBytes is not > 0)
+                throw InvalidMuseWave(request.Provider);
+            var durationSeconds = dataBytes.Value / (sampleRate.Value * 2d);
+            if (!double.IsFinite(durationSeconds) || durationSeconds > 600d)
+                throw new CloudFailureException(new CloudTranscriptionFailure(
+                    CloudTranscriptionErrorCode.InvalidRequest,
+                    "The audio exceeds Meta Muse's duration limit.", request.Provider));
+        }
+        catch (CloudFailureException) { throw; }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
+            or OverflowException or ArgumentOutOfRangeException)
+        {
+            throw InvalidMuseWave(request.Provider);
+        }
+    }
+
+    private static CloudFailureException InvalidMuseWave(CloudTranscriptionProvider provider) =>
+        new(new CloudTranscriptionFailure(
+            CloudTranscriptionErrorCode.InvalidRequest,
+            "Meta Muse requires a mono PCM16 WAV at 16 kHz or 24 kHz.", provider));
 
     /// <summary>
     /// Build the core <see cref="TranscribeParams"/> for one request.
@@ -410,6 +506,25 @@ public sealed class CloudTranscriptionService : IDisposable
         }
     }
 
+    /// <summary>
+    /// Drive one request stage through the core-owned retry policy.
+    ///
+    /// Backoff budget (issue #379): 8 attempts of raw exponential backoff is
+    /// ~127s of sleep, so a hard-down provider used to take ~150s to fail. The
+    /// core owns the rule (<c>NextRetryWithinBudget</c>); this shell just carries
+    /// the running total of the delays the core handed it (<c>sleptMs</c>) back
+    /// into the next decision. The budget is per STAGE, matching the per-call
+    /// semantics of the macOS/Windows <c>RustRetry</c> drivers — a multi-step
+    /// provider's upload/poll/fetch legs each get their own.
+    ///
+    /// <c>sleptMs</c> is BACKOFF ONLY. The time a failed request itself took is
+    /// deliberately NOT charged to it: a large upload (Linux routes file imports
+    /// through here via <c>LinuxModeAwareTranscriptionFactory</c>) would
+    /// otherwise blow a 30s budget before its first error even arrived and get
+    /// zero retries. Counting only the returned delays also keeps the budget
+    /// deterministic under an injected <see cref="ICloudTranscriptionDelay"/>,
+    /// so a test can pin it without sleeping for real.
+    /// </summary>
     private async Task<HttpResponse> SendWithRetryAsync<T>(
         Func<HttpRequest> build,
         Func<HttpResponse, T> parse,
@@ -420,6 +535,11 @@ public sealed class CloudTranscriptionService : IDisposable
     {
         uint attempt = 0;
         var transportFailures = 0;
+        // Running total of the backoff this sequence actually sleeps. This batch
+        // driver adds no platform jitter, so it equals the core's returned delay.
+        // Accumulated across the whole loop and never reset, so the budget bounds
+        // the sequence rather than any single sleep.
+        var sleptMs = 0UL;
         while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -434,13 +554,16 @@ public sealed class CloudTranscriptionService : IDisposable
                     return response;
                 }
                 var retryAfter = RetryAfter(response);
-                var decision = HyperwhisperCoreMethods.NextRetry(
+                var decision = HyperwhisperCoreMethods.NextRetryWithinBudget(
                     attempt,
                     response.@status,
                     Encoding.UTF8.GetString(response.@body),
-                    retryAfter.HasValue ? (ulong)Math.Max(0, retryAfter.Value) : null);
+                    retryAfter.HasValue ? (ulong)Math.Max(0, retryAfter.Value) : null,
+                    sleptMs,
+                    _retryBudgetMs);
                 if (decision is RetryDecision.Retry retry)
                 {
+                    sleptMs += retry.@delayMs;
                     await _delay.DelayAsync(TimeSpan.FromMilliseconds(retry.@delayMs), cancellationToken).ConfigureAwait(false);
                     continue;
                 }
@@ -465,11 +588,18 @@ public sealed class CloudTranscriptionService : IDisposable
             catch (HttpRequestException) when (++transportFailures < MaxTransportAttempts)
             {
                 Observe(new CloudTranscriptionEvent(provider, checked((int)attempt), null, stage));
-                var decision = HyperwhisperCoreMethods.NextRetry(attempt, 503, string.Empty, null);
+                var decision = HyperwhisperCoreMethods.NextRetryWithinBudget(
+                    attempt,
+                    503,
+                    string.Empty,
+                    null,
+                    sleptMs,
+                    _retryBudgetMs);
                 if (decision is not RetryDecision.Retry retry)
                 {
                     throw;
                 }
+                sleptMs += retry.@delayMs;
                 await _delay.DelayAsync(TimeSpan.FromMilliseconds(retry.@delayMs), cancellationToken).ConfigureAwait(false);
             }
         }
@@ -520,6 +650,7 @@ public sealed class CloudTranscriptionService : IDisposable
         // takes the audio inline, so there is no upload/poll dance.
         CloudTranscriptionProvider.GeminiTranscribe => HyperwhisperCoreMethods.GeminiTranscribeBuildTranscribeRequest(parameters),
         CloudTranscriptionProvider.HyperWhisperCloud => HyperwhisperCoreMethods.HyperwhisperCloudBuildTranscribeRequest(parameters),
+        CloudTranscriptionProvider.Meta => HyperwhisperCoreMethods.MetaBuildTranscribeRequest(parameters),
         _ => throw new ArgumentOutOfRangeException(nameof(provider)),
     };
 
@@ -535,6 +666,7 @@ public sealed class CloudTranscriptionService : IDisposable
         CloudTranscriptionProvider.GoogleChirp => HyperwhisperCoreMethods.GoogleChirpParseTranscribeResponse(response),
         CloudTranscriptionProvider.GeminiTranscribe => HyperwhisperCoreMethods.GeminiTranscribeParseTranscribeResponse(response),
         CloudTranscriptionProvider.HyperWhisperCloud => HyperwhisperCoreMethods.HyperwhisperCloudParseTranscribeResponse(response),
+        CloudTranscriptionProvider.Meta => HyperwhisperCoreMethods.MetaParseTranscribeResponse(response),
         _ => throw new ArgumentOutOfRangeException(nameof(provider)),
     };
 

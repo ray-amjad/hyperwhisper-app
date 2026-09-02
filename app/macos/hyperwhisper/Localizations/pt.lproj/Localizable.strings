@@ -9,6 +9,8 @@
   This file contains all user-facing text that needs to be translated.
 */
 
+"transcription.error.forbidden.hyperWhisperCloud" = "HyperWhisper Cloud recusou este pedido. A sua rede está temporariamente bloqueada.\n\nAguarde alguns minutos e tente novamente.";
+
 // MARK: - Application Navigation
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
@@ -420,10 +422,6 @@
 "license.button.activate" = "Ativar";
 "license.button.activating" = "Ativando...";
 "license.status.label" = "Status: %@";
-"license.status.trial.title" = "Julgamento";
-"license.status.active.title" = "Ativo";
-"license.status.expired.title" = "Expirado";
-"license.status.invalid.title" = "Inválido";
 "license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "Licenciado – Acesso Completo";
 "license.status.expired.description" = "Licença Expirada";
@@ -926,6 +924,7 @@ Atualize esses modos para usar um modelo diferente antes de excluir.";
 "transcription.error.maxRetriesExceeded" = "Número máximo de tentativas excedido";
 "transcription.error.unauthorized.provider" = "Não autorizado: chave de API %@ inválida ou permissões insuficientes.\n\nAbra Configurações → Chaves de API para verificar suas credenciais.";
 "transcription.error.unauthorized.generic" = "Não autorizado: chave de API inválida ou permissões insuficientes.\n\nAbra Configurações → Chaves de API para verificar suas credenciais.";
+"transcription.error.unauthorized.hyperWhisperCloud" = "A chave de acesso do HyperWhisper Cloud é inválida ou expirou.\n\nAbra Configurações → HyperWhisper Cloud para atualizar sua chave.";
 "transcription.error.cloudAccountRequired" = "O HyperWhisper Cloud requer uma chave de conta.\n\nAbra Configurações → HyperWhisper Cloud para inserir sua chave ou obter créditos.";
 "transcription.error.invalidRequest" = "Solicitação inválida: verifique arquivo de áudio ou configurações";
 "transcription.error.streamingInterrupted" = "Streaming interrompido; texto parcial mostrado";
@@ -1052,7 +1051,6 @@ Atualize esses modos para usar um modelo diferente antes de excluir.";
 "settings.backup.import.confirm.button" = "Importar";
 "settings.backup.conflict.skip" = "Pular existentes";
 "settings.backup.conflict.replace" = "Substituir existentes";
-"settings.backup.conflict.keepBoth" = "Manter ambos";
 "settings.backup.security.warning" = "Aviso: O arquivo exportado conterá dados confidenciais. Mantenha-o seguro e não o compartilhe.";
 "settings.backup.info.note" = "Backups incluem configurações, modos e vocabulário. Gravações e transcrições não são incluídas.";
 "settings.backup.result.success.title" = "Sucesso";
@@ -1087,9 +1085,6 @@ Atualize esses modos para usar um modelo diferente antes de excluir.";
 "transcribe.file.error.video.noAudio" = "Este arquivo de vídeo não contém uma trilha de áudio. Selecione um vídeo com áudio ou um arquivo de áudio.";
 
 // MARK: - File Transcription Progress
-"file.transcription.preparing" = "Preparando...";
-"file.transcription.transcribing" = "Transcrevendo...";
-"file.transcription.finishing" = "Finalizando...";
 "file.transcription.cancel" = "Cancelar";
 
 // MARK: - Auto-Delete Recordings

@@ -11,15 +11,6 @@ extension TranscriptionPipeline {
 
     // MARK: - Configuration
 
-    /// Store the OpenAI API key and update provider configuration.
-    func setAPIKey(_ key: String) {
-        openAIAPIKey = key
-        providerCoordinator.setupCloudProvider(with: key)
-        useOpenAITranscription = !key.isEmpty
-
-        AppLogger.network.info("API Key updated - Length: \(key.count, privacy: .public), OpenAI enabled: \(self.useOpenAITranscription, privacy: .public)")
-    }
-
     /// Refresh API configuration (call when settings change).
     func refreshConfiguration() {
         providerCoordinator.refreshConfiguration(openAIAPIKey: openAIAPIKey)

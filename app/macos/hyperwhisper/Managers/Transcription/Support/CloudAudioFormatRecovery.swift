@@ -58,19 +58,48 @@ enum CloudAudioFormatRecovery {
     /// oversized WAV would come back as a 413 rather than a 415 — which is why
     /// the size check has to happen before the retry, not after it.
     static let maxReencodedUploadBytes: Int64 = 300 * 1024 * 1024
+    static let metaMuseMaxReencodedUploadBytes: Int64 = 32 * 1024 * 1024
+
+    /// True for both ways Muse can be selected. The direct target must never be
+    /// inferred from a stale cloud tier on another BYOK provider.
+    static func isMuseTransportTarget(cloudProvider: String?, accuracyTier: String?) -> Bool {
+        let provider = CloudProvider.parse(cloudProvider) ?? .hyperwhisper
+        if provider == .meta { return true }
+        return provider == .hyperwhisper
+            && CloudAccuracyTier.fromStorageValue(accuracyTier) == .metaMuse
+    }
+
+    /// Normalize a direct Muse artifact before building its Rust request. A
+    /// canonical WAV passes through without a copy. An app-owned temporary WAV
+    /// is deleted on success, error, or cancellation.
+    static func withMuseTransportNormalization<T>(
+        sourceURL: URL,
+        isCanonicalMuseWAV: (URL) -> Bool,
+        reencode: (URL, URL) async throws -> Void,
+        makeTempURL: () -> URL = { makeTemporaryWAVURL() },
+        removeItem: (URL) -> Void = { deleteFile(at: $0) },
+        send: (URL) async throws -> T
+    ) async throws -> T {
+        if isCanonicalMuseWAV(sourceURL) {
+            return try await send(sourceURL)
+        }
+        let temporaryURL = makeTempURL()
+        defer { removeItem(temporaryURL) }
+        try Task.checkCancellation()
+        try await reencode(sourceURL, temporaryURL)
+        try Task.checkCancellation()
+        return try await send(temporaryURL)
+    }
 
     /// HTTP status the backend uses for "this upstream cannot read that format".
     private static let unsupportedMediaTypeStatus = 415
 
     // MARK: - Eligibility
 
-    /// True when `error` is the backend's typed "unsupported audio format" 415
-    /// AND the file we sent was not already a WAV.
+    /// True when `error` is the backend's typed "unsupported audio format" 415.
     ///
-    /// The already-WAV guard does double duty: it skips a pointless re-encode,
-    /// and it makes a retry loop structurally impossible — the retry always
-    /// uploads a `.wav`, so a second 415 can never be eligible again even if a
-    /// caller nested this helper by mistake.
+    /// A WAV can still be noncanonical (stereo, 48 kHz, or non-PCM), so it must
+    /// be eligible. The helper itself sends at most one retry.
     static func shouldReencodeToWAV(after error: Error, sourceURL: URL) -> Bool {
         guard let transcriptionError = error as? TranscriptionError else {
             return false
@@ -79,7 +108,7 @@ enum CloudAudioFormatRecovery {
               statusCode == unsupportedMediaTypeStatus else {
             return false
         }
-        return sourceURL.pathExtension.lowercased() != "wav"
+        return true
     }
 
     // MARK: - Recovery
@@ -112,6 +141,7 @@ enum CloudAudioFormatRecovery {
     ///   so a silent stop must not surface as an unsupported-format toast.
     static func withUnsupportedFormatRecovery<T>(
         sourceURL: URL,
+        maximumReencodedBytes: Int64 = CloudAudioFormatRecovery.maxReencodedUploadBytes,
         reencode: (URL, URL) async throws -> Void,
         makeTempURL: () -> URL = { CloudAudioFormatRecovery.makeTemporaryWAVURL() },
         fileSize: (URL) -> Int64? = { CloudAudioFormatRecovery.fileSizeInBytes(of: $0) },
@@ -185,14 +215,14 @@ enum CloudAudioFormatRecovery {
             throw originalError
         }
 
-        guard reencodedBytes <= maxReencodedUploadBytes else {
+        guard reencodedBytes <= maximumReencodedBytes else {
             // Cancellation outranks the size verdict: a user who stopped the
             // transcription must not be told the audio was too large.
             try Task.checkCancellation()
             // Uploading this would earn a 413 instead of the 415, which is a
             // worse error for the same underlying problem. Keep the 415.
             AppLogger.network.warning(
-                "Cloud audio WAV re-encode exceeds the upload cap · bytes=\(reencodedBytes, privacy: .public) · capBytes=\(Self.maxReencodedUploadBytes, privacy: .public) · preserving the original 415"
+                "Cloud audio WAV re-encode exceeds the upload cap · bytes=\(reencodedBytes, privacy: .public) · capBytes=\(maximumReencodedBytes, privacy: .public) · preserving the original 415"
             )
             recordOutcome(
                 sourceExtension: sourceExtension,

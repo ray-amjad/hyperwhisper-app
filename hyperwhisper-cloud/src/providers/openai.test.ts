@@ -41,6 +41,25 @@ function captureRequest(body: unknown, init?: ResponseInit) {
   return captured;
 }
 
+/**
+ * Swaps `console.log` for the duration of `run` and returns the details object of
+ * the `provider.no_speech` event it logged. Same swap-the-global idiom as
+ * `utils.test.ts` — no spy library is used anywhere in this suite.
+ */
+async function captureNoSpeechEvent(run: () => Promise<unknown>): Promise<Record<string, unknown>> {
+  const logged: unknown[][] = [];
+  const originalLog = console.log;
+  console.log = ((...args: unknown[]) => { logged.push(args); }) as typeof console.log;
+  try {
+    await run();
+  } finally {
+    console.log = originalLog;
+  }
+  const event = logged.find((args) => args[0] === 'provider.no_speech');
+  if (!event) throw new Error('no provider.no_speech event was logged');
+  return event[1] as Record<string, unknown>;
+}
+
 function errorResponse(status: number, text = 'upstream said no') {
   let called = false;
   globalThis.fetch = mock(async () => {
@@ -320,5 +339,22 @@ describe('transcribeWithOpenAI — transcript, duration and billing', () => {
       expect(result.costUsd).toBe(0);
       expect(result.language).toBe('en');
     }
+  });
+
+  test('the no_speech log event never records the gpt-4o byte estimate as the upstream duration', async () => {
+    // gpt-4o returns no `duration`, so this adapter's `durationSeconds` is
+    // already our own 120 s byte estimate by the time the empty check runs.
+    captureRequest({ text: '', language: 'en' });
+    const estimated = await captureNoSpeechEvent(() => transcribeWithOpenAI(
+      audio(BYTES_FOR_120_SECONDS), 'audio/wav', undefined, undefined, { model: 'gpt-4o-transcribe' },
+    ));
+    expect(estimated.upstreamDurationSeconds).toBeNull();
+    expect(estimated.upstreamDurationSeconds).not.toBe(120);
+
+    captureRequest({ text: '', language: 'en', duration: 42 });
+    const reported = await captureNoSpeechEvent(
+      () => transcribeWithOpenAI(audio(BYTES_FOR_120_SECONDS), 'audio/wav'),
+    );
+    expect(reported.upstreamDurationSeconds).toBe(42);
   });
 });

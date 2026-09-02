@@ -11,6 +11,7 @@ export type TranscriptionSource =
   | 'assemblyai'
   | 'mistral'
   | 'soniox'
+  | 'meta'
   | 'no_speech';
 
 export interface TranscriptionResult {
@@ -42,6 +43,37 @@ export interface ProviderRequestContext {
    * single-model providers (grok) ignore it.
    */
   model?: string;
+  /**
+   * A capability the transcribe route GRANTS for this one attempt, never
+   * something an adapter works out for itself: "if you get a 200 with no
+   * transcript for audio the upstream says it processed, you may refuse it —
+   * this request can still end as the benign 200 `no_speech` it would have been
+   * before the failover existed."
+   *
+   * The route sets it only when all three of these hold:
+   *
+   *   1. This attempt is the provider the CALLER CHOSE. A sibling already
+   *      covering for a failed primary does not get to refuse in turn and push
+   *      the request onto a third provider.
+   *   2. This request's chain — after geo filtering, which is applied to every
+   *      request and not only to a blocked chosen provider — still has a provider
+   *      after this one that this region can actually reach.
+   *   3. No refusal has been spent yet on this request.
+   *
+   * The bound on the recovery is enforced separately and in the currency the spec
+   * priced: ONE extra attempt that reaches the wire. A sibling that throws before
+   * any fetch (no API key, a size cap, a content-type gate) costs nothing and does
+   * not consume it.
+   *
+   * Adapters must NOT re-derive this from `attempt`. `attempt === 1` means
+   * "first entry of this request's chain", which is not the same claim: a
+   * geo-degraded chain can filter down to a single provider, and its one and
+   * only attempt is still attempt 1. The chain is authored in exactly one place
+   * (`lib/stt-models.ts`) and read in exactly one place (the route) — see
+   * `hyperwhisper-cloud/CLAUDE.md`, "Never re-derive either in a caller".
+   * (issue ray-amjad/hyperwhisper-app#381)
+   */
+  mayRefuseEmptyTranscript?: boolean;
   /**
    * Optional transcription domain add-on. Currently only 'medical', which
    * AssemblyAI layers on a base model via `domain: "medical-v1"` (a metered
@@ -87,6 +119,49 @@ export class ProviderUnavailableError extends Error {
     this.kind = opts.kind ?? 'unknown';
     this.status = opts.status;
     this.elapsedMs = opts.elapsedMs;
+  }
+}
+
+/**
+ * A covered adapter got a 200 with no transcript, while the upstream's own
+ * response said it had processed audio. Worth one sibling call — but it is NOT
+ * a provider fault, and that distinction is the whole point of the class.
+ *
+ * Before the failover existed the same request was a benign 200 `no_speech`:
+ * 0 credits, `no_speech_detected: true`. It must still be able to end that way,
+ * so the refusal carries the exact result the adapter WOULD have returned. The
+ * route holds it as the request's floor: if no sibling produces text — because
+ * one is rate-limited, or has no API key configured, or rejects the audio — the
+ * response is this result, not a 429/500/502 the user never used to get.
+ *
+ * It extends ProviderUnavailableError so every existing route behaviour is
+ * untouched by construction: the chain continues, `attemptFailures` records it,
+ * and the /latency row stays `ok: false` / `bad_response` (the spec's decided
+ * boundary). Only the route may authorise it, via
+ * `ProviderRequestContext.mayRefuseEmptyTranscript`.
+ * (issue ray-amjad/hyperwhisper-app#381)
+ */
+export class EmptyTranscriptError extends ProviderUnavailableError {
+  /** The `no_speech` result the adapter would have returned — the request's floor. */
+  readonly noSpeechResult: TranscriptionResult;
+  /** The upstream's own reported audio length, for the log and the operator. */
+  readonly upstreamDurationSeconds: number;
+
+  constructor(
+    provider: string,
+    opts: {
+      upstreamDurationSeconds: number;
+      elapsedMs: number;
+      noSpeechResult: TranscriptionResult;
+    },
+  ) {
+    super(provider, `empty transcript for ${opts.upstreamDurationSeconds}s of audio`, {
+      kind: 'bad_response',
+      elapsedMs: opts.elapsedMs,
+    });
+    this.name = 'EmptyTranscriptError';
+    this.noSpeechResult = opts.noSpeechResult;
+    this.upstreamDurationSeconds = opts.upstreamDurationSeconds;
   }
 }
 

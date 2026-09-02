@@ -23,6 +23,15 @@ protocol StreamingClientProtocol: AnyObject {
     /// Fires on unrecoverable errors. The session is already torn down.
     var onError: ((Error) -> Void)? { get set }
 
+    /// Fires when the remote service supplies a definitive provider-down
+    /// signal. This can fire before retries finish and does not imply teardown.
+    /// Local clients never fire it.
+    var onDefinitiveProviderFailure: ((Error) -> Void)? { get set }
+
+    /// Fires after useful provider work. Remote clients use it to clear an
+    /// earlier failure verdict. Local clients never fire it.
+    var onProviderSuccess: (() -> Void)? { get set }
+
     /// Connection/streaming state transitions for UI feedback.
     var onConnectionStateChange: ((StreamingConnectionState) -> Void)? { get set }
 

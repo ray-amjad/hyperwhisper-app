@@ -499,6 +499,11 @@ class SettingsManager: ObservableObject {
         set { apiKeys.geminiTranscribeAPIKey = newValue }
     }
 
+    var metaAPIKey: String {
+        get { apiKeys.metaAPIKey }
+        set { apiKeys.metaAPIKey = newValue }
+    }
+
     var useOpenAITranscription: Bool {
         get { apiKeys.useOpenAITranscription }
         set { apiKeys.useOpenAITranscription = newValue }

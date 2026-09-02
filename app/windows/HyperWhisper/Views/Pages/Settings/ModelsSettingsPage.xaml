@@ -399,10 +399,18 @@
                                                     Background="{DynamicResource InputBackgroundBrush}"
                                                     Margin="0,0,10,0"
                                                     VerticalAlignment="Center">
-                                                <Image Source="{Binding ProviderAssetPath}"
-                                                       Width="22" Height="22"
-                                                       HorizontalAlignment="Center"
-                                                       VerticalAlignment="Center"/>
+                                                <Grid>
+                                                    <Image Source="{Binding ProviderAssetPath}"
+                                                           Width="22" Height="22"
+                                                           Visibility="{Binding ProviderAssetVisibility}"
+                                                           HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center"/>
+                                                    <TextBlock Text="M" FontWeight="Bold" FontSize="16"
+                                                               Foreground="#1877F2"
+                                                               Visibility="{Binding ProviderMonogramVisibility}"
+                                                               HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center"/>
+                                                </Grid>
                                             </Border>
                                             <StackPanel Grid.Column="1" MinWidth="0" VerticalAlignment="Center">
                                                 <StackPanel Orientation="Horizontal">

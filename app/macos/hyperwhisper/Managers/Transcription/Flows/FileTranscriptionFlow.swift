@@ -389,6 +389,22 @@ class FileTranscriptionFlow {
             let finalAudioURL = vadResult.finalAudioURL
             let trimResult = vadResult.trimResult
 
+            // Validate the artifact that will actually be uploaded. A long
+            // source may become valid after VAD, while a stale cloud tier on a
+            // BYOK mode must not apply another provider's limits.
+            let uploadDuration = try await getAudioDuration(finalAudioURL)
+            if let constraint = CloudSTTCatalog.shared.uploadDurationConstraint(
+                model: mode.model,
+                cloudProvider: mode.cloudProvider,
+                accuracyTier: mode.cloudAccuracyTier
+            ), constraint.isExceeded(by: uploadDuration) {
+                throw FileTranscriptionError.durationTooLong(
+                    duration: uploadDuration,
+                    limit: constraint.maximumSeconds,
+                    providerName: constraint.providerName
+                )
+            }
+
             // Check for cancellation
             guard !progressState.isCancelled else { throw CancellationError() }
 
@@ -434,7 +450,8 @@ class FileTranscriptionFlow {
                 audioURL: finalAudioURL,
                 mode: mode,
                 recordingSession: nil,
-                applicationContext: nil
+                applicationContext: nil,
+                audioDurationSeconds: uploadDuration
             )
 
             // Check for cancellation after transcription
@@ -534,7 +551,12 @@ class FileTranscriptionFlow {
                 return
             }
 
-            let limit = provider.maxFileSizeBytes
+            // Muse's 32 MiB limit applies to the normalized WAV. Permit a
+            // bounded source container here, then MetaMuseProvider re-stats the
+            // final canonical artifact immediately before request construction.
+            let limit = provider == .meta
+                ? MetaMuseProvider.maxSourceBytes
+                : provider.maxFileSizeBytes
             if fileSize > limit {
                 throw FileTranscriptionError.fileTooLarge(
                     fileSize: fileSize,
@@ -737,6 +759,12 @@ class FileTranscriptionFlow {
                 )
             )
 
+        case .durationTooLong(_, let limit, let providerName):
+            showErrorAlert(
+                title: "transcribe.file.error.title".localized,
+                message: "\(providerName) supports audio up to \(Int(limit / 60)) minutes."
+            )
+
         case .cannotReadFile:
             showErrorAlert(
                 title: "transcribe.file.error.title".localized,
@@ -891,6 +919,9 @@ enum FileTranscriptionError: Error, LocalizedError {
     ///   - supportedFormats: List of formats the provider accepts
     case unsupportedFormat(format: String, providerName: String, supportedFormats: [String])
 
+    /// Known duration exceeds the selected provider's hard limit.
+    case durationTooLong(duration: TimeInterval, limit: TimeInterval, providerName: String)
+
     /// Cannot read or access the selected file
     case cannotReadFile
 
@@ -908,6 +939,8 @@ enum FileTranscriptionError: Error, LocalizedError {
             return "File exceeds \(providerName) size limit"
         case .unsupportedFormat(let format, let providerName, _):
             return "\(providerName) does not support .\(format) files"
+        case .durationTooLong(_, _, let providerName):
+            return "File exceeds \(providerName) duration limit"
         case .cannotReadFile:
             return "Cannot read file"
         case .copyFailed:

@@ -270,13 +270,6 @@ class CustomPostProcessingManager: ObservableObject {
         KeychainManager.shared.getCustomEndpointAPIKey(for: id)
     }
 
-    /// Check if an endpoint has an API key configured
-    /// - Parameter id: ID of the endpoint
-    /// - Returns: true if API key is configured
-    func hasAPIKey(for id: UUID) -> Bool {
-        KeychainManager.shared.hasCustomEndpointAPIKey(for: id)
-    }
-
     // MARK: - Public API - Testing
 
     /// Test a custom endpoint with a simple "Hello World" request

@@ -56,7 +56,6 @@ public sealed class CloudAccountViewModel : ViewModelBase
     public bool HasCustomerId => !string.IsNullOrEmpty(CustomerId);
     public bool HasExpiry => !string.IsNullOrEmpty(ExpiresAt);
     public bool HasCredits => !string.IsNullOrEmpty(Credits);
-    public Uri PurchaseUrl => CloudAccountLinks.Purchase;
     public UiStatus Status { get; } = new();
     public ICommand ActivateCommand { get; }
     public ICommand RefreshStatusCommand { get; }

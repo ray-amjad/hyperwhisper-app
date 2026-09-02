@@ -219,6 +219,14 @@ Set the timeout of your own HTTP client higher than its default value. Many clie
 
 The [OpenAPI reference](/api-reference/local-api/openapi.yaml) gives the full request and response schemas.
 
+### Mode write rules
+
+`POST /modes` and `PATCH /modes/{id}` reject an empty mode name and a case-insensitive duplicate. Windows trims whitespace at the start and end of the name. macOS also normalizes Unicode and trims invisible-only characters from the boundaries. A macOS name must contain at least one visible base character.
+
+On macOS, `postProcessingMode` must be `0`, `1`, or `2` on create and patch. A PATCH `sortOrder` must be from `-32768` to `32767`. macOS ignores `sortOrder` on create and assigns the next stored order. An invalid value returns `ok: false` with `INVALID_REQUEST` and does not change the mode.
+
+For a macOS PATCH, an omitted field stays unchanged. An explicit JSON `null` clears these string fields: `customInstructions`, `userSystemPrompt`, `languageModel`, `cloudTranscriptionModel`, `cloudTranscriptionDomain`, `cloudProvider`, `postProcessingProvider`, `englishSpelling`, `cloudAccuracyTier`, `geminiCustomPrompt`, and `cloudPostProcessingModel`. Windows treats `null` like an omitted value for these PATCH fields.
+
 <Note>
   The two platforms are different in three ways. On macOS, `GET /models` accepts the `?kind=` and `?installed_only=` query parameters to filter the catalog. Windows ignores these parameters and always returns the full catalog.
 
@@ -226,6 +234,8 @@ The [OpenAPI reference](/api-reference/local-api/openapi.yaml) gives the full re
 
   Windows accepts and returns five more mode fields than macOS: `localEngine`, `localParakeetModel`, `localPostProcessingModel`, `customVocabulary`, and `providerType`. These fields hold the Windows settings that have no macOS equivalent. macOS ignores these keys when you send them, and never returns them.
 </Note>
+
+The `providers` array includes `key_present`, `reachable`, and `status`. A Meta key reports `status: "configured"` and `reachable: false`. Meta has no safe empty request for key validation. A transcription validates the key for that request, but the health endpoint stays conservative. macOS and Windows use the same status.
 
 ## Next steps
 

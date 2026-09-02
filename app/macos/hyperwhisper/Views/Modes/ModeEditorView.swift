@@ -78,6 +78,10 @@ struct ModeEditorView: View {
     @State private var enableScreenOCR: Bool
     @State private var geminiCustomPrompt: String
 
+    private var normalizedName: String? {
+        ModeNamePolicy.normalized(name)
+    }
+
     // MARK: - Source-toggle memory
     //
     // The 3-way transcription Source toggle re-derives the persisted
@@ -310,9 +314,13 @@ struct ModeEditorView: View {
             if provider == .microsoftAzureSpeech || provider == .googleSpeech {
                 return false
             }
+            // Meta follows the shared cross-platform BYOK rollout gate.
+            if provider == .meta && !CloudTranscriptionModels.isMetaBYOKCatalogEnabled {
+                return false
+            }
             if !provider.requiresAPIKey { return true }
             if provider == current { return true }
-            return cloudHealth.status(for: provider) == .healthy
+            return cloudHealth.status(for: provider).isHealthy
         }
     }
 
@@ -403,7 +411,7 @@ struct ModeEditorView: View {
     private var currentProviderNeedsAttention: Bool {
         let provider = currentCloudProvider
         guard provider.requiresAPIKey else { return false }
-        return cloudHealth.status(for: provider) != .healthy
+        return !cloudHealth.status(for: provider).isHealthy
     }
 
     private var cloudTranscriptionModelsForPicker: [CloudTranscriptionModel] {
@@ -1302,7 +1310,7 @@ struct ModeEditorView: View {
                 let finalLanguage = isEnglishOnlyModel(provider: provider, model: chosenModel) ? "en" : language
                 let modeData = ModeData(
                     id: configuration.mode?.id ?? UUID(),
-                    name: name,
+                    name: normalizedName ?? name,
                     preset: preset,
                     language: finalLanguage,
                     model: chosenModel,
@@ -1336,7 +1344,7 @@ struct ModeEditorView: View {
             .keyboardShortcut(.defaultAction)
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
-            .disabled(name.isEmpty || (provider == .local && availableModelIds.isEmpty))
+            .disabled(normalizedName == nil || (provider == .local && availableModelIds.isEmpty))
         }
         .padding(20)
         .background(Color(NSColor.controlBackgroundColor))

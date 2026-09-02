@@ -138,10 +138,26 @@ public sealed class TranscriptionWorkflowViewModel : ViewModelBase, IDisposable
                 {
                     var cloud = string.Equals(
                         request.SelectedMode?.ProviderType, "cloud", StringComparison.OrdinalIgnoreCase);
-                    imported = cloud
+                    imported = cloud && preflight?.RequiresNormalization != true
                         ? await _audioImport.ImportOriginalAsync(
                             path, preflight?.Constraints?.MaximumBytes ?? long.MaxValue, progress, import.Token)
                         : await _audioImport.ImportAsync(path, progress, import.Token);
+                }
+                if (imported?.IsSuccess == true && preflight?.RequiresNormalization == true
+                    && _filePreflight is not null)
+                {
+                    var target = CreateFileTarget(request.SelectedMode);
+                    var normalizedPath = imported.Value!;
+                    var normalized = target is null ? null
+                        : await _filePreflight.ValidateAsync(normalizedPath, target, import.Token);
+                    if (normalized?.IsSuccess != true || normalized.RequiresNormalization)
+                    {
+                        try { File.Delete(normalizedPath); }
+                        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException) { }
+                        imported = PlatformResult<string>.Failure(
+                            normalized?.Failure?.Code ?? "audio_normalization.invalid_output",
+                            normalized?.Failure?.Message ?? "The normalized audio file was invalid.");
+                    }
                 }
             }
             catch (OperationCanceledException) when (import.IsCancellationRequested)
@@ -206,13 +222,14 @@ public sealed class TranscriptionWorkflowViewModel : ViewModelBase, IDisposable
             "microsoftazurespeech" or "azure-mai" => CloudTranscriptionProvider.AzureMai,
             "googlespeech" or "google-chirp" => CloudTranscriptionProvider.GoogleChirp,
             "hyperwhisper" => CloudTranscriptionProvider.HyperWhisperCloud,
+            "meta" => CloudTranscriptionProvider.Meta,
             _ => default,
         };
         return value?.Trim().ToLowerInvariant() is
             "openai" or "groq" or "elevenlabs" or "mistral" or "grok" or "deepgram"
             or "assemblyai" or "soniox" or "gemini" or "geminitranscribe"
             or "gemini-transcribe" or "microsoftazurespeech" or "azure-mai"
-            or "googlespeech" or "google-chirp" or "hyperwhisper";
+            or "googlespeech" or "google-chirp" or "hyperwhisper" or "meta";
     }
 
     public void ReportInputFailure(string code, string message)

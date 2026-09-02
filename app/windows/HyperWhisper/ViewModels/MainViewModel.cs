@@ -17,6 +17,7 @@ using System.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using HyperWhisper.Data.Entities;
+using HyperWhisper.FileTranscription;
 using HyperWhisper.Models;
 using HyperWhisper.Localization;
 using HyperWhisper.Services;
@@ -2699,15 +2700,39 @@ public partial class MainViewModel : ViewModelBase
             return;
         }
 
-        // STEP 2: Check file size per provider
+        var requiresMuseNormalization = mode.ProviderType?.Equals("cloud", StringComparison.OrdinalIgnoreCase) == true
+            && ((string.Equals(mode.CloudProvider, "hyperwhisper", StringComparison.OrdinalIgnoreCase)
+                 && string.Equals(mode.CloudAccuracyTier, "metaMuse", StringComparison.OrdinalIgnoreCase))
+                || string.Equals(mode.CloudProvider, "meta", StringComparison.OrdinalIgnoreCase));
+
+        // STEP 2: Check file size per provider. Muse validates the normalized
+        // artifact, because a larger compressed source can become a <=32 MB WAV.
         var fileInfo = new FileInfo(filePath);
         var maxSize = GetMaxFileSizeForProvider(mode);
-        if (fileInfo.Length > maxSize)
+        if (!requiresMuseNormalization && fileInfo.Length > maxSize)
         {
             ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
                 Loc.S("errors.fileTooLarge", ByteSizeFormatter.FormatDecimal(maxSize)),
                 showSettingsButton: false));
             return;
+        }
+
+        if (requiresMuseNormalization)
+        {
+            if (ExceedsMuseSourceLimit(fileInfo.Length))
+            {
+                ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
+                    Loc.S("errors.fileTooLarge", ByteSizeFormatter.FormatDecimal(MetaMuseAudioContract.MaximumSourceBytes)),
+                    showSettingsButton: false));
+                return;
+            }
+            var sourceDuration = FileTranscriptionService.GetAudioDuration(filePath);
+            if (sourceDuration.IsSuccess && sourceDuration.Value > 10 * 60)
+            {
+                ShowErrorToastRequested?.Invoke(this, new ErrorToastEventArgs(
+                    "Meta Muse supports audio up to 10 minutes.", showSettingsButton: false));
+                return;
+            }
         }
 
         if (!await EnsureLocalProviderReadyForFileAsync(mode))
@@ -2736,6 +2761,7 @@ public partial class MainViewModel : ViewModelBase
         Transcript? transcript = null;
         string? permanentPath = null;
         string? convertedTempPath = null;
+        bool ownsPathForTranscription = false;
         double duration = 0;
 
         try
@@ -2746,7 +2772,7 @@ public partial class MainViewModel : ViewModelBase
             UpdateFileProgressRequested?.Invoke(this, 0.05f);
             string pathForTranscription;
 
-            if (mode.ProviderType == "cloud")
+            if (mode.ProviderType == "cloud" && !requiresMuseNormalization)
             {
                 // Cloud providers accept mp3/m4a/wav natively — send original file as-is
                 pathForTranscription = filePath;
@@ -2763,10 +2789,19 @@ public partial class MainViewModel : ViewModelBase
                     throw new Exception(convertResult.Error);
                 }
                 pathForTranscription = convertResult.Value!;
-                convertedTempPath = convertResult.Value!;
-                LoggingService.Info($"TranscribeFileAsync: Local mode - converted to WAV: {pathForTranscription}");
+                ownsPathForTranscription = !string.Equals(
+                    Path.GetFullPath(pathForTranscription),
+                    Path.GetFullPath(filePath),
+                    StringComparison.OrdinalIgnoreCase);
+                convertedTempPath = ownsPathForTranscription ? pathForTranscription : null;
+                LoggingService.Info($"TranscribeFileAsync: Converted to canonical WAV: {pathForTranscription}");
             }
             transcriptionCts.Token.ThrowIfCancellationRequested();
+
+            if (requiresMuseNormalization && new FileInfo(pathForTranscription).Length > 32L * 1024 * 1024)
+            {
+                throw new InvalidOperationException("The normalized audio exceeds Meta Muse's 32 MB upload limit.");
+            }
 
             // STEP 5: Get duration
             UpdateFileProgressRequested?.Invoke(this, 0.10f);
@@ -2777,10 +2812,14 @@ public partial class MainViewModel : ViewModelBase
             }
             transcriptionCts.Token.ThrowIfCancellationRequested();
             duration = durationResult.Value;
+            if (requiresMuseNormalization && duration > 10 * 60)
+            {
+                throw new InvalidOperationException("Meta Muse supports audio up to 10 minutes.");
+            }
 
             // STEP 6: Save file to permanent location
             UpdateFileProgressRequested?.Invoke(this, 0.15f);
-            permanentPath = HistoryService.Instance.SaveAudioFile(pathForTranscription);
+            permanentPath = HistoryService.Instance.SaveAudioFile(pathForTranscription, ownsPathForTranscription);
             LoggingService.Info($"TranscribeFileAsync: Audio saved ({permanentPath}, {fileInfo.Length:N0} bytes, {duration:F2}s)");
 
             // STEP 7: Create processing transcript
@@ -2813,7 +2852,8 @@ public partial class MainViewModel : ViewModelBase
             transcript.PostProcessingProvider = result.PostProcessingProvider;
 
             // STORAGE: Optionally compress to M4A for space savings (local mode saves WAV)
-            if (_storageService.StoreAsM4A && convertedTempPath != null)
+            if (ShouldConvertImportedAudioToM4A(
+                    _storageService.StoreAsM4A, pathForTranscription, permanentPath))
             {
                 var compressedPath = _storageService.TryConvertWavToM4A(permanentPath);
                 if (!string.IsNullOrEmpty(compressedPath))
@@ -2945,6 +2985,19 @@ public partial class MainViewModel : ViewModelBase
             transcriptionCts.Dispose();
         }
     }
+
+    internal static bool ShouldConvertImportedAudioToM4A(
+        bool storeAsM4A, string pathForTranscription, string historyPath) =>
+        storeAsM4A
+        && string.Equals(
+            Path.GetExtension(pathForTranscription), ".wav", StringComparison.OrdinalIgnoreCase)
+        && !string.Equals(
+            Path.GetFullPath(pathForTranscription),
+            Path.GetFullPath(historyPath),
+            StringComparison.OrdinalIgnoreCase);
+
+    internal static bool ExceedsMuseSourceLimit(long sourceBytes) =>
+        sourceBytes > MetaMuseAudioContract.MaximumSourceBytes;
 
     private bool CanStartFileTranscription()
     {

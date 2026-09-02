@@ -9,6 +9,8 @@
   This file contains all user-facing text that needs to be translated.
 */
 
+"transcription.error.forbidden.hyperWhisperCloud" = "HyperWhisper Cloud atmetė šią užklausą. Jūsų tinklas laikinai užblokuotas.\n\nPalaukite kelias minutes ir bandykite dar kartą.";
+
 // MARK: - Application Navigation
 "app.title" = "HyperWhisper";
 "app.title.pro" = "HyperWhisper Pro";
@@ -420,10 +422,6 @@
 "license.button.activate" = "Suaktyvinti";
 "license.button.activating" = "Suaktyvinimas...";
 "license.status.label" = "Būsena: %@";
-"license.status.trial.title" = "Bandomoji";
-"license.status.active.title" = "Aktyvi";
-"license.status.expired.title" = "Baigėsi";
-"license.status.invalid.title" = "Neteisinga";
 "license.status.trial.description" = "Local transcription is free and unlimited.";
 "license.status.active.description" = "Licencijuota – Pilna prieiga";
 "license.status.expired.description" = "Licencija baigėsi";
@@ -926,6 +924,7 @@ Prieš trindami atnaujinkite šiuos režimus, kad naudotų kitą modelį.";
 "transcription.error.maxRetriesExceeded" = "Maksimalios pakartojimo bandymai viršyti";
 "transcription.error.unauthorized.provider" = "Neleistina: neteisinas %@ API raktas arba leidimai.\n\nAtidarkite nustatymai → API raktai, jei norite patikrinti savo duomenis.";
 "transcription.error.unauthorized.generic" = "Neleistina: neteisinas API raktas arba leidimai.\n\nAtidarkite nustatymai → API raktai, jei norite patikrinti savo duomenis.";
+"transcription.error.unauthorized.hyperWhisperCloud" = "„HyperWhisper Cloud“ prieigos raktas neteisingas arba jo galiojimas baigėsi.\n\nAtidarykite Nustatymai → HyperWhisper Cloud ir atnaujinkite raktą.";
 "transcription.error.cloudAccountRequired" = "HyperWhisper Cloud reikalauja paskyros rakto.\n\nAtidarykite Nustatymai → HyperWhisper Cloud, kad įvestumėte raktą arba įsigytumėte kreditų.";
 "transcription.error.invalidRequest" = "Neteisinga užklausa: patikrinkite audio failą arba nustatymus";
 "transcription.error.streamingInterrupted" = "Srautinis nutrūko; rodomas dalingas tekstas";
@@ -1052,7 +1051,6 @@ Prieš trindami atnaujinkite šiuos režimus, kad naudotų kitą modelį.";
 "settings.backup.import.confirm.button" = "Importuoti";
 "settings.backup.conflict.skip" = "Praleisti esančius";
 "settings.backup.conflict.replace" = "Pakeisti esančius";
-"settings.backup.conflict.keepBoth" = "Laikyti abu";
 "settings.backup.security.warning" = "Įspėjimas: eksportuoti failas apima jautrią informaciją. Išlaikykite jį saugiu ir nedaleikite.";
 "settings.backup.info.note" = "Atsarginės kopijos apima nustatymus, režimus ir žodyną. Įrašai ir transkriptsiniu neįtrauki.";
 "settings.backup.result.success.title" = "Sėkmė";
@@ -1087,9 +1085,6 @@ Prieš trindami atnaujinkite šiuos režimus, kad naudotų kitą modelį.";
 "transcribe.file.error.video.noAudio" = "Šiame vaizdo faile nėra audio takelio. Pasirinkite video su audio arba audio failą.";
 
 // MARK: - File Transcription Progress
-"file.transcription.preparing" = "Paruošiama...";
-"file.transcription.transcribing" = "Transkripcija...";
-"file.transcription.finishing" = "Baigimas...";
 "file.transcription.cancel" = "Atšaukti";
 
 // MARK: - Auto-Delete Recordings
