@@ -38,7 +38,7 @@
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="{loc:Loc onboarding.window.title}"
         Width="760" Height="624"
-        MinWidth="480" MinHeight="360"
+        MinWidth="480" MinHeight="320"
         WindowStartupLocation="CenterOwner"
         WindowStyle="None"
         ResizeMode="NoResize"

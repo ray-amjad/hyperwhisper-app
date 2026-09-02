@@ -8419,10 +8419,18 @@ internal static class Program
                 Assert(laptop200.Height <= (768 - 72) / 2.0 + 0.001,
                     $"200% must clamp the height; got {laptop200.Height}");
 
-                // The floor beats a nonsense work area rather than collapsing.
+                Assert(laptop200.Height < 624, "200% on a 768-tall screen has to clamp at all");
+
+                // The floor is a backstop against a nonsense work area, not a design
+                // minimum: it has to sit BELOW the smallest real one, which is the
+                // 200% case above. If a future floor rises past it, that case fails
+                // first - this only pins that the floor exists at all.
                 var absurd = OnboardingWindow.FitToWorkArea(10, 10);
-                Assert(absurd.Width >= 480 && absurd.Height >= 360,
+                Assert(absurd.Width >= 480 && absurd.Height >= 320,
                     $"the floor must win over an impossible work area, got {absurd.Width}x{absurd.Height}");
+                Assert(absurd.Height < (768 - 72) / 2.0,
+                    $"the floor ({absurd.Height}) is above the 200% work area, so it would push " +
+                    "the window off a 1366x768 laptop instead of protecting it");
             });
 
             Run("onboarding: the microphone step stops asking for speech when there is no device", () =>

@@ -44,7 +44,12 @@ public partial class OnboardingWindow : Window
     /// at 200% is still 512 x 260 DIP, which is the worst case that exists.
     /// </summary>
     private const double FloorWidth = 480;
-    private const double FloorHeight = 360;
+    // The floor is a backstop against an IMPOSSIBLE work area, not a design minimum,
+    // so it has to sit below every real one. 1366x768 at 200% - the smallest
+    // supported combination - is a 683x348 DIP work area, and a 360 floor would
+    // have won there and pushed the window 24 physical pixels off the screen.
+    // 44 caption + 56 footer leaves the scrolling stage 220 DIP at this size.
+    private const double FloorHeight = 320;
 
     private readonly OnboardingFlowViewModel _flow;
     private readonly Dictionary<OnboardingStep, Page> _pages = new();

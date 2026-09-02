@@ -92,7 +92,11 @@
     <Style x:Key="OnboardingQuietButtonStyle" TargetType="Button"
            BasedOn="{StaticResource OnboardingButtonStyle}">
         <Setter Property="Background" Value="Transparent"/>
-        <Setter Property="BorderThickness" Value="0"/>
+        <!-- A TRANSPARENT border, not a zero one. Clearing the thickness makes this
+             button 2px shorter than the two it sits beside, which is exactly the
+             "its height came from somewhere else" defect this section exists to
+             stop - measured, it rendered 29.29 against the others' 31.29. -->
+        <Setter Property="BorderBrush" Value="Transparent"/>
         <Setter Property="FontWeight" Value="Normal"/>
         <Setter Property="Foreground" Value="{DynamicResource TextTertiaryBrush}"/>
     </Style>
